@@ -58,6 +58,10 @@ jobs:
           distribution: temurin
           java-version: "21"
 
+      # Set up Gradle before Dolphin is checked out: its wrapper check scans the whole workspace,
+      # and Dolphin's third-party code (e.g. SDL's example project) has wrapper jars it doesn't know.
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Prepare Dolphin XD source
         run: scripts/prepare-dolphin.sh "$DOLPHIN_DIR"
 
@@ -76,8 +80,6 @@ jobs:
         with:
           key: dolphin-android-arm64-${{ hashFiles('dolphin-version.env') }}
           max-size: 2G
-
-      - uses: gradle/actions/setup-gradle@v4
 
       - name: Choose signing key
         env:

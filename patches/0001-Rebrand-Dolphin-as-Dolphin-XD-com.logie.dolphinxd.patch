@@ -8,17 +8,28 @@ Subject: [PATCH 1/2] Rebrand Dolphin as Dolphin XD (com.logie.dolphinxd)
 - Always keep user data in app-specific storage.
 - Version code/name, ABIs and ccache can be set from Gradle properties.
 ---
- Source/Android/app/build.gradle.kts           | 19 +++++---
+ Source/Android/app/build.gradle.kts           | 27 ++++++++---
  .../Android/app/src/main/AndroidManifest.xml  | 46 +++++++------------
  .../utils/DirectoryInitialization.kt          |  7 +--
  .../app/src/main/res/values/strings.xml       |  2 +-
- 4 files changed, 34 insertions(+), 40 deletions(-)
+ 4 files changed, 42 insertions(+), 40 deletions(-)
 
 diff --git a/Source/Android/app/build.gradle.kts b/Source/Android/app/build.gradle.kts
-index 2fc4cb7..6e8cdc4 100644
+index 2fc4cb7..f60d7d9 100644
 --- a/Source/Android/app/build.gradle.kts
 +++ b/Source/Android/app/build.gradle.kts
-@@ -36,13 +36,15 @@ android {
+@@ -5,6 +5,10 @@ plugins {
+     alias(libs.plugins.androidx.baselineprofile)
+ }
+ 
++// Phones only need arm64. Pass -PxdAbis=arm64-v8a,x86_64 for emulators/Chromebooks.
++val xdAbis = (project.findProperty("xdAbis")?.toString() ?: "arm64-v8a")
++    .split(",").map { it.trim() }
++
+ @Suppress("UnstableApiUsage")
+ android {
+     compileSdk = 37
+@@ -36,13 +40,21 @@ android {
      }
  
      defaultConfig {
@@ -31,13 +42,19 @@ index 2fc4cb7..6e8cdc4 100644
 +        // CI passes -PxdVersionCode/-PxdVersionName so every build can be installed over the last.
 +        versionCode = project.findProperty("xdVersionCode")?.toString()?.toInt()
 +            ?: getBuildVersionCode()
++
++        versionName = project.findProperty("xdVersionName")?.toString() ?: getGitVersion()
  
 -        versionName = getGitVersion()
-+        versionName = project.findProperty("xdVersionName")?.toString() ?: getGitVersion()
++        // Also keeps libraries' prebuilt 32-bit code out, so unsupported devices refuse to
++        // install the APK instead of crashing on launch.
++        ndk {
++            abiFilters += xdAbis
++        }
  
          buildConfigField("String", "GIT_HASH", "\"${getGitHash()}\"")
          buildConfigField("String", "BRANCH", "\"${getBranch()}\"")
-@@ -69,7 +71,7 @@ android {
+@@ -69,7 +81,7 @@ android {
                  signingConfig = signingConfigs.getByName("release")
              }
  
@@ -46,7 +63,7 @@ index 2fc4cb7..6e8cdc4 100644
              isMinifyEnabled = true
              isShrinkResources = true
              proguardFiles(
-@@ -81,7 +83,7 @@ android {
+@@ -81,7 +93,7 @@ android {
          // Signed by debug key disallowing distribution on Play Store.
          // Attaches "debug" suffix to version and package name, allowing installation alongside the release build.
          debug {
@@ -55,7 +72,7 @@ index 2fc4cb7..6e8cdc4 100644
              applicationIdSuffix = ".debug"
              versionNameSuffix = "-debug"
              isJniDebuggable = true
-@@ -105,7 +107,12 @@ android {
+@@ -105,7 +117,10 @@ android {
                      "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
                      // , "-DENABLE_GENERIC=ON"
                  )
@@ -63,9 +80,7 @@ index 2fc4cb7..6e8cdc4 100644
 +                if (project.hasProperty("xdCcache")) {
 +                    arguments("-DENABLE_CCACHE=ON")
 +                }
-+                // Phones only need arm64. Pass -PxdAbis=arm64-v8a,x86_64 for emulators/Chromebooks.
-+                val xdAbis = project.findProperty("xdAbis")?.toString() ?: "arm64-v8a"
-+                abiFilters(*xdAbis.split(",").map { it.trim() }.toTypedArray())
++                abiFilters(*xdAbis.toTypedArray())
  
                  // Uncomment the line below if you don't want to build the C++ unit tests
                  //targets("main", "hook_impl", "main_hook", "gsl_alloc_hook", "file_redirect_hook")
