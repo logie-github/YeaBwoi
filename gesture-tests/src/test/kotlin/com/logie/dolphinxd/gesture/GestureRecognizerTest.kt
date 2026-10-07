@@ -317,6 +317,29 @@ class GestureRecognizerTest {
     }
 
     @Test
+    fun staleTouchesAreReleasedWithoutLosingAPendingTap() {
+        // A hold whose up event never arrives...
+        down(0, 500f, 300f, 0)
+        move(0, 600f, 300f, 400)
+        assertEquals(setOf(PadButton.B), out.pressed)
+        // ...is dropped when a new first finger lands.
+        recognizer.dropStaleTouches()
+        assertTrue(out.pressed.isEmpty())
+        assertEquals(0f, out.stickX)
+
+        // A tap waiting for its double tap partner survives.
+        tap(1, 500f, 300f, 1000)
+        scheduler.advanceTo(1100)
+        recognizer.dropStaleTouches()
+        tap(2, 500f, 300f, 1150)
+        scheduler.advanceTo(2000)
+        assertEquals(
+            listOf("280 B down", "1210 START down", "1310 START up"),
+            out.buttonEvents().filter { !it.contains("B up") }
+        )
+    }
+
+    @Test
     fun rapidTapsAlternateStartAndA() {
         // Mashing: tap, tap (Start), tap (new single tap -> A)
         tap(0, 500f, 300f, 0)

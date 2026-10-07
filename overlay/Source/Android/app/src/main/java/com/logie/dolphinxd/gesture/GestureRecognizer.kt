@@ -235,6 +235,26 @@ class GestureRecognizer(
         }
     }
 
+    /**
+     * Forgets touches whose up event never arrived. Call when the first finger of a new gesture
+     * lands (no other finger can still be down then). Unlike [cancelAll], a tap waiting to become
+     * a double tap is kept.
+     */
+    fun dropStaleTouches() {
+        for (touch in touches.values) {
+            touch.holdTimer?.cancel()
+            if (touch.state == State.HOLD) {
+                touch.heldButton?.let { release(it) }
+            }
+        }
+        touches.clear()
+        twoFingerTimer?.cancel()
+        twoFingerTimer = null
+        if (stickOwner != null) {
+            centerStick()
+        }
+    }
+
     /** Drops every touch and releases every button, e.g. when the view loses its touch stream. */
     fun cancelAll() {
         for (touch in touches.values) {
