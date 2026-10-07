@@ -1,0 +1,427 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 23:27:09 +0000
+Subject: [PATCH 2/2] Replace the on-screen controller with gesture controls
+
+- The emulation screen hosts GestureInputView instead of InputOverlay.
+- Two-finger tap, tap and hold opens the in-game Dolphin menu.
+- The in-game menu gains "Gesture controls" and "Change game file" and
+  loses the overlay controls and Change Disc entries.
+- Show a menu gesture hint instead of the Back button hint.
+---
+ .../activities/EmulationActivity.kt           | 24 ++++++-
+ .../dolphinemu/fragments/EmulationFragment.kt | 68 +++++++------------
+ .../dolphinemu/fragments/MenuFragment.kt      | 11 ++-
+ .../res/layout-notouch/fragment_emulation.xml | 14 ----
+ .../fragment_emulation.xml                    | 14 ----
+ .../res/layout-port/fragment_emulation.xml    | 50 --------------
+ .../main/res/layout/fragment_emulation.xml    | 19 ++----
+ .../main/res/layout/fragment_ingame_menu.xml  | 10 +++
+ 8 files changed, 71 insertions(+), 139 deletions(-)
+ delete mode 100644 Source/Android/app/src/main/res/layout-notouch/fragment_emulation.xml
+ delete mode 100644 Source/Android/app/src/main/res/layout-port-notouch/fragment_emulation.xml
+ delete mode 100644 Source/Android/app/src/main/res/layout-port/fragment_emulation.xml
+
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+index 23ffe96..4b46a69 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+@@ -31,6 +31,8 @@ import androidx.fragment.app.FragmentManager
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import com.google.android.material.dialog.MaterialAlertDialogBuilder
+ import com.google.android.material.slider.Slider
++import com.logie.dolphinxd.XdConfig
++import com.logie.dolphinxd.XdUi
+ import org.dolphinemu.dolphinemu.NativeLibrary
+ import org.dolphinemu.dolphinemu.R
+ import org.dolphinemu.dolphinemu.databinding.ActivityEmulationBinding
+@@ -329,7 +331,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+     fun onTitleChanged() {
+         if (!menuToastShown) {
+             // The reason why this doesn't run earlier is because we want to be sure the boot succeeded.
+-            Toast.makeText(this, R.string.emulation_menu_help, Toast.LENGTH_LONG).show()
++            XdUi.showMenuHintIfNeeded(this)
+             menuToastShown = true
+         }
+ 
+@@ -403,6 +405,14 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+         )
+     }
+ 
++    /** Opens the in-game menu for Dolphin XD's two-finger gesture. Does nothing if it's open. */
++    fun openDolphinMenu() {
++        if (!menuVisible) {
++            emulationFragment?.releaseGestureInput()
++            toggleMenu()
++        }
++    }
++
+     private fun toggleMenu() {
+         if (!closeMenu()) {
+             // Removing the menu failed, so that means it wasn't visible. Add it.
+@@ -525,6 +535,12 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+             MENU_ACTION_SKYLANDERS -> showSkylanderPortalSettings()
+             MENU_ACTION_INFINITY_BASE -> showInfinityBaseSettings()
+             MENU_ACTION_EXIT -> emulationFragment!!.stopEmulation()
++            MENU_ACTION_XD_CONTROLS -> XdUi.showControls(this)
++            MENU_ACTION_XD_CHANGE_GAME -> XdUi.confirmChangeGame(this) {
++                // XdLauncherActivity shows the setup screen once this activity finishes.
++                XdConfig(this).reconfigureRequested = true
++                emulationFragment!!.stopEmulation()
++            }
+         }
+     }
+ 
+@@ -1084,6 +1100,8 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+         const val MENU_ACTION_SKYLANDERS = 36
+         const val MENU_ACTION_INFINITY_BASE = 37
+         const val MENU_ACTION_LATCHING_CONTROLS = 38
++        const val MENU_ACTION_XD_CONTROLS = 100
++        const val MENU_ACTION_XD_CHANGE_GAME = 101
+ 
+         init {
+             buttonsActionsMap.apply {
+@@ -1182,6 +1200,10 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+             ignoreLaunchRequests = false
+         }
+ 
++        /** True while a previous emulation session is still starting up or shutting down. */
++        @JvmStatic
++        fun isIgnoringLaunchRequests(): Boolean = ignoreLaunchRequests
++
+         private fun areCoordinatesOutside(view: View?, x: Float, y: Float): Boolean {
+             if (view == null)
+                 return true
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/EmulationFragment.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/EmulationFragment.kt
+index a005995..974a657 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/EmulationFragment.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/EmulationFragment.kt
+@@ -3,7 +3,6 @@
+ package org.dolphinemu.dolphinemu.fragments
+ 
+ import android.content.Context
+-import android.graphics.Rect
+ import android.os.Bundle
+ import android.view.LayoutInflater
+ import android.view.SurfaceHolder
+@@ -12,6 +11,7 @@ import android.view.ViewGroup
+ import android.widget.Toast
+ import androidx.fragment.app.Fragment
+ import androidx.lifecycle.lifecycleScope
++import com.logie.dolphinxd.GestureInputView
+ import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.flow.launchIn
+ import kotlinx.coroutines.flow.onEach
+@@ -20,15 +20,14 @@ import org.dolphinemu.dolphinemu.NativeLibrary
+ import org.dolphinemu.dolphinemu.activities.EmulationActivity
+ import org.dolphinemu.dolphinemu.databinding.FragmentEmulationBinding
+ import org.dolphinemu.dolphinemu.features.netplay.NetplayManager
+-import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
+ import org.dolphinemu.dolphinemu.features.settings.model.Settings
+-import org.dolphinemu.dolphinemu.overlay.InputOverlay
+ import org.dolphinemu.dolphinemu.utils.AfterDirectoryInitializationRunner
+ import org.dolphinemu.dolphinemu.utils.Log
+ import java.io.File
+ 
+ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+-    private var inputOverlay: InputOverlay? = null
++    // Dolphin XD replaces the on-screen controller with invisible gesture controls.
++    private var gestureInput: GestureInputView? = null
+ 
+     private var gamePaths: Array<String>? = null
+     private var riivolution = false
+@@ -75,25 +74,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+         val surfaceView = binding.surfaceEmulation
+         surfaceView.holder.addCallback(this)
+ 
+-        inputOverlay = binding.surfaceInputOverlay
+-
+-        val doneButton = binding.doneControlConfig
+-        doneButton?.setOnClickListener { stopConfiguringControls() }
+-
+-        if (inputOverlay != null) {
+-            view.post {
+-                val overlayX = inputOverlay!!.left
+-                val overlayY = inputOverlay!!.top
+-                inputOverlay?.setSurfacePosition(
+-                    Rect(
+-                        surfaceView.left - overlayX,
+-                        surfaceView.top - overlayY,
+-                        surfaceView.right - overlayX,
+-                        surfaceView.bottom - overlayY
+-                    )
+-                )
+-            }
+-        }
++        gestureInput = binding.gestureInput
++        gestureInput?.onMenuGesture = { emulationActivity?.openDolphinMenu() }
+     }
+ 
+     override fun onDestroyView() {
+@@ -104,7 +86,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+     override fun onResume() {
+         super.onResume()
+         if (NativeLibrary.IsGameMetadataValid()) {
+-            inputOverlay?.refreshControls()
++            gestureInput?.refresh()
+         }
+ 
+         AfterDirectoryInitializationRunner().runWithLifecycle(this) {
+@@ -113,6 +95,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+     }
+ 
+     override fun onPause() {
++        gestureInput?.releaseAll()
+         if (NativeLibrary.IsRunningAndUnpaused() && !NativeLibrary.IsShowingAlertMessage()) {
+             Log.debug("[EmulationFragment] Pausing emulation.")
+             NativeLibrary.PauseEmulation(true)
+@@ -121,7 +104,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+     }
+ 
+     override fun onDestroy() {
+-        inputOverlay?.onDestroy()
++        gestureInput?.onDestroy()
+         super.onDestroy()
+     }
+ 
+@@ -130,21 +113,24 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+         super.onDetach()
+     }
+ 
+-    fun toggleInputOverlayVisibility(settings: Settings?) {
+-        BooleanSetting.MAIN_SHOW_INPUT_OVERLAY.setBoolean(
+-            settings!!, !BooleanSetting.MAIN_SHOW_INPUT_OVERLAY.boolean
+-        )
++    // The on-screen controller is gone, so its menu actions do nothing.
++    @Suppress("UNUSED_PARAMETER")
++    fun toggleInputOverlayVisibility(settings: Settings?) {}
+ 
+-        inputOverlay?.refreshControls()
+-    }
++    fun initInputPointer() {}
+ 
+-    fun initInputPointer() = inputOverlay?.initTouchPointer()
++    fun refreshInputOverlay() {
++        gestureInput?.refresh()
++    }
+ 
+-    fun refreshInputOverlay() = inputOverlay?.refreshControls()
++    fun refreshOverlayPointer() {}
+ 
+-    fun refreshOverlayPointer() = inputOverlay?.refreshOverlayPointer()
++    fun resetInputOverlay() {}
+ 
+-    fun resetInputOverlay() = inputOverlay?.resetButtonPlacement()
++    /** Lets go of every gesture button, e.g. when the in-game menu opens. */
++    fun releaseGestureInput() {
++        gestureInput?.releaseAll()
++    }
+ 
+     override fun surfaceCreated(holder: SurfaceHolder) {
+         // We purposely don't do anything here.
+@@ -170,18 +156,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback {
+         NativeLibrary.StopEmulation()
+     }
+ 
+-    fun startConfiguringControls() {
+-        binding.doneControlConfig?.visibility = View.VISIBLE
+-        inputOverlay?.editMode = true
+-    }
++    fun startConfiguringControls() {}
+ 
+-    fun stopConfiguringControls() {
+-        binding.doneControlConfig?.visibility = View.GONE
+-        inputOverlay?.editMode = false
+-    }
++    fun stopConfiguringControls() {}
+ 
+     val isConfiguringControls: Boolean
+-        get() = inputOverlay != null && inputOverlay!!.isInEditMode
++        get() = false
+ 
+     private fun run(isActivityRecreated: Boolean) {
+         if (isActivityRecreated) {
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+index 6bf9c7c..d67962d 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+@@ -52,8 +52,12 @@ class MenuFragment : Fragment(), View.OnClickListener {
+         setInsets()
+         updatePauseUnpauseVisibility()
+ 
++        // Dolphin XD has gesture controls instead of an on-screen controller, and Pokémon XD is a
++        // single-disc game.
++        binding.menuOverlayControls.visibility = View.GONE
++        binding.menuChangeDisc.visibility = View.GONE
+         if (!requireActivity().packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)) {
+-            binding.menuOverlayControls.visibility = View.GONE
++            binding.menuXdControls.visibility = View.GONE
+         }
+ 
+         if (!requireArguments().getBoolean(KEY_WII, true)) {
+@@ -205,6 +209,11 @@ class MenuFragment : Fragment(), View.OnClickListener {
+                 R.id.menu_infinity_base,
+                 EmulationActivity.MENU_ACTION_INFINITY_BASE
+             )
++            buttonsActionsMap.append(R.id.menu_xd_controls, EmulationActivity.MENU_ACTION_XD_CONTROLS)
++            buttonsActionsMap.append(
++                R.id.menu_xd_change_game,
++                EmulationActivity.MENU_ACTION_XD_CHANGE_GAME
++            )
+         }
+ 
+         fun newInstance(): MenuFragment {
+diff --git a/Source/Android/app/src/main/res/layout-notouch/fragment_emulation.xml b/Source/Android/app/src/main/res/layout-notouch/fragment_emulation.xml
+deleted file mode 100644
+index 0d31600..0000000
+--- a/Source/Android/app/src/main/res/layout-notouch/fragment_emulation.xml
++++ /dev/null
+@@ -1,14 +0,0 @@
+-<FrameLayout
+-    xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:id="@+id/layout_emulation"
+-    android:layout_height="match_parent"
+-    android:layout_width="match_parent">
+-
+-    <SurfaceView
+-        android:id="@+id/surface_emulation"
+-        android:layout_height="match_parent"
+-        android:layout_width="match_parent"
+-        android:focusable="false"
+-        android:focusableInTouchMode="false" />
+-
+-</FrameLayout>
+diff --git a/Source/Android/app/src/main/res/layout-port-notouch/fragment_emulation.xml b/Source/Android/app/src/main/res/layout-port-notouch/fragment_emulation.xml
+deleted file mode 100644
+index 0d31600..0000000
+--- a/Source/Android/app/src/main/res/layout-port-notouch/fragment_emulation.xml
++++ /dev/null
+@@ -1,14 +0,0 @@
+-<FrameLayout
+-    xmlns:android="http://schemas.android.com/apk/res/android"
+-    android:id="@+id/layout_emulation"
+-    android:layout_height="match_parent"
+-    android:layout_width="match_parent">
+-
+-    <SurfaceView
+-        android:id="@+id/surface_emulation"
+-        android:layout_height="match_parent"
+-        android:layout_width="match_parent"
+-        android:focusable="false"
+-        android:focusableInTouchMode="false" />
+-
+-</FrameLayout>
+diff --git a/Source/Android/app/src/main/res/layout-port/fragment_emulation.xml b/Source/Android/app/src/main/res/layout-port/fragment_emulation.xml
+deleted file mode 100644
+index eca2849..0000000
+--- a/Source/Android/app/src/main/res/layout-port/fragment_emulation.xml
++++ /dev/null
+@@ -1,50 +0,0 @@
+-<FrameLayout
+-    xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:tools="http://schemas.android.com/tools"
+-    android:id="@+id/layout_emulation"
+-    android:layout_width="match_parent"
+-    android:layout_height="match_parent"
+-    android:keepScreenOn="true"
+-    tools:context="org.dolphinemu.dolphinemu.fragments.EmulationFragment">
+-
+-    <!-- Places the emulation surface to the top half of the screen -->
+-    <LinearLayout
+-        android:layout_width="match_parent"
+-        android:layout_height="match_parent"
+-        android:orientation="vertical"
+-        android:baselineAligned="false">
+-
+-        <!-- This is what everything is rendered to during emulation -->
+-        <SurfaceView
+-            android:id="@+id/surface_emulation"
+-            android:layout_height="0dp"
+-            android:layout_width="wrap_content"
+-            android:layout_weight="1"
+-            android:focusable="false"
+-            android:focusableInTouchMode="false" />
+-
+-        <RelativeLayout
+-            android:layout_width="wrap_content"
+-            android:layout_height="0dp"
+-            android:layout_weight="1" />
+-
+-    </LinearLayout>
+-
+-    <!-- This is the onscreen input overlay -->
+-    <org.dolphinemu.dolphinemu.overlay.InputOverlay
+-        android:id="@+id/surface_input_overlay"
+-        android:layout_height="match_parent"
+-        android:layout_width="match_parent"
+-        android:focusable="true"
+-        android:focusableInTouchMode="true" />
+-
+-    <Button
+-        android:id="@+id/done_control_config"
+-        android:layout_width="wrap_content"
+-        android:layout_height="wrap_content"
+-        android:layout_gravity="center"
+-        android:padding="@dimen/spacing_small"
+-        android:text="@string/emulation_done"
+-        android:visibility="gone" />
+-
+-</FrameLayout>
+diff --git a/Source/Android/app/src/main/res/layout/fragment_emulation.xml b/Source/Android/app/src/main/res/layout/fragment_emulation.xml
+index f51f256..4df4c28 100644
+--- a/Source/Android/app/src/main/res/layout/fragment_emulation.xml
++++ b/Source/Android/app/src/main/res/layout/fragment_emulation.xml
+@@ -15,21 +15,10 @@
+         android:focusable="false"
+         android:focusableInTouchMode="false" />
+ 
+-    <!-- This is the onscreen input overlay -->
+-    <org.dolphinemu.dolphinemu.overlay.InputOverlay
+-        android:id="@+id/surface_input_overlay"
++    <!-- Dolphin XD: invisible swipe and tap controls instead of the on-screen controller -->
++    <com.logie.dolphinxd.GestureInputView
++        android:id="@+id/gesture_input"
+         android:layout_height="match_parent"
+-        android:layout_width="match_parent"
+-        android:focusable="true"
+-        android:focusableInTouchMode="true" />
+-
+-    <Button
+-        android:id="@+id/done_control_config"
+-        android:layout_width="wrap_content"
+-        android:layout_height="wrap_content"
+-        android:layout_gravity="center"
+-        android:padding="@dimen/spacing_small"
+-        android:text="@string/emulation_done"
+-        android:visibility="gone" />
++        android:layout_width="match_parent" />
+ 
+ </FrameLayout>
+diff --git a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+index 446706b..5b245c3 100644
+--- a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
++++ b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+@@ -86,6 +86,11 @@
+                 style="@style/InGameMenuOption"
+                 android:text="@string/grid_menu_settings" />
+ 
++            <Button
++                android:id="@+id/menu_xd_controls"
++                style="@style/InGameMenuOption"
++                android:text="@string/xd_menu_controls" />
++
+             <Button
+                 android:id="@+id/menu_overlay_controls"
+                 style="@style/InGameMenuOption"
+@@ -111,6 +116,11 @@
+                 android:text="@string/emulate_infinity_base"
+                 style="@style/InGameMenuOption" />
+ 
++            <Button
++                android:id="@+id/menu_xd_change_game"
++                android:text="@string/xd_menu_change_game"
++                style="@style/InGameMenuOption" />
++
+         </LinearLayout>
+ 
+     </ScrollView>

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="xd_app_name" translatable="false">Dolphin XD</string>
+    <string name="xd_game_name" translatable="false">Pokémon XD: Gale of Darkness</string>
+
+    <string name="xd_setup_files_title">1 · Setup files</string>
+    <string name="xd_setup_files_body">GameCube BIOS (IPL.bin) — optional. Pokémon XD runs fine without it. If you add one from your own GameCube, the GameCube startup animation plays before the game.</string>
+    <string name="xd_setup_files_choose">Choose BIOS</string>
+    <string name="xd_setup_files_skip">Skip</string>
+    <string name="xd_setup_files_added">✓ GameCube BIOS added (%1$s)</string>
+    <string name="xd_setup_files_installed">✓ GameCube BIOS installed</string>
+    <string name="xd_setup_files_skipped">Skipped — not needed</string>
+
+    <string name="xd_rom_title">2 · Pokémon XD game file</string>
+    <string name="xd_rom_body">Choose your own Pokémon XD: Gale of Darkness disc image (.iso, .gcm, .rvz, .ciso, .gcz, .wbfs). Dolphin XD remembers it, so you only do this once.</string>
+    <string name="xd_rom_choose">Choose game file</string>
+    <string name="xd_rom_selected">✓ %1$s (%2$s)</string>
+    <string name="xd_rom_missing">Your Pokémon XD file can\'t be opened any more (moved, renamed or deleted?). Please choose it again.</string>
+    <string name="xd_checking">Checking…</string>
+
+    <string name="xd_play">Play Pokémon XD</string>
+
+    <string name="xd_controls_title">Controls</string>
+    <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\n\nWhile one finger moves the stick, tap with another finger for A or hold it for B. Game controllers work too.</string>
+
+    <string name="xd_error_title">That didn\'t work</string>
+    <string name="xd_error_unreadable_rom">Dolphin couldn\'t read that file. Make sure it\'s a GameCube disc image of Pokémon XD: Gale of Darkness.</string>
+    <string name="xd_error_wrong_game">That file is %1$s (%2$s), not Pokémon XD: Gale of Darkness. Dolphin XD only plays Pokémon XD.</string>
+    <string name="xd_error_not_bios">That doesn\'t look like a GameCube BIOS. A BIOS dump is a 2 MB file usually called IPL.bin.</string>
+    <string name="xd_error_unreadable_bios">Dolphin XD couldn\'t read that file.</string>
+    <string name="xd_bios_region_mismatch">Your BIOS is from a different region than your copy of Pokémon XD, so the GameCube startup animation is skipped.</string>
+    <string name="xd_bios_install_failed">The GameCube BIOS couldn\'t be installed, so the startup animation is skipped.</string>
+    <string name="xd_launch_failed">Pokémon XD is still closing. Press Play again in a moment.</string>
+
+    <string name="xd_menu_controls">Gesture controls</string>
+    <string name="xd_menu_change_game">Change game file</string>
+    <string name="xd_change_game_message">This closes Pokémon XD so you can choose a different game file. Progress since your last in-game save will be lost.</string>
+    <string name="xd_change_game_confirm">Close and choose</string>
+    <string name="xd_menu_hint">Two-finger tap, then tap and hold, opens the Dolphin menu.</string>
+</resources>

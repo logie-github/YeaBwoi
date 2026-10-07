@@ -1,0 +1,12 @@
+# Patched Dolphin checkout made by scripts/prepare-dolphin.sh
+/build/
+/dist/
+
+# Gesture test project
+/gesture-tests/.gradle/
+/gesture-tests/build/
+/gesture-tests/.kotlin/
+
+.idea/
+*.iml
+.DS_Store
