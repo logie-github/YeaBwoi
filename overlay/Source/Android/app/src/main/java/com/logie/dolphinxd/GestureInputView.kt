@@ -147,6 +147,10 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
             refresh()
         }
 
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            recognizer.dropStaleTouches()
+        }
+
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = event.actionIndex
