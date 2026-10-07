@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="xd_background">#0B0B0D</color>
+    <color name="xd_surface">#18181C</color>
+    <color name="xd_surface_stroke">#2A2A30</color>
+    <color name="xd_red">#E3262F</color>
+    <color name="xd_red_dark">#7A0E15</color>
+    <color name="xd_on_surface">#F2F2F4</color>
+    <color name="xd_on_surface_muted">#A9A9B2</color>
+
+    <style name="Theme.DolphinXD" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/xd_red</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">@color/xd_red_dark</item>
+        <item name="colorOnPrimaryContainer">#FFFFFF</item>
+        <item name="colorSecondary">@color/xd_red</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">@color/xd_red_dark</item>
+        <item name="colorOnSecondaryContainer">#FFFFFF</item>
+        <item name="colorSurface">@color/xd_surface</item>
+        <item name="colorOnSurface">@color/xd_on_surface</item>
+        <item name="android:colorBackground">@color/xd_background</item>
+        <item name="android:windowBackground">@color/xd_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.DolphinXD.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/xd_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/xd_icon_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.DolphinXD</item>
+    </style>
+
+    <style name="XdSetupCard" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/xd_surface</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="strokeColor">@color/xd_surface_stroke</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="XdSetupCardTitle">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/xd_on_surface</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="XdSetupCardBody">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:textColor">@color/xd_on_surface_muted</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="XdSetupCardStatus">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">10dp</item>
+        <item name="android:textColor">@color/xd_on_surface</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

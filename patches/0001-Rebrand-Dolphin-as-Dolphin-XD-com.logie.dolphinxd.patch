@@ -1,0 +1,181 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Wed, 7 Oct 2026 23:26:05 +0000
+Subject: [PATCH 1/2] Rebrand Dolphin as Dolphin XD (com.logie.dolphinxd)
+
+- New application ID, app name and launcher entry point (XdLauncherActivity).
+- Dolphin's game library activities are no longer launchable.
+- Always keep user data in app-specific storage.
+- Version code/name, ABIs and ccache can be set from Gradle properties.
+---
+ Source/Android/app/build.gradle.kts           | 19 +++++---
+ .../Android/app/src/main/AndroidManifest.xml  | 46 +++++++------------
+ .../utils/DirectoryInitialization.kt          |  7 +--
+ .../app/src/main/res/values/strings.xml       |  2 +-
+ 4 files changed, 34 insertions(+), 40 deletions(-)
+
+diff --git a/Source/Android/app/build.gradle.kts b/Source/Android/app/build.gradle.kts
+index 2fc4cb7..6e8cdc4 100644
+--- a/Source/Android/app/build.gradle.kts
++++ b/Source/Android/app/build.gradle.kts
+@@ -36,13 +36,15 @@ android {
+     }
+ 
+     defaultConfig {
+-        applicationId = "org.dolphinemu.dolphinemu"
++        applicationId = "com.logie.dolphinxd"
+         minSdk = 24
+         targetSdk = 37
+ 
+-        versionCode = getBuildVersionCode()
++        // CI passes -PxdVersionCode/-PxdVersionName so every build can be installed over the last.
++        versionCode = project.findProperty("xdVersionCode")?.toString()?.toInt()
++            ?: getBuildVersionCode()
+ 
+-        versionName = getGitVersion()
++        versionName = project.findProperty("xdVersionName")?.toString() ?: getGitVersion()
+ 
+         buildConfigField("String", "GIT_HASH", "\"${getGitHash()}\"")
+         buildConfigField("String", "BRANCH", "\"${getBranch()}\"")
+@@ -69,7 +71,7 @@ android {
+                 signingConfig = signingConfigs.getByName("release")
+             }
+ 
+-            resValue("string", "app_name_suffixed", "Dolphin Emulator")
++            resValue("string", "app_name_suffixed", "Dolphin XD")
+             isMinifyEnabled = true
+             isShrinkResources = true
+             proguardFiles(
+@@ -81,7 +83,7 @@ android {
+         // Signed by debug key disallowing distribution on Play Store.
+         // Attaches "debug" suffix to version and package name, allowing installation alongside the release build.
+         debug {
+-            resValue("string", "app_name_suffixed", "Dolphin Debug")
++            resValue("string", "app_name_suffixed", "Dolphin XD Debug")
+             applicationIdSuffix = ".debug"
+             versionNameSuffix = "-debug"
+             isJniDebuggable = true
+@@ -105,7 +107,12 @@ android {
+                     "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+                     // , "-DENABLE_GENERIC=ON"
+                 )
+-                abiFilters("arm64-v8a", "x86_64") //, "armeabi-v7a", "x86"
++                if (project.hasProperty("xdCcache")) {
++                    arguments("-DENABLE_CCACHE=ON")
++                }
++                // Phones only need arm64. Pass -PxdAbis=arm64-v8a,x86_64 for emulators/Chromebooks.
++                val xdAbis = project.findProperty("xdAbis")?.toString() ?: "arm64-v8a"
++                abiFilters(*xdAbis.split(",").map { it.trim() }.toTypedArray())
+ 
+                 // Uncomment the line below if you don't want to build the C++ unit tests
+                 //targets("main", "hook_impl", "main_hook", "gsl_alloc_hook", "file_redirect_hook")
+diff --git a/Source/Android/app/src/main/AndroidManifest.xml b/Source/Android/app/src/main/AndroidManifest.xml
+index 96876ac..ac27f47 100644
+--- a/Source/Android/app/src/main/AndroidManifest.xml
++++ b/Source/Android/app/src/main/AndroidManifest.xml
+@@ -52,31 +52,32 @@
+             android:shell="true"
+             tools:targetApi="29" />
+ 
++        <!-- Dolphin XD: asks for the setup files and the game once, then boots straight into
++             Pokémon XD every time the app is opened. -->
+         <activity
+-            android:name=".ui.main.MainActivity"
++            android:name="com.logie.dolphinxd.XdLauncherActivity"
+             android:exported="true"
+-            android:theme="@style/Theme.Dolphin.Splash.Main">
++            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation"
++            android:theme="@style/Theme.DolphinXD.Splash">
+ 
+-            <!-- This intentfilter marks this Activity as the one that gets launched from Home screen. -->
+             <intent-filter>
+                 <action android:name="android.intent.action.MAIN" />
+ 
+                 <category android:name="android.intent.category.LAUNCHER" />
++                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+             </intent-filter>
+         </activity>
+ 
++        <!-- Dolphin's game library isn't reachable in Dolphin XD. -->
+         <activity
+-            android:name=".ui.main.TvMainActivity"
+-            android:exported="true"
+-            android:theme="@style/Theme.Dolphin.Splash.TV">
+-
+-            <!-- This intentfilter marks this Activity as the one that gets launched from Home screen. -->
+-            <intent-filter>
+-                <action android:name="android.intent.action.MAIN"/>
++            android:name=".ui.main.MainActivity"
++            android:exported="false"
++            android:theme="@style/Theme.Dolphin.Splash.Main" />
+ 
+-                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+-            </intent-filter>
+-        </activity>
++        <activity
++            android:name=".ui.main.TvMainActivity"
++            android:exported="false"
++            android:theme="@style/Theme.Dolphin.Splash.TV" />
+ 
+         <activity
+             android:name=".features.settings.ui.SettingsActivity"
+@@ -101,26 +102,11 @@
+             android:name=".activities.CustomFilePickerActivity"
+             android:exported="false"
+             android:label="@string/app_name_suffixed"
+-            android:theme="@style/Theme.Dolphin.FilePicker">
+-
+-            <intent-filter>
+-                <action android:name="android.intent.action.GET_CONTENT"/>
+-                <category android:name="android.intent.category.DEFAULT"/>
+-            </intent-filter>
+-        </activity>
++            android:theme="@style/Theme.Dolphin.FilePicker" />
+ 
+         <activity
+             android:name=".activities.AppLinkActivity"
+-            android:exported="true">
+-
+-            <intent-filter>
+-                <action android:name="android.intent.action.VIEW"/>
+-                <category android:name="android.intent.category.DEFAULT"/>
+-                <data
+-                    android:host="@string/host"
+-                    android:scheme="@string/scheme"/>
+-            </intent-filter>
+-        </activity>
++            android:exported="false" />
+ 
+         <activity
+             android:name=".activities.ConvertActivity"
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/utils/DirectoryInitialization.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/utils/DirectoryInitialization.kt
+index 6d83254..bf73913 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/utils/DirectoryInitialization.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/utils/DirectoryInitialization.kt
+@@ -318,9 +318,10 @@ object DirectoryInitialization {
+     }
+ 
+     private fun preferLegacyUserDirectory(context: Context): Boolean {
+-        return PermissionsHandler.isExternalStorageLegacy() && !PermissionsHandler.isWritePermissionDenied() && isExternalFilesDirEmpty(
+-            context
+-        ) && legacyUserDirectoryExists()
++        // Dolphin XD always keeps its data in its own app storage instead of sharing the
++        // /sdcard/dolphin-emu folder with a regular Dolphin install (and never asks for the
++        // storage permission that folder needs).
++        return false
+     }
+ 
+     @JvmStatic
+diff --git a/Source/Android/app/src/main/res/values/strings.xml b/Source/Android/app/src/main/res/values/strings.xml
+index 2204f43..2d8c611 100644
+--- a/Source/Android/app/src/main/res/values/strings.xml
++++ b/Source/Android/app/src/main/res/values/strings.xml
+@@ -2,7 +2,7 @@
+ <resources>
+ 
+     <!-- Title of the app -->
+-    <string name="app_name">Dolphin Emulator</string>
++    <string name="app_name">Dolphin XD</string>
+     <string name="host">app</string>
+     <string name="scheme">dolphinemu</string>
+ 

@@ -1,0 +1,147 @@
+name: Build Dolphin XD APK
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths-ignore: ["**.md", "branding/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOLPHIN_DIR: ${{ github.workspace }}/build/dolphin
+  XD_VERSION_NAME: 1.0.${{ github.run_number }}
+
+jobs:
+  gesture-tests:
+    name: Gesture control tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Run unit tests
+        run: gradle --no-daemon -p gesture-tests test
+
+  apk:
+    name: Build APK
+    needs: gesture-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup \
+            /usr/share/swift /usr/local/share/powershell /usr/local/share/chromium \
+            /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/PyPy || true
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Prepare Dolphin XD source
+        run: scripts/prepare-dolphin.sh "$DOLPHIN_DIR"
+
+      - name: Install Android SDK packages
+        run: |
+          gradle_file="$DOLPHIN_DIR/Source/Android/app/build.gradle.kts"
+          ndk=$(sed -n 's/.*ndkVersion = "\(.*\)".*/\1/p' "$gradle_file")
+          compile_sdk=$(sed -n 's/.*compileSdk = \([0-9]*\).*/\1/p' "$gradle_file")
+          echo "NDK $ndk, compileSdk $compile_sdk"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;$ndk" "cmake;3.31.6" "platforms;android-$compile_sdk.0" > /dev/null
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: dolphin-android-arm64-${{ hashFiles('dolphin-version.env') }}
+          max-size: 2G
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Choose signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DOLPHINXD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "XD_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Signing with the key from the DOLPHINXD_KEYSTORE_* secrets."
+          else
+            echo "XD_KEYSTORE=$GITHUB_WORKSPACE/ci/dolphinxd-ci.p12" >> "$GITHUB_ENV"
+            echo "::notice::Signed with the shared CI key in ci/. Add DOLPHINXD_KEYSTORE_* secrets to use your own (see README)."
+          fi
+
+      - name: Build release APK
+        working-directory: ${{ env.DOLPHIN_DIR }}/Source/Android
+        env:
+          XD_STOREPASS: ${{ secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+          XD_KEYALIAS: ${{ secrets.DOLPHINXD_KEY_ALIAS || 'dolphinxd' }}
+          XD_KEYPASS: ${{ secrets.DOLPHINXD_KEY_PASSWORD || secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+        run: |
+          ./gradlew --no-daemon :app:assembleRelease \
+            -Pkeystore="$XD_KEYSTORE" \
+            -Pstorepass="$XD_STOREPASS" \
+            -Pkeyalias="$XD_KEYALIAS" \
+            -Pkeypass="$XD_KEYPASS" \
+            -PxdVersionCode=${{ github.run_number }} \
+            -PxdVersionName="$XD_VERSION_NAME" \
+            -PxdCcache
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp "$DOLPHIN_DIR/Source/Android/app/build/outputs/apk/release/app-release.apk" \
+            "dist/DolphinXD-$XD_VERSION_NAME.apk"
+          "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt2" \
+            dump badging "dist/DolphinXD-$XD_VERSION_NAME.apk" | head -3
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DolphinXD-${{ env.XD_VERSION_NAME }}
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: >-
+          github.event_name == 'push' &&
+          (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) ||
+           startsWith(github.ref, 'refs/tags/v'))
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          else
+            tag="build-${{ github.run_number }}"
+          fi
+          source dolphin-version.env
+          notes="Pokémon XD for Android, built from Dolphin $DOLPHIN_TAG and commit ${GITHUB_SHA::7}.
+
+          Download **DolphinXD-$XD_VERSION_NAME.apk** below on your phone and open it to install."
+          gh release create "$tag" dist/*.apk \
+            --target "$GITHUB_SHA" \
+            --title "Dolphin XD $XD_VERSION_NAME" \
+            --notes "$notes" \
+            --latest
