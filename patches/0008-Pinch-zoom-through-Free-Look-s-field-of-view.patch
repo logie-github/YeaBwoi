@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 22:25:06 +0000
+Subject: [PATCH 8/8] Pinch zoom through Free Look's field of view
+
+Adds NativeLibrary.SetCameraZoom(), which the gesture controls use for
+pinch zoom. It narrows Free Look's field of view
+(CameraControllerInput::SetFovMultiplier). Only perspective projections
+change, so the games' 2D menus and text stay as they are. Free Look is
+only turned on (in the CurrentRun layer) while the camera is zoomed.
+---
+ .../org/dolphinemu/dolphinemu/NativeLibrary.kt   |  7 +++++++
+ Source/Android/jni/MainAndroid.cpp               | 16 ++++++++++++++++
+ Source/Core/VideoCommon/FreeLookCamera.cpp       |  7 +++++++
+ Source/Core/VideoCommon/FreeLookCamera.h         |  2 ++
+ 4 files changed, 32 insertions(+)
+
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt
+index 6b2bbea..c628a20 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt
+@@ -274,6 +274,13 @@ object NativeLibrary {
+     @JvmStatic
+     external fun GetLastMemoryCardWriteTime(): Long
+ 
++    /**
++     * Zooms the 3D camera in by [zoom] (1 = the game's own view) using Free Look's field of view.
++     * 2D menus and text don't change.
++     */
++    @JvmStatic
++    external fun SetCameraZoom(zoom: Float)
++
+     /**
+      * Sets the current working user directory. If not set, it auto-detects a location.
+      */
+diff --git a/Source/Android/jni/MainAndroid.cpp b/Source/Android/jni/MainAndroid.cpp
+index e6edd0c..046e65d 100644
+--- a/Source/Android/jni/MainAndroid.cpp
++++ b/Source/Android/jni/MainAndroid.cpp
+@@ -22,6 +22,7 @@
+ #include "Common/CPUDetect.h"
+ #include "Common/CommonPaths.h"
+ #include "Common/CommonTypes.h"
++#include "Common/Config/Config.h"
+ #include "Common/Event.h"
+ #include "Common/FileUtil.h"
+ #include "Common/Flag.h"
+@@ -37,6 +38,7 @@
+ #include "Core/Boot/Boot.h"
+ #include "Core/BootManager.h"
+ #include "Core/CommonTitles.h"
++#include "Core/Config/FreeLookSettings.h"
+ #include "Core/ConfigLoaders/GameConfigLoader.h"
+ #include "Core/ConfigManager.h"
+ #include "Core/Core.h"
+@@ -61,6 +63,7 @@
+ #include "UICommon/GameFile.h"
+ #include "UICommon/UICommon.h"
+ 
++#include "VideoCommon/FreeLookCamera.h"
+ #include "VideoCommon/OnScreenDisplay.h"
+ #include "VideoCommon/Present.h"
+ #include "VideoCommon/VideoBackendBase.h"
+@@ -342,6 +345,19 @@ Java_org_dolphinemu_dolphinemu_NativeLibrary_GetLastMemoryCardWriteTime(JNIEnv*,
+   return static_cast<jlong>(ExpansionInterface::CEXIMemoryCard::GetLastWriteTime());
+ }
+ 
++// Pinch zoom: narrows Free Look's field of view. Only perspective projections change, so the
++// games' 2D menus and text stay as they are. Free Look is off whenever there is no zoom.
++JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_NativeLibrary_SetCameraZoom(JNIEnv*, jclass,
++                                                                                  jfloat zoom)
++{
++  const bool zoomed = zoom > 1.0f;
++  if (auto* controller = g_freelook_camera.GetController(); controller && controller->SupportsInput())
++    static_cast<CameraControllerInput*>(controller)->SetFovMultiplier(zoomed ? zoom : 1.0f);
++  // Only touch the config when it changes: every config change runs all of Dolphin's callbacks.
++  if (Config::Get(Config::FREE_LOOK_ENABLED) != zoomed)
++    Config::SetCurrent(Config::FREE_LOOK_ENABLED, zoomed);
++}
++
+ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_utils_DirectoryInitialization_SetSysDirectory(
+     JNIEnv* env, jclass, jstring jPath)
+ {
+diff --git a/Source/Core/VideoCommon/FreeLookCamera.cpp b/Source/Core/VideoCommon/FreeLookCamera.cpp
+index ba6be77..f6fc2b3 100644
+--- a/Source/Core/VideoCommon/FreeLookCamera.cpp
++++ b/Source/Core/VideoCommon/FreeLookCamera.cpp
+@@ -225,6 +225,13 @@ void CameraControllerInput::IncreaseFovY(float fov)
+   m_fov_y_multiplier = std::max(m_fov_y_multiplier, MIN_FOV_MULTIPLIER);
+ }
+ 
++void CameraControllerInput::SetFovMultiplier(float multiplier)
++{
++  m_fov_x_multiplier = std::max(multiplier, MIN_FOV_MULTIPLIER);
++  m_fov_y_multiplier = m_fov_x_multiplier;
++  m_dirty = true;
++}
++
+ float CameraControllerInput::GetFovStepSize() const
+ {
+   return 1.5f;
+diff --git a/Source/Core/VideoCommon/FreeLookCamera.h b/Source/Core/VideoCommon/FreeLookCamera.h
+index 91c296a..3e72915 100644
+--- a/Source/Core/VideoCommon/FreeLookCamera.h
++++ b/Source/Core/VideoCommon/FreeLookCamera.h
+@@ -58,6 +58,8 @@ public:
+ 
+   void IncreaseFovX(float fov);
+   void IncreaseFovY(float fov);
++  // Sets both field of view multipliers (above 1 zooms in), for the Android app's pinch zoom.
++  void SetFovMultiplier(float multiplier);
+   float GetFovStepSize() const;
+ 
+   void ModifySpeed(float multiplier);
