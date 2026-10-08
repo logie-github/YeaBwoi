@@ -63,12 +63,12 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | Tap, then tap and hold on the **right** half | X |
 | Swipe up, down, left, right or any angle in between, keeping your finger down | Control Stick, in that direction |
 | The same swipe | Also the D-pad (up, down, left or right, whichever the swipe points closest to), held for as long as the swipe is |
-| Tap, then two-finger tap and hold | Fast-forward: the game runs at double speed until you lift your fingers |
+| Hold one finger and swipe with another, in either order | Fast-forward: the game runs at double speed until you lift the held finger |
 | Two-finger tap, then two-finger tap and hold | Dolphin menu |
 | Three-finger tap | Quick save |
 | Three-finger hold | Quick load |
 
-While one finger is on the Control Stick, you can tap with a second finger for A or hold it for B. Holding and then dragging presses B and moves the stick together.
+While one finger is on the Control Stick, you can tap with a second finger for A. To hold B while walking, hold, then drag with the same finger.
 
 ### Quick save and quick load
 
@@ -94,15 +94,15 @@ Known issues (from Dolphin's wiki and the code's author):
 
 ### Graphics settings
 
-The apps set these once, tuned for recent Snapdragon phones like the Galaxy Z Fold 8. You can change any of them in **Emulator settings → Graphics**:
+The apps set these once. You can change any of them in **Emulator settings → Graphics**:
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| Video backend | Vulkan | Runs better than OpenGL ES (Dolphin's Android default) on recent Adreno GPUs |
-| Internal resolution | 3x native (1920x1584) | Sharp on the Fold's 1800-pixel-tall inner screen, and light enough on the GPU to leave the phone's thermal headroom for the CPU, which is the bottleneck at 60 FPS |
-| Anisotropic filtering | 16x | Sharp ground textures at an angle |
-| Shader compilation | Hybrid Ubershaders, compiled before starting | No stutter when a new effect appears for the first time |
+| Internal resolution | 3x native (1920x1584) | Sharp on the Galaxy Z Fold 8's 1800-pixel-tall inner screen, and light enough on the GPU to leave the phone's thermal headroom for the CPU, which is the bottleneck at 60 FPS |
+| Compile shaders before starting | On | Shaders the game already used load up front instead of stuttering on first use |
 | Aspect ratio | Force 4:3 | Dolphin's wiki fix for the picture switching between 4:3 and 16:9 |
+
+Everything else stays at Dolphin's defaults on purpose: the OpenGL ES backend, synchronous shader compilation and the game's own texture filtering. Version 1.0.14 used Vulkan, Hybrid Ubershaders and forced 16x anisotropic filtering, which corrupted textures on Snapdragon (Adreno) GPUs. Logos and menu borders turned into colored noise. Adreno drivers are known to mishandle Dolphin's ubershaders. Later versions put these settings back.
 
 Dolphin's own per-game settings stay in place for both games, and the apps don't override them. They fix garbled text with the safe texture cache, and they keep Pokémon XD on single core with MMU emulation so it doesn't crash.
 
