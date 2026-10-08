@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/xd_textures_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/xd_background"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/xd_textures_toolbar"
+        style="@style/XdToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:navigationIcon="@drawable/xd_ic_back"
+        app:title="@string/xd_textures_title" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:id="@+id/xd_textures_content"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="24dp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_max="720dp">
+
+                <include
+                    android:id="@+id/xd_textures_task"
+                    layout="@layout/xd_view_task"
+                    android:visibility="gone" />
+
+                <com.google.android.material.card.MaterialCardView
+                    style="@style/XdSetupCard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingVertical="8dp">
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/xd_textures_load"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="8dp"
+                            android:text="@string/xd_textures_load"
+                            android:textColor="@color/xd_on_surface"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            style="@style/XdSetupCardBody"
+                            android:layout_marginTop="0dp"
+                            android:paddingHorizontal="16dp"
+                            android:text="@string/xd_textures_load_sub" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/xd_textures_prefetch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingVertical="8dp"
+                            android:text="@string/xd_textures_prefetch"
+                            android:textColor="@color/xd_on_surface"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            style="@style/XdSetupCardBody"
+                            android:layout_marginTop="0dp"
+                            android:paddingHorizontal="16dp"
+                            android:paddingBottom="8dp"
+                            android:text="@string/xd_textures_prefetch_sub" />
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <TextView
+                    style="@style/XdSectionTitle"
+                    android:text="@string/xd_textures_installed" />
+
+                <LinearLayout
+                    android:id="@+id/xd_textures_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/xd_textures_empty"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="8dp"
+                    android:text="@string/xd_textures_empty"
+                    android:textColor="@color/xd_on_surface_muted"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/xd_textures_import_zip"
+                    style="@style/Widget.Material3.Button.Icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/xd_textures_import_zip"
+                    app:cornerRadius="16dp"
+                    app:icon="@drawable/xd_ic_add" />
+
+                <Button
+                    android:id="@+id/xd_textures_import_folder"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/xd_textures_import_folder"
+                    app:cornerRadius="16dp"
+                    app:icon="@drawable/xd_ic_folder" />
+
+                <TextView
+                    style="@style/XdHint"
+                    android:text="@string/xd_textures_hint" />
+
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </ScrollView>
+
+</LinearLayout>

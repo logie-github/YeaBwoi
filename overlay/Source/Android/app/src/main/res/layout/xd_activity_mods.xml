@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/xd_mods_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/xd_background"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/xd_mods_toolbar"
+        style="@style/XdToolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:navigationIcon="@drawable/xd_ic_back"
+        app:title="@string/xd_mods_title" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <LinearLayout
+                android:id="@+id/xd_mods_content"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="24dp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintWidth_max="720dp">
+
+                <include
+                    android:id="@+id/xd_mods_task"
+                    layout="@layout/xd_view_task"
+                    android:visibility="gone" />
+
+                <TextView
+                    style="@style/XdSectionTitle"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/xd_mods_versions" />
+
+                <LinearLayout
+                    android:id="@+id/xd_mods_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <Button
+                    android:id="@+id/xd_mods_import_patch"
+                    style="@style/Widget.Material3.Button.Icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/xd_mods_import_patch"
+                    app:cornerRadius="16dp"
+                    app:icon="@drawable/xd_ic_add" />
+
+                <Button
+                    android:id="@+id/xd_mods_add_iso"
+                    style="@style/Widget.Material3.Button.TonalButton.Icon"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/xd_mods_add_iso"
+                    app:cornerRadius="16dp"
+                    app:icon="@drawable/xd_ic_folder" />
+
+                <TextView
+                    style="@style/XdHint"
+                    android:text="@string/xd_mods_hint" />
+
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </ScrollView>
+
+</LinearLayout>

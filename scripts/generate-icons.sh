@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Regenerates the Android launcher icons in overlay/ from branding/icon-source.png.
+# Regenerates the launcher icons and in-app artwork in overlay/ from branding/:
+#   icon-source.png   the XD logo (transparent background)
+#   header-source.jpg the main menu banner
 # Needs ImageMagick (convert). The generated PNGs are committed, so CI doesn't run this.
 set -euo pipefail
 
@@ -44,8 +46,12 @@ for d in "${!DENSITY[@]}"; do
     -strip "PNG32:$out/ic_launcher.png"
 done
 
-# Logo shown on the setup screen.
+# Logo shown on the setup screen and the main menu.
 mkdir -p "$RES/drawable-nodpi"
-convert "$SRC" -trim +repage -strip "PNG32:$RES/drawable-nodpi/xd_logo.png"
+convert "$SRC" -trim +repage -resize 480x -strip "PNG32:$RES/drawable-nodpi/xd_logo.png"
+
+# Main menu banner.
+convert "$ROOT/branding/header-source.jpg" -resize 1600x -strip -interlace none -quality 82 \
+  "$RES/drawable-nodpi/xd_header.jpg"
 
 echo "Icons written to $RES"

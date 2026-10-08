@@ -19,15 +19,6 @@ object XdUi {
             .show()
     }
 
-    fun confirmChangeGame(activity: Activity, onConfirmed: () -> Unit) {
-        MaterialAlertDialogBuilder(activity)
-            .setTitle(R.string.xd_menu_change_game)
-            .setMessage(R.string.xd_change_game_message)
-            .setPositiveButton(R.string.xd_change_game_confirm) { _, _ -> onConfirmed() }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
-    }
-
     /** Reminds new players how to reach the menu, since there is no on-screen button for it. */
     fun showMenuHintIfNeeded(activity: Activity) {
         val config = XdConfig(activity)
