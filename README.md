@@ -45,9 +45,12 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | Tap, then tap and hold on the **left** half | L |
 | Tap, then tap and hold on the **right** half | X |
 | Swipe up, down, left, right or any angle in between, keeping your finger down | Control Stick, in that direction |
+| Swipe up or down | Also D-pad Up or Down, held for as long as the swipe is |
 | Two-finger tap, then two-finger tap and hold | Dolphin menu |
 
 While one finger is on the Control Stick, you can tap with a second finger for A or hold it for B. Holding and then dragging presses B and moves the stick together.
+
+The D-pad turns on once an up or down swipe is about halfway to full tilt and within 45° of straight up or down, so sideways and diagonal walking doesn't press it. That way menus that only follow the D-pad work with the same swipe.
 
 The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table) and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
 

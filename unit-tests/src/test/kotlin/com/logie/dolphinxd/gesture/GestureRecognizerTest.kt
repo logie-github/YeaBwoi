@@ -183,7 +183,87 @@ class GestureRecognizerTest {
         assertEquals(0f, out.stickX)
         assertEquals(0f, out.stickY)
         scheduler.advanceTo(1000)
-        assertTrue(out.buttonEvents().isEmpty(), "A swipe must not press any button")
+        assertTrue(
+            out.buttonEvents().all { "DPAD" in it },
+            "A swipe must not press any button besides the D-pad"
+        )
+    }
+
+    @Test
+    fun swipingUpOrDownAlsoHoldsTheDpad() {
+        down(0, 500f, 300f, 0)
+        move(0, 500f, 240f, 30) // up
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
+        assertEquals(0.6f, out.stickY, 0.001f)
+        scheduler.advanceTo(1000)
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed, "Held for as long as the swipe is")
+
+        move(0, 500f, 400f, 1100) // back down past where the finger landed
+        assertEquals(setOf(PadButton.DPAD_DOWN), out.pressed)
+        assertEquals(-1f, out.stickY, 0.001f)
+
+        up(0, 500f, 400f, 1500)
+        assertTrue(out.pressed.isEmpty())
+        assertEquals(
+            listOf("30 DPAD_UP down", "1100 DPAD_UP up", "1100 DPAD_DOWN down", "1500 DPAD_DOWN up"),
+            out.buttonEvents()
+        )
+    }
+
+    @Test
+    fun sidewaysAndShortSwipesDontPressTheDpad() {
+        down(0, 500f, 300f, 0)
+        move(0, 600f, 300f, 30) // right
+        move(0, 570f, 245f, 60) // up-right, but more right than up (about 52° off vertical)
+        assertEquals(0.55f, out.stickY, 0.001f)
+        up(0, 570f, 245f, 90)
+
+        down(0, 500f, 300f, 1000)
+        move(0, 500f, 340f, 1030) // down, but only 40% of the way
+        assertEquals(-0.4f, out.stickY, 0.001f)
+        up(0, 500f, 340f, 1060)
+
+        scheduler.advanceTo(2000)
+        assertTrue(out.buttonEvents().isEmpty())
+    }
+
+    @Test
+    fun wobblyUpSwipeKeepsTheDpadSteady() {
+        down(0, 500f, 300f, 0)
+        move(0, 500f, 220f, 30)
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
+        move(0, 575f, 235f, 300) // drifts to about 49° off vertical
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
+        move(0, 500f, 265f, 400) // eases off to 35%
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
+        move(0, 500f, 280f, 500) // nearly back to center
+        assertTrue(out.pressed.isEmpty())
+        move(0, 590f, 260f, 600) // out again, but mostly sideways
+        assertTrue(out.pressed.isEmpty())
+        assertEquals(listOf("30 DPAD_UP down", "500 DPAD_UP up"), out.buttonEvents())
+    }
+
+    @Test
+    fun quickFlickStillPressesTheDpadLongEnough() {
+        down(0, 500f, 300f, 0)
+        move(0, 500f, 360f, 10)
+        up(0, 500f, 360f, 20)
+        scheduler.advanceTo(1000)
+        assertEquals(listOf("10 DPAD_DOWN down", "110 DPAD_DOWN up"), out.buttonEvents())
+    }
+
+    @Test
+    fun flickingBackNeverPressesUpAndDownTogether() {
+        down(0, 500f, 300f, 0)
+        move(0, 500f, 240f, 10) // up
+        move(0, 500f, 400f, 30) // straight back down, while Up's flick press is still running
+        assertEquals(setOf(PadButton.DPAD_DOWN), out.pressed)
+        up(0, 500f, 400f, 300)
+        scheduler.advanceTo(1000)
+        assertEquals(
+            listOf("10 DPAD_UP down", "30 DPAD_UP up", "30 DPAD_DOWN down", "300 DPAD_DOWN up"),
+            out.buttonEvents()
+        )
     }
 
     @Test
@@ -213,11 +293,14 @@ class GestureRecognizerTest {
         tap(0, 500f, 300f, 0)
         down(0, 500f, 300f, 150)
         move(0, 500f, 200f, 180)
-        assertEquals(setOf(PadButton.A), out.pressed)
+        assertEquals(setOf(PadButton.A, PadButton.DPAD_UP), out.pressed)
         assertEquals(1f, out.stickY, 0.001f)
         up(0, 500f, 200f, 400)
         scheduler.advanceTo(1000)
-        assertEquals(listOf("180 A down", "280 A up"), out.buttonEvents())
+        assertEquals(
+            listOf("180 A down", "180 DPAD_UP down", "280 A up", "400 DPAD_UP up"),
+            out.buttonEvents()
+        )
     }
 
     @Test
@@ -237,10 +320,10 @@ class GestureRecognizerTest {
         down(0, 300f, 300f, 0)
         move(0, 300f, 200f, 30)
         tap(1, 800f, 300f, 100)
-        assertEquals(setOf(PadButton.A), out.pressed)
+        assertEquals(setOf(PadButton.A, PadButton.DPAD_UP), out.pressed)
         assertEquals(1f, out.stickY, 0.001f)
         scheduler.advanceTo(400)
-        assertTrue(out.pressed.isEmpty())
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
         assertEquals(1f, out.stickY, 0.001f, "Stick must stay pushed while the other finger taps")
     }
 
@@ -250,9 +333,9 @@ class GestureRecognizerTest {
         move(0, 300f, 200f, 30)
         down(1, 800f, 300f, 100)
         scheduler.advanceTo(500)
-        assertEquals(setOf(PadButton.B), out.pressed)
+        assertEquals(setOf(PadButton.B, PadButton.DPAD_UP), out.pressed)
         up(1, 800f, 300f, 600)
-        assertTrue(out.pressed.isEmpty())
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
     }
 
     @Test
@@ -301,6 +384,17 @@ class GestureRecognizerTest {
         scheduler.advanceTo(2000)
         assertEquals(0, out.menuOpened)
         assertTrue(out.buttonEvents().isEmpty())
+    }
+
+    @Test
+    fun cancelReleasesTheDpad() {
+        down(0, 500f, 300f, 0)
+        move(0, 500f, 200f, 30)
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
+        recognizer.cancelAll()
+        assertTrue(out.pressed.isEmpty())
+        scheduler.advanceTo(2000)
+        assertEquals(listOf("30 DPAD_UP down", "30 DPAD_UP up"), out.buttonEvents())
     }
 
     @Test

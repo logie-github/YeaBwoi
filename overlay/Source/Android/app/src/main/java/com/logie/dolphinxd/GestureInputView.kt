@@ -43,6 +43,8 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
                 PadButton.B -> setControl(ControlId.GCPAD_B_BUTTON, state)
                 PadButton.X -> setControl(ControlId.GCPAD_X_BUTTON, state)
                 PadButton.START -> setControl(ControlId.GCPAD_START_BUTTON, state)
+                PadButton.DPAD_UP -> setControl(ControlId.GCPAD_DPAD_UP, state)
+                PadButton.DPAD_DOWN -> setControl(ControlId.GCPAD_DPAD_DOWN, state)
                 PadButton.L -> {
                     setControl(ControlId.GCPAD_L_DIGITAL, state)
                     setControl(ControlId.GCPAD_L_ANALOG, state)
