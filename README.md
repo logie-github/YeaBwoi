@@ -63,13 +63,12 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | Tap, then tap and hold on the **right** half | X |
 | Swipe up, down, left, right or any angle in between, keeping your finger down | Control Stick, in that direction |
 | The same swipe | Also the D-pad (up, down, left or right, whichever the swipe points closest to), held for as long as the swipe is |
+| Tap, then two-finger tap and hold | Fast-forward: the game runs at double speed until you lift your fingers |
 | Two-finger tap, then two-finger tap and hold | Dolphin menu |
-| While one finger swipes or holds, tap with a second finger | A |
-| While one finger swipes or holds, hold a second finger | Fast-forward: the game runs at double speed until you lift that finger |
 | Three-finger tap | Quick save |
 | Three-finger hold | Quick load |
 
-To hold B while moving the stick, hold, then drag with the same finger.
+While one finger is on the Control Stick, you can tap with a second finger for A or hold it for B. Holding and then dragging presses B and moves the stick together.
 
 ### Quick save and quick load
 
@@ -83,12 +82,29 @@ Both games normally run at 30 FPS. By default the apps run them at 60 FPS withou
 
 At 60 FPS the game's CPU does twice the work, so the app also sets Dolphin's emulated CPU to 200% while the game runs (only for that session, so your own settings stay as they are). This needs a fast phone, especially for Pokémon XD.
 
-Known issues from the code's author:
+Known issues (from Dolphin's wiki and the code's author):
 
-- In a few cutscenes (for example, meeting the mayor for the first time in Colosseum), a character can get stuck. Open the Dolphin menu, go to **Frame rate**, and tap **Unstick cutscene**. The game slows down for 3 seconds, which gets it moving again.
+- A few cutscenes softlock at 60 FPS. **Unstick cutscene** (Dolphin menu → **Frame rate**) drops the game to 30 FPS for 10 seconds:
+  - Colosseum: Rui walking into a wall when approaching the Mayor near the start. Use it any time while she's stuck.
+  - Colosseum: Beluh going upstairs for the Stone Tablet, and Miror B leaving the room after his battle in Realgam. Use it just before the cutscene.
+  - XD: Professor Krane's Master Ball cutscene. Use it just before continuing past the message box.
+  - Quick save before these spots, just in case.
 - A few moves can still drop frames.
-- The XD code was tested less than the Colosseum one.
 - The codes were written for the original games. If a mod misbehaves at 60 FPS, switch it to 30 FPS.
+
+### Graphics settings
+
+The apps set these once, tuned for recent Snapdragon phones like the Galaxy Z Fold 8. You can change any of them in **Emulator settings → Graphics**:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Video backend | Vulkan | Runs better than OpenGL ES (Dolphin's Android default) on recent Adreno GPUs |
+| Internal resolution | 3x native (1920x1584) | Sharp on the Fold's 1800-pixel-tall inner screen, and light enough on the GPU to leave the phone's thermal headroom for the CPU, which is the bottleneck at 60 FPS |
+| Anisotropic filtering | 16x | Sharp ground textures at an angle |
+| Shader compilation | Hybrid Ubershaders, compiled before starting | No stutter when a new effect appears for the first time |
+| Aspect ratio | Force 4:3 | Dolphin's wiki fix for the picture switching between 4:3 and 16:9 |
+
+Dolphin's own per-game settings stay in place for both games, and the apps don't override them. They fix garbled text with the safe texture cache, and they keep Pokémon XD on single core with MMU emulation so it doesn't crash.
 
 ### Fast-forward and sound
 
