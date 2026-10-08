@@ -38,6 +38,10 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
     private val output = object : GestureOutput {
         override fun setButton(button: PadButton, pressed: Boolean) {
             val state = if (pressed) 1.0 else 0.0
+            if (button == PadButton.A && pressed && isInputReady() && XdConfig(context).tapSpeedsUpText) {
+                // Taps are A: speed through the rest of a line of text that's still printing.
+                XdFastForward.boost(TEXT_BOOST_MS)
+            }
             when (button) {
                 PadButton.A -> setControl(ControlId.GCPAD_A_BUTTON, state)
                 PadButton.B -> setControl(ControlId.GCPAD_B_BUTTON, state)
@@ -145,7 +149,7 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
         InputOverrider.registerGameCube(CONTROLLER_INDEX)
         registered = true
         // A new game always starts at normal speed, with the camera zoom the player left it at.
-        XdFastForward.set(false)
+        XdFastForward.reset()
         XdCameraZoom.apply(context)
     }
 
@@ -230,5 +234,8 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
     companion object {
         /** GameCube port 1. */
         private const val CONTROLLER_INDEX = 0
+
+        /** How long a tap runs the game at full speed: enough to finish a printing line of text. */
+        private const val TEXT_BOOST_MS = 500L
     }
 }
