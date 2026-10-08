@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dialogs over whatever screen is behind (the update check). -->
+    <style name="Theme.V3Gold.Translucent" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">#FFE500</item>
+        <item name="colorOnPrimary">#1B1512</item>
+        <item name="colorSecondary">#F2C318</item>
+        <item name="colorOnSecondary">#1B1512</item>
+        <item name="colorSurface">#1C1813</item>
+        <item name="colorOnSurface">#F5F0E0</item>
+        <item name="colorOnSurfaceVariant">#D8CFB4</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

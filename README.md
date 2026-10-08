@@ -15,6 +15,8 @@ Two Android builds of the [Dolphin](https://dolphin-emu.org) GameCube emulator. 
 
 Both apps work the same way. There's no game list and no on-screen buttons: you play with taps and swipes anywhere on the screen. A themed main menu has texture pack and mod installers and Dolphin's emulator settings.
 
+This repository also builds **V3 Gold** (`com.logie.v3gold`): Persona 4 Golden on the Vita3K PS Vita emulator, with the same kind of gesture controls and a Persona 4 Golden themed menu. It has its own workflow and releases. See [v3gold/README.md](v3gold/README.md).
+
 ## Getting the APKs
 
 GitHub Actions (**Actions → Build APKs**) publishes each app as its own release on the repository's **Releases** page: **Dolphin XD 1.0.N** (tags `xd-build-N`) and **Dolphin Colosseum 1.0.N** (tags `colosseum-build-N`). On your phone, open the latest release of the app you want and tap its `.apk`.

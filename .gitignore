@@ -6,6 +6,9 @@
 /unit-tests/.gradle/
 /unit-tests/build/
 /unit-tests/.kotlin/
+/v3gold/unit-tests/.gradle/
+/v3gold/unit-tests/build/
+/v3gold/unit-tests/.kotlin/
 
 .idea/
 *.iml
