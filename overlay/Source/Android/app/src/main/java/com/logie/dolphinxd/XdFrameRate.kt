@@ -26,9 +26,12 @@ object XdFrameRate {
     private const val CODE_NAME_PREFIX = "60 FPS"
     private const val OVERCLOCK = 2.0f
 
-    /** Known issue: some cutscenes leave a character stuck at 60 FPS until the game slows down. */
+    /**
+     * Known issue: a few cutscenes softlock at 60 FPS. Slowing the game down for a moment drops it
+     * to 30 FPS: right away for some (Rui and the Mayor), just before the stuck moment for others.
+     */
     private const val UNSTICK_OVERCLOCK = 0.5f
-    private const val UNSTICK_MS = 3000L
+    private const val UNSTICK_MS = 10_000L
 
     private const val KEY_ENABLE_CHEATS = "EnableCheats"
     private const val KEY_OVERCLOCK_ENABLE = "OverclockEnable"
