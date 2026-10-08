@@ -19,7 +19,7 @@ import org.dolphinemu.dolphinemu.utils.ThemeHelper
  * settings an earlier one made.
  */
 object XdDefaults {
-    private const val VERSION = 4
+    private const val VERSION = 5
 
     /** SerialInterface::SIDEVICE_GC_CONTROLLER, the emulated "Standard Controller". */
     private const val SI_STANDARD_CONTROLLER = 6
@@ -54,6 +54,17 @@ object XdDefaults {
         if (applied < 4) {
             undoRiskyGraphics(layer)
         }
+        if (applied < 5) {
+            // Back to Dolphin's default. "Compile shaders before starting" rebuilt every cached
+            // shader before each start, so every launch waited. Shaders are still compiled once and
+            // kept in Dolphin's shader cache; they now load in the background as the game starts.
+            NativeConfig.deleteKey(
+                layer, Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "WaitForShadersBeforeStarting"
+            )
+            NativeConfig.setBoolean(
+                layer, Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "ShaderCache", true
+            )
+        }
 
         NativeConfig.save(layer)
         config.defaultsVersion = VERSION
@@ -66,8 +77,6 @@ object XdDefaults {
      */
     private fun applyGraphics(layer: Int) {
         IntSetting.GFX_EFB_SCALE.setInt(layer, INTERNAL_RESOLUTION)
-        // Shaders the game already used load before it starts, instead of on first use.
-        BooleanSetting.GFX_WAIT_FOR_SHADERS_BEFORE_STARTING.setBoolean(layer, true)
     }
 
     /**

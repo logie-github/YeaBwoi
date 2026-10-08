@@ -99,10 +99,10 @@ The apps set these once. You can change any of them in **Emulator settings → G
 | Setting | Value | Why |
 | --- | --- | --- |
 | Internal resolution | 3x native (1920x1584) | Sharp on the Galaxy Z Fold 8's 1800-pixel-tall inner screen, and light enough on the GPU to leave the phone's thermal headroom for the CPU, which is the bottleneck at 60 FPS |
-| Compile shaders before starting | On | Shaders the game already used load up front instead of stuttering on first use |
+| Shader cache | On (Dolphin's default) | Each shader compiles once and is saved. Later starts load the saved shaders in the background, with no compiling screen |
 | Aspect ratio | Force 4:3 | Dolphin's wiki fix for the picture switching between 4:3 and 16:9 |
 
-Everything else stays at Dolphin's defaults on purpose: the OpenGL ES backend, synchronous shader compilation and the game's own texture filtering. Version 1.0.14 used Vulkan, Hybrid Ubershaders and forced 16x anisotropic filtering, which corrupted textures on Snapdragon (Adreno) GPUs. Logos and menu borders turned into colored noise. Adreno drivers are known to mishandle Dolphin's ubershaders. Later versions put these settings back.
+Everything else stays at Dolphin's defaults on purpose: the OpenGL ES backend, synchronous shader compilation, the game's own texture filtering, and no "Compile shaders before starting". That setting rebuilt every saved shader before each start, so every launch had to wait. Version 1.0.14 used Vulkan, Hybrid Ubershaders and forced 16x anisotropic filtering, which corrupted textures on Snapdragon (Adreno) GPUs. Logos and menu borders turned into colored noise. Adreno drivers are known to mishandle Dolphin's ubershaders. Later versions put these settings back.
 
 Dolphin's own per-game settings stay in place for both games, and the apps don't override them. They fix garbled text with the safe texture cache, and they keep Pokémon XD on single core with MMU emulation so it doesn't crash.
 
