@@ -25,6 +25,21 @@ The two apps have different package names, so they install side by side as separ
 
 The first build takes about an hour because it compiles all of Dolphin. Later builds reuse a compiler cache.
 
+### Updates
+
+Each app checks this repository's releases for a newer build of itself every time it opens, before the game starts. You can also check by hand with **Check for updates** in the Dolphin menu, or the **Updates** tile on the main menu. If there's an update, the app asks whether to download it, then opens Android's installer. The first time, Android asks you to allow the app to install updates. Updates install over the app and keep your saves. Installing closes the app, so save your game first.
+
+The app finds its releases through GitHub's API. That works without any setup for a public repository. For a **private** repository, the build needs a read-only token:
+
+1. On GitHub, go to **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+2. Under **Repository access**, choose **Only select repositories** and pick this repository. Under **Permissions → Repository permissions**, set **Contents** to **Read-only**.
+3. Set the longest expiration you're comfortable with. When the token expires, update checks stop working until you add a new token and install the next build by hand.
+4. In this repository, add it under **Settings → Secrets and variables → Actions** as `DOLPHINXD_UPDATE_TOKEN`.
+
+The token is built into the APK, so anyone who has the APK can extract it and read this repository. Keep the APKs to yourself, or make the repository public and skip the token.
+
+The first build that includes the update check has to be installed by hand. Later builds come through the app.
+
 ## First launch
 
 1. **Setup files (optional):** choose a GameCube BIOS (`IPL.bin`) dumped from your own console, or tap **Skip**. Neither game needs a BIOS. If you add one, the GameCube startup animation plays before the game.
@@ -70,7 +85,7 @@ How close fast-forward gets to double speed depends on the phone. If the phone c
 
 The D-pad turns on once the swipe is about halfway to full tilt, so menus that only follow the D-pad work with the same swipe. Once a direction is pressed, it stays pressed until the swipe clearly turns away, so a diagonal or wobbly swipe doesn't flicker between two directions. A quick flick still holds the D-pad for 100 ms so the game sees it.
 
-The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table) and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
+The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table), **Check for updates** and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
 
 ## Main menu
 
@@ -81,6 +96,7 @@ The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture 
 | **Mods** | Installs mods and picks the version Play starts (the original game or a mod) |
 | **Emulator settings** | Dolphin's full settings: graphics, audio, controllers and more |
 | **Controls** | The gesture guide |
+| **Updates** | Checks for a newer version and installs it (see [Updates](#updates)) |
 | **Change game file** | Runs the game-file setup again |
 | **Exit** | Closes the app |
 

@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -42,6 +43,15 @@ class XdHomeActivity : AppCompatActivity() {
     private lateinit var binding: XdActivityHomeBinding
     private val launchHandler = Handler(Looper.getMainLooper())
     private var launching = false
+
+    /** An update was offered on startup: carry on into the game unless it's being installed. */
+    private val updateOffer = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (it.resultCode == XdUpdateActivity.RESULT_INSTALLING) {
+            binding.xdHomeLaunching.visibility = View.GONE
+        } else {
+            play()
+        }
+    }
 
     private data class Tile(
         @DrawableRes val icon: Int,
@@ -77,7 +87,7 @@ class XdHomeActivity : AppCompatActivity() {
 
         if (savedInstanceState == null && intent.getBooleanExtra(EXTRA_AUTOPLAY, false)) {
             binding.xdHomeLaunching.visibility = View.VISIBLE
-            play()
+            checkForUpdateThenPlay()
         }
     }
 
@@ -85,7 +95,24 @@ class XdHomeActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(EXTRA_AUTOPLAY, false)) {
             binding.xdHomeLaunching.visibility = View.VISIBLE
+            checkForUpdateThenPlay()
+        }
+    }
+
+    /** Every time the app opens: offer a newer version if there is one, then start the game. */
+    private fun checkForUpdateThenPlay() {
+        if (!XdUpdater.isConfigured) {
             play()
+            return
+        }
+        lifecycleScope.launch {
+            // Offline or GitHub unreachable: just play, and check again next time.
+            val update = withContext(Dispatchers.IO) { runCatching { XdUpdater.findUpdate() }.getOrNull() }
+            if (update != null && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                updateOffer.launch(XdUpdateActivity.intent(this@XdHomeActivity, update))
+            } else {
+                play()
+            }
         }
     }
 
@@ -139,6 +166,9 @@ class XdHomeActivity : AppCompatActivity() {
             },
             Tile(R.drawable.xd_ic_controls, R.string.xd_home_controls, R.string.xd_home_controls_sub) {
                 XdUi.showControls(this)
+            },
+            Tile(R.drawable.xd_ic_update, R.string.xd_home_updates, R.string.xd_home_updates_sub) {
+                XdUpdateActivity.launch(this)
             },
             Tile(R.drawable.xd_ic_swap, R.string.xd_home_change_game, R.string.xd_home_change_game_sub) {
                 if (XdTasks.isRunning) {
