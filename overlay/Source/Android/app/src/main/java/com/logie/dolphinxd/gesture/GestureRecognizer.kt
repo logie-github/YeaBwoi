@@ -21,7 +21,10 @@ interface GestureOutput {
     /** Two-finger tap, tap and hold. */
     fun openMenu()
 
-    /** A hold gesture (B, L, X or the menu) was recognized. Used for haptic feedback. */
+    /** Fast-forward starts (a second finger is held) or stops (it lets go). */
+    fun setFastForward(enabled: Boolean)
+
+    /** A hold gesture (B, L, X, fast-forward or the menu) was recognized. Used for haptic feedback. */
     fun onHoldRecognized() {}
 }
 
@@ -63,9 +66,11 @@ data class GestureConfig(
  * - Swipe in any direction: main stick, for as long as the finger stays down. The swipe also holds
  *   the D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
+ * - While another finger swipes or holds, hold a second finger: [GestureOutput.setFastForward]
  *
- * While one finger is driving the stick or holding a button, a second finger can tap for A or
- * hold for B, so the player can walk and talk/run at the same time.
+ * While one finger is driving the stick or holding a button, a second finger can tap for A, or hold
+ * to fast-forward the game for as long as it stays down. Holding B and walking at the same time is
+ * done with one finger: hold, then drag.
  *
  * Coordinates are in pixels with y pointing down; times are in milliseconds from the same clock
  * that [GestureScheduler] uses.
@@ -91,6 +96,8 @@ class GestureRecognizer(
         var y = downY
         var holdTimer: Cancellable? = null
         var heldButton: PadButton? = null
+        /** This hold is fast-forwarding the game. */
+        var fastForward = false
         var originX = downX
         var originY = downY
     }
@@ -116,6 +123,9 @@ class GestureRecognizer(
 
     private val pressCount = IntArray(PadButton.entries.size)
     private val pulseTimers = HashSet<Cancellable>()
+
+    /** Fingers holding fast-forward. */
+    private var fastForwardCount = 0
 
     fun setViewWidth(width: Float) {
         viewWidth = width
@@ -186,7 +196,7 @@ class GestureRecognizer(
             }
 
             State.HOLD -> {
-                if (stickOwner == null && moved > config.touchSlopPx) {
+                if (stickOwner == null && !touch.fastForward && moved > config.touchSlopPx) {
                     // Holding a button and then dragging moves the stick too (e.g. B + stick).
                     stickOwner = touch
                 }
@@ -232,6 +242,9 @@ class GestureRecognizer(
 
             State.HOLD -> {
                 touch.heldButton?.let { release(it) }
+                if (touch.fastForward) {
+                    stopFastForward()
+                }
                 if (stickOwner === touch) {
                     centerStick()
                 }
@@ -257,6 +270,9 @@ class GestureRecognizer(
             touch.holdTimer?.cancel()
             if (touch.state == State.HOLD) {
                 touch.heldButton?.let { release(it) }
+                if (touch.fastForward) {
+                    stopFastForward()
+                }
             }
         }
         touches.clear()
@@ -297,6 +313,11 @@ class GestureRecognizer(
             }
         }
         output.setStick(0f, 0f)
+
+        if (fastForwardCount > 0) {
+            fastForwardCount = 0
+            output.setFastForward(false)
+        }
     }
 
     private fun onHold(touch: Touch) {
@@ -305,15 +326,32 @@ class GestureRecognizer(
             return
         }
 
-        val button = when {
-            touch.secondary -> PadButton.B
-            touch.secondTap -> if (touch.downX < viewWidth / 2) PadButton.L else PadButton.X
-            else -> PadButton.B
-        }
         touch.state = State.HOLD
-        touch.heldButton = button
-        press(button)
+        if (touch.secondary) {
+            // A second finger held while the first one walks or holds a button.
+            touch.fastForward = true
+            startFastForward()
+        } else {
+            val button = when {
+                touch.secondTap -> if (touch.downX < viewWidth / 2) PadButton.L else PadButton.X
+                else -> PadButton.B
+            }
+            touch.heldButton = button
+            press(button)
+        }
         output.onHoldRecognized()
+    }
+
+    private fun startFastForward() {
+        if (fastForwardCount++ == 0) {
+            output.setFastForward(true)
+        }
+    }
+
+    private fun stopFastForward() {
+        if (fastForwardCount > 0 && --fastForwardCount == 0) {
+            output.setFastForward(false)
+        }
     }
 
     private fun startTwoFinger(timeMs: Long) {

@@ -47,8 +47,16 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | Swipe up, down, left, right or any angle in between, keeping your finger down | Control Stick, in that direction |
 | The same swipe | Also the D-pad (up, down, left or right, whichever the swipe points closest to), held for as long as the swipe is |
 | Two-finger tap, then two-finger tap and hold | Dolphin menu |
+| While one finger swipes or holds, tap with a second finger | A |
+| While one finger swipes or holds, hold a second finger | Fast-forward: the game runs at double speed until you lift that finger |
 
-While one finger is on the Control Stick, you can tap with a second finger for A or hold it for B. Holding and then dragging presses B and moves the stick together.
+To hold B while moving the stick, hold, then drag with the same finger.
+
+### Fast-forward and sound
+
+During fast-forward the sound keeps playing at normal speed and pitch. The game makes two seconds of sound every second, so not all of it can be played. The app's change to Dolphin's audio mixer lets up to about a second of sound queue up and plays it at normal speed. Once the queue is full, it skips ahead by half a second at a time. When you let go, it jumps straight back to the game's current sound. As a result, sound effects can lag the picture by up to a second while fast-forwarding, but music and voices never speed up or sound chipmunked.
+
+How close fast-forward gets to double speed depends on the phone. If the phone can't run the game that fast, it runs as fast as it can.
 
 The D-pad turns on once the swipe is about halfway to full tilt, so menus that only follow the D-pad work with the same swipe. Once a direction is pressed, it stays pressed until the swipe clearly turns away, so a diagonal or wobbly swipe doesn't flicker between two directions. A quick flick still holds the D-pad for 100 ms so the game sees it.
 
@@ -106,7 +114,7 @@ Dolphin's full source is too large to vendor, so this repository holds only the 
 | Path | Contents |
 | --- | --- |
 | `dolphin-version.env` | The upstream Dolphin release (tag and commit) to build from |
-| `patches/` | Changes to Dolphin's own files: configurable package name, the app's screens, gesture input in the emulation screen, in-game menu entries, the themed palette |
+| `patches/` | Changes to Dolphin's own files: configurable package name, the app's screens, gesture input in the emulation screen, in-game menu entries, the themed palette, normal-speed audio during fast-forward |
 | `overlay/` | Code and layouts shared by both apps: setup and main menu screens, texture pack and mod installers, UPS patcher, gesture controls |
 | `games/<game>/` | One app each (`xd`, `colosseum`). `game.env` sets the package and name. `overlay/` holds that game's wording, game ID, colors and artwork. `branding/` holds the source images. |
 | `scripts/prepare-dolphin.sh` | Clones Dolphin, applies `patches/`, then copies `overlay/` and `games/<game>/overlay/` |
