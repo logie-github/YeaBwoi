@@ -15,7 +15,7 @@
 
 
     <string name="xd_controls_title">Controls</string>
-    <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nThe swipe also holds the D-pad in its direction: up, down, left or right\nHold one finger and swipe with another, in either order — Fast-forward (double speed until the held finger lifts)\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\nPinch with two fingers — Zoom the camera (up to 2×), two-finger double tap to reset\nThree-finger tap — Quick save\nThree-finger hold — Quick load\n\nWhile one finger moves the stick, tap with another finger for A. To hold B while walking, hold, then drag with the same finger. Fast-forward keeps the sound at normal speed. Quick load only works if you haven\'t saved in the game since the quick save, so you never end up with two different saves. Game controllers work too.</string>
+    <string name="xd_controls_body">Tap — A (also speeds through text that\'s still printing)\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nThe swipe also holds the D-pad in its direction: up, down, left or right\nHold one finger and swipe with another, in either order — Fast-forward (double speed until the held finger lifts)\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\nPinch with two fingers — Zoom the camera (up to 2×), two-finger double tap to reset\nThree-finger tap — Quick save\nThree-finger hold — Quick load\n\nWhile one finger moves the stick, tap with another finger for A. To hold B while walking, hold, then drag with the same finger. Fast-forward keeps the sound at normal speed. Quick load only works if you haven\'t saved in the game since the quick save, so you never end up with two different saves. Game controllers work too.</string>
 
     <string name="xd_error_title">That didn\'t work</string>
     <string name="xd_error_not_bios">That doesn\'t look like a GameCube BIOS. A BIOS dump is a 2 MB file usually called IPL.bin.</string>
@@ -151,6 +151,8 @@
     <string name="xd_frame_rate_next_start">Takes effect the next time the game starts.</string>
     <string name="xd_frame_rate_unstick">Unstick cutscene</string>
     <string name="xd_frame_rate_unsticking">30 FPS for the next 10 seconds to get the cutscene past the stuck point</string>
+
+    <string name="xd_controls_fast_text">Taps speed through printing text</string>
 
     <!-- Camera zoom -->
     <string name="xd_menu_zoom">Camera zoom</string>

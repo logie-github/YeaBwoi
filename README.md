@@ -56,7 +56,7 @@ The apps don't include any game or BIOS files. You have to provide your own.
 
 | Gesture | GameCube input |
 | --- | --- |
-| Tap | A |
+| Tap | A, and speeds through text that's still printing (see below) |
 | Hold | B (held for as long as your finger stays down) |
 | Double-tap | Start |
 | Tap, then tap and hold on the **left** half | L |
@@ -71,6 +71,10 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | Three-finger hold | Quick load |
 
 While one finger is on the Control Stick, you can tap with a second finger for A. To hold B while walking, hold, then drag with the same finger.
+
+### Speeding through text
+
+In both games, pressing A while a line of text is still printing does nothing, and there's no instant-text option or code for them. Gecko codes crash both games. So each tap that presses A also runs the game at full speed for half a second, which fills in a printing line almost at once. The A press comes first. On a line that's still printing, the game ignores it and the line finishes fast. On a finished line, it moves to the next one, which then prints fast. A line you haven't read is never skipped. The burst also speeds up whatever else is on screen for that half second, and the music jumps ahead slightly. Turn it off with the switch at the bottom of **Controls** (main menu or Dolphin menu → **Gesture controls**).
 
 ### Camera zoom
 

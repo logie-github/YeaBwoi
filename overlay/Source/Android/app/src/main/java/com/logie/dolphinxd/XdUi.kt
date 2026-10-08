@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import org.dolphinemu.dolphinemu.R
 
@@ -15,9 +16,22 @@ object XdUi {
     private const val MENU_HINT_LAUNCHES = 3
 
     fun showControls(activity: Activity) {
+        val config = XdConfig(activity)
+        val padding = (24 * activity.resources.displayMetrics.density).toInt()
+        val fastText = MaterialSwitch(activity).apply {
+            setText(R.string.xd_controls_fast_text)
+            isChecked = config.tapSpeedsUpText
+            setOnCheckedChangeListener { _, checked -> config.tapSpeedsUpText = checked }
+        }
+        val options = LinearLayout(activity).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(padding, padding / 2, padding, 0)
+            addView(fastText)
+        }
         MaterialAlertDialogBuilder(activity)
             .setTitle(R.string.xd_controls_title)
             .setMessage(R.string.xd_controls_body)
+            .setView(options)
             .setPositiveButton(R.string.ok, null)
             .show()
     }
