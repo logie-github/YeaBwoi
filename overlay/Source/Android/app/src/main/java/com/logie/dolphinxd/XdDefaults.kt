@@ -13,24 +13,42 @@ import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig
 import org.dolphinemu.dolphinemu.utils.ThemeHelper
 
 /**
- * Dolphin settings that make the app behave like a standalone game. Applied once per
- * [VERSION], so anything the player changes later in Dolphin's settings sticks.
+ * Dolphin settings that make the app behave like a standalone game. Each step is applied once, so
+ * anything the player changes later in Dolphin's settings sticks, and a later step never resets the
+ * settings an earlier one made.
  */
 object XdDefaults {
-    private const val VERSION = 1
+    private const val VERSION = 2
 
     /** SerialInterface::SIDEVICE_GC_CONTROLLER, the emulated "Standard Controller". */
     private const val SI_STANDARD_CONTROLLER = 6
 
+    /** AspectMode::ForceStandard, "Force 4:3". */
+    private const val ASPECT_FORCE_STANDARD = 2
+
     /** Must run after directory initialization. */
     fun applyIfNeeded(context: Context) {
         val config = XdConfig(context)
-        if (config.defaultsVersion >= VERSION) {
+        val applied = config.defaultsVersion
+        if (applied >= VERSION) {
             return
         }
 
         val layer = NativeConfig.LAYER_BASE
+        if (applied < 1) {
+            applyFirstRun(context, layer)
+        }
+        if (applied < 2) {
+            // Always 4:3, the games' own shape. "Auto" keeps switching between 4:3 and a letterboxed
+            // 16:9 picture as Dolphin guesses the aspect ratio scene by scene.
+            IntSetting.GFX_ASPECT_RATIO.setInt(layer, ASPECT_FORCE_STANDARD)
+        }
 
+        NativeConfig.save(layer)
+        config.defaultsVersion = VERSION
+    }
+
+    private fun applyFirstRun(context: Context, layer: Int) {
         // No first-run analytics prompt.
         BooleanSetting.MAIN_ANALYTICS_PERMISSION_ASKED.setBoolean(layer, true)
         BooleanSetting.MAIN_ANALYTICS_ENABLED.setBoolean(layer, false)
@@ -52,8 +70,5 @@ object XdDefaults {
         PreferenceManager.getDefaultSharedPreferences(context.applicationContext).edit {
             putInt(ThemeHelper.CURRENT_THEME_MODE, themeMode)
         }
-
-        NativeConfig.save(layer)
-        config.defaultsVersion = VERSION
     }
 }

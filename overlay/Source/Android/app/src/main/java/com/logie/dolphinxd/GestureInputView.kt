@@ -85,6 +85,20 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
             }
         }
 
+        override fun quickSave() {
+            if (isInputReady()) {
+                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                XdSaveStates.quickSave(context)
+            }
+        }
+
+        override fun quickLoad() {
+            if (isInputReady()) {
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                XdSaveStates.quickLoad(context)
+            }
+        }
+
         override fun onHoldRecognized() {
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         }

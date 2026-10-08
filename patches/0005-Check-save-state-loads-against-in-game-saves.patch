@@ -1,0 +1,197 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 17:31:41 +0000
+Subject: [PATCH 5/5] Check save state loads against in-game saves
+
+The in-game menu's Quick save/Quick load and save state slots go through
+XdSaveStates, the same as the three-finger gestures. A save state also
+restores the memory card, so loading one made before an in-game save
+would leave the player with two different saves. XdSaveStates only loads
+a state while the memory card is unchanged since the state was made.
+
+To tell, it compares the card files with what they held when the state
+was made. Dolphin writes the card files a while after the game saves (1 s
+for GCI folders, up to 15 s for raw cards). So the memory card device
+also records when the game last wrote to a card, exposed as
+NativeLibrary.GetLastMemoryCardWriteTime().
+---
+ .../dolphinemu/dolphinemu/NativeLibrary.kt    |  7 +++++
+ .../activities/EmulationActivity.kt           | 29 ++++++++++---------
+ Source/Android/jni/MainAndroid.cpp            |  7 +++++
+ .../Core/Core/HW/EXI/EXI_DeviceMemoryCard.cpp | 20 +++++++++++++
+ .../Core/Core/HW/EXI/EXI_DeviceMemoryCard.h   |  4 +++
+ 5 files changed, 53 insertions(+), 14 deletions(-)
+
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt
+index b52b7b4..6b2bbea 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/NativeLibrary.kt
+@@ -267,6 +267,13 @@ object NativeLibrary {
+     @JvmStatic
+     external fun GetUnixTimeOfStateSlot(slot: Int): Long
+ 
++    /**
++     * Returns when the game last wrote to a memory card (milliseconds since 1970), or 0 if it
++     * hasn't since Dolphin started. Includes writes not yet flushed to the card files.
++     */
++    @JvmStatic
++    external fun GetLastMemoryCardWriteTime(): Long
++
+     /**
+      * Sets the current working user directory. If not set, it auto-detects a location.
+      */
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+index aff64dd..82af7c3 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+@@ -31,6 +31,7 @@ import androidx.fragment.app.FragmentManager
+ import androidx.recyclerview.widget.LinearLayoutManager
+ import com.google.android.material.dialog.MaterialAlertDialogBuilder
+ import com.google.android.material.slider.Slider
++import com.logie.dolphinxd.XdSaveStates
+ import com.logie.dolphinxd.XdUi
+ import org.dolphinemu.dolphinemu.NativeLibrary
+ import org.dolphinemu.dolphinemu.R
+@@ -510,22 +511,22 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+             }
+ 
+             MENU_ACTION_TAKE_SCREENSHOT -> NativeLibrary.SaveScreenShot()
+-            MENU_ACTION_QUICK_SAVE -> NativeLibrary.SaveState(9)
+-            MENU_ACTION_QUICK_LOAD -> NativeLibrary.LoadState(9)
++            MENU_ACTION_QUICK_SAVE -> XdSaveStates.quickSave(this)
++            MENU_ACTION_QUICK_LOAD -> XdSaveStates.quickLoad(this)
+             MENU_ACTION_SAVE_ROOT -> showSubMenu(SaveOrLoad.SAVE)
+             MENU_ACTION_LOAD_ROOT -> showSubMenu(SaveOrLoad.LOAD)
+-            MENU_ACTION_SAVE_SLOT1 -> NativeLibrary.SaveState(0)
+-            MENU_ACTION_SAVE_SLOT2 -> NativeLibrary.SaveState(1)
+-            MENU_ACTION_SAVE_SLOT3 -> NativeLibrary.SaveState(2)
+-            MENU_ACTION_SAVE_SLOT4 -> NativeLibrary.SaveState(3)
+-            MENU_ACTION_SAVE_SLOT5 -> NativeLibrary.SaveState(4)
+-            MENU_ACTION_SAVE_SLOT6 -> NativeLibrary.SaveState(5)
+-            MENU_ACTION_LOAD_SLOT1 -> NativeLibrary.LoadState(0)
+-            MENU_ACTION_LOAD_SLOT2 -> NativeLibrary.LoadState(1)
+-            MENU_ACTION_LOAD_SLOT3 -> NativeLibrary.LoadState(2)
+-            MENU_ACTION_LOAD_SLOT4 -> NativeLibrary.LoadState(3)
+-            MENU_ACTION_LOAD_SLOT5 -> NativeLibrary.LoadState(4)
+-            MENU_ACTION_LOAD_SLOT6 -> NativeLibrary.LoadState(5)
++            MENU_ACTION_SAVE_SLOT1 -> XdSaveStates.save(this, 0)
++            MENU_ACTION_SAVE_SLOT2 -> XdSaveStates.save(this, 1)
++            MENU_ACTION_SAVE_SLOT3 -> XdSaveStates.save(this, 2)
++            MENU_ACTION_SAVE_SLOT4 -> XdSaveStates.save(this, 3)
++            MENU_ACTION_SAVE_SLOT5 -> XdSaveStates.save(this, 4)
++            MENU_ACTION_SAVE_SLOT6 -> XdSaveStates.save(this, 5)
++            MENU_ACTION_LOAD_SLOT1 -> XdSaveStates.load(this, 0)
++            MENU_ACTION_LOAD_SLOT2 -> XdSaveStates.load(this, 1)
++            MENU_ACTION_LOAD_SLOT3 -> XdSaveStates.load(this, 2)
++            MENU_ACTION_LOAD_SLOT4 -> XdSaveStates.load(this, 3)
++            MENU_ACTION_LOAD_SLOT5 -> XdSaveStates.load(this, 4)
++            MENU_ACTION_LOAD_SLOT6 -> XdSaveStates.load(this, 5)
+             MENU_ACTION_CHANGE_DISC -> requestChangeDisc.launch("*/*")
+ 
+             MENU_SET_IR_MODE -> setIRMode()
+diff --git a/Source/Android/jni/MainAndroid.cpp b/Source/Android/jni/MainAndroid.cpp
+index bbf6523..e6edd0c 100644
+--- a/Source/Android/jni/MainAndroid.cpp
++++ b/Source/Android/jni/MainAndroid.cpp
+@@ -42,6 +42,7 @@
+ #include "Core/Core.h"
+ #include "Core/DolphinAnalytics.h"
+ #include "Core/HW/DVD/DVDInterface.h"
++#include "Core/HW/EXI/EXI_DeviceMemoryCard.h"
+ #include "Core/HW/Wiimote.h"
+ #include "Core/HW/WiimoteReal/WiimoteReal.h"
+ #include "Core/Host.h"
+@@ -335,6 +336,12 @@ Java_org_dolphinemu_dolphinemu_NativeLibrary_GetUnixTimeOfStateSlot(JNIEnv*, jcl
+   return static_cast<jlong>(State::GetUnixTimeOfSlot(slot));
+ }
+ 
++JNIEXPORT jlong JNICALL
++Java_org_dolphinemu_dolphinemu_NativeLibrary_GetLastMemoryCardWriteTime(JNIEnv*, jclass)
++{
++  return static_cast<jlong>(ExpansionInterface::CEXIMemoryCard::GetLastWriteTime());
++}
++
+ JNIEXPORT void JNICALL Java_org_dolphinemu_dolphinemu_utils_DirectoryInitialization_SetSysDirectory(
+     JNIEnv* env, jclass, jstring jPath)
+ {
+diff --git a/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.cpp b/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.cpp
+index 73ff1d6..36b2a24 100644
+--- a/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.cpp
++++ b/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.cpp
+@@ -4,6 +4,8 @@
+ #include "Core/HW/EXI/EXI_DeviceMemoryCard.h"
+ 
+ #include <array>
++#include <atomic>
++#include <chrono>
+ #include <functional>
+ #include <memory>
+ #include <string>
+@@ -37,6 +39,20 @@
+ 
+ namespace ExpansionInterface
+ {
++static std::atomic<u64> s_last_write_time{0};
++
++static void NoteWrite()
++{
++  const auto now = std::chrono::system_clock::now().time_since_epoch();
++  s_last_write_time.store(std::chrono::duration_cast<std::chrono::milliseconds>(now).count(),
++                          std::memory_order_relaxed);
++}
++
++u64 CEXIMemoryCard::GetLastWriteTime()
++{
++  return s_last_write_time.load(std::memory_order_relaxed);
++}
++
+ #define MC_STATUS_BUSY 0x80
+ #define MC_STATUS_UNLOCKED 0x40
+ #define MC_STATUS_SLEEP 0x20
+@@ -288,6 +304,7 @@ void CEXIMemoryCard::SetCS(int cs)
+       if (m_position > 2)
+       {
+         m_memory_card->ClearBlock(m_address & (m_memory_card_size - 1));
++        NoteWrite();
+         m_status |= MC_STATUS_BUSY;
+         m_status &= ~MC_STATUS_READY;
+ 
+@@ -301,6 +318,7 @@ void CEXIMemoryCard::SetCS(int cs)
+       if (m_position > 2)
+       {
+         m_memory_card->ClearAll();
++        NoteWrite();
+         m_status &= ~MC_STATUS_BUSY;
+       }
+       break;
+@@ -311,6 +329,7 @@ void CEXIMemoryCard::SetCS(int cs)
+         int count = m_position - 5;
+         int i = 0;
+         m_status &= ~MC_STATUS_BUSY;
++        NoteWrite();
+ 
+         while (count--)
+         {
+@@ -542,6 +561,7 @@ void CEXIMemoryCard::DMAWrite(u32 addr, u32 size)
+ {
+   auto& memory = m_system.GetMemory();
+   m_memory_card->Write(m_address, size, memory.GetPointerForRange(addr, size));
++  NoteWrite();
+ 
+   if (((m_address + size) % Memcard::BLOCK_SIZE) == 0)
+   {
+diff --git a/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.h b/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.h
+index db9c013..b4a1399 100644
+--- a/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.h
++++ b/Source/Core/Core/HW/EXI/EXI_DeviceMemoryCard.h
+@@ -61,6 +61,10 @@ public:
+   static void Init(CoreTiming::CoreTimingManager& core_timing);
+   static void Shutdown();
+ 
++  // When the game last wrote to a memory card, in milliseconds since 1970 (0 if it hasn't since
++  // Dolphin started). Unlike the card files, this includes writes not yet flushed to disk.
++  static u64 GetLastWriteTime();
++
+   static std::pair<std::string /* path */, bool /* migrate */>
+   GetGCIFolderPath(Slot card_slot, AllowMovieFolder allow_movie_folder, Movie::MovieManager& movie);
+ 

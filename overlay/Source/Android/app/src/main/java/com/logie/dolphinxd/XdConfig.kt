@@ -117,6 +117,13 @@ class XdConfig(context: Context) {
     fun gameIdOf(versionId: String): String? =
         if (versionId == ORIGINAL) romGameId else mods.find { it.id == versionId }?.gameId
 
+    /** The memory card's contents (see [XdSaveStates]) when save state [slot] was made. */
+    fun stateCardFingerprint(versionId: String, slot: Int): String? =
+        prefs.getString("$KEY_STATE_CARD_PREFIX$versionId.$slot", null)
+
+    fun setStateCardFingerprint(versionId: String, slot: Int, fingerprint: String) =
+        prefs.edit(commit = true) { putString("$KEY_STATE_CARD_PREFIX$versionId.$slot", fingerprint) }
+
     companion object {
         const val ORIGINAL = "original"
 
@@ -131,5 +138,6 @@ class XdConfig(context: Context) {
         private const val KEY_CONTROL_HINTS_SHOWN = "control_hints_shown"
         private const val KEY_MODS = "mods"
         private const val KEY_ACTIVE_VERSION = "active_version"
+        private const val KEY_STATE_CARD_PREFIX = "state_card."
     }
 }

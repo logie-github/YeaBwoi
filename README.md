@@ -33,6 +33,8 @@ The first build takes about an hour because it compiles all of Dolphin. Later bu
 
 After that, opening the app goes straight into the game. Exiting the game (**Exit to main menu** in the Dolphin menu) opens the main menu. Back on the main menu closes the app.
 
+The picture is always 4:3, the games' own shape. Dolphin's "Auto" setting kept switching between 4:3 and a letterboxed 16:9 picture. You can change it in **Emulator settings → Graphics → Aspect Ratio**.
+
 The apps don't include any game or BIOS files. You have to provide your own.
 
 ## Controls
@@ -49,8 +51,16 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | Two-finger tap, then two-finger tap and hold | Dolphin menu |
 | While one finger swipes or holds, tap with a second finger | A |
 | While one finger swipes or holds, hold a second finger | Fast-forward: the game runs at double speed until you lift that finger |
+| Three-finger tap | Quick save |
+| Three-finger hold | Quick load |
 
 To hold B while moving the stick, hold, then drag with the same finger.
+
+### Quick save and quick load
+
+A three-finger tap makes a quick save (a Dolphin save state) and a three-finger hold loads it. They share one slot with **Quick save** and **Quick load** in the Dolphin menu.
+
+A save state also restores the memory card as it was when the state was made. Loading a quick save from before your last in-game save would undo that save and leave you with two different saves. So each save state remembers what was on the memory card when it was made. It only loads while the card is still exactly the same, which means you haven't saved in the game since. Otherwise it shows "Not loaded: you saved in the game after this quick save" and nothing changes. The same rule applies to the numbered save state slots in the Dolphin menu.
 
 ### Fast-forward and sound
 
@@ -114,7 +124,7 @@ Dolphin's full source is too large to vendor, so this repository holds only the 
 | Path | Contents |
 | --- | --- |
 | `dolphin-version.env` | The upstream Dolphin release (tag and commit) to build from |
-| `patches/` | Changes to Dolphin's own files: configurable package name, the app's screens, gesture input in the emulation screen, in-game menu entries, the themed palette, normal-speed audio during fast-forward |
+| `patches/` | Changes to Dolphin's own files: configurable package name, the app's screens, gesture input in the emulation screen, in-game menu entries, the themed palette, normal-speed audio during fast-forward, save state checks in the Dolphin menu |
 | `overlay/` | Code and layouts shared by both apps: setup and main menu screens, texture pack and mod installers, UPS patcher, gesture controls |
 | `games/<game>/` | One app each (`xd`, `colosseum`). `game.env` sets the package and name. `overlay/` holds that game's wording, game ID, colors and artwork. `branding/` holds the source images. |
 | `scripts/prepare-dolphin.sh` | Clones Dolphin, applies `patches/`, then copies `overlay/` and `games/<game>/overlay/` |
