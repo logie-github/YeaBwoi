@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 22:36:59 +0000
+Subject: [PATCH 9/9] Add Camera zoom to the in-game menu
+
+Opens Dolphin XD's camera zoom slider, the same zoom as pinching with two fingers.
+---
+ .../dolphinemu/dolphinemu/activities/EmulationActivity.kt    | 2 ++
+ .../java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt | 1 +
+ .../Android/app/src/main/res/layout/fragment_ingame_menu.xml | 5 +++++
+ 3 files changed, 8 insertions(+)
+
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+index 04fed3d..255fc29 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+@@ -539,6 +539,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+             MENU_ACTION_XD_CONTROLS -> XdUi.showControls(this)
+             MENU_ACTION_XD_UPDATES -> XdUpdateActivity.launch(this)
+             MENU_ACTION_XD_FRAME_RATE -> XdUi.showFrameRate(this, inGame = true)
++            MENU_ACTION_XD_ZOOM -> XdUi.showCameraZoom(this)
+         }
+     }
+ 
+@@ -1101,6 +1102,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+         const val MENU_ACTION_XD_CONTROLS = 100
+         const val MENU_ACTION_XD_UPDATES = 101
+         const val MENU_ACTION_XD_FRAME_RATE = 102
++        const val MENU_ACTION_XD_ZOOM = 103
+ 
+         init {
+             buttonsActionsMap.apply {
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+index 4b80b84..77f41a1 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+@@ -213,6 +213,7 @@ class MenuFragment : Fragment(), View.OnClickListener {
+             )
+             buttonsActionsMap.append(R.id.menu_xd_controls, EmulationActivity.MENU_ACTION_XD_CONTROLS)
+             buttonsActionsMap.append(R.id.menu_xd_frame_rate, EmulationActivity.MENU_ACTION_XD_FRAME_RATE)
++            buttonsActionsMap.append(R.id.menu_xd_zoom, EmulationActivity.MENU_ACTION_XD_ZOOM)
+             buttonsActionsMap.append(R.id.menu_xd_updates, EmulationActivity.MENU_ACTION_XD_UPDATES)
+         }
+ 
+diff --git a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+index c8c2fde..bb784ca 100644
+--- a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
++++ b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+@@ -96,6 +96,11 @@
+                 style="@style/InGameMenuOption"
+                 android:text="@string/xd_menu_frame_rate" />
+ 
++            <Button
++                android:id="@+id/menu_xd_zoom"
++                style="@style/InGameMenuOption"
++                android:text="@string/xd_menu_zoom" />
++
+             <Button
+                 android:id="@+id/menu_xd_updates"
+                 style="@style/InGameMenuOption"
