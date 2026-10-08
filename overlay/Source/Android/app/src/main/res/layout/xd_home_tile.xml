@@ -7,7 +7,7 @@
     android:layout_height="wrap_content"
     android:clickable="true"
     android:focusable="true"
-    app:rippleColor="@color/xd_purple_dark">
+    app:rippleColor="@color/xd_accent_container">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -21,7 +21,7 @@
             android:layout_width="30dp"
             android:layout_height="30dp"
             android:importantForAccessibility="no"
-            app:tint="@color/xd_purple_light" />
+            app:tint="@color/xd_accent_text" />
 
         <TextView
             android:id="@+id/xd_tile_title"

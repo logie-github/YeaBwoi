@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# Produces the Dolphin XD source tree:
+# Produces the source tree for one of the apps in games/ (xd, colosseum, ...):
 #   1. checks out the pinned upstream Dolphin release (dolphin-version.env),
 #   2. applies patches/*.patch (changes to Dolphin's own files),
-#   3. copies overlay/ on top (Dolphin XD's own code, layouts and icons).
+#   3. copies overlay/ on top (the shared code and layouts),
+#   4. copies games/<game>/overlay/ on top (that game's names, colors and artwork).
 #
-# Usage: scripts/prepare-dolphin.sh [destination]   (default: build/dolphin)
+# Usage: scripts/prepare-dolphin.sh <game> [destination]   (default: build/dolphin)
 # Running it again resets the destination to a clean, freshly patched tree.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DEST="${1:-$ROOT/build/dolphin}"
+GAME="${1:?usage: $0 <game> [destination]   (games: $(ls "$ROOT/games" | tr '\n' ' '))}"
+DEST="${2:-$ROOT/build/dolphin}"
+if [ ! -f "$ROOT/games/$GAME/game.env" ]; then
+  echo "error: unknown game '$GAME' (games: $(ls "$ROOT/games" | tr '\n' ' '))" >&2
+  exit 1
+fi
 
 # shellcheck source=../dolphin-version.env
 source "$ROOT/dolphin-version.env"
@@ -55,12 +61,13 @@ if [ ${#patches[@]} -gt 0 ]; then
   fi
 fi
 
-echo "==> Copying overlay"
+echo "==> Copying overlay and games/$GAME"
 cp -R "$ROOT/overlay/." "$DEST/"
-mapfile -t overlay_entries < <(cd "$ROOT/overlay" && ls -A)
-git -C "$DEST" add -A -- "${overlay_entries[@]}"
+cp -R "$ROOT/games/$GAME/overlay/." "$DEST/"
+mapfile -t overlay_entries < <(cd "$ROOT/overlay" && ls -A; cd "$ROOT/games/$GAME/overlay" && ls -A)
+git -C "$DEST" add -A -- $(printf '%s\n' "${overlay_entries[@]}" | sort -u)
 # A fixed date keeps the commit hash (Dolphin's version string) the same for the same inputs.
 GIT_AUTHOR_DATE="2000-01-01T00:00:00Z" GIT_COMMITTER_DATE="2000-01-01T00:00:00Z" \
-  git -C "$DEST" commit --quiet --allow-empty -m "Add Dolphin XD sources and resources"
+  git -C "$DEST" commit --quiet --allow-empty -m "Add Dolphin XD sources and resources for $GAME"
 
 echo "==> Dolphin XD source ready: $DEST ($(git -C "$DEST" describe --always --long))"

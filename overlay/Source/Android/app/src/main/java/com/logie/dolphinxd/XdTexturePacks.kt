@@ -16,20 +16,18 @@ import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
 
 /**
- * Installs Dolphin texture packs for Pokémon XD.
+ * Installs Dolphin texture packs for the app's game.
  *
  * Each pack gets its own folder in Load/Textures. Dolphin uses every top-level folder there
  * that contains a "<game ID>.txt" file for that game (see GetTextureDirectoriesWithGameId), so a
- * "GXX.txt" marker enables a pack for all regions of Pokémon XD and Pokémon XG, and renaming
- * the marker turns the pack off without deleting it.
+ * marker named after the 3-character ID ("GXX.txt" for Pokémon XD, "GC6.txt" for Colosseum)
+ * enables a pack for every region of the game and its mods, and renaming the marker turns the
+ * pack off without deleting it.
  */
 object XdTexturePacks {
     private const val FOLDER_PREFIX = "xd-"
-    private const val MARKER = "GXX.txt"
-    private const val MARKER_OFF = "GXX.txt.off"
     private const val INFO = "xd-pack-info.txt"
     private const val STAGING = ".xd-import"
-    private const val XD_ID_PREFIX = "GXX"
     private val TEXTURE_EXTENSIONS = setOf("png", "dds")
     private val GAME_ID = Regex("^[A-Z][A-Z0-9]{2}[A-Z][A-Z0-9]{2}$")
 
@@ -43,6 +41,10 @@ object XdTexturePacks {
 
     private val texturesDirectory: File
         get() = File(XdFiles.userDirectory, "Load/Textures")
+
+    private fun marker(context: Context) = XdGame.idPrefix(context) + ".txt"
+
+    private fun markerOff(context: Context) = marker(context) + ".off"
 
     var loadCustomTextures: Boolean
         get() = BooleanSetting.GFX_HIRES_TEXTURES.boolean
@@ -58,7 +60,7 @@ object XdTexturePacks {
             NativeConfig.save(NativeConfig.LAYER_BASE)
         }
 
-    fun list(): List<Pack> {
+    fun list(context: Context): List<Pack> {
         val folders = texturesDirectory.listFiles { file ->
             file.isDirectory && file.name.startsWith(FOLDER_PREFIX)
         } ?: return emptyList()
@@ -67,16 +69,16 @@ object XdTexturePacks {
             Pack(
                 folder = folder,
                 name = info.getOrNull(0)?.takeIf { it.isNotBlank() } ?: folder.name.removePrefix(FOLDER_PREFIX),
-                enabled = File(folder, MARKER).exists(),
+                enabled = File(folder, marker(context)).exists(),
                 textureCount = info.getOrNull(1)?.toIntOrNull() ?: 0,
                 hasDds = info.getOrNull(2) == "dds",
             )
         }.sortedBy { it.name.lowercase() }
     }
 
-    fun setEnabled(pack: Pack, enabled: Boolean) {
-        val on = File(pack.folder, MARKER)
-        val off = File(pack.folder, MARKER_OFF)
+    fun setEnabled(context: Context, pack: Pack, enabled: Boolean) {
+        val on = File(pack.folder, marker(context))
+        val off = File(pack.folder, markerOff(context))
         if (enabled && !on.exists()) {
             if (!off.renameTo(on)) on.createNewFile()
         } else if (!enabled && on.exists()) {
@@ -89,7 +91,7 @@ object XdTexturePacks {
         pack.folder.deleteRecursively()
     }
 
-    /** Imports a pack .zip: a Dolphin texture pack (GXX folder) or a resource pack (textures/). */
+    /** Imports a pack .zip: a Dolphin texture pack (a game ID folder such as GXX) or a resource pack (textures/). */
     fun importZip(context: Context, uri: Uri, progress: XdTasks.Progress): String {
         val name = (XdFiles.displayName(context, uri) ?: "Texture pack")
             .replace(Regex("(?i)\\.zip$"), "")
@@ -119,12 +121,12 @@ object XdTexturePacks {
                     }
                 }
             } catch (_: ZipException) {
-                throw XdTaskException(context.getString(R.string.xd_textures_bad_zip))
+                throw XdTaskException(context.getString(R.string.xd_textures_bad_zip, XdGame.idPrefix(context)))
             }
         }
     }
 
-    /** Imports a pack that's already been extracted, e.g. the GXX folder from the zip. */
+    /** Imports a pack that's already been extracted, e.g. the game ID folder from the zip. */
     fun importFolder(context: Context, treeUri: Uri, progress: XdTasks.Progress): String {
         val resolver = context.contentResolver
         val rootId = DocumentsContract.getTreeDocumentId(treeUri)
@@ -156,8 +158,8 @@ object XdTexturePacks {
             }
         }
 
-        // A folder named after a game ID (GXX) isn't a useful pack name.
-        val name = if (rootName.uppercase().startsWith(XD_ID_PREFIX) && rootName.length <= 6) {
+        // A folder named after the game ID (e.g. GXX) isn't a useful pack name.
+        val name = if (rootName.uppercase().startsWith(XdGame.idPrefix(context)) && rootName.length <= 6) {
             context.getString(R.string.xd_textures_default_name)
         } else {
             rootName
@@ -186,7 +188,7 @@ object XdTexturePacks {
     }
 
     /** Copies textures into a staging folder, keeping the layout below the game ID folder. */
-    private class Importer(private val staging: File) {
+    private class Importer(private val staging: File, private val idPrefix: String) {
         var count = 0
         var hasDds = false
         val otherGames = sortedSetOf<String>()
@@ -202,9 +204,9 @@ object XdTexturePacks {
             if (folders.firstOrNull()?.equals("textures", ignoreCase = true) == true) {
                 folders = folders.drop(1)
             }
-            val xdFolder = folders.indexOfFirst { it.uppercase().let { id -> id.startsWith(XD_ID_PREFIX) && id.length in setOf(3, 6) } }
-            if (xdFolder >= 0) {
-                folders = folders.drop(xdFolder + 1)
+            val gameFolder = folders.indexOfFirst { it.uppercase().let { id -> id.startsWith(idPrefix) && id.length in setOf(3, 6) } }
+            if (gameFolder >= 0) {
+                folders = folders.drop(gameFolder + 1)
             } else {
                 val other = folders.firstOrNull { GAME_ID.matches(it) }
                 if (other != null) {
@@ -225,7 +227,7 @@ object XdTexturePacks {
         val staging = File(texturesDirectory, STAGING)
         staging.deleteRecursively()
         staging.mkdirs()
-        val importer = Importer(staging)
+        val importer = Importer(staging, XdGame.idPrefix(context))
         try {
             try {
                 copy(importer)
@@ -247,7 +249,7 @@ object XdTexturePacks {
             }
 
             File(staging, INFO).writeText("$name\n${importer.count}\n${if (importer.hasDds) "dds" else "png"}\n")
-            File(staging, MARKER).createNewFile()
+            File(staging, marker(context)).createNewFile()
             val folder = XdFiles.uniqueChild(texturesDirectory, FOLDER_PREFIX, name)
             if (!staging.renameTo(folder)) {
                 throw XdTaskException(context.getString(R.string.xd_task_failed))

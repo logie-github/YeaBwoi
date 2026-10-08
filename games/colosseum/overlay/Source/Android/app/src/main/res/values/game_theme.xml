@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.DolphinXD.Base" parent="Theme.Material3.Light.NoActionBar" />
+
+    <!-- Dark status bar icons on a light theme. -->
+    <bool name="xd_light_theme">true</bool>
+    <!-- Dolphin's interface theme mode (AppCompatDelegate.MODE_NIGHT_NO). -->
+    <integer name="xd_theme_mode">1</integer>
+    <!-- Main menu header: logo above the title instead of beside it. -->
+    <bool name="xd_header_stacked">true</bool>
+    <!-- Horizontal point of the banner (percent) that stays visible when it's cropped. -->
+    <integer name="xd_header_focus_percent">84</integer>
+    <dimen name="xd_header_height">236dp</dimen>
+    <dimen name="xd_header_logo_width">200dp</dimen>
+</resources>

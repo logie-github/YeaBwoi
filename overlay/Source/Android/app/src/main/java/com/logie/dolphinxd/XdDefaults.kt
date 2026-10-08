@@ -4,9 +4,9 @@ package com.logie.dolphinxd
 
 import android.content.Context
 import android.content.pm.ActivityInfo
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.IntSetting
 import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig
@@ -45,9 +45,12 @@ object XdDefaults {
             layer,
             ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         )
-        IntSetting.MAIN_INTERFACE_THEME_MODE.setInt(layer, AppCompatDelegate.MODE_NIGHT_YES)
+        // Light or dark to match the game's theme (MODE_NIGHT_YES for XD, MODE_NIGHT_NO for
+        // Colosseum's desert colors).
+        val themeMode = context.resources.getInteger(R.integer.xd_theme_mode)
+        IntSetting.MAIN_INTERFACE_THEME_MODE.setInt(layer, themeMode)
         PreferenceManager.getDefaultSharedPreferences(context.applicationContext).edit {
-            putInt(ThemeHelper.CURRENT_THEME_MODE, AppCompatDelegate.MODE_NIGHT_YES)
+            putInt(ThemeHelper.CURRENT_THEME_MODE, themeMode)
         }
 
         NativeConfig.save(layer)

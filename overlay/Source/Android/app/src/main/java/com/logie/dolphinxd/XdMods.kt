@@ -10,19 +10,20 @@ import org.dolphinemu.dolphinemu.NativeLibrary
 import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.model.GameFile
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 
 /**
- * Installs mods of Pokémon XD. A mod patch is applied the way mod authors ask for: to a clean copy
- * of the player's original disc image (never to an already patched one), producing a separate ISO
- * that becomes another selectable game version.
+ * Installs mods of the app's game. A mod patch is applied the way mod authors ask for: to a
+ * clean copy of the player's original disc image (never changing the original), producing a
+ * separate ISO that becomes another selectable game version. Add-on patches that are meant to
+ * go on top of a mod (like Grand Colosseum's Nuzlocke patch) update that mod's ISO instead.
  */
 object XdMods {
     private const val PLATFORM_GAMECUBE = 0
     private const val BLOB_TYPE_PLAIN = 0
     private const val BLOB_TYPE_SPLIT_PLAIN = 11
     private const val FORMAT_ISO = 0
-    private const val XD_ID_PREFIX = "GXX"
     private const val SPACE_MARGIN = 64L * 1024 * 1024
 
     private val modsDirectory: File
@@ -31,32 +32,50 @@ object XdMods {
     private val tempDirectory: File
         get() = File(XdFiles.xdDirectory, "Temp")
 
-    /** Applies a UPS patch (such as Pokémon XG: Next Gen) to the original game. Background thread. */
-    fun installUps(context: Context, patchUri: Uri, progress: XdTasks.Progress): String {
+    /** Mods a patch can be applied on top of: ISOs Dolphin XD made itself. */
+    fun patchableMods(context: Context): List<XdMod> = XdConfig(context).mods.filter { it.owned }
+
+    /**
+     * Applies a UPS patch (such as Pokémon XG: Next Gen or Pokémon Grand Colosseum) to the
+     * original game, or to the mod [baseId] for add-on patches. Background thread.
+     */
+    fun installUps(context: Context, patchUri: Uri, baseId: String, progress: XdTasks.Progress): String {
         val config = XdConfig(context)
-        val basePath = config.romUri ?: throw XdTaskException(context.getString(R.string.xd_mods_need_game))
-        val name = (XdFiles.displayName(context, patchUri) ?: "Mod").substringBeforeLast('.')
+        val patchName = (XdFiles.displayName(context, patchUri) ?: "Mod").substringBeforeLast('.')
+        val baseMod = config.mods.find { it.id == baseId && it.owned }
+        val basePath = baseMod?.path ?: config.romUri
+            ?: throw XdTaskException(context.getString(R.string.xd_mods_need_game))
 
         tempDirectory.deleteRecursively()
         tempDirectory.mkdirs()
-        val modDirectory = XdFiles.uniqueChild(modsDirectory, "", name)
+        // An add-on updates its mod in place; anything else becomes a new mod.
+        val modDirectory = if (baseMod != null) File(baseMod.path).parentFile!!
+        else XdFiles.uniqueChild(modsDirectory, "", patchName)
+        val partial = File(modDirectory, "game.iso.part")
+        var succeeded = false
         try {
-            // 1. Copy the patch so its size is known and it can be read twice.
+            // 1. The patch: read straight from where it is if its size is known (patches can be
+            // hundreds of MB), otherwise copy it first.
             progress.update(context.getString(R.string.xd_mods_reading_patch))
-            val patchFile = File(tempDirectory, "patch.ups")
-            context.contentResolver.openInputStream(patchUri)?.use { input ->
-                patchFile.outputStream().use { input.copyTo(it, 1 shl 20) }
-            } ?: throw XdTaskException(context.getString(R.string.xd_error_unreadable_bios))
+            var patchSize = XdFiles.size(context, patchUri)
+            var patchFile: File? = null
+            if (patchSize <= 0) {
+                val copy = File(tempDirectory, "patch.ups")
+                openUri(context, patchUri).use { input -> copy.outputStream().use { input.copyTo(it, 1 shl 20) } }
+                patchFile = copy
+                patchSize = copy.length()
+            }
+            val openPatch = { patchFile?.inputStream() ?: openUri(context, patchUri) }
             val header = try {
-                patchFile.inputStream().use { UpsPatcher.readHeader(it, patchFile.length()) }
+                openPatch().use { UpsPatcher.readHeader(it, patchSize) }
             } catch (_: UpsPatcher.UpsException) {
                 throw XdTaskException(context.getString(R.string.xd_mods_not_ups))
             }
 
-            // 2. The patch needs the original game as a plain ISO.
+            // 2. The base game as a plain ISO. Mods already are; the original may need converting.
             val game = GameFile.parse(basePath)
                 ?: throw XdTaskException(context.getString(R.string.xd_error_unreadable_rom))
-            val gameLabel = "${game.getTitle()}, ${game.getGameId()}"
+            val gameLabel = "${baseMod?.name ?: game.getTitle()}, ${game.getGameId()}"
             if (game.isNKit()) {
                 throw XdTaskException(context.getString(R.string.xd_mods_nkit, gameLabel))
             }
@@ -64,9 +83,8 @@ object XdMods {
             val needed = header.targetSize + (if (isPlain) 0 else header.sourceSize) + SPACE_MARGIN
             XdFiles.requireSpace(context, XdFiles.xdDirectory, needed)
 
-            val sourcePath: String
-            if (isPlain) {
-                sourcePath = basePath
+            val sourcePath = if (isPlain) {
+                basePath
             } else {
                 val iso = File(tempDirectory, "original.iso")
                 val converting = context.getString(R.string.xd_mods_converting)
@@ -81,20 +99,19 @@ object XdMods {
                 if (!converted) {
                     throw XdTaskException(context.getString(R.string.xd_mods_convert_failed))
                 }
-                sourcePath = iso.path
+                iso.path
             }
             val sourceSize = if (isPlain) game.getFileSize() else File(sourcePath).length()
 
-            // 3. Patch into the mod's own folder.
+            // 3. Patch into the mod's folder.
             modDirectory.mkdirs()
-            val partial = File(modDirectory, "game.iso.part")
             val patching = context.getString(R.string.xd_mods_patching)
             try {
                 XdFiles.openGame(context, sourcePath).use { source ->
-                    patchFile.inputStream().use { patch ->
+                    openPatch().use { patch ->
                         partial.outputStream().use { target ->
                             UpsPatcher.apply(
-                                source, patch, patchFile.length(), target,
+                                source, patch, patchSize, target,
                                 sourceSize = sourceSize,
                                 onProgress = { done, total -> progress.update(patching, done.toFloat() / total) },
                                 isCancelled = { progress.isCancelled }
@@ -113,23 +130,29 @@ object XdMods {
                 throw XdTaskCancelledException()
             }
 
-            // 4. Check that Dolphin can read the result, then make it the active version.
+            // 4. Check that Dolphin can read the result before it replaces anything.
             progress.update(context.getString(R.string.xd_mods_checking))
+            val patched = GameFile.parse(partial.path)
+                ?: throw XdTaskException(context.getString(R.string.xd_mods_unreadable_result))
             val iso = File(modDirectory, "game.iso")
             if (!partial.renameTo(iso)) {
                 throw XdTaskException(context.getString(R.string.xd_mods_unreadable_result))
             }
-            val patched = GameFile.parse(iso.path)
-                ?: throw XdTaskException(context.getString(R.string.xd_mods_unreadable_result))
+            succeeded = true
 
-            val mod = XdMod(modDirectory.name, name, iso.path, patched.getGameId(), owned = true)
-            config.mods = config.mods + mod
+            val mod = if (baseMod != null) {
+                baseMod.copy(name = "${baseMod.name} + $patchName", gameId = patched.getGameId())
+            } else {
+                XdMod(modDirectory.name, patchName, iso.path, patched.getGameId(), owned = true)
+            }
+            config.mods = config.mods.filter { it.id != mod.id } + mod
             XdUiThread.runBlocking { select(context, mod.id) }
-            return context.getString(R.string.xd_mods_installed_message, name)
-        } catch (e: Exception) {
-            modDirectory.deleteRecursively()
-            throw e
+            return context.getString(R.string.xd_mods_installed_message, mod.name)
         } finally {
+            partial.delete()
+            if (!succeeded && baseMod == null) {
+                modDirectory.deleteRecursively()
+            }
             tempDirectory.deleteRecursively()
         }
     }
@@ -147,7 +170,7 @@ object XdMods {
             releasePermission(context, path)
             throw XdTaskException(context.getString(R.string.xd_error_unreadable_rom))
         }
-        if (game.getPlatform() != PLATFORM_GAMECUBE || !game.getGameId().startsWith(XD_ID_PREFIX)) {
+        if (game.getPlatform() != PLATFORM_GAMECUBE || !XdGame.isThisGame(context, game.getGameId())) {
             releasePermission(context, path)
             throw XdTaskException(context.getString(R.string.xd_error_wrong_game, game.getTitle(), game.getGameId()))
         }
@@ -182,6 +205,10 @@ object XdMods {
             releasePermission(context, mod.path)
         }
     }
+
+    private fun openUri(context: Context, uri: Uri): InputStream =
+        context.contentResolver.openInputStream(uri)
+            ?: throw XdTaskException(context.getString(R.string.xd_error_unreadable_bios))
 
     private fun releasePermission(context: Context, path: String) {
         if (!path.startsWith("content://")) return

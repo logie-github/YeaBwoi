@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -39,7 +38,7 @@ class XdSetupActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        XdGame.enableEdgeToEdge(this)
         super.onCreate(savedInstanceState)
         config = XdConfig(this)
 
@@ -136,10 +135,10 @@ class XdSetupActivity : AppCompatActivity() {
         busy = true
         render()
         lifecycleScope.launch {
-            val result = withContext(Dispatchers.IO) { XdGameFiles.checkRom(path) }
+            val result = withContext(Dispatchers.IO) { XdGameFiles.checkRom(this@XdSetupActivity, path) }
             busy = false
             when (result) {
-                is XdGameFiles.RomCheck.PokemonXd -> {
+                is XdGameFiles.RomCheck.ThisGame -> {
                     val previous = config.romUri
                     if (previous != null && previous != path) releasePermission(previous)
                     config.setRom(path, result.title, result.gameId)
