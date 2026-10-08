@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pokémon XD wording. Every game in games/ defines the same strings. -->
+<resources>
+    <string name="xd_game_id_prefix" translatable="false">GXX</string>
+    <string name="xd_app_name" translatable="false">Dolphin XD</string>
+    <string name="xd_game_name" translatable="false">Pokémon XD: Gale of Darkness</string>
+    <string name="xd_setup_files_body">GameCube BIOS (IPL.bin) — optional. Pokémon XD runs fine without it. If you add one from your own GameCube, the GameCube startup animation plays before the game.</string>
+    <string name="xd_rom_title">2 · Pokémon XD game file</string>
+    <string name="xd_rom_body">Choose your own Pokémon XD: Gale of Darkness disc image (.iso, .gcm, .rvz, .ciso, .gcz, .wbfs). Dolphin XD remembers it, so you only do this once. Mods like Pokémon XG need the USA version as a full ISO.</string>
+    <string name="xd_play">Play Pokémon XD</string>
+    <string name="xd_error_unreadable_rom">Dolphin couldn\'t read that file. Make sure it\'s a GameCube disc image of Pokémon XD: Gale of Darkness.</string>
+    <string name="xd_error_wrong_game">That file is %1$s (%2$s), not Pokémon XD: Gale of Darkness. Dolphin XD only plays Pokémon XD and mods of it.</string>
+    <string name="xd_bios_region_mismatch">Your BIOS is from a different region than your copy of Pokémon XD, so the GameCube startup animation is skipped.</string>
+    <string name="xd_home_mods_sub">Pokémon XG and more</string>
+    <string name="xd_textures_hint">Choose the pack\'s .zip as you downloaded it. Both Dolphin texture packs (a GXX folder inside the zip) and Dolphin resource packs work; the importer puts the textures where Dolphin looks for Pokémon XD and turns on Load custom textures.\n\nFor the Pokémon XG/XD HD Texture Pack, use a PNG version on phones. DDS versions only show up on GPUs that support BC texture compression (most Snapdragon phones do, Mali/Exynos/Tensor GPUs don\'t).</string>
+    <string name="xd_textures_wrong_game">This pack is for a different game (%1$s), not Pokémon XD.</string>
+    <string name="xd_mods_original">Pokémon XD: Gale of Darkness</string>
+    <string name="xd_mods_hint">Mod patches are applied the way their instructions say: to a clean copy of your Pokémon XD disc image, which is never changed itself. For Pokémon XG: Next Gen, download the .ups patch from Project Pokémon and choose it here; it needs the USA version (GXXE01) as a full 1.46 GB ISO, but RVZ, GCZ and WIA copies of it are converted automatically.\n\nEach version keeps its own memory card saves and save states. Patching needs about 1.5 GB of free space.</string>
+    <string name="xd_mods_not_ups">That file isn\'t a UPS patch. Dolphin XD installs .ups patches like the one Pokémon XG: Next Gen comes with; for other formats, patch the game on a computer and use “Add already-patched game”.</string>
+    <string name="xd_mods_wrong_source">This patch doesn\'t match your game file (%1$s, %2$s). It was made for a clean disc image of exactly %3$s bytes; for Pokémon XG that\'s the USA version of Pokémon XD (GXXE01) as an untrimmed ISO.</string>
+    <string name="xd_mods_need_game">Choose your Pokémon XD game file first.</string>
+</resources>

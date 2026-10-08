@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pokémon Colosseum wording. Every game in games/ defines the same strings. -->
+<resources>
+    <string name="xd_game_id_prefix" translatable="false">GC6</string>
+    <string name="xd_app_name" translatable="false">Dolphin Colosseum</string>
+    <string name="xd_game_name" translatable="false">Pokémon Colosseum</string>
+    <string name="xd_setup_files_body">GameCube BIOS (IPL.bin) — optional. Pokémon Colosseum runs fine without it. If you add one from your own GameCube, the GameCube startup animation plays before the game.</string>
+    <string name="xd_rom_title">2 · Pokémon Colosseum game file</string>
+    <string name="xd_rom_body">Choose your own Pokémon Colosseum disc image (.iso, .gcm, .rvz, .ciso, .gcz, .wbfs). Dolphin Colosseum remembers it, so you only do this once. Mods like Pokémon Grand Colosseum need the USA version as a full ISO.</string>
+    <string name="xd_play">Play Pokémon Colosseum</string>
+    <string name="xd_error_unreadable_rom">Dolphin couldn\'t read that file. Make sure it\'s a GameCube disc image of Pokémon Colosseum.</string>
+    <string name="xd_error_wrong_game">That file is %1$s (%2$s), not Pokémon Colosseum. Dolphin Colosseum only plays Pokémon Colosseum and mods of it.</string>
+    <string name="xd_bios_region_mismatch">Your BIOS is from a different region than your copy of Pokémon Colosseum, so the GameCube startup animation is skipped.</string>
+    <string name="xd_home_mods_sub">Grand Colosseum and more</string>
+    <string name="xd_textures_hint">Choose the pack\'s .zip as you downloaded it. Both Dolphin texture packs (a GC6 or GC6E01 folder inside the zip) and Dolphin resource packs work; the importer puts the textures where Dolphin looks for Pokémon Colosseum and turns on Load custom textures.\n\nIf a pack comes in PNG and DDS versions, use PNG on phones. DDS textures only show up on GPUs that support BC texture compression (most Snapdragon phones do, Mali/Exynos/Tensor GPUs don\'t).</string>
+    <string name="xd_textures_wrong_game">This pack is for a different game (%1$s), not Pokémon Colosseum.</string>
+    <string name="xd_mods_original">Pokémon Colosseum</string>
+    <string name="xd_mods_hint">Mod patches are applied the way their instructions say: to a clean copy of your Pokémon Colosseum disc image, which is never changed itself. For Pokémon Grand Colosseum, download the version you want (Johto, Kanto or Hoenn) from Project Pokémon and choose its .ups patch here; it needs the USA version (GC6E01) as a full 1.46 GB ISO, but RVZ, GCZ and WIA copies of it are converted automatically. Install the Nuzlocke patch afterwards and choose your Grand Colosseum version when asked what to patch.\n\nEach version keeps its own memory card saves and save states; Grand Colosseum works best with a fresh save. Patching needs about 1.5 GB of free space.</string>
+    <string name="xd_mods_not_ups">That file isn\'t a UPS patch. Dolphin Colosseum installs .ups patches like the ones Pokémon Grand Colosseum comes with; for other formats, patch the game on a computer and use “Add already-patched game”.</string>
+    <string name="xd_mods_wrong_source">This patch doesn\'t match the game it was applied to (%1$s, %2$s). It was made for a disc image of exactly %3$s bytes; for Pokémon Grand Colosseum that\'s a clean USA Pokémon Colosseum (GC6E01) as an untrimmed ISO, and for add-ons like the Nuzlocke patch it\'s the Grand Colosseum version it was made for.</string>
+    <string name="xd_mods_need_game">Choose your Pokémon Colosseum game file first.</string>
+</resources>

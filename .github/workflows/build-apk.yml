@@ -1,10 +1,10 @@
-name: Build Dolphin XD APK
+name: Build APKs
 
+# Builds every app in games/ (Dolphin XD, Dolphin Colosseum) from the same Dolphin source.
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
-    paths-ignore: ["**.md", "branding/**"]
+    paths-ignore: ["**.md", "games/*/branding/**"]
   pull_request:
   workflow_dispatch:
 
@@ -39,12 +39,27 @@ jobs:
         run: gradle --no-daemon -p unit-tests test
 
   apk:
-    name: Build APK
+    name: Build ${{ matrix.game }} APK
     needs: unit-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        game: [xd, colosseum]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Read game settings
+        run: |
+          source "games/${{ matrix.game }}/game.env"
+          {
+            echo "APP_ID=$APP_ID"
+            echo "APP_NAME=$APP_NAME"
+            echo "GAME_NAME=$GAME_NAME"
+            echo "APK_FILE=$APK_NAME-$XD_VERSION_NAME.apk"
+            echo "RELEASE_TAG=$RELEASE_TAG_PREFIX-${{ github.run_number }}"
+          } >> "$GITHUB_ENV"
 
       - name: Free disk space
         run: |
@@ -62,8 +77,8 @@ jobs:
       # and Dolphin's third-party code (e.g. SDL's example project) has wrapper jars it doesn't know.
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Prepare Dolphin XD source
-        run: scripts/prepare-dolphin.sh "$DOLPHIN_DIR"
+      - name: Prepare source
+        run: scripts/prepare-dolphin.sh "${{ matrix.game }}" "$DOLPHIN_DIR"
 
       - name: Install Android SDK packages
         run: |
@@ -108,15 +123,16 @@ jobs:
             -Pkeypass="$XD_KEYPASS" \
             -PxdVersionCode=${{ github.run_number }} \
             -PxdVersionName="$XD_VERSION_NAME" \
+            -PxdApplicationId="$APP_ID" \
+            -PxdAppName="$APP_NAME" \
             -PxdCcache
 
       - name: Collect APK
         run: |
           mkdir -p dist
-          cp "$DOLPHIN_DIR/Source/Android/app/build/outputs/apk/release/app-release.apk" \
-            "dist/DolphinXD-$XD_VERSION_NAME.apk"
+          cp "$DOLPHIN_DIR/Source/Android/app/build/outputs/apk/release/app-release.apk" "dist/$APK_FILE"
           "$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/aapt2" \
-            dump badging "dist/DolphinXD-$XD_VERSION_NAME.apk" | head -3
+            dump badging "dist/$APK_FILE" | head -3
           ls -la dist
 
       # The APK is published as a GitHub release rather than a workflow artifact: release
@@ -126,17 +142,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            tag="${GITHUB_REF#refs/tags/}"
-          else
-            tag="build-${{ github.run_number }}"
-          fi
           source dolphin-version.env
-          notes="Pokémon XD for Android, built from Dolphin $DOLPHIN_TAG and commit ${GITHUB_SHA::7}.
+          notes="$GAME_NAME for Android, built from Dolphin $DOLPHIN_TAG and commit ${GITHUB_SHA::7}.
 
-          Download **DolphinXD-$XD_VERSION_NAME.apk** below on your phone and open it to install."
-          gh release create "$tag" dist/*.apk \
+          Download **$APK_FILE** below on your phone and open it to install."
+          gh release create "$RELEASE_TAG" "dist/$APK_FILE" \
             --target "$GITHUB_SHA" \
-            --title "Dolphin XD $XD_VERSION_NAME" \
-            --notes "$notes" \
-            --latest
+            --title "$APP_NAME $XD_VERSION_NAME" \
+            --notes "$notes"

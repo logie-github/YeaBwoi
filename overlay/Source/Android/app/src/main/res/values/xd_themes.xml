@@ -1,53 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Shared styles. The colors (game_colors.xml), the light/dark base theme and the header
+    settings (game_theme.xml) come from the game's folder in games/.
+-->
 <resources>
-    <!-- Dolphin XD palette: Shadow Lugia purple, XD red, black and white. -->
-    <color name="xd_background">#0B0814</color>
-    <color name="xd_background_scrim">#E60B0814</color>
-    <color name="xd_surface">#171226</color>
-    <color name="xd_surface_high">#211A33</color>
-    <color name="xd_surface_stroke">#2E2448</color>
-    <color name="xd_purple">#7B61D9</color>
-    <color name="xd_purple_dark">#3B2C6E</color>
-    <color name="xd_purple_light">#C9B8FF</color>
-    <color name="xd_red">#E3262F</color>
-    <color name="xd_red_dark">#7A0E15</color>
-    <color name="xd_on_surface">#F4F1FB</color>
-    <color name="xd_on_surface_muted">#ABA3C4</color>
-
-    <style name="Theme.DolphinXD" parent="Theme.Material3.Dark.NoActionBar">
-        <item name="colorPrimary">@color/xd_red</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorPrimaryContainer">@color/xd_red_dark</item>
-        <item name="colorOnPrimaryContainer">#FFDAD7</item>
-        <item name="colorSecondary">@color/xd_purple_light</item>
-        <item name="colorOnSecondary">#24124F</item>
-        <item name="colorSecondaryContainer">@color/xd_purple_dark</item>
-        <item name="colorOnSecondaryContainer">#E9E0FF</item>
-        <item name="colorTertiary">@color/xd_purple_light</item>
-        <item name="colorOnTertiary">#24124F</item>
-        <item name="colorTertiaryContainer">@color/xd_purple_dark</item>
-        <item name="colorOnTertiaryContainer">#E9E0FF</item>
+    <style name="Theme.DolphinXD" parent="Theme.DolphinXD.Base">
+        <item name="colorPrimary">@color/xd_primary</item>
+        <item name="colorOnPrimary">@color/xd_on_primary</item>
+        <item name="colorPrimaryContainer">@color/xd_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/xd_on_primary_container</item>
+        <item name="colorSecondary">@color/xd_accent_text</item>
+        <item name="colorOnSecondary">@color/xd_on_accent</item>
+        <item name="colorSecondaryContainer">@color/xd_accent_container</item>
+        <item name="colorOnSecondaryContainer">@color/xd_on_accent_container</item>
+        <item name="colorTertiary">@color/xd_accent_text</item>
+        <item name="colorOnTertiary">@color/xd_on_accent</item>
+        <item name="colorTertiaryContainer">@color/xd_accent_container</item>
+        <item name="colorOnTertiaryContainer">@color/xd_on_accent_container</item>
         <item name="colorSurface">@color/xd_background</item>
         <item name="colorOnSurface">@color/xd_on_surface</item>
         <item name="colorSurfaceVariant">@color/xd_surface_stroke</item>
-        <item name="colorOnSurfaceVariant">#CFC6E6</item>
-        <item name="colorSurfaceContainerLowest">#08060F</item>
-        <item name="colorSurfaceContainerLow">#120E1E</item>
+        <item name="colorOnSurfaceVariant">@color/xd_on_surface_variant</item>
+        <item name="colorSurfaceContainerLowest">@color/xd_surface_lowest</item>
+        <item name="colorSurfaceContainerLow">@color/xd_surface_low</item>
         <item name="colorSurfaceContainer">@color/xd_surface</item>
         <item name="colorSurfaceContainerHigh">@color/xd_surface_high</item>
-        <item name="colorSurfaceContainerHighest">#2A2140</item>
-        <item name="colorOutline">#8D82AE</item>
-        <item name="colorOutlineVariant">#3A3054</item>
+        <item name="colorSurfaceContainerHighest">@color/xd_surface_highest</item>
+        <item name="colorOutline">@color/xd_outline</item>
+        <item name="colorOutlineVariant">@color/xd_outline_variant</item>
         <item name="android:colorBackground">@color/xd_background</item>
         <item name="android:windowBackground">@color/xd_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">@bool/xd_light_theme</item>
     </style>
 
     <style name="Theme.DolphinXD.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/xd_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/xd_icon_foreground</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/xd_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.DolphinXD</item>
     </style>
 
@@ -88,7 +78,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">20dp</item>
         <item name="android:layout_marginBottom">8dp</item>
-        <item name="android:textColor">@color/xd_purple_light</item>
+        <item name="android:textColor">@color/xd_accent_text</item>
         <item name="android:textSize">13sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:textAllCaps">true</item>

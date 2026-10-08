@@ -6,11 +6,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.GridLayout
+import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
@@ -50,7 +51,7 @@ class XdHomeActivity : AppCompatActivity() {
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        XdGame.enableEdgeToEdge(this)
         super.onCreate(savedInstanceState)
         config = XdConfig(this)
 
@@ -59,7 +60,17 @@ class XdHomeActivity : AppCompatActivity() {
         applyInsets()
 
         binding.xdHomePlay.setOnClickListener { play() }
-        binding.xdHomeVersion.text = getString(R.string.xd_home_version, BuildConfig.VERSION_NAME)
+        binding.xdHomeVersion.text =
+            getString(R.string.xd_home_version, XdGame.appName(this), BuildConfig.VERSION_NAME)
+        if (resources.getBoolean(R.bool.xd_header_stacked)) {
+            // Wide logos (like Pokémon Colosseum's) go above the title instead of beside it.
+            binding.xdHomeTitleBlock.orientation = LinearLayout.VERTICAL
+            binding.xdHomeTitleBlock.gravity = Gravity.START
+            (binding.xdHomeTitleText.layoutParams as ViewGroup.MarginLayoutParams).apply {
+                marginStart = 0
+                topMargin = (6 * resources.displayMetrics.density).toInt()
+            }
+        }
         addTiles()
 
         XdTasks.observe(this, binding.xdHomeTask, onChanged = { updatePlayButton() })

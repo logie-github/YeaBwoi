@@ -22,11 +22,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/xd_header_height">
 
-                <ImageView
+                <com.logie.dolphinxd.XdHeaderImageView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:importantForAccessibility="no"
-                    android:scaleType="centerCrop"
                     android:src="@drawable/xd_header" />
 
                 <View
@@ -57,6 +56,7 @@
                         android:src="@drawable/xd_logo" />
 
                     <LinearLayout
+                        android:id="@+id/xd_home_title_text"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="14dp"
@@ -74,7 +74,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/xd_game_name"
-                            android:textColor="@color/xd_purple_light"
+                            android:textColor="@color/xd_accent_text"
                             android:textSize="14sp" />
 
                     </LinearLayout>

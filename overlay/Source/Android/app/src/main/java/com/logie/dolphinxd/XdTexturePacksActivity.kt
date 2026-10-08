@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
@@ -30,7 +29,7 @@ class XdTexturePacksActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        XdGame.enableEdgeToEdge(this)
         super.onCreate(savedInstanceState)
         binding = XdActivityTexturePacksBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -75,7 +74,7 @@ class XdTexturePacksActivity : AppCompatActivity() {
         binding.xdTexturesLoad.isChecked = XdTexturePacks.loadCustomTextures
         binding.xdTexturesPrefetch.isChecked = XdTexturePacks.prefetchCustomTextures
 
-        val packs = XdTexturePacks.list()
+        val packs = XdTexturePacks.list(this)
         binding.xdTexturesList.removeAllViews()
         binding.xdTexturesEmpty.visibility = if (packs.isEmpty()) View.VISIBLE else View.GONE
         for (pack in packs) {
@@ -86,7 +85,7 @@ class XdTexturePacksActivity : AppCompatActivity() {
                 pack.textureCount
             )
             row.xdPackEnabled.isChecked = pack.enabled
-            row.xdPackEnabled.setOnCheckedChangeListener { _, checked -> XdTexturePacks.setEnabled(pack, checked) }
+            row.xdPackEnabled.setOnCheckedChangeListener { _, checked -> XdTexturePacks.setEnabled(this, pack, checked) }
             row.xdPackDelete.setOnClickListener {
                 MaterialAlertDialogBuilder(this)
                     .setTitle(getString(R.string.xd_textures_delete_title, pack.name))

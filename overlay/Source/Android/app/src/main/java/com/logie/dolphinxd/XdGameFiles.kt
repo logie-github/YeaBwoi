@@ -13,8 +13,6 @@ import java.io.IOException
 
 /** Checks and installs the files the player hands to Dolphin XD during setup. */
 object XdGameFiles {
-    /** Pokémon XD: Gale of Darkness is GXXE01 (USA), GXXP01 (Europe) and GXXJ01 (Japan). */
-    private const val POKEMON_XD_ID_PREFIX = "GXX"
     private const val PLATFORM_GAMECUBE = 0
 
     /** GameCube IPL dumps are exactly 2 MiB. */
@@ -22,7 +20,7 @@ object XdGameFiles {
     private const val IPL_HEADER_SIZE = 0x100
 
     sealed class RomCheck {
-        data class PokemonXd(val title: String, val gameId: String) : RomCheck()
+        data class ThisGame(val title: String, val gameId: String) : RomCheck()
         data class OtherGame(val title: String, val gameId: String) : RomCheck()
         object Unreadable : RomCheck()
     }
@@ -35,13 +33,16 @@ object XdGameFiles {
 
     enum class BiosInstall { NOTHING_TO_INSTALL, INSTALLED, REGION_MISMATCH, FAILED }
 
-    /** Must run after directory initialization, off the main thread. */
-    fun checkRom(path: String): RomCheck {
+    /**
+     * Checks that [path] is this app's game in any region (e.g. GXXE01, GXXP01 or GXXJ01 for
+     * Pokémon XD). Must run after directory initialization, off the main thread.
+     */
+    fun checkRom(context: Context, path: String): RomCheck {
         val game = GameFile.parse(path) ?: return RomCheck.Unreadable
         val title = game.getTitle()
         val gameId = game.getGameId()
-        return if (game.getPlatform() == PLATFORM_GAMECUBE && gameId.startsWith(POKEMON_XD_ID_PREFIX)) {
-            RomCheck.PokemonXd(title, gameId)
+        return if (game.getPlatform() == PLATFORM_GAMECUBE && XdGame.isThisGame(context, gameId)) {
+            RomCheck.ThisGame(title, gameId)
         } else {
             RomCheck.OtherGame(title, gameId)
         }

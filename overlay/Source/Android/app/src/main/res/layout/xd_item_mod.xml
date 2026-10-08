@@ -8,7 +8,7 @@
     android:layout_marginBottom="8dp"
     android:clickable="true"
     android:focusable="true"
-    app:rippleColor="@color/xd_purple_dark">
+    app:rippleColor="@color/xd_accent_container">
 
     <LinearLayout
         android:layout_width="match_parent"

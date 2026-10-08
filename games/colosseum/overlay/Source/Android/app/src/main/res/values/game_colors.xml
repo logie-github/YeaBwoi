@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dolphin Colosseum palette: desert sand, sandstone, terracotta and gold (light). -->
+<resources>
+    <color name="xd_background">#EFE2C8</color>
+    <color name="xd_background_scrim">#E6EFE2C8</color>
+    <color name="xd_surface_lowest">#FFFFFF</color>
+    <color name="xd_surface_low">#F7EEDC</color>
+    <color name="xd_surface">#F9F1E1</color>
+    <color name="xd_surface_high">#FBF4E6</color>
+    <color name="xd_surface_highest">#FFF9EE</color>
+    <color name="xd_surface_stroke">#D6BE94</color>
+    <color name="xd_outline">#8E7A5C</color>
+    <color name="xd_outline_variant">#D6BE94</color>
+    <color name="xd_on_surface">#3A2A17</color>
+    <color name="xd_on_surface_variant">#5C4A33</color>
+    <color name="xd_on_surface_muted">#7A6548</color>
+    <color name="xd_primary">#B5562A</color>
+    <color name="xd_on_primary">#FFFFFF</color>
+    <color name="xd_primary_container">#F5D3B8</color>
+    <color name="xd_on_primary_container">#3B1605</color>
+    <color name="xd_accent">#C99A2E</color>
+    <color name="xd_accent_text">#8F6420</color>
+    <color name="xd_on_accent">#FFFFFF</color>
+    <color name="xd_accent_container">#F1DCA4</color>
+    <color name="xd_on_accent_container">#3A2A08</color>
+
+    <!-- Dolphin's own screens (settings, in-game menu); see the dolphin_colors.xml patch. -->
+    <color name="xd_dolphin_primary">#B5562A</color>
+    <color name="xd_dolphin_onPrimary">#FFFFFF</color>
+    <color name="xd_dolphin_primaryContainer">#F5D3B8</color>
+    <color name="xd_dolphin_onPrimaryContainer">#3B1605</color>
+    <color name="xd_dolphin_secondary">#7A5A1E</color>
+    <color name="xd_dolphin_onSecondary">#FFFFFF</color>
+    <color name="xd_dolphin_secondaryContainer">#F1DCA4</color>
+    <color name="xd_dolphin_onSecondaryContainer">#2B1E04</color>
+    <color name="xd_dolphin_tertiary">#2F5E95</color>
+    <color name="xd_dolphin_onTertiary">#FFFFFF</color>
+    <color name="xd_dolphin_tertiaryContainer">#D3E3FA</color>
+    <color name="xd_dolphin_onTertiaryContainer">#0A2340</color>
+    <color name="xd_dolphin_error">#BA1A1A</color>
+    <color name="xd_dolphin_errorContainer">#FFDAD6</color>
+    <color name="xd_dolphin_onError">#FFFFFF</color>
+    <color name="xd_dolphin_onErrorContainer">#410002</color>
+    <color name="xd_dolphin_background">#EFE2C8</color>
+    <color name="xd_dolphin_onBackground">#3A2A17</color>
+    <color name="xd_dolphin_surface">#F7EDDA</color>
+    <color name="xd_dolphin_onSurface">#3A2A17</color>
+    <color name="xd_dolphin_surfaceVariant">#E5D3B3</color>
+    <color name="xd_dolphin_onSurfaceVariant">#5C4A33</color>
+    <color name="xd_dolphin_outline">#8E7A5C</color>
+    <color name="xd_dolphin_inverseOnSurface">#F7EDDA</color>
+    <color name="xd_dolphin_inverseSurface">#3A2A17</color>
+    <color name="xd_dolphin_inversePrimary">#FFB68E</color>
+    <color name="xd_dolphin_shadow">#000000</color>
+</resources>

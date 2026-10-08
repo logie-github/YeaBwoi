@@ -1,34 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="xd_app_name" translatable="false">Dolphin XD</string>
-    <string name="xd_game_name" translatable="false">Pokémon XD: Gale of Darkness</string>
 
     <!-- First-run setup -->
     <string name="xd_setup_files_title">1 · Setup files</string>
-    <string name="xd_setup_files_body">GameCube BIOS (IPL.bin) — optional. Pokémon XD runs fine without it. If you add one from your own GameCube, the GameCube startup animation plays before the game.</string>
     <string name="xd_setup_files_choose">Choose BIOS</string>
     <string name="xd_setup_files_skip">Skip</string>
     <string name="xd_setup_files_added">✓ GameCube BIOS added (%1$s)</string>
     <string name="xd_setup_files_installed">✓ GameCube BIOS installed</string>
     <string name="xd_setup_files_skipped">Skipped — not needed</string>
 
-    <string name="xd_rom_title">2 · Pokémon XD game file</string>
-    <string name="xd_rom_body">Choose your own Pokémon XD: Gale of Darkness disc image (.iso, .gcm, .rvz, .ciso, .gcz, .wbfs). Dolphin XD remembers it, so you only do this once. Mods like Pokémon XG need the USA version as a full ISO.</string>
     <string name="xd_rom_choose">Choose game file</string>
     <string name="xd_rom_selected">✓ %1$s (%2$s)</string>
     <string name="xd_checking">Checking…</string>
 
-    <string name="xd_play">Play Pokémon XD</string>
 
     <string name="xd_controls_title">Controls</string>
     <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\n\nWhile one finger moves the stick, tap with another finger for A or hold it for B. Game controllers work too.</string>
 
     <string name="xd_error_title">That didn\'t work</string>
-    <string name="xd_error_unreadable_rom">Dolphin couldn\'t read that file. Make sure it\'s a GameCube disc image of Pokémon XD: Gale of Darkness.</string>
-    <string name="xd_error_wrong_game">That file is %1$s (%2$s), not Pokémon XD: Gale of Darkness. Dolphin XD only plays Pokémon XD and mods of it.</string>
     <string name="xd_error_not_bios">That doesn\'t look like a GameCube BIOS. A BIOS dump is a 2 MB file usually called IPL.bin.</string>
-    <string name="xd_error_unreadable_bios">Dolphin XD couldn\'t read that file.</string>
-    <string name="xd_bios_region_mismatch">Your BIOS is from a different region than your copy of Pokémon XD, so the GameCube startup animation is skipped.</string>
+    <string name="xd_error_unreadable_bios">That file couldn\'t be read.</string>
     <string name="xd_bios_install_failed">The GameCube BIOS couldn\'t be installed, so the startup animation is skipped.</string>
     <string name="xd_launch_failed">The last game is still closing. Press Play again in a moment.</string>
 
@@ -43,7 +34,6 @@
     <string name="xd_home_textures">Texture packs</string>
     <string name="xd_home_textures_sub">HD textures</string>
     <string name="xd_home_mods">Mods</string>
-    <string name="xd_home_mods_sub">Pokémon XG and more</string>
     <string name="xd_home_settings">Emulator settings</string>
     <string name="xd_home_settings_sub">Graphics, audio, controllers</string>
     <string name="xd_home_controls">Controls</string>
@@ -51,8 +41,8 @@
     <string name="xd_home_change_game">Change game file</string>
     <string name="xd_home_change_game_sub">Pick a different disc image</string>
     <string name="xd_home_exit">Exit</string>
-    <string name="xd_home_exit_sub">Close Dolphin XD</string>
-    <string name="xd_home_version">Dolphin XD %1$s</string>
+    <string name="xd_home_exit_sub">Close the app</string>
+    <string name="xd_home_version">%1$s %2$s</string>
     <string name="xd_game_missing_title">Game file not found</string>
     <string name="xd_game_missing">%1$s can\'t be opened any more (moved, renamed or deleted?). Choose the game file again, or pick another version under Mods.</string>
     <string name="xd_busy">Wait for the current task to finish first.</string>
@@ -76,7 +66,6 @@
     <string name="xd_textures_empty">No texture packs yet.</string>
     <string name="xd_textures_import_zip">Import pack (.zip)</string>
     <string name="xd_textures_import_folder">Import extracted folder</string>
-    <string name="xd_textures_hint">Choose the pack\'s .zip as you downloaded it. Both Dolphin texture packs (a GXX folder inside the zip) and Dolphin resource packs work; the importer puts the textures where Dolphin looks for Pokémon XD and turns on Load custom textures.\n\nFor the Pokémon XG/XD HD Texture Pack, use a PNG version on phones. DDS versions only show up on GPUs that support BC texture compression (most Snapdragon phones do, Mali/Exynos/Tensor GPUs don\'t).</string>
     <string name="xd_textures_count">%1$d textures</string>
     <string name="xd_textures_count_dds">%1$d textures · DDS</string>
     <string name="xd_textures_delete_title">Delete %1$s?</string>
@@ -86,25 +75,26 @@
     <string name="xd_textures_installed_message">%1$s is installed (%2$d textures). It shows up the next time you start the game.</string>
     <string name="xd_textures_dds_note">\n\nThis pack uses DDS textures. If the game still looks the same, your GPU doesn\'t support them: delete this pack and import the PNG version instead.</string>
     <string name="xd_textures_none_found">No Dolphin textures were found. A texture pack contains files named like tex1_….png or tex1_….dds.</string>
-    <string name="xd_textures_wrong_game">This pack is for a different game (%1$s), not Pokémon XD.</string>
     <string name="xd_textures_default_name">Texture pack</string>
-    <string name="xd_textures_bad_zip">This zip can\'t be read here. Extract it with a file manager app, then use “Import extracted folder” and choose the GXX folder.</string>
+    <string name="xd_textures_bad_zip" formatted="true">This zip can\'t be read here. Extract it with a file manager app, then use “Import extracted folder” and choose the folder inside it named after the game (such as %1$s).</string>
     <string name="xd_no_space">Not enough free space. This needs about %1$s free.</string>
     <string name="xd_no_space_generic">Your phone ran out of free space.</string>
 
     <!-- Mods -->
     <string name="xd_mods_title">Mods</string>
     <string name="xd_mods_versions">Game version</string>
-    <string name="xd_mods_original">Pokémon XD: Gale of Darkness</string>
     <string name="xd_mods_original_sub">Original game · %1$s</string>
     <string name="xd_mods_mod_sub">Mod · %1$s</string>
     <string name="xd_mods_import_patch">Install mod patch (.ups)</string>
     <string name="xd_mods_add_iso">Add already-patched game</string>
-    <string name="xd_mods_hint">Mod patches are applied the way their instructions say: to a clean copy of your Pokémon XD disc image, which is never changed itself. For Pokémon XG: Next Gen, download the .ups patch from Project Pokémon and choose it here; it needs the USA version (GXXE01) as a full 1.46 GB ISO, but RVZ, GCZ and WIA copies of it are converted automatically.\n\nEach version keeps its own memory card saves and save states. Patching needs about 1.5 GB of free space.</string>
     <string name="xd_mods_delete_title">Delete %1$s?</string>
     <string name="xd_mods_delete_message">The patched game is removed from this phone. Its saves are kept, so they come back if you install it again.</string>
     <string name="xd_mods_delete_message_external">The game is removed from this list. The file itself stays where it is.</string>
     <string name="xd_mods_switched">Switched to %1$s.</string>
+    <string name="xd_mods_base_title">Apply the patch to</string>
+    <string name="xd_mods_base_original">%1$s (clean original) — for new mods and updates</string>
+    <string name="xd_mods_base_mod">%1$s — for add-ons made for this mod</string>
+    <string name="xd_mods_base_apply">Apply</string>
     <string name="xd_mods_installing">Installing %1$s</string>
     <string name="xd_mods_reading_patch">Reading the patch</string>
     <string name="xd_mods_converting">Converting your game to ISO</string>
@@ -112,10 +102,7 @@
     <string name="xd_mods_checking">Checking the patched game</string>
     <string name="xd_mods_installed_message">%1$s is installed and selected. Press Play to start it.</string>
     <string name="xd_mods_added_message">%1$s is added and selected. Press Play to start it.</string>
-    <string name="xd_mods_need_game">Choose your Pokémon XD game file first.</string>
-    <string name="xd_mods_not_ups">That file isn\'t a UPS patch. Dolphin XD installs .ups patches like the one Pokémon XG: Next Gen comes with; for other formats, patch the game on a computer and use “Add already-patched game”.</string>
     <string name="xd_mods_nkit">Your game file is an NKit image (%1$s). Mod patches need the full, clean disc image: convert it back to a 1.46 GB ISO (for example with NKit\'s ConvertToISO) and choose that as your game file.</string>
-    <string name="xd_mods_wrong_source">This patch doesn\'t match your game file (%1$s, %2$s). It was made for a clean disc image of exactly %3$s bytes; for Pokémon XG that\'s the USA version of Pokémon XD (GXXE01) as an untrimmed ISO.</string>
     <string name="xd_mods_corrupt">The patch file seems to be damaged: %1$s. Download it again.</string>
     <string name="xd_mods_convert_failed">Your game couldn\'t be converted to an ISO.</string>
     <string name="xd_mods_unreadable_result">The patched game can\'t be read by Dolphin.</string>

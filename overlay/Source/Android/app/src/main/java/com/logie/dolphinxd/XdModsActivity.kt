@@ -6,7 +6,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -21,7 +20,7 @@ class XdModsActivity : AppCompatActivity() {
     private var shownRunning = false
 
     private val pickPatch = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) start(R.string.xd_mods_installing, uri) { progress -> XdMods.installUps(this, uri, progress) }
+        if (uri != null) choosePatchBase(uri)
     }
 
     private val pickGame = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -29,7 +28,7 @@ class XdModsActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        XdGame.enableEdgeToEdge(this)
         super.onCreate(savedInstanceState)
         config = XdConfig(this)
         binding = XdActivityModsBinding.inflate(layoutInflater)
@@ -51,6 +50,32 @@ class XdModsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refresh()
+    }
+
+    /**
+     * Mods are normally patched onto the original game, but add-ons (like Grand Colosseum's
+     * Nuzlocke patch) go on top of an installed mod, so ask when there's a choice.
+     */
+    private fun choosePatchBase(uri: Uri) {
+        val mods = XdMods.patchableMods(this)
+        if (mods.isEmpty()) {
+            installPatch(uri, XdConfig.ORIGINAL)
+            return
+        }
+        val ids = listOf(XdConfig.ORIGINAL) + mods.map { it.id }
+        val names = listOf(getString(R.string.xd_mods_base_original, getString(R.string.xd_mods_original))) +
+                mods.map { getString(R.string.xd_mods_base_mod, it.name) }
+        var chosen = 0
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.xd_mods_base_title)
+            .setSingleChoiceItems(names.toTypedArray(), chosen) { _, which -> chosen = which }
+            .setPositiveButton(R.string.xd_mods_base_apply) { _, _ -> installPatch(uri, ids[chosen]) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun installPatch(uri: Uri, baseId: String) {
+        start(R.string.xd_mods_installing, uri) { progress -> XdMods.installUps(this, uri, baseId, progress) }
     }
 
     private fun start(title: Int, uri: Uri, work: (XdTasks.Progress) -> String) {
@@ -97,7 +122,7 @@ class XdModsActivity : AppCompatActivity() {
 
     private fun bindSelection(row: XdItemModBinding, id: String, active: String, running: Boolean, name: String) {
         row.xdModSelected.isChecked = id == active
-        row.xdModCard.strokeColor = getColor(if (id == active) R.color.xd_purple else R.color.xd_surface_stroke)
+        row.xdModCard.strokeColor = getColor(if (id == active) R.color.xd_accent else R.color.xd_surface_stroke)
         row.xdModCard.isEnabled = !running
         row.xdModCard.setOnClickListener {
             if (id != config.activeVersionId && !XdTasks.isRunning) {

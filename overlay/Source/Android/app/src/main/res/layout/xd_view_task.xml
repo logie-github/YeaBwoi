@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginVertical="8dp"
-    app:strokeColor="@color/xd_purple">
+    app:strokeColor="@color/xd_accent">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -36,7 +36,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:max="1000"
-            app:indicatorColor="@color/xd_red"
+            app:indicatorColor="@color/xd_primary"
             app:trackColor="@color/xd_surface_stroke"
             app:trackCornerRadius="4dp"
             app:trackThickness="6dp" />
