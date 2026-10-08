@@ -140,4 +140,15 @@
     <string name="xd_update_permission_title">Allow updates</string>
     <string name="xd_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
     <string name="xd_update_open_settings">Open settings</string>
+
+    <!-- Frame rate -->
+    <string name="xd_menu_frame_rate">Frame rate</string>
+    <string name="xd_home_frame_rate">Frame rate</string>
+    <string name="xd_home_frame_rate_sub">60 FPS or the original 30</string>
+    <string name="xd_frame_rate_title">Frame rate</string>
+    <string name="xd_frame_rate_60">60 FPS (smoother)</string>
+    <string name="xd_frame_rate_30">30 FPS (original)</string>
+    <string name="xd_frame_rate_next_start">Takes effect the next time the game starts.</string>
+    <string name="xd_frame_rate_unstick">Unstick cutscene</string>
+    <string name="xd_frame_rate_unsticking">Slowing the game down for a moment to unstick the cutscene</string>
 </resources>

@@ -77,6 +77,19 @@ A three-finger tap makes a quick save (a Dolphin save state) and a three-finger 
 
 A save state also restores the memory card as it was when the state was made. Loading a quick save from before your last in-game save would undo that save and leave you with two different saves. So each save state remembers what was on the memory card when it was made. It only loads while the card is still exactly the same, which means you haven't saved in the game since. Otherwise it shows "Not loaded: you saved in the game after this quick save" and nothing changes. The same rule applies to the numbered save state slots in the Dolphin menu.
 
+### 60 FPS
+
+Both games normally run at 30 FPS. By default the apps run them at 60 FPS without speeding them up. They use the community 60 FPS codes that Dolphin ships for every region of both games (by Nerdzilla on Project Pokémon). To switch back to 30 FPS, use **Frame rate** on the main menu or in the Dolphin menu. A change takes effect the next time the game starts.
+
+At 60 FPS the game's CPU does twice the work, so the app also sets Dolphin's emulated CPU to 200% while the game runs (only for that session, so your own settings stay as they are). This needs a fast phone, especially for Pokémon XD.
+
+Known issues from the code's author:
+
+- In a few cutscenes (for example, meeting the mayor for the first time in Colosseum), a character can get stuck. Open the Dolphin menu, go to **Frame rate**, and tap **Unstick cutscene**. The game slows down for 3 seconds, which gets it moving again.
+- A few moves can still drop frames.
+- The XD code was tested less than the Colosseum one.
+- The codes were written for the original games. If a mod misbehaves at 60 FPS, switch it to 30 FPS.
+
 ### Fast-forward and sound
 
 During fast-forward the sound keeps playing at normal speed and pitch. The game makes two seconds of sound every second, so not all of it can be played. The app's change to Dolphin's audio mixer lets up to about a second of sound queue up and plays it at normal speed. Once the queue is full, it skips ahead by half a second at a time. When you let go, it jumps straight back to the game's current sound. As a result, sound effects can lag the picture by up to a second while fast-forwarding, but music and voices never speed up or sound chipmunked.
@@ -85,7 +98,7 @@ How close fast-forward gets to double speed depends on the phone. If the phone c
 
 The D-pad turns on once the swipe is about halfway to full tilt, so menus that only follow the D-pad work with the same swipe. Once a direction is pressed, it stays pressed until the swipe clearly turns away, so a diagonal or wobbly swipe doesn't flicker between two directions. A quick flick still holds the D-pad for 100 ms so the game sees it.
 
-The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table), **Check for updates** and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
+The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table), **Frame rate**, **Check for updates** and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
 
 ## Main menu
 
@@ -95,6 +108,7 @@ The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture 
 | **Texture packs** | Imports, enables, disables and deletes texture packs, and turns Load custom textures and Prefetch on or off |
 | **Mods** | Installs mods and picks the version Play starts (the original game or a mod) |
 | **Emulator settings** | Dolphin's full settings: graphics, audio, controllers and more |
+| **Frame rate** | 60 FPS (default) or the original 30 FPS |
 | **Controls** | The gesture guide |
 | **Updates** | Checks for a newer version and installs it (see [Updates](#updates)) |
 | **Change game file** | Runs the game-file setup again |

@@ -81,6 +81,11 @@ class XdConfig(context: Context) {
         get() = prefs.getInt(KEY_DEFAULTS_VERSION, 0)
         set(value) = prefs.edit { putInt(KEY_DEFAULTS_VERSION, value) }
 
+    /** Play at 60 FPS (see [XdFrameRate]). On unless the player turned it off. */
+    var sixtyFps: Boolean
+        get() = prefs.getBoolean(KEY_SIXTY_FPS, true)
+        set(value) = prefs.edit { putBoolean(KEY_SIXTY_FPS, value) }
+
     var controlHintsShown: Int
         get() = prefs.getInt(KEY_CONTROL_HINTS_SHOWN, 0)
         set(value) = prefs.edit { putInt(KEY_CONTROL_HINTS_SHOWN, value) }
@@ -136,6 +141,7 @@ class XdConfig(context: Context) {
         private const val KEY_SETUP_COMPLETE = "setup_complete"
         private const val KEY_DEFAULTS_VERSION = "defaults_version"
         private const val KEY_CONTROL_HINTS_SHOWN = "control_hints_shown"
+        private const val KEY_SIXTY_FPS = "sixty_fps"
         private const val KEY_MODS = "mods"
         private const val KEY_ACTIVE_VERSION = "active_version"
         private const val KEY_STATE_CARD_PREFIX = "state_card."
