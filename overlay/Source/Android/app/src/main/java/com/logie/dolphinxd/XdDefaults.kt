@@ -10,7 +10,7 @@ import org.dolphinemu.dolphinemu.R
 import org.dolphinemu.dolphinemu.features.settings.model.BooleanSetting
 import org.dolphinemu.dolphinemu.features.settings.model.IntSetting
 import org.dolphinemu.dolphinemu.features.settings.model.NativeConfig
-import org.dolphinemu.dolphinemu.features.settings.model.StringSetting
+import org.dolphinemu.dolphinemu.features.settings.model.Settings
 import org.dolphinemu.dolphinemu.utils.ThemeHelper
 
 /**
@@ -19,7 +19,7 @@ import org.dolphinemu.dolphinemu.utils.ThemeHelper
  * settings an earlier one made.
  */
 object XdDefaults {
-    private const val VERSION = 3
+    private const val VERSION = 4
 
     /** SerialInterface::SIDEVICE_GC_CONTROLLER, the emulated "Standard Controller". */
     private const val SI_STANDARD_CONTROLLER = 6
@@ -30,11 +30,6 @@ object XdDefaults {
     /** 3x native (1920x1584): sharp on a ~1800-pixel-tall screen, light enough to stay cool. */
     private const val INTERNAL_RESOLUTION = 3
 
-    /** AnisotropicFilteringMode::Force16x. */
-    private const val ANISOTROPY_16X = 4
-
-    /** ShaderCompilationMode::AsynchronousUberShaders, "Hybrid Ubershaders". */
-    private const val SHADERS_HYBRID_UBERSHADERS = 2
 
     /** Must run after directory initialization. */
     fun applyIfNeeded(context: Context) {
@@ -56,25 +51,35 @@ object XdDefaults {
         if (applied < 3) {
             applyGraphics(layer)
         }
+        if (applied < 4) {
+            undoRiskyGraphics(layer)
+        }
 
         NativeConfig.save(layer)
         config.defaultsVersion = VERSION
     }
 
     /**
-     * Tuned for recent Snapdragon phones (like the Galaxy Z Fold 8). The games' own fixes stay in
-     * Dolphin's per-game settings, which these don't touch: the safe texture cache that fixes
-     * garbled text in both games, and single core with MMU, which keeps Pokémon XD from crashing.
+     * A sharper picture without risking glitches. The games' own fixes stay in Dolphin's per-game
+     * settings, which these don't touch: the safe texture cache that fixes garbled text in both
+     * games, and single core with MMU, which keeps Pokémon XD from crashing.
      */
     private fun applyGraphics(layer: Int) {
-        // Vulkan runs better than OpenGL ES (Dolphin's Android default) on recent Adreno GPUs.
-        StringSetting.MAIN_GFX_BACKEND.setString(layer, "Vulkan")
         IntSetting.GFX_EFB_SCALE.setInt(layer, INTERNAL_RESOLUTION)
-        IntSetting.GFX_ENHANCE_MAX_ANISOTROPY.setInt(layer, ANISOTROPY_16X)
-        // No shader stutter: ubershaders draw new effects right away while the fast versions
-        // compile in the background, and cached shaders load before the game starts.
-        IntSetting.GFX_SHADER_COMPILATION_MODE.setInt(layer, SHADERS_HYBRID_UBERSHADERS)
+        // Shaders the game already used load before it starts, instead of on first use.
         BooleanSetting.GFX_WAIT_FOR_SHADERS_BEFORE_STARTING.setBoolean(layer, true)
+    }
+
+    /**
+     * Back to Dolphin's defaults for settings an earlier version changed: Vulkan, Hybrid
+     * Ubershaders and forced 16x anisotropic filtering corrupted textures (garbage along the edges
+     * of logos and menus) on Adreno GPUs, whose drivers are known to mishandle Dolphin's
+     * ubershaders.
+     */
+    private fun undoRiskyGraphics(layer: Int) {
+        NativeConfig.deleteKey(layer, Settings.FILE_DOLPHIN, Settings.SECTION_INI_CORE, "GFXBackend")
+        NativeConfig.deleteKey(layer, Settings.FILE_GFX, Settings.SECTION_GFX_SETTINGS, "ShaderCompilationMode")
+        NativeConfig.deleteKey(layer, Settings.FILE_GFX, Settings.SECTION_GFX_ENHANCEMENTS, "MaxAnisotropy")
     }
 
     private fun applyFirstRun(context: Context, layer: Int) {

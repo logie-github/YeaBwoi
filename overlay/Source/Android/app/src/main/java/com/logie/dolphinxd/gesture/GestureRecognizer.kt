@@ -21,7 +21,7 @@ interface GestureOutput {
     /** Two-finger tap, tap and hold. */
     fun openMenu()
 
-    /** Fast-forward starts (tap, then two-finger tap and hold) or stops (the fingers lift). */
+    /** Fast-forward starts (one finger held while another swipes) or stops (the held one lifts). */
     fun setFastForward(enabled: Boolean)
 
     /** Three-finger tap. */
@@ -74,11 +74,12 @@ data class GestureConfig(
  * - Swipe in any direction: main stick, for as long as the finger stays down. The swipe also holds
  *   the D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
- * - Tap, then two-finger tap and hold: [GestureOutput.setFastForward] for as long as it's held
+ * - One finger held while another swipes, in either order: [GestureOutput.setFastForward] until
+ *   the held finger lifts
  * - Three-finger tap: [GestureOutput.quickSave]; three-finger hold: [GestureOutput.quickLoad]
  *
- * While one finger is driving the stick or holding a button, a second finger can tap for A or
- * hold for B, so the player can walk and talk/run at the same time.
+ * While one finger is driving the stick or holding a button, a second finger can tap for A. Holding
+ * B and walking at the same time is done with one finger: hold, then drag.
  *
  * Coordinates are in pixels with y pointing down; times are in milliseconds from the same clock
  * that [GestureScheduler] uses.
@@ -104,6 +105,8 @@ class GestureRecognizer(
         var y = downY
         var holdTimer: Cancellable? = null
         var heldButton: PadButton? = null
+        /** This hold is fast-forwarding the game. */
+        var fastForward = false
         var originX = downX
         var originY = downY
     }
@@ -126,8 +129,6 @@ class GestureRecognizer(
     private var twoFingerMoved = false
     private var twoFingerTimer: Cancellable? = null
     private var lastTwoFingerTapUp: Long? = null
-    /** Fast-forwarding while the fingers of a tap, then two-finger tap and hold stay down. */
-    private var twoFingerFastForwarding = false
 
     private var threeFingerStart = 0L
     private var threeFingerMoved = false
@@ -153,19 +154,19 @@ class GestureRecognizer(
             // A second finger joined a touch that hasn't turned into anything yet.
             val first = others[0]
             first.holdTimer?.cancel()
+            if (first.secondTap) {
+                // The single tap before this one was never followed up, so it still counts as A.
+                pulse(PadButton.A)
+            }
             first.state = State.TWO_FINGER
             touches[id] = Touch(id, x, y, secondTap = false, secondary = false).apply {
                 state = State.TWO_FINGER
             }
-            // A single tap just before (first.secondTap) makes this the fast-forward gesture, and
-            // that tap doesn't press A.
-            startTwoFinger(timeMs, afterTap = first.secondTap)
+            startTwoFinger(timeMs)
             return
         }
 
-        if (others.size == 2 && others.all { it.state == State.TWO_FINGER } && !twoFingerMoved &&
-            !twoFingerFastForwarding
-        ) {
+        if (others.size == 2 && others.all { it.state == State.TWO_FINGER } && !twoFingerMoved) {
             // A third finger joined a two-finger touch.
             for (other in others) {
                 other.state = State.THREE_FINGER
@@ -215,13 +216,16 @@ class GestureRecognizer(
                     touch.state = State.STICK
                     stickOwner = touch
                     updateStick(touch)
+                    if (touch.secondary) {
+                        holdBecomesFastForward()
+                    }
                 } else {
                     touch.state = State.IGNORED
                 }
             }
 
             State.HOLD -> {
-                if (stickOwner == null && moved > config.touchSlopPx) {
+                if (stickOwner == null && !touch.fastForward && moved > config.touchSlopPx) {
                     // Holding a button and then dragging moves the stick too (e.g. B + stick).
                     stickOwner = touch
                 }
@@ -273,6 +277,9 @@ class GestureRecognizer(
 
             State.HOLD -> {
                 touch.heldButton?.let { release(it) }
+                if (touch.fastForward) {
+                    stopFastForward()
+                }
                 if (stickOwner === touch) {
                     centerStick()
                 }
@@ -307,15 +314,14 @@ class GestureRecognizer(
             touch.holdTimer?.cancel()
             if (touch.state == State.HOLD) {
                 touch.heldButton?.let { release(it) }
+                if (touch.fastForward) {
+                    stopFastForward()
+                }
             }
         }
         touches.clear()
         twoFingerTimer?.cancel()
         twoFingerTimer = null
-        if (twoFingerFastForwarding) {
-            twoFingerFastForwarding = false
-            stopFastForward()
-        }
         threeFingerTimer?.cancel()
         threeFingerTimer = null
         if (stickOwner != null) {
@@ -340,7 +346,6 @@ class GestureRecognizer(
         twoFingerTimer?.cancel()
         twoFingerTimer = null
         lastTwoFingerTapUp = null
-        twoFingerFastForwarding = false
         threeFingerTimer?.cancel()
         threeFingerTimer = null
 
@@ -369,14 +374,34 @@ class GestureRecognizer(
             return
         }
 
-        val button = when {
-            touch.secondary -> PadButton.B
-            touch.secondTap -> if (touch.downX < viewWidth / 2) PadButton.L else PadButton.X
-            else -> PadButton.B
-        }
         touch.state = State.HOLD
-        touch.heldButton = button
-        press(button)
+        if (touch.secondary) {
+            // A second finger held while the first one walks or holds a button.
+            touch.fastForward = true
+            startFastForward()
+        } else {
+            val button = when {
+                touch.secondTap -> if (touch.downX < viewWidth / 2) PadButton.L else PadButton.X
+                else -> PadButton.B
+            }
+            touch.heldButton = button
+            press(button)
+        }
+        output.onHoldRecognized()
+    }
+
+    /**
+     * A second finger started swiping while the first one holds B: the held finger fast-forwards
+     * instead (one held, one swiped, held first).
+     */
+    private fun holdBecomesFastForward() {
+        val held = touches.values.firstOrNull {
+            it.state == State.HOLD && !it.fastForward && it.heldButton == PadButton.B && it !== stickOwner
+        } ?: return
+        release(PadButton.B)
+        held.heldButton = null
+        held.fastForward = true
+        startFastForward()
         output.onHoldRecognized()
     }
 
@@ -392,13 +417,12 @@ class GestureRecognizer(
         }
     }
 
-    private fun startTwoFinger(timeMs: Long, afterTap: Boolean) {
+    private fun startTwoFinger(timeMs: Long) {
         twoFingerStart = timeMs
         twoFingerMoved = false
-        twoFingerFastForwarding = false
         val lastTapUp = lastTwoFingerTapUp
-        twoFingerSecond = !afterTap && lastTapUp != null &&
-                timeMs - lastTapUp <= config.twoFingerDoubleTapTimeoutMs
+        twoFingerSecond =
+            lastTapUp != null && timeMs - lastTapUp <= config.twoFingerDoubleTapTimeoutMs
         lastTwoFingerTapUp = null
 
         if (twoFingerSecond) {
@@ -406,25 +430,12 @@ class GestureRecognizer(
                 twoFingerTimer = null
                 openMenu()
             }
-        } else if (afterTap) {
-            twoFingerTimer = scheduler.schedule(config.holdTimeoutMs) {
-                twoFingerTimer = null
-                twoFingerFastForwarding = true
-                startFastForward()
-                output.onHoldRecognized()
-            }
         }
     }
 
     private fun endTwoFinger(timeMs: Long) {
         twoFingerTimer?.cancel()
         twoFingerTimer = null
-        if (twoFingerFastForwarding) {
-            twoFingerFastForwarding = false
-            stopFastForward()
-            lastTwoFingerTapUp = null
-            return
-        }
 
         val wasTap = !twoFingerSecond && !twoFingerMoved &&
                 timeMs - twoFingerStart < config.holdTimeoutMs
