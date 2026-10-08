@@ -2,10 +2,11 @@
 
 package com.logie.dolphinxd.gesture
 
+import kotlin.math.abs
 import kotlin.math.hypot
 
 /** The GameCube buttons the touch gestures can produce. */
-enum class PadButton { A, B, X, L, START }
+enum class PadButton { A, B, X, L, START, DPAD_UP, DPAD_DOWN }
 
 /** Receives the controller state produced by [GestureRecognizer]. */
 interface GestureOutput {
@@ -46,6 +47,10 @@ data class GestureConfig(
     val twoFingerDoubleTapTimeoutMs: Long = 350,
     /** How long a tap keeps its button pressed so the game is sure to see it. */
     val pulseMs: Long = 100,
+    /** How far (as a fraction of [stickRadiusPx]) an up or down swipe goes before it presses the D-pad. */
+    val dpadPressTilt: Float = 0.5f,
+    /** A swipe pressing the D-pad lets go of it when it comes back closer than this. */
+    val dpadReleaseTilt: Float = 0.3f,
 )
 
 /**
@@ -55,7 +60,8 @@ data class GestureConfig(
  * - Hold: B (held for as long as the finger stays down)
  * - Double tap: Start
  * - Tap, then tap and hold: L on the left half of the screen, X on the right half
- * - Swipe in any direction: main stick, for as long as the finger stays down
+ * - Swipe in any direction: main stick, for as long as the finger stays down. Swiping up or down
+ *   also holds D-pad Up or Down, for menus that only follow the D-pad.
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
  *
  * While one finger is driving the stick or holding a button, a second finger can tap for A or
@@ -91,6 +97,12 @@ class GestureRecognizer(
 
     private val touches = LinkedHashMap<Int, Touch>()
     private var stickOwner: Touch? = null
+
+    /** The D-pad direction the stick finger is holding. */
+    private var stickDpad: PadButton? = null
+    /** Keeps a quick flick's D-pad press down for [GestureConfig.pulseMs] so the game sees it. */
+    private var dpadPulse: Cancellable? = null
+    private var dpadPulseButton: PadButton? = null
     private var viewWidth = 0f
 
     /** A finished tap waiting for the double tap window to run out before it becomes A. */
@@ -262,6 +274,10 @@ class GestureRecognizer(
         }
         touches.clear()
         stickOwner = null
+        stickDpad = null
+        dpadPulse?.cancel()
+        dpadPulse = null
+        dpadPulseButton = null
 
         pendingTap?.cancel()
         pendingTap = null
@@ -352,12 +368,55 @@ class GestureRecognizer(
             dy = touch.y - touch.originY
         }
 
-        output.setStick(dx / radius, -dy / radius)
+        val x = dx / radius
+        val y = -dy / radius
+        output.setStick(x, y)
+        setStickDpad(dpadFor(x, y))
     }
 
     private fun centerStick() {
         stickOwner = null
         output.setStick(0f, 0f)
+        setStickDpad(null)
+    }
+
+    /**
+     * The D-pad direction for a stick position: Up or Down while the swipe points within 45° of
+     * straight up or down and is pushed at least [GestureConfig.dpadPressTilt]. Once pressed, it
+     * stays pressed until the swipe clearly turns away, so a wobbly finger doesn't make it flicker.
+     */
+    private fun dpadFor(x: Float, y: Float): PadButton? {
+        val direction = if (y > 0) PadButton.DPAD_UP else PadButton.DPAD_DOWN
+        val tilt = hypot(x, y)
+        val pressed = if (direction == stickDpad) {
+            tilt >= config.dpadReleaseTilt && abs(x) <= abs(y) * DPAD_KEEP_SLOPE
+        } else {
+            tilt >= config.dpadPressTilt && abs(x) <= abs(y)
+        }
+        return if (pressed) direction else null
+    }
+
+    private fun setStickDpad(button: PadButton?) {
+        if (button == stickDpad) {
+            return
+        }
+        stickDpad?.let { release(it) }
+        stickDpad = button
+        if (button != null) {
+            // Never Up and Down at once, even right after a quick flick the other way.
+            endDpadPulse()
+            press(button)
+            press(button)
+            dpadPulseButton = button
+            dpadPulse = scheduler.schedule(config.pulseMs) { endDpadPulse() }
+        }
+    }
+
+    private fun endDpadPulse() {
+        dpadPulse?.cancel()
+        dpadPulse = null
+        dpadPulseButton?.let { release(it) }
+        dpadPulseButton = null
     }
 
     private fun pulse(button: PadButton) {
@@ -381,5 +440,10 @@ class GestureRecognizer(
         if (pressCount[button.ordinal] > 0 && --pressCount[button.ordinal] == 0) {
             output.setButton(button, false)
         }
+    }
+
+    private companion object {
+        /** A pressed D-pad direction lets go once the swipe is more than about 56° off vertical. */
+        const val DPAD_KEEP_SLOPE = 1.5f
     }
 }
