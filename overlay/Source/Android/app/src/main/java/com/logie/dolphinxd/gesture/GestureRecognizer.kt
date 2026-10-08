@@ -6,7 +6,7 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 /** The GameCube buttons the touch gestures can produce. */
-enum class PadButton { A, B, X, L, START, DPAD_UP, DPAD_DOWN }
+enum class PadButton { A, B, X, L, START, DPAD_UP, DPAD_DOWN, DPAD_LEFT, DPAD_RIGHT }
 
 /** Receives the controller state produced by [GestureRecognizer]. */
 interface GestureOutput {
@@ -47,7 +47,7 @@ data class GestureConfig(
     val twoFingerDoubleTapTimeoutMs: Long = 350,
     /** How long a tap keeps its button pressed so the game is sure to see it. */
     val pulseMs: Long = 100,
-    /** How far (as a fraction of [stickRadiusPx]) an up or down swipe goes before it presses the D-pad. */
+    /** How far (as a fraction of [stickRadiusPx]) a swipe goes before it presses the D-pad. */
     val dpadPressTilt: Float = 0.5f,
     /** A swipe pressing the D-pad lets go of it when it comes back closer than this. */
     val dpadReleaseTilt: Float = 0.3f,
@@ -60,8 +60,8 @@ data class GestureConfig(
  * - Hold: B (held for as long as the finger stays down)
  * - Double tap: Start
  * - Tap, then tap and hold: L on the left half of the screen, X on the right half
- * - Swipe in any direction: main stick, for as long as the finger stays down. Swiping up or down
- *   also holds D-pad Up or Down, for menus that only follow the D-pad.
+ * - Swipe in any direction: main stick, for as long as the finger stays down. The swipe also holds
+ *   the D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
  *
  * While one finger is driving the stick or holding a button, a second finger can tap for A or
@@ -381,19 +381,29 @@ class GestureRecognizer(
     }
 
     /**
-     * The D-pad direction for a stick position: Up or Down while the swipe points within 45° of
-     * straight up or down and is pushed at least [GestureConfig.dpadPressTilt]. Once pressed, it
-     * stays pressed until the swipe clearly turns away, so a wobbly finger doesn't make it flicker.
+     * The D-pad direction for a stick position: whichever of up, down, left and right the swipe
+     * points closest to, once it's pushed at least [GestureConfig.dpadPressTilt]. A pressed
+     * direction stays pressed until the swipe clearly turns away from it, so a wobbly or diagonal
+     * finger doesn't make the D-pad flicker between two directions.
      */
     private fun dpadFor(x: Float, y: Float): PadButton? {
-        val direction = if (y > 0) PadButton.DPAD_UP else PadButton.DPAD_DOWN
         val tilt = hypot(x, y)
-        val pressed = if (direction == stickDpad) {
-            tilt >= config.dpadReleaseTilt && abs(x) <= abs(y) * DPAD_KEEP_SLOPE
-        } else {
-            tilt >= config.dpadPressTilt && abs(x) <= abs(y)
+        stickDpad?.let { current ->
+            val (along, across) = when (current) {
+                PadButton.DPAD_UP -> y to x
+                PadButton.DPAD_DOWN -> -y to x
+                PadButton.DPAD_LEFT -> -x to y
+                else -> x to y
+            }
+            if (along > 0 && tilt >= config.dpadReleaseTilt && abs(across) <= along * DPAD_KEEP_SLOPE) {
+                return current
+            }
         }
-        return if (pressed) direction else null
+        return when {
+            tilt < config.dpadPressTilt -> null
+            abs(y) >= abs(x) -> if (y > 0) PadButton.DPAD_UP else PadButton.DPAD_DOWN
+            else -> if (x > 0) PadButton.DPAD_RIGHT else PadButton.DPAD_LEFT
+        }
     }
 
     private fun setStickDpad(button: PadButton?) {
@@ -403,7 +413,7 @@ class GestureRecognizer(
         stickDpad?.let { release(it) }
         stickDpad = button
         if (button != null) {
-            // Never Up and Down at once, even right after a quick flick the other way.
+            // Never two directions at once, even right after a quick flick another way.
             endDpadPulse()
             press(button)
             press(button)
@@ -443,7 +453,7 @@ class GestureRecognizer(
     }
 
     private companion object {
-        /** A pressed D-pad direction lets go once the swipe is more than about 56° off vertical. */
+        /** A pressed D-pad direction lets go once the swipe is more than about 56° away from it. */
         const val DPAD_KEEP_SLOPE = 1.5f
     }
 }
