@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 18:11:56 +0000
+Subject: [PATCH 7/7] Add Frame rate to the in-game menu
+
+Opens Dolphin XD's frame rate choice (60 FPS or the original 30), which
+also has the fix for cutscenes that get stuck at 60 FPS.
+---
+ .../dolphinemu/dolphinemu/activities/EmulationActivity.kt    | 2 ++
+ .../java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt | 1 +
+ .../Android/app/src/main/res/layout/fragment_ingame_menu.xml | 5 +++++
+ 3 files changed, 8 insertions(+)
+
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+index 975f24f..04fed3d 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+@@ -538,6 +538,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+             MENU_ACTION_EXIT -> emulationFragment!!.stopEmulation()
+             MENU_ACTION_XD_CONTROLS -> XdUi.showControls(this)
+             MENU_ACTION_XD_UPDATES -> XdUpdateActivity.launch(this)
++            MENU_ACTION_XD_FRAME_RATE -> XdUi.showFrameRate(this, inGame = true)
+         }
+     }
+ 
+@@ -1099,6 +1100,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+         const val MENU_ACTION_LATCHING_CONTROLS = 38
+         const val MENU_ACTION_XD_CONTROLS = 100
+         const val MENU_ACTION_XD_UPDATES = 101
++        const val MENU_ACTION_XD_FRAME_RATE = 102
+ 
+         init {
+             buttonsActionsMap.apply {
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+index fc1fe33..4b80b84 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+@@ -212,6 +212,7 @@ class MenuFragment : Fragment(), View.OnClickListener {
+                 EmulationActivity.MENU_ACTION_INFINITY_BASE
+             )
+             buttonsActionsMap.append(R.id.menu_xd_controls, EmulationActivity.MENU_ACTION_XD_CONTROLS)
++            buttonsActionsMap.append(R.id.menu_xd_frame_rate, EmulationActivity.MENU_ACTION_XD_FRAME_RATE)
+             buttonsActionsMap.append(R.id.menu_xd_updates, EmulationActivity.MENU_ACTION_XD_UPDATES)
+         }
+ 
+diff --git a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+index 6ec5907..c8c2fde 100644
+--- a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
++++ b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+@@ -91,6 +91,11 @@
+                 style="@style/InGameMenuOption"
+                 android:text="@string/xd_menu_controls" />
+ 
++            <Button
++                android:id="@+id/menu_xd_frame_rate"
++                style="@style/InGameMenuOption"
++                android:text="@string/xd_menu_frame_rate" />
++
+             <Button
+                 android:id="@+id/menu_xd_updates"
+                 style="@style/InGameMenuOption"

@@ -19,6 +19,37 @@ object XdUi {
             .show()
     }
 
+    /**
+     * 60 FPS or the original 30. From the in-game menu ([inGame]) the change applies the next time
+     * the game starts, and a stuck cutscene (a known 60 FPS issue) can be fixed from here.
+     */
+    fun showFrameRate(activity: Activity, inGame: Boolean) {
+        val config = XdConfig(activity)
+        val choices = arrayOf(
+            activity.getString(R.string.xd_frame_rate_60),
+            activity.getString(R.string.xd_frame_rate_30)
+        )
+        val builder = MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.xd_frame_rate_title)
+            .setSingleChoiceItems(choices, if (config.sixtyFps) 0 else 1) { _, which ->
+                val sixty = which == 0
+                if (sixty != config.sixtyFps) {
+                    config.sixtyFps = sixty
+                    if (inGame) {
+                        Toast.makeText(activity, R.string.xd_frame_rate_next_start, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setPositiveButton(R.string.ok, null)
+        if (inGame && XdFrameRate.activeThisRun) {
+            builder.setNeutralButton(R.string.xd_frame_rate_unstick) { _, _ ->
+                XdFrameRate.unstickCutscene()
+                Toast.makeText(activity, R.string.xd_frame_rate_unsticking, Toast.LENGTH_LONG).show()
+            }
+        }
+        builder.show()
+    }
+
     /** Reminds new players how to reach the menu, since there is no on-screen button for it. */
     fun showMenuHintIfNeeded(activity: Activity) {
         val config = XdConfig(activity)

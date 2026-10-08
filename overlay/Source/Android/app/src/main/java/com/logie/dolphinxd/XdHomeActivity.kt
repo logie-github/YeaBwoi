@@ -167,6 +167,9 @@ class XdHomeActivity : AppCompatActivity() {
             Tile(R.drawable.xd_ic_controls, R.string.xd_home_controls, R.string.xd_home_controls_sub) {
                 XdUi.showControls(this)
             },
+            Tile(R.drawable.xd_ic_speed, R.string.xd_home_frame_rate, R.string.xd_home_frame_rate_sub) {
+                XdUi.showFrameRate(this, inGame = false)
+            },
             Tile(R.drawable.xd_ic_update, R.string.xd_home_updates, R.string.xd_home_updates_sub) {
                 XdUpdateActivity.launch(this)
             },
@@ -229,9 +232,12 @@ class XdHomeActivity : AppCompatActivity() {
         launching = true
         updatePlayButton()
         lifecycleScope.launch {
-            val readable = withContext(Dispatchers.IO) { XdGameFiles.canRead(this@XdHomeActivity, path) }
+            val (readable, sixtyFps) = withContext(Dispatchers.IO) {
+                val readable = XdGameFiles.canRead(this@XdHomeActivity, path)
+                readable to (readable && XdFrameRate.prepareCodes(this@XdHomeActivity, path))
+            }
             if (readable) {
-                launchWhenIdle(path, 0)
+                launchWhenIdle(path, sixtyFps, 0)
             } else {
                 launching = false
                 updatePlayButton()
@@ -250,12 +256,12 @@ class XdHomeActivity : AppCompatActivity() {
     }
 
     /** Waits for a previous emulation session to finish shutting down, then starts the game. */
-    private fun launchWhenIdle(path: String, attempt: Int) {
+    private fun launchWhenIdle(path: String, sixtyFps: Boolean, attempt: Int) {
         if (isFinishing || isDestroyed) return
         val idle = NativeLibrary.IsUninitialized() && !EmulationActivity.isIgnoringLaunchRequests()
         if (!idle) {
             if (attempt < MAX_LAUNCH_ATTEMPTS) {
-                launchHandler.postDelayed({ launchWhenIdle(path, attempt + 1) }, LAUNCH_RETRY_MS)
+                launchHandler.postDelayed({ launchWhenIdle(path, sixtyFps, attempt + 1) }, LAUNCH_RETRY_MS)
             } else {
                 launching = false
                 updatePlayButton()
@@ -264,6 +270,7 @@ class XdHomeActivity : AppCompatActivity() {
             }
             return
         }
+        XdFrameRate.applyRunConfig(sixtyFps)
         EmulationActivity.launch(this, path, false)
 
         // If Dolphin stopped to ask something instead of starting the game, don't stay stuck.
