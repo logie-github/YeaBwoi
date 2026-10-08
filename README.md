@@ -17,7 +17,11 @@ Both apps work the same way. There's no game list and no on-screen buttons: you 
 
 ## Getting the APKs
 
-GitHub Actions builds both apps on every push (**Actions → Build APKs**) and publishes each one on the repository's **Releases** page as **Dolphin XD 1.0.N** and **Dolphin Colosseum 1.0.N**. On your phone, open the latest release of the app you want and tap its `.apk`. Pull request builds are checked but not published.
+GitHub Actions (**Actions → Build APKs**) publishes each app as its own release on the repository's **Releases** page: **Dolphin XD 1.0.N** (tags `xd-build-N`) and **Dolphin Colosseum 1.0.N** (tags `colosseum-build-N`). On your phone, open the latest release of the app you want and tap its `.apk`.
+
+A push only rebuilds and releases the apps whose files changed since their last release (`scripts/apps-to-build.sh` decides). A change to one game's files never publishes the other app. A change to the shared code (`overlay/`, `patches/`, the Dolphin version) releases both. To rebuild an app by hand, for example after changing build settings in the workflow, use **Run workflow** and pick the app. Pull request builds are checked but not published.
+
+The two apps have different package names, so they install side by side as separate apps. Each keeps its own saves, settings, texture packs and mods in its own app storage. Installing or updating one never touches the other.
 
 The first build takes about an hour because it compiles all of Dolphin. Later builds reuse a compiler cache.
 
@@ -104,6 +108,7 @@ Dolphin's full source is too large to vendor, so this repository holds only the 
 | `games/<game>/` | One app each (`xd`, `colosseum`). `game.env` sets the package and name. `overlay/` holds that game's wording, game ID, colors and artwork. `branding/` holds the source images. |
 | `scripts/prepare-dolphin.sh` | Clones Dolphin, applies `patches/`, then copies `overlay/` and `games/<game>/overlay/` |
 | `scripts/generate-art.sh` | Rebuilds a game's launcher icons, splash and menu artwork from its `branding/` |
+| `scripts/apps-to-build.sh` | Lists the apps that changed since their last release. CI builds and releases only those. |
 | `unit-tests/` | JVM unit tests for the gesture recognizer and the UPS patcher. CI runs these before the APK builds. |
 
 To build locally, you need JDK 21 and the Android SDK, plus the NDK version named in Dolphin's `build.gradle.kts`:
@@ -119,7 +124,7 @@ cd build/dolphin/Source/Android
   -Pkeystore="$XD/ci/dolphinxd-ci.p12" -Pstorepass=dolphinxd -Pkeyalias=dolphinxd -Pkeypass=dolphinxd
 ```
 
-To add another game, copy `games/colosseum`, change `game.env`, the strings and colors in its `overlay`, and the images in `branding/`. Then run `scripts/generate-art.sh <game>` and add the game to the matrix in `.github/workflows/build-apk.yml`.
+To add another game, copy `games/colosseum`, change `game.env`, the strings and colors in its `overlay`, and the images in `branding/`. Give it its own `RELEASE_TAG_PREFIX` in `game.env`. Then run `scripts/generate-art.sh <game>` and add the game to the `app` choices in `.github/workflows/build-apk.yml`. CI picks up new games automatically.
 
 To update Dolphin, change `dolphin-version.env` and run `scripts/prepare-dolphin.sh`. If a patch no longer applies, fix it in `build/dolphin`, commit the fix there, and regenerate the patches with `git format-patch --zero-commit --no-signature -o ../../patches <old tag>..HEAD~1`.
 

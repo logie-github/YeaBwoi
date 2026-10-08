@@ -1,12 +1,19 @@
 name: Build APKs
 
-# Builds every app in games/ (Dolphin XD, Dolphin Colosseum) from the same Dolphin source.
+# Builds the apps in games/ (Dolphin XD, Dolphin Colosseum) from the same Dolphin source. Each
+# app is its own release: a push only rebuilds and releases the apps whose files changed.
 on:
   push:
     branches: ["**"]
     paths-ignore: ["**.md", "games/*/branding/**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      app:
+        description: App to build and release
+        type: choice
+        options: [all, xd, colosseum]
+        default: all
 
 permissions:
   contents: write
@@ -20,6 +27,36 @@ env:
   XD_VERSION_NAME: 1.0.${{ github.run_number }}
 
 jobs:
+  plan:
+    name: Pick apps to build
+    runs-on: ubuntu-24.04
+    outputs:
+      games: ${{ steps.pick.outputs.games }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pick apps
+        id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REQUESTED: ${{ inputs.app }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            # Only the apps that changed since their last release.
+            games="$(scripts/apps-to-build.sh)"
+          elif [ "$EVENT" = workflow_dispatch ] && [ "$REQUESTED" != all ]; then
+            games="$REQUESTED"
+          else
+            games="$(ls games)"
+          fi
+          json="$(jq -cn '$ARGS.positional' --args $games)"
+          echo "Apps to build: $json"
+          echo "games=$json" >> "$GITHUB_OUTPUT"
+          echo "Apps to build: \`$json\`" >> "$GITHUB_STEP_SUMMARY"
+
   unit-tests:
     name: Unit tests (gestures, mod patching)
     runs-on: ubuntu-24.04
@@ -40,13 +77,14 @@ jobs:
 
   apk:
     name: Build ${{ matrix.game }} APK
-    needs: unit-tests
+    needs: [plan, unit-tests]
+    if: needs.plan.outputs.games != '[]'
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        game: [xd, colosseum]
+        game: ${{ fromJSON(needs.plan.outputs.games) }}
     steps:
       - uses: actions/checkout@v4
 
