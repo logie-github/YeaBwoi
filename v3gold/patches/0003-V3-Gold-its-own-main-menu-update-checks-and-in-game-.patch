@@ -1,0 +1,173 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: V3 Gold <v3gold@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 23:32:21 +0000
+Subject: [PATCH 3/4] V3 Gold: its own main menu, update checks and in-game
+ menu controls
+
+- The app starts on V3 Gold's main menu (GoldHomeRoute) instead of
+  Vita3K's app list, which is still there as the Library. The menu walks
+  through setup with Vita3K's own firmware and install screens and opens
+  Vita3K's settings.
+- MainActivity tells GoldLaunch whether it was just opened, so the menu
+  can go straight into the game.
+- No startup check for Vita3K updates; the Library's update check opens
+  V3 Gold's.
+- In-game menu: the Controls tab switches gestures on or off and shows
+  the gesture guide (Vita3K's on-screen button settings while gestures
+  are off), and the Session tab has Check for updates.
+---
+ .../java/org/vita3k/emulator/MainActivity.kt  |  2 ++
+ .../emulator/ui/navigation/AppNavigation.kt   | 36 +++++++++++++++++--
+ .../screens/emulation/EmulationPauseMenu.kt   | 16 ++++++---
+ .../ui/viewmodel/AppsListViewModel.kt         |  2 +-
+ 4 files changed, 48 insertions(+), 8 deletions(-)
+
+diff --git a/android/app/src/main/java/org/vita3k/emulator/MainActivity.kt b/android/app/src/main/java/org/vita3k/emulator/MainActivity.kt
+index 6eef2f5..0bc1ce4 100644
+--- a/android/app/src/main/java/org/vita3k/emulator/MainActivity.kt
++++ b/android/app/src/main/java/org/vita3k/emulator/MainActivity.kt
+@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
+ import androidx.activity.result.contract.ActivityResultContracts
+ import androidx.activity.viewModels
+ import androidx.appcompat.app.AppCompatActivity
++import com.logie.v3gold.GoldLaunch
+ import org.vita3k.emulator.data.AppStorage
+ import org.vita3k.emulator.ui.navigation.AppNavigation
+ import org.vita3k.emulator.ui.theme.Vita3KTheme
+@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity() {
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
++        GoldLaunch.onActivityCreated(fresh = savedInstanceState == null)
+ 
+         prepareFrontendRuntime()
+         setTheme(R.style.Theme_Vita3K)
+diff --git a/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt b/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt
+index ca3da48..e1b2ff8 100644
+--- a/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt
++++ b/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt
+@@ -24,6 +24,8 @@ import androidx.navigation.compose.composable
+ import androidx.navigation.compose.currentBackStackEntryAsState
+ import androidx.navigation.compose.rememberNavController
+ import androidx.navigation.navArgument
++import com.logie.v3gold.GoldUpdateActivity
++import com.logie.v3gold.ui.GoldHomeRoute
+ import org.vita3k.emulator.MainActivity
+ import org.vita3k.emulator.data.AppStorage
+ import org.vita3k.emulator.data.AppInfo
+@@ -46,6 +48,7 @@ import org.vita3k.emulator.ui.viewmodel.InstallType
+ import org.vita3k.emulator.ui.viewmodel.SettingsViewModel
+ import org.vita3k.emulator.ui.viewmodel.UserManagementViewModel
+ 
++private const val ROUTE_GOLD_HOME = "gold_home"
+ private const val ROUTE_INITIAL_SETUP = "initial_setup"
+ private const val ROUTE_INITIAL_SETUP_MANUAL = "initial_setup/manual"
+ private const val ROUTE_APPS_LIST = "apps_list"
+@@ -82,7 +85,8 @@ fun AppNavigation(
+     var showArchiveSourceDialog by remember { mutableStateOf(false) }
+     var showStandaloneLicenseDialog by remember { mutableStateOf(false) }
+     val startDestination by produceState<String?>(initialValue = null, key1 = context) {
+-        value = if (AppStorage.isInitialSetupCompleted(context)) ROUTE_APPS_LIST else ROUTE_INITIAL_SETUP
++        // V3 Gold: always start on its own main menu, which walks through setup itself.
++        value = ROUTE_GOLD_HOME
+     }
+ 
+     ImmersiveLandscapeEffect(activity = activity, enabled = trophyRouteActive)
+@@ -226,6 +230,34 @@ fun AppNavigation(
+         popEnterTransition = { EnterTransition.None },
+         popExitTransition = { ExitTransition.None }
+     ) {
++        composable(ROUTE_GOLD_HOME) {
++            GoldHomeRoute(
++                appsListViewModel = appsListViewModel,
++                onPlay = onAppLaunch,
++                onOpenFirmwareSetup = {
++                    navController.navigate(ROUTE_INITIAL_SETUP_MANUAL) {
++                        launchSingleTop = true
++                    }
++                },
++                onInstallGame = { installViewModel.showSheet() },
++                onOpenSettings = {
++                    navController.navigate(ROUTE_SETTINGS) {
++                        launchSingleTop = true
++                    }
++                },
++                onOpenGameSettings = { app ->
++                    navController.navigate(customConfigRoute(app.titleId, app.title)) {
++                        launchSingleTop = true
++                    }
++                },
++                onOpenLibrary = {
++                    navController.navigate(ROUTE_APPS_LIST) {
++                        launchSingleTop = true
++                    }
++                }
++            )
++        }
++
+         composable(ROUTE_INITIAL_SETUP) {
+             val completeSetup: () -> Unit = {
+                 AppStorage.setInitialSetupCompleted(context, true)
+@@ -285,7 +317,7 @@ fun AppNavigation(
+                 onSearchChanged = { appsListViewModel.setSearch(it) },
+                 onSortChanged = { appsListViewModel.setSort(it) },
+                 onViewModeToggle = { appsListViewModel.toggleViewMode() },
+-                onCheckForUpdates = { appsListViewModel.checkForUpdates() },
++                onCheckForUpdates = { GoldUpdateActivity.launch(context) },
+                 onDismissUpdateCheckResult = { appsListViewModel.dismissUpdateCheckResult() },
+                 onRefresh = { appsListViewModel.refreshAppsList(syncCompatibility = true) },
+                 onInstallClick = { installViewModel.showSheet() },
+diff --git a/android/app/src/main/java/org/vita3k/emulator/ui/screens/emulation/EmulationPauseMenu.kt b/android/app/src/main/java/org/vita3k/emulator/ui/screens/emulation/EmulationPauseMenu.kt
+index bbc5971..020c866 100644
+--- a/android/app/src/main/java/org/vita3k/emulator/ui/screens/emulation/EmulationPauseMenu.kt
++++ b/android/app/src/main/java/org/vita3k/emulator/ui/screens/emulation/EmulationPauseMenu.kt
+@@ -71,6 +71,8 @@ import androidx.compose.ui.res.stringResource
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.text.style.TextOverflow
+ import androidx.compose.ui.unit.dp
++import com.logie.v3gold.ui.GoldControlsTab
++import com.logie.v3gold.ui.GoldSessionActions
+ import org.vita3k.emulator.Emulator
+ import org.vita3k.emulator.R
+ import org.vita3k.emulator.data.RestartRequiredSetting
+@@ -431,11 +433,13 @@ private fun PauseDrawer(
+                     onOpenSettingsTab = onOpenSettingsTab,
+                     onNeedsRestart = onNeedsRestart
+                 )
+-                PauseMenuTab.Controls -> ControlsTab(
+-                    activity = activity,
+-                    sessionViewModel = sessionViewModel,
+-                    onShowHelp = onShowHelp
+-                )
++                PauseMenuTab.Controls -> GoldControlsTab(activity = activity) {
++                    ControlsTab(
++                        activity = activity,
++                        sessionViewModel = sessionViewModel,
++                        onShowHelp = onShowHelp
++                    )
++                }
+                 PauseMenuTab.Controller -> ControllerTab(
+                     activity = activity,
+                     sessionViewModel = sessionViewModel,
+@@ -598,6 +602,8 @@ private fun SessionTab(
+             }
+         }
+ 
++        GoldSessionActions(activity = activity)
++
+         CustomConfigSection(
+             settingsLoaded = settingsLoaded,
+             hasCustomConfig = settingsViewModel.hasCustomConfig,
+diff --git a/android/app/src/main/java/org/vita3k/emulator/ui/viewmodel/AppsListViewModel.kt b/android/app/src/main/java/org/vita3k/emulator/ui/viewmodel/AppsListViewModel.kt
+index b31e227..d6dd188 100644
+--- a/android/app/src/main/java/org/vita3k/emulator/ui/viewmodel/AppsListViewModel.kt
++++ b/android/app/src/main/java/org/vita3k/emulator/ui/viewmodel/AppsListViewModel.kt
+@@ -86,7 +86,7 @@ class AppsListViewModel(application: Application) : AndroidViewModel(application
+                 firmwareInstallState = AppRepository.getFirmwareInstallState()
+                 loadApps()
+                 startCompatibilitySync()
+-                startUpdateCheckIfEnabled()
++                // V3 Gold checks its own releases instead of Vita3K's (see GoldUpdater).
+             }
+             loading = false
+         }

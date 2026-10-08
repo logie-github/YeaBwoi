@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: V3 Gold <v3gold@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 23:31:28 +0000
+Subject: [PATCH 2/4] V3 Gold: gesture controls in place of the on-screen
+ buttons
+
+While gestures are on (the default), the input overlay draws nothing and
+hands every touch on the game screen to GoldGestures, which drives the
+same virtual controller the buttons use. The game's touchscreen gets no
+touches. Releasing the overlay's inputs (menu, pause, focus loss) also
+lets go of the gestures' buttons and sticks.
+---
+ .../vita3k/emulator/overlay/InputOverlay.java | 22 +++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java b/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java
+index 51679da..f7c4400 100644
+--- a/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java
++++ b/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java
+@@ -20,6 +20,8 @@ import android.view.SurfaceView;
+ import android.view.View;
+ import android.view.View.OnTouchListener;
+ 
++import com.logie.v3gold.GoldGestures;
++
+ import java.util.HashSet;
+ import java.util.Set;
+ 
+@@ -64,6 +66,9 @@ public final class InputOverlay extends SurfaceView implements OnTouchListener
+   private int mOpacity = 100;
+   private OverlayLayout mLayout;
+ 
++  // V3 Gold: gesture controls in place of the buttons (see GoldGestures)
++  private final GoldGestures mGestures;
++
+   // last Time the screen was touched
+   private long mlastTouchTime;
+   // is the overlay hidden because we didn't used it for long enough ?
+@@ -110,6 +115,8 @@ public final class InputOverlay extends SurfaceView implements OnTouchListener
+     // Force draw
+     setWillNotDraw(false);
+ 
++    mGestures = new GoldGestures(this);
++
+     // Request focus for the overlay so it has priority on presses.
+     requestFocus();
+ 
+@@ -122,6 +129,7 @@ public final class InputOverlay extends SurfaceView implements OnTouchListener
+   @Override
+   protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+     super.onSizeChanged(w, h, oldw, oldh);
++    mGestures.onSizeChanged(w, h);
+     if ((w != oldw || h != oldh) && w > 0 && h > 0) {
+       refreshControls();
+     }
+@@ -184,7 +192,13 @@ public final class InputOverlay extends SurfaceView implements OnTouchListener
+     return mOverlayMask;
+   }
+ 
++  public GoldGestures getGoldGestures() {
++    return mGestures;
++  }
++
+   public void releaseAllInputs() {
++    mGestures.releaseAll();
++
+     for (InputOverlayDrawableButton button : overlayButtons) {
+       if ((button.getRole() & OVERLAY_MASK_UTILITY) == 0) {
+         setButton(button.getControl(), false);
+@@ -214,6 +228,10 @@ public final class InputOverlay extends SurfaceView implements OnTouchListener
+   {
+     super.draw(canvas);
+ 
++    // Gesture controls draw nothing over the game.
++    if (mGestures.getEnabled() && !isInEditMode())
++      return;
++
+     if (mOverlayMask == 0 || !mShowingOverlay)
+       return;
+ 
+@@ -259,6 +277,10 @@ public final class InputOverlay extends SurfaceView implements OnTouchListener
+     if (isInEditMode())
+       return onTouchWhileEditing(event);
+ 
++    // Gesture controls take every touch on the game screen, so the game's touchscreen gets none.
++    if (mGestures.getEnabled())
++      return mGestures.onTouchEvent(event, v.getWidth());
++
+     int action = event.getActionMasked();
+     boolean firstPointer = action != MotionEvent.ACTION_POINTER_DOWN &&
+             action != MotionEvent.ACTION_POINTER_UP;

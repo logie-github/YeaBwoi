@@ -1,0 +1,176 @@
+name: Build V3 Gold
+
+# Builds V3 Gold (Persona 4 Golden on Vita3K) and publishes it as its own release
+# (v3gold-build-N). Only changes to V3 Gold's files run it; the Dolphin apps have their own workflow.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "v3gold/**"
+      - "!v3gold/branding/**"
+      - "!v3gold/**.md"
+      - "scripts/prepare-vita3k.sh"
+      - ".github/workflows/build-v3gold.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: v3gold-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITA3K_DIR: ${{ github.workspace }}/build/vita3k
+  GOLD_VERSION_NAME: 1.0.${{ github.run_number }}
+  NDK_VERSION: "29.0.14206865"
+  VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-binary-cache
+
+jobs:
+  unit-tests:
+    name: Unit tests (gestures, updates)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Run unit tests
+        run: gradle --no-daemon -p v3gold/unit-tests test
+
+  apk:
+    name: Build V3 Gold APK
+    needs: unit-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read app settings
+        run: |
+          source v3gold/app.env
+          {
+            echo "APP_ID=$APP_ID"
+            echo "APP_NAME=$APP_NAME"
+            echo "GAME_NAME=$GAME_NAME"
+            echo "APK_FILE=$APK_NAME-$GOLD_VERSION_NAME.apk"
+            echo "RELEASE_TAG_PREFIX=$RELEASE_TAG_PREFIX"
+            echo "RELEASE_TAG=$RELEASE_TAG_PREFIX-${{ github.run_number }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/node_modules /opt/ghc /usr/local/.ghcup \
+            /usr/share/swift /usr/local/share/powershell /usr/local/share/chromium \
+            /opt/hostedtoolcache/CodeQL /opt/hostedtoolcache/PyPy || true
+          df -h /
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Set up Gradle before Vita3K is checked out: its wrapper check scans the whole workspace,
+      # and Vita3K's third-party code (e.g. SDL's example project) has wrapper jars it doesn't know.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-provider: basic
+
+      - name: Prepare source
+        run: scripts/prepare-vita3k.sh "$VITA3K_DIR"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
+            "ndk;$NDK_VERSION" "platforms;android-35" "build-tools;36.0.0" > /dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          echo "VCPKG_ROOT=$VCPKG_INSTALLATION_ROOT" >> "$GITHUB_ENV"
+
+      # Vita3K's libraries from vcpkg (Boost, curl, OpenSSL, zlib), built once and cached.
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-arm64-android-${{ hashFiles('v3gold/vita3k-version.env') }}
+          restore-keys: vcpkg-arm64-android-
+
+      - name: Build vcpkg libraries
+        working-directory: ${{ env.VITA3K_DIR }}
+        run: |
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+          "$VCPKG_ROOT/vcpkg" install --triplet arm64-android
+
+      - name: Set up ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: vita3k-android-arm64-${{ hashFiles('v3gold/vita3k-version.env') }}
+          max-size: 2G
+
+      - name: Choose signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DOLPHINXD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "GOLD_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Signing with the key from the DOLPHINXD_KEYSTORE_* secrets."
+          else
+            echo "GOLD_KEYSTORE=$GITHUB_WORKSPACE/ci/dolphinxd-ci.p12" >> "$GITHUB_ENV"
+            echo "::notice::Signed with the shared CI key in ci/. Add DOLPHINXD_KEYSTORE_* secrets to use your own (see README)."
+          fi
+
+      - name: Build release APK
+        working-directory: ${{ env.VITA3K_DIR }}/android
+        env:
+          GOLD_STOREPASS: ${{ secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+          GOLD_KEYALIAS: ${{ secrets.DOLPHINXD_KEY_ALIAS || 'dolphinxd' }}
+          GOLD_KEYPASS: ${{ secrets.DOLPHINXD_KEY_PASSWORD || secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+          # The app checks this repository's releases for updates. A private repository needs a
+          # read-only token (see "Updates" in the README); a public one doesn't.
+          GOLD_UPDATE_TOKEN: ${{ secrets.DOLPHINXD_UPDATE_TOKEN }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease \
+            -Pkeystore="$GOLD_KEYSTORE" \
+            -Pstorepass="$GOLD_STOREPASS" \
+            -Pkeyalias="$GOLD_KEYALIAS" \
+            -Pkeypass="$GOLD_KEYPASS" \
+            -PgoldVersionCode=${{ github.run_number }} \
+            -PgoldVersionName="$GOLD_VERSION_NAME" \
+            -PgoldApplicationId="$APP_ID" \
+            -PgoldUpdateRepo="$GITHUB_REPOSITORY" \
+            -PgoldReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
+            -PgoldUpdateToken="$GOLD_UPDATE_TOKEN"
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp "$VITA3K_DIR/android/app/build/outputs/apk/release/app-release.apk" "dist/$APK_FILE"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "dist/$APK_FILE" | head -3
+          ls -la dist
+
+      # The APK is published as a GitHub release rather than a workflow artifact: release
+      # downloads work straight from a phone and don't use the account's Actions storage quota.
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source v3gold/vita3k-version.env
+          notes="$GAME_NAME for Android, built from Vita3K ${VITA3K_COMMIT::7} and commit ${GITHUB_SHA::7}.
+
+          Download **$APK_FILE** below on your phone and open it to install."
+          gh release create "$RELEASE_TAG" "dist/$APK_FILE" \
+            --target "$GITHUB_SHA" \
+            --title "$APP_NAME $GOLD_VERSION_NAME" \
+            --notes "$notes"

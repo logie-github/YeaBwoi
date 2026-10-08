@@ -1,0 +1,134 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: V3 Gold <v3gold@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 23:31:01 +0000
+Subject: [PATCH 1/4] V3 Gold: app identity, version, signing and update source
+ from Gradle properties
+
+- applicationId, versionCode and versionName come from -PgoldApplicationId,
+  -PgoldVersionCode and -PgoldVersionName (defaults: com.logie.v3gold, 1, 1.0).
+- BuildConfig.GOLD_UPDATE_REPO / GOLD_RELEASE_TAG_PREFIX / GOLD_UPDATE_TOKEN
+  tell the app where its updates are published.
+- -Pkeystore/-Pstorepass/-Pkeyalias/-Pkeypass sign the release build.
+- arm64-v8a only.
+- The app is called V3 Gold.
+- The manifest adds the update activity, a FileProvider for downloaded
+  updates and the permission to install them.
+---
+ android/app/build.gradle                    | 30 +++++++++++++++++----
+ android/app/src/main/AndroidManifest.xml    | 20 ++++++++++++++
+ android/app/src/main/res/values/strings.xml |  2 +-
+ 3 files changed, 46 insertions(+), 6 deletions(-)
+
+diff --git a/android/app/build.gradle b/android/app/build.gradle
+index 892cf00..e9916aa 100644
+--- a/android/app/build.gradle
++++ b/android/app/build.gradle
+@@ -9,6 +9,13 @@ def signingKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
+ def signingKeyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+ def hasCiSigning = signingStorePath && signingStorePassword && signingKeyAlias && signingKeyPassword
+ 
++// V3 Gold: CI passes the app's identity, version, signing key and update source as Gradle
++// properties (-Pgold...). Local builds fall back to these defaults.
++def goldProperty = { String name, String fallback ->
++	project.hasProperty(name) ? project.property(name).toString() : fallback
++}
++def goldKeystore = goldProperty("keystore", "")
++
+ android {
+ 	namespace = "org.vita3k.emulator"
+ 	compileSdk = 35
+@@ -19,18 +26,31 @@ android {
+ 	}
+ 
+ 	defaultConfig {
+-		applicationId = "org.vita3k.emulator"
++		applicationId = goldProperty("goldApplicationId", "com.logie.v3gold")
+ 		minSdk = 28
+ 		targetSdk = 35
+-		versionCode = 21
+-		versionName = "0.2.1"
++		versionCode = goldProperty("goldVersionCode", "1").toInteger()
++		versionName = goldProperty("goldVersionName", "1.0")
++
++		buildConfigField "String", "GOLD_UPDATE_REPO", "\"${goldProperty("goldUpdateRepo", "")}\""
++		buildConfigField "String", "GOLD_RELEASE_TAG_PREFIX", "\"${goldProperty("goldReleaseTagPrefix", "")}\""
++		buildConfigField "String", "GOLD_UPDATE_TOKEN", "\"${goldProperty("goldUpdateToken", "")}\""
+ 
+ 		ndk {
+-			abiFilters "arm64-v8a", "x86_64"
++			// Phones only: the APK is half the size and builds in half the time.
++			abiFilters "arm64-v8a"
+ 		}
+ 	}
+ 
+ 	signingConfigs {
++		gold {
++			if (goldKeystore) {
++				storeFile = file(goldKeystore)
++				storePassword = goldProperty("storepass", "")
++				keyAlias = goldProperty("keyalias", "")
++				keyPassword = goldProperty("keypass", "")
++			}
++		}
+ 		ci {
+ 			if (hasCiSigning) {
+ 				storeFile = file(signingStorePath)
+@@ -73,7 +93,7 @@ android {
+ 			minifyEnabled = true
+ 			shrinkResources = true
+ 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+-			signingConfig = hasCiSigning ? signingConfigs.ci : signingConfigs.debug
++			signingConfig = goldKeystore ? signingConfigs.gold : (hasCiSigning ? signingConfigs.ci : signingConfigs.debug)
+ 		}
+ 	}
+ 
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 080e2f3..554b2c5 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -76,6 +76,9 @@
+     <uses-permission android:name = "android.permission.ACCESS_NETWORK_STATE" />
+     <uses-permission android:name = "android.permission.INTERNET"/>
+ 
++    <!-- V3 Gold installs its own updates from GitHub releases. -->
++    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
++
+     <!-- if you want to capture audio, uncomment this. -->
+     <!-- <uses-permission android:name="android.permission.RECORD_AUDIO" /> -->
+ 
+@@ -135,6 +138,23 @@
+             android:name=".InstallForegroundService"
+             android:exported="false"
+             android:foregroundServiceType="dataSync" />
++
++        <!-- V3 Gold: update checks and downloads, as dialogs over the menu or the game. -->
++        <activity
++            android:name="com.logie.v3gold.GoldUpdateActivity"
++            android:exported="false"
++            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden"
++            android:theme="@style/Theme.V3Gold.Translucent" />
++
++        <provider
++            android:name="androidx.core.content.FileProvider"
++            android:authorities="${applicationId}.filesprovider"
++            android:exported="false"
++            android:grantUriPermissions="true">
++            <meta-data
++                android:name="android.support.FILE_PROVIDER_PATHS"
++                android:resource="@xml/gold_file_paths" />
++        </provider>
+     </application>
+ 
+ </manifest>
+diff --git a/android/app/src/main/res/values/strings.xml b/android/app/src/main/res/values/strings.xml
+index bd9972a..c94e901 100644
+--- a/android/app/src/main/res/values/strings.xml
++++ b/android/app/src/main/res/values/strings.xml
+@@ -1,6 +1,6 @@
+ <resources>
+     <!-- App name -->
+-    <string name="app_name">Vita3K</string>
++    <string name="app_name" translatable="false">V3 Gold</string>
+ 
+     <!-- Common actions -->
+     <string name="action_ok">OK</string>

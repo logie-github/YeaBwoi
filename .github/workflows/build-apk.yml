@@ -5,7 +5,14 @@ name: Build APKs
 on:
   push:
     branches: ["**"]
-    paths-ignore: ["**.md", "games/*/branding/**"]
+    # V3 Gold (v3gold/) has its own workflow, build-v3gold.yml.
+    paths-ignore:
+      - "**.md"
+      - "games/*/branding/**"
+      - "v3gold/**"
+      - "scripts/prepare-vita3k.sh"
+      - ".github/workflows/build-v3gold.yml"
+      - ".gitattributes"
   pull_request:
   workflow_dispatch:
     inputs:
