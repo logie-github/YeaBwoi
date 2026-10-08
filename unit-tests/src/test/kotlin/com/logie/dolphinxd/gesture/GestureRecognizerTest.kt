@@ -46,6 +46,7 @@ class GestureRecognizerTest {
         var menuOpened = 0
         var fastForwarding = false
         val fastForwardEvents = ArrayList<String>()
+        val stateEvents = ArrayList<String>()
 
         override fun setButton(button: PadButton, pressed: Boolean) {
             if (pressed) this.pressed.add(button) else this.pressed.remove(button)
@@ -66,6 +67,14 @@ class GestureRecognizerTest {
             assertTrue(enabled != fastForwarding, "Fast-forward must only report changes")
             fastForwarding = enabled
             fastForwardEvents.add("${scheduler.now} ${if (enabled) "on" else "off"}")
+        }
+
+        override fun quickSave() {
+            stateEvents.add("${scheduler.now} save")
+        }
+
+        override fun quickLoad() {
+            stateEvents.add("${scheduler.now} load")
         }
 
         fun buttonEvents() = events.filter { !it.endsWith("menu") }
@@ -566,5 +575,109 @@ class GestureRecognizerTest {
             listOf("210 START down", "310 START up", "610 A down", "710 A up"),
             out.buttonEvents()
         )
+    }
+
+    private fun threeFingerDown(t: Long) {
+        down(0, 300f, 300f, t)
+        down(1, 500f, 300f, t + 15)
+        down(2, 700f, 300f, t + 30)
+    }
+
+    private fun threeFingerUp(t: Long) {
+        up(0, 300f, 300f, t)
+        up(1, 500f, 300f, t + 10)
+        up(2, 700f, 300f, t + 20)
+    }
+
+    @Test
+    fun threeFingerTapQuickSaves() {
+        threeFingerDown(0)
+        threeFingerUp(150)
+        scheduler.advanceTo(2000)
+        assertEquals(listOf("170 save"), out.stateEvents)
+        assertTrue(out.buttonEvents().isEmpty(), "No buttons, no menu")
+        assertEquals(0, out.menuOpened)
+    }
+
+    @Test
+    fun threeFingerHoldQuickLoads() {
+        threeFingerDown(0)
+        scheduler.advanceTo(529)
+        assertTrue(out.stateEvents.isEmpty())
+        scheduler.advanceTo(530)
+        assertEquals(listOf("530 load"), out.stateEvents)
+        threeFingerUp(900)
+        scheduler.advanceTo(2000)
+        assertEquals(listOf("530 load"), out.stateEvents, "Letting go after a hold doesn't also save")
+        assertTrue(out.buttonEvents().isEmpty())
+    }
+
+    @Test
+    fun threeFingerSwipeDoesNothing() {
+        threeFingerDown(0)
+        move(0, 300f, 200f, 100)
+        move(1, 500f, 200f, 100)
+        move(2, 700f, 200f, 100)
+        scheduler.advanceTo(1000)
+        threeFingerUp(1000)
+        scheduler.advanceTo(2000)
+        assertTrue(out.stateEvents.isEmpty())
+        assertEquals(0f, out.stickY)
+    }
+
+    @Test
+    fun liftingOneFingerEarlyCancelsTheHold() {
+        threeFingerDown(0)
+        up(2, 700f, 300f, 200)
+        scheduler.advanceTo(2000)
+        up(0, 300f, 300f, 2000)
+        up(1, 500f, 300f, 2000)
+        assertTrue(out.stateEvents.isEmpty(), "Neither a tap (too long) nor a hold (a finger left)")
+    }
+
+    @Test
+    fun threeFingerTapThenTwoFingerHoldDoesNotOpenTheMenu() {
+        threeFingerDown(0)
+        threeFingerUp(100)
+        down(0, 400f, 300f, 200)
+        down(1, 600f, 300f, 210)
+        scheduler.advanceTo(1500)
+        assertEquals(0, out.menuOpened)
+        assertEquals(listOf("120 save"), out.stateEvents)
+    }
+
+    @Test
+    fun twoFingerMenuGestureStillWorksAfterThreeFingerGestures() {
+        threeFingerDown(0)
+        threeFingerUp(100)
+        scheduler.advanceTo(1000)
+        // Two-finger tap, then two-finger tap and hold.
+        down(0, 400f, 300f, 1000)
+        down(1, 600f, 300f, 1010)
+        up(0, 400f, 300f, 1100)
+        up(1, 600f, 300f, 1110)
+        down(0, 400f, 300f, 1250)
+        down(1, 600f, 300f, 1260)
+        scheduler.advanceTo(1600)
+        assertEquals(1, out.menuOpened)
+    }
+
+    @Test
+    fun aFourthFingerIsIgnored() {
+        threeFingerDown(0)
+        down(3, 900f, 300f, 40)
+        up(3, 900f, 300f, 80)
+        threeFingerUp(150)
+        scheduler.advanceTo(2000)
+        assertEquals(listOf("170 save"), out.stateEvents)
+        assertTrue(out.buttonEvents().isEmpty())
+    }
+
+    @Test
+    fun cancelStopsAPendingQuickLoad() {
+        threeFingerDown(0)
+        recognizer.cancelAll()
+        scheduler.advanceTo(2000)
+        assertTrue(out.stateEvents.isEmpty())
     }
 }

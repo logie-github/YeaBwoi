@@ -24,6 +24,12 @@ interface GestureOutput {
     /** Fast-forward starts (a second finger is held) or stops (it lets go). */
     fun setFastForward(enabled: Boolean)
 
+    /** Three-finger tap. */
+    fun quickSave()
+
+    /** Three-finger hold. */
+    fun quickLoad()
+
     /** A hold gesture (B, L, X, fast-forward or the menu) was recognized. Used for haptic feedback. */
     fun onHoldRecognized() {}
 }
@@ -50,6 +56,8 @@ data class GestureConfig(
     val twoFingerDoubleTapTimeoutMs: Long = 350,
     /** How long a tap keeps its button pressed so the game is sure to see it. */
     val pulseMs: Long = 100,
+    /** How long three fingers stay down before it counts as a hold (quick load) instead of a tap. */
+    val threeFingerHoldMs: Long = 500,
     /** How far (as a fraction of [stickRadiusPx]) a swipe goes before it presses the D-pad. */
     val dpadPressTilt: Float = 0.5f,
     /** A swipe pressing the D-pad lets go of it when it comes back closer than this. */
@@ -67,6 +75,7 @@ data class GestureConfig(
  *   the D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
  * - While another finger swipes or holds, hold a second finger: [GestureOutput.setFastForward]
+ * - Three-finger tap: [GestureOutput.quickSave]; three-finger hold: [GestureOutput.quickLoad]
  *
  * While one finger is driving the stick or holding a button, a second finger can tap for A, or hold
  * to fast-forward the game for as long as it stays down. Holding B and walking at the same time is
@@ -80,7 +89,7 @@ class GestureRecognizer(
     private val scheduler: GestureScheduler,
     private val output: GestureOutput,
 ) {
-    private enum class State { PENDING, STICK, HOLD, TWO_FINGER, IGNORED }
+    private enum class State { PENDING, STICK, HOLD, TWO_FINGER, THREE_FINGER, IGNORED }
 
     private class Touch(
         val id: Int,
@@ -121,6 +130,11 @@ class GestureRecognizer(
     private var twoFingerTimer: Cancellable? = null
     private var lastTwoFingerTapUp: Long? = null
 
+    private var threeFingerStart = 0L
+    private var threeFingerMoved = false
+    private var threeFingerHeld = false
+    private var threeFingerTimer: Cancellable? = null
+
     private val pressCount = IntArray(PadButton.entries.size)
     private val pulseTimers = HashSet<Cancellable>()
 
@@ -152,7 +166,19 @@ class GestureRecognizer(
             return
         }
 
-        if (others.any { it.state == State.TWO_FINGER }) {
+        if (others.size == 2 && others.all { it.state == State.TWO_FINGER } && !twoFingerMoved) {
+            // A third finger joined a two-finger touch.
+            for (other in others) {
+                other.state = State.THREE_FINGER
+            }
+            touches[id] = Touch(id, x, y, secondTap = false, secondary = false).apply {
+                state = State.THREE_FINGER
+            }
+            startThreeFinger(timeMs)
+            return
+        }
+
+        if (others.any { it.state == State.TWO_FINGER || it.state == State.THREE_FINGER }) {
             touches[id] = Touch(id, x, y, secondTap = false, secondary = false).apply {
                 state = State.IGNORED
             }
@@ -213,6 +239,12 @@ class GestureRecognizer(
                 twoFingerTimer = null
             }
 
+            State.THREE_FINGER -> if (moved > config.touchSlopPx * 2) {
+                threeFingerMoved = true
+                threeFingerTimer?.cancel()
+                threeFingerTimer = null
+            }
+
             State.IGNORED -> {}
         }
     }
@@ -256,6 +288,15 @@ class GestureRecognizer(
                 endTwoFinger(timeMs)
             }
 
+            State.THREE_FINGER -> {
+                // Lifting any finger ends the chance of a hold.
+                threeFingerTimer?.cancel()
+                threeFingerTimer = null
+                if (touches.values.none { it.state == State.THREE_FINGER }) {
+                    endThreeFinger(timeMs)
+                }
+            }
+
             State.IGNORED -> {}
         }
     }
@@ -278,6 +319,8 @@ class GestureRecognizer(
         touches.clear()
         twoFingerTimer?.cancel()
         twoFingerTimer = null
+        threeFingerTimer?.cancel()
+        threeFingerTimer = null
         if (stickOwner != null) {
             centerStick()
         }
@@ -300,6 +343,8 @@ class GestureRecognizer(
         twoFingerTimer?.cancel()
         twoFingerTimer = null
         lastTwoFingerTapUp = null
+        threeFingerTimer?.cancel()
+        threeFingerTimer = null
 
         for (timer in pulseTimers) {
             timer.cancel()
@@ -377,6 +422,30 @@ class GestureRecognizer(
         val wasTap = !twoFingerSecond && !twoFingerMoved &&
                 timeMs - twoFingerStart < config.holdTimeoutMs
         lastTwoFingerTapUp = if (wasTap) timeMs else null
+    }
+
+    private fun startThreeFinger(timeMs: Long) {
+        // Whatever the first two fingers were starting (like the menu gesture) is off.
+        twoFingerTimer?.cancel()
+        twoFingerTimer = null
+        lastTwoFingerTapUp = null
+
+        threeFingerStart = timeMs
+        threeFingerMoved = false
+        threeFingerHeld = false
+        threeFingerTimer = scheduler.schedule(config.threeFingerHoldMs) {
+            threeFingerTimer = null
+            threeFingerHeld = true
+            output.quickLoad()
+        }
+    }
+
+    private fun endThreeFinger(timeMs: Long) {
+        val wasTap = !threeFingerMoved && !threeFingerHeld &&
+                timeMs - threeFingerStart < config.threeFingerHoldMs
+        if (wasTap) {
+            output.quickSave()
+        }
     }
 
     private fun openMenu() {

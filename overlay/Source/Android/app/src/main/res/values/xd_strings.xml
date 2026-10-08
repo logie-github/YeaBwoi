@@ -15,7 +15,7 @@
 
 
     <string name="xd_controls_title">Controls</string>
-    <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nThe swipe also holds the D-pad in its direction: up, down, left or right\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\n\nWhile one finger swipes or holds, tap with another finger for A, or hold it to fast-forward at double speed until you let go. Sound keeps playing at normal speed. To hold B while walking, hold, then drag. Game controllers work too.</string>
+    <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nThe swipe also holds the D-pad in its direction: up, down, left or right\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\nThree-finger tap — Quick save\nThree-finger hold — Quick load\n\nWhile one finger swipes or holds, tap with another finger for A, or hold it to fast-forward at double speed until you let go. Sound keeps playing at normal speed. To hold B while walking, hold, then drag. Quick load only works if you haven\'t saved in the game since the quick save, so you never end up with two different saves. Game controllers work too.</string>
 
     <string name="xd_error_title">That didn\'t work</string>
     <string name="xd_error_not_bios">That doesn\'t look like a GameCube BIOS. A BIOS dump is a 2 MB file usually called IPL.bin.</string>
@@ -106,4 +106,14 @@
     <string name="xd_mods_corrupt">The patch file seems to be damaged: %1$s. Download it again.</string>
     <string name="xd_mods_convert_failed">Your game couldn\'t be converted to an ISO.</string>
     <string name="xd_mods_unreadable_result">The patched game can\'t be read by Dolphin.</string>
+
+    <!-- Save states (three-finger tap/hold and the in-game menu) -->
+    <string name="xd_quick_saved">Quick saved</string>
+    <string name="xd_quick_loaded">Quick loaded</string>
+    <string name="xd_quick_empty">No quick save yet. Tap with three fingers to make one.</string>
+    <string name="xd_quick_blocked">Not loaded: you saved in the game after this quick save.</string>
+    <string name="xd_state_saved">Saved state %1$d</string>
+    <string name="xd_state_loaded">Loaded state %1$d</string>
+    <string name="xd_state_empty">Save state %1$d is empty</string>
+    <string name="xd_state_blocked">Not loaded: you saved in the game after this save state.</string>
 </resources>
