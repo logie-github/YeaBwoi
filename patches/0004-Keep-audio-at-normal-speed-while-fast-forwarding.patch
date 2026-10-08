@@ -1,0 +1,95 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 17:09:36 +0000
+Subject: [PATCH 4/4] Keep audio at normal speed while fast-forwarding
+
+The gesture controls can fast-forward the game. While they do, the
+CurrentRun config layer sets Core/AudioRealTime. The mixer then plays
+audio at normal speed and pitch instead of speeding it up with the game.
+It lets up to about a second of audio queue up. When the queue is full,
+the existing Dequeue logic skips ahead by half of it. When fast-forward
+ends, the normal queue size makes it jump straight back to live audio.
+---
+ Source/Core/AudioCommon/Mixer.cpp | 20 ++++++++++++++++++--
+ Source/Core/AudioCommon/Mixer.h   |  4 ++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/Source/Core/AudioCommon/Mixer.cpp b/Source/Core/AudioCommon/Mixer.cpp
+index a57b602..2928878 100644
+--- a/Source/Core/AudioCommon/Mixer.cpp
++++ b/Source/Core/AudioCommon/Mixer.cpp
+@@ -18,6 +18,11 @@
+ #include "Core/Core.h"
+ #include "Core/System.h"
+ 
++// Set while the game is fast-forwarded: audio keeps playing at normal speed and pitch instead of
++// speeding up with the game.
++static const Config::Info<bool> MAIN_AUDIO_REAL_TIME{{Config::System::Main, "Core", "AudioRealTime"},
++                                                     false};
++
+ static u32 DPL2QualityToFrameBlockSize(AudioCommon::DPL2Quality quality)
+ {
+   switch (quality)
+@@ -71,9 +76,13 @@ void Mixer::MixerFifo::Mix(s16* samples, std::size_t num_samples)
+   const double out_sample_rate = m_mixer->m_output_sample_rate;
+   double in_sample_rate = double(m_input_sample_rate_dividend) / m_input_sample_rate_divisor;
+ 
++  const bool real_time = m_mixer->m_config_audio_real_time;
+   const double emulation_speed = m_mixer->m_config_emulation_speed;
+-  if (!m_mixer->m_config_audio_preserve_pitch && 0 < emulation_speed && emulation_speed != 1.0)
++  if (!real_time && !m_mixer->m_config_audio_preserve_pitch && 0 < emulation_speed &&
++      emulation_speed != 1.0)
++  {
+     in_sample_rate *= emulation_speed;
++  }
+ 
+   const double base = static_cast<double>(1 << GRANULE_FRAC_BITS);
+   const u32 index_jump = std::lround(base * in_sample_rate / out_sample_rate);
+@@ -90,10 +99,16 @@ void Mixer::MixerFifo::Mix(s16* samples, std::size_t num_samples)
+   const std::size_t buffer_size_samples = std::llround(buffer_size_ms * in_sample_rate / 1000.0);
+ 
+   // Limit the possible queue sizes to any number between 4 and 64.
+-  const std::size_t buffer_size_granules =
++  std::size_t buffer_size_granules =
+       std::clamp((buffer_size_samples) / (GRANULE_SIZE >> 1), static_cast<std::size_t>(4),
+                  static_cast<std::size_t>(MAX_GRANULE_QUEUE_SIZE));
+ 
++  // While fast-forwarding, the game makes audio faster than it is played. Let up to about a second
++  // of it queue up so it keeps playing at normal speed; when the queue is full, Dequeue skips ahead
++  // by half of it. Once fast-forward ends, the normal queue size jumps straight back to live audio.
++  if (real_time)
++    buffer_size_granules = REAL_TIME_QUEUE_SIZE;
++
+   bool fade_audio = m_queue_fading.load(std::memory_order_relaxed);
+ 
+   m_granule_queue_size.store(buffer_size_granules, std::memory_order_relaxed);
+@@ -428,6 +443,7 @@ void Mixer::RefreshConfig()
+ {
+   m_config_emulation_speed = Config::Get(Config::MAIN_EMULATION_SPEED);
+   m_config_audio_preserve_pitch = Config::Get(Config::MAIN_AUDIO_PRESERVE_PITCH);
++  m_config_audio_real_time = Config::Get(MAIN_AUDIO_REAL_TIME);
+   m_config_fill_audio_gaps = Config::Get(Config::MAIN_AUDIO_FILL_GAPS);
+   m_config_audio_buffer_ms = Config::Get(Config::MAIN_AUDIO_BUFFER_SIZE);
+   m_config_wiimote_routing_enabled = Config::Get(Config::MAIN_WIIMOTE_AUDIO_ROUTING_ENABLED);
+diff --git a/Source/Core/AudioCommon/Mixer.h b/Source/Core/AudioCommon/Mixer.h
+index aca334b..bb34a3d 100644
+--- a/Source/Core/AudioCommon/Mixer.h
++++ b/Source/Core/AudioCommon/Mixer.h
+@@ -66,6 +66,9 @@ private:
+   {
+     static constexpr std::size_t MAX_GRANULE_QUEUE_SIZE = 256;
+     static constexpr std::size_t GRANULE_QUEUE_MASK = MAX_GRANULE_QUEUE_SIZE - 1;
++    // How much audio may queue up while it plays at normal speed during fast-forward (about a
++    // second at 32 kHz). The rest of the queue is headroom so it never overflows.
++    static constexpr std::size_t REAL_TIME_QUEUE_SIZE = MAX_GRANULE_QUEUE_SIZE - 32;
+ 
+     struct StereoPair final
+     {
+@@ -196,6 +199,7 @@ private:
+ 
+   float m_config_emulation_speed;
+   bool m_config_audio_preserve_pitch;
++  bool m_config_audio_real_time = false;
+   bool m_config_fill_audio_gaps;
+   int m_config_audio_buffer_ms;
+   bool m_config_wiimote_routing_enabled = false;

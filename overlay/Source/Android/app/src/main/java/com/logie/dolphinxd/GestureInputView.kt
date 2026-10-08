@@ -79,6 +79,12 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
             onMenuGesture?.invoke()
         }
 
+        override fun setFastForward(enabled: Boolean) {
+            if (isInputReady()) {
+                XdFastForward.set(enabled)
+            }
+        }
+
         override fun onHoldRecognized() {
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         }
@@ -111,6 +117,8 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
         }
         InputOverrider.registerGameCube(CONTROLLER_INDEX)
         registered = true
+        // A new game always starts at normal speed.
+        XdFastForward.set(false)
     }
 
     /** Lets go of every button, e.g. when the game is paused or the menu opens. */

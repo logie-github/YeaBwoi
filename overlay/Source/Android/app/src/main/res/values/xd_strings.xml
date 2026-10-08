@@ -15,7 +15,7 @@
 
 
     <string name="xd_controls_title">Controls</string>
-    <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nThe swipe also holds the D-pad in its direction: up, down, left or right\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\n\nWhile one finger moves the stick, tap with another finger for A or hold it for B. Game controllers work too.</string>
+    <string name="xd_controls_body">Tap — A\nHold — B\nDouble-tap — Start\nTap, then tap and hold on the left half — L\nTap, then tap and hold on the right half — X\nSwipe and keep your finger down — Control Stick, in any direction\nThe swipe also holds the D-pad in its direction: up, down, left or right\nTwo-finger tap, then two-finger tap and hold — Dolphin menu\n\nWhile one finger swipes or holds, tap with another finger for A, or hold it to fast-forward at double speed until you let go. Sound keeps playing at normal speed. To hold B while walking, hold, then drag. Game controllers work too.</string>
 
     <string name="xd_error_title">That didn\'t work</string>
     <string name="xd_error_not_bios">That doesn\'t look like a GameCube BIOS. A BIOS dump is a 2 MB file usually called IPL.bin.</string>

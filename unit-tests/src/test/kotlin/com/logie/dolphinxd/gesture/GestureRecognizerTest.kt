@@ -44,6 +44,8 @@ class GestureRecognizerTest {
         var stickX = 0f
         var stickY = 0f
         var menuOpened = 0
+        var fastForwarding = false
+        val fastForwardEvents = ArrayList<String>()
 
         override fun setButton(button: PadButton, pressed: Boolean) {
             if (pressed) this.pressed.add(button) else this.pressed.remove(button)
@@ -58,6 +60,12 @@ class GestureRecognizerTest {
         override fun openMenu() {
             menuOpened++
             events.add("${scheduler.now} menu")
+        }
+
+        override fun setFastForward(enabled: Boolean) {
+            assertTrue(enabled != fastForwarding, "Fast-forward must only report changes")
+            fastForwarding = enabled
+            fastForwardEvents.add("${scheduler.now} ${if (enabled) "on" else "off"}")
         }
 
         fun buttonEvents() = events.filter { !it.endsWith("menu") }
@@ -375,14 +383,80 @@ class GestureRecognizerTest {
     }
 
     @Test
-    fun secondFingerHoldWhileWalkingPressesB() {
+    fun secondFingerHoldWhileWalkingFastForwards() {
+        down(0, 300f, 300f, 0)
+        move(0, 300f, 200f, 30)
+        down(1, 800f, 300f, 100)
+        scheduler.advanceTo(379)
+        assertTrue(!out.fastForwarding)
+        scheduler.advanceTo(380)
+        assertTrue(out.fastForwarding)
+        assertEquals(setOf(PadButton.DPAD_UP), out.pressed, "Fast-forward presses no button")
+        assertEquals(1f, out.stickY, 0.001f, "Walking carries on")
+        scheduler.advanceTo(3000)
+        assertTrue(out.fastForwarding, "Lasts for as long as the finger is held")
+        up(1, 800f, 300f, 3000)
+        assertTrue(!out.fastForwarding)
+        assertEquals(1f, out.stickY, 0.001f)
+        assertEquals(listOf("380 on", "3000 off"), out.fastForwardEvents)
+    }
+
+    @Test
+    fun secondFingerHoldWhileHoldingBFastForwards() {
+        down(0, 300f, 300f, 0)
+        scheduler.advanceTo(300)
+        assertEquals(setOf(PadButton.B), out.pressed)
+        down(1, 800f, 300f, 400)
+        scheduler.advanceTo(700)
+        assertTrue(out.fastForwarding)
+        assertEquals(setOf(PadButton.B), out.pressed)
+        up(1, 800f, 300f, 900)
+        up(0, 300f, 300f, 1000)
+        assertEquals(listOf("680 on", "900 off"), out.fastForwardEvents)
+        assertTrue(out.pressed.isEmpty())
+    }
+
+    @Test
+    fun fastForwardOutlastsTheWalkingFingerButNeverMovesTheStick() {
         down(0, 300f, 300f, 0)
         move(0, 300f, 200f, 30)
         down(1, 800f, 300f, 100)
         scheduler.advanceTo(500)
-        assertEquals(setOf(PadButton.B, PadButton.DPAD_UP), out.pressed)
-        up(1, 800f, 300f, 600)
-        assertEquals(setOf(PadButton.DPAD_UP), out.pressed)
+        up(0, 300f, 200f, 600)
+        assertTrue(out.fastForwarding)
+        assertEquals(0f, out.stickY)
+        move(1, 900f, 300f, 700)
+        assertEquals(0f, out.stickX, "The fast-forward finger doesn't drive the stick")
+        assertTrue(out.pressed.isEmpty())
+        up(1, 900f, 300f, 800)
+        assertEquals(listOf("380 on", "800 off"), out.fastForwardEvents)
+    }
+
+    @Test
+    fun aSingleHoldIsStillBNotFastForward() {
+        down(0, 500f, 300f, 0)
+        scheduler.advanceTo(1000)
+        assertEquals(setOf(PadButton.B), out.pressed)
+        assertTrue(out.fastForwardEvents.isEmpty())
+    }
+
+    @Test
+    fun cancelAndStaleTouchesStopFastForward() {
+        down(0, 300f, 300f, 0)
+        move(0, 300f, 200f, 30)
+        down(1, 800f, 300f, 100)
+        scheduler.advanceTo(500)
+        recognizer.cancelAll()
+        assertTrue(!out.fastForwarding)
+
+        down(0, 300f, 300f, 1000)
+        move(0, 300f, 200f, 1030)
+        down(1, 800f, 300f, 1100)
+        scheduler.advanceTo(1500)
+        assertTrue(out.fastForwarding)
+        recognizer.dropStaleTouches()
+        assertTrue(!out.fastForwarding)
+        assertEquals(listOf("380 on", "500 off", "1380 on", "1500 off"), out.fastForwardEvents)
     }
 
     @Test
