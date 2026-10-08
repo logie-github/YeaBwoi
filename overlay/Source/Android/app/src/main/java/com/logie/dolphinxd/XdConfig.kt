@@ -86,6 +86,11 @@ class XdConfig(context: Context) {
         get() = prefs.getBoolean(KEY_SIXTY_FPS, true)
         set(value) = prefs.edit { putBoolean(KEY_SIXTY_FPS, value) }
 
+    /** Pinch zoom of the 3D camera (see [XdCameraZoom]), 1 = the game's own view. */
+    var cameraZoom: Float
+        get() = prefs.getFloat(KEY_CAMERA_ZOOM, XdCameraZoom.MIN)
+        set(value) = prefs.edit { putFloat(KEY_CAMERA_ZOOM, value) }
+
     var controlHintsShown: Int
         get() = prefs.getInt(KEY_CONTROL_HINTS_SHOWN, 0)
         set(value) = prefs.edit { putInt(KEY_CONTROL_HINTS_SHOWN, value) }
@@ -142,6 +147,7 @@ class XdConfig(context: Context) {
         private const val KEY_DEFAULTS_VERSION = "defaults_version"
         private const val KEY_CONTROL_HINTS_SHOWN = "control_hints_shown"
         private const val KEY_SIXTY_FPS = "sixty_fps"
+        private const val KEY_CAMERA_ZOOM = "camera_zoom"
         private const val KEY_MODS = "mods"
         private const val KEY_ACTIVE_VERSION = "active_version"
         private const val KEY_STATE_CARD_PREFIX = "state_card."

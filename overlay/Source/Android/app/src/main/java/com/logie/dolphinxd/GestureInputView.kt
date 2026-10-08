@@ -85,6 +85,19 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
             }
         }
 
+        override fun pinch(scale: Float) {
+            if (isInputReady()) {
+                XdCameraZoom.zoomBy(context, scale)
+            }
+        }
+
+        override fun resetZoom() {
+            if (isInputReady()) {
+                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                XdCameraZoom.reset(context)
+            }
+        }
+
         override fun quickSave() {
             if (isInputReady()) {
                 performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -131,8 +144,9 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
         }
         InputOverrider.registerGameCube(CONTROLLER_INDEX)
         registered = true
-        // A new game always starts at normal speed.
+        // A new game always starts at normal speed, with the camera zoom the player left it at.
         XdFastForward.set(false)
+        XdCameraZoom.apply(context)
     }
 
     /** Lets go of every button, e.g. when the game is paused or the menu opens. */
@@ -187,6 +201,7 @@ class GestureInputView(context: Context, attrs: AttributeSet?) : View(context, a
                 for (i in 0 until event.pointerCount) {
                     recognizer.pointerMove(event.getPointerId(i), event.getX(i), event.getY(i), event.eventTime)
                 }
+                recognizer.movesFinished()
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {

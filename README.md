@@ -65,10 +65,16 @@ The apps don't include any game or BIOS files. You have to provide your own.
 | The same swipe | Also the D-pad (up, down, left or right, whichever the swipe points closest to), held for as long as the swipe is |
 | Hold one finger and swipe with another, in either order | Fast-forward: the game runs at double speed until you lift the held finger |
 | Two-finger tap, then two-finger tap and hold | Dolphin menu |
+| Pinch with two fingers | Zoom the 3D camera in (up to 2x) or back out |
+| Two-finger double tap | Camera back to the game's own view |
 | Three-finger tap | Quick save |
 | Three-finger hold | Quick load |
 
 While one finger is on the Control Stick, you can tap with a second finger for A. To hold B while walking, hold, then drag with the same finger.
+
+### Camera zoom
+
+Pinching zooms the game's 3D camera through Dolphin's Free Look field of view. It works in the overworld, battles and cutscenes. Menus and text are 2D and stay as they are. The zoom goes from the game's own view up to 2x and is remembered between sessions. A two-finger double tap puts it back. It can't zoom out past the game's own view, because the games only draw what their camera sees and anything wider would show missing scenery at the edges.
 
 ### Quick save and quick load
 
@@ -170,7 +176,7 @@ Dolphin's full source is too large to vendor, so this repository holds only the 
 | Path | Contents |
 | --- | --- |
 | `dolphin-version.env` | The upstream Dolphin release (tag and commit) to build from |
-| `patches/` | Changes to Dolphin's own files: configurable package name, the app's screens, gesture input in the emulation screen, in-game menu entries, the themed palette, normal-speed audio during fast-forward, save state checks in the Dolphin menu |
+| `patches/` | Changes to Dolphin's own files: configurable package name, the app's screens, gesture input in the emulation screen, in-game menu entries, the themed palette, normal-speed audio during fast-forward, save state checks in the Dolphin menu, update checks, frame rate in the Dolphin menu, pinch zoom |
 | `overlay/` | Code and layouts shared by both apps: setup and main menu screens, texture pack and mod installers, UPS patcher, gesture controls |
 | `games/<game>/` | One app each (`xd`, `colosseum`). `game.env` sets the package and name. `overlay/` holds that game's wording, game ID, colors and artwork. `branding/` holds the source images. |
 | `scripts/prepare-dolphin.sh` | Clones Dolphin, applies `patches/`, then copies `overlay/` and `games/<game>/overlay/` |

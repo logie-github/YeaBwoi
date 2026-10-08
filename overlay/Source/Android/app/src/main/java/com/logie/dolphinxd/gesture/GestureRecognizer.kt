@@ -24,6 +24,12 @@ interface GestureOutput {
     /** Fast-forward starts (one finger held while another swipes) or stops (the held one lifts). */
     fun setFastForward(enabled: Boolean)
 
+    /** Two fingers pinching: multiply the camera zoom by [scale] (above 1 is spreading apart). */
+    fun pinch(scale: Float)
+
+    /** Two-finger double tap: back to the game's own camera. */
+    fun resetZoom()
+
     /** Three-finger tap. */
     fun quickSave()
 
@@ -77,6 +83,7 @@ data class GestureConfig(
  * - One finger held while another swipes, in either order: [GestureOutput.setFastForward] until
  *   the held finger lifts
  * - Three-finger tap: [GestureOutput.quickSave]; three-finger hold: [GestureOutput.quickLoad]
+ * - Two-finger pinch: [GestureOutput.pinch]; two-finger double tap: [GestureOutput.resetZoom]
  *
  * While one finger is driving the stick or holding a button, a second finger can tap for A. Holding
  * B and walking at the same time is done with one finger: hold, then drag.
@@ -129,6 +136,12 @@ class GestureRecognizer(
     private var twoFingerMoved = false
     private var twoFingerTimer: Cancellable? = null
     private var lastTwoFingerTapUp: Long? = null
+    /** Finger distance when the two-finger touch started, and at the last pinch update. */
+    private var pinchStartDistance = 0f
+    private var pinchLastDistance = 0f
+    private var pinching = false
+    /** A two-finger touch moved since the last [movesFinished]. */
+    private var pinchMoved = false
 
     private var threeFingerStart = 0L
     private var threeFingerMoved = false
@@ -236,10 +249,13 @@ class GestureRecognizer(
 
             State.STICK -> updateStick(touch)
 
-            State.TWO_FINGER -> if (moved > config.touchSlopPx * 2) {
-                twoFingerMoved = true
-                twoFingerTimer?.cancel()
-                twoFingerTimer = null
+            State.TWO_FINGER -> {
+                if (moved > config.touchSlopPx * 2) {
+                    twoFingerMoved = true
+                    twoFingerTimer?.cancel()
+                    twoFingerTimer = null
+                }
+                pinchMoved = true
             }
 
             State.THREE_FINGER -> if (moved > config.touchSlopPx * 2) {
@@ -301,6 +317,17 @@ class GestureRecognizer(
             }
 
             State.IGNORED -> {}
+        }
+    }
+
+    /**
+     * Call after the moves of every finger in one touch event. Pinching is judged on all fingers'
+     * new positions together, so a two-finger drag never looks like a pinch halfway through.
+     */
+    fun movesFinished() {
+        if (pinchMoved) {
+            pinchMoved = false
+            updatePinch()
         }
     }
 
@@ -420,6 +447,9 @@ class GestureRecognizer(
     private fun startTwoFinger(timeMs: Long) {
         twoFingerStart = timeMs
         twoFingerMoved = false
+        pinching = false
+        pinchStartDistance = twoFingerDistance() ?: 0f
+        pinchLastDistance = pinchStartDistance
         val lastTapUp = lastTwoFingerTapUp
         twoFingerSecond =
             lastTapUp != null && timeMs - lastTapUp <= config.twoFingerDoubleTapTimeoutMs
@@ -436,10 +466,40 @@ class GestureRecognizer(
     private fun endTwoFinger(timeMs: Long) {
         twoFingerTimer?.cancel()
         twoFingerTimer = null
+        pinching = false
 
-        val wasTap = !twoFingerSecond && !twoFingerMoved &&
-                timeMs - twoFingerStart < config.holdTimeoutMs
+        val quick = !twoFingerMoved && timeMs - twoFingerStart < config.holdTimeoutMs
+        if (twoFingerSecond && quick) {
+            // Two-finger double tap (the menu needs the second tap held).
+            output.resetZoom()
+        }
+        val wasTap = !twoFingerSecond && quick
         lastTwoFingerTapUp = if (wasTap) timeMs else null
+    }
+
+    /** The distance between the two fingers of a two-finger touch, if both are still down. */
+    private fun twoFingerDistance(): Float? {
+        val fingers = touches.values.filter { it.state == State.TWO_FINGER }
+        if (fingers.size != 2) return null
+        return hypot(fingers[0].x - fingers[1].x, fingers[0].y - fingers[1].y)
+    }
+
+    /** Fingers moving apart or together zoom; moving side by side (a two-finger drag) doesn't. */
+    private fun updatePinch() {
+        val distance = twoFingerDistance() ?: return
+        if (!pinching) {
+            if (pinchStartDistance <= 0f || abs(distance - pinchStartDistance) <= config.touchSlopPx * 2) {
+                return
+            }
+            pinching = true
+            twoFingerMoved = true
+            twoFingerTimer?.cancel()
+            twoFingerTimer = null
+        }
+        if (pinchLastDistance > 0f && distance > 0f && distance != pinchLastDistance) {
+            output.pinch(distance / pinchLastDistance)
+            pinchLastDistance = distance
+        }
     }
 
     private fun startThreeFinger(timeMs: Long) {

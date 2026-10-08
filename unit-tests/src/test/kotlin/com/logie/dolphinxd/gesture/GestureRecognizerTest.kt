@@ -47,6 +47,8 @@ class GestureRecognizerTest {
         var fastForwarding = false
         val fastForwardEvents = ArrayList<String>()
         val stateEvents = ArrayList<String>()
+        var zoom = 1f
+        var zoomResets = 0
 
         override fun setButton(button: PadButton, pressed: Boolean) {
             if (pressed) this.pressed.add(button) else this.pressed.remove(button)
@@ -67,6 +69,15 @@ class GestureRecognizerTest {
             assertTrue(enabled != fastForwarding, "Fast-forward must only report changes")
             fastForwarding = enabled
             fastForwardEvents.add("${scheduler.now} ${if (enabled) "on" else "off"}")
+        }
+
+        override fun pinch(scale: Float) {
+            zoom *= scale
+        }
+
+        override fun resetZoom() {
+            zoom = 1f
+            zoomResets++
         }
 
         override fun quickSave() {
@@ -101,6 +112,15 @@ class GestureRecognizerTest {
     private fun move(id: Int, x: Float, y: Float, t: Long) {
         scheduler.advanceTo(t)
         recognizer.pointerMove(id, x, y, t)
+        recognizer.movesFinished()
+    }
+
+    /** Two fingers moving in the same touch event. */
+    private fun moveBoth(x0: Float, y0: Float, x1: Float, y1: Float, t: Long) {
+        scheduler.advanceTo(t)
+        recognizer.pointerMove(0, x0, y0, t)
+        recognizer.pointerMove(1, x1, y1, t)
+        recognizer.movesFinished()
     }
 
     private fun up(id: Int, x: Float, y: Float, t: Long) {
@@ -712,5 +732,67 @@ class GestureRecognizerTest {
         recognizer.cancelAll()
         scheduler.advanceTo(2000)
         assertTrue(out.stateEvents.isEmpty())
+    }
+
+    @Test
+    fun spreadingTwoFingersZoomsIn() {
+        down(0, 400f, 300f, 0)
+        down(1, 600f, 300f, 10) // 200 px apart
+        move(1, 700f, 300f, 50) // 300
+        assertEquals(1.5f, out.zoom, 0.001f)
+        move(0, 300f, 300f, 70) // 400
+        assertEquals(2f, out.zoom, 0.001f)
+        up(0, 300f, 300f, 600)
+        up(1, 700f, 300f, 600)
+        scheduler.advanceTo(2000)
+        assertTrue(out.buttonEvents().isEmpty())
+        assertEquals(0, out.menuOpened)
+        assertEquals(0f, out.stickX)
+    }
+
+    @Test
+    fun pinchingTogetherZoomsOut() {
+        down(0, 300f, 300f, 0)
+        down(1, 700f, 300f, 10) // 400 px apart
+        move(1, 500f, 300f, 50) // 200
+        assertEquals(0.5f, out.zoom, 0.001f)
+    }
+
+    @Test
+    fun smallWobbleAndTwoFingerDragDontZoom() {
+        down(0, 400f, 300f, 0)
+        down(1, 600f, 300f, 10)
+        move(1, 620f, 300f, 30) // within the slop
+        moveBoth(400f, 400f, 620f, 400f, 60) // both fingers moving the same way
+        moveBoth(400f, 600f, 620f, 600f, 90)
+        assertEquals(1f, out.zoom, 0.001f)
+    }
+
+    @Test
+    fun twoFingerDoubleTapResetsZoom() {
+        down(0, 400f, 300f, 0)
+        down(1, 600f, 300f, 10)
+        up(0, 400f, 300f, 100)
+        up(1, 600f, 300f, 110)
+        down(0, 400f, 300f, 250)
+        down(1, 600f, 300f, 260)
+        up(0, 400f, 300f, 350)
+        up(1, 600f, 300f, 360)
+        scheduler.advanceTo(2000)
+        assertEquals(1, out.zoomResets)
+        assertEquals(0, out.menuOpened, "The menu needs the second tap held")
+    }
+
+    @Test
+    fun theMenuGestureDoesNotResetZoom() {
+        down(0, 400f, 300f, 0)
+        down(1, 600f, 300f, 10)
+        up(0, 400f, 300f, 100)
+        up(1, 600f, 300f, 110)
+        down(0, 400f, 300f, 250)
+        down(1, 600f, 300f, 260)
+        scheduler.advanceTo(1000)
+        assertEquals(1, out.menuOpened)
+        assertEquals(0, out.zoomResets)
     }
 }
