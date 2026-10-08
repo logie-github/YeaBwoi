@@ -1,6 +1,6 @@
-// Runs Dolphin XD's platform-independent code (touch gestures, UPS patching, save state checks)
-// on the JVM, without building Dolphin. The sources live in the overlay copied into Dolphin's
-// Android app.
+// Runs Dolphin XD's platform-independent code (touch gestures, UPS patching, save state checks,
+// update picking) on the JVM, without building Dolphin. The sources live in the overlay copied
+// into Dolphin's Android app.
 
 plugins {
     kotlin("jvm") version "2.2.20"
@@ -19,6 +19,7 @@ sourceSets {
         kotlin.srcDir("../overlay/Source/Android/app/src/main/java/com/logie/dolphinxd/gesture")
         kotlin.srcDir("../overlay/Source/Android/app/src/main/java/com/logie/dolphinxd/patch")
         kotlin.srcDir("../overlay/Source/Android/app/src/main/java/com/logie/dolphinxd/savestate")
+        kotlin.srcDir("../overlay/Source/Android/app/src/main/java/com/logie/dolphinxd/update")
     }
 }
 

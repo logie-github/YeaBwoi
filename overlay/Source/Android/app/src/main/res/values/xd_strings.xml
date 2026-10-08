@@ -116,4 +116,28 @@
     <string name="xd_state_loaded">Loaded state %1$d</string>
     <string name="xd_state_empty">Save state %1$d is empty</string>
     <string name="xd_state_blocked">Not loaded: you saved in the game after this save state.</string>
+
+    <!-- Updates -->
+    <string name="xd_menu_updates">Check for updates</string>
+    <string name="xd_home_updates">Updates</string>
+    <string name="xd_home_updates_sub">Check for a newer version</string>
+    <string name="xd_update_checking">Checking for updates…</string>
+    <string name="xd_update_available_title">Update available</string>
+    <string name="xd_update_available">%1$s is available. You have %2$s.\n\nDownload it (%3$s) and install it now? Installing closes the app, so save your game first.</string>
+    <string name="xd_update_download">Download</string>
+    <string name="xd_update_later">Not now</string>
+    <string name="xd_update_latest_title">You\'re up to date</string>
+    <string name="xd_update_latest">%1$s %2$s is the newest version.</string>
+    <string name="xd_update_downloading">Downloading %1$s…</string>
+    <string name="xd_update_progress">%1$s\n%2$s of %3$s</string>
+    <string name="xd_update_check_failed">Couldn\'t check for updates</string>
+    <string name="xd_update_download_failed">Couldn\'t download the update</string>
+    <string name="xd_update_not_configured">This build doesn\'t know where its updates are published. Builds from GitHub Actions do.</string>
+    <string name="xd_update_no_access">GitHub didn\'t let the app see the releases (error %1$d). If the repository is private, the build needs an update token (see Updates in the README).</string>
+    <string name="xd_update_http_error">GitHub answered with error %1$d. Try again later.</string>
+    <string name="xd_update_offline">Can\'t reach GitHub. Check your internet connection and try again.</string>
+    <string name="xd_update_wrong_file">The downloaded file isn\'t an update for this app.</string>
+    <string name="xd_update_permission_title">Allow updates</string>
+    <string name="xd_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
+    <string name="xd_update_open_settings">Open settings</string>
 </resources>

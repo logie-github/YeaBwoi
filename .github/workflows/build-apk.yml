@@ -96,6 +96,7 @@ jobs:
             echo "APP_NAME=$APP_NAME"
             echo "GAME_NAME=$GAME_NAME"
             echo "APK_FILE=$APK_NAME-$XD_VERSION_NAME.apk"
+            echo "RELEASE_TAG_PREFIX=$RELEASE_TAG_PREFIX"
             echo "RELEASE_TAG=$RELEASE_TAG_PREFIX-${{ github.run_number }}"
           } >> "$GITHUB_ENV"
 
@@ -153,6 +154,9 @@ jobs:
           XD_STOREPASS: ${{ secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
           XD_KEYALIAS: ${{ secrets.DOLPHINXD_KEY_ALIAS || 'dolphinxd' }}
           XD_KEYPASS: ${{ secrets.DOLPHINXD_KEY_PASSWORD || secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+          # The app checks this repository's releases for updates. A private repository needs a
+          # read-only token (see "Updates" in the README); a public one doesn't.
+          XD_UPDATE_TOKEN: ${{ secrets.DOLPHINXD_UPDATE_TOKEN }}
         run: |
           ./gradlew --no-daemon :app:assembleRelease \
             -Pkeystore="$XD_KEYSTORE" \
@@ -163,6 +167,9 @@ jobs:
             -PxdVersionName="$XD_VERSION_NAME" \
             -PxdApplicationId="$APP_ID" \
             -PxdAppName="$APP_NAME" \
+            -PxdUpdateRepo="$GITHUB_REPOSITORY" \
+            -PxdReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
+            -PxdUpdateToken="$XD_UPDATE_TOKEN" \
             -PxdCcache
 
       - name: Collect APK

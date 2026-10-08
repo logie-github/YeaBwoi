@@ -35,6 +35,16 @@
         <item name="android:windowLightStatusBar">@bool/xd_light_theme</item>
     </style>
 
+    <!-- Dialogs over whatever screen is behind (the update check). -->
+    <style name="Theme.DolphinXD.Translucent">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
     <style name="Theme.DolphinXD.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/xd_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/xd_splash</item>

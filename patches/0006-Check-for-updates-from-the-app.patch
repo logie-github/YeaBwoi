@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dolphin XD <dolphinxd@users.noreply.github.com>
+Date: Thu, 8 Oct 2026 18:01:29 +0000
+Subject: [PATCH 6/6] Check for updates from the app
+
+Adds "Check for updates" to the in-game menu and registers
+XdUpdateActivity. The app may install its own updates
+(REQUEST_INSTALL_PACKAGES), and Android asks the player once to allow
+that. The build takes the repository, this app's release tag prefix and
+an optional read-only token for a private repository as Gradle
+properties (-PxdUpdateRepo, -PxdReleaseTagPrefix, -PxdUpdateToken), which
+end up in BuildConfig.
+---
+ Source/Android/app/build.gradle.kts                  | 12 ++++++++++++
+ Source/Android/app/src/main/AndroidManifest.xml      |  8 ++++++++
+ .../dolphinemu/activities/EmulationActivity.kt       |  3 +++
+ .../dolphinemu/dolphinemu/fragments/MenuFragment.kt  |  1 +
+ .../app/src/main/res/layout/fragment_ingame_menu.xml |  5 +++++
+ 5 files changed, 29 insertions(+)
+
+diff --git a/Source/Android/app/build.gradle.kts b/Source/Android/app/build.gradle.kts
+index 319476a..d98964b 100644
+--- a/Source/Android/app/build.gradle.kts
++++ b/Source/Android/app/build.gradle.kts
+@@ -63,6 +63,18 @@ android {
+         buildConfigField("String", "GIT_HASH", "\"${getGitHash()}\"")
+         buildConfigField("String", "BRANCH", "\"${getBranch()}\"")
+ 
++        // Where the app looks for updates (GitHub releases). CI passes these; without them, the
++        // update check is off. The token is only needed for a private repository.
++        for ((field, property) in listOf(
++            "XD_UPDATE_REPO" to "xdUpdateRepo",
++            "XD_RELEASE_TAG_PREFIX" to "xdReleaseTagPrefix",
++            "XD_UPDATE_TOKEN" to "xdUpdateToken"
++        )) {
++            val value = project.findProperty(property)?.toString().orEmpty()
++            require(value.none { it == '"' || it == '\\' }) { "-P$property can't contain quotes" }
++            buildConfigField("String", field, "\"$value\"")
++        }
++
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+diff --git a/Source/Android/app/src/main/AndroidManifest.xml b/Source/Android/app/src/main/AndroidManifest.xml
+index 9d2db7a..a162214 100644
+--- a/Source/Android/app/src/main/AndroidManifest.xml
++++ b/Source/Android/app/src/main/AndroidManifest.xml
+@@ -26,6 +26,8 @@
+     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+     <uses-permission android:name="android.permission.INTERNET"/>
++    <!-- Dolphin XD installs its own updates (after asking). -->
++    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+     <uses-permission android:name="com.android.providers.tv.permission.READ_EPG_DATA"/>
+     <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA"/>
+     <uses-permission android:name="android.permission.VIBRATE"/>
+@@ -91,6 +93,12 @@
+             android:exported="false"
+             android:theme="@style/Theme.DolphinXD" />
+ 
++        <activity
++            android:name="com.logie.dolphinxd.XdUpdateActivity"
++            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|keyboard|keyboardHidden|navigation"
++            android:exported="false"
++            android:theme="@style/Theme.DolphinXD.Translucent" />
++
+         <!-- Dolphin's game library isn't reachable in Dolphin XD. -->
+         <activity
+             android:name=".ui.main.MainActivity"
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+index 82af7c3..975f24f 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/activities/EmulationActivity.kt
+@@ -33,6 +33,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
+ import com.google.android.material.slider.Slider
+ import com.logie.dolphinxd.XdSaveStates
+ import com.logie.dolphinxd.XdUi
++import com.logie.dolphinxd.XdUpdateActivity
+ import org.dolphinemu.dolphinemu.NativeLibrary
+ import org.dolphinemu.dolphinemu.R
+ import org.dolphinemu.dolphinemu.databinding.ActivityEmulationBinding
+@@ -536,6 +537,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+             MENU_ACTION_INFINITY_BASE -> showInfinityBaseSettings()
+             MENU_ACTION_EXIT -> emulationFragment!!.stopEmulation()
+             MENU_ACTION_XD_CONTROLS -> XdUi.showControls(this)
++            MENU_ACTION_XD_UPDATES -> XdUpdateActivity.launch(this)
+         }
+     }
+ 
+@@ -1096,6 +1098,7 @@ class EmulationActivity : AppCompatActivity(), ThemeProvider {
+         const val MENU_ACTION_INFINITY_BASE = 37
+         const val MENU_ACTION_LATCHING_CONTROLS = 38
+         const val MENU_ACTION_XD_CONTROLS = 100
++        const val MENU_ACTION_XD_UPDATES = 101
+ 
+         init {
+             buttonsActionsMap.apply {
+diff --git a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+index 586b62b..fc1fe33 100644
+--- a/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
++++ b/Source/Android/app/src/main/java/org/dolphinemu/dolphinemu/fragments/MenuFragment.kt
+@@ -212,6 +212,7 @@ class MenuFragment : Fragment(), View.OnClickListener {
+                 EmulationActivity.MENU_ACTION_INFINITY_BASE
+             )
+             buttonsActionsMap.append(R.id.menu_xd_controls, EmulationActivity.MENU_ACTION_XD_CONTROLS)
++            buttonsActionsMap.append(R.id.menu_xd_updates, EmulationActivity.MENU_ACTION_XD_UPDATES)
+         }
+ 
+         fun newInstance(): MenuFragment {
+diff --git a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+index 1cf49f3..6ec5907 100644
+--- a/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
++++ b/Source/Android/app/src/main/res/layout/fragment_ingame_menu.xml
+@@ -91,6 +91,11 @@
+                 style="@style/InGameMenuOption"
+                 android:text="@string/xd_menu_controls" />
+ 
++            <Button
++                android:id="@+id/menu_xd_updates"
++                style="@style/InGameMenuOption"
++                android:text="@string/xd_menu_updates" />
++
+             <Button
+                 android:id="@+id/menu_overlay_controls"
+                 style="@style/InGameMenuOption"
