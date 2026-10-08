@@ -10,10 +10,7 @@ An Android build of the [Dolphin](https://dolphin-emu.org) GameCube emulator tha
 
 ## Getting the APK
 
-GitHub Actions builds the APK on every push (**Actions → Build Dolphin XD APK**).
-
-- **Pushes to the default branch** and `v*` tags publish the APK on the **Releases** page. On your phone, open the latest release and tap `DolphinXD-<version>.apk`.
-- **Other branches and pull requests** attach the APK to the workflow run as an artifact named `DolphinXD-<version>`, which downloads as a zip.
+GitHub Actions builds the APK on every push (**Actions → Build Dolphin XD APK**) and publishes it on the repository's **Releases** page. On your phone, open the latest release and tap `DolphinXD-<version>.apk`. Pull request builds are checked but not published.
 
 The first build takes about an hour because it compiles all of Dolphin. Later builds reuse a compiler cache and run faster.
 
