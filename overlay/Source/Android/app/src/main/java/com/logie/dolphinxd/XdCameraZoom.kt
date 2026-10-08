@@ -24,10 +24,16 @@ object XdCameraZoom {
         }
     }
 
-    fun reset(context: Context) {
-        XdConfig(context).cameraZoom = MIN
-        NativeLibrary.SetCameraZoom(MIN)
+    /** Sets the zoom (clamped to [MIN]..[MAX]). Main thread, while a game runs. */
+    fun set(context: Context, zoom: Float) {
+        val clamped = zoom.coerceIn(MIN, MAX)
+        XdConfig(context).cameraZoom = clamped
+        NativeLibrary.SetCameraZoom(clamped)
     }
+
+    fun get(context: Context): Float = XdConfig(context).cameraZoom
+
+    fun reset(context: Context) = set(context, MIN)
 
     /** Puts the remembered zoom back, e.g. when a game starts. */
     fun apply(context: Context) = NativeLibrary.SetCameraZoom(XdConfig(context).cameraZoom)

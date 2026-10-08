@@ -151,4 +151,12 @@
     <string name="xd_frame_rate_next_start">Takes effect the next time the game starts.</string>
     <string name="xd_frame_rate_unstick">Unstick cutscene</string>
     <string name="xd_frame_rate_unsticking">30 FPS for the next 10 seconds to get the cutscene past the stuck point</string>
+
+    <!-- Camera zoom -->
+    <string name="xd_menu_zoom">Camera zoom</string>
+    <string name="xd_zoom_title">Camera zoom</string>
+    <string name="xd_zoom_value">Zoom: %1$s</string>
+    <string name="xd_zoom_factor">%1$.1f×</string>
+    <string name="xd_zoom_reset">Reset</string>
+    <string name="xd_zoom_hint">Zooms the 3D camera; menus and text stay as they are. You can also pinch with two fingers, and a two-finger double tap resets it.</string>
 </resources>

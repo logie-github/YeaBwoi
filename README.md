@@ -74,7 +74,7 @@ While one finger is on the Control Stick, you can tap with a second finger for A
 
 ### Camera zoom
 
-Pinching zooms the game's 3D camera through Dolphin's Free Look field of view. It works in the overworld, battles and cutscenes. Menus and text are 2D and stay as they are. The zoom goes from the game's own view up to 2x and is remembered between sessions. A two-finger double tap puts it back. It can't zoom out past the game's own view, because the games only draw what their camera sees and anything wider would show missing scenery at the edges.
+Pinching zooms the game's 3D camera through Dolphin's Free Look field of view. It works in the overworld, battles and cutscenes. Menus and text are 2D and stay as they are. The zoom goes from the game's own view up to 2x and is remembered between sessions. A two-finger double tap puts it back. **Camera zoom** in the Dolphin menu sets the same zoom with a slider. It can't zoom out past the game's own view, because the games only draw what their camera sees and anything wider would show missing scenery at the edges.
 
 ### Quick save and quick load
 
@@ -120,7 +120,7 @@ How close fast-forward gets to double speed depends on the phone. If the phone c
 
 The D-pad turns on once the swipe is about halfway to full tilt, so menus that only follow the D-pad work with the same swipe. Once a direction is pressed, it stays pressed until the swipe clearly turns away, so a diagonal or wobbly swipe doesn't flicker between two directions. A quick flick still holds the D-pad for 100 ms so the game sees it.
 
-The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table), **Frame rate**, **Check for updates** and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
+The Dolphin menu has Pause, save states, Dolphin's full **Settings**, **Gesture controls** (this table), **Frame rate**, **Camera zoom**, **Check for updates** and **Exit to main menu**. The Back button opens the same menu. Bluetooth and USB game controllers also work.
 
 ## Main menu
 
