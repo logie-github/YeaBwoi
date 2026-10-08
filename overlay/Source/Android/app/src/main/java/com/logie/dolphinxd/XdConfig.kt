@@ -5,8 +5,38 @@ package com.logie.dolphinxd
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import org.json.JSONArray
+import org.json.JSONObject
 
-/** Dolphin XD's own state: which game file to boot and how far the one-time setup got. */
+/** A modded version of the game: a patched ISO made by Dolphin XD, or one the player added. */
+data class XdMod(
+    val id: String,
+    val name: String,
+    /** File path (patched by us) or content URI (added by the player). */
+    val path: String,
+    val gameId: String,
+    /** True if Dolphin XD made the file and should delete it with the mod. */
+    val owned: Boolean,
+) {
+    fun toJson(): JSONObject = JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("path", path)
+        .put("gameId", gameId)
+        .put("owned", owned)
+
+    companion object {
+        fun fromJson(json: JSONObject) = XdMod(
+            id = json.getString("id"),
+            name = json.getString("name"),
+            path = json.getString("path"),
+            gameId = json.getString("gameId"),
+            owned = json.getBoolean("owned"),
+        )
+    }
+}
+
+/** Dolphin XD's own state: the game file, installed mods, and how far setup got. */
 class XdConfig(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences("dolphin_xd", Context.MODE_PRIVATE)
@@ -26,6 +56,7 @@ class XdConfig(context: Context) {
         get() = prefs.getString(KEY_INSTALLED_BIOS_DIR, null)
         set(value) = prefs.edit { putString(KEY_INSTALLED_BIOS_DIR, value) }
 
+    /** The player's original Pokémon XD disc image. Mods are always patched from this. */
     val romUri: String?
         get() = prefs.getString(KEY_ROM_URI, null)
 
@@ -46,11 +77,6 @@ class XdConfig(context: Context) {
         get() = prefs.getBoolean(KEY_SETUP_COMPLETE, false)
         set(value) = prefs.edit { putBoolean(KEY_SETUP_COMPLETE, value) }
 
-    /** The player asked (from the in-game menu) to pick a different game file. */
-    var reconfigureRequested: Boolean
-        get() = prefs.getBoolean(KEY_RECONFIGURE, false)
-        set(value) = prefs.edit(commit = true) { putBoolean(KEY_RECONFIGURE, value) }
-
     var defaultsVersion: Int
         get() = prefs.getInt(KEY_DEFAULTS_VERSION, 0)
         set(value) = prefs.edit { putInt(KEY_DEFAULTS_VERSION, value) }
@@ -59,7 +85,41 @@ class XdConfig(context: Context) {
         get() = prefs.getInt(KEY_CONTROL_HINTS_SHOWN, 0)
         set(value) = prefs.edit { putInt(KEY_CONTROL_HINTS_SHOWN, value) }
 
+    var mods: List<XdMod>
+        get() {
+            val json = prefs.getString(KEY_MODS, null) ?: return emptyList()
+            return try {
+                val array = JSONArray(json)
+                List(array.length()) { XdMod.fromJson(array.getJSONObject(it)) }
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+        set(value) = prefs.edit(commit = true) {
+            putString(KEY_MODS, JSONArray(value.map { it.toJson() }).toString())
+        }
+
+    /** [ORIGINAL] or the id of the mod that Play starts. */
+    var activeVersionId: String
+        get() = prefs.getString(KEY_ACTIVE_VERSION, ORIGINAL) ?: ORIGINAL
+        set(value) = prefs.edit(commit = true) { putString(KEY_ACTIVE_VERSION, value) }
+
+    val activeMod: XdMod?
+        get() = activeVersionId.takeIf { it != ORIGINAL }?.let { id -> mods.find { it.id == id } }
+
+    /** What Play starts. */
+    val activeGamePath: String?
+        get() = activeMod?.path ?: romUri
+
+    val activeGameId: String?
+        get() = activeMod?.gameId ?: romGameId
+
+    fun gameIdOf(versionId: String): String? =
+        if (versionId == ORIGINAL) romGameId else mods.find { it.id == versionId }?.gameId
+
     companion object {
+        const val ORIGINAL = "original"
+
         private const val KEY_SETUP_FILES_DONE = "setup_files_done"
         private const val KEY_STAGED_BIOS_REGION = "staged_bios_region"
         private const val KEY_INSTALLED_BIOS_DIR = "installed_bios_dir"
@@ -67,8 +127,9 @@ class XdConfig(context: Context) {
         private const val KEY_ROM_TITLE = "rom_title"
         private const val KEY_ROM_GAME_ID = "rom_game_id"
         private const val KEY_SETUP_COMPLETE = "setup_complete"
-        private const val KEY_RECONFIGURE = "reconfigure_requested"
         private const val KEY_DEFAULTS_VERSION = "defaults_version"
         private const val KEY_CONTROL_HINTS_SHOWN = "control_hints_shown"
+        private const val KEY_MODS = "mods"
+        private const val KEY_ACTIVE_VERSION = "active_version"
     }
 }

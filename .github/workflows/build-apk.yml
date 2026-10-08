@@ -20,8 +20,8 @@ env:
   XD_VERSION_NAME: 1.0.${{ github.run_number }}
 
 jobs:
-  gesture-tests:
-    name: Gesture control tests
+  unit-tests:
+    name: Unit tests (gestures, mod patching)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -36,11 +36,11 @@ jobs:
           gradle-version: "8.14.3"
 
       - name: Run unit tests
-        run: gradle --no-daemon -p gesture-tests test
+        run: gradle --no-daemon -p unit-tests test
 
   apk:
     name: Build APK
-    needs: gesture-tests
+    needs: unit-tests
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     steps:

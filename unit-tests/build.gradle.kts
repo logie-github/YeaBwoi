@@ -1,5 +1,5 @@
-// Runs the touch gesture recognizer's unit tests on the JVM, without building Dolphin.
-// The recognizer source lives in the overlay that gets copied into Dolphin's Android app.
+// Runs Dolphin XD's platform-independent code (touch gestures, UPS patching) on the JVM,
+// without building Dolphin. The sources live in the overlay copied into Dolphin's Android app.
 
 plugins {
     kotlin("jvm") version "2.2.20"
@@ -16,6 +16,7 @@ kotlin {
 sourceSets {
     main {
         kotlin.srcDir("../overlay/Source/Android/app/src/main/java/com/logie/dolphinxd/gesture")
+        kotlin.srcDir("../overlay/Source/Android/app/src/main/java/com/logie/dolphinxd/patch")
     }
 }
 

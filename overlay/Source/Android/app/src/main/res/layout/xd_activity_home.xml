@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/xd_background">
+
+    <ScrollView
+        android:id="@+id/xd_home_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Banner: Shadow Lugia with the XD logo -->
+            <FrameLayout
+                android:id="@+id/xd_home_header"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/xd_header_height">
+
+                <ImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:importantForAccessibility="no"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/xd_header" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/xd_scrim_start" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="96dp"
+                    android:layout_gravity="bottom"
+                    android:background="@drawable/xd_scrim_bottom" />
+
+                <LinearLayout
+                    android:id="@+id/xd_home_title_block"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|start"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="20dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/xd_header_logo_width"
+                        android:layout_height="wrap_content"
+                        android:adjustViewBounds="true"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/xd_logo" />
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/xd_app_name"
+                            android:textColor="@color/xd_on_surface"
+                            android:textSize="28sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/xd_game_name"
+                            android:textColor="@color/xd_purple_light"
+                            android:textSize="14sp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </FrameLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <LinearLayout
+                    android:id="@+id/xd_home_content"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="16dp"
+                    android:paddingTop="4dp"
+                    android:paddingBottom="16dp"
+                    app:layout_constrainedWidth="true"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintWidth_max="840dp">
+
+                    <Button
+                        android:id="@+id/xd_home_play"
+                        style="@style/Widget.Material3.Button.Icon"
+                        android:layout_width="match_parent"
+                        android:layout_height="64dp"
+                        android:layout_marginHorizontal="4dp"
+                        android:text="@string/xd_home_play"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        app:cornerRadius="18dp"
+                        app:icon="@drawable/xd_ic_play"
+                        app:iconGravity="textStart"
+                        app:iconSize="28dp" />
+
+                    <TextView
+                        android:id="@+id/xd_home_now_playing"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:gravity="center"
+                        android:textColor="@color/xd_on_surface_muted"
+                        android:textSize="13sp" />
+
+                    <include
+                        android:id="@+id/xd_home_task"
+                        layout="@layout/xd_view_task"
+                        android:visibility="gone" />
+
+                    <GridLayout
+                        android:id="@+id/xd_home_tiles"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:columnCount="@integer/xd_home_columns"
+                        android:useDefaultMargins="false" />
+
+                    <TextView
+                        android:id="@+id/xd_home_version"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:gravity="center"
+                        android:textColor="@color/xd_on_surface_muted"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Shown while the app goes straight into the game, so the menu doesn't flash first. -->
+    <FrameLayout
+        android:id="@+id/xd_home_launching"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/xd_background"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="160dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:adjustViewBounds="true"
+            android:importantForAccessibility="no"
+            android:src="@drawable/xd_logo" />
+
+    </FrameLayout>
+
+</FrameLayout>

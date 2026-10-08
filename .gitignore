@@ -2,10 +2,10 @@
 /build/
 /dist/
 
-# Gesture test project
-/gesture-tests/.gradle/
-/gesture-tests/build/
-/gesture-tests/.kotlin/
+# JVM unit test project
+/unit-tests/.gradle/
+/unit-tests/build/
+/unit-tests/.kotlin/
 
 .idea/
 *.iml
