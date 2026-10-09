@@ -1,0 +1,286 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Azure Dreams <azuredreams@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 23:13:24 +0000
+Subject: [PATCH] Scene depth in the frame's alpha, for the frontend's
+ post-processing
+
+A new option, GPU SceneDepth (swanstation_GPU_SceneDepth), for the OpenGL
+renderer with PGXP. The depth buffer then holds PGXP's depth (the console's
+Z / 32768) for every pixel of the 3D scene, but it's never tested against, so
+the game draws in its own order as usual (the mask bit check, which reads the
+same buffer, goes). Anything flat - polygons without PGXP depth, like the
+interface and 2D sprites, fills and uploads - leaves exactly 1 or 0.
+
+When the display shows straight out of VRAM, the display pass reads the depth
+alongside the picture and writes it to the frame's alpha, square-rooted to keep
+detail up close: 0 where something flat was drawn last. A frontend's shaders
+can then tell the scene from the interface and do depth of field from real
+depth. Pictures without it (24-bit, interlaced) have alpha 0 throughout: flat.
+---
+ src/core/gpu_hw_opengl.cpp           | 74 ++++++++++++++++++++++++++--
+ src/core/gpu_hw_opengl.h             |  6 +++
+ src/core/host_interface.cpp          |  1 +
+ src/core/settings.cpp                |  1 +
+ src/core/settings.h                  |  7 ++-
+ src/libretro/libretro_core_options.h | 14 ++++++
+ 6 files changed, 98 insertions(+), 5 deletions(-)
+
+diff --git a/src/core/gpu_hw_opengl.cpp b/src/core/gpu_hw_opengl.cpp
+index 8e976da..4d50cd1 100644
+--- a/src/core/gpu_hw_opengl.cpp
++++ b/src/core/gpu_hw_opengl.cpp
+@@ -362,13 +362,32 @@ void main()
+ 
+   static constexpr char display_fragment_shader[] = R"(
+ uniform sampler2D samp0;
++uniform int u_flat;
+ 
+ in vec2 v_tex0;
+ out vec4 o_col0;
+ 
+ void main()
+ {
+-  o_col0 = vec4(texture(samp0, v_tex0).rgb, 1.0);
++  o_col0 = vec4(texture(samp0, v_tex0).rgb, (u_flat != 0) ? 0.0 : 1.0);
++}
++)";
++
++  // The scene's depth (PGXP's: the console's Z / 32768) goes out in alpha, square-rooted to keep
++  // detail up close. 0 where something flat was drawn last (no depth: the interface, 2D sprites,
++  // fills and uploads leave exactly 1 or 0).
++  static constexpr char display_scene_depth_fragment_shader[] = R"(
++uniform sampler2D samp0;
++uniform highp sampler2D samp1;
++
++in vec2 v_tex0;
++out vec4 o_col0;
++
++void main()
++{
++  highp float depth = texture(samp1, v_tex0).r;
++  float scene = step(0.00001, depth) * step(depth, 0.99999);
++  o_col0 = vec4(texture(samp0, v_tex0).rgb, scene * mix(1.0 / 255.0, 1.0, sqrt(depth)));
+ }
+ )";
+ 
+@@ -386,6 +405,8 @@ void main()
+ 
+   if (!m_display_program.Compile(GetGLSLVersionHeader() + fullscreen_quad_vertex_shader, {},
+                                  GetGLSLVersionHeader() + display_fragment_shader) ||
++      !m_display_scene_depth_program.Compile(GetGLSLVersionHeader() + fullscreen_quad_vertex_shader, {},
++                                             GetGLSLVersionHeader() + display_scene_depth_fragment_shader) ||
+       !m_cursor_program.Compile(GetGLSLVersionHeader() + fullscreen_quad_vertex_shader, {},
+                                 GetGLSLVersionHeader() + cursor_fragment_shader))
+   {
+@@ -396,10 +417,11 @@ void main()
+   if (GetRenderAPI() != RenderAPI::OpenGLES)
+   {
+     m_display_program.BindFragData(0, "o_col0");
++    m_display_scene_depth_program.BindFragData(0, "o_col0");
+     m_cursor_program.BindFragData(0, "o_col0");
+   }
+ 
+-  if (!m_display_program.Link() || !m_cursor_program.Link())
++  if (!m_display_program.Link() || !m_display_scene_depth_program.Link() || !m_cursor_program.Link())
+   {
+     Log_ErrorPrintf("Failed to link display programs");
+     return false;
+@@ -408,7 +430,15 @@ void main()
+   m_display_program.Bind();
+   m_display_program.RegisterUniform("u_src_rect");
+   m_display_program.RegisterUniform("samp0");
++  m_display_program.RegisterUniform("u_flat");
+   m_display_program.Uniform1i(1, 0);
++  m_display_program.Uniform1i(2, 0);
++  m_display_scene_depth_program.Bind();
++  m_display_scene_depth_program.RegisterUniform("u_src_rect");
++  m_display_scene_depth_program.RegisterUniform("samp0");
++  m_display_scene_depth_program.RegisterUniform("samp1");
++  m_display_scene_depth_program.Uniform1i(1, 0);
++  m_display_scene_depth_program.Uniform1i(2, 1);
+   m_cursor_program.Bind();
+   m_cursor_program.RegisterUniform("u_src_rect");
+   m_cursor_program.RegisterUniform("samp0");
+@@ -452,6 +482,7 @@ void LibretroOpenGLHostDisplay::DestroyResources()
+   }
+ 
+   m_cursor_program.Destroy();
++  m_display_scene_depth_program.Destroy();
+   m_display_program.Destroy();
+ }
+ 
+@@ -551,17 +582,37 @@ void LibretroOpenGLHostDisplay::RenderDisplay(int32_t left, int32_t bottom, int3
+   glDisable(GL_DEPTH_TEST);
+   glDepthMask(GL_FALSE);
+   glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(reinterpret_cast<uintptr_t>(texture_handle)));
+-  m_display_program.Bind();
++  const bool scene_depth = (m_scene_depth_texture != 0);
++  GL::Program& program = scene_depth ? m_display_scene_depth_program : m_display_program;
++  program.Bind();
+ 
+-  m_display_program.Uniform4f(
++  program.Uniform4f(
+     0, static_cast<float>(texture_view_x) / static_cast<float>(texture_width),
+     static_cast<float>(texture_view_y) / static_cast<float>(texture_height),
+     static_cast<float>(texture_view_width) / static_cast<float>(texture_width),
+     static_cast<float>(texture_view_height) / static_cast<float>(texture_height));
++  // With scene depth on but none for this picture (24-bit, interlaced), it's all flat: alpha 0.
++  if (!scene_depth)
++    program.Uniform1i(2, g_settings.gpu_scene_depth ? 1 : 0);
++  if (scene_depth)
++  {
++    // Laid out like the display texture; depth textures are only read with nearest filtering.
++    glActiveTexture(GL_TEXTURE1);
++    glBindTexture(GL_TEXTURE_2D, m_scene_depth_texture);
++    glBindSampler(1, m_display_nearest_sampler);
++    glActiveTexture(GL_TEXTURE0);
++  }
+   glBindSampler(0, m_display_nearest_sampler);
+   glBindVertexArray(m_display_vao);
+   glDrawArrays(GL_TRIANGLES, 0, 3);
+   glBindSampler(0, 0);
++  if (scene_depth)
++  {
++    glActiveTexture(GL_TEXTURE1);
++    glBindTexture(GL_TEXTURE_2D, 0);
++    glBindSampler(1, 0);
++    glActiveTexture(GL_TEXTURE0);
++  }
+ }
+ 
+ GPU_HW_OpenGL::GPU_HW_OpenGL() : GPU_HW() {}
+@@ -1695,6 +1746,14 @@ bool GPU_HW_OpenGL::BlitVRAMReplacementTexture(const TextureReplacementTexture*
+ 
+ void GPU_HW_OpenGL::SetDepthFunc()
+ {
++  // Scene depth only: depth is written but never tested, so the game draws in its own order (the
++  // mask bit check, which reads the same buffer, goes).
++  if (g_settings.UsingSceneDepthOnly())
++  {
++    SetDepthFunc(GL_ALWAYS);
++    return;
++  }
++
+   SetDepthFunc(m_batch.use_depth_buffer ? GL_LEQUAL : (m_batch.check_mask_before_draw ? GL_GEQUAL : GL_ALWAYS));
+ }
+ 
+@@ -1746,6 +1805,11 @@ void GPU_HW_OpenGL::UpdateDisplay()
+ {
+   GPU_HW::UpdateDisplay();
+ 
++  // The scene's depth goes along when the display shows straight out of VRAM (the depth buffer is
++  // laid out the same way); not for 24-bit or interlaced pictures.
++  LibretroOpenGLHostDisplay* const libretro_display = static_cast<LibretroOpenGLHostDisplay*>(m_host_display);
++  libretro_display->SetSceneDepthTexture(0);
++
+     m_host_display->SetDisplayParameters(m_crtc_state.display_width, m_crtc_state.display_height,
+                                          m_crtc_state.display_origin_left, m_crtc_state.display_origin_top,
+                                          m_crtc_state.display_vram_width, m_crtc_state.display_vram_height,
+@@ -1782,6 +1846,8 @@ void GPU_HW_OpenGL::UpdateDisplay()
+                                           m_vram_texture.GetHeight(), scaled_vram_offset_x,
+                                           m_vram_texture.GetHeight() - scaled_vram_offset_y, scaled_display_width,
+                                           -static_cast<int32_t>(scaled_display_height));
++        if (g_settings.UsingPGXPDepthBuffer() && g_settings.gpu_scene_depth)
++          libretro_display->SetSceneDepthTexture(m_vram_depth_texture.GetGLId());
+       }
+     }
+     else
+diff --git a/src/core/gpu_hw_opengl.h b/src/core/gpu_hw_opengl.h
+index 69e1f36..1d3f2fd 100644
+--- a/src/core/gpu_hw_opengl.h
++++ b/src/core/gpu_hw_opengl.h
+@@ -56,6 +56,10 @@ public:
+ 
+   bool Render() override;
+ 
++  /// The depth texture (laid out like the display texture) whose scene depth goes out in the
++  /// frame's alpha, or 0 for none (alpha 1).
++  void SetSceneDepthTexture(GLuint texture) { m_scene_depth_texture = texture; }
++
+ protected:
+   bool CreateResources() override;
+   void DestroyResources() override;
+@@ -70,7 +74,9 @@ private:
+   std::string GetGLSLVersionHeader() const;
+ 
+   GL::Program m_display_program;
++  GL::Program m_display_scene_depth_program;
+   GL::Program m_cursor_program;
++  GLuint m_scene_depth_texture = 0;
+   GLuint m_display_vao = 0;
+   GLuint m_display_nearest_sampler = 0;
+   GLuint m_display_linear_sampler = 0;
+diff --git a/src/core/host_interface.cpp b/src/core/host_interface.cpp
+index 1d6f503..71d20d0 100644
+--- a/src/core/host_interface.cpp
++++ b/src/core/host_interface.cpp
+@@ -289,6 +289,7 @@ void HostInterface::CheckForSettingsChanges(const Settings& old_settings)
+         g_settings.gpu_pgxp_texture_correction != old_settings.gpu_pgxp_texture_correction ||
+         g_settings.gpu_pgxp_color_correction != old_settings.gpu_pgxp_color_correction ||
+         g_settings.gpu_pgxp_depth_buffer != old_settings.gpu_pgxp_depth_buffer ||
++        g_settings.gpu_scene_depth != old_settings.gpu_scene_depth ||
+         g_settings.display_active_start_offset != old_settings.display_active_start_offset ||
+         g_settings.display_active_end_offset != old_settings.display_active_end_offset ||
+         g_settings.display_line_start_offset != old_settings.display_line_start_offset ||
+diff --git a/src/core/settings.cpp b/src/core/settings.cpp
+index f676325..da421f6 100644
+--- a/src/core/settings.cpp
++++ b/src/core/settings.cpp
+@@ -118,6 +118,7 @@ void Settings::Load(LibretroSettingsInterface& si)
+   gpu_pgxp_preserve_proj_fp = si.GetBoolValue("GPU", "PGXPPreserveProjFP", false);
+   gpu_pgxp_tolerance = si.GetFloatValue("GPU", "PGXPTolerance", -1.0f);
+   gpu_pgxp_depth_buffer = si.GetBoolValue("GPU", "PGXPDepthBuffer", false);
++  gpu_scene_depth = si.GetBoolValue("GPU", "SceneDepth", false);
+   SetPGXPDepthClearThreshold(si.GetFloatValue("GPU", "PGXPDepthClearThreshold", DEFAULT_GPU_PGXP_DEPTH_THRESHOLD));
+ 
+   display_crop_mode =
+diff --git a/src/core/settings.h b/src/core/settings.h
+index 2781a89..567d01f 100644
+--- a/src/core/settings.h
++++ b/src/core/settings.h
+@@ -54,6 +54,9 @@ struct Settings
+   bool gpu_pgxp_cpu = false;
+   bool gpu_pgxp_preserve_proj_fp = false;
+   bool gpu_pgxp_depth_buffer = false;
++  /// Keeps PGXP's depth for each pixel of the scene (never tested, so the game draws in its own order)
++  /// and hands it to the frontend in the frame's alpha, for post-processing that needs the scene's depth.
++  bool gpu_scene_depth = false;
+   DisplayCropMode display_crop_mode = DisplayCropMode::None;
+   DisplayAspectRatio display_aspect_ratio = DisplayAspectRatio::Auto;
+   uint16_t display_aspect_ratio_custom_numerator = 0;
+@@ -120,7 +123,9 @@ struct Settings
+   ALWAYS_INLINE bool IsUsingRecompiler() const { return (cpu_execution_mode == CPUExecutionMode::Recompiler); }
+   ALWAYS_INLINE bool IsUsingSoftwareRenderer() const { return (gpu_renderer == GPURenderer::Software); }
+ 
+-  ALWAYS_INLINE bool UsingPGXPDepthBuffer() const { return gpu_pgxp_enable && gpu_pgxp_depth_buffer; }
++  ALWAYS_INLINE bool UsingPGXPDepthBuffer() const { return gpu_pgxp_enable && (gpu_pgxp_depth_buffer || gpu_scene_depth); }
++  /// The depth buffer holds the scene's depth but isn't tested against.
++  ALWAYS_INLINE bool UsingSceneDepthOnly() const { return gpu_pgxp_enable && gpu_scene_depth && !gpu_pgxp_depth_buffer; }
+   ALWAYS_INLINE bool UsingPGXPCPUMode() const { return gpu_pgxp_enable && gpu_pgxp_cpu; }
+   ALWAYS_INLINE void SetPGXPDepthClearThreshold(float value) { gpu_pgxp_depth_clear_threshold = value / 4096.0f; }
+ 
+diff --git a/src/libretro/libretro_core_options.h b/src/libretro/libretro_core_options.h
+index b96b983..ac6f4f1 100644
+--- a/src/libretro/libretro_core_options.h
++++ b/src/libretro/libretro_core_options.h
+@@ -548,6 +548,20 @@ struct retro_core_option_v2_definition option_defs_us[] = {
+      {NULL, NULL},
+    },
+    "false"},
++  {"swanstation_GPU_SceneDepth",
++   "Scene Depth In Alpha",
++   NULL,
++   "Writes PGXP's depth for every pixel of the 3D scene to the frame's alpha channel (0 where something flat, "
++   "like the interface, was drawn last), for the frontend's shaders. The depth is never tested, so the game draws "
++   "as usual. Requires geometry correction enabled and the OpenGL renderer.",
++   NULL,
++   "enhancement",
++   {
++     {"true", "Enabled"},
++     {"false", "Disabled"},
++     {NULL, NULL},
++   },
++   "false"},
+   {"swanstation_GPU_PGXPVertexCache",
+    "PGXP Vertex Cache",
+    NULL,
