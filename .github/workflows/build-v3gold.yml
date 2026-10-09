@@ -80,8 +80,6 @@ jobs:
       # Set up Gradle before Vita3K is checked out: its wrapper check scans the whole workspace,
       # and Vita3K's third-party code (e.g. SDL's example project) has wrapper jars it doesn't know.
       - uses: gradle/actions/setup-gradle@v4
-        with:
-          cache-provider: basic
 
       - name: Prepare source
         run: scripts/prepare-vita3k.sh "$VITA3K_DIR"
