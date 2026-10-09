@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: V3 Gold <v3gold@users.noreply.github.com>
 Date: Thu, 8 Oct 2026 23:31:28 +0000
-Subject: [PATCH 2/6] V3 Gold: gesture controls in place of the on-screen
+Subject: [PATCH 2/7] V3 Gold: gesture controls in place of the on-screen
  buttons
 
 While gestures are on (the default), the input overlay draws nothing and

@@ -29,7 +29,7 @@ The same gestures work everywhere: in town, dungeons, battles, menus and convers
 
 | Gesture | Button |
 | --- | --- |
-| Swipe anywhere | Left stick, and the D-pad in the swipe's main direction |
+| Swipe anywhere | Left stick, in any direction: a short swipe walks, a longer one runs |
 | Hold one finger, swipe with another | Right stick: turns the camera, following the swiping finger |
 | Tap | Cross |
 | Hold | Circle, held while the finger stays down |
@@ -43,9 +43,15 @@ The same gestures work everywhere: in town, dungeons, battles, menus and convers
 
 A tap waits a quarter of a second before it presses Cross, to tell it apart from a double tap.
 
+The stick follows the swipe's exact angle, so you can walk in any direction, not just 8. A short swipe (up to about 6 mm) pushes the stick partway, so he walks. Past that the push grows, and from about 13 mm he runs. The start point is dragged along behind the finger, so coming back towards it slows him to a walk, and returning to it stops him. Swipes don't press the D-pad: in Persona 4 Golden the D-pad moves the character at full speed in only 4 directions.
+
 While one finger walks, a second finger can tap for Cross, hold for Circle or swipe to turn the camera. For the camera on its own, hold one finger anywhere and swipe with another. Holding lets go of Circle as soon as the other finger swipes, and you can keep swiping again while still holding. To hold Circle while walking, hold, then drag the same finger.
 
-The in-game menu's **Controls** tab turns gestures off, which brings back Vita3K's on-screen buttons. It also has the gesture guide and a switch for the vibration on holds. While a game controller is connected, the gestures are off and the controller plays.
+The in-game menu's **Controls** tab turns gestures off, which brings back Vita3K's on-screen buttons. It also has the gesture guide, a switch for the vibration on holds, and:
+
+- **Walking**: how far a short swipe pushes the stick (40% at first). If short swipes still run, slide it left. If he doesn't move, slide it right.
+- **Swipes press the D-pad too** (off): for any menu that ignores the stick.
+ While a game controller is connected, the gestures are off and the controller plays.
 
 ## Main menu
 
@@ -57,6 +63,17 @@ The in-game menu's **Controls** tab turns gestures off, which brings back Vita3K
 - **Firmware**: Vita3K's setup screen.
 - **Updates**: check for a newer V3 Gold. **Check for updates** is also on the in-game menu's Session tab.
 - **Library**: Vita3K's own app list, for managing saves and other installed apps.
+
+## Screen shape
+
+The in-game menu's **Session** tab picks how the picture fills the screen. It changes right away.
+
+- **16:9**: the game's own picture, as big as fits.
+- **4:3 crop**: the middle of the picture in 4:3, bigger. Its sides are cut off (about an eighth of the width on each side), along with anything the game draws there.
+- **4:3 squeeze**: the whole picture squeezed into 4:3, so everything looks narrower.
+- **Fill**: the whole picture stretched over the whole screen.
+
+Persona 4 Golden only draws 16:9 (960×544) and no mod is known that makes it draw 4:3, so these crop or squeeze its picture. In 4:3 crop the 3D view looks the way a 4:3 game would, but the game still places its menus and status display for 16:9, so parts near the left and right edges get cut. Moving those into 4:3 would need a patch to the game itself.
 
 ## Experiments
 
@@ -88,7 +105,7 @@ As with the Dolphin apps, this folder holds only V3 Gold's changes. CI applies t
 | --- | --- |
 | `vita3k-version.env` | The upstream Vita3K commit to build from |
 | `app.env` | Package, app name and release tag prefix |
-| `patches/` | Changes to Vita3K's own files: app identity, version and signing from Gradle properties, gestures in the input overlay, the main menu and in-game menu entries, the Persona 4 Golden palette |
+| `patches/` | Changes to Vita3K's own files: app identity, version and signing from Gradle properties, gestures in the input overlay, the main menu and in-game menu entries, the Persona 4 Golden palette, the experiments' renderer hooks, Cubeb audio by default, the screen shapes |
 | `overlay/` | V3 Gold's code and resources: gesture recognizer, main menu, update checker, artwork |
 | `branding/` | Source images. `make-icons.py` rebuilds the launcher icon layers from `icon.png`. |
 | `unit-tests/` | JVM unit tests for the gesture recognizer and the update picker |

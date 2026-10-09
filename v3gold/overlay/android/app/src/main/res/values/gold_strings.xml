@@ -42,6 +42,10 @@
     <string name="gold_gestures_switch_summary">Touch gestures instead of on-screen buttons</string>
     <string name="gold_haptics_switch">Vibrate on holds</string>
     <string name="gold_haptics_switch_summary">A short buzz when a hold, Select or the menu gesture registers</string>
+    <string name="gold_walk_title">Walking</string>
+    <string name="gold_walk_summary">A short swipe pushes the stick %1$d%% of the way, so he walks; longer swipes push it further, so he runs. If short swipes still run, slide left. If he doesn\'t move, slide right.</string>
+    <string name="gold_swipe_dpad_switch">Swipes press the D-pad too</string>
+    <string name="gold_swipe_dpad_switch_summary">For any menu that ignores the stick. The D-pad moves him at full speed in only 4 directions.</string>
     <string name="gold_check_updates">Check for updates</string>
 
     <string name="gold_gesture_tap">Tap</string>
@@ -64,11 +68,19 @@
     <string name="gold_button_triangle">Triangle</string>
     <string name="gold_button_start">Start</string>
     <string name="gold_button_select">Select, held for as long as your fingers stay down</string>
-    <string name="gold_button_left_stick">Left stick, and the D-pad in the swipe\'s direction</string>
+    <string name="gold_button_left_stick">Left stick, any direction: a short swipe walks, a longer one runs</string>
     <string name="gold_button_right_stick">Right stick: turns the camera, following the swiping finger</string>
     <string name="gold_button_l1">L1</string>
     <string name="gold_button_r1">R1</string>
     <string name="gold_button_menu">The in-game menu</string>
+
+    <!-- Screen shape (in-game menu, Session tab) -->
+    <string name="gold_screen_title">Screen shape</string>
+    <string name="gold_screen_original">16:9</string>
+    <string name="gold_screen_crop">4:3 crop</string>
+    <string name="gold_screen_squeeze">4:3 squeeze</string>
+    <string name="gold_screen_fill">Fill</string>
+    <string name="gold_screen_help">Persona 4 Golden only draws 16:9. 4:3 crop shows the middle of the picture, bigger, and cuts off its sides along with anything drawn there. 4:3 squeeze fits the whole picture into 4:3, so everything looks narrower. Fill stretches it over the whole screen.</string>
 
     <!-- Experiments (in-game menu, Session tab) -->
     <string name="gold_lab_title">Experiments</string>

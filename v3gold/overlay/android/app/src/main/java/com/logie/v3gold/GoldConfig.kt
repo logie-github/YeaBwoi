@@ -18,6 +18,21 @@ class GoldConfig(context: Context) {
         get() = prefs.getBoolean(KEY_HAPTICS, true)
         set(value) = prefs.edit().putBoolean(KEY_HAPTICS, value).apply()
 
+    /** How far a short swipe tilts the left stick, for walking (longer swipes run). */
+    var walkTilt: Float
+        get() = prefs.getFloat(KEY_WALK_TILT, DEFAULT_WALK_TILT)
+        set(value) = prefs.edit().putFloat(KEY_WALK_TILT, value).apply()
+
+    /** Swipes also hold the D-pad, for menus that ignore the stick. */
+    var swipeDpad: Boolean
+        get() = prefs.getBoolean(KEY_SWIPE_DPAD, false)
+        set(value) = prefs.edit().putBoolean(KEY_SWIPE_DPAD, value).apply()
+
+    /** How the game's picture fills the screen: one of the SCREEN_SHAPE_ values. */
+    var screenShape: Int
+        get() = prefs.getInt(KEY_SCREEN_SHAPE, SCREEN_SHAPE_ORIGINAL)
+        set(value) = prefs.edit().putInt(KEY_SCREEN_SHAPE, value).apply()
+
     /** Experiment: skip the game's motion blur (ghosting) pass. */
     var blurFix: Boolean
         get() = prefs.getBoolean(KEY_BLUR_FIX, true)
@@ -41,12 +56,26 @@ class GoldConfig(context: Context) {
         get() = prefs.getBoolean(KEY_SPEED_FIX_CODE, false)
         set(value) = prefs.edit().putBoolean(KEY_SPEED_FIX_CODE, value).apply()
 
-    private companion object {
-        const val KEY_GESTURES = "gestures_enabled"
-        const val KEY_HAPTICS = "haptics"
-        const val KEY_BLUR_FIX = "blur_fix"
-        const val KEY_SIXTY_FPS = "sixty_fps"
-        const val KEY_SPEED_FIX = "speed_fix"
-        const val KEY_SPEED_FIX_CODE = "speed_fix_code"
+    companion object {
+        const val DEFAULT_WALK_TILT = 0.4f
+
+        /** The game's own 16:9 picture, as big as fits. */
+        const val SCREEN_SHAPE_ORIGINAL = 0
+        /** 4:3, the middle of the picture (the sides are cut off). */
+        const val SCREEN_SHAPE_CROP_4_3 = 1
+        /** 4:3, the whole picture squeezed in. */
+        const val SCREEN_SHAPE_SQUEEZE_4_3 = 2
+        /** The whole screen, the whole picture stretched over it. */
+        const val SCREEN_SHAPE_FILL = 3
+
+        private const val KEY_GESTURES = "gestures_enabled"
+        private const val KEY_HAPTICS = "haptics"
+        private const val KEY_WALK_TILT = "walk_tilt"
+        private const val KEY_SWIPE_DPAD = "swipe_dpad"
+        private const val KEY_SCREEN_SHAPE = "screen_shape"
+        private const val KEY_BLUR_FIX = "blur_fix"
+        private const val KEY_SIXTY_FPS = "sixty_fps"
+        private const val KEY_SPEED_FIX = "speed_fix"
+        private const val KEY_SPEED_FIX_CODE = "speed_fix_code"
     }
 }

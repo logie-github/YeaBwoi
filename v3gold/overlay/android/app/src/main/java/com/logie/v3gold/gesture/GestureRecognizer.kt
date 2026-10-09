@@ -43,6 +43,21 @@ data class GestureConfig(
     val stickRadiusPx: Float,
     /** How far two fingers have to move together to count as a two-finger swipe. */
     val twoFingerSwipePx: Float,
+    /**
+     * Walking: a swipe up to this long tilts the left stick by [walkTilt] however long it is, so
+     * the game walks; longer swipes tilt it further, all the way at [runDistancePx], so it runs.
+     * 0 tilts the left stick in proportion to the swipe up to [stickRadiusPx], like the camera.
+     */
+    val walkDistancePx: Float = 0f,
+    /** How far a swipe goes to push the left stick all the way (running) when walking is on. */
+    val runDistancePx: Float = 0f,
+    /** How far the left stick tilts for a walking swipe. */
+    val walkTilt: Float = 0.4f,
+    /**
+     * Swipes also hold the D-pad in their main direction, for menus that ignore the stick. The
+     * D-pad moves the character at full speed in only 4 directions, so this is off by default.
+     */
+    val swipeDpad: Boolean = false,
     /** How long a finger has to stay still before a touch counts as a hold. */
     val holdTimeoutMs: Long = 280,
     /** Maximum time between lifting the first tap and landing the second one. */
@@ -51,7 +66,7 @@ data class GestureConfig(
     val twoFingerDoubleTapTimeoutMs: Long = 350,
     /** How long a tap keeps its button pressed so the game is sure to see it. */
     val pulseMs: Long = 100,
-    /** How far (as a fraction of [stickRadiusPx]) a swipe goes before it presses the D-pad. */
+    /** How far a swipe tilts the left stick before it presses the D-pad (with [swipeDpad]). */
     val dpadPressTilt: Float = 0.5f,
     /** A swipe pressing the D-pad lets go of it when it comes back closer than this. */
     val dpadReleaseTilt: Float = 0.3f,
@@ -61,8 +76,9 @@ data class GestureConfig(
  * Turns raw touch points into PS Vita controller input for Persona 4 Golden, the same way the
  * Dolphin apps' gestures work:
  *
- * - Swipe anywhere: left stick, for as long as the finger stays down. The swipe also holds the
- *   D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
+ * - Swipe anywhere: left stick in any direction, for as long as the finger stays down. A short
+ *   swipe walks and a longer one runs ([GestureConfig.walkDistancePx]). With
+ *   [GestureConfig.swipeDpad] it also holds the D-pad in its main direction (up, down, left or right).
  * - One finger held while another swipes: right stick (the camera), following the swiping finger
  * - Tap: Cross
  * - Hold: Circle (held for as long as the finger stays down)
@@ -79,7 +95,8 @@ data class GestureConfig(
  * that [GestureScheduler] uses.
  */
 class GestureRecognizer(
-    private val config: GestureConfig,
+    /** Change it only between gestures (when the first finger of one lands). */
+    var config: GestureConfig,
     private val scheduler: GestureScheduler,
     private val output: GestureOutput,
 ) {
@@ -495,31 +512,60 @@ class GestureRecognizer(
         output.openMenu()
     }
 
-    /** Where [touch] pushes a stick, as (x, y) with +y up, dragging its origin along past the edge. */
-    private fun stickPosition(touch: Touch): Pair<Float, Float> {
-        var dx = touch.x - touch.originX
-        var dy = touch.y - touch.originY
+    /**
+     * How far [touch] is from its origin, as (dx, dy, distance). The origin is first dragged along
+     * so it's at most [maxDistance] away, so that reversing direction responds immediately.
+     */
+    private fun offset(touch: Touch, maxDistance: Float): Triple<Float, Float, Float> {
+        val dx = touch.x - touch.originX
+        val dy = touch.y - touch.originY
         val distance = hypot(dx, dy)
-        val radius = config.stickRadiusPx
-
-        if (distance > radius) {
-            // Drag the origin along so that reversing direction responds immediately.
-            touch.originX = touch.x - dx / distance * radius
-            touch.originY = touch.y - dy / distance * radius
-            dx = touch.x - touch.originX
-            dy = touch.y - touch.originY
+        if (distance <= maxDistance) {
+            return Triple(dx, dy, distance)
         }
+        touch.originX = touch.x - dx / distance * maxDistance
+        touch.originY = touch.y - dy / distance * maxDistance
+        return Triple(touch.x - touch.originX, touch.y - touch.originY, maxDistance)
+    }
+
+    /** Where [touch] pushes a stick in proportion to its distance, as (x, y) with +y up. */
+    private fun linearPosition(touch: Touch): Pair<Float, Float> {
+        val radius = config.stickRadiusPx
+        val (dx, dy) = offset(touch, radius)
         return dx / radius to -dy / radius
     }
 
+    /**
+     * Where [touch] pushes the left stick, as (x, y) with +y up: in its direction, whatever the
+     * angle, by [GestureConfig.walkTilt] for a short swipe and further for a longer one.
+     */
+    private fun walkPosition(touch: Touch): Pair<Float, Float> {
+        val walk = config.walkDistancePx
+        val run = config.runDistancePx
+        if (walk <= 0f || run <= walk) {
+            return linearPosition(touch)
+        }
+        val (dx, dy, distance) = offset(touch, run)
+        if (distance < config.touchSlopPx / 2) {
+            // Back where the swipe started: stand still.
+            return 0f to 0f
+        }
+        val tilt = if (distance <= walk) {
+            config.walkTilt
+        } else {
+            config.walkTilt + (1f - config.walkTilt) * (distance - walk) / (run - walk)
+        }
+        return dx / distance * tilt to -dy / distance * tilt
+    }
+
     private fun updateStick(touch: Touch) {
-        val (x, y) = stickPosition(touch)
+        val (x, y) = walkPosition(touch)
         output.setStick(Stick.LEFT, x, y)
-        setStickDpad(dpadFor(x, y))
+        setStickDpad(if (config.swipeDpad) dpadFor(x, y) else null)
     }
 
     private fun updateCamera(touch: Touch) {
-        val (x, y) = stickPosition(touch)
+        val (x, y) = linearPosition(touch)
         output.setStick(Stick.RIGHT, x, y)
     }
 

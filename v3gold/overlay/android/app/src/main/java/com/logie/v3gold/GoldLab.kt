@@ -69,6 +69,7 @@ object GoldLab {
         appContext = context.applicationContext
         val config = GoldConfig(context)
         runCatching {
+            GoldNative.setScreenShape(config.screenShape)
             GoldNative.setBlurFix(config.blurFix)
             GoldNative.setFpsHack(config.sixtyFps)
         }.onFailure { Log.w(TAG, "Couldn't apply the experiments", it) }
@@ -86,6 +87,11 @@ object GoldLab {
     fun onGameStopped() {
         handler.removeCallbacks(tick)
         changed.clear()
+    }
+
+    fun setScreenShape(context: Context, shape: Int) {
+        GoldConfig(context).screenShape = shape
+        runCatching { GoldNative.setScreenShape(shape) }
     }
 
     fun setBlurFix(context: Context, enabled: Boolean) {
