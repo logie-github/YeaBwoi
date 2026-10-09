@@ -72,7 +72,6 @@ class GoldGestures(private val overlay: InputOverlay) {
             GestureConfig(
                 touchSlopPx = 14 * density,
                 stickRadiusPx = 56 * density,
-                flickMinPx = 40 * density,
                 twoFingerSwipePx = 56 * density,
             ),
             scheduler,
@@ -92,7 +91,6 @@ class GoldGestures(private val overlay: InputOverlay) {
     fun releaseAll() = recognizer.cancelAll()
 
     fun onSizeChanged(width: Int, height: Int) {
-        recognizer.setViewWidth(width.toFloat())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Keep sideways swipes that start near the screen edges from turning into the system
             // back gesture. Android caps this at 200dp of height per edge.
@@ -108,11 +106,7 @@ class GoldGestures(private val overlay: InputOverlay) {
     }
 
     /** Every touch on the game screen while gestures are on. Always consumes it. */
-    fun onTouchEvent(event: MotionEvent, viewWidth: Int): Boolean {
-        if (viewWidth > 0) {
-            recognizer.setViewWidth(viewWidth.toFloat())
-        }
-
+    fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.actionMasked == MotionEvent.ACTION_DOWN) {

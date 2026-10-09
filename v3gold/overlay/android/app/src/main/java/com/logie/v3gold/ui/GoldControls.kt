@@ -57,16 +57,16 @@ private enum class GuideButton(val label: String, val color: Color) {
 private class GuideRow(@StringRes val gesture: Int, @StringRes val result: Int, val button: GuideButton)
 
 private val GuideRows = listOf(
+    GuideRow(R.string.gold_gesture_swipe, R.string.gold_button_left_stick, GuideButton.LEFT_STICK),
+    GuideRow(R.string.gold_gesture_camera, R.string.gold_button_right_stick, GuideButton.RIGHT_STICK),
     GuideRow(R.string.gold_gesture_tap, R.string.gold_button_cross, GuideButton.CROSS),
     GuideRow(R.string.gold_gesture_hold, R.string.gold_button_circle, GuideButton.CIRCLE),
     GuideRow(R.string.gold_gesture_tap_hold, R.string.gold_button_square, GuideButton.SQUARE),
     GuideRow(R.string.gold_gesture_two_finger_swipe_up, R.string.gold_button_triangle, GuideButton.TRIANGLE),
     GuideRow(R.string.gold_gesture_double_tap, R.string.gold_button_start, GuideButton.START),
     GuideRow(R.string.gold_gesture_two_finger_hold, R.string.gold_button_select, GuideButton.SELECT),
-    GuideRow(R.string.gold_gesture_swipe_left, R.string.gold_button_left_stick, GuideButton.LEFT_STICK),
-    GuideRow(R.string.gold_gesture_swipe_right, R.string.gold_button_right_stick, GuideButton.RIGHT_STICK),
-    GuideRow(R.string.gold_gesture_flick_right, R.string.gold_button_l1, GuideButton.L1),
-    GuideRow(R.string.gold_gesture_flick_left, R.string.gold_button_r1, GuideButton.R1),
+    GuideRow(R.string.gold_gesture_two_finger_swipe_right, R.string.gold_button_l1, GuideButton.L1),
+    GuideRow(R.string.gold_gesture_two_finger_swipe_left, R.string.gold_button_r1, GuideButton.R1),
     GuideRow(R.string.gold_gesture_menu, R.string.gold_button_menu, GuideButton.MENU),
     GuideRow(R.string.gold_gesture_back, R.string.gold_button_menu, GuideButton.MENU),
 )

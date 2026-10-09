@@ -25,23 +25,25 @@ After that, opening the app checks for an update, then goes straight into the ga
 
 ## Controls
 
+The same gestures work everywhere: in town, dungeons, battles, menus and conversations. They follow the Dolphin apps' gestures.
+
 | Gesture | Button |
 | --- | --- |
+| Swipe anywhere | Left stick, and the D-pad in the swipe's main direction |
+| Hold one finger, swipe with another | Right stick: turns the camera, following the swiping finger |
 | Tap | Cross |
 | Hold | Circle, held while the finger stays down |
 | Tap, then tap and hold | Square |
 | Two fingers swipe up | Triangle |
 | Double tap | Start |
 | Two-finger hold | Select, held while the fingers stay down |
-| Swipe on the left half | Left stick, and the D-pad in the swipe's main direction |
-| Swipe and keep holding on the right half | Right stick |
-| Quick flick right / left on the right half | L1 / R1 |
+| Two fingers swipe right / left | L1 / R1 |
 | Two-finger tap, then two-finger tap and hold | In-game menu (pauses the game) |
 | Android's back gesture | In-game menu |
 
-A tap waits a quarter of a second before it presses Cross, to tell it apart from a double tap. A right-half swipe waits a quarter of a second before moving the right stick, to tell it apart from an L1/R1 flick.
+A tap waits a quarter of a second before it presses Cross, to tell it apart from a double tap.
 
-While one finger walks or holds a button, a second finger can tap for Cross, hold for Circle or swipe the other stick. To hold Circle while walking, hold, then drag the same finger.
+While one finger walks, a second finger can tap for Cross, hold for Circle or swipe to turn the camera. For the camera on its own, hold one finger anywhere and swipe with another. Holding lets go of Circle as soon as the other finger swipes, and you can keep swiping again while still holding. To hold Circle while walking, hold, then drag the same finger.
 
 The in-game menu's **Controls** tab turns gestures off, which brings back Vita3K's on-screen buttons. It also has the gesture guide and a switch for the vibration on holds. While a game controller is connected, the gestures are off and the controller plays.
 

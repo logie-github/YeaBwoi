@@ -41,9 +41,7 @@ data class GestureConfig(
     val touchSlopPx: Float,
     /** How far a finger has to move from where it landed to push a stick all the way. */
     val stickRadiusPx: Float,
-    /** How far a quick sideways swipe on the right half has to go to count as L1 or R1. */
-    val flickMinPx: Float,
-    /** How far two fingers have to move up together to count as Triangle. */
+    /** How far two fingers have to move together to count as a two-finger swipe. */
     val twoFingerSwipePx: Float,
     /** How long a finger has to stay still before a touch counts as a hold. */
     val holdTimeoutMs: Long = 280,
@@ -53,11 +51,6 @@ data class GestureConfig(
     val twoFingerDoubleTapTimeoutMs: Long = 350,
     /** How long a tap keeps its button pressed so the game is sure to see it. */
     val pulseMs: Long = 100,
-    /**
-     * A swipe on the right half that lifts within this time (from touching down) is a flick for
-     * L1 or R1. One that stays down longer moves the right stick.
-     */
-    val flickMaxMs: Long = 250,
     /** How far (as a fraction of [stickRadiusPx]) a swipe goes before it presses the D-pad. */
     val dpadPressTilt: Float = 0.5f,
     /** A swipe pressing the D-pad lets go of it when it comes back closer than this. */
@@ -65,23 +58,22 @@ data class GestureConfig(
 )
 
 /**
- * Turns raw touch points into PS Vita controller input, made for Persona 4 Golden:
+ * Turns raw touch points into PS Vita controller input for Persona 4 Golden, the same way the
+ * Dolphin apps' gestures work:
  *
+ * - Swipe anywhere: left stick, for as long as the finger stays down. The swipe also holds the
+ *   D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
+ * - One finger held while another swipes: right stick (the camera), following the swiping finger
  * - Tap: Cross
  * - Hold: Circle (held for as long as the finger stays down)
  * - Tap, then tap and hold: Square
  * - Double tap: Start
- * - Swipe on the left half: left stick, for as long as the finger stays down. The swipe also holds
- *   the D-pad in its main direction (up, down, left or right), for menus that only follow the D-pad.
- * - Swipe and keep the finger down on the right half: right stick
- * - Quick flick on the right half: right for L1, left for R1
- * - Two fingers swiping up: Triangle
+ * - Two fingers swiping up: Triangle; right: L1; left: R1
  * - Two-finger hold: Select (held for as long as the fingers stay down)
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
  *
- * While one finger is driving a stick or holding a button, a second finger can tap for Cross, hold
- * for Circle or drive the other stick. Holding Circle and walking at the same time is done with one
- * finger: hold, then drag.
+ * While one finger walks, a second finger can tap for Cross, hold for Circle or swipe to turn the
+ * camera. Holding Circle and walking at the same time is done with one finger: hold, then drag.
  *
  * Coordinates are in pixels with y pointing down; times are in milliseconds from the same clock
  * that [GestureScheduler] uses.
@@ -91,18 +83,26 @@ class GestureRecognizer(
     private val scheduler: GestureScheduler,
     private val output: GestureOutput,
 ) {
-    private enum class State { PENDING, STICK, HOLD, TWO_FINGER, IGNORED }
+    private enum class State {
+        PENDING,
+        /** Driving the left stick. */
+        STICK,
+        /** Driving the right stick (the camera). */
+        CAMERA,
+        HOLD,
+        /** Held still while another finger turns the camera. */
+        ANCHOR,
+        TWO_FINGER,
+        IGNORED,
+    }
 
     private class Touch(
         val id: Int,
         val downX: Float,
         val downY: Float,
-        val downTime: Long,
-        /** The half of the screen the finger landed on, which decides the stick it drives. */
-        val side: Stick,
         /** This touch landed while an earlier tap was waiting to see if it becomes a double tap. */
         val secondTap: Boolean,
-        /** This touch landed while another finger was already moving a stick or holding. */
+        /** This touch landed while another finger was already walking, holding or turning the camera. */
         val secondary: Boolean,
     ) {
         var state = State.PENDING
@@ -112,20 +112,20 @@ class GestureRecognizer(
         var heldButton: VitaButton? = null
         var originX = downX
         var originY = downY
-        /** A right-half swipe that may still turn out to be a flick; the stick waits until it's not. */
-        var flickPending = false
-        var flickTimer: Cancellable? = null
+
+        val moved: Float
+            get() = hypot(x - downX, y - downY)
     }
 
     private val touches = LinkedHashMap<Int, Touch>()
-    private val stickOwners = arrayOfNulls<Touch>(Stick.entries.size)
+    private var stickOwner: Touch? = null
+    private var cameraOwner: Touch? = null
 
-    /** The D-pad direction the left stick finger is holding. */
+    /** The D-pad direction the walking finger is holding. */
     private var stickDpad: VitaButton? = null
     /** Keeps a quick flick's D-pad press down for [GestureConfig.pulseMs] so the game sees it. */
     private var dpadPulse: Cancellable? = null
     private var dpadPulseButton: VitaButton? = null
-    private var viewWidth = 0f
 
     /** A finished tap waiting for the double tap window to run out before it becomes Cross. */
     private var pendingTap: Cancellable? = null
@@ -133,6 +133,7 @@ class GestureRecognizer(
     private var twoFingerStart = 0L
     private var twoFingerSecond = false
     private var twoFingerMoved = false
+    /** The two-finger touch already did its one thing (a swipe button). */
     private var twoFingerSwiped = false
     private var twoFingerTimer: Cancellable? = null
     private var lastTwoFingerTapUp: Long? = null
@@ -143,15 +144,10 @@ class GestureRecognizer(
     private val pressCount = IntArray(VitaButton.entries.size)
     private val pulseTimers = HashSet<Cancellable>()
 
-    fun setViewWidth(width: Float) {
-        viewWidth = width
-    }
-
     fun pointerDown(id: Int, x: Float, y: Float, timeMs: Long) {
         touches[id]?.let { pointerUp(id, it.x, it.y, timeMs) }
 
         val others = touches.values.toList()
-        val side = if (viewWidth > 0f && x >= viewWidth / 2) Stick.RIGHT else Stick.LEFT
 
         if (others.size == 1 && others[0].state == State.PENDING && !others[0].secondary) {
             // A second finger joined a touch that hasn't turned into anything yet.
@@ -163,7 +159,7 @@ class GestureRecognizer(
                 pulse(VitaButton.CROSS)
             }
             first.state = State.TWO_FINGER
-            touches[id] = Touch(id, x, y, timeMs, side, secondTap = false, secondary = false).apply {
+            touches[id] = Touch(id, x, y, secondTap = false, secondary = false).apply {
                 state = State.TWO_FINGER
             }
             startTwoFinger(timeMs)
@@ -171,13 +167,16 @@ class GestureRecognizer(
         }
 
         if (others.any { it.state == State.TWO_FINGER }) {
-            touches[id] = Touch(id, x, y, timeMs, side, secondTap = false, secondary = false).apply {
+            touches[id] = Touch(id, x, y, secondTap = false, secondary = false).apply {
                 state = State.IGNORED
             }
             return
         }
 
-        val secondary = others.any { it.state == State.STICK || it.state == State.HOLD }
+        // While a finger walks, holds or anchors the camera, another one can swipe the camera again.
+        val secondary = others.any {
+            it.state == State.STICK || it.state == State.HOLD || it.state == State.CAMERA || it.state == State.ANCHOR
+        }
         var secondTap = false
         if (!secondary && pendingTap != null) {
             pendingTap?.cancel()
@@ -185,45 +184,49 @@ class GestureRecognizer(
             secondTap = true
         }
 
-        val touch = Touch(id, x, y, timeMs, side, secondTap, secondary)
+        val touch = Touch(id, x, y, secondTap, secondary)
         touch.holdTimer = scheduler.schedule(config.holdTimeoutMs) { onHold(touch) }
         touches[id] = touch
     }
 
-    fun pointerMove(id: Int, x: Float, y: Float, timeMs: Long) {
+    fun pointerMove(id: Int, x: Float, y: Float, @Suppress("UNUSED_PARAMETER") timeMs: Long) {
         val touch = touches[id] ?: return
         touch.x = x
         touch.y = y
-        val moved = hypot(x - touch.downX, y - touch.downY)
 
         when (touch.state) {
-            State.PENDING -> if (moved > config.touchSlopPx) {
+            State.PENDING -> if (touch.moved > config.touchSlopPx) {
                 touch.holdTimer?.cancel()
                 touch.holdTimer = null
                 if (touch.secondTap) {
                     // Tap followed by a swipe: the tap still counts as Cross.
                     pulse(VitaButton.CROSS)
                 }
-                startStick(touch, timeMs)
+                if (touch.secondary) {
+                    // A second finger swiping while another is down turns the camera.
+                    startCamera(touch)
+                } else {
+                    startStick(touch)
+                }
             }
 
             State.HOLD -> {
-                if (stickOwners[touch.side.ordinal] == null && moved > config.touchSlopPx) {
-                    // Holding a button and then dragging moves the stick too (e.g. Circle + stick).
-                    stickOwners[touch.side.ordinal] = touch
+                if (stickOwner == null && touch.moved > config.touchSlopPx) {
+                    // Holding a button and then dragging walks too (e.g. Circle + stick).
+                    stickOwner = touch
                 }
-                if (stickOwners[touch.side.ordinal] === touch) {
+                if (stickOwner === touch) {
                     updateStick(touch)
                 }
             }
 
-            State.STICK -> if (!touch.flickPending) {
-                updateStick(touch)
-            }
+            State.STICK -> updateStick(touch)
+
+            State.CAMERA -> updateCamera(touch)
 
             State.TWO_FINGER -> twoFingerMovePending = true
 
-            State.IGNORED -> {}
+            State.ANCHOR, State.IGNORED -> {}
         }
     }
 
@@ -252,20 +255,14 @@ class GestureRecognizer(
 
             State.HOLD -> {
                 touch.heldButton?.let { release(it) }
-                if (stickOwners[touch.side.ordinal] === touch) {
-                    centerStick(touch.side)
+                if (stickOwner === touch) {
+                    centerStick()
                 }
             }
 
-            State.STICK -> if (touch.flickPending) {
-                touch.flickTimer?.cancel()
-                touch.flickTimer = null
-                touch.flickPending = false
-                stickOwners[touch.side.ordinal] = null
-                flickButton(touch)?.let { pulse(it) }
-            } else {
-                centerStick(touch.side)
-            }
+            State.STICK -> centerStick()
+
+            State.CAMERA -> centerCamera()
 
             State.TWO_FINGER -> {
                 // Lifting either finger ends the chance of a hold.
@@ -276,13 +273,13 @@ class GestureRecognizer(
                 }
             }
 
-            State.IGNORED -> {}
+            State.ANCHOR, State.IGNORED -> {}
         }
     }
 
     /**
-     * Call after the moves of every finger in one touch event. Two-finger swipes are judged on both
-     * fingers' new positions together.
+     * Call after the moves of every finger in one touch event. Two-finger gestures are judged on
+     * both fingers' new positions together.
      */
     fun movesFinished() {
         if (twoFingerMovePending) {
@@ -299,7 +296,6 @@ class GestureRecognizer(
     fun dropStaleTouches() {
         for (touch in touches.values) {
             touch.holdTimer?.cancel()
-            touch.flickTimer?.cancel()
             if (touch.state == State.HOLD) {
                 touch.heldButton?.let { release(it) }
             }
@@ -311,10 +307,11 @@ class GestureRecognizer(
             selectHeld = false
             release(VitaButton.SELECT)
         }
-        for (stick in Stick.entries) {
-            if (stickOwners[stick.ordinal] != null) {
-                centerStick(stick)
-            }
+        if (stickOwner != null) {
+            centerStick()
+        }
+        if (cameraOwner != null) {
+            centerCamera()
         }
     }
 
@@ -322,10 +319,10 @@ class GestureRecognizer(
     fun cancelAll() {
         for (touch in touches.values) {
             touch.holdTimer?.cancel()
-            touch.flickTimer?.cancel()
         }
         touches.clear()
-        stickOwners.fill(null)
+        stickOwner = null
+        cameraOwner = null
         stickDpad = null
         dpadPulse?.cancel()
         dpadPulse = null
@@ -368,41 +365,35 @@ class GestureRecognizer(
         output.onHoldRecognized()
     }
 
-    private fun startStick(touch: Touch, timeMs: Long) {
-        val side = touch.side
-        if (stickOwners[side.ordinal] != null) {
+    private fun startStick(touch: Touch) {
+        if (stickOwner != null) {
             touch.state = State.IGNORED
             return
         }
         touch.state = State.STICK
-        stickOwners[side.ordinal] = touch
-
-        if (side == Stick.RIGHT) {
-            val remaining = config.flickMaxMs - (timeMs - touch.downTime)
-            if (remaining > 0) {
-                // Wait to see whether the finger lifts (a flick for L1/R1) or stays down (the stick).
-                touch.flickPending = true
-                touch.flickTimer = scheduler.schedule(remaining) {
-                    touch.flickTimer = null
-                    if (touch.flickPending && stickOwners[side.ordinal] === touch) {
-                        touch.flickPending = false
-                        updateStick(touch)
-                    }
-                }
-                return
-            }
-        }
+        stickOwner = touch
         updateStick(touch)
     }
 
-    /** L1 for a flick to the right, R1 for one to the left, or nothing if it went another way. */
-    private fun flickButton(touch: Touch): VitaButton? {
-        val dx = touch.x - touch.downX
-        val dy = touch.y - touch.downY
-        if (abs(dx) < config.flickMinPx || abs(dx) < abs(dy) * FLICK_SLOPE) {
-            return null
+    /**
+     * [touch] turns the camera. A finger that's only holding (not walking) becomes its anchor and
+     * lets go of its button, so holding to steady the camera doesn't also press Circle.
+     */
+    private fun startCamera(touch: Touch) {
+        if (cameraOwner != null) {
+            touch.state = State.IGNORED
+            return
         }
-        return if (dx > 0) VitaButton.L1 else VitaButton.R1
+        for (held in touches.values) {
+            if (held.state == State.HOLD && held !== stickOwner) {
+                held.heldButton?.let { release(it) }
+                held.heldButton = null
+                held.state = State.ANCHOR
+            }
+        }
+        touch.state = State.CAMERA
+        cameraOwner = touch
+        updateCamera(touch)
     }
 
     private fun startTwoFinger(timeMs: Long) {
@@ -433,23 +424,50 @@ class GestureRecognizer(
             return
         }
 
-        val farthest = fingers.maxOf { hypot(it.x - it.downX, it.y - it.downY) }
-        if (!twoFingerMoved && farthest > config.touchSlopPx * 2) {
+        val farthest = fingers.maxBy { it.moved }
+        val nearest = fingers.minBy { it.moved }
+        if (!twoFingerMoved && farthest.moved > config.touchSlopPx * 2) {
             twoFingerMoved = true
             twoFingerTimer?.cancel()
             twoFingerTimer = null
         }
-
         if (twoFingerSwiped || selectHeld) {
+            return
+        }
+
+        // One finger holding still while the other swipes: the camera.
+        if (farthest.moved > config.touchSlopPx * CAMERA_START_SLOPS && nearest.moved < config.touchSlopPx) {
+            twoFingerTimer?.cancel()
+            twoFingerTimer = null
+            lastTwoFingerTapUp = null
+            nearest.state = State.ANCHOR
+            if (cameraOwner == null) {
+                farthest.state = State.CAMERA
+                cameraOwner = farthest
+                updateCamera(farthest)
+            } else {
+                farthest.state = State.IGNORED
+            }
+            return
+        }
+
+        // Both fingers swiping the same way: Triangle (up), L1 (right) or R1 (left).
+        if (nearest.moved < config.touchSlopPx) {
             return
         }
         val dx = fingers.sumOf { (it.x - it.downX).toDouble() }.toFloat() / 2
         val dy = fingers.sumOf { (it.y - it.downY).toDouble() }.toFloat() / 2
-        val bothUp = fingers.all { it.y < it.downY }
-        if (bothUp && -dy >= config.twoFingerSwipePx && -dy >= abs(dx) * FLICK_SLOPE) {
-            twoFingerSwiped = true
-            pulse(VitaButton.TRIANGLE)
+        if (hypot(dx, dy) < config.twoFingerSwipePx) {
+            return
         }
+        val button = when {
+            abs(dy) >= abs(dx) * SWIPE_SLOPE && fingers.all { it.y < it.downY } -> VitaButton.TRIANGLE
+            abs(dx) >= abs(dy) * SWIPE_SLOPE && fingers.all { it.x > it.downX } -> VitaButton.L1
+            abs(dx) >= abs(dy) * SWIPE_SLOPE && fingers.all { it.x < it.downX } -> VitaButton.R1
+            else -> null
+        }
+        twoFingerSwiped = true
+        button?.let { pulse(it) }
     }
 
     private fun endTwoFinger(timeMs: Long) {
@@ -469,7 +487,7 @@ class GestureRecognizer(
         val fingersStillDown = touches.keys.toList()
         cancelAll()
         for (id in fingersStillDown) {
-            touches[id] = Touch(id, 0f, 0f, 0L, Stick.LEFT, secondTap = false, secondary = false).apply {
+            touches[id] = Touch(id, 0f, 0f, secondTap = false, secondary = false).apply {
                 state = State.IGNORED
             }
         }
@@ -477,7 +495,8 @@ class GestureRecognizer(
         output.openMenu()
     }
 
-    private fun updateStick(touch: Touch) {
+    /** Where [touch] pushes a stick, as (x, y) with +y up, dragging its origin along past the edge. */
+    private fun stickPosition(touch: Touch): Pair<Float, Float> {
         var dx = touch.x - touch.originX
         var dy = touch.y - touch.originY
         val distance = hypot(dx, dy)
@@ -490,21 +509,29 @@ class GestureRecognizer(
             dx = touch.x - touch.originX
             dy = touch.y - touch.originY
         }
-
-        val x = dx / radius
-        val y = -dy / radius
-        output.setStick(touch.side, x, y)
-        if (touch.side == Stick.LEFT) {
-            setStickDpad(dpadFor(x, y))
-        }
+        return dx / radius to -dy / radius
     }
 
-    private fun centerStick(stick: Stick) {
-        stickOwners[stick.ordinal] = null
-        output.setStick(stick, 0f, 0f)
-        if (stick == Stick.LEFT) {
-            setStickDpad(null)
-        }
+    private fun updateStick(touch: Touch) {
+        val (x, y) = stickPosition(touch)
+        output.setStick(Stick.LEFT, x, y)
+        setStickDpad(dpadFor(x, y))
+    }
+
+    private fun updateCamera(touch: Touch) {
+        val (x, y) = stickPosition(touch)
+        output.setStick(Stick.RIGHT, x, y)
+    }
+
+    private fun centerStick() {
+        stickOwner = null
+        output.setStick(Stick.LEFT, 0f, 0f)
+        setStickDpad(null)
+    }
+
+    private fun centerCamera() {
+        cameraOwner = null
+        output.setStick(Stick.RIGHT, 0f, 0f)
     }
 
     /**
@@ -583,7 +610,13 @@ class GestureRecognizer(
         /** A pressed D-pad direction lets go once the swipe is more than about 56° away from it. */
         const val DPAD_KEEP_SLOPE = 1.5f
 
-        /** Flicks and two-finger swipes have to go mostly one way: within about 34° of it. */
-        const val FLICK_SLOPE = 1.5f
+        /** Two-finger swipes have to go mostly one way: within about 34° of it. */
+        const val SWIPE_SLOPE = 1.5f
+
+        /**
+         * With two fingers down, one has to move this many touch slops (while the other stays
+         * within one) to start the camera. Fingers swiping together both move by then.
+         */
+        const val CAMERA_START_SLOPS = 3f
     }
 }

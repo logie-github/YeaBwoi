@@ -14,7 +14,7 @@ lets go of the gestures' buttons and sticks.
  1 file changed, 22 insertions(+)
 
 diff --git a/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java b/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java
-index 51679da..f7c4400 100644
+index 51679da..fa97cae 100644
 --- a/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java
 +++ b/android/app/src/main/java/org/vita3k/emulator/overlay/InputOverlay.java
 @@ -20,6 +20,8 @@ import android.view.SurfaceView;
@@ -84,7 +84,7 @@ index 51679da..f7c4400 100644
  
 +    // Gesture controls take every touch on the game screen, so the game's touchscreen gets none.
 +    if (mGestures.getEnabled())
-+      return mGestures.onTouchEvent(event, v.getWidth());
++      return mGestures.onTouchEvent(event);
 +
      int action = event.getActionMasked();
      boolean firstPointer = action != MotionEvent.ACTION_POINTER_DOWN &&
