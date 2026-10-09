@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -56,17 +57,12 @@ fun PictureDialog(onDismiss: () -> Unit) {
 }
 
 /** How the picture is drawn, in the picture dialog and the in-game menu. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PictureSettings() {
     val context = LocalContext.current
     var picture by remember { mutableIntStateOf(AdConfig(context).picture) }
     var sharper by remember { mutableStateOf(AdConfig(context).sharper3d) }
-    var depth by remember { mutableIntStateOf(AdConfig(context).hd2dDepth) }
-    var bloom by remember { mutableStateOf(AdConfig(context).hd2dBloom) }
-    var motes by remember { mutableStateOf(AdConfig(context).hd2dMotes) }
     val choices = listOf(
-        Triple(AdConfig.PICTURE_HD2D, R.string.ad_picture_hd2d, R.string.ad_picture_hd2d_summary),
         Triple(AdConfig.PICTURE_SHARP, R.string.ad_picture_sharp, R.string.ad_picture_sharp_summary),
         Triple(AdConfig.PICTURE_SMOOTH, R.string.ad_picture_smooth, R.string.ad_picture_smooth_summary),
         Triple(AdConfig.PICTURE_CRT, R.string.ad_picture_crt, R.string.ad_picture_crt_summary),
@@ -78,43 +74,57 @@ fun PictureSettings() {
                 picture = value
                 AdConfig(context).picture = value
             }
-            if (value == AdConfig.PICTURE_HD2D && picture == AdConfig.PICTURE_HD2D) {
-                Column(
-                    Modifier.padding(start = 30.dp, top = 4.dp, bottom = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(stringResource(R.string.ad_hd2d_depth), style = MaterialTheme.typography.titleSmall)
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        for ((level, label) in listOf(
-                            AdConfig.DEPTH_OFF to R.string.ad_hd2d_depth_off,
-                            AdConfig.DEPTH_LIGHT to R.string.ad_hd2d_depth_light,
-                            AdConfig.DEPTH_STRONG to R.string.ad_hd2d_depth_strong,
-                        )) {
-                            AdButton(stringResource(label), primary = depth == level) {
-                                depth = level
-                                AdConfig(context).hd2dDepth = level
-                            }
-                        }
-                    }
-                    Text(stringResource(R.string.ad_hd2d_depth_summary), style = MaterialTheme.typography.bodySmall)
-                    AdSwitchRow(stringResource(R.string.ad_hd2d_bloom), stringResource(R.string.ad_hd2d_bloom_summary), bloom) {
-                        bloom = it
-                        AdConfig(context).hd2dBloom = it
-                    }
-                    AdSwitchRow(stringResource(R.string.ad_hd2d_motes), stringResource(R.string.ad_hd2d_motes_summary), motes) {
-                        motes = it
-                        AdConfig(context).hd2dMotes = it
-                    }
-                }
-            }
         }
     }
     AdSwitchRow(stringResource(R.string.ad_sharper_3d), stringResource(R.string.ad_sharper_3d_summary), sharper) {
         sharper = it
         AdConfig(context).sharper3d = it
+    }
+}
+
+/** The in-game menu's 2D-HD page: on or off, and its effects. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun Hd2dSettings() {
+    val context = LocalContext.current
+    var on by remember { mutableStateOf(AdConfig(context).hd2d) }
+    var depth by remember { mutableIntStateOf(AdConfig(context).hd2dDepth) }
+    var bloom by remember { mutableStateOf(AdConfig(context).hd2dBloom) }
+    var motes by remember { mutableStateOf(AdConfig(context).hd2dMotes) }
+
+    AdSwitchRow(stringResource(R.string.ad_hd2d), stringResource(R.string.ad_hd2d_summary), on) {
+        on = it
+        AdConfig(context).hd2d = it
+    }
+    Column(
+        Modifier.graphicsLayer { alpha = if (on) 1f else 0.45f },
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(stringResource(R.string.ad_hd2d_depth), style = MaterialTheme.typography.titleMedium)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            for ((level, label) in listOf(
+                AdConfig.DEPTH_OFF to R.string.ad_hd2d_depth_off,
+                AdConfig.DEPTH_LIGHT to R.string.ad_hd2d_depth_light,
+                AdConfig.DEPTH_STRONG to R.string.ad_hd2d_depth_strong,
+            )) {
+                AdButton(stringResource(label), primary = depth == level, enabled = on) {
+                    depth = level
+                    AdConfig(context).hd2dDepth = level
+                }
+            }
+        }
+        Text(stringResource(R.string.ad_hd2d_depth_summary), style = MaterialTheme.typography.bodySmall)
+        AdSwitchRow(stringResource(R.string.ad_hd2d_bloom), stringResource(R.string.ad_hd2d_bloom_summary), bloom) {
+            bloom = it
+            AdConfig(context).hd2dBloom = it
+        }
+        AdSwitchRow(stringResource(R.string.ad_hd2d_motes), stringResource(R.string.ad_hd2d_motes_summary), motes) {
+            motes = it
+            AdConfig(context).hd2dMotes = it
+        }
     }
 }
 

@@ -53,6 +53,7 @@ Back gesture or the two-finger menu gesture. The game pauses while it's open.
 
 - **Save state / Load state**: three slots. A state keeps the exact moment, anywhere, even inside the tower. The game's own saves are on the memory card and aren't touched by states.
 - **Speed**: 1×, 2× or 3× (fast forward).
+- **2D-HD**: on or off, and its effects (below).
 - **Picture**: sharp pixels, smooth, CRT TV scanlines or upscaled, and **Sharper 3D** (twice the PlayStation's resolution).
 - **Controls**: the gesture guide and the vibration switch.
 - **Reset game**, **Check for updates**, **Quit to title**.
@@ -61,7 +62,7 @@ Leaving the game in any way (quitting, switching apps, the phone sleeping) saves
 
 ## 2D-HD
 
-**Picture → 2D-HD** gives the game the look of Square Enix's HD-2D games (Octopath Traveler, Triangle Strategy): its pixel sprites in a 3D world are made for it.
+**2D-HD** in the in-game menu gives the game the look of Square Enix's HD-2D games (Octopath Traveler, Triangle Strategy): its pixel sprites in a 3D world are made for it. While it's on, it takes the place of the Picture choice; switching it off goes back to that choice.
 
 - The pixels stay sharp.
 - **Depth of field** (Off, **Light**, Strong): tilt-shift blur, so the far top and the near bottom of the scene go soft and the middle, where Koh is, stays in focus.

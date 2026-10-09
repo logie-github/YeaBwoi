@@ -53,7 +53,7 @@ import com.logie.azuredreams.AdFiles
 import com.logie.azuredreams.MenuActivity.Action
 import com.logie.azuredreams.R
 
-private enum class MenuPage { MAIN, SAVE, LOAD, PICTURE, CONTROLS }
+private enum class MenuPage { MAIN, SAVE, LOAD, HD2D, PICTURE, CONTROLS }
 
 /** The in-game menu: a column of PlayStation RPG windows over the dimmed, paused game. */
 @Composable
@@ -111,6 +111,9 @@ fun AdMenuScreen(
                         )
                         MenuPage.SAVE -> SlotsPage(save = true, onBack = { page = MenuPage.MAIN }, onAction = onAction)
                         MenuPage.LOAD -> SlotsPage(save = false, onBack = { page = MenuPage.MAIN }, onAction = onAction)
+                        MenuPage.HD2D -> SettingsPage(stringResource(R.string.ad_hd2d), onBack = { page = MenuPage.MAIN }) {
+                            Hd2dSettings()
+                        }
                         MenuPage.PICTURE -> SettingsPage(stringResource(R.string.ad_picture_title), onBack = { page = MenuPage.MAIN }) {
                             PictureSettings()
                         }
@@ -165,6 +168,10 @@ private fun MainPage(
                     )
                 }
             }
+            MenuItem(
+                stringResource(R.string.ad_hd2d),
+                detail = stringResource(if (AdConfig(context).hd2d) R.string.ad_menu_on else R.string.ad_menu_off),
+            ) { onPage(MenuPage.HD2D) }
             MenuItem(stringResource(R.string.ad_menu_picture)) { onPage(MenuPage.PICTURE) }
             MenuItem(stringResource(R.string.ad_menu_controls)) { onPage(MenuPage.CONTROLS) }
             MenuItem(stringResource(if (confirmReset) R.string.ad_menu_reset_confirm else R.string.ad_menu_reset)) {
@@ -178,7 +185,7 @@ private fun MainPage(
 
 /** A menu line; the pointer sits beside the highlighted one and whichever is being touched. */
 @Composable
-private fun MenuItem(text: String, highlighted: Boolean = false, onClick: () -> Unit) {
+private fun MenuItem(text: String, highlighted: Boolean = false, detail: String? = null, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     var touched by remember { mutableStateOf(false) }
     LaunchedEffect(interaction) {
@@ -197,7 +204,15 @@ private fun MenuItem(text: String, highlighted: Boolean = false, onClick: () -> 
         Text(
             text.uppercase(),
             style = AdDisplayStyle.copy(fontSize = 14.sp, color = if (highlighted || touched) AdColors.Gold else AdColors.Text),
+            modifier = Modifier.weight(1f),
         )
+        if (detail != null) {
+            Text(
+                detail.uppercase(),
+                style = AdDisplayStyle.copy(fontSize = 12.sp, color = AdColors.TextDim),
+                modifier = Modifier.padding(end = 8.dp),
+            )
+        }
     }
 }
 
