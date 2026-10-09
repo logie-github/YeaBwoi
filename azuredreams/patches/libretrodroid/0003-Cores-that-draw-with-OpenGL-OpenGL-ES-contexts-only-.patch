@@ -2,9 +2,9 @@ From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Azure Dreams <azuredreams@users.noreply.github.com>
 Date: Fri, 9 Oct 2026 16:46:35 +0000
 Subject: [PATCH 3/3] Cores that draw with OpenGL: OpenGL ES contexts only,
- framebuffer at the frames' size, a hook before pausing
+ framebuffer at the frames' size, their state put back
 
-Three things SwanStation (and any core like it) needs:
+What SwanStation (and any core like it) needs:
 
 - SET_HW_RENDER refuses context types other than OpenGL ES. The context is
   always OpenGL ES, and cores that try desktop OpenGL first only go on to ask
@@ -12,14 +12,16 @@ Three things SwanStation (and any core like it) needs:
 - The framebuffer follows the size of the frames the core draws, which can
   change without SET_GEOMETRY (with the game's display mode, or the internal
   resolution). It's resized when the core next asks for it, before drawing.
-- GLRetroView.onBeforePause runs before emulation pauses, while the emulation
-  thread still has its context current: a core that reads its state back from
-  the GPU can only be serialized then.
+- Before drawing the core's frame, the state the shader passes rely on is put
+  back. SwanStation hands its frame over with its vertex array object still
+  bound, and client-side vertex arrays draw nothing then: the screen stayed
+  black.
 ---
- libretrodroid/src/main/cpp/environment.cpp          | 12 ++++++++++++
- .../main/cpp/renderers/es3/framebufferrenderer.cpp  | 13 +++++++++++++
- .../java/com/swordfish/libretrodroid/GLRetroView.kt |  8 ++++++++
- 3 files changed, 33 insertions(+)
+ libretrodroid/src/main/cpp/environment.cpp    | 12 ++++++++++
+ .../cpp/renderers/es3/framebufferrenderer.cpp | 13 +++++++++++
+ libretrodroid/src/main/cpp/video.cpp          | 22 ++++++++++++++++++-
+ libretrodroid/src/main/cpp/video.h            |  2 ++
+ 4 files changed, 48 insertions(+), 1 deletion(-)
 
 diff --git a/libretrodroid/src/main/cpp/environment.cpp b/libretrodroid/src/main/cpp/environment.cpp
 index 941de81..2729ed5 100644
@@ -75,29 +77,63 @@ index 67d009c..fbbb562 100644
      return framebuffer->framebuffer;
  }
  
-diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
-index 83c59e2..956febe 100644
---- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
-+++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
-@@ -84,6 +84,13 @@ class GLRetroView(
+diff --git a/libretrodroid/src/main/cpp/video.cpp b/libretrodroid/src/main/cpp/video.cpp
+index a75dbaf..6e7dc1f 100644
+--- a/libretrodroid/src/main/cpp/video.cpp
++++ b/libretrodroid/src/main/cpp/video.cpp
+@@ -15,7 +15,7 @@
+  *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  */
  
-     private var lifecycle: Lifecycle? = null
+-#include <GLES2/gl2.h>
++#include <GLES3/gl3.h>
+ #include <EGL/egl.h>
+ #include <cstdlib>
+ #include <string>
+@@ -141,6 +141,25 @@ void Video::renderFrame() {
+     if (skipDuplicateFrames && !isDirty) return;
+     isDirty = false;
  
-+    /**
-+     * Runs on the main thread when the lifecycle pauses, before emulation stops: the last moment
-+     * the emulation thread still runs with its OpenGL context current, so the state of a core that
-+     * draws with OpenGL (and reads it back to save it) can still be taken with [serializeState].
-+     */
-+    var onBeforePause: (() -> Unit)? = null
++    if (resetCoreState) {
++        // A core that draws with OpenGL ES can hand its frame over with its own state still bound
++        // (SwanStation leaves a vertex array object). The passes below use client-side vertex
++        // arrays, which only work with no vertex array object and no array buffer bound, so put
++        // back the state they rely on.
++        glBindVertexArray(0);
++        glBindBuffer(GL_ARRAY_BUFFER, 0);
++        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
++        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
++        glBindSampler(0, 0);
++        glBindSampler(1, 0);
++        glDisable(GL_SCISSOR_TEST);
++        glDisable(GL_STENCIL_TEST);
++        glDisable(GL_BLEND);
++        glDisable(GL_CULL_FACE);
++        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
++        glActiveTexture(GL_TEXTURE0);
++    }
 +
-     init {
-         openGLESVersion = getGLESVersion(context)
-         preserveEGLContextOnPause = true
-@@ -309,6 +316,7 @@ class GLRetroView(
+     glDisable(GL_DEPTH_TEST);
  
-         @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
-         private fun pause() = catchExceptions {
-+            onBeforePause?.invoke()
-             isEmulationReady = false
-             onPause()
-             LibretroDroid.pause()
+     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+@@ -291,6 +310,7 @@ void Video::updateShaderType(ShaderManager::Config shaderConfig) {
+ 
+ void Video::initializeRenderer(RenderingOptions renderingOptions) {
+     auto shaders = ShaderManager::getShader(requestedShaderConfig);
++    resetCoreState = renderingOptions.hardwareAccelerated && renderingOptions.openglESVersion >= 3;
+ 
+     if (renderingOptions.hardwareAccelerated) {
+         renderer = new FramebufferRenderer(
+diff --git a/libretrodroid/src/main/cpp/video.h b/libretrodroid/src/main/cpp/video.h
+index 05bd6b6..d1a86ca 100644
+--- a/libretrodroid/src/main/cpp/video.h
++++ b/libretrodroid/src/main/cpp/video.h
+@@ -104,6 +104,8 @@ private:
+ 
+     bool isDirty = false;
+     bool skipDuplicateFrames = false;
++    /** The core draws with OpenGL ES 3 itself, and its state has to be put back before drawing. */
++    bool resetCoreState = false;
+ 
+     std::vector<ShaderChainEntry> shadersChain;
+ 

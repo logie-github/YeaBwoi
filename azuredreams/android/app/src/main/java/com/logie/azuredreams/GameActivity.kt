@@ -25,25 +25,24 @@ import com.swordfish.libretrodroid.GLRetroViewData
 import com.swordfish.libretrodroid.ShaderConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicReference
-import kotlin.concurrent.thread
 
 /**
  * The game: the emulator's picture, the gesture layer over it and the CRT switch-on. The in-game
- * menu ([MenuActivity]) opens over it and pauses it. Leaving or pausing the game saves where it
- * was (the resume state), which Play picks up next time.
+ * menu ([MenuActivity]) opens over it and pauses it. The game always boots fresh, to its own title
+ * screen: nothing carries over from the last time but the memory card and the save state slots.
  *
  * SwanStation draws with OpenGL ES and reads its state back from the GPU, so its state is only
- * saved, loaded or reset on the emulation thread while that runs with its context: just before the
- * game pauses, and once it draws again after.
+ * saved, loaded or reset on the emulation thread while that runs with its context: once the game
+ * draws again after the in-game menu.
  */
 class GameActivity : ComponentActivity() {
     private lateinit var retroView: GLRetroView
@@ -63,6 +62,12 @@ class GameActivity : ComponentActivity() {
     private var appliedSteady3d: Boolean? = null
     /** The BIOS the game started on ([AdFiles.biosTag]), noted with each state saved. */
     private lateinit var biosTag: String
+    /** Memory card 1 as it was last written to its file. */
+    private var savedCard: ByteArray? = null
+    /** The card file is copied to a backup before the first time the game changes it. */
+    private var cardBackedUp = false
+    /** Looks for changes to the memory card every few seconds while the game runs. */
+    private var cardWatch: Job? = null
 
     private val menu = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val action = MenuActivity.actionOf(result.resultCode, result.data)
@@ -90,12 +95,13 @@ class GameActivity : ComponentActivity() {
             systemDirectory = AdFiles.systemDir(this@GameActivity).absolutePath
             savesDirectory = AdFiles.savesDir(this@GameActivity).absolutePath
             variables = AdCore.variables(this@GameActivity, config)
+            // Memory card 1 is the app's to keep (the game's own saves).
+            saveRAMState = AdFiles.readMemoryCard(this@GameActivity).also { savedCard = it }
             shader = AdCore.shader(config)
             rumbleEventsEnabled = false
             preferLowLatencyAudio = true
         }
         retroView = GLRetroView(this, data)
-        retroView.onBeforePause = ::saveResumeState
         lifecycle.addObserver(retroView)
         gestureView = GestureView(this, retroView, onMenu = ::openMenu)
         moteView = MoteView(this).apply { visibility = View.GONE }
@@ -117,12 +123,11 @@ class GameActivity : ComponentActivity() {
             override fun handleOnBackPressed() = openMenu()
         })
 
-        val resume = intent.getBooleanExtra(EXTRA_RESUME, false)
         lifecycleScope.launch {
             retroView.getGLRetroEvents().first { it is GLRetroView.GLRetroEvents.FrameRendered }
-            if (resume) loadState(AdFiles.RESUME_SLOT, quiet = true)
             started = true
             applySettings()
+            watchMemoryCard()
             moteView.setRunning(true)
             crtView.switchOn()
         }
@@ -142,40 +147,45 @@ class GameActivity : ComponentActivity() {
                     run(action)
                 }
             }
+            watchMemoryCard()
             moteView.setRunning(true)
         }
         pendingAction = null
     }
 
     override fun onPause() {
-        // The resume state was saved just before this (saveResumeState), while the emulator ran.
         if (::gestureView.isInitialized) gestureView.releaseAll()
         if (::moteView.isInitialized) moteView.setRunning(false)
+        cardWatch?.cancel()
+        cardWatch = null
+        // The game has paused (LibretroDroid follows the lifecycle), so its memory card can be read
+        // here. Leaving the app can be the last chance before it's closed.
+        if (started) runCatching { retroView.serializeSRAM(false) }.getOrNull()?.let { keepMemoryCard(it) }
         super.onPause()
     }
 
-    /**
-     * Saves where the game is (the resume state) as it's about to pause, on the emulation thread
-     * while that still runs. Waits only a moment for it, so a stuck emulator can't hang the app.
-     */
-    private fun saveResumeState() {
-        if (!started) return
-        val state = AtomicReference<ByteArray?>()
-        val done = CountDownLatch(1)
-        thread(name = "resume-state") {
-            state.set(runCatching { retroView.serializeState() }.getOrNull())
-            done.countDown()
+    /** Writes the memory card to its file every few seconds while the game changes it. */
+    private fun watchMemoryCard() {
+        cardWatch?.cancel()
+        cardWatch = lifecycleScope.launch {
+            while (true) {
+                delay(CARD_WATCH_MS)
+                val card = withContext(Dispatchers.IO) { runCatching { retroView.serializeSRAM() }.getOrNull() }
+                card?.let { keepMemoryCard(it) }
+            }
         }
-        if (!done.await(RESUME_SAVE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-            Log.w(TAG, "The emulator didn't hand over its state in time")
-            return
-        }
-        val bytes = state.get()?.takeIf { it.isNotEmpty() } ?: return
+    }
+
+    /** Writes [card] (memory card 1, from the emulator) to its file if the game changed it. */
+    private fun keepMemoryCard(card: ByteArray) {
+        if (card.size != AdFiles.MEMORY_CARD_SIZE || card.contentEquals(savedCard)) return
+        savedCard = card
+        val backup = !cardBackedUp
+        cardBackedUp = true
         val context = applicationContext
-        val bios = biosTag
-        io.launch {
-            runCatching { AdFiles.writeState(context, AdFiles.RESUME_SLOT, bytes, bios) }
-                .onFailure { Log.w(TAG, "Couldn't save the resume state", it) }
+        cardWriter.launch {
+            runCatching { AdFiles.writeMemoryCard(context, card, backup) }
+                .onFailure { Log.w(TAG, "Couldn't save the memory card", it) }
         }
     }
 
@@ -224,7 +234,7 @@ class GameActivity : ComponentActivity() {
                 toast(if (saved) getString(R.string.ad_state_saved, action.slot) else getString(R.string.ad_state_save_failed))
             }
 
-            is MenuActivity.Action.Load -> lifecycleScope.launch { loadState(action.slot, quiet = false) }
+            is MenuActivity.Action.Load -> lifecycleScope.launch { loadState(action.slot) }
 
             // Like saving and loading, this waits for the emulator's thread: never on this one.
             is MenuActivity.Action.Reset -> lifecycleScope.launch(Dispatchers.IO) { retroView.reset() }
@@ -233,24 +243,20 @@ class GameActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun loadState(slot: Int, quiet: Boolean) {
+    private suspend fun loadState(slot: Int) {
         val loaded = withContext(Dispatchers.IO) {
             val file = AdFiles.stateFile(this@GameActivity, slot)
             if (!file.isFile) return@withContext false
             runCatching { retroView.unserializeState(file.readBytes()) }.getOrDefault(false)
         }
-        if (!quiet || !loaded && AdFiles.stateTime(this, slot) != null) {
-            toast(
-                when {
-                    // A state made on another BIOS brings that one's code back with it.
-                    loaded && slot != AdFiles.RESUME_SLOT && AdFiles.stateFromOtherBios(this, slot) ->
-                        getString(R.string.ad_state_loaded_other_bios, slot)
-                    loaded -> getString(R.string.ad_state_loaded, slot)
-                    slot == AdFiles.RESUME_SLOT -> getString(R.string.ad_resume_failed)
-                    else -> getString(R.string.ad_state_load_failed)
-                }
-            )
-        }
+        toast(
+            when {
+                // A state made on another BIOS brings that one's code back with it.
+                loaded && AdFiles.stateFromOtherBios(this, slot) -> getString(R.string.ad_state_loaded_other_bios, slot)
+                loaded -> getString(R.string.ad_state_loaded, slot)
+                else -> getString(R.string.ad_state_load_failed)
+            }
+        )
     }
 
     private fun showError(error: Int) {
@@ -291,14 +297,13 @@ class GameActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "AzureDreams"
-        private const val EXTRA_RESUME = "com.logie.azuredreams.RESUME"
-        private const val RESUME_SAVE_TIMEOUT_MS = 2000L
+        private const val CARD_WATCH_MS = 3000L
 
-        /** Background work that has to finish even when the game closes (saving states). */
-        private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        /** Writes the memory card one write after another, even after the game has closed. */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        private val cardWriter = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
 
-        /** Starts the game, from where it was left if [resume] and there's a resume state. */
-        fun intent(context: Context, resume: Boolean): Intent =
-            Intent(context, GameActivity::class.java).putExtra(EXTRA_RESUME, resume)
+        /** Boots the game. */
+        fun intent(context: Context): Intent = Intent(context, GameActivity::class.java)
     }
 }

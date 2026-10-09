@@ -22,9 +22,8 @@ object AdCore {
             steady3d(config.steady3d),
             // 24-bit color instead of the PlayStation's dithered 15-bit: smooth shading when upscaled.
             Variable("swanstation_GPU_TrueColor", "true"),
-            // One memory card file for the app (saves/duckstation_shared_card_1.mcd), written a few
-            // seconds after the game saves.
-            Variable("swanstation_MemoryCards_Card1Type", "Shared"),
+            // Memory card 1 is handed to the app (libretro save RAM), which keeps it in its file.
+            Variable("swanstation_MemoryCards_Card1Type", "Libretro"),
             Variable("swanstation_BIOS_PathNTSCU", bios),
             Variable("swanstation_BIOS_PathNTSCJ", bios),
             Variable("swanstation_BIOS_PathPAL", bios),

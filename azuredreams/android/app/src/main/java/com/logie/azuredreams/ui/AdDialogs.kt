@@ -264,7 +264,6 @@ fun DiscDialog(onReplace: () -> Unit, onDismiss: () -> Unit) {
             AdButton(stringResource(if (confirmDelete) R.string.ad_disc_delete_confirm else R.string.ad_disc_delete), primary = false) {
                 if (confirmDelete) {
                     AdFiles.deleteGame(context)
-                    AdFiles.deleteState(context, AdFiles.RESUME_SLOT)
                     onDismiss()
                 } else {
                     confirmDelete = true

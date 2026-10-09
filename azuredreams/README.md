@@ -22,9 +22,9 @@ Why not DuckStation itself: its license (CC BY-NC-ND, now PolyForm Strict) doesn
 
 Add a BIOS dumped from your own PlayStation (`scph1001.bin`, `scph5501.bin` and the like, 512 KB, any region): **Add BIOS** on the title screen, or the **BIOS** tile. The game boots without one, on OpenBIOS (a free BIOS SwanStation carries), but the game's own memory card saves are only known to work with a real BIOS: on PCSX ReARMed's stand-in, Azure Dreams froze when it saved. Save states work either way.
 
-A save state carries the BIOS it was made on in the game's memory. After adding a BIOS, start from the title screen (**From the title screen**) so the game runs on it; the app points it out when a resume point or slot is from before.
+A save state carries the BIOS it was made on in the game's memory: the app points it out when you load a slot made before you added yours.
 
-After that, opening the app goes straight back into the game, where you left it, once it has checked for updates.
+After that, opening the app goes straight into the game once it has checked for updates. The game always starts fresh, at its own title screen: load your save from the memory card there.
 
 ## Controls
 
@@ -61,7 +61,7 @@ Back gesture or the two-finger menu gesture. The game pauses while it's open.
 - **Controls**: the gesture guide and the vibration switch.
 - **Reset game**, **Check for updates**, **Quit to title**.
 
-Leaving the game in any way (quitting, switching apps, the phone sleeping) saves where it was. **PRESS START** picks up from there; **From the title screen** boots the game instead.
+Switching apps or the phone sleeping pauses the game where it is. Closing the app or **Quit to title** ends it: the next start boots the game fresh to its title screen. Save in the game (or in a save state slot) before closing.
 
 ## 2D-HD
 
@@ -79,7 +79,7 @@ It works the same at any resolution: the effects are worked out at the PlayStati
 
 ## Saves
 
-The game saves to memory card 1, which SwanStation writes to `saves/duckstation_shared_card_1.mcd` in the app's storage a few seconds after the game saves (the card from the PCSX ReARMed versions, `pcsx-card1.mcd`, moves there). **Memory card** on the title screen imports a card from another emulator or a PlayStation (`.mcd`, `.mcr`, `.srm`, DexDrive `.gme`, PSP `.vmp`) and exports a copy (`.mcd`) for other emulators. Importing keeps the replaced card as a backup.
+The game saves to memory card 1, which the app keeps in `saves/duckstation_shared_card_1.mcd` in its storage: it's written within a few seconds of the game saving, and whenever the game pauses (leaving the app, the in-game menu), so a save is kept even if the app is closed right after. The first change in a session keeps the card it replaces as a backup (`.backup`).
 
 Save states and the memory card stay when the app updates and when you replace or delete the disc. Save states from the PCSX ReARMed versions don't load on SwanStation; they're kept, renamed `.pcsx`, in the app's `states/` folder.
 
@@ -94,7 +94,7 @@ Like the other apps: the app checks this repository's releases (`ad-build-N`) wh
 | `app.env` | Package, app name and release tag prefix |
 | `core-version.env` | The SwanStation commit to build |
 | `libretrodroid-version.env` | The LibretroDroid commit to build (its 0.14.0 release) |
-| `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, saving the state before pausing) |
+| `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, putting the core's OpenGL state back before drawing its frame) |
 | `android/` | The app (`app/`): title screen, game screen, in-game menu, gestures, update checker. `libretrodroid/` builds LibretroDroid from `libretrodroid/upstream/`. |
 | `branding/` | Source images. `make-icons.py` rebuilds the launcher icon layers from `icon.png`. |
 | `fonts/` | Licenses of the pixel fonts (Press Start 2P, Pixelify Sans), both SIL Open Font License |

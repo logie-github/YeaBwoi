@@ -13,8 +13,8 @@ import com.logie.azuredreams.ui.AdHomeRoute
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // The memory card and save states from before the app ran on SwanStation.
-        AdFiles.moveFromOldCore(this)
+        // The memory card and save states from earlier versions.
+        AdFiles.tidyUp(this)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
