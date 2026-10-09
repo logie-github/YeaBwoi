@@ -55,7 +55,7 @@ A game controller works too; plug it in or pair it and play.
 Back gesture or the two-finger menu gesture. The game pauses while it's open.
 
 - **Save state / Load state**: three slots. A state keeps the exact moment, anywhere, even inside the tower. The game's own saves are on the memory card and aren't touched by states.
-- **Speed**: 1×, 2× or 3× (fast forward).
+- **Speed**: 1×, 2× or 3× (fast forward). The sound keeps its pitch: it's time-stretched to the game's speed rather than played back faster.
 - **2D-HD**: on or off, and its effects (below).
 - **Picture**: **Resolution** (1× to 8× the PlayStation's, 4× to start with: 1280 × 960), **Steady 3D** (PGXP: no wobbling polygons or warping textures), and sharp pixels, smooth, CRT TV scanlines or upscaled.
 - **Controls**: the gesture guide and the vibration switch.
@@ -94,7 +94,7 @@ Like the other apps: the app checks this repository's releases (`ad-build-N`) wh
 | `core-version.env` | The SwanStation commit to build |
 | `libretrodroid-version.env` | The LibretroDroid commit to build (its 0.14.0 release) |
 | `patches/swanstation/` | Changes to SwanStation: the scene's depth in the frame's alpha, for 2D-HD |
-| `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, putting the core's OpenGL state back before drawing its frame) |
+| `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, putting the core's OpenGL state back before drawing its frame), and fast forward's time-stretched sound |
 | `android/` | The app (`app/`): title screen, game screen, in-game menu, gestures, update checker. `libretrodroid/` builds LibretroDroid from `libretrodroid/upstream/`. |
 | `branding/` | Source images. `make-icons.py` rebuilds the launcher icon layers from `icon.png`. |
 | `fonts/` | Licenses of the pixel fonts (Press Start 2P, Pixelify Sans), both SIL Open Font License |

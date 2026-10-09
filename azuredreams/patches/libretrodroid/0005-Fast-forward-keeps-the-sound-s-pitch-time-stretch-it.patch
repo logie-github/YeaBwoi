@@ -1,0 +1,340 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Azure Dreams <azuredreams@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 23:28:47 +0000
+Subject: [PATCH 5/5] Fast forward keeps the sound's pitch: time-stretch it
+ instead of playing it faster
+
+The game's speed no longer changes how fast the sound is played back. When the
+game runs faster than normal, its audio is time-stretched to that speed (WSOLA:
+short overlapping pieces, joined where their waveforms line up) before it's
+queued, so music and sound effects stay at their pitch and in step with the
+game. At normal speed the audio goes through untouched.
+---
+ libretrodroid/src/main/cpp/CMakeLists.txt  |   2 +
+ libretrodroid/src/main/cpp/audio.cpp       |   7 +-
+ libretrodroid/src/main/cpp/audio.h         |   9 +-
+ libretrodroid/src/main/cpp/timestretch.cpp | 161 +++++++++++++++++++++
+ libretrodroid/src/main/cpp/timestretch.h   |  69 +++++++++
+ 5 files changed, 245 insertions(+), 3 deletions(-)
+ create mode 100644 libretrodroid/src/main/cpp/timestretch.cpp
+ create mode 100644 libretrodroid/src/main/cpp/timestretch.h
+
+diff --git a/libretrodroid/src/main/cpp/CMakeLists.txt b/libretrodroid/src/main/cpp/CMakeLists.txt
+index 5a845df..03e065c 100644
+--- a/libretrodroid/src/main/cpp/CMakeLists.txt
++++ b/libretrodroid/src/main/cpp/CMakeLists.txt
+@@ -47,6 +47,8 @@ add_library(libretrodroid SHARED
+         renderers/es3/imagerendereres3.cpp
+         audio.h
+         audio.cpp
++        timestretch.h
++        timestretch.cpp
+         resamplers/resampler.h
+         resamplers/linearresampler.h
+         resamplers/linearresampler.cpp
+diff --git a/libretrodroid/src/main/cpp/audio.cpp b/libretrodroid/src/main/cpp/audio.cpp
+index c6e721a..b61c052 100644
+--- a/libretrodroid/src/main/cpp/audio.cpp
++++ b/libretrodroid/src/main/cpp/audio.cpp
+@@ -28,6 +28,7 @@ Audio::Audio(int32_t sampleRate, double refreshRate, bool preferLowLatencyAudio)
+ 
+     contentRefreshRate = refreshRate;
+     inputSampleRate = sampleRate;
++    timeStretch = std::make_unique<TimeStretch>(sampleRate);
+     audioLatencySettings = findBestLatencySettings(preferLowLatencyAudio);
+     initializeStream();
+ }
+@@ -98,7 +99,9 @@ void Audio::stop() {
+ }
+ 
+ void Audio::write(const int16_t *data, size_t frames) {
+-    fifoBuffer->write(data, frames * 2);
++    stretchedAudio.clear();
++    timeStretch->process(data, frames, playbackSpeed, stretchedAudio);
++    fifoBuffer->write(stretchedAudio.data(), (int32_t) stretchedAudio.size());
+ }
+ 
+ void Audio::setPlaybackSpeed(const double newPlaybackSpeed) {
+@@ -107,7 +110,7 @@ void Audio::setPlaybackSpeed(const double newPlaybackSpeed) {
+ 
+ oboe::DataCallbackResult Audio::onAudioReady(oboe::AudioStream *oboeStream, void *audioData, int32_t numFrames) {
+     double dynamicBufferFactor = computeDynamicBufferConversionFactor(0.001 * numFrames);
+-    double finalConversionFactor = baseConversionFactor * dynamicBufferFactor * playbackSpeed;
++    double finalConversionFactor = baseConversionFactor * dynamicBufferFactor;
+ 
+     // When using low-latency stream, numFrames is very low (~100) and the dynamic buffer scaling doesn't work with rounding.
+     // By keeping track of the "fractional" frames we can keep the error smaller.
+diff --git a/libretrodroid/src/main/cpp/audio.h b/libretrodroid/src/main/cpp/audio.h
+index b0cb5ed..cebc3ae 100644
+--- a/libretrodroid/src/main/cpp/audio.h
++++ b/libretrodroid/src/main/cpp/audio.h
+@@ -19,11 +19,14 @@
+ #define LIBRETRODROID_AUDIO_H
+ 
+ #include <array>
++#include <atomic>
+ #include <unistd.h>
++#include <vector>
+ #include <oboe/Oboe.h>
+ #include <oboe/FifoBuffer.h>
+ 
+ #include "resamplers/linearresampler.h"
++#include "timestretch.h"
+ 
+ namespace libretrodroid {
+ 
+@@ -86,7 +89,11 @@ private:
+     double framesToSubmit = 0.0;
+     double errorIntegral = 0.0;
+ 
+-    double playbackSpeed = 1.0;
++    // How much faster than normal the game runs. The sound is time-stretched to it before it's
++    // queued, so it keeps its pitch, rather than played back faster.
++    std::atomic<double> playbackSpeed { 1.0 };
++    std::unique_ptr<TimeStretch> timeStretch;
++    std::vector<int16_t> stretchedAudio;
+ 
+     std::unique_ptr<AudioLatencySettings> audioLatencySettings;
+ };
+diff --git a/libretrodroid/src/main/cpp/timestretch.cpp b/libretrodroid/src/main/cpp/timestretch.cpp
+new file mode 100644
+index 0000000..9f39bf8
+--- /dev/null
++++ b/libretrodroid/src/main/cpp/timestretch.cpp
+@@ -0,0 +1,161 @@
++/*
++ *     Copyright (C) 2019  Filippo Scognamiglio
++ *
++ *     This program is free software: you can redistribute it and/or modify
++ *     it under the terms of the GNU General Public License as published by
++ *     the Free Software Foundation, either version 3 of the License, or
++ *     (at your option) any later version.
++ *
++ *     This program is distributed in the hope that it will be useful,
++ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *     GNU General Public License for more details.
++ *
++ *     You should have received a copy of the GNU General Public License
++ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#include "timestretch.h"
++
++#include <algorithm>
++#include <cmath>
++
++namespace libretrodroid {
++
++static size_t framesFor(int32_t sampleRate, double milliseconds) {
++    return std::max<size_t>(1, std::lround(sampleRate * milliseconds / 1000.0));
++}
++
++TimeStretch::TimeStretch(int32_t sampleRate): sampleRate(sampleRate) {
++    overlapFrames = framesFor(sampleRate, 8.0);
++    tail.resize(overlapFrames * 2);
++    tailShape.resize(overlapFrames);
++}
++
++void TimeStretch::configure(double newTempo) {
++    // Shorter pieces and a narrower search the faster it goes (the curve SoundTouch uses): 90 ms
++    // pieces searched over 20 ms at half speed, down to 40 ms over 15 ms from double speed up.
++    double t = std::clamp((newTempo - 0.5) / 1.5, 0.0, 1.0);
++    pieceFrames = std::max(framesFor(sampleRate, 90.0 - 50.0 * t), overlapFrames * 2 + 1);
++    seekFrames = framesFor(sampleRate, 20.0 - 5.0 * t);
++    skipFrames = newTempo * (double) (pieceFrames - overlapFrames);
++    tempo = newTempo;
++}
++
++void TimeStretch::process(const int16_t *data, size_t frames, double newTempo, std::vector<int16_t> &output) {
++    if (newTempo <= 1.0) {
++        if (active) {
++            fadeOutTail(data, frames, output);
++        } else {
++            output.insert(output.end(), data, data + frames * 2);
++        }
++        return;
++    }
++
++    if (!active || newTempo != tempo) {
++        configure(newTempo);
++    }
++    active = true;
++
++    for (size_t i = 0; i < frames * 2; i++) {
++        input.push_back(data[i] / 32768.0f);
++    }
++
++    while (true) {
++        size_t skip = (size_t) (skipFrames + skipRemainder);
++        size_t required = std::max(pieceFrames + seekFrames, skip);
++        if (input.size() / 2 < required) break;
++        processPiece(output);
++    }
++}
++
++void TimeStretch::processPiece(std::vector<int16_t> &output) {
++    size_t offset = hasTail ? findBestOffset() : 0;
++    const float *piece = input.data() + offset * 2;
++
++    for (size_t i = 0; i < overlapFrames; i++) {
++        float weight = hasTail ? (i + 0.5f) / overlapFrames : 1.0f;
++        for (size_t c = 0; c < 2; c++) {
++            float value = tail[i * 2 + c] * (1.0f - weight) + piece[i * 2 + c] * weight;
++            output.push_back(toSample(value));
++        }
++    }
++
++    for (size_t i = overlapFrames * 2; i < (pieceFrames - overlapFrames) * 2; i++) {
++        output.push_back(toSample(piece[i]));
++    }
++
++    const float *end = piece + (pieceFrames - overlapFrames) * 2;
++    std::copy(end, end + overlapFrames * 2, tail.begin());
++    for (size_t i = 0; i < overlapFrames; i++) {
++        float weight = (float) (i * (overlapFrames - i)) / (overlapFrames * overlapFrames * 0.25f);
++        tailShape[i] = (end[i * 2] + end[i * 2 + 1]) * weight;
++    }
++    hasTail = true;
++
++    double skip = skipFrames + skipRemainder;
++    auto wholeSkip = (size_t) skip;
++    skipRemainder = skip - (double) wholeSkip;
++    input.erase(input.begin(), input.begin() + (ptrdiff_t) (wholeSkip * 2));
++}
++
++// The offset, within the seek window, where the input looks most like the end of the previous
++// piece (normalized cross-correlation of the mono mix).
++size_t TimeStretch::findBestOffset() {
++    size_t length = seekFrames + overlapFrames;
++    inputShape.resize(length);
++    for (size_t i = 0; i < length; i++) {
++        inputShape[i] = input[i * 2] + input[i * 2 + 1];
++    }
++
++    double energy = 0.0;
++    for (size_t i = 0; i < overlapFrames; i++) {
++        energy += (double) inputShape[i] * inputShape[i];
++    }
++
++    size_t bestOffset = 0;
++    double bestScore = -1e30;
++    for (size_t offset = 0; offset < seekFrames; offset++) {
++        double correlation = 0.0;
++        const float *candidate = inputShape.data() + offset;
++        for (size_t i = 0; i < overlapFrames; i++) {
++            correlation += (double) tailShape[i] * candidate[i];
++        }
++
++        double score = correlation / std::sqrt(std::max(energy, 1e-9));
++        if (score > bestScore) {
++            bestScore = score;
++            bestOffset = offset;
++        }
++
++        double leaving = candidate[0];
++        double entering = candidate[overlapFrames];
++        energy += entering * entering - leaving * leaving;
++    }
++    return bestOffset;
++}
++
++// Back to normal speed: fade from the end of the last piece into the new audio and drop what was
++// still waiting, then pass the audio through.
++void TimeStretch::fadeOutTail(const int16_t *data, size_t frames, std::vector<int16_t> &output) {
++    size_t fadeFrames = hasTail ? std::min(frames, overlapFrames) : 0;
++    for (size_t i = 0; i < fadeFrames; i++) {
++        float weight = (i + 0.5f) / fadeFrames;
++        for (size_t c = 0; c < 2; c++) {
++            float value = tail[i * 2 + c] * (1.0f - weight) + data[i * 2 + c] / 32768.0f * weight;
++            output.push_back(toSample(value));
++        }
++    }
++    output.insert(output.end(), data + fadeFrames * 2, data + frames * 2);
++
++    active = false;
++    hasTail = false;
++    skipRemainder = 0.0;
++    input.clear();
++}
++
++int16_t TimeStretch::toSample(float value) {
++    return (int16_t) std::clamp(std::lround(value * 32768.0f), -32768L, 32767L);
++}
++
++} // namespace libretrodroid
+diff --git a/libretrodroid/src/main/cpp/timestretch.h b/libretrodroid/src/main/cpp/timestretch.h
+new file mode 100644
+index 0000000..539c8ca
+--- /dev/null
++++ b/libretrodroid/src/main/cpp/timestretch.h
+@@ -0,0 +1,69 @@
++/*
++ *     Copyright (C) 2019  Filippo Scognamiglio
++ *
++ *     This program is free software: you can redistribute it and/or modify
++ *     it under the terms of the GNU General Public License as published by
++ *     the Free Software Foundation, either version 3 of the License, or
++ *     (at your option) any later version.
++ *
++ *     This program is distributed in the hope that it will be useful,
++ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *     GNU General Public License for more details.
++ *
++ *     You should have received a copy of the GNU General Public License
++ *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
++ */
++
++#ifndef LIBRETRODROID_TIMESTRETCH_H
++#define LIBRETRODROID_TIMESTRETCH_H
++
++#include <cstddef>
++#include <cstdint>
++#include <vector>
++
++namespace libretrodroid {
++
++// Speeds stereo audio up without raising its pitch (WSOLA). The input is cut into short pieces
++// that overlap; between pieces it skips ahead, and each piece starts where its waveform best lines
++// up with the end of the previous one, so the joins don't click.
++class TimeStretch {
++public:
++    explicit TimeStretch(int32_t sampleRate);
++
++    // Appends the audio for these interleaved stereo frames, played tempo times faster, to output.
++    // At a tempo of 1 the audio goes through untouched.
++    void process(const int16_t *data, size_t frames, double tempo, std::vector<int16_t> &output);
++
++private:
++    void configure(double tempo);
++    void processPiece(std::vector<int16_t> &output);
++    size_t findBestOffset();
++    void fadeOutTail(const int16_t *data, size_t frames, std::vector<int16_t> &output);
++
++    static int16_t toSample(float value);
++
++private:
++    int32_t sampleRate;
++    size_t overlapFrames;
++    size_t pieceFrames = 0;
++    size_t seekFrames = 0;
++    double skipFrames = 0.0;
++    double skipRemainder = 0.0;
++    double tempo = 1.0;
++
++    bool active = false;
++    bool hasTail = false;
++
++    // Pending input, interleaved stereo, scaled to [-1, 1].
++    std::vector<float> input;
++    // The end of the previous piece, which the next one fades in over.
++    std::vector<float> tail;
++    // The same, mixed to mono and weighted toward its middle, to compare candidates against.
++    std::vector<float> tailShape;
++    std::vector<float> inputShape;
++};
++
++} // namespace libretrodroid
++
++#endif //LIBRETRODROID_TIMESTRETCH_H
