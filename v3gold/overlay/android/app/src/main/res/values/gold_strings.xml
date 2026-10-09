@@ -50,13 +50,13 @@
     <string name="gold_gesture_two_finger_swipe_up">Two fingers swipe up</string>
     <string name="gold_gesture_double_tap">Double tap</string>
     <string name="gold_gesture_two_finger_hold">Two-finger hold</string>
-    <string name="gold_gesture_swipe_left">Swipe on the left half</string>
-    <string name="gold_gesture_swipe_right">Swipe and keep holding on the right half</string>
-    <string name="gold_gesture_flick_right">Quick flick right on the right half</string>
-    <string name="gold_gesture_flick_left">Quick flick left on the right half</string>
+    <string name="gold_gesture_swipe">Swipe anywhere</string>
+    <string name="gold_gesture_camera">Hold one finger, swipe with another</string>
+    <string name="gold_gesture_two_finger_swipe_right">Two fingers swipe right</string>
+    <string name="gold_gesture_two_finger_swipe_left">Two fingers swipe left</string>
     <string name="gold_gesture_menu">Two-finger tap, then two-finger tap and hold</string>
     <string name="gold_gesture_back">Android\'s back gesture</string>
-    <string name="gold_gesture_note">While one finger walks or holds a button, a second finger can tap for Cross, hold for Circle or swipe the other stick. To hold Circle while walking, hold, then drag the same finger.</string>
+    <string name="gold_gesture_note">While one finger walks, a second finger can tap for Cross, hold for Circle or swipe to turn the camera. To hold Circle while walking, hold, then drag the same finger.</string>
 
     <string name="gold_button_cross">Cross</string>
     <string name="gold_button_circle">Circle, held for as long as your finger stays down</string>
@@ -65,7 +65,7 @@
     <string name="gold_button_start">Start</string>
     <string name="gold_button_select">Select, held for as long as your fingers stay down</string>
     <string name="gold_button_left_stick">Left stick, and the D-pad in the swipe\'s direction</string>
-    <string name="gold_button_right_stick">Right stick</string>
+    <string name="gold_button_right_stick">Right stick: turns the camera, following the swiping finger</string>
     <string name="gold_button_l1">L1</string>
     <string name="gold_button_r1">R1</string>
     <string name="gold_button_menu">The in-game menu</string>
