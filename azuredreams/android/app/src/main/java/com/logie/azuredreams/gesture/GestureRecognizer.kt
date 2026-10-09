@@ -75,6 +75,7 @@ data class GestureConfig(
  *   down. Moving the finger back to where the swipe started lets go.
  * - Tap: Cross
  * - Hold: Circle (held for as long as the finger stays down)
+ * - While holding Circle, a tap with another finger: Triangle, as many times as the hold lasts
  * - Tap, then tap and hold: R1 on the right half of the screen, L1 on the left (held)
  * - Double tap: Start
  * - Two fingers swiping up: Triangle; right: L1; left: R1; down: Square
@@ -83,7 +84,7 @@ data class GestureConfig(
  *
  * Holding Circle and walking at the same time (running, in Azure Dreams): hold, then drag the same
  * finger, or hold one finger and swipe with another. While one finger walks, a second finger can
- * tap for Cross or hold for Circle.
+ * tap for Cross or hold for Circle; while Circle is held, its taps are Triangle instead.
  *
  * Coordinates are in pixels with y pointing down; times are in milliseconds from the same clock
  * that [GestureScheduler] uses.
@@ -113,6 +114,8 @@ class GestureRecognizer(
         val secondTap: Boolean,
         /** This touch landed while another finger was already walking or holding. */
         val secondary: Boolean,
+        /** This touch landed while another finger was holding Circle. */
+        val circleHeld: Boolean = false,
     ) {
         var state = State.PENDING
         var x = downX
@@ -189,7 +192,7 @@ class GestureRecognizer(
             secondTap = true
         }
 
-        val touch = Touch(id, x, y, secondTap, secondary)
+        val touch = Touch(id, x, y, secondTap, secondary, circleHeld = secondary && circleHeld())
         touch.holdTimer = scheduler.schedule(config.holdTimeoutMs) { onHold(touch) }
         touches[id] = touch
     }
@@ -238,7 +241,7 @@ class GestureRecognizer(
 
         when (touch.state) {
             State.PENDING -> when {
-                touch.secondary -> pulse(PsButton.CROSS)
+                touch.secondary -> pulse(if (touch.circleHeld || circleHeld()) PsButton.TRIANGLE else PsButton.CROSS)
                 touch.secondTap -> pulse(PsButton.START)
                 else -> {
                     val timer = arrayOfNulls<Cancellable>(1)
@@ -358,6 +361,9 @@ class GestureRecognizer(
         press(button)
         output.onHoldRecognized()
     }
+
+    /** Another finger is holding Circle (the hold gesture, or holding still while one runs). */
+    private fun circleHeld() = touches.values.any { it.state == State.HOLD && it.heldButton == PsButton.CIRCLE }
 
     private fun startWalk(touch: Touch) {
         if (walker != null) {
