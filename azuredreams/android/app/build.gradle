@@ -65,7 +65,7 @@ android {
 
 	sourceSets {
 		main {
-			// libpcsx_rearmed_libretro_android.so from scripts/build-pcsx-rearmed.sh
+			// libswanstation_libretro_android.so from scripts/build-swanstation.sh
 			jniLibs.srcDirs += ['../core']
 		}
 	}

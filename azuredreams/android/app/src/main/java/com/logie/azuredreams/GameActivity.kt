@@ -26,14 +26,24 @@ import com.swordfish.libretrodroid.ShaderConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 /**
  * The game: the emulator's picture, the gesture layer over it and the CRT switch-on. The in-game
  * menu ([MenuActivity]) opens over it and pauses it. Leaving or pausing the game saves where it
  * was (the resume state), which Play picks up next time.
+ *
+ * SwanStation draws with OpenGL ES and reads its state back from the GPU, so its state is only
+ * saved, loaded or reset on the emulation thread while that runs with its context: just before the
+ * game pauses, and once it draws again after.
  */
 class GameActivity : ComponentActivity() {
     private lateinit var retroView: GLRetroView
@@ -49,7 +59,10 @@ class GameActivity : ComponentActivity() {
     private var errorShown = false
     /** The picture settings the emulator has, to only change them when the player did. */
     private var appliedShader: ShaderConfig? = null
-    private var appliedSharper3d: Boolean? = null
+    private var appliedResolution: Int? = null
+    private var appliedSteady3d: Boolean? = null
+    /** The BIOS the game started on ([AdFiles.biosTag]), noted with each state saved. */
+    private lateinit var biosTag: String
 
     private val menu = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val action = MenuActivity.actionOf(result.resultCode, result.data)
@@ -68,6 +81,7 @@ class GameActivity : ComponentActivity() {
             return
         }
         config = AdConfig(this)
+        biosTag = AdFiles.biosTag(this)
         goFullscreen()
 
         val data = GLRetroViewData(this).apply {
@@ -75,12 +89,13 @@ class GameActivity : ComponentActivity() {
             gameFilePath = disc.absolutePath
             systemDirectory = AdFiles.systemDir(this@GameActivity).absolutePath
             savesDirectory = AdFiles.savesDir(this@GameActivity).absolutePath
-            variables = AdCore.variables(config)
+            variables = AdCore.variables(this@GameActivity, config)
             shader = AdCore.shader(config)
             rumbleEventsEnabled = false
             preferLowLatencyAudio = true
         }
         retroView = GLRetroView(this, data)
+        retroView.onBeforePause = ::saveResumeState
         lifecycle.addObserver(retroView)
         gestureView = GestureView(this, retroView, onMenu = ::openMenu)
         moteView = MoteView(this).apply { visibility = View.GONE }
@@ -121,29 +136,53 @@ class GameActivity : ComponentActivity() {
         goFullscreen()
         if (started) {
             applySettings()
-            pendingAction?.let { run(it) }
+            pendingAction?.let { action ->
+                lifecycleScope.launch {
+                    afterNextFrame()
+                    run(action)
+                }
+            }
             moteView.setRunning(true)
         }
         pendingAction = null
     }
 
     override fun onPause() {
-        // The emulator has already paused itself (LibretroDroid follows the lifecycle), so its
-        // state can be read here, on this thread.
+        // The resume state was saved just before this (saveResumeState), while the emulator ran.
         if (::gestureView.isInitialized) gestureView.releaseAll()
         if (::moteView.isInitialized) moteView.setRunning(false)
-        if (started) {
-            try {
-                val state = retroView.serializeState(false)
-                if (state.isNotEmpty()) {
-                    val context = applicationContext
-                    io.launch { runCatching { AdFiles.writeState(context, AdFiles.RESUME_SLOT, state) } }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Couldn't save the resume state", e)
-            }
-        }
         super.onPause()
+    }
+
+    /**
+     * Saves where the game is (the resume state) as it's about to pause, on the emulation thread
+     * while that still runs. Waits only a moment for it, so a stuck emulator can't hang the app.
+     */
+    private fun saveResumeState() {
+        if (!started) return
+        val state = AtomicReference<ByteArray?>()
+        val done = CountDownLatch(1)
+        thread(name = "resume-state") {
+            state.set(runCatching { retroView.serializeState() }.getOrNull())
+            done.countDown()
+        }
+        if (!done.await(RESUME_SAVE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+            Log.w(TAG, "The emulator didn't hand over its state in time")
+            return
+        }
+        val bytes = state.get()?.takeIf { it.isNotEmpty() } ?: return
+        val context = applicationContext
+        val bios = biosTag
+        io.launch {
+            runCatching { AdFiles.writeState(context, AdFiles.RESUME_SLOT, bytes, bios) }
+                .onFailure { Log.w(TAG, "Couldn't save the resume state", it) }
+        }
+    }
+
+    /** Waits for the game to draw again after a pause: from then on its OpenGL context is current. */
+    private suspend fun afterNextFrame() {
+        // The latest frame before the pause is replayed first.
+        retroView.getGLRetroEvents().filterIsInstance<GLRetroView.GLRetroEvents.FrameRendered>().drop(1).first()
     }
 
     private fun openMenu() {
@@ -162,11 +201,16 @@ class GameActivity : ComponentActivity() {
             retroView.shader = shader
         }
         moteView.visibility = if (config.hd2d && config.hd2dMotes) View.VISIBLE else View.GONE
-        val sharper3d = config.sharper3d
-        if (appliedSharper3d != null && sharper3d != appliedSharper3d) {
-            retroView.updateVariables(AdCore.sharper3d(sharper3d))
+        val resolution = config.resolution
+        if (appliedResolution != null && resolution != appliedResolution) {
+            retroView.updateVariables(AdCore.resolution(resolution))
         }
-        appliedSharper3d = sharper3d
+        appliedResolution = resolution
+        val steady3d = config.steady3d
+        if (appliedSteady3d != null && steady3d != appliedSteady3d) {
+            retroView.updateVariables(AdCore.steady3d(steady3d))
+        }
+        appliedSteady3d = steady3d
     }
 
     private fun run(action: MenuActivity.Action) {
@@ -174,7 +218,7 @@ class GameActivity : ComponentActivity() {
             is MenuActivity.Action.Save -> lifecycleScope.launch {
                 val saved = withContext(Dispatchers.IO) {
                     runCatching {
-                        AdFiles.writeState(this@GameActivity, action.slot, retroView.serializeState())
+                        AdFiles.writeState(this@GameActivity, action.slot, retroView.serializeState(), biosTag)
                     }.isSuccess
                 }
                 toast(if (saved) getString(R.string.ad_state_saved, action.slot) else getString(R.string.ad_state_save_failed))
@@ -182,8 +226,7 @@ class GameActivity : ComponentActivity() {
 
             is MenuActivity.Action.Load -> lifecycleScope.launch { loadState(action.slot, quiet = false) }
 
-            // Like saving and loading, this waits for the emulator's thread, which only starts
-            // again after onResume: never on this thread.
+            // Like saving and loading, this waits for the emulator's thread: never on this one.
             is MenuActivity.Action.Reset -> lifecycleScope.launch(Dispatchers.IO) { retroView.reset() }
 
             is MenuActivity.Action.Quit -> finish()
@@ -199,10 +242,9 @@ class GameActivity : ComponentActivity() {
         if (!quiet || !loaded && AdFiles.stateTime(this, slot) != null) {
             toast(
                 when {
-                    // A state made with the built-in BIOS brings it back, and with it the freeze
-                    // when the game saves to the memory card.
-                    loaded && AdFiles.bios(this) != null && AdFiles.stateUsesBuiltInBios(this, slot) ->
-                        getString(R.string.ad_state_loaded_built_in_bios, slot)
+                    // A state made on another BIOS brings that one's code back with it.
+                    loaded && slot != AdFiles.RESUME_SLOT && AdFiles.stateFromOtherBios(this, slot) ->
+                        getString(R.string.ad_state_loaded_other_bios, slot)
                     loaded -> getString(R.string.ad_state_loaded, slot)
                     slot == AdFiles.RESUME_SLOT -> getString(R.string.ad_resume_failed)
                     else -> getString(R.string.ad_state_load_failed)
@@ -250,6 +292,7 @@ class GameActivity : ComponentActivity() {
     companion object {
         private const val TAG = "AzureDreams"
         private const val EXTRA_RESUME = "com.logie.azuredreams.RESUME"
+        private const val RESUME_SAVE_TIMEOUT_MS = 2000L
 
         /** Background work that has to finish even when the game closes (saving states). */
         private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)

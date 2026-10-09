@@ -1,40 +1,55 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Azure Dreams <azuredreams@users.noreply.github.com>
 Date: Fri, 9 Oct 2026 15:14:35 +0000
-Subject: [PATCH 1/2] HD-2D shader: tilt-shift depth of field, bloom, grading
+Subject: [PATCH 1/3] HD-2D shader: tilt-shift depth of field, bloom, grading
  and vignette over sharp pixels
 
-A four-pass chain (ShaderConfig.HD2D, SHADER_HD2D): a half-size soft copy of
-the frame that also marks the game's interface, a quarter-size Gaussian blur
-across and down, then the screen pass, which keeps the pixels sharp and
-blends the soft copy in toward the top and bottom, adds bloom, grades the
-colors and darkens the corners.
+A four-pass chain (ShaderConfig.HD2D, SHADER_HD2D): a soft copy of the frame
+at half the console's resolution that also marks the game's interface, a
+Gaussian blur across and down at a quarter of it, then the screen pass, which
+keeps the pixels sharp and blends the soft copy in toward the top and bottom,
+adds bloom, grades the colors and darkens the corners. The passes work in the
+console's pixels at any internal resolution (ShaderConfig.HD2D.resolution).
 
-Tuned for Azure Dreams: white lettering on its windows' dark blue fill and the
-deep navy of the tower's gauges are kept out of the depth of field, the strip
-with the gauges stays sharp, and while text is on screen the depth of field
-pulls back entirely.
+Tuned for Azure Dreams: its interface stays sharp on top of the effects while
+the scene keeps its depth of field. White lettering on its windows' dark blue
+fill and the deep navy of the tower's gauges are found and left alone (and
+give no glow); the strip with the gauges stays sharp; and while the dialogue
+window is up, it stays sharp from a little above its first line of text down,
+along with the speaker's portrait beside it.
 ---
- libretrodroid/src/main/cpp/shadermanager.cpp  | 234 ++++++++++++++++++
+ libretrodroid/src/main/cpp/shadermanager.cpp  | 258 ++++++++++++++++++
  libretrodroid/src/main/cpp/shadermanager.h    |   7 +
- .../swordfish/libretrodroid/GLRetroView.kt    |   9 +
- .../libretrodroid/LibretroDroid.java          |   6 +
- .../swordfish/libretrodroid/ShaderConfig.kt   |  10 +
- 5 files changed, 266 insertions(+)
+ .../swordfish/libretrodroid/GLRetroView.kt    |  10 +
+ .../libretrodroid/LibretroDroid.java          |   7 +
+ .../swordfish/libretrodroid/ShaderConfig.kt   |  12 +
+ 5 files changed, 294 insertions(+)
 
 diff --git a/libretrodroid/src/main/cpp/shadermanager.cpp b/libretrodroid/src/main/cpp/shadermanager.cpp
-index b853a6a..ac716d1 100644
+index b853a6a..022306b 100644
 --- a/libretrodroid/src/main/cpp/shadermanager.cpp
 +++ b/libretrodroid/src/main/cpp/shadermanager.cpp
-@@ -1527,6 +1527,225 @@ const std::string ShaderManager::cut3UpscalePass2Fragment =
+@@ -17,6 +17,9 @@
+ 
+ #include "shadermanager.h"
+ 
++#include <algorithm>
++#include <cstdlib>
++
+ namespace libretrodroid {
+ 
+ const std::string ShaderManager::defaultShaderVertex =
+@@ -1527,6 +1530,240 @@ const std::string ShaderManager::cut3UpscalePass2Fragment =
      "  gl_FragColor = vec4(final.rgb, 1.0);\n"
      "}";
  
 +// HD-2D: Octopath Traveler-style post-processing for 2D sprites in 3D scenes. The game's pixels stay
 +// sharp; a soft copy of the frame is blended in toward the top and bottom (tilt-shift depth of
 +// field), its bright parts glow, and the colors are graded and vignetted. Made for Azure Dreams: its
-+// windows, text and gauges (dark navy fill, white lettering) are found and kept out of focus
-+// effects, and while text is on screen the depth of field pulls back entirely.
++// interface stays sharp on top of the effects (lettering on its windows' dark blue fill, the deep
++// navy of the tower's gauges, the gauge strip, and the dialogue window with its name plate and the
++// speaker's portrait) while the scene around it keeps its depth of field. Blur sizes follow the
++// core's internal resolution.
 +
 +const std::unordered_map<std::string, std::string> ShaderManager::hd2dParams = {
 +    { "TEXT_MIN_LIGHT", "0.62" },
@@ -46,6 +61,8 @@ index b853a6a..ac716d1 100644
 +    { "BLUR_ACROSS", "2.0" },
 +    { "BLUR_DOWN", "1.5" },
 +    { "GAUGES_BOTTOM", "0.23" },
++    { "DIALOGUE_MARGIN", "0.1" },
++    { "PORTRAIT_RIGHT", "0.38" },
 +    { "FOCUS_CENTER", "0.55" },
 +    { "FOCUS_HALF", "0.17" },
 +    { "FOCUS_FADE", "0.28" },
@@ -57,6 +74,7 @@ index b853a6a..ac716d1 100644
 +    { "CONTRAST", "1.06" },
 +    { "WARMTH", "1.0" },
 +    { "VIGNETTE", "0.35" },
++    { "RESOLUTION", "1" },
 +};
 +
 +const std::string ShaderManager::hd2dPass0Fragment =
@@ -71,14 +89,15 @@ index b853a6a..ac716d1 100644
 +    "uniform HIGHP vec2 textureSize;\n"
 +    "varying HIGHP vec2 coords;\n"
 +    "\n"
-+    "HIGHP vec2 texel;\n"
-+    "// The first of the 2x2 frame texels this pixel covers.\n"
++    "// The frame's size in PlayStation pixels: each one is drawn as a square of frame texels at the core's\n"
++    "// internal resolution.\n"
++    "HIGHP vec2 native;\n"
++    "// The middle of the first of the 2x2 PlayStation pixels this pixel covers.\n"
 +    "HIGHP vec2 first;\n"
-+    "// 2 when the core draws at twice the PlayStation's resolution, so lettering is twice as thick.\n"
-+    "float stride;\n"
 +    "\n"
++    "// A PlayStation pixel, counted from the first.\n"
 +    "vec3 at(float x, float y) {\n"
-+    "  return texture2D(texture, first + vec2(x, y) * texel).rgb;\n"
++    "  return texture2D(texture, first + vec2(x, y) / native).rgb;\n"
 +    "}\n"
 +    "\n"
 +    "float luma(vec3 c) {\n"
@@ -104,8 +123,8 @@ index b853a6a..ac716d1 100644
 +    "\n"
 +    "// Lettering with window fill on both sides of it, across or down.\n"
 +    "float text(float x, float y) {\n"
-+    "  float near = stride;\n"
-+    "  float far = 2.0 * stride;\n"
++    "  float near = 1.0;\n"
++    "  float far = 2.0;\n"
 +    "  float across = max(windowFill(at(x - near, y)), windowFill(at(x - far, y)))\n"
 +    "               * max(windowFill(at(x + near, y)), windowFill(at(x + far, y)));\n"
 +    "  float down = max(windowFill(at(x, y - near)), windowFill(at(x, y - far)))\n"
@@ -114,9 +133,8 @@ index b853a6a..ac716d1 100644
 +    "}\n"
 +    "\n"
 +    "void main() {\n"
-+    "  texel = 1.0 / textureSize;\n"
-+    "  stride = textureSize.y > 300.0 ? 2.0 : 1.0;\n"
-+    "  first = (floor(coords * textureSize * 0.5) * 2.0 + 0.5) * texel;\n"
++    "  native = textureSize / max(1.0, floor(textureSize.y / 224.0));\n"
++    "  first = (floor(coords * native * 0.5) * 2.0 + 0.5) / native;\n"
 +    "  vec3 a = at(0.0, 0.0);\n"
 +    "  vec3 b = at(1.0, 0.0);\n"
 +    "  vec3 c = at(0.0, 1.0);\n"
@@ -149,7 +167,9 @@ index b853a6a..ac716d1 100644
 +    "varying HIGHP vec2 coords;\n"
 +    "\n"
 +    "void main() {\n"
-+    "  HIGHP vec2 offset = vec2(BLUR_ACROSS / (textureSize.x * 0.5), 0.0);\n"
++    "  // In PlayStation pixels, whatever the internal resolution.\n"
++    "  float scale = max(1.0, floor(textureSize.y / 224.0));\n"
++    "  HIGHP vec2 offset = vec2(BLUR_ACROSS * 2.0 * scale / textureSize.x, 0.0);\n"
 +    "  vec4 c0 = texture2D(previousPass, coords);\n"
 +    "  vec4 c1 = texture2D(previousPass, coords + offset * 1.3846);\n"
 +    "  vec4 c2 = texture2D(previousPass, coords - offset * 1.3846);\n"
@@ -173,7 +193,8 @@ index b853a6a..ac716d1 100644
 +    "varying HIGHP vec2 coords;\n"
 +    "\n"
 +    "void main() {\n"
-+    "  HIGHP vec2 offset = vec2(0.0, BLUR_DOWN / (textureSize.y * 0.25));\n"
++    "  float scale = max(1.0, floor(textureSize.y / 224.0));\n"
++    "  HIGHP vec2 offset = vec2(0.0, BLUR_DOWN * 4.0 * scale / textureSize.y);\n"
 +    "  vec4 c0 = texture2D(previousPass, coords);\n"
 +    "  vec4 c1 = texture2D(previousPass, coords + offset * 1.3846);\n"
 +    "  vec4 c2 = texture2D(previousPass, coords - offset * 1.3846);\n"
@@ -183,26 +204,33 @@ index b853a6a..ac716d1 100644
 +    "  float near = max(c0.a, max(max(c1.a, c2.a), max(c3.a, c4.a)));\n"
 +    "  float onInterface = smoothstep(0.15, 0.4, near);\n"
 +    "\n"
-+    "  // Text anywhere on screen, and the tower's gauges along the top.\n"
-+    "  float text = 0.0;\n"
++    "  // The tower's gauges along the top, and the highest line of text in the lower half: the dialogue\n"
++    "  // window's (or its name plate's).\n"
 +    "  float gauges = 0.0;\n"
++    "  float dialogueTop = 2.0;\n"
 +    "  for (int y = 0; y < 15; y++) {\n"
 +    "    for (int x = 0; x < 20; x++) {\n"
 +    "      float found = texture2D(previousPass, (vec2(float(x), float(y)) + 0.5) / vec2(20.0, 15.0)).a;\n"
-+    "      text = max(text, found);\n"
 +    "      if (y < 3) {\n"
 +    "        gauges = max(gauges, found);\n"
 +    "      }\n"
++    "      if (y >= 8 && found > 0.75) {\n"
++    "        dialogueTop = min(dialogueTop, float(y) / 15.0);\n"
++    "      }\n"
 +    "    }\n"
 +    "  }\n"
-+    "  float talking = step(0.75, text);\n"
 +    "  gauges = step(0.3, gauges);\n"
++    "  // The window starts a little above its first line of text, and runs to the bottom. The speaker's\n"
++    "  // portrait stands on its left, above it.\n"
++    "  float dialogue = smoothstep(dialogueTop - DIALOGUE_MARGIN - 0.03, dialogueTop - DIALOGUE_MARGIN, coords.y);\n"
++    "  float portrait = step(dialogueTop, 1.0) * (1.0 - smoothstep(PORTRAIT_RIGHT, PORTRAIT_RIGHT + 0.06, coords.x));\n"
++    "  dialogue = max(dialogue, portrait);\n"
 +    "\n"
 +    "  float fromFocus = coords.y - FOCUS_CENTER;\n"
 +    "  float depth = (fromFocus < 0.0 ? DOF_TOP : DOF_BOTTOM) * smoothstep(FOCUS_HALF, FOCUS_HALF + FOCUS_FADE, abs(fromFocus));\n"
 +    "  // With the gauges up, the strip they're in stays sharp.\n"
 +    "  depth *= 1.0 - gauges * (1.0 - smoothstep(GAUGES_BOTTOM, GAUGES_BOTTOM + 0.05, coords.y));\n"
-+    "  gl_FragColor = vec4(color, depth * (1.0 - onInterface) * (1.0 - talking));\n"
++    "  gl_FragColor = vec4(color * (1.0 - onInterface), depth * (1.0 - onInterface) * (1.0 - dialogue));\n"
 +    "}\n";
 +
 +const std::string ShaderManager::hd2dPass3Fragment =
@@ -252,20 +280,26 @@ index b853a6a..ac716d1 100644
  ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& config) {
      switch (config.type) {
      case Type::SHADER_DEFAULT: {
-@@ -1602,6 +1821,21 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
+@@ -1602,6 +1839,27 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
              false
          };
      }
 +
 +    case Type::SHADER_HD2D: {
 +        // The game's frame is read with linear filtering: exactly at texel centers for the
-+        // soft copy, and between them for the sharp pixels' smoothed edges.
++        // soft copy, and between them for the sharp pixels' smoothed edges. The passes before the
++        // last work at the PlayStation's resolution, whatever the core's internal one (RESOLUTION).
 +        std::string defines = buildDefines(hd2dParams, config.params);
++        float resolution = 1.0F;
++        auto found = config.params.find("RESOLUTION");
++        if (found != config.params.end()) {
++            resolution = std::max(1.0F, std::strtof(found->second.c_str(), nullptr));
++        }
 +        return {
 +            {
-+                { defines + defaultShaderVertex, defines + hd2dPass0Fragment, true, 0.5 },
-+                { defines + defaultShaderVertex, defines + hd2dPass1Fragment, true, 0.25 },
-+                { defines + defaultShaderVertex, defines + hd2dPass2Fragment, true, 0.25 },
++                { defines + defaultShaderVertex, defines + hd2dPass0Fragment, true, 0.5F / resolution },
++                { defines + defaultShaderVertex, defines + hd2dPass1Fragment, true, 0.25F / resolution },
++                { defines + defaultShaderVertex, defines + hd2dPass2Fragment, true, 0.25F / resolution },
 +                { defines + defaultShaderVertex, defines + hd2dPass3Fragment, true, 1.0 },
 +            },
 +            true
@@ -300,10 +334,10 @@ index 4407e8b..b4144a2 100644
      static std::string buildDefines(
          std::unordered_map<std::string, std::string> baseParams,
 diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
-index 7eb8602..88ab643 100644
+index 7eb8602..83c59e2 100644
 --- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
 +++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
-@@ -413,6 +413,15 @@ class GLRetroView(
+@@ -413,6 +413,16 @@ class GLRetroView(
              is ShaderConfig.CRT -> GLRetroShader(LibretroDroid.SHADER_CRT)
              is ShaderConfig.LCD -> GLRetroShader(LibretroDroid.SHADER_LCD)
              is ShaderConfig.Sharp -> GLRetroShader(LibretroDroid.SHADER_SHARP)
@@ -314,16 +348,17 @@ index 7eb8602..88ab643 100644
 +                    LibretroDroid.SHADER_HD2D_PARAM_DOF_BOTTOM to toParam(config.depthOfField * 0.6f),
 +                    LibretroDroid.SHADER_HD2D_PARAM_BLOOM to toParam(config.bloom),
 +                    LibretroDroid.SHADER_HD2D_PARAM_VIGNETTE to toParam(config.vignette),
++                    LibretroDroid.SHADER_HD2D_PARAM_RESOLUTION to config.resolution.coerceAtLeast(1).toString(),
 +                )
 +            )
              is ShaderConfig.CUT -> GLRetroShader(
                  LibretroDroid.SHADER_UPSCALE_CUT,
                  buildParams(
 diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java b/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
-index 50eafa1..8f37154 100644
+index 50eafa1..ef87049 100644
 --- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
 +++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
-@@ -37,6 +37,12 @@ public class LibretroDroid {
+@@ -37,6 +37,13 @@ public class LibretroDroid {
      public static final int SHADER_UPSCALE_CUT = 4;
      public static final int SHADER_UPSCALE_CUT2 = 5;
      public static final int SHADER_UPSCALE_CUT3 = 6;
@@ -333,14 +368,15 @@ index 50eafa1..8f37154 100644
 +    public static final String SHADER_HD2D_PARAM_DOF_BOTTOM = "DOF_BOTTOM";
 +    public static final String SHADER_HD2D_PARAM_BLOOM = "BLOOM";
 +    public static final String SHADER_HD2D_PARAM_VIGNETTE = "VIGNETTE";
++    public static final String SHADER_HD2D_PARAM_RESOLUTION = "RESOLUTION";
  
      public static final String SHADER_UPSCALE_CUT_PARAM_USE_DYNAMIC_BLEND = "USE_DYNAMIC_BLEND";
      public static final String SHADER_UPSCALE_CUT_PARAM_BLEND_MIN_CONTRAST_EDGE = "BLEND_MIN_CONTRAST_EDGE";
 diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt b/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
-index 5bf4514..3482cdb 100644
+index 5bf4514..5d74543 100644
 --- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
 +++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
-@@ -24,6 +24,16 @@ sealed interface ShaderConfig {
+@@ -24,6 +24,18 @@ sealed interface ShaderConfig {
      object LCD : ShaderConfig
      object Sharp : ShaderConfig
  
@@ -352,6 +388,8 @@ index 5bf4514..3482cdb 100644
 +        val depthOfField: Float = 1.0f,
 +        val bloom: Float = 0.5f,
 +        val vignette: Float = 0.35f,
++        /** The core's internal resolution, as a multiple of the console's. */
++        val resolution: Int = 1,
 +    ) : ShaderConfig
 +
      data class CUT(

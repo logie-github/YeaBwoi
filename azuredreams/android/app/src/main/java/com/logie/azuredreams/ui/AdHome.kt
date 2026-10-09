@@ -5,6 +5,7 @@ package com.logie.azuredreams.ui
 import android.app.Activity
 import android.text.format.DateUtils
 import android.text.format.Formatter
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
@@ -108,11 +109,12 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     var refresh by remember { mutableIntStateOf(0) }
     val disc = remember(refresh) { AdFiles.launchFile(context) }
     val resumeTime = remember(refresh) { AdFiles.stateTime(context, AdFiles.RESUME_SLOT) }
-    // Without a real BIOS, Azure Dreams freezes when it saves to the memory card.
+    // The game's own saves need a real BIOS (from the next start from the title screen).
+    val hasBios = remember(refresh) { AdFiles.bios(context) != null }
     val biosNotice = remember(refresh) {
         when {
-            AdFiles.bios(context) == null -> R.string.ad_home_no_bios
-            resumeTime != null && AdFiles.stateUsesBuiltInBios(context, AdFiles.RESUME_SLOT) -> R.string.ad_home_resume_built_in_bios
+            !hasBios -> R.string.ad_home_no_bios
+            resumeTime != null && AdFiles.stateFromOtherBios(context, AdFiles.RESUME_SLOT) -> R.string.ad_home_resume_other_bios
             else -> null
         }
     }
@@ -123,6 +125,7 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     var importing by remember { mutableStateOf<Float?>(null) }
     var importError by remember { mutableStateOf<String?>(null) }
+    var biosError by remember { mutableStateOf<String?>(null) }
 
     fun play(resume: Boolean) {
         if (launching || AdFiles.launchFile(context) == null) return
@@ -171,6 +174,21 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
         }
     }
 
+    val addBios = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { AdFiles.importBios(context, uri) } }
+            refresh++
+            result.fold(
+                onSuccess = { Toast.makeText(context, R.string.ad_bios_added, Toast.LENGTH_SHORT).show() },
+                onFailure = {
+                    biosError = if (it is AdFiles.ImportException) context.getString(R.string.ad_bios_not_a_bios)
+                    else context.getString(R.string.ad_card_failed, it.message ?: "")
+                },
+            )
+        }
+    }
+
     val pickGame = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
         importing = 0f
@@ -208,6 +226,7 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
                     installed = disc != null,
                     resumeTime = resumeTime,
                     biosNotice = biosNotice,
+                    onAddBios = if (hasBios) null else ({ addBios.launch(arrayOf("*/*")) }),
                     importing = importing,
                     onPlay = { play(resume = resumeTime != null) },
                     onBoot = { play(resume = false) },
@@ -241,6 +260,11 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)
             }
         }
+        biosError?.let { message ->
+            AdDialog(title = stringResource(R.string.ad_bios_title), onDismiss = { biosError = null }) {
+                Text(message, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
     }
 }
 
@@ -251,6 +275,7 @@ private fun HomeScreen(
     installed: Boolean,
     resumeTime: Long?,
     @StringRes biosNotice: Int?,
+    onAddBios: (() -> Unit)?,
     importing: Float?,
     onPlay: () -> Unit,
     onBoot: () -> Unit,
@@ -307,6 +332,13 @@ private fun HomeScreen(
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
                                     .widthIn(max = 520.dp),
+                            )
+                        }
+                        if (onAddBios != null) {
+                            AdButton(
+                                stringResource(R.string.ad_bios_add),
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                                onClick = onAddBios,
                             )
                         }
                     }

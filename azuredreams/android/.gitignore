@@ -2,5 +2,5 @@
 .kotlin/
 build/
 local.properties
-# The emulator core, built by scripts/build-pcsx-rearmed.sh
+# The emulator core, built by scripts/build-swanstation.sh
 /core/

@@ -19,15 +19,16 @@ import kotlin.random.Random
 
 /**
  * Specks of warm light drifting slowly up through the game's picture, twinkling: the dust in the
- * air of the 2D-HD picture. Over the picture only (the PlayStation's 4:3, centered), never the
- * black bars beside it. Doesn't take touches.
+ * air of the 2D-HD picture. Over the scene only: the PlayStation's 4:3 picture (centered, never the
+ * black bars beside it), between the tower's gauges along the top and the dialogue window along the
+ * bottom, so it stays under the game's interface. Doesn't take touches.
  */
 class MoteView(context: Context) : View(context) {
     private class Mote(
         var x: Float,
         var y: Float,
         val size: Float,
-        /** Picture heights per second. */
+        /** Heights of the drifting area per second. */
         val rise: Float,
         val sway: Float,
         val swayHz: Float,
@@ -38,6 +39,7 @@ class MoteView(context: Context) : View(context) {
 
     private val random = Random(1997)
     private val motes = ArrayList<Mote>()
+    /** Where the specks drift: the part of the picture between the gauges and the dialogue window. */
     private val picture = RectF()
     private val dest = RectF()
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
@@ -64,7 +66,13 @@ class MoteView(context: Context) : View(context) {
         super.onSizeChanged(w, h, oldw, oldh)
         val pictureWidth = min(w.toFloat(), h * 4f / 3f)
         val pictureHeight = pictureWidth * 3f / 4f
-        picture.set((w - pictureWidth) / 2, (h - pictureHeight) / 2, (w + pictureWidth) / 2, (h + pictureHeight) / 2)
+        val pictureTop = (h - pictureHeight) / 2
+        picture.set(
+            (w - pictureWidth) / 2,
+            pictureTop + pictureHeight * SCENE_TOP,
+            (w + pictureWidth) / 2,
+            pictureTop + pictureHeight * SCENE_BOTTOM,
+        )
         motes.clear()
         repeat(MOTES) { motes.add(newMote(picture.top + random.nextFloat() * picture.height())) }
     }
@@ -76,7 +84,7 @@ class MoteView(context: Context) : View(context) {
             x = picture.left + random.nextFloat() * picture.width(),
             y = y,
             size = (3f + 7f * near * near) * density,
-            rise = 0.015f + 0.035f * random.nextFloat(),
+            rise = 0.04f + 0.08f * random.nextFloat(),
             sway = (6f + 14f * random.nextFloat()) * density,
             swayHz = 0.05f + 0.12f * random.nextFloat(),
             twinkleHz = 0.15f + 0.45f * random.nextFloat(),
@@ -105,7 +113,7 @@ class MoteView(context: Context) : View(context) {
             val twinkle = 0.55f + 0.45f * sin(2f * PI.toFloat() * mote.twinkleHz * time + mote.phase * 1.7f)
             // Fade in from the bottom and out toward the top.
             val height = ((picture.bottom - mote.y) / picture.height()).coerceIn(0f, 1f)
-            val edges = (height / 0.15f).coerceAtMost(1f) * ((1f - height) / 0.2f).coerceAtMost(1f)
+            val edges = (height / 0.25f).coerceAtMost(1f) * ((1f - height) / 0.3f).coerceAtMost(1f)
             paint.alpha = (255 * mote.brightness * twinkle * edges).toInt().coerceIn(0, 255)
             dest.set(x - mote.size, mote.y - mote.size, x + mote.size, mote.y + mote.size)
             canvas.drawBitmap(dot, null, dest, paint)
@@ -116,7 +124,11 @@ class MoteView(context: Context) : View(context) {
     }
 
     private companion object {
-        const val MOTES = 28
+        const val MOTES = 20
+
+        /** The scene between the interface, as fractions of the picture's height. */
+        const val SCENE_TOP = 0.24f
+        const val SCENE_BOTTOM = 0.6f
 
         /** A soft, warm glow fading out from its middle. */
         fun softDot(): Bitmap {

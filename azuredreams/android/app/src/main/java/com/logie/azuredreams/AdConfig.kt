@@ -38,10 +38,15 @@ class AdConfig(context: Context) {
         get() = prefs.getBoolean(KEY_HD2D_MOTES, true)
         set(value) = prefs.edit().putBoolean(KEY_HD2D_MOTES, value).apply()
 
-    /** The core draws 3D at twice the PlayStation's resolution. */
-    var sharper3d: Boolean
-        get() = prefs.getBoolean(KEY_SHARPER_3D, false)
-        set(value) = prefs.edit().putBoolean(KEY_SHARPER_3D, value).apply()
+    /** How many times the PlayStation's resolution the core draws at: one of [RESOLUTIONS]. */
+    var resolution: Int
+        get() = prefs.getInt(KEY_RESOLUTION, DEFAULT_RESOLUTION).takeIf { it in RESOLUTIONS } ?: DEFAULT_RESOLUTION
+        set(value) = prefs.edit().putInt(KEY_RESOLUTION, value).apply()
+
+    /** PGXP: 3D drawn from precise coordinates, so it doesn't wobble and textures don't warp. */
+    var steady3d: Boolean
+        get() = prefs.getBoolean(KEY_STEADY_3D, true)
+        set(value) = prefs.edit().putBoolean(KEY_STEADY_3D, value).apply()
 
     /** How many frames the game runs per screen refresh: 1 (normal), 2 or 3 (fast forward). */
     var speed: Int
@@ -65,9 +70,13 @@ class AdConfig(context: Context) {
 
         const val MAX_SPEED = 3
 
+        val RESOLUTIONS = listOf(1, 2, 3, 4, 5, 6, 8)
+        const val DEFAULT_RESOLUTION = 4
+
         private const val KEY_HAPTICS = "haptics"
         private const val KEY_PICTURE = "picture"
-        private const val KEY_SHARPER_3D = "sharper_3d"
+        private const val KEY_RESOLUTION = "resolution"
+        private const val KEY_STEADY_3D = "steady_3d"
         private const val KEY_HD2D = "hd2d"
         private const val KEY_HD2D_DEPTH = "hd2d_depth"
         private const val KEY_HD2D_BLOOM = "hd2d_bloom"

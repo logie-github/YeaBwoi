@@ -14,16 +14,19 @@ import java.io.IOException
  * storage:
  *
  * - game/: the disc image, copied in from the files the player picks
- * - system/: an optional PlayStation BIOS (the core has its own replacement otherwise)
- * - saves/: memory card 1 (pcsx-card1.mcd), which the core writes to as the game saves
- * - states/: save states, slot1-3.state and resume.state (where the game was left)
+ * - system/: the PlayStation BIOS the player added (the core uses OpenBIOS without one)
+ * - saves/: memory card 1 (duckstation_shared_card_1.mcd), which the core writes a few seconds
+ *   after the game saves
+ * - states/: save states, slot1-3.state and resume.state (where the game was left), each with a
+ *   .bios file naming the BIOS it was made on
  */
 object AdFiles {
     /** Disc image formats the core opens, in the order to prefer them as the file to start. */
     private val LAUNCH_ORDER = listOf("m3u", "cue", "toc", "chd", "pbp", "cbn", "iso", "img", "mdf", "bin")
 
     const val MEMORY_CARD_SIZE = 128 * 1024
-    private const val MEMORY_CARD_NAME = "pcsx-card1.mcd"
+    /** SwanStation's shared card 1. */
+    private const val MEMORY_CARD_NAME = "duckstation_shared_card_1.mcd"
     private const val BIOS_SIZE = 512 * 1024
 
     const val SLOTS = 3
@@ -132,15 +135,28 @@ object AdFiles {
     fun bios(context: Context): File? =
         systemDir(context).listFiles()?.firstOrNull { it.isFile && it.length() == BIOS_SIZE.toLong() }
 
+    /** What the game runs on: the added BIOS's file name, or OpenBIOS, the core's free stand-in. */
+    fun biosTag(context: Context): String = bios(context)?.name ?: OPENBIOS
+
+    private const val OPENBIOS = "OpenBIOS"
+
     /** Copies a BIOS file in, in place of the old one. Background thread. */
     fun importBios(context: Context, uri: Uri) {
         val name = displayName(context, uri).replace('/', '_')
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             ?: throw IOException("Can't open $name")
-        if (bytes.size != BIOS_SIZE) throw ImportException(ImportException.Reason.NOT_A_BIOS)
+        if (bytes.size != BIOS_SIZE || !looksLikeBios(bytes)) throw ImportException(ImportException.Reason.NOT_A_BIOS)
         deleteBios(context)
         File(systemDir(context), if (name.endsWith(".bin", ignoreCase = true)) name else "$name.bin").writeBytes(bytes)
     }
+
+    /** A PlayStation BIOS names its maker (or, for OpenBIOS, itself) near its start. */
+    private fun looksLikeBios(bytes: ByteArray): Boolean {
+        val head = String(bytes, 0, 0x10000, Charsets.ISO_8859_1)
+        return BIOS_MARKS.any { it in head }
+    }
+
+    private val BIOS_MARKS = listOf("Sony Computer Entertainment", "PS compatible", "OpenBIOS")
 
     fun deleteBios(context: Context) {
         systemDir(context).listFiles()?.filter { it.isFile }?.forEach { it.delete() }
@@ -197,28 +213,49 @@ object AdFiles {
 
     fun deleteState(context: Context, slot: Int) {
         stateFile(context, slot).delete()
+        stateBiosFile(context, slot).delete()
+    }
+
+    private fun stateBiosFile(context: Context, slot: Int) = File(stateFile(context, slot).path + ".bios")
+
+    /**
+     * The state in [slot] was made on another BIOS than the game runs on now (before the player
+     * added theirs, say). The game's own code from that BIOS comes back with it, so saving to the
+     * memory card may not work, or the game may crash.
+     */
+    fun stateFromOtherBios(context: Context, slot: Int): Boolean {
+        val made = runCatching { stateBiosFile(context, slot).readText() }.getOrNull() ?: return false
+        return stateTime(context, slot) != null && made != biosTag(context)
     }
 
     /**
-     * The state in [slot] was made with the emulator's built-in BIOS. Loading it goes back to that
-     * BIOS (the state says which one it ran on), even once the player has added a real one.
+     * Writes [state] to [slot] in one go, so a crash can't leave half a state, noting the BIOS it was
+     * made on ([biosTag] when the game started). Background thread.
      */
-    fun stateUsesBuiltInBios(context: Context, slot: Int): Boolean = runCatching {
-        // PCSX ReARMed's states start with "STv4 PCSX", a 32-byte header, a 4-byte version and
-        // then one byte that is set when the built-in BIOS was running.
-        val head = ByteArray(STATE_BUILT_IN_BIOS_OFFSET + 1)
-        DataInputStream(stateFile(context, slot).inputStream()).use { it.readFully(head) }
-        String(head, 0, 9, Charsets.US_ASCII) == "STv4 PCSX" && head[STATE_BUILT_IN_BIOS_OFFSET].toInt() != 0
-    }.getOrDefault(false)
-
-    private const val STATE_BUILT_IN_BIOS_OFFSET = 36
-
-    /** Writes [state] to [slot] in one go, so a crash can't leave half a state. Background thread. */
-    fun writeState(context: Context, slot: Int, state: ByteArray) {
+    fun writeState(context: Context, slot: Int, state: ByteArray, bios: String) {
         val target = stateFile(context, slot)
         val partial = File(target.path + ".part")
         partial.writeBytes(state)
         if (!partial.renameTo(target)) throw IOException("Can't save the state")
+        stateBiosFile(context, slot).writeText(bios)
+    }
+
+    /**
+     * Before SwanStation the app ran PCSX ReARMed: its memory card moves to SwanStation's file (they
+     * hold the same raw card), and its save states, which SwanStation can't load, are put aside
+     * (renamed .pcsx).
+     */
+    fun moveFromOldCore(context: Context) {
+        val oldCard = File(savesDir(context), "pcsx-card1.mcd")
+        val card = memoryCard(context)
+        if (oldCard.isFile && !card.exists()) oldCard.renameTo(card)
+        for (slot in RESUME_SLOT..SLOTS) {
+            val file = stateFile(context, slot)
+            val head = runCatching {
+                ByteArray(9).also { head -> DataInputStream(file.inputStream()).use { it.readFully(head) } }
+            }.getOrNull() ?: continue
+            if (String(head, Charsets.US_ASCII) == "STv4 PCSX") file.renameTo(File(file.path + ".pcsx"))
+        }
     }
 
     private fun displayName(context: Context, uri: Uri): String {
