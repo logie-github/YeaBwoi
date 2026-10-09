@@ -7,6 +7,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -21,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
+import com.swordfish.libretrodroid.ShaderConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -36,6 +38,7 @@ import kotlinx.coroutines.withContext
 class GameActivity : ComponentActivity() {
     private lateinit var retroView: GLRetroView
     private lateinit var gestureView: GestureView
+    private lateinit var moteView: MoteView
     private lateinit var crtView: CrtView
     private lateinit var config: AdConfig
 
@@ -45,7 +48,7 @@ class GameActivity : ComponentActivity() {
     private var pendingAction: MenuActivity.Action? = null
     private var errorShown = false
     /** The picture settings the emulator has, to only change them when the player did. */
-    private var appliedPicture = -1
+    private var appliedShader: ShaderConfig? = null
     private var appliedSharper3d: Boolean? = null
 
     private val menu = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -73,19 +76,21 @@ class GameActivity : ComponentActivity() {
             systemDirectory = AdFiles.systemDir(this@GameActivity).absolutePath
             savesDirectory = AdFiles.savesDir(this@GameActivity).absolutePath
             variables = AdCore.variables(config)
-            shader = AdCore.shader(config.picture)
+            shader = AdCore.shader(config)
             rumbleEventsEnabled = false
             preferLowLatencyAudio = true
         }
         retroView = GLRetroView(this, data)
         lifecycle.addObserver(retroView)
         gestureView = GestureView(this, retroView, onMenu = ::openMenu)
+        moteView = MoteView(this).apply { visibility = View.GONE }
         crtView = CrtView(this)
 
         val match = ViewGroup.LayoutParams.MATCH_PARENT
         setContentView(FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(retroView, FrameLayout.LayoutParams(match, match))
+            addView(moteView, FrameLayout.LayoutParams(match, match))
             addView(gestureView, FrameLayout.LayoutParams(match, match))
             addView(crtView, FrameLayout.LayoutParams(match, match))
         })
@@ -103,6 +108,7 @@ class GameActivity : ComponentActivity() {
             if (resume) loadState(AdFiles.RESUME_SLOT, quiet = true)
             started = true
             applySettings()
+            moteView.setRunning(true)
             crtView.switchOn()
         }
         lifecycleScope.launch {
@@ -116,6 +122,7 @@ class GameActivity : ComponentActivity() {
         if (started) {
             applySettings()
             pendingAction?.let { run(it) }
+            moteView.setRunning(true)
         }
         pendingAction = null
     }
@@ -124,6 +131,7 @@ class GameActivity : ComponentActivity() {
         // The emulator has already paused itself (LibretroDroid follows the lifecycle), so its
         // state can be read here, on this thread.
         if (::gestureView.isInitialized) gestureView.releaseAll()
+        if (::moteView.isInitialized) moteView.setRunning(false)
         if (started) {
             try {
                 val state = retroView.serializeState(false)
@@ -148,11 +156,12 @@ class GameActivity : ComponentActivity() {
 
     private fun applySettings() {
         retroView.frameSpeed = config.speed
-        val picture = config.picture
-        if (picture != appliedPicture) {
-            appliedPicture = picture
-            retroView.shader = AdCore.shader(picture)
+        val shader = AdCore.shader(config)
+        if (shader != appliedShader) {
+            appliedShader = shader
+            retroView.shader = shader
         }
+        moteView.visibility = if (config.picture == AdConfig.PICTURE_HD2D && config.hd2dMotes) View.VISIBLE else View.GONE
         val sharper3d = config.sharper3d
         if (appliedSharper3d != null && sharper3d != appliedSharper3d) {
             retroView.updateVariables(AdCore.sharper3d(sharper3d))

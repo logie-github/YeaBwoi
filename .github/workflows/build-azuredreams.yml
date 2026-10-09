@@ -10,6 +10,7 @@ on:
       - "!azuredreams/branding/**"
       - "!azuredreams/**.md"
       - "scripts/build-pcsx-rearmed.sh"
+      - "scripts/prepare-libretrodroid.sh"
       - ".github/workflows/build-azuredreams.yml"
   workflow_dispatch:
 
@@ -74,12 +75,16 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
-            "ndk;$NDK_VERSION" "platforms;android-35" "build-tools;36.0.0" > /dev/null
+            "ndk;$NDK_VERSION" "platforms;android-35" "build-tools;36.0.0" "cmake;3.22.1" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
 
       # The PlayStation emulator core, from the commit pinned in azuredreams/core-version.env.
       - name: Build the emulator core
         run: scripts/build-pcsx-rearmed.sh
+
+      # LibretroDroid from source, with the app's patches (the 2D-HD shader).
+      - name: Prepare LibretroDroid
+        run: scripts/prepare-libretrodroid.sh
 
       - name: Choose signing key
         env:
@@ -131,7 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           source azuredreams/core-version.env
-          notes="$GAME_NAME (PlayStation) for Android, on PCSX ReARMed ${PCSX_REARMED_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
+          source azuredreams/libretrodroid-version.env
+          notes="$GAME_NAME (PlayStation) for Android, on PCSX ReARMed ${PCSX_REARMED_COMMIT::7} and LibretroDroid ${LIBRETRODROID_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
 
           Download **$APK_FILE** below on your phone and open it to install. You need your own copy of the game's disc image."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \

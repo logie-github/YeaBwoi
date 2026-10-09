@@ -1,0 +1,4 @@
+/build/
+# LibretroDroid's source, from scripts/prepare-libretrodroid.sh
+/upstream/
+/.cxx/

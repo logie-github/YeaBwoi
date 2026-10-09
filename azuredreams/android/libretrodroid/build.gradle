@@ -1,0 +1,59 @@
+// LibretroDroid, built from source (scripts/prepare-libretrodroid.sh puts it in upstream/) so the
+// app can carry its own shaders (azuredreams/patches/libretrodroid/).
+plugins {
+	id 'com.android.library'
+}
+
+def upstream = file('upstream/libretrodroid/src/main')
+if (!upstream.exists()) {
+	throw new GradleException("LibretroDroid isn't there yet: run scripts/prepare-libretrodroid.sh first.")
+}
+
+android {
+	namespace = "com.swordfish.libretrodroid"
+	compileSdk = 35
+	ndkVersion = "29.0.14206865"
+
+	defaultConfig {
+		minSdk = 26
+		consumerProguardFiles 'consumer-rules.pro'
+		externalNativeBuild {
+			cmake {
+				arguments '-DANDROID_STL=c++_static'
+			}
+		}
+		ndk {
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	sourceSets {
+		main {
+			manifest.srcFile "$upstream/AndroidManifest.xml"
+			// Java and Kotlin side by side, as upstream keeps them.
+			java.srcDirs = ["$upstream/java"]
+			kotlin.srcDirs = ["$upstream/java"]
+			res.srcDirs = ["$upstream/res"]
+		}
+	}
+
+	externalNativeBuild {
+		cmake {
+			path = "$upstream/cpp/CMakeLists.txt"
+			version = "3.22.1+"
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	lint {
+		abortOnError = false
+	}
+}
+
+dependencies {
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+}
