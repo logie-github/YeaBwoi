@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: V3 Gold <v3gold@users.noreply.github.com>
 Date: Thu, 8 Oct 2026 23:32:21 +0000
-Subject: [PATCH 3/6] V3 Gold: its own main menu, update checks and in-game
+Subject: [PATCH 3/7] V3 Gold: its own main menu, update checks and in-game
  menu controls
 
 - The app starts on V3 Gold's main menu (GoldHomeRoute) instead of

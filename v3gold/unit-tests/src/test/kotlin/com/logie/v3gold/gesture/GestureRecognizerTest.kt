@@ -5,6 +5,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.math.cos
+import kotlin.math.hypot
+import kotlin.math.sin
 
 class GestureRecognizerTest {
     private class FakeScheduler : GestureScheduler {
@@ -67,10 +70,22 @@ class GestureRecognizerTest {
         fun presses() = events.filter { it.endsWith(" down") }.map { it.split(" ")[1] }
     }
 
+    /** Most tests: the left stick in proportion to the swipe, and the swipe D-pad on. */
     private val config = GestureConfig(
         touchSlopPx = 20f,
         stickRadiusPx = 100f,
         twoFingerSwipePx = 80f,
+        swipeDpad = true,
+    )
+
+    /** The app's setup: short swipes walk, longer ones run, no D-pad. */
+    private val walkConfig = GestureConfig(
+        touchSlopPx = 20f,
+        stickRadiusPx = 100f,
+        twoFingerSwipePx = 80f,
+        walkDistancePx = 50f,
+        runDistancePx = 110f,
+        walkTilt = 0.4f,
     )
     private lateinit var scheduler: FakeScheduler
     private lateinit var out: Recorder
@@ -168,6 +183,52 @@ class GestureRecognizerTest {
             assertEquals(0f, out.stick(Stick.LEFT)[1])
         }
         assertFalse(Stick.RIGHT in out.sticksMoved)
+    }
+
+    private fun assertStick(x: Float, y: Float, message: String? = null) {
+        assertEquals(x, out.stick(Stick.LEFT)[0], 0.001f, message)
+        assertEquals(y, out.stick(Stick.LEFT)[1], 0.001f, message)
+    }
+
+    @Test
+    fun shortSwipeWalksAndLongerSwipeRuns() {
+        recognizer.config = walkConfig
+        down(0, 500f, 500f, 0)
+        move(0, 500f, 470f, 30)
+        assertStick(0f, 0.4f, "Walking")
+        move(0, 500f, 452f, 50)
+        assertStick(0f, 0.4f, "Still walking, however short the swipe")
+        move(0, 500f, 420f, 70)
+        assertStick(0f, 0.7f, "Halfway between walking and running")
+        move(0, 500f, 350f, 90)
+        assertStick(0f, 1f, "Running")
+        // The start point was dragged along to 110 px behind the finger (y 460).
+        move(0, 500f, 430f, 110)
+        assertStick(0f, 0.4f, "Back to walking after coming back 80 px")
+        move(0, 500f, 455f, 130)
+        assertStick(0f, 0f, "Standing still near the start point")
+        up(0, 500f, 455f, 150)
+        assertStick(0f, 0f)
+        scheduler.advanceTo(1000)
+        assertTrue(out.presses().isEmpty(), "No D-pad")
+    }
+
+    @Test
+    fun swipesGoInAnyDirection() {
+        recognizer.config = walkConfig
+        down(0, 500f, 500f, 0)
+        // 30 px at about 30 degrees above the right-hand side.
+        move(0, 526f, 485f, 30)
+        val distance = hypot(26f, 15f)
+        assertStick(26f / distance * 0.4f, 15f / distance * 0.4f)
+        // A full circle around the start point, running.
+        for (degrees in 0 until 360 step 15) {
+            val angle = Math.toRadians(degrees.toDouble())
+            move(0, 500f + 110f * cos(angle).toFloat(), 500f - 110f * sin(angle).toFloat(), 40L + degrees)
+            val stick = out.stick(Stick.LEFT)
+            assertEquals(1f, hypot(stick[0], stick[1]), 0.01f, "Full tilt at $degrees°")
+        }
+        assertTrue(out.pressed.isEmpty(), "No D-pad")
     }
 
     @Test

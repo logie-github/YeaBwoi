@@ -62,20 +62,26 @@ class GoldGestures(private val overlay: InputOverlay) {
     private val recognizer: GestureRecognizer
 
     init {
-        val density = overlay.resources.displayMetrics.density
         val scheduler = GestureScheduler { delayMs, action ->
             val runnable = Runnable(action)
             handler.postDelayed(runnable, delayMs)
             Cancellable { handler.removeCallbacks(runnable) }
         }
-        recognizer = GestureRecognizer(
-            GestureConfig(
-                touchSlopPx = 14 * density,
-                stickRadiusPx = 56 * density,
-                twoFingerSwipePx = 56 * density,
-            ),
-            scheduler,
-            output
+        recognizer = GestureRecognizer(gestureConfig(), scheduler, output)
+    }
+
+    /** The gesture settings, with the player's choices from the Controls tab. */
+    private fun gestureConfig(): GestureConfig {
+        val density = overlay.resources.displayMetrics.density
+        val settings = GoldConfig(overlay.context)
+        return GestureConfig(
+            touchSlopPx = 14 * density,
+            stickRadiusPx = 56 * density,
+            twoFingerSwipePx = 56 * density,
+            walkDistancePx = 40 * density,
+            runDistancePx = 80 * density,
+            walkTilt = settings.walkTilt,
+            swipeDpad = settings.swipeDpad,
         )
     }
 
@@ -111,6 +117,8 @@ class GoldGestures(private val overlay: InputOverlay) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                     recognizer.dropStaleTouches()
+                    // Between gestures: pick up changes made in the Controls tab.
+                    recognizer.config = gestureConfig()
                 }
                 val i = event.actionIndex
                 recognizer.pointerDown(event.getPointerId(i), event.getX(i), event.getY(i), event.eventTime)

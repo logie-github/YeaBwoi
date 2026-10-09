@@ -18,10 +18,12 @@ import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,6 +40,7 @@ import com.logie.v3gold.GoldConfig
 import com.logie.v3gold.GoldUpdateActivity
 import org.vita3k.emulator.Emulator
 import org.vita3k.emulator.R
+import kotlin.math.roundToInt
 
 /** A Vita button as the guide shows it, in its usual color. */
 private enum class GuideButton(val label: String, val color: Color) {
@@ -134,6 +137,8 @@ fun GoldControlsTab(activity: Emulator, buttons: @Composable () -> Unit) {
     val context = LocalContext.current
     var gestures by remember { mutableStateOf(GoldConfig(context).gesturesEnabled) }
     var haptics by remember { mutableStateOf(GoldConfig(context).haptics) }
+    var walkTilt by remember { mutableFloatStateOf(GoldConfig(context).walkTilt) }
+    var swipeDpad by remember { mutableStateOf(GoldConfig(context).swipeDpad) }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         SwitchRow(
@@ -154,6 +159,34 @@ fun GoldControlsTab(activity: Emulator, buttons: @Composable () -> Unit) {
                 haptics = on
                 GoldConfig(context).haptics = on
             }
+            // Read by the gestures when the next one starts.
+            Column {
+                Text(
+                    stringResource(R.string.gold_walk_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    stringResource(R.string.gold_walk_summary, (walkTilt * 100).roundToInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Slider(
+                    value = walkTilt,
+                    onValueChange = { walkTilt = (it * 20).roundToInt() / 20f },
+                    onValueChangeFinished = { GoldConfig(context).walkTilt = walkTilt },
+                    valueRange = 0.2f..0.7f,
+                    steps = 9,
+                )
+            }
+            SwitchRow(
+                title = stringResource(R.string.gold_swipe_dpad_switch),
+                subtitle = stringResource(R.string.gold_swipe_dpad_switch_summary),
+                checked = swipeDpad,
+            ) { on ->
+                swipeDpad = on
+                GoldConfig(context).swipeDpad = on
+            }
             GoldGestureGuide()
         } else {
             buttons()
@@ -161,9 +194,10 @@ fun GoldControlsTab(activity: Emulator, buttons: @Composable () -> Unit) {
     }
 }
 
-/** Extra things on the in-game menu's Session tab: the experiments and Check for updates. */
+/** Extra things on the in-game menu's Session tab: the screen shape, the experiments and Check for updates. */
 @Composable
 fun GoldSessionActions(activity: Emulator) {
+    GoldScreenShape()
     GoldExperiments()
     FilledTonalButton(
         onClick = { GoldUpdateActivity.launch(activity) },

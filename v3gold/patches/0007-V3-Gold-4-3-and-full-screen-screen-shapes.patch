@@ -1,0 +1,178 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: V3 Gold <v3gold@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 09:20:11 +0000
+Subject: [PATCH 7/7] V3 Gold: 4:3 and full-screen screen shapes
+
+The in-game menu's screen shape (renderer/gold_lab.h, from the app's overlay)
+decides where the game's picture goes on the screen, for both renderers and
+every screen filter: Vita3K's own 16:9, 4:3 showing the middle of the picture,
+4:3 with the whole picture squeezed in, or the whole screen. Touch and the
+overlays follow the same rectangle.
+---
+ .../include/renderer/vulkan/screen_filters.h  |  2 ++
+ vita3k/renderer/src/gl/renderer.cpp           | 22 ++++++++++++++-
+ vita3k/renderer/src/vulkan/renderer.cpp       | 17 +++++++++++-
+ vita3k/renderer/src/vulkan/screen_filters.cpp | 27 +++++++++++++++++--
+ 4 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/vita3k/renderer/include/renderer/vulkan/screen_filters.h b/vita3k/renderer/include/renderer/vulkan/screen_filters.h
+index e005a24..f6ae648 100644
+--- a/vita3k/renderer/include/renderer/vulkan/screen_filters.h
++++ b/vita3k/renderer/include/renderer/vulkan/screen_filters.h
+@@ -150,6 +150,8 @@ private:
+ 
+     vk::Extent2D output_offset;
+     vk::Extent2D output_size;
++    // The V3 Gold screen shape (gold::ScreenShape) the output is sized for.
++    int gold_shape = 0;
+ 
+     vk::Sampler sampler;
+ 
+diff --git a/vita3k/renderer/src/gl/renderer.cpp b/vita3k/renderer/src/gl/renderer.cpp
+index 5860075..c4b608f 100644
+--- a/vita3k/renderer/src/gl/renderer.cpp
++++ b/vita3k/renderer/src/gl/renderer.cpp
+@@ -16,6 +16,7 @@
+ // 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ 
+ #include <renderer/functions.h>
++#include <renderer/gold_lab.h>
+ #include <renderer/profile.h>
+ #include <renderer/state.h>
+ #include <renderer/types.h>
+@@ -668,7 +669,12 @@ void GLState::render_frame(DisplayState &display, const GxmState &gxm, MemState
+             && !(static_cast<int>(fb_w) % DEFAULT_RES_WIDTH)
+             && !(static_cast<int>(fb_h) % (DEFAULT_RES_HEIGHT - 4));
+ 
+-        if (stretch_the_display_area && !pixel_perfect) {
++        gold::ScreenRect gold_rect;
++        if (gold::screen_rect(gold::screen_shape(), fb_w, fb_h, gold_rect)) {
++            // V3 Gold's screen shape.
++            vp_pos = { gold_rect.x, gold_rect.y };
++            vp_size = { gold_rect.width, gold_rect.height };
++        } else if (stretch_the_display_area && !pixel_perfect) {
+             vp_pos = { 0.0f, 0.0f };
+             vp_size = { fb_w, fb_h };
+         } else if ((window_aspect > vita_aspect) && !pixel_perfect) {
+@@ -740,6 +746,20 @@ void GLState::render_frame(DisplayState &display, const GxmState &gxm, MemState
+ 
+         glBindTexture(GL_TEXTURE_2D, last_texture);
+ 
++        // V3 Gold: only the middle 4:3 of the picture for its 4:3 screen shape.
++        if (const float crop = gold::crop_fraction(static_cast<float>(display_frame.image_size.x), static_cast<float>(display_frame.image_size.y)); crop > 0.0f) {
++            if (!need_uv) {
++                uvs[0] = 0.0f;
++                uvs[1] = 0.0f;
++                uvs[2] = 1.0f;
++                uvs[3] = 1.0f;
++                need_uv = true;
++            }
++            const float cut = (uvs[2] - uvs[0]) * crop;
++            uvs[0] += cut;
++            uvs[2] -= cut;
++        }
++
+         screen_renderer.render(vp_pos, vp_size, need_uv ? uvs : nullptr, static_cast<GLuint>(surface_handle), texture_size, default_fbo);
+     }
+ 
+diff --git a/vita3k/renderer/src/vulkan/renderer.cpp b/vita3k/renderer/src/vulkan/renderer.cpp
+index b9081c0..b74d73e 100644
+--- a/vita3k/renderer/src/vulkan/renderer.cpp
++++ b/vita3k/renderer/src/vulkan/renderer.cpp
+@@ -21,6 +21,7 @@
+ #endif
+ 
+ #include <renderer/functions.h>
++#include <renderer/gold_lab.h>
+ #include <renderer/types.h>
+ #include <renderer/vulkan/functions.h>
+ #include <renderer/vulkan/state.h>
+@@ -1119,7 +1120,14 @@ void VKState::render_frame(DisplayState &display, const GxmState &gxm, MemState
+             const bool pixel_perfect = fullscreen_hd_res_pixel_perfect && fullscreen
+                 && !(screen_renderer.extent.width % DEFAULT_RES_WIDTH)
+                 && !(screen_renderer.extent.height % (DEFAULT_RES_HEIGHT - 4));
+-            if (stretch_the_display_area && !pixel_perfect) {
++            gold::ScreenRect gold_rect;
++            if (gold::screen_rect(gold::screen_shape(), fb_w, fb_h, gold_rect)) {
++                // V3 Gold's screen shape.
++                display.viewport_x = gold_rect.x;
++                display.viewport_y = gold_rect.y;
++                display.viewport_w = gold_rect.width;
++                display.viewport_h = gold_rect.height;
++            } else if (stretch_the_display_area && !pixel_perfect) {
+                 display.viewport_x = 0.0f;
+                 display.viewport_y = 0.0f;
+                 display.viewport_w = fb_w;
+@@ -1195,6 +1203,13 @@ void VKState::render_frame(DisplayState &display, const GxmState &gxm, MemState
+             layout = vk::ImageLayout::eShaderReadOnlyOptimal;
+         }
+ 
++        // V3 Gold: only the middle 4:3 of the picture for its 4:3 screen shape.
++        if (const float crop = gold::crop_fraction(static_cast<float>(viewport.width), static_cast<float>(viewport.height)); crop > 0.0f) {
++            const auto cut = static_cast<uint32_t>(viewport.width * crop);
++            viewport.offset_x += cut;
++            viewport.width -= 2 * cut;
++        }
++
+         screen_renderer.render(surface_handle, layout, viewport);
+     } else if (has_overlays) {
+         screen_renderer.begin_default_render_pass();
+diff --git a/vita3k/renderer/src/vulkan/screen_filters.cpp b/vita3k/renderer/src/vulkan/screen_filters.cpp
+index 192dba9..8c33a4d 100644
+--- a/vita3k/renderer/src/vulkan/screen_filters.cpp
++++ b/vita3k/renderer/src/vulkan/screen_filters.cpp
+@@ -20,6 +20,8 @@
+ 
+ #include "renderer/vulkan/state.h"
+ 
++#include <renderer/gold_lab.h>
++
+ namespace renderer::vulkan {
+ 
+ ScreenFilter::ScreenFilter(ScreenRenderer &screen_renderer)
+@@ -279,7 +281,14 @@ void SinglePassScreenFilter::render(bool is_pre_renderpass, vk::ImageView src_im
+         const float window_aspect = static_cast<float>(screen.extent.width) / screen.extent.height;
+         constexpr float vita_aspect = static_cast<float>(DEFAULT_RES_WIDTH) / DEFAULT_RES_HEIGHT;
+         const bool fullscreen_hd_res_pixel_perfect_en = screen.state.fullscreen_hd_res_pixel_perfect && screen.state.fullscreen && !(screen.extent.width % DEFAULT_RES_WIDTH) && !(screen.extent.height % (DEFAULT_RES_HEIGHT - 4));
+-        if (screen.state.stretch_the_display_area && !fullscreen_hd_res_pixel_perfect_en) {
++        gold::ScreenRect gold_rect;
++        if (gold::screen_rect(gold::screen_shape(), static_cast<float>(screen.extent.width), static_cast<float>(screen.extent.height), gold_rect)) {
++            // V3 Gold's screen shape.
++            vk_viewport.width = gold_rect.width;
++            vk_viewport.height = gold_rect.height;
++            vk_viewport.x = gold_rect.x;
++            vk_viewport.y = gold_rect.y;
++        } else if (screen.state.stretch_the_display_area && !fullscreen_hd_res_pixel_perfect_en) {
+             // Match the aspect ratio to the screen size.
+             vk_viewport.width = static_cast<float>(screen.extent.width);
+             vk_viewport.height = static_cast<float>(screen.extent.height);
+@@ -511,7 +520,15 @@ void FSRScreenFilter::on_resize() {
+     const float window_aspect = static_cast<float>(screen.extent.width) / screen.extent.height;
+     const float vita_aspect = static_cast<float>(DEFAULT_RES_WIDTH) / DEFAULT_RES_HEIGHT;
+     const bool fullscreen_hd_res_pixel_perfect_en = screen.state.fullscreen_hd_res_pixel_perfect & screen.state.fullscreen & !(screen.extent.width % DEFAULT_RES_WIDTH) & !(screen.extent.height % (DEFAULT_RES_HEIGHT - 4));
+-    if (screen.state.stretch_the_display_area && !fullscreen_hd_res_pixel_perfect_en) {
++    gold_shape = static_cast<int>(gold::screen_shape());
++    gold::ScreenRect gold_rect;
++    if (gold::screen_rect(static_cast<gold::ScreenShape>(gold_shape), static_cast<float>(screen.extent.width), static_cast<float>(screen.extent.height), gold_rect)) {
++        // V3 Gold's screen shape.
++        output_size.width = static_cast<uint32_t>(std::round(gold_rect.width));
++        output_size.height = static_cast<uint32_t>(std::round(gold_rect.height));
++        output_offset.width = static_cast<uint32_t>(std::round(gold_rect.x));
++        output_offset.height = static_cast<uint32_t>(std::round(gold_rect.y));
++    } else if (screen.state.stretch_the_display_area && !fullscreen_hd_res_pixel_perfect_en) {
+         // Match the aspect ratio to the screen size.
+         output_size.width = static_cast<float>(screen.extent.width);
+         output_size.height = static_cast<float>(screen.extent.height);
+@@ -577,6 +594,12 @@ void FSRScreenFilter::render(bool is_pre_renderpass, vk::ImageView src_img, vk::
+         // we are using compute shaders
+         return;
+ 
++    if (static_cast<int>(gold::screen_shape()) != gold_shape) {
++        // V3 Gold's screen shape changed: size the output for the new one.
++        screen.state.device.waitIdle();
++        on_resize();
++    }
++
+     // update descriptor set, (only the easu src)
+     vk::DescriptorImageInfo descr_image_info{
+         .imageView = src_img,

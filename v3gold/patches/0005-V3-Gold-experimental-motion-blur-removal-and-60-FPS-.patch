@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: V3 Gold <v3gold@users.noreply.github.com>
 Date: Fri, 9 Oct 2026 02:21:40 +0000
-Subject: [PATCH 5/6] V3 Gold: experimental motion blur removal and 60 FPS
+Subject: [PATCH 5/7] V3 Gold: experimental motion blur removal and 60 FPS
  switches
 
 Persona 4 Golden draws what it rendered in the previous frame back over

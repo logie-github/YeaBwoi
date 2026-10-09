@@ -1,4 +1,4 @@
-// V3 Gold: the in-game menu's experimental switches for Persona 4 Golden (motion blur, 60 FPS).
+// V3 Gold: the in-game menu's switches for Persona 4 Golden (screen shape, motion blur, 60 FPS).
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "android_state.h"
@@ -100,6 +100,15 @@ Java_com_logie_v3gold_GoldNative_blurReport(JNIEnv *env, jclass) {
         lines.emplace_back(line);
     }
     return to_java(env, lines);
+}
+
+// How the game's picture fills the screen (gold::ScreenShape).
+JNIEXPORT void JNICALL
+Java_com_logie_v3gold_GoldNative_setScreenShape(JNIEnv *, jclass, jint shape) {
+    const int valid = shape >= static_cast<int>(gold::ScreenShape::Original) && shape <= static_cast<int>(gold::ScreenShape::Fill)
+        ? shape
+        : static_cast<int>(gold::ScreenShape::Original);
+    gold::lab().screen_shape.store(valid);
 }
 
 // Makes the game's "wait for two screen refreshes" calls wait for one: 30 FPS games can run at 60.

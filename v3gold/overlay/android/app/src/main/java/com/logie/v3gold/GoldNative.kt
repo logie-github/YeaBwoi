@@ -2,8 +2,11 @@
 
 package com.logie.v3gold
 
-/** Native side of the in-game menu's experiments (vita3k/android/jni/gold_lab.cpp). */
+/** Native side of the in-game menu's settings and experiments (vita3k/android/jni/gold_lab.cpp). */
 object GoldNative {
+    /** How the game's picture fills the screen: one of GoldConfig's SCREEN_SHAPE_ values. */
+    @JvmStatic external fun setScreenShape(shape: Int)
+
     /** Skip Persona 4 Golden's motion blur pass (renderer/gold_lab.h). */
     @JvmStatic external fun setBlurFix(enabled: Boolean)
 

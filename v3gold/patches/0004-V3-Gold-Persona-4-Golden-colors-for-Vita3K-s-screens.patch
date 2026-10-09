@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: V3 Gold <v3gold@users.noreply.github.com>
 Date: Thu, 8 Oct 2026 23:32:40 +0000
-Subject: [PATCH 4/6] V3 Gold: Persona 4 Golden colors for Vita3K's screens
+Subject: [PATCH 4/7] V3 Gold: Persona 4 Golden colors for Vita3K's screens
 
 Settings, setup, the library, dialogs and the in-game menu use black and
 TV yellow instead of Vita3K's gray and orange, and the window and splash
