@@ -5,6 +5,7 @@ package com.logie.azuredreams
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import java.io.DataInputStream
 import java.io.File
 import java.io.IOException
 
@@ -197,6 +198,20 @@ object AdFiles {
     fun deleteState(context: Context, slot: Int) {
         stateFile(context, slot).delete()
     }
+
+    /**
+     * The state in [slot] was made with the emulator's built-in BIOS. Loading it goes back to that
+     * BIOS (the state says which one it ran on), even once the player has added a real one.
+     */
+    fun stateUsesBuiltInBios(context: Context, slot: Int): Boolean = runCatching {
+        // PCSX ReARMed's states start with "STv4 PCSX", a 32-byte header, a 4-byte version and
+        // then one byte that is set when the built-in BIOS was running.
+        val head = ByteArray(STATE_BUILT_IN_BIOS_OFFSET + 1)
+        DataInputStream(stateFile(context, slot).inputStream()).use { it.readFully(head) }
+        String(head, 0, 9, Charsets.US_ASCII) == "STv4 PCSX" && head[STATE_BUILT_IN_BIOS_OFFSET].toInt() != 0
+    }.getOrDefault(false)
+
+    private const val STATE_BUILT_IN_BIOS_OFFSET = 36
 
     /** Writes [state] to [slot] in one go, so a crash can't leave half a state. Background thread. */
     fun writeState(context: Context, slot: Int, state: ByteArray) {

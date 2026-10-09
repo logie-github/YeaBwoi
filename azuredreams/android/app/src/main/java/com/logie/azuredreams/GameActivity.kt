@@ -199,6 +199,10 @@ class GameActivity : ComponentActivity() {
         if (!quiet || !loaded && AdFiles.stateTime(this, slot) != null) {
             toast(
                 when {
+                    // A state made with the built-in BIOS brings it back, and with it the freeze
+                    // when the game saves to the memory card.
+                    loaded && AdFiles.bios(this) != null && AdFiles.stateUsesBuiltInBios(this, slot) ->
+                        getString(R.string.ad_state_loaded_built_in_bios, slot)
                     loaded -> getString(R.string.ad_state_loaded, slot)
                     slot == AdFiles.RESUME_SLOT -> getString(R.string.ad_resume_failed)
                     else -> getString(R.string.ad_state_load_failed)
