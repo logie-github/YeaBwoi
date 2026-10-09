@@ -18,7 +18,7 @@ Both apps work the same way. There's no game list and no on-screen buttons: you 
 This repository also builds:
 
 - **V3 Gold** (`com.logie.v3gold`): Persona 4 Golden on the Vita3K PS Vita emulator, with the same kind of gesture controls and a Persona 4 Golden themed menu. See [v3gold/README.md](v3gold/README.md).
-- **Azure Dreams** (`com.logie.azuredreams`): the PlayStation game on the PCSX ReARMed emulator core, with gesture controls, save states and a PlayStation-era themed menu. See [azuredreams/README.md](azuredreams/README.md).
+- **Azure Dreams** (`com.logie.azure`): the PlayStation game on the PCSX ReARMed emulator core, with gesture controls, save states and a PlayStation-era themed menu. See [azuredreams/README.md](azuredreams/README.md).
 
 Each has its own workflow and releases.
 
