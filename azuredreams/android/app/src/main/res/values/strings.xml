@@ -26,7 +26,7 @@
     <string name="ad_tile_controls">Controls</string>
     <string name="ad_tile_controls_summary">The touch gestures</string>
     <string name="ad_tile_picture">Picture</string>
-    <string name="ad_tile_picture_summary">2D-HD, pixels, CRT, sharper 3D</string>
+    <string name="ad_tile_picture_summary">Pixels, CRT, sharper 3D</string>
     <string name="ad_tile_memory_card">Memory card</string>
     <string name="ad_tile_memory_card_summary">Import or back up your saves</string>
     <string name="ad_tile_bios">BIOS</string>
@@ -69,8 +69,8 @@
 
     <!-- Picture -->
     <string name="ad_picture_title">Picture</string>
-    <string name="ad_picture_hd2d">2D-HD</string>
-    <string name="ad_picture_hd2d_summary">Octopath-style: sharp pixels, tilt-shift depth of field, glow, richer color, drifting light</string>
+    <string name="ad_hd2d">2D-HD</string>
+    <string name="ad_hd2d_summary">Octopath-style: sharp pixels, tilt-shift depth of field, glow, richer color, drifting light. Takes the place of the Picture choice while it\'s on.</string>
     <string name="ad_hd2d_depth">Depth of field</string>
     <string name="ad_hd2d_depth_off">Off</string>
     <string name="ad_hd2d_depth_light">Light</string>
@@ -126,6 +126,8 @@
     <string name="ad_menu_save">Save state</string>
     <string name="ad_menu_load">Load state</string>
     <string name="ad_menu_speed">Speed</string>
+    <string name="ad_menu_on">On</string>
+    <string name="ad_menu_off">Off</string>
     <string name="ad_menu_picture">Picture</string>
     <string name="ad_menu_controls">Controls</string>
     <string name="ad_menu_reset">Reset game</string>

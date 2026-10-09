@@ -161,7 +161,7 @@ class GameActivity : ComponentActivity() {
             appliedShader = shader
             retroView.shader = shader
         }
-        moteView.visibility = if (config.picture == AdConfig.PICTURE_HD2D && config.hd2dMotes) View.VISIBLE else View.GONE
+        moteView.visibility = if (config.hd2d && config.hd2dMotes) View.VISIBLE else View.GONE
         val sharper3d = config.sharper3d
         if (appliedSharper3d != null && sharper3d != appliedSharper3d) {
             retroView.updateVariables(AdCore.sharper3d(sharper3d))
