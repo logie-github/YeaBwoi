@@ -8,7 +8,7 @@ An Android app that plays one game: **Azure Dreams** for the PlayStation. It run
 
 | | |
 | --- | --- |
-| Package | `com.logie.azuredreams` |
+| Package | `com.logie.azure` |
 | Releases | **Azure Dreams 1.0.N**, tags `ad-build-N` (**Actions → Build Azure Dreams**) |
 | Emulator | PCSX ReARMed, built for arm64 from the commit in `core-version.env` |
 

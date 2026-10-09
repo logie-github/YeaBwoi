@@ -20,7 +20,7 @@ android {
 	}
 
 	defaultConfig {
-		applicationId = adProperty("adApplicationId", "com.logie.azuredreams")
+		applicationId = adProperty("adApplicationId", "com.logie.azure")
 		minSdk = 26
 		targetSdk = 35
 		versionCode = adProperty("adVersionCode", "1").toInteger()
