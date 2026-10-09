@@ -1,0 +1,6 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+# The emulator core, built by scripts/build-pcsx-rearmed.sh
+/core/

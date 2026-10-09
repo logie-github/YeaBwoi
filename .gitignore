@@ -9,6 +9,9 @@
 /v3gold/unit-tests/.gradle/
 /v3gold/unit-tests/build/
 /v3gold/unit-tests/.kotlin/
+/azuredreams/unit-tests/.gradle/
+/azuredreams/unit-tests/build/
+/azuredreams/unit-tests/.kotlin/
 
 .idea/
 *.iml
