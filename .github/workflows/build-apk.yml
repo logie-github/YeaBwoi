@@ -14,6 +14,7 @@ on:
       - ".github/workflows/build-v3gold.yml"
       - "azuredreams/**"
       - "scripts/build-pcsx-rearmed.sh"
+      - "scripts/prepare-libretrodroid.sh"
       - ".github/workflows/build-azuredreams.yml"
       - ".gitattributes"
   pull_request:

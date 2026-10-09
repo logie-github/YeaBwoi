@@ -1,0 +1,359 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Azure Dreams <azuredreams@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 15:14:35 +0000
+Subject: [PATCH 1/2] HD-2D shader: tilt-shift depth of field, bloom, grading
+ and vignette over sharp pixels
+
+A four-pass chain (ShaderConfig.HD2D, SHADER_HD2D): a half-size soft copy of
+the frame that also marks the game's interface, a quarter-size Gaussian blur
+across and down, then the screen pass, which keeps the pixels sharp and
+blends the soft copy in toward the top and bottom, adds bloom, grades the
+colors and darkens the corners.
+
+Tuned for Azure Dreams: white lettering on its windows' dark blue fill and the
+deep navy of the tower's gauges are kept out of the depth of field, the strip
+with the gauges stays sharp, and while text is on screen the depth of field
+pulls back entirely.
+---
+ libretrodroid/src/main/cpp/shadermanager.cpp  | 234 ++++++++++++++++++
+ libretrodroid/src/main/cpp/shadermanager.h    |   7 +
+ .../swordfish/libretrodroid/GLRetroView.kt    |   9 +
+ .../libretrodroid/LibretroDroid.java          |   6 +
+ .../swordfish/libretrodroid/ShaderConfig.kt   |  10 +
+ 5 files changed, 266 insertions(+)
+
+diff --git a/libretrodroid/src/main/cpp/shadermanager.cpp b/libretrodroid/src/main/cpp/shadermanager.cpp
+index b853a6a..ac716d1 100644
+--- a/libretrodroid/src/main/cpp/shadermanager.cpp
++++ b/libretrodroid/src/main/cpp/shadermanager.cpp
+@@ -1527,6 +1527,225 @@ const std::string ShaderManager::cut3UpscalePass2Fragment =
+     "  gl_FragColor = vec4(final.rgb, 1.0);\n"
+     "}";
+ 
++// HD-2D: Octopath Traveler-style post-processing for 2D sprites in 3D scenes. The game's pixels stay
++// sharp; a soft copy of the frame is blended in toward the top and bottom (tilt-shift depth of
++// field), its bright parts glow, and the colors are graded and vignetted. Made for Azure Dreams: its
++// windows, text and gauges (dark navy fill, white lettering) are found and kept out of focus
++// effects, and while text is on screen the depth of field pulls back entirely.
++
++const std::unordered_map<std::string, std::string> ShaderManager::hd2dParams = {
++    { "TEXT_MIN_LIGHT", "0.62" },
++    { "TEXT_MAX_TINT", "0.3" },
++    { "NAVY_MAX_LIGHT", "0.13" },
++    { "NAVY_MIN_BLUE", "0.12" },
++    { "WINDOW_MAX_LIGHT", "0.32" },
++    { "WINDOW_BLUE_SLACK", "0.03" },
++    { "BLUR_ACROSS", "2.0" },
++    { "BLUR_DOWN", "1.5" },
++    { "GAUGES_BOTTOM", "0.23" },
++    { "FOCUS_CENTER", "0.55" },
++    { "FOCUS_HALF", "0.17" },
++    { "FOCUS_FADE", "0.28" },
++    { "DOF_TOP", "1.0" },
++    { "DOF_BOTTOM", "0.6" },
++    { "BLOOM", "0.5" },
++    { "BLOOM_THRESHOLD", "0.55" },
++    { "SATURATION", "1.18" },
++    { "CONTRAST", "1.06" },
++    { "WARMTH", "1.0" },
++    { "VIGNETTE", "0.35" },
++};
++
++const std::string ShaderManager::hd2dPass0Fragment =
++    "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
++    "#define HIGHP highp\n"
++    "#else\n"
++    "#define HIGHP mediump\n"
++    "#endif\n"
++    "precision mediump float;\n"
++    "\n"
++    "uniform lowp sampler2D texture;\n"
++    "uniform HIGHP vec2 textureSize;\n"
++    "varying HIGHP vec2 coords;\n"
++    "\n"
++    "HIGHP vec2 texel;\n"
++    "// The first of the 2x2 frame texels this pixel covers.\n"
++    "HIGHP vec2 first;\n"
++    "// 2 when the core draws at twice the PlayStation's resolution, so lettering is twice as thick.\n"
++    "float stride;\n"
++    "\n"
++    "vec3 at(float x, float y) {\n"
++    "  return texture2D(texture, first + vec2(x, y) * texel).rgb;\n"
++    "}\n"
++    "\n"
++    "float luma(vec3 c) {\n"
++    "  return dot(c, vec3(0.299, 0.587, 0.114));\n"
++    "}\n"
++    "\n"
++    "// White, nearly grey: the game's lettering.\n"
++    "float lettering(vec3 c) {\n"
++    "  float lo = min(c.r, min(c.g, c.b));\n"
++    "  float hi = max(c.r, max(c.g, c.b));\n"
++    "  return step(TEXT_MIN_LIGHT, lo) * step(hi - lo, TEXT_MAX_TINT);\n"
++    "}\n"
++    "\n"
++    "// Dark and leaning blue: the fill of the game's windows.\n"
++    "float windowFill(vec3 c) {\n"
++    "  return step(luma(c), WINDOW_MAX_LIGHT) * step(max(c.r, c.g) - WINDOW_BLUE_SLACK, c.b);\n"
++    "}\n"
++    "\n"
++    "// The deep navy inside the tower's gauges.\n"
++    "float navy(vec3 c) {\n"
++    "  return step(luma(c), NAVY_MAX_LIGHT) * step(c.r + NAVY_MIN_BLUE, c.b) * step(c.g + NAVY_MIN_BLUE * 0.6, c.b);\n"
++    "}\n"
++    "\n"
++    "// Lettering with window fill on both sides of it, across or down.\n"
++    "float text(float x, float y) {\n"
++    "  float near = stride;\n"
++    "  float far = 2.0 * stride;\n"
++    "  float across = max(windowFill(at(x - near, y)), windowFill(at(x - far, y)))\n"
++    "               * max(windowFill(at(x + near, y)), windowFill(at(x + far, y)));\n"
++    "  float down = max(windowFill(at(x, y - near)), windowFill(at(x, y - far)))\n"
++    "             * max(windowFill(at(x, y + near)), windowFill(at(x, y + far)));\n"
++    "  return lettering(at(x, y)) * max(across, down);\n"
++    "}\n"
++    "\n"
++    "void main() {\n"
++    "  texel = 1.0 / textureSize;\n"
++    "  stride = textureSize.y > 300.0 ? 2.0 : 1.0;\n"
++    "  first = (floor(coords * textureSize * 0.5) * 2.0 + 0.5) * texel;\n"
++    "  vec3 a = at(0.0, 0.0);\n"
++    "  vec3 b = at(1.0, 0.0);\n"
++    "  vec3 c = at(0.0, 1.0);\n"
++    "  vec3 d = at(1.0, 1.0);\n"
++    "  vec3 sum = a + b + c + d\n"
++    "           + at(-1.0, -1.0) + at(0.0, -1.0) + at(1.0, -1.0) + at(2.0, -1.0)\n"
++    "           + at(-1.0, 0.0) + at(2.0, 0.0) + at(-1.0, 1.0) + at(2.0, 1.0)\n"
++    "           + at(-1.0, 2.0) + at(0.0, 2.0) + at(1.0, 2.0) + at(2.0, 2.0);\n"
++    "  // A patch of navy, not a stray pixel of it. (Kept as separate steps: some shader compilers\n"
++    "  // get one nested expression of all of this wrong.)\n"
++    "  float navyCount = navy(a) + navy(b) + navy(c) + navy(d);\n"
++    "  float found = 0.5 * step(2.5, navyCount);\n"
++    "  found = max(found, text(0.0, 0.0));\n"
++    "  found = max(found, text(1.0, 0.0));\n"
++    "  found = max(found, text(0.0, 1.0));\n"
++    "  found = max(found, text(1.0, 1.0));\n"
++    "  gl_FragColor = vec4(sum / 16.0, found);\n"
++    "}\n";
++
++const std::string ShaderManager::hd2dPass1Fragment =
++    "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
++    "#define HIGHP highp\n"
++    "#else\n"
++    "#define HIGHP mediump\n"
++    "#endif\n"
++    "precision mediump float;\n"
++    "\n"
++    "uniform lowp sampler2D previousPass;\n"
++    "uniform HIGHP vec2 textureSize;\n"
++    "varying HIGHP vec2 coords;\n"
++    "\n"
++    "void main() {\n"
++    "  HIGHP vec2 offset = vec2(BLUR_ACROSS / (textureSize.x * 0.5), 0.0);\n"
++    "  vec4 c0 = texture2D(previousPass, coords);\n"
++    "  vec4 c1 = texture2D(previousPass, coords + offset * 1.3846);\n"
++    "  vec4 c2 = texture2D(previousPass, coords - offset * 1.3846);\n"
++    "  vec4 c3 = texture2D(previousPass, coords + offset * 3.2308);\n"
++    "  vec4 c4 = texture2D(previousPass, coords - offset * 3.2308);\n"
++    "  vec3 color = c0.rgb * 0.2270 + (c1.rgb + c2.rgb) * 0.3162 + (c3.rgb + c4.rgb) * 0.0703;\n"
++    "  float found = max(c0.a, max(max(c1.a, c2.a), max(c3.a, c4.a)));\n"
++    "  gl_FragColor = vec4(color, found);\n"
++    "}\n";
++
++const std::string ShaderManager::hd2dPass2Fragment =
++    "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
++    "#define HIGHP highp\n"
++    "#else\n"
++    "#define HIGHP mediump\n"
++    "#endif\n"
++    "precision mediump float;\n"
++    "\n"
++    "uniform lowp sampler2D previousPass;\n"
++    "uniform HIGHP vec2 textureSize;\n"
++    "varying HIGHP vec2 coords;\n"
++    "\n"
++    "void main() {\n"
++    "  HIGHP vec2 offset = vec2(0.0, BLUR_DOWN / (textureSize.y * 0.25));\n"
++    "  vec4 c0 = texture2D(previousPass, coords);\n"
++    "  vec4 c1 = texture2D(previousPass, coords + offset * 1.3846);\n"
++    "  vec4 c2 = texture2D(previousPass, coords - offset * 1.3846);\n"
++    "  vec4 c3 = texture2D(previousPass, coords + offset * 3.2308);\n"
++    "  vec4 c4 = texture2D(previousPass, coords - offset * 3.2308);\n"
++    "  vec3 color = c0.rgb * 0.2270 + (c1.rgb + c2.rgb) * 0.3162 + (c3.rgb + c4.rgb) * 0.0703;\n"
++    "  float near = max(c0.a, max(max(c1.a, c2.a), max(c3.a, c4.a)));\n"
++    "  float onInterface = smoothstep(0.15, 0.4, near);\n"
++    "\n"
++    "  // Text anywhere on screen, and the tower's gauges along the top.\n"
++    "  float text = 0.0;\n"
++    "  float gauges = 0.0;\n"
++    "  for (int y = 0; y < 15; y++) {\n"
++    "    for (int x = 0; x < 20; x++) {\n"
++    "      float found = texture2D(previousPass, (vec2(float(x), float(y)) + 0.5) / vec2(20.0, 15.0)).a;\n"
++    "      text = max(text, found);\n"
++    "      if (y < 3) {\n"
++    "        gauges = max(gauges, found);\n"
++    "      }\n"
++    "    }\n"
++    "  }\n"
++    "  float talking = step(0.75, text);\n"
++    "  gauges = step(0.3, gauges);\n"
++    "\n"
++    "  float fromFocus = coords.y - FOCUS_CENTER;\n"
++    "  float depth = (fromFocus < 0.0 ? DOF_TOP : DOF_BOTTOM) * smoothstep(FOCUS_HALF, FOCUS_HALF + FOCUS_FADE, abs(fromFocus));\n"
++    "  // With the gauges up, the strip they're in stays sharp.\n"
++    "  depth *= 1.0 - gauges * (1.0 - smoothstep(GAUGES_BOTTOM, GAUGES_BOTTOM + 0.05, coords.y));\n"
++    "  gl_FragColor = vec4(color, depth * (1.0 - onInterface) * (1.0 - talking));\n"
++    "}\n";
++
++const std::string ShaderManager::hd2dPass3Fragment =
++    "#ifdef GL_FRAGMENT_PRECISION_HIGH\n"
++    "#define HIGHP highp\n"
++    "#else\n"
++    "#define HIGHP mediump\n"
++    "#endif\n"
++    "precision mediump float;\n"
++    "\n"
++    "uniform lowp sampler2D texture;\n"
++    "uniform lowp sampler2D previousPass;\n"
++    "uniform HIGHP vec2 textureSize;\n"
++    "uniform mediump float screenDensity;\n"
++    "varying HIGHP vec2 coords;\n"
++    "varying HIGHP vec2 screenCoords;\n"
++    "\n"
++    "void main() {\n"
++    "  // The game's pixels, sharp (as in the Sharp picture).\n"
++    "  mediump vec2 threshold = vec2(1.0 / screenDensity);\n"
++    "  mediump vec2 f = fract(screenCoords);\n"
++    "  f = 0.5 * (smoothstep(vec2(0.0), threshold, f) + smoothstep(vec2(1.0) - threshold, vec2(1.0), f));\n"
++    "  vec3 color = texture2D(texture, (floor(screenCoords) + f) / textureSize).rgb;\n"
++    "\n"
++    "  // Depth of field.\n"
++    "  vec4 soft = texture2D(previousPass, coords);\n"
++    "  color = mix(color, soft.rgb, soft.a);\n"
++    "\n"
++    "  // Bloom: the bright parts of the soft copy glow over the picture.\n"
++    "  float softLuma = dot(soft.rgb, vec3(0.299, 0.587, 0.114));\n"
++    "  vec3 glow = soft.rgb * smoothstep(BLOOM_THRESHOLD, 1.0, softLuma) * BLOOM;\n"
++    "  color = 1.0 - (1.0 - color) * (1.0 - glow);\n"
++    "\n"
++    "  // Grading: richer color, a little more contrast, warm light and cool shade.\n"
++    "  float luma = dot(color, vec3(0.299, 0.587, 0.114));\n"
++    "  vec3 graded = mix(vec3(luma), color, SATURATION);\n"
++    "  graded = (graded - 0.5) * CONTRAST + 0.5;\n"
++    "  graded += mix(vec3(-0.012, 0.0, 0.03), vec3(0.035, 0.015, -0.025), smoothstep(0.15, 0.85, luma)) * WARMTH;\n"
++    "\n"
++    "  // Vignette.\n"
++    "  HIGHP vec2 fromCenter = (coords - 0.5) * vec2(1.0, 1.15);\n"
++    "  graded *= 1.0 - VIGNETTE * smoothstep(0.3, 0.78, length(fromCenter));\n"
++    "\n"
++    "  gl_FragColor = vec4(clamp(graded, 0.0, 1.0), 1.0);\n"
++    "}\n";
++
+ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& config) {
+     switch (config.type) {
+     case Type::SHADER_DEFAULT: {
+@@ -1602,6 +1821,21 @@ ShaderManager::Chain ShaderManager::getShader(const ShaderManager::Config& confi
+             false
+         };
+     }
++
++    case Type::SHADER_HD2D: {
++        // The game's frame is read with linear filtering: exactly at texel centers for the
++        // soft copy, and between them for the sharp pixels' smoothed edges.
++        std::string defines = buildDefines(hd2dParams, config.params);
++        return {
++            {
++                { defines + defaultShaderVertex, defines + hd2dPass0Fragment, true, 0.5 },
++                { defines + defaultShaderVertex, defines + hd2dPass1Fragment, true, 0.25 },
++                { defines + defaultShaderVertex, defines + hd2dPass2Fragment, true, 0.25 },
++                { defines + defaultShaderVertex, defines + hd2dPass3Fragment, true, 1.0 },
++            },
++            true
++        };
++    }
+ }
+ }
+ 
+diff --git a/libretrodroid/src/main/cpp/shadermanager.h b/libretrodroid/src/main/cpp/shadermanager.h
+index 4407e8b..b4144a2 100644
+--- a/libretrodroid/src/main/cpp/shadermanager.h
++++ b/libretrodroid/src/main/cpp/shadermanager.h
+@@ -51,6 +51,7 @@ public:
+         SHADER_UPSCALE_CUT = 4,
+         SHADER_UPSCALE_CUT2 = 5,
+         SHADER_UPSCALE_CUT3 = 6,
++        SHADER_HD2D = 7,
+     };
+ 
+     struct Config {
+@@ -88,6 +89,12 @@ private:
+     static const std::string cut3UpscalePass2Vertex;
+     static const std::string cut3UpscalePass2Fragment;
+ 
++    static const std::unordered_map<std::string, std::string> hd2dParams;
++    static const std::string hd2dPass0Fragment;
++    static const std::string hd2dPass1Fragment;
++    static const std::string hd2dPass2Fragment;
++    static const std::string hd2dPass3Fragment;
++
+ private:
+     static std::string buildDefines(
+         std::unordered_map<std::string, std::string> baseParams,
+diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
+index 7eb8602..88ab643 100644
+--- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
++++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
+@@ -413,6 +413,15 @@ class GLRetroView(
+             is ShaderConfig.CRT -> GLRetroShader(LibretroDroid.SHADER_CRT)
+             is ShaderConfig.LCD -> GLRetroShader(LibretroDroid.SHADER_LCD)
+             is ShaderConfig.Sharp -> GLRetroShader(LibretroDroid.SHADER_SHARP)
++            is ShaderConfig.HD2D -> GLRetroShader(
++                LibretroDroid.SHADER_HD2D,
++                buildParams(
++                    LibretroDroid.SHADER_HD2D_PARAM_DOF_TOP to toParam(config.depthOfField),
++                    LibretroDroid.SHADER_HD2D_PARAM_DOF_BOTTOM to toParam(config.depthOfField * 0.6f),
++                    LibretroDroid.SHADER_HD2D_PARAM_BLOOM to toParam(config.bloom),
++                    LibretroDroid.SHADER_HD2D_PARAM_VIGNETTE to toParam(config.vignette),
++                )
++            )
+             is ShaderConfig.CUT -> GLRetroShader(
+                 LibretroDroid.SHADER_UPSCALE_CUT,
+                 buildParams(
+diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java b/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
+index 50eafa1..8f37154 100644
+--- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
++++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/LibretroDroid.java
+@@ -37,6 +37,12 @@ public class LibretroDroid {
+     public static final int SHADER_UPSCALE_CUT = 4;
+     public static final int SHADER_UPSCALE_CUT2 = 5;
+     public static final int SHADER_UPSCALE_CUT3 = 6;
++    public static final int SHADER_HD2D = 7;
++
++    public static final String SHADER_HD2D_PARAM_DOF_TOP = "DOF_TOP";
++    public static final String SHADER_HD2D_PARAM_DOF_BOTTOM = "DOF_BOTTOM";
++    public static final String SHADER_HD2D_PARAM_BLOOM = "BLOOM";
++    public static final String SHADER_HD2D_PARAM_VIGNETTE = "VIGNETTE";
+ 
+     public static final String SHADER_UPSCALE_CUT_PARAM_USE_DYNAMIC_BLEND = "USE_DYNAMIC_BLEND";
+     public static final String SHADER_UPSCALE_CUT_PARAM_BLEND_MIN_CONTRAST_EDGE = "BLEND_MIN_CONTRAST_EDGE";
+diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt b/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
+index 5bf4514..3482cdb 100644
+--- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
++++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/ShaderConfig.kt
+@@ -24,6 +24,16 @@ sealed interface ShaderConfig {
+     object LCD : ShaderConfig
+     object Sharp : ShaderConfig
+ 
++    /**
++     * HD-2D post-processing (tilt-shift depth of field, bloom, color grading, vignette) over sharp
++     * pixels. Tuned for Azure Dreams, whose interface it keeps clear of the focus effects.
++     */
++    data class HD2D(
++        val depthOfField: Float = 1.0f,
++        val bloom: Float = 0.5f,
++        val vignette: Float = 0.35f,
++    ) : ShaderConfig
++
+     data class CUT(
+         val useDynamicBlend: Boolean = true,
+         val blendMinContrastEdge: Float = 0.0f,

@@ -22,10 +22,18 @@ object AdCore {
     fun sharper3d(enabled: Boolean) =
         Variable("pcsx_rearmed_neon_enhancement_enable", if (enabled) "enabled" else "disabled")
 
-    fun shader(picture: Int): ShaderConfig = when (picture) {
+    fun shader(config: AdConfig): ShaderConfig = when (config.picture) {
         AdConfig.PICTURE_SMOOTH -> ShaderConfig.Default
         AdConfig.PICTURE_CRT -> ShaderConfig.CRT
         AdConfig.PICTURE_UPSCALED -> ShaderConfig.CUT2()
+        AdConfig.PICTURE_HD2D -> ShaderConfig.HD2D(
+            depthOfField = when (config.hd2dDepth) {
+                AdConfig.DEPTH_OFF -> 0f
+                AdConfig.DEPTH_STRONG -> 1f
+                else -> 0.6f
+            },
+            bloom = if (config.hd2dBloom) 0.5f else 0f,
+        )
         else -> ShaderConfig.Sharp
     }
 }

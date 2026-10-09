@@ -10,9 +10,9 @@ dependencyResolutionManagement {
 	repositories {
 		google()
 		mavenCentral()
-		// LibretroDroid, the libretro frontend library behind Lemuroid.
-		maven { url "https://jitpack.io" }
 	}
 }
 rootProject.name = "AzureDreams"
 include ':app'
+// LibretroDroid, the libretro frontend library behind Lemuroid, built from source.
+include ':libretrodroid'

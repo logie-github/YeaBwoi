@@ -13,6 +13,8 @@ def adKeystore = adProperty("keystore", "")
 android {
 	namespace = "com.logie.azuredreams"
 	compileSdk = 35
+	// Also what strips the native libraries' debug symbols when packaging.
+	ndkVersion = "29.0.14206865"
 
 	buildFeatures {
 		buildConfig = true
@@ -82,7 +84,7 @@ android {
 }
 
 dependencies {
-	implementation 'com.github.Swordfish90:LibretroDroid:0.14.0'
+	implementation project(':libretrodroid')
 
 	implementation 'androidx.appcompat:appcompat:1.6.1'
 	implementation 'androidx.core:core-ktx:1.12.0'

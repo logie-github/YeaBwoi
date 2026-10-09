@@ -26,7 +26,7 @@
     <string name="ad_tile_controls">Controls</string>
     <string name="ad_tile_controls_summary">The touch gestures</string>
     <string name="ad_tile_picture">Picture</string>
-    <string name="ad_tile_picture_summary">Pixels, CRT, sharper 3D</string>
+    <string name="ad_tile_picture_summary">2D-HD, pixels, CRT, sharper 3D</string>
     <string name="ad_tile_memory_card">Memory card</string>
     <string name="ad_tile_memory_card_summary">Import or back up your saves</string>
     <string name="ad_tile_bios">BIOS</string>
@@ -60,7 +60,7 @@
     <string name="ad_button_run">Circle and the D-pad: run</string>
     <string name="ad_button_shoulder">R1 on the right half of the screen, L1 on the left, held: turn the view</string>
     <string name="ad_button_square">Square: the game\'s menu</string>
-    <string name="ad_button_triangle">Triangle</string>
+    <string name="ad_button_triangle">Triangle: jump</string>
     <string name="ad_button_l1r1">L1 / R1</string>
     <string name="ad_button_start">Start: pause</string>
     <string name="ad_button_select">Select, held: the map</string>
@@ -69,6 +69,17 @@
 
     <!-- Picture -->
     <string name="ad_picture_title">Picture</string>
+    <string name="ad_picture_hd2d">2D-HD</string>
+    <string name="ad_picture_hd2d_summary">Octopath-style: sharp pixels, tilt-shift depth of field, glow, richer color, drifting light</string>
+    <string name="ad_hd2d_depth">Depth of field</string>
+    <string name="ad_hd2d_depth_off">Off</string>
+    <string name="ad_hd2d_depth_light">Light</string>
+    <string name="ad_hd2d_depth_strong">Strong</string>
+    <string name="ad_hd2d_depth_summary">The far top and near bottom of the scene go soft. Text, windows and the tower\'s gauges stay sharp, and while anyone\'s talking or a menu is open the whole picture comes into focus.</string>
+    <string name="ad_hd2d_bloom">Glow</string>
+    <string name="ad_hd2d_bloom_summary">Bright light softly blooms</string>
+    <string name="ad_hd2d_motes">Drifting light</string>
+    <string name="ad_hd2d_motes_summary">Specks of warm light floating up through the scene</string>
     <string name="ad_picture_sharp">Sharp pixels</string>
     <string name="ad_picture_sharp_summary">Crisp, unfiltered</string>
     <string name="ad_picture_smooth">Smooth</string>
