@@ -34,6 +34,7 @@ The gestures are V3 Gold's, with the D-pad in place of the sticks: Azure Dreams 
 | Tap | Cross | Attack, OK |
 | Hold | Circle, held | Cancel |
 | Hold, then drag (or hold and swipe with another finger) | Circle + D-pad | Run |
+| Hold, and tap with another finger (again and again while you hold) | Triangle, with Circle still held | |
 | Tap, then tap and hold | R1 on the right half of the screen, L1 on the left, held | Turn the view |
 | Two fingers swipe down | Square | The game's menu |
 | Two fingers swipe up | Triangle | Jump |
@@ -43,7 +44,7 @@ The gestures are V3 Gold's, with the D-pad in place of the sticks: Azure Dreams 
 | Two-finger tap, then two-finger tap and hold | This app's menu | |
 | Android's back gesture | This app's menu | |
 
-A swipe presses the D-pad as soon as it starts and follows the finger: the start point is dragged along about 6 mm behind it, so the D-pad points where the finger last moved and turning around is instant. Moving back to the start point lets go. A tap waits a quarter of a second before it presses Cross, to tell it apart from a double tap. While one finger walks, a second can tap for Cross or hold for Circle.
+A swipe presses the D-pad as soon as it starts and follows the finger: the start point is dragged along about 6 mm behind it, so the D-pad points where the finger last moved and turning around is instant. Moving back to the start point lets go. A tap waits a quarter of a second before it presses Cross, to tell it apart from a double tap. While one finger walks, a second can tap for Cross or hold for Circle. While a finger holds Circle (running too), taps with another finger are Triangle instead of Cross.
 
 A game controller works too; plug it in or pair it and play.
 

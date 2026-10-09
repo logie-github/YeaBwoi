@@ -276,6 +276,44 @@ class GestureRecognizerTest {
     }
 
     @Test
+    fun tapsWhileHoldingCircleAreTriangle() {
+        down(0, 200f, 300f, 0)
+        scheduler.advanceTo(400)
+        assertEquals(setOf(PsButton.CIRCLE), out.pressed)
+        tap(1, 700f, 300f, 500)
+        assertEquals(setOf(PsButton.CIRCLE, PsButton.TRIANGLE), out.pressed)
+        scheduler.advanceTo(700)
+        assertEquals(setOf(PsButton.CIRCLE), out.pressed, "Circle stays held")
+        // Again, as often as the hold lasts.
+        tap(1, 650f, 320f, 900)
+        tap(1, 720f, 280f, 1300)
+        scheduler.advanceTo(1600)
+        up(0, 200f, 300f, 1700)
+        assertTrue(out.pressed.isEmpty())
+        assertEquals(listOf("CIRCLE", "TRIANGLE", "TRIANGLE", "TRIANGLE"), out.presses())
+    }
+
+    @Test
+    fun tapsWhileRunningAreTriangle() {
+        down(0, 200f, 300f, 0)
+        scheduler.advanceTo(300)
+        move(0, 260f, 300f, 400)
+        tap(1, 700f, 300f, 500)
+        assertEquals(setOf(PsButton.CIRCLE, PsButton.DPAD_RIGHT, PsButton.TRIANGLE), out.pressed)
+        assertTrue("CROSS" !in out.presses())
+    }
+
+    @Test
+    fun tapAfterLettingGoOfCircleIsCrossAgain() {
+        down(0, 200f, 300f, 0)
+        scheduler.advanceTo(400)
+        up(0, 200f, 300f, 500)
+        tap(1, 700f, 300f, 600)
+        scheduler.advanceTo(1500)
+        assertEquals(listOf("CIRCLE", "CROSS"), out.presses())
+    }
+
+    @Test
     fun secondFingerSwipeWhileWalkingIsIgnored() {
         down(0, 200f, 300f, 0)
         move(0, 200f, 250f, 30)

@@ -46,6 +46,7 @@
     <string name="ad_gesture_tap">Tap</string>
     <string name="ad_gesture_hold">Hold</string>
     <string name="ad_gesture_run">Hold, then drag (or hold and swipe with another finger)</string>
+    <string name="ad_gesture_hold_tap">Hold, and tap with another finger</string>
     <string name="ad_gesture_tap_hold">Tap, then tap and hold</string>
     <string name="ad_gesture_two_finger_swipe_down">Two fingers swipe down</string>
     <string name="ad_gesture_two_finger_swipe_up">Two fingers swipe up</string>
@@ -58,6 +59,7 @@
     <string name="ad_button_cross">Cross: attack, OK</string>
     <string name="ad_button_circle">Circle, held: cancel</string>
     <string name="ad_button_run">Circle and the D-pad: run</string>
+    <string name="ad_button_hold_triangle">Triangle, with Circle still held. Tap again for another, for as long as you hold</string>
     <string name="ad_button_shoulder">R1 on the right half of the screen, L1 on the left, held: turn the view</string>
     <string name="ad_button_square">Square: the game\'s menu</string>
     <string name="ad_button_triangle">Triangle: jump</string>
@@ -65,7 +67,7 @@
     <string name="ad_button_start">Start: pause</string>
     <string name="ad_button_select">Select, held: the map</string>
     <string name="ad_button_menu">This app\'s menu: save states, speed, picture (pauses the game)</string>
-    <string name="ad_gesture_note">Swipes press the D-pad as soon as they start, and follow your finger: the D-pad points where it last moved, so turning around is instant. Moving back to where the swipe started lets go. While one finger walks, a second can tap for Cross or hold for Circle.</string>
+    <string name="ad_gesture_note">Swipes press the D-pad as soon as they start, and follow your finger: the D-pad points where it last moved, so turning around is instant. Moving back to where the swipe started lets go. While one finger walks, a second can tap for Cross or hold for Circle. While a finger holds Circle, taps with another finger are Triangle.</string>
 
     <!-- Picture -->
     <string name="ad_picture_title">Picture</string>
