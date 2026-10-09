@@ -74,12 +74,13 @@ class GoldGestures(private val overlay: InputOverlay) {
     private fun gestureConfig(): GestureConfig {
         val density = overlay.resources.displayMetrics.density
         val settings = GoldConfig(overlay.context)
+        val runDistancePx = settings.runDistanceDp * density
         return GestureConfig(
             touchSlopPx = 14 * density,
             stickRadiusPx = 56 * density,
             twoFingerSwipePx = 56 * density,
-            walkDistancePx = 40 * density,
-            runDistancePx = 80 * density,
+            walkDistancePx = runDistancePx * GoldConfig.WALK_FRACTION,
+            runDistancePx = runDistancePx,
             walkTilt = settings.walkTilt,
             swipeDpad = settings.swipeDpad,
         )

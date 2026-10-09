@@ -23,6 +23,11 @@ class GoldConfig(context: Context) {
         get() = prefs.getFloat(KEY_WALK_TILT, DEFAULT_WALK_TILT)
         set(value) = prefs.edit().putFloat(KEY_WALK_TILT, value).apply()
 
+    /** How long a swipe (in dp) has to be to push the left stick all the way, to run. */
+    var runDistanceDp: Float
+        get() = prefs.getFloat(KEY_RUN_DISTANCE, DEFAULT_RUN_DISTANCE_DP)
+        set(value) = prefs.edit().putFloat(KEY_RUN_DISTANCE, value).apply()
+
     /** Swipes also hold the D-pad, for menus that ignore the stick. */
     var swipeDpad: Boolean
         get() = prefs.getBoolean(KEY_SWIPE_DPAD, false)
@@ -58,6 +63,9 @@ class GoldConfig(context: Context) {
 
     companion object {
         const val DEFAULT_WALK_TILT = 0.4f
+        const val DEFAULT_RUN_DISTANCE_DP = 48f
+        /** Swipes up to this fraction of the run distance walk. */
+        const val WALK_FRACTION = 0.6f
 
         /** The game's own 16:9 picture, as big as fits. */
         const val SCREEN_SHAPE_ORIGINAL = 0
@@ -71,6 +79,7 @@ class GoldConfig(context: Context) {
         private const val KEY_GESTURES = "gestures_enabled"
         private const val KEY_HAPTICS = "haptics"
         private const val KEY_WALK_TILT = "walk_tilt"
+        private const val KEY_RUN_DISTANCE = "run_distance_dp"
         private const val KEY_SWIPE_DPAD = "swipe_dpad"
         private const val KEY_SCREEN_SHAPE = "screen_shape"
         private const val KEY_BLUR_FIX = "blur_fix"

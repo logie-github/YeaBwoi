@@ -44,6 +44,8 @@
     <string name="gold_haptics_switch_summary">A short buzz when a hold, Select or the menu gesture registers</string>
     <string name="gold_walk_title">Walking</string>
     <string name="gold_walk_summary">A short swipe pushes the stick %1$d%% of the way, so he walks; longer swipes push it further, so he runs. If short swipes still run, slide left. If he doesn\'t move, slide right.</string>
+    <string name="gold_run_title">Running</string>
+    <string name="gold_run_summary">A swipe about %1$s mm long pushes the stick all the way, so he runs. Slide left to run with shorter swipes.</string>
     <string name="gold_swipe_dpad_switch">Swipes press the D-pad too</string>
     <string name="gold_swipe_dpad_switch_summary">For any menu that ignores the stick. The D-pad moves him at full speed in only 4 directions.</string>
     <string name="gold_check_updates">Check for updates</string>

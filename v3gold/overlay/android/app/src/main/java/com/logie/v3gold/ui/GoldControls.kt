@@ -138,6 +138,7 @@ fun GoldControlsTab(activity: Emulator, buttons: @Composable () -> Unit) {
     var gestures by remember { mutableStateOf(GoldConfig(context).gesturesEnabled) }
     var haptics by remember { mutableStateOf(GoldConfig(context).haptics) }
     var walkTilt by remember { mutableFloatStateOf(GoldConfig(context).walkTilt) }
+    var runDistanceDp by remember { mutableFloatStateOf(GoldConfig(context).runDistanceDp) }
     var swipeDpad by remember { mutableStateOf(GoldConfig(context).swipeDpad) }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -177,6 +178,26 @@ fun GoldControlsTab(activity: Emulator, buttons: @Composable () -> Unit) {
                     onValueChangeFinished = { GoldConfig(context).walkTilt = walkTilt },
                     valueRange = 0.2f..0.7f,
                     steps = 9,
+                )
+            }
+            Column {
+                Text(
+                    stringResource(R.string.gold_run_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    // 160 dp to the inch.
+                    stringResource(R.string.gold_run_summary, "%.1f".format(runDistanceDp * 25.4f / 160f)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Slider(
+                    value = runDistanceDp,
+                    onValueChange = { runDistanceDp = (it / 4).roundToInt() * 4f },
+                    onValueChangeFinished = { GoldConfig(context).runDistanceDp = runDistanceDp },
+                    valueRange = 24f..96f,
+                    steps = 17,
                 )
             }
             SwitchRow(
