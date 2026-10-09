@@ -71,16 +71,16 @@
     <!-- Picture -->
     <string name="ad_picture_title">Picture</string>
     <string name="ad_hd2d">2D-HD</string>
-    <string name="ad_hd2d_summary">Octopath-style: sharp pixels, tilt-shift depth of field, glow, richer color, drifting light. Takes the place of the Picture choice while it\'s on.</string>
+    <string name="ad_hd2d_summary">Octopath-style, from the game\'s own 3D: depth of field, glow, richer color and drifting light on the scene, while menus, dialogue and the HUD stay exactly as the game draws them. Takes the place of the Picture choice while it\'s on.</string>
     <string name="ad_hd2d_depth">Depth of field</string>
     <string name="ad_hd2d_depth_off">Off</string>
     <string name="ad_hd2d_depth_light">Light</string>
     <string name="ad_hd2d_depth_strong">Strong</string>
-    <string name="ad_hd2d_depth_summary">The far top and near bottom of the scene go soft. The game\'s text, windows and gauges stay sharp on top, and so do the dialogue window and the speaker\'s portrait while the scene around them stays soft.</string>
+    <string name="ad_hd2d_depth_summary">Focuses where Koh stands and softens the scene by its real depth, nearer or farther, following every model\'s edge. Characters in focus stay crisp, and anything flat (menus, dialogue, the HUD) is never touched.</string>
     <string name="ad_hd2d_bloom">Glow</string>
     <string name="ad_hd2d_bloom_summary">Bright light softly blooms</string>
     <string name="ad_hd2d_motes">Drifting light</string>
-    <string name="ad_hd2d_motes_summary">Specks of warm light floating up through the scene</string>
+    <string name="ad_hd2d_motes_summary">Specks of warm light floating up through the scene, behind the menus</string>
     <string name="ad_picture_sharp">Sharp pixels</string>
     <string name="ad_picture_sharp_summary">Crisp, unfiltered</string>
     <string name="ad_picture_smooth">Smooth</string>
@@ -93,7 +93,7 @@
     <string name="ad_resolution_option">%1$d×</string>
     <string name="ad_resolution_summary">How many times the PlayStation\'s resolution the 3D is drawn at: %1$d× is %2$d × %3$d. Higher is sharper and uses more battery.</string>
     <string name="ad_steady_3d">Steady 3D</string>
-    <string name="ad_steady_3d_summary">Stops the PlayStation\'s wobbling polygons and warping textures</string>
+    <string name="ad_steady_3d_summary">Stops the PlayStation\'s wobbling polygons and warping textures. Always on with 2D-HD, which needs it.</string>
 
     <!-- Memory card -->
     <string name="ad_card_title">Memory card</string>

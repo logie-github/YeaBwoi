@@ -67,15 +67,14 @@ Switching apps or the phone sleeping pauses the game where it is. Closing the ap
 
 **2D-HD** in the in-game menu gives the game the look of Square Enix's HD-2D games (Octopath Traveler, Triangle Strategy): its pixel sprites in a 3D world are made for it. While it's on, it takes the place of the Picture choice; switching it off goes back to that choice.
 
-- The pixels stay sharp.
-- **Depth of field** (Off, **Light**, Strong): tilt-shift blur, so the far top and the near bottom of the scene go soft and the middle, where Koh is, stays in focus.
-- **Glow**: bright light blooms softly.
-- The colors are graded (richer, warm light and cool shade) and the corners darkened.
-- **Drifting light**: specks of warm light floating up through the scene.
+It works from what the emulator knows about each pixel, not from guessing at the finished picture. With 2D-HD on, SwanStation keeps the depth of the 3D scene for every pixel (PGXP's depth: the console's Z, from the polygons the game projects with the GTE) and hands it over with the picture (`patches/swanstation/`, "scene depth"). Anything the game draws flat, without 3D depth (menus, dialogue windows, the HUD, portraits, 2D sprites, videos), is marked as such, and the shader leaves it exactly as the game drew it. On the 3D scene:
 
-The interface stays sharp on top of the effects, as if they were under it. A filter over the finished picture can't tell the game's menus from its world, so the 2D-HD shader looks for them: Azure Dreams' white lettering on the dark blue fill of its windows, and the deep navy of the tower's gauges. Text, windows and the gauges stay sharp and don't glow, and the strip with the gauges stays sharp in the tower. While someone is talking, the dialogue window along the bottom stays sharp from a little above its first line down, with its name plate and the speaker's portrait on the left, and the rest of the scene keeps its depth of field. The drifting light stays between the gauges and the dialogue window. If you spot something it gets wrong, a screenshot helps tune it.
+- **Depth of field** (Off, **Light**, Strong): the camera focuses on the scene where Koh stands, a little below the middle of the picture, and everything else softens by how far its own depth is from there, nearer or farther. It follows the edges of every model: a pillar in front stays as near as it is, and what's in focus never smears into the blur around it.
+- **Glow**: the scene's bright parts bloom softly (the interface doesn't).
+- Richer color, warm light and cool shade, and darkened corners.
+- **Drifting light**: specks of warm light floating up through the scene, behind the interface.
 
-It works the same at any resolution: the effects are worked out at the PlayStation's resolution.
+2D-HD turns on PGXP (Steady 3D), which the depth comes from. While it's on, SwanStation writes that depth to its depth buffer without testing against it, so the game still draws in its own order; the one thing that goes is the PlayStation's mask bit check, which few games use. The effects are worked out at the PlayStation's resolution, whatever the internal one.
 
 ## Saves
 
@@ -94,12 +93,13 @@ Like the other apps: the app checks this repository's releases (`ad-build-N`) wh
 | `app.env` | Package, app name and release tag prefix |
 | `core-version.env` | The SwanStation commit to build |
 | `libretrodroid-version.env` | The LibretroDroid commit to build (its 0.14.0 release) |
+| `patches/swanstation/` | Changes to SwanStation: the scene's depth in the frame's alpha, for 2D-HD |
 | `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, putting the core's OpenGL state back before drawing its frame) |
 | `android/` | The app (`app/`): title screen, game screen, in-game menu, gestures, update checker. `libretrodroid/` builds LibretroDroid from `libretrodroid/upstream/`. |
 | `branding/` | Source images. `make-icons.py` rebuilds the launcher icon layers from `icon.png`. |
 | `fonts/` | Licenses of the pixel fonts (Press Start 2P, Pixelify Sans), both SIL Open Font License |
 | `unit-tests/` | JVM unit tests for the gesture recognizer and the update picker |
-| `../scripts/build-swanstation.sh` | Fetches SwanStation and builds it with the NDK, CMake and Ninja into `android/core/` |
+| `../scripts/build-swanstation.sh` | Fetches SwanStation, applies `patches/swanstation/` and builds it with the NDK, CMake and Ninja into `android/core/` |
 | `../scripts/prepare-libretrodroid.sh` | Fetches LibretroDroid and its submodules into `android/libretrodroid/upstream/` and applies `patches/libretrodroid/` |
 
 To build locally, you need JDK 17+ and the Android SDK with NDK 29.0.14206865 and CMake 3.31.6:

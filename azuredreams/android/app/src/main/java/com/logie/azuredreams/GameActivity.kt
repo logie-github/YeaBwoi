@@ -7,7 +7,6 @@ import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -47,7 +46,6 @@ import kotlinx.coroutines.withContext
 class GameActivity : ComponentActivity() {
     private lateinit var retroView: GLRetroView
     private lateinit var gestureView: GestureView
-    private lateinit var moteView: MoteView
     private lateinit var crtView: CrtView
     private lateinit var config: AdConfig
 
@@ -59,7 +57,8 @@ class GameActivity : ComponentActivity() {
     /** The picture settings the emulator has, to only change them when the player did. */
     private var appliedShader: ShaderConfig? = null
     private var appliedResolution: Int? = null
-    private var appliedSteady3d: Boolean? = null
+    /** PGXP and the scene's depth, as the emulator has them (they follow Steady 3D and 2D-HD). */
+    private var appliedPgxp: List<String>? = null
     /** The BIOS the game started on ([AdFiles.biosTag]), noted with each state saved. */
     private lateinit var biosTag: String
     /** Memory card 1 as it was last written to its file. */
@@ -104,14 +103,12 @@ class GameActivity : ComponentActivity() {
         retroView = GLRetroView(this, data)
         lifecycle.addObserver(retroView)
         gestureView = GestureView(this, retroView, onMenu = ::openMenu)
-        moteView = MoteView(this).apply { visibility = View.GONE }
         crtView = CrtView(this)
 
         val match = ViewGroup.LayoutParams.MATCH_PARENT
         setContentView(FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
             addView(retroView, FrameLayout.LayoutParams(match, match))
-            addView(moteView, FrameLayout.LayoutParams(match, match))
             addView(gestureView, FrameLayout.LayoutParams(match, match))
             addView(crtView, FrameLayout.LayoutParams(match, match))
         })
@@ -128,7 +125,6 @@ class GameActivity : ComponentActivity() {
             started = true
             applySettings()
             watchMemoryCard()
-            moteView.setRunning(true)
             crtView.switchOn()
         }
         lifecycleScope.launch {
@@ -148,14 +144,12 @@ class GameActivity : ComponentActivity() {
                 }
             }
             watchMemoryCard()
-            moteView.setRunning(true)
         }
         pendingAction = null
     }
 
     override fun onPause() {
         if (::gestureView.isInitialized) gestureView.releaseAll()
-        if (::moteView.isInitialized) moteView.setRunning(false)
         cardWatch?.cancel()
         cardWatch = null
         // The game has paused (LibretroDroid follows the lifecycle), so its memory card can be read
@@ -210,17 +204,17 @@ class GameActivity : ComponentActivity() {
             appliedShader = shader
             retroView.shader = shader
         }
-        moteView.visibility = if (config.hd2d && config.hd2dMotes) View.VISIBLE else View.GONE
         val resolution = config.resolution
         if (appliedResolution != null && resolution != appliedResolution) {
             retroView.updateVariables(AdCore.resolution(resolution))
         }
         appliedResolution = resolution
-        val steady3d = config.steady3d
-        if (appliedSteady3d != null && steady3d != appliedSteady3d) {
-            retroView.updateVariables(AdCore.steady3d(steady3d))
+        val pgxp = AdCore.pgxp(config)
+        val pgxpValues = pgxp.map { it.value.orEmpty() }
+        if (appliedPgxp != null && pgxpValues != appliedPgxp) {
+            retroView.updateVariables(*pgxp)
         }
-        appliedSteady3d = steady3d
+        appliedPgxp = pgxpValues
     }
 
     private fun run(action: MenuActivity.Action) {
