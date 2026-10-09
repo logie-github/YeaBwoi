@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: V3 Gold <v3gold@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 03:02:04 +0000
+Subject: [PATCH 6/6] V3 Gold: low-latency audio (Cubeb) by default
+
+Vita3K's SDL audio lets up to four of the phone's audio buffers queue
+up before the game waits, so voices and music lagged behind the game.
+GoldDefaults step 1 switches existing and new installs to Vita3K's Cubeb
+backend once: a low-latency stream per audio port with only a couple of
+buffers. It runs when Vita3K is initialized, before the settings screen
+loads the settings, so the setting stays changeable there.
+---
+ .../java/org/vita3k/emulator/ui/navigation/AppNavigation.kt    | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt b/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt
+index e1b2ff8..a32098d 100644
+--- a/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt
++++ b/android/app/src/main/java/org/vita3k/emulator/ui/navigation/AppNavigation.kt
+@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
+ import androidx.navigation.compose.currentBackStackEntryAsState
+ import androidx.navigation.compose.rememberNavController
+ import androidx.navigation.navArgument
++import com.logie.v3gold.GoldDefaults
+ import com.logie.v3gold.GoldUpdateActivity
+ import com.logie.v3gold.ui.GoldHomeRoute
+ import org.vita3k.emulator.MainActivity
+@@ -93,6 +94,8 @@ fun AppNavigation(
+ 
+     LaunchedEffect(appsListViewModel.initialized) {
+         if (appsListViewModel.initialized) {
++            // V3 Gold's choices for Vita3K's settings, before the settings screen loads them
++            GoldDefaults.apply(context)
+             settingsViewModel.preloadGlobalSettings()
+         }
+     }

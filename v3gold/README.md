@@ -58,11 +58,27 @@ The in-game menu's **Controls** tab turns gestures off, which brings back Vita3K
 - **Updates**: check for a newer V3 Gold. **Check for updates** is also on the in-game menu's Session tab.
 - **Library**: Vita3K's own app list, for managing saves and other installed apps.
 
+## Experiments
+
+The in-game menu's **Session** tab has an **Experiments** card:
+
+- **Remove motion blur** (on by default): Persona 4 Golden draws the previous frame back over each new frame, partly transparent, which is its ghosting blur. The renderer finds that full-screen draw and skips it, or gives it the new frame if it mixes the two. **Show details** lists every full-screen draw that read back an earlier frame, and what the fix did with it. A screenshot of that list shows how the game draws its blur, to tune the fix.
+- **60 FPS** (off by default): Vita3K's FPS hack, so the game draws a frame every screen refresh instead of every other one. Persona 4's engine moves the game on by a stored time per frame, 1/30 s. The PS2 game's 60 FPS patch sets it to 1/60. So at 60 FPS the game may run twice as fast, and the **speed fix** finds the 1/30 s values in the game's executable and sets them to 1/60 s:
+  - The values in its data change while it runs. **All** changes every one, and the numbers try them one at a time.
+  - **Also fix the values in the game's code** writes a Vita3K patch file (`patch/<title ID>_V3GOLD_SPEED.txt`), applied the next time the game starts.
+
+Nobody has published a 60 FPS patch for the Vita version, so this is a search. The menu shows the game's frame rate and how many values it found.
+
+## Audio
+
+V3 Gold uses Vita3K's **Cubeb** audio backend: a low-latency stream for each of the game's audio channels. Vita3K's default, SDL, lets several of the phone's audio buffers queue up, so voices and music lagged behind the game. It's set once, also on installs from before 1.0.4. **Emulator settings → Audio** can switch back to SDL.
+
 ## Limitations
 
 - Vita3K is experimental. Persona 4 Golden is playable, but expect occasional glitches or crashes. Save often in the game.
 - Vita3K has no save states, so there's no quick save or quick load. Saving works at the game's own save points.
 - There's no fast-forward. Vita3K can't speed a game up.
+- 60 FPS and the motion blur removal are experiments (see above).
 
 ## How it's built
 

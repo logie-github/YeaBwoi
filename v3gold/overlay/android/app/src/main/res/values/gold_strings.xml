@@ -70,6 +70,29 @@
     <string name="gold_button_r1">R1</string>
     <string name="gold_button_menu">The in-game menu</string>
 
+    <!-- Experiments (in-game menu, Session tab) -->
+    <string name="gold_lab_title">Experiments</string>
+    <string name="gold_lab_blur">Remove motion blur</string>
+    <string name="gold_lab_blur_summary">Skips the game\'s ghosting effect. Turn off if anything looks wrong.</string>
+    <string name="gold_lab_blur_none">No blur pass seen in the last frame.</string>
+    <string name="gold_lab_blur_status">Last frame: %1$d of %2$d full-screen read-backs removed.</string>
+    <string name="gold_lab_show_details">Show details</string>
+    <string name="gold_lab_hide_details">Hide details</string>
+    <string name="gold_lab_details_hint">A screenshot of these lines shows exactly how the game draws its blur, to fine-tune the fix.</string>
+    <string name="gold_lab_sixty">60 FPS</string>
+    <string name="gold_lab_sixty_summary">Draws a frame on every screen refresh instead of every other one.</string>
+    <string name="gold_lab_sixty_summary_fps">Draws a frame on every screen refresh instead of every other one. Now: %1$d FPS.</string>
+    <string name="gold_lab_speed_fix">Speed fix</string>
+    <string name="gold_lab_speed_fix_off">Off</string>
+    <string name="gold_lab_speed_fix_all">All (%1$d)</string>
+    <string name="gold_lab_speed_searching">Looking for the game\'s time per frame (1/30 s)…</string>
+    <string name="gold_lab_speed_none">No 1/30 s values found in the game yet.</string>
+    <string name="gold_lab_speed_found">Found %1$d time-per-frame values in the game\'s data and %2$d in its code.</string>
+    <string name="gold_lab_speed_code">Also fix the values in the game\'s code</string>
+    <string name="gold_lab_speed_code_summary">Takes effect the next time the game starts, and turning it off too.</string>
+    <string name="gold_lab_search_again">Search again</string>
+    <string name="gold_lab_speed_help">At 60 FPS the game may run twice as fast. The speed fix changes its time per frame from 1/30 s to 1/60 s. Walk around and check the speed: try All first. If the game breaks or still runs fast, try one value at a time, then the switch for the code values.</string>
+
     <!-- Updates -->
     <string name="gold_update_checking">Checking for updates…</string>
     <string name="gold_update_available_title">Update available</string>

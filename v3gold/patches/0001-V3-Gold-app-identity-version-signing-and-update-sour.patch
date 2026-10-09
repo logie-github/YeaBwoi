@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: V3 Gold <v3gold@users.noreply.github.com>
 Date: Thu, 8 Oct 2026 23:31:01 +0000
-Subject: [PATCH 1/4] V3 Gold: app identity, version, signing and update source
+Subject: [PATCH 1/6] V3 Gold: app identity, version, signing and update source
  from Gradle properties
 
 - applicationId, versionCode and versionName come from -PgoldApplicationId,

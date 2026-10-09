@@ -161,9 +161,10 @@ fun GoldControlsTab(activity: Emulator, buttons: @Composable () -> Unit) {
     }
 }
 
-/** Extra buttons on the in-game menu's Session tab. */
+/** Extra things on the in-game menu's Session tab: the experiments and Check for updates. */
 @Composable
 fun GoldSessionActions(activity: Emulator) {
+    GoldExperiments()
     FilledTonalButton(
         onClick = { GoldUpdateActivity.launch(activity) },
         modifier = Modifier.fillMaxWidth(),
