@@ -43,13 +43,14 @@ The same gestures work everywhere: in town, dungeons, battles, menus and convers
 
 A tap waits a quarter of a second before it presses Cross, to tell it apart from a double tap.
 
-The stick follows the swipe's exact angle, so you can walk in any direction, not just 8. A short swipe (up to about 6 mm) pushes the stick partway, so he walks. Past that the push grows, and from about 13 mm he runs. The start point is dragged along behind the finger, so coming back towards it slows him to a walk, and returning to it stops him. Swipes don't press the D-pad: in Persona 4 Golden the D-pad moves the character at full speed in only 4 directions.
+The stick follows the swipe's exact angle, so you can walk in any direction, not just 8. A short swipe (up to about 4.5 mm) pushes the stick partway, so he walks. Past that the push grows, and from about 7.5 mm he runs. The start point is dragged along behind the finger, so coming back towards it slows him to a walk, and returning to it stops him. Swipes don't press the D-pad: in Persona 4 Golden the D-pad moves the character at full speed in only 4 directions.
 
 While one finger walks, a second finger can tap for Cross, hold for Circle or swipe to turn the camera. For the camera on its own, hold one finger anywhere and swipe with another. Holding lets go of Circle as soon as the other finger swipes, and you can keep swiping again while still holding. To hold Circle while walking, hold, then drag the same finger.
 
 The in-game menu's **Controls** tab turns gestures off, which brings back Vita3K's on-screen buttons. It also has the gesture guide, a switch for the vibration on holds, and:
 
 - **Walking**: how far a short swipe pushes the stick (40% at first). If short swipes still run, slide it left. If he doesn't move, slide it right.
+- **Running**: how long a swipe has to be to push the stick all the way (about 7.5 mm at first, 4 to 15 mm). Swipes up to 60% of that walk.
 - **Swipes press the D-pad too** (off): for any menu that ignores the stick.
  While a game controller is connected, the gestures are off and the controller plays.
 
