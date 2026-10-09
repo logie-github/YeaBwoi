@@ -10,12 +10,14 @@
     <string name="ad_just_now">just now</string>
     <string name="ad_home_boot_line">Starts from the title screen. Your saves are on the memory card.</string>
     <string name="ad_home_boot">From the title screen</string>
+    <string name="ad_home_no_bios">No BIOS yet: the game freezes when it saves to the memory card. Add one under BIOS below; save states work either way.</string>
+    <string name="ad_home_resume_built_in_bios">This resume point is from before your BIOS, so saving in the game still freezes from it. Start from the title screen to save with your BIOS.</string>
     <string name="ad_home_menu">Menu</string>
     <string name="ad_loading">NOW LOADING</string>
 
     <string name="ad_setup_title">INSERT DISC</string>
     <string name="ad_setup_body">Pick your Azure Dreams disc image. Choose the .cue file and its .bin files together, or a single .chd, .pbp or .iso file. The app keeps its own copy.</string>
-    <string name="ad_setup_bios_note">No BIOS needed: the emulator has its own. You can add a real PlayStation BIOS under BIOS for the best compatibility.</string>
+    <string name="ad_setup_bios_note">Add a real PlayStation BIOS under BIOS to save in the game: with the emulator\'s built-in one, Azure Dreams freezes when it saves to the memory card. Save states work either way.</string>
     <string name="ad_setup_action">Choose files</string>
     <string name="ad_installing">Copying the disc… %1$d%%</string>
     <string name="ad_install_failed">Couldn\'t install</string>
@@ -30,7 +32,7 @@
     <string name="ad_tile_memory_card">Memory card</string>
     <string name="ad_tile_memory_card_summary">Import or back up your saves</string>
     <string name="ad_tile_bios">BIOS</string>
-    <string name="ad_tile_bios_builtin">Built-in (optional)</string>
+    <string name="ad_tile_bios_builtin">Needed for saving</string>
     <string name="ad_tile_bios_yours">Your BIOS</string>
     <string name="ad_tile_disc">Disc</string>
     <string name="ad_tile_disc_installed">Installed</string>
@@ -107,9 +109,9 @@
 
     <!-- BIOS -->
     <string name="ad_bios_title">BIOS</string>
-    <string name="ad_bios_builtin">Using the emulator\'s built-in BIOS.</string>
+    <string name="ad_bios_builtin">Using the emulator\'s built-in BIOS. With it, Azure Dreams freezes when it saves to the memory card.</string>
     <string name="ad_bios_yours">Using your BIOS: %1$s</string>
-    <string name="ad_bios_body">Azure Dreams runs without one. A BIOS dumped from your own PlayStation (like scph1001.bin, 512 KB) can make some games more accurate. It takes effect the next time the game starts.</string>
+    <string name="ad_bios_body">Add a BIOS dumped from your own PlayStation (any region, like scph1001.bin, 512 KB) so the game\'s own saves work. It takes over when the game starts from the title screen: a resume point or save state made before keeps the built-in BIOS, and saving still freezes from there.</string>
     <string name="ad_bios_add">Add BIOS</string>
     <string name="ad_bios_remove">Remove</string>
     <string name="ad_bios_added">BIOS added.</string>
@@ -144,6 +146,7 @@
     <string name="ad_state_saved">Saved to slot %1$d</string>
     <string name="ad_state_save_failed">Couldn\'t save the state</string>
     <string name="ad_state_loaded">Loaded slot %1$d</string>
+    <string name="ad_state_loaded_built_in_bios">Loaded slot %1$d. It\'s from before your BIOS, so saving in the game freezes from here.</string>
     <string name="ad_state_load_failed">Couldn\'t load that state</string>
     <string name="ad_resume_failed">Couldn\'t pick up where you left off, so the game started fresh. Your memory card is fine.</string>
 

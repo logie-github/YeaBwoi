@@ -20,7 +20,9 @@ Why not DuckStation: its license (CC BY-NC-ND, now PolyForm Strict) doesn't allo
 2. Pick your Azure Dreams disc image: the `.cue` file and its `.bin` files together, or a single `.chd`, `.pbp` or `.iso`. The app copies it into its own storage, so you can delete the original afterwards.
 3. Tap **PRESS START**.
 
-No BIOS is needed: the core has its own replacement. To use a BIOS dumped from your PlayStation (`scph1001.bin` and the like, 512 KB), add it under **BIOS**.
+Add a BIOS dumped from your own PlayStation (`scph1001.bin` and the like, 512 KB, any region) under **BIOS**. The game boots without one, on the core's built-in replacement, but Azure Dreams freezes when it saves to the memory card with that replacement, so the game's own saves need the real BIOS. Save states work either way.
+
+A save state remembers which BIOS it was made on, and loading it goes back to that one. After adding a BIOS, start from the title screen (**From the title screen**) so the game runs on it; a resume point or slot from before still freezes when the game saves, and the app says so.
 
 After that, opening the app goes straight back into the game, where you left it, once it has checked for updates.
 

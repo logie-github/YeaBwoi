@@ -7,6 +7,7 @@ import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -78,6 +79,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
@@ -106,6 +108,14 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     var refresh by remember { mutableIntStateOf(0) }
     val disc = remember(refresh) { AdFiles.launchFile(context) }
     val resumeTime = remember(refresh) { AdFiles.stateTime(context, AdFiles.RESUME_SLOT) }
+    // Without a real BIOS, Azure Dreams freezes when it saves to the memory card.
+    val biosNotice = remember(refresh) {
+        when {
+            AdFiles.bios(context) == null -> R.string.ad_home_no_bios
+            resumeTime != null && AdFiles.stateUsesBuiltInBios(context, AdFiles.RESUME_SLOT) -> R.string.ad_home_resume_built_in_bios
+            else -> null
+        }
+    }
 
     val crt = remember { Animatable(0f) }
     var launching by remember { mutableStateOf(false) }
@@ -197,6 +207,7 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
                 HomeScreen(
                     installed = disc != null,
                     resumeTime = resumeTime,
+                    biosNotice = biosNotice,
                     importing = importing,
                     onPlay = { play(resume = resumeTime != null) },
                     onBoot = { play(resume = false) },
@@ -239,6 +250,7 @@ enum class HomeDialog { CONTROLS, PICTURE, MEMORY_CARD, BIOS, DISC }
 private fun HomeScreen(
     installed: Boolean,
     resumeTime: Long?,
+    @StringRes biosNotice: Int?,
     importing: Float?,
     onPlay: () -> Unit,
     onBoot: () -> Unit,
@@ -284,6 +296,17 @@ private fun HomeScreen(
                                 primary = false,
                                 modifier = Modifier.align(Alignment.CenterHorizontally),
                                 onClick = onBoot,
+                            )
+                        }
+                        if (biosNotice != null) {
+                            Text(
+                                stringResource(biosNotice),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AdColors.Gold,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .widthIn(max = 520.dp),
                             )
                         }
                     }
