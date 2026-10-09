@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- V3 Gold: the P4 sticker on ink black. Layers are made by v3gold/branding/make-icons.py. -->
+<!-- V3 Gold's launcher icon: the P4 sticker on ink black. Layers are made by
+     v3gold/branding/make-icons.py. It isn't called ic_launcher because Vita3K's screens draw
+     ic_launcher as a plain image, which a layered icon can't be. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@mipmap/gold_icon_background" />
     <foreground android:drawable="@mipmap/gold_icon_foreground" />

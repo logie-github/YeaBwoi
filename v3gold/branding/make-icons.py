@@ -63,12 +63,21 @@ for name, k in densities.items():
     foreground(px, 0.62).save(os.path.join(d, 'gold_icon_foreground.png'), optimize=True)
     monochrome(px, 0.62).save(os.path.join(d, 'gold_icon_monochrome.png'), optimize=True)
 
-# Legacy square icon (also what splash screens and shortcuts fall back to).
-full = background(432)
-full.alpha_composite(foreground(432, 0.84))
-legacy = full.resize((192, 192), Image.LANCZOS)
-os.makedirs(os.path.join(out, 'mipmap'), exist_ok=True)
-legacy.save(os.path.join(out, 'mipmap', 'ic_launcher.png'), optimize=True)
+def flat_icon(px):
+    """The icon as one rounded-square image: ic_launcher, which Vita3K's screens, its splash
+    screen and its notifications draw directly (they can't draw the layered launcher icon)."""
+    full = background(px * 2)
+    full.alpha_composite(foreground(px * 2, 0.84))
+    mask = Image.new('L', full.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, px * 2 - 1, px * 2 - 1], radius=int(px * 2 * 0.22), fill=255)
+    full.putalpha(mask)
+    return full.resize((px, px), Image.LANCZOS)
+
+# Vita3K shows it at up to 132dp.
+for name, k in [('mipmap', 1)] + [('mipmap-' + n, k) for n, k in densities.items()]:
+    d = os.path.join(out, name)
+    os.makedirs(d, exist_ok=True)
+    flat_icon(int(144 * k)).save(os.path.join(d, 'ic_launcher.png'), optimize=True)
 # Preview of the masked icon.
 prev = background(432); prev.alpha_composite(foreground(432, 0.62))
 m = Image.new('L', (432, 432), 0); ImageDraw.Draw(m).ellipse([18, 18, 414, 414], fill=255)
