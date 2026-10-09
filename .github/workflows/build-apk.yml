@@ -5,13 +5,16 @@ name: Build APKs
 on:
   push:
     branches: ["**"]
-    # V3 Gold (v3gold/) has its own workflow, build-v3gold.yml.
+    # V3 Gold (v3gold/) and Azure Dreams (azuredreams/) have their own workflows.
     paths-ignore:
       - "**.md"
       - "games/*/branding/**"
       - "v3gold/**"
       - "scripts/prepare-vita3k.sh"
       - ".github/workflows/build-v3gold.yml"
+      - "azuredreams/**"
+      - "scripts/build-pcsx-rearmed.sh"
+      - ".github/workflows/build-azuredreams.yml"
       - ".gitattributes"
   pull_request:
   workflow_dispatch:

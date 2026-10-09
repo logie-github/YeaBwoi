@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Azure Dreams</string>
+    <string name="ad_game_name">Azure Dreams</string>
+    <string name="ad_version">%1$s %2$s · PCSX ReARMed</string>
+
+    <!-- Title screen -->
+    <string name="ad_home_press_start">PRESS START</string>
+    <string name="ad_home_resume_line">Picks up where you left off (%1$s)</string>
+    <string name="ad_just_now">just now</string>
+    <string name="ad_home_boot_line">Starts from the title screen. Your saves are on the memory card.</string>
+    <string name="ad_home_boot">From the title screen</string>
+    <string name="ad_home_menu">Menu</string>
+    <string name="ad_loading">NOW LOADING</string>
+
+    <string name="ad_setup_title">INSERT DISC</string>
+    <string name="ad_setup_body">Pick your Azure Dreams disc image. Choose the .cue file and its .bin files together, or a single .chd, .pbp or .iso file. The app keeps its own copy.</string>
+    <string name="ad_setup_bios_note">No BIOS needed: the emulator has its own. You can add a real PlayStation BIOS under BIOS for the best compatibility.</string>
+    <string name="ad_setup_action">Choose files</string>
+    <string name="ad_installing">Copying the disc… %1$d%%</string>
+    <string name="ad_install_failed">Couldn\'t install</string>
+    <string name="ad_install_no_disc">None of those files is a disc image. Pick the .cue with its .bin files, or a .chd, .pbp or .iso file.</string>
+    <string name="ad_install_missing_tracks">The .cue file needs these files too: %1$s. Pick them all together.</string>
+    <string name="ad_install_error">Copying failed: %1$s</string>
+
+    <string name="ad_tile_controls">Controls</string>
+    <string name="ad_tile_controls_summary">The touch gestures</string>
+    <string name="ad_tile_picture">Picture</string>
+    <string name="ad_tile_picture_summary">Pixels, CRT, sharper 3D</string>
+    <string name="ad_tile_memory_card">Memory card</string>
+    <string name="ad_tile_memory_card_summary">Import or back up your saves</string>
+    <string name="ad_tile_bios">BIOS</string>
+    <string name="ad_tile_bios_builtin">Built-in (optional)</string>
+    <string name="ad_tile_bios_yours">Your BIOS</string>
+    <string name="ad_tile_disc">Disc</string>
+    <string name="ad_tile_disc_installed">Installed</string>
+    <string name="ad_tile_disc_missing">Not installed yet</string>
+    <string name="ad_tile_updates">Updates</string>
+    <string name="ad_tile_updates_summary">Version %1$s</string>
+
+    <!-- Controls -->
+    <string name="ad_controls_title">Controls</string>
+    <string name="ad_haptics">Vibrate on holds</string>
+    <string name="ad_haptics_summary">A short buzz when a hold, L1, R1, Select or the menu gesture registers</string>
+    <string name="ad_gesture_swipe">Swipe anywhere</string>
+    <string name="ad_gesture_tap">Tap</string>
+    <string name="ad_gesture_hold">Hold</string>
+    <string name="ad_gesture_run">Hold, then drag (or hold and swipe with another finger)</string>
+    <string name="ad_gesture_tap_hold">Tap, then tap and hold</string>
+    <string name="ad_gesture_two_finger_swipe_down">Two fingers swipe down</string>
+    <string name="ad_gesture_two_finger_swipe_up">Two fingers swipe up</string>
+    <string name="ad_gesture_two_finger_swipe_sideways">Two fingers swipe right / left</string>
+    <string name="ad_gesture_double_tap">Double tap</string>
+    <string name="ad_gesture_two_finger_hold">Two-finger hold</string>
+    <string name="ad_gesture_menu">Two-finger tap, then two-finger tap and hold</string>
+    <string name="ad_gesture_back">Android\'s back gesture</string>
+    <string name="ad_button_dpad">D-pad, any of 8 directions, held while your finger stays down: walk, pick in menus</string>
+    <string name="ad_button_cross">Cross: attack, OK</string>
+    <string name="ad_button_circle">Circle, held: cancel</string>
+    <string name="ad_button_run">Circle and the D-pad: run</string>
+    <string name="ad_button_shoulder">R1 on the right half of the screen, L1 on the left, held: turn the view</string>
+    <string name="ad_button_square">Square: the game\'s menu</string>
+    <string name="ad_button_triangle">Triangle</string>
+    <string name="ad_button_l1r1">L1 / R1</string>
+    <string name="ad_button_start">Start: pause</string>
+    <string name="ad_button_select">Select, held: the map</string>
+    <string name="ad_button_menu">This app\'s menu: save states, speed, picture (pauses the game)</string>
+    <string name="ad_gesture_note">Swipes press the D-pad as soon as they start, and follow your finger: the D-pad points where it last moved, so turning around is instant. Moving back to where the swipe started lets go. While one finger walks, a second can tap for Cross or hold for Circle.</string>
+
+    <!-- Picture -->
+    <string name="ad_picture_title">Picture</string>
+    <string name="ad_picture_sharp">Sharp pixels</string>
+    <string name="ad_picture_sharp_summary">Crisp, unfiltered</string>
+    <string name="ad_picture_smooth">Smooth</string>
+    <string name="ad_picture_smooth_summary">Softened edges</string>
+    <string name="ad_picture_crt">CRT TV</string>
+    <string name="ad_picture_crt_summary">Scanlines, like the TVs of the day</string>
+    <string name="ad_picture_upscaled">Upscaled</string>
+    <string name="ad_picture_upscaled_summary">Smoothed edges, kept sharp</string>
+    <string name="ad_sharper_3d">Sharper 3D</string>
+    <string name="ad_sharper_3d_summary">Draws the 3D at twice the PlayStation\'s resolution. Uses more battery.</string>
+
+    <!-- Memory card -->
+    <string name="ad_card_title">Memory card</string>
+    <string name="ad_card_status">Memory card 1, last saved %1$s</string>
+    <string name="ad_card_empty">No saves yet. The game creates the card the first time you save.</string>
+    <string name="ad_card_body">The game saves to memory card 1 like on a PlayStation, written to the phone as soon as it saves. Import a card from another emulator or a PlayStation (.mcd, .mcr, .srm, .gme, .vmp) to carry on from it; the card it replaces is kept as a backup. Export makes a copy (.mcd) that other emulators read.</string>
+    <string name="ad_card_import">Import</string>
+    <string name="ad_card_export">Export</string>
+    <string name="ad_card_imported">Memory card imported.</string>
+    <string name="ad_card_exported">Memory card exported.</string>
+    <string name="ad_card_not_a_card">That file isn\'t a PlayStation memory card.</string>
+    <string name="ad_card_failed">That didn\'t work: %1$s</string>
+
+    <!-- BIOS -->
+    <string name="ad_bios_title">BIOS</string>
+    <string name="ad_bios_builtin">Using the emulator\'s built-in BIOS.</string>
+    <string name="ad_bios_yours">Using your BIOS: %1$s</string>
+    <string name="ad_bios_body">Azure Dreams runs without one. A BIOS dumped from your own PlayStation (like scph1001.bin, 512 KB) can make some games more accurate. It takes effect the next time the game starts.</string>
+    <string name="ad_bios_add">Add BIOS</string>
+    <string name="ad_bios_remove">Remove</string>
+    <string name="ad_bios_added">BIOS added.</string>
+    <string name="ad_bios_not_a_bios">That file isn\'t a PlayStation BIOS (they\'re 512 KB).</string>
+
+    <!-- Disc -->
+    <string name="ad_disc_title">Disc</string>
+    <string name="ad_disc_status">%1$s (%2$s)</string>
+    <string name="ad_disc_body">Replace installs a different copy of the disc. Delete frees the space; your memory card and save states stay.</string>
+    <string name="ad_disc_replace">Replace</string>
+    <string name="ad_disc_delete">Delete</string>
+    <string name="ad_disc_delete_confirm">Really delete</string>
+
+    <!-- In-game menu -->
+    <string name="ad_menu_resume">Resume</string>
+    <string name="ad_menu_save">Save state</string>
+    <string name="ad_menu_load">Load state</string>
+    <string name="ad_menu_speed">Speed</string>
+    <string name="ad_menu_picture">Picture</string>
+    <string name="ad_menu_controls">Controls</string>
+    <string name="ad_menu_reset">Reset game</string>
+    <string name="ad_menu_reset_confirm">Really reset?</string>
+    <string name="ad_menu_updates">Check for updates</string>
+    <string name="ad_menu_quit">Quit to title</string>
+    <string name="ad_menu_back">Back</string>
+    <string name="ad_slot">SLOT %1$d</string>
+    <string name="ad_slot_empty">Empty</string>
+    <string name="ad_slots_save_note">A save state keeps the exact moment, anywhere in the game, even in the tower. The game\'s own saves go on the memory card.</string>
+    <string name="ad_slots_load_note">Loading goes back to that moment. The memory card isn\'t changed.</string>
+    <string name="ad_state_saved">Saved to slot %1$d</string>
+    <string name="ad_state_save_failed">Couldn\'t save the state</string>
+    <string name="ad_state_loaded">Loaded slot %1$d</string>
+    <string name="ad_state_load_failed">Couldn\'t load that state</string>
+    <string name="ad_resume_failed">Couldn\'t pick up where you left off, so the game started fresh. Your memory card is fine.</string>
+
+    <!-- Errors -->
+    <string name="ad_error_title">The game couldn\'t start</string>
+    <string name="ad_error_core">The emulator is missing from this build of the app.</string>
+    <string name="ad_error_game">The emulator couldn\'t open the disc image. Try installing it again from the Disc menu.</string>
+    <string name="ad_error_gl">This phone\'s graphics don\'t support what the emulator needs (OpenGL ES 3).</string>
+    <string name="ad_error_generic">Something went wrong in the emulator.</string>
+
+    <!-- Updates -->
+    <string name="ad_update_checking">Checking for updates…</string>
+    <string name="ad_update_available_title">Update available</string>
+    <string name="ad_update_available">%1$s is available. You have %2$s.\n\nDownload it (%3$s) and install it now? Installing closes the app; where you are in the game is kept.</string>
+    <string name="ad_update_download">Download</string>
+    <string name="ad_update_later">Not now</string>
+    <string name="ad_update_latest_title">You\'re up to date</string>
+    <string name="ad_update_latest">%1$s %2$s is the newest version.</string>
+    <string name="ad_update_downloading">Downloading %1$s…</string>
+    <string name="ad_update_progress">%1$s\n%2$s of %3$s</string>
+    <string name="ad_update_check_failed">Couldn\'t check for updates</string>
+    <string name="ad_update_download_failed">Couldn\'t download the update</string>
+    <string name="ad_update_not_configured">This build doesn\'t know where its updates are published. Builds from GitHub Actions do.</string>
+    <string name="ad_update_no_access">GitHub didn\'t let the app see the releases (error %1$d). If the repository is private, the build needs an update token (see Updates in the README).</string>
+    <string name="ad_update_http_error">GitHub answered with error %1$d. Try again later.</string>
+    <string name="ad_update_offline">Can\'t reach GitHub. Check your internet connection and try again.</string>
+    <string name="ad_update_wrong_file">The downloaded file isn\'t an update for this app.</string>
+    <string name="ad_update_permission_title">Allow updates</string>
+    <string name="ad_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
+    <string name="ad_update_open_settings">Open settings</string>
+</resources>

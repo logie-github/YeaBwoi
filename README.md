@@ -15,7 +15,12 @@ Two Android builds of the [Dolphin](https://dolphin-emu.org) GameCube emulator. 
 
 Both apps work the same way. There's no game list and no on-screen buttons: you play with taps and swipes anywhere on the screen. A themed main menu has texture pack and mod installers and Dolphin's emulator settings.
 
-This repository also builds **V3 Gold** (`com.logie.v3gold`): Persona 4 Golden on the Vita3K PS Vita emulator, with the same kind of gesture controls and a Persona 4 Golden themed menu. It has its own workflow and releases. See [v3gold/README.md](v3gold/README.md).
+This repository also builds:
+
+- **V3 Gold** (`com.logie.v3gold`): Persona 4 Golden on the Vita3K PS Vita emulator, with the same kind of gesture controls and a Persona 4 Golden themed menu. See [v3gold/README.md](v3gold/README.md).
+- **Azure Dreams** (`com.logie.azuredreams`): the PlayStation game on the PCSX ReARMed emulator core, with gesture controls, save states and a PlayStation-era themed menu. See [azuredreams/README.md](azuredreams/README.md).
+
+Each has its own workflow and releases.
 
 ## Getting the APKs
 
