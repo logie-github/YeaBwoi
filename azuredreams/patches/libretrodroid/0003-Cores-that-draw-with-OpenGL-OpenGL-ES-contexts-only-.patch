@@ -1,0 +1,103 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Azure Dreams <azuredreams@users.noreply.github.com>
+Date: Fri, 9 Oct 2026 16:46:35 +0000
+Subject: [PATCH 3/3] Cores that draw with OpenGL: OpenGL ES contexts only,
+ framebuffer at the frames' size, a hook before pausing
+
+Three things SwanStation (and any core like it) needs:
+
+- SET_HW_RENDER refuses context types other than OpenGL ES. The context is
+  always OpenGL ES, and cores that try desktop OpenGL first only go on to ask
+  for OpenGL ES when that's refused.
+- The framebuffer follows the size of the frames the core draws, which can
+  change without SET_GEOMETRY (with the game's display mode, or the internal
+  resolution). It's resized when the core next asks for it, before drawing.
+- GLRetroView.onBeforePause runs before emulation pauses, while the emulation
+  thread still has its context current: a core that reads its state back from
+  the GPU can only be serialized then.
+---
+ libretrodroid/src/main/cpp/environment.cpp          | 12 ++++++++++++
+ .../main/cpp/renderers/es3/framebufferrenderer.cpp  | 13 +++++++++++++
+ .../java/com/swordfish/libretrodroid/GLRetroView.kt |  8 ++++++++
+ 3 files changed, 33 insertions(+)
+
+diff --git a/libretrodroid/src/main/cpp/environment.cpp b/libretrodroid/src/main/cpp/environment.cpp
+index 941de81..2729ed5 100644
+--- a/libretrodroid/src/main/cpp/environment.cpp
++++ b/libretrodroid/src/main/cpp/environment.cpp
+@@ -146,6 +146,18 @@ bool Environment::environment_handle_set_controller_info(const struct retro_cont
+ }
+ 
+ bool Environment::environment_handle_set_hw_render(struct retro_hw_render_callback* hw_render_callback) {
++    // The context is always OpenGL ES. Refusing the other kinds lets cores that ask for desktop
++    // OpenGL first (SwanStation) go on to ask for OpenGL ES.
++    switch (hw_render_callback->context_type) {
++        case RETRO_HW_CONTEXT_OPENGLES2:
++        case RETRO_HW_CONTEXT_OPENGLES3:
++        case RETRO_HW_CONTEXT_OPENGLES_VERSION:
++            break;
++        default:
++            LOGD("Refusing hardware context type %d", hw_render_callback->context_type);
++            return false;
++    }
++
+     useHWAcceleration = true;
+     useDepth = hw_render_callback->depth;
+     useStencil = hw_render_callback->stencil;
+diff --git a/libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.cpp b/libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.cpp
+index 67d009c..fbbb562 100644
+--- a/libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.cpp
++++ b/libretrodroid/src/main/cpp/renderers/es3/framebufferrenderer.cpp
+@@ -44,6 +44,15 @@ void FramebufferRenderer::onNewFrame(const void *data, unsigned width, unsigned
+         initializeBuffers();
+         isDirty = false;
+     }
++
++    // Cores can change the size they draw at without SET_GEOMETRY (SwanStation does, with the
++    // game's display mode and its internal resolution): the framebuffer follows the frames. It's
++    // resized when the core next asks for it, before it draws.
++    if (width != this->width || height != this->height) {
++        this->width = width;
++        this->height = height;
++        isDirty = true;
++    }
+ }
+ 
+ void FramebufferRenderer::initializeBuffers() {
+@@ -65,6 +74,10 @@ uintptr_t FramebufferRenderer::getTexture() {
+ }
+ 
+ uintptr_t FramebufferRenderer::getFramebuffer() {
++    if (isDirty) {
++        initializeBuffers();
++        isDirty = false;
++    }
+     return framebuffer->framebuffer;
+ }
+ 
+diff --git a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
+index 83c59e2..956febe 100644
+--- a/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
++++ b/libretrodroid/src/main/java/com/swordfish/libretrodroid/GLRetroView.kt
+@@ -84,6 +84,13 @@ class GLRetroView(
+ 
+     private var lifecycle: Lifecycle? = null
+ 
++    /**
++     * Runs on the main thread when the lifecycle pauses, before emulation stops: the last moment
++     * the emulation thread still runs with its OpenGL context current, so the state of a core that
++     * draws with OpenGL (and reads it back to save it) can still be taken with [serializeState].
++     */
++    var onBeforePause: (() -> Unit)? = null
++
+     init {
+         openGLESVersion = getGLESVersion(context)
+         preserveEGLContextOnPause = true
+@@ -309,6 +316,7 @@ class GLRetroView(
+ 
+         @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+         private fun pause() = catchExceptions {
++            onBeforePause?.invoke()
+             isEmulationReady = false
+             onPause()
+             LibretroDroid.pause()

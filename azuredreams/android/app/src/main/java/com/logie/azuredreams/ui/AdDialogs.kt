@@ -57,11 +57,35 @@ fun PictureDialog(onDismiss: () -> Unit) {
 }
 
 /** How the picture is drawn, in the picture dialog and the in-game menu. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun PictureSettings() {
     val context = LocalContext.current
     var picture by remember { mutableIntStateOf(AdConfig(context).picture) }
-    var sharper by remember { mutableStateOf(AdConfig(context).sharper3d) }
+    var resolution by remember { mutableIntStateOf(AdConfig(context).resolution) }
+    var steady by remember { mutableStateOf(AdConfig(context).steady3d) }
+
+    Text(stringResource(R.string.ad_resolution), style = MaterialTheme.typography.titleMedium)
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        for (scale in AdConfig.RESOLUTIONS) {
+            AdButton(stringResource(R.string.ad_resolution_option, scale), primary = resolution == scale) {
+                resolution = scale
+                AdConfig(context).resolution = scale
+            }
+        }
+    }
+    Text(
+        stringResource(R.string.ad_resolution_summary, resolution, 320 * resolution, 240 * resolution),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    AdSwitchRow(stringResource(R.string.ad_steady_3d), stringResource(R.string.ad_steady_3d_summary), steady) {
+        steady = it
+        AdConfig(context).steady3d = it
+    }
+
     val choices = listOf(
         Triple(AdConfig.PICTURE_SHARP, R.string.ad_picture_sharp, R.string.ad_picture_sharp_summary),
         Triple(AdConfig.PICTURE_SMOOTH, R.string.ad_picture_smooth, R.string.ad_picture_smooth_summary),
@@ -75,10 +99,6 @@ fun PictureSettings() {
                 AdConfig(context).picture = value
             }
         }
-    }
-    AdSwitchRow(stringResource(R.string.ad_sharper_3d), stringResource(R.string.ad_sharper_3d_summary), sharper) {
-        sharper = it
-        AdConfig(context).sharper3d = it
     }
 }
 

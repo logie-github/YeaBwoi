@@ -1,7 +1,7 @@
 name: Build Azure Dreams
 
-# Builds the Azure Dreams app (the PlayStation game on the PCSX ReARMed core, through
-# LibretroDroid) and publishes it as its own release (ad-build-N). Only changes to its files run it.
+# Builds the Azure Dreams app (the PlayStation game on the SwanStation core, through LibretroDroid)
+# and publishes it as its own release (ad-build-N). Only changes to its files run it.
 on:
   push:
     branches: ["**"]
@@ -9,7 +9,7 @@ on:
       - "azuredreams/**"
       - "!azuredreams/branding/**"
       - "!azuredreams/**.md"
-      - "scripts/build-pcsx-rearmed.sh"
+      - "scripts/build-swanstation.sh"
       - "scripts/prepare-libretrodroid.sh"
       - ".github/workflows/build-azuredreams.yml"
   workflow_dispatch:
@@ -24,6 +24,7 @@ concurrency:
 env:
   AD_VERSION_NAME: 1.0.${{ github.run_number }}
   NDK_VERSION: "29.0.14206865"
+  CMAKE_VERSION: "3.31.6"
 
 jobs:
   unit-tests:
@@ -75,14 +76,17 @@ jobs:
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install \
-            "ndk;$NDK_VERSION" "platforms;android-35" "build-tools;36.0.0" "cmake;3.22.1" > /dev/null
+            "ndk;$NDK_VERSION" "platforms;android-35" "build-tools;36.0.0" "cmake;$CMAKE_VERSION" > /dev/null
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+          echo "CMAKE=$ANDROID_HOME/cmake/$CMAKE_VERSION/bin/cmake" >> "$GITHUB_ENV"
+          echo "NINJA=$ANDROID_HOME/cmake/$CMAKE_VERSION/bin/ninja" >> "$GITHUB_ENV"
 
       # The PlayStation emulator core, from the commit pinned in azuredreams/core-version.env.
       - name: Build the emulator core
-        run: scripts/build-pcsx-rearmed.sh
+        run: scripts/build-swanstation.sh
 
-      # LibretroDroid from source, with the app's patches (the 2D-HD shader).
+      # LibretroDroid from source, with the app's patches (the 2D-HD shader, cores that draw with
+      # OpenGL ES).
       - name: Prepare LibretroDroid
         run: scripts/prepare-libretrodroid.sh
 
@@ -137,7 +141,7 @@ jobs:
         run: |
           source azuredreams/core-version.env
           source azuredreams/libretrodroid-version.env
-          notes="$GAME_NAME (PlayStation) for Android, on PCSX ReARMed ${PCSX_REARMED_COMMIT::7} and LibretroDroid ${LIBRETRODROID_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
+          notes="$GAME_NAME (PlayStation) for Android, on SwanStation ${SWANSTATION_COMMIT::7} and LibretroDroid ${LIBRETRODROID_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
 
           Download **$APK_FILE** below on your phone and open it to install. You need your own copy of the game's disc image."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \

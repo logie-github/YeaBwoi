@@ -4,15 +4,15 @@
 
 # Azure Dreams
 
-An Android app that plays one game: **Azure Dreams** for the PlayStation. It runs on [PCSX ReARMed](https://github.com/libretro/pcsx_rearmed), the PlayStation emulator core Lemuroid and RetroArch use on Android, through [LibretroDroid](https://github.com/Swordfish90/LibretroDroid). You play with taps and swipes anywhere on the screen, from a title screen styled after PlayStation-era menus. A **2D-HD** picture gives it the look of Octopath Traveler.
+An Android app that plays one game: **Azure Dreams** for the PlayStation. It runs on [SwanStation](https://github.com/libretro/swanstation), libretro's GPL fork of DuckStation, through [LibretroDroid](https://github.com/Swordfish90/LibretroDroid). SwanStation draws with the phone's GPU (OpenGL ES), at 4× the PlayStation's resolution by default. You play with taps and swipes anywhere on the screen, from a title screen styled after PlayStation-era menus. A **2D-HD** picture gives it the look of Octopath Traveler.
 
 | | |
 | --- | --- |
 | Package | `com.logie.azure` |
 | Releases | **Azure Dreams 1.0.N**, tags `ad-build-N` (**Actions → Build Azure Dreams**) |
-| Emulator | PCSX ReARMed, built for arm64 from the commit in `core-version.env` |
+| Emulator | SwanStation, built for arm64 from the commit in `core-version.env` |
 
-Why not DuckStation: its license (CC BY-NC-ND, now PolyForm Strict) doesn't allow modified versions to be shared, and its Android app's source isn't public. PCSX ReARMed is GPL, small and fast, and plays Azure Dreams at full speed on any phone.
+Why not DuckStation itself: its license (CC BY-NC-ND, now PolyForm Strict) doesn't allow modified versions to be shared, and its Android app's source isn't public. SwanStation is the libretro core forked from DuckStation while it was GPL, kept up by the libretro team. The app ran on PCSX ReARMed before; that core only draws in software, at up to 2× the resolution.
 
 ## First launch
 
@@ -20,9 +20,9 @@ Why not DuckStation: its license (CC BY-NC-ND, now PolyForm Strict) doesn't allo
 2. Pick your Azure Dreams disc image: the `.cue` file and its `.bin` files together, or a single `.chd`, `.pbp` or `.iso`. The app copies it into its own storage, so you can delete the original afterwards.
 3. Tap **PRESS START**.
 
-Add a BIOS dumped from your own PlayStation (`scph1001.bin` and the like, 512 KB, any region) under **BIOS**. The game boots without one, on the core's built-in replacement, but Azure Dreams freezes when it saves to the memory card with that replacement, so the game's own saves need the real BIOS. Save states work either way.
+Add a BIOS dumped from your own PlayStation (`scph1001.bin`, `scph5501.bin` and the like, 512 KB, any region): **Add BIOS** on the title screen, or the **BIOS** tile. The game boots without one, on OpenBIOS (a free BIOS SwanStation carries), but the game's own memory card saves are only known to work with a real BIOS: on PCSX ReARMed's stand-in, Azure Dreams froze when it saved. Save states work either way.
 
-A save state remembers which BIOS it was made on, and loading it goes back to that one. After adding a BIOS, start from the title screen (**From the title screen**) so the game runs on it; a resume point or slot from before still freezes when the game saves, and the app says so.
+A save state carries the BIOS it was made on in the game's memory. After adding a BIOS, start from the title screen (**From the title screen**) so the game runs on it; the app points it out when a resume point or slot is from before.
 
 After that, opening the app goes straight back into the game, where you left it, once it has checked for updates.
 
@@ -57,7 +57,7 @@ Back gesture or the two-finger menu gesture. The game pauses while it's open.
 - **Save state / Load state**: three slots. A state keeps the exact moment, anywhere, even inside the tower. The game's own saves are on the memory card and aren't touched by states.
 - **Speed**: 1×, 2× or 3× (fast forward).
 - **2D-HD**: on or off, and its effects (below).
-- **Picture**: sharp pixels, smooth, CRT TV scanlines or upscaled, and **Sharper 3D** (twice the PlayStation's resolution).
+- **Picture**: **Resolution** (1× to 8× the PlayStation's, 4× to start with: 1280 × 960), **Steady 3D** (PGXP: no wobbling polygons or warping textures), and sharp pixels, smooth, CRT TV scanlines or upscaled.
 - **Controls**: the gesture guide and the vibration switch.
 - **Reset game**, **Check for updates**, **Quit to title**.
 
@@ -73,15 +73,15 @@ Leaving the game in any way (quitting, switching apps, the phone sleeping) saves
 - The colors are graded (richer, warm light and cool shade) and the corners darkened.
 - **Drifting light**: specks of warm light floating up through the scene.
 
-A filter over the finished picture can't tell the game's menus from its world, so the 2D-HD shader looks for them. It finds Azure Dreams' white lettering on the dark blue fill of its windows, and the deep navy of the tower's gauges. Text, windows and the gauges stay out of focus effects. The strip with the gauges stays sharp in the tower. While anyone is talking or a menu is open, the whole picture comes into focus, like a camera pulling focus. If you spot something it gets wrong, a screenshot helps tune it.
+The interface stays sharp on top of the effects, as if they were under it. A filter over the finished picture can't tell the game's menus from its world, so the 2D-HD shader looks for them: Azure Dreams' white lettering on the dark blue fill of its windows, and the deep navy of the tower's gauges. Text, windows and the gauges stay sharp and don't glow, and the strip with the gauges stays sharp in the tower. While someone is talking, the dialogue window along the bottom stays sharp from a little above its first line down, with its name plate and the speaker's portrait on the left, and the rest of the scene keeps its depth of field. The drifting light stays between the gauges and the dialogue window. If you spot something it gets wrong, a screenshot helps tune it.
 
-It works with **Sharper 3D** too.
+It works the same at any resolution: the effects are worked out at the PlayStation's resolution.
 
 ## Saves
 
-The game saves to memory card 1, which the app writes to `saves/pcsx-card1.mcd` in its storage as soon as the game saves. **Memory card** on the title screen imports a card from another emulator or a PlayStation (`.mcd`, `.mcr`, `.srm`, DexDrive `.gme`, PSP `.vmp`) and exports a copy (`.mcd`) for other emulators. Importing keeps the replaced card as a backup.
+The game saves to memory card 1, which SwanStation writes to `saves/duckstation_shared_card_1.mcd` in the app's storage a few seconds after the game saves (the card from the PCSX ReARMed versions, `pcsx-card1.mcd`, moves there). **Memory card** on the title screen imports a card from another emulator or a PlayStation (`.mcd`, `.mcr`, `.srm`, DexDrive `.gme`, PSP `.vmp`) and exports a copy (`.mcd`) for other emulators. Importing keeps the replaced card as a backup.
 
-Save states and the memory card stay when the app updates and when you replace or delete the disc.
+Save states and the memory card stay when the app updates and when you replace or delete the disc. Save states from the PCSX ReARMed versions don't load on SwanStation; they're kept, renamed `.pcsx`, in the app's `states/` folder.
 
 ## Updates
 
@@ -92,20 +92,21 @@ Like the other apps: the app checks this repository's releases (`ad-build-N`) wh
 | Path | Contents |
 | --- | --- |
 | `app.env` | Package, app name and release tag prefix |
-| `core-version.env` | The PCSX ReARMed commit to build |
+| `core-version.env` | The SwanStation commit to build |
 | `libretrodroid-version.env` | The LibretroDroid commit to build (its 0.14.0 release) |
-| `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, and building with newer NDKs |
+| `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, saving the state before pausing) |
 | `android/` | The app (`app/`): title screen, game screen, in-game menu, gestures, update checker. `libretrodroid/` builds LibretroDroid from `libretrodroid/upstream/`. |
 | `branding/` | Source images. `make-icons.py` rebuilds the launcher icon layers from `icon.png`. |
 | `fonts/` | Licenses of the pixel fonts (Press Start 2P, Pixelify Sans), both SIL Open Font License |
 | `unit-tests/` | JVM unit tests for the gesture recognizer and the update picker |
-| `../scripts/build-pcsx-rearmed.sh` | Fetches PCSX ReARMed and builds it with the NDK into `android/core/` |
+| `../scripts/build-swanstation.sh` | Fetches SwanStation and builds it with the NDK, CMake and Ninja into `android/core/` |
 | `../scripts/prepare-libretrodroid.sh` | Fetches LibretroDroid and its submodules into `android/libretrodroid/upstream/` and applies `patches/libretrodroid/` |
 
-To build locally, you need JDK 17+ and the Android SDK with NDK 29.0.14206865 and CMake:
+To build locally, you need JDK 17+ and the Android SDK with NDK 29.0.14206865 and CMake 3.31.6:
 
 ```sh
-ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" scripts/build-pcsx-rearmed.sh
+ANDROID_NDK_HOME="$ANDROID_HOME/ndk/29.0.14206865" CMAKE="$ANDROID_HOME/cmake/3.31.6/bin/cmake" \
+  NINJA="$ANDROID_HOME/cmake/3.31.6/bin/ninja" scripts/build-swanstation.sh
 scripts/prepare-libretrodroid.sh
 cd azuredreams/android
 ./gradlew assembleRelease -PadVersionCode=1 -PadVersionName=1.0.1 \
@@ -116,4 +117,4 @@ To update the core, change the commit in `core-version.env`. To update LibretroD
 
 ## License
 
-The app is GPLv3 (LibretroDroid's license). PCSX ReARMed is GPLv2. The fonts are under the SIL Open Font License (`fonts/`). Azure Dreams is a trademark of Konami. This project isn't affiliated with Konami, the PCSX ReARMed team or LibretroDroid.
+The app is GPLv3 (LibretroDroid's and SwanStation's license). OpenBIOS, inside SwanStation, is MIT. The fonts are under the SIL Open Font License (`fonts/`). Azure Dreams is a trademark of Konami. This project isn't affiliated with Konami, the SwanStation or DuckStation teams, or LibretroDroid.
