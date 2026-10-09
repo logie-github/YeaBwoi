@@ -8,7 +8,6 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -108,16 +107,8 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     val scope = rememberCoroutineScope()
     var refresh by remember { mutableIntStateOf(0) }
     val disc = remember(refresh) { AdFiles.launchFile(context) }
-    val resumeTime = remember(refresh) { AdFiles.stateTime(context, AdFiles.RESUME_SLOT) }
-    // The game's own saves need a real BIOS (from the next start from the title screen).
+    // The game's own saves need a real BIOS (from the next time the game starts).
     val hasBios = remember(refresh) { AdFiles.bios(context) != null }
-    val biosNotice = remember(refresh) {
-        when {
-            !hasBios -> R.string.ad_home_no_bios
-            resumeTime != null && AdFiles.stateFromOtherBios(context, AdFiles.RESUME_SLOT) -> R.string.ad_home_resume_other_bios
-            else -> null
-        }
-    }
 
     val crt = remember { Animatable(0f) }
     var launching by remember { mutableStateOf(false) }
@@ -127,13 +118,14 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     var importError by remember { mutableStateOf<String?>(null) }
     var biosError by remember { mutableStateOf<String?>(null) }
 
-    fun play(resume: Boolean) {
+    /** Boots the game, to its own title screen. */
+    fun play() {
         if (launching || AdFiles.launchFile(context) == null) return
         launching = true
         scope.launch {
             crt.snapTo(0f)
             crt.animateTo(1f, tween(460, easing = LinearEasing))
-            activity.startActivity(GameActivity.intent(context, resume))
+            activity.startActivity(GameActivity.intent(context))
             @Suppress("DEPRECATION")
             activity.overridePendingTransition(0, 0)
         }
@@ -141,10 +133,10 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
 
     val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         autoplay = false
-        if (result.resultCode != AdUpdateActivity.RESULT_INSTALLING) play(resume = true)
+        if (result.resultCode != AdUpdateActivity.RESULT_INSTALLING) play()
     }
 
-    // Opening the app: offer a newer version if there is one, then go back into the game.
+    // Opening the app: offer a newer version if there is one, then start the game.
     LaunchedEffect(Unit) {
         if (!autoplay) return@LaunchedEffect
         if (disc == null) {
@@ -161,7 +153,7 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             updateOffer.launch(AdUpdateActivity.intent(context, update))
         } else {
             autoplay = false
-            play(resume = true)
+            play()
         }
     }
 
@@ -224,12 +216,9 @@ fun AdHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             ) {
                 HomeScreen(
                     installed = disc != null,
-                    resumeTime = resumeTime,
-                    biosNotice = biosNotice,
                     onAddBios = if (hasBios) null else ({ addBios.launch(arrayOf("*/*")) }),
                     importing = importing,
-                    onPlay = { play(resume = resumeTime != null) },
-                    onBoot = { play(resume = false) },
+                    onPlay = { play() },
                     onInstall = { pickGame.launch(arrayOf("*/*")) },
                     onDialog = { dialog = it },
                 )
@@ -273,12 +262,10 @@ enum class HomeDialog { CONTROLS, PICTURE, MEMORY_CARD, BIOS, DISC }
 @Composable
 private fun HomeScreen(
     installed: Boolean,
-    resumeTime: Long?,
-    @StringRes biosNotice: Int?,
+    /** Without a BIOS yet: adds one. */
     onAddBios: (() -> Unit)?,
     importing: Float?,
     onPlay: () -> Unit,
-    onBoot: () -> Unit,
     onInstall: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
 ) {
@@ -306,26 +293,15 @@ private fun HomeScreen(
                     installed -> {
                         PressStart(onClick = onPlay)
                         Text(
-                            if (resumeTime != null) {
-                                stringResource(R.string.ad_home_resume_line, relativeTime(resumeTime))
-                            } else {
-                                stringResource(R.string.ad_home_boot_line)
-                            },
+                            stringResource(R.string.ad_home_boot_line),
                             style = MaterialTheme.typography.bodyMedium,
                             color = AdColors.TextDim,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier.align(Alignment.CenterHorizontally),
                         )
-                        if (resumeTime != null) {
-                            AdButton(
-                                stringResource(R.string.ad_home_boot),
-                                primary = false,
-                                modifier = Modifier.align(Alignment.CenterHorizontally),
-                                onClick = onBoot,
-                            )
-                        }
-                        if (biosNotice != null) {
+                        if (onAddBios != null) {
                             Text(
-                                stringResource(biosNotice),
+                                stringResource(R.string.ad_home_no_bios),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AdColors.Gold,
                                 textAlign = TextAlign.Center,

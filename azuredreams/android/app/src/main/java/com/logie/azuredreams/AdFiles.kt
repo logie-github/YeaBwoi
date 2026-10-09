@@ -15,17 +15,16 @@ import java.io.IOException
  *
  * - game/: the disc image, copied in from the files the player picks
  * - system/: the PlayStation BIOS the player added (the core uses OpenBIOS without one)
- * - saves/: memory card 1 (duckstation_shared_card_1.mcd), which the core writes a few seconds
- *   after the game saves
- * - states/: save states, slot1-3.state and resume.state (where the game was left), each with a
- *   .bios file naming the BIOS it was made on
+ * - saves/: memory card 1 (duckstation_shared_card_1.mcd), which the app writes as soon as the
+ *   game saves, and when the game pauses
+ * - states/: save states, slot1-3.state, each with a .bios file naming the BIOS it was made on
  */
 object AdFiles {
     /** Disc image formats the core opens, in the order to prefer them as the file to start. */
     private val LAUNCH_ORDER = listOf("m3u", "cue", "toc", "chd", "pbp", "cbn", "iso", "img", "mdf", "bin")
 
     const val MEMORY_CARD_SIZE = 128 * 1024
-    /** SwanStation's shared card 1. */
+    /** The name SwanStation gave its shared card 1, which the app's card had for a while. */
     private const val MEMORY_CARD_NAME = "duckstation_shared_card_1.mcd"
     private const val BIOS_SIZE = 512 * 1024
 
@@ -92,8 +91,6 @@ object AdFiles {
                 throw IOException("Can't install the game")
             }
             old.deleteRecursively()
-            // Where the old disc was left doesn't fit a different one. Saved slots stay.
-            deleteState(context, RESUME_SLOT)
         } finally {
             staging.deleteRecursively()
         }
@@ -187,6 +184,22 @@ object AdFiles {
         target.writeBytes(card)
     }
 
+    /** Memory card 1, to hand to the emulator, or null if there's none yet. */
+    fun readMemoryCard(context: Context): ByteArray? =
+        memoryCard(context).takeIf { it.length() == MEMORY_CARD_SIZE.toLong() }?.readBytes()
+
+    /**
+     * Writes memory card 1 in one go, so a crash can't leave half a card, after copying the card it
+     * replaces to a backup if [backup]. Background thread.
+     */
+    fun writeMemoryCard(context: Context, card: ByteArray, backup: Boolean) {
+        val target = memoryCard(context)
+        if (backup && target.exists()) target.copyTo(File(savesDir(context), "$MEMORY_CARD_NAME.backup"), overwrite = true)
+        val partial = File(target.path + ".part")
+        partial.writeBytes(card)
+        if (!partial.renameTo(target)) throw IOException("Can't save the memory card")
+    }
+
     /** Writes memory card 1 to [uri] as a raw 128 KB card. Background thread. */
     fun exportMemoryCard(context: Context, uri: Uri) {
         val card = memoryCard(context)
@@ -201,11 +214,8 @@ object AdFiles {
 
     // Save states
 
-    /** A save state slot: 1 to [SLOTS], or [RESUME_SLOT] for where the game was left. */
-    fun stateFile(context: Context, slot: Int): File =
-        File(statesDir(context), if (slot == RESUME_SLOT) "resume.state" else "slot$slot.state")
-
-    const val RESUME_SLOT = 0
+    /** A save state slot: 1 to [SLOTS]. */
+    fun stateFile(context: Context, slot: Int): File = File(statesDir(context), "slot$slot.state")
 
     /** When [slot] was saved (milliseconds since 1970), or null if it's empty. */
     fun stateTime(context: Context, slot: Int): Long? =
@@ -241,15 +251,17 @@ object AdFiles {
     }
 
     /**
-     * Before SwanStation the app ran PCSX ReARMed: its memory card moves to SwanStation's file (they
-     * hold the same raw card), and its save states, which SwanStation can't load, are put aside
-     * (renamed .pcsx).
+     * Tidies up after earlier versions. Before SwanStation the app ran PCSX ReARMed: its memory card
+     * moves to SwanStation's file (they hold the same raw card), and its save states, which
+     * SwanStation can't load, are put aside (renamed .pcsx). And the game no longer picks up where
+     * it was left, so the resume state goes.
      */
-    fun moveFromOldCore(context: Context) {
+    fun tidyUp(context: Context) {
         val oldCard = File(savesDir(context), "pcsx-card1.mcd")
         val card = memoryCard(context)
         if (oldCard.isFile && !card.exists()) oldCard.renameTo(card)
-        for (slot in RESUME_SLOT..SLOTS) {
+        statesDir(context).listFiles()?.filter { it.name.startsWith("resume.state") }?.forEach { it.delete() }
+        for (slot in 1..SLOTS) {
             val file = stateFile(context, slot)
             val head = runCatching {
                 ByteArray(9).also { head -> DataInputStream(file.inputStream()).use { it.readFully(head) } }

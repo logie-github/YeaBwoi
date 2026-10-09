@@ -53,11 +53,6 @@ class AdConfig(context: Context) {
         get() = prefs.getInt(KEY_SPEED, 1).coerceIn(1, MAX_SPEED)
         set(value) = prefs.edit().putInt(KEY_SPEED, value.coerceIn(1, MAX_SPEED)).apply()
 
-    /** Starting the game picks up where it was left (the resume state), instead of booting it. */
-    var resumeOnStart: Boolean
-        get() = prefs.getBoolean(KEY_RESUME, true)
-        set(value) = prefs.edit().putBoolean(KEY_RESUME, value).apply()
-
     companion object {
         const val PICTURE_SHARP = 0
         const val PICTURE_SMOOTH = 1
@@ -82,6 +77,5 @@ class AdConfig(context: Context) {
         private const val KEY_HD2D_BLOOM = "hd2d_bloom"
         private const val KEY_HD2D_MOTES = "hd2d_motes"
         private const val KEY_SPEED = "speed"
-        private const val KEY_RESUME = "resume_on_start"
     }
 }
