@@ -12,6 +12,9 @@
 /azuredreams/unit-tests/.gradle/
 /azuredreams/unit-tests/build/
 /azuredreams/unit-tests/.kotlin/
+/parasiteeve/unit-tests/.gradle/
+/parasiteeve/unit-tests/build/
+/parasiteeve/unit-tests/.kotlin/
 
 .idea/
 *.iml

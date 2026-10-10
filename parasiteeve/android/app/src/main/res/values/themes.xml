@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ParasiteEve" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/pe_night</item>
+        <item name="colorPrimary">@color/pe_teal</item>
+        <item name="colorOnPrimary">@color/pe_abyss</item>
+        <item name="colorSurface">@color/pe_navy</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.ParasiteEve.Game">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+
+    <!-- The in-game menu and the update dialogs, over whatever screen opened them. -->
+    <style name="Theme.ParasiteEve.Overlay">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+</resources>

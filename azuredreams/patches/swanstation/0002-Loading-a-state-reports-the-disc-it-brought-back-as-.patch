@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Azure Dreams <azuredreams@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 17:02:44 +0000
+Subject: [PATCH 2/2] Loading a state reports the disc it brought back as the
+ one in
+
+A state brings back the disc that was in when it was saved, switching the
+playlist's disc if another one is in now, but the disk control interface kept
+reporting the disc from before the load. The frontend then showed the wrong
+disc, and asking for the disc that was really out did nothing, since it looked
+like the one already in.
+---
+ src/libretro/libretro_host_interface.cpp | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/libretro/libretro_host_interface.cpp b/src/libretro/libretro_host_interface.cpp
+index fc39fe0..660db55 100644
+--- a/src/libretro/libretro_host_interface.cpp
++++ b/src/libretro/libretro_host_interface.cpp
+@@ -956,7 +956,18 @@ bool HostInterface::retro_unserialize(const void* data, size_t size)
+   const bool restore_on_failure = !is_memory_state && ctx != RETRO_SAVESTATE_CONTEXT_ROLLBACK_NETPLAY;
+ 
+   std::unique_ptr<ByteStream> stream = ByteStream_CreateReadOnlyMemoryStream(data, static_cast<uint32_t>(size));
+-  return System::LoadState(stream.get(), is_memory_state, restore_on_failure);
++  if (!System::LoadState(stream.get(), is_memory_state, restore_on_failure))
++    return false;
++
++  /* The state brings back the disc that was in when it was saved, which can be another disc of the
++   * playlist than the one in now: report that one as in, so the frontend's disc swaps go by it. */
++  if (P_THIS->m_disk_control_info.has_sub_images && System::HasMedia() && System::HasMediaSubImages())
++  {
++    const uint32_t index = System::GetMediaSubImageIndex();
++    if (index < P_THIS->m_disk_control_info.image_count)
++      P_THIS->m_disk_control_info.image_index = index;
++  }
++  return true;
+ }
+ 
+ void* HostInterface::retro_get_memory_data(unsigned id)

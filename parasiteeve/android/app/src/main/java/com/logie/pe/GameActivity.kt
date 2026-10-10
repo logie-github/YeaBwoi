@@ -1,0 +1,324 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package com.logie.pe
+
+import android.content.Context
+import android.content.Intent
+import android.graphics.Color
+import android.os.Bundle
+import android.util.Log
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.widget.FrameLayout
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.swordfish.libretrodroid.GLRetroView
+import com.swordfish.libretrodroid.GLRetroViewData
+import com.swordfish.libretrodroid.ShaderConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * The game: the emulator's picture, the gesture layer over it and the fade in from black. The
+ * in-game menu ([MenuActivity]) opens over it and pauses it, and swaps discs. The game always boots
+ * fresh, to its own title screen: nothing carries over from the last time but the memory card and
+ * the save state slots.
+ *
+ * SwanStation draws with OpenGL ES and reads its state back from the GPU, so its state is only
+ * saved, loaded or reset on the emulation thread while that runs with its context: once the game
+ * draws again after the in-game menu.
+ */
+class GameActivity : ComponentActivity() {
+    private lateinit var retroView: GLRetroView
+    private lateinit var gestureView: GestureView
+    private lateinit var fadeView: FadeView
+    private lateinit var config: PeConfig
+
+    /** The game is running (its first frame was drawn); before that, its state can't be saved. */
+    private var started = false
+    /** What the in-game menu asked for, done once the game runs again. */
+    private var pendingAction: MenuActivity.Action? = null
+    private var errorShown = false
+    private var menuOpening = false
+    /** The picture settings the emulator has, to only change them when the player did. */
+    private var appliedShader: ShaderConfig? = null
+    private var appliedResolution: Int? = null
+    /** PGXP as the emulator has it (it follows Steady 3D). */
+    private var appliedPgxp: String? = null
+    /** The BIOS the game started on ([PeFiles.biosTag]), noted with each state saved. */
+    private lateinit var biosTag: String
+    /** Memory card 1 as it was last written to its file. */
+    private var savedCard: ByteArray? = null
+    /** The card file is copied to a backup before the first time the game changes it. */
+    private var cardBackedUp = false
+    /** Looks for changes to the memory card every few seconds while the game runs. */
+    private var cardWatch: Job? = null
+
+    private val menu = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val action = MenuActivity.actionOf(result.resultCode, result.data)
+        if (action is MenuActivity.Action.Quit) {
+            finish()
+        } else {
+            pendingAction = action
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val disc = PeFiles.launchFile(this)
+        if (disc == null) {
+            finish()
+            return
+        }
+        config = PeConfig(this)
+        biosTag = PeFiles.biosTag(this)
+        goFullscreen()
+
+        val data = GLRetroViewData(this).apply {
+            coreFilePath = PeCore.LIBRARY
+            gameFilePath = disc.absolutePath
+            systemDirectory = PeFiles.systemDir(this@GameActivity).absolutePath
+            savesDirectory = PeFiles.savesDir(this@GameActivity).absolutePath
+            variables = PeCore.variables(this@GameActivity, config)
+            // Memory card 1 is the app's to keep (the game's own saves).
+            saveRAMState = PeFiles.readMemoryCard(this@GameActivity).also { savedCard = it }
+            shader = PeCore.shader(config)
+            rumbleEventsEnabled = false
+            preferLowLatencyAudio = true
+        }
+        retroView = GLRetroView(this, data)
+        lifecycle.addObserver(retroView)
+        gestureView = GestureView(this, retroView, onMenu = ::openMenu)
+        fadeView = FadeView(this)
+
+        val match = ViewGroup.LayoutParams.MATCH_PARENT
+        setContentView(FrameLayout(this).apply {
+            setBackgroundColor(Color.BLACK)
+            addView(retroView, FrameLayout.LayoutParams(match, match))
+            addView(gestureView, FrameLayout.LayoutParams(match, match))
+            addView(fadeView, FrameLayout.LayoutParams(match, match))
+        })
+        // Game controllers go straight to the emulator.
+        retroView.isFocusable = true
+        retroView.requestFocus()
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = openMenu()
+        })
+
+        lifecycleScope.launch {
+            retroView.getGLRetroEvents().first { it is GLRetroView.GLRetroEvents.FrameRendered }
+            started = true
+            applySettings()
+            watchMemoryCard()
+            fadeView.fadeIn()
+        }
+        lifecycleScope.launch {
+            retroView.getGLRetroErrors().collect { showError(it) }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        goFullscreen()
+        if (started) {
+            applySettings()
+            pendingAction?.let { action ->
+                lifecycleScope.launch {
+                    afterNextFrame()
+                    run(action)
+                }
+            }
+            watchMemoryCard()
+        }
+        pendingAction = null
+    }
+
+    override fun onPause() {
+        if (::gestureView.isInitialized) gestureView.releaseAll()
+        cardWatch?.cancel()
+        cardWatch = null
+        // The game has paused (LibretroDroid follows the lifecycle), so its memory card can be read
+        // here. Leaving the app can be the last chance before it's closed.
+        if (started) runCatching { retroView.serializeSRAM(false) }.getOrNull()?.let { keepMemoryCard(it) }
+        super.onPause()
+    }
+
+    /** Writes the memory card to its file every few seconds while the game changes it. */
+    private fun watchMemoryCard() {
+        cardWatch?.cancel()
+        cardWatch = lifecycleScope.launch {
+            while (true) {
+                delay(CARD_WATCH_MS)
+                val card = withContext(Dispatchers.IO) { runCatching { retroView.serializeSRAM() }.getOrNull() }
+                card?.let { keepMemoryCard(it) }
+            }
+        }
+    }
+
+    /** Writes [card] (memory card 1, from the emulator) to its file if the game changed it. */
+    private fun keepMemoryCard(card: ByteArray) {
+        if (card.size != PeFiles.MEMORY_CARD_SIZE || card.contentEquals(savedCard)) return
+        savedCard = card
+        val backup = !cardBackedUp
+        cardBackedUp = true
+        val context = applicationContext
+        cardWriter.launch {
+            runCatching { PeFiles.writeMemoryCard(context, card, backup) }
+                .onFailure { Log.w(TAG, "Couldn't save the memory card", it) }
+        }
+    }
+
+    /** Waits for the game to draw again after a pause: from then on its OpenGL context is current. */
+    private suspend fun afterNextFrame() {
+        // The latest frame before the pause is replayed first.
+        retroView.getGLRetroEvents().filterIsInstance<GLRetroView.GLRetroEvents.FrameRendered>().drop(1).first()
+    }
+
+    private fun openMenu() {
+        if (isFinishing || menuOpening) return
+        menuOpening = true
+        gestureView.releaseAll()
+        lifecycleScope.launch {
+            // Which disc is in, asked of the core while the game still runs: its thread stops with
+            // the pause the menu brings.
+            val discs = if (started) {
+                withContext(Dispatchers.IO) {
+                    runCatching { retroView.getAvailableDisks() to retroView.getCurrentDisk() }.getOrNull()
+                }
+            } else {
+                null
+            }
+            menuOpening = false
+            if (isFinishing) return@launch
+            menu.launch(MenuActivity.intent(this@GameActivity, discs?.first ?: 0, discs?.second ?: 0))
+            @Suppress("DEPRECATION")
+            overridePendingTransition(0, 0)
+        }
+    }
+
+    private fun applySettings() {
+        retroView.frameSpeed = config.speed
+        val shader = PeCore.shader(config)
+        if (shader != appliedShader) {
+            appliedShader = shader
+            retroView.shader = shader
+        }
+        val resolution = config.resolution
+        if (appliedResolution != null && resolution != appliedResolution) {
+            retroView.updateVariables(PeCore.resolution(resolution))
+        }
+        appliedResolution = resolution
+        val pgxp = PeCore.pgxp(config)
+        if (appliedPgxp != null && pgxp.value != appliedPgxp) {
+            retroView.updateVariables(pgxp)
+        }
+        appliedPgxp = pgxp.value
+    }
+
+    private fun run(action: MenuActivity.Action) {
+        when (action) {
+            is MenuActivity.Action.Save -> lifecycleScope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        PeFiles.writeState(this@GameActivity, action.slot, retroView.serializeState(), biosTag)
+                    }.isSuccess
+                }
+                toast(if (saved) getString(R.string.pe_state_saved, action.slot) else getString(R.string.pe_state_save_failed))
+            }
+
+            is MenuActivity.Action.Load -> lifecycleScope.launch { loadState(action.slot) }
+
+            // Like saving and loading, this waits for the emulator's thread: never on this one.
+            is MenuActivity.Action.Reset -> lifecycleScope.launch(Dispatchers.IO) { retroView.reset() }
+
+            // The lid opens, the disc changes and the lid closes, as the game asks for disc 2.
+            is MenuActivity.Action.ChangeDisc -> lifecycleScope.launch {
+                withContext(Dispatchers.IO) { retroView.changeDisk(action.index) }
+                toast(getString(R.string.pe_disc_changed, action.index + 1))
+            }
+
+            is MenuActivity.Action.Quit -> finish()
+        }
+    }
+
+    private suspend fun loadState(slot: Int) {
+        val loaded = withContext(Dispatchers.IO) {
+            val file = PeFiles.stateFile(this@GameActivity, slot)
+            if (!file.isFile) return@withContext false
+            runCatching { retroView.unserializeState(file.readBytes()) }.getOrDefault(false)
+        }
+        toast(
+            when {
+                // A state made on another BIOS brings that one's code back with it.
+                loaded && PeFiles.stateFromOtherBios(this, slot) -> getString(R.string.pe_state_loaded_other_bios, slot)
+                loaded -> getString(R.string.pe_state_loaded, slot)
+                else -> getString(R.string.pe_state_load_failed)
+            }
+        )
+    }
+
+    private fun showError(error: Int) {
+        Log.e(TAG, "Emulator error $error")
+        if (error == GLRetroView.ERROR_SERIALIZATION) {
+            toast(getString(R.string.pe_state_load_failed))
+            return
+        }
+        if (errorShown || isFinishing) return
+        errorShown = true
+        val message = when (error) {
+            GLRetroView.ERROR_LOAD_LIBRARY -> R.string.pe_error_core
+            GLRetroView.ERROR_LOAD_GAME -> R.string.pe_error_game
+            GLRetroView.ERROR_GL_NOT_COMPATIBLE -> R.string.pe_error_gl
+            else -> R.string.pe_error_generic
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.pe_error_title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok) { _, _ -> finish() }
+            .setOnCancelListener { finish() }
+            .show()
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+
+    private fun goFullscreen() {
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.attributes = window.attributes.apply {
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    companion object {
+        private const val TAG = "ParasiteEve"
+        private const val CARD_WATCH_MS = 3000L
+
+        /** Writes the memory card one write after another, even after the game has closed. */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        private val cardWriter = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(1))
+
+        /** Boots the game. */
+        fun intent(context: Context): Intent = Intent(context, GameActivity::class.java)
+    }
+}
