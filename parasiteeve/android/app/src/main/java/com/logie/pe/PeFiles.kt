@@ -5,9 +5,11 @@ package com.logie.pe
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.system.Os
 import com.logie.pe.discs.DiscSorter
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 /**
  * Where the app keeps the game, the BIOS, the memory card and the save states, all in its private
@@ -15,10 +17,12 @@ import java.io.IOException
  *
  * - game/: the two discs, disc1/ and disc2/, each a disc image copied in from the files the player
  *   picked, and the playlist the core starts (Parasite Eve.m3u), which lists the discs there are
- * - system/: the PlayStation BIOS the player added (the core uses OpenBIOS without one)
+ * - system/: the PlayStation BIOS the player added (the core uses OpenBIOS without one), under the
+ *   names the core looks for it by, and the HD texture pack's link ([com.logie.pe.hd.HdTextures])
  * - saves/: memory card 1 (card1.mcd), which the app writes as soon as the game saves, and when the
  *   game pauses
- * - states/: save states, slot1-3.state, each with a .bios file naming the BIOS it was made on
+ * - states/: save states, slot1-3.state, each with a .bios file naming the BIOS it was made on;
+ *   states from before the app ran Beetle PSX (SwanStation's) are set aside as .swanstation files
  *
  * Parasite Eve comes on two discs. The core starts the playlist and the in-game menu swaps discs
  * through it. A .pbp holding both discs (made for the PSP) is started directly instead.
@@ -41,7 +45,10 @@ object PeFiles {
     private fun discDir(context: Context, disc: Int) = File(gameDir(context), "disc$disc")
     fun systemDir(context: Context) = File(context.filesDir, "system").apply { mkdirs() }
     fun savesDir(context: Context) = File(context.filesDir, "saves").apply { mkdirs() }
-    private fun statesDir(context: Context) = File(context.filesDir, "states").apply { mkdirs() }
+    private fun statesDir(context: Context) = File(context.filesDir, "states").apply {
+        mkdirs()
+        setAsideOldStates(this)
+    }
 
     /** The file to start disc [disc] (1 or 2) from, or null if it isn't installed. */
     fun discFile(context: Context, disc: Int): File? = DiscSorter.startFile(discDir(context, disc))
@@ -159,7 +166,29 @@ object PeFiles {
 
     /** The PlayStation BIOS in use, if the player added one. */
     fun bios(context: Context): File? =
-        systemDir(context).listFiles()?.firstOrNull { it.isFile && it.length() == BIOS_SIZE.toLong() }
+        systemDir(context).listFiles()?.firstOrNull { it.isFile && !isLink(it) && it.length() == BIOS_SIZE.toLong() }
+
+    /**
+     * The names Beetle PSX looks for the BIOS by, for Japanese, American and European discs: they
+     * all link to the player's BIOS, whatever its file is called, as any BIOS runs any disc.
+     */
+    private val CORE_BIOS_NAMES = listOf("scph5500.bin", "scph5501.bin", "scph5502.bin")
+
+    /** Puts the BIOS where the core looks for it, before the game starts. */
+    fun linkBios(context: Context) {
+        val bios = bios(context)
+        for (name in CORE_BIOS_NAMES) {
+            val link = File(systemDir(context), name)
+            if (bios != null && link.name == bios.name) continue
+            if (isLink(link)) {
+                if (bios != null && runCatching { Os.readlink(link.path) }.getOrNull() == bios.path) continue
+                link.delete()
+            }
+            if (bios != null && !link.exists()) runCatching { Os.symlink(bios.path, link.path) }
+        }
+    }
+
+    private fun isLink(file: File) = runCatching { Files.isSymbolicLink(file.toPath()) }.getOrDefault(false)
 
     /** What the game runs on: the added BIOS's file name, or OpenBIOS, the core's free stand-in. */
     fun biosTag(context: Context): String = bios(context)?.name ?: OPENBIOS
@@ -185,7 +214,7 @@ object PeFiles {
     private val BIOS_MARKS = listOf("Sony Computer Entertainment", "PS compatible", "OpenBIOS")
 
     fun deleteBios(context: Context) {
-        systemDir(context).listFiles()?.filter { it.isFile }?.forEach { it.delete() }
+        systemDir(context).listFiles()?.filter { it.isFile || (isLink(it) && it.name in CORE_BIOS_NAMES) }?.forEach { it.delete() }
     }
 
     // Memory card
@@ -256,6 +285,26 @@ object PeFiles {
     }
 
     private fun stateBiosFile(context: Context, slot: Int) = File(stateFile(context, slot).path + ".bios")
+
+    /** Which emulator the states in states/ are from. */
+    private const val STATES_CORE = "core"
+    private const val CORE_NAME = "beetle"
+    @Volatile private var statesChecked = false
+
+    /**
+     * Sets aside the states made by SwanStation, which the app ran before Beetle PSX: Beetle can't
+     * load them. They're renamed rather than deleted.
+     */
+    private fun setAsideOldStates(dir: File) {
+        if (statesChecked) return
+        statesChecked = true
+        val marker = File(dir, STATES_CORE)
+        if (runCatching { marker.readText() }.getOrNull() == CORE_NAME) return
+        dir.listFiles()?.filter { it.isFile && (it.name.endsWith(".state") || it.name.endsWith(".state.bios")) }?.forEach {
+            it.renameTo(File(dir, it.name + ".swanstation"))
+        }
+        runCatching { marker.writeText(CORE_NAME) }
+    }
 
     /**
      * The state in [slot] was made on another BIOS than the game runs on now (before the player

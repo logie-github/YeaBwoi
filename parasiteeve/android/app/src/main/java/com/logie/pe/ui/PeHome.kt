@@ -19,7 +19,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,6 +44,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Hd
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.SdCard
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -55,6 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,7 +67,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
@@ -90,6 +90,7 @@ import com.logie.pe.PeFiles
 import com.logie.pe.PeUpdateActivity
 import com.logie.pe.PeUpdater
 import com.logie.pe.R
+import com.logie.pe.hd.HdTextures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -119,6 +120,7 @@ fun PeHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     var biosError by remember { mutableStateOf<String?>(null) }
     /** The disc the files being picked are for, or null to tell from their names. */
     var importTarget by rememberSaveable { mutableStateOf<Int?>(null) }
+    val hdState by HdTextures.state.collectAsState()
 
     /**
      * Boots the game, to its own title screen, after the screen fades to black; straight from black
@@ -148,7 +150,8 @@ fun PeHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     // Opening the app: offer a newer version if there is one, then start the game.
     LaunchedEffect(Unit) {
         if (!autoplay) return@LaunchedEffect
-        if (launch == null) {
+        // An HD texture pack unpacking, or just done: stay here to see how it goes.
+        if (launch == null || hdState != HdTextures.State.Idle) {
             autoplay = false
             return@LaunchedEffect
         }
@@ -164,6 +167,11 @@ fun PeHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             play(fromLoading = true)
             autoplay = false
         }
+    }
+
+    // How installing an HD texture pack went, as soon as it's done.
+    LaunchedEffect(hdState) {
+        if ((hdState is HdTextures.State.Done || hdState is HdTextures.State.Failed) && dialog == null) dialog = HomeDialog.HD
     }
 
     // Back from the game.
@@ -248,6 +256,7 @@ fun PeHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             HomeDialog.PICTURE -> PictureDialog(onDismiss = { dialog = null })
             HomeDialog.MEMORY_CARD -> MemoryCardDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.BIOS -> BiosDialog(onDismiss = { dialog = null; refresh++ })
+            HomeDialog.HD -> HdTexturesDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.DISCS -> DiscsDialog(
                 onPick = { disc -> dialog = null; pick(disc) },
                 onDismiss = { dialog = null; refresh++ },
@@ -267,7 +276,7 @@ fun PeHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     }
 }
 
-enum class HomeDialog { CONTROLS, PICTURE, MEMORY_CARD, BIOS, DISCS }
+enum class HomeDialog { CONTROLS, PICTURE, MEMORY_CARD, BIOS, DISCS, HD }
 
 @Composable
 private fun HomeScreen(
@@ -340,6 +349,9 @@ private fun HomeScreen(
                         stringResource(R.string.pe_tile_controls_summary)) { onDialog(HomeDialog.CONTROLS) },
                     HomeTile(Icons.Default.Tv, stringResource(R.string.pe_tile_picture),
                         stringResource(R.string.pe_tile_picture_summary)) { onDialog(HomeDialog.PICTURE) },
+                    HomeTile(Icons.Default.Hd, stringResource(R.string.pe_tile_hd), hdTileSummary()) {
+                        onDialog(HomeDialog.HD)
+                    },
                     HomeTile(Icons.Default.SdCard, stringResource(R.string.pe_tile_memory_card),
                         stringResource(R.string.pe_tile_memory_card_summary)) { onDialog(HomeDialog.MEMORY_CARD) },
                     HomeTile(Icons.Default.Memory, stringResource(R.string.pe_tile_bios),
@@ -532,22 +544,7 @@ private fun ImportingWindow(progress: Float) {
                     style = MaterialTheme.typography.headlineSmall,
                 )
             }
-            // A hairline filling with light, its leading edge glowing.
-            Canvas(
-                Modifier
-                    .fillMaxWidth()
-                    .height(10.dp)
-            ) {
-                val y = size.height / 2
-                drawLine(PeColors.Steel, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
-                val end = size.width * progress
-                drawLine(PeColors.Teal, Offset(0f, y), Offset(end, y), 2.dp.toPx())
-                drawCircle(
-                    Brush.radialGradient(listOf(PeColors.Glow, Color.Transparent), center = Offset(end, y), radius = 8.dp.toPx()),
-                    radius = 8.dp.toPx(),
-                    center = Offset(end, y),
-                )
-            }
+            PeProgressLine(progress)
         }
     }
 }

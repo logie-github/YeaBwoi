@@ -18,10 +18,21 @@ class PeConfig(context: Context) {
         get() = prefs.getInt(KEY_PICTURE, PICTURE_SHARP)
         set(value) = prefs.edit().putInt(KEY_PICTURE, value).apply()
 
-    /** How many times the PlayStation's resolution the core draws at: one of [RESOLUTIONS]. */
+    /**
+     * How many times the PlayStation's resolution the core draws at: one of [RESOLUTIONS]. A scale
+     * the core no longer offers (3x, 5x, 6x before Beetle) reads as the next one down.
+     */
     var resolution: Int
-        get() = prefs.getInt(KEY_RESOLUTION, DEFAULT_RESOLUTION).takeIf { it in RESOLUTIONS } ?: DEFAULT_RESOLUTION
+        get() {
+            val stored = prefs.getInt(KEY_RESOLUTION, DEFAULT_RESOLUTION)
+            return RESOLUTIONS.lastOrNull { it <= stored } ?: DEFAULT_RESOLUTION
+        }
         set(value) = prefs.edit().putInt(KEY_RESOLUTION, value).apply()
+
+    /** The HD texture pack is drawn in place of the game's own textures (once one is installed). */
+    var hdTextures: Boolean
+        get() = prefs.getBoolean(KEY_HD_TEXTURES, true)
+        set(value) = prefs.edit().putBoolean(KEY_HD_TEXTURES, value).apply()
 
     /** PGXP: 3D drawn from precise coordinates, so it doesn't wobble and textures don't warp. */
     var steady3d: Boolean
@@ -41,13 +52,14 @@ class PeConfig(context: Context) {
 
         const val MAX_SPEED = 3
 
-        val RESOLUTIONS = listOf(1, 2, 3, 4, 5, 6, 8)
+        val RESOLUTIONS = listOf(1, 2, 4, 8)
         const val DEFAULT_RESOLUTION = 4
 
         private const val KEY_HAPTICS = "haptics"
         private const val KEY_PICTURE = "picture"
         private const val KEY_RESOLUTION = "resolution"
         private const val KEY_STEADY_3D = "steady_3d"
+        private const val KEY_HD_TEXTURES = "hd_textures"
         private const val KEY_SPEED = "speed"
     }
 }

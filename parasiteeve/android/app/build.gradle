@@ -58,6 +58,14 @@ android {
 		}
 	}
 
+	// pe7z: the 7z extraction for HD texture packs (src/main/cpp).
+	externalNativeBuild {
+		cmake {
+			path = "src/main/cpp/CMakeLists.txt"
+			version = "3.22.1+"
+		}
+	}
+
 	compileOptions {
 		sourceCompatibility JavaVersion.VERSION_17
 		targetCompatibility JavaVersion.VERSION_17
@@ -65,9 +73,8 @@ android {
 
 	sourceSets {
 		main {
-			// libswanstation_libretro_android.so from scripts/build-swanstation.sh, the same core the
-			// Azure Dreams app packages.
-			jniLibs.srcDirs += ['../../../azuredreams/android/core']
+			// libbeetle_psx_hw_libretro_android.so from scripts/build-beetle.sh
+			jniLibs.srcDirs += ['../core']
 		}
 	}
 

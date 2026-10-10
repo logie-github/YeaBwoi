@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.logie.pe.hd.HdTextures
 import com.logie.pe.ui.PeHomeRoute
 
 /** The title screen ([PeHomeRoute]). */
@@ -20,5 +21,15 @@ class MainActivity : ComponentActivity() {
         // Only a fresh start goes straight into the game, not coming back to the app.
         val autoplay = savedInstanceState == null
         setContent { PeHomeRoute(activity = this, autoplayOnOpen = autoplay) }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        HdTextures.appVisible = true
+    }
+
+    override fun onStop() {
+        HdTextures.appVisible = false
+        super.onStop()
     }
 }

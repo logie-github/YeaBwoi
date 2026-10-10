@@ -19,7 +19,7 @@ This repository also builds:
 
 - **V3 Gold** (`com.logie.v3gold`): Persona 4 Golden on the Vita3K PS Vita emulator, with the same kind of gesture controls and a Persona 4 Golden themed menu. See [v3gold/README.md](v3gold/README.md).
 - **Azure Dreams** (`com.logie.azure`): the PlayStation game on the SwanStation emulator core (4× resolution), with gesture controls, save states and a PlayStation-era themed menu. See [azuredreams/README.md](azuredreams/README.md).
-- **Parasite Eve** (`com.logie.pe`): the PlayStation game, both discs, on the same SwanStation build as Azure Dreams, with gesture controls, save states, disc swapping and a menu styled after the game's New York at night. See [parasiteeve/README.md](parasiteeve/README.md).
+- **Parasite Eve** (`com.logie.pe`): the PlayStation game, both discs, on the Beetle PSX HW core, with HD texture packs (it unpacks VieRock Retro HD's Parasite Eve HD itself), gesture controls, save states, disc swapping and a menu styled after the game's New York at night. See [parasiteeve/README.md](parasiteeve/README.md).
 
 Each has its own workflow and releases.
 

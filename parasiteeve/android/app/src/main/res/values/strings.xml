@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Parasite Eve</string>
     <string name="pe_game_name">Parasite Eve</string>
-    <string name="pe_version">%1$s %2$s · SwanStation</string>
+    <string name="pe_version">%1$s %2$s · Beetle PSX</string>
 
     <!-- Title screen -->
     <string name="pe_home_press_start">Press start</string>
@@ -39,6 +39,11 @@
     <string name="pe_tile_discs_both">Both discs added</string>
     <string name="pe_tile_discs_one">One of two added</string>
     <string name="pe_tile_discs_none">Not added yet</string>
+    <string name="pe_tile_hd">HD textures</string>
+    <string name="pe_tile_hd_none">Add an HD texture pack</string>
+    <string name="pe_tile_hd_on">On · %1$s</string>
+    <string name="pe_tile_hd_off">Off</string>
+    <string name="pe_tile_hd_done">Installed</string>
     <string name="pe_tile_updates">Updates</string>
     <string name="pe_tile_updates_summary">Version %1$s</string>
 
@@ -85,7 +90,7 @@
     <string name="pe_picture_upscaled_summary">Smoothed edges, kept sharp</string>
     <string name="pe_resolution">Resolution</string>
     <string name="pe_resolution_option">%1$d×</string>
-    <string name="pe_resolution_summary">How many times the PlayStation\'s resolution the 3D is drawn at: %1$d× is %2$d × %3$d. Aya and the creatures get sharper; the backgrounds are pictures and keep their own. Higher uses more battery.</string>
+    <string name="pe_resolution_summary">How many times the PlayStation\'s resolution the 3D is drawn at: %1$d× is %2$d × %3$d. Aya and the creatures get sharper; the backgrounds are pictures and keep their own, unless an HD texture pack redraws them. Higher uses more battery.</string>
     <string name="pe_steady_3d">Steady 3D</string>
     <string name="pe_steady_3d_summary">Stops the PlayStation\'s wobbling polygons and warping textures.</string>
 
@@ -176,4 +181,46 @@
     <string name="pe_update_permission_title">Allow updates</string>
     <string name="pe_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
     <string name="pe_update_open_settings">Open settings</string>
+    <!-- HD texture packs -->
+    <string name="pe_hd_title">HD textures</string>
+    <string name="pe_hd_channel">HD texture packs</string>
+    <string name="pe_hd_none">No HD texture pack yet.</string>
+    <string name="pe_hd_body">An HD texture pack redraws the game\'s backgrounds, menus and text in high definition, like VieRock Retro HD\'s Parasite Eve HD. Download all of its parts, then tap Add pack and pick them all together: Parasite Eve HD comes in four, .7z.001 to .7z.004. The app unpacks the pack\'s images into its own storage (its Text folder too) and the game draws them from the next time it starts.</string>
+    <string name="pe_hd_space">Parasite Eve HD takes about 28 GB once unpacked, besides the parts you downloaded: free up that much first. Unpacking takes several minutes and carries on with the app in the background. Afterwards the app offers to delete the parts.</string>
+    <string name="pe_hd_installed">Installed: %1$s images, %2$s.</string>
+    <string name="pe_hd_switch">HD textures</string>
+    <string name="pe_hd_switch_summary">Draws the HD pack in place of the game\'s own textures. Switched during the game, it shows from the next room on.</string>
+    <string name="pe_hd_add">Add pack</string>
+    <string name="pe_hd_replace">Replace pack</string>
+    <string name="pe_hd_delete">Delete pack</string>
+    <string name="pe_hd_delete_confirm">Really delete</string>
+    <string name="pe_hd_deleted">The HD texture pack is deleted.</string>
+    <string name="pe_hd_hide">Hide</string>
+    <string name="pe_hd_stop">Stop</string>
+    <string name="pe_hd_checking">Reading the pack…</string>
+    <string name="pe_hd_unpacking">Unpacking… %1$d%%</string>
+    <string name="pe_hd_unpacking_detail">%1$s of %2$s</string>
+    <string name="pe_hd_unpacking_note">You can leave the app: the unpacking carries on, and its notification shows how far it is.</string>
+    <string name="pe_hd_done">Done: %1$s images installed (%2$s). The game draws them from the next time it starts.</string>
+    <string name="pe_hd_delete_parts_question">The parts you downloaded aren\'t needed anymore. Delete them to free %1$s?</string>
+    <string name="pe_hd_delete_parts">Delete parts</string>
+    <string name="pe_hd_keep_parts">Keep them</string>
+    <string name="pe_hd_parts_deleted">The downloaded parts are deleted.</string>
+    <string name="pe_hd_parts_not_deleted">%1$d of the parts couldn\'t be deleted from here: delete them in your Files app.</string>
+    <string name="pe_hd_failed">Couldn\'t install the HD textures</string>
+    <string name="pe_hd_notify_done">The HD textures are installed.</string>
+    <string name="pe_hd_notify_failed">The HD textures couldn\'t be installed. Open the app to see why.</string>
+    <string name="pe_hd_error_not_archive">%1$s isn\'t part of a texture pack. Pick the pack\'s .7z parts (or .zip files).</string>
+    <string name="pe_hd_error_mixed">Those files aren\'t all parts of one pack. Pick only the pack\'s parts: .7z.001, .7z.002 and so on.</string>
+    <string name="pe_hd_error_part_missing">Part %1$s of the pack is missing. Pick all the parts together.</string>
+    <string name="pe_hd_error_parts_missing">A part of the pack is missing, or one didn\'t finish downloading. Pick all the parts together.</string>
+    <string name="pe_hd_error_cant_read">Couldn\'t read the pack (%1$s).</string>
+    <string name="pe_hd_error_not_seekable">%1$s can\'t be read where it is. Move the parts to the phone\'s own storage (Downloads, say) and pick them from there.</string>
+    <string name="pe_hd_error_no_images">There are no images in that pack.</string>
+    <string name="pe_hd_error_no_space">Not enough free space: the pack needs %1$s and there\'s %2$s free. Free up space and try again.</string>
+    <string name="pe_hd_error_damaged">The pack is damaged: a part may not have finished downloading. Download it again and retry.</string>
+    <string name="pe_hd_error_unsupported">The pack is packed in a way the app can\'t unpack (it reads 7z\'s LZMA and LZMA2).</string>
+    <string name="pe_hd_error_write">Couldn\'t write the images: the storage may be full.</string>
+    <string name="pe_hd_error_memory">There isn\'t enough memory to unpack this pack.</string>
+    <string name="pe_hd_error_cancelled">Stopped before the end: no HD textures are installed now.</string>
 </resources>

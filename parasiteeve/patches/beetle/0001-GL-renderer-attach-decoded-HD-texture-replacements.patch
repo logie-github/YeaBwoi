@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Parasite Eve <parasiteeve@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 17:48:23 +0000
+Subject: [PATCH 1/2] GL renderer: attach decoded HD texture replacements
+
+The GL renderer's frame boundary only called texture_tracker_endFrame, which
+doesn't drain the texture IO responses. The Vulkan renderer drains and attaches
+them in texture_tracker_on_queues_reset, from reset_queue, and the GL renderer
+never called it: replacements were found on disk, requested and decoded, but
+never bound, so the GL renderer always drew the original textures.
+
+Call texture_tracker_on_queues_reset at the GL frame boundary, after the final
+flush, while texture tracking is on.
+---
+ rhi/rhi_lib_gl.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/rhi/rhi_lib_gl.c b/rhi/rhi_lib_gl.c
+index 103ba6a..09a52d2 100644
+--- a/rhi/rhi_lib_gl.c
++++ b/rhi/rhi_lib_gl.c
+@@ -6409,6 +6409,13 @@ void rhi_gl_finalize_frame(const void *fb, unsigned width,
+     * out this frame has been consumed. */
+    if (renderer->tracker)
+    {
++      /* What the Vulkan renderer does from reset_queue: drain the decoded IO
++       * responses and attach them to their uploads. Without it no replacement
++       * ever binds in the GL renderer: every load is requested and decoded, but
++       * never picked up. Every handle of this frame has been consumed by the
++       * flush above, as texture_tracker_on_queues_reset requires. */
++      if (renderer->texture_tracking_enabled)
++         texture_tracker_on_queues_reset(renderer->tracker);
+       texture_tracker_endFrame(renderer->tracker);
+       renderer->hd_handle = hd_handle_make_none();
+    }

@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Parasite Eve <parasiteeve@users.noreply.github.com>
+Date: Sat, 10 Oct 2026 17:49:02 +0000
+Subject: [PATCH 2/2] Android.mk: NO_VULKAN=1 builds the hardware renderer with
+ OpenGL ES only
+
+With HAVE_HW=1, 64-bit Android builds always added the Vulkan renderer. A
+frontend that only offers OpenGL ES contexts doesn't need it: NO_VULKAN=1
+leaves it out (and its -DHAVE_VULKAN), so the core is smaller and builds
+faster.
+---
+ jni/Android.mk | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/jni/Android.mk b/jni/Android.mk
+index ed66267..a286925 100644
+--- a/jni/Android.mk
++++ b/jni/Android.mk
+@@ -34,9 +34,12 @@ ifeq ($(HAVE_HW),1)
+     GL_LIB      := -lGLESv3
+   endif
+ 
++  # NO_VULKAN=1 builds the GL renderer alone.
+   ifneq ($(TARGET_ARCH_ABI),armeabi)
+-    HAVE_VULKAN := 1
+-    FLAGS       += -DHAVE_VULKAN
++    ifneq ($(NO_VULKAN),1)
++      HAVE_VULKAN := 1
++      FLAGS       += -DHAVE_VULKAN
++    endif
+   endif
+   FLAGS += -DHAVE_HW
+ endif
