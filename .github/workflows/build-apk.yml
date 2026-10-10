@@ -16,6 +16,8 @@ on:
       - "scripts/build-swanstation.sh"
       - "scripts/prepare-libretrodroid.sh"
       - ".github/workflows/build-azuredreams.yml"
+      - "parasiteeve/**"
+      - ".github/workflows/build-parasiteeve.yml"
       - ".gitattributes"
   pull_request:
   workflow_dispatch:

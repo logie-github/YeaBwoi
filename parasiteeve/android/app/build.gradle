@@ -1,0 +1,100 @@
+plugins {
+	id 'com.android.application'
+	id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+// CI passes the app's identity, version, signing key and update source as Gradle properties
+// (-Ppe...). Local builds fall back to these defaults.
+def peProperty = { String name, String fallback ->
+	project.hasProperty(name) ? project.property(name).toString() : fallback
+}
+def peKeystore = peProperty("keystore", "")
+
+android {
+	namespace = "com.logie.pe"
+	compileSdk = 35
+	// Also what strips the native libraries' debug symbols when packaging.
+	ndkVersion = "29.0.14206865"
+
+	buildFeatures {
+		buildConfig = true
+		compose = true
+	}
+
+	defaultConfig {
+		applicationId = peProperty("peApplicationId", "com.logie.pe")
+		minSdk = 26
+		targetSdk = 35
+		versionCode = peProperty("peVersionCode", "1").toInteger()
+		versionName = peProperty("peVersionName", "1.0")
+
+		buildConfigField "String", "PE_UPDATE_REPO", "\"${peProperty("peUpdateRepo", "")}\""
+		buildConfigField "String", "PE_RELEASE_TAG_PREFIX", "\"${peProperty("peReleaseTagPrefix", "")}\""
+		buildConfigField "String", "PE_UPDATE_TOKEN", "\"${peProperty("peUpdateToken", "")}\""
+
+		ndk {
+			// Phones only: the emulator core is built for arm64.
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	signingConfigs {
+		pe {
+			if (peKeystore) {
+				storeFile = file(peKeystore)
+				storePassword = peProperty("storepass", "")
+				keyAlias = peProperty("keyalias", "")
+				keyPassword = peProperty("keypass", "")
+			}
+		}
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled = true
+			shrinkResources = true
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+			signingConfig = peKeystore ? signingConfigs.pe : signingConfigs.debug
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	sourceSets {
+		main {
+			// libswanstation_libretro_android.so from scripts/build-swanstation.sh, the same core the
+			// Azure Dreams app packages.
+			jniLibs.srcDirs += ['../../../azuredreams/android/core']
+		}
+	}
+
+	lint {
+		abortOnError = false
+		checkReleaseBuilds = false
+	}
+
+	packaging {
+		jniLibs {
+			// LibretroDroid loads the core by its file name from the app's library folder.
+			useLegacyPackaging = true
+		}
+	}
+}
+
+dependencies {
+	implementation project(':libretrodroid')
+
+	implementation 'androidx.appcompat:appcompat:1.6.1'
+	implementation 'androidx.core:core-ktx:1.12.0'
+	implementation 'com.google.android.material:material:1.11.0'
+	implementation platform('androidx.compose:compose-bom:2025.04.00')
+	implementation 'androidx.compose.ui:ui'
+	implementation 'androidx.compose.material3:material3'
+	implementation 'androidx.compose.material:material-icons-extended'
+	implementation 'androidx.activity:activity-compose:1.9.3'
+	implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+}

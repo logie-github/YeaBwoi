@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Fetches LibretroDroid at the commit pinned in azuredreams/libretrodroid-version.env, with its
 # submodules (oboe, libretro-common), and applies azuredreams/patches/libretrodroid/ (the HD-2D
-# shader). The Azure Dreams app builds it from azuredreams/android/libretrodroid/upstream/.
+# shader, what SwanStation needs, fast forward's sound). The Azure Dreams and Parasite Eve apps both
+# build it from azuredreams/android/libretrodroid/upstream/.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

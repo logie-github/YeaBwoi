@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Builds the PlayStation emulator core for the Azure Dreams app: SwanStation's libretro core (a
-# GPLv3 fork of DuckStation that draws with OpenGL ES, so it can render at several times the
-# PlayStation's resolution), for arm64, at the commit pinned in azuredreams/core-version.env, with
-# azuredreams/patches/swanstation/ applied (the scene's depth for 2D-HD). The library lands in
-# azuredreams/android/core/arm64-v8a/, which the app packages as one of its native libraries.
+# Builds the PlayStation emulator core for the Azure Dreams and Parasite Eve apps: SwanStation's
+# libretro core (a GPLv3 fork of DuckStation that draws with OpenGL ES, so it can render at several
+# times the PlayStation's resolution), for arm64, at the commit pinned in
+# azuredreams/core-version.env, with azuredreams/patches/swanstation/ applied (the scene's depth for
+# 2D-HD, the disc in after a state load). The library lands in azuredreams/android/core/arm64-v8a/,
+# which both apps package as one of their native libraries.
 #
 # Needs the Android NDK (ANDROID_NDK_HOME or ANDROID_NDK_ROOT), CMake and Ninja (CMAKE and NINJA
 # can point at the ones in the Android SDK).

@@ -93,7 +93,7 @@ Like the other apps: the app checks this repository's releases (`ad-build-N`) wh
 | `app.env` | Package, app name and release tag prefix |
 | `core-version.env` | The SwanStation commit to build |
 | `libretrodroid-version.env` | The LibretroDroid commit to build (its 0.14.0 release) |
-| `patches/swanstation/` | Changes to SwanStation: the scene's depth in the frame's alpha, for 2D-HD |
+| `patches/swanstation/` | Changes to SwanStation: the scene's depth in the frame's alpha, for 2D-HD, and the disc in after a state load reported to the frontend (for multi-disc games) |
 | `patches/libretrodroid/` | Changes to LibretroDroid: the 2D-HD shader, building with newer NDKs, and what SwanStation needs (OpenGL ES contexts only, a framebuffer that follows the frames' size, putting the core's OpenGL state back before drawing its frame), and fast forward's time-stretched sound |
 | `android/` | The app (`app/`): title screen, game screen, in-game menu, gestures, update checker. `libretrodroid/` builds LibretroDroid from `libretrodroid/upstream/`. |
 | `branding/` | Source images. `make-icons.py` rebuilds the launcher icon layers from `icon.png`. |
@@ -112,6 +112,8 @@ cd azuredreams/android
 ./gradlew assembleRelease -PadVersionCode=1 -PadVersionName=1.0.1 \
   -Pkeystore="$PWD/../../ci/dolphinxd-ci.p12" -Pstorepass=dolphinxd -Pkeyalias=dolphinxd -Pkeypass=dolphinxd
 ```
+
+The [Parasite Eve app](../parasiteeve/README.md) runs on this same emulator build: the core, LibretroDroid and their patches here are shared with it, and a change to them rebuilds both apps.
 
 To update the core, change the commit in `core-version.env`. To update LibretroDroid, change `libretrodroid-version.env` and run `scripts/prepare-libretrodroid.sh`; if a patch no longer applies, fix it in `android/libretrodroid/upstream`, commit there, and regenerate the patches with `git format-patch --zero-commit --no-signature -o ../../../patches/libretrodroid <old commit>`.
 
