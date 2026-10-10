@@ -38,10 +38,10 @@ The gestures are V3 Gold's, with the D-pad in place of the sticks: Azure Dreams 
 | Hold, then drag (or hold and swipe with another finger) | Circle + D-pad | Run |
 | Hold, and tap with another finger (again and again while you hold) | Triangle, with Circle still held | |
 | Tap, then tap and hold | R1 on the right half of the screen, L1 on the left, held | Turn the view |
-| Two fingers swipe down | Square | The game's menu |
+| Double tap | Square | The game's menu |
 | Two fingers swipe up | Triangle | Jump |
 | Two fingers swipe right / left | L1 / R1 | |
-| Double tap | Start | Pause |
+| Two fingers swipe down | Start | Pause |
 | Two-finger hold | Select, held | Map |
 | Two-finger tap, then two-finger tap and hold | This app's menu | |
 | Android's back gesture | This app's menu | |

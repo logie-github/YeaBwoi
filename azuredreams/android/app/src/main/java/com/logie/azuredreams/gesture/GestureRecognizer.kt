@@ -77,8 +77,8 @@ data class GestureConfig(
  * - Hold: Circle (held for as long as the finger stays down)
  * - While holding Circle, a tap with another finger: Triangle, as many times as the hold lasts
  * - Tap, then tap and hold: R1 on the right half of the screen, L1 on the left (held)
- * - Double tap: Start
- * - Two fingers swiping up: Triangle; right: L1; left: R1; down: Square
+ * - Double tap: Square
+ * - Two fingers swiping up: Triangle; right: L1; left: R1; down: Start
  * - Two-finger hold: Select (held for as long as the fingers stay down)
  * - Two-finger tap, then two-finger tap and hold: [GestureOutput.openMenu]
  *
@@ -242,7 +242,7 @@ class GestureRecognizer(
         when (touch.state) {
             State.PENDING -> when {
                 touch.secondary -> pulse(if (touch.circleHeld || circleHeld()) PsButton.TRIANGLE else PsButton.CROSS)
-                touch.secondTap -> pulse(PsButton.START)
+                touch.secondTap -> pulse(PsButton.SQUARE)
                 else -> {
                     val timer = arrayOfNulls<Cancellable>(1)
                     timer[0] = scheduler.schedule(config.doubleTapTimeoutMs) {
@@ -432,7 +432,7 @@ class GestureRecognizer(
             return
         }
 
-        // Both fingers swiping the same way: Triangle (up), L1 (right), R1 (left) or Square (down).
+        // Both fingers swiping the same way: Triangle (up), L1 (right), R1 (left) or Start (down).
         if (nearest.moved < config.touchSlopPx) {
             return
         }
@@ -443,7 +443,7 @@ class GestureRecognizer(
         }
         val button = when {
             abs(dy) >= abs(dx) * SWIPE_SLOPE && fingers.all { it.y < it.downY } -> PsButton.TRIANGLE
-            abs(dy) >= abs(dx) * SWIPE_SLOPE && fingers.all { it.y > it.downY } -> PsButton.SQUARE
+            abs(dy) >= abs(dx) * SWIPE_SLOPE && fingers.all { it.y > it.downY } -> PsButton.START
             abs(dx) >= abs(dy) * SWIPE_SLOPE && fingers.all { it.x > it.downX } -> PsButton.L1
             abs(dx) >= abs(dy) * SWIPE_SLOPE && fingers.all { it.x < it.downX } -> PsButton.R1
             else -> null

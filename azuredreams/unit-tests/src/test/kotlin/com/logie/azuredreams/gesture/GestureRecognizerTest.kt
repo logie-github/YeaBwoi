@@ -124,11 +124,11 @@ class GestureRecognizerTest {
     }
 
     @Test
-    fun doubleTapIsStartOnly() {
+    fun doubleTapIsSquareOnly() {
         tap(0, 200f, 300f, 0)
         tap(0, 205f, 305f, 150)
         scheduler.advanceTo(2000)
-        assertEquals(listOf("START"), out.presses())
+        assertEquals(listOf("SQUARE"), out.presses())
     }
 
     @Test
@@ -334,12 +334,12 @@ class GestureRecognizerTest {
     }
 
     @Test
-    fun twoFingerSwipesAreTriangleL1R1AndSquare() {
+    fun twoFingerSwipesAreTriangleL1R1AndStart() {
         twoFingerSwipe(0f, -200f, 0)
         twoFingerSwipe(200f, 0f, 2000)
         twoFingerSwipe(-200f, 10f, 4000)
         twoFingerSwipe(0f, 200f, 6000)
-        assertEquals(listOf("TRIANGLE", "L1", "R1", "SQUARE"), out.presses())
+        assertEquals(listOf("TRIANGLE", "L1", "R1", "START"), out.presses())
         assertTrue(out.pressed.isEmpty())
     }
 
