@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.logie.pe.PeConfig
 import com.logie.pe.PeFiles
 import com.logie.pe.R
+import com.logie.pe.hd.HdTextures
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -78,6 +79,14 @@ fun PictureSettings() {
     PeSwitchRow(stringResource(R.string.pe_steady_3d), stringResource(R.string.pe_steady_3d_summary), steady) {
         steady = it
         PeConfig(context).steady3d = it
+    }
+    // Once an HD texture pack is installed (from the title screen's HD textures tile).
+    if (remember { HdTextures.installed(context) } != null) {
+        var hd by remember { mutableStateOf(PeConfig(context).hdTextures) }
+        PeSwitchRow(stringResource(R.string.pe_hd_switch), stringResource(R.string.pe_hd_switch_summary), hd) {
+            hd = it
+            PeConfig(context).hdTextures = it
+        }
     }
 
     val choices = listOf(

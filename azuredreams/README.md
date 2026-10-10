@@ -113,7 +113,7 @@ cd azuredreams/android
   -Pkeystore="$PWD/../../ci/dolphinxd-ci.p12" -Pstorepass=dolphinxd -Pkeyalias=dolphinxd -Pkeypass=dolphinxd
 ```
 
-The [Parasite Eve app](../parasiteeve/README.md) runs on this same emulator build: the core, LibretroDroid and their patches here are shared with it, and a change to them rebuilds both apps.
+The [Parasite Eve app](../parasiteeve/README.md) uses this LibretroDroid build: LibretroDroid and its patches here are shared with it, and a change to them rebuilds both apps. Its core is its own (Beetle PSX HW), not SwanStation.
 
 To update the core, change the commit in `core-version.env`. To update LibretroDroid, change `libretrodroid-version.env` and run `scripts/prepare-libretrodroid.sh`; if a patch no longer applies, fix it in `android/libretrodroid/upstream`, commit there, and regenerate the patches with `git format-patch --zero-commit --no-signature -o ../../../patches/libretrodroid <old commit>`.
 

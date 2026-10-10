@@ -19,6 +19,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.logie.pe.hd.HdTextures
 import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.libretrodroid.GLRetroViewData
 import com.swordfish.libretrodroid.ShaderConfig
@@ -40,7 +41,7 @@ import kotlinx.coroutines.withContext
  * fresh, to its own title screen: nothing carries over from the last time but the memory card and
  * the save state slots.
  *
- * SwanStation draws with OpenGL ES and reads its state back from the GPU, so its state is only
+ * Beetle PSX draws with OpenGL ES and reads its state back from the GPU, so its state is only
  * saved, loaded or reset on the emulation thread while that runs with its context: once the game
  * draws again after the in-game menu.
  */
@@ -61,6 +62,9 @@ class GameActivity : ComponentActivity() {
     private var appliedResolution: Int? = null
     /** PGXP as the emulator has it (it follows Steady 3D). */
     private var appliedPgxp: String? = null
+    /** The HD texture pack was there when the game started, so it can be switched on and off. */
+    private var hdAvailable = false
+    private var appliedHd: Boolean? = null
     /** The BIOS the game started on ([PeFiles.biosTag]), noted with each state saved. */
     private lateinit var biosTag: String
     /** Memory card 1 as it was last written to its file. */
@@ -88,6 +92,8 @@ class GameActivity : ComponentActivity() {
         }
         config = PeConfig(this)
         biosTag = PeFiles.biosTag(this)
+        PeFiles.linkBios(this)
+        hdAvailable = HdTextures.link(this, PeFiles.systemDir(this), disc)
         goFullscreen()
 
         val data = GLRetroViewData(this).apply {
@@ -95,7 +101,7 @@ class GameActivity : ComponentActivity() {
             gameFilePath = disc.absolutePath
             systemDirectory = PeFiles.systemDir(this@GameActivity).absolutePath
             savesDirectory = PeFiles.savesDir(this@GameActivity).absolutePath
-            variables = PeCore.variables(this@GameActivity, config)
+            variables = PeCore.variables(this@GameActivity, config, hdAvailable)
             // Memory card 1 is the app's to keep (the game's own saves).
             saveRAMState = PeFiles.readMemoryCard(this@GameActivity).also { savedCard = it }
             shader = PeCore.shader(config)
@@ -226,10 +232,15 @@ class GameActivity : ComponentActivity() {
         }
         appliedResolution = resolution
         val pgxp = PeCore.pgxp(config)
-        if (appliedPgxp != null && pgxp.value != appliedPgxp) {
-            retroView.updateVariables(pgxp)
+        if (appliedPgxp != null && pgxp[0].value != appliedPgxp) {
+            retroView.updateVariables(*pgxp)
         }
-        appliedPgxp = pgxp.value
+        appliedPgxp = pgxp[0].value
+        val hd = config.hdTextures && hdAvailable
+        if (appliedHd != null && hd != appliedHd) {
+            retroView.updateVariables(*PeCore.hdTextures(hd))
+        }
+        appliedHd = hd
     }
 
     private fun run(action: MenuActivity.Action) {
