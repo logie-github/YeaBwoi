@@ -24,3 +24,4 @@
 /warcraft/unit-tests/.kotlin/
 # The server package scripts/build-azerothcore.sh makes
 /warcraft/android/server/
+__pycache__/

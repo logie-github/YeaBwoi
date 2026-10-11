@@ -80,8 +80,8 @@ echo "== auth server"
 python3 "$ROOT/warcraft/server/auth_check.py" account-sql tester secret123 | $CTL sql acore_auth
 echo "UPDATE realmlist SET address = '192.168.1.50', localAddress = '127.0.0.1' WHERE id = 1" | $CTL sql acore_auth
 $CTL auth > "$FILES/logs/auth.out" 2>&1 & pids+=($!)
-wait_for 60 "the auth server didn't start" grep -q "Authserver started\|Starting network service\|bound to" "$FILES/logs/auth.out"
-sleep 2
+port_open() { (echo > "/dev/tcp/127.0.0.1/$1") 2> /dev/null; }
+wait_for 60 "the auth server didn't open port 3724" port_open 3724
 realms=$(python3 "$ROOT/warcraft/server/auth_check.py" login 127.0.0.1 tester secret123) ||
 	fail "the test account couldn't log in"
 echo "$realms"

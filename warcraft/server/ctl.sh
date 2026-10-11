@@ -99,6 +99,8 @@ db)
 		rm -rf "$DB_DIR"
 		mv "$DB_DIR.new" "$DB_DIR"
 	fi
+	# MariaDB refuses to run as root unless told to (only on a test machine: never on a phone).
+	[ "$(id -u)" = 0 ] && set -- --user=root "$@"
 	# Android's app sandbox blocks io_uring, so InnoDB does its own asynchronous I/O.
 	exec "$SERVER/bin/mariadbd" --no-defaults --datadir="$DB_DIR" --basedir="$SERVER" \
 		--lc-messages-dir="$SERVER/share/mariadb" --character-sets-dir="$SERVER/share/mariadb/charsets" \

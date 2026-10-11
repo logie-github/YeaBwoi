@@ -1,0 +1,528 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package com.logie.warcraft.ui
+
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.logie.warcraft.AppIcons
+import com.logie.warcraft.BuildConfig
+import com.logie.warcraft.Imports
+import com.logie.warcraft.R
+import com.logie.warcraft.Server
+import com.logie.warcraft.ServerPackage
+import com.logie.warcraft.ServerService
+import com.logie.warcraft.WowFiles
+import com.logie.warcraft.WowUpdateActivity
+import com.logie.warcraft.WowUpdater
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+/**
+ * The launcher, the first screen of the app: the Lich King over Icecrown, the logo, and under them
+ * the realm. Opening the app offers any update, then starts the server once it has its data;
+ * [PressStart] starts it by hand.
+ */
+@Composable
+fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
+    val context = LocalContext.current
+    var refresh by remember { mutableIntStateOf(0) }
+    val server by Server.status.collectAsState()
+    val imports by Imports.state.collectAsState()
+    var dialog by remember { mutableStateOf<HomeDialog?>(null) }
+    var autoplay by rememberSaveable { mutableStateOf(autoplayOnOpen) }
+
+    val facts = remember(refresh, imports, server.phase) { HomeFacts.of(context) }
+
+    fun startServer() {
+        if (facts.ready) Server.start(context)
+    }
+
+    val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        autoplay = false
+        if (result.resultCode != WowUpdateActivity.RESULT_INSTALLING && facts.hasData) startServer()
+    }
+
+    // Opening the app: offer a newer version if there is one, then start the realm.
+    LaunchedEffect(Unit) {
+        if (!autoplay) return@LaunchedEffect
+        val update = if (WowUpdater.isConfigured) {
+            // Offline, or GitHub unreachable: carry on, and check again next time.
+            withContext(Dispatchers.IO) { runCatching { WowUpdater.findUpdate() }.getOrNull() }
+        } else {
+            null
+        }
+        if (update != null) {
+            updateOffer.launch(WowUpdateActivity.intent(context, update))
+        } else {
+            autoplay = false
+            if (facts.hasData && imports !is Imports.State.Working) startServer()
+        }
+    }
+
+    // How a long job went, as soon as it's done.
+    LaunchedEffect(imports) {
+        if ((imports is Imports.State.Done || imports is Imports.State.Failed) && dialog == null) dialog = HomeDialog.FILES
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) { refresh++ }
+
+    WowTheme {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            HomeScreen(
+                facts = facts,
+                server = server,
+                imports = imports,
+                onStart = { startServer() },
+                onStop = { Server.stop(context) },
+                onDialog = { dialog = it },
+            )
+        }
+        when (dialog) {
+            HomeDialog.SERVER -> ServerDialog(onDismiss = { dialog = null; refresh++ })
+            HomeDialog.FILES -> GameFilesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
+            HomeDialog.ACCOUNTS -> AccountsDialog(onDismiss = { dialog = null })
+            HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
+            null -> {}
+        }
+    }
+}
+
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, ICON }
+
+/** What's on the phone, read when the screen needs it. */
+data class HomeFacts(
+    /** This build has a server in it (local builds may not). */
+    val bundled: Boolean,
+    /** The app is where the server's programs expect it. */
+    val standardPath: Boolean,
+    val hasClient: Boolean,
+    val dataFolders: Set<String>,
+    val hasData: Boolean,
+    val serverVersion: String?,
+) {
+    /** The server can start (the world server also needs [hasData]). */
+    val ready: Boolean get() = bundled && standardPath
+
+    companion object {
+        fun of(context: android.content.Context) = HomeFacts(
+            bundled = ServerPackage.isBundled(context),
+            standardPath = WowFiles.isStandardPath(context),
+            hasClient = WowFiles.hasClient(context),
+            dataFolders = WowFiles.dataFolders(context),
+            hasData = WowFiles.hasServerData(context),
+            serverVersion = ServerPackage.version(context)?.lines()?.firstOrNull { it.startsWith("merged ") }?.removePrefix("merged ")?.take(7),
+        )
+    }
+}
+
+@Composable
+private fun HomeScreen(
+    facts: HomeFacts,
+    server: Server.Status,
+    imports: Imports.State,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onDialog: (HomeDialog) -> Unit,
+) {
+    val context = LocalContext.current
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+        WowBackdrop()
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .windowInsetsPadding(WindowInsets.navigationBars),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            WowHeader(screenWidth, screenHeight)
+            Column(
+                Modifier
+                    .widthIn(max = 860.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                RealmPanel(facts, server, imports, onStart, onStop, onDialog)
+
+                WowTitle(
+                    stringResource(R.string.wow_home_menu),
+                    modifier = Modifier.padding(top = 14.dp),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                val tiles = listOf(
+                    HomeTile(Icons.Default.Dns, stringResource(R.string.wow_tile_server), ServerService.statusText(context, server)) {
+                        onDialog(HomeDialog.SERVER)
+                    },
+                    HomeTile(Icons.Default.FolderOpen, stringResource(R.string.wow_tile_files), filesSummary(facts)) {
+                        onDialog(HomeDialog.FILES)
+                    },
+                    HomeTile(Icons.Default.People, stringResource(R.string.wow_tile_accounts), stringResource(R.string.wow_tile_accounts_summary)) {
+                        onDialog(HomeDialog.ACCOUNTS)
+                    },
+                    HomeTile(Icons.Default.Palette, stringResource(R.string.wow_tile_icon), stringResource(AppIcons.current(context).label)) {
+                        onDialog(HomeDialog.ICON)
+                    },
+                    HomeTile(Icons.Default.SystemUpdate, stringResource(R.string.wow_tile_updates),
+                        stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) {
+                        WowUpdateActivity.launch(context)
+                    },
+                )
+                val columns = (screenWidth / 260.dp).toInt().coerceIn(1, 3).let { if (screenWidth >= 360.dp) maxOf(it, 2) else it }
+                TileGrid(tiles, columns)
+
+                Text(
+                    stringResource(R.string.wow_version, BuildConfig.VERSION_NAME, facts.serverVersion ?: "—"),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 8.dp, bottom = 22.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun filesSummary(facts: HomeFacts): String = stringResource(
+    when {
+        facts.hasData && facts.hasClient -> R.string.wow_tile_files_all
+        facts.hasData -> R.string.wow_tile_files_data
+        facts.hasClient -> R.string.wow_tile_files_client
+        else -> R.string.wow_tile_files_none
+    }
+)
+
+/**
+ * The Lich King before Icecrown Citadel with the frost wyrm, snow drifting across, the picture
+ * slowly closing in; the logo over its lower edge.
+ */
+@Composable
+private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
+    // Tall enough for the Lich King on a phone held upright, leaving room for the realm panel
+    // with the phone sideways.
+    val headerHeight = min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.62f)
+    val logoWidth = min(min(screenWidth * 0.78f, headerHeight * 1.25f), 460.dp)
+    val logoHeight = logoWidth * (610f / 1400f)
+
+    val motion = rememberInfiniteTransition(label = "header")
+    val drift by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(30_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
+    val breathe by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(3_600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(150)
+        reveal.animateTo(1f, tween(1_600, easing = FastOutSlowInEasing))
+    }
+
+    Box(Modifier.fillMaxWidth().height(headerHeight + logoHeight * 0.55f)) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(headerHeight)
+                .clipToBounds()
+        ) {
+            Image(
+                painter = painterResource(R.drawable.wow_header),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                // The Lich King stands a third of the way in: keep him in when the screen is
+                // narrower than the picture.
+                alignment = BiasAlignment(-0.42f, -0.4f),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val zoom = 1.03f + 0.05f * drift
+                        scaleX = zoom
+                        scaleY = zoom
+                        transformOrigin = TransformOrigin(0.33f, 0.3f)
+                        alpha = reveal.value
+                    },
+            )
+            WowSnow(alpha = reveal.value)
+            // The picture sinks into the night below it, where the logo sits.
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to WowColors.Abyss))
+            )
+        }
+        Image(
+            painter = painterResource(R.drawable.wow_logo),
+            contentDescription = stringResource(R.string.wow_game_name),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = headerHeight - logoHeight * 0.45f)
+                .width(logoWidth)
+                .height(logoHeight)
+                .graphicsLayer {
+                    val value = reveal.value
+                    alpha = ((value - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                    val scale = (0.95f + 0.05f * value) * (1f + 0.008f * breathe)
+                    scaleX = scale
+                    scaleY = scale
+                },
+        )
+    }
+}
+
+/** What the realm is doing, and the one thing to do next. */
+@Composable
+private fun RealmPanel(
+    facts: HomeFacts,
+    server: Server.Status,
+    imports: Imports.State,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onDialog: (HomeDialog) -> Unit,
+) {
+    val context = LocalContext.current
+    when {
+        !facts.bundled -> Notice(stringResource(R.string.wow_home_no_server_build))
+        !facts.standardPath -> Notice(stringResource(R.string.wow_server_error_path, WowFiles.root(context).path))
+        imports is Imports.State.Working -> ImportPanel(imports, onOpen = { onDialog(HomeDialog.FILES) })
+        server.phase == Server.Phase.STARTING || server.phase == Server.Phase.STOPPING -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    WowSpinner(40.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Text(ServerService.statusText(context, server), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                }
+                server.progress?.let { WowProgressLine(it) }
+                server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
+                if (server.step == Server.Step.IMPORT) {
+                    Text(stringResource(R.string.wow_step_import_note), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+        server.phase == Server.Phase.RUNNING -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                WowTitle(stringResource(R.string.wow_realm_online))
+                WowStatusLine(stringResource(R.string.wow_realm_name), Server.REALM_NAME)
+                WowStatusLine(
+                    stringResource(R.string.wow_realm_world),
+                    stringResource(if (server.world == Server.World.UP) R.string.wow_realm_world_up else R.string.wow_realm_world_no_data),
+                    good = server.world == Server.World.UP,
+                )
+                WowStatusLine(stringResource(R.string.wow_realm_here), "127.0.0.1")
+                WowStatusLine(stringResource(R.string.wow_realm_lan), server.lanAddress ?: stringResource(R.string.wow_realm_lan_none))
+                Text(stringResource(R.string.wow_realm_stage_note), style = MaterialTheme.typography.bodySmall)
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (server.world == Server.World.NO_DATA) {
+                        WowButton(stringResource(R.string.wow_tile_files), primary = true) { onDialog(HomeDialog.FILES) }
+                    }
+                    WowButton(stringResource(R.string.wow_server_stop), primary = false, onClick = onStop)
+                }
+            }
+        }
+        server.phase == Server.Phase.FAILED -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                WowTitle(stringResource(R.string.wow_server_failed))
+                Text(server.error ?: "", style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    WowButton(stringResource(R.string.wow_server_details), primary = false) { onDialog(HomeDialog.SERVER) }
+                    WowButton(stringResource(R.string.wow_server_retry), onClick = onStart)
+                }
+            }
+        }
+        else -> {
+            PressStart(onClick = onStart)
+            Text(
+                stringResource(if (facts.hasData) R.string.wow_home_start_line else R.string.wow_home_start_line_no_data),
+                style = MaterialTheme.typography.bodyMedium,
+                color = WowColors.Mist,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (!facts.hasData) {
+                Notice(stringResource(R.string.wow_home_no_data), stringResource(R.string.wow_tile_files)) { onDialog(HomeDialog.FILES) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImportPanel(state: Imports.State.Working, onOpen: () -> Unit) {
+    WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp), onClick = onOpen) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                WowSpinner(40.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(importTitle(state), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            }
+            state.progress?.let { WowProgressLine(it) }
+            state.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
+        }
+    }
+}
+
+@Composable
+fun importTitle(state: Imports.State.Working): String = when (state.kind) {
+    Imports.Kind.CLIENT -> stringResource(R.string.wow_import_client_progress, ((state.progress ?: 0f) * 100).toInt())
+    Imports.Kind.SERVER_DATA -> stringResource(R.string.wow_data_import_progress, ((state.progress ?: 0f) * 100).toInt())
+    Imports.Kind.EXTRACT -> stringResource(R.string.wow_extract_progress, state.part, state.parts)
+}
+
+/** `PRESS START`, gold, breathing with the frost light behind it. */
+@Composable
+private fun PressStart(onClick: () -> Unit) {
+    val motion = rememberInfiniteTransition(label = "start")
+    val breathe by motion.animateFloat(0.5f, 1f, infiniteRepeatable(tween(1_500, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
+            .padding(vertical = 18.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(width = 260.dp, height = 56.dp)
+                .graphicsLayer { alpha = breathe }
+                .background(Brush.radialGradient(listOf(WowColors.Ice.copy(alpha = 0.25f), Color.Transparent)))
+        )
+        Text(
+            stringResource(R.string.wow_home_press_start).uppercase(),
+            style = WowDisplayStyle.copy(fontSize = 25.sp, color = WowColors.Gold, shadow = WowGoldShadow, letterSpacing = WowDisplayStyle.letterSpacing * 1.5f),
+            modifier = Modifier.graphicsLayer { alpha = 0.55f + 0.45f * breathe },
+        )
+    }
+}
+
+/** A line about something missing, with the button that fixes it. */
+@Composable
+private fun Notice(text: String, action: String? = null, onAction: () -> Unit = {}) {
+    Column(
+        Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodySmall,
+            color = WowColors.Text,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = 560.dp),
+        )
+        if (action != null) WowButton(action, primary = false, onClick = onAction)
+    }
+}
+
+private class HomeTile(val icon: ImageVector, val title: String, val subtitle: String, val onClick: () -> Unit)
+
+@Composable
+private fun TileGrid(tiles: List<HomeTile>, columns: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        tiles.chunked(columns).forEachIndexed { rowIndex, row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEachIndexed { columnIndex, tile ->
+                    TileWindow(tile, rowIndex * columns + columnIndex, Modifier.weight(1f))
+                }
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/** A panel that rises out of the dark, one after another, when the screen opens. */
+@Composable
+private fun TileWindow(tile: HomeTile, index: Int, modifier: Modifier) {
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(450L + index * 90L)
+        appear.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+    }
+    WowWindow(
+        modifier = modifier.graphicsLayer {
+            alpha = appear.value
+            translationY = (1f - appear.value) * 14.dp.toPx()
+        },
+        onClick = tile.onClick,
+        padding = PaddingValues(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(tile.icon, contentDescription = null, tint = WowColors.Ice, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tile.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                Text(tile.subtitle, style = MaterialTheme.typography.bodySmall, maxLines = 2)
+            }
+        }
+    }
+}
