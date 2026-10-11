@@ -79,7 +79,9 @@ cp "$SRC/src/tools/mmaps_generator/mmaps-config.yaml" "$pkg/etc/"
 # SQL, where the servers look for it (SourceDirectory): the core's, the modules' and the
 # progression system's brackets.
 cp -r "$SRC/data/sql" "$pkg/src/data/sql"
-rm -rf "$pkg/src/data/sql/archive" "$pkg/src/data/sql/create"
+# Only base, updates and custom are read: the archive (ArchivedRedundancy is off), the old
+# releases' updates and the create scripts aren't, and come to 300 MB.
+rm -rf "$pkg/src/data/sql/archive" "$pkg/src/data/sql/create" "$pkg/src/data/sql/old"
 for dir in "$SRC"/modules/mod-*; do
 	name=$(basename "$dir")
 	if [ -d "$dir/data/sql" ]; then
