@@ -46,7 +46,7 @@ jobs:
       - name: Cache key
         id: key
         run: |
-          key="warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/patches/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}"
+          key="warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c', 'warcraft/patches/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
