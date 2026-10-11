@@ -11,7 +11,8 @@
 #   4. The world server, on jemalloc, loads its configs and modules and updates the databases
 #      (the first ChromieCraft progression brackets, the playerbots module's own database), then
 #      stops where it needs the client's data (dbc), which only the phone has.
-#   5. With strace, no server program made a system call Android's seccomp policy forbids apps.
+#   5. The auth server starts again the way the app starts it, and the account logs in.
+#   6. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -141,6 +142,17 @@ echo "acore_playerbots: $tables tables (made by the playerbots module)"
 grep -qi "dbc" "$FILES/logs/world.out" || fail "the world server stopped before reaching the client data"
 tail -5 "$FILES/logs/world.out"
 echo "The world server got as far as the client data (dbc), which CI doesn't have."
+
+echo "== auth server, started again after the world server"
+# The world server that stopped at the client data left the realm flagged; the app clears the
+# flag before starting the auth server, which otherwise refuses to run.
+kill "$(cat "$FILES/run/authserver.pid")" 2> /dev/null || true
+sleep 3
+echo "UPDATE realmlist SET flag = flag & ~1 WHERE id = 1" | CTL sql acore_auth
+CTL auth > "$FILES/logs/auth2.out" 2>&1 & pids+=($!)
+wait_for 60 "the auth server didn't start again" port_open 3724
+python3 "$ROOT/warcraft/server/auth_check.py" login 127.0.0.1 tester secret123 ||
+	fail "the test account couldn't log in after the restart"
 
 CTL db-stop
 wait "${pids[0]}" 2> /dev/null || true

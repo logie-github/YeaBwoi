@@ -323,6 +323,11 @@ object Server {
     /**
      * The realm's addresses in the auth database: the game on this phone connects to 127.0.0.1, a
      * PC's client on the Wi-Fi to the phone's address there.
+     *
+     * Also clears the realm's "version mismatch" flag: the world server sets it while it starts
+     * and clears it once it's up, so a world server that stopped while loading leaves it set. The
+     * auth server marks every realm offline when it starts and won't run if all of them are both,
+     * so the server could never start again.
      */
     private fun setRealmAddress(context: Context) {
         val lan = lanAddress()
@@ -330,9 +335,13 @@ object Server {
         Database.exec(
             context, "acore_auth",
             "UPDATE realmlist SET name = '$REALM_NAME', address = '${lan ?: "127.0.0.1"}', " +
-                "localAddress = '127.0.0.1', localSubnetMask = '255.255.255.0', port = $WORLD_PORT WHERE id = 1;",
+                "localAddress = '127.0.0.1', localSubnetMask = '255.255.255.0', port = $WORLD_PORT, " +
+                "flag = flag & ~$REALM_FLAG_VERSION_MISMATCH WHERE id = 1;",
         )
     }
+
+    /** AzerothCore's REALM_FLAG_VERSION_MISMATCH. */
+    private const val REALM_FLAG_VERSION_MISMATCH = 1
 
     /** The phone's IPv4 address on Wi-Fi (or another local network), if it has one. */
     fun lanAddress(): String? = runCatching {
