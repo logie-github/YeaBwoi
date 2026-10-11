@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">World of Warcraft</string>
+    <string name="wow_game_name">World of Warcraft: Wrath of the Lich King</string>
+    <string name="wow_version">World of Warcraft %1$s · server %2$s</string>
+    <string name="wow_close">Close</string>
+
+    <!-- Title screen -->
+    <string name="wow_home_press_start">Press start</string>
+    <string name="wow_home_menu">Launcher</string>
+    <string name="wow_home_start_line">Starts your ChromieCraft realm on this phone.</string>
+    <string name="wow_home_start_line_no_data">Starts your ChromieCraft realm on this phone. The world server starts once it has the server data.</string>
+    <string name="wow_home_no_data">The world server needs data made from your 3.3.5a client: make it here from the client, or import the server-data.zip made on a PC.</string>
+    <string name="wow_home_no_server_build">This build of the app has no server in it. Install a release from GitHub.</string>
+
+    <string name="wow_tile_server">Server</string>
+    <string name="wow_tile_files">Game files</string>
+    <string name="wow_tile_files_all">Client and server data</string>
+    <string name="wow_tile_files_data">Server data ready, no client</string>
+    <string name="wow_tile_files_client">Client added, no server data</string>
+    <string name="wow_tile_files_none">Add your 3.3.5a client</string>
+    <string name="wow_tile_accounts">Accounts</string>
+    <string name="wow_tile_accounts_summary">Logins for the game</string>
+    <string name="wow_tile_icon">App icon</string>
+    <string name="wow_tile_updates">Updates</string>
+    <string name="wow_tile_updates_summary">Version %1$s</string>
+
+    <!-- The realm -->
+    <string name="wow_realm_online">Realm online</string>
+    <string name="wow_realm_name">Realm</string>
+    <string name="wow_realm_world">World server</string>
+    <string name="wow_realm_world_up">Up</string>
+    <string name="wow_realm_world_no_data">Waiting for server data</string>
+    <string name="wow_realm_here">From this phone</string>
+    <string name="wow_realm_lan">From a PC on this Wi-Fi</string>
+    <string name="wow_realm_lan_none">No Wi-Fi</string>
+    <string name="wow_realm_stage_note">The game itself comes to this app in its next stage. Until then, play on the realm from a PC\'s 3.3.5a client: see Server.</string>
+
+    <!-- The server -->
+    <string name="wow_server_title">Server</string>
+    <string name="wow_server_state">State</string>
+    <string name="wow_server_channel">Server</string>
+    <string name="wow_server_notification_title">ChromieCraft realm</string>
+    <string name="wow_server_start">Start</string>
+    <string name="wow_server_stop">Stop</string>
+    <string name="wow_server_retry">Try again</string>
+    <string name="wow_server_details">Details</string>
+    <string name="wow_server_stopped">Stopped</string>
+    <string name="wow_server_stopping">Stopping the server…</string>
+    <string name="wow_server_running">Running</string>
+    <string name="wow_server_running_no_world">Running, without the world server (no server data yet)</string>
+    <string name="wow_server_failed">The server stopped</string>
+    <string name="wow_server_failed_notification">Open the app to see why.</string>
+    <string name="wow_step_unpacking">Unpacking the server…</string>
+    <string name="wow_step_configuring">Setting up…</string>
+    <string name="wow_step_database">Starting the database…</string>
+    <string name="wow_step_import">Creating the databases…</string>
+    <string name="wow_step_import_note">The first start fills in the world: every creature, quest and item. It takes a few minutes, once.</string>
+    <string name="wow_step_auth">Starting the login server…</string>
+    <string name="wow_step_world">Loading the world…</string>
+    <string name="wow_server_error_path">The app\'s storage is at %1$s, not where the server expects it. The server only runs for the phone\'s main user, not in a second user or a work profile.</string>
+    <string name="wow_server_error_unpack">Couldn\'t unpack the server: %1$s</string>
+    <string name="wow_server_error_step">The server\'s setup failed (%1$s ended with %2$d).</string>
+    <string name="wow_server_error_database">The database (MariaDB) didn\'t start.</string>
+    <string name="wow_server_error_database_stopped">The database stopped (code %1$d).</string>
+    <string name="wow_server_error_auth">The login server (authserver) didn\'t start.</string>
+    <string name="wow_server_error_auth_stopped">The login server stopped (code %1$d).</string>
+    <string name="wow_server_error_world">The world server stopped while loading (code %1$d).</string>
+    <string name="wow_server_error_world_slow">The world server took more than 30 minutes to load.</string>
+    <string name="wow_server_error_world_stopped">The world server stopped (code %1$d).</string>
+    <string name="wow_server_pc_title">Play from a PC</string>
+    <string name="wow_server_pc_body">On a PC on the same Wi-Fi, in your 3.3.5a client\'s folder, open Data\\enUS\\realmlist.wtf and make its line\n\nset realmlist %1$s\n\nthen start Wow.exe and log in with one of your accounts. The phone has to stay on this Wi-Fi with the server running.</string>
+    <string name="wow_server_pc_no_wifi">Connect the phone to Wi-Fi to play on the realm from a PC.</string>
+    <string name="wow_server_logs">Logs</string>
+    <string name="wow_log_world">World</string>
+    <string name="wow_log_auth">Login</string>
+    <string name="wow_log_database">Database</string>
+    <string name="wow_log_import">Setup</string>
+    <string name="wow_log_empty">Nothing logged yet.</string>
+    <string name="wow_server_battery_title">Battery</string>
+    <string name="wow_server_battery_body">Let the app run without battery restrictions, so Android doesn\'t stop the server with the screen off.</string>
+    <string name="wow_server_battery_action">Allow</string>
+    <string name="wow_server_reset_title">Start over</string>
+    <string name="wow_server_reset_body">Deletes the databases: accounts, characters and the world. The next start makes them again, as new. Stop the server first. Your client, server data and settings stay.</string>
+    <string name="wow_server_reset">Delete the databases</string>
+    <string name="wow_server_reset_confirm">Really delete</string>
+    <string name="wow_server_reset_done">The databases are deleted.</string>
+    <string name="wow_server_version">Built from:\n%1$s</string>
+
+    <!-- Game files -->
+    <string name="wow_files_title">Game files</string>
+    <string name="wow_files_client">Your client</string>
+    <string name="wow_files_client_state">World of Warcraft 3.3.5a</string>
+    <string name="wow_files_client_yes">Added · %1$s</string>
+    <string name="wow_files_client_no">Not added</string>
+    <string name="wow_files_client_body">Your own copy of the 3.3.5a (12340) client, enUS, about 17 GB: pick its folder (the one with Wow.exe and Data in it), or a zip of it. Move it onto the phone first: files in cloud folders can\'t be read this way. The app keeps its own copy, and checks it\'s build 12340.</string>
+    <string name="wow_files_client_folder">Pick folder</string>
+    <string name="wow_files_client_zip">Pick zip</string>
+    <string name="wow_files_data">Server data</string>
+    <string name="wow_files_data_yes">Ready</string>
+    <string name="wow_files_data_no">Missing</string>
+    <string name="wow_files_data_body">The world server needs dbc and maps from the client; vmaps add line of sight, and mmaps pathfinding, which creatures and bots need to move well. Make them once, on this phone or on a PC.</string>
+    <string name="wow_files_data_phone">On this phone</string>
+    <string name="wow_files_data_phone_body">From the client added above. dbc, maps and vmaps take minutes; mmaps an hour or more, with the phone getting warm. It carries on with the app in the background.</string>
+    <string name="wow_files_mmaps">Include mmaps</string>
+    <string name="wow_files_mmaps_summary">Pathfinding: the long part</string>
+    <string name="wow_files_extract">Make server data</string>
+    <string name="wow_files_data_pc">On a Windows PC</string>
+    <string name="wow_files_data_pc_body">Faster. Download WarcraftServerData-windows.zip from the same GitHub release as the app, unzip it on the PC, and drag your client\'s folder onto extract-server-data.bat. Copy the server-data.zip it makes to the phone, then import it here.</string>
+    <string name="wow_files_data_import">Import server-data.zip</string>
+    <string name="wow_files_space">Free on the phone: %1$s</string>
+
+    <!-- Imports -->
+    <string name="wow_import_channel">Game files</string>
+    <string name="wow_import_client_title">Adding the client</string>
+    <string name="wow_import_client_progress">Copying the client… %1$d%%</string>
+    <string name="wow_import_client_done">The client is added.</string>
+    <string name="wow_extract_title">Making the server data</string>
+    <string name="wow_extract_progress">Making the server data… part %1$d of %2$d</string>
+    <string name="wow_extract_done">The server data is made. Start the server to load the world.</string>
+    <string name="wow_data_import_title">Importing the server data</string>
+    <string name="wow_data_import_progress">Importing the server data… %1$d%%</string>
+    <string name="wow_data_import_done">The server data is imported. Start the server to load the world.</string>
+    <string name="wow_import_background_note">You can leave the app: this carries on, and its notification shows how far it is.</string>
+    <string name="wow_import_stop">Stop</string>
+    <string name="wow_import_cancelled">Stopped before the end: nothing was changed.</string>
+    <string name="wow_import_notify_done">Done.</string>
+    <string name="wow_import_notify_failed">It didn\'t work. Open the app to see why.</string>
+    <string name="wow_import_error_read">Couldn\'t read %1$s. If it\'s in a cloud folder, move it to the phone first.</string>
+    <string name="wow_import_error_write">Couldn\'t write to the app\'s storage.</string>
+    <string name="wow_import_error_zip">The zip is damaged or packed in a way the app can\'t read (%1$s).</string>
+    <string name="wow_import_error_space">Not enough free space: this needs %1$s and the phone has %2$s free.</string>
+    <string name="wow_client_error_not_client">There\'s no World of Warcraft client in it: a client folder has Wow.exe next to a Data folder with common.MPQ.</string>
+    <string name="wow_client_error_no_version">Couldn\'t read Wow.exe\'s version.</string>
+    <string name="wow_client_error_build">This client is version %1$s. The server is for 3.3.5a, build 12340 (3.3.5.12340).</string>
+    <string name="wow_extract_error_no_client">Add your client first.</string>
+    <string name="wow_extract_error_step">Making the %1$s failed (code %2$d).</string>
+    <string name="wow_data_error_not_data">There\'s no server data in that zip (dbc, maps, vmaps, mmaps folders).</string>
+    <string name="wow_data_error_incomplete">The server data is still missing dbc or maps.</string>
+
+    <!-- Accounts -->
+    <string name="wow_accounts_title">Accounts</string>
+    <string name="wow_accounts_need_server">The accounts are in the server\'s database: start the server to see and change them.</string>
+    <string name="wow_accounts_none">No accounts yet. Make one to log in with.</string>
+    <string name="wow_accounts_gm">Game master</string>
+    <string name="wow_accounts_player">Player</string>
+    <string name="wow_accounts_new">New account</string>
+    <string name="wow_accounts_name">Account name</string>
+    <string name="wow_accounts_password">Password</string>
+    <string name="wow_accounts_new_password">New password</string>
+    <string name="wow_accounts_gm_switch">Game master</string>
+    <string name="wow_accounts_gm_switch_summary">Every GM command, in the game\'s chat (.help lists them)</string>
+    <string name="wow_accounts_rules">Names: 3 to 16 letters and digits. Passwords: 4 to 16 characters, no spaces. The game ignores upper and lower case in both.</string>
+    <string name="wow_accounts_create">Create</string>
+    <string name="wow_accounts_created">Account %1$s is made.</string>
+    <string name="wow_accounts_set_password">Change password</string>
+    <string name="wow_accounts_password_changed">The password is changed.</string>
+    <string name="wow_accounts_make_gm">Make game master</string>
+    <string name="wow_accounts_make_player">Make player</string>
+    <string name="wow_accounts_delete">Delete</string>
+    <string name="wow_accounts_delete_confirm">Really delete</string>
+    <string name="wow_accounts_error_name">Account names are 3 to 16 letters and digits.</string>
+    <string name="wow_accounts_error_password">Passwords are 4 to 16 characters, without spaces.</string>
+    <string name="wow_accounts_error_taken">There\'s already an account with that name.</string>
+    <string name="wow_accounts_error">That didn\'t work: %1$s</string>
+
+    <!-- App icon -->
+    <string name="wow_icon_title">App icon</string>
+    <string name="wow_icon_body">The app\'s icon on the home screen. Your launcher may take a moment to show the new one, and removes shortcuts of the old one.</string>
+    <string name="wow_icon_wotlk">Wrath of the Lich King</string>
+    <string name="wow_icon_cataclysm">Cataclysm</string>
+    <string name="wow_icon_changed">The icon is changed.</string>
+
+    <!-- Updates -->
+    <string name="wow_update_checking">Checking for updates…</string>
+    <string name="wow_update_available_title">Update available</string>
+    <string name="wow_update_available">%1$s is available. You have %2$s.\n\nDownload it (%3$s) and install it now? The server stops first; your accounts, characters and files stay.</string>
+    <string name="wow_update_download">Download</string>
+    <string name="wow_update_later">Not now</string>
+    <string name="wow_update_latest_title">You\'re up to date</string>
+    <string name="wow_update_latest">%1$s %2$s is the newest version.</string>
+    <string name="wow_update_downloading">Downloading %1$s…</string>
+    <string name="wow_update_progress">%1$s\n%2$s of %3$s</string>
+    <string name="wow_update_check_failed">Couldn\'t check for updates</string>
+    <string name="wow_update_download_failed">Couldn\'t download the update</string>
+    <string name="wow_update_not_configured">This build doesn\'t know where its updates are published. Builds from GitHub Actions do.</string>
+    <string name="wow_update_no_access">GitHub didn\'t let the app see the releases (error %1$d). If the repository is private, the build needs an update token (see Updates in the README).</string>
+    <string name="wow_update_http_error">GitHub answered with error %1$d. Try again later.</string>
+    <string name="wow_update_offline">Can\'t reach GitHub. Check your internet connection and try again.</string>
+    <string name="wow_update_wrong_file">The downloaded file isn\'t an update for this app.</string>
+    <string name="wow_update_permission_title">Allow updates</string>
+    <string name="wow_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
+    <string name="wow_update_open_settings">Open settings</string>
+</resources>

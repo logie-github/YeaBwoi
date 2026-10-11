@@ -1,0 +1,99 @@
+plugins {
+	id 'com.android.application'
+	id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+// CI passes the app's identity, version, signing key and update source as Gradle properties
+// (-Pwow...). Local builds fall back to these defaults.
+def wowProperty = { String name, String fallback ->
+	project.hasProperty(name) ? project.property(name).toString() : fallback
+}
+def wowKeystore = wowProperty("keystore", "")
+
+android {
+	namespace = "com.logie.warcraft"
+	compileSdk = 35
+
+	buildFeatures {
+		buildConfig = true
+		compose = true
+	}
+
+	defaultConfig {
+		applicationId = wowProperty("wowApplicationId", "com.logie.warcraft")
+		minSdk = 26
+		// 28, like Termux and Winlator: Android lets apps that target 28 or lower run programs from
+		// their own storage, which is where the server (and later the game's Wine) runs from.
+		//noinspection ExpiredTargetSdkVersion
+		targetSdk = 28
+		versionCode = wowProperty("wowVersionCode", "1").toInteger()
+		versionName = wowProperty("wowVersionName", "1.0")
+
+		buildConfigField "String", "WOW_UPDATE_REPO", "\"${wowProperty("wowUpdateRepo", "")}\""
+		buildConfigField "String", "WOW_RELEASE_TAG_PREFIX", "\"${wowProperty("wowReleaseTagPrefix", "")}\""
+		buildConfigField "String", "WOW_UPDATE_TOKEN", "\"${wowProperty("wowUpdateToken", "")}\""
+
+		ndk {
+			// Phones only: the server is built for arm64.
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	signingConfigs {
+		wow {
+			if (wowKeystore) {
+				storeFile = file(wowKeystore)
+				storePassword = wowProperty("storepass", "")
+				keyAlias = wowProperty("keyalias", "")
+				keyPassword = wowProperty("keypass", "")
+			}
+		}
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled = true
+			shrinkResources = true
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+			signingConfig = wowKeystore ? signingConfigs.wow : signingConfigs.debug
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	sourceSets {
+		main {
+			// server.tar.xz from scripts/build-azerothcore.sh (CI puts it there).
+			assets.srcDirs += ['../server']
+		}
+	}
+
+	androidResources {
+		// Already xz-compressed.
+		noCompress += ['xz']
+	}
+
+	lint {
+		abortOnError = false
+		checkReleaseBuilds = false
+	}
+}
+
+dependencies {
+	implementation 'androidx.appcompat:appcompat:1.6.1'
+	implementation 'androidx.core:core-ktx:1.12.0'
+	implementation 'com.google.android.material:material:1.11.0'
+	implementation platform('androidx.compose:compose-bom:2025.04.00')
+	implementation 'androidx.compose.ui:ui'
+	implementation 'androidx.compose.material3:material3'
+	implementation 'androidx.compose.material:material-icons-extended'
+	implementation 'androidx.activity:activity-compose:1.9.3'
+	implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+	// Unpacking the server (tar.xz).
+	implementation 'org.apache.commons:commons-compress:1.27.1'
+	implementation 'org.tukaani:xz:1.10'
+}

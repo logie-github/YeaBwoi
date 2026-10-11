@@ -21,7 +21,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -z "${IN_ALPINE:-}" ]; then
 	mkdir -p "$ROOT/build"
 	# shellcheck disable=SC2086
-	exec docker run --rm -e IN_ALPINE=1 -e JOBS="${JOBS:-}" ${DOCKER_RUN_ARGS:-} \
+	exec docker run --rm -e IN_ALPINE=1 -e JOBS="${JOBS:-}" -e NINJA_ARGS="${NINJA_ARGS:-}" ${DOCKER_RUN_ARGS:-} \
 		-v "$ROOT:/repo" -w /repo "alpine:$ALPINE_VERSION" /repo/scripts/build-azerothcore.sh
 fi
 
@@ -51,7 +51,8 @@ cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DWITH_WARNINGS=0 -DUSE_COREPCH=1 -DUSE_SCRIPTPCH=1 > "$BUILD.cmake.log" 2>&1 ||
 	{ tail -50 "$BUILD.cmake.log"; exit 1; }
 grep -E "^\s*\+- mod-|Modules" "$BUILD.cmake.log" || true
-ninja -C "$BUILD" -j "$JOBS"
+# shellcheck disable=SC2086
+ninja -C "$BUILD" -j "$JOBS" ${NINJA_ARGS:-}
 rm -rf "$PREFIX" "$APP_FILES/etc"
 DESTDIR=/ ninja -C "$BUILD" install > /dev/null
 ccache -s | head -5 || true

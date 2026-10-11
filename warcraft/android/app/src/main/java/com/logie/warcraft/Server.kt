@@ -1,0 +1,414 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+package com.logie.warcraft
+
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.ContextCompat
+import com.logie.warcraft.config.ConfFile
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+import java.io.Writer
+import java.net.Inet4Address
+import java.net.InetSocketAddress
+import java.net.NetworkInterface
+import java.net.Socket
+import java.util.concurrent.TimeUnit
+
+/**
+ * The private server on the phone: MariaDB, the auth server (port 3724, where the game logs in)
+ * and the world server (port 8085, the realm), each a program from `files/server` run through its
+ * `ctl.sh`. [start] brings them up in order, setting up what's missing on the way (unpacking the
+ * server, the databases); [stop] shuts them down cleanly. [ServerService] keeps the app alive
+ * while they run, with its notification.
+ */
+object Server {
+    enum class Phase { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
+
+    enum class Step { UNPACKING, CONFIGURING, DATABASE, IMPORT, AUTH, WORLD }
+
+    enum class World {
+        /** Not started (the server is stopped, or still on an earlier step). */
+        OFF,
+
+        /** Waiting for the server's data, which comes from the client (Game files). */
+        NO_DATA,
+        STARTING,
+        UP,
+    }
+
+    data class Status(
+        val phase: Phase = Phase.STOPPED,
+        val step: Step? = null,
+        /** How far the step is, when that's known. */
+        val progress: Float? = null,
+        /** The step's latest line of output. */
+        val detail: String? = null,
+        val world: World = World.OFF,
+        /** Why it failed, and the end of the log that says more. */
+        val error: String? = null,
+        val log: String? = null,
+        /** The phone's address on the Wi-Fi, for a PC's client (`set realmlist ...`). */
+        val lanAddress: String? = null,
+    )
+
+    const val AUTH_PORT = 3724
+    const val WORLD_PORT = 8085
+    const val REALM_NAME = "ChromieCraft"
+
+    private val _status = MutableStateFlow(Status())
+    val status: StateFlow<Status> = _status
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val lock = Mutex()
+    private var job: Job? = null
+
+    private var db: Process? = null
+    private var auth: Process? = null
+    private var world: Process? = null
+    private var worldInput: Writer? = null
+
+    /** A program run to its end as a step (dbimport), so stopping can end it too. */
+    @Volatile private var stepProcess: Process? = null
+
+    /** The programs are being stopped on purpose: their ending isn't a failure. */
+    @Volatile private var stopping = false
+
+    /** Starts the server, and the service that keeps it running. */
+    fun start(context: Context) {
+        val app = context.applicationContext
+        if (_status.value.phase == Phase.STARTING || _status.value.phase == Phase.RUNNING) return
+        // Starting already, so the service doesn't see the server stopped and end itself.
+        update { Status(phase = Phase.STARTING, lanAddress = lanAddress) }
+        ContextCompat.startForegroundService(app, Intent(app, ServerService::class.java))
+        job = scope.launch { lock.withLock { run(app) } }
+    }
+
+    /** Stops the server. [then] runs once it's down (on a background thread). */
+    fun stop(context: Context, then: (() -> Unit)? = null) {
+        val app = context.applicationContext
+        val running = job
+        scope.launch {
+            running?.cancel()
+            lock.withLock { shutDown(app) }
+            then?.invoke()
+        }
+    }
+
+    /** Stops the server if it runs and waits for it to be down. Background thread. */
+    suspend fun stopAndWait(context: Context) {
+        val app = context.applicationContext
+        job?.cancel()
+        lock.withLock { shutDown(app) }
+    }
+
+    /** Sends a command to the world server's console (`.reload config` and the like, without the dot). */
+    fun worldCommand(command: String): Boolean {
+        val input = worldInput ?: return false
+        return runCatching {
+            input.write(command + "\n")
+            input.flush()
+        }.isSuccess
+    }
+
+    val databaseUp: Boolean get() = db?.isAlive == true
+
+    private fun update(change: Status.() -> Status) {
+        _status.value = _status.value.change()
+    }
+
+    private fun step(step: Step, detail: String? = null, progress: Float? = null) =
+        update { copy(phase = Phase.STARTING, step = step, detail = detail, progress = progress, error = null, log = null) }
+
+    private class StepFailed(message: String, val log: File? = null) : Exception(message)
+
+    private suspend fun run(context: Context) {
+        try {
+            stopping = false
+            update { Status(phase = Phase.STARTING, lanAddress = lanAddress()) }
+            if (!WowFiles.isStandardPath(context)) {
+                throw StepFailed(context.getString(R.string.wow_server_error_path, WowFiles.root(context).path))
+            }
+
+            if (!ServerPackage.isInstalled(context)) {
+                step(Step.UNPACKING, progress = 0f)
+                runCatching { ServerPackage.install(context) { step(Step.UNPACKING, progress = it) } }
+                    .onFailure { throw StepFailed(context.getString(R.string.wow_server_error_unpack, it.message ?: "")) }
+            }
+
+            step(Step.CONFIGURING)
+            runToEnd(context, "configure", log = File(WowFiles.logs(context).also { it.mkdirs() }, "configure.log"))
+            applySettings(context)
+
+            step(Step.DATABASE)
+            startDatabase(context)
+
+            if (!importedMarker(context).exists()) {
+                step(Step.IMPORT, progress = null)
+                runToEnd(context, "dbimport", log = File(WowFiles.logs(context), "dbimport.log"), timeoutMinutes = 60) { line ->
+                    step(Step.IMPORT, detail = line)
+                }
+                importedMarker(context).writeText("${System.currentTimeMillis()}\n")
+            }
+            setRealmAddress(context)
+
+            step(Step.AUTH)
+            val authLog = File(WowFiles.logs(context), "auth.out")
+            auth = launch(context, "auth", authLog)
+            waitForPort(AUTH_PORT, 90, auth!!, authLog, context.getString(R.string.wow_server_error_auth))
+            watch(context, auth!!, authLog, R.string.wow_server_error_auth_stopped)
+
+            if (WowFiles.hasServerData(context)) {
+                startWorld(context)
+            } else {
+                update { copy(phase = Phase.RUNNING, step = null, detail = null, progress = null, world = World.NO_DATA) }
+            }
+        } catch (e: StepFailed) {
+            fail(context, e.message ?: "", e.log)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            fail(context, e.message ?: e.javaClass.simpleName, null)
+        }
+    }
+
+    private suspend fun startWorld(context: Context) {
+        update { copy(phase = Phase.STARTING, step = Step.WORLD, detail = null, progress = null, world = World.STARTING) }
+        val log = File(WowFiles.logs(context), "world.out")
+        val process = launch(context, "world", log, keepInput = true)
+        world = process
+        worldInput = process.outputStream.bufferedWriter()
+        // Loading the world takes minutes on a phone (longer the first time, when it also fills in
+        // the progression brackets' changes). Its log says what it's on.
+        val deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(30)
+        while (true) {
+            if (!process.isAlive) throw StepFailed(context.getString(R.string.wow_server_error_world, process.exitValue()), log)
+            val tail = WowFiles.tail(log, 3)
+            if (READY.containsMatchIn(tail)) break
+            if (System.currentTimeMillis() > deadline) throw StepFailed(context.getString(R.string.wow_server_error_world_slow), log)
+            update { copy(detail = tail.lines().lastOrNull { it.isNotBlank() }?.take(160)) }
+            delay(1000)
+        }
+        update { copy(phase = Phase.RUNNING, step = null, detail = null, world = World.UP) }
+        watch(context, process, log, R.string.wow_server_error_world_stopped)
+    }
+
+    /** If [process] ends while the server should be running, the server has failed. */
+    private fun watch(context: Context, process: Process, log: File, message: Int) {
+        scope.launch {
+            val code = withContext(Dispatchers.IO) { process.waitFor() }
+            if (stopping) return@launch
+            val phase = _status.value.phase
+            if (phase != Phase.RUNNING && phase != Phase.STARTING) return@launch
+            // While starting, the start holds the lock: end it first.
+            job?.cancel()
+            lock.withLock {
+                if (!stopping) fail(context, context.getString(message, code), log)
+            }
+        }
+    }
+
+    private suspend fun fail(context: Context, message: String, log: File?) {
+        val tail = log?.let { WowFiles.tail(it, 30) }
+        killAll(context)
+        update { copy(phase = Phase.FAILED, step = null, progress = null, detail = null, world = World.OFF, error = message, log = tail) }
+    }
+
+    private suspend fun shutDown(context: Context) {
+        if (db == null && auth == null && world == null) {
+            if (_status.value.phase != Phase.FAILED) update { Status(lanAddress = lanAddress()) }
+            return
+        }
+        update { copy(phase = Phase.STOPPING, step = null, progress = null, detail = null) }
+        killAll(context)
+        update { Status(lanAddress = lanAddress()) }
+    }
+
+    /** World first (it saves the characters), then auth, then the databases. */
+    private suspend fun killAll(context: Context) = withContext(Dispatchers.IO) {
+        stopping = true
+        stepProcess?.destroy()
+        stepProcess = null
+        world?.let { process ->
+            if (process.isAlive) {
+                worldCommand("server shutdown 0")
+                if (!process.waitFor(90, TimeUnit.SECONDS)) process.destroy()
+                if (!process.waitFor(15, TimeUnit.SECONDS)) process.destroyForcibly()
+            }
+        }
+        world = null
+        runCatching { worldInput?.close() }
+        worldInput = null
+        auth?.let { process ->
+            process.destroy()
+            if (!process.waitFor(15, TimeUnit.SECONDS)) process.destroyForcibly()
+        }
+        auth = null
+        db?.let { process ->
+            // MariaDB shuts down cleanly on SIGTERM, flushing InnoDB.
+            process.destroy()
+            if (!process.waitFor(60, TimeUnit.SECONDS)) process.destroyForcibly()
+        }
+        db = null
+    }
+
+    private suspend fun startDatabase(context: Context) {
+        val log = File(WowFiles.logs(context), "mariadb.log")
+        val process = launch(context, "db", File(WowFiles.logs(context), "db.out"))
+        db = process
+        val deadline = System.currentTimeMillis() + 120_000
+        while (true) {
+            if (!process.isAlive) throw StepFailed(context.getString(R.string.wow_server_error_database), log)
+            val ping = ctl(context, "db-ping").redirectErrorStream(true).start()
+            ping.inputStream.readBytes()
+            if (ping.waitFor() == 0) break
+            if (System.currentTimeMillis() > deadline) throw StepFailed(context.getString(R.string.wow_server_error_database), log)
+            delay(1000)
+        }
+        watch(context, process, log, R.string.wow_server_error_database_stopped)
+    }
+
+    /**
+     * The settings the app chooses: the first time, ChromieCraft's start (its first brackets) and a
+     * phone-sized bot count; every time, what the server's data allows (line of sight needs vmaps,
+     * pathfinding needs mmaps).
+     */
+    private fun applySettings(context: Context) {
+        val etc = WowFiles.etc(context)
+        val firstTime = File(etc, ".defaults")
+        if (!firstTime.exists()) {
+            editConf(File(etc, "modules/progression_system.conf")) {
+                setSwitch("ProgressionSystem.Bracket_0", true)
+                setSwitch("ProgressionSystem.Bracket_1_19", true)
+            }
+            editConf(File(etc, "modules/playerbots.conf")) {
+                set("Playerbots.MinRandomBots", "50")
+                set("Playerbots.MaxRandomBots", "50")
+                // No bots running (and no battery used) while nobody is logged in.
+                setSwitch("Playerbots.DisabledWithoutRealPlayer", true)
+            }
+            firstTime.writeText("1\n")
+        }
+        val folders = WowFiles.dataFolders(context)
+        editConf(File(etc, "worldserver.conf")) {
+            setSwitch("vmap.enableLOS", "vmaps" in folders)
+            setSwitch("vmap.enableHeight", "vmaps" in folders)
+            setSwitch("vmap.enableIndoorCheck", "vmaps" in folders)
+            setSwitch("MoveMaps.Enable", "mmaps" in folders)
+        }
+    }
+
+    private fun editConf(file: File, change: ConfFile.() -> Unit) {
+        if (!file.isFile) return
+        val conf = ConfFile(file.readText())
+        conf.change()
+        val tmp = File(file.path + ".tmp")
+        tmp.writeText(conf.toString())
+        if (!tmp.renameTo(file)) throw IOException("Couldn't write ${file.name}")
+    }
+
+    /**
+     * The realm's addresses in the auth database: the game on this phone connects to 127.0.0.1, a
+     * PC's client on the Wi-Fi to the phone's address there.
+     */
+    private fun setRealmAddress(context: Context) {
+        val lan = lanAddress()
+        update { copy(lanAddress = lan) }
+        Database.exec(
+            context, "acore_auth",
+            "UPDATE realmlist SET name = '$REALM_NAME', address = '${lan ?: "127.0.0.1"}', " +
+                "localAddress = '127.0.0.1', localSubnetMask = '255.255.255.0', port = $WORLD_PORT WHERE id = 1;",
+        )
+    }
+
+    /** The phone's IPv4 address on Wi-Fi (or another local network), if it has one. */
+    fun lanAddress(): String? = runCatching {
+        NetworkInterface.getNetworkInterfaces().toList()
+            .filter { it.isUp && !it.isLoopback }
+            .sortedBy { if (it.name.startsWith("wlan")) 0 else 1 }
+            .flatMap { it.inetAddresses.toList() }
+            .filterIsInstance<Inet4Address>()
+            .firstOrNull { it.isSiteLocalAddress }
+            ?.hostAddress
+    }.getOrNull()
+
+    private fun importedMarker(context: Context) = File(WowFiles.databases(context), ".imported")
+
+    /** Forgets that the databases are set up, after they were deleted. */
+    fun forgetDatabases(context: Context) {
+        importedMarker(context).delete()
+    }
+
+    /** `sh ctl.sh <args>` with the app's folder. */
+    fun ctl(context: Context, vararg args: String): ProcessBuilder {
+        WowFiles.run(context).mkdirs()
+        return ProcessBuilder(listOf("/system/bin/sh", WowFiles.ctl(context).path) + args).apply {
+            environment()["FILES"] = WowFiles.root(context).path
+            directory(WowFiles.run(context))
+        }
+    }
+
+    /** Starts a server program with its output going to [log]. */
+    private fun launch(context: Context, command: String, log: File, keepInput: Boolean = false): Process {
+        log.parentFile?.mkdirs()
+        val builder = ctl(context, command).redirectErrorStream(true).redirectOutput(log)
+        if (!keepInput) builder.redirectInput(File("/dev/null"))
+        return builder.start()
+    }
+
+    /** Runs a ctl.sh command to its end, passing its output lines to [onLine]. */
+    private suspend fun runToEnd(
+        context: Context,
+        command: String,
+        log: File,
+        timeoutMinutes: Long = 5,
+        onLine: ((String) -> Unit)? = null,
+    ) = withContext(Dispatchers.IO) {
+        val process = ctl(context, command).redirectErrorStream(true).redirectInput(File("/dev/null")).start()
+        stepProcess = process
+        val deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(timeoutMinutes)
+        log.outputStream().bufferedWriter().use { out ->
+            process.inputStream.bufferedReader().useLines { lines ->
+                for (line in lines) {
+                    out.write(line)
+                    out.newLine()
+                    onLine?.invoke(line.take(160))
+                    if (!isActive || System.currentTimeMillis() > deadline) {
+                        process.destroy()
+                        break
+                    }
+                }
+            }
+        }
+        val code = process.waitFor()
+        stepProcess = null
+        if (code != 0) throw StepFailed(context.getString(R.string.wow_server_error_step, command, code), log)
+    }
+
+    private suspend fun waitForPort(port: Int, seconds: Int, process: Process, log: File, message: String) {
+        repeat(seconds) {
+            if (!process.isAlive) throw StepFailed(message, log)
+            val open = withContext(Dispatchers.IO) {
+                runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) } }.isSuccess
+            }
+            if (open) return
+            delay(1000)
+        }
+        throw StepFailed(message, log)
+    }
+
+    /** The world server's last line of starting up. */
+    private val READY = Regex("\\(worldserver-daemon\\) ready")
+}

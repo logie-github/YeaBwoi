@@ -1,7 +1,8 @@
 #!/bin/sh
 # Checks out the World of Warcraft app's server source into the folder given (default
 # build/azerothcore): AzerothCore at the revision ChromieCraft runs (warcraft/server-version.env),
-# the playerbots fork's core changes merged onto it, and the modules at their pinned commits.
+# the playerbots fork's core changes merged onto it, the app's patches (warcraft/patches/azerothcore/),
+# and the modules at their pinned commits.
 # Used by scripts/build-azerothcore.sh (the phone's server) and CI's Windows data tools.
 set -eu
 
@@ -21,6 +22,11 @@ git -C "$SRC" checkout -q --force "$CORE_COMMIT"
 git -C "$SRC" clean -qfdx -e modules/
 git -C "$SRC" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" \
 	merge -q --no-edit "$PLAYERBOT_CORE_COMMIT"
+# The app's own changes to the core (warcraft/patches/azerothcore/).
+set -- "$ROOT"/warcraft/patches/azerothcore/*.patch
+if [ -f "$1" ]; then
+	git -C "$SRC" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@"
+fi
 
 echo "$MODULES" | while read -r name repo commit; do
 	[ -n "$name" ] || continue
