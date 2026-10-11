@@ -5,14 +5,14 @@
 # everything it needs).
 #
 #   1. MariaDB starts from the seed data folder.
-#   2. dbimport creates and fills the auth, characters, world and playerbots databases.
+#   2. dbimport creates and fills the auth, characters and world databases.
 #   3. The auth server starts; an account made the way the app makes them logs in and gets the
 #      realm list, with the realm's address.
 #   4. The world server loads its configs and modules and updates the databases (including the
 #      first ChromieCraft progression brackets), then stops where it needs the client's data
 #      (dbc), which only the phone has.
-#   5. With stand-in dbc files, the world server starts up all the way, to its ready line, and
-#      shuts down from its console.
+#   5. With stand-in dbc files, the world server starts up all the way, to its ready line (with
+#      jemalloc, and the playerbots module's database set up), and shuts down from its console.
 #   6. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
 
@@ -90,7 +90,8 @@ echo "== dbimport"
 start=$(date +%s)
 CTL dbimport > "$FILES/logs/dbimport.out" 2>&1 || fail "dbimport exited with $?"
 echo "dbimport took $(($(date +%s) - start)) s"
-for db in acore_auth acore_characters acore_world acore_playerbots; do
+# (acore_playerbots is filled by the playerbots module when the world server starts: checked there.)
+for db in acore_auth acore_characters acore_world; do
 	tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db'" | CTL sql)
 	echo "$db: $tables tables"
 	[ "$tables" -gt 0 ] || fail "$db has no tables"
@@ -159,6 +160,9 @@ echo "The world server is ready after $(($(date +%s) - start)) s:"
 grep "ready" "$FILES/logs/world-ready.out" | tail -1
 grep -q libjemalloc "/proc/$(cat "$FILES/run/worldserver.pid")/maps" || fail "the world server isn't using jemalloc"
 echo "It runs on jemalloc."
+tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'acore_playerbots'" | CTL sql)
+echo "acore_playerbots: $tables tables"
+[ "$tables" -gt 0 ] || fail "the playerbots module didn't set up its database"
 sleep 5
 # Its console, the way the app stops it.
 echo "server shutdown 0" >&3
