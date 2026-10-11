@@ -83,7 +83,9 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `server-data.env` | The server data the app downloads: AzerothCore's [client-data](https://github.com/wowgaming/client-data) release that the pinned core uses itself, with its size and SHA-256 |
 | `patches/azerothcore/` | Changes to the core (building on musl) |
 | `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules |
-| `../scripts/build-azerothcore.sh` | Builds it all in an Alpine (musl) container and packs `android/server/server.tar.xz` (git-ignored): the programs with their own musl loader and libraries, Alpine's MariaDB, the SQL, the configs and a seed database folder |
+| `../scripts/compile-azerothcore.sh` | Compiles it all in an Alpine (musl) container, into `build/azerothcore-dist`: the programs, their configs and the SQL. The slow part (CI caches it, and ccache makes a new core revision quicker) |
+| `../scripts/package-azerothcore.sh` | Packs `android/server/server.tar.xz` (git-ignored) from that, in the same Alpine, in a few minutes: the programs with their own musl loader and libraries, Alpine's MariaDB, OpenSSL's legacy provider, the system call shim, the SQL, the configs and a seed database folder |
+| `../scripts/build-azerothcore.sh` | Both, one after the other |
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
 | `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
@@ -93,13 +95,15 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
 | `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
 
-CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners (hours; cached by its inputs, so a change to the app alone reuses it), downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, builds the APK and publishes the release with the Windows tools.
+CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners: the compile is cached by the pins, the patches and the compile scripts, and the package by everything in it, so a change to the packaging takes minutes and a change to the app alone reuses the package. It downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, builds the APK and publishes the release with the Windows tools.
 
 Local builds:
 
 ```sh
 # The server, for this machine's architecture (arm64 on an arm64 machine), in Docker:
 scripts/build-azerothcore.sh
+# ...or after a change to the packaging only (ctl.sh, the shim, the SQL layout):
+scripts/package-azerothcore.sh
 scripts/test-warcraft-server.sh
 # ...with the server data, all the way into the world (data.zip from server-data.env's URL):
 WOW_DATA_ZIP=/path/to/data.zip scripts/test-warcraft-server.sh
