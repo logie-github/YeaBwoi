@@ -214,8 +214,7 @@ The user can't debug: report only what was checked, and say what wasn't.
   (`/data/data/<package>/files/...`, as Termux does) and `$ORIGIN/../lib` libraries, and the app
   targets SDK 28 to run them from its storage. Android kills a process that makes a system call
   outside its app seccomp policy: CI checks every call against bionic's lists
-  (`warcraft/server/seccomp_check.py`). glibc programs make such calls (`rseq`,
-  `set_robust_list`); musl ones don't.
+  (`warcraft/server/seccomp_check.py`); glibc makes such calls (`rseq`, `set_robust_list`).
 - GitHub's arm64 runners (`ubuntu-24.04-arm`) work for this private repository; builds that take
   hours are cached by their inputs (`actions/cache`), and jobs hand files on through the cache:
   the account's artifact storage is full. Caches saved on Windows need `enableCrossOsArchive`.

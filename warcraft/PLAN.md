@@ -1,7 +1,8 @@
 # World of Warcraft (3.3.5a) — the brief
 
-The next app in this repository. Nothing of it is built yet; this is what the user asked for, what
-was decided, what's still open, and the plan. Read `docs/single-game-apps.md` first: this app
+The app being built in this repository: what the user asked for, what was decided, what's still
+open, the plan, and where each stage stands ("Where it stands", below). The user's manual is
+`README.md`. Read `docs/single-game-apps.md` first: this app
 follows the same playbook, but its emulator is a whole Windows (Wine) and server stack.
 
 ## Identity
@@ -47,6 +48,9 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
 - **Add-ons:** a generic manager, no built-in list (see "Launcher sections").
 - **Double tap = jump.** The map moves to another gesture (proposed below).
 - **Phone:** Galaxy Z Fold 8.
+- **The server's data** (dbc, maps, vmaps, mmaps) can be made **either way**: on a Windows PC
+  (CI builds AzerothCore's tools for Windows; `windows/extract-server-data.bat`, then import the
+  zip) or straight from the phone (the app imports the client and runs the tools).
 
 ## The user's art (in `branding/`)
 
@@ -136,10 +140,21 @@ the original game did). Its code:
   sense on a phone. Read the files at the pinned commits and build the launcher's server screens
   from them (grouped, with plain explanations and defaults).
 
-**Decision to make early:** ChromieCraft's pinned core and the playerbots fork are two different
-AzerothCore branches. Either merge them (playerbots' core changes onto ChromieCraft's revision)
-or use the playerbots fork with ChromieCraft's modules on it. Try the build in CI before
-promising either.
+**ChromieCraft plus playerbots: settled by building it.** ChromieCraft's core repository is a
+mirror of upstream AzerothCore `master`, synced daily (its head is an ancestor of upstream's). The
+playerbots fork (now https://github.com/mod-playerbots/azerothcore-wotlk, branch `Playerbot`;
+the module moved to https://github.com/mod-playerbots/mod-playerbots, the old liyunfan1223 URLs
+redirect) is upstream plus about 150 commits, merged from upstream every few days. Merging the
+fork's commit onto ChromieCraft's has no conflicts: it changes 33 files (the module database pool,
+pathfinding, the mmaps generator, CI). `scripts/fetch-azerothcore.sh` does that merge from the two
+commits pinned in `server-version.env`, with mod-playerbots at the commit made for that fork
+commit, and the ChromieCraft modules on top. Building it in CI is the test (see "Where it
+stands"). Updating: pin a new ChromieCraft commit and the fork's and module's latest together.
+
+Modules chosen: mod-progression-system, mod-zone-difficulty, mod-chromie-xp,
+mod-chromiecraft-smartstone, mod-hoard-collector, mod-npc-talent-template, mod-playerbots. Left
+out as live-server staff tools: mod-gm-commands, mod-enhanced-support, mod-contributors,
+mod-ptr-changes.
 
 ## Launcher sections (to design with the user's art)
 
@@ -169,14 +184,40 @@ promising either.
    screen, gestures.
 3. **Everything else.** All server options, accounts, bots, add-ons, the icon switcher, polish.
 
+## Where it stands
+
+**Stage 1 (written; CI's arm64 build and server test in progress; nothing tested on a phone):**
+
+- The server is built for Linux arm64 on **musl** (Alpine), not glibc and not inside Winlator's
+  rootfs: Android kills an app's process that makes a system call outside its seccomp policy, and
+  glibc makes such calls (`rseq`, `set_robust_list`), which musl doesn't need; a self-contained
+  package also doesn't tie the server to Winlator's. Each program's interpreter is the package's own musl loader at
+  `/data/data/com.logie.warcraft/files/server/lib/`, like Termux, so the server only runs for the
+  phone's main user. MariaDB is Alpine's, run with `--innodb-use-native-aio=0` (no io_uring).
+- AzerothCore needed one patch to build on musl (`patches/azerothcore/`).
+- CI (`build-warcraft.yml`, `ubuntu-24.04-arm`) builds it, then tests the package unpacked where the
+  phone puts it: MariaDB from the seed folder, dbimport fills all four databases, an account made
+  the way the app makes them logs in to the auth server with the 3.3.5a protocol and gets the
+  realm list, and the world server loads its configs, modules and the progression brackets' SQL;
+  then, on stand-in client data (`server/fake_client_data.py`: empty dbc tables, header-only map
+  files), the world server starts up to its "ready" line and shuts down from its console. Every
+  system call of the server's programs is checked against bionic's app policy.
+- The app: launcher (header, logo, press start, tiles), the server in a foreground service, client
+  import (folder or zip, build 12340 check), server data made on the phone or imported from the
+  Windows tools' zip, accounts, the icon switcher (done early: the art was there), updates. Targets
+  SDK 28 (like Termux and Winlator) to run the server's programs from its storage; stage 2 needs
+  the same for Wine.
+- Defaults set on the first start: progression brackets `0` and `1_19` (ChromieCraft's start),
+  50 random bots (the module's default is 500), bots idle while nobody's logged in.
+
+**Next, stage 2:** Winlator's runtime, the client straight to its login screen with the account
+chosen in the launcher (`realmlist.wtf` = 127.0.0.1), gestures.
+
 ## Still open
 
 1. The proposed gestures for right click, camera, map and keyboard (under "Controls"): go with
    them unless the user says otherwise.
-2. Whether a PC is available for the one-time map extraction (otherwise it runs on the phone).
-3. About 40 GB free on the phone.
-4. ChromieCraft and playerbots together (see "Decision to make early"): try it in CI; if they
-   can't be combined, ask the user which matters more.
+2. About 40 GB free on the phone.
 
 ## Sources
 
@@ -186,6 +227,6 @@ promising either.
 - ChromieCraft core: https://github.com/chromiecraft/azerothcore-wotlk
 - Progression system: https://github.com/azerothcore/mod-progression-system
 - ChromieCraft modules: https://github.com/orgs/chromiecraft/repositories
-- Playerbots: https://github.com/liyunfan1223/mod-playerbots (its core:
-  https://github.com/liyunfan1223/azerothcore-wotlk); version-mismatch reports:
+- Playerbots: https://github.com/mod-playerbots/mod-playerbots (its core:
+  https://github.com/mod-playerbots/azerothcore-wotlk, branch `Playerbot`); version-mismatch reports:
   https://www.linux.org.ru/articles/games/18260586
