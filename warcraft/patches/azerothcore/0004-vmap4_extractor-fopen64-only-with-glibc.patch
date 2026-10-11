@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 16:19:22 +0000
-Subject: [PATCH 4/5] vmap4_extractor: fopen64 only with glibc
+Subject: [PATCH 4/6] vmap4_extractor: fopen64 only with glibc
 
 musl's fopen is 64-bit already and has no fopen64 (since 1.2.4).
 ---

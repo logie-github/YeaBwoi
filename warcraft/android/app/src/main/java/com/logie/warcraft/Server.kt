@@ -413,22 +413,37 @@ object Server {
     ) = withContext(Dispatchers.IO) {
         val process = ctl(context, command).redirectErrorStream(true).redirectInput(File("/dev/null")).start()
         stepProcess = process
-        val deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(timeoutMinutes)
-        log.outputStream().bufferedWriter().use { out ->
-            process.inputStream.bufferedReader().useLines { lines ->
-                for (line in lines) {
-                    out.write(line)
-                    out.newLine()
-                    onLine?.invoke(line.take(160))
-                    if (!isActive || System.currentTimeMillis() > deadline) {
-                        process.destroy()
-                        break
+        // The output is read on its own thread, so a program that hangs without a word still
+        // runs into the time limit.
+        val reader = Thread {
+            runCatching {
+                log.outputStream().bufferedWriter().use { out ->
+                    process.inputStream.bufferedReader().useLines { lines ->
+                        for (line in lines) {
+                            out.write(line)
+                            out.newLine()
+                            out.flush()
+                            onLine?.invoke(line.take(160))
+                        }
                     }
                 }
             }
+        }.apply { start() }
+        val deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(timeoutMinutes)
+        while (!process.waitFor(1, TimeUnit.SECONDS)) {
+            if (!isActive || System.currentTimeMillis() > deadline) {
+                process.destroy()
+                if (!process.waitFor(10, TimeUnit.SECONDS)) process.destroyForcibly()
+                break
+            }
         }
-        val code = process.waitFor()
+        reader.join(5_000)
         stepProcess = null
+        if (!isActive) throw kotlinx.coroutines.CancellationException()
+        if (System.currentTimeMillis() > deadline) {
+            throw StepFailed(context.getString(R.string.wow_server_error_step_slow, command), log)
+        }
+        val code = process.exitValue()
         if (code != 0) throw StepFailed(context.getString(R.string.wow_server_error_step, command, code), log)
     }
 
