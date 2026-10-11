@@ -374,7 +374,18 @@ jobs:
           \`\`\`
           $(cat dist/server-version.txt)
           \`\`\`"
+          # The tag first, on its own: from run 18 on, GitHub refused this token the release (HTTP
+          # 403, "Resource not accessible by integration") with the same permissions that published
+          # run 16. Its full answer to the tag says which permission it wants.
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" > /dev/null; then
+            if ! gh api --include -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                -f ref="refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" > "$RUNNER_TEMP/tag.txt" 2>&1; then
+              cat "$RUNNER_TEMP/tag.txt"
+              echo "::error::GitHub refused to create the tag $RELEASE_TAG (its answer is above)."
+              exit 1
+            fi
+          fi
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" dist/WarcraftServerData-windows.zip \
-            --target "$GITHUB_SHA" \
+            --verify-tag \
             --title "$APP_NAME $WOW_VERSION_NAME" \
             --notes "$notes"
