@@ -21,9 +21,10 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
   - **Tap** = click.
   - **Swipe** up, down, left, right = movement with W/A/S/D, "a full 360" of directions.
   - **Hold** = open or close the bags.
-  - **Double tap** = open the map.
+  - **Double tap** = jump (Space). (First asked as "open the map"; changed by the user.)
 - **A launcher.** The user drops in their own 3.3.5a client (never shipped by the app), and adds
-  **add-ons** to it from the launcher's menu.
+  **add-ons** to it from the launcher's menu: **any add-on, installed at will**. None come
+  preinstalled and none are special-cased in code.
 - **A private server on the phone, set up silently**: AzerothCore, specifically **ChromieCraft**
   (see below). Tapping the app goes straight to the game's **login screen**, with the server
   already running behind it.
@@ -32,6 +33,20 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
   options** (and any other settings a private server allows).
 - **App icon switcher**: the user sent icons so the app's icon can be changed from the launcher.
 - Look: the header image and logo the user sent (below).
+
+## Decided (the user's answers)
+
+- **Client:** a clean 3.3.5a (build 12340), **enUS**, the one ChromieCraft uses. No HD patches.
+  (Whether it comes as a folder or a zip: support both.)
+- **Server behaves the way ChromieCraft does:** its core revision and modules, its progression
+  (starting at the first bracket, advanced from the launcher), its blizzlike rates, as defaults.
+- **Nothing is fixed at setup.** Bots and every other server setting (progression, rates,
+  realm options) are chosen in the launcher **at any time**, not in a first-run wizard. The
+  launcher writes the config and applies it (`.reload config` where a setting supports it,
+  otherwise a world server restart, saying first if the game will disconnect).
+- **Add-ons:** a generic manager, no built-in list (see "Launcher sections").
+- **Double tap = jump.** The map moves to another gesture (proposed below).
+- **Phone:** Galaxy Z Fold 8.
 
 ## The user's art (in `branding/`)
 
@@ -82,11 +97,13 @@ https://github.com/liyunfan1223/azerothcore-wotlk, branch `Playerbot`; check whe
 now), and the core and module commits have to be pinned together: mismatches crash or fail to
 build.
 
-**Controls as proposed (waiting on the user, see open questions).** Tap = left click. Turn on the
-client's built-in **Click-to-Move** and use a second gesture for right click (talk, loot, attack,
-walk there). Swipe = W/A/S/D in 8 directions first (like Parasite Eve's D-pad); true 360°
-by steering with mouse-turn while W is held, later. Hold = `B` (bags; Shift+B opens all bags),
-double tap = `M`.
+**Controls.** Decided by the user: tap = left click, swipe = movement (W/A/S/D), hold = bags
+(`B`; Shift+B opens all bags), double tap = jump (Space). Proposed, unless the user objects:
+the client's built-in **Click-to-Move** on, two-finger tap = right click (talk, loot, attack,
+walk there), two-finger drag = turn the camera, tap then tap-and-hold = map (`M`), three-finger
+tap = show the keyboard (chat, passwords; Wine can't tell Android a text box is active). Swipe
+in 8 directions first (like Parasite Eve's D-pad); true 360° by steering with mouse-turn while W
+is held, later. A double tap with a second finger while one swipes = jump while running.
 
 **Limits told to the user.** A translated Windows game, a server and bots on one phone run hot;
 start with 50–200 bots. About 40 GB free storage. Android needs a notification while the server
@@ -130,10 +147,16 @@ promising either.
 - **Game files**: import the client (folder or zip), check the build, show size; the data
   extraction with progress.
 - **Server**: running or not, start/stop, logs; ChromieCraft progression brackets; rates and
-  realm options; reset databases.
+  realm options; reset databases. Every option changeable at any time.
 - **Accounts**: create, change password, GM level, delete; which one the game logs in with.
-- **Bots**: on/off, how many, level ranges, per-account bots, the playerbot settings.
-- **Add-ons**: import (zip or folder) into `Interface/AddOns`, list, switch on/off, delete.
+- **Bots**: on/off, how many, level ranges, per-account bots, the playerbot settings, at any
+  time.
+- **Add-ons**: install any add-on at will, nothing preinstalled or special-cased. Import a zip
+  or a folder; find every add-on in it by its `.toc` file, however it's nested (a zip may hold
+  several, or wrap them in an extra folder), and install each as its own folder in
+  `Interface/AddOns` (replacing an older copy). List them by their `.toc` title and version, switch
+  them on or off (`WTF/Account/<ACCOUNT>/AddOns.txt`; the game's own AddOns button at character
+  select keeps working), delete them.
 - **Controls**, **Graphics** (resolution, renderer, frame cap), **App icon**, **Updates**.
 
 ## Stages
@@ -146,15 +169,14 @@ promising either.
    screen, gestures.
 3. **Everything else.** All server options, accounts, bots, add-ons, the icon switcher, polish.
 
-## Still open (asked, not answered yet)
+## Still open
 
-1. The client: language (enUS?), clean or a repack with HD patches, folder or zip.
-2. Bots: roughly how many, which settings matter.
-3. Right click (proposed: two-finger tap), camera turning (proposed: two-finger drag), how to
-   show the keyboard for chat and passwords (Wine can't tell Android a text box is active).
-4. Whether a PC is available for the one-time map extraction.
-5. Add-ons the user already wants.
-6. ChromieCraft and playerbots together (see "Decision to make early").
+1. The proposed gestures for right click, camera, map and keyboard (under "Controls"): go with
+   them unless the user says otherwise.
+2. Whether a PC is available for the one-time map extraction (otherwise it runs on the phone).
+3. About 40 GB free on the phone.
+4. ChromieCraft and playerbots together (see "Decision to make early"): try it in CI; if they
+   can't be combined, ask the user which matters more.
 
 ## Sources
 
