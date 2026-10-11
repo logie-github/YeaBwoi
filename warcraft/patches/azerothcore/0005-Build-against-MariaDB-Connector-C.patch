@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 16:19:23 +0000
-Subject: [PATCH 5/5] Build against MariaDB Connector/C
+Subject: [PATCH 5/6] Build against MariaDB Connector/C
 
 The phone's server is built on Alpine, which has MariaDB's client library rather than MySQL's. Its
 MYSQL_VERSION_ID is the MariaDB server version it was made for (10.8 and up), which reads as

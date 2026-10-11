@@ -90,6 +90,7 @@ jobs:
       # client data, from the package as the phone unpacks it, with every system call checked
       # against Android's seccomp policy for apps. Runs on every build, cached package or not.
       - name: Test the server
+        timeout-minutes: 60
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
           scripts/test-warcraft-server.sh

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Sun, 11 Oct 2026 16:19:22 +0000
-Subject: [PATCH 3/5] Print the CPU affinity mask without glibc's __cpu_mask
+Subject: [PATCH 3/6] Print the CPU affinity mask without glibc's __cpu_mask
 
 __cpu_mask is glibc's own name for the type cpu_set_t is made of (unsigned long); musl doesn't have
 it.
