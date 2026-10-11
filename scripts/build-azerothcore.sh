@@ -70,6 +70,8 @@ for prog in mariadbd mariadb mariadb-admin mariadb-dump; do
 	cp "$(command -v "$prog")" "$pkg/bin/"
 done
 cp -L /usr/lib/libjemalloc.so.2 "$pkg/lib/"
+# System calls Android doesn't allow apps, made with ones it does (preloaded by ctl.sh).
+cc -O2 -shared -fPIC -o "$pkg/lib/libandroidcompat.so" /repo/warcraft/server/android_compat.c
 cp -r /usr/share/mariadb "$pkg/share/mariadb"
 cp "$APP_FILES"/etc/*.conf.dist "$pkg/etc/"
 cp "$APP_FILES"/etc/modules/*.conf.dist "$pkg/etc/modules/"
