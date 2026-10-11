@@ -6,9 +6,11 @@ name: Build World of Warcraft
 # the server's data from the client on a PC); and the app, which ships the server. Publishes the
 # app and the Windows tools as a release (wow-build-N).
 #
-# The server takes hours to compile, so its package is cached by everything that goes into it
-# (warcraft/server-version.env, ctl.sh, the patches, the build scripts): a change to the app alone
-# reuses it.
+# The server is cached at two levels: the compiled programs and SQL (scripts/compile-azerothcore.sh,
+# the slow part) by what goes into the compile alone (the pins, the patches, the compile and fetch
+# scripts), and the package (scripts/package-azerothcore.sh, minutes) by everything that goes into
+# it. A change to the packaging (ctl.sh, the shim, the SQL layout) compiles nothing, and a change to
+# the app alone reuses the package.
 on:
   push:
     branches: ["**"]
@@ -17,6 +19,8 @@ on:
       - "!warcraft/branding/**"
       - "!warcraft/**.md"
       - "scripts/build-azerothcore.sh"
+      - "scripts/compile-azerothcore.sh"
+      - "scripts/package-azerothcore.sh"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
       - ".github/workflows/build-warcraft.yml"
@@ -44,10 +48,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache key
+      - name: Cache keys
         id: key
         run: |
-          key="warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c', 'warcraft/patches/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}"
+          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
+          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
+          echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
@@ -58,28 +64,49 @@ jobs:
           path: warcraft/android/server/server.tar.xz
           key: ${{ env.SERVER_KEY }}
 
-      - name: Restore the compiler cache
+      - name: Look for the compiled server
+        id: compiled
         if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/azerothcore-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Restore the compiler cache
+        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v4
         with:
           path: build/ccache
           key: warcraft-ccache-arm64-${{ github.run_id }}
           restore-keys: warcraft-ccache-arm64-
 
-      - name: Build the server
-        if: steps.cached.outputs.cache-hit != 'true'
+      - name: Compile the server
+        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
         run: |
-          scripts/build-azerothcore.sh
-          sudo chown -R "$(id -u):$(id -g)" build warcraft/android/server
+          scripts/compile-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build
 
       - name: Save the compiler cache
-        if: always() && steps.cached.outputs.cache-hit != 'true'
+        if: always() && steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: build/ccache
           key: warcraft-ccache-arm64-${{ github.run_id }}
 
-      # Saved before the test, so a fix to the test doesn't rebuild the server.
+      - name: Save the compiled server
+        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/azerothcore-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Package the server
+        if: steps.cached.outputs.cache-hit != 'true'
+        run: |
+          scripts/package-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build warcraft/android/server
+
+      # Saved before the test, so a fix to the test doesn't package the server again.
       - name: Save the server package
         if: steps.cached.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4

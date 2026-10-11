@@ -232,3 +232,9 @@ The user can't debug: report only what was checked, and say what wasn't.
 - Data a user would otherwise make for hours (the WoW server's maps) can come ready-made from the
   upstream project: pin the release, its size and SHA-256 (`warcraft/server-data.env`), download it
   in the app with HTTP ranges so a dropped download carries on, and test with the same file in CI.
+- Cache a long compile apart from the packaging around it (the World of Warcraft server:
+  `scripts/compile-azerothcore.sh`, cached by the pins, patches and compile scripts;
+  `scripts/package-azerothcore.sh`, minutes, by everything): otherwise a one-line change to a
+  launcher script costs the whole compile. ccache only caches files built with precompiled headers
+  with `CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime`; without
+  it, AzerothCore's rebuild took 33 minutes with a full cache.
