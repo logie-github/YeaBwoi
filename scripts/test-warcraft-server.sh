@@ -147,7 +147,14 @@ wait "${pids[0]}" 2> /dev/null || true
 
 if [ ${#TRACE[@]} -gt 0 ]; then
 	echo "== system calls"
-	python3 -I "$ROOT/warcraft/server/seccomp_check.py" check "$FILES/server/" "$FILES"/logs/syscalls/* ||
-		fail "the server made system calls Android doesn't allow apps"
+	if [ "$(uname -m)" = aarch64 ]; then
+		python3 -I "$ROOT/warcraft/server/seccomp_check.py" check "$FILES/server/" "$FILES"/logs/syscalls/* ||
+			fail "the server made system calls Android doesn't allow apps"
+	else
+		# Elsewhere musl makes the older calls the phone's arm64 doesn't have (open, poll, ...),
+		# which Android's policy for that architecture leaves out: listed, not counted.
+		python3 -I "$ROOT/warcraft/server/seccomp_check.py" check "$FILES/server/" "$FILES"/logs/syscalls/* ||
+			echo "(Not arm64: only CI's arm64 run counts.)"
+	fi
 fi
 echo "PASSED"

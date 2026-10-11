@@ -81,8 +81,16 @@ configure() {
 	cp "$SERVER/etc/mmaps-config.yaml" "$ETC/mmaps-config.yaml"
 }
 
+# The server's programs (musl) run with libandroidcompat preloaded: it makes the system calls
+# Android doesn't allow apps with ones it does. Only for them: Android's own programs (sed, cp, the
+# shell) can't load it.
+COMPAT="$SERVER/lib/libandroidcompat.so"
+musl_programs() {
+	export LD_PRELOAD="$COMPAT${1:+:$1}"
+}
+
 db_client() {
-	"$SERVER/bin/mariadb" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$@"
+	LD_PRELOAD="$COMPAT" "$SERVER/bin/mariadb" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$@"
 }
 
 cmd=${1:-}
@@ -101,6 +109,7 @@ db)
 	fi
 	# MariaDB refuses to run as root unless told to (only on a test machine: never on a phone).
 	[ "$(id -u)" = 0 ] && set -- --user=root "$@"
+	musl_programs
 	# Android's app sandbox blocks io_uring, so InnoDB does its own asynchronous I/O.
 	exec "$SERVER/bin/mariadbd" --no-defaults --datadir="$DB_DIR" --basedir="$SERVER" \
 		--lc-messages-dir="$SERVER/share/mariadb" --character-sets-dir="$SERVER/share/mariadb/charsets" \
@@ -111,10 +120,12 @@ db)
 		--max-allowed-packet=64M --log-error="$LOGS/mariadb.log" "$@"
 	;;
 db-ping)
+	musl_programs
 	exec "$SERVER/bin/mariadb-admin" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
 		--connect-timeout=2 ping
 	;;
 db-stop)
+	musl_programs
 	exec "$SERVER/bin/mariadb-admin" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" \
 		shutdown
 	;;
@@ -123,32 +134,36 @@ sql)
 	;;
 dbimport)
 	cd "$RUN"
+	musl_programs
 	exec "$SERVER/bin/dbimport" -c "$ETC/dbimport.conf"
 	;;
 auth)
 	cd "$RUN"
+	musl_programs
 	exec "$SERVER/bin/authserver" -c "$ETC/authserver.conf"
 	;;
 world)
 	cd "$RUN"
 	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.
-	export LD_PRELOAD="$SERVER/lib/libjemalloc.so.2"
+	musl_programs "$SERVER/lib/libjemalloc.so.2"
 	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
 	;;
 maps)
 	# dbc, Cameras and maps, from the client's Data folder.
 	mkdir -p "$DATA.work" && cd "$DATA.work"
+	musl_programs
 	exec "$SERVER/bin/map_extractor" -i "$1" -o "$DATA.work"
 	;;
 vmaps)
-	mkdir -p "$DATA.work" && cd "$DATA.work"
+	mkdir -p "$DATA.work/vmaps" && cd "$DATA.work"
+	musl_programs
 	"$SERVER/bin/vmap4_extractor" -d "$1/Data/"
-	mkdir -p vmaps
 	exec "$SERVER/bin/vmap4_assembler" Buildings vmaps
 	;;
 mmaps)
 	# Pathfinding, from maps and vmaps (the slow one).
 	cd "$DATA.work"
+	musl_programs
 	exec "$SERVER/bin/mmaps_generator" --config "$ETC/mmaps-config.yaml" ${1:+--threads "$1"}
 	;;
 *)
