@@ -194,14 +194,19 @@ mod-ptr-changes.
   package also doesn't tie the server to Winlator's. Each program's interpreter is the package's own musl loader at
   `/data/data/com.logie.warcraft/files/server/lib/`, like Termux, so the server only runs for the
   phone's main user. MariaDB is Alpine's, run with `--innodb-use-native-aio=0` (no io_uring).
-- AzerothCore needed one patch to build on musl (`patches/azerothcore/`).
+- AzerothCore needed patches to build on musl with MariaDB's client library
+  (`patches/azerothcore/`: missing includes, glibc-only names, MySQL-8-only calls, and a version
+  check that read MariaDB 11 as older than MySQL 8). Its bundled jemalloc is configured for glibc,
+  so the world server preloads Alpine's.
 - CI (`build-warcraft.yml`, `ubuntu-24.04-arm`) builds it, then tests the package unpacked where the
-  phone puts it: MariaDB from the seed folder, dbimport fills all four databases, an account made
-  the way the app makes them logs in to the auth server with the 3.3.5a protocol and gets the
-  realm list, and the world server loads its configs, modules and the progression brackets' SQL;
-  then, on stand-in client data (`server/fake_client_data.py`: empty dbc tables, header-only map
-  files), the world server starts up to its "ready" line and shuts down from its console. Every
-  system call of the server's programs is checked against bionic's app policy.
+  phone puts it: MariaDB from the seed folder, dbimport fills the auth, characters and world
+  databases, an account made the way the app makes them logs in to the auth server with the 3.3.5a
+  protocol and gets the realm list, and the world server (on jemalloc) loads its configs, modules,
+  the progression brackets' SQL and the playerbots database, up to the client data (dbc) CI can't
+  have. Every system call of the server's programs is checked against bionic's app policy. Tried
+  and dropped: stand-in dbc files to reach the "ready" line; the world database refers to thousands
+  of client rows by id and the server reads many unchecked, so stand-ins would need most of the
+  client's data. The world server's first full start is on the phone, with the user's data.
 - The app: launcher (header, logo, press start, tiles), the server in a foreground service, client
   import (folder or zip, build 12340 check), server data made on the phone or imported from the
   Windows tools' zip, accounts, the icon switcher (done early: the art was there), updates. Targets
