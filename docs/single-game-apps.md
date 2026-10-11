@@ -224,7 +224,9 @@ The user can't debug: report only what was checked, and say what wasn't.
   CI's world client (`warcraft/server/auth_check.py world`) creates a character and enters the
   world, which also showed the world server crashing on the first client: OpenSSL 3 keeps RC4 in
   its legacy provider, a separate module (`ossl-modules/legacy.so`) a self-contained package has
-  to ship and point `OPENSSL_MODULES` at. AzerothCore modules' SQL is only read from
+  to ship and point `OPENSSL_MODULES` at; and only a full start reaches code that makes new
+  system calls (ncurses' `setfsuid` for the console, made a no-op by the preloaded shim).
+  AzerothCore modules' SQL is only read from
   `modules/<name>/data/sql/<dir naming the database>`, and applied files are known by file name
   alone.
 - Data a user would otherwise make for hours (the WoW server's maps) can come ready-made from the

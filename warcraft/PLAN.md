@@ -221,7 +221,9 @@ on a phone):**
   `data/sql/db-<database>`, without its outdated `development.sql`), and the world server stopped
   the moment a client entered: RC4, which encrypts the game's packet headers, is in OpenSSL 3's
   legacy provider, a module the package didn't have (now `lib/ossl-modules/legacy.so`, found
-  through `OPENSSL_MODULES` in `ctl.sh`).
+  through `OPENSSL_MODULES` in `ctl.sh`). The arm64 run then caught `setfsuid`/`setfsgid`, outside
+  Android's app policy, from ncurses opening terminfo for the world server's console once the
+  world is up: `libandroidcompat.so` makes them no-ops, as it turns `accept` into `accept4`.
 - The app: launcher (header, logo, press start, tiles, the title music), the server in a
   foreground service, client import (folder or zip, build 12340 check), server data downloaded
   (resumable, SHA-256 checked), made on the phone or imported from the Windows tools' zip,
