@@ -20,6 +20,8 @@ PKG="$ROOT/warcraft/android/server/server.tar.xz"
 SUDO=""
 [ "$(id -u)" = 0 ] || SUDO=sudo
 
+# Server programs left from an earlier run would hold the ports.
+$SUDO pkill -f "$FILES/server/bin/" 2> /dev/null && sleep 5 || true
 $SUDO rm -rf "$FILES"
 $SUDO mkdir -p "$FILES"
 $SUDO chown "$(id -u):$(id -g)" "$FILES"
