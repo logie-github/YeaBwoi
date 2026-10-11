@@ -13,21 +13,23 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, this version:*
 | Package | `com.logie.warcraft` |
 | Releases | **World of Warcraft 1.0.N**, tags `wow-build-N` (**Actions → Build World of Warcraft**) |
 | Server | AzerothCore at the revision ChromieCraft runs, with the playerbots fork's core changes merged in, ChromieCraft's modules and mod-playerbots, built for Linux arm64 (musl) from the commits in `server-version.env` |
+| Server data | AzerothCore's ready-made data, downloaded in the app (the version in `server-data.env`), or made from your client |
 | Client | Yours: World of Warcraft 3.3.5a (build 12340), enUS. Never part of the app. |
 
 ## First launch
 
 1. Install the APK from the release page on the phone.
 2. Open the app. The first **Press start** unpacks the server and creates its databases (a few minutes, once), then starts the login server. The world server waits for the server's data.
-3. Make the server's data from your client, once (**Game files**). Either:
-   - **On the phone:** **Pick folder** (your 3.3.5a folder, the one with `Wow.exe` and `Data` in it) or **Pick zip** to add your client. The app copies it (about 17 GB) and checks that `Wow.exe` is 3.3.5.12340. Then **Make server data**: dbc, maps and vmaps take minutes; mmaps (pathfinding, which creatures and bots need to move well) an hour or more. It carries on with the app in the background.
-   - **On a Windows PC (faster):** download **WarcraftServerData-windows.zip** from the same release, unzip it, and drag your client's folder onto `extract-server-data.bat`. Copy the `server-data.zip` it makes to the phone, then **Import server-data.zip**.
+3. Get the server's data, once (**Game files**). One of:
+   - **Download (the quick way):** **Download server data** gets AzerothCore's ready-made data: dbc, Cameras, maps, vmaps and mmaps (pathfinding, which creatures and bots need to move well), in the version this server is built for. It's a 1.2 GB download that unpacks to 3.2 GB, and it doesn't need your client. The app checks the file is the right one before unpacking it. If the download stops, the button carries on from where it got to. CI tests every build on this same data: it starts the world server on it and takes a character into the world.
+   - **On the phone, from your client:** **Pick folder** (your 3.3.5a folder, the one with `Wow.exe` and `Data` in it) or **Pick zip** to add your client. The app copies it (about 17 GB) and checks that `Wow.exe` is 3.3.5.12340. Then **Make server data**: dbc, maps and vmaps take minutes; mmaps an hour or more. It carries on with the app in the background.
+   - **On a Windows PC, from your client:** download **WarcraftServerData-windows.zip** from the same release, unzip it, and drag your client's folder onto `extract-server-data.bat`. Copy the `server-data.zip` it makes to the phone, then **Import server-data.zip**.
 4. **Accounts**: make an account to log in with (the first one is a game master by default).
 5. **Press start**. Loading the world takes a few minutes on a phone; the panel says when the realm is online.
 
 After that, opening the app checks for an update, then starts the realm.
 
-Copy files onto the phone before picking them: files in cloud folders can't be read this way. Leave about 25 GB free for the client and the server's data (40 GB with the game in stage 2).
+Copy files onto the phone before picking them: files in cloud folders can't be read this way. The download needs about 5 GB free while it unpacks (3.2 GB after). Leave about 25 GB free for the client and the server's data (40 GB with the game in stage 2).
 
 ## Playing from a PC (stage 1)
 
@@ -41,10 +43,12 @@ Start `Wow.exe` and log in with an account made in the app. The realm is **Chrom
 
 ## The launcher
 
+The launcher plays Wrath of the Lich King's main title theme, looping, while it's on screen. It fades in when the launcher opens and pauses when you leave the app, when another app plays sound, or during a call. The note at the top right of the picture turns it off and on, and the app remembers the choice. Once the game starts (stage 2), the music stops.
+
 | Tile | What it does |
 | --- | --- |
 | **Server** | How the server is (each step while it starts), Start and Stop, its logs (world, login, database, setup), the address for a PC, battery restrictions, and **Delete the databases** to start over. |
-| **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, making them on the phone, importing them from a PC. |
+| **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them. Needs the server running. |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
 | **Updates** | Checks for a newer version and installs it. |
@@ -76,18 +80,20 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | Path | Contents |
 | --- | --- |
 | `server-version.env` | The core (ChromieCraft's copy of AzerothCore), the playerbots fork's core, the modules, each at a pinned commit |
+| `server-data.env` | The server data the app downloads: AzerothCore's [client-data](https://github.com/wowgaming/client-data) release that the pinned core uses itself, with its size and SHA-256 |
 | `patches/azerothcore/` | Changes to the core (building on musl) |
 | `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules |
 | `../scripts/build-azerothcore.sh` | Builds it all in an Alpine (musl) container and packs `android/server/server.tar.xz` (git-ignored): the programs with their own musl loader and libraries, Alpine's MariaDB, the SQL, the configs and a seed database folder |
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
-| `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server up to the client data |
+| `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
 | `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset |
 | `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version, zip layouts, updates |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
+| `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
 | `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
 
-CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners (hours; cached by its inputs, so a change to the app alone reuses it), tests it, builds the Windows tools, runs the unit tests, builds the APK and publishes the release with the Windows tools.
+CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners (hours; cached by its inputs, so a change to the app alone reuses it), downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, builds the APK and publishes the release with the Windows tools.
 
 Local builds:
 
@@ -95,6 +101,8 @@ Local builds:
 # The server, for this machine's architecture (arm64 on an arm64 machine), in Docker:
 scripts/build-azerothcore.sh
 scripts/test-warcraft-server.sh
+# ...with the server data, all the way into the world (data.zip from server-data.env's URL):
+WOW_DATA_ZIP=/path/to/data.zip scripts/test-warcraft-server.sh
 # The app (copy server.tar.xz from a release build into warcraft/android/server/ to include it):
 cd warcraft/android
 ./gradlew --init-script ../../scripts/maven-mirror.init.gradle assembleRelease \
@@ -108,4 +116,4 @@ The app targets Android SDK 28, as Termux and Winlator do: Android lets apps tha
 
 ## License
 
-The app's code is GPLv3. AzerothCore and mod-playerbots are GPLv2; mod-progression-system, mod-zone-difficulty and mod-chromie-xp are AGPLv3; ChromieCraft's SmartStone and hoard collector modules are MIT (the talent template module's repository has no license file). MariaDB is GPLv2, musl MIT; the other libraries in the server package are under their Alpine packages' licenses. Cinzel and Jost are under the SIL Open Font License (`fonts/`). World of Warcraft and its art belong to Blizzard Entertainment; the client is yours and isn't part of the app. Playing on a private server is against Blizzard's terms of use. This project isn't affiliated with Blizzard, ChromieCraft, AzerothCore, the playerbots project, or MariaDB.
+The app's code is GPLv3. AzerothCore and mod-playerbots are GPLv2; mod-progression-system, mod-zone-difficulty and mod-chromie-xp are AGPLv3; ChromieCraft's SmartStone and hoard collector modules are MIT (the talent template module's repository has no license file). MariaDB is GPLv2, musl MIT; the other libraries in the server package are under their Alpine packages' licenses. Cinzel and Jost are under the SIL Open Font License (`fonts/`). World of Warcraft, its art and its music belong to Blizzard Entertainment; the client is yours and isn't part of the app. The server data the app downloads is made from the game's files by the AzerothCore project and published by it. Playing on a private server is against Blizzard's terms of use. This project isn't affiliated with Blizzard, ChromieCraft, AzerothCore, the playerbots project, or MariaDB.

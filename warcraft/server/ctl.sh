@@ -27,6 +27,8 @@ DB_USER=acore
 DB_PASS=acore
 export HOME="$FILES" TMPDIR="$RUN/tmp"
 export AC_DISABLE_INTERACTIVE=1
+# OpenSSL's legacy provider (RC4, for the game's packet headers), shipped with the server.
+export OPENSSL_MODULES="$SERVER/lib/ossl-modules"
 
 # Sets `Key = value` in a config file, adding the line if the file doesn't have the key.
 setkey() {

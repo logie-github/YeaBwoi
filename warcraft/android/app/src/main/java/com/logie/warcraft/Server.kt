@@ -244,7 +244,8 @@ object Server {
         stepProcess = null
         world?.let { process ->
             if (process.isAlive) {
-                worldCommand("server shutdown 0")
+                // In a second: the command refuses 0.
+                worldCommand("server shutdown 1")
                 if (!process.waitFor(90, TimeUnit.SECONDS)) process.destroy()
                 if (!process.waitFor(15, TimeUnit.SECONDS)) process.destroyForcibly()
             }

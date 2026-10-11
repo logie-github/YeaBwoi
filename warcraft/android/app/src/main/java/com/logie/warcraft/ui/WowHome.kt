@@ -39,10 +39,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.SystemUpdate
@@ -61,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -85,6 +89,7 @@ import com.logie.warcraft.R
 import com.logie.warcraft.Server
 import com.logie.warcraft.ServerPackage
 import com.logie.warcraft.ServerService
+import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowFiles
 import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
@@ -345,6 +350,34 @@ private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
                     scaleY = scale
                 },
         )
+        MusicSwitch(
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(10.dp)
+                .graphicsLayer { alpha = reveal.value }
+        )
+    }
+}
+
+/** The launcher music's switch: a note, crossed out while it's off. */
+@Composable
+private fun MusicSwitch(modifier: Modifier) {
+    val context = LocalContext.current
+    val on by TitleMusic.on.collectAsState()
+    Box(
+        modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(WowColors.Abyss.copy(alpha = 0.45f))
+            .clickable { TitleMusic.setOn(context, !on) },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (on) Icons.Default.MusicNote else Icons.Default.MusicOff,
+            contentDescription = stringResource(if (on) R.string.wow_music_turn_off else R.string.wow_music_turn_on),
+            tint = if (on) WowColors.Ice else WowColors.Mist,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 
@@ -441,6 +474,10 @@ private fun ImportPanel(state: Imports.State.Working, onOpen: () -> Unit) {
 @Composable
 fun importTitle(state: Imports.State.Working): String = when (state.kind) {
     Imports.Kind.CLIENT -> stringResource(R.string.wow_import_client_progress, ((state.progress ?: 0f) * 100).toInt())
+    Imports.Kind.DOWNLOAD -> stringResource(
+        if (state.part <= 1) R.string.wow_download_progress else R.string.wow_download_unpack_progress,
+        ((state.progress ?: 0f) * 100).toInt(),
+    )
     Imports.Kind.SERVER_DATA -> stringResource(R.string.wow_data_import_progress, ((state.progress ?: 0f) * 100).toInt())
     Imports.Kind.EXTRACT -> stringResource(R.string.wow_extract_progress, state.part, state.parts)
 }
