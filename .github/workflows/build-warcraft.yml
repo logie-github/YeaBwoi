@@ -6,7 +6,7 @@ name: Build World of Warcraft
 # ships the server. Publishes the app and the Windows tools as a release (wow-build-N).
 #
 # The server takes hours to compile, so its package is cached by everything that goes into it
-# (warcraft/server-version.env, warcraft/server/, the build scripts): a change to the app alone
+# (warcraft/server-version.env, ctl.sh, the patches, the build scripts): a change to the app alone
 # reuses it.
 on:
   push:
@@ -46,7 +46,7 @@ jobs:
       - name: Cache key
         id: key
         run: |
-          key="warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/**', 'warcraft/patches/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}"
+          key="warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/patches/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
