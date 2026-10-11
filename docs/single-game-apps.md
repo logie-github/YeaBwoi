@@ -238,3 +238,8 @@ The user can't debug: report only what was checked, and say what wasn't.
   launcher script costs the whole compile. ccache only caches files built with precompiled headers
   with `CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime`; without
   it, AzerothCore's rebuild took 33 minutes with a full cache.
+- Publishing: from one build to the next, GitHub refused `gh release create --target <sha>` (HTTP
+  403, "Resource not accessible by integration") with the same `contents: write` token that had
+  published before. Creating the tag first through the git refs API (`gh api -X POST
+  repos/<repo>/git/refs`) and then the release with `--verify-tag` works
+  (`.github/workflows/build-warcraft.yml`).
