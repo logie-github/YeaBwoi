@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-"""Makes stand-in DBC files for CI, which can't have the client's: every table the world server
-loads, empty, in the layout AzerothCore expects, except for the one row of each that its version
-check looks for. They let the world server start up all the way in CI (its "ready" line) with no
-real game data, which tests the server's programs, modules and database, not the game.
+"""Makes stand-in client data for CI, which can't have the client's:
 
-    fake_dbc.py SOURCE OUT_DIR
+- dbc/: every table the world server loads, empty, in the layout AzerothCore expects, except for
+  the one row of each that its version check looks for;
+- maps/: a header-only map file for every grid of the continents (the world server checks that the
+  starting zones' map files exist; with vmaps switched off it doesn't open them further).
 
-SOURCE is the AzerothCore source (for DBCfmt.h and DBCStores.cpp); the files go in OUT_DIR/dbc.
+They let the world server start up all the way in CI (its "ready" line) with no real game data,
+which tests the server's programs, scripts, modules and databases, not the game.
+
+    fake_client_data.py SOURCE OUT_DIR
+
+SOURCE is the AzerothCore source (for DBCfmt.h, DBCStores.cpp and the map file version).
 """
 import os
 import re
@@ -57,6 +62,21 @@ def main():
                 f.write(row)
             f.write(strings)
     print(f"{len(files)} stand-in DBC files in {out}")
+
+    # Map files: just the header (magic, version, build; every part empty).
+    with open(os.path.join(source, "src/server/game/Grids/GridTerrainData.h")) as f:
+        version = int(re.search(r"MapVersionMagic\s*=\s*(\d+)", f.read()).group(1))
+    maps = os.path.join(sys.argv[2], "maps")
+    os.makedirs(maps, exist_ok=True)
+    header = b"MAPS" + struct.pack("<10I", version, 12340, 0, 0, 0, 0, 0, 0, 0, 0)
+    count = 0
+    for map_id in (0, 1, 530, 571):
+        for x in range(64):
+            for y in range(64):
+                with open(os.path.join(maps, f"{map_id:03}{x:02}{y:02}.map"), "wb") as f:
+                    f.write(header)
+                count += 1
+    print(f"{count} stand-in map files in {maps}")
 
 
 if __name__ == "__main__":

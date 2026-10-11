@@ -11,6 +11,9 @@
 #   4. The world server loads its configs and modules and updates the databases (including the
 #      first ChromieCraft progression brackets), then stops where it needs the client's data
 #      (dbc), which only the phone has.
+#   5. With stand-in dbc files, the world server starts up all the way, to its ready line, and
+#      shuts down from its console.
+#   6. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -55,6 +58,7 @@ trap cleanup EXIT
 fail() {
 	echo "FAILED: $*" >&2
 	for log in "$FILES"/logs/*; do
+		[ -f "$log" ] || continue
 		echo "--- $log" >&2
 		tail -40 "$log" >&2
 	done
@@ -124,6 +128,42 @@ echo "progression updates applied: $progression"
 grep -qi "dbc" "$FILES/logs/world.out" || fail "the world server stopped before reaching the client data"
 tail -5 "$FILES/logs/world.out"
 echo "The world server got as far as the client data (dbc), which CI doesn't have."
+
+echo "== world server, on stand-in client data"
+# Stand-in data (warcraft/server/fake_client_data.py): dbc files with every table the world server
+# loads, empty but for the rows its version check looks for, and header-only map files. The world
+# server starts up all the way on them, which tests its programs, scripts, modules and databases;
+# the game's own data doesn't come into it. No vmaps or mmaps, as the app sets it up without them.
+src="$ROOT/build/azerothcore"
+[ -f "$src/src/server/shared/DataStores/DBCfmt.h" ] || sh "$ROOT/scripts/fetch-azerothcore.sh" "$src" > /dev/null
+python3 -I "$ROOT/warcraft/server/fake_client_data.py" "$src" "$FILES/data"
+sed -i 's/^vmap.enableLOS .*/vmap.enableLOS = 0/; s/^vmap.enableHeight .*/vmap.enableHeight = 0/; s/^vmap.enableIndoorCheck .*/vmap.enableIndoorCheck = 0/; s/^MoveMaps.Enable .*/MoveMaps.Enable = 0/' \
+	"$FILES/etc/worldserver.conf"
+rm -f "$FILES/run/world.in"
+mkfifo "$FILES/run/world.in"
+CTL world < "$FILES/run/world.in" > "$FILES/logs/world-ready.out" 2>&1 & pids+=($!)
+world=$!
+exec 3> "$FILES/run/world.in"
+start=$(date +%s)
+ready=""
+for _ in $(seq 900); do
+	if grep -q "(worldserver-daemon) ready" "$FILES/logs/world-ready.out"; then
+		ready=1
+		break
+	fi
+	kill -0 "$world" 2> /dev/null || break
+	sleep 1
+done
+[ -n "$ready" ] || fail "the world server didn't get to its ready line"
+echo "The world server is ready after $(($(date +%s) - start)) s:"
+grep "ready" "$FILES/logs/world-ready.out" | tail -1
+sleep 5
+# Its console, the way the app stops it.
+echo "server shutdown 0" >&3
+for _ in $(seq 120); do kill -0 "$world" 2> /dev/null || break; sleep 1; done
+kill -0 "$world" 2> /dev/null && fail "the world server didn't shut down from its console"
+exec 3>&-
+echo "The world server shut down from its console."
 
 CTL db-stop
 wait "${pids[0]}" 2> /dev/null || true

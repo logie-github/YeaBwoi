@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Android's seccomp policy for arm64 apps, from android-seccomp/ (AOSP bionic's lists).
+"""Android's seccomp policy for apps on this machine's architecture (arm64, as on the phone, or
+x86_64), from android-seccomp/ (AOSP bionic's lists).
 
     seccomp_check.py filter         strace's -e trace= list: every call apps may not make, and
                                     the calls that start processes (to know which are the server's)
@@ -13,11 +14,13 @@ ctl.sh there (on the phone it's Android's), so calls before a process runs one o
 programs don't count.
 """
 import os
+import platform
 import re
 import sys
 
 HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "android-seccomp")
-ARCH = {"all", "lp64", "arm64"}
+# The phone is arm64; on an x86_64 test machine, Android's x86_64 policy (same idea, x86 names).
+ARCH = {"all", "lp64", "x86_64" if platform.machine() == "x86_64" else "arm64"}
 
 
 def names(filename):
