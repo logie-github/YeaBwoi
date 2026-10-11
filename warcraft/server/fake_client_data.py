@@ -2,7 +2,8 @@
 """Makes stand-in client data for CI, which can't have the client's:
 
 - dbc/: every table the world server loads, empty, in the layout AzerothCore expects, except for
-  the one row of each that its version check looks for;
+  the one row of each that its version check looks for, and one placeholder row in the tables
+  without an id column (which count their records);
 - maps/: a header-only map file for every grid of the continents (the world server checks that the
   starting zones' map files exist; with vmaps switched off it doesn't open them further).
 
@@ -47,7 +48,20 @@ def main():
         fmt = formats[stores[store]]
         record = sum(field_size(c) for c in fmt)
         rows = []
-        if name in VERSION_ROWS:
+        strings = b"\0"
+        if "n" not in fmt and "d" not in fmt:
+            # A table without an id column counts its records, and none reads as a missing file:
+            # one record, its texts a name nobody types (NamesReserved and NamesProfanity are
+            # patterns names are checked against).
+            strings = b"\0^stand-in$\0"
+            row = bytearray(record)
+            offset = 0
+            for c in fmt:
+                if c == "s":
+                    row[offset:offset + 4] = struct.pack("<I", 1)
+                offset += field_size(c)
+            rows.append(bytes(row))
+        elif name in VERSION_ROWS:
             index = fmt.find("n")
             if index < 0:
                 index = 0
@@ -55,7 +69,6 @@ def main():
             row = bytearray(record)
             row[offset:offset + 4] = struct.pack("<I", VERSION_ROWS[name])
             rows.append(bytes(row))
-        strings = b"\0"
         with open(os.path.join(out, name), "wb") as f:
             f.write(b"WDBC" + struct.pack("<4I", len(rows), len(fmt), record, len(strings)))
             for row in rows:
