@@ -1,0 +1,196 @@
+name: Build World of Warcraft
+
+# Builds the World of Warcraft app: its private server (AzerothCore at ChromieCraft's revision with
+# playerbots, and MariaDB) for Linux arm64, tested here the way the phone runs it; AzerothCore's
+# data tools for Windows (to make the server's data from the client on a PC); and the app, which
+# ships the server. Publishes the app and the Windows tools as a release (wow-build-N).
+#
+# The server takes hours to compile, so its package is cached by everything that goes into it
+# (warcraft/server-version.env, warcraft/server/, the build scripts): a change to the app alone
+# reuses it.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "warcraft/**"
+      - "!warcraft/branding/**"
+      - "!warcraft/**.md"
+      - "scripts/build-azerothcore.sh"
+      - "scripts/fetch-azerothcore.sh"
+      - "scripts/test-warcraft-server.sh"
+      - ".github/workflows/build-warcraft.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: warcraft-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WOW_VERSION_NAME: 1.0.${{ github.run_number }}
+  SERVER_KEY: warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}
+  TOOLS_KEY: warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'scripts/fetch-azerothcore.sh') }}
+
+jobs:
+  server:
+    name: Server for arm64 (build and test)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Look for the server package
+        id: cached
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: ${{ env.SERVER_KEY }}
+
+      - name: Restore the compiler cache
+        if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/ccache
+          key: warcraft-ccache-arm64-${{ github.run_id }}
+          restore-keys: warcraft-ccache-arm64-
+
+      - name: Build the server
+        if: steps.cached.outputs.cache-hit != 'true'
+        run: |
+          scripts/build-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build warcraft/android/server
+
+      - name: Save the compiler cache
+        if: always() && steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/ccache
+          key: warcraft-ccache-arm64-${{ github.run_id }}
+
+      # MariaDB, the database import, the auth server (a real login) and the world server up to the
+      # client data, from the package as the phone unpacks it.
+      - name: Test the server
+        if: steps.cached.outputs.cache-hit != 'true'
+        run: scripts/test-warcraft-server.sh
+
+      - name: Save the server package
+        if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: ${{ env.SERVER_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server
+          path: warcraft/android/server/server.tar.xz
+          compression-level: 0
+          retention-days: 7
+
+  windows-tools:
+    name: Data tools for Windows
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Look for the tools
+        id: cached
+        uses: actions/cache/restore@v4
+        with:
+          path: dist/WarcraftServerData-windows.zip
+          key: ${{ env.TOOLS_KEY }}
+
+      # Boost and the MySQL client headers (AzerothCore's build wants them even for the tools), the
+      # way the playerbots fork's own Windows CI gets them.
+      - name: Install Boost and MySQL
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $boostExe = Join-Path $env:RUNNER_TEMP 'boost.exe'
+          $boostUrl = 'https://downloads.sourceforge.net/project/boost/boost-binaries/1.87.0/boost_1_87_0-msvc-14.3-64.exe'
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $boostUrl -OutFile $boostExe -UserAgent 'azerothcore-ci' -ConnectionTimeoutSeconds 60 -OperationTimeoutSeconds 60
+              if ((Get-Item $boostExe).Length / 1MB -lt 50) { throw 'got an HTML page' }
+              break
+            } catch {
+              Write-Host "Boost download attempt $attempt failed: $($_.Exception.Message)"
+              if ($attempt -eq 3) { throw }
+              Start-Sleep -Seconds 15
+            }
+          }
+          $p = Start-Process -FilePath $boostExe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/DIR=C:\local\boost_1_87_0' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Boost installer failed: $($p.ExitCode)" }
+          $mysqlZip = Join-Path $env:RUNNER_TEMP 'mysql.zip'
+          Invoke-WebRequest -Uri 'https://cdn.mysql.com/archives/mysql-8.4/mysql-8.4.9-winx64.zip' -OutFile $mysqlZip -UserAgent 'Mozilla/5.0'
+          New-Item -ItemType Directory -Force -Path 'C:\tools\mysql' | Out-Null
+          Expand-Archive -Path $mysqlZip -DestinationPath 'C:\tools\mysql' -Force
+          Rename-Item 'C:\tools\mysql\mysql-8.4.9-winx64' 'C:\tools\mysql\current'
+          $openssl = @($env:OPENSSL_ROOT_DIR, 'C:\Program Files\OpenSSL', 'C:\Program Files\OpenSSL-Win64') |
+            Where-Object { $_ -and (Test-Path (Join-Path $_ 'include\openssl\opensslv.h')) } | Select-Object -First 1
+          if (-not $openssl) { throw 'No OpenSSL on the runner' }
+          "OPENSSL_ROOT_DIR=$openssl" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Get the server source
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: bash
+        run: sh scripts/fetch-azerothcore.sh "$PWD/build/azerothcore"
+
+      - name: Build the tools
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          BOOST_ROOT: C:\local\boost_1_87_0
+        run: |
+          cmake -S build/azerothcore -B build/ac-windows -A x64 \
+            -DAPPS_BUILD=none -DTOOLS_BUILD=maps-only -DSCRIPTS=none -DMODULES=none \
+            -DWITH_WARNINGS=0 -DUSE_COREPCH=1 -DBOOST_ROOT="$BOOST_ROOT"
+          cmake --build build/ac-windows --config Release --parallel
+
+      - name: Pack the tools
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = 'dist\WarcraftServerData'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          foreach ($tool in 'map_extractor','vmap4_extractor','vmap4_assembler','mmaps_generator') {
+            $exe = Get-ChildItem -Path build\ac-windows -Recurse -Filter "$tool.exe" | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+            if (-not $exe) { throw "$tool.exe wasn't built" }
+            Copy-Item $exe.FullName $out
+          }
+          # The DLLs they load: OpenSSL's, MySQL's and the Visual C++ runtime, found by name.
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem -Path "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1
+          $crt = Get-ChildItem -Path "$vs\VC\Redist\MSVC" -Recurse -Directory -Filter 'Microsoft.VC*.CRT' | Where-Object { $_.FullName -match '\\x64\\' -and $_.FullName -notmatch 'onecore|debug' } | Select-Object -First 1
+          $search = @("$env:OPENSSL_ROOT_DIR\bin", "$env:OPENSSL_ROOT_DIR", 'C:\tools\mysql\current\lib', 'C:\tools\mysql\current\bin', $crt.FullName)
+          $needed = foreach ($exe in Get-ChildItem "$out\*.exe") {
+            & $dumpbin.FullName /dependents $exe.FullName | Select-String -Pattern '^\s+(\S+\.dll)\s*$' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          }
+          foreach ($dll in ($needed | Sort-Object -Unique)) {
+            $found = $search | Where-Object { $_ -and (Test-Path (Join-Path $_ $dll)) } | Select-Object -First 1
+            if ($found) { Copy-Item (Join-Path $found $dll) $out; Write-Host "bundled $dll" } else { Write-Host "system $dll" }
+          }
+          Copy-Item build\azerothcore\src\tools\mmaps_generator\mmaps-config.yaml $out
+          Copy-Item warcraft\windows\extract-server-data.bat $out
+          Copy-Item warcraft\windows\README.txt $out
+          Get-ChildItem $out
+          Compress-Archive -Path "$out\*" -DestinationPath dist\WarcraftServerData-windows.zip
+
+      - name: Save the tools
+        if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dist/WarcraftServerData-windows.zip
+          key: ${{ env.TOOLS_KEY }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-tools
+          path: dist/WarcraftServerData-windows.zip
+          compression-level: 0
+          retention-days: 7
