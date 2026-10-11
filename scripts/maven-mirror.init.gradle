@@ -1,0 +1,9 @@
+// Local builds only: Maven Central rate-limits this machine, so use Google's mirror of it first.
+def mirror = "https://maven-central.storage-download.googleapis.com/maven2/"
+settingsEvaluated { settings ->
+    [settings.pluginManagement.repositories, settings.dependencyResolutionManagement.repositories].each { repos ->
+        def repo = repos.maven { url = mirror; name = "centralMirror" }
+        repos.remove(repo)
+        repos.addFirst(repo)
+    }
+}
