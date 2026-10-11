@@ -78,12 +78,7 @@ jobs:
           path: build/ccache
           key: warcraft-ccache-arm64-${{ github.run_id }}
 
-      # MariaDB, the database import, the auth server (a real login) and the world server up to the
-      # client data, from the package as the phone unpacks it.
-      - name: Test the server
-        if: steps.cached.outputs.cache-hit != 'true'
-        run: scripts/test-warcraft-server.sh
-
+      # Saved before the test, so a fix to the test doesn't rebuild the server.
       - name: Save the server package
         if: steps.cached.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
@@ -91,6 +86,13 @@ jobs:
           path: warcraft/android/server/server.tar.xz
           key: ${{ env.SERVER_KEY }}
 
+      # MariaDB, the database import, the auth server (a real login) and the world server up to the
+      # client data, from the package as the phone unpacks it, with every system call checked
+      # against Android's seccomp policy for apps. Runs on every build, cached package or not.
+      - name: Test the server
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
+          scripts/test-warcraft-server.sh
 
   windows-tools:
     name: Data tools for Windows

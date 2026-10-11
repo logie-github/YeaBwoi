@@ -1,0 +1,111 @@
+<p align="center">
+  <img src="branding/logo.png" height="110" alt="World of Warcraft: Wrath of the Lich King logo">
+</p>
+
+# World of Warcraft
+
+An Android app for **World of Warcraft: Wrath of the Lich King 3.3.5a** with its own private realm on the phone: a [ChromieCraft](https://www.chromiecraft.com/)-style [AzerothCore](https://www.azerothcore.org/) server with [playerbots](https://github.com/mod-playerbots/mod-playerbots), running natively on the phone's arm64 processor next to its MariaDB database. The launcher is styled after Wrath's Northrend: the Lich King before Icecrown Citadel with snow drifting across, the logo, and frost-blue panels with gold corners.
+
+It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, this version:** the launcher and the server. The realm runs on the phone and you can play on it from a PC's 3.3.5a client on the same Wi-Fi. **Stage 2:** the game itself in the app (Wine, Box64 and the phone's GPU, as Winlator does), straight to its login screen, with touch gestures. **Stage 3:** every server option in the launcher (progression brackets, rates, realm settings), bot management, add-ons, controls and graphics settings.
+
+| | |
+| --- | --- |
+| Package | `com.logie.warcraft` |
+| Releases | **World of Warcraft 1.0.N**, tags `wow-build-N` (**Actions → Build World of Warcraft**) |
+| Server | AzerothCore at the revision ChromieCraft runs, with the playerbots fork's core changes merged in, ChromieCraft's modules and mod-playerbots, built for Linux arm64 (musl) from the commits in `server-version.env` |
+| Client | Yours: World of Warcraft 3.3.5a (build 12340), enUS. Never part of the app. |
+
+## First launch
+
+1. Install the APK from the release page on the phone.
+2. Open the app. The first **Press start** unpacks the server and creates its databases (a few minutes, once), then starts the login server. The world server waits for the server's data.
+3. Make the server's data from your client, once (**Game files**). Either:
+   - **On the phone:** **Pick folder** (your 3.3.5a folder, the one with `Wow.exe` and `Data` in it) or **Pick zip** to add your client. The app copies it (about 17 GB) and checks that `Wow.exe` is 3.3.5.12340. Then **Make server data**: dbc, maps and vmaps take minutes; mmaps (pathfinding, which creatures and bots need to move well) an hour or more. It carries on with the app in the background.
+   - **On a Windows PC (faster):** download **WarcraftServerData-windows.zip** from the same release, unzip it, and drag your client's folder onto `extract-server-data.bat`. Copy the `server-data.zip` it makes to the phone, then **Import server-data.zip**.
+4. **Accounts**: make an account to log in with (the first one is a game master by default).
+5. **Press start**. Loading the world takes a few minutes on a phone; the panel says when the realm is online.
+
+After that, opening the app checks for an update, then starts the realm.
+
+Copy files onto the phone before picking them: files in cloud folders can't be read this way. Leave about 25 GB free for the client and the server's data (40 GB with the game in stage 2).
+
+## Playing from a PC (stage 1)
+
+On a PC on the same Wi-Fi as the phone, in the client's folder, open `Data\enUS\realmlist.wtf` and set its line to the address the app shows under **From a PC on this Wi-Fi** (also in **Server**):
+
+```
+set realmlist 192.168.1.42
+```
+
+Start `Wow.exe` and log in with an account made in the app. The realm is **ChromieCraft**. The phone has to stay on the Wi-Fi with the server running; the server keeps going with the screen off.
+
+## The launcher
+
+| Tile | What it does |
+| --- | --- |
+| **Server** | How the server is (each step while it starts), Start and Stop, its logs (world, login, database, setup), the address for a PC, battery restrictions, and **Delete the databases** to start over. |
+| **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, making them on the phone, importing them from a PC. |
+| **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them. Needs the server running. |
+| **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
+| **Updates** | Checks for a newer version and installs it. |
+
+While the server runs, Android shows a notification for it, with **Stop**.
+
+## The server
+
+ChromieCraft runs a progressive realm: content opens bracket by bracket, as the original game did. The server starts the way ChromieCraft did, with the first brackets (`Bracket_0` and `Bracket_1_19`) on, at blizzlike rates. The playerbots module starts with 50 random bots (its own default is 500, too many for a phone), which only run while someone is logged in. Changing brackets, rates, realm options and bots in the launcher comes in stage 3; until then they're in the configs (`files/etc/worldserver.conf`, `files/etc/modules/*.conf`), and a game master can use the GM commands in the game's chat (`.help`).
+
+Modules: [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots), [mod-progression-system](https://github.com/azerothcore/mod-progression-system), [mod-zone-difficulty](https://github.com/azerothcore/mod-zone-difficulty), [mod-chromie-xp](https://github.com/azerothcore/mod-chromie-xp), and from ChromieCraft's own: [mod-chromiecraft-smartstone](https://github.com/chromiecraft/mod-chromiecraft-smartstone), [mod-hoard-collector](https://github.com/chromiecraft/mod-hoard-collector), [mod-npc-talent-template](https://github.com/chromiecraft/mod-npc-talent-template). ChromieCraft's staff-only modules (GM command presets, contributor bonuses, support tools, the test realm's changes) are left out.
+
+How it runs: MariaDB listens on 127.0.0.1 only (port 3310); the login server on port 3724 and the world server on 8085, reachable from the Wi-Fi. The realm list gives the phone's own client 127.0.0.1 and a PC the phone's Wi-Fi address.
+
+If Android stops the server with the screen off: in **Server**, **Allow** the app to run without battery restrictions. On Android 14 and later, Developer options also have **Disable child process restrictions**, for phones that still stop it.
+
+The server only runs for the phone's main user (its programs are built for the app's folder there), not in a second user or a work profile.
+
+## Saves
+
+Accounts, characters and the world are in MariaDB's databases in the app's storage (`files/mysql`). They stay through updates of the app; the server applies the new version's database updates when it starts. **Delete the databases** (in **Server**) starts over with new ones. Uninstalling the app deletes everything, your client copy included.
+
+## Updates
+
+Like the other apps: the app checks this repository's releases (`wow-build-N`) when it opens and from **Updates**, stops the server, and installs over itself. A private repository needs the `DOLPHINXD_UPDATE_TOKEN` secret (see the main README). It's signed with the same key as the other apps.
+
+## How it's built
+
+| Path | Contents |
+| --- | --- |
+| `server-version.env` | The core (ChromieCraft's copy of AzerothCore), the playerbots fork's core, the modules, each at a pinned commit |
+| `patches/azerothcore/` | Changes to the core (building on musl) |
+| `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules |
+| `../scripts/build-azerothcore.sh` | Builds it all in an Alpine (musl) container and packs `android/server/server.tar.xz` (git-ignored): the programs with their own musl loader and libraries, Alpine's MariaDB, the SQL, the configs and a seed database folder |
+| `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
+| `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server up to the client data |
+| `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
+| `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset |
+| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version, zip layouts, updates |
+| `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
+| `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
+
+CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners (hours; cached by its inputs, so a change to the app alone reuses it), tests it, builds the Windows tools, runs the unit tests, builds the APK and publishes the release with the Windows tools.
+
+Local builds:
+
+```sh
+# The server, for this machine's architecture (arm64 on an arm64 machine), in Docker:
+scripts/build-azerothcore.sh
+scripts/test-warcraft-server.sh
+# The app (copy server.tar.xz from a release build into warcraft/android/server/ to include it):
+cd warcraft/android
+./gradlew --init-script ../../scripts/maven-mirror.init.gradle assembleRelease \
+  -PwowVersionCode=1 -PwowVersionName=1.0.1 -Pkeystore="$PWD/../../ci/dolphinxd-ci.p12" \
+  -Pstorepass=dolphinxd -Pkeyalias=dolphinxd -Pkeypass=dolphinxd
+# Unit tests:
+gradle -p warcraft/unit-tests test
+```
+
+The app targets Android SDK 28, as Termux and Winlator do: Android lets apps that target 28 or lower run programs from their own storage, where the server runs.
+
+## License
+
+The app's code is GPLv3. AzerothCore and mod-playerbots are GPLv2; mod-progression-system, mod-zone-difficulty and mod-chromie-xp are AGPLv3; ChromieCraft's SmartStone and hoard collector modules are MIT (the talent template module's repository has no license file). MariaDB is GPLv2, musl MIT; the other libraries in the server package are under their Alpine packages' licenses. Cinzel and Jost are under the SIL Open Font License (`fonts/`). World of Warcraft and its art belong to Blizzard Entertainment; the client is yours and isn't part of the app. Playing on a private server is against Blizzard's terms of use. This project isn't affiliated with Blizzard, ChromieCraft, AzerothCore, the playerbots project, or MariaDB.

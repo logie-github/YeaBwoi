@@ -188,6 +188,8 @@ fun WowWindow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     padding: PaddingValues = PaddingValues(16.dp),
+    /** Solid, for dialogs over the screen; see-through panels show the backdrop. */
+    opaque: Boolean = false,
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -202,7 +204,8 @@ fun WowWindow(
         modifier
             .graphicsLayer { alpha = if (enabled) 1f else 0.42f }
             .drawBehind {
-                drawRect(Brush.verticalGradient(listOf(WowColors.Deep.copy(alpha = 0.84f), WowColors.Night.copy(alpha = 0.92f))))
+                val see = if (opaque) 1f else 0.84f
+                drawRect(Brush.verticalGradient(listOf(WowColors.Deep.copy(alpha = see), WowColors.Night.copy(alpha = maxOf(see, 0.92f)))))
                 if (lit > 0f) {
                     drawRect(Brush.radialGradient(listOf(WowColors.Ice.copy(alpha = 0.22f * lit), Color.Transparent)))
                 }

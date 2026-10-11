@@ -209,3 +209,13 @@ The user can't debug: report only what was checked, and say what wasn't.
   and a wake lock) and report progress, so leaving the app doesn't stop them.
 - Android only executes files from the app's native library folder (W^X): ship executables as
   `lib<name>.so` in `jniLibs`, or target an older SDK the way Termux and Winlator do.
+- Programs that aren't emulator libraries (the World of Warcraft app's server) are built for Linux
+  arm64 on musl in an Alpine container, each with its own loader as interpreter
+  (`/data/data/<package>/files/...`, as Termux does) and `$ORIGIN/../lib` libraries, and the app
+  targets SDK 28 to run them from its storage. Android kills a process that makes a system call
+  outside its app seccomp policy: CI checks every call against bionic's lists
+  (`warcraft/server/seccomp_check.py`). glibc programs make such calls (`rseq`,
+  `set_robust_list`); musl ones don't.
+- GitHub's arm64 runners (`ubuntu-24.04-arm`) work for this private repository; builds that take
+  hours are cached by their inputs (`actions/cache`), and jobs hand files on through the cache:
+  the account's artifact storage is full. Caches saved on Windows need `enableCrossOsArchive`.
