@@ -5,7 +5,7 @@ name: Build APKs
 on:
   push:
     branches: ["**"]
-    # V3 Gold (v3gold/) and Azure Dreams (azuredreams/) have their own workflows.
+    # V3 Gold, Azure Dreams, Parasite Eve and (later) World of Warcraft have their own workflows.
     paths-ignore:
       - "**.md"
       - "games/*/branding/**"
@@ -19,6 +19,9 @@ on:
       - ".github/workflows/build-azuredreams.yml"
       - "parasiteeve/**"
       - ".github/workflows/build-parasiteeve.yml"
+      - "warcraft/**"
+      - "docs/**"
+      - "scripts/maven-mirror.init.gradle"
       - ".gitattributes"
   pull_request:
   workflow_dispatch:
