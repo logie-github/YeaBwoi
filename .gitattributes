@@ -1,2 +1,4 @@
 # Some of Vita3K's files have Windows line endings; the patches must keep them byte for byte.
 v3gold/patches/*.patch -text
+# The Windows tools' batch file and notes keep Windows line endings.
+warcraft/windows/* -text
