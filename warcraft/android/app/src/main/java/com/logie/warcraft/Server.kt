@@ -149,6 +149,7 @@ object Server {
             }
 
             step(Step.CONFIGURING)
+            endLeftovers(context)
             runToEnd(context, "configure", log = File(WowFiles.logs(context).also { it.mkdirs() }, "configure.log"))
             applySettings(context)
 
@@ -344,6 +345,27 @@ object Server {
             ?.hostAddress
     }.getOrNull()
 
+    /**
+     * Ends server programs left running from before, when Android ended the app without stopping
+     * them (they would hold their ports): those named in the pid files, if they're still the
+     * server's.
+     */
+    private suspend fun endLeftovers(context: Context) = withContext(Dispatchers.IO) {
+        val serverBin = File(WowFiles.server(context), "bin").path
+        val pids = listOf("worldserver.pid", "authserver.pid", "mysqld.pid").mapNotNull { name ->
+            File(WowFiles.run(context), name).takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()
+        }.filter { pid ->
+            runCatching { File("/proc/$pid/cmdline").readText().contains(serverBin) }.getOrDefault(false)
+        }
+        if (pids.isEmpty()) return@withContext
+        for (pid in pids) android.os.Process.sendSignal(pid, 15) // SIGTERM: MariaDB flushes and ends
+        repeat(60) {
+            if (pids.none { File("/proc/$it").exists() }) return@withContext
+            delay(500)
+        }
+        for (pid in pids) if (File("/proc/$pid").exists()) android.os.Process.sendSignal(pid, 9)
+    }
+
     private fun importedMarker(context: Context) = File(WowFiles.databases(context), ".imported")
 
     /** Forgets that the databases are set up, after they were deleted. */
@@ -356,8 +378,21 @@ object Server {
         WowFiles.run(context).mkdirs()
         return ProcessBuilder(listOf("/system/bin/sh", WowFiles.ctl(context).path) + args).apply {
             environment()["FILES"] = WowFiles.root(context).path
+            environment()["TZ"] = posixTimeZone()
             directory(WowFiles.run(context))
         }
+    }
+
+    /**
+     * The phone's time zone for the server's programs, which can't read Android's: as a POSIX
+     * TZ value with today's offset (`<+0200>-02:00` is two hours ahead of UTC, the sign inverted).
+     */
+    fun posixTimeZone(): String {
+        val minutes = java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+        val abs = kotlin.math.abs(minutes)
+        val root = java.util.Locale.ROOT
+        val name = String.format(root, "%s%02d%02d", if (minutes >= 0) "+" else "-", abs / 60, abs % 60)
+        return String.format(root, "<%s>%s%02d:%02d", name, if (minutes >= 0) "-" else "+", abs / 60, abs % 60)
     }
 
     /** Starts a server program with its output going to [log]. */

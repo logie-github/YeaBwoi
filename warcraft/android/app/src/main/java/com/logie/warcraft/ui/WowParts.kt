@@ -181,6 +181,7 @@ fun WowDialog(
                 .widthIn(max = 600.dp)
                 .fillMaxWidth(),
             padding = PaddingValues(20.dp),
+            opaque = true,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 WowTitle(title)

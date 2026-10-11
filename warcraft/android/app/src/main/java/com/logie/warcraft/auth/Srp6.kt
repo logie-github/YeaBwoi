@@ -47,5 +47,12 @@ object Srp6 {
         return out
     }
 
-    fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+    fun hex(bytes: ByteArray): String = buildString(bytes.size * 2) {
+        for (b in bytes) {
+            append(HEX[(b.toInt() shr 4) and 0xF])
+            append(HEX[b.toInt() and 0xF])
+        }
+    }
+
+    private const val HEX = "0123456789abcdef"
 }

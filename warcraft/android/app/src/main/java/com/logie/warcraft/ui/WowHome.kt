@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -191,7 +195,7 @@ data class HomeFacts(
 }
 
 @Composable
-private fun HomeScreen(
+internal fun HomeScreen(
     facts: HomeFacts,
     server: Server.Status,
     imports: Imports.State,
@@ -291,7 +295,9 @@ private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
         reveal.animateTo(1f, tween(1_600, easing = FastOutSlowInEasing))
     }
 
-    Box(Modifier.fillMaxWidth().height(headerHeight + logoHeight * 0.55f)) {
+    // The picture starts under the status bar, which would hide the Lich King's crown.
+    val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.55f)) {
         Box(
             Modifier
                 .fillMaxWidth()
@@ -311,7 +317,7 @@ private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
                         val zoom = 1.03f + 0.05f * drift
                         scaleX = zoom
                         scaleY = zoom
-                        transformOrigin = TransformOrigin(0.33f, 0.3f)
+                        transformOrigin = TransformOrigin(0.33f, 0f)
                         alpha = reveal.value
                     },
             )
@@ -490,9 +496,10 @@ private class HomeTile(val icon: ImageVector, val title: String, val subtitle: S
 private fun TileGrid(tiles: List<HomeTile>, columns: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         tiles.chunked(columns).forEachIndexed { rowIndex, row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Tiles side by side are as tall as the tallest.
+            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEachIndexed { columnIndex, tile ->
-                    TileWindow(tile, rowIndex * columns + columnIndex, Modifier.weight(1f))
+                    TileWindow(tile, rowIndex * columns + columnIndex, Modifier.weight(1f).fillMaxHeight())
                 }
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
