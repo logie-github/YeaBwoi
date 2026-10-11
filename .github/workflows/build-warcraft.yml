@@ -30,8 +30,6 @@ concurrency:
 
 env:
   WOW_VERSION_NAME: 1.0.${{ github.run_number }}
-  SERVER_KEY: warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}
-  TOOLS_KEY: warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'scripts/fetch-azerothcore.sh') }}
 
 jobs:
   server:
@@ -40,6 +38,9 @@ jobs:
     timeout-minutes: 340
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache key
+        run: echo "SERVER_KEY=warcraft-server-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/server/**', 'scripts/build-azerothcore.sh', 'scripts/fetch-azerothcore.sh') }}" >> "$GITHUB_ENV"
 
       - name: Look for the server package
         id: cached
@@ -95,6 +96,10 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache key
+        shell: bash
+        run: echo "TOOLS_KEY=warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'scripts/fetch-azerothcore.sh') }}" >> "$GITHUB_ENV"
 
       - name: Look for the tools
         id: cached
