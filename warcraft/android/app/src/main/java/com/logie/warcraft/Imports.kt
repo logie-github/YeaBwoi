@@ -12,8 +12,12 @@ import com.logie.warcraft.client.DataLayout
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
 /**
@@ -21,6 +25,8 @@ import java.util.zip.ZipInputStream
  *
  * - **The client**: the user's 3.3.5a folder (picked as a folder) or a zip of it, copied into
  *   `files/client`, checked to be build 12340.
+ * - **The server's data, downloaded**: AzerothCore's own (warcraft/server-data.env), unpacked
+ *   into `files/data`.
  * - **The server's data, made on the phone**: AzerothCore's tools run on the imported client.
  * - **The server's data, made on a PC**: the `server-data.zip` the Windows tools make, unpacked into
  *   `files/data`.
@@ -29,14 +35,14 @@ import java.util.zip.ZipInputStream
  * stopped job leaves things as they were.
  */
 object Imports {
-    enum class Kind { CLIENT, EXTRACT, SERVER_DATA }
+    enum class Kind { CLIENT, DOWNLOAD, EXTRACT, SERVER_DATA }
 
     sealed interface State {
         data object Idle : State
 
         data class Working(
             val kind: Kind,
-            /** Which part, for jobs in parts (extracting: 1 to 3), else 0. */
+            /** Which part, for jobs in parts (downloading: 1 to 2, extracting: 1 to 3), else 0. */
             val part: Int = 0,
             val parts: Int = 0,
             val progress: Float? = null,
@@ -133,7 +139,7 @@ object Imports {
         // Unpacked, the client is a little bigger than its zip (the MPQs are compressed already).
         checkSpace(context, (total * 1.1).toLong())
         val staging = staging(context, "client.import")
-        readZip(context, zip, total, onProgress) { name -> name.takeIf { ClientLayout.isSafe(it) }?.let { File(staging, it) } }
+        readZip(context, open(context, zip), total, onProgress) { name -> name.takeIf { ClientLayout.isSafe(it) }?.let { File(staging, it) } }
         val paths = staging.walkTopDown().filter { it.isFile }.map { it.relativeTo(staging).path }.toList()
         val root = ClientLayout.findRoot(paths) ?: run {
             staging.deleteRecursively()
@@ -157,6 +163,136 @@ object Imports {
         replace(context, folder, WowFiles.client(context))
         if (staging != folder) staging.deleteRecursively()
     }
+
+    // The server's data, downloaded --------------------------------------------------------------
+
+    /** Kept between tries: a download that stopped carries on from where it got to. */
+    private fun downloadFolder(context: Context) = File(WowFiles.root(context), "data.download")
+
+    /** How much of the server data an earlier try downloaded, 0 if none. */
+    fun downloadedSoFar(context: Context): Long = File(downloadFolder(context), "data.zip.part").length()
+
+    /**
+     * Downloads AzerothCore's server data, the version this server is built for
+     * (warcraft/server-data.env, tested with it in CI), checks it's the right file, and unpacks it
+     * into the server's data. [onProgress] gets the part (1: download, 2: unpack) and how far.
+     */
+    fun downloadServerData(context: Context, onProgress: (part: Int, progress: Float, detail: String?) -> Unit) {
+        val folder = downloadFolder(context).apply { mkdirs() }
+        val part = File(folder, "data.zip.part")
+        val zip = File(folder, "data.zip")
+        val size = BuildConfig.WOW_DATA_SIZE
+        // Unpacked, the data is 2.7 times its zip.
+        val unpacked = (size * 2.7).toLong()
+        if (!zip.isFile) {
+            checkSpace(context, size - part.length() + unpacked)
+            download(context, part, size) { done ->
+                onProgress(1, done.toFloat() / size, "${shortSize(context, done)} / ${shortSize(context, size)}")
+            }
+            onProgress(1, 1f, context.getString(R.string.wow_download_checking))
+            if (sha256(part) != BuildConfig.WOW_DATA_SHA256) {
+                part.delete()
+                throw ImportException(context.getString(R.string.wow_download_error_damaged))
+            }
+            if (!part.renameTo(zip)) throw ImportException(context.getString(R.string.wow_import_error_write))
+        }
+        checkSpace(context, unpacked)
+        val staging = staging(context, "data.import")
+        readZip(context, zip.inputStream(), zip.length(), { progress, detail -> onProgress(2, progress, detail) }) { name ->
+            DataLayout.target(name)?.let { File(staging, it) }
+        }
+        installData(context, staging)
+        staging.deleteRecursively()
+        WowFiles.setDownloadedData(context, BuildConfig.WOW_DATA_VERSION)
+    }
+
+    /** Downloads into [part], carrying on from what's in it already. */
+    private fun download(context: Context, part: File, size: Long, onProgress: (Long) -> Unit) {
+        var done = part.length()
+        if (done > size) {
+            part.delete()
+            done = 0
+        }
+        if (done == size) return
+        try {
+            val connection = connect(context, URL(BuildConfig.WOW_DATA_URL), done)
+            try {
+                // 206: the rest of the file; 200: the server sends all of it.
+                if (connection.responseCode != HttpURLConnection.HTTP_PARTIAL) done = 0
+                connection.inputStream.use { input ->
+                    FileOutputStream(part, done > 0).use { output ->
+                        val buffer = ByteArray(1 shl 16)
+                        var sinceReport = 0
+                        while (true) {
+                            checkCancelled()
+                            val n = input.read(buffer)
+                            if (n < 0) break
+                            output.write(buffer, 0, n)
+                            done += n
+                            sinceReport += n
+                            if (sinceReport >= 1 shl 20) {
+                                onProgress(done)
+                                sinceReport = 0
+                            }
+                        }
+                    }
+                }
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: ImportException) {
+            throw e
+        } catch (e: IOException) {
+            throw ImportException(context.getString(R.string.wow_download_error_network, e.message ?: e.javaClass.simpleName))
+        }
+        onProgress(done)
+        if (done != size) {
+            throw ImportException(context.getString(R.string.wow_download_error_network, "${shortSize(context, done)} / ${shortSize(context, size)}"))
+        }
+    }
+
+    /** Opens [url] from byte [from], following redirects (GitHub sends release files from elsewhere). */
+    private fun connect(context: Context, url: URL, from: Long): HttpURLConnection {
+        var current = url
+        repeat(6) {
+            val connection = (current.openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                connectTimeout = 15_000
+                readTimeout = 30_000
+                setRequestProperty("User-Agent", "${BuildConfig.APPLICATION_ID}/${BuildConfig.VERSION_NAME}")
+                if (from > 0) setRequestProperty("Range", "bytes=$from-")
+            }
+            when (val code = connection.responseCode) {
+                HttpURLConnection.HTTP_OK, HttpURLConnection.HTTP_PARTIAL -> return connection
+                in 300..399 -> {
+                    val location = connection.getHeaderField("Location")
+                    connection.disconnect()
+                    current = URL(current, location ?: throw IOException("HTTP $code"))
+                }
+                else -> {
+                    connection.disconnect()
+                    throw IOException("HTTP $code")
+                }
+            }
+        }
+        throw IOException("too many redirects")
+    }
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(1 shl 20)
+            while (true) {
+                checkCancelled()
+                val n = input.read(buffer)
+                if (n < 0) break
+                digest.update(buffer, 0, n)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun shortSize(context: Context, bytes: Long) = android.text.format.Formatter.formatShortFileSize(context, bytes)
 
     // The server's data, made on the phone --------------------------------------------------------
 
@@ -214,7 +350,7 @@ object Imports {
         val total = sizeOf(context, zip)
         checkSpace(context, (total * 1.3).toLong())
         val staging = staging(context, "data.import")
-        readZip(context, zip, total, onProgress) { name -> DataLayout.target(name)?.let { File(staging, it) } }
+        readZip(context, open(context, zip), total, onProgress) { name -> DataLayout.target(name)?.let { File(staging, it) } }
         val found = DataLayout.FOLDERS.filter { File(staging, it).list()?.isNotEmpty() == true }
         if (found.isEmpty()) {
             staging.deleteRecursively()
@@ -224,10 +360,15 @@ object Imports {
         staging.deleteRecursively()
     }
 
-    /** Puts each data folder found in [from] in place of the server's (the others stay). */
+    /**
+     * Puts each data folder found in [from] in place of the server's (the others stay). A download
+     * that stopped before the end is of no use any more: it goes.
+     */
     private fun installData(context: Context, from: File) {
         val data = WowFiles.data(context)
         data.mkdirs()
+        WowFiles.setDownloadedData(context, null)
+        downloadFolder(context).deleteRecursively()
         for (folder in DataLayout.FOLDERS) {
             val source = File(from, folder)
             if (source.list()?.isNotEmpty() == true) replace(context, source, File(data, folder))
@@ -257,15 +398,17 @@ object Imports {
         old.deleteRecursively()
     }
 
+    private fun open(context: Context, uri: Uri): InputStream =
+        context.contentResolver.openInputStream(uri)
+            ?: throw ImportException(context.getString(R.string.wow_import_error_read, uri.lastPathSegment ?: ""))
+
     private fun readZip(
         context: Context,
-        zip: Uri,
+        input: InputStream,
         total: Long,
         onProgress: (Float, String?) -> Unit,
         targetOf: (String) -> File?,
     ) {
-        val input = context.contentResolver.openInputStream(zip)
-            ?: throw ImportException(context.getString(R.string.wow_import_error_read, zip.lastPathSegment ?: ""))
         var read = 0L
         val counting = object : java.io.FilterInputStream(input) {
             override fun read(b: ByteArray, off: Int, len: Int): Int = super.read(b, off, len).also { if (it > 0) read += it }

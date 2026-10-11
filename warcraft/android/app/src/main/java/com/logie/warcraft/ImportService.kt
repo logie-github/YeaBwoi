@@ -10,6 +10,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 class ImportService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
     private var lastNotified = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -50,6 +52,13 @@ class ImportService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:import")
             .apply { acquire(6 * 60 * 60 * 1000L) }
+        if (kind == Imports.Kind.DOWNLOAD) {
+            // With the screen off, Android would otherwise slow the Wi-Fi down to save power.
+            @Suppress("DEPRECATION")
+            wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
+                .createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "warcraft:download")
+                .apply { setReferenceCounted(false); acquire() }
+        }
 
         scope.launch {
             val result = runCatching {
@@ -59,6 +68,10 @@ class ImportService : Service() {
                         val report = { progress: Float, detail: String? -> progress(kind, progress, detail) }
                         if (folder) Imports.importClientFolder(this@ImportService, uri!!, report)
                         else Imports.importClientZip(this@ImportService, uri!!, report)
+                    }
+                    Imports.Kind.DOWNLOAD -> Imports.downloadServerData(this@ImportService) { part, progress, detail ->
+                        Imports.set(Imports.State.Working(kind, part, 2, progress, detail))
+                        notifyThrottled(kind, progress, "$part / 2 · ${(progress * 100).toInt()}%")
                     }
                     Imports.Kind.SERVER_DATA -> Imports.importServerData(this@ImportService, uri!!) { progress, detail ->
                         progress(kind, progress, detail)
@@ -76,7 +89,8 @@ class ImportService : Service() {
                     else Imports.State.Failed(kind, it.message ?: it.javaClass.simpleName, (it as? Imports.ImportException)?.log)
                 },
             )
-            // A stopped or failed job leaves its half-made folder behind: it's of no use.
+            // A stopped or failed job leaves its half-made folder behind: it's of no use. (A
+            // download's stays, to carry on from next time.)
             for (name in listOf("client.import", "data.import", "data.work")) {
                 java.io.File(WowFiles.root(this@ImportService), name).deleteRecursively()
             }
@@ -91,6 +105,7 @@ class ImportService : Service() {
     override fun onDestroy() {
         scope.cancel()
         wakeLock?.let { if (it.isHeld) it.release() }
+        wifiLock?.let { if (it.isHeld) it.release() }
         super.onDestroy()
     }
 
@@ -118,6 +133,7 @@ class ImportService : Service() {
     private fun title(kind: Imports.Kind) = getString(
         when (kind) {
             Imports.Kind.CLIENT -> R.string.wow_import_client_title
+            Imports.Kind.DOWNLOAD -> R.string.wow_download_title
             Imports.Kind.EXTRACT -> R.string.wow_extract_title
             Imports.Kind.SERVER_DATA -> R.string.wow_data_import_title
         }
@@ -184,6 +200,11 @@ class ImportService : Service() {
         fun importServerData(context: Context, uri: Uri) = start(
             context,
             Intent(context, ImportService::class.java).setData(uri).putExtra(EXTRA_KIND, Imports.Kind.SERVER_DATA.name),
+        )
+
+        fun downloadServerData(context: Context) = start(
+            context,
+            Intent(context, ImportService::class.java).putExtra(EXTRA_KIND, Imports.Kind.DOWNLOAD.name),
         )
 
         fun extract(context: Context, withMmaps: Boolean) = start(

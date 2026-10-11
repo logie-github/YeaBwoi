@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.logie.warcraft.Accounts
 import com.logie.warcraft.AppIcons
+import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.Database
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
@@ -176,6 +177,8 @@ fun GameFilesDialog(onDismiss: () -> Unit) {
     var refresh by remember { mutableIntStateOf(0) }
     val hasClient = remember(refresh, state) { WowFiles.hasClient(context) }
     val folders = remember(refresh, state) { WowFiles.dataFolders(context) }
+    val downloaded = remember(refresh, state) { WowFiles.downloadedData(context) }
+    val partial = remember(refresh, state) { Imports.downloadedSoFar(context) }
     var clientSize by remember { mutableStateOf<Long?>(null) }
     var withMmaps by remember { mutableStateOf(true) }
     val working = state is Imports.State.Working
@@ -222,6 +225,7 @@ fun GameFilesDialog(onDismiss: () -> Unit) {
                 stringResource(
                     when (s.kind) {
                         Imports.Kind.CLIENT -> R.string.wow_import_client_done
+                        Imports.Kind.DOWNLOAD -> R.string.wow_download_done
                         Imports.Kind.EXTRACT -> R.string.wow_extract_done
                         Imports.Kind.SERVER_DATA -> R.string.wow_data_import_done
                     }
@@ -257,16 +261,50 @@ fun GameFilesDialog(onDismiss: () -> Unit) {
         }
         Text(stringResource(R.string.wow_files_data_body), style = MaterialTheme.typography.bodySmall)
 
+        // AzerothCore's own data, the version this server is built for (tested with it in CI).
+        val current = downloaded == BuildConfig.WOW_DATA_VERSION
+        WowTitle(stringResource(R.string.wow_files_data_download), style = MaterialTheme.typography.titleSmall)
+        Text(
+            stringResource(
+                R.string.wow_files_data_download_body,
+                Formatter.formatShortFileSize(context, BuildConfig.WOW_DATA_SIZE),
+                Formatter.formatShortFileSize(context, (BuildConfig.WOW_DATA_SIZE * 2.7).toLong()),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        if (downloaded != null) {
+            WowStatusLine(
+                stringResource(R.string.wow_files_data_downloaded),
+                if (current) downloaded else stringResource(R.string.wow_files_data_downloaded_old, downloaded, BuildConfig.WOW_DATA_VERSION),
+                good = current,
+            )
+        }
+        WowButton(
+            when {
+                partial > 0 -> stringResource(
+                    R.string.wow_files_data_download_resume,
+                    Formatter.formatShortFileSize(context, partial),
+                    Formatter.formatShortFileSize(context, BuildConfig.WOW_DATA_SIZE),
+                )
+                downloaded != null && !current -> stringResource(R.string.wow_files_data_download_update)
+                else -> stringResource(R.string.wow_files_data_download_button)
+            },
+            primary = folders.isEmpty() || partial > 0 || (downloaded != null && !current),
+            enabled = !working,
+        ) {
+            ImportService.downloadServerData(context)
+        }
+
         WowTitle(stringResource(R.string.wow_files_data_phone), style = MaterialTheme.typography.titleSmall)
         Text(stringResource(R.string.wow_files_data_phone_body), style = MaterialTheme.typography.bodySmall)
         WowSwitchRow(stringResource(R.string.wow_files_mmaps), stringResource(R.string.wow_files_mmaps_summary), withMmaps, enabled = !working) { withMmaps = it }
-        WowButton(stringResource(R.string.wow_files_extract), primary = hasClient && folders.isEmpty(), enabled = hasClient && !working) {
+        WowButton(stringResource(R.string.wow_files_extract), primary = false, enabled = hasClient && !working) {
             ImportService.extract(context, withMmaps)
         }
 
         WowTitle(stringResource(R.string.wow_files_data_pc), style = MaterialTheme.typography.titleSmall)
         Text(stringResource(R.string.wow_files_data_pc_body), style = MaterialTheme.typography.bodySmall)
-        WowButton(stringResource(R.string.wow_files_data_import), primary = !hasClient && folders.isEmpty(), enabled = !working) {
+        WowButton(stringResource(R.string.wow_files_data_import), primary = false, enabled = !working) {
             pickDataZip.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
         }
         Text(stringResource(R.string.wow_files_space, Formatter.formatShortFileSize(context, WowFiles.freeSpace(context))), style = MaterialTheme.typography.bodySmall)

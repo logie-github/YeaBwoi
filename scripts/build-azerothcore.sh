@@ -70,6 +70,11 @@ for prog in mariadbd mariadb mariadb-admin mariadb-dump; do
 	cp "$(command -v "$prog")" "$pkg/bin/"
 done
 cp -L /usr/lib/libjemalloc.so.2 "$pkg/lib/"
+# OpenSSL 3's legacy provider: RC4, which encrypts the game's packet headers, is only there. The
+# world server loads it when it starts (ctl.sh points OPENSSL_MODULES here); without it, it stops
+# the moment a client enters the world.
+mkdir -p "$pkg/lib/ossl-modules"
+cp -L /usr/lib/ossl-modules/legacy.so "$pkg/lib/ossl-modules/"
 # System calls Android doesn't allow apps, made with ones it does (preloaded by ctl.sh).
 cc -O2 -shared -fPIC -o "$pkg/lib/libandroidcompat.so" /repo/warcraft/server/android_compat.c
 cp -r /usr/share/mariadb "$pkg/share/mariadb"
@@ -90,6 +95,20 @@ for dir in "$SRC"/modules/mod-*; do
 		mkdir -p "$pkg/src/modules/$name/data"
 		cp -r "$dir/data/sql" "$pkg/src/modules/$name/data/sql"
 	fi
+	# Older modules (mod-npc-talent-template) keep theirs in sql/<database>, which the servers
+	# don't read: it goes where they look, data/sql/db-<database>. Without it the world server
+	# stops at the end of loading, on a table that isn't there. The servers know an applied file
+	# by its name alone, so each is named after the module (mod-chromie-xp has a production.sql
+	# too). Its development.sql (a test NPC) is written for an older world database and fails.
+	for sql in "$dir"/sql/auth "$dir"/sql/characters "$dir"/sql/world; do
+		[ -d "$sql" ] || continue
+		db=$(basename "$sql")
+		to="$pkg/src/modules/$name/data/sql/db-$db"
+		mkdir -p "$to"
+		find "$sql" -name '*.sql' ! -name 'development.sql' | while read -r file; do
+			cp "$file" "$to/$name-$db-$(basename "$file")"
+		done
+	done
 	for sql in "$dir"/src/Bracket_*/sql; do
 		[ -d "$sql" ] || continue
 		rel=${sql#"$dir/"}
@@ -126,6 +145,8 @@ for lib in "$pkg"/lib/*.so*; do
 	strip --strip-unneeded "$lib"
 	patchelf --set-rpath '$ORIGIN' "$lib"
 done
+strip --strip-unneeded "$pkg/lib/ossl-modules/legacy.so"
+patchelf --set-rpath '$ORIGIN/..' "$pkg/lib/ossl-modules/legacy.so"
 
 # An empty MariaDB data folder with the server's databases and user, made here by the same
 # MariaDB, so the phone only copies it.

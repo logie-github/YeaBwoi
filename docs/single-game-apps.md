@@ -218,3 +218,15 @@ The user can't debug: report only what was checked, and say what wasn't.
 - GitHub's arm64 runners (`ubuntu-24.04-arm`) work for this private repository; builds that take
   hours are cached by their inputs (`actions/cache`), and jobs hand files on through the cache:
   the account's artifact storage is full. Caches saved on Windows need `enableCrossOsArchive`.
+- Test a server with the real data it runs on, as far as a client gets: the World of Warcraft
+  server's test passed every check up to the client data, and only the full start (on AzerothCore's
+  published data, the same file the app downloads) showed a module whose SQL was never applied.
+  CI's world client (`warcraft/server/auth_check.py world`) creates a character and enters the
+  world, which also showed the world server crashing on the first client: OpenSSL 3 keeps RC4 in
+  its legacy provider, a separate module (`ossl-modules/legacy.so`) a self-contained package has
+  to ship and point `OPENSSL_MODULES` at. AzerothCore modules' SQL is only read from
+  `modules/<name>/data/sql/<dir naming the database>`, and applied files are known by file name
+  alone.
+- Data a user would otherwise make for hours (the WoW server's maps) can come ready-made from the
+  upstream project: pin the release, its size and SHA-256 (`warcraft/server-data.env`), download it
+  in the app with HTTP ranges so a dropped download carries on, and test with the same file in CI.

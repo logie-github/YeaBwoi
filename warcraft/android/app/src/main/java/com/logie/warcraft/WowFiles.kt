@@ -46,6 +46,16 @@ object WowFiles {
     fun dataFolders(context: Context): Set<String> =
         DataLayout.FOLDERS.filter { File(data(context), it).list()?.isNotEmpty() == true }.toSet()
 
+    private fun downloadedMark(context: Context) = File(data(context), "downloaded")
+
+    /** The version of AzerothCore's server data that's in `data/`, if it was downloaded. */
+    fun downloadedData(context: Context): String? =
+        downloadedMark(context).takeIf { it.isFile }?.readText()?.trim()?.takeIf { it.isNotEmpty() }
+
+    fun setDownloadedData(context: Context, version: String?) {
+        if (version == null) downloadedMark(context).delete() else downloadedMark(context).writeText("$version\n")
+    }
+
     /** The world server has what it needs to start (dbc and maps). */
     fun hasServerData(context: Context): Boolean = dataFolders(context).containsAll(DataLayout.REQUIRED)
 

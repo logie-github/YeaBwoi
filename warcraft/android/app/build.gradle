@@ -10,6 +10,13 @@ def wowProperty = { String name, String fallback ->
 }
 def wowKeystore = wowProperty("keystore", "")
 
+// The server data the app downloads: warcraft/server-data.env.
+def serverData = [:]
+file("../../server-data.env").eachLine { line ->
+	def match = line =~ /^([A-Z0-9_]+)=(.*)$/
+	if (match) serverData[match[0][1]] = match[0][2]
+}
+
 android {
 	namespace = "com.logie.warcraft"
 	compileSdk = 35
@@ -32,6 +39,10 @@ android {
 		buildConfigField "String", "WOW_UPDATE_REPO", "\"${wowProperty("wowUpdateRepo", "")}\""
 		buildConfigField "String", "WOW_RELEASE_TAG_PREFIX", "\"${wowProperty("wowReleaseTagPrefix", "")}\""
 		buildConfigField "String", "WOW_UPDATE_TOKEN", "\"${wowProperty("wowUpdateToken", "")}\""
+		buildConfigField "String", "WOW_DATA_VERSION", "\"${serverData.SERVER_DATA_VERSION}\""
+		buildConfigField "String", "WOW_DATA_URL", "\"${serverData.SERVER_DATA_URL}\""
+		buildConfigField "long", "WOW_DATA_SIZE", "${serverData.SERVER_DATA_SIZE}L"
+		buildConfigField "String", "WOW_DATA_SHA256", "\"${serverData.SERVER_DATA_SHA256}\""
 
 		ndk {
 			// Phones only: the server is built for arm64.

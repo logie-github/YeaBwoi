@@ -51,6 +51,15 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
 - **The server's data** (dbc, maps, vmaps, mmaps) can be made **either way**: on a Windows PC
   (CI builds AzerothCore's tools for Windows; `windows/extract-server-data.bat`, then import the
   zip) or straight from the phone (the app imports the client and runs the tools).
+- **"Make GitHub Actions do the server data":** the app downloads AzerothCore's ready-made data
+  (github.com/wowgaming/client-data, the release the pinned core's own installer uses, pinned with
+  its size and SHA-256 in `server-data.env`), and CI downloads the same file and tests the server
+  on it all the way into the world. Making it in CI from the user's client would need the 17 GB
+  client uploaded somewhere CI can fetch it, and mmaps take hours. The two ways from the client
+  stay.
+- **Launcher music:** the main title theme the user sent (`res/raw/wow_title_music.ogg`, Opus 160
+  kbps from their MP3) loops on the launcher, and **stops when the game launches**: stage 2's game
+  start calls `TitleMusic.stopForGame()`. A switch in the header turns it off (remembered).
 
 ## The user's art (in `branding/`)
 
@@ -186,7 +195,8 @@ mod-ptr-changes.
 
 ## Where it stands
 
-**Stage 1 (written; CI's arm64 build and server test in progress; nothing tested on a phone):**
+**Stage 1 (released; CI's arm64 server test reaches the world with a character; nothing tested
+on a phone):**
 
 - The server is built for Linux arm64 on **musl** (Alpine), not glibc and not inside Winlator's
   rootfs: Android kills an app's process that makes a system call outside its seccomp policy, and
@@ -201,22 +211,29 @@ mod-ptr-changes.
 - CI (`build-warcraft.yml`, `ubuntu-24.04-arm`) builds it, then tests the package unpacked where the
   phone puts it: MariaDB from the seed folder, dbimport fills the auth, characters and world
   databases, an account made the way the app makes them logs in to the auth server with the 3.3.5a
-  protocol and gets the realm list, and the world server (on jemalloc) loads its configs, modules,
-  the progression brackets' SQL and the playerbots database, up to the client data (dbc) CI can't
-  have. Every system call of the server's programs is checked against bionic's app policy. Tried
-  and dropped: stand-in dbc files to reach the "ready" line; the world database refers to thousands
-  of client rows by id and the server reads many unchecked, so stand-ins would need most of the
-  client's data. The world server's first full start is on the phone, with the user's data.
-- The app: launcher (header, logo, press start, tiles), the server in a foreground service, client
-  import (folder or zip, build 12340 check), server data made on the phone or imported from the
-  Windows tools' zip, accounts, the icon switcher (done early: the art was there), updates. Targets
+  protocol and gets the realm list, and the world server (on jemalloc) starts on the server data
+  the app downloads, up to "ready". Then a 3.3.5a world client (`server/auth_check.py world`)
+  creates a character, enters the world with it, runs `.server info`, and logs out, and the world
+  server shuts down the way the app stops it. Every system call of the server's programs is checked
+  against bionic's app policy. (Tried and dropped before the download: stand-in dbc files.) The
+  full start found two faults the earlier test couldn't reach: mod-npc-talent-template keeps its
+  SQL where the servers don't look (`sql/<database>`; the package puts it in
+  `data/sql/db-<database>`, without its outdated `development.sql`), and the world server stopped
+  the moment a client entered: RC4, which encrypts the game's packet headers, is in OpenSSL 3's
+  legacy provider, a module the package didn't have (now `lib/ossl-modules/legacy.so`, found
+  through `OPENSSL_MODULES` in `ctl.sh`).
+- The app: launcher (header, logo, press start, tiles, the title music), the server in a
+  foreground service, client import (folder or zip, build 12340 check), server data downloaded
+  (resumable, SHA-256 checked), made on the phone or imported from the Windows tools' zip,
+  accounts, the icon switcher (done early: the art was there), updates. Targets
   SDK 28 (like Termux and Winlator) to run the server's programs from its storage; stage 2 needs
   the same for Wine.
 - Defaults set on the first start: progression brackets `0` and `1_19` (ChromieCraft's start),
   50 random bots (the module's default is 500), bots idle while nobody's logged in.
 
 **Next, stage 2:** Winlator's runtime, the client straight to its login screen with the account
-chosen in the launcher (`realmlist.wtf` = 127.0.0.1), gestures.
+chosen in the launcher (`realmlist.wtf` = 127.0.0.1), gestures. Starting the game calls
+`TitleMusic.stopForGame()`.
 
 ## Still open
 

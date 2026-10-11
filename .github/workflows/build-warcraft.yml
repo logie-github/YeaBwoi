@@ -1,9 +1,10 @@
 name: Build World of Warcraft
 
 # Builds the World of Warcraft app: its private server (AzerothCore at ChromieCraft's revision with
-# playerbots, and MariaDB) for Linux arm64, tested here the way the phone runs it; AzerothCore's
-# data tools for Windows (to make the server's data from the client on a PC); and the app, which
-# ships the server. Publishes the app and the Windows tools as a release (wow-build-N).
+# playerbots, and MariaDB) for Linux arm64, tested here the way the phone runs it, on the server
+# data the app downloads (warcraft/server-data.env); AzerothCore's data tools for Windows (to make
+# the server's data from the client on a PC); and the app, which ships the server. Publishes the
+# app and the Windows tools as a release (wow-build-N).
 #
 # The server takes hours to compile, so its package is cached by everything that goes into it
 # (warcraft/server-version.env, ctl.sh, the patches, the build scripts): a change to the app alone
@@ -86,11 +87,22 @@ jobs:
           path: warcraft/android/server/server.tar.xz
           key: ${{ env.SERVER_KEY }}
 
-      # MariaDB, the database import, the auth server (a real login) and the world server up to the
-      # client data, from the package as the phone unpacks it, with every system call checked
-      # against Android's seccomp policy for apps. Runs on every build, cached package or not.
+      # The server data the app downloads (warcraft/server-data.env), checked like the app checks it.
+      - name: Get the server data
+        run: |
+          source warcraft/server-data.env
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/data.zip" "$SERVER_DATA_URL"
+          echo "$SERVER_DATA_SHA256  $RUNNER_TEMP/data.zip" | sha256sum -c -
+          echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
+          df -h / | tail -1
+
+      # MariaDB, the database import, the auth server (a real login), and the world server on the
+      # server data: started all the way, a character created and taken into the world, a GM
+      # command, the shutdown the app does. From the package as the phone unpacks it, with every
+      # system call checked against Android's seccomp policy for apps. Runs on every build, cached
+      # package or not.
       - name: Test the server
-        timeout-minutes: 60
+        timeout-minutes: 90
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
           scripts/test-warcraft-server.sh
@@ -324,11 +336,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           source warcraft/server-version.env
+          source warcraft/server-data.env
           notes="$GAME_NAME (3.3.5a) for Android, with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
 
           Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client.
 
-          **WarcraftServerData-windows.zip** makes the server's data from the client on a Windows PC (faster than on the phone): see its README.txt.
+          **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), which this build was tested with: CI started the world server on it and took a character into the world. **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
 
           Server package:
           \`\`\`

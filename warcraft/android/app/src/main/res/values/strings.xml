@@ -89,6 +89,8 @@
     <string name="wow_server_version">Built from:\n%1$s</string>
 
     <!-- Game files -->
+    <string name="wow_music_turn_off">Turn the music off</string>
+    <string name="wow_music_turn_on">Turn the music on</string>
     <string name="wow_files_title">Game files</string>
     <string name="wow_files_client">Your client</string>
     <string name="wow_files_client_state">World of Warcraft 3.3.5a</string>
@@ -100,7 +102,14 @@
     <string name="wow_files_data">Server data</string>
     <string name="wow_files_data_yes">Ready</string>
     <string name="wow_files_data_no">Missing</string>
-    <string name="wow_files_data_body">The world server needs dbc and maps from the client; vmaps add line of sight, and mmaps pathfinding, which creatures and bots need to move well. Make them once, on this phone or on a PC.</string>
+    <string name="wow_files_data_body">The world server needs dbc and maps from the client; vmaps add line of sight, and mmaps pathfinding, which creatures and bots need to move well. Download them ready-made, or make them from your client on this phone or on a PC.</string>
+    <string name="wow_files_data_download">Download</string>
+    <string name="wow_files_data_download_body">AzerothCore\'s ready-made server data for 3.3.5a, all five folders, in the version this server is built for: a %1$s download that unpacks to %2$s. It doesn\'t need your client. Best on Wi-Fi; if it stops, it carries on from where it got to.</string>
+    <string name="wow_files_data_download_button">Download server data</string>
+    <string name="wow_files_data_download_resume">Carry on downloading (%1$s of %2$s)</string>
+    <string name="wow_files_data_download_update">Download the new server data</string>
+    <string name="wow_files_data_downloaded">Downloaded</string>
+    <string name="wow_files_data_downloaded_old">%1$s (this server wants %2$s)</string>
     <string name="wow_files_data_phone">On this phone</string>
     <string name="wow_files_data_phone_body">From the client added above. dbc, maps and vmaps take minutes; mmaps an hour or more, with the phone getting warm. It carries on with the app in the background.</string>
     <string name="wow_files_mmaps">Include mmaps</string>
@@ -116,6 +125,13 @@
     <string name="wow_import_client_title">Adding the client</string>
     <string name="wow_import_client_progress">Copying the client… %1$d%%</string>
     <string name="wow_import_client_done">The client is added.</string>
+    <string name="wow_download_title">Downloading the server data</string>
+    <string name="wow_download_progress">Downloading the server data… %1$d%%</string>
+    <string name="wow_download_unpack_progress">Unpacking the server data… %1$d%%</string>
+    <string name="wow_download_checking">Checking the download</string>
+    <string name="wow_download_done">The server data is downloaded. Start the server to load the world.</string>
+    <string name="wow_download_error_network">The download stopped (%1$s). Try again: it carries on from where it got to.</string>
+    <string name="wow_download_error_damaged">The download came out damaged, and was deleted. Try again.</string>
     <string name="wow_extract_title">Making the server data</string>
     <string name="wow_extract_progress">Making the server data… part %1$d of %2$d</string>
     <string name="wow_extract_done">The server data is made. Start the server to load the world.</string>

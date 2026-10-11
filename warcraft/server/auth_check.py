@@ -1,17 +1,24 @@
 #!/usr/bin/env python3
-"""Checks the World of Warcraft app's auth server the way a 3.3.5a (12340) client uses it.
+"""Checks the World of Warcraft app's server the way a 3.3.5a (12340) client uses it.
 
     auth_check.py account-sql USER PASSWORD   print the SQL that creates the account (the same
                                               SRP6 salt and verifier the app writes)
     auth_check.py login HOST USER PASSWORD    log in and print the realm list
+    auth_check.py world HOST USER PASSWORD CHARACTER [COMMAND]
+                                              log in, then into the world server: create the
+                                              character (if the account has none), enter the
+                                              world with it, run a GM command, log out
 
-Exits non-zero if the login fails. Used by scripts/test-warcraft-server.sh in CI.
+Exits non-zero if anything fails. Used by scripts/test-warcraft-server.sh in CI.
 """
 import hashlib
+import hmac
 import os
 import socket
 import struct
 import sys
+import time
+import zlib
 
 N = int("894B645E89E1535BBDAD5B8B290650530801B18EBFBF5E8FAB3C82872A3E9BB7", 16)
 G = 7
@@ -63,6 +70,7 @@ def recv_exact(sock, n):
 
 
 def login(host, user, password, port=3724):
+    """The realm list, and the session key the world server checks."""
     user = user.upper()
     sock = socket.create_connection((host, port), timeout=10)
     name = user.encode()
@@ -119,7 +127,164 @@ def login(host, user, password, port=3724):
             pos += 5
         realms.append((rname, address))
     sock.close()
-    return realms
+    return realms, K
+
+
+# The world server --------------------------------------------------------------------------------
+
+# Opcodes (AzerothCore's src/server/game/Server/Protocol/Opcodes.h).
+CMSG_CHAR_CREATE, CMSG_CHAR_ENUM, CMSG_PLAYER_LOGIN = 0x036, 0x037, 0x03D
+SMSG_CHAR_CREATE, SMSG_CHAR_ENUM = 0x03A, 0x03B
+CMSG_LOGOUT_REQUEST, SMSG_LOGOUT_RESPONSE, SMSG_LOGOUT_COMPLETE = 0x04B, 0x04C, 0x04D
+CMSG_MESSAGECHAT, SMSG_MESSAGECHAT = 0x095, 0x096
+SMSG_AUTH_CHALLENGE, CMSG_AUTH_SESSION, SMSG_AUTH_RESPONSE = 0x1EC, 0x1ED, 0x1EE
+SMSG_LOGIN_VERIFY_WORLD = 0x236
+SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
+AUTH_OK, CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE = 0x0C, 0x2F, 0x31
+CHAT_MSG_SYSTEM, CHAT_MSG_SAY, LANG_COMMON = 0x00, 0x01, 7
+
+# The header keys (AzerothCore's AuthCrypt.cpp): RC4 keyed with HMAC-SHA1(key, session key),
+# its first 1024 bytes dropped.
+SERVER_ENCRYPTION_KEY = bytes.fromhex("CC98AE04E897EACA12DDC09342915357")
+SERVER_DECRYPTION_KEY = bytes.fromhex("C2B3723CC6AED9B5343C53EE2F4367CE")
+
+
+class RC4:
+    def __init__(self, key):
+        S, j = list(range(256)), 0
+        for i in range(256):
+            j = (j + S[i] + key[i % len(key)]) & 0xFF
+            S[i], S[j] = S[j], S[i]
+        self.S, self.i, self.j = S, 0, 0
+        self.process(bytes(1024))
+
+    def process(self, data):
+        S, i, j, out = self.S, self.i, self.j, bytearray()
+        for b in data:
+            i = (i + 1) & 0xFF
+            j = (j + S[i]) & 0xFF
+            S[i], S[j] = S[j], S[i]
+            out.append(b ^ S[(S[i] + S[j]) & 0xFF])
+        self.i, self.j = i, j
+        return bytes(out)
+
+
+class WorldSession:
+    def __init__(self, host, port):
+        self.sock = socket.create_connection((host, port), timeout=60)
+        self.send_crypt = self.recv_crypt = None
+
+    def start_crypt(self, K):
+        self.send_crypt = RC4(hmac.new(SERVER_DECRYPTION_KEY, K, hashlib.sha1).digest())
+        self.recv_crypt = RC4(hmac.new(SERVER_ENCRYPTION_KEY, K, hashlib.sha1).digest())
+
+    def send(self, opcode, body=b""):
+        header = struct.pack(">H", len(body) + 4) + struct.pack("<I", opcode)
+        if self.send_crypt:
+            header = self.send_crypt.process(header)
+        self.sock.sendall(header + body)
+
+    def recv(self):
+        header = recv_exact(self.sock, 4)
+        if self.recv_crypt:
+            header = self.recv_crypt.process(header)
+        if header[0] & 0x80:  # a big packet: a 3-byte size
+            extra = recv_exact(self.sock, 1)
+            if self.recv_crypt:
+                extra = self.recv_crypt.process(extra)
+            size = ((header[0] & 0x7F) << 16) | (header[1] << 8) | header[2]
+            opcode = header[3] | (extra[0] << 8)
+        else:
+            size = (header[0] << 8) | header[1]
+            opcode = header[2] | (header[3] << 8)
+        return opcode, recv_exact(self.sock, size - 2)
+
+    def wait_for(self, wanted, seconds=60, seen=None):
+        """Reads packets until one of [wanted] comes, answering the server's time checks."""
+        end = time.time() + seconds
+        while time.time() < end:
+            opcode, body = self.recv()
+            if opcode == SMSG_TIME_SYNC_REQ:
+                self.send(CMSG_TIME_SYNC_RESP, body[:4] + struct.pack("<I", int(time.monotonic() * 1000) & 0xFFFFFFFF))
+            if seen is not None:
+                seen.append((opcode, body))
+            if opcode in wanted:
+                return opcode, body
+        raise RuntimeError(f"the world server didn't send {[hex(w) for w in wanted]} in {seconds} s")
+
+
+def system_messages(packets):
+    """The text of the system messages (a GM command's answer) among [packets]."""
+    for opcode, body in packets:
+        if opcode == SMSG_MESSAGECHAT and body[0] == CHAT_MSG_SYSTEM:
+            # type, language, sender, flags, receiver, then the text's length and the text.
+            size = struct.unpack_from("<I", body, 25)[0]
+            yield body[29:29 + size].rstrip(b"\0").decode(errors="replace")
+
+
+def world(host, user, password, character, command=None, port=8085):
+    user = user.upper()
+    _, K = login(host, user, password)
+    session = WorldSession(host, port)
+    opcode, body = session.recv()
+    if opcode != SMSG_AUTH_CHALLENGE:
+        raise RuntimeError(f"expected the auth challenge, got {opcode:#x}")
+    server_seed = body[4:8]
+    client_seed = os.urandom(4)
+    digest = sha1(user.encode(), bytes(4), client_seed, server_seed, K)
+    addons = zlib.compress(struct.pack("<II", 0, int(time.time())))
+    session.send(CMSG_AUTH_SESSION, struct.pack("<II", 12340, 0) + user.encode() + b"\0"
+                 + struct.pack("<I", 0) + client_seed + struct.pack("<IIIQ", 0, 0, 1, 0) + digest
+                 + struct.pack("<I", 8) + addons)
+    session.start_crypt(K)
+    _, body = session.wait_for([SMSG_AUTH_RESPONSE])
+    if body[0] != AUTH_OK:
+        raise RuntimeError(f"the world server refused the session: {body[0]:#x}")
+    print("world: session accepted")
+
+    def characters():
+        session.send(CMSG_CHAR_ENUM)
+        _, body = session.wait_for([SMSG_CHAR_ENUM])
+        found, pos = [], 1
+        for _ in range(body[0]):
+            guid = struct.unpack_from("<Q", body, pos)[0]
+            end = body.index(b"\0", pos + 8)
+            name = body[pos + 8:end].decode()
+            race, cls, _, _, _, _, _, _, level = body[end + 1:end + 10]
+            zone, map_id = struct.unpack_from("<II", body, end + 10)
+            found.append((guid, name, level, map_id, zone))
+            # Then position, guild, flags, first login, pet, and 23 equipment slots.
+            pos = end + 10 + 8 + 12 + 4 + 4 + 4 + 1 + 12 + 23 * 9
+        return found
+
+    chars = characters()
+    if not any(name == character for _, name, *_ in chars):
+        # A human warrior: race 1, class 1, male, default looks.
+        session.send(CMSG_CHAR_CREATE, character.encode() + b"\0" + bytes([1, 1, 0, 0, 0, 0, 0, 0, 0]))
+        _, body = session.wait_for([SMSG_CHAR_CREATE])
+        if body[0] not in (CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE):
+            raise RuntimeError(f"creating the character failed: {body[0]:#x}")
+        print(f"world: created {character}")
+        chars = characters()
+    guid, name, level, map_id, zone = next(c for c in chars if c[1] == character)
+    print(f"world: {name}, level {level}, map {map_id}, zone {zone}")
+
+    session.send(CMSG_PLAYER_LOGIN, struct.pack("<Q", guid))
+    _, body = session.wait_for([SMSG_LOGIN_VERIFY_WORLD], seconds=120)
+    map_id, x, y, z, _ = struct.unpack("<Iffff", body[:20])
+    print(f"world: in the world on map {map_id} at {x:.1f} {y:.1f} {z:.1f}")
+
+    # The server answers in order: the command's lines come before the logout. A game master's
+    # account logs out at once.
+    if command:
+        session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_SAY, LANG_COMMON) + command.encode() + b"\0")
+    seen = []
+    session.send(CMSG_LOGOUT_REQUEST)
+    session.wait_for([SMSG_LOGOUT_COMPLETE], seconds=40, seen=seen)
+    for line in system_messages(seen):
+        print(f"world: system: {line}")
+    print("world: logged out")
+    session.sock.close()
 
 
 def main():
@@ -132,8 +297,11 @@ def main():
         print(f"INSERT INTO account_access (id, gmlevel, RealmID) SELECT id, 3, -1 FROM account "
               f"WHERE username = '{user}';")
     elif len(sys.argv) == 5 and sys.argv[1] == "login":
-        for rname, address in login(sys.argv[2], sys.argv[3], sys.argv[4]):
+        realms, _ = login(sys.argv[2], sys.argv[3], sys.argv[4])
+        for rname, address in realms:
             print(f"realm\t{rname}\t{address}")
+    elif len(sys.argv) in (6, 7) and sys.argv[1] == "world":
+        world(*sys.argv[2:])
     else:
         print(__doc__, file=sys.stderr)
         sys.exit(2)
