@@ -157,6 +157,8 @@ done
 [ -n "$ready" ] || fail "the world server didn't get to its ready line"
 echo "The world server is ready after $(($(date +%s) - start)) s:"
 grep "ready" "$FILES/logs/world-ready.out" | tail -1
+grep -q libjemalloc "/proc/$(cat "$FILES/run/worldserver.pid")/maps" || fail "the world server isn't using jemalloc"
+echo "It runs on jemalloc."
 sleep 5
 # Its console, the way the app stops it.
 echo "server shutdown 0" >&3

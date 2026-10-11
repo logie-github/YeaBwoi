@@ -131,6 +131,8 @@ auth)
 	;;
 world)
 	cd "$RUN"
+	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.
+	export LD_PRELOAD="$SERVER/lib/libjemalloc.so.2"
 	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
 	;;
 maps)

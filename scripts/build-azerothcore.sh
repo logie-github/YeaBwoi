@@ -34,20 +34,22 @@ OUT=/repo/warcraft/android/server
 JOBS="${JOBS:-$(nproc)}"
 
 apk add -q --no-progress build-base cmake samurai git ccache patchelf xz tar boost-dev openssl-dev \
-	mariadb-connector-c-dev readline-dev bzip2-dev zlib-dev linux-headers mariadb mariadb-client
+	mariadb-connector-c-dev readline-dev bzip2-dev zlib-dev linux-headers mariadb mariadb-client jemalloc
 export CCACHE_DIR=/repo/build/ccache CCACHE_MAXSIZE=2G
 git config --global --add safe.directory '*'
 
 sh /repo/scripts/fetch-azerothcore.sh "$SRC"
 
 # musl gives new threads a 128 KiB stack unless the program asks for more; glibc gives 8 MiB.
+# AzerothCore's own jemalloc is configured for glibc (NOJEM): the world server gets Alpine's
+# instead, preloaded by ctl.sh, since musl's malloc is slow for a server's many threads.
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
 	-DCONF_DIR="$APP_FILES/etc" \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,stack-size=8388608" \
-	-DAPPS_BUILD=all -DTOOLS_BUILD=all -DSCRIPTS=static -DMODULES=static \
+	-DAPPS_BUILD=all -DTOOLS_BUILD=all -DSCRIPTS=static -DMODULES=static -DNOJEM=1 \
 	-DWITH_WARNINGS=0 -DUSE_COREPCH=1 -DUSE_SCRIPTPCH=1 > "$BUILD.cmake.log" 2>&1 ||
 	{ tail -50 "$BUILD.cmake.log"; exit 1; }
 grep -E "^\s*\+- mod-|Modules" "$BUILD.cmake.log" || true
@@ -67,6 +69,7 @@ done
 for prog in mariadbd mariadb mariadb-admin mariadb-dump; do
 	cp "$(command -v "$prog")" "$pkg/bin/"
 done
+cp -L /usr/lib/libjemalloc.so.2 "$pkg/lib/"
 cp -r /usr/share/mariadb "$pkg/share/mariadb"
 cp "$APP_FILES"/etc/*.conf.dist "$pkg/etc/"
 cp "$APP_FILES"/etc/modules/*.conf.dist "$pkg/etc/modules/"
@@ -105,7 +108,7 @@ copy_deps() {
 		copy_deps "$lib"
 	done
 }
-for prog in "$pkg"/bin/*; do
+for prog in "$pkg"/bin/* "$pkg/lib/libjemalloc.so.2"; do
 	copy_deps "$prog"
 done
 # musl's libc is its loader; programs ask for it as libc.musl-<arch>.so.1.
