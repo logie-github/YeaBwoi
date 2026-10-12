@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.logie.warcraft.Accounts
+import com.logie.warcraft.Database
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
@@ -136,8 +137,15 @@ object Game {
         // The login box filled in with the account, when there's only one that's the user's.
         val accounts = withContext(Dispatchers.IO) { runCatching { Accounts.list(context) }.getOrNull() }
         if (accounts?.isEmpty() == true) throw GameFailed(context.getString(R.string.wow_game_error_no_account), needsAccount = true)
-        accounts?.singleOrNull()?.let { account ->
-            withContext(Dispatchers.IO) { configureClient(context, width, height, account.name) }
+        val account = accounts?.singleOrNull()
+        if (account != null) withContext(Dispatchers.IO) { configureClient(context, width, height, account.name) }
+        // No characters yet: right after the login the game goes to character creation, where the
+        // keyboard stays up for the name.
+        val newAccount = account != null && withContext(Dispatchers.IO) {
+            runCatching {
+                Database.query(context, "acore_characters", "SELECT COUNT(*) FROM characters WHERE account = ${account.id};")
+                    .firstOrNull()?.firstOrNull()?.toIntOrNull() == 0
+            }.getOrDefault(false)
         }
 
         _state.value = State.Preparing(Step.STARTING)
@@ -148,6 +156,7 @@ object Game {
             .putExtra("exec_path", clientPath(context) + "/Wow.exe")
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
+            .putExtra(GestureView.EXTRA_NEW_ACCOUNT, newAccount)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 
