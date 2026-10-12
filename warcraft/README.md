@@ -4,7 +4,7 @@
 
 # World of Warcraft
 
-An Android app for **World of Warcraft: Wrath of the Lich King 3.3.5a** that plays the game on the phone, your own 3.3.5a client run by [Winlator](https://github.com/brunodev85/winlator) (Wine, Box64 and the phone's GPU) built into the app, with its own private realm on the phone: a [ChromieCraft](https://www.chromiecraft.com/)-style [AzerothCore](https://www.azerothcore.org/) server with [playerbots](https://github.com/mod-playerbots/mod-playerbots), running natively on the phone's arm64 processor next to its MariaDB database. The launcher is styled after Wrath's Northrend: the Lich King before Icecrown Citadel with snow drifting across, the logo, and frost-blue panels with gold corners.
+An Android app for **World of Warcraft: Wrath of the Lich King 3.3.5a** that plays the game on the phone, your own 3.3.5a client run by Wine, Box64 and the phone's GPU inside the app, with its own private realm on the phone: a [ChromieCraft](https://www.chromiecraft.com/)-style [AzerothCore](https://www.azerothcore.org/) server with [playerbots](https://github.com/mod-playerbots/mod-playerbots), running natively on the phone's arm64 processor next to its MariaDB database. The launcher is styled after Wrath's Northrend: the Lich King before Icecrown Citadel with snow drifting across, the logo, and frost-blue panels with gold corners.
 
 It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the launcher and the server; a PC's 3.3.5a client on the same Wi-Fi can play on the realm. **Stage 2, this version:** the game itself in the app, started from the launcher straight to its login screen on the realm, with touch gestures (tap to click, swipe to walk, hold for bags, double tap to jump). **Stage 3:** every server option in the launcher (progression brackets, rates, realm settings), bot management, add-ons, controls and graphics settings.
 
@@ -15,7 +15,7 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the la
 | Server | AzerothCore at the revision ChromieCraft runs, with the playerbots fork's core changes merged in, ChromieCraft's modules and mod-playerbots, built for Linux arm64 (musl) from the commits in `server-version.env` |
 | Server data | AzerothCore's ready-made data, downloaded in the app (the version in `server-data.env`), or made from your client |
 | Client | Yours: World of Warcraft 3.3.5a (build 12340), enUS. Never part of the app. |
-| Game runtime | Winlator 11.2 (its Android app at the commit in `winlator-version.env`, with `patches/winlator/`): Wine, Box64, DXVK, the Vortek and Gladio graphics drivers, its X server |
+| Game runtime | Wine, Box64, DXVK, the Vortek and Gladio graphics drivers and an X server, from Winlator 11.2's code compiled into the app (no Winlator app, screens or settings; see "How it's built") |
 
 ## First launch
 
@@ -27,7 +27,7 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the la
    - **On a Windows PC, from your client:** download **WarcraftServerData-windows.zip** from the same release, unzip it, and drag your client's folder onto `extract-server-data.bat`. Copy the `server-data.zip` it makes to the phone, then **Import server-data.zip**.
 4. Add your client, if it isn't in yet (**Game files → Your client**: **Pick folder** or **Pick zip**).
 5. **Accounts**: make an account to log in with (the first one is a game master by default).
-6. **Press start**. The realm starts, and meanwhile, the first time, the app installs the game's Windows (Winlator's runtime, from the app, a minute or two) and sets it up. Loading the world takes a few minutes on a phone; once the realm is online the music stops and the game starts, at its login screen on the realm.
+6. **Press start**. The realm starts, and meanwhile, the first time, the app installs the game's Windows (from the app, a minute or two) and sets it up. Loading the world takes a few minutes on a phone; once the realm is online the music stops and the game starts, at its login screen on the realm.
 
 After that, opening the app checks for an update, then starts the realm and the game. Without the client, it starts the realm alone (for a PC's client).
 
@@ -35,13 +35,15 @@ Copy files onto the phone before picking them: files in cloud folders can't be r
 
 ## The game
 
-**Press start** (or **Play** once the realm is online) starts your client, `files/client/Wow.exe`, on Winlator inside the app. Before each start the app points the client at the realm on the phone and sets it up for the screen:
+**Press start** (or **Play** once the realm is online) starts your client, `files/client/Wow.exe`, on Wine inside the app. Before each start the app points the client at the realm on the phone and sets it up for the screen:
 
 - `Data/<locale>/realmlist.wtf`: `set realmlist 127.0.0.1`.
 - `WTF/Config.wtf` (your other settings in it stay): `realmList` 127.0.0.1, `realmName` ChromieCraft (the realm is chosen for you), the intro movie off, the terms already read, windowed and maximized at the game's resolution, and your account's name in the login box when you have one account.
 - The game's resolution: 720 lines high and as wide as the screen's shape (1680x720 on a 21:9 screen; at least 800 wide, on a Fold's nearly square inner screen), set each start for the screen the phone is on.
 
-The game's Windows is one Winlator container, **World of Warcraft**, with the client as drive D:, and Winlator's defaults: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Winlator's runtime goes in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path its programs were built for, rewritten from Winlator's own when the app is built.
+The game's Windows is one Wine prefix, **World of Warcraft**, with the client as drive D:: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Its programs go in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path they're built for.
+
+While it starts, the app shows its own loading screen (the logo over the dark, with the snow), until the game's window is up.
 
 ### Touch controls
 
@@ -56,10 +58,10 @@ The game's Windows is one Winlator container, **World of Warcraft**, with the cl
 | **Two-finger tap** | Right click: talk, loot, attack |
 | **Two-finger drag** | Turn the camera and the character (the right button held), so walking goes where you look |
 | **Three-finger tap** | The phone's keyboard, for chat and the login screen's password |
-| **Four-finger tap** | The game screen's menu: keyboard, Winlator's input controls, task manager, **Exit** (back to the launcher) |
+| **Four-finger tap** | The game's menu: **Back to the game**, **Keyboard**, **Leave the game** (back to the launcher) |
 | **Back** | Escape: closes a window, or opens the game menu |
 
-To leave the game, log out in it, then four fingers → **Exit**. A mouse or a keyboard connected to the phone goes to the game the way Winlator passes them on (not tried yet).
+To leave the game, log out in it (Escape → Log Out), then four fingers → **Leave the game**. A mouse or a keyboard connected to the phone goes to the game too (not tried yet).
 
 ## Playing from a PC
 
@@ -119,7 +121,7 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
 | `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does |
 | `winlator-version.env` | The game's runtime: Winlator's Android app at the commit Winlator 11.2 pins, and its install path with this app's |
-| `patches/winlator/` | Changes to Winlator: its runtime in this app's data folder and Exit back to the launcher; `if` chains for its `switch` statements on resource ids (built into the app's module they aren't constants); installing the runtime without its screens; the app's gestures over the game screen and Back as Escape |
+| `patches/winlator/` | Changes to Winlator: its runtime in this app's data folder and Exit back to the launcher; `if` chains for its `switch` statements on resource ids (built into the app's module they aren't constants); installing the runtime without its screens; the app's gestures, menu and loading screen over the game screen in place of Winlator's, and Back as Escape |
 | `../scripts/prepare-winlator.sh` | Puts Winlator into `android/winlator` (git-ignored), which the app's module builds with its own code: Winlator's Java code (using the app's `R`), resources, native code (NDK 24, CMake 3.22), prebuilt libraries and assets |
 | `../scripts/winlator-rewrite.py` | Rewrites the install path compiled into every archive of Winlator's runtime (`/data/data/com.winlator/files/rootfs` to `/data/data/com.logie.warcraft/rootfs`, the same length, so programs keep their layout) |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |

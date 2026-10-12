@@ -220,9 +220,16 @@
     <string name="wow_game_runtime_note">The first time only: Wine, Box64 and the graphics drivers, which run the Windows game on this phone.</string>
     <string name="wow_game_error">Something went wrong: %1$s</string>
     <string name="wow_game_error_no_client">The 3.3.5a client isn\'t in the app: add it in Game files.</string>
-    <string name="wow_game_error_runtime">Couldn\'t install the game\'s Windows (Winlator\'s runtime). Is there space on the phone?</string>
+    <string name="wow_game_error_runtime">Couldn\'t install the game\'s Windows. Is there space on the phone?</string>
     <string name="wow_game_error_windows">Couldn\'t set up the game\'s Windows.</string>
     <string name="wow_game_error_server_stopped">The server was stopped before the realm was up.</string>
     <string name="wow_game_error_no_data">The realm has no world yet: it needs the server data (Game files).</string>
     <string name="wow_game_error_no_account">Make your game account first (Accounts): the game\'s login screen asks for it.</string>
+    <string name="wow_game_loading">Entering Azeroth…</string>
+    <string name="wow_game_loading_update">Updating the game\'s Windows…</string>
+    <string name="wow_game_menu">World of Warcraft</string>
+    <string name="wow_game_menu_back">Back to the game</string>
+    <string name="wow_game_menu_keyboard">Keyboard</string>
+    <string name="wow_game_menu_leave">Leave the game</string>
+    <string name="wow_game_menu_leave_note">Leaving closes the game. Log out in it first (Escape → Log Out) so your character leaves the world cleanly.</string>
 </resources>

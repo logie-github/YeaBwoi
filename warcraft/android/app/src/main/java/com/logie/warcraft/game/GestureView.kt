@@ -25,13 +25,15 @@ import com.winlator.xserver.XServer
 /**
  * The game's touch controls ([TouchGestures]) over Winlator's game screen, in place of its
  * touchpad: Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004). It turns the
- * gestures into the X server's pointer and keys, where Wine passes them to the game.
+ * gestures into the X server's pointer and keys, where Wine passes them to the game. Four fingers
+ * open the app's own menu ([GameMenu]).
  */
 @SuppressLint("ViewConstructor")
 class GestureView(
     private val activity: AppCompatActivity,
     private val xServer: XServer,
-    private val onMenu: Runnable,
+    /** Leaves the game for the launcher. */
+    private val onLeave: Runnable,
 ) : View(activity), GestureOutput {
     private val gestures = TouchGestures(this, resources.displayMetrics.density)
     /** From the view's pixels to the game screen's. */
@@ -145,7 +147,7 @@ class GestureView(
 
     override fun showKeyboard() = AppUtils.showKeyboard(activity)
 
-    override fun showMenu() = onMenu.run()
+    override fun showMenu() = GameMenu.show(activity, onKeyboard = { showKeyboard() }, onLeave = { onLeave.run() })
 
     override fun onDetachedFromWindow() {
         removeCallbacks(hold)
