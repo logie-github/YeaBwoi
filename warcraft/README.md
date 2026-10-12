@@ -70,7 +70,7 @@ How a tap reads the cursor: the app sees the game's cursor (WoW's hardware curso
 
 Text goes in through a prompt: a box at the top of the screen with the phone's keyboard under it. The game behind it stays as it is (its screen never moves or changes size); what you send is typed into the game. It comes up by itself where the game wants text:
 
-- **The login screen:** as soon as the game appears, for your password (the account's name is filled in already). **Log in** types it and presses Enter.
+- **The login screen:** as soon as the game appears, for your password (the account's name is filled in already). **Log in** types it and presses Enter. With **Log in automatically next time** on (it is, at first), the app keeps the password on the phone once the realm confirms it's right, and from then on the game logs in by itself: no prompt, the password typed for you as soon as the login screen is up.
 - **Character creation:** when your account has no characters yet, the name prompt follows a few seconds after the login, once the game is there. **Type it** types the name into the name box; pick the race and class and press Accept in the game.
 - **Chat:** two fingers swiped up open the game's chat and the prompt. **Send** types the line and presses Enter; **Cancel** closes the chat.
 - **Any other text box** (mail, the auction house search, a new character's name later): tap the box in the game, then three fingers (or the menu's **Keyboard**). **Type it** types the text into it.
@@ -99,7 +99,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | --- | --- |
 | **Server** | How the server is (each step while it starts), Start and Stop, its logs (world, login, database, setup), the address for a PC, battery restrictions, and **Delete the databases** to start over. |
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
-| **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them. Needs the server running. |
+| **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them; **Log in automatically** with one (the game types its password at the login screen; the first account you make here does it from the start). Needs the server running. |
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). Takes effect the next time the game starts. |
 | **Add-ons** | Import add-on zips (versions made for 3.3.5a), see what's installed, delete. |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
@@ -118,6 +118,10 @@ How it runs: MariaDB listens on 127.0.0.1 only (port 3310); the login server on 
 If Android stops the server with the screen off: in **Server**, **Allow** the app to run without battery restrictions. On Android 14 and later, Developer options also have **Disable child process restrictions**, for phones that still stop it.
 
 The server only runs for the phone's main user (its programs are built for the app's folder there), not in a second user or a work profile.
+
+## Logging in by itself
+
+The game logs in by itself with the account set to **Log in automatically** (in **Accounts**, or by keeping **Log in automatically next time** on in the game's password prompt). Its password is kept in the app's own storage on the phone, and nowhere else: not in the app's code, not on GitHub. The app checks it against the realm's account before keeping it, and puts that account's name in the login box. At the login screen it waits for the game's cursor to show (the screen is ready), then types the password and presses Enter. **Stop logging in automatically** (in **Accounts**, on that account) forgets it.
 
 ## Saves
 

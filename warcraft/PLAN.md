@@ -339,6 +339,14 @@ for the game on the phone itself ("that's the whole point").
   made); and Winlator's force-fullscreen on, which scales a game window smaller than the screen
   up to fill it, the pointer mapped with it.
 
+- Then: "can I give you the login info and it automatically logs me in?" Not in the code (it
+  would be in the repository and every APK): `SavedLogin` keeps the account and password in the
+  app's own storage, from **Accounts → Log in automatically** (checked against the account's
+  SRP6 verifier first; the first account made in the app gets it), or from the game's password
+  prompt (**Log in automatically next time**, on by default, kept once the realm confirms it).
+  The game starts with that account in the box, waits for the login screen (the game's cursor
+  shown a few times running, at most 15 s), and types the password and Enter.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 

@@ -97,6 +97,15 @@ object Accounts {
         )
     }
 
+    /** Whether [password] is [name]'s: the verifier it makes with the account's salt is the stored one. */
+    fun isPassword(context: Context, name: String, password: String): Boolean {
+        val user = checkName(name)
+        if (!Srp6.PASSWORD.matches(password)) return false
+        val row = Database.query(context, "acore_auth", "SELECT HEX(salt), HEX(verifier) FROM account WHERE username = '$user';")
+            .firstOrNull() ?: return false
+        return Srp6.matches(user, password, row.getOrElse(0) { "" }, row.getOrElse(1) { "" })
+    }
+
     fun setGmLevel(context: Context, name: String, gmLevel: Int) {
         Database.exec(context, "acore_auth", gmSql(checkName(name), gmLevel))
     }

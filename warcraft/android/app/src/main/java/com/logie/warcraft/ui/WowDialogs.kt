@@ -50,6 +50,7 @@ import com.logie.warcraft.Database
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
 import com.logie.warcraft.R
+import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.Server
 import com.logie.warcraft.ServerPackage
 import com.logie.warcraft.ServerService
@@ -328,7 +329,9 @@ fun AccountsDialog(onDismiss: () -> Unit) {
     var gm by remember { mutableStateOf(true) }
     var editing by remember { mutableStateOf<Accounts.Account?>(null) }
     var newPassword by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
     var confirmDelete by remember { mutableStateOf(false) }
+    var saved by remember { mutableStateOf(SavedLogin.get(context)?.name) }
     val dbUp = Server.databaseUp && (status.phase == Server.Phase.RUNNING || (status.phase == Server.Phase.STARTING && (status.step ?: Server.Step.DATABASE) > Server.Step.IMPORT))
 
     fun run(action: () -> Unit, done: () -> Unit = {}) {
@@ -373,13 +376,18 @@ fun AccountsDialog(onDismiss: () -> Unit) {
         } else {
             for (account in list) {
                 val selected = editing?.id == account.id
+                val auto = saved.equals(account.name, ignoreCase = true)
                 WowChoiceRow(
                     title = account.name,
-                    summary = stringResource(if (account.gmLevel >= Accounts.GM_ADMIN) R.string.wow_accounts_gm else R.string.wow_accounts_player),
+                    summary = listOfNotNull(
+                        stringResource(if (account.gmLevel >= Accounts.GM_ADMIN) R.string.wow_accounts_gm else R.string.wow_accounts_player),
+                        if (auto) stringResource(R.string.wow_accounts_auto_on) else null,
+                    ).joinToString(" · "),
                     selected = selected,
                 ) {
                     editing = if (selected) null else account
                     newPassword = ""
+                    loginPassword = ""
                     confirmDelete = false
                 }
                 if (selected) {
@@ -387,7 +395,10 @@ fun AccountsDialog(onDismiss: () -> Unit) {
                         WowTextField(newPassword, { newPassword = it }, stringResource(R.string.wow_accounts_new_password), password = true)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             WowButton(stringResource(R.string.wow_accounts_set_password), enabled = newPassword.isNotEmpty()) {
-                                run({ Accounts.setPassword(context, account.name, newPassword) }) {
+                                val changed = newPassword
+                                run({ Accounts.setPassword(context, account.name, changed) }) {
+                                    // The game keeps logging in by itself, with the new password.
+                                    if (auto) SavedLogin.save(context, account.name, changed)
                                     newPassword = ""
                                     Toast.makeText(context, R.string.wow_accounts_password_changed, Toast.LENGTH_SHORT).show()
                                 }
@@ -398,7 +409,38 @@ fun AccountsDialog(onDismiss: () -> Unit) {
                             }
                             WowButton(stringResource(if (confirmDelete) R.string.wow_accounts_delete_confirm else R.string.wow_accounts_delete), primary = false) {
                                 if (!confirmDelete) confirmDelete = true
-                                else run({ Accounts.delete(context, account.name) }) { editing = null; confirmDelete = false }
+                                else run({ Accounts.delete(context, account.name) }) {
+                                    if (auto) SavedLogin.forget(context)
+                                    saved = SavedLogin.get(context)?.name
+                                    editing = null
+                                    confirmDelete = false
+                                }
+                            }
+                        }
+                        // Logging in by itself: the password, checked against the account, kept on the phone.
+                        if (auto) {
+                            Text(stringResource(R.string.wow_accounts_auto_body_on), style = MaterialTheme.typography.bodySmall)
+                            WowButton(stringResource(R.string.wow_accounts_auto_stop), primary = false) {
+                                SavedLogin.forget(context)
+                                saved = null
+                            }
+                        } else {
+                            Text(stringResource(R.string.wow_accounts_auto_body), style = MaterialTheme.typography.bodySmall)
+                            WowTextField(loginPassword, { loginPassword = it.take(16) }, stringResource(R.string.wow_accounts_password), password = true)
+                            WowButton(stringResource(R.string.wow_accounts_auto_start), enabled = loginPassword.isNotEmpty()) {
+                                val typed = loginPassword
+                                scope.launch {
+                                    val right = withContext(Dispatchers.IO) { runCatching { Accounts.isPassword(context, account.name, typed) }.getOrDefault(false) }
+                                    if (right) {
+                                        SavedLogin.save(context, account.name, typed)
+                                        saved = account.name
+                                        loginPassword = ""
+                                        error = null
+                                        Toast.makeText(context, context.getString(R.string.wow_accounts_auto_saved, account.name), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        error = context.getString(R.string.wow_accounts_auto_wrong, account.name)
+                                    }
+                                }
                             }
                         }
                     }
@@ -412,7 +454,14 @@ fun AccountsDialog(onDismiss: () -> Unit) {
         WowSwitchRow(stringResource(R.string.wow_accounts_gm_switch), stringResource(R.string.wow_accounts_gm_switch_summary), gm) { gm = it }
         Text(stringResource(R.string.wow_accounts_rules), style = MaterialTheme.typography.bodySmall)
         WowButton(stringResource(R.string.wow_accounts_create), enabled = name.isNotBlank() && password.isNotEmpty()) {
-            run({ Accounts.create(context, name, password, if (gm) Accounts.GM_ADMIN else Accounts.GM_PLAYER) }) {
+            val created = name.trim()
+            val createdPassword = password
+            run({ Accounts.create(context, created, createdPassword, if (gm) Accounts.GM_ADMIN else Accounts.GM_PLAYER) }) {
+                // The first account made here logs in by itself (Log in automatically turns it off).
+                if (SavedLogin.get(context) == null) {
+                    SavedLogin.save(context, created, createdPassword)
+                    saved = created.uppercase()
+                }
                 Toast.makeText(context, context.getString(R.string.wow_accounts_created, name.uppercase()), Toast.LENGTH_SHORT).show()
                 name = ""
                 password = ""
