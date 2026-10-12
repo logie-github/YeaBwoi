@@ -5,11 +5,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class TouchGesturesTest {
-    /** What the gestures did, as text (the stick's drawing apart). */
+    /** What the gestures did, as text. */
     private class Log : GestureOutput {
         val events = mutableListOf<String>()
-        val stick = mutableListOf<String>()
         override fun pointerTo(x: Float, y: Float) { events += "to ${x.toInt()},${y.toInt()}" }
+        override fun tapAt(x: Float, y: Float) { events += "tap at ${x.toInt()},${y.toInt()}" }
+        override fun interactAt(x: Float, y: Float) { events += "interact at ${x.toInt()},${y.toInt()}" }
         override fun pointerBy(dx: Float, dy: Float) { events += "by ${dx.toInt()},${dy.toInt()}" }
         override fun press(button: Button) { events += "press $button" }
         override fun release(button: Button) { events += "release $button" }
@@ -17,10 +18,6 @@ class TouchGesturesTest {
         override fun keyDown(key: Key) { events += "down $key" }
         override fun keyUp(key: Key) { events += "up $key" }
         override fun tap(key: Key) { events += "tap $key" }
-        override fun stick(baseX: Float, baseY: Float, knobX: Float, knobY: Float) {
-            stick += "${baseX.toInt()},${baseY.toInt()} ${knobX.toInt()},${knobY.toInt()}"
-        }
-        override fun stickGone() { stick += "gone" }
         override fun playing() { events += "playing" }
         override fun openChat() { events += "chat" }
         override fun showKeyboard() { events += "keyboard" }
@@ -37,7 +34,7 @@ class TouchGesturesTest {
         gestures.up(0, 102f, 201f, 80)
         gestures.down(0, 800f, 500f, 1000)
         gestures.up(0, 800f, 500f, 1080)
-        assertEquals(listOf("to 102,201", "click LEFT", "to 800,500", "click LEFT"), log.events)
+        assertEquals(listOf("tap at 102,201", "tap at 800,500"), log.events)
     }
 
     @Test
@@ -46,7 +43,7 @@ class TouchGesturesTest {
         gestures.up(0, 700f, 200f, 80)
         gestures.down(0, 710f, 205f, 200)
         gestures.up(0, 710f, 205f, 260)
-        assertEquals(listOf("to 700,200", "click LEFT", "tap SPACE"), log.events)
+        assertEquals(listOf("tap at 700,200", "tap SPACE"), log.events)
     }
 
     @Test
@@ -59,7 +56,7 @@ class TouchGesturesTest {
         gestures.down(0, 600f, 300f, 2200)
         gestures.onHold(2200 + TouchGestures.HOLD_MS)
         gestures.up(0, 600f, 300f, 2900)
-        assertEquals(listOf("tap B", "to 600,300", "click LEFT", "tap M"), log.events)
+        assertEquals(listOf("tap B", "tap at 600,300", "tap M"), log.events)
     }
 
     @Test
@@ -71,8 +68,6 @@ class TouchGesturesTest {
         gestures.move(0, 240f, 400f) // right
         gestures.up(0, 240f, 400f, 2000)
         assertEquals(listOf("playing", "down W", "down Q", "up W", "up Q", "down E", "up E"), log.events)
-        assertEquals("200,400 200,370", log.stick.first())
-        assertEquals("gone", log.stick.last())
     }
 
     @Test
@@ -83,7 +78,6 @@ class TouchGesturesTest {
         gestures.move(0, 200f, 420f) // below the base: back
         gestures.up(0, 200f, 420f, 2000)
         assertEquals(listOf("playing", "down W", "up W", "down S", "up S"), log.events)
-        assertEquals("200,370 200,300", log.stick.first())
     }
 
     @Test
@@ -120,7 +114,7 @@ class TouchGesturesTest {
         gestures.down(1, 700f, 550f, 700)
         gestures.up(1, 700f, 550f, 760)
         gestures.up(0, 200f, 370f, 2000)
-        assertEquals(listOf("playing", "down W", "to 700,550", "click LEFT", "tap SPACE", "up W"), log.events)
+        assertEquals(listOf("playing", "down W", "tap at 700,550", "tap SPACE", "up W"), log.events)
     }
 
     @Test
@@ -145,7 +139,7 @@ class TouchGesturesTest {
         gestures.down(1, 400f, 300f, 30)
         gestures.up(1, 400f, 300f, 120)
         gestures.up(0, 300f, 300f, 150)
-        assertEquals(listOf("to 300,300", "click RIGHT"), log.events)
+        assertEquals(listOf("interact at 300,300"), log.events)
     }
 
     @Test
@@ -181,7 +175,6 @@ class TouchGesturesTest {
             listOf("playing", "down W", "down E", "playing", "to 500,240", "press RIGHT", "up W", "up E", "release RIGHT"),
             log.events,
         )
-        assertEquals("gone", log.stick.last())
     }
 
     @Test

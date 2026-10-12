@@ -47,22 +47,24 @@ While it starts, the app shows its own loading screen (the logo over the dark, w
 
 ### Touch controls
 
-Split like most phone MMOs: the left thumb walks, the right one looks. Each finger counts on its own, so you can walk and turn at once, and tap an ability while walking.
+Nothing is drawn over the game: the screen itself is the controls. Split like most phone MMOs: the left thumb walks, the right one looks. Each finger counts on its own, so you can walk and turn at once, and tap an ability while walking.
 
 | Gesture | In the game |
 | --- | --- |
-| **Left half: swipe and hold** | Walk. A stick appears under your thumb: up W (forward), down S (back), left Q and right E (sideways steps), and the diagonals between. It follows a thumb that goes further, so changing direction is quick. Lift to stop. |
+| **Left half: swipe and hold** | Walk, as with a stick under your thumb (nothing is drawn): up W (forward), down S (back), left Q and right E (sideways steps), and the diagonals between. It follows a thumb that goes further, so changing direction is quick. Lift to stop. |
 | **Right half: drag** | Turn the camera and your character (the right button held in the middle of the screen), so walking goes where you look |
-| **Tap** (anywhere) | Left click where you tap: buttons, targets, menus |
+| **Tap** (anywhere) | What a click does in WoW, by the game's own cursor where you tap: on the interface and the ground, a left click (buttons, menus, selecting); where the cursor shows more, what a right click does on a PC: a speech bubble talks to the NPC, a sword attacks, a bag loots, a gear or flower uses or gathers. |
 | **Double tap** | Jump (Space). The first tap still clicks. |
 | **Hold** one finger still | Bags (B) |
 | **Tap, then tap and hold** | Map (M) |
 | **Pinch** with two fingers | Zoom the camera in and out |
-| **Two-finger tap** | Right click: talk, loot, attack |
+| **Two-finger tap** | A right click there: talk, loot, attack, use (always, whatever the cursor) |
 | **Two fingers swiped up** | Chat: opens it, with the keyboard |
 | **Three-finger tap** | The keyboard, for any other text box (mail, auction house search, macros) |
 | **Four-finger tap** | The game's menu: **Back to the game**, **Keyboard**, **Leave the game** (back to the launcher) |
 | **Back** | Escape: closes a window, or opens the game menu |
+
+How a tap reads the cursor: the app sees the game's cursor (WoW's hardware cursor, which the app turns on in `Config.wtf`), learns the plain arrow at the login screen, and after a tap's left click, clicks right too when the same special cursor is still there. So a tap that picks up an item, puts one down or aims a spell stays a single click. If the game's cursor can't be seen (only one cursor ever shows), tapping the same NPC again within a second and a half talks to it.
 
 ### The keyboard
 
