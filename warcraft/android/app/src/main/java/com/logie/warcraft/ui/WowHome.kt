@@ -104,19 +104,19 @@ import kotlinx.coroutines.withContext
 
 /**
  * The launcher, the first screen of the app: the Lich King over Icecrown, the logo, and under them
- * the realm. Opening the app offers any update, then starts the game ([Game]: the server, then the
- * client) once it has the server's data and the client, or the server alone without the client;
- * [PressStart] does the same by hand.
+ * the realm. Opening the app offers any update and starts nothing: [PressStart] starts the game
+ * ([Game]: the server, then the client) once it has the server's data and the client, or the server
+ * alone without the client.
  */
 @Composable
-fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
+fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
     val server by Server.status.collectAsState()
     val imports by Imports.state.collectAsState()
     val game by Game.state.collectAsState()
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
-    var autoplay by rememberSaveable { mutableStateOf(autoplayOnOpen) }
+    var checkUpdate by rememberSaveable { mutableStateOf(checkUpdateOnOpen) }
 
     val facts = remember(refresh, imports, server.phase) { HomeFacts.of(context) }
 
@@ -130,26 +130,21 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
         if (facts.hasClient && facts.hasData) Game.play(context) else Server.start(context)
     }
 
-    val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        autoplay = false
-        if (result.resultCode != WowUpdateActivity.RESULT_INSTALLING && facts.hasData) play()
+    val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        checkUpdate = false
     }
 
-    // Opening the app: offer a newer version if there is one, then start the game.
+    // Opening the app: offer a newer version if there is one. The server and the game wait for
+    // Press start.
     LaunchedEffect(Unit) {
-        if (!autoplay) return@LaunchedEffect
+        if (!checkUpdate) return@LaunchedEffect
         val update = if (WowUpdater.isConfigured) {
             // Offline, or GitHub unreachable: carry on, and check again next time.
             withContext(Dispatchers.IO) { runCatching { WowUpdater.findUpdate() }.getOrNull() }
         } else {
             null
         }
-        if (update != null) {
-            updateOffer.launch(WowUpdateActivity.intent(context, update))
-        } else {
-            autoplay = false
-            if (facts.hasData && imports !is Imports.State.Working) play()
-        }
+        if (update != null) updateOffer.launch(WowUpdateActivity.intent(context, update)) else checkUpdate = false
     }
 
     // How a long job went, as soon as it's done.

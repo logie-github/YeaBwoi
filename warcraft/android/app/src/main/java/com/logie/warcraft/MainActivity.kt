@@ -18,10 +18,10 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
-        // Only a fresh start goes straight on (update check, then the server), not coming back.
-        val autoplay = savedInstanceState == null
+        // Only a fresh start checks for an update, not coming back. Nothing starts until Press start.
+        val fresh = savedInstanceState == null
         TitleMusic.load(this)
-        setContent { WowHomeRoute(activity = this, autoplayOnOpen = autoplay) }
+        setContent { WowHomeRoute(activity = this, checkUpdateOnOpen = fresh) }
     }
 
     override fun onStart() {
