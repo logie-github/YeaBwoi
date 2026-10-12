@@ -247,3 +247,7 @@ The user can't debug: report only what was checked, and say what wasn't.
   folder mounted twice in its own view of `/data`, not a link: comparing canonical paths says they
   differ. Check that it's the same folder by writing a file through one path and reading it through
   the other (`WowFiles.isStandardPath`).
+- Watching a log for a line (the WoW world server's "ready"): read everything new each time
+  (`WowFiles.readFrom` + `logs/LineWatch`), never just the last few lines; on the phone a dozen lines
+  followed "ready" within the second and the launcher sat on "Loading". AzerothCore's console
+  output is ANSI-coloured: strip the codes before showing it (`logs/ConsoleText`).
