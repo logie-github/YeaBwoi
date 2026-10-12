@@ -47,4 +47,13 @@ object ClientConfig {
         val wide = (lines.toLong() * long / short).toInt() and 1.inv()
         return maxOf(wide, 800) to maxOf(lines, 600)
     }
+
+    /**
+     * The game's resolution for a choice of [lines] (null: the screen's own pixels, every one of
+     * them), never more than the screen has.
+     */
+    fun resolutionFor(width: Int, height: Int, lines: Int?): Pair<Int, Int> {
+        val short = minOf(width, height).coerceAtLeast(1)
+        return resolution(width, height, minOf(lines ?: short, short) and 1.inv())
+    }
 }

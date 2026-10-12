@@ -150,7 +150,9 @@ jobs:
         id: key
         shell: bash
         run: |
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', 'scripts/fetch-azerothcore.sh') }}"
+          # Patch 0007 changes the game server only (selections for the app's touch controls), not
+          # the data tools: it doesn't make them again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 

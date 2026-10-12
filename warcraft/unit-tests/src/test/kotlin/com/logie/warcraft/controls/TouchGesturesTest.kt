@@ -11,6 +11,7 @@ class TouchGesturesTest {
         override fun pointerTo(x: Float, y: Float) { events += "to ${x.toInt()},${y.toInt()}" }
         override fun tapAt(x: Float, y: Float) { events += "tap at ${x.toInt()},${y.toInt()}" }
         override fun interactAt(x: Float, y: Float) { events += "interact at ${x.toInt()},${y.toInt()}" }
+        override fun doubleTapAt(x: Float, y: Float) { events += "double tap at ${x.toInt()},${y.toInt()}" }
         override fun pointerBy(dx: Float, dy: Float) { events += "by ${dx.toInt()},${dy.toInt()}" }
         override fun press(button: Button) { events += "press $button" }
         override fun release(button: Button) { events += "release $button" }
@@ -43,7 +44,7 @@ class TouchGesturesTest {
         gestures.up(0, 700f, 200f, 80)
         gestures.down(0, 710f, 205f, 200)
         gestures.up(0, 710f, 205f, 260)
-        assertEquals(listOf("tap at 700,200", "tap SPACE"), log.events)
+        assertEquals(listOf("tap at 700,200", "double tap at 710,205"), log.events)
     }
 
     @Test
@@ -114,7 +115,7 @@ class TouchGesturesTest {
         gestures.down(1, 700f, 550f, 700)
         gestures.up(1, 700f, 550f, 760)
         gestures.up(0, 200f, 370f, 2000)
-        assertEquals(listOf("playing", "down W", "tap at 700,550", "tap SPACE", "up W"), log.events)
+        assertEquals(listOf("playing", "down W", "tap at 700,550", "double tap at 700,550", "up W"), log.events)
     }
 
     @Test
