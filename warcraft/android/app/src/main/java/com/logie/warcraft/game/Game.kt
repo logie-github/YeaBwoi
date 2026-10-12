@@ -212,6 +212,9 @@ object Game {
             put("readEULA", "1")
             put("movie", "0")
             put("gxResolution", "${width}x$height")
+            // Without this, the game's first start detects the "hardware" and puts its own
+            // resolution in place of the screen's.
+            put("hwDetect", "0")
             put("gxWindow", "1")
             put("gxMaximize", "1")
             // The game's own cursor shown by the system (not drawn in the picture): taps read it to tell

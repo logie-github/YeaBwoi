@@ -332,6 +332,13 @@ for the game on the phone itself ("that's the whole point").
   the cursor reading work as before); a mouse connected to the phone brings it back. The pinch
   takes fingers landing within 300 ms (was 200).
 
+- Then: "make it extend to full screen size not default resolution". Three causes covered (not
+  told apart on the phone): the game's first-start hardware detection replacing the resolution
+  in Config.wtf (`hwDetect 0` now); the game screen kept clear of the camera's edge
+  (`layoutInDisplayCutoutMode` always, so the view is the whole screen, the size the game is
+  made); and Winlator's force-fullscreen on, which scales a game window smaller than the screen
+  up to fill it, the pointer mapped with it.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 
