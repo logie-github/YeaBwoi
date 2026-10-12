@@ -246,6 +246,29 @@
     <string name="wow_graphics_balanced">Balanced</string>
     <string name="wow_graphics_balanced_summary">720 lines, the smoothest</string>
 
+    <!-- Client mods: the HD look (ClientMods.kt, client/HdPatches.kt) -->
+    <string name="wow_hd_title">HD look</string>
+    <string name="wow_hd_body">HD textures and models for the game, from ChromieCraft\'s downloads page. Only the patch files are downloaded, into your client; picking Off takes them out again. They take effect the next time the game starts. The game runs as a copy of Wow.exe that may use 4 GB of memory (your Wow.exe stays as it is).</string>
+    <string name="wow_hd_races_note">With custom races on, only the HD world, water, sky, light, music and loading screens apply: the HD characters and creatures replace the same tables as the races. They\'re kept aside and come back when the races are off.</string>
+    <string name="wow_hd_off">Off</string>
+    <string name="wow_hd_off_summary">The game\'s own look</string>
+    <string name="wow_hd_chromiecraft">HD patch</string>
+    <string name="wow_hd_chromiecraft_summary">ChromieCraft\'s HD patch: characters, creatures and mounts, the world\'s and cities\' textures, sunlight. About 3.4 GB to download.</string>
+    <string name="wow_hd_chromiecraft_summary_races">ChromieCraft\'s HD patch: the world\'s and cities\' textures, sunlight. About 0.4 GB to download.</string>
+    <string name="wow_hd_alternative">Alternative HD patch</string>
+    <string name="wow_hd_alternative_summary">The community HD client\'s look: HD characters, models and NPCs, the world\'s textures, spells, water, sky, music and loading screens. About 7.6 GB to download.</string>
+    <string name="wow_hd_alternative_summary_races">The community HD client\'s look: the world\'s textures, water, sky, music and loading screens. About 2.9 GB to download.</string>
+    <string name="wow_hd_in">In your client.</string>
+    <string name="wow_hd_not_applied">Not in your client yet.</string>
+    <string name="wow_hd_retry">Try again</string>
+    <string name="wow_mods_title">Changing your client</string>
+    <string name="wow_mods_progress">Downloading the HD look: %1$d%%</string>
+    <string name="wow_mods_done">Your client is changed. It takes effect the next time the game starts.</string>
+    <string name="wow_mods_reading">Reading the download\'s contents…</string>
+    <string name="wow_mods_error_no_client">Add your 3.3.5a client first (Game files).</string>
+    <string name="wow_mods_error_missing">The download no longer has %1$s.</string>
+    <string name="wow_mods_error_exe">Your Wow.exe isn\'t the 3.3.5a (12340) one these changes are made for (%1$s).</string>
+
     <!-- Add-ons (Addons.kt) -->
     <string name="wow_tile_addons">Add-ons</string>
     <string name="wow_tile_addons_none">None yet: browse warperia.com</string>

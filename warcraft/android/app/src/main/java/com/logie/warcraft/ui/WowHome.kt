@@ -149,7 +149,10 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
 
     // How a long job went, as soon as it's done.
     LaunchedEffect(imports) {
-        if ((imports is Imports.State.Done || imports is Imports.State.Failed) && dialog == null) dialog = HomeDialog.FILES
+        if ((imports is Imports.State.Done || imports is Imports.State.Failed) && dialog == null) {
+            val kind = (imports as? Imports.State.Done)?.kind ?: (imports as? Imports.State.Failed)?.kind
+            dialog = if (kind == Imports.Kind.MODS) HomeDialog.GRAPHICS else HomeDialog.FILES
+        }
     }
 
     LifecycleEventEffect(Lifecycle.Event.ON_START) { refresh++ }
@@ -582,6 +585,8 @@ fun importTitle(state: Imports.State.Working): String = when (state.kind) {
     )
     Imports.Kind.SERVER_DATA -> stringResource(R.string.wow_data_import_progress, ((state.progress ?: 0f) * 100).toInt())
     Imports.Kind.EXTRACT -> stringResource(R.string.wow_extract_progress, state.part, state.parts)
+    Imports.Kind.MODS -> state.progress?.let { stringResource(R.string.wow_mods_progress, (it * 100).toInt()) }
+        ?: stringResource(R.string.wow_mods_title)
 }
 
 /** `PRESS START`, gold, breathing with the frost light behind it. */
