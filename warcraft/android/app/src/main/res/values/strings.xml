@@ -266,4 +266,18 @@
     <string name="wow_addons_other_version">made for another version of the game</string>
     <string name="wow_addons_delete">Delete</string>
     <string name="wow_addons_delete_confirm">Delete for good</string>
+
+    <!-- The game's text prompt (game/GameScreens.kt) -->
+    <string name="wow_prompt_password">Password</string>
+    <string name="wow_prompt_password_hint">Your account\'s password</string>
+    <string name="wow_prompt_login">Log in</string>
+    <string name="wow_prompt_name">Character name</string>
+    <string name="wow_prompt_name_hint">Typed into the name box</string>
+    <string name="wow_prompt_chat">Chat</string>
+    <string name="wow_prompt_chat_hint">Say something, or /command</string>
+    <string name="wow_prompt_send">Send</string>
+    <string name="wow_prompt_text">Type</string>
+    <string name="wow_prompt_text_hint">Typed into the game\'s text box</string>
+    <string name="wow_prompt_type">Type it</string>
+    <string name="wow_prompt_cancel">Cancel</string>
 </resources>

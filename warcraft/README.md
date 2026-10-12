@@ -68,15 +68,14 @@ How a tap reads the cursor: the app sees the game's cursor (WoW's hardware curso
 
 ### The keyboard
 
-The phone's own keyboard comes up by itself where the game wants text, and the game shrinks into the space above it while it's up:
+Text goes in through a prompt: a box at the top of the screen with the phone's keyboard under it. The game behind it stays as it is (its screen never moves or changes size); what you send is typed into the game. It comes up by itself where the game wants text:
 
-- **The login screen:** as soon as the game appears, for your password. Its Enter (Go) logs in.
-- **Character creation:** when your account has no characters yet, the game goes there right after the login, and the keyboard stays up for the name. Its Enter creates the character.
-- **Chat:** two fingers swiped up open it with the keyboard. Its Enter (Send) sends and the keyboard goes; closing the keyboard without sending closes the chat, and so does starting to walk or turn.
+- **The login screen:** as soon as the game appears, for your password (the account's name is filled in already). **Log in** types it and presses Enter.
+- **Character creation:** when your account has no characters yet, the name prompt follows a few seconds after the login, once the game is there. **Type it** types the name into the name box; pick the race and class and press Accept in the game.
+- **Chat:** two fingers swiped up open the game's chat and the prompt. **Send** types the line and presses Enter; **Cancel** closes the chat.
+- **Any other text box** (mail, the auction house search, a new character's name later): tap the box in the game, then three fingers (or the menu's **Keyboard**). **Type it** types the text into it.
 
-It types plain characters as you press them, with no suggestions or corrections (the game can't take them back). For a new character later (with characters already there), tap the name box, then three fingers.
-
-To leave the game, log out in it (Escape → Log Out), then four fingers → **Leave the game**. A mouse or a keyboard connected to the phone goes to the game too (not tried yet).
+The prompt has no suggestions or corrections, and tapping beside it closes it.
 
 ## Add-ons
 

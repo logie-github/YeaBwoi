@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,14 +28,25 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -48,7 +63,8 @@ import com.logie.warcraft.ui.WowWindow
 
 /**
  * The app's own screens over the game, in the launcher's look: the loading screen while Windows
- * and the game start ([GameLoading]), and the menu that four fingers open ([GameMenu]).
+ * and the game start ([GameLoading]), the menu that four fingers open ([GameMenu]), and the text
+ * prompt with the phone's keyboard ([GamePrompt]).
  */
 private fun fullScreenDialog(activity: Activity, dim: Boolean, content: @Composable () -> Unit): ComponentDialog {
     val dialog = ComponentDialog(activity, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen)
@@ -167,6 +183,111 @@ private fun Menu(onKeyboard: () -> Unit, onBack: () -> Unit, onLeave: () -> Unit
                     style = MaterialTheme.typography.bodySmall,
                     color = WowColors.Mist,
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The game's text prompt: a box at the top of the screen with the phone's keyboard under it, for
+ * the password, a character's name, a chat line or any text box. The game behind stays as it is
+ * (its screen isn't resized or moved); what's typed goes to the game when it's sent ([GestureView]).
+ */
+object GamePrompt {
+    enum class Kind(
+        val title: Int,
+        val hint: Int,
+        val action: Int,
+        val imeAction: ImeAction,
+        val password: Boolean = false,
+    ) {
+        PASSWORD(R.string.wow_prompt_password, R.string.wow_prompt_password_hint, R.string.wow_prompt_login, ImeAction.Go, password = true),
+        NAME(R.string.wow_prompt_name, R.string.wow_prompt_name_hint, R.string.wow_prompt_type, ImeAction.Done),
+        CHAT(R.string.wow_prompt_chat, R.string.wow_prompt_chat_hint, R.string.wow_prompt_send, ImeAction.Send),
+        TEXT(R.string.wow_prompt_text, R.string.wow_prompt_text_hint, R.string.wow_prompt_type, ImeAction.Done),
+    }
+
+    /** Shows the prompt; [onSend] gets the text, [onCancel] runs when it's closed without sending. */
+    fun show(activity: Activity, kind: Kind, onSend: (String) -> Unit, onCancel: () -> Unit): ComponentDialog {
+        var dialog: ComponentDialog? = null
+        var finished = false
+        fun finish(text: String?) {
+            if (finished) return
+            finished = true
+            dialog?.dismiss()
+            if (text != null) onSend(text) else onCancel()
+        }
+        dialog = fullScreenDialog(activity, dim = false) {
+            Prompt(kind, onSend = { finish(it) }, onCancel = { finish(null) })
+        }
+        dialog.setOnCancelListener { finish(null) }
+        // The keyboard comes up over the game without moving or shrinking anything.
+        dialog.window?.setSoftInputMode(
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+        )
+        dialog.show()
+        return dialog
+    }
+}
+
+@Composable
+private fun Prompt(kind: GamePrompt.Kind, onSend: (String) -> Unit, onCancel: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        focus.requestFocus()
+        keyboard?.show()
+    }
+    // A tap beside the box closes it.
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onCancel),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        WowWindow(
+            Modifier
+                .padding(top = 18.dp, start = 16.dp, end = 16.dp)
+                .widthIn(max = 640.dp)
+                .fillMaxWidth()
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+            opaque = true,
+            padding = PaddingValues(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                WowTitle(stringResource(kind.title))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(WowColors.Abyss)
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    if (text.isEmpty()) {
+                        Text(stringResource(kind.hint), style = MaterialTheme.typography.bodyLarge, color = WowColors.Mist)
+                    }
+                    BasicTextField(
+                        value = text,
+                        onValueChange = { text = it.replace("\n", "") },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = WowColors.Text),
+                        cursorBrush = SolidColor(WowColors.Ice),
+                        visualTransformation = if (kind.password) PasswordVisualTransformation() else VisualTransformation.None,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = if (kind.password) KeyboardType.Password else KeyboardType.Ascii,
+                            autoCorrectEnabled = false,
+                            imeAction = kind.imeAction,
+                        ),
+                        keyboardActions = KeyboardActions(onAny = { onSend(text) }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focus),
+                    )
+                }
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    WowButton(stringResource(R.string.wow_prompt_cancel), primary = false, onClick = onCancel)
+                    WowButton(stringResource(kind.action)) { onSend(text) }
+                }
             }
         }
     }
