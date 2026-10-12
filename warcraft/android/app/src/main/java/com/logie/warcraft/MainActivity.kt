@@ -7,9 +7,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import com.logie.warcraft.game.Game
 import com.logie.warcraft.ui.WowHomeRoute
 
-/** The launcher ([WowHomeRoute]), with its music ([TitleMusic]) while it's on screen. */
+/** The launcher ([WowHomeRoute]), with its music ([TitleMusic]) while it's on screen; [Game] starts from it. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         visible = true
         TitleMusic.onShown(this)
+        Game.onLauncherShown(this)
     }
 
     override fun onStop() {

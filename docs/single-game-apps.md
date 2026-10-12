@@ -124,7 +124,7 @@ foreground layers and a monochrome layer for themed icons.
 
 ### Gradle
 
-`compileSdk`/`targetSdk` 35, `minSdk` 26, NDK `29.0.14206865`, `abiFilters "arm64-v8a"`, R8
+`compileSdk`/`targetSdk` 35 (World of Warcraft targets 28, to run programs from its storage), `minSdk` 26, NDK `29.0.14206865` (Winlator's code in World of Warcraft: 24.0.8215888), `abiFilters "arm64-v8a"`, R8
 (`minifyEnabled`, `shrinkResources`) with keep rules for anything native code calls by name,
 `useLegacyPackaging` when a library is loaded by file name, Compose BOM 2025.04.00. CI passes the
 app's identity as properties with an app prefix (`-Ppe…`, `-Pad…`): `VersionCode`, `VersionName`,
@@ -251,3 +251,15 @@ The user can't debug: report only what was checked, and say what wasn't.
   (`WowFiles.readFrom` + `logs/LineWatch`), never just the last few lines; on the phone a dozen lines
   followed "ready" within the second and the launcher sat on "Loading". AzerothCore's console
   output is ANSI-coloured: strip the codes before showing it (`logs/ConsoleText`).
+- A large upstream Android app can be compiled into the app's own module instead of being run
+  beside it (World of Warcraft and Winlator: `scripts/prepare-winlator.sh` copies its Java code,
+  resources, `cpp/`, `jniLibs/` and assets into `warcraft/android/winlator`, added as source sets,
+  with its CMake build as the module's `externalNativeBuild`). Its code then uses the app's `R`.
+  Under AGP 9, resource ids aren't constants in an app module either (`android.nonFinalResIds`
+  no longer changes that), so its `switch` statements on them become `if` chains (a patch);
+  `android.nonTransitiveRClass=false` gives it its libraries' theme attributes. Drop the
+  resources and providers that clash with the app's (`app_name`, a FileProvider's authority).
+- Winlator's runtime (rootfs, Box64, Wine, drivers) has `/data/data/com.winlator/files/rootfs`
+  compiled in, in ELF interpreters, strings and links. Another package can use it by rewriting
+  every archive to a path of the same length (`/data/data/com.logie.warcraft/rootfs`,
+  `scripts/winlator-rewrite.py`) and patching `RootFS.find` to match: nothing in the files moves.

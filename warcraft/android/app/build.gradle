@@ -10,6 +10,13 @@ def wowProperty = { String name, String fallback ->
 }
 def wowKeystore = wowProperty("keystore", "")
 
+// The game's runtime, Winlator, built into this module (scripts/prepare-winlator.sh puts it in
+// ../winlator): its Java code, resources, native code, prebuilt libraries and assets.
+def winlator = file("../winlator")
+if (!new File(winlator, "java").isDirectory()) {
+	throw new GradleException("Winlator isn't in warcraft/android/winlator: run scripts/prepare-winlator.sh")
+}
+
 // The server data the app downloads: warcraft/server-data.env.
 def serverData = [:]
 file("../../server-data.env").eachLine { line ->
@@ -45,8 +52,24 @@ android {
 		buildConfigField "String", "WOW_DATA_SHA256", "\"${serverData.SERVER_DATA_SHA256}\""
 
 		ndk {
-			// Phones only: the server is built for arm64.
+			// Phones only: the server and the game's runtime are built for arm64.
 			abiFilters "arm64-v8a"
+		}
+	}
+
+	// Winlator's native code (its X server, renderers, audio), with the NDK and CMake it's made for.
+	ndkVersion = "24.0.8215888"
+	externalNativeBuild {
+		cmake {
+			path = file("../winlator/cpp/CMakeLists.txt")
+			version = "3.22.1"
+		}
+	}
+
+	packaging {
+		jniLibs {
+			// Winlator loads its libraries from files (extractNativeLibs).
+			useLegacyPackaging = true
 		}
 	}
 
@@ -64,7 +87,8 @@ android {
 	buildTypes {
 		release {
 			minifyEnabled = true
-			shrinkResources = true
+			// Winlator looks some of its resources up by name.
+			shrinkResources = false
 			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
 			signingConfig = wowKeystore ? signingConfigs.wow : signingConfigs.debug
 		}
@@ -77,14 +101,17 @@ android {
 
 	sourceSets {
 		main {
-			// server.tar.xz from scripts/build-azerothcore.sh (CI puts it there).
-			assets.srcDirs += ['../server']
+			// server.tar.xz from scripts/build-azerothcore.sh (CI puts it there), Winlator's assets.
+			assets.srcDirs += ['../server', '../winlator/assets']
+			java.srcDirs += ['../winlator/java']
+			res.srcDirs += ['../winlator/res']
+			jniLibs.srcDirs += ['../winlator/jniLibs']
 		}
 	}
 
 	androidResources {
 		// Already xz-compressed.
-		noCompress += ['xz']
+		noCompress += ['xz', 'tzst']
 	}
 
 	lint {
@@ -107,4 +134,8 @@ dependencies {
 	// Unpacking the server (tar.xz).
 	implementation 'org.apache.commons:commons-compress:1.27.1'
 	implementation 'org.tukaani:xz:1.10'
+	// Winlator's.
+	implementation 'androidx.preference:preference:1.2.1'
+	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
 }
