@@ -387,7 +387,8 @@ object Server {
     fun ctl(context: Context, vararg args: String): ProcessBuilder {
         WowFiles.run(context).mkdirs()
         return ProcessBuilder(listOf("/system/bin/sh", WowFiles.ctl(context).path) + args).apply {
-            environment()["FILES"] = WowFiles.root(context).path
+            // The server's paths are the ones it was built for (the same folder: isStandardPath).
+            environment()["FILES"] = WowFiles.serverRoot(context)
             environment()["TZ"] = posixTimeZone()
             directory(WowFiles.run(context))
         }
