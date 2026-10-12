@@ -37,6 +37,20 @@ class Srp6Test {
     }
 
     @Test
+    fun theSavedPasswordIsCheckedAgainstTheDatabasesHex() {
+        val salt = Srp6.newSalt()
+        val verifier = Srp6.verifier("PLAYER", "Secret12", salt)
+        val saltHex = Srp6.hex(salt).uppercase()
+        val verifierHex = Srp6.hex(verifier).uppercase()
+        assertTrue(Srp6.matches("PLAYER", "Secret12", saltHex, verifierHex))
+        // The client sends passwords uppercased: case doesn't matter, as at the login.
+        assertTrue(Srp6.matches("player", "SECRET12", saltHex, verifierHex))
+        assertFalse(Srp6.matches("PLAYER", "Secret13", saltHex, verifierHex))
+        assertFalse(Srp6.matches("PLAYER", "Secret12", "", verifierHex))
+        assertFalse(Srp6.matches("PLAYER", "Secret12", saltHex, "zz"))
+    }
+
+    @Test
     fun namesAndPasswords() {
         assertTrue(Srp6.NAME.matches("Arthas"))
         assertTrue(Srp6.NAME.matches("abc123"))

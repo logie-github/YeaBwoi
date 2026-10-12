@@ -280,4 +280,15 @@
     <string name="wow_prompt_text_hint">Typed into the game\'s text box</string>
     <string name="wow_prompt_type">Type it</string>
     <string name="wow_prompt_cancel">Cancel</string>
+
+    <!-- Logging in by itself (SavedLogin.kt) -->
+    <string name="wow_prompt_remember">Log in automatically next time</string>
+    <string name="wow_prompt_remember_summary">Keeps the password on this phone (Accounts turns it off)</string>
+    <string name="wow_accounts_auto_on">logs in automatically</string>
+    <string name="wow_accounts_auto_body">Log in automatically: the game types this account\'s password at the login screen by itself. The password stays on this phone, in the app\'s own storage.</string>
+    <string name="wow_accounts_auto_body_on">The game logs in with this account by itself. Its password is kept on this phone.</string>
+    <string name="wow_accounts_auto_start">Log in automatically</string>
+    <string name="wow_accounts_auto_stop">Stop logging in automatically</string>
+    <string name="wow_accounts_auto_saved">%1$s logs in automatically from now on</string>
+    <string name="wow_accounts_auto_wrong">That isn\'t %1$s\'s password.</string>
 </resources>

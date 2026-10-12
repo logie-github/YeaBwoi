@@ -47,6 +47,21 @@ object Srp6 {
         return out
     }
 
+    /**
+     * Whether [password] is [name]'s, given the account's salt and verifier as the database
+     * shows them in hex (`HEX(salt)`, `HEX(verifier)`).
+     */
+    fun matches(name: String, password: String, saltHex: String, verifierHex: String): Boolean {
+        val salt = unhex(saltHex) ?: return false
+        val stored = unhex(verifierHex) ?: return false
+        return salt.size == SALT_LENGTH && PASSWORD.matches(password) && verifier(name, password, salt).contentEquals(stored)
+    }
+
+    fun unhex(text: String): ByteArray? {
+        if (text.length % 2 != 0) return null
+        return runCatching { ByteArray(text.length / 2) { text.substring(it * 2, it * 2 + 2).toInt(16).toByte() } }.getOrNull()
+    }
+
     fun hex(bytes: ByteArray): String = buildString(bytes.size * 2) {
         for (b in bytes) {
             append(HEX[(b.toInt() shr 4) and 0xF])

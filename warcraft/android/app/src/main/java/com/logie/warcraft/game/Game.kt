@@ -8,6 +8,7 @@ import com.logie.warcraft.Accounts
 import com.logie.warcraft.Database
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
+import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.Server
 import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowFiles
@@ -132,10 +133,13 @@ object Game {
             server.phase == Server.Phase.STOPPED -> throw GameFailed(context.getString(R.string.wow_game_error_server_stopped))
             server.world == Server.World.NO_DATA -> throw GameFailed(context.getString(R.string.wow_game_error_no_data))
         }
-        // The login box filled in with the account, when there's only one that's the user's.
+        // The login box filled in with the account: the one that logs in by itself (SavedLogin), or
+        // the only one there is.
         val accounts = withContext(Dispatchers.IO) { runCatching { Accounts.list(context) }.getOrNull() }
         if (accounts?.isEmpty() == true) throw GameFailed(context.getString(R.string.wow_game_error_no_account), needsAccount = true)
-        val account = accounts?.singleOrNull()
+        val saved = SavedLogin.get(context)
+        val account = accounts?.firstOrNull { saved != null && it.name.equals(saved.name, ignoreCase = true) }
+            ?: accounts?.singleOrNull()
         if (account != null) withContext(Dispatchers.IO) { configureClient(context, width, height, account.name) }
         // No characters yet: right after the login the game goes to character creation, where the
         // keyboard stays up for the name.
@@ -155,6 +159,7 @@ object Game {
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_NEW_ACCOUNT, newAccount)
+            .putExtra(GestureView.EXTRA_ACCOUNT, account?.name)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 

@@ -57,6 +57,7 @@ import com.logie.warcraft.ui.WowButton
 import com.logie.warcraft.ui.WowColors
 import com.logie.warcraft.ui.WowSnow
 import com.logie.warcraft.ui.WowSpinner
+import com.logie.warcraft.ui.WowSwitchRow
 import com.logie.warcraft.ui.WowTheme
 import com.logie.warcraft.ui.WowTitle
 import com.logie.warcraft.ui.WowWindow
@@ -200,27 +201,32 @@ object GamePrompt {
         val action: Int,
         val imeAction: ImeAction,
         val password: Boolean = false,
+        /** Offers to keep it on the phone and log in by itself next time (the password). */
+        val remember: Boolean = false,
     ) {
-        PASSWORD(R.string.wow_prompt_password, R.string.wow_prompt_password_hint, R.string.wow_prompt_login, ImeAction.Go, password = true),
+        PASSWORD(R.string.wow_prompt_password, R.string.wow_prompt_password_hint, R.string.wow_prompt_login, ImeAction.Go, password = true, remember = true),
         NAME(R.string.wow_prompt_name, R.string.wow_prompt_name_hint, R.string.wow_prompt_type, ImeAction.Done),
         CHAT(R.string.wow_prompt_chat, R.string.wow_prompt_chat_hint, R.string.wow_prompt_send, ImeAction.Send),
         TEXT(R.string.wow_prompt_text, R.string.wow_prompt_text_hint, R.string.wow_prompt_type, ImeAction.Done),
     }
 
-    /** Shows the prompt; [onSend] gets the text, [onCancel] runs when it's closed without sending. */
-    fun show(activity: Activity, kind: Kind, onSend: (String) -> Unit, onCancel: () -> Unit): ComponentDialog {
+    /**
+     * Shows the prompt; [onSend] gets the text and whether to remember it ([Kind.remember]),
+     * [onCancel] runs when it's closed without sending.
+     */
+    fun show(activity: Activity, kind: Kind, onSend: (String, Boolean) -> Unit, onCancel: () -> Unit): ComponentDialog {
         var dialog: ComponentDialog? = null
         var finished = false
-        fun finish(text: String?) {
+        fun finish(text: String?, remember: Boolean) {
             if (finished) return
             finished = true
             dialog?.dismiss()
-            if (text != null) onSend(text) else onCancel()
+            if (text != null) onSend(text, remember) else onCancel()
         }
         dialog = fullScreenDialog(activity, dim = false) {
-            Prompt(kind, onSend = { finish(it) }, onCancel = { finish(null) })
+            Prompt(kind, onSend = { text, remember -> finish(text, remember) }, onCancel = { finish(null, false) })
         }
-        dialog.setOnCancelListener { finish(null) }
+        dialog.setOnCancelListener { finish(null, false) }
         // The keyboard comes up over the game without moving or shrinking anything.
         dialog.window?.setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
@@ -231,8 +237,9 @@ object GamePrompt {
 }
 
 @Composable
-private fun Prompt(kind: GamePrompt.Kind, onSend: (String) -> Unit, onCancel: () -> Unit) {
+private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onCancel: () -> Unit) {
     var text by remember { mutableStateOf("") }
+    var keep by remember { mutableStateOf(true) }
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) {
@@ -278,15 +285,18 @@ private fun Prompt(kind: GamePrompt.Kind, onSend: (String) -> Unit, onCancel: ()
                             autoCorrectEnabled = false,
                             imeAction = kind.imeAction,
                         ),
-                        keyboardActions = KeyboardActions(onAny = { onSend(text) }),
+                        keyboardActions = KeyboardActions(onAny = { onSend(text, keep) }),
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(focus),
                     )
                 }
+                if (kind.remember) {
+                    WowSwitchRow(stringResource(R.string.wow_prompt_remember), stringResource(R.string.wow_prompt_remember_summary), keep) { keep = it }
+                }
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     WowButton(stringResource(R.string.wow_prompt_cancel), primary = false, onClick = onCancel)
-                    WowButton(stringResource(kind.action)) { onSend(text) }
+                    WowButton(stringResource(kind.action)) { onSend(text, keep) }
                 }
             }
         }

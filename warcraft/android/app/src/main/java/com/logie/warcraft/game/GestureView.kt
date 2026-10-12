@@ -15,6 +15,8 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.ComponentDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.logie.warcraft.Accounts
+import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.controls.Button
 import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.GestureOutput
@@ -75,6 +77,8 @@ class GestureView(
     private var prompt: ComponentDialog? = null
     private var loginShown = false
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
+    /** The account in the game's login box (Config.wtf), if the launcher knows which. */
+    private val account: String? = activity.intent.getStringExtra(EXTRA_ACCOUNT)
     /** Key presses still to send for text from the prompt, a few milliseconds apart. */
     private val typing = ArrayDeque<() -> Unit>()
     private var typingRuns = false
@@ -184,7 +188,12 @@ class GestureView(
         xServer.renderer.isCursorVisible = false
         if (loginShown) return
         loginShown = true
-        postDelayed({ ask(GamePrompt.Kind.PASSWORD) }, LOGIN_KEYBOARD_DELAY_MS)
+        val login = SavedLogin.get(activity)?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
+        if (login != null) {
+            logInWhenReady(login.password, SystemClock.uptimeMillis(), seen = 0)
+        } else {
+            postDelayed({ ask(GamePrompt.Kind.PASSWORD) }, LOGIN_KEYBOARD_DELAY_MS)
+        }
         // The login screen only has the plain arrow: what the cursor looks like when it means a click.
         for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
     }
@@ -395,12 +404,32 @@ class GestureView(
 
     // Text -------------------------------------------------------------------------------------
 
+    /**
+     * Logs in by itself with the saved password (SavedLogin): once the login screen is up (the
+     * game has shown its cursor a few times running, then a moment more for its boxes), or after
+     * [LOGIN_WAIT_MS] in any case. The account's name is in the box already (Config.wtf).
+     */
+    private fun logInWhenReady(password: String, since: Long, seen: Int) {
+        val now = if (cursorHere() != null) seen + 1 else 0
+        if (now >= LOGIN_CURSOR_SEEN || SystemClock.uptimeMillis() - since >= LOGIN_WAIT_MS) {
+            postDelayed({
+                type(password, enter = true)
+                if (newAccount) postDelayed({ ask(GamePrompt.Kind.NAME) }, NAME_PROMPT_DELAY_MS)
+            }, LOGIN_SETTLE_MS)
+            return
+        }
+        postDelayed({ logInWhenReady(password, since, now) }, LOGIN_POLL_MS)
+    }
+
     private fun ask(kind: GamePrompt.Kind) {
         if (prompt?.isShowing == true) return
         prompt = GamePrompt.show(
             activity,
             kind,
-            onSend = { text -> send(kind, text) },
+            onSend = { text, remember ->
+                send(kind, text)
+                if (kind == GamePrompt.Kind.PASSWORD && remember) remember(text)
+            },
             // A chat opened for the prompt closes again.
             onCancel = { if (kind == GamePrompt.Kind.CHAT) tap(Key.ESCAPE) },
         )
@@ -420,6 +449,21 @@ class GestureView(
             GamePrompt.Kind.CHAT -> type(text, enter = true)
             GamePrompt.Kind.NAME, GamePrompt.Kind.TEXT -> type(text, enter = false)
         }
+    }
+
+    /**
+     * The password typed in the prompt, kept on the phone to log in by itself next time, once the
+     * realm says it's the account's (the one in the login box, or whichever account it opens).
+     */
+    private fun remember(password: String) {
+        val app = activity.applicationContext
+        val named = account
+        Thread {
+            runCatching {
+                val names = if (named != null) listOf(named) else Accounts.list(app).map { it.name }
+                names.firstOrNull { Accounts.isPassword(app, it, password) }?.let { SavedLogin.save(app, it, password) }
+            }
+        }.start()
     }
 
     private val characters: KeyCharacterMap by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
@@ -460,6 +504,8 @@ class GestureView(
     companion object {
         /** The launcher's word that the account has no characters yet: the game will go to character creation. */
         const val EXTRA_NEW_ACCOUNT = "new_account"
+        /** The account the launcher put in the game's login box. */
+        const val EXTRA_ACCOUNT = "account"
 
         private const val CLICK_MS = 30L
         private const val KEY_MS = 60L
@@ -467,6 +513,11 @@ class GestureView(
         private const val TYPE_STEP_MS = 15L
         /** After the login, until the game is at character creation (a new account goes there). */
         private const val NAME_PROMPT_DELAY_MS = 7000L
+        /** Logging in by itself: looking for the login screen's cursor, and how long at most. */
+        private const val LOGIN_POLL_MS = 250L
+        private const val LOGIN_CURSOR_SEEN = 3
+        private const val LOGIN_WAIT_MS = 15000L
+        private const val LOGIN_SETTLE_MS = 1500L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
