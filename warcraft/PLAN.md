@@ -45,8 +45,9 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
   realm options) are chosen in the launcher **at any time**, not in a first-run wizard. The
   launcher writes the config and applies it (`.reload config` where a setting supports it,
   otherwise a world server restart, saying first if the game will disconnect).
-- **Add-ons:** a generic manager, no built-in list (see "Launcher sections"). First step built:
-  importing zips; browsing CurseForge in the app later, maybe.
+- **Add-ons:** a full manager with warperia.com as its catalogue ("use this as a repo for an
+  addon browser ... click into the addon or just install it in one click ... a fully fledged
+  addon manager"), plus importing zips.
 - **Double tap = jump.** The map moves to another gesture (proposed below).
 - **Phone:** Galaxy Z Fold 8.
 - **The server's data** (dbc, maps, vmaps, mmaps) can be made **either way**: on a Windows PC
@@ -177,12 +178,12 @@ mod-ptr-changes.
 - **Accounts**: create, change password, GM level, delete; which one the game logs in with.
 - **Bots**: on/off, how many, level ranges, per-account bots, the playerbot settings, at any
   time.
-- **Add-ons**: install any add-on at will, nothing preinstalled or special-cased. Import a zip
-  or a folder; find every add-on in it by its `.toc` file, however it's nested (a zip may hold
-  several, or wrap them in an extra folder), and install each as its own folder in
-  `Interface/AddOns` (replacing an older copy). List them by their `.toc` title and version, switch
-  them on or off (`WTF/Account/<ACCOUNT>/AddOns.txt`; the game's own AddOns button at character
-  select keeps working), delete them.
+- **Add-ons**: install any add-on at will, nothing preinstalled or special-cased. Browse
+  warperia.com's 3.3.5a list in the app and install in one tap, or import a zip; find every
+  add-on in it by its `.toc` file, however it's nested (a zip may hold several, or wrap them in
+  an extra folder), and install each as its own folder in `Interface/AddOns` (replacing an older
+  copy). List them, update them, switch them on or off (moved out to `Interface/AddOns-off`; the
+  game's own AddOns button at character select keeps working too), delete them.
 - **Controls**, **Graphics** (resolution, renderer, frame cap), **App icon**, **Updates**.
 
 ## Stages
@@ -316,7 +317,7 @@ for the game on the phone itself ("that's the whole point").
   of the screen it's on), or 1080 / 720 lines at its shape (`GameSettings`, next game start).
 - Add-ons: CurseForge browsing in the app was set aside by the user ("too much"); for now **import
   zips** (`Addons`, `client/AddonLayout`: any packing, folder named after its `.toc`), list and
-  delete; `checkAddonVersion 0` so 3.3.5a add-ons marked otherwise load.
+  delete; `checkAddonVersion 0` so 3.3.5a add-ons marked otherwise load. (Then warperia.com, below.)
 
 - On the phone (build 31): "black screen and crash during login if you use your keyboard"; asked
   for "the keyboard like a prompt rather than pushing the screen up". Most likely the shrink
@@ -358,6 +359,26 @@ for the game on the phone itself ("that's the whole point").
   lifecycle: stopForeground, the service still running; the visible game keeps the process at
   the front) and comes back on its onStop (another app, home, screen off). Targets SDK 28, so
   going back to the foreground from there isn't restricted.
+
+- Then: "use warperia.com/wotlk-addons as a repo for an addon browser ... a fully fledged addon
+  manager". The site's REST API wants a key, so the app reads its public pages as a browser does
+  (`addons/Warperia`, jsoup): the list (`?search=`, `category=`, `sort=recent|updated`,
+  `paged=`, 20 a page, 838 add-ons in 42 pages in October 2026), an add-on's page (version, days,
+  downloads, categories, developers, description, screenshots, changelog) and the free download:
+  its waiting page (`data-countdown-seconds`, 5) and, after the wait, the form its script sends
+  (`admin-ajax.php`, `increment_addon_download`, the page's `download_nonce`), whose answer is a
+  link to the zip valid for that IP and user agent only (`WarperiaDownload`, one retry on 403).
+  The app waits the site's seconds like any visitor (skipping them is the site's Premium).
+  The site serves its card markup under two sets of class names (seen 1 in 7 loads), so the
+  parser leans on attributes (`data-addon-id`, `data-tooltip`, the tab ids, the facts' labels)
+  with fallbacks; it writes days two ways ("Aug 7" in the list, "Aug 07" on a page), compared as
+  `yyyy-MM-dd`. Installs go one at a time through the zip installer; `files/addons/warperia.tsv`
+  (`AddonRecords`) keeps each one's slug, version, day and folders, for updates (the page's
+  version or day moved; checked when the screen opens, at most every 30 minutes, or by hand),
+  on/off and delete (libraries another install also brought stay). The screen
+  (`ui/WowAddons.kt`) is full-screen over the launcher: Browse (search, order, categories,
+  cards with Install / Update / progress, endless scrolling, two columns on the open Fold),
+  an add-on's page, Installed (Update all, Check for updates, Import zip, switches, delete).
 
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.

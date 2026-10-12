@@ -76,7 +76,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -85,7 +84,7 @@ import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import com.logie.warcraft.Addons
+import com.logie.warcraft.AddonStore
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.Imports
@@ -176,6 +175,7 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
                 onStop = { Server.stop(context) },
                 onDialog = { dialog = it },
             )
+            if (dialog == HomeDialog.ADDONS) AddonManager(onDismiss = { dialog = null; refresh++ })
         }
         when (dialog) {
             HomeDialog.SERVER -> ServerDialog(onDismiss = { dialog = null; refresh++ })
@@ -183,7 +183,8 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             HomeDialog.ACCOUNTS -> AccountsDialog(onDismiss = { dialog = null })
             HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
-            HomeDialog.ADDONS -> AddonsDialog(onDismiss = { dialog = null; refresh++ })
+            // Over the whole screen, in the box above.
+            HomeDialog.ADDONS -> {}
             null -> {}
         }
     }
@@ -305,8 +306,10 @@ private fun graphicsSummary(context: android.content.Context): String {
 @Composable
 private fun addonsSummary(context: android.content.Context, facts: HomeFacts): String {
     if (!facts.hasClient) return stringResource(R.string.wow_tile_addons_no_client)
-    val count = remember(facts) { runCatching { Addons.list(context).size }.getOrDefault(0) }
-    return if (count == 0) stringResource(R.string.wow_tile_addons_none) else pluralStringResource(R.plurals.wow_tile_addons_count, count, count)
+    LaunchedEffect(facts) { AddonStore.refresh(context) }
+    val installed by AddonStore.installed.collectAsState()
+    val count = installed.size
+    return if (count == 0) stringResource(R.string.wow_tile_addons_none) else addonCountText(count)
 }
 
 @Composable
