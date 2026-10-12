@@ -28,7 +28,8 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
   preinstalled and none are special-cased in code.
 - **A private server on the phone, set up silently**: AzerothCore, specifically **ChromieCraft**
   (see below). Tapping the app goes straight to the game's **login screen**, with the server
-  already running behind it.
+  already running behind it. (Later changed by the user: nothing starts on opening the app;
+  **Press start** goes straight to the login screen.)
 - **ChromieCraft fully integrated**, "with all available ChromieCraft options", in the launcher.
 - Launcher sections of their own for **account creation**, **bot management** and **server
   options** (and any other settings a private server allows).
@@ -251,7 +252,7 @@ for the game on the phone itself ("that's the whole point").
 - AGP 9 makes resource ids non-constant in the app module too (`android.nonFinalResIds=false` has
   no effect), so Winlator's `switch` statements on them became `if` chains (patch 0002); its
   theme attributes from Material and AppCompat come through `android.nonTransitiveRClass=false`.
-- `game/Game.kt`: **Press start** (and opening the app) starts the server, installs the runtime
+- `game/Game.kt`: **Press start** (opening the app did too until build 39) starts the server, installs the runtime
   meanwhile (patch 0003, without Winlator's screens, progress in the launcher), makes one container
   (client as D:, the screen's shape at 720 lines), writes `realmlist.wtf` and `Config.wtf`
   (127.0.0.1, realm name, intro off, the account's name), waits for the world, stops the music and
@@ -379,6 +380,9 @@ for the game on the phone itself ("that's the whole point").
   (`ui/WowAddons.kt`) is full-screen over the launcher: Browse (search, order, categories,
   cards with Install / Update / progress, endless scrolling, two columns on the open Fold),
   an add-on's page, Installed (Update all, Check for updates, Import zip, switches, delete).
+
+- Then: "make it so the server doesn't auto start when the app opens". Opening the app only
+  checks for an update now; the server and the game start from **Press start**.
 
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
