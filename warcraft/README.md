@@ -54,11 +54,11 @@ Nothing is drawn over the game, not even the mouse pointer: the screen itself is
 | **Left half: swipe and hold** | Walk, as with a stick under your thumb (nothing is drawn): up W (forward), down S (back), left Q and right E (sideways steps), and the diagonals between. It follows a thumb that goes further, so changing direction is quick. Lift to stop. |
 | **Right half: drag** | Turn the camera and your character (the right button held in the middle of the screen), so walking goes where you look |
 | **Tap** (anywhere) | What a click does in WoW, by the game's own cursor where you tap: on the interface and the ground, a left click (buttons, menus); on an **enemy**, selects it as your target; on anyone or anything else the cursor offers something for, does it at once, as a right click does on a PC: a speech bubble talks to the NPC, a bag loots, a gear or flower uses or gathers. |
-| **Double tap** | On an enemy: attack it. Anywhere else: jump (Space). |
+| **Double tap** | On an enemy: attack it. On the action bars (the bottom of the screen and its right edge, where the game's interface puts them): two presses, so you can tap a button as fast as you like. Anywhere else: jump (Space). |
 | **Hold** one finger still | Bags (B) |
 | **Tap, then tap and hold** | Map (M) |
 | **Pinch** with two fingers | Zoom the camera: spread to zoom in, close to zoom out. Put both fingers down together (within about a third of a second) and move them apart or together. |
-| **Two-finger tap** | A right click there: talk, loot, attack, use (always, whatever the cursor) |
+| **Two-finger tap** | Target the nearest enemy (the game's Tab; again for the next one) |
 | **Two fingers swiped up** | Chat: opens it, with the keyboard |
 | **Three-finger tap** | The keyboard, for any other text box (mail, auction house search, macros) |
 | **Four-finger tap** | The game's menu: **Back to the game**, **Keyboard**, **Leave the game** (back to the launcher) |

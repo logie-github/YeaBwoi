@@ -10,7 +10,7 @@ class TouchGesturesTest {
         val events = mutableListOf<String>()
         override fun pointerTo(x: Float, y: Float) { events += "to ${x.toInt()},${y.toInt()}" }
         override fun tapAt(x: Float, y: Float) { events += "tap at ${x.toInt()},${y.toInt()}" }
-        override fun interactAt(x: Float, y: Float) { events += "interact at ${x.toInt()},${y.toInt()}" }
+        override fun targetNearestEnemy() { events += "tab" }
         override fun doubleTapAt(x: Float, y: Float) { events += "double tap at ${x.toInt()},${y.toInt()}" }
         override fun pointerBy(dx: Float, dy: Float) { events += "by ${dx.toInt()},${dy.toInt()}" }
         override fun press(button: Button) { events += "press $button" }
@@ -135,12 +135,12 @@ class TouchGesturesTest {
     }
 
     @Test
-    fun twoFingerTapRightClicks() {
+    fun twoFingerTapTargetsTheNearestEnemy() {
         gestures.down(0, 300f, 300f, 0)
         gestures.down(1, 400f, 300f, 30)
         gestures.up(1, 400f, 300f, 120)
         gestures.up(0, 300f, 300f, 150)
-        assertEquals(listOf("interact at 300,300"), log.events)
+        assertEquals(listOf("tab"), log.events)
     }
 
     @Test
