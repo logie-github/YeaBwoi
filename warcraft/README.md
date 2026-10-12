@@ -6,7 +6,7 @@
 
 An Android app for **World of Warcraft: Wrath of the Lich King 3.3.5a** that plays the game on the phone, your own 3.3.5a client run by [Winlator](https://github.com/brunodev85/winlator) (Wine, Box64 and the phone's GPU) built into the app, with its own private realm on the phone: a [ChromieCraft](https://www.chromiecraft.com/)-style [AzerothCore](https://www.azerothcore.org/) server with [playerbots](https://github.com/mod-playerbots/mod-playerbots), running natively on the phone's arm64 processor next to its MariaDB database. The launcher is styled after Wrath's Northrend: the Lich King before Icecrown Citadel with snow drifting across, the logo, and frost-blue panels with gold corners.
 
-It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the launcher and the server; a PC's 3.3.5a client on the same Wi-Fi can play on the realm. **Stage 2, this version:** the game itself in the app, started from the launcher straight to its login screen on the realm. Its touch controls are Winlator's touchpad for now; the gestures (tap to click, swipe to walk, hold for bags, double tap to jump) come next. **Stage 3:** every server option in the launcher (progression brackets, rates, realm settings), bot management, add-ons, controls and graphics settings.
+It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the launcher and the server; a PC's 3.3.5a client on the same Wi-Fi can play on the realm. **Stage 2, this version:** the game itself in the app, started from the launcher straight to its login screen on the realm, with touch gestures (tap to click, swipe to walk, hold for bags, double tap to jump). **Stage 3:** every server option in the launcher (progression brackets, rates, realm settings), bot management, add-ons, controls and graphics settings.
 
 | | |
 | --- | --- |
@@ -43,7 +43,23 @@ Copy files onto the phone before picking them: files in cloud folders can't be r
 
 The game's Windows is one Winlator container, **World of Warcraft**, with the client as drive D:, and Winlator's defaults: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Winlator's runtime goes in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path its programs were built for, rewritten from Winlator's own when the app is built.
 
-**Touch, for now (Winlator's touchpad):** move a finger to move the pointer; a short tap clicks; a tap with a second finger while one is down right-clicks; two fingers moving scroll. **Back** opens Winlator's menu (keyboard, input controls, task manager, **Exit**, which goes back to the launcher). The gestures replace this next.
+### Touch controls
+
+| Gesture | In the game |
+| --- | --- |
+| **Tap** | Left click where you tap (the pointer goes there) |
+| **Swipe** and keep the finger down | Walk: W, A, S, D in eight directions from where the finger came down (A and D turn). Like a stick: it follows a finger that goes further, so turning back is quick. Lift to stop. |
+| **Hold** one finger still | Bags (B) |
+| **Double tap** | Jump (Space). The first tap still clicks. |
+| **Tap, then tap and hold** | Map (M) |
+| **Tap with a second finger** while walking | Jump while walking |
+| **Two-finger tap** | Right click: talk, loot, attack |
+| **Two-finger drag** | Turn the camera and the character (the right button held), so walking goes where you look |
+| **Three-finger tap** | The phone's keyboard, for chat and the login screen's password |
+| **Four-finger tap** | The game screen's menu: keyboard, Winlator's input controls, task manager, **Exit** (back to the launcher) |
+| **Back** | Escape: closes a window, or opens the game menu |
+
+To leave the game, log out in it, then four fingers → **Exit**. A mouse or a keyboard connected to the phone goes to the game the way Winlator passes them on (not tried yet).
 
 ## Playing from a PC
 
@@ -103,11 +119,11 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
 | `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does |
 | `winlator-version.env` | The game's runtime: Winlator's Android app at the commit Winlator 11.2 pins, and its install path with this app's |
-| `patches/winlator/` | Changes to Winlator: its runtime in this app's data folder and Exit back to the launcher; `if` chains for its `switch` statements on resource ids (built into the app's module they aren't constants); installing the runtime without its screens |
+| `patches/winlator/` | Changes to Winlator: its runtime in this app's data folder and Exit back to the launcher; `if` chains for its `switch` statements on resource ids (built into the app's module they aren't constants); installing the runtime without its screens; the app's gestures over the game screen and Back as Escape |
 | `../scripts/prepare-winlator.sh` | Puts Winlator into `android/winlator` (git-ignored), which the app's module builds with its own code: Winlator's Java code (using the app's `R`), resources, native code (NDK 24, CMake 3.22), prebuilt libraries and assets |
 | `../scripts/winlator-rewrite.py` | Rewrites the install path compiled into every archive of Winlator's runtime (`/data/data/com.winlator/files/rootfs` to `/data/data/com.logie.warcraft/rootfs`, the same length, so programs keep their layout) |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
-| `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset. `game/Game.kt` starts the game |
+| `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset. `game/Game.kt` starts the game; `controls/TouchGestures.kt` is the gestures, `game/GestureView.kt` puts them on the game screen |
 | `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, updates, the servers' logs |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |

@@ -41,7 +41,8 @@ import kotlin.coroutines.resume
  * 3. the game's Windows (a Winlator container) is made, the first time, with the client as drive
  *    D:, and its screen set to this phone's shape;
  * 4. the client is pointed at the realm (`realmlist.wtf`, `Config.wtf`);
- * 5. once the realm is up, the music stops and Winlator's game screen starts Wow.exe.
+ * 5. once the realm is up, the music stops and Winlator's game screen starts Wow.exe, with the
+ *    app's touch controls ([GestureView]).
  */
 object Game {
     sealed interface State {
@@ -145,6 +146,8 @@ object Game {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
             .putExtra("exec_path", clientPath(context) + "/Wow.exe")
+            // The app's touch controls (GestureView) in place of Winlator's touchpad.
+            .putExtra("gestures", true)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 

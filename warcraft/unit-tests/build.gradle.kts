@@ -1,5 +1,6 @@
 // Runs the World of Warcraft app's platform-independent code (account passwords, config files,
-// recognising the client and its data and setting it up, update picking, reading the servers' logs) on the JVM, without Android. The sources
+// recognising the client and its data and setting it up, update picking, reading the servers' logs,
+// the game's touch gestures) on the JVM, without Android. The sources
 // live in the app.
 
 plugins {
@@ -21,6 +22,7 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/client")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/update")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/logs")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/controls")
     }
 }
 

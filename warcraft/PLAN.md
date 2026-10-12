@@ -257,13 +257,22 @@ for the game on the phone itself ("that's the whole point").
 - Not on a phone yet: whether DXVK + Vortek run 3.3.5a's Direct3D 9 well on the Fold's GPU (the
   alternative is the client's `-opengl` with Gladio), how the first Wine start goes, and sound.
 
-**Next:** the gestures (under "Controls") in place of Winlator's touchpad, and Back leaving the
-game.
+- The gestures (under "Controls", as proposed there): `controls/TouchGestures.kt` (plain Kotlin,
+  unit-tested: taps, double tap, hold, tap-then-hold, swipe steering with a stick that follows the
+  finger, jump while walking, two-finger tap and drag, three and four fingers), and
+  `game/GestureView.kt`, which Winlator's game screen puts over its touchpad (patch 0004) and which
+  turns them into the X server's pointer and keys. Back is Escape rather than leaving: the game's
+  menu has Exit Game, and a stray Back doesn't end the session; four fingers open Winlator's menu.
+  The true-360° steering (mouse-turn while W is held) is left for later: two-finger drag turns the
+  character, which covers it.
+
+**Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
+then stage 3.
 
 ## Still open
 
-1. The proposed gestures for right click, camera, map and keyboard (under "Controls"): go with
-   them unless the user says otherwise.
+1. The proposed gestures for right click, camera, map and keyboard (under "Controls"): built as
+   proposed; the user can change them after trying them.
 2. About 40 GB free on the phone.
 
 ## Sources

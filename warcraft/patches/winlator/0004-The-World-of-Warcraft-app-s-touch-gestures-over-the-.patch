@@ -1,0 +1,53 @@
+From d77b3e05bcc6530c4fb3fa02a7c148e3ddd3c108 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Mon, 12 Oct 2026 02:24:10 +0000
+Subject: [PATCH] The World of Warcraft app's touch gestures over the game
+
+With the extra "gestures", the game screen puts the app's GestureView over Winlator's touchpad,
+and Back is the game's Escape (four fingers open the menu).
+---
+ .../java/com/winlator/XServerDisplayActivity.java  | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 2e2526d..fb40535 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -106,6 +106,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+     private XServerView xServerView;
+     private InputControlsView inputControlsView;
+     private TouchpadView touchpadView;
++    // World of Warcraft app: its touch gestures over the game (extra "gestures").
++    private com.logie.warcraft.game.GestureView gestureView;
+     private XEnvironment environment;
+     private DrawerLayout drawerLayout;
+     private Container container;
+@@ -345,6 +347,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+ 
+     @Override
+     public void onBackPressed() {
++        // With the gestures, Back is the game's Escape; four fingers open this menu.
++        if (gestureView != null && environment != null && !drawerLayout.isDrawerOpen(GravityCompat.START)) {
++            gestureView.escape();
++            return;
++        }
+         if (environment != null) {
+             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
+                 drawerLayout.openDrawer(GravityCompat.START);
+@@ -580,6 +587,13 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         });
+         rootView.addView(touchpadView);
+ 
++        if (getIntent().getBooleanExtra("gestures", false)) {
++            gestureView = new com.logie.warcraft.game.GestureView(this, xServer, () -> {
++                if (!drawerLayout.isDrawerOpen(GravityCompat.START)) drawerLayout.openDrawer(GravityCompat.START);
++            });
++            rootView.addView(gestureView);
++        }
++
+         inputControlsView = new InputControlsView(this);
+         inputControlsView.setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
+         inputControlsView.setTouchpadView(touchpadView);
+-- 
+2.43.0
+
