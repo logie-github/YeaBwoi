@@ -22,6 +22,7 @@ import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.ServerService
 import com.logie.warcraft.controls.Button
 import com.logie.warcraft.controls.CursorKinds
+import com.logie.warcraft.controls.Cutscene
 import com.logie.warcraft.controls.GestureOutput
 import com.logie.warcraft.controls.Key
 import com.logie.warcraft.controls.ScreenZones
@@ -74,6 +75,7 @@ class GestureView(
     private var lastTapAt = Long.MIN_VALUE / 2
     private var lastTap: TapResult? = null
     private val selectionFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "selection")
+    private val cutsceneFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "cutscene")
     private var lastTapX = 0f
     private var lastTapY = 0f
 
@@ -396,9 +398,15 @@ class GestureView(
     override fun keyUp(key: Key) = xServer.injectKeyRelease(key.x)
 
     override fun tap(key: Key) {
-        xServer.injectKeyPress(key.x)
-        postDelayed({ xServer.injectKeyRelease(key.x) }, KEY_MS)
+        // The hold that opens the bags skips a cutscene while one plays (a new character's intro).
+        val pressed = if (key == Key.B && cutscenePlaying()) Key.ESCAPE else key
+        xServer.injectKeyPress(pressed.x)
+        postDelayed({ xServer.injectKeyRelease(pressed.x) }, KEY_MS)
     }
+
+    /** The realm's word on cutscenes (patches/azerothcore/0008). */
+    private fun cutscenePlaying(): Boolean =
+        Cutscene.isPlaying(runCatching { cutsceneFile.readText() }.getOrNull(), System.currentTimeMillis() / 1000)
 
     override fun playing() {}
 

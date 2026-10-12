@@ -151,6 +151,8 @@ world)
 	# Whether the phone's player just selected an enemy, for the app's touch controls
 	# (patches/azerothcore/0007).
 	export WOW_SELECTION_FILE="$RUN/selection"
+	# Whether a cutscene plays for the phone's player: a hold skips it (patches/azerothcore/0008).
+	export WOW_CUTSCENE_FILE="$RUN/cutscene"
 	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
 	;;
 maps)
