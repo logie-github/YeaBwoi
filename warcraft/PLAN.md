@@ -384,6 +384,15 @@ for the game on the phone itself ("that's the whole point").
 - Then: "make it so the server doesn't auto start when the app opens". Opening the app only
   checks for an update now; the server and the game start from **Press start**.
 
+- Then: "the hold tap that uses B also functions as the ESC key ONLY during cutscenes like the
+  intro ones when creating new chars". The realm knows: patch 0008 writes `files/run/cutscene`
+  (`WOW_CUTSCENE_FILE`) for the 127.0.0.1 client: "c <time>" when it sends a cinematic
+  (`Player::SendCinematicStart`, the first login's intro among them), "m <time>" for a movie,
+  "- <time>" on the client's complete-cinematic or complete-movie (the latter had no handler; it
+  has one now that does only this) and on logout. The hold sends Escape while one plays
+  (`controls/Cutscene`), at most 4 minutes for a cinematic and 8 for a movie if the end is never
+  said.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 

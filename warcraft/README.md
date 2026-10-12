@@ -55,7 +55,7 @@ Nothing is drawn over the game, not even the mouse pointer: the screen itself is
 | **Right half: drag** | Turn the camera and your character (the right button held in the middle of the screen), so walking goes where you look |
 | **Tap** (anywhere) | What a click does in WoW, by the game's own cursor where you tap: on the interface and the ground, a left click (buttons, menus); on an **enemy**, selects it as your target; on anyone or anything else the cursor offers something for, does it at once, as a right click does on a PC: a speech bubble talks to the NPC, a bag loots, a gear or flower uses or gathers. |
 | **Double tap** | On an enemy: attack it. On the action bars (the bottom of the screen and its right edge, where the game's interface puts them): two presses, so you can tap a button as fast as you like. Anywhere else: jump (Space). |
-| **Hold** one finger still | Bags (B) |
+| **Hold** one finger still | Bags (B). While a cutscene plays (a new character's intro, a quest's cinematic or movie) it skips it instead (Escape). |
 | **Tap, then tap and hold** | Map (M) |
 | **Pinch** with two fingers | Zoom the camera: spread to zoom in, close to zoom out. Put both fingers down together (within about a third of a second) and move them apart or together. |
 | **Two-finger tap** | Target the nearest enemy (the game's Tab; again for the next one) |
