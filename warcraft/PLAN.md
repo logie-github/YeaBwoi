@@ -393,6 +393,28 @@ for the game on the phone itself ("that's the whole point").
   (`controls/Cutscene`), at most 4 minutes for a cinematic and 8 for a movie if the end is never
   said.
 
+- Then: "make the HD patch and alternate HD patch as options in the launcher that can be turned
+  off or on" (chromiecraft.com/en/downloads). The HD patch is `additional_patches_for_335a.zip`
+  (3.4 GB, deflated entries: Patch-F, G, H, S, T, X and a readme saying X spoils T); its server
+  sends it only with a browser's user agent and chromiecraft.com as referer. The alternative is a
+  whole HD client on Google Drive (`wotlkhdclient_stable_enUS_all-updates.zip`, 29 GB, stored
+  entries) with a patch menu (`patchmenu/.config/config_en.json`: each patch a letter, in `Data/`
+  and `Data/enUS/`, and its defaults). `client/RemoteZip` reads a zip's directory from its end
+  (zip64 too) and `client/ZipDownload` fetches single entries by range (resuming stored ones,
+  inflating deflated ones, checking the CRC); `client/HdPatches` says which; `ClientMods` (a job in
+  `ImportService`, kind MODS) puts them in or takes them out, lists them in `files/mods/hd.txt`,
+  and keeps a client file of the same name as `.user`. Reading the patches' MPQs by range showed
+  which client tables they replace: the alternative's HD characters (enUS a) CharSections and the
+  other character tables; its HD models (enUS f) and CC's G CreatureDisplayInfo and
+  CreatureModelData; its s SoundEntries (enUS s: Spell). CC's H (characters, by its readme) and F
+  (mounts and creatures, not read: 0.8 GB deflated) are taken to do the same. Those conflict with
+  custom races, so with races on they're set aside (`.off`). The alternative's dungeon maps carry
+  an add-on, left out.
+- `client/WowExePatch`: the interface signature check off (six edits; the alternative HD client's
+  wow.exe has exactly these, and undoing them gives back bytes that patch to it again) and large
+  address aware. `WowPatched.exe`, used by `Game` while any client mod is in; each edit checks the
+  bytes it replaces.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 

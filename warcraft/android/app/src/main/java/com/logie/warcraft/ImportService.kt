@@ -52,7 +52,7 @@ class ImportService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:import")
             .apply { acquire(6 * 60 * 60 * 1000L) }
-        if (kind == Imports.Kind.DOWNLOAD) {
+        if (kind == Imports.Kind.DOWNLOAD || kind == Imports.Kind.MODS) {
             // With the screen off, Android would otherwise slow the Wi-Fi down to save power.
             @Suppress("DEPRECATION")
             wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
@@ -62,7 +62,8 @@ class ImportService : Service() {
 
         scope.launch {
             val result = runCatching {
-                Server.stopAndWait(this@ImportService)
+                // An HD look changes the client only: the realm can keep running.
+                if (kind != Imports.Kind.MODS) Server.stopAndWait(this@ImportService)
                 when (kind) {
                     Imports.Kind.CLIENT -> {
                         val report = { progress: Float, detail: String? -> progress(kind, progress, detail) }
@@ -79,6 +80,10 @@ class ImportService : Service() {
                     Imports.Kind.EXTRACT -> Imports.extract(this@ImportService, withMmaps) { part, parts, detail ->
                         Imports.set(Imports.State.Working(kind, part, parts, null, detail))
                         notifyThrottled(kind, null, "$part / $parts")
+                    }
+                    Imports.Kind.MODS -> ClientMods.apply(this@ImportService) { progress, detail ->
+                        Imports.set(Imports.State.Working(kind, progress = progress, detail = detail))
+                        notifyThrottled(kind, progress, detail)
                     }
                 }
             }
@@ -136,6 +141,7 @@ class ImportService : Service() {
             Imports.Kind.DOWNLOAD -> R.string.wow_download_title
             Imports.Kind.EXTRACT -> R.string.wow_extract_title
             Imports.Kind.SERVER_DATA -> R.string.wow_data_import_title
+            Imports.Kind.MODS -> R.string.wow_mods_title
         }
     )
 
@@ -211,6 +217,12 @@ class ImportService : Service() {
             context,
             Intent(context, ImportService::class.java)
                 .putExtra(EXTRA_KIND, Imports.Kind.EXTRACT.name).putExtra(EXTRA_MMAPS, withMmaps),
+        )
+
+        /** Brings the client in line with the HD look and custom races chosen (ClientMods). */
+        fun applyMods(context: Context) = start(
+            context,
+            Intent(context, ImportService::class.java).putExtra(EXTRA_KIND, Imports.Kind.MODS.name),
         )
 
         fun cancel(context: Context) {

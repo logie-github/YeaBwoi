@@ -5,6 +5,7 @@ package com.logie.warcraft.game
 import android.content.Context
 import android.content.Intent
 import com.logie.warcraft.Accounts
+import com.logie.warcraft.ClientMods
 import com.logie.warcraft.Database
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
@@ -155,7 +156,7 @@ object Game {
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
-            .putExtra("exec_path", clientPath(context) + "/Wow.exe")
+            .putExtra("exec_path", clientPath(context) + "/" + ClientMods.exeName(context))
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_NEW_ACCOUNT, newAccount)

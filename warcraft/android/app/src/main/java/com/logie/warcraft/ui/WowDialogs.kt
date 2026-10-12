@@ -229,6 +229,7 @@ fun GameFilesDialog(onDismiss: () -> Unit) {
                         Imports.Kind.DOWNLOAD -> R.string.wow_download_done
                         Imports.Kind.EXTRACT -> R.string.wow_extract_done
                         Imports.Kind.SERVER_DATA -> R.string.wow_data_import_done
+                        Imports.Kind.MODS -> R.string.wow_mods_done
                     }
                 ),
                 style = MaterialTheme.typography.bodyMedium,

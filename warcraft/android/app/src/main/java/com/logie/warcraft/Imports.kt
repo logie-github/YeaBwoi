@@ -35,7 +35,7 @@ import java.util.zip.ZipInputStream
  * stopped job leaves things as they were.
  */
 object Imports {
-    enum class Kind { CLIENT, DOWNLOAD, EXTRACT, SERVER_DATA }
+    enum class Kind { CLIENT, DOWNLOAD, EXTRACT, SERVER_DATA, MODS }
 
     sealed interface State {
         data object Idle : State
@@ -161,6 +161,7 @@ object Imports {
         }
         if (exe.name != "Wow.exe") exe.renameTo(File(folder, "Wow.exe"))
         replace(context, folder, WowFiles.client(context))
+        ClientMods.clientReplaced(context)
         if (staging != folder) staging.deleteRecursively()
     }
 
@@ -453,7 +454,7 @@ object Imports {
             if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else -1L
         } ?: -1L
 
-    private fun checkSpace(context: Context, needed: Long) {
+    fun checkSpace(context: Context, needed: Long) {
         val free = WowFiles.freeSpace(context)
         if (needed > 0 && free < needed + 500_000_000L) {
             throw ImportException(
