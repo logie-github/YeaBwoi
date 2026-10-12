@@ -353,6 +353,12 @@ for the game on the phone itself ("that's the whole point").
   bottom 22 % and the right 8 % of the screen, where the default interface puts its bars; a
   quick second tap there is another press. Bars moved elsewhere by an add-on aren't covered.
 
+- Then: "when in game hide the notification". The server's foreground-service notification steps
+  aside while the game screen is started (`ServerService.setGameShown`, from the game screen's
+  lifecycle: stopForeground, the service still running; the visible game keeps the process at
+  the front) and comes back on its onStop (another app, home, screen off). Targets SDK 28, so
+  going back to the foreground from there isn't restricted.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 

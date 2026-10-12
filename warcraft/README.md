@@ -105,7 +105,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
 | **Updates** | Checks for a newer version and installs it. |
 
-While the server runs, Android shows a notification for it, with **Stop**.
+While the server runs, Android shows a notification for it, with **Stop**. While the game is on screen the notification goes away (the game in front keeps the app running); it comes back when you leave the game, switch to another app or turn the screen off, so the server keeps going.
 
 ## The server
 

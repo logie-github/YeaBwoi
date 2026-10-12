@@ -15,8 +15,11 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.ComponentDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import com.logie.warcraft.Accounts
 import com.logie.warcraft.SavedLogin
+import com.logie.warcraft.ServerService
 import com.logie.warcraft.controls.Button
 import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.GestureOutput
@@ -119,6 +122,11 @@ class GestureView(
         // And if the game's window comes up smaller than the screen anyway, it's scaled up to fill
         // it (the pointer follows the scaling).
         xServer.renderer.isForceWindowsFullscreen = true
+        // No server notification over the game: it steps aside while the game is on screen.
+        activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
+            override fun onStart(owner: LifecycleOwner) = ServerService.setGameShown(true)
+            override fun onStop(owner: LifecycleOwner) = ServerService.setGameShown(false)
+        })
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
         gestures.setSize(AppUtils.getScreenWidth().toFloat(), AppUtils.getScreenHeight().toFloat())
     }

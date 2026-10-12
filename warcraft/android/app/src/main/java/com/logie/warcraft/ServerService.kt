@@ -17,17 +17,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
  * Keeps the app, and with it the server's programs, running while the server is up: Android
  * requires a notification for that. The notification says how the server is and has a Stop button.
+ * While the game is on screen the notification steps aside (the game in front keeps the app
+ * running) and comes back when the game goes behind, or the screen goes off ([setGameShown]).
  * The service ends itself once the server is stopped.
  */
 class ServerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var watcher: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    /** The notification is up (the service is in the foreground). */
+    private var shown = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -37,6 +43,7 @@ class ServerService : Service() {
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, notification(Server.status.value))
+        shown = true
         if (wakeLock == null) {
             // The server keeps the game world going with the screen off (the phone's own client
             // pauses then, but a PC's doesn't).
@@ -46,12 +53,21 @@ class ServerService : Service() {
         }
         if (watcher == null) {
             watcher = scope.launch {
-                Server.status.collect { status ->
-                    when (status.phase) {
-                        Server.Phase.STOPPED, Server.Phase.FAILED -> {
+                combine(Server.status, gameShown) { status, inGame -> status to inGame }.collect { (status, inGame) ->
+                    when {
+                        status.phase == Server.Phase.STOPPED || status.phase == Server.Phase.FAILED -> {
                             stopForeground(STOP_FOREGROUND_REMOVE)
+                            shown = false
                             if (status.phase == Server.Phase.FAILED) notifyFailed()
                             stopSelf()
+                        }
+                        inGame -> if (shown) {
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            shown = false
+                        }
+                        !shown -> {
+                            startForeground(NOTIFICATION_ID, notification(status))
+                            shown = true
                         }
                         else -> manager().notify(NOTIFICATION_ID, notification(status))
                     }
@@ -121,6 +137,13 @@ class ServerService : Service() {
     }
 
     companion object {
+        private val gameShown = MutableStateFlow(false)
+
+        /** The game is on screen (true) or went behind, or its screen went off (false). */
+        fun setGameShown(inGame: Boolean) {
+            gameShown.value = inGame
+        }
+
         private const val CHANNEL = "server"
         private const val NOTIFICATION_ID = 1
         private const val FAILED_ID = 2
