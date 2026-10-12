@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.StatFs
 import com.logie.warcraft.client.DataLayout
 import java.io.File
+import java.util.UUID
 
 /**
  * Everything in the app's storage (`files/`):
@@ -35,12 +36,31 @@ object WowFiles {
     fun run(context: Context) = File(root(context), "run")
     fun databases(context: Context) = File(root(context), "mysql")
 
+    @Volatile private var standardPath: Boolean? = null
+
     /**
-     * The app's storage is at the path the server's programs were built for. It isn't for a second
-     * user of the phone, or a work profile, where Android puts apps' storage elsewhere.
+     * The app's storage is the folder the server's programs were built for. Android gives it to the
+     * app as /data/user/0/<package>/files, which for the phone's main user is the same folder as
+     * /data/data/<package>/files: through a link on older Android, and on Android 11 and later
+     * mounted at both places in the app's own view of /data, where comparing the paths can't tell.
+     * So a file written through one path is looked for through the other. For a second user of the
+     * phone, or a work profile, Android puts the app's storage elsewhere.
      */
     fun isStandardPath(context: Context): Boolean =
-        runCatching { root(context).canonicalPath == File(STANDARD_PATH).canonicalPath }.getOrDefault(false)
+        standardPath ?: sameFolder(root(context), File(STANDARD_PATH)).also { standardPath = it }
+
+    private fun sameFolder(own: File, standard: File): Boolean {
+        if (runCatching { own.canonicalPath == standard.canonicalPath }.getOrDefault(false)) return true
+        val marker = File(own, ".path-check")
+        return runCatching {
+            val token = UUID.randomUUID().toString()
+            marker.writeText(token)
+            File(standard, marker.name).readText() == token
+        }.getOrDefault(false).also { marker.delete() }
+    }
+
+    /** The app's storage by the path the server's programs were built for, when it's there. */
+    fun serverRoot(context: Context): String = if (isStandardPath(context)) STANDARD_PATH else root(context).path
 
     /** Which of the server's data folders are there, with files in them. */
     fun dataFolders(context: Context): Set<String> =

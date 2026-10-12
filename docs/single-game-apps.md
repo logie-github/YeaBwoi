@@ -243,3 +243,7 @@ The user can't debug: report only what was checked, and say what wasn't.
   published before. Creating the tag first through the git refs API (`gh api -X POST
   repos/<repo>/git/refs`) and then the release with `--verify-tag` works
   (`.github/workflows/build-warcraft.yml`).
+- On Android 11 and later an app's `/data/data/<package>` and `/data/user/0/<package>` are the same
+  folder mounted twice in its own view of `/data`, not a link: comparing canonical paths says they
+  differ. Check that it's the same folder by writing a file through one path and reading it through
+  the other (`WowFiles.isStandardPath`).
