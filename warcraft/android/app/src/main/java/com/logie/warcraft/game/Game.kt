@@ -224,6 +224,9 @@ object Game {
             put("gxResolution", "${width}x$height")
             put("gxWindow", "1")
             put("gxMaximize", "1")
+            // The game's own cursor shown by the system (not drawn in the picture): taps read it to tell
+            // what a click there would do (GestureView).
+            put("gxCursor", "1")
             if (accountName != null) put("accountName", accountName)
         }
         val text = if (config.isFile) config.readText() else ""

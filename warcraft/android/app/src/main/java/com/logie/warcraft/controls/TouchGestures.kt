@@ -19,6 +19,15 @@ interface GestureOutput {
     /** Puts the pointer where the screen was touched. */
     fun pointerTo(x: Float, y: Float)
 
+    /**
+     * A tap: a click there, as WoW's mouse would do it (the screen decides between a plain click
+     * and talking, attacking, looting or gathering, by the game's own cursor: [CursorKinds]).
+     */
+    fun tapAt(x: Float, y: Float)
+
+    /** A right click there: talk, loot, attack, use. */
+    fun interactAt(x: Float, y: Float)
+
     /** Moves the pointer (with the right button held: turns the camera and the character). */
     fun pointerBy(dx: Float, dy: Float)
 
@@ -34,10 +43,6 @@ interface GestureOutput {
     /** Presses and releases. */
     fun tap(key: Key)
 
-    /** The stick, to draw: its base where the thumb came down, its knob under the thumb. */
-    fun stick(baseX: Float, baseY: Float, knobX: Float, knobY: Float)
-    fun stickGone()
-
     /** The player started walking or turning. */
     fun playing()
 
@@ -52,12 +57,14 @@ interface GestureOutput {
  * The game's touch controls, split like most phone MMOs (the user's choice, warcraft/PLAN.md
  * "Controls"):
  *
- * - **Left half, swipe and hold:** a stick under the thumb walks: up W, down S, left Q and right
- *   E (sideways steps), and the diagonals between them. It follows a thumb that goes further.
+ * - **Left half, swipe and hold:** walks, like a stick under the thumb (nothing drawn): up W,
+ *   down S, left Q and right E (sideways steps), and the diagonals between them. It follows a
+ *   thumb that goes further.
  * - **Right half, drag:** turns the camera and the character (the right button held down in the
  *   middle of the screen, so it never lands on the action bars or the map).
- * - **Anywhere:** tap = left click where the finger is; double tap = jump (Space; the first tap
- *   still clicks); hold still = bags (B); tap then hold = map (M).
+ * - **Anywhere:** tap = a click where the finger is, which talks to NPCs, attacks, loots and
+ *   gathers where WoW's cursor offers it ([GestureOutput.tapAt]); double tap = jump (Space; the
+ *   first tap still clicks); hold still = bags (B); tap then hold = map (M).
  * - **Two fingers together:** pinch = zoom (the mouse wheel); tap = right click (talk, loot,
  *   attack); swipe up = chat, with the keyboard.
  * - **Three-finger tap:** the keyboard. **Four-finger tap:** the menu.
@@ -81,7 +88,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         private const val TAP_SLOP_DP = 12f
         private const val SWIPE_START_DP = 20f
         private const val DEAD_ZONE_DP = 12f
-        const val STICK_RADIUS_DP = 70f
+        private const val STICK_RADIUS_DP = 70f
         private const val DOUBLE_TAP_SLOP_DP = 64f
         private const val PINCH_START_DP = 24f
         /** How far the fingers spread or close for one notch of the wheel. */
@@ -223,8 +230,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                     out.tap(Key.SPACE)
                     lastTapAt = Long.MIN_VALUE / 2
                 } else {
-                    out.pointerTo(finger.x, finger.y)
-                    out.click(Button.LEFT)
+                    out.tapAt(finger.x, finger.y)
                     lastTapAt = now
                     lastTapX = finger.x
                     lastTapY = finger.y
@@ -232,7 +238,6 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             }
             Role.STICK -> {
                 walk(emptySet())
-                out.stickGone()
                 stickId = -1
             }
             Role.LOOK -> {
@@ -265,7 +270,6 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     /** The screen lost the touches (another window, the screen off): lets go of everything. */
     fun cancel() {
         walk(emptySet())
-        if (stickId != -1) out.stickGone()
         if (lookId != -1) out.release(Button.RIGHT)
         stickId = -1
         lookId = -1
@@ -382,10 +386,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             }
             return
         }
-        if (p.mode == PairMode.WAITING && p.allTaps) {
-            out.pointerTo(p.a.startX, p.a.startY)
-            out.click(Button.RIGHT)
-        }
+        if (p.mode == PairMode.WAITING && p.allTaps) out.interactAt(p.a.startX, p.a.startY)
         pair = null
     }
 
@@ -401,7 +402,6 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             dx = finger.x - anchorX
             dy = finger.y - anchorY
         }
-        out.stick(anchorX, anchorY, anchorX + dx, anchorY + dy)
         walk(if (distance < deadZone) emptySet() else directionKeys(dx, dy))
     }
 

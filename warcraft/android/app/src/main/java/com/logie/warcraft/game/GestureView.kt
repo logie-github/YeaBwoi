@@ -4,8 +4,6 @@ package com.logie.warcraft.game
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.graphics.Rect
 import android.os.SystemClock
 import android.text.InputType
@@ -25,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.logie.warcraft.controls.Button
+import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.GestureOutput
 import com.logie.warcraft.controls.Key
 import com.logie.warcraft.controls.TouchGestures
@@ -32,6 +31,7 @@ import com.winlator.core.AppUtils
 import com.winlator.math.XForm
 import com.winlator.renderer.ViewTransformation
 import com.winlator.winhandler.MouseEventFlags
+import com.winlator.xserver.Cursor
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XKeycode
 import com.winlator.xserver.XServer
@@ -40,7 +40,8 @@ import com.winlator.xserver.XServer
  * The game's touch controls ([TouchGestures]) and keyboard over Winlator's game screen, in place
  * of its touchpad: Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004). It
  * turns the gestures into the X server's pointer and keys, where Wine passes them to the game,
- * draws the stick under the left thumb, and opens the app's menu ([GameMenu]) for four fingers.
+ * with nothing drawn over the game, and opens the app's menu ([GameMenu]) for four fingers. Taps
+ * read the game's own cursor to talk, attack, loot and gather like a PC's right click ([tapAt]).
  *
  * It's also the game's text box for the phone's keyboard, which comes up by itself where the
  * game wants text: the login screen when the game appears, character creation right after the
@@ -66,23 +67,14 @@ class GestureView(
     private var restY = 0f
     private val hold = Runnable { gestures.onHold(SystemClock.uptimeMillis()) }
 
-    private var stickShown = false
-    private var baseX = 0f
-    private var baseY = 0f
-    private var knobX = 0f
-    private var knobY = 0f
-    private val ringFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x40061320 }
-    private val ringLine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2 * density
-        color = 0x997FDDF8.toInt()
-    }
-    private val knobFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x667FDDF8 }
-    private val knobLine = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2 * density
-        color = 0xCCE8B34A.toInt()
-    }
+    private val cursors = CursorKinds()
+    /** Fingerprints of the game's cursors, by cursor (the X server's, for as long as they live). */
+    private val fingerprints = java.util.WeakHashMap<Cursor, Long>()
+    /** Counts the pointer's moves, so a tap's delayed click can tell another gesture took over. */
+    private var pointerMoves = 0
+    private var lastTapAt = Long.MIN_VALUE / 2
+    private var lastTapX = 0f
+    private var lastTapY = 0f
 
     /** What the keyboard is up for, or null when it's down. */
     private enum class Typing { LOGIN, NAME, CHAT, FREE }
@@ -105,7 +97,6 @@ class GestureView(
         isClickable = true
         isFocusable = true
         isFocusableInTouchMode = true
-        setWillNotDraw(false)
         // The keyboard over the game, not the game pushed around: the view shrinks it (followKeyboard).
         activity.window.setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
@@ -160,16 +151,6 @@ class GestureView(
         return true
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        if (!stickShown) return
-        val radius = TouchGestures.STICK_RADIUS_DP * density
-        canvas.drawCircle(baseX, baseY, radius, ringFill)
-        canvas.drawCircle(baseX, baseY, radius, ringLine)
-        canvas.drawCircle(knobX, knobY, radius * 0.42f, knobFill)
-        canvas.drawCircle(knobX, knobY, radius * 0.42f, knobLine)
-    }
-
     /** Back in the game: Escape (closes a window, or opens the game menu). */
     fun escape() = tap(Key.ESCAPE)
 
@@ -178,13 +159,84 @@ class GestureView(
         if (loginShown) return
         loginShown = true
         postDelayed({ showKeyboard(Typing.LOGIN) }, LOGIN_KEYBOARD_DELAY_MS)
+        // The login screen only has the plain arrow: what the cursor looks like when it means a click.
+        for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
     }
 
     // Gestures ---------------------------------------------------------------------------------
 
     override fun pointerTo(x: Float, y: Float) {
+        pointerMoves++
         val point = XForm.transformPoint(xform, x, y)
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
+    }
+
+    /**
+     * The pointer goes there; once the game has drawn its cursor for that spot, a left click; and
+     * when the cursor offered more (talk, attack, loot, gather) and still does after the click, a
+     * right click, which does it, as on a PC.
+     */
+    override fun tapAt(x: Float, y: Float) {
+        val now = SystemClock.uptimeMillis()
+        // The same spot tapped again, not quick enough for a double tap (a jump): see below.
+        val again = now - lastTapAt in TouchGestures.DOUBLE_TAP_MS..AGAIN_MS &&
+            Math.hypot((x - lastTapX).toDouble(), (y - lastTapY).toDouble()) <= AGAIN_SLOP_DP * density
+        lastTapAt = now
+        lastTapX = x
+        lastTapY = y
+        pointerTo(x, y)
+        val moves = pointerMoves
+        postDelayed({
+            if (moves != pointerMoves) return@postDelayed
+            val before = cursorHere()
+            val special = cursors.isSpecial(before)
+            click(Button.LEFT)
+            when {
+                special -> postDelayed({
+                    if (moves == pointerMoves && cursors.confirms(before, cursorHere())) click(Button.RIGHT)
+                }, CURSOR_SETTLE_MS)
+                // Without a cursor to read: the first tap selects, the second talks (or attacks, loots).
+                again && !cursors.readable -> postDelayed({
+                    if (moves == pointerMoves) click(Button.RIGHT)
+                }, CURSOR_SETTLE_MS)
+            }
+        }, CURSOR_SETTLE_MS)
+    }
+
+    /** Once the game knows the pointer is there (what's under it), the right click. */
+    override fun interactAt(x: Float, y: Float) {
+        pointerTo(x, y)
+        val moves = pointerMoves
+        postDelayed({ if (moves == pointerMoves) click(Button.RIGHT) }, CURSOR_SETTLE_MS)
+    }
+
+    /** A fingerprint of the game's cursor where the pointer is, or null when there's none to see. */
+    private fun cursorHere(): Long? = runCatching {
+        xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER, XServer.Lockable.INPUT_DEVICE).use {
+            var window = xServer.inputDeviceManager.pointWindow
+            var cursor: Cursor? = null
+            while (window != null && cursor == null) {
+                cursor = window.attributes.cursor
+                window = window.parent
+            }
+            cursor?.let { fingerprints.getOrPut(it) { fingerprint(it) } }
+        }
+    }.getOrNull()
+
+    private fun fingerprint(cursor: Cursor): Long {
+        var hash = 1469598103934665603L
+        fun add(value: Int) {
+            hash = (hash xor value.toLong()) * 1099511628211L
+        }
+        add(cursor.hotSpotX)
+        add(cursor.hotSpotY)
+        val image = cursor.cursorImage ?: return hash
+        add(image.width.toInt())
+        add(image.height.toInt())
+        val data = image.data?.duplicate() ?: return hash
+        data.rewind()
+        while (data.remaining() >= 4) add(data.int)
+        return hash
     }
 
     override fun pointerBy(dx: Float, dy: Float) {
@@ -204,6 +256,7 @@ class GestureView(
     }
 
     override fun press(button: Button) {
+        pointerMoves++
         restX = 0f
         restY = 0f
         xServer.injectPointerButtonPress(button.x)
@@ -223,20 +276,6 @@ class GestureView(
     override fun tap(key: Key) {
         xServer.injectKeyPress(key.x)
         postDelayed({ xServer.injectKeyRelease(key.x) }, KEY_MS)
-    }
-
-    override fun stick(baseX: Float, baseY: Float, knobX: Float, knobY: Float) {
-        stickShown = true
-        this.baseX = baseX
-        this.baseY = baseY
-        this.knobX = knobX
-        this.knobY = knobY
-        invalidate()
-    }
-
-    override fun stickGone() {
-        stickShown = false
-        invalidate()
     }
 
     /** Walking or turning with the chat open would type into it: the chat closes first. */
@@ -432,6 +471,13 @@ class GestureView(
         private const val KEY_MS = 60L
         private const val KEYBOARD_POLL_MS = 120L
         private const val KEYBOARD_WAIT_MS = 4000L
+        /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
+        private const val CURSOR_SETTLE_MS = 90L
+        /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
+        private const val AGAIN_MS = 1500L
+        private const val AGAIN_SLOP_DP = 40f
+        /** When the login screen's cursor is looked at, after the game appears. */
+        private val ARROW_SAMPLES_MS = longArrayOf(4000L, 8000L, 12000L)
         /** The login screen takes a moment to draw after the window appears. */
         private const val LOGIN_KEYBOARD_DELAY_MS = 1500L
         /** The camera turns a little faster than the thumb moves. */

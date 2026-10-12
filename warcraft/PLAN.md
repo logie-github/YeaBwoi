@@ -291,6 +291,17 @@ for the game on the phone itself ("that's the whole point").
   after the login for the name (the game goes there by itself); a new character later needs a
   three-finger tap (nothing tells the app that screen opened).
 
+- Then: "immersive touch controls without on-screen overlays", "an authentic WoW experience",
+  "clicking on NPCs also talks to them" (build 29: a tap selected an NPC but couldn't talk).
+  The stick isn't drawn any more. A tap now does what WoW's cursor says (`controls/CursorKinds`,
+  `GestureView.tapAt`): the pointer goes there, after a frame or two the game's cursor there is
+  read from the X server (the window's cursor, fingerprinted by its picture; `gxCursor 1` keeps
+  it a system cursor), a left click, and when the cursor was special (not the login screen's
+  arrow, nor the one most taps see) and is still the same after the click, a right click: talk,
+  attack, loot, gather, as on a PC. The two-finger right click now waits for the game to see the
+  pointer first. Without a readable cursor, a second tap on the same spot within 1.5 s right
+  clicks. Not verified on the phone: that Wine and DXVK hand WoW's cursor to the X server.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 
