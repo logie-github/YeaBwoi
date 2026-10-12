@@ -9,6 +9,7 @@
     <string name="wow_home_press_start">Press start</string>
     <string name="wow_home_menu">Launcher</string>
     <string name="wow_home_start_line">Starts your ChromieCraft realm on this phone.</string>
+    <string name="wow_home_start_line_game">Starts your ChromieCraft realm and the game, on this phone.</string>
     <string name="wow_home_start_line_no_data">Starts your ChromieCraft realm on this phone. The world server starts once it has the server data.</string>
     <string name="wow_home_no_data">The world server needs data made from your 3.3.5a client: make it here from the client, or import the server-data.zip made on a PC.</string>
     <string name="wow_home_no_server_build">This build of the app has no server in it. Install a release from GitHub.</string>
@@ -34,7 +35,7 @@
     <string name="wow_realm_here">From this phone</string>
     <string name="wow_realm_lan">From a PC on this Wi-Fi</string>
     <string name="wow_realm_lan_none">No Wi-Fi</string>
-    <string name="wow_realm_stage_note">The game itself comes to this app in its next stage. Until then, play on the realm from a PC\'s 3.3.5a client: see Server.</string>
+    <string name="wow_realm_no_client">To play on this phone, add your 3.3.5a client in Game files. A PC\'s 3.3.5a client on this Wi-Fi can play on the realm too: see Server.</string>
 
     <!-- The server -->
     <string name="wow_server_title">Server</string>
@@ -208,4 +209,20 @@
     <string name="wow_update_permission_title">Allow updates</string>
     <string name="wow_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
     <string name="wow_update_open_settings">Open settings</string>
+
+    <!-- The game (Game.kt) -->
+    <string name="wow_game_play">Play</string>
+    <string name="wow_game_failed">The game couldn\'t start</string>
+    <string name="wow_game_step_runtime">Installing the game\'s Windows…</string>
+    <string name="wow_game_step_windows">Setting up the game\'s Windows…</string>
+    <string name="wow_game_step_realm">Waiting for the realm…</string>
+    <string name="wow_game_step_starting">Starting World of Warcraft…</string>
+    <string name="wow_game_runtime_note">The first time only: Wine, Box64 and the graphics drivers, which run the Windows game on this phone.</string>
+    <string name="wow_game_error">Something went wrong: %1$s</string>
+    <string name="wow_game_error_no_client">The 3.3.5a client isn\'t in the app: add it in Game files.</string>
+    <string name="wow_game_error_runtime">Couldn\'t install the game\'s Windows (Winlator\'s runtime). Is there space on the phone?</string>
+    <string name="wow_game_error_windows">Couldn\'t set up the game\'s Windows.</string>
+    <string name="wow_game_error_server_stopped">The server was stopped before the realm was up.</string>
+    <string name="wow_game_error_no_data">The realm has no world yet: it needs the server data (Game files).</string>
+    <string name="wow_game_error_no_account">Make your game account first (Accounts): the game\'s login screen asks for it.</string>
 </resources>

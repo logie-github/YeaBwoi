@@ -93,14 +93,16 @@ import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowFiles
 import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
+import com.logie.warcraft.game.Game
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
  * The launcher, the first screen of the app: the Lich King over Icecrown, the logo, and under them
- * the realm. Opening the app offers any update, then starts the server once it has its data;
- * [PressStart] starts it by hand.
+ * the realm. Opening the app offers any update, then starts the game ([Game]: the server, then the
+ * client) once it has the server's data and the client, or the server alone without the client;
+ * [PressStart] does the same by hand.
  */
 @Composable
 fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
@@ -108,6 +110,7 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
     var refresh by remember { mutableIntStateOf(0) }
     val server by Server.status.collectAsState()
     val imports by Imports.state.collectAsState()
+    val game by Game.state.collectAsState()
     var dialog by remember { mutableStateOf<HomeDialog?>(null) }
     var autoplay by rememberSaveable { mutableStateOf(autoplayOnOpen) }
 
@@ -117,12 +120,18 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
         if (facts.ready) Server.start(context)
     }
 
-    val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        autoplay = false
-        if (result.resultCode != WowUpdateActivity.RESULT_INSTALLING && facts.hasData) startServer()
+    /** The game when it can start (the client and the server's data are there), else the realm alone. */
+    fun play() {
+        if (!facts.ready) return
+        if (facts.hasClient && facts.hasData) Game.play(context) else Server.start(context)
     }
 
-    // Opening the app: offer a newer version if there is one, then start the realm.
+    val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        autoplay = false
+        if (result.resultCode != WowUpdateActivity.RESULT_INSTALLING && facts.hasData) play()
+    }
+
+    // Opening the app: offer a newer version if there is one, then start the game.
     LaunchedEffect(Unit) {
         if (!autoplay) return@LaunchedEffect
         val update = if (WowUpdater.isConfigured) {
@@ -135,7 +144,7 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             updateOffer.launch(WowUpdateActivity.intent(context, update))
         } else {
             autoplay = false
-            if (facts.hasData && imports !is Imports.State.Working) startServer()
+            if (facts.hasData && imports !is Imports.State.Working) play()
         }
     }
 
@@ -156,7 +165,9 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
                 facts = facts,
                 server = server,
                 imports = imports,
+                game = game,
                 onStart = { startServer() },
+                onPlay = { play() },
                 onStop = { Server.stop(context) },
                 onDialog = { dialog = it },
             )
@@ -204,7 +215,9 @@ internal fun HomeScreen(
     facts: HomeFacts,
     server: Server.Status,
     imports: Imports.State,
+    game: Game.State,
     onStart: () -> Unit,
+    onPlay: () -> Unit,
     onStop: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
 ) {
@@ -228,7 +241,7 @@ internal fun HomeScreen(
                     .padding(horizontal = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                RealmPanel(facts, server, imports, onStart, onStop, onDialog)
+                RealmPanel(facts, server, imports, game, onStart, onPlay, onStop, onDialog)
 
                 WowTitle(
                     stringResource(R.string.wow_home_menu),
@@ -387,7 +400,9 @@ private fun RealmPanel(
     facts: HomeFacts,
     server: Server.Status,
     imports: Imports.State,
+    game: Game.State,
     onStart: () -> Unit,
+    onPlay: () -> Unit,
     onStop: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
 ) {
@@ -396,6 +411,21 @@ private fun RealmPanel(
         !facts.bundled -> Notice(stringResource(R.string.wow_home_no_server_build))
         !facts.standardPath -> Notice(stringResource(R.string.wow_server_error_path, WowFiles.root(context).path))
         imports is Imports.State.Working -> ImportPanel(imports, onOpen = { onDialog(HomeDialog.FILES) })
+        game is Game.State.Preparing -> GamePanel(game, server)
+        game is Game.State.Failed -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                WowTitle(stringResource(R.string.wow_game_failed))
+                Text(game.message, style = MaterialTheme.typography.bodyMedium)
+                Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    WowButton(stringResource(R.string.wow_close), primary = false) { Game.dismiss() }
+                    if (game.needsAccount) {
+                        WowButton(stringResource(R.string.wow_tile_accounts)) { Game.dismiss(); onDialog(HomeDialog.ACCOUNTS) }
+                    } else {
+                        WowButton(stringResource(R.string.wow_server_retry), onClick = onPlay)
+                    }
+                }
+            }
+        }
         server.phase == Server.Phase.STARTING || server.phase == Server.Phase.STOPPING -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -421,12 +451,14 @@ private fun RealmPanel(
                 )
                 WowStatusLine(stringResource(R.string.wow_realm_here), "127.0.0.1")
                 WowStatusLine(stringResource(R.string.wow_realm_lan), server.lanAddress ?: stringResource(R.string.wow_realm_lan_none))
-                Text(stringResource(R.string.wow_realm_stage_note), style = MaterialTheme.typography.bodySmall)
+                if (!facts.hasClient) Text(stringResource(R.string.wow_realm_no_client), style = MaterialTheme.typography.bodySmall)
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (server.world == Server.World.NO_DATA) {
-                        WowButton(stringResource(R.string.wow_tile_files), primary = true) { onDialog(HomeDialog.FILES) }
-                    }
                     WowButton(stringResource(R.string.wow_server_stop), primary = false, onClick = onStop)
+                    if (server.world == Server.World.NO_DATA || !facts.hasClient) {
+                        WowButton(stringResource(R.string.wow_tile_files), primary = true) { onDialog(HomeDialog.FILES) }
+                    } else {
+                        WowButton(stringResource(R.string.wow_game_play), primary = true, onClick = onPlay)
+                    }
                 }
             }
         }
@@ -441,9 +473,15 @@ private fun RealmPanel(
             }
         }
         else -> {
-            PressStart(onClick = onStart)
+            PressStart(onClick = onPlay)
             Text(
-                stringResource(if (facts.hasData) R.string.wow_home_start_line else R.string.wow_home_start_line_no_data),
+                stringResource(
+                    when {
+                        !facts.hasData -> R.string.wow_home_start_line_no_data
+                        facts.hasClient -> R.string.wow_home_start_line_game
+                        else -> R.string.wow_home_start_line
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = WowColors.Mist,
                 textAlign = TextAlign.Center,
@@ -451,6 +489,45 @@ private fun RealmPanel(
             )
             if (!facts.hasData) {
                 Notice(stringResource(R.string.wow_home_no_data), stringResource(R.string.wow_tile_files)) { onDialog(HomeDialog.FILES) }
+            }
+        }
+    }
+}
+
+/** The game getting ready: Winlator's runtime, the game's Windows, then waiting for the realm. */
+@Composable
+private fun GamePanel(game: Game.State.Preparing, server: Server.Status) {
+    val context = LocalContext.current
+    WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                WowSpinner(40.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    stringResource(
+                        when (game.step) {
+                            Game.Step.RUNTIME -> R.string.wow_game_step_runtime
+                            Game.Step.WINDOWS -> R.string.wow_game_step_windows
+                            Game.Step.REALM -> R.string.wow_game_step_realm
+                            Game.Step.STARTING -> R.string.wow_game_step_starting
+                        }
+                    ),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (game.step == Game.Step.RUNTIME || game.step == Game.Step.WINDOWS) {
+                game.progress?.let { WowProgressLine(it) }
+                Text(stringResource(R.string.wow_game_runtime_note), style = MaterialTheme.typography.bodySmall)
+            }
+            WowStatusLine(
+                stringResource(R.string.wow_tile_server),
+                ServerService.statusText(context, server),
+                good = server.phase == Server.Phase.RUNNING && server.world == Server.World.UP,
+            )
+            if (server.phase == Server.Phase.STARTING) {
+                server.progress?.let { WowProgressLine(it) }
+                server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
             }
         }
     }

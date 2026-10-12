@@ -1,5 +1,5 @@
 // Runs the World of Warcraft app's platform-independent code (account passwords, config files,
-// recognising the client and its data, update picking, reading the servers' logs) on the JVM, without Android. The sources
+// recognising the client and its data and setting it up, update picking, reading the servers' logs) on the JVM, without Android. The sources
 // live in the app.
 
 plugins {

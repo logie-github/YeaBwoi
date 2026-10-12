@@ -4,9 +4,9 @@
 
 # World of Warcraft
 
-An Android app for **World of Warcraft: Wrath of the Lich King 3.3.5a** with its own private realm on the phone: a [ChromieCraft](https://www.chromiecraft.com/)-style [AzerothCore](https://www.azerothcore.org/) server with [playerbots](https://github.com/mod-playerbots/mod-playerbots), running natively on the phone's arm64 processor next to its MariaDB database. The launcher is styled after Wrath's Northrend: the Lich King before Icecrown Citadel with snow drifting across, the logo, and frost-blue panels with gold corners.
+An Android app for **World of Warcraft: Wrath of the Lich King 3.3.5a** that plays the game on the phone, your own 3.3.5a client run by [Winlator](https://github.com/brunodev85/winlator) (Wine, Box64 and the phone's GPU) built into the app, with its own private realm on the phone: a [ChromieCraft](https://www.chromiecraft.com/)-style [AzerothCore](https://www.azerothcore.org/) server with [playerbots](https://github.com/mod-playerbots/mod-playerbots), running natively on the phone's arm64 processor next to its MariaDB database. The launcher is styled after Wrath's Northrend: the Lich King before Icecrown Citadel with snow drifting across, the logo, and frost-blue panels with gold corners.
 
-It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, this version:** the launcher and the server. The realm runs on the phone and you can play on it from a PC's 3.3.5a client on the same Wi-Fi. **Stage 2:** the game itself in the app (Wine, Box64 and the phone's GPU, as Winlator does), straight to its login screen, with touch gestures. **Stage 3:** every server option in the launcher (progression brackets, rates, realm settings), bot management, add-ons, controls and graphics settings.
+It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the launcher and the server; a PC's 3.3.5a client on the same Wi-Fi can play on the realm. **Stage 2, this version:** the game itself in the app, started from the launcher straight to its login screen on the realm. Its touch controls are Winlator's touchpad for now; the gestures (tap to click, swipe to walk, hold for bags, double tap to jump) come next. **Stage 3:** every server option in the launcher (progression brackets, rates, realm settings), bot management, add-ons, controls and graphics settings.
 
 | | |
 | --- | --- |
@@ -15,6 +15,7 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, this version:*
 | Server | AzerothCore at the revision ChromieCraft runs, with the playerbots fork's core changes merged in, ChromieCraft's modules and mod-playerbots, built for Linux arm64 (musl) from the commits in `server-version.env` |
 | Server data | AzerothCore's ready-made data, downloaded in the app (the version in `server-data.env`), or made from your client |
 | Client | Yours: World of Warcraft 3.3.5a (build 12340), enUS. Never part of the app. |
+| Game runtime | Winlator 11.2 (its Android app at the commit in `winlator-version.env`, with `patches/winlator/`): Wine, Box64, DXVK, the Vortek and Gladio graphics drivers, its X server |
 
 ## First launch
 
@@ -24,14 +25,27 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, this version:*
    - **Download (the quick way):** **Download server data** gets AzerothCore's ready-made data: dbc, Cameras, maps, vmaps and mmaps (pathfinding, which creatures and bots need to move well), in the version this server is built for. It's a 1.2 GB download that unpacks to 3.2 GB, and it doesn't need your client. The app checks the file is the right one before unpacking it. If the download stops, the button carries on from where it got to. CI tests every build on this same data: it starts the world server on it and takes a character into the world.
    - **On the phone, from your client:** **Pick folder** (your 3.3.5a folder, the one with `Wow.exe` and `Data` in it) or **Pick zip** to add your client. The app copies it (about 17 GB) and checks that `Wow.exe` is 3.3.5.12340. Then **Make server data**: dbc, maps and vmaps take minutes; mmaps an hour or more. It carries on with the app in the background.
    - **On a Windows PC, from your client:** download **WarcraftServerData-windows.zip** from the same release, unzip it, and drag your client's folder onto `extract-server-data.bat`. Copy the `server-data.zip` it makes to the phone, then **Import server-data.zip**.
-4. **Accounts**: make an account to log in with (the first one is a game master by default).
-5. **Press start**. Loading the world takes a few minutes on a phone; the panel says when the realm is online.
+4. Add your client, if it isn't in yet (**Game files → Your client**: **Pick folder** or **Pick zip**).
+5. **Accounts**: make an account to log in with (the first one is a game master by default).
+6. **Press start**. The realm starts, and meanwhile, the first time, the app installs the game's Windows (Winlator's runtime, from the app, a minute or two) and sets it up. Loading the world takes a few minutes on a phone; once the realm is online the music stops and the game starts, at its login screen on the realm.
 
-After that, opening the app checks for an update, then starts the realm.
+After that, opening the app checks for an update, then starts the realm and the game. Without the client, it starts the realm alone (for a PC's client).
 
-Copy files onto the phone before picking them: files in cloud folders can't be read this way. The download needs about 5 GB free while it unpacks (3.2 GB after). Leave about 25 GB free for the client and the server's data (40 GB with the game in stage 2).
+Copy files onto the phone before picking them: files in cloud folders can't be read this way. The download needs about 5 GB free while it unpacks (3.2 GB after). Leave about 25 GB free for the client and the server's data, and another 2 GB for the game's Windows.
 
-## Playing from a PC (stage 1)
+## The game
+
+**Press start** (or **Play** once the realm is online) starts your client, `files/client/Wow.exe`, on Winlator inside the app. Before each start the app points the client at the realm on the phone and sets it up for the screen:
+
+- `Data/<locale>/realmlist.wtf`: `set realmlist 127.0.0.1`.
+- `WTF/Config.wtf` (your other settings in it stay): `realmList` 127.0.0.1, `realmName` ChromieCraft (the realm is chosen for you), the intro movie off, the terms already read, windowed and maximized at the game's resolution, and your account's name in the login box when you have one account.
+- The game's resolution: 720 lines high and as wide as the screen's shape (1680x720 on a 21:9 screen; at least 800 wide, on a Fold's nearly square inner screen), set each start for the screen the phone is on.
+
+The game's Windows is one Winlator container, **World of Warcraft**, with the client as drive D:, and Winlator's defaults: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Winlator's runtime goes in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path its programs were built for, rewritten from Winlator's own when the app is built.
+
+**Touch, for now (Winlator's touchpad):** move a finger to move the pointer; a short tap clicks; a tap with a second finger while one is down right-clicks; two fingers moving scroll. **Back** opens Winlator's menu (keyboard, input controls, task manager, **Exit**, which goes back to the launcher). The gestures replace this next.
+
+## Playing from a PC
 
 On a PC on the same Wi-Fi as the phone, in the client's folder, open `Data\enUS\realmlist.wtf` and set its line to the address the app shows under **From a PC on this Wi-Fi** (also in **Server**):
 
@@ -43,7 +57,7 @@ Start `Wow.exe` and log in with an account made in the app. The realm is **Chrom
 
 ## The launcher
 
-The launcher plays Wrath of the Lich King's main title theme, looping, while it's on screen. It fades in when the launcher opens and pauses when you leave the app, when another app plays sound, or during a call. The note at the top right of the picture turns it off and on, and the app remembers the choice. Once the game starts (stage 2), the music stops.
+The launcher plays Wrath of the Lich King's main title theme, looping, while it's on screen. It fades in when the launcher opens and pauses when you leave the app, when another app plays sound, or during a call. The note at the top right of the picture turns it off and on, and the app remembers the choice. Once the game starts, the music stops until the app is opened anew.
 
 | Tile | What it does |
 | --- | --- |
@@ -88,14 +102,18 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `../scripts/build-azerothcore.sh` | Both, one after the other |
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
 | `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does |
+| `winlator-version.env` | The game's runtime: Winlator's Android app at the commit Winlator 11.2 pins, and its install path with this app's |
+| `patches/winlator/` | Changes to Winlator: its runtime in this app's data folder and Exit back to the launcher; `if` chains for its `switch` statements on resource ids (built into the app's module they aren't constants); installing the runtime without its screens |
+| `../scripts/prepare-winlator.sh` | Puts Winlator into `android/winlator` (git-ignored), which the app's module builds with its own code: Winlator's Java code (using the app's `R`), resources, native code (NDK 24, CMake 3.22), prebuilt libraries and assets |
+| `../scripts/winlator-rewrite.py` | Rewrites the install path compiled into every archive of Winlator's runtime (`/data/data/com.winlator/files/rootfs` to `/data/data/com.logie.warcraft/rootfs`, the same length, so programs keep their layout) |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
-| `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset |
-| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version, zip layouts, updates |
+| `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset. `game/Game.kt` starts the game |
+| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, updates, the servers' logs |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
 | `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
 
-CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners: the compile is cached by the pins, the patches and the compile scripts, and the package by everything in it, so a change to the packaging takes minutes and a change to the app alone reuses the package. It downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, builds the APK and publishes the release with the Windows tools.
+CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners: the compile is cached by the pins, the patches and the compile scripts, and the package by everything in it, so a change to the packaging takes minutes and a change to the app alone reuses the package. It downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, prepares Winlator (cached by its commit and the patches), builds the APK and publishes the release with the Windows tools.
 
 Local builds:
 
@@ -107,7 +125,10 @@ scripts/package-azerothcore.sh
 scripts/test-warcraft-server.sh
 # ...with the server data, all the way into the world (data.zip from server-data.env's URL):
 WOW_DATA_ZIP=/path/to/data.zip scripts/test-warcraft-server.sh
-# The app (copy server.tar.xz from a release build into warcraft/android/server/ to include it):
+# The game's runtime, once (and after a change to its commit or patches; needs Python's zstandard):
+scripts/prepare-winlator.sh
+# The app (copy server.tar.xz from a release build into warcraft/android/server/ to include it;
+# needs the NDK 24.0.8215888 and CMake 3.22.1):
 cd warcraft/android
 ./gradlew --init-script ../../scripts/maven-mirror.init.gradle assembleRelease \
   -PwowVersionCode=1 -PwowVersionName=1.0.1 -Pkeystore="$PWD/../../ci/dolphinxd-ci.p12" \
@@ -116,8 +137,8 @@ cd warcraft/android
 gradle -p warcraft/unit-tests test
 ```
 
-The app targets Android SDK 28, as Termux and Winlator do: Android lets apps that target 28 or lower run programs from their own storage, where the server runs.
+The app targets Android SDK 28, as Termux and Winlator do: Android lets apps that target 28 or lower run programs from their own storage, where the server and the game's Wine run.
 
 ## License
 
-The app's code is GPLv3. AzerothCore and mod-playerbots are GPLv2; mod-progression-system, mod-zone-difficulty and mod-chromie-xp are AGPLv3; ChromieCraft's SmartStone and hoard collector modules are MIT (the talent template module's repository has no license file). MariaDB is GPLv2, musl MIT; the other libraries in the server package are under their Alpine packages' licenses. Cinzel and Jost are under the SIL Open Font License (`fonts/`). World of Warcraft, its art and its music belong to Blizzard Entertainment; the client is yours and isn't part of the app. The server data the app downloads is made from the game's files by the AzerothCore project and published by it. Playing on a private server is against Blizzard's terms of use. This project isn't affiliated with Blizzard, ChromieCraft, AzerothCore, the playerbots project, or MariaDB.
+The app's code is GPLv3. AzerothCore and mod-playerbots are GPLv2; mod-progression-system, mod-zone-difficulty and mod-chromie-xp are AGPLv3; ChromieCraft's SmartStone and hoard collector modules are MIT (the talent template module's repository has no license file). MariaDB is GPLv2, musl MIT; the other libraries in the server package are under their Alpine packages' licenses. Winlator is LGPL-2.1; its runtime brings Wine (LGPL-2.1), Box64 (MIT), DXVK (zlib) and Mesa (MIT), under their own licenses. Cinzel and Jost are under the SIL Open Font License (`fonts/`). World of Warcraft, its art and its music belong to Blizzard Entertainment; the client is yours and isn't part of the app. The server data the app downloads is made from the game's files by the AzerothCore project and published by it. Playing on a private server is against Blizzard's terms of use. This project isn't affiliated with Blizzard, ChromieCraft, AzerothCore, the playerbots project, MariaDB, or Winlator.

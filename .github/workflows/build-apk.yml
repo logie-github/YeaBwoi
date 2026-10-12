@@ -25,6 +25,8 @@ on:
       - "scripts/package-azerothcore.sh"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
+      - "scripts/prepare-winlator.sh"
+      - "scripts/winlator-rewrite.py"
       - ".github/workflows/build-warcraft.yml"
       - "docs/**"
       - "scripts/maven-mirror.init.gradle"

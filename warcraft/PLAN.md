@@ -228,14 +228,37 @@ on a phone):**
   foreground service, client import (folder or zip, build 12340 check), server data downloaded
   (resumable, SHA-256 checked), made on the phone or imported from the Windows tools' zip,
   accounts, the icon switcher (done early: the art was there), updates. Targets
-  SDK 28 (like Termux and Winlator) to run the server's programs from its storage; stage 2 needs
-  the same for Wine.
+  SDK 28 (like Termux and Winlator) to run the server's programs from its storage, and Wine's.
+- On the user's phone: the realm online and the world server up (with the downloaded data).
 - Defaults set on the first start: progression brackets `0` and `1_19` (ChromieCraft's start),
   50 random bots (the module's default is 500), bots idle while nobody's logged in.
 
-**Next, stage 2:** Winlator's runtime, the client straight to its login screen with the account
-chosen in the launcher (`realmlist.wtf` = 127.0.0.1), gestures. Starting the game calls
-`TitleMusic.stopForGame()`.
+**Stage 2 (in progress; built and packaged in CI, nothing run on a phone yet):** the user asked
+for the game on the phone itself ("that's the whole point").
+
+- Winlator 11.2 is built into the app's own module (`scripts/prepare-winlator.sh`), not run as a
+  separate app: its Java code (using the app's `R`), resources, native code (NDK 24, CMake 3.22),
+  prebuilt libraries and assets (rootfs, container pattern, Box64, DXVK, Vortek/Gladio/Turnip
+  drivers). Only `app_name` and its FileProvider paths clashed with the app's; its FileProvider is
+  left out (its authority would clash with Winlator's own app).
+- Its runtime has its install path compiled in (`/data/data/com.winlator/files/rootfs`, 900-odd
+  places: Box64's ELF interpreter, Wine, scripts, links). `scripts/winlator-rewrite.py` rewrites
+  every `.tzst` to `/data/data/com.logie.warcraft/rootfs`, the same length, so nothing moves;
+  `RootFS.find` is patched to `getDataDir()/rootfs` to match.
+- AGP 9 makes resource ids non-constant in the app module too (`android.nonFinalResIds=false` has
+  no effect), so Winlator's `switch` statements on them became `if` chains (patch 0002); its
+  theme attributes from Material and AppCompat come through `android.nonTransitiveRClass=false`.
+- `game/Game.kt`: **Press start** (and opening the app) starts the server, installs the runtime
+  meanwhile (patch 0003, without Winlator's screens, progress in the launcher), makes one container
+  (client as D:, the screen's shape at 720 lines), writes `realmlist.wtf` and `Config.wtf`
+  (127.0.0.1, realm name, intro off, the account's name), waits for the world, stops the music and
+  starts Winlator's `XServerDisplayActivity` on `Wow.exe`. Its **Exit** finishes back to the
+  launcher (patch 0001). With no game account yet it says so and opens Accounts.
+- Not on a phone yet: whether DXVK + Vortek run 3.3.5a's Direct3D 9 well on the Fold's GPU (the
+  alternative is the client's `-opengl` with Gladio), how the first Wine start goes, and sound.
+
+**Next:** the gestures (under "Controls") in place of Winlator's touchpad, and Back leaving the
+game.
 
 ## Still open
 

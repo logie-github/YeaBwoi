@@ -3,8 +3,9 @@ name: Build World of Warcraft
 # Builds the World of Warcraft app: its private server (AzerothCore at ChromieCraft's revision with
 # playerbots, and MariaDB) for Linux arm64, tested here the way the phone runs it, on the server
 # data the app downloads (warcraft/server-data.env); AzerothCore's data tools for Windows (to make
-# the server's data from the client on a PC); and the app, which ships the server. Publishes the
-# app and the Windows tools as a release (wow-build-N).
+# the server's data from the client on a PC); and the app, which ships the server and the game's
+# runtime, Winlator (scripts/prepare-winlator.sh, cached by its commit and the patches). Publishes
+# the app and the Windows tools as a release (wow-build-N).
 #
 # The server is cached at two levels: the compiled programs and SQL (scripts/compile-azerothcore.sh,
 # the slow part) by what goes into the compile alone (the pins, the patches, the compile and fetch
@@ -23,6 +24,8 @@ on:
       - "scripts/package-azerothcore.sh"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
+      - "scripts/prepare-winlator.sh"
+      - "scripts/winlator-rewrite.py"
       - ".github/workflows/build-warcraft.yml"
   workflow_dispatch:
 
@@ -269,7 +272,7 @@ jobs:
     name: Build World of Warcraft APK
     needs: [unit-tests, server, windows-tools]
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -300,6 +303,28 @@ jobs:
           enableCrossOsArchive: true
           fail-on-cache-miss: true
 
+      # The game's runtime, Winlator, with its install path rewritten for this app in every archive
+      # (minutes, at zstd's highest level): made again only when its commit or the patches change.
+      - name: Look for Winlator
+        id: winlator
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/winlator
+          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+
+      - name: Prepare Winlator
+        if: steps.winlator.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard > /dev/null
+          scripts/prepare-winlator.sh
+
+      - name: Save Winlator
+        if: steps.winlator.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: warcraft/android/winlator
+          key: ${{ steps.winlator.outputs.cache-primary-key }}
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -307,10 +332,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Winlator's native code is built with the NDK and CMake it's made for (app/build.gradle).
       - name: Install build tools
         run: |
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;36.0.0" > /dev/null
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;36.0.0" \
+            "ndk;24.0.8215888" "cmake;3.22.1" > /dev/null
 
       - name: Choose signing key
         env:
@@ -352,7 +379,7 @@ jobs:
           mkdir -p dist
           cp warcraft/android/app/build/outputs/apk/release/app-release.apk "dist/$APK_FILE"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "dist/$APK_FILE" | head -3
-          unzip -l "dist/$APK_FILE" | grep "assets/"
+          unzip -l "dist/$APK_FILE" | grep -E "assets/(server|rootfs|container_pattern)|lib/arm64-v8a/libwinlator"
           tar -xJOf warcraft/android/server/server.tar.xz server/VERSION | tee dist/server-version.txt
           ls -la dist
 
@@ -364,9 +391,10 @@ jobs:
         run: |
           source warcraft/server-version.env
           source warcraft/server-data.env
-          notes="$GAME_NAME (3.3.5a) for Android, with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
+          source warcraft/winlator-version.env
+          notes="$GAME_NAME (3.3.5a) for Android: the game on the phone (your client on Winlator $WINLATOR_VERSION), with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
 
-          Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client.
+          Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client: **Game files → Your client → Pick folder** (or **Pick zip**) copies it into the app, then **Press start** starts the realm and the game.
 
           **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), which this build was tested with: CI started the world server on it and took a character into the world. **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
 
