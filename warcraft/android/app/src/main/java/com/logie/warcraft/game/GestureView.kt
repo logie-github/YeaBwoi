@@ -3,6 +3,7 @@
 package com.logie.warcraft.game
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyCharacterMap
@@ -99,6 +100,20 @@ class GestureView(
         activity.window.setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
         )
+        // The whole screen, edge to edge, the camera's edge too: the game is made the screen's
+        // size (GameSettings), and any edge kept clear would be a black bar.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            activity.window.attributes = activity.window.attributes.apply {
+                layoutInDisplayCutoutMode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+        }
+        // And if the game's window comes up smaller than the screen anyway, it's scaled up to fill
+        // it (the pointer follows the scaling).
+        xServer.renderer.isForceWindowsFullscreen = true
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
         gestures.setSize(AppUtils.getScreenWidth().toFloat(), AppUtils.getScreenHeight().toFloat())
     }
