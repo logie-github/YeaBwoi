@@ -43,12 +43,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -74,6 +76,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -82,6 +85,7 @@ import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.logie.warcraft.Addons
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.Imports
@@ -94,6 +98,7 @@ import com.logie.warcraft.WowFiles
 import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
 import com.logie.warcraft.game.Game
+import com.logie.warcraft.game.GameSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -177,12 +182,14 @@ fun WowHomeRoute(activity: Activity, autoplayOnOpen: Boolean) {
             HomeDialog.FILES -> GameFilesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
             HomeDialog.ACCOUNTS -> AccountsDialog(onDismiss = { dialog = null })
             HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
+            HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
+            HomeDialog.ADDONS -> AddonsDialog(onDismiss = { dialog = null; refresh++ })
             null -> {}
         }
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, ICON }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, ICON }
 
 /** What's on the phone, read when the screen needs it. */
 data class HomeFacts(
@@ -258,6 +265,12 @@ internal fun HomeScreen(
                     HomeTile(Icons.Default.People, stringResource(R.string.wow_tile_accounts), stringResource(R.string.wow_tile_accounts_summary)) {
                         onDialog(HomeDialog.ACCOUNTS)
                     },
+                    HomeTile(Icons.Default.Tune, stringResource(R.string.wow_tile_graphics), graphicsSummary(context)) {
+                        onDialog(HomeDialog.GRAPHICS)
+                    },
+                    HomeTile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), addonsSummary(context, facts)) {
+                        onDialog(HomeDialog.ADDONS)
+                    },
                     HomeTile(Icons.Default.Palette, stringResource(R.string.wow_tile_icon), stringResource(AppIcons.current(context).label)) {
                         onDialog(HomeDialog.ICON)
                     },
@@ -280,6 +293,20 @@ internal fun HomeScreen(
             }
         }
     }
+}
+
+@Composable
+private fun graphicsSummary(context: android.content.Context): String {
+    val resolution = GameSettings.resolution(context)
+    val (width, height) = GameSettings.gameSize(context, resolution)
+    return stringResource(R.string.wow_tile_graphics_summary, stringResource(resolution.label), width, height)
+}
+
+@Composable
+private fun addonsSummary(context: android.content.Context, facts: HomeFacts): String {
+    if (!facts.hasClient) return stringResource(R.string.wow_tile_addons_no_client)
+    val count = remember(facts) { runCatching { Addons.list(context).size }.getOrDefault(0) }
+    return if (count == 0) stringResource(R.string.wow_tile_addons_none) else pluralStringResource(R.plurals.wow_tile_addons_count, count, count)
 }
 
 @Composable

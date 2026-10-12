@@ -45,7 +45,8 @@ follows the same playbook, but its emulator is a whole Windows (Wine) and server
   realm options) are chosen in the launcher **at any time**, not in a first-run wizard. The
   launcher writes the config and applies it (`.reload config` where a setting supports it,
   otherwise a world server restart, saying first if the game will disconnect).
-- **Add-ons:** a generic manager, no built-in list (see "Launcher sections").
+- **Add-ons:** a generic manager, no built-in list (see "Launcher sections"). First step built:
+  importing zips; browsing CurseForge in the app later, maybe.
 - **Double tap = jump.** The map moves to another gesture (proposed below).
 - **Phone:** Galaxy Z Fold 8.
 - **The server's data** (dbc, maps, vmaps, mmaps) can be made **either way**: on a Windows PC
@@ -301,6 +302,21 @@ for the game on the phone itself ("that's the whole point").
   attack, loot, gather, as on a PC. The two-finger right click now waits for the game to see the
   pointer first. Without a readable cursor, a second tap on the same spot within 1.5 s right
   clicks. Not verified on the phone: that Wine and DXVK hand WoW's cursor to the X server.
+
+- On the phone (build 30): "this is great". Then: a single tap should select an enemy, a double
+  tap on it attack; single taps keep acting on friendlies and objects. The cursor can't tell an
+  enemy (the sword is a picture to the app), the realm can: patch 0007 makes the world server
+  write, for each selection by the client on 127.0.0.1, a count and whether it's a living,
+  attackable unit (`files/run/selection`, named by `WOW_SELECTION_FILE` in `ctl.sh`). A tap on a
+  special cursor left clicks, waits up to 400 ms for that word, and right clicks unless it's an
+  enemy; the cursor's fingerprint is remembered as an enemy's or not, so later taps don't wait. A
+  double tap: the second tap attacks when the first selected an enemy, else jumps (or nothing
+  after an interaction). The Windows tools' cache key leaves 0007 out (game server only).
+- Resolution (the user's Z Fold 8): **Graphics** tile, the phone's screen by default (every pixel
+  of the screen it's on), or 1080 / 720 lines at its shape (`GameSettings`, next game start).
+- Add-ons: CurseForge browsing in the app was set aside by the user ("too much"); for now **import
+  zips** (`Addons`, `client/AddonLayout`: any packing, folder named after its `.toc`), list and
+  delete; `checkAddonVersion 0` so 3.3.5a add-ons marked otherwise load.
 
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.

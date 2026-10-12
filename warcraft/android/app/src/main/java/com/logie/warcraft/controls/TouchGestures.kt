@@ -28,6 +28,12 @@ interface GestureOutput {
     /** A right click there: talk, loot, attack, use. */
     fun interactAt(x: Float, y: Float)
 
+    /**
+     * The second tap of a double tap, there: attacks the enemy the first one selected, or jumps
+     * (Space) when the first tap wasn't on an enemy.
+     */
+    fun doubleTapAt(x: Float, y: Float)
+
     /** Moves the pointer (with the right button held: turns the camera and the character). */
     fun pointerBy(dx: Float, dy: Float)
 
@@ -62,9 +68,10 @@ interface GestureOutput {
  *   thumb that goes further.
  * - **Right half, drag:** turns the camera and the character (the right button held down in the
  *   middle of the screen, so it never lands on the action bars or the map).
- * - **Anywhere:** tap = a click where the finger is, which talks to NPCs, attacks, loots and
- *   gathers where WoW's cursor offers it ([GestureOutput.tapAt]); double tap = jump (Space; the
- *   first tap still clicks); hold still = bags (B); tap then hold = map (M).
+ * - **Anywhere:** tap = a click where the finger is, which talks to NPCs, loots and gathers where
+ *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
+ *   = attack it, elsewhere = jump (Space) ([GestureOutput.doubleTapAt]); hold still = bags (B);
+ *   tap then hold = map (M).
  * - **Two fingers together:** pinch = zoom (the mouse wheel); tap = right click (talk, loot,
  *   attack); swipe up = chat, with the keyboard.
  * - **Three-finger tap:** the keyboard. **Four-finger tap:** the menu.
@@ -227,7 +234,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         when (finger.role) {
             Role.NEW -> if (tap) {
                 if (finger.secondTap) {
-                    out.tap(Key.SPACE)
+                    out.doubleTapAt(finger.x, finger.y)
                     lastTapAt = Long.MIN_VALUE / 2
                 } else {
                     out.tapAt(finger.x, finger.y)

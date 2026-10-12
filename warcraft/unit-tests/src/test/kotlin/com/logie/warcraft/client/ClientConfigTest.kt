@@ -46,6 +46,17 @@ class ClientConfigTest {
     }
 
     @Test
+    fun theScreensOwnPixelsOrFewerLines() {
+        // A Fold's inner screen, in landscape or not: every pixel.
+        assertEquals(2184 to 1968, ClientConfig.resolutionFor(1968, 2184, null))
+        assertEquals(1198 to 1080, ClientConfig.resolutionFor(2184, 1968, 1080))
+        assertEquals(800 to 720, ClientConfig.resolutionFor(2184, 1968, 720))
+        // Never more lines than the screen has: the cover screen at "1080" is its own 1080.
+        assertEquals(2520 to 1080, ClientConfig.resolutionFor(1080, 2520, 1440))
+        assertEquals(2520 to 1080, ClientConfig.resolutionFor(1080, 2520, null))
+    }
+
+    @Test
     fun localeFolders() {
         assertTrue(ClientConfig.LOCALE.matches("enUS"))
         assertTrue(ClientConfig.LOCALE.matches("deDE"))

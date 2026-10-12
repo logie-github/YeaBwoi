@@ -41,7 +41,8 @@ import com.winlator.xserver.XServer
  * of its touchpad: Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004). It
  * turns the gestures into the X server's pointer and keys, where Wine passes them to the game,
  * with nothing drawn over the game, and opens the app's menu ([GameMenu]) for four fingers. Taps
- * read the game's own cursor to talk, attack, loot and gather like a PC's right click ([tapAt]).
+ * read the game's own cursor to talk, loot and gather like a PC's right click, and select enemies,
+ * which a double tap attacks ([tapAt], [doubleTapAt]).
  *
  * It's also the game's text box for the phone's keyboard, which comes up by itself where the
  * game wants text: the login screen when the game appears, character creation right after the
@@ -73,6 +74,8 @@ class GestureView(
     /** Counts the pointer's moves, so a tap's delayed click can tell another gesture took over. */
     private var pointerMoves = 0
     private var lastTapAt = Long.MIN_VALUE / 2
+    private var lastTap: TapResult? = null
+    private val selectionFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "selection")
     private var lastTapX = 0f
     private var lastTapY = 0f
 
@@ -178,29 +181,105 @@ class GestureView(
      */
     override fun tapAt(x: Float, y: Float) {
         val now = SystemClock.uptimeMillis()
-        // The same spot tapped again, not quick enough for a double tap (a jump): see below.
+        // The same spot tapped again, not quick enough for a double tap: see below.
         val again = now - lastTapAt in TouchGestures.DOUBLE_TAP_MS..AGAIN_MS &&
             Math.hypot((x - lastTapX).toDouble(), (y - lastTapY).toDouble()) <= AGAIN_SLOP_DP * density
         lastTapAt = now
         lastTapX = x
         lastTapY = y
+        val tap = TapResult(x, y)
+        lastTap = tap
         pointerTo(x, y)
         val moves = pointerMoves
         postDelayed({
-            if (moves != pointerMoves) return@postDelayed
+            if (moves != pointerMoves) return@postDelayed tap.done(Outcome.PLAIN)
             val before = cursorHere()
             val special = cursors.isSpecial(before)
+            val selected = selection()?.first
             click(Button.LEFT)
             when {
-                special -> postDelayed({
-                    if (moves == pointerMoves && cursors.confirms(before, cursorHere())) click(Button.RIGHT)
-                }, CURSOR_SETTLE_MS)
+                // An enemy: the click selected it; a second tap attacks.
+                special && cursors.isEnemy(before) == true -> tap.done(Outcome.ENEMY)
+                special && cursors.isEnemy(before) == false -> postDelayed({ interactIfStill(before, moves, tap) }, CURSOR_SETTLE_MS)
+                // Not learnt yet: the realm says what the click selected.
+                special -> waitForSelection(selected, before, moves, tap, SystemClock.uptimeMillis())
                 // Without a cursor to read: the first tap selects, the second talks (or attacks, loots).
                 again && !cursors.readable -> postDelayed({
                     if (moves == pointerMoves) click(Button.RIGHT)
+                    tap.done(Outcome.INTERACTED)
                 }, CURSOR_SETTLE_MS)
+                else -> tap.done(Outcome.PLAIN)
             }
         }, CURSOR_SETTLE_MS)
+    }
+
+    /**
+     * After a tap's click on a special cursor: the realm writes what was selected (an enemy or
+     * not) as soon as the game tells it. An enemy stays selected; anything else is used, as a right
+     * click does. No word in time: something that isn't selected (a chest, a herb, a mailbox) or
+     * that was already selected, which is used too.
+     */
+    private fun waitForSelection(before: Int?, cursor: Long?, moves: Int, tap: TapResult, since: Long) {
+        val now = selection()
+        if (now != null && now.first != before) {
+            if (cursor != null) cursors.learn(cursor, now.second)
+            if (now.second) tap.done(Outcome.ENEMY) else interactIfStill(cursor, moves, tap)
+            return
+        }
+        if (SystemClock.uptimeMillis() - since >= SELECTION_WAIT_MS) return interactIfStill(cursor, moves, tap)
+        postDelayed({ waitForSelection(before, cursor, moves, tap, since) }, SELECTION_POLL_MS)
+    }
+
+    /** The right click, when the cursor that offered it is still there after the left click. */
+    private fun interactIfStill(cursor: Long?, moves: Int, tap: TapResult) {
+        if (moves == pointerMoves && cursors.confirms(cursor, cursorHere())) {
+            click(Button.RIGHT)
+            tap.done(Outcome.INTERACTED)
+        } else {
+            tap.done(Outcome.PLAIN)
+        }
+    }
+
+    /** The second tap of a double tap: attack the enemy the first one selected; otherwise jump. */
+    override fun doubleTapAt(x: Float, y: Float) {
+        val first = lastTap
+        if (first == null || Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density) {
+            tap(Key.SPACE)
+            return
+        }
+        first.whenDone { outcome ->
+            when (outcome) {
+                Outcome.ENEMY -> interactAt(x, y)
+                // The first tap already talked, looted or used: the second is the same tap again.
+                Outcome.INTERACTED -> {}
+                Outcome.PLAIN -> tap(Key.SPACE)
+            }
+        }
+    }
+
+    /** The realm's latest word on a selection: its count, and whether it was an enemy. */
+    private fun selection(): Pair<Int, Boolean>? = runCatching {
+        val parts = selectionFile.readText().trim().split(' ')
+        parts[0].toInt() to (parts[1] == "1")
+    }.getOrNull()
+
+    private enum class Outcome { PLAIN, ENEMY, INTERACTED }
+
+    /** What a tap did, once it's known (its clicks wait for the game and the realm). */
+    private class TapResult(val x: Float, val y: Float) {
+        private var outcome: Outcome? = null
+        private var waiting: ((Outcome) -> Unit)? = null
+
+        fun done(result: Outcome) {
+            outcome = result
+            waiting?.invoke(result)
+            waiting = null
+        }
+
+        fun whenDone(then: (Outcome) -> Unit) {
+            val known = outcome
+            if (known != null) then(known) else waiting = then
+        }
     }
 
     /** Once the game knows the pointer is there (what's under it), the right click. */
@@ -475,6 +554,9 @@ class GestureView(
         private const val CURSOR_SETTLE_MS = 90L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */
         private const val AGAIN_MS = 1500L
+        /** How long a tap waits for the realm to say what it selected, and how often it looks. */
+        private const val SELECTION_WAIT_MS = 400L
+        private const val SELECTION_POLL_MS = 25L
         private const val AGAIN_SLOP_DP = 40f
         /** When the login screen's cursor is looked at, after the game appears. */
         private val ARROW_SAMPLES_MS = longArrayOf(4000L, 8000L, 12000L)

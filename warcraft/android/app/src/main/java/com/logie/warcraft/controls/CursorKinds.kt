@@ -13,11 +13,24 @@ package com.logie.warcraft.controls
  * The arrow is learnt at the login screen, where it's the only cursor ([learnArrow]). If that
  * goes wrong (no cursor then, or another one in the world), the cursor most taps land on is the
  * plain one: taps mostly press buttons and walk the interface.
+ *
+ * Which special cursor means an enemy (the sword) is learnt from the realm: when a tap's click
+ * selects something, the server says whether it's an enemy ([learn]; patches/azerothcore/0007).
+ * A tap on an enemy only selects it; a second tap attacks. The other special cursors act at once.
  */
 class CursorKinds {
     private var arrow: Long? = null
     private val recent = ArrayDeque<Long>()
     private val seen = HashSet<Long>()
+    private val enemies = HashMap<Long, Boolean>()
+
+    /** The realm's word on what a tap with [cursor] selected: an enemy or not. */
+    fun learn(cursor: Long, enemy: Boolean) {
+        if (enemies.size < 64 || cursor in enemies) enemies[cursor] = enemy
+    }
+
+    /** Whether [cursor] is over an enemy: true, false, or null when the realm hasn't said yet. */
+    fun isEnemy(cursor: Long?): Boolean? = cursor?.let { enemies[it] }
 
     /**
      * The game's cursors can be told apart: more than one was seen. Until then (the game drawing

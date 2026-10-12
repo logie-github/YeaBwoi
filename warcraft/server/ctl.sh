@@ -148,6 +148,9 @@ world)
 	cd "$RUN"
 	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.
 	musl_programs "$SERVER/lib/libjemalloc.so.2"
+	# Whether the phone's player just selected an enemy, for the app's touch controls
+	# (patches/azerothcore/0007).
+	export WOW_SELECTION_FILE="$RUN/selection"
 	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
 	;;
 maps)

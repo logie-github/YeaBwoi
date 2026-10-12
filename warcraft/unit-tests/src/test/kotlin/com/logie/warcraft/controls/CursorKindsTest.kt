@@ -1,6 +1,7 @@
 package com.logie.warcraft.controls
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -53,6 +54,21 @@ class CursorKindsTest {
         assertFalse(kinds.readable)
         kinds.isSpecial(speak)
         assertTrue(kinds.readable)
+    }
+
+    @Test
+    fun theRealmSaysWhichCursorIsAnEnemy() {
+        val kinds = CursorKinds()
+        assertEquals(null, kinds.isEnemy(attack))
+        kinds.learn(attack, enemy = true)
+        kinds.learn(speak, enemy = false)
+        assertEquals(true, kinds.isEnemy(attack))
+        assertEquals(false, kinds.isEnemy(speak))
+        assertEquals(null, kinds.isEnemy(item))
+        assertEquals(null, kinds.isEnemy(null))
+        // The latest word counts.
+        kinds.learn(attack, enemy = false)
+        assertEquals(false, kinds.isEnemy(attack))
     }
 
     @Test

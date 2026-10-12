@@ -53,8 +53,8 @@ Nothing is drawn over the game: the screen itself is the controls. Split like mo
 | --- | --- |
 | **Left half: swipe and hold** | Walk, as with a stick under your thumb (nothing is drawn): up W (forward), down S (back), left Q and right E (sideways steps), and the diagonals between. It follows a thumb that goes further, so changing direction is quick. Lift to stop. |
 | **Right half: drag** | Turn the camera and your character (the right button held in the middle of the screen), so walking goes where you look |
-| **Tap** (anywhere) | What a click does in WoW, by the game's own cursor where you tap: on the interface and the ground, a left click (buttons, menus, selecting); where the cursor shows more, what a right click does on a PC: a speech bubble talks to the NPC, a sword attacks, a bag loots, a gear or flower uses or gathers. |
-| **Double tap** | Jump (Space). The first tap still clicks. |
+| **Tap** (anywhere) | What a click does in WoW, by the game's own cursor where you tap: on the interface and the ground, a left click (buttons, menus); on an **enemy**, selects it as your target; on anyone or anything else the cursor offers something for, does it at once, as a right click does on a PC: a speech bubble talks to the NPC, a bag loots, a gear or flower uses or gathers. |
+| **Double tap** | On an enemy: attack it. Anywhere else: jump (Space). |
 | **Hold** one finger still | Bags (B) |
 | **Tap, then tap and hold** | Map (M) |
 | **Pinch** with two fingers | Zoom the camera in and out |
@@ -64,7 +64,7 @@ Nothing is drawn over the game: the screen itself is the controls. Split like mo
 | **Four-finger tap** | The game's menu: **Back to the game**, **Keyboard**, **Leave the game** (back to the launcher) |
 | **Back** | Escape: closes a window, or opens the game menu |
 
-How a tap reads the cursor: the app sees the game's cursor (WoW's hardware cursor, which the app turns on in `Config.wtf`), learns the plain arrow at the login screen, and after a tap's left click, clicks right too when the same special cursor is still there. So a tap that picks up an item, puts one down or aims a spell stays a single click. If the game's cursor can't be seen (only one cursor ever shows), tapping the same NPC again within a second and a half talks to it.
+How a tap reads the cursor: the app sees the game's cursor (WoW's hardware cursor, which the app turns on in `Config.wtf`) and learns the plain arrow at the login screen. When a tap lands on a special cursor, its left click selects what's there, and the realm on the phone says whether that's an enemy (the server writes it for the app; `patches/azerothcore/0007`): an enemy stays selected, anything else gets the right click too, when the same cursor is still there after the left click. So a tap that picks up an item, puts one down or aims a spell stays a single click. After the first enemy, the app knows the sword cursor and doesn't wait for the realm. If the game's cursor can't be seen (only one cursor ever shows), tapping the same NPC again within a second and a half talks to it.
 
 ### The keyboard
 
@@ -77,6 +77,10 @@ The phone's own keyboard comes up by itself where the game wants text, and the g
 It types plain characters as you press them, with no suggestions or corrections (the game can't take them back). For a new character later (with characters already there), tap the name box, then three fingers.
 
 To leave the game, log out in it (Escape → Log Out), then four fingers → **Leave the game**. A mouse or a keyboard connected to the phone goes to the game too (not tried yet).
+
+## Add-ons
+
+**Add-ons → Import zip** picks a zip on the phone. The app finds the add-ons in it however it's packed (the add-on's folder at the top, several side by side, inside `Interface/AddOns/`, a download's own folder around it, or no folder at all), names each folder after its `.toc` as the game needs, and puts them in the client's `Interface/AddOns`, each replacing an older copy of itself. They load the next time the game starts, or with `/reload` in the game. The app sets the game to load add-ons whatever version they say they're for (`checkAddonVersion 0`), so a 3.3.5a add-on marked for another version still loads; look for versions made for Wrath of the Lich King 3.3.5a, since add-ons for today's game don't work in it. In-game settings of add-ons are saved by the game in the client's `WTF` folder.
 
 ## Playing from a PC
 
@@ -97,6 +101,8 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Server** | How the server is (each step while it starts), Start and Stop, its logs (world, login, database, setup), the address for a PC, battery restrictions, and **Delete the databases** to start over. |
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them. Needs the server running. |
+| **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). Takes effect the next time the game starts. |
+| **Add-ons** | Import add-on zips (versions made for 3.3.5a), see what's installed, delete. |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
 | **Updates** | Checks for a newer version and installs it. |
 

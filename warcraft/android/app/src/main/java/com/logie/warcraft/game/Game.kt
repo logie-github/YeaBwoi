@@ -2,10 +2,8 @@
 
 package com.logie.warcraft.game
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import com.logie.warcraft.Accounts
 import com.logie.warcraft.Database
 import com.logie.warcraft.MainActivity
@@ -160,16 +158,8 @@ object Game {
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 
-    /** The game's resolution for the screen the launcher is on now (a Fold's inside or outside). */
-    private fun gameResolution(context: Context): Pair<Int, Int> {
-        return if (context is Activity && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val bounds = context.windowManager.maximumWindowMetrics.bounds
-            ClientConfig.resolution(bounds.width(), bounds.height())
-        } else {
-            val metrics = context.resources.displayMetrics
-            ClientConfig.resolution(metrics.widthPixels, metrics.heightPixels)
-        }
-    }
+    /** The game's resolution, as chosen in Graphics, for the screen the launcher is on now (a Fold's inside or outside). */
+    private fun gameResolution(context: Context): Pair<Int, Int> = GameSettings.gameSize(context)
 
     /** The game's Windows: made the first time, its screen and drive D: set every time. */
     private suspend fun container(context: Context, width: Int, height: Int): Container {
@@ -227,6 +217,8 @@ object Game {
             // The game's own cursor shown by the system (not drawn in the picture): taps read it to tell
             // what a click there would do (GestureView).
             put("gxCursor", "1")
+            // Add-ons load whatever version of the game they say they're for (Add-ons, in the launcher).
+            put("checkAddonVersion", "0")
             if (accountName != null) put("accountName", accountName)
         }
         val text = if (config.isFile) config.readText() else ""
