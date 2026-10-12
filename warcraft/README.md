@@ -47,19 +47,32 @@ While it starts, the app shows its own loading screen (the logo over the dark, w
 
 ### Touch controls
 
+Split like most phone MMOs: the left thumb walks, the right one looks. Each finger counts on its own, so you can walk and turn at once, and tap an ability while walking.
+
 | Gesture | In the game |
 | --- | --- |
-| **Tap** | Left click where you tap (the pointer goes there) |
-| **Swipe** and keep the finger down | Walk: W, A, S, D in eight directions from where the finger came down (A and D turn). Like a stick: it follows a finger that goes further, so turning back is quick. Lift to stop. |
-| **Hold** one finger still | Bags (B) |
+| **Left half: swipe and hold** | Walk. A stick appears under your thumb: up W (forward), down S (back), left Q and right E (sideways steps), and the diagonals between. It follows a thumb that goes further, so changing direction is quick. Lift to stop. |
+| **Right half: drag** | Turn the camera and your character (the right button held in the middle of the screen), so walking goes where you look |
+| **Tap** (anywhere) | Left click where you tap: buttons, targets, menus |
 | **Double tap** | Jump (Space). The first tap still clicks. |
+| **Hold** one finger still | Bags (B) |
 | **Tap, then tap and hold** | Map (M) |
-| **Tap with a second finger** while walking | Jump while walking |
+| **Pinch** with two fingers | Zoom the camera in and out |
 | **Two-finger tap** | Right click: talk, loot, attack |
-| **Two-finger drag** | Turn the camera and the character (the right button held), so walking goes where you look |
-| **Three-finger tap** | The phone's keyboard, for chat and the login screen's password |
+| **Two fingers swiped up** | Chat: opens it, with the keyboard |
+| **Three-finger tap** | The keyboard, for any other text box (mail, auction house search, macros) |
 | **Four-finger tap** | The game's menu: **Back to the game**, **Keyboard**, **Leave the game** (back to the launcher) |
 | **Back** | Escape: closes a window, or opens the game menu |
+
+### The keyboard
+
+The phone's own keyboard comes up by itself where the game wants text, and the game shrinks into the space above it while it's up:
+
+- **The login screen:** as soon as the game appears, for your password. Its Enter (Go) logs in.
+- **Character creation:** when your account has no characters yet, the game goes there right after the login, and the keyboard stays up for the name. Its Enter creates the character.
+- **Chat:** two fingers swiped up open it with the keyboard. Its Enter (Send) sends and the keyboard goes; closing the keyboard without sending closes the chat, and so does starting to walk or turn.
+
+It types plain characters as you press them, with no suggestions or corrections (the game can't take them back). For a new character later (with characters already there), tap the name box, then three fingers.
 
 To leave the game, log out in it (Escape → Log Out), then four fingers → **Leave the game**. A mouse or a keyboard connected to the phone goes to the game too (not tried yet).
 

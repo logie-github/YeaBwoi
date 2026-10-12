@@ -110,7 +110,8 @@ https://github.com/liyunfan1223/azerothcore-wotlk, branch `Playerbot`; check whe
 now), and the core and module commits have to be pinned together: mismatches crash or fail to
 build.
 
-**Controls.** Decided by the user: tap = left click, swipe = movement (W/A/S/D), hold = bags
+**Controls** (first version; the split-screen scheme under "Where it stands" replaced the swipe
+and the two-finger drag). Decided by the user: tap = left click, swipe = movement (W/A/S/D), hold = bags
 (`B`; Shift+B opens all bags), double tap = jump (Space). Proposed, unless the user objects:
 the client's built-in **Click-to-Move** on, two-finger tap = right click (talk, loot, attack,
 walk there), two-finger drag = turn the camera, tap then tap-and-hold = map (`M`), three-finger
@@ -275,6 +276,20 @@ for the game on the phone itself ("that's the whole point").
   spinner), no Winlator name in the app's text or the release notes; its background-protection
   notification stays off (a Winlator setting nobody can reach). Its name stays in the build
   scripts, the README's build and license sections (LGPL-2.1 credit) and code comments.
+
+- **On the phone (build 28): "it works".** The user then asked for a more intuitive swipe
+  experience and the keyboard as an Android pop-up when entering text, and chose from the
+  suggestions: **split screen** (left half a stick drawn under the thumb, right half one-finger
+  drag turns camera and character), **strafe, not turn** (stick left/right = Q/E), **pinch to
+  zoom** (the wheel); not auto-run or vibration. Keyboard: **pops up by itself at the login screen
+  and the chat, and also character creation**. Built: `TouchGestures` rewritten per finger (each
+  thumb on its own; two fingers that land within 200 ms are a pinch, a two-finger tap or a
+  two-finger swipe up (chat) until they move apart, which tells walk-and-turn from a pinch);
+  `GestureView` is a text editor for the keyboard (an InputConnection typing plain characters,
+  no suggestions; Enter is the game's; the game shrinks above the keyboard). Character creation:
+  the launcher tells the game screen when the account has no characters, so the keyboard stays up
+  after the login for the name (the game goes there by itself); a new character later needs a
+  three-finger tap (nothing tells the app that screen opened).
 
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
