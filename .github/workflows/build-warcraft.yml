@@ -391,8 +391,7 @@ jobs:
         run: |
           source warcraft/server-version.env
           source warcraft/server-data.env
-          source warcraft/winlator-version.env
-          notes="$GAME_NAME (3.3.5a) for Android: the game on the phone (your client on Winlator $WINLATOR_VERSION), with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
+          notes="$GAME_NAME (3.3.5a) for Android: the game on the phone (your own client, run by Wine and Box64 inside the app, with touch gestures), with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
 
           Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client: **Game files → Your client → Pick folder** (or **Pick zip**) copies it into the app, then **Press start** starts the realm and the game.
 

@@ -266,6 +266,16 @@ for the game on the phone itself ("that's the whole point").
   The true-360° steering (mouse-turn while W is held) is left for later: two-finger drag turns the
   character, which covers it.
 
+- The user then asked not to use Winlator "if possible". Asked to choose between keeping its code
+  hidden, a stack of our own (Wine's Android driver + Box64 + DXVK, no confirmed working setup
+  found), and the open-source client rewrite Whoa (login and character screens only, can't enter
+  the world): **keep Winlator's code, hide every trace of it.** Nothing of Winlator shows: no
+  separate app, its game screen's drawer menu replaced by the app's own (`game/GameScreens.kt`:
+  back to the game, keyboard, leave), its loading box by the app's loading screen (logo, snow,
+  spinner), no Winlator name in the app's text or the release notes; its background-protection
+  notification stays off (a Winlator setting nobody can reach). Its name stays in the build
+  scripts, the README's build and license sections (LGPL-2.1 credit) and code comments.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 
