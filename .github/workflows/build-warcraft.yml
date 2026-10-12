@@ -54,8 +54,8 @@ jobs:
       - name: Cache keys
         id: key
         run: |
-          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
-          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
+          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
+          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
           echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
@@ -150,7 +150,7 @@ jobs:
         id: key
         shell: bash
         run: |
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/**', 'scripts/fetch-azerothcore.sh') }}"
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
