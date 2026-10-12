@@ -21,6 +21,7 @@ import com.logie.warcraft.controls.Button
 import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.GestureOutput
 import com.logie.warcraft.controls.Key
+import com.logie.warcraft.controls.ScreenZones
 import com.logie.warcraft.controls.TouchGestures
 import com.winlator.core.AppUtils
 import com.winlator.math.XForm
@@ -274,6 +275,8 @@ class GestureView(
 
     /** The second tap of a double tap: attack the enemy the first one selected; otherwise jump. */
     override fun doubleTapAt(x: Float, y: Float) {
+        // On the action bars, quick taps are presses of the buttons, as many as there are.
+        if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat())) return tapAt(x, y)
         val first = lastTap
         if (first == null || Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density) {
             tap(Key.SPACE)
@@ -315,7 +318,7 @@ class GestureView(
     }
 
     /** Once the game knows the pointer is there (what's under it), the right click. */
-    override fun interactAt(x: Float, y: Float) {
+    private fun interactAt(x: Float, y: Float) {
         pointerTo(x, y)
         val moves = pointerMoves
         postDelayed({ if (moves == pointerMoves) click(Button.RIGHT) }, CURSOR_SETTLE_MS)
@@ -399,6 +402,8 @@ class GestureView(
     }
 
     override fun showKeyboard() = ask(GamePrompt.Kind.TEXT)
+
+    override fun targetNearestEnemy() = tap(Key.TAB)
 
     override fun showMenu() = GameMenu.show(activity, onKeyboard = { showKeyboard() }, onLeave = { onLeave.run() })
 
@@ -552,6 +557,7 @@ class GestureView(
                 Key.SPACE -> XKeycode.KEY_SPACE
                 Key.ESCAPE -> XKeycode.KEY_ESC
                 Key.ENTER -> XKeycode.KEY_ENTER
+                Key.TAB -> XKeycode.KEY_TAB
             }
     }
 }

@@ -10,7 +10,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** The keys the gestures press. */
-enum class Key { W, S, Q, E, B, M, SPACE, ESCAPE, ENTER }
+enum class Key { W, S, Q, E, B, M, SPACE, ESCAPE, ENTER, TAB }
 
 enum class Button { LEFT, RIGHT, WHEEL_UP, WHEEL_DOWN }
 
@@ -25,8 +25,8 @@ interface GestureOutput {
      */
     fun tapAt(x: Float, y: Float)
 
-    /** A right click there: talk, loot, attack, use. */
-    fun interactAt(x: Float, y: Float)
+    /** The nearest enemy as the target (the game's Tab). */
+    fun targetNearestEnemy()
 
     /**
      * The second tap of a double tap, there: attacks the enemy the first one selected, or jumps
@@ -70,10 +70,11 @@ interface GestureOutput {
  *   middle of the screen, so it never lands on the action bars or the map).
  * - **Anywhere:** tap = a click where the finger is, which talks to NPCs, loots and gathers where
  *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
- *   = attack it, elsewhere = jump (Space) ([GestureOutput.doubleTapAt]); hold still = bags (B);
+ *   = attack it, on the action bars = two presses, elsewhere = jump (Space)
+ *   ([GestureOutput.doubleTapAt]); hold still = bags (B);
  *   tap then hold = map (M).
- * - **Two fingers together:** pinch = zoom (the mouse wheel); tap = right click (talk, loot,
- *   attack); swipe up = chat, with the keyboard.
+ * - **Two fingers together:** pinch = zoom (the mouse wheel); tap = target the nearest enemy
+ *   (Tab); swipe up = chat, with the keyboard.
  * - **Three-finger tap:** the keyboard. **Four-finger tap:** the menu.
  *
  * Each finger counts on its own, so the left thumb can walk while the right one turns, and taps
@@ -393,7 +394,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             }
             return
         }
-        if (p.mode == PairMode.WAITING && p.allTaps) out.interactAt(p.a.startX, p.a.startY)
+        if (p.mode == PairMode.WAITING && p.allTaps) out.targetNearestEnemy()
         pair = null
     }
 

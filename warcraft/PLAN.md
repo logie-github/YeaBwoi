@@ -347,6 +347,12 @@ for the game on the phone itself ("that's the whole point").
   The game starts with that account in the box, waits for the login screen (the game's cursor
   shown a few times running, at most 15 s), and types the password and Enter.
 
+- Then: a two-finger tap targets the nearest enemy (Tab, in place of the right click: one tap
+  already talks, loots and uses), and rapid taps on the action bar must never jump. The game's
+  pointer doesn't tell a button from the ground, so it's the place (`controls/ScreenZones`): the
+  bottom 22 % and the right 8 % of the screen, where the default interface puts its bars; a
+  quick second tap there is another press. Bars moved elsewhere by an add-on aren't covered.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 
