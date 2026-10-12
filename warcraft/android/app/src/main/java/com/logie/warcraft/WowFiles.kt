@@ -5,7 +5,9 @@ package com.logie.warcraft
 import android.content.Context
 import android.os.StatFs
 import com.logie.warcraft.client.DataLayout
+import com.logie.warcraft.logs.ConsoleText
 import java.io.File
+import java.io.RandomAccessFile
 import java.util.UUID
 
 /**
@@ -88,7 +90,7 @@ object WowFiles {
     fun sizeOf(file: File): Long =
         if (file.isDirectory) file.listFiles()?.sumOf { sizeOf(it) } ?: 0L else file.length()
 
-    /** The last [lines] lines of a log file, or "" if there isn't one. */
+    /** The last [lines] lines of a log file without the servers' colour codes, or "" if there isn't one. */
     fun tail(file: File, lines: Int = 40): String {
         if (!file.isFile) return ""
         val length = file.length()
@@ -97,6 +99,24 @@ object WowFiles {
             input.skip(start)
             input.readBytes().toString(Charsets.UTF_8)
         }
-        return text.lines().dropLastWhile { it.isBlank() }.takeLast(lines).joinToString("\n")
+        return ConsoleText.plain(text).lines().dropLastWhile { it.isBlank() }.takeLast(lines).joinToString("\n")
+    }
+
+    /**
+     * What a log that's being written has gained since byte [from], and the byte it ends at now
+     * (at most [max] bytes at a time). Starts again from the beginning if the log was started anew.
+     */
+    fun readFrom(file: File, from: Long, max: Int = 1 shl 20): Pair<String, Long> {
+        if (!file.isFile) return "" to 0L
+        val length = file.length()
+        val start = if (length < from) 0L else from
+        if (length == start) return "" to start
+        val bytes = ByteArray(minOf(max.toLong(), length - start).toInt())
+        val read = RandomAccessFile(file, "r").use { input ->
+            input.seek(start)
+            input.read(bytes)
+        }
+        if (read <= 0) return "" to start
+        return String(bytes, 0, read, Charsets.UTF_8) to start + read
     }
 }

@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.logie.warcraft.config.ConfFile
+import com.logie.warcraft.logs.ConsoleText
+import com.logie.warcraft.logs.LineWatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -159,7 +161,7 @@ object Server {
             if (!importedMarker(context).exists()) {
                 step(Step.IMPORT, progress = null)
                 runToEnd(context, "dbimport", log = File(WowFiles.logs(context), "dbimport.log"), timeoutMinutes = 60) { line ->
-                    step(Step.IMPORT, detail = line)
+                    step(Step.IMPORT, detail = ConsoleText.plain(line))
                 }
                 importedMarker(context).writeText("${System.currentTimeMillis()}\n")
             }
@@ -193,13 +195,18 @@ object Server {
         worldInput = process.outputStream.bufferedWriter()
         // Loading the world takes minutes on a phone (longer the first time, when it also fills in
         // the progression brackets' changes). Its log says what it's on.
+        // Every line of the log is looked at for the ready one: a dozen others follow it within a
+        // second, so a look at the last few lines each second misses it.
         val deadline = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(30)
+        val ready = LineWatch(READY)
+        var read = 0L
         while (true) {
             if (!process.isAlive) throw StepFailed(context.getString(R.string.wow_server_error_world, process.exitValue()), log)
-            val tail = WowFiles.tail(log, 3)
-            if (READY.containsMatchIn(tail)) break
+            val (text, end) = WowFiles.readFrom(log, read)
+            read = end
+            if (ready.feed(text)) break
             if (System.currentTimeMillis() > deadline) throw StepFailed(context.getString(R.string.wow_server_error_world_slow), log)
-            update { copy(detail = tail.lines().lastOrNull { it.isNotBlank() }?.take(160)) }
+            update { copy(detail = WowFiles.tail(log, 3).lines().lastOrNull { it.isNotBlank() }?.take(160)) }
             delay(1000)
         }
         update { copy(phase = Phase.RUNNING, step = null, detail = null, world = World.UP) }
