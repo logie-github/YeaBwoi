@@ -107,20 +107,26 @@ fun WowSwitchRow(title: String, summary: String?, checked: Boolean, enabled: Boo
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (summary != null) Text(summary, style = MaterialTheme.typography.bodySmall)
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = WowColors.Glow,
-                checkedTrackColor = WowColors.Frost,
-                checkedBorderColor = WowColors.Ice,
-                uncheckedThumbColor = WowColors.Mist,
-                uncheckedTrackColor = Color(0x66000000),
-                uncheckedBorderColor = WowColors.Steel,
-            ),
-        )
+        WowSwitch(checked, enabled, onChange)
     }
+}
+
+/** An on/off switch in frost. */
+@Composable
+fun WowSwitch(checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onChange,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = WowColors.Glow,
+            checkedTrackColor = WowColors.Frost,
+            checkedBorderColor = WowColors.Ice,
+            uncheckedThumbColor = WowColors.Mist,
+            uncheckedTrackColor = Color(0x66000000),
+            uncheckedBorderColor = WowColors.Steel,
+        ),
+    )
 }
 
 /** One choice out of several: the chosen one in a gold frame. */

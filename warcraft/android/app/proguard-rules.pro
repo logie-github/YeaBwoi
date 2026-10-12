@@ -3,6 +3,8 @@
 -dontwarn com.github.luben.zstd.**
 -dontwarn org.brotli.**
 -dontwarn org.objectweb.asm.**
+# jsoup's null annotations are only for its own build.
+-dontwarn org.jspecify.annotations.**
 
 # Winlator: its native code calls into its Java classes by name, and it finds some by reflection.
 -dontobfuscate

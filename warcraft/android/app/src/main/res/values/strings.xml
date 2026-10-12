@@ -248,24 +248,72 @@
 
     <!-- Add-ons (Addons.kt) -->
     <string name="wow_tile_addons">Add-ons</string>
-    <string name="wow_tile_addons_none">None yet: import zips</string>
+    <string name="wow_tile_addons_none">None yet: browse warperia.com</string>
     <string name="wow_tile_addons_no_client">Needs your client</string>
     <plurals name="wow_tile_addons_count">
         <item quantity="one">%d add-on</item>
         <item quantity="other">%d add-ons</item>
     </plurals>
+    <plurals name="wow_tile_addons_updates">
+        <item quantity="one">%d update</item>
+        <item quantity="other">%d updates</item>
+    </plurals>
     <string name="wow_addons_title">Add-ons</string>
-    <string name="wow_addons_body">Add-ons from zips: look for versions made for Wrath of the Lich King 3.3.5a. Each one goes in your client\'s Interface\\AddOns, replacing an older copy of itself, and loads the next time the game starts (or type /reload in the game).</string>
     <string name="wow_addons_no_client">Add your 3.3.5a client first (Game files): add-ons go in it.</string>
     <string name="wow_addons_import">Import zip</string>
     <string name="wow_addons_installing">Installing…</string>
-    <string name="wow_addons_empty">No add-ons yet.</string>
+    <string name="wow_addons_empty">No add-ons yet. Find some in Browse, or import a zip.</string>
     <string name="wow_addons_installed">Installed: %1$s</string>
     <string name="wow_addons_none_in_zip">There\'s no add-on in that zip (no .toc file).</string>
     <string name="wow_addons_failed">Couldn\'t install it: %1$s</string>
     <string name="wow_addons_other_version">made for another version of the game</string>
     <string name="wow_addons_delete">Delete</string>
     <string name="wow_addons_delete_confirm">Delete for good</string>
+    <string name="wow_addons_tab_browse">Browse</string>
+    <string name="wow_addons_tab_installed">Installed</string>
+    <string name="wow_addons_search">Search 3.3.5a add-ons</string>
+    <string name="wow_addons_search_clear">Clear the search</string>
+    <string name="wow_addons_order_popular">Popular</string>
+    <string name="wow_addons_order_new">New</string>
+    <string name="wow_addons_order_updated">Updated</string>
+    <string name="wow_addons_all">All</string>
+    <string name="wow_addons_by">by %1$s</string>
+    <string name="wow_addons_downloads">%1$s downloads</string>
+    <string name="wow_addons_install">Install</string>
+    <string name="wow_addons_update">Update</string>
+    <string name="wow_addons_is_installed">Installed</string>
+    <string name="wow_addons_retry">Try again</string>
+    <string name="wow_addons_queued">Queued</string>
+    <string name="wow_addons_waiting">Starts in %1$d</string>
+    <string name="wow_addons_downloading">Downloading</string>
+    <string name="wow_addons_percent">%1$d%%</string>
+    <string name="wow_addons_nothing">No add-ons found.</string>
+    <string name="wow_addons_load_failed">Couldn\'t reach warperia.com: %1$s</string>
+    <string name="wow_addons_source">Add-ons from warperia.com. An install waits the few seconds the site asks of free downloads, then goes into your client by itself.</string>
+    <string name="wow_addons_details_failed">Couldn\'t open this add-on: %1$s</string>
+    <string name="wow_addons_back">Back</string>
+    <string name="wow_addons_website">Website</string>
+    <string name="wow_addons_turn_on">Turn on</string>
+    <string name="wow_addons_turn_off">Turn off</string>
+    <string name="wow_addons_fact_version">Version</string>
+    <string name="wow_addons_fact_updated">Last updated</string>
+    <string name="wow_addons_fact_uploaded">First uploaded</string>
+    <string name="wow_addons_fact_downloads">Downloads</string>
+    <string name="wow_addons_fact_categories">Categories</string>
+    <string name="wow_addons_fact_installed">Installed</string>
+    <string name="wow_addons_pictures">Pictures</string>
+    <string name="wow_addons_about">About</string>
+    <string name="wow_addons_changes">Changes</string>
+    <string name="wow_addons_show_all">Show all (%1$d)</string>
+    <string name="wow_addons_update_all">Update all (%1$d)</string>
+    <string name="wow_addons_check">Check for updates</string>
+    <string name="wow_addons_checking">Checking…</string>
+    <string name="wow_addons_installed_body">Add-ons load the next time the game starts (or type /reload in the game). A turned-off one stays on the phone without loading.</string>
+    <string name="wow_addons_from_site">from warperia.com</string>
+    <string name="wow_addons_from_zip">from a zip</string>
+    <string name="wow_addons_off">turned off</string>
+    <string name="wow_addons_update_to">Update: %1$s</string>
+    <string name="wow_addons_site_refused">warperia.com refused it (HTTP %1$d)</string>
 
     <!-- The game's text prompt (game/GameScreens.kt) -->
     <string name="wow_prompt_password">Password</string>

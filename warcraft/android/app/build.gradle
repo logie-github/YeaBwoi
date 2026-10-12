@@ -134,6 +134,10 @@ dependencies {
 	// Unpacking the server (tar.xz).
 	implementation 'org.apache.commons:commons-compress:1.27.1'
 	implementation 'org.tukaani:xz:1.10'
+	// Reading warperia.com's add-on pages.
+	implementation 'org.jsoup:jsoup:1.18.3'
+	// jsoup's null annotations, for the compiler only.
+	compileOnly 'org.jspecify:jspecify:1.0.0'
 	// Winlator's.
 	implementation 'androidx.preference:preference:1.2.1'
 	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
