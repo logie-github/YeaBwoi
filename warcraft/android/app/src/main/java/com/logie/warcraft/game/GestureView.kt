@@ -3,10 +3,7 @@
 package com.logie.warcraft.game
 
 import android.annotation.SuppressLint
-import android.content.Context
-import android.graphics.Rect
 import android.os.SystemClock
-import android.text.InputType
 import android.view.InputDevice
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
@@ -14,14 +11,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.view.inputmethod.BaseInputConnection
-import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputConnection
-import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
+import androidx.activity.ComponentDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.logie.warcraft.controls.Button
 import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.GestureOutput
@@ -44,12 +36,11 @@ import com.winlator.xserver.XServer
  * read the game's own cursor to talk, loot and gather like a PC's right click, and select enemies,
  * which a double tap attacks ([tapAt], [doubleTapAt]).
  *
- * It's also the game's text box for the phone's keyboard, which comes up by itself where the
- * game wants text: the login screen when the game appears, character creation right after the
- * login when the account has no characters yet (the launcher says so: [EXTRA_NEW_ACCOUNT]), and
- * the chat (two fingers swiped up press Enter, which opens it). The keyboard's Enter is the game's;
- * closing the keyboard without sending closes the chat. While the keyboard is up, the game shrinks
- * into the space above it.
+ * Text goes in through a prompt ([GamePrompt]: a box at the top with the phone's keyboard), which
+ * comes up by itself where the game wants text: the password when the game appears, the name at
+ * character creation after the login when the account has no characters yet (the launcher says
+ * so: [EXTRA_NEW_ACCOUNT]), and the chat (two fingers swiped up press Enter, which opens it).
+ * What's sent is typed into the game; the game's screen itself never moves or changes size.
  */
 @SuppressLint("ViewConstructor")
 class GestureView(
@@ -79,30 +70,34 @@ class GestureView(
     private var lastTapX = 0f
     private var lastTapY = 0f
 
-    /** What the keyboard is up for, or null when it's down. */
-    private enum class Typing { LOGIN, NAME, CHAT, FREE }
-
-    private var typing: Typing? = null
-    /** The text went to the game with Enter: closing the keyboard after it doesn't close the chat. */
-    private var sent = false
-    private var keyboardHeight = 0
-    private var keyboardSeen = false
-    private var keyboardAskedAt = 0L
+    /** The text prompt on screen, if one is. */
+    private var prompt: ComponentDialog? = null
     private var loginShown = false
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
-    private val inputMethods = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-    private val watchKeyboard = object : Runnable {
-        override fun run() = followKeyboard(this)
+    /** Key presses still to send for text from the prompt, a few milliseconds apart. */
+    private val typing = ArrayDeque<() -> Unit>()
+    private var typingRuns = false
+    private val typeNext = object : Runnable {
+        override fun run() {
+            val next = typing.removeFirstOrNull()
+            if (next == null) {
+                typingRuns = false
+                return
+            }
+            next()
+            postDelayed(this, TYPE_STEP_MS)
+        }
     }
 
     init {
         layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         isClickable = true
-        isFocusable = true
-        isFocusableInTouchMode = true
-        // The keyboard over the game, not the game pushed around: the view shrinks it (followKeyboard).
+        isFocusable = false
+        // The game's screen never moves or changes size for a keyboard: changing its size while
+        // the game draws blanked it and ended the game on the phone. Text goes through a prompt
+        // over it instead (GamePrompt).
         activity.window.setSoftInputMode(
-            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN
         )
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
         gestures.setSize(AppUtils.getScreenWidth().toFloat(), AppUtils.getScreenHeight().toFloat())
@@ -161,7 +156,7 @@ class GestureView(
     fun onGameWindowShown() {
         if (loginShown) return
         loginShown = true
-        postDelayed({ showKeyboard(Typing.LOGIN) }, LOGIN_KEYBOARD_DELAY_MS)
+        postDelayed({ ask(GamePrompt.Kind.PASSWORD) }, LOGIN_KEYBOARD_DELAY_MS)
         // The login screen only has the plain arrow: what the cursor looks like when it means a click.
         for (delay in ARROW_SAMPLES_MS) postDelayed({ cursors.learnArrow(cursorHere()) }, delay)
     }
@@ -357,111 +352,66 @@ class GestureView(
         postDelayed({ xServer.injectKeyRelease(key.x) }, KEY_MS)
     }
 
-    /** Walking or turning with the chat open would type into it: the chat closes first. */
-    override fun playing() {
-        if (typing == Typing.CHAT || typing == Typing.FREE) {
-            hideKeyboard()
-            tap(Key.ESCAPE)
-        }
-    }
+    override fun playing() {}
 
+    /** Enter opens the game's chat; the prompt takes the line, and Enter sends it. */
     override fun openChat() {
-        if (typing == Typing.CHAT) return
+        if (prompt?.isShowing == true) return
         tap(Key.ENTER)
-        showKeyboard(Typing.CHAT)
+        ask(GamePrompt.Kind.CHAT)
     }
 
-    override fun showKeyboard() = showKeyboard(Typing.FREE)
+    override fun showKeyboard() = ask(GamePrompt.Kind.TEXT)
 
     override fun showMenu() = GameMenu.show(activity, onKeyboard = { showKeyboard() }, onLeave = { onLeave.run() })
 
-    // The keyboard -----------------------------------------------------------------------------
+    // Text -------------------------------------------------------------------------------------
 
-    private fun showKeyboard(why: Typing) {
-        typing = why
-        sent = false
-        keyboardAskedAt = SystemClock.uptimeMillis()
-        requestFocus()
-        inputMethods.restartInput(this)
-        inputMethods.showSoftInput(this, 0)
-        removeCallbacks(watchKeyboard)
-        post(watchKeyboard)
-    }
-
-    private fun hideKeyboard() {
-        typing = null
-        inputMethods.hideSoftInputFromWindow(windowToken, 0)
+    private fun ask(kind: GamePrompt.Kind) {
+        if (prompt?.isShowing == true) return
+        prompt = GamePrompt.show(
+            activity,
+            kind,
+            onSend = { text -> send(kind, text) },
+            // A chat opened for the prompt closes again.
+            onCancel = { if (kind == GamePrompt.Kind.CHAT) tap(Key.ESCAPE) },
+        )
     }
 
     /**
-     * Follows the keyboard while it's wanted or up: the game shrinks into the space above it, and
-     * when it goes down without the text sent, a chat that was open closes (Escape).
+     * Text from the prompt into the game's text box: the password, then Enter (logs in; on a new
+     * account, the name prompt follows once the game is at character creation); a chat line, then
+     * Enter (sends); a name or other text, as it is.
      */
-    private fun followKeyboard(again: Runnable) {
-        val height = keyboardHeight()
-        if (height != keyboardHeight) {
-            keyboardHeight = height
-            (parent as? ViewGroup)?.setPadding(0, 0, 0, height)
-        }
-        if (height > 0) {
-            keyboardSeen = true
-        } else if (!keyboardSeen && typing != null && SystemClock.uptimeMillis() - keyboardAskedAt > KEYBOARD_WAIT_MS) {
-            // The keyboard didn't come (no keyboard app, or the screen wasn't ready).
-            typing = null
-        } else if (keyboardSeen) {
-            keyboardSeen = false
-            val was = typing
-            typing = null
-            if ((was == Typing.CHAT || was == Typing.FREE) && !sent) tap(Key.ESCAPE)
-        }
-        if (typing != null || height > 0) postDelayed(again, KEYBOARD_POLL_MS)
-    }
-
-    private fun keyboardHeight(): Int {
-        val root = rootView ?: return 0
-        val ime = ViewCompat.getRootWindowInsets(root)?.getInsets(WindowInsetsCompat.Type.ime())?.bottom ?: 0
-        if (ime > 0) return ime
-        // Older Android: what the window can still see.
-        val visible = Rect()
-        root.getWindowVisibleDisplayFrame(visible)
-        val hidden = root.height - visible.bottom
-        return if (hidden > root.height * 0.15f) hidden else 0
-    }
-
-    /** Enter from the keyboard: the game's, then the keyboard goes, or stays for character creation. */
-    private fun enter() {
-        key(KeyEvent.KEYCODE_ENTER)
-        when (typing) {
-            Typing.LOGIN -> if (newAccount) {
-                // The game goes on to character creation, which wants a name.
-                typing = Typing.NAME
-                inputMethods.restartInput(this)
-            } else {
-                hideKeyboard()
+    private fun send(kind: GamePrompt.Kind, text: String) {
+        when (kind) {
+            GamePrompt.Kind.PASSWORD -> {
+                type(text, enter = true)
+                if (newAccount) postDelayed({ ask(GamePrompt.Kind.NAME) }, NAME_PROMPT_DELAY_MS)
             }
-            Typing.CHAT, Typing.FREE -> {
-                sent = true
-                hideKeyboard()
-            }
-            Typing.NAME, null -> hideKeyboard()
+            GamePrompt.Kind.CHAT -> type(text, enter = true)
+            GamePrompt.Kind.NAME, GamePrompt.Kind.TEXT -> type(text, enter = false)
         }
     }
 
     private val characters: KeyCharacterMap by lazy { KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD) }
 
-    /** Text from the keyboard, as the key presses that make it (Winlator's keyboard maps any other character). */
-    private fun type(text: String) {
+    /** The key presses that make [text] (Winlator's keyboard maps any other character), a few milliseconds apart. */
+    private fun type(text: String, enter: Boolean) {
         for (c in text) {
-            if (c == '\n') {
-                enter()
-                continue
+            typing.addLast {
+                val events = characters.getEvents(charArrayOf(c))
+                if (events != null) {
+                    for (event in events) xServer.keyboard.onKeyEvent(event)
+                } else {
+                    xServer.keyboard.onKeyEvent(KeyEvent(SystemClock.uptimeMillis(), c.toString(), KeyCharacterMap.VIRTUAL_KEYBOARD, 0))
+                }
             }
-            val events = characters.getEvents(charArrayOf(c))
-            if (events != null) {
-                for (event in events) xServer.keyboard.onKeyEvent(event)
-            } else {
-                xServer.keyboard.onKeyEvent(KeyEvent(SystemClock.uptimeMillis(), c.toString(), KeyCharacterMap.VIRTUAL_KEYBOARD, 0))
-            }
+        }
+        if (enter) typing.addLast { key(KeyEvent.KEYCODE_ENTER) }
+        if (!typingRuns) {
+            typingRuns = true
+            post(typeNext)
         }
     }
 
@@ -471,73 +421,10 @@ class GestureView(
         xServer.keyboard.onKeyEvent(KeyEvent(time, time, KeyEvent.ACTION_UP, code, 0))
     }
 
-    override fun onCheckIsTextEditor() = true
-
-    override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
-        // Plain characters as they're typed: no suggestions or corrections, which games can't take
-        // back; and the keyboard beside the game, never a full-screen text box over it.
-        outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
-            InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
-        outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI or EditorInfo.IME_FLAG_NO_FULLSCREEN or when (typing) {
-            Typing.CHAT -> EditorInfo.IME_ACTION_SEND
-            Typing.LOGIN -> EditorInfo.IME_ACTION_GO
-            else -> EditorInfo.IME_ACTION_DONE
-        }
-        return GameInput()
-    }
-
-    /** What the keyboard types, into the game. */
-    private inner class GameInput : BaseInputConnection(this, false) {
-        /** Text the keyboard is still composing, already typed into the game. */
-        private var composing = ""
-
-        private fun replaceComposing(text: String) {
-            val same = composing.commonPrefixWith(text).length
-            repeat(composing.length - same) { key(KeyEvent.KEYCODE_DEL) }
-            type(text.substring(same))
-            composing = text
-        }
-
-        override fun commitText(text: CharSequence, newCursorPosition: Int): Boolean {
-            replaceComposing(text.toString())
-            composing = ""
-            return true
-        }
-
-        override fun setComposingText(text: CharSequence, newCursorPosition: Int): Boolean {
-            replaceComposing(text.toString())
-            return true
-        }
-
-        override fun finishComposingText(): Boolean {
-            composing = ""
-            return true
-        }
-
-        override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
-            repeat(beforeLength) { key(KeyEvent.KEYCODE_DEL) }
-            repeat(afterLength) { key(KeyEvent.KEYCODE_FORWARD_DEL) }
-            return true
-        }
-
-        override fun sendKeyEvent(event: KeyEvent): Boolean {
-            if (event.keyCode == KeyEvent.KEYCODE_ENTER || event.keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                if (event.action == KeyEvent.ACTION_UP) enter()
-                return true
-            }
-            xServer.keyboard.onKeyEvent(event)
-            return true
-        }
-
-        override fun performEditorAction(actionCode: Int): Boolean {
-            enter()
-            return true
-        }
-    }
-
     override fun onDetachedFromWindow() {
         removeCallbacks(hold)
-        removeCallbacks(watchKeyboard)
+        removeCallbacks(typeNext)
+        prompt?.dismiss()
         gestures.cancel()
         super.onDetachedFromWindow()
     }
@@ -548,8 +435,10 @@ class GestureView(
 
         private const val CLICK_MS = 30L
         private const val KEY_MS = 60L
-        private const val KEYBOARD_POLL_MS = 120L
-        private const val KEYBOARD_WAIT_MS = 4000L
+        /** Between key presses of text from the prompt. */
+        private const val TYPE_STEP_MS = 15L
+        /** After the login, until the game is at character creation (a new account goes there). */
+        private const val NAME_PROMPT_DELAY_MS = 7000L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
         /** A second tap on the same spot within this talks to what the first one selected (without a cursor to read). */

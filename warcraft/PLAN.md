@@ -318,6 +318,14 @@ for the game on the phone itself ("that's the whole point").
   zips** (`Addons`, `client/AddonLayout`: any packing, folder named after its `.toc`), list and
   delete; `checkAddonVersion 0` so 3.3.5a add-ons marked otherwise load.
 
+- On the phone (build 31): "black screen and crash during login if you use your keyboard"; asked
+  for "the keyboard like a prompt rather than pushing the screen up". Most likely the shrink
+  above the keyboard: resizing the game's surface while it draws. Now the game's window never
+  resizes (adjustNothing) and text goes through `GamePrompt`, a box at the top with the phone's
+  keyboard; on send the app types the text into the game, 15 ms a key (the password then Enter;
+  a chat line then Enter, Cancel closes the chat; a name or other text as it is). The name
+  prompt for a new account comes 7 s after the login.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 
