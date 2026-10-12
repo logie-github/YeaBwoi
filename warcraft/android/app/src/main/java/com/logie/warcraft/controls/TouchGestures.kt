@@ -89,8 +89,8 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         /** Fingers of a two- to four-finger tap land and lift a little apart. */
         const val MULTI_TAP_MS = 400L
         const val DOUBLE_TAP_MS = 300L
-        /** Two fingers this close in time are one gesture. */
-        const val PAIR_MS = 200L
+        /** Two fingers this close in time (the first still where it landed) are one gesture: a pinch, a two-finger tap. */
+        const val PAIR_MS = 300L
 
         private const val TAP_SLOP_DP = 12f
         private const val SWIPE_START_DP = 20f

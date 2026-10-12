@@ -122,10 +122,19 @@ class GestureView(
         }
     }
 
+    /** A mouse connected to the phone: its pointer is drawn again, as on a PC. */
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.isFromSource(InputDevice.SOURCE_MOUSE)) xServer.renderer.isCursorVisible = true
+        return false
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // A mouse or a trackpad goes to the game as it is (Winlator's own handling, under this view).
-        if (event.isFromSource(InputDevice.SOURCE_MOUSE)) return false
+        if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
+            xServer.renderer.isCursorVisible = true
+            return false
+        }
         val index = event.actionIndex
         val id = event.getPointerId(index)
         val now = event.eventTime
@@ -154,6 +163,10 @@ class GestureView(
 
     /** The game's first window is up (the loading screen closed): the login screen wants the password. */
     fun onGameWindowShown() {
+        // The pointer is there for the game (where taps click, what the cursor offers) but never
+        // drawn: on a touch screen the finger is the pointer. The game screen shows it with its
+        // first window; this comes right after.
+        xServer.renderer.isCursorVisible = false
         if (loginShown) return
         loginShown = true
         postDelayed({ ask(GamePrompt.Kind.PASSWORD) }, LOGIN_KEYBOARD_DELAY_MS)
