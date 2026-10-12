@@ -326,6 +326,12 @@ for the game on the phone itself ("that's the whole point").
   a chat line then Enter, Cancel closes the chat; a name or other text as it is). The name
   prompt for a new account comes 7 s after the login.
 
+- Then: the mouse pointer invisible "in a touch screen way", still moving and clicking for the
+  game; and pinch to zoom (in since build 29). The renderer no longer draws the cursor once the
+  game's window is up (the X server's pointer and the game's cursor are unchanged, so taps and
+  the cursor reading work as before); a mouse connected to the phone brings it back. The pinch
+  takes fingers landing within 300 ms (was 200).
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
 then stage 3.
 

@@ -47,7 +47,7 @@ While it starts, the app shows its own loading screen (the logo over the dark, w
 
 ### Touch controls
 
-Nothing is drawn over the game: the screen itself is the controls. Split like most phone MMOs: the left thumb walks, the right one looks. Each finger counts on its own, so you can walk and turn at once, and tap an ability while walking.
+Nothing is drawn over the game, not even the mouse pointer: the screen itself is the controls, and your finger is the pointer. The pointer is still there for the game (it goes where you tap, and the game's cursor there tells the app what a tap does); it just isn't drawn. A mouse connected to the phone shows it again. Split like most phone MMOs: the left thumb walks, the right one looks. Each finger counts on its own, so you can walk and turn at once, and tap an ability while walking.
 
 | Gesture | In the game |
 | --- | --- |
@@ -57,7 +57,7 @@ Nothing is drawn over the game: the screen itself is the controls. Split like mo
 | **Double tap** | On an enemy: attack it. Anywhere else: jump (Space). |
 | **Hold** one finger still | Bags (B) |
 | **Tap, then tap and hold** | Map (M) |
-| **Pinch** with two fingers | Zoom the camera in and out |
+| **Pinch** with two fingers | Zoom the camera: spread to zoom in, close to zoom out. Put both fingers down together (within about a third of a second) and move them apart or together. |
 | **Two-finger tap** | A right click there: talk, loot, attack, use (always, whatever the cursor) |
 | **Two fingers swiped up** | Chat: opens it, with the keyboard |
 | **Three-finger tap** | The keyboard, for any other text box (mail, auction house search, macros) |
