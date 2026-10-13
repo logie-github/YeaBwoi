@@ -572,6 +572,36 @@ for the game on the phone itself ("that's the whole point").
   hold presses nothing (the stick's E had typed "e" into the name box). Untested on a phone: the
   picture of a window the game draws with the GPU (a different texture path in Winlator).
 
+- The user's first realm with modules, built again end to end on GitHub (wow-build-50) with the
+  same four modules at the same commits (`citestswap50`): DungeonRespawn was left out (its first
+  error recorded in `server-<request>.json`) and the other three compiled. The world server then
+  segfaulted as playerbots created its first random bot: mod-worgoblin (unmaintained) adds
+  Worgen and Goblin through `chrraces_dbc` in its world SQL, without the server's DBC files or the
+  client patch it needs, and the bots most likely pick those races. The same build without it
+  (mod-no-hearthstone-cooldown, mod-weekendbonus: `citesttwo50`) built, started, took a
+  character into the world and was attached to the release. Told the user: take mod-worgoblin
+  and DungeonRespawn off the list and build again on 1.0.51. A module that compiles but crashes
+  the server still fails the whole build ("failed at: Test the server").
+
+- Answered without changes:
+  - Portrait play: possible when the game starts (the X screen and `gxResolution` made tall, an
+    add-on rearranging the interface), live rotation unproven (Winlator's screen is sized once).
+    The user dropped it.
+  - Where to find up-to-date modules: the catalogue at azerothcore.org lists the same topic the
+    app does; AzerothCore's own (github.com/azerothcore) and ChromieCraft's (github.com/chromiecraft)
+    modules keep up with the core; this core's player hooks are `OnPlayer…`
+    (`OnPlayerBeforeTeleport`), so modules still on `OnLogin`/`OnBeforeTeleport` don't compile.
+  - The user's own modules and custom quests: possible server-side (quest text, items and NPCs
+    come from the server; models and icons must be the game's own; the client's WDB cache keeps
+    old quest text). Proposed: kept in this repository, offered in the Modules screen.
+  - A "Wrath Remix" game mode (Legion Remix within Wrath, its own realm): assessed in
+    `REMIX-ASSESSMENT.md`. The user wants it in a separate fork; this line continues normal
+    gameplay, and Remix must not change this realm.
+
+- Open offers (not started): (1) when a realm with modules fails its test, test again without each
+  picked module in turn, to name the one that crashed and still build with the rest; (2) the
+  user's own modules and quests in this repository, offered in the Modules screen.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 
