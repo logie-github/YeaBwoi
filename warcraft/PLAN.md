@@ -497,6 +497,11 @@ for the game on the phone itself ("that's the whole point").
   write on this repository), checked with GitHub and kept in the app's private preferences.
   Checked here: unit tests of the topic search, READMEs, requests, run tracking and the kept
   state; both APKs build. The workflow can only run from a release that has it (46 on).
+  Checked on GitHub: dispatched like the app does (wow-build-46, mod-transmog at 327753a): found
+  by its title, compiled (the module's sources with the cached rest), packaged (its SQL for the
+  three databases, its config, VERSION naming it), the world server ready in 68 s and a
+  character in the world, `server-citestmodules46.tar.xz` (94 MB) attached to the release and
+  downloaded through the API as the app does; about 20 minutes.
 
 - Then (screenshots): the races "look much better now", but the Broken woman is headless (warrior
   and death knight), the Worgen man has "textures missing"; random names should be one name;
