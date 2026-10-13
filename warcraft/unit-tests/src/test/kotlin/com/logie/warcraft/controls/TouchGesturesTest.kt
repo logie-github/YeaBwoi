@@ -8,6 +8,9 @@ class TouchGesturesTest {
     /** What the gestures did, as text. */
     private class Log : GestureOutput {
         val events = mutableListOf<String>()
+        /** Where a window whose icons drag is (the spellbook): none at first. */
+        var dragArea: ((Float, Float) -> Boolean) = { _, _ -> false }
+        override fun dragsAt(x: Float, y: Float) = dragArea(x, y)
         override fun pointerTo(x: Float, y: Float) { events += "to ${x.toInt()},${y.toInt()}" }
         override fun tapAt(x: Float, y: Float) { events += "tap at ${x.toInt()},${y.toInt()}" }
         override fun targetNearestEnemy() { events += "tab" }
@@ -187,5 +190,46 @@ class TouchGesturesTest {
         assertEquals(setOf(Key.W), directionKeys(0f, -1f))
         assertEquals(setOf(Key.W, Key.E), directionKeys(1f, -1f))
         assertEquals(setOf(Key.S, Key.Q), directionKeys(-1f, 1f))
+    }
+
+    @Test
+    fun onTheSpellbookTheFingerDragsWithTheLeftButton() {
+        log.dragArea = { x, y -> x < 300 && y < 400 }
+        // A spell dragged from the spellbook down to the action bar, across the screen.
+        gestures.down(0, 100f, 200f, 0)
+        gestures.move(0, 130f, 260f)
+        gestures.move(0, 600f, 560f)
+        gestures.onHold(TouchGestures.HOLD_MS)
+        gestures.up(0, 610f, 570f, 2000)
+        // A tap on it: a click (a spell, a tab).
+        gestures.down(0, 50f, 50f, 3000)
+        gestures.up(0, 50f, 50f, 3080)
+        assertEquals(
+            listOf(
+                "to 100,200", "press LEFT", "to 130,260", "to 600,560", "to 610,570", "release LEFT",
+                "to 50,50", "press LEFT", "to 50,50", "release LEFT",
+            ),
+            log.events,
+        )
+    }
+
+    @Test
+    fun offTheSpellbookTheThumbStillWalks() {
+        log.dragArea = { x, y -> x < 300 && y < 400 }
+        gestures.down(0, 400f, 500f, 0)
+        gestures.move(0, 400f, 470f)
+        gestures.up(0, 400f, 470f, 2000)
+        assertEquals(listOf("playing", "down W", "up W"), log.events)
+    }
+
+    @Test
+    fun aSecondFingerOnTheSpellbookWhileWalkingIsntADrag() {
+        log.dragArea = { x, y -> x < 300 && y < 400 }
+        gestures.down(0, 400f, 500f, 0)
+        gestures.move(0, 400f, 470f)
+        gestures.down(1, 100f, 200f, 1000)
+        gestures.up(1, 100f, 200f, 1080)
+        gestures.up(0, 400f, 470f, 2000)
+        assertEquals(listOf("playing", "down W", "tap at 100,200", "up W"), log.events)
     }
 }

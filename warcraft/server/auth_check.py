@@ -11,6 +11,10 @@
                                               GM command, log out
     auth_check.py world-as HOST USER PASSWORD CHARACTER RACE CLASS
                                               the same with a character of that race and class
+    auth_check.py world-note HOST USER PASSWORD CHARACTER FILE
+                                              enter the world with the character and send the
+                                              app's add-on message (where the spellbook is); the
+                                              realm has to write it into FILE
     auth_check.py characters HOST USER PASSWORD
                                               print the account's character list: "name race
                                               class level" a line
@@ -147,7 +151,7 @@ SMSG_AUTH_CHALLENGE, CMSG_AUTH_SESSION, SMSG_AUTH_RESPONSE = 0x1EC, 0x1ED, 0x1EE
 SMSG_LOGIN_VERIFY_WORLD = 0x236
 SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
 AUTH_OK, CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE = 0x0C, 0x2F, 0x31
-CHAT_MSG_SYSTEM, CHAT_MSG_SAY, LANG_COMMON = 0x00, 0x01, 7
+CHAT_MSG_SYSTEM, CHAT_MSG_SAY, CHAT_MSG_WHISPER, LANG_COMMON, LANG_ADDON = 0x00, 0x01, 0x07, 7, 0xFFFFFFFF
 
 # The header keys (AzerothCore's AuthCrypt.cpp): RC4 keyed with HMAC-SHA1(key, session key),
 # its first 1024 bytes dropped.
@@ -267,7 +271,7 @@ def world_session(host, user, password, port=8085):
     return session, characters
 
 
-def world(host, user, password, character, command=None, race=1, cls=1, port=8085):
+def world(host, user, password, character, command=None, race=1, cls=1, port=8085, note_file=None):
     session, characters = world_session(host, user, password, port)
     chars = characters()
     if not any(c[1] == character for c in chars):
@@ -285,6 +289,24 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=808
     _, body = session.wait_for([SMSG_LOGIN_VERIFY_WORLD], seconds=120)
     map_id, x, y, z, _ = struct.unpack("<Iffff", body[:20])
     print(f"world: in the world on map {map_id} at {x:.1f} {y:.1f} {z:.1f}")
+
+    # The app's add-on (client/TouchAddon): where the spellbook is, whispered to the player itself,
+    # which the realm keeps in a file for the app instead of passing it on (patches/azerothcore/0010).
+    if note_file:
+        note = "drag 156 2891 3613 8646"
+        session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + character.encode() + b"\0"
+                     + b"WowTouch\t" + note.encode() + b"\0")
+        for _ in range(100):
+            try:
+                with open(note_file) as f:
+                    if f.read().strip() == note:
+                        break
+            except OSError:
+                pass
+            time.sleep(0.1)
+        else:
+            raise RuntimeError(f"the realm didn't keep the add-on's note in {note_file}")
+        print(f"world: the realm kept the add-on's note: {note}")
 
     # The server answers in order: the command's lines come before the logout. A game master's
     # account logs out at once.
@@ -314,6 +336,8 @@ def main():
             print(f"realm\t{rname}\t{address}")
     elif len(sys.argv) in (6, 7) and sys.argv[1] == "world":
         world(*sys.argv[2:])
+    elif len(sys.argv) == 7 and sys.argv[1] == "world-note":
+        world(*sys.argv[2:6], note_file=sys.argv[6])
     elif len(sys.argv) == 8 and sys.argv[1] == "world-as":
         world(*sys.argv[2:6], race=int(sys.argv[6]), cls=int(sys.argv[7]))
     elif len(sys.argv) == 5 and sys.argv[1] == "characters":

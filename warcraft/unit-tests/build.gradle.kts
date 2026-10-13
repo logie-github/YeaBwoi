@@ -31,6 +31,8 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.3")
     compileOnly("org.jspecify:jspecify:1.0.0")
     testImplementation(kotlin("test"))
+    // Runs the app's add-on (client/TouchAddon) against a stand-in for the game's API.
+    testImplementation("org.luaj:luaj-jse:3.0.1")
 }
 
 tasks.test {

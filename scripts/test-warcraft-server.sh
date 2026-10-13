@@ -14,6 +14,8 @@
 #      warcraft/server-data.env), it starts all the way, a character is created and enters the
 #      world, a GM command answers, and the server shuts down the way the app stops it.
 #      Without it, it stops where it needs the data (dbc).
+#      The app's add-on message (where the spellbook is) is kept for the app, and cleared at the
+#      logout.
 #   5. With the custom races' server package (WOW_RACES_ZIP: WarcraftRaces-server.zip, see
 #      scripts/build-races-package.sh), the races are turned on the way the app does it: a Worgen
 #      and a Goblin are created and enter the world. Then off: the world database is made again,
@@ -200,6 +202,12 @@ if [ -n "$DATA_ZIP" ]; then
 	if grep -iE "mmtile.*(generator|version|navmesh)|vmap.*(version|magic)" "$FILES/logs/world.out" | head -5 | grep .; then
 		fail "the server data doesn't match this server"
 	fi
+
+	echo "== the app's add-on: where the spellbook is"
+	python3 "$ROOT/warcraft/server/auth_check.py" world-note 127.0.0.1 tester secret123 Testhero "$FILES/run/interface" |
+		tee "$FILES/logs/world-note.out" || fail "the realm didn't keep the add-on's note for the app"
+	[ "$(cat "$FILES/run/interface")" = "-" ] || fail "the add-on's note stayed after the logout"
+	echo "The realm kept the note, and cleared it at the logout."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

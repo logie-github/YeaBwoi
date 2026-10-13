@@ -245,6 +245,8 @@ world)
 	export WOW_SELECTION_FILE="$RUN/selection"
 	# Whether a cutscene plays for the phone's player: a hold skips it (patches/azerothcore/0008).
 	export WOW_CUTSCENE_FILE="$RUN/cutscene"
+	# Where the app's add-on says the spellbook is: a drag there drags its icons (patches/azerothcore/0010).
+	export WOW_INTERFACE_FILE="$RUN/interface"
 	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
 	;;
 maps)

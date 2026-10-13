@@ -444,6 +444,17 @@ for the game on the phone itself ("that's the whole point").
   original races only. CI's server test turns the races on (bots made again: none custom; a
   Worgen and a Goblin into the world) and off (world rebuilt; the two hidden, kept).
 
+- Then: "make it so by default in controls when in the spell book I can click on an icon to drag
+  it to an action bar". The touch layer can't see the game's windows, so the app installs its own
+  add-on (`client/TouchAddon`, `Interface/AddOns/WowTouch`, hidden from the manager): while the
+  spellbook is open it whispers its place (inside the frame's hit insets, in ten-thousandths of
+  the screen) to the player itself as an add-on message; patch 0010 keeps that in
+  `files/run/interface` (the phone's own session only) instead of routing it, and writes "-" at
+  logout. A lone finger that comes down inside it is the mouse with its left button held
+  (`TouchGestures` role DRAG), so WoW's own drag picks the spell up and the action button takes it.
+  Checked here: the add-on run in Lua 5.1 and LuaJ against a stand-in API, the gestures, the note
+  parsing; CI's server test sends the add-on message and checks the file.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 the custom races' character creation screen), then stage 3.
 

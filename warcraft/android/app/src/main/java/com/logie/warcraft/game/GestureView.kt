@@ -24,6 +24,7 @@ import com.logie.warcraft.controls.Button
 import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.Cutscene
 import com.logie.warcraft.controls.GestureOutput
+import com.logie.warcraft.controls.InterfaceNote
 import com.logie.warcraft.controls.Key
 import com.logie.warcraft.controls.ScreenZones
 import com.logie.warcraft.controls.TouchGestures
@@ -76,6 +77,11 @@ class GestureView(
     private var lastTap: TapResult? = null
     private val selectionFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "selection")
     private val cutsceneFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "cutscene")
+    /**
+     * Where the app's add-on last said the spellbook is (patches/azerothcore/0010); it says it again
+     * as each character comes into the world.
+     */
+    private val interfaceFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "interface")
     private var lastTapX = 0f
     private var lastTapY = 0f
 
@@ -361,6 +367,17 @@ class GestureView(
         data.rewind()
         while (data.remaining() >= 4) add(data.int)
         return hash
+    }
+
+    /** On a window whose icons drag, by what the app's add-on last said ([InterfaceNote]). */
+    override fun dragsAt(x: Float, y: Float): Boolean {
+        val areas = InterfaceNote.dragAreas(runCatching { interfaceFile.readText() }.getOrNull())
+        if (areas.isEmpty()) return false
+        val point = XForm.transformPoint(xform, x, y)
+        val width = xServer.screenInfo.width.toFloat()
+        val height = xServer.screenInfo.height.toFloat()
+        if (width <= 0f || height <= 0f) return false
+        return areas.any { it.contains(point[0] / width, point[1] / height) }
     }
 
     override fun pointerBy(dx: Float, dy: Float) {

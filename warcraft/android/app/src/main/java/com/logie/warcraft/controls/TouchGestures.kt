@@ -37,6 +37,12 @@ interface GestureOutput {
     /** Moves the pointer (with the right button held: turns the camera and the character). */
     fun pointerBy(dx: Float, dy: Float)
 
+    /**
+     * Whether a finger that comes down there drags, as the mouse does on a PC: on a window whose
+     * icons drag (the spellbook, while it's open: [InterfaceNote]).
+     */
+    fun dragsAt(x: Float, y: Float): Boolean = false
+
     fun press(button: Button)
     fun release(button: Button)
 
@@ -73,6 +79,8 @@ interface GestureOutput {
  *   = attack it, on the action bars = two presses, elsewhere = jump (Space)
  *   ([GestureOutput.doubleTapAt]); hold still = bags (B);
  *   tap then hold = map (M).
+ * - **On the spellbook, while it's open:** the finger is the mouse with its left button down, so
+ *   a spell drags onto the action bars as on a PC, and a tap clicks ([GestureOutput.dragsAt]).
  * - **Two fingers together:** pinch = zoom (the mouse wheel); tap = target the nearest enemy
  *   (Tab); swipe up = chat, with the keyboard.
  * - **Three-finger tap:** the keyboard. **Four-finger tap:** the menu.
@@ -107,7 +115,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         const val LOOK_Y = 0.4f
     }
 
-    private enum class Role { NEW, STICK, LOOK, HELD, PAIR, GROUP, DONE }
+    private enum class Role { NEW, STICK, LOOK, DRAG, HELD, PAIR, GROUP, DONE }
 
     private class Finger(val id: Int, val startX: Float, val startY: Float, val downAt: Long, val left: Boolean, val secondTap: Boolean) {
         var x = startX
@@ -188,8 +196,15 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         val finger = Finger(id, x, y, now, left = x < width / 2, secondTap = secondTap)
         val waitingPair = pair?.takeIf { it.mode == PairMode.WAITING }
         val partner = fingers.values.firstOrNull { it.role == Role.NEW && !it.moved && now - it.downAt <= PAIR_MS }
+        val alone = fingers.isEmpty() && pair == null && groupSize == 0
         fingers[id] = finger
         when {
+            // A finger on its own on a window whose icons drag: the mouse, its left button down.
+            alone && out.dragsAt(x, y) -> {
+                finger.role = Role.DRAG
+                out.pointerTo(x, y)
+                out.press(Button.LEFT)
+            }
             // A third or fourth finger with a pair that hasn't done anything yet: a group tap.
             waitingPair != null || groupSize > 0 -> {
                 if (waitingPair != null) {
@@ -220,6 +235,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             Role.NEW -> if (finger.travel() >= swipeStart) startOwn(finger)
             Role.STICK -> steer(finger)
             Role.LOOK -> look(finger)
+            Role.DRAG -> out.pointerTo(x, y)
             Role.PAIR -> pairMoved(finger)
             Role.GROUP -> if (finger.moved) groupAllTaps = false
             Role.HELD, Role.DONE -> {}
@@ -252,6 +268,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 out.release(Button.RIGHT)
                 lookId = -1
             }
+            Role.DRAG -> out.release(Button.LEFT)
             Role.PAIR -> pairUp(finger, tap)
             Role.GROUP -> {
                 if (!tap) groupAllTaps = false
@@ -279,6 +296,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     fun cancel() {
         walk(emptySet())
         if (lookId != -1) out.release(Button.RIGHT)
+        if (fingers.values.any { it.role == Role.DRAG }) out.release(Button.LEFT)
         stickId = -1
         lookId = -1
         pair = null
