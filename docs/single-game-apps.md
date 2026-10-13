@@ -124,7 +124,7 @@ foreground layers and a monochrome layer for themed icons.
 
 ### Gradle
 
-`compileSdk`/`targetSdk` 35, `minSdk` 26, NDK `29.0.14206865`, `abiFilters "arm64-v8a"`, R8
+`compileSdk`/`targetSdk` 35 (World of Warcraft targets 28, to run programs from its storage), `minSdk` 26, NDK `29.0.14206865` (Winlator's code in World of Warcraft: 24.0.8215888), `abiFilters "arm64-v8a"`, R8
 (`minifyEnabled`, `shrinkResources`) with keep rules for anything native code calls by name,
 `useLegacyPackaging` when a library is loaded by file name, Compose BOM 2025.04.00. CI passes the
 app's identity as properties with an app prefix (`-Ppe…`, `-Pad…`): `VersionCode`, `VersionName`,
@@ -209,3 +209,62 @@ The user can't debug: report only what was checked, and say what wasn't.
   and a wake lock) and report progress, so leaving the app doesn't stop them.
 - Android only executes files from the app's native library folder (W^X): ship executables as
   `lib<name>.so` in `jniLibs`, or target an older SDK the way Termux and Winlator do.
+- Programs that aren't emulator libraries (the World of Warcraft app's server) are built for Linux
+  arm64 on musl in an Alpine container, each with its own loader as interpreter
+  (`/data/data/<package>/files/...`, as Termux does) and `$ORIGIN/../lib` libraries, and the app
+  targets SDK 28 to run them from its storage. Android kills a process that makes a system call
+  outside its app seccomp policy: CI checks every call against bionic's lists
+  (`warcraft/server/seccomp_check.py`); glibc makes such calls (`rseq`, `set_robust_list`).
+- GitHub's arm64 runners (`ubuntu-24.04-arm`) work for this private repository; builds that take
+  hours are cached by their inputs (`actions/cache`), and jobs hand files on through the cache:
+  the account's artifact storage is full. Caches saved on Windows need `enableCrossOsArchive`.
+- Test a server with the real data it runs on, as far as a client gets: the World of Warcraft
+  server's test passed every check up to the client data, and only the full start (on AzerothCore's
+  published data, the same file the app downloads) showed a module whose SQL was never applied.
+  CI's world client (`warcraft/server/auth_check.py world`) creates a character and enters the
+  world, which also showed the world server crashing on the first client: OpenSSL 3 keeps RC4 in
+  its legacy provider, a separate module (`ossl-modules/legacy.so`) a self-contained package has
+  to ship and point `OPENSSL_MODULES` at; and only a full start reaches code that makes new
+  system calls (ncurses' `setfsuid` for the console, made a no-op by the preloaded shim).
+  AzerothCore modules' SQL is only read from
+  `modules/<name>/data/sql/<dir naming the database>`, and applied files are known by file name
+  alone.
+- Data a user would otherwise make for hours (the WoW server's maps) can come ready-made from the
+  upstream project: pin the release, its size and SHA-256 (`warcraft/server-data.env`), download it
+  in the app with HTTP ranges so a dropped download carries on, and test with the same file in CI.
+- Cache a long compile apart from the packaging around it (the World of Warcraft server:
+  `scripts/compile-azerothcore.sh`, cached by the pins, patches and compile scripts;
+  `scripts/package-azerothcore.sh`, minutes, by everything): otherwise a one-line change to a
+  launcher script costs the whole compile. ccache only caches files built with precompiled headers
+  with `CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime`; without
+  it, AzerothCore's rebuild took 33 minutes with a full cache.
+- Publishing: from one build to the next, GitHub refused `gh release create --target <sha>` (HTTP
+  403, "Resource not accessible by integration") with the same `contents: write` token that had
+  published before. Creating the tag first through the git refs API (`gh api -X POST
+  repos/<repo>/git/refs`) and then the release with `--verify-tag` works
+  (`.github/workflows/build-warcraft.yml`).
+- A workflow that only has `workflow_dispatch`, on a branch that isn't the repository's default,
+  can't be dispatched (GitHub doesn't know it) until it has run once. A `push` trigger on its own
+  file, with every job `if: github.event_name == 'workflow_dispatch'`, makes the push run it once,
+  doing nothing; dispatches with `ref` set to the branch work from then on
+  (`.github/workflows/build-warcraft-modules.yml`).
+- On Android 11 and later an app's `/data/data/<package>` and `/data/user/0/<package>` are the same
+  folder mounted twice in its own view of `/data`, not a link: comparing canonical paths says they
+  differ. Check that it's the same folder by writing a file through one path and reading it through
+  the other (`WowFiles.isStandardPath`).
+- Watching a log for a line (the WoW world server's "ready"): read everything new each time
+  (`WowFiles.readFrom` + `logs/LineWatch`), never just the last few lines; on the phone a dozen lines
+  followed "ready" within the second and the launcher sat on "Loading". AzerothCore's console
+  output is ANSI-coloured: strip the codes before showing it (`logs/ConsoleText`).
+- A large upstream Android app can be compiled into the app's own module instead of being run
+  beside it (World of Warcraft and Winlator: `scripts/prepare-winlator.sh` copies its Java code,
+  resources, `cpp/`, `jniLibs/` and assets into `warcraft/android/winlator`, added as source sets,
+  with its CMake build as the module's `externalNativeBuild`). Its code then uses the app's `R`.
+  Under AGP 9, resource ids aren't constants in an app module either (`android.nonFinalResIds`
+  no longer changes that), so its `switch` statements on them become `if` chains (a patch);
+  `android.nonTransitiveRClass=false` gives it its libraries' theme attributes. Drop the
+  resources and providers that clash with the app's (`app_name`, a FileProvider's authority).
+- Winlator's runtime (rootfs, Box64, Wine, drivers) has `/data/data/com.winlator/files/rootfs`
+  compiled in, in ELF interpreters, strings and links. Another package can use it by rewriting
+  every archive to a path of the same length (`/data/data/com.logie.warcraft/rootfs`,
+  `scripts/winlator-rewrite.py`) and patching `RootFS.find` to match: nothing in the files moves.

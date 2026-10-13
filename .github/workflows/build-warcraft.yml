@@ -1,0 +1,444 @@
+name: Build World of Warcraft
+
+# Builds the World of Warcraft app: its private server (AzerothCore at ChromieCraft's revision with
+# playerbots, and MariaDB) for Linux arm64, tested here the way the phone runs it, on the server
+# data the app downloads (warcraft/server-data.env); AzerothCore's data tools for Windows (to make
+# the server's data from the client on a PC); and the app, which ships the server and the game's
+# runtime, Winlator (scripts/prepare-winlator.sh, cached by its commit and the patches). Publishes
+# the app and the Windows tools as a release (wow-build-N). A realm with the user's own modules is
+# another workflow's (build-warcraft-modules.yml, started by the app).
+#
+# The server is cached at two levels: the compiled programs and SQL (scripts/compile-azerothcore.sh,
+# the slow part) by what goes into the compile alone (the pins, the patches, the compile and fetch
+# scripts), and the package (scripts/package-azerothcore.sh, minutes) by everything that goes into
+# it. A change to the packaging (ctl.sh, the shim, the SQL layout) compiles nothing, and a change to
+# the app alone reuses the package.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "warcraft/**"
+      - "!warcraft/branding/**"
+      - "!warcraft/**.md"
+      - "scripts/build-azerothcore.sh"
+      - "scripts/compile-azerothcore.sh"
+      - "scripts/package-azerothcore.sh"
+      - "scripts/fetch-azerothcore.sh"
+      - "scripts/test-warcraft-server.sh"
+      - "scripts/prepare-winlator.sh"
+      - "scripts/winlator-rewrite.py"
+      - ".github/workflows/build-warcraft.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# A run that's building the server isn't cancelled by the next push: that one waits, and then
+# finds the server in the cache.
+concurrency:
+  group: warcraft-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  WOW_VERSION_NAME: 1.0.${{ github.run_number }}
+
+jobs:
+  server:
+    name: Server for arm64 (build and test)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache keys
+        id: key
+        run: |
+          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
+          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
+          echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
+          echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+      - name: Look for the server package
+        id: cached
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: ${{ env.SERVER_KEY }}
+
+      - name: Look for the compiled server
+        id: compiled
+        if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/azerothcore-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Restore the compiler cache
+        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/ccache
+          key: warcraft-ccache-arm64-${{ github.run_id }}
+          restore-keys: warcraft-ccache-arm64-
+
+      - name: Compile the server
+        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        run: |
+          scripts/compile-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: Save the compiler cache
+        if: always() && steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/ccache
+          key: warcraft-ccache-arm64-${{ github.run_id }}
+
+      - name: Save the compiled server
+        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/azerothcore-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Package the server
+        if: steps.cached.outputs.cache-hit != 'true'
+        run: |
+          scripts/package-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build warcraft/android/server
+
+      # Saved before the test, so a fix to the test doesn't package the server again.
+      - name: Save the server package
+        if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: ${{ env.SERVER_KEY }}
+
+  # MariaDB, the database import, the auth server (a real login), and the world server on the
+  # server data: started all the way, a character created and taken into the world, a GM command,
+  # the shutdown the app does; then what earlier versions' custom races left taken out. From the
+  # package as the phone unpacks it, with every system call checked against Android's seccomp
+  # policy for apps. Runs on every build, cached package or not.
+  server-test:
+    name: Server for arm64 (test)
+    needs: [server]
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the server package
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: ${{ needs.server.outputs.key }}
+          fail-on-cache-miss: true
+
+      # The server data the app downloads (warcraft/server-data.env), checked like the app checks it.
+      - name: Get the server data
+        run: |
+          source warcraft/server-data.env
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/data.zip" "$SERVER_DATA_URL"
+          echo "$SERVER_DATA_SHA256  $RUNNER_TEMP/data.zip" | sha256sum -c -
+          echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
+          df -h / | tail -1
+
+      - name: Test the server
+        timeout-minutes: 100
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
+          scripts/test-warcraft-server.sh
+
+  windows-tools:
+    name: Data tools for Windows
+    runs-on: windows-latest
+    timeout-minutes: 90
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache key
+        id: key
+        shell: bash
+        run: |
+          # Patches 0007 to 0009 change the game server only (selections, cutscenes and the
+          # spellbook for the app's touch controls), not the data tools: they don't make them
+          # again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', 'scripts/fetch-azerothcore.sh') }}"
+          echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+      - name: Look for the tools
+        id: cached
+        uses: actions/cache/restore@v4
+        with:
+          path: dist/WarcraftServerData-windows.zip
+          key: ${{ env.TOOLS_KEY }}
+          enableCrossOsArchive: true
+
+      # Boost and the MySQL client headers (AzerothCore's build wants them even for the tools), the
+      # way the playerbots fork's own Windows CI gets them.
+      - name: Install Boost and MySQL
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $boostExe = Join-Path $env:RUNNER_TEMP 'boost.exe'
+          $boostUrl = 'https://downloads.sourceforge.net/project/boost/boost-binaries/1.87.0/boost_1_87_0-msvc-14.3-64.exe'
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            try {
+              Invoke-WebRequest -Uri $boostUrl -OutFile $boostExe -UserAgent 'azerothcore-ci' -ConnectionTimeoutSeconds 60 -OperationTimeoutSeconds 60
+              if ((Get-Item $boostExe).Length / 1MB -lt 50) { throw 'got an HTML page' }
+              break
+            } catch {
+              Write-Host "Boost download attempt $attempt failed: $($_.Exception.Message)"
+              if ($attempt -eq 3) { throw }
+              Start-Sleep -Seconds 15
+            }
+          }
+          $p = Start-Process -FilePath $boostExe -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/DIR=C:\local\boost_1_87_0' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Boost installer failed: $($p.ExitCode)" }
+          $mysqlZip = Join-Path $env:RUNNER_TEMP 'mysql.zip'
+          Invoke-WebRequest -Uri 'https://cdn.mysql.com/archives/mysql-8.4/mysql-8.4.9-winx64.zip' -OutFile $mysqlZip -UserAgent 'Mozilla/5.0'
+          New-Item -ItemType Directory -Force -Path 'C:\tools\mysql' | Out-Null
+          Expand-Archive -Path $mysqlZip -DestinationPath 'C:\tools\mysql' -Force
+          Rename-Item 'C:\tools\mysql\mysql-8.4.9-winx64' 'C:\tools\mysql\current'
+          $openssl = @($env:OPENSSL_ROOT_DIR, 'C:\Program Files\OpenSSL', 'C:\Program Files\OpenSSL-Win64') |
+            Where-Object { $_ -and (Test-Path (Join-Path $_ 'include\openssl\opensslv.h')) } | Select-Object -First 1
+          if (-not $openssl) { throw 'No OpenSSL on the runner' }
+          "OPENSSL_ROOT_DIR=$openssl" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Get the server source
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: bash
+        run: sh scripts/fetch-azerothcore.sh "$PWD/build/azerothcore"
+
+      - name: Build the tools
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          BOOST_ROOT: C:\local\boost_1_87_0
+        run: |
+          cmake -S build/azerothcore -B build/ac-windows -A x64 \
+            -DAPPS_BUILD=none -DTOOLS_BUILD=maps-only -DSCRIPTS=none -DMODULES=none \
+            -DWITH_WARNINGS=0 -DUSE_COREPCH=1 -DBOOST_ROOT="$BOOST_ROOT"
+          cmake --build build/ac-windows --config Release --parallel
+
+      - name: Pack the tools
+        if: steps.cached.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = 'dist\WarcraftServerData'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          foreach ($tool in 'map_extractor','vmap4_extractor','vmap4_assembler','mmaps_generator') {
+            $exe = Get-ChildItem -Path build\ac-windows -Recurse -Filter "$tool.exe" | Where-Object { $_.FullName -match 'Release' } | Select-Object -First 1
+            if (-not $exe) { throw "$tool.exe wasn't built" }
+            Copy-Item $exe.FullName $out
+          }
+          # The DLLs they load: OpenSSL's, MySQL's and the Visual C++ runtime, found by name.
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = Get-ChildItem -Path "$vs\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe | Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1
+          $crt = Get-ChildItem -Path "$vs\VC\Redist\MSVC" -Recurse -Directory -Filter 'Microsoft.VC*.CRT' | Where-Object { $_.FullName -match '\\x64\\' -and $_.FullName -notmatch 'onecore|debug' } | Select-Object -First 1
+          $search = @("$env:OPENSSL_ROOT_DIR\bin", "$env:OPENSSL_ROOT_DIR", 'C:\tools\mysql\current\lib', 'C:\tools\mysql\current\bin', $crt.FullName)
+          $needed = foreach ($exe in Get-ChildItem "$out\*.exe") {
+            & $dumpbin.FullName /dependents $exe.FullName | Select-String -Pattern '^\s+(\S+\.dll)\s*$' | ForEach-Object { $_.Matches[0].Groups[1].Value }
+          }
+          foreach ($dll in ($needed | Sort-Object -Unique)) {
+            $found = $search | Where-Object { $_ -and (Test-Path (Join-Path $_ $dll)) } | Select-Object -First 1
+            if ($found) { Copy-Item (Join-Path $found $dll) $out; Write-Host "bundled $dll" } else { Write-Host "system $dll" }
+          }
+          Copy-Item build\azerothcore\src\tools\mmaps_generator\mmaps-config.yaml $out
+          Copy-Item warcraft\windows\extract-server-data.bat $out
+          Copy-Item warcraft\windows\README.txt $out
+          Get-ChildItem $out
+          Compress-Archive -Path "$out\*" -DestinationPath dist\WarcraftServerData-windows.zip
+
+      - name: Save the tools
+        if: steps.cached.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: dist/WarcraftServerData-windows.zip
+          key: ${{ env.TOOLS_KEY }}
+          enableCrossOsArchive: true
+
+  unit-tests:
+    name: Unit tests (accounts, configs, client, updates)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+
+      - name: Run unit tests
+        run: gradle --no-daemon -p warcraft/unit-tests test
+
+  # The server package and the Windows tools come from the jobs above through the cache (the
+  # account's artifact storage is full, and releases are what the phone downloads anyway).
+  apk:
+    name: Build World of Warcraft APK
+    needs: [unit-tests, server, server-test, windows-tools]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read app settings
+        run: |
+          source warcraft/app.env
+          {
+            echo "APP_ID=$APP_ID"
+            echo "APP_NAME=$APP_NAME"
+            echo "GAME_NAME=$GAME_NAME"
+            echo "APK_FILE=$APK_NAME-$WOW_VERSION_NAME.apk"
+            echo "RELEASE_TAG=$RELEASE_TAG_PREFIX-${{ github.run_number }}"
+            echo "RELEASE_TAG_PREFIX=$RELEASE_TAG_PREFIX"
+          } >> "$GITHUB_ENV"
+
+      - name: Get the server package
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: ${{ needs.server.outputs.key }}
+          fail-on-cache-miss: true
+
+      - name: Get the Windows tools
+        uses: actions/cache/restore@v4
+        with:
+          path: dist/WarcraftServerData-windows.zip
+          key: ${{ needs.windows-tools.outputs.key }}
+          enableCrossOsArchive: true
+          fail-on-cache-miss: true
+
+      # The game's runtime, Winlator, with its install path rewritten for this app in every archive
+      # (minutes, at zstd's highest level): made again only when its commit or the patches change.
+      - name: Look for Winlator
+        id: winlator
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/winlator
+          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+
+      - name: Prepare Winlator
+        if: steps.winlator.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard > /dev/null
+          scripts/prepare-winlator.sh
+
+      - name: Save Winlator
+        if: steps.winlator.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: warcraft/android/winlator
+          key: ${{ steps.winlator.outputs.cache-primary-key }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Winlator's native code is built with the NDK and CMake it's made for (app/build.gradle).
+      - name: Install build tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;36.0.0" \
+            "ndk;24.0.8215888" "cmake;3.22.1" > /dev/null
+
+      - name: Choose signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.DOLPHINXD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "WOW_KEYSTORE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Signing with the key from the DOLPHINXD_KEYSTORE_* secrets."
+          else
+            echo "WOW_KEYSTORE=$GITHUB_WORKSPACE/ci/dolphinxd-ci.p12" >> "$GITHUB_ENV"
+            echo "::notice::Signed with the shared CI key in ci/. Add DOLPHINXD_KEYSTORE_* secrets to use your own (see README)."
+          fi
+
+      - name: Build release APK
+        working-directory: warcraft/android
+        env:
+          WOW_STOREPASS: ${{ secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+          WOW_KEYALIAS: ${{ secrets.DOLPHINXD_KEY_ALIAS || 'dolphinxd' }}
+          WOW_KEYPASS: ${{ secrets.DOLPHINXD_KEY_PASSWORD || secrets.DOLPHINXD_KEYSTORE_PASSWORD || 'dolphinxd' }}
+          # The app checks this repository's releases for updates. A private repository needs a
+          # read-only token (see "Updates" in the README); a public one doesn't.
+          WOW_UPDATE_TOKEN: ${{ secrets.DOLPHINXD_UPDATE_TOKEN }}
+        run: |
+          ./gradlew --no-daemon --stacktrace :app:assembleRelease \
+            -Pkeystore="$WOW_KEYSTORE" \
+            -Pstorepass="$WOW_STOREPASS" \
+            -Pkeyalias="$WOW_KEYALIAS" \
+            -Pkeypass="$WOW_KEYPASS" \
+            -PwowVersionCode=${{ github.run_number }} \
+            -PwowVersionName="$WOW_VERSION_NAME" \
+            -PwowApplicationId="$APP_ID" \
+            -PwowUpdateRepo="$GITHUB_REPOSITORY" \
+            -PwowReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
+            -PwowBuildBranch="$GITHUB_REF_NAME" \
+            -PwowUpdateToken="$WOW_UPDATE_TOKEN"
+
+      - name: Collect APK
+        run: |
+          mkdir -p dist
+          cp warcraft/android/app/build/outputs/apk/release/app-release.apk "dist/$APK_FILE"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "dist/$APK_FILE" | head -3
+          unzip -l "dist/$APK_FILE" | grep -E "assets/(server|rootfs|container_pattern)|lib/arm64-v8a/libwinlator"
+          tar -xJOf warcraft/android/server/server.tar.xz server/VERSION | tee dist/server-version.txt
+          ls -la dist
+
+      # The APK is published as a GitHub release rather than a workflow artifact: release
+      # downloads work straight from a phone and don't use the account's Actions storage quota.
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          source warcraft/server-version.env
+          source warcraft/server-data.env
+          notes="$GAME_NAME (3.3.5a) for Android: the game on the phone (your own client, run by Wine and Box64 inside the app, with touch gestures), with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
+
+          Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client: **Game files → Your client → Pick folder** (or **Pick zip**) copies it into the app, then **Press start** starts the realm and the game.
+
+          **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), which this build was tested with: CI started the world server on it and took a character into the world. **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
+
+          Server package:
+          \`\`\`
+          $(cat dist/server-version.txt)
+          \`\`\`"
+          # The tag first, on its own. GitHub refuses this token a tag (HTTP 403, "Resource not
+          # accessible by integration") on a commit whose workflow file isn't the branch's latest
+          # (run 40: a newer commit that changed this file came while it built). The newer
+          # commit's run publishes then; this one stands down.
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" > /dev/null; then
+            if ! gh api --include -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
+                -f ref="refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" > "$RUNNER_TEMP/tag.txt" 2>&1; then
+              cat "$RUNNER_TEMP/tag.txt"
+              head=$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | cut -f1)
+              if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
+                echo "::warning::Not published: the branch has moved on to ${head::7}, whose run publishes the release."
+                exit 0
+              fi
+              echo "::error::GitHub refused to create the tag $RELEASE_TAG (its answer is above)."
+              exit 1
+            fi
+          fi
+          gh release create "$RELEASE_TAG" "dist/$APK_FILE" dist/WarcraftServerData-windows.zip \
+            --verify-tag \
+            --title "$APP_NAME $WOW_VERSION_NAME" \
+            --notes "$notes"
