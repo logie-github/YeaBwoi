@@ -16,6 +16,8 @@ self-updating from this repository's GitHub releases.
   building or changing an app.
 - **The app being built:** `warcraft/PLAN.md` (the user's requirements, decisions, open questions,
   stages and where each stands). The user's art for it is in `warcraft/branding/`.
+- **Wrath Remix** (a Legion Remix-style realm): assessment only, in `warcraft/REMIX-ASSESSMENT.md`.
+  The user wants it built in a separate fork; work on this line keeps to normal gameplay.
 - Each app's `README.md` is its user manual; keep it current with every change.
 
 ## Rules
