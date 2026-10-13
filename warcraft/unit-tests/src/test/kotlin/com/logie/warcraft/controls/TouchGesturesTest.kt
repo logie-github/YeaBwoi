@@ -11,6 +11,9 @@ class TouchGesturesTest {
         /** Where a window whose icons drag is (the spellbook): none at first. */
         var dragArea: ((Float, Float) -> Boolean) = { _, _ -> false }
         override fun dragsAt(x: Float, y: Float) = dragArea(x, y)
+        /** The character creation screen is up. */
+        var characterCreation = false
+        override fun turnsModel() = characterCreation
         override fun pointerTo(x: Float, y: Float) { events += "to ${x.toInt()},${y.toInt()}" }
         override fun tapAt(x: Float, y: Float) { events += "tap at ${x.toInt()},${y.toInt()}" }
         override fun targetNearestEnemy() { events += "tab" }
@@ -231,5 +234,65 @@ class TouchGesturesTest {
         gestures.up(1, 100f, 200f, 1080)
         gestures.up(0, 400f, 470f, 2000)
         assertEquals(listOf("playing", "down W", "tap at 100,200", "up W"), log.events)
+    }
+
+    @Test
+    fun onCharacterCreationASwipeTurnsTheCharacterOnEitherHalf() {
+        log.characterCreation = true
+        // The left half: no walking (W, S, Q, E would go into the name box).
+        gestures.down(0, 200f, 400f, 0)
+        gestures.move(0, 230f, 400f)
+        gestures.move(0, 260f, 380f)
+        gestures.up(0, 260f, 380f, 900)
+        // The right half: the same, the other way.
+        gestures.down(0, 800f, 300f, 2000)
+        gestures.move(0, 770f, 300f)
+        gestures.up(0, 770f, 300f, 2600)
+        assertEquals(
+            listOf(
+                "to 500,270", "press LEFT", "by 30,0", "by 30,0", "release LEFT",
+                "to 500,270", "press LEFT", "by -30,0", "release LEFT",
+            ),
+            log.events,
+        )
+    }
+
+    @Test
+    fun aLongTurnGoesBackToTheMiddleBeforeTheEdge() {
+        log.characterCreation = true
+        gestures.down(0, 100f, 300f, 0)
+        gestures.move(0, 130f, 300f) // past the swipe's start: 30 so far
+        gestures.move(0, 230f, 300f) // 130
+        gestures.move(0, 330f, 300f) // 230: past a fifth of the width, back to the middle
+        gestures.move(0, 340f, 300f)
+        gestures.up(0, 340f, 300f, 900)
+        assertEquals(
+            listOf(
+                "to 500,270", "press LEFT", "by 30,0", "by 100,0", "by 100,0",
+                "release LEFT", "to 500,270", "press LEFT", "by 10,0", "release LEFT",
+            ),
+            log.events,
+        )
+    }
+
+    @Test
+    fun onCharacterCreationTapsStillClickAndHoldsPressNothing() {
+        log.characterCreation = true
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 101f, 200f, 80)
+        gestures.down(0, 600f, 300f, 1000)
+        gestures.onHold(1000 + TouchGestures.HOLD_MS)
+        gestures.up(0, 600f, 300f, 1900)
+        // Two fingers still pinch (the game zooms nothing there, but nothing else happens either).
+        assertEquals(listOf("tap at 101,200"), log.events)
+    }
+
+    @Test
+    fun aLostTouchLetsGoOfTheTurn() {
+        log.characterCreation = true
+        gestures.down(0, 600f, 300f, 0)
+        gestures.move(0, 640f, 300f)
+        gestures.cancel()
+        assertEquals(listOf("to 500,270", "press LEFT", "by 40,0", "release LEFT"), log.events)
     }
 }

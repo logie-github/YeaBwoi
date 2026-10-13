@@ -43,6 +43,13 @@ interface GestureOutput {
      */
     fun dragsAt(x: Float, y: Float): Boolean = false
 
+    /**
+     * Whether the game shows its character creation screen ([CharacterCreation]), where a finger
+     * that moves turns the character: the game turns it while its left button is held on the
+     * screen and the mouse goes sideways.
+     */
+    fun turnsModel(): Boolean = false
+
     fun press(button: Button)
     fun release(button: Button)
 
@@ -81,6 +88,9 @@ interface GestureOutput {
  *   tap then hold = map (M).
  * - **On the spellbook, while it's open:** the finger is the mouse with its left button down, so
  *   a spell drags onto the action bars as on a PC, and a tap clicks ([GestureOutput.dragsAt]).
+ * - **On the character creation screen:** a finger that moves, on either half, turns the character
+ *   (the left button held on the middle of the screen, the mouse going sideways), and a hold
+ *   presses nothing (B and M would go into the name box) ([GestureOutput.turnsModel]).
  * - **Two fingers together:** pinch = zoom (the mouse wheel); tap = target the nearest enemy
  *   (Tab); swipe up = chat, with the keyboard.
  * - **Three-finger tap:** the keyboard. **Four-finger tap:** the menu.
@@ -113,9 +123,15 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         /** Where the camera drag holds the right button: the middle of the world, under the UI. */
         const val LOOK_X = 0.5f
         const val LOOK_Y = 0.4f
+
+        /** Where turning the character holds the left button: the middle of the screen, on the character. */
+        const val TURN_Y = 0.45f
+
+        /** How far the finger goes (of the screen's width) before the mouse goes back to the middle. */
+        const val TURN_SPAN = 0.2f
     }
 
-    private enum class Role { NEW, STICK, LOOK, DRAG, HELD, PAIR, GROUP, DONE }
+    private enum class Role { NEW, STICK, LOOK, TURN, DRAG, HELD, PAIR, GROUP, DONE }
 
     private class Finger(val id: Int, val startX: Float, val startY: Float, val downAt: Long, val left: Boolean, val secondTap: Boolean) {
         var x = startX
@@ -181,6 +197,11 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     private var lookX = 0f
     private var lookY = 0f
 
+    private var turnId = -1
+    private var turnX = 0f
+    /** How far across the pointer went since the left button went down in the middle. */
+    private var turned = 0f
+
     private var pair: Pair? = null
 
     private var groupSize = 0
@@ -235,6 +256,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             Role.NEW -> if (finger.travel() >= swipeStart) startOwn(finger)
             Role.STICK -> steer(finger)
             Role.LOOK -> look(finger)
+            Role.TURN -> turn(finger)
             Role.DRAG -> out.pointerTo(x, y)
             Role.PAIR -> pairMoved(finger)
             Role.GROUP -> if (finger.moved) groupAllTaps = false
@@ -268,6 +290,10 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 out.release(Button.RIGHT)
                 lookId = -1
             }
+            Role.TURN -> {
+                out.release(Button.LEFT)
+                turnId = -1
+            }
             Role.DRAG -> out.release(Button.LEFT)
             Role.PAIR -> pairUp(finger, tap)
             Role.GROUP -> {
@@ -287,7 +313,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     fun onHold(now: Long) {
         for (finger in fingers.values) {
             if (finger.role != Role.NEW || finger.moved || now - finger.downAt < HOLD_MS) continue
-            out.tap(if (finger.secondTap) Key.M else Key.B)
+            if (!out.turnsModel()) out.tap(if (finger.secondTap) Key.M else Key.B)
             finger.role = Role.HELD
         }
     }
@@ -296,17 +322,33 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     fun cancel() {
         walk(emptySet())
         if (lookId != -1) out.release(Button.RIGHT)
-        if (fingers.values.any { it.role == Role.DRAG }) out.release(Button.LEFT)
+        if (turnId != -1 || fingers.values.any { it.role == Role.DRAG }) out.release(Button.LEFT)
         stickId = -1
         lookId = -1
+        turnId = -1
         pair = null
         groupSize = 0
         fingers.clear()
     }
 
-    /** A finger on its own that moved: the stick on the left, the camera on the right. */
+    /**
+     * A finger on its own that moved: the stick on the left, the camera on the right; on the
+     * character creation screen, the character turning, on either half.
+     */
     private fun startOwn(finger: Finger) {
         when {
+            out.turnsModel() -> {
+                if (turnId != -1) {
+                    finger.role = Role.DONE
+                    return
+                }
+                finger.role = Role.TURN
+                turnId = finger.id
+                // From where it came down: the character turns as far as the finger went.
+                turnX = finger.startX
+                pressToTurn()
+                turn(finger)
+            }
             finger.left && stickId == -1 -> {
                 finger.role = Role.STICK
                 stickId = finger.id
@@ -325,6 +367,30 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 lookY = finger.y
             }
             else -> finger.role = Role.DONE
+        }
+    }
+
+    /** The left button down in the middle of the screen, on the character, where the game turns it. */
+    private fun pressToTurn() {
+        out.pointerTo(width * LOOK_X, height * TURN_Y)
+        out.press(Button.LEFT)
+        turned = 0f
+    }
+
+    /**
+     * The mouse goes sideways with the finger. Before it would reach the screen's edge (where it
+     * stops, and the character with it), the button lets go and goes down in the middle again: the
+     * game turns by how far the mouse went since the button went down.
+     */
+    private fun turn(finger: Finger) {
+        val dx = finger.x - turnX
+        turnX = finger.x
+        if (dx == 0f) return
+        out.pointerBy(dx, 0f)
+        turned += dx
+        if (abs(turned) >= width * TURN_SPAN) {
+            out.release(Button.LEFT)
+            pressToTurn()
         }
     }
 
