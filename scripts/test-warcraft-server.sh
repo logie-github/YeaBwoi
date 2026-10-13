@@ -231,8 +231,9 @@ if [ -n "$DATA_ZIP" ]; then
 		done
 		grep -q "data-races" "$FILES/etc/worldserver.conf" || fail "the world server doesn't read the races' tables"
 		# The random bots' characters go, so the world server makes them again with the races on.
+		# (A DELETE through an alias wants a default database: the characters'.)
 		echo "DELETE c FROM acore_characters.characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%'; DELETE FROM acore_playerbots.playerbots_random_bots;" |
-			CTL sql
+			CTL sql acore_characters
 		start_world world-races.out
 		wait_world_ready
 		python3 "$ROOT/warcraft/server/auth_check.py" world-as 127.0.0.1 tester secret123 Testwolf 12 1 |
