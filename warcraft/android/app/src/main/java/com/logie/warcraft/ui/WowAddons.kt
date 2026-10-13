@@ -156,7 +156,7 @@ private enum class AddonTab { BROWSE, INSTALLED }
  * this one isn't pressed through it. Nothing is consumed here, or the buttons on it would take
  * their taps as cancelled.
  */
-private fun Modifier.ownTouches() = pointerInput(Unit) {
+internal fun Modifier.ownTouches() = pointerInput(Unit) {
     awaitPointerEventScope {
         while (true) awaitPointerEvent()
     }
@@ -219,7 +219,7 @@ private fun ManagerBar(tab: AddonTab, installed: Int, updates: Int, onTab: (Addo
 }
 
 @Composable
-private fun TabLabel(text: String, badge: Int?, selected: Boolean, onClick: () -> Unit) {
+internal fun TabLabel(text: String, badge: Int?, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .heightIn(min = 44.dp)
@@ -440,7 +440,7 @@ private fun BrowsePane(state: BrowseState, shelf: Shelf, onOpen: (String) -> Uni
 
 /** A choice in a row of them: the chosen one lit in a gold frame. */
 @Composable
-private fun WowChip(text: String, selected: Boolean, onClick: () -> Unit) {
+internal fun WowChip(text: String, selected: Boolean, onClick: () -> Unit) {
     Box(
         Modifier
             .heightIn(min = 36.dp)
@@ -491,7 +491,7 @@ private fun AddonCard(listing: Warperia.Listing, status: AddonStatus, onOpen: ()
 }
 
 @Composable
-private fun Logo(url: String?, size: Dp) {
+internal fun Logo(url: String?, size: Dp) {
     RemoteImage(
         url,
         Modifier.size(size),
@@ -707,7 +707,7 @@ private fun DetailsBody(details: Warperia.Details, shelf: Shelf, onPicture: (Str
 }
 
 @Composable
-private fun DescriptionBlock(block: Warperia.Block, modifier: Modifier) {
+internal fun DescriptionBlock(block: Warperia.Block, modifier: Modifier) {
     when (block) {
         is Warperia.Block.Heading -> Text(block.text, style = MaterialTheme.typography.titleSmall, color = WowColors.Gold, modifier = modifier.padding(top = 4.dp))
         is Warperia.Block.Paragraph -> Text(block.text, style = MaterialTheme.typography.bodyMedium, modifier = modifier)

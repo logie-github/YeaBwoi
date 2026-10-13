@@ -1,6 +1,7 @@
 // Runs the World of Warcraft app's platform-independent code (account passwords, config files,
 // recognising the client and its data and setting it up, update picking, reading the servers' logs,
-// the game's touch gestures, reading warperia.com's add-on pages) on the JVM, without Android. The sources
+// the game's touch gestures, reading warperia.com's add-on pages, GitHub's AzerothCore modules and
+// the realm builds with them) on the JVM, without Android. The sources
 // live in the app.
 
 plugins {
@@ -24,11 +25,14 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/logs")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/controls")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/addons")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/modules")
     }
 }
 
 dependencies {
     implementation("org.jsoup:jsoup:1.18.3")
+    // Android has org.json built in; the module browser's code reads GitHub's answers with it.
+    implementation("org.json:json:20240303")
     compileOnly("org.jspecify:jspecify:1.0.0")
     testImplementation(kotlin("test"))
     // Runs the app's add-on (client/TouchAddon) against a stand-in for the game's API.

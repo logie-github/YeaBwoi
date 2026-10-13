@@ -479,8 +479,27 @@ for the game on the phone itself ("that's the whole point").
   Lua 5.1 lays the buttons out as listed with the right icons for both sexes (drawn from the real
   texture); not checked: the screen in the game.
 
+- Then: "https://github.com/topics/azerothcore-module add modules as a menu option in launcher. It
+  will use this repo like the add-ons browser and let me install modules that I selected." A
+  module is C++ compiled into the world server (its loader is named after its folder), which a
+  phone can't build, so the realm is built on GitHub: the Modules tile browses the topic (GitHub's
+  search, 590 repositories; README as text), the user adds modules, and **Build** dispatches
+  `build-warcraft-modules.yml` on the app's branch (`BuildConfig.WOW_BUILD_BRANCH`) with the app's
+  release tag, a request name and `owner/repo@commit` lines (each module at its branch's newest
+  commit). The workflow checks the inputs, checks out the release's tag (without credentials),
+  adds the modules to the realm's own (`WOW_EXTRA_MODULES` in the fetch, compile and package
+  scripts; submodules too), compiles with the main build's ccache, packages, runs the server test,
+  and a second job (the only one with write access, running none of the modules' code) attaches
+  `server-<request>.tar.xz` to the release, keeping the last three. The app follows the run (its
+  title names the request), downloads the package with resume and unpacks it in place of the
+  realm (`ServerPackage.installFile`, stamped `<version>:modules:<request>`); a new app version
+  drops back to its own realm. Dispatching needs the user's fine-grained token (Actions read and
+  write on this repository), checked with GitHub and kept in the app's private preferences.
+  Checked here: unit tests of the topic search, READMEs, requests, run tracking and the kept
+  state; both APKs build. The workflow can only run from a release that has it (46 on).
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
-the custom races' character creation screen), then stage 3.
+the custom races' character creation screen, a realm with modules), then stage 3.
 
 ## Still open
 

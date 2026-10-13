@@ -16,10 +16,13 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../warcraft/server-version.env
 . "$ROOT/warcraft/server-version.env"
+# Modules the app's user picked (fetch-azerothcore.sh), for VERSION.
+MODULES="$MODULES
+${WOW_EXTRA_MODULES:-}"
 
 if [ -z "${IN_ALPINE:-}" ]; then
 	# shellcheck disable=SC2086
-	exec docker run --rm -e IN_ALPINE=1 ${DOCKER_RUN_ARGS:-} \
+	exec docker run --rm -e IN_ALPINE=1 -e WOW_EXTRA_MODULES="${WOW_EXTRA_MODULES:-}" ${DOCKER_RUN_ARGS:-} \
 		-v "$ROOT:/repo" -w /repo "alpine:$ALPINE_VERSION" /repo/scripts/package-azerothcore.sh
 fi
 
@@ -60,7 +63,8 @@ cp "$DIST"/etc/modules/*.conf.dist "$pkg/etc/modules/"
 # SQL, where the servers look for it (SourceDirectory): the core's (base, updates and custom),
 # the modules' and the progression system's brackets.
 cp -r "$DIST/sql" "$pkg/src/data/sql"
-for dir in "$DIST"/modules/mod-*; do
+for dir in "$DIST"/modules/*/; do
+	dir=${dir%/}
 	name=$(basename "$dir")
 	if [ -d "$dir/data/sql" ]; then
 		mkdir -p "$pkg/src/modules/$name/data"

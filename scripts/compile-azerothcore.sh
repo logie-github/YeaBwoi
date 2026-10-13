@@ -23,6 +23,7 @@ if [ -z "${IN_ALPINE:-}" ]; then
 	mkdir -p "$ROOT/build"
 	# shellcheck disable=SC2086
 	exec docker run --rm -e IN_ALPINE=1 -e JOBS="${JOBS:-}" -e NINJA_ARGS="${NINJA_ARGS:-}" -e FETCH="${FETCH:-1}" \
+		-e WOW_EXTRA_MODULES="${WOW_EXTRA_MODULES:-}" \
 		${DOCKER_RUN_ARGS:-} -v "$ROOT:/repo" -w /repo "alpine:$ALPINE_VERSION" /repo/scripts/compile-azerothcore.sh
 fi
 
@@ -79,7 +80,8 @@ cp -r "$SRC/data/sql" "$DIST/sql"
 # Only base, updates and custom are read: the archive (ArchivedRedundancy is off), the old
 # releases' updates and the create scripts aren't, and come to 500 MB.
 rm -rf "$DIST/sql/archive" "$DIST/sql/create" "$DIST/sql/old"
-for dir in "$SRC"/modules/mod-*; do
+for dir in "$SRC"/modules/*/; do
+	dir=${dir%/}
 	name=$(basename "$dir")
 	for sql in "$dir"/data/sql "$dir"/sql "$dir"/src/Bracket_*/sql; do
 		[ -d "$sql" ] || continue
