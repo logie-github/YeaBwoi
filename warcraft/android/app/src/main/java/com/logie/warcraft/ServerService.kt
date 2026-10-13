@@ -164,6 +164,7 @@ class ServerService : Service() {
                     Server.Step.DATABASE -> R.string.wow_step_database
                     Server.Step.IMPORT -> R.string.wow_step_import
                     Server.Step.RACES -> R.string.wow_step_races
+                    Server.Step.MODULES -> R.string.wow_step_modules
                     Server.Step.AUTH -> R.string.wow_step_auth
                     Server.Step.WORLD, null -> R.string.wow_step_world
                 }

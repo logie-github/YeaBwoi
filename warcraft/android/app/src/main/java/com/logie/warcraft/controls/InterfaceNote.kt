@@ -5,7 +5,7 @@ package com.logie.warcraft.controls
 /**
  * What the app's add-on in the game ([com.logie.warcraft.client.TouchAddon]) says about the game's
  * windows, through the realm on the phone, which keeps it in `files/run/interface`
- * (patches/azerothcore/0010): where the windows whose icons drag are (the spellbook, while it's
+ * (patches/azerothcore/0009): where the windows whose icons drag are (the spellbook, while it's
  * open), so a drag that starts there drags an icon, as a mouse would.
  */
 object InterfaceNote {

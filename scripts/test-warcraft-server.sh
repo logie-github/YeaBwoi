@@ -19,7 +19,9 @@
 #   5. What earlier versions' custom races left (their SQL in the world database, their files, a
 #      character of one of them) is taken out the way the realm's start does it (ctl.sh races):
 #      the world database is made again, the files go, the world server starts, and the
-#      character is left out of the character list but kept.
+#      character is left out of the character list but kept. A module that was in the realm and
+#      isn't now (ctl.sh modules) takes what it put in the world database with it, and the
+#      realm's modules put theirs in again.
 #   6. The auth server starts again the way the app starts it, and the account logs in.
 #   7. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
@@ -119,6 +121,12 @@ done
 creatures=$(echo "SELECT COUNT(*) FROM creature_template" | CTL sql acore_world)
 echo "creature_template: $creatures rows"
 [ "$creatures" -gt 20000 ] || fail "the world database looks empty"
+
+echo "== the realm's modules on record for the world database (ctl.sh modules, as each start runs it)"
+CTL modules > "$FILES/logs/modules.out" 2>&1 || fail "ctl.sh modules failed: $(tail -5 "$FILES/logs/modules.out")"
+cat "$FILES/logs/modules.out"
+grep -qxF mod-zone-difficulty "$FILES/mysql/.world-modules" || fail "the realm's modules aren't on record"
+if grep -q "Taking out" "$FILES/logs/modules.out"; then fail "the first start made the world database again"; fi
 
 echo "== auth server"
 python3 "$ROOT/warcraft/server/auth_check.py" account-sql tester secret123 | CTL sql acore_auth
@@ -229,8 +237,27 @@ if [ -n "$DATA_ZIP" ]; then
 	[ "$tables" = 0 ] || fail "the world database still has the races"
 	if [ -e "$FILES/races" ] || [ -e "$FILES/data-races" ]; then fail "the races' files are still there"; fi
 	if grep -q "data-races" "$FILES/etc/worldserver.conf"; then fail "the world server reads the races' tables"; fi
+
+	echo "== a module taken out of the realm: what it put in the world database goes"
+	# The realm swapped for one without a module (mod-gone) that had put a table in the world.
+	echo "mod-gone" >> "$FILES/mysql/.world-modules"
+	echo "CREATE TABLE mod_gone (id INT NOT NULL)" | CTL sql acore_world
+	start=$(date +%s)
+	CTL modules > "$FILES/logs/modules-gone.out" 2>&1 || fail "taking the module out failed: $(tail -5 "$FILES/logs/modules-gone.out")"
+	tail -3 "$FILES/logs/modules-gone.out"
+	echo "took $(($(date +%s) - start)) s"
+	grep -q "Taking out of the world: mod-gone" "$FILES/logs/modules-gone.out" || fail "the module that went wasn't seen"
+	tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'acore_world' AND table_name = 'mod_gone'" | CTL sql)
+	[ "$tables" = 0 ] || fail "the world database still has what the module put in"
+	if grep -qxF mod-gone "$FILES/mysql/.world-modules"; then fail "the module that went is still on record"; fi
+	CTL modules > "$FILES/logs/modules-again.out" 2>&1 || fail "ctl.sh modules failed the second time"
+	if grep -q "Taking out" "$FILES/logs/modules-again.out"; then fail "the world database was made again for nothing"; fi
+
 	start_world world-noraces.out
 	wait_world_ready
+	applied=$(echo "SELECT COUNT(*) FROM updates WHERE state = 'MODULE'" | CTL sql acore_world)
+	echo "the realm's module updates in the new world database: $applied"
+	[ "$applied" -gt 0 ] || fail "the realm's modules didn't put their SQL in again"
 	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 |
 		tee "$FILES/logs/characters-noraces.out" || fail "the character list didn't come"
 	grep -q "^Testhero" "$FILES/logs/characters-noraces.out" || fail "the human left the list"

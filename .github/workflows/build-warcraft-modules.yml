@@ -6,7 +6,8 @@ name: Build World of Warcraft modules
 # app's own release (its tag, so the realm fits the app), with the main build's compiler cache, then
 # packaged and tested the way the main build tests its own (the world server started on the server
 # data, a character taken into the world). The package is attached to the app's release as
-# server-<request>.tar.xz, which the app downloads and puts in place of the realm it came with.
+# server-<request>.tar.xz, which the app downloads and puts in place of the realm it came with, and
+# server-<request>.json says which modules are in it (one that doesn't compile is left out).
 #
 # The modules are other people's code: the job that builds them has a read-only token, and only the
 # job after it, which runs none of their code, can add the package to the release.
@@ -103,10 +104,51 @@ jobs:
             warcraft-modules-ccache-arm64-
             warcraft-ccache-arm64-
 
+      # A module written for another AzerothCore than the realm's doesn't compile: it's left out
+      # and the rest compiled again (ccache has them), so one module doesn't cost the whole realm.
+      # What's left out, and the compiler's first word on why, goes with the package (build.json).
+      # A failure anywhere else (the realm's own code, linking) fails the build.
       - name: Compile the server
         run: |
-          scripts/compile-azerothcore.sh
+          set -o pipefail
+          log="$RUNNER_TEMP/compile.log"
+          left="$RUNNER_TEMP/left-out"
+          : > "$left"
+          fetch=1
+          for round in 1 2 3 4; do
+            if FETCH=$fetch NINJA_ARGS="-k 0" scripts/compile-azerothcore.sh 2>&1 | tee "$log"; then
+              break
+            fi
+            [ "$round" -lt 4 ] || exit 1
+            fetch=0
+            extra=$(echo "$WOW_EXTRA_MODULES" | awk 'NF { print $1 }' | sort)
+            failed=$(grep -o 'job failed[^:]*: .* -c /repo/build/azerothcore/modules/[^/ ]*/' "$log" |
+              sed 's|.*/modules/||; s|/$||' | sort -u || true)
+            ours=$(comm -12 <(echo "$failed") <(echo "$extra") | sed '/^$/d')
+            others=$(comm -23 <(echo "$failed") <(echo "$extra") | sed '/^$/d')
+            if [ -z "$ours" ] || [ -n "$others" ]; then exit 1; fi
+            for name in $ours; do
+              why=$(grep -F "/repo/build/azerothcore/modules/$name/" "$log" | grep -m1 ': error: ' |
+                sed "s|^.*/repo/build/azerothcore/modules/$name/||" | cut -c1-300 || true)
+              printf '%s\t%s\n' "$name" "$why" >> "$left"
+              echo "::warning::$name left out: it doesn't compile with this realm's AzerothCore. $why"
+              sudo rm -rf "build/azerothcore/modules/$name"
+              WOW_EXTRA_MODULES=$(echo "$WOW_EXTRA_MODULES" | awk -v n="$name" 'NF && $1 != n')
+            done
+            [ -n "$WOW_EXTRA_MODULES" ] || { echo "::error::None of the modules compile with this realm's AzerothCore"; exit 1; }
+            export WOW_EXTRA_MODULES
+          done
           sudo chown -R "$(id -u):$(id -g)" build
+          { echo "WOW_EXTRA_MODULES<<END_OF_MODULES"; echo "$WOW_EXTRA_MODULES"; echo "END_OF_MODULES"; } >> "$GITHUB_ENV"
+          mkdir -p warcraft/android/server
+          jq -n --arg modules "$WOW_EXTRA_MODULES" --rawfile left "$left" '{
+            modules: ($modules | split("\n") | map(select(length > 0) | split(" ")[0])),
+            leftOut: ($left | split("\n") | map(select(length > 0) | split("\t") | {name: .[0], error: (.[1] // "")}))
+          }' > warcraft/android/server/build.json
+          cat warcraft/android/server/build.json
+          if [ -s "$left" ]; then
+            { echo "### Left out (they don't compile with this realm's AzerothCore)"; cut -f1 "$left" | sed 's/^/- /'; } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Save the compiler cache
         if: always()
@@ -137,7 +179,9 @@ jobs:
       - name: Keep the package for the release
         uses: actions/cache/save@v4
         with:
-          path: warcraft/android/server/server.tar.xz
+          path: |
+            warcraft/android/server/server.tar.xz
+            warcraft/android/server/build.json
           key: warcraft-modules-package-${{ github.run_id }}
 
   publish:
@@ -156,20 +200,26 @@ jobs:
       - name: Get the package
         uses: actions/cache/restore@v4
         with:
-          path: warcraft/android/server/server.tar.xz
+          path: |
+            warcraft/android/server/server.tar.xz
+            warcraft/android/server/build.json
           key: warcraft-modules-package-${{ github.run_id }}
           fail-on-cache-miss: true
 
-      # The app finds it by its request's name; older ones beyond the last three go.
+      # The app finds them by its request's name: the package and what went into it (build.json,
+      # the modules in and those left out). Older ones beyond the last three go.
       - name: Attach it
         run: |
           [[ "$RELEASE" =~ ^wow-build-[0-9]+$ && "$REQUEST" =~ ^[a-z0-9]{8,32}$ ]] || exit 1
           asset="server-$REQUEST.tar.xz"
           cp warcraft/android/server/server.tar.xz "$RUNNER_TEMP/$asset"
-          gh release upload "$RELEASE" "$RUNNER_TEMP/$asset" --clobber
+          cp warcraft/android/server/build.json "$RUNNER_TEMP/server-$REQUEST.json"
+          gh release upload "$RELEASE" "$RUNNER_TEMP/$asset" "$RUNNER_TEMP/server-$REQUEST.json" --clobber
           gh api "repos/$GH_REPO/releases/tags/$RELEASE" \
             --jq '.assets | map(select(.name | test("^server-[a-z0-9]+\\.tar\\.xz$"))) | sort_by(.created_at) | reverse | .[3:] | .[].name' |
             while read -r old; do
-              [ -n "$old" ] && gh release delete-asset "$RELEASE" "$old" --yes
+              [ -n "$old" ] || continue
+              gh release delete-asset "$RELEASE" "$old" --yes
+              gh release delete-asset "$RELEASE" "${old%.tar.xz}.json" --yes 2> /dev/null || true
             done
           echo "Attached $asset to $RELEASE."

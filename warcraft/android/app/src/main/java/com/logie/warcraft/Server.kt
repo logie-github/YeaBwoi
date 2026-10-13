@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit
 object Server {
     enum class Phase { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
 
-    enum class Step { UNPACKING, CONFIGURING, DATABASE, IMPORT, RACES, AUTH, WORLD }
+    enum class Step { UNPACKING, CONFIGURING, DATABASE, IMPORT, RACES, MODULES, AUTH, WORLD }
 
     enum class World {
         /** Not started (the server is stopped, or still on an earlier step). */
@@ -171,6 +171,13 @@ object Server {
                 runToEnd(context, "races", log = File(WowFiles.logs(context), "races.log"), timeoutMinutes = 60) { line ->
                     step(Step.RACES, detail = ConsoleText.plain(line))
                 }
+            }
+            // The world database follows the realm's modules: what a module no longer in it put
+            // there goes (ctl.sh modules). Quick unless one went; then a few minutes.
+            val modulesGone = worldModulesGone(context)
+            if (modulesGone) step(Step.MODULES)
+            runToEnd(context, "modules", log = File(WowFiles.logs(context), "modules.log"), timeoutMinutes = 60) { line ->
+                if (modulesGone) step(Step.MODULES, detail = ConsoleText.plain(line))
             }
             setRealmAddress(context)
 
@@ -391,6 +398,19 @@ object Server {
     }
 
     private fun importedMarker(context: Context) = File(WowFiles.databases(context), ".imported")
+
+    /**
+     * A module whose SQL went into the world database (ctl.sh's record, kept with the databases)
+     * isn't in the realm now.
+     */
+    private fun worldModulesGone(context: Context): Boolean {
+        val record = File(WowFiles.databases(context), ".world-modules").takeIf { it.isFile } ?: return false
+        val now = File(WowFiles.server(context), "src/modules").listFiles().orEmpty()
+            .filter { module -> File(module, "data/sql").listFiles().orEmpty().any { it.isDirectory && it.name.startsWith("db-world") } }
+            .map { it.name }
+            .toSet()
+        return runCatching { record.readLines() }.getOrDefault(emptyList()).map { it.trim() }.any { it.isNotEmpty() && it !in now }
+    }
 
     /** Forgets that the databases are set up, after they were deleted. */
     fun forgetDatabases(context: Context) {

@@ -9,7 +9,7 @@ package com.logie.warcraft.client
  *
  * An add-on can't reach the app directly, so it says it to the realm on the phone: an add-on
  * message (prefix `WowTouch`) whispered to the player itself, which the realm keeps for the app
- * instead of passing on (patches/azerothcore/0010, `files/run/interface`). It says it again only
+ * instead of passing on (patches/azerothcore/0009, `files/run/interface`). It says it again only
  * when it changes: "drag <left> <bottom> <right> <top>" in ten-thousandths of the screen from its
  * bottom left, inside the window's own edges, or "drag -".
  */

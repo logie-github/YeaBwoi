@@ -513,6 +513,9 @@ private fun RealmPanel(
                 if (server.step == Server.Step.RACES && server.detail?.startsWith("Custom races") == false) {
                     Text(stringResource(R.string.wow_step_races_note), style = MaterialTheme.typography.bodySmall)
                 }
+                if (server.step == Server.Step.MODULES) {
+                    Text(stringResource(R.string.wow_step_modules_note), style = MaterialTheme.typography.bodySmall)
+                }
             }
         }
         server.phase == Server.Phase.RUNNING -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {

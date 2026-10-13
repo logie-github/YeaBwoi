@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.pluralStringResource
@@ -457,6 +458,7 @@ private fun RealmPane() {
     val chosen by ModuleStore.chosen.collectAsState()
     val pending by ModuleStore.pending.collectAsState()
     val realm by ModuleStore.realm.collectAsState()
+    val saved by ModuleStore.saved.collectAsState()
     val hasToken by ModuleStore.hasToken.collectAsState()
     val imports by Imports.state.collectAsState()
     val server by Server.status.collectAsState()
@@ -470,11 +472,19 @@ private fun RealmPane() {
     val installFailed = (imports as? Imports.State.Failed)?.takeIf { it.kind == Imports.Kind.MODULES }
     val serverStopped = server.phase == Server.Phase.STOPPED || server.phase == Server.Phase.FAILED
     val current = realm?.takeIf { it.versionCode == BuildConfig.VERSION_CODE }
+    // The modules the newest build left out (they don't compile with this realm).
+    val leftOut = (pending?.leftOut ?: current?.leftOut).orEmpty()
 
-    // How the build is going, every half minute while it goes (and once when the screen opens).
-    LaunchedEffect(pending?.request, pending?.isDone) {
+    // How the build is going, every half minute while it goes (and once when the screen opens);
+    // once it's built, what went in.
+    LaunchedEffect(pending?.request, pending?.isDone, pending?.leftOut == null) {
         val build = pending ?: return@LaunchedEffect
-        if (build.isDone) return@LaunchedEffect
+        if (build.isDone) {
+            if (build.succeeded && build.leftOut == null) {
+                runCatching { ModuleStore.refresh(context) }.onFailure { if (it is CancellationException) throw it }
+            }
+            return@LaunchedEffect
+        }
         while (true) {
             runCatching { ModuleStore.refresh(context) }
                 .onFailure { if (it is CancellationException) throw it else error = it.message ?: it.javaClass.simpleName }
@@ -518,6 +528,13 @@ private fun RealmPane() {
                             if (current.builtAt > 0) {
                                 Text(stringResource(R.string.wow_modules_realm_built, DateUtils.getRelativeTimeSpanString(current.builtAt).toString()), style = MaterialTheme.typography.bodySmall)
                             }
+                            if (current.leftOut.isNotEmpty()) {
+                                Text(
+                                    stringResource(R.string.wow_modules_left_out, current.leftOut.joinToString(", ") { it.name }),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = WowColors.Mist,
+                                )
+                            }
                             WowButton(
                                 stringResource(if (confirmStock) R.string.wow_modules_stock_confirm else R.string.wow_modules_stock),
                                 primary = false,
@@ -532,7 +549,16 @@ private fun RealmPane() {
                                 }
                             }
                         }
-                        realm != null -> Text(stringResource(R.string.wow_modules_realm_old), style = MaterialTheme.typography.bodyMedium)
+                        realm != null -> {
+                            Text(stringResource(R.string.wow_modules_realm_old), style = MaterialTheme.typography.bodyMedium)
+                            WowButton(
+                                stringResource(R.string.wow_modules_build_again_here),
+                                enabled = hasToken && !asking && pending?.isDone != false,
+                            ) {
+                                realm?.let { ModuleStore.useModules(context, it) }
+                                startBuild()
+                            }
+                        }
                         else -> Text(stringResource(R.string.wow_modules_realm_stock), style = MaterialTheme.typography.bodyMedium)
                     }
                     Text(
@@ -624,6 +650,14 @@ private fun RealmPane() {
                         }
                         build.succeeded -> {
                             Text(stringResource(R.string.wow_modules_build_done), style = MaterialTheme.typography.bodyMedium, color = WowColors.Good)
+                            build.leftOut?.takeIf { it.isNotEmpty() }?.let { out ->
+                                Text(stringResource(R.string.wow_modules_left_out, out.joinToString(", ") { it.name }), style = MaterialTheme.typography.bodyMedium, color = WowColors.Blood)
+                                for (module in out) {
+                                    if (module.error.isNotBlank()) {
+                                        Text("${module.name}: ${module.error}", style = MaterialTheme.typography.labelSmall, color = WowColors.Mist, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                                    }
+                                }
+                            }
                             if (!serverStopped) Text(stringResource(R.string.wow_modules_build_stops), style = MaterialTheme.typography.bodySmall)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 WowButton(stringResource(R.string.wow_modules_put_in), enabled = !working) {
@@ -643,6 +677,10 @@ private fun RealmPane() {
                                 color = WowColors.Blood,
                             )
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                WowButton(
+                                    stringResource(if (asking) R.string.wow_modules_build_asking else R.string.wow_modules_build_again),
+                                    enabled = chosen.isNotEmpty() && hasToken && !asking,
+                                ) { startBuild() }
                                 build.runUrl?.let { url ->
                                     WowButton(stringResource(R.string.wow_modules_build_open), primary = false) {
                                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -673,6 +711,15 @@ private fun RealmPane() {
             }
         }
 
+        // The realms kept, to swap between.
+        if (saved.isNotEmpty()) {
+            item { WowTitle(stringResource(R.string.wow_modules_saved_title), column.padding(top = 6.dp)) }
+            item { Text(stringResource(R.string.wow_modules_saved_body), column, style = MaterialTheme.typography.bodySmall) }
+            items(saved, key = { "realm-" + it.request }) { built ->
+                SavedRealm(column, built, inNow = current?.request == built.request, working = working)
+            }
+        }
+
         // The picks.
         item { WowTitle(stringResource(R.string.wow_modules_yours), column.padding(top = 6.dp)) }
         if (chosen.isEmpty()) {
@@ -680,6 +727,7 @@ private fun RealmPane() {
         }
         items(chosen, key = { it.fullName }) { module ->
             val built = current?.modules?.any { it.fullName.equals(module.fullName, ignoreCase = true) } == true
+            val broken = !built && leftOut.any { it.name.equals(module.name, ignoreCase = true) }
             WowWindow(column, padding = PaddingValues(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Logo(module.avatar, 44.dp)
@@ -689,10 +737,20 @@ private fun RealmPane() {
                         Text(
                             listOf(
                                 stringResource(R.string.wow_addons_by, module.fullName.substringBefore('/')),
-                                stringResource(if (built) R.string.wow_modules_in_realm else R.string.wow_modules_not_built),
+                                stringResource(
+                                    when {
+                                        built -> R.string.wow_modules_in_realm
+                                        broken -> R.string.wow_modules_doesnt_compile
+                                        else -> R.string.wow_modules_not_built
+                                    },
+                                ),
                             ).joinToString(" · "),
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (built) WowColors.Good else WowColors.Mist,
+                            color = when {
+                                built -> WowColors.Good
+                                broken -> WowColors.Blood
+                                else -> WowColors.Mist
+                            },
                             maxLines = 1,
                         )
                         module.description?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis) }
@@ -705,6 +763,64 @@ private fun RealmPane() {
     }
 
     if (tokenDialog) TokenDialog(onDismiss = { tokenDialog = false })
+}
+
+/** A realm kept in the app: put in again, its modules made the picks, or deleted. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SavedRealm(modifier: Modifier, built: ModuleBuild.Built, inNow: Boolean, working: Boolean) {
+    val context = LocalContext.current
+    var confirmDelete by remember(built.request) { mutableStateOf(false) }
+    val usable = remember(built) { ModuleStore.canPutIn(context, built) }
+    WowWindow(modifier, padding = PaddingValues(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                stringResource(R.string.wow_modules_saved_with, built.modules.joinToString(", ") { it.name }),
+                style = MaterialTheme.typography.titleMedium,
+                color = if (inNow) WowColors.Good else Color.Unspecified,
+            )
+            Text(
+                when {
+                    usable -> stringResource(
+                        R.string.wow_modules_saved_meta,
+                        DateUtils.getRelativeTimeSpanString(built.builtAt).toString(),
+                        android.text.format.Formatter.formatShortFileSize(context, built.size),
+                    )
+                    built.versionCode != BuildConfig.VERSION_CODE -> stringResource(R.string.wow_modules_saved_old)
+                    else -> stringResource(R.string.wow_modules_error_saved_missing)
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = WowColors.Mist,
+            )
+            if (built.leftOut.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.wow_modules_left_out, built.leftOut.joinToString(", ") { it.name }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WowColors.Mist,
+                )
+            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (inNow) {
+                    Text(stringResource(R.string.wow_modules_saved_in_now), style = MaterialTheme.typography.labelLarge, color = WowColors.Good)
+                } else if (usable) {
+                    WowButton(stringResource(R.string.wow_modules_saved_put_in), enabled = !working) {
+                        Imports.clearResult()
+                        ImportService.installModules(context, saved = built.request)
+                    }
+                }
+                WowButton(stringResource(R.string.wow_modules_saved_use), primary = false) { ModuleStore.useModules(context, built) }
+                if (!inNow) {
+                    WowButton(
+                        stringResource(if (confirmDelete) R.string.wow_modules_saved_delete_confirm else R.string.wow_modules_saved_delete),
+                        primary = false,
+                        enabled = !working,
+                    ) {
+                        if (!confirmDelete) confirmDelete = true else ModuleStore.deleteSaved(context, built.request)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** The user's GitHub token: checked against this repository's builds, then kept in the app. */
