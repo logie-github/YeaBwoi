@@ -455,6 +455,30 @@ for the game on the phone itself ("that's the whole point").
   Checked here: the add-on run in Lua 5.1 and LuaJ against a stand-in API, the gestures, the note
   parsing; CI's server test sends the add-on message and checks the file.
 
+- Then (screenshots): "the custom races is really fucked up": race icons wrong, doubled and
+  misplaced with gaps, the Goblin a checkered cube. Causes, in the module (a work in progress) and
+  in our build: its icon coordinates take the 1024-wide race icon texture for 32 icons a row (it
+  has 16, 64 pixels each), so every icon showed half of another face; its button layout keeps a
+  place for 39 races; the Goblin pack names `Character\GoblinPC` models and skins its client files
+  don't have (they're `Character\Goblin`); the Ogre and Mag'har packs give the race model ids
+  where display ids go (the Ogre was a dwarf woman and a human man); the Alliance Pandaren pack
+  puts its side where its file string goes ("0", unknown to the screen); four races have no text,
+  which stops the screen's race change halfway (no background); and our build read the shared
+  variables back through `mariadb -B`, which escapes backslashes, so every model path set by a
+  variable had doubled backslashes (the Pandaren's skins have them in the pack itself).
+  Fixed: `build-races.py` undoes the batch escapes, fixes the packs' mistakes (`FIXES`), gives each
+  skin, face, hair or underwear texture the client hasn't got the race's nearest that it has, and
+  checks every playable race against the client's files (the module's client files plus the
+  models and skins the stock tables name): file string, prefix, displays and models (a player
+  model of the right sex), gear looks, skins, classes, doubled backslashes, and its place, icon
+  and text in `races/client/RaceScreen.lua`, our file after the module's screen in `GlueXML.toc`
+  (icons at 1/16, each side's races in two columns from the top, Durotar's and Teldrassil's
+  backgrounds for Goblin and Worgen, texts for Zandalari, Vulpera and the Pandaren). A newer races
+  package is put in at the app's next opening while the realm is stopped. Checked here: the build
+  passes its checks; the screen's code (the module's CharacterCreate.lua and our file) run in
+  Lua 5.1 lays the buttons out as listed with the right icons for both sexes (drawn from the real
+  texture); not checked: the screen in the game.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 the custom races' character creation screen), then stage 3.
 
