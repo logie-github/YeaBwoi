@@ -470,6 +470,7 @@ class GestureView(
             },
             // A chat opened for the prompt closes again.
             onCancel = { if (kind == GamePrompt.Kind.CHAT) tap(Key.ESCAPE) },
+            onBackspace = { press(KeyEvent.KEYCODE_DEL) },
         )
     }
 
@@ -485,7 +486,13 @@ class GestureView(
                 if (newAccount) postDelayed({ ask(GamePrompt.Kind.NAME) }, NAME_PROMPT_DELAY_MS)
             }
             GamePrompt.Kind.CHAT -> type(text, enter = true)
-            GamePrompt.Kind.NAME, GamePrompt.Kind.TEXT -> type(text, enter = false)
+            GamePrompt.Kind.NAME -> {
+                // The name in its place: what's in the box (a random name) goes first.
+                press(KeyEvent.KEYCODE_MOVE_END)
+                repeat(NAME_CLEAR_KEYS) { press(KeyEvent.KEYCODE_DEL) }
+                type(text, enter = false)
+            }
+            GamePrompt.Kind.TEXT -> type(text, enter = false)
         }
     }
 
@@ -519,6 +526,16 @@ class GestureView(
             }
         }
         if (enter) typing.addLast { key(KeyEvent.KEYCODE_ENTER) }
+        startTyping()
+    }
+
+    /** A key into the game ([KeyEvent] code), in turn with what's being typed. */
+    private fun press(code: Int) {
+        typing.addLast { key(code) }
+        startTyping()
+    }
+
+    private fun startTyping() {
         if (!typingRuns) {
             typingRuns = true
             post(typeNext)
@@ -568,6 +585,9 @@ class GestureView(
         private val ARROW_SAMPLES_MS = longArrayOf(4000L, 8000L, 12000L)
         /** The login screen takes a moment to draw after the window appears. */
         private const val LOGIN_KEYBOARD_DELAY_MS = 1500L
+
+        /** Backspaces that empty the name box before a name goes in (it takes up to 12 letters). */
+        private const val NAME_CLEAR_KEYS = 16
         /** The camera turns a little faster than the thumb moves. */
         private const val CAMERA_SPEED = 1.5f
 

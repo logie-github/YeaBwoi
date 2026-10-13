@@ -251,6 +251,33 @@ FIXES = {
 }
 
 
+# The app's own changes to the tables, after the modpaks' (with their variables).
+OWN_SQL = """
+-- Broken women: the game's Broken woman (CreatureModelData 2368) was never finished: she has no
+-- head, and none of the game's creatures use her; the pack gives her the Draenei woman's hair and
+-- horns, which her model hasn't got. They're the Draenei woman: her model (on the Broken woman's
+-- display, which no creature uses), skins, faces, hair and horns.
+UPDATE `creaturedisplayinfo` SET `model_id` = (
+    SELECT `model_id` FROM (SELECT `d`.`model_id` FROM `creaturedisplayinfo` `d` JOIN `chrraces` `r`
+        ON `d`.`id` = `r`.`female_display_id` WHERE `r`.`id` = @Draenei) AS `draenei`)
+WHERE `id` = (SELECT `female_display_id` FROM `chrraces` WHERE `id` = @Broken);
+DELETE FROM `charsections` WHERE `race` = @Broken AND `gender` = @Female;
+SET @Next = (SELECT MAX(`id`) FROM `charsections`);
+INSERT INTO `charsections` (`id`, `race`, `gender`, `base_section`, `texture_1`, `texture_2`, `texture_3`, `flags`, `type`, `color_index`)
+    SELECT @Next := @Next + 1, @Broken, `gender`, `base_section`, `texture_1`, `texture_2`, `texture_3`, `flags`, `type`, `color_index`
+    FROM `charsections` WHERE `race` = @Draenei AND `gender` = @Female ORDER BY `id`;
+DELETE FROM `charhairgeosets` WHERE `race` = @Broken AND `gender` = @Female;
+SET @Next = (SELECT MAX(`id`) FROM `charhairgeosets`);
+INSERT INTO `charhairgeosets` (`id`, `race`, `gender`, `variation`, `geoset`, `show_scalp`)
+    SELECT @Next := @Next + 1, @Broken, `gender`, `variation`, `geoset`, `show_scalp`
+    FROM `charhairgeosets` WHERE `race` = @Draenei AND `gender` = @Female ORDER BY `id`;
+DELETE FROM `characterfacialhairstyles` WHERE `race` = @Broken AND `gender` = @Female;
+INSERT INTO `characterfacialhairstyles` (`race`, `gender`, `variation_id`, `geoset_1`, `geoset_2`, `geoset_3`, `geoset_4`, `geoset_5`)
+    SELECT @Broken, `gender`, `variation_id`, `geoset_1`, `geoset_2`, `geoset_3`, `geoset_4`, `geoset_5`
+    FROM `characterfacialhairstyles` WHERE `race` = @Draenei AND `gender` = @Female ORDER BY `variation_id`;
+"""
+
+
 def read(path):
     with open(path, encoding="utf-8", errors="replace") as f:
         text = f.read()
@@ -575,6 +602,12 @@ def main():
         except RuntimeError as e:
             sys.exit(f"{path}:\n{e}")
         print(f"applied {os.path.relpath(path, args.modpaks)}", flush=True)
+    try:
+        server.script(placeholders(variables) + "-- ==== the app's own ====\n" + OWN_SQL, database=DBC_DB)
+    except RuntimeError as e:
+        sys.exit(f"the app's own SQL:\n{e}")
+    affected.update(t.lower() for t in TABLES.findall(OWN_SQL))
+    print("applied the app's own changes", flush=True)
     missing = sorted(t for t in affected if t not in loaded)
     if missing:
         print(f"tables changed with no DBC file to write (helpers): {', '.join(missing)}", flush=True)

@@ -74,11 +74,11 @@ How a drag knows the spellbook: the app puts its own small add-on into your clie
 Text goes in through a prompt: a box at the top of the screen with the phone's keyboard under it. The game behind it stays as it is (its screen never moves or changes size); what you send is typed into the game. It comes up by itself where the game wants text:
 
 - **The login screen:** as soon as the game appears, for your password (the account's name is filled in already). **Log in** types it and presses Enter. With **Log in automatically next time** on (it is, at first), the app keeps the password on the phone once the realm confirms it's right, and from then on the game logs in by itself: no prompt, the password typed for you as soon as the login screen is up.
-- **Character creation:** when your account has no characters yet, the name prompt follows a few seconds after the login, once the game is there. **Type it** types the name into the name box; pick the race and class and press Accept in the game.
+- **Character creation:** when your account has no characters yet, the name prompt follows a few seconds after the login, once the game is there. **Type it** puts the name in the name box in place of what's there (a random name); pick the race and class and press Accept in the game. The game's **Randomize** under the name gives one name of the race (a realm name is one word, letters only).
 - **Chat:** two fingers swiped up open the game's chat and the prompt. **Send** types the line and presses Enter; **Cancel** closes the chat.
 - **Any other text box** (mail, the auction house search, a new character's name later): tap the box in the game, then three fingers (or the menu's **Keyboard**). **Type it** types the text into it.
 
-The prompt has no suggestions or corrections, and tapping beside it closes it.
+**⌫** deletes a letter in the game's own box, and so does the keyboard's Backspace once the prompt's box is empty: for what's in the game's box already. The prompt has no suggestions or corrections, and tapping beside it closes it.
 
 ## Add-ons
 
@@ -134,6 +134,8 @@ Random bots only ever take the game's own ten races.
 With the races on, the HD looks keep only their world, water, sky, light, music and loading screens (see **HD look**).
 
 **The character creation screen** lists each side's races in two columns from the top (Alliance: Human, Dwarf, Night Elf, Gnome, Draenei, Worgen, High Elf, Dark Iron Dwarf, Pandaren, Broken; Horde: Orc, Undead, Tauren, Troll, Blood Elf, Goblin, Mag'har, Ogre, Zandalari Troll, Vulpera, Pandaren), each with its own icon. Goblins stand in front of Durotar's background and Worgen in front of Teldrassil's (where they start); the game has none of its own for them.
+
+**Broken women** look like Draenei women (her body, skins, hair and horns): the game's own Broken woman was never finished (she has no head, and no creature of the game uses her).
 
 **What the module's files don't have.** mod-worgoblin-high-elf is a work in progress, and some of its races name skins, faces and hair the client files it comes with don't have: the High Elf's own faces and skin tones beyond the Blood Elf's, most of the Broken's (the game has the Broken's few as a creature), the Worgen's facial hair beyond the first style, a few Zandalari faces. The package gives each of those the race's nearest one it has (the same style in another colour, or the same colour in another style), so every choice in the character screen shows a real texture, but some choices look the same as others. The package's build checks every playable race against the files the client gets: its name for the character screen, its models, its skins, its classes, its place and text in the screen; a race that fails stops the build. A new version of the package (one that comes with an app update) replaces the one in at the next opening of the app while the realm is stopped.
 

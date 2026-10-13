@@ -97,15 +97,22 @@ def add(z, path, name, data=None):
             data = f.read()
     z.writestr(info, data, compresslevel=6)
 
-# The app's character screen fixes (RaceScreen.lua) load after the module's own screen.
+# The app's character screen fixes (RaceScreen.lua) load after the module's own screen. The
+# module's two-name randomizer stays out: the realm takes one name (letters only), and it took
+# over the appearance's Randomize too; the game's own gives a name of the race (NameGen).
 TOC = "Interface/GlueXML/GlueXML.toc"
 SCREEN = "RaceScreen.lua"
+LEFT_OUT = {"TwoNames_CharacterCreate.lua"}
 
 def toc(path):
     with open(path, "rb") as f:
         text = f.read().decode("utf-8")
     newline = "\r\n" if "\r\n" in text else "\n"
     lines = text.split(newline)
+    missing = LEFT_OUT - {line.strip() for line in lines}
+    if missing:
+        sys.exit(f"{TOC}: no {', '.join(sorted(missing))} to leave out")
+    lines = [line for line in lines if line.strip() not in LEFT_OUT]
     last = [i for i, line in enumerate(lines) if line.strip() == "GlueLocalizationPost.xml"]
     if len(last) != 1:
         sys.exit(f"{TOC}: no GlueLocalizationPost.xml to put {SCREEN} before")
@@ -127,6 +134,8 @@ with zipfile.ZipFile(os.path.join(work, "WarcraftRaces-client.zip"), "w", allowZ
         rel = os.path.relpath(path, patch).replace(os.sep, "/")
         # The module's tables are for all of its races: the built ones go in their place.
         if rel.lower().startswith("dbfilesclient/") or any(word in rel.lower() for word in excluded):
+            continue
+        if rel.startswith("Interface/GlueXML/") and os.path.basename(rel) in LEFT_OUT:
             continue
         add(z, path, rel, toc(path) if rel == TOC else None)
         count += 1

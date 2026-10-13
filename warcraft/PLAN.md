@@ -498,6 +498,20 @@ for the game on the phone itself ("that's the whole point").
   Checked here: unit tests of the topic search, READMEs, requests, run tracking and the kept
   state; both APKs build. The workflow can only run from a release that has it (46 on).
 
+- Then (screenshots): the races "look much better now", but the Broken woman is headless (warrior
+  and death knight), the Worgen man has "textures missing"; random names should be one name;
+  Backspace on the keyboard. The Broken woman model (2368) is used by no creature of the game, has
+  no head, and the pack gives her the Draenei woman's hair and horn geosets, which it lacks:
+  `OWN_SQL` in `build-races.py` gives her display the Draenei woman's model and copies the Draenei
+  woman's skins, hair and horns. The module's two-name randomizer (`TwoNames_CharacterCreate.lua`)
+  is left out of `GlueXML.toc`: it made "First Last" names the realm rejects, named by list
+  position rather than race, and took over the appearance's Randomize; the game's own Randomize
+  gives one NameGen name of the race. The prompt: ⌫ and the keyboard's Backspace (with the
+  prompt's box empty) send Backspace to the game; the name prompt empties the game's name box
+  first. The Worgen man's textures all exist (skin and fur for each colour; the model's fur slot
+  covers its mane, hair and facial hair, its body is the skin) and decode; what looks missing is
+  asked of the user.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 the custom races' character creation screen, a realm with modules), then stage 3.
 
