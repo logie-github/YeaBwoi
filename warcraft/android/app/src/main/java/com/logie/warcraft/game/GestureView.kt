@@ -78,7 +78,7 @@ class GestureView(
     private val selectionFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "selection")
     private val cutsceneFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "cutscene")
     /**
-     * Where the app's add-on last said the spellbook is (patches/azerothcore/0010); it says it again
+     * Where the app's add-on last said the spellbook is (patches/azerothcore/0009); it says it again
      * as each character comes into the world.
      */
     private val interfaceFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "interface")

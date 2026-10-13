@@ -531,6 +531,32 @@ for the game on the phone itself ("that's the whole point").
   character) and checks they go, the character stays hidden, and the human still plays. The
   `wow-races-*` prereleases stay on GitHub (unused). Modules unchanged.
 
+- Then: "I need to be able to interchange modules. Is that possible". The user's first build
+  (DungeonRespawn, mod-worgoblin, mod-no-hearthstone-cooldown, mod-weekendbonus, on wow-build-48)
+  had failed: DungeonRespawn is written for AzerothCore's older script hooks ("marked 'override',
+  but does not override"), and one module stopped the whole realm. Done:
+  - The modules workflow compiles with `-k 0`; extra modules whose own files fail are left out
+    (their folder deleted, the rest compiled again from ccache, at most four rounds); anything else
+    failing fails the build. `build.json` (the modules in, those left out with the compiler's
+    first error) goes to the release as `server-<request>.json` next to the package; the app reads
+    it when the build is done and says what was left out (the list marks them "doesn't compile
+    with this realm"). The parsing was run on the failed run's log: DungeonRespawn, its first error.
+  - Kept realms: each realm put in stays in `files/modules/realms/` (`realms.json`, at most 12);
+    **Put this one in** swaps it in without a build; **Use these modules** makes its modules the
+    list; **Delete**. A realm for another version can't go in (its ctl.sh and the app change
+    together): its package goes, its entry stays, **Build it again for this version**. A failed
+    build has **Build again**.
+  - The world database follows the realm's modules (`ctl.sh modules`, each start, after `races`):
+    `files/mysql/.world-modules` lists the modules with `db-world` SQL; one on it that isn't in the
+    realm now has the world database made again (the realm's modules' SQL goes in again as the
+    world server starts). The core never cleans a module's applied-file entries
+    (`UpdateFetcher`: `state != MODULE`), so the characters database keeps a module's tables and
+    its SQL isn't applied twice when it's put back; items of a module no longer in are deleted
+    from bags by the core (`_LoadInventory`). CI's server test records the modules at the first
+    start, plants a gone module (`mod-gone` on the record, a `mod_gone` table), checks the world
+    database is made again without it, a second run does nothing, and the realm's module updates
+    are back after the world server starts.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 

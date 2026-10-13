@@ -30,8 +30,24 @@ object ModuleBuild {
         val name get() = fullName.substringAfter('/')
     }
 
-    /** A realm built with [modules], for the app's [versionCode], from build [request]. */
-    data class Built(val versionCode: Int, val request: String, val modules: List<Chosen>, val builtAt: Long = 0)
+    /**
+     * A module a build left out: it doesn't compile with the realm's AzerothCore (written for
+     * another one). [error] is the compiler's first word on why.
+     */
+    data class LeftOut(val name: String, val error: String)
+
+    /**
+     * A realm built with [modules] (the ones asked for, without [leftOut]), for the app's
+     * [versionCode], from build [request]. [size]: its package, kept in the app to put it back in.
+     */
+    data class Built(
+        val versionCode: Int,
+        val request: String,
+        val modules: List<Chosen>,
+        val builtAt: Long = 0,
+        val leftOut: List<LeftOut> = emptyList(),
+        val size: Long = 0,
+    )
 
     /** What the server package's stamp is when [built] is unpacked (ServerPackage). */
     fun stamp(built: Built) = "${built.versionCode}:modules:${built.request}"
@@ -50,6 +66,8 @@ object ModuleBuild {
         val conclusion: String? = null,
         val step: String? = null,
         val checkedAt: Long = 0,
+        /** The modules the build left out, once its record (server-<request>.json) is read. */
+        val leftOut: List<LeftOut>? = null,
     ) {
         val isDone get() = status == "completed"
         val succeeded get() = isDone && conclusion == "success"
@@ -63,6 +81,18 @@ object ModuleBuild {
     fun isRequest(text: String) = Regex("[a-z0-9]{8,32}").matches(text)
 
     fun assetName(request: String) = "server-$request.tar.xz"
+
+    /** What went into the build's package (the workflow's build.json). */
+    fun recordName(request: String) = "server-$request.json"
+
+    /** The modules a build's record says it left out. */
+    fun parseLeftOut(json: String): List<LeftOut> = leftOutFromJson(JSONObject(json).optJSONArray("leftOut"))
+
+    /** [modules] without those [leftOut]. */
+    fun without(modules: List<Chosen>, leftOut: List<LeftOut>): List<Chosen> =
+        modules.filter { module -> leftOut.none { it.name.equals(module.name, ignoreCase = true) } }
+
+    private val MODULE_NAME = Regex("[A-Za-z0-9_.-]{1,100}")
 
     /** The app's release for [versionCode], as CI tags it ([prefix]-N). */
     fun release(prefix: String, versionCode: Int) = "$prefix-$versionCode"
@@ -165,15 +195,41 @@ object ModuleBuild {
 
     private fun JSONObject.text(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotEmpty() }
 
-    fun builtToJson(built: Built): String =
-        JSONObject().put("versionCode", built.versionCode).put("request", built.request)
-            .put("modules", chosenToJson(built.modules)).put("builtAt", built.builtAt).toString()
+    private fun leftOutToJson(list: List<LeftOut>): JSONArray = JSONArray().apply {
+        for (module in list) put(JSONObject().put("name", module.name).put("error", module.error))
+    }
 
-    fun builtFromJson(text: String?): Built? = runCatching {
-        val o = JSONObject(text ?: return null)
-        val request = o.getString("request").takeIf { isRequest(it) } ?: return null
-        Built(o.getInt("versionCode"), request, chosenFromJson(o.optJSONArray("modules")), o.optLong("builtAt"))
-    }.getOrNull()
+    private fun leftOutFromJson(array: JSONArray?): List<LeftOut> = (0 until (array?.length() ?: 0)).mapNotNull { i ->
+        val o = array!!.optJSONObject(i) ?: return@mapNotNull null
+        val name = o.optString("name").takeIf { MODULE_NAME.matches(it) } ?: return@mapNotNull null
+        LeftOut(name, o.optString("error").take(300))
+    }
+
+    private fun builtObject(built: Built): JSONObject =
+        JSONObject().put("versionCode", built.versionCode).put("request", built.request)
+            .put("modules", chosenToJson(built.modules)).put("builtAt", built.builtAt)
+            .put("leftOut", leftOutToJson(built.leftOut)).put("size", built.size)
+
+    private fun builtFrom(o: JSONObject): Built? {
+        val request = o.optString("request").takeIf { isRequest(it) } ?: return null
+        if (!o.has("versionCode")) return null
+        return Built(
+            o.getInt("versionCode"), request, chosenFromJson(o.optJSONArray("modules")), o.optLong("builtAt"),
+            leftOutFromJson(o.optJSONArray("leftOut")), o.optLong("size"),
+        )
+    }
+
+    fun builtToJson(built: Built): String = builtObject(built).toString()
+
+    fun builtFromJson(text: String?): Built? = runCatching { builtFrom(JSONObject(text ?: return null)) }.getOrNull()
+
+    /** The realms kept in the app. */
+    fun savedToJson(list: List<Built>): String = JSONArray().apply { list.forEach { put(builtObject(it)) } }.toString()
+
+    fun savedFromJson(text: String?): List<Built> = runCatching {
+        val array = JSONArray(text ?: return emptyList())
+        (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.let { builtFrom(it) } }.distinctBy { it.request }
+    }.getOrDefault(emptyList())
 
     fun pendingToJson(pending: Pending): String =
         JSONObject().put("request", pending.request).put("release", pending.release).put("versionCode", pending.versionCode)
@@ -181,6 +237,7 @@ object ModuleBuild {
             .put("runId", pending.runId ?: JSONObject.NULL).put("runUrl", pending.runUrl ?: JSONObject.NULL)
             .put("status", pending.status ?: JSONObject.NULL).put("conclusion", pending.conclusion ?: JSONObject.NULL)
             .put("step", pending.step ?: JSONObject.NULL).put("checkedAt", pending.checkedAt)
+            .put("leftOut", pending.leftOut?.let { leftOutToJson(it) } ?: JSONObject.NULL)
             .toString()
 
     fun pendingFromJson(text: String?): Pending? = runCatching {
@@ -198,6 +255,7 @@ object ModuleBuild {
             conclusion = o.text("conclusion"),
             step = o.text("step"),
             checkedAt = o.optLong("checkedAt"),
+            leftOut = if (o.isNull("leftOut")) null else leftOutFromJson(o.optJSONArray("leftOut")),
         )
     }.getOrNull()
 }

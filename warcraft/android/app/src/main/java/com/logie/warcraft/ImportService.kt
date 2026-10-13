@@ -46,6 +46,7 @@ class ImportService : Service() {
         val withMmaps = intent.getBooleanExtra(EXTRA_MMAPS, false)
         val folder = intent.getBooleanExtra(EXTRA_FOLDER, false)
         val stock = intent.getBooleanExtra(EXTRA_STOCK, false)
+        val savedRealm = intent.getStringExtra(EXTRA_REALM)
 
         Imports.cancelled = false
         Imports.set(Imports.State.Working(kind))
@@ -93,8 +94,11 @@ class ImportService : Service() {
                             Imports.set(Imports.State.Working(kind, progress = progress, detail = detail))
                             notifyThrottled(kind, progress, detail)
                         }
-                        if (stock) ModuleStore.installStock(this@ImportService, report)
-                        else ModuleStore.install(this@ImportService, report)
+                        when {
+                            stock -> ModuleStore.installStock(this@ImportService, report)
+                            savedRealm != null -> ModuleStore.putIn(this@ImportService, savedRealm, report)
+                            else -> ModuleStore.install(this@ImportService, report)
+                        }
                     }
                 }
             }
@@ -206,6 +210,7 @@ class ImportService : Service() {
         private const val EXTRA_MMAPS = "mmaps"
         private const val EXTRA_FOLDER = "folder"
         private const val EXTRA_STOCK = "stock"
+        private const val EXTRA_REALM = "realm"
         private const val ACTION_CANCEL = "com.logie.warcraft.CANCEL_IMPORT"
 
         private fun start(context: Context, intent: Intent) = ContextCompat.startForegroundService(context, intent)
@@ -242,10 +247,12 @@ class ImportService : Service() {
          * Puts the realm built with the user's modules in place of the server ([stock]: the app's
          * own back in its place).
          */
-        fun installModules(context: Context, stock: Boolean = false) = start(
+        /** The realm built last ([stock]: the app's own; [saved]: a kept one, by its request) put in. */
+        fun installModules(context: Context, stock: Boolean = false, saved: String? = null) = start(
             context,
             Intent(context, ImportService::class.java)
-                .putExtra(EXTRA_KIND, Imports.Kind.MODULES.name).putExtra(EXTRA_STOCK, stock),
+                .putExtra(EXTRA_KIND, Imports.Kind.MODULES.name).putExtra(EXTRA_STOCK, stock)
+                .apply { if (saved != null) putExtra(EXTRA_REALM, saved) },
         )
 
         fun cancel(context: Context) {

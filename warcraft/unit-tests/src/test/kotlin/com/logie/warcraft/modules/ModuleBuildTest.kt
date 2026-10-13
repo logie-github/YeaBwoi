@@ -133,5 +133,53 @@ class ModuleBuildTest {
         // A refresh that sees no step keeps the last one.
         assertEquals("Attach it", ModuleBuild.seen(seen, run, null, 300L).step)
         assertTrue(ModuleBuild.seen(pending, run.copy(conclusion = "cancelled"), null, 1L).failed)
+        // What went in, once read; a pending file from before builds kept a record has none read yet.
+        val read = seen.copy(leftOut = listOf(ModuleBuild.LeftOut("mod-ah-bot", "src/a.h:1: error: x")))
+        assertEquals(read, ModuleBuild.pendingFromJson(ModuleBuild.pendingToJson(read)))
+        assertEquals(emptyList(), ModuleBuild.pendingFromJson(ModuleBuild.pendingToJson(seen.copy(leftOut = emptyList())))!!.leftOut)
+        assertNull(ModuleBuild.pendingFromJson("""{"request": "abc123def456", "release": "wow-build-46", "versionCode": 46}""")!!.leftOut)
+    }
+
+    @Test
+    fun whatTheBuildLeftOut() {
+        // The workflow's build.json (server-<request>.json on the release).
+        val record = """
+            {"modules": ["mod-worgoblin", "mod-weekendbonus"],
+             "leftOut": [
+               {"name": "DungeonRespawn", "error": "src/DungeonRespawn.h:45:10: error: 'bool DSPlayerScript::OnBeforeTeleport' marked 'override', but does not override"},
+               {"name": "bad name/../x", "error": "x"},
+               {"name": "mod-long", "error": "${"e".repeat(500)}"}
+             ]}
+        """.trimIndent()
+        val leftOut = ModuleBuild.parseLeftOut(record)
+        assertEquals(listOf("DungeonRespawn", "mod-long"), leftOut.map { it.name })
+        assertTrue(leftOut[0].error.startsWith("src/DungeonRespawn.h:45:10: error:"))
+        assertEquals(300, leftOut[1].error.length)
+        assertEquals(emptyList(), ModuleBuild.parseLeftOut("""{"modules": ["a"], "leftOut": []}"""))
+        assertEquals(emptyList(), ModuleBuild.parseLeftOut("{}"))
+        assertEquals("server-abc123def456.json", ModuleBuild.recordName("abc123def456"))
+
+        val respawn = ModuleBuild.Chosen("AnchyDev/DungeonRespawn", "main", commit = sha1)
+        assertEquals(listOf(transmog), ModuleBuild.without(listOf(transmog, respawn), leftOut))
+        assertEquals(listOf(transmog, respawn), ModuleBuild.without(listOf(transmog, respawn), emptyList()))
+    }
+
+    @Test
+    fun theRealmsKept() {
+        val one = ModuleBuild.Built(49, "abc123def456", listOf(transmog), 1000L, listOf(ModuleBuild.LeftOut("DungeonRespawn", "e")), 93_000_000L)
+        val two = ModuleBuild.Built(48, "zzz999yyy888", listOf(transmog, ahbot), 900L)
+        val list = listOf(one, two)
+        assertEquals(list, ModuleBuild.savedFromJson(ModuleBuild.savedToJson(list)))
+        assertEquals(one, ModuleBuild.builtFromJson(ModuleBuild.builtToJson(one)))
+        // realm.json from before realms were kept: nothing left out, no size.
+        assertEquals(
+            ModuleBuild.Built(46, "abc123def456", listOf(transmog), 1234L),
+            ModuleBuild.builtFromJson("""{"versionCode": 46, "request": "abc123def456", "modules": ${ModuleBuild.chosenToJson(listOf(transmog))}, "builtAt": 1234}"""),
+        )
+        // The same build twice, a bad entry and bad JSON.
+        assertEquals(listOf(one), ModuleBuild.savedFromJson(ModuleBuild.savedToJson(listOf(one, one.copy(builtAt = 5L)))))
+        assertEquals(listOf(one), ModuleBuild.savedFromJson("[{\"request\": \"BAD\"}, ${ModuleBuild.builtToJson(one)}, 3]"))
+        assertEquals(emptyList(), ModuleBuild.savedFromJson("not json"))
+        assertEquals(emptyList(), ModuleBuild.savedFromJson(null))
     }
 }

@@ -10,6 +10,7 @@
 #   ctl.sh sql [database]           run the SQL on stdin (prints tab-separated rows)
 #   ctl.sh dbimport                 create and update the databases
 #   ctl.sh races                    take out what earlier versions' custom races left (MariaDB up)
+#   ctl.sh modules                  the world database without what modules no longer in put in it
 #   ctl.sh auth | world             run the auth server / world server
 #   ctl.sh maps|vmaps|mmaps CLIENT  extract the server's data from a 3.3.5a client folder
 #
@@ -23,6 +24,8 @@ DATA="$FILES/data"
 RACES="$FILES/races"
 DATA_RACES="$FILES/data-races"
 DB_DIR="$FILES/mysql"
+# The modules whose SQL went into the world database (ctl.sh modules); goes with the databases.
+WORLD_MODULES="$DB_DIR/.world-modules"
 LOGS="$FILES/logs"
 RUN="$FILES/run"
 DB_PORT="${DB_PORT:-3310}"
@@ -98,7 +101,8 @@ db_client() {
 	LD_PRELOAD="$COMPAT" "$SERVER/bin/mariadb" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$@"
 }
 
-# The world database as dbimport makes it, without anything added since (the custom races).
+# The world database as dbimport makes it, without anything added since (custom races, modules
+# taken out).
 rebuild_world() {
 	echo "Making the world database again"
 	printf 'DROP DATABASE IF EXISTS `acore_world`;\nCREATE DATABASE `acore_world` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' |
@@ -116,6 +120,38 @@ races() {
 	rm -rf "$DATA_RACES" "$RACES"
 	setkey "$ETC/worldserver.conf" DataDir "\"$DATA\""
 	echo "Custom races taken out"
+}
+
+# The modules in this realm with SQL for the world database, a name a line.
+world_modules_now() {
+	for dir in "$SERVER"/src/modules/*/data/sql/db-world*; do
+		[ -d "$dir" ] || continue
+		dir=${dir#"$SERVER/src/modules/"}
+		echo "${dir%%/*}"
+	done | sort -u
+}
+
+# A realm swapped for one without a module (the app's Modules screen) leaves that module's SQL in
+# the world database: its creatures, items, changes to the game's own. If a module whose SQL went
+# in ($WORLD_MODULES) isn't in this realm, the world database is made again, and the realm's
+# modules put theirs in again as the world server starts. What modules keep in the characters
+# database stays (the core keeps a module's applied files on record, so one put back finds it).
+modules() {
+	now=$(world_modules_now)
+	gone=
+	if [ -f "$WORLD_MODULES" ]; then
+		while read -r name; do
+			[ -n "$name" ] || continue
+			echo "$now" | grep -qxF "$name" || gone="$gone $name"
+		done < "$WORLD_MODULES"
+	fi
+	if [ -n "$gone" ]; then
+		echo "Taking out of the world:$gone"
+		rebuild_world
+	fi
+	echo "$now" > "$WORLD_MODULES.new"
+	mv "$WORLD_MODULES.new" "$WORLD_MODULES"
+	echo "World database matches the realm's modules"
 }
 
 cmd=${1:-}
@@ -160,6 +196,9 @@ sql)
 races)
 	races
 	;;
+modules)
+	modules
+	;;
 dbimport)
 	cd "$RUN"
 	musl_programs
@@ -179,7 +218,7 @@ world)
 	export WOW_SELECTION_FILE="$RUN/selection"
 	# Whether a cutscene plays for the phone's player: a hold skips it (patches/azerothcore/0008).
 	export WOW_CUTSCENE_FILE="$RUN/cutscene"
-	# Where the app's add-on says the spellbook is: a drag there drags its icons (patches/azerothcore/0010).
+	# Where the app's add-on says the spellbook is: a drag there drags its icons (patches/azerothcore/0009).
 	export WOW_INTERFACE_FILE="$RUN/interface"
 	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
 	;;

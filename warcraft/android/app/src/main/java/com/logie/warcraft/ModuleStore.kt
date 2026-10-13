@@ -23,8 +23,9 @@ import java.net.URLEncoder
  * realm put in place of the one the app came with.
  *
  * Kept in `files/modules`: chosen.json (the picks), pending.json (the build asked for and how it
- * went), realm.json (the realm in, with the modules it was built with). The token is only ever in
- * the app's own preferences.
+ * went), realm.json (the realm in, with the modules it was built with), and each realm put in
+ * (realms/<request>.tar.xz, listed in realms.json), so realms can be swapped without building
+ * them again. The token is only ever in the app's own preferences.
  */
 object ModuleStore {
     private val _chosen = MutableStateFlow<List<ModuleBuild.Chosen>>(emptyList())
@@ -36,6 +37,10 @@ object ModuleStore {
     private val _realm = MutableStateFlow<ModuleBuild.Built?>(null)
     /** The modules realm built last, whichever version of the app it was for. */
     val realm: StateFlow<ModuleBuild.Built?> = _realm
+
+    private val _saved = MutableStateFlow<List<ModuleBuild.Built>>(emptyList())
+    /** The realms kept in the app, newest first. */
+    val saved: StateFlow<List<ModuleBuild.Built>> = _saved
 
     private val _hasToken = MutableStateFlow(false)
     val hasToken: StateFlow<Boolean> = _hasToken
@@ -62,8 +67,10 @@ object ModuleStore {
         }.getOrDefault(emptyList())
         _pending.value = ModuleBuild.pendingFromJson(File(dir, PENDING).takeIf { it.isFile }?.readText())
         _realm.value = ModuleBuild.builtFromJson(File(dir, REALM).takeIf { it.isFile }?.readText())
+        _saved.value = ModuleBuild.savedFromJson(File(dir, SAVED).takeIf { it.isFile }?.readText())
         _hasToken.value = !token(context).isNullOrBlank()
         loaded = true
+        runCatching { tidySaved(context) }
     }
 
     /** The realm built with modules for this version of the app, if it's the one to run. */
@@ -115,6 +122,56 @@ object ModuleStore {
     fun forgetRealm(context: Context) {
         load(context)
         if (_realm.value != null) setRealm(context, null)
+    }
+
+    // The realms kept --------------------------------------------------------------------------------
+
+    private fun savedDir(context: Context) = File(dir(context), "realms").also { it.mkdirs() }
+
+    /** Where a kept realm's package is. */
+    fun savedFile(context: Context, request: String) = File(savedDir(context), ModuleBuild.assetName(request))
+
+    /** A kept realm that can be put in: for this version of the app, its package there. */
+    fun canPutIn(context: Context, built: ModuleBuild.Built) =
+        built.versionCode == BuildConfig.VERSION_CODE && savedFile(context, built.request).isFile
+
+    private fun setSaved(context: Context, list: List<ModuleBuild.Built>) {
+        write(File(dir(context), SAVED), ModuleBuild.savedToJson(list))
+        _saved.value = list
+    }
+
+    /**
+     * A realm for an earlier version of the app can't be put in (the app and its realm change
+     * together): its package goes, its modules stay listed, to build again. At most [MAX_SAVED].
+     */
+    private fun tidySaved(context: Context) {
+        val list = _saved.value
+        val tidy = list.map { built ->
+            if (built.versionCode != BuildConfig.VERSION_CODE && built.size > 0) {
+                savedFile(context, built.request).delete()
+                built.copy(size = 0)
+            } else {
+                built
+            }
+        }.take(MAX_SAVED)
+        list.drop(MAX_SAVED).forEach { savedFile(context, it.request).delete() }
+        // Packages no entry lists (a download that was being kept when the app stopped).
+        val listed = tidy.map { ModuleBuild.assetName(it.request) }.toSet()
+        savedDir(context).listFiles().orEmpty().filter { it.name !in listed }.forEach { it.delete() }
+        if (tidy != list) setSaved(context, tidy)
+    }
+
+    /** Forgets a kept realm and deletes its package. */
+    fun deleteSaved(context: Context, request: String) {
+        load(context)
+        savedFile(context, request).delete()
+        setSaved(context, _saved.value.filterNot { it.request == request })
+    }
+
+    /** [built]'s modules become the picks (to build again, or to change). */
+    fun useModules(context: Context, built: ModuleBuild.Built) {
+        load(context)
+        save(context, built.modules.filter { it.name !in baseModules })
     }
 
     // The token -------------------------------------------------------------------------------------
@@ -189,6 +246,12 @@ object ModuleStore {
     suspend fun refresh(context: Context): ModuleBuild.Pending? = withContext(Dispatchers.IO) {
         load(context)
         val pending = _pending.value ?: return@withContext null
+        if (pending.succeeded && pending.leftOut == null) {
+            // What went in: read once the build is done.
+            val leftOut = runCatching { leftOut(context, pending) }.getOrNull() ?: return@withContext pending
+            if (_pending.value?.request != pending.request) return@withContext _pending.value
+            return@withContext pending.copy(leftOut = leftOut).also { setPending(context, it) }
+        }
         if (pending.isDone || token(context).isNullOrBlank()) return@withContext pending
         val api = api(context)
         val run = if (pending.runId == null) {
@@ -213,6 +276,17 @@ object ModuleStore {
         setPending(context, null)
     }
 
+    /**
+     * The modules build [pending] left out, from its record next to its package (none when it has
+     * no record: built before builds kept one). Background thread; throws when GitHub can't be asked.
+     */
+    private fun leftOut(context: Context, pending: ModuleBuild.Pending): List<ModuleBuild.LeftOut> {
+        val record = WowUpdater.releaseAssets(pending.release).firstOrNull { it.name == ModuleBuild.recordName(pending.request) }
+            ?: return emptyList()
+        val api = GitHubApi({ BuildConfig.WOW_UPDATE_TOKEN.ifEmpty { token(context).orEmpty() } }, WowUpdater.userAgent)
+        return ModuleBuild.parseLeftOut(api.get(record.url, GitHubApi.FILE))
+    }
+
     /** A finished build is put aside: done with. */
     fun dismissBuild(context: Context) = setPending(context, null)
 
@@ -232,8 +306,12 @@ object ModuleStore {
             ?: throw Imports.ImportException(context.getString(R.string.wow_modules_error_missing, name, pending.release))
         val file = File(dir(context), name)
         if (!file.isFile) download(context, asset, file, onProgress)
+        val leftOut = pending.leftOut ?: runCatching { leftOut(context, pending) }.getOrDefault(emptyList())
 
-        val built = ModuleBuild.Built(BuildConfig.VERSION_CODE, pending.request, pending.modules, System.currentTimeMillis())
+        val built = ModuleBuild.Built(
+            BuildConfig.VERSION_CODE, pending.request, ModuleBuild.without(pending.modules, leftOut), System.currentTimeMillis(),
+            leftOut, file.length(),
+        )
         val unpacking = context.getString(R.string.wow_modules_unpacking)
         onProgress(0f, unpacking)
         try {
@@ -245,7 +323,35 @@ object ModuleStore {
         }
         setRealm(context, built)
         setPending(context, null)
-        file.delete()
+        // Kept, to put it back in later without building it again.
+        if (file.renameTo(savedFile(context, built.request))) {
+            setSaved(context, listOf(built) + _saved.value.filterNot { it.request == built.request })
+            runCatching { tidySaved(context) }
+        } else {
+            file.delete()
+        }
+    }
+
+    /** A kept realm, put in place of the one in now. Background thread. */
+    fun putIn(context: Context, request: String, onProgress: (Float?, String?) -> Unit) {
+        load(context)
+        val built = _saved.value.firstOrNull { it.request == request }
+            ?: throw Imports.ImportException(context.getString(R.string.wow_modules_error_no_build))
+        if (built.versionCode != BuildConfig.VERSION_CODE) {
+            throw Imports.ImportException(context.getString(R.string.wow_modules_error_other_version))
+        }
+        val file = savedFile(context, request)
+        if (!file.isFile) throw Imports.ImportException(context.getString(R.string.wow_modules_error_saved_missing))
+        // Unpacked next to the realm in now (about seven times the package).
+        Imports.checkSpace(context, file.length() * 7)
+        val unpacking = context.getString(R.string.wow_modules_unpacking)
+        onProgress(0f, unpacking)
+        try {
+            ServerPackage.installFile(context, file, ModuleBuild.stamp(built)) { onProgress(it, unpacking) }
+        } catch (e: IOException) {
+            throw Imports.ImportException(context.getString(R.string.wow_server_error_unpack, e.message ?: ""))
+        }
+        setRealm(context, built)
     }
 
     /** The realm the app came with, in place of the modules one. Background thread. */
@@ -324,6 +430,8 @@ object ModuleStore {
     private const val CHOSEN = "chosen.json"
     private const val PENDING = "pending.json"
     private const val REALM = "realm.json"
+    private const val SAVED = "realms.json"
+    private const val MAX_SAVED = 12
     private const val PREFS = "github"
     private const val KEY_TOKEN = "token"
 }
