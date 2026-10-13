@@ -7,6 +7,7 @@ import android.net.Uri
 import com.logie.warcraft.addons.AddonRecord
 import com.logie.warcraft.addons.AddonRecords
 import com.logie.warcraft.client.AddonLayout
+import com.logie.warcraft.client.TouchAddon
 import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
@@ -43,7 +44,8 @@ object Addons {
         }).sortedBy { it.title.lowercase() }
 
     private fun read(dir: File, on: Boolean): List<Addon> =
-        dir.listFiles { file -> file.isDirectory }.orEmpty()
+        // The app's own add-on (for the touch controls) isn't the user's to manage.
+        dir.listFiles { file -> file.isDirectory && !file.name.equals(TouchAddon.FOLDER, ignoreCase = true) }.orEmpty()
             .mapNotNull { addon ->
                 val toc = addon.listFiles { file -> file.isFile && file.name.equals("${addon.name}.toc", ignoreCase = true) }
                     ?.firstOrNull() ?: return@mapNotNull null

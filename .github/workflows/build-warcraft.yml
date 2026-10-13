@@ -234,9 +234,10 @@ jobs:
         id: key
         shell: bash
         run: |
-          # Patches 0007 to 0009 change the game server only (selections and cutscenes for the app's
-          # touch controls, the custom races), not the data tools: they don't make them again.
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', 'scripts/fetch-azerothcore.sh') }}"
+          # Patches 0007 to 0010 change the game server only (selections, cutscenes and the
+          # spellbook for the app's touch controls, the custom races), not the data tools: they
+          # don't make them again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
@@ -488,13 +489,19 @@ jobs:
           \`\`\`
           $(cat dist/server-version.txt)
           \`\`\`"
-          # The tag first, on its own: from run 18 on, GitHub refused this token the release (HTTP
-          # 403, "Resource not accessible by integration") with the same permissions that published
-          # run 16. Its full answer to the tag says which permission it wants.
+          # The tag first, on its own. GitHub refuses this token a tag (HTTP 403, "Resource not
+          # accessible by integration") on a commit whose workflow file isn't the branch's latest
+          # (run 40: a newer commit that changed this file came while it built). The newer
+          # commit's run publishes then; this one stands down.
           if ! git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" > /dev/null; then
             if ! gh api --include -X POST "repos/$GITHUB_REPOSITORY/git/refs" \
                 -f ref="refs/tags/$RELEASE_TAG" -f sha="$GITHUB_SHA" > "$RUNNER_TEMP/tag.txt" 2>&1; then
               cat "$RUNNER_TEMP/tag.txt"
+              head=$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | cut -f1)
+              if [ -n "$head" ] && [ "$head" != "$GITHUB_SHA" ]; then
+                echo "::warning::Not published: the branch has moved on to ${head::7}, whose run publishes the release."
+                exit 0
+              fi
               echo "::error::GitHub refused to create the tag $RELEASE_TAG (its answer is above)."
               exit 1
             fi

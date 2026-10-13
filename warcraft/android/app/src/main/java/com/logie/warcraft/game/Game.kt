@@ -14,6 +14,7 @@ import com.logie.warcraft.Server
 import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowFiles
 import com.logie.warcraft.client.ClientConfig
+import com.logie.warcraft.client.TouchAddon
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
 import com.winlator.container.ContainerManager
@@ -232,5 +233,10 @@ object Game {
         }
         val text = if (config.isFile) config.readText() else ""
         config.writeText(ClientConfig.updateConfig(text, values))
+
+        // The app's own add-on, for the touch controls (dragging spells off the spellbook).
+        val touch = File(client, "Interface/AddOns/${TouchAddon.FOLDER}")
+        touch.mkdirs()
+        for ((name, content) in TouchAddon.files) File(touch, name).writeText(content)
     }
 }
