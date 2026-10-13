@@ -557,6 +557,21 @@ for the game on the phone itself ("that's the whole point").
     database is made again without it, a second run does nothing, and the realm's module updates
     are back after the world server starts.
 
+- Then (screenshot of character creation): "Make it at this menu I can rotate the char by
+  swiping. Only this screen should be affected." The client turns the model while the left
+  button is held on `CharacterCreateFrame` and the mouse moves (GlueXML `CharacterCreate.lua`,
+  `CharacterCreateFrame_OnMouseDown/OnUpdate`, read from a copy in mod-worgoblin's client patch);
+  the app didn't know which glue screen is up. Done: `CharacterCreation` looks at a picture of the
+  game's window (Winlator's `takeWindowScreenshot`, at most 256 high, every second while the game
+  is in sight) for the race list's banners: blue in 0.06–0.17 heights across, red in 0.18–0.30,
+  on 14 of 20 rows down 0.06–0.44 (red and blue swapped counts too, for a window read as RGBA).
+  On the user's screenshot it says yes; on the 13 other screenshots of this project (the custom
+  races' screens among them, their icons covering the banners) no. While it's up, a finger on its
+  own that moves turns the character (`Role.TURN`: the left button on the screen's middle, the
+  pointer going sideways, back to the middle every fifth of the screen), on either half, and a
+  hold presses nothing (the stick's E had typed "e" into the name box). Untested on a phone: the
+  picture of a window the game draws with the GPU (a different texture path in Winlator).
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 

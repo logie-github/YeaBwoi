@@ -21,6 +21,7 @@ import com.logie.warcraft.Accounts
 import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.ServerService
 import com.logie.warcraft.controls.Button
+import com.logie.warcraft.controls.CharacterCreation
 import com.logie.warcraft.controls.CursorKinds
 import com.logie.warcraft.controls.Cutscene
 import com.logie.warcraft.controls.GestureOutput
@@ -33,8 +34,10 @@ import com.winlator.math.XForm
 import com.winlator.renderer.ViewTransformation
 import com.winlator.winhandler.MouseEventFlags
 import com.winlator.xserver.Cursor
+import com.winlator.xserver.Drawable
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XKeycode
+import com.winlator.xserver.Window
 import com.winlator.xserver.XServer
 
 /**
@@ -85,6 +88,20 @@ class GestureView(
     private var lastTapX = 0f
     private var lastTapY = 0f
 
+    /**
+     * The game shows its character creation screen ([CharacterCreation], looked at in a small
+     * picture of its window every [SCREEN_CHECK_MS]): a finger that moves turns the character.
+     */
+    private var characterCreation = false
+    /** When the picture asked for was asked for (0: none on its way). */
+    private var screenAskedAt = 0L
+    private val screenCheck = object : Runnable {
+        override fun run() {
+            checkScreen()
+            postDelayed(this, SCREEN_CHECK_MS)
+        }
+    }
+
     /** The text prompt on screen, if one is. */
     private var prompt: ComponentDialog? = null
     private var loginShown = false
@@ -132,8 +149,19 @@ class GestureView(
         xServer.renderer.isForceWindowsFullscreen = true
         // No server notification over the game: it steps aside while the game is on screen.
         activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) = ServerService.setGameShown(true)
-            override fun onStop(owner: LifecycleOwner) = ServerService.setGameShown(false)
+            override fun onStart(owner: LifecycleOwner) {
+                ServerService.setGameShown(true)
+                // The game's window is looked at again (not while the game is out of sight).
+                if (loginShown) {
+                    removeCallbacks(screenCheck)
+                    postDelayed(screenCheck, SCREEN_CHECK_MS)
+                }
+            }
+
+            override fun onStop(owner: LifecycleOwner) {
+                ServerService.setGameShown(false)
+                removeCallbacks(screenCheck)
+            }
         })
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
         gestures.setSize(AppUtils.getScreenWidth().toFloat(), AppUtils.getScreenHeight().toFloat())
@@ -205,6 +233,7 @@ class GestureView(
         xServer.renderer.isCursorVisible = false
         if (loginShown) return
         loginShown = true
+        postDelayed(screenCheck, SCREEN_CHECK_MS)
         val login = SavedLogin.get(activity)?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         if (login != null) {
             logInWhenReady(login.password, SystemClock.uptimeMillis(), seen = 0)
@@ -370,6 +399,55 @@ class GestureView(
     }
 
     /** On a window whose icons drag, by what the app's add-on last said ([InterfaceNote]). */
+    override fun turnsModel() = characterCreation
+
+    /**
+     * A small picture of the game's window (Winlator draws it, at most 256 pixels high, on its
+     * drawing thread), looked at for the character creation screen.
+     */
+    private fun checkScreen() {
+        val now = SystemClock.uptimeMillis()
+        if (screenAskedAt != 0L && now - screenAskedAt < SCREEN_ANSWER_MS) return
+        val content = gameWindow()
+        if (content == null) {
+            characterCreation = false
+            return
+        }
+        screenAskedAt = now
+        xServer.renderer.takeWindowScreenshot(content) { picture ->
+            val shown = runCatching {
+                val pixels = IntArray(picture.width * picture.height)
+                picture.getPixels(pixels, 0, picture.width, 0, 0, picture.width, picture.height)
+                CharacterCreation.isShown(pixels, picture.width, picture.height)
+            }.getOrDefault(false)
+            picture.recycle()
+            post {
+                characterCreation = shown
+                screenAskedAt = 0L
+            }
+        }
+    }
+
+    /** What the game draws into: the biggest window there is (the surface in the game's window, when it has one). */
+    private fun gameWindow(): Drawable? = runCatching {
+        xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.DRAWABLE_MANAGER).use {
+            val root = xServer.windowManager.rootWindow
+            var best: Window? = null
+            var bestArea = 0
+            fun visit(window: Window) {
+                if (!window.isRenderable) return
+                val area = window.width * window.height
+                if (window !== root && !window.isDesktopWindow && window.content != null && area >= bestArea && area > 1) {
+                    best = window
+                    bestArea = area
+                }
+                for (child in window.children) visit(child)
+            }
+            visit(root)
+            best?.content
+        }
+    }.getOrNull()
+
     override fun dragsAt(x: Float, y: Float): Boolean {
         val areas = InterfaceNote.dragAreas(runCatching { interfaceFile.readText() }.getOrNull())
         if (areas.isEmpty()) return false
@@ -551,6 +629,7 @@ class GestureView(
     override fun onDetachedFromWindow() {
         removeCallbacks(hold)
         removeCallbacks(typeNext)
+        removeCallbacks(screenCheck)
         prompt?.dismiss()
         gestures.cancel()
         super.onDetachedFromWindow()
@@ -590,6 +669,10 @@ class GestureView(
         private const val NAME_CLEAR_KEYS = 16
         /** The camera turns a little faster than the thumb moves. */
         private const val CAMERA_SPEED = 1.5f
+        /** How often the game's window is looked at for the character creation screen. */
+        private const val SCREEN_CHECK_MS = 1000L
+        /** A picture asked for that hasn't come by then (the drawing paused) is asked for again. */
+        private const val SCREEN_ANSWER_MS = 5000L
 
         private val Button.x: Pointer.Button
             get() = when (this) {
