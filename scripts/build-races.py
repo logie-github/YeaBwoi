@@ -205,13 +205,48 @@ def placeholders(text):
     return text.replace("dbc_db", DBC_DB).replace("world_db", WORLD_DB)
 
 
-# Fixes to the modpaks' SQL, by file name: (old, new), each found exactly once.
+# Fixes to the modpaks' SQL, by the end of the file's path: (old, new), each found exactly once, or
+# (old, new, ALL), found at least once and replaced everywhere. The checks at the end (check_races)
+# find what these put right.
+ALL = "all"
 FIXES = {
     # The Worgen mounts: the DELETE names the swift mount's spell, not its item, so the INSERT of
     # both items fails on the item already there (and the first item stays deleted).
-    "[BASE,F-024]_item_template.sql": [
+    "F-024_mod-playable-worgen/sql/db-world/base/[BASE,F-024]_item_template.sql": [
         ("WHERE `entry` IN (@MountainHorseItem, @SwiftMountainHorse);",
          "WHERE `entry` IN (@MountainHorseItem, @SwiftMountainHorseItem);"),
+    ],
+    # The Goblin's model and skins are the module's client files' Character\Goblin (which take the
+    # place of the game's goblin); there's no Character\GoblinPC, so the Goblin was a missing model
+    # (the game's error cube).
+    "F-023_mod-playable-goblin/variables.sql": [("GoblinPC", "Goblin", ALL)],
+    "F-023_mod-playable-goblin/dbc/[BASE,F-023]_charsections.sql": [("GoblinPC", "Goblin", ALL)],
+    # The Ogre's and the Mag'har's looks are their displays (CreatureDisplayInfo), not their models
+    # (CreatureModelData): the Ogre's model numbers are other creatures' displays (a dwarf woman and
+    # a human man).
+    "F-014_mod-playable-ogres/dbc/[BASE,F-014]_chrraces.sql": [
+        ("@OgreExplorationSound, @OgreMaleModel, @OgreFemaleModel,",
+         "@OgreExplorationSound, @OgreMaleDisplay, @OgreFemaleDisplay,"),
+    ],
+    "F-007_mod-maghar/dbc/[BASE,F-007]_chrraces.sql": [
+        ("@MagharOrcExplorationSound, @MagharOrcMaleModel, @MagharOrcFemaleModel,",
+         "@MagharOrcExplorationSound, @MagharOrcMaleDisplay, @MagharOrcFemaleDisplay,"),
+    ],
+    # The Worgen's facial hair is in the module's client files' Character\Worgen\Male (style 0 only;
+    # fill_textures gives the others its textures).
+    "F-024_mod-playable-worgen/dbc/[BASE,F-024]_charsections.sql": [
+        ("'Character\\\\Worgen\\\\FacialLowerHair", "'Character\\\\Worgen\\\\Male\\\\FacialLowerHair", ALL),
+        ("'Character\\\\Worgen\\\\FacialUpperHair", "'Character\\\\Worgen\\\\Male\\\\FacialUpperHair", ALL),
+    ],
+    # The Pandaren's skins' paths are written with their backslashes escaped twice, which leaves
+    # two in each path.
+    "F-020_mod-pandaren-alliance/dbc/[BASE,F-020]_charsections.sql": [("\\\\\\\\", "\\\\", ALL)],
+    "F-021_mod-pandaren-horde/dbc/[BASE,F-021]_charsections.sql": [("\\\\\\\\", "\\\\", ALL)],
+    # The Alliance Pandaren's side went where its file string goes (so it was "0", which the
+    # character screen knows nothing of) and its side was always Alliance.
+    "F-020_mod-pandaren-alliance/dbc/[BASE,F-020]_chrraces.sql": [
+        ("1096, @AlliancePandarenAlliance, @HumanCinematicSequence, 0,",
+         "1096, @AlliancePandarenClientString, @HumanCinematicSequence, @AlliancePandarenAlliance,"),
     ],
 }
 
@@ -219,10 +254,16 @@ FIXES = {
 def read(path):
     with open(path, encoding="utf-8", errors="replace") as f:
         text = f.read()
-    for old, new in FIXES.get(os.path.basename(path), []):
-        if text.count(old) != 1:
-            sys.exit(f"{path}: the fix for {old!r} no longer fits")
-        text = text.replace(old, new)
+    where = path.replace(os.sep, "/")
+    for key, fixes in FIXES.items():
+        if not where.endswith("/" + key):
+            continue
+        for fix in fixes:
+            old, new = fix[0], fix[1]
+            count = text.count(old)
+            if (count < 1) if len(fix) > 2 else (count != 1):
+                sys.exit(f"{path}: the fix for {old!r} no longer fits")
+            text = text.replace(old, new)
     return text
 
 
@@ -248,6 +289,16 @@ def modpak_files(dirs, pattern):
 
 
 VARIABLE = re.compile(r"SET\s+@([A-Za-z_][A-Za-z0-9_]*)\s*=|@([A-Za-z_][A-Za-z0-9_]*)\s*:=", re.IGNORECASE)
+BATCH_ESCAPES = {"\\\\": "\\", "\\t": "\t", "\\n": "\n", "\\0": "\0"}
+
+
+def unbatch(value):
+    """A value as the command line client's batch output (-B) escapes it, as it was."""
+    return re.sub(r"\\[\\tn0]", lambda m: BATCH_ESCAPES[m.group(0)], value)
+
+
+def sql_string(value):
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'").replace("\0", "\\0") + "'"
 
 
 def snapshot(server, modpaks, dirs):
@@ -257,14 +308,187 @@ def snapshot(server, modpaks, dirs):
     names = sorted({a or b for f in files for a, b in VARIABLE.findall(read(f))})
     sql = "".join(f"-- ==== {f} ====\n{placeholders(read(f))}\n" for f in files)
     sql += "SELECT " + ", ".join(f"@{n}" for n in names) + ";\n"
-    values = server.script(sql, batch=True).rstrip("\n").split("\n")[-1].split("\t")
+    # Batch output escapes backslashes (a model's path), tabs and new lines; NULL is bare.
+    values = [None if v == "NULL" else unbatch(v)
+              for v in server.script(sql, batch=True).rstrip("\n").split("\n")[-1].split("\t")]
+    if len(values) != len(names):
+        sys.exit(f"the variables: {len(names)} asked for, {len(values)} came back")
     out = []
     for name, value in zip(names, values):
-        if value == "NULL":
-            out.append(f"SET @{name} = NULL;")
-        else:
-            out.append("SET @{} = '{}';".format(name, value.replace("\\", "\\\\").replace("'", "\\'")))
+        out.append(f"SET @{name} = NULL;" if value is None else f"SET @{name} = {sql_string(value)};")
     return "\n".join(out) + "\n", dict(zip(names, values))
+
+
+# Checks ---------------------------------------------------------------------------------------------
+
+def client_path(path):
+    """A game file's path as the game looks it up: backslashes, any case, a model as its .m2."""
+    path = path.replace("/", "\\").lower()
+    return re.sub(r"\.(mdx|mdl)$", ".m2", path)
+
+
+class ClientFiles:
+    """The files the client has: the module's client files the package ships (--client, less the
+    --client-exclude ones) and the game's own, as far as the stock tables name them (their models
+    and their skins)."""
+
+    def __init__(self, args, metas, stock):
+        excluded = [word.lower() for word in args.client_exclude.split(",") if word]
+        self.files = set()
+        for folder, _, names in os.walk(args.client):
+            for file in names:
+                rel = os.path.relpath(os.path.join(folder, file), args.client)
+                if not any(word in rel.lower() for word in excluded):
+                    self.files.add(client_path(rel))
+
+        def stock_table(name):
+            meta = metas[name]
+            cols = [c for c, _ in columns(meta)]
+            return [dict(zip(cols, row)) for row in read_dbc(stock[normalize(meta.get("file", name))], meta)]
+
+        self.files |= {client_path(r["model_path"]) for r in stock_table("creaturemodeldata")}
+        self.files |= {client_path(r[f"texture_{i}"]) for r in stock_table("charsections") for i in (1, 2, 3)}
+
+    def __contains__(self, path):
+        return client_path(path) in self.files
+
+
+SKIN, UNDERWEAR = 0, 4  # CharSections' base sections (1 face, 2 facial hair, 3 hair)
+
+
+def fill_textures(conn, known):
+    """The playable races' skins, faces, hair and underwear (CharSections) whose textures the client
+    hasn't got take the race's nearest that it has: the same part, style and colour where there is
+    one, then the same style, then the same colour, then any; a second or third texture with none
+    to take is left out (they're extras the client draws only when there)."""
+    with conn.cursor() as cursor:
+        cursor.execute("SELECT id, name_neutral_enus FROM chrraces WHERE (flags & 1) = 0")
+        names = dict(cursor.fetchall())
+        cursor.execute("SELECT id, race, gender, base_section, type, color_index, texture_1, texture_2, texture_3 "
+                       f"FROM charsections WHERE race IN ({', '.join(str(r) for r in names)})")
+        rows = [dict(zip(("id", "race", "gender", "section", "type", "color", 1, 2, 3), r)) for r in cursor.fetchall()]
+    groups = {}
+    for row in rows:
+        groups.setdefault((row["race"], row["gender"], row["section"]), []).append(row)
+    changed, counts = {}, {}
+    for row in rows:
+        for i in (1, 2, 3):
+            if not row[i] or row[i] in known:
+                continue
+            donors = [d for d in groups[(row["race"], row["gender"], row["section"])] if d[i] and d[i] in known]
+            if not donors and row["section"] == UNDERWEAR and i == 1:
+                # No underwear at all: the skin of its colour, as the game's own Broken woman has.
+                donors = [d for d in groups.get((row["race"], row["gender"], SKIN), []) if d[1] and d[1] in known]
+            rank = lambda d: (d["type"] != row["type"], d["color"] != row["color"], d["type"], d["color"])
+            donor = min(donors, key=rank, default=None)
+            if not donor and i == 1:
+                continue  # check_races reports it
+            row[i] = donor[i] if donor else ""
+            changed[row["id"]] = row
+            counts[row["race"]] = counts.get(row["race"], 0) + 1
+    with conn.cursor() as cursor:
+        for row in changed.values():
+            cursor.execute("UPDATE charsections SET texture_1 = %s, texture_2 = %s, texture_3 = %s WHERE id = %s",
+                           (row[1], row[2], row[3], row["id"]))
+    conn.commit()
+    for race, count in sorted(counts.items()):
+        print(f"race {race} ({names[race]}): {count} textures the client hasn't got, the race's nearest in their place",
+              flush=True)
+
+
+def check_races(args, metas, written, stock, known):
+    """What the client needs of each playable race, from the built tables (stock where unchanged):
+    a file string the character screen knows, displays whose models are files the client has (the
+    module's client files or the game's own) and are the race's, skins whose textures it has,
+    classes, and the doubled backslashes a wrong escape leaves. Returns the problems."""
+
+    def table(name):
+        meta = metas[name]
+        path = written.get(name) or stock.get(normalize(meta.get("file", name)))
+        cols = [c for c, _ in columns(meta)]
+        return [dict(zip(cols, row)) for row in read_dbc(path, meta)]
+
+    problems = []
+    for name, path in sorted(written.items()):
+        game = {v for row in read_dbc(stock[normalize(metas[name].get("file", name))], metas[name])
+                for v in row if isinstance(v, str)}
+        for row in read_dbc(path, metas[name]):
+            for value in row:
+                if isinstance(value, str) and "\\\\" in value and value not in game:
+                    problems.append(f"{os.path.basename(path)}: doubled backslashes in {value!r}")
+                    break
+
+    races = [r for r in table("chrraces") if not r["flags"] & 1]
+    displays = {r["id"]: r for r in table("creaturedisplayinfo")}
+    models = {r["id"]: r for r in table("creaturemodeldata")}
+    sections = table("charsections")
+    extras = table("creaturedisplayinfoextra")
+    bases = {r["race"] for r in table("charbaseinfo")}
+    seen = {}
+    missing_textures = {}
+    for race in races:
+        rid, fs = race["id"], race["client_filestring"]
+        who = f"race {rid} ({race['name_neutral_enus']})"
+        if not re.fullmatch(r"[A-Za-z]+", fs or ""):
+            problems.append(f"{who}: file string {fs!r}")
+        elif fs.upper() in seen:
+            problems.append(f"{who}: file string {fs!r} is race {seen[fs.upper()]}'s too")
+        else:
+            seen[fs.upper()] = rid
+        if not re.fullmatch(r"[A-Za-z]+", race["client_prefix"] or ""):
+            problems.append(f"{who}: prefix {race['client_prefix']!r}")
+        if rid not in bases:
+            problems.append(f"{who}: no classes (CharBaseInfo)")
+        for gender, column in ((0, "male_display_id"), (1, "female_display_id")):
+            display = displays.get(race[column])
+            model = models.get(display["model_id"]) if display else None
+            if not display:
+                problems.append(f"{who}: {column} {race[column]} isn't a display")
+            elif not model:
+                problems.append(f"{who}: display {display['id']}'s model {display['model_id']} isn't a model")
+            elif model["model_path"] not in known:
+                problems.append(f"{who}: display {display['id']}'s model {model['model_path']!r} isn't a file")
+            elif not client_path(model["model_path"]).startswith("character\\") or \
+                    ("female" in client_path(model["model_path"])) != (gender == 1):
+                problems.append(f"{who}: {column} {display['id']} is {model['model_path']!r}")
+            extra = display and display["extended_display_info_id"]
+            if extra and not any(e["id"] == extra and e["race"] == rid and e["gender"] == gender for e in extras):
+                problems.append(f"{who}: display {display['id']}'s gear look {extra} isn't this race's")
+            mine = [s for s in sections if s["race"] == rid and s["gender"] == gender]
+            if not any(s["base_section"] == 0 for s in mine):
+                problems.append(f"{who}: no {'male' if gender == 0 else 'female'} skins (CharSections)")
+            for s in mine:
+                for i in (1, 2, 3):
+                    texture = s[f"texture_{i}"]
+                    if texture and texture not in known:
+                        missing_textures[texture] = who
+    problems += [f"{who}: texture {texture!r} isn't a file" for texture, who in sorted(missing_textures.items())]
+
+    # The character screen (warcraft/races/client/RaceScreen.lua over the module's GlueXML).
+    if args.glue:
+        with open(args.glue, encoding="utf-8") as f:
+            glue = f.read()
+        with open(os.path.join(args.client, "Interface", "GlueXML", "GlueStrings.lua"), encoding="utf-8") as f:
+            strings = f.read()
+        listed = {}
+        for name, side, column in re.findall(r'\{\s*"([A-Z]+)",\s*"([AH])",\s*(\d+)\s*\}', glue):
+            if (side, column) in listed.values():
+                problems.append(f"{args.glue}: {name} has another race's icon")
+            listed[name] = (side, column)
+        sides = [side for side, _ in listed.values()]
+        if sides.count("A") > 20 or sides.count("H") > 19:
+            problems.append(f"{args.glue}: more races than buttons")
+        for race in races:
+            fs = (race["client_filestring"] or "").upper()
+            want = "A" if race["alliance"] == 0 else "H"
+            if fs not in listed:
+                problems.append(f"{args.glue}: no {fs} (race {race['id']})")
+            elif listed[fs][0] != want:
+                problems.append(f"{args.glue}: {fs} on the wrong side")
+            text = re.compile(rf"^RACE_INFO_{fs}\s*=", re.MULTILINE)
+            if not text.search(strings) and not text.search(glue):
+                problems.append(f"no RACE_INFO_{fs}: choosing the race stops the character screen")
+    return problems
 
 
 USED = re.compile(r"@([A-Za-z_][A-Za-z0-9_]*)")
@@ -283,6 +507,9 @@ def main():
     p.add_argument("--user", default="root")
     p.add_argument("--password", default="")
     p.add_argument("--selftest", action="store_true", help="check that unchanged tables come back as they were")
+    p.add_argument("--client", help="the client files the package ships (the module's patch-A.MPQ): check the races against them")
+    p.add_argument("--client-exclude", default="", help="words of the paths of client files left out, comma-separated")
+    p.add_argument("--glue", help="the character screen's races (RaceScreen.lua): check them with --client")
     args = p.parse_args()
 
     metas = {}
@@ -353,10 +580,23 @@ def main():
         print(f"tables changed with no DBC file to write (helpers): {', '.join(missing)}", flush=True)
     conn.close()
     conn = server.connect(DBC_DB)
+    known = ClientFiles(args, metas, stock) if args.client else None
+    if known:
+        fill_textures(conn, known)
+    written = {}
     for table in sorted(t for t in affected if t in loaded):
         name = os.path.basename(loaded[table])
-        count = export_table(conn, table, metas[table], os.path.join(args.out, "dbc", name))
+        written[table] = os.path.join(args.out, "dbc", name)
+        count = export_table(conn, table, metas[table], written[table])
         print(f"wrote {name}: {count} records", flush=True)
+
+    if known:
+        problems = check_races(args, metas, written, stock, known)
+        for problem in problems:
+            print(f"PROBLEM: {problem}", flush=True)
+        if problems:
+            sys.exit(f"{len(problems)} problems with the races")
+        print("checked: every playable race's file string, models, skins, classes and character screen", flush=True)
 
     # The races, for the app: the playable ones the races changed.
     with conn.cursor() as cursor:

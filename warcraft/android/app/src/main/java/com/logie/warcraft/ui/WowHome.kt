@@ -89,6 +89,7 @@ import com.logie.warcraft.AddonStore
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.CustomRaces
+import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
@@ -149,6 +150,22 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
         if (update != null) updateOffer.launch(WowUpdateActivity.intent(context, update)) else checkUpdate = false
     }
 
+    // A newer custom races package came with this version (they're on): it takes the old one's
+    // place once the update check is done, while the realm is stopped (it reads the races at its
+    // start). How it went shows in the Races dialog.
+    val serverStopped = server.phase == Server.Phase.STOPPED || server.phase == Server.Phase.FAILED
+    LaunchedEffect(checkUpdate, serverStopped, imports is Imports.State.Idle) {
+        if (checkUpdate || !serverStopped || imports !is Imports.State.Idle || racesRefreshTried) return@LaunchedEffect
+        if (CustomRaces.isAvailable && CustomRaces.isWanted(context) && CustomRaces.isInstalled(context) &&
+            !CustomRaces.isApplied(context) && WowFiles.hasClient(context)
+        ) {
+            // Once a run of the app: if it fails (offline), the Races dialog has Try again.
+            racesRefreshTried = true
+            modsDialog = HomeDialog.RACES
+            ImportService.applyMods(context)
+        }
+    }
+
     // How a long job went, as soon as it's done.
     LaunchedEffect(imports) {
         if ((imports is Imports.State.Done || imports is Imports.State.Failed) && dialog == null) {
@@ -195,6 +212,9 @@ enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, RACES, ADDONS, ICON }
 
 /** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
 private var modsDialog = HomeDialog.GRAPHICS
+
+/** Whether this run of the app has put a newer custom races package in (or tried to). */
+private var racesRefreshTried = false
 
 /** What's on the phone, read when the screen needs it. */
 data class HomeFacts(

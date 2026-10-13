@@ -5,8 +5,10 @@
 # scripts/build-races.py over them, then two zips:
 #
 #   WarcraftRaces-client.zip   the client's patch folder (Data/patch-Z.MPQ/): the module's models,
-#                              textures, sounds and character creation screen, and the built
-#                              tables in DBFilesClient (the module's own tables are left out)
+#                              textures, sounds and character creation screen (with the app's
+#                              fixes to it, warcraft/races/client/RaceScreen.lua, after it in
+#                              GlueXML.toc), and the built tables in DBFilesClient (the module's
+#                              own tables are left out)
 #   WarcraftRaces-server.zip   dbc/ (the built tables, over the server's), world.sql, races.txt,
 #                              achievements.txt (the achievements and criteria the races add,
 #                              which ctl.sh keeps aside while they're off), VERSION
@@ -57,16 +59,19 @@ python3 -I "$ROOT/scripts/build-races.py" \
 	--modpaks "$WORK/module/modpaks" --manifest "$ROOT/warcraft/races/manifest" \
 	--meta "$WORK/thorium/internal/dbc/meta" --meta "$ROOT/warcraft/races/meta" \
 	--dbc "$WORK/stockdbc" --out "$WORK/out" \
+	--client "$WORK/module/data/patch-A.MPQ" --client-exclude "$RACES_CLIENT_EXCLUDE" \
+	--glue "$ROOT/warcraft/races/client/RaceScreen.lua" \
 	--host "${DB_HOST:-127.0.0.1}" --port "${DB_PORT:-3306}" --user "${DB_USER:-root}" --password "${DB_PASSWORD:-}"
 cat "$WORK/out/races.txt"
 
 echo "== packages"
 version="races $(git -C "$WORK/module" rev-parse --short=7 HEAD), built by $(git -C "$ROOT" rev-parse --short=7 HEAD 2> /dev/null || echo "?")"
 printf '%s\n' "$version" > "$WORK/out/VERSION"
-python3 -I - "$WORK/module/data/patch-A.MPQ" "$WORK/out" "$WORK" "$RACES_CLIENT_EXCLUDE" "$WORK/stockdbc" <<'EOF'
+python3 -I - "$WORK/module/data/patch-A.MPQ" "$WORK/out" "$WORK" "$RACES_CLIENT_EXCLUDE" "$WORK/stockdbc" \
+	"$ROOT/warcraft/races/client/RaceScreen.lua" <<'EOF'
 import os, struct, sys, zipfile
 
-patch, out, work, exclude, stock = sys.argv[1:6]
+patch, out, work, exclude, stock, screen = sys.argv[1:7]
 excluded = [word.lower() for word in exclude.split(",") if word]
 
 def ids(path):
@@ -82,13 +87,33 @@ with open(os.path.join(out, "achievements.txt"), "w") as f:
         added = sorted(ids(os.path.join(out, "dbc", table)) - ids(os.path.join(stock, table)))
         f.write(word + " " + " ".join(map(str, added)) + "\n")
 
-def add(z, path, name):
+def add(z, path, name, data=None):
     # Fixed times and order: the same inputs make the same zip.
     info = zipfile.ZipInfo(name, date_time=(2020, 1, 1, 0, 0, 0))
     info.compress_type = zipfile.ZIP_DEFLATED
     info.external_attr = 0o644 << 16
+    if data is None:
+        with open(path, "rb") as f:
+            data = f.read()
+    z.writestr(info, data, compresslevel=6)
+
+# The app's character screen fixes (RaceScreen.lua) load after the module's own screen.
+TOC = "Interface/GlueXML/GlueXML.toc"
+SCREEN = "RaceScreen.lua"
+
+def toc(path):
     with open(path, "rb") as f:
-        z.writestr(info, f.read(), compresslevel=6)
+        text = f.read().decode("utf-8")
+    newline = "\r\n" if "\r\n" in text else "\n"
+    lines = text.split(newline)
+    last = [i for i, line in enumerate(lines) if line.strip() == "GlueLocalizationPost.xml"]
+    if len(last) != 1:
+        sys.exit(f"{TOC}: no GlueLocalizationPost.xml to put {SCREEN} before")
+    at = last[0]
+    while at > 0 and lines[at - 1].startswith("##"):
+        at -= 1
+    lines.insert(at, SCREEN)
+    return newline.join(lines).encode("utf-8")
 
 def files(top):
     for folder, dirs, names in os.walk(top):
@@ -103,8 +128,10 @@ with zipfile.ZipFile(os.path.join(work, "WarcraftRaces-client.zip"), "w", allowZ
         # The module's tables are for all of its races: the built ones go in their place.
         if rel.lower().startswith("dbfilesclient/") or any(word in rel.lower() for word in excluded):
             continue
-        add(z, path, rel)
+        add(z, path, rel, toc(path) if rel == TOC else None)
         count += 1
+    add(z, screen, "Interface/GlueXML/" + SCREEN)
+    count += 1
     for path in files(os.path.join(out, "dbc")):
         add(z, path, "DBFilesClient/" + os.path.basename(path))
         count += 1
