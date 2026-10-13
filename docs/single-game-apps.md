@@ -243,6 +243,11 @@ The user can't debug: report only what was checked, and say what wasn't.
   published before. Creating the tag first through the git refs API (`gh api -X POST
   repos/<repo>/git/refs`) and then the release with `--verify-tag` works
   (`.github/workflows/build-warcraft.yml`).
+- A workflow that only has `workflow_dispatch`, on a branch that isn't the repository's default,
+  can't be dispatched (GitHub doesn't know it) until it has run once. A `push` trigger on its own
+  file, with every job `if: github.event_name == 'workflow_dispatch'`, makes the push run it once,
+  doing nothing; dispatches with `ref` set to the branch work from then on
+  (`.github/workflows/build-warcraft-modules.yml`).
 - On Android 11 and later an app's `/data/data/<package>` and `/data/user/0/<package>` are the same
   folder mounted twice in its own view of `/data`, not a link: comparing canonical paths says they
   differ. Check that it's the same folder by writing a file through one path and reading it through
