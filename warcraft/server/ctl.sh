@@ -9,6 +9,7 @@
 #   ctl.sh db-ping | db-stop        ask MariaDB if it's up / to shut down
 #   ctl.sh sql [database]           run the SQL on stdin (prints tab-separated rows)
 #   ctl.sh dbimport                 create and update the databases
+#   ctl.sh races                    bring the world in line with the Races switch (MariaDB up)
 #   ctl.sh auth | world             run the auth server / world server
 #   ctl.sh maps|vmaps|mmaps CLIENT  extract the server's data from a 3.3.5a client folder
 #
@@ -19,6 +20,8 @@ FILES="${FILES:-/data/data/com.logie.warcraft/files}"
 SERVER="$FILES/server"
 ETC="$FILES/etc"
 DATA="$FILES/data"
+RACES="$FILES/races"
+DATA_RACES="$FILES/data-races"
 DB_DIR="$FILES/mysql"
 LOGS="$FILES/logs"
 RUN="$FILES/run"
@@ -95,6 +98,92 @@ db_client() {
 	LD_PRELOAD="$COMPAT" "$SERVER/bin/mariadb" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$@"
 }
 
+# The world database as dbimport makes it, without anything added since (the custom races).
+rebuild_world() {
+	echo "Making the world database again"
+	printf 'DROP DATABASE IF EXISTS `acore_world`;\nCREATE DATABASE `acore_world` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' |
+		db_client
+	(cd "$RUN" && musl_programs && "$SERVER/bin/dbimport" -c "$ETC/dbimport.conf")
+}
+
+# The characters' records of the achievements only the races have ($RACES/achievements.txt): the
+# world server drops them while it hasn't the races, so they're kept aside (keep) and come back
+# (restore) with the races.
+races_achievements() {
+	case $1 in
+	keep)
+		[ -f "$RACES/achievements.txt" ] || return 0
+		achievements=$(sed -n 's/^achievements //p' "$RACES/achievements.txt" | tr ' ' ',')
+		criteria=$(sed -n 's/^criteria //p' "$RACES/achievements.txt" | tr ' ' ',')
+		{
+			echo "CREATE TABLE IF NOT EXISTS app_races_achievement LIKE character_achievement;"
+			echo "CREATE TABLE IF NOT EXISTS app_races_achievement_progress LIKE character_achievement_progress;"
+			[ -z "$achievements" ] ||
+				echo "REPLACE INTO app_races_achievement SELECT * FROM character_achievement WHERE achievement IN ($achievements);"
+			[ -z "$criteria" ] ||
+				echo "REPLACE INTO app_races_achievement_progress SELECT * FROM character_achievement_progress WHERE criteria IN ($criteria);"
+		} | db_client acore_characters
+		;;
+	restore)
+		{
+			echo "CREATE TABLE IF NOT EXISTS app_races_achievement LIKE character_achievement;"
+			echo "CREATE TABLE IF NOT EXISTS app_races_achievement_progress LIKE character_achievement_progress;"
+			echo "INSERT IGNORE INTO character_achievement SELECT * FROM app_races_achievement;"
+			echo "INSERT IGNORE INTO character_achievement_progress SELECT * FROM app_races_achievement_progress;"
+			echo "DROP TABLE app_races_achievement, app_races_achievement_progress;"
+		} | db_client acore_characters
+		;;
+	esac
+}
+
+# The custom races (the launcher's Races switch), on while $RACES/on is there and the app has put
+# their files in $RACES (dbc/, world.sql, VERSION). On: the world server reads its tables from
+# $DATA_RACES, links to the server data's with the races' tables in place, and the world database
+# has the races' SQL, added once (the table app_races says which, or that adding it didn't end).
+# Off: the world database is made again without them. Characters of the races stay in the
+# characters database, left out of the character list until the races are back.
+races() {
+	applied=$(echo "SELECT version FROM app_races" | db_client --batch --skip-column-names acore_world 2> /dev/null || true)
+	if [ -f "$RACES/on" ] && [ -f "$RACES/world.sql" ] && [ -f "$RACES/VERSION" ]; then
+		version=$(head -n 1 "$RACES/VERSION" | tr -d "\\\\'")
+		if [ -n "$applied" ] && [ "$applied" != "$version" ]; then
+			rebuild_world
+			applied=""
+		fi
+		if [ -z "$applied" ]; then
+			echo "Adding the custom races to the world database"
+			printf "CREATE TABLE IF NOT EXISTS app_races (version VARCHAR(255) NOT NULL);\nDELETE FROM app_races;\nINSERT INTO app_races VALUES ('adding');\n" |
+				db_client acore_world
+			db_client acore_world < "$RACES/world.sql"
+			printf "UPDATE app_races SET version = '%s';\n" "$version" | db_client acore_world
+		fi
+		rm -rf "$DATA_RACES"
+		if [ -d "$DATA/dbc" ]; then
+			mkdir -p "$DATA_RACES/dbc"
+			for entry in "$DATA"/*; do
+				[ "$(basename "$entry")" = dbc ] || ln -s "$entry" "$DATA_RACES/"
+			done
+			for table in "$DATA"/dbc/*; do
+				ln -s "$table" "$DATA_RACES/dbc/"
+			done
+			for table in "$RACES"/dbc/*; do
+				ln -sf "$table" "$DATA_RACES/dbc/$(basename "$table")"
+			done
+		fi
+		races_achievements restore
+		setkey "$ETC/worldserver.conf" DataDir "\"$DATA_RACES\""
+		echo "Custom races on: $version"
+	else
+		if [ -n "$applied" ]; then
+			races_achievements keep
+			rebuild_world
+		fi
+		rm -rf "$DATA_RACES"
+		setkey "$ETC/worldserver.conf" DataDir "\"$DATA\""
+		echo "Custom races off"
+	fi
+}
+
 cmd=${1:-}
 [ $# -gt 0 ] && shift
 case "$cmd" in
@@ -133,6 +222,9 @@ db-stop)
 	;;
 sql)
 	db_client --batch --skip-column-names ${1:+"$1"}
+	;;
+races)
+	races
 	;;
 dbimport)
 	cd "$RUN"
@@ -174,7 +266,7 @@ mmaps)
 	exec "$SERVER/bin/mmaps_generator" --config "$ETC/mmaps-config.yaml" ${1:+--threads "$1"}
 	;;
 *)
-	sed -n '2,17p' "$0" >&2
+	sed -n '2,18p' "$0" >&2
 	exit 2
 	;;
 esac

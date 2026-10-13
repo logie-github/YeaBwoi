@@ -6,8 +6,14 @@
     auth_check.py login HOST USER PASSWORD    log in and print the realm list
     auth_check.py world HOST USER PASSWORD CHARACTER [COMMAND]
                                               log in, then into the world server: create the
-                                              character (if the account has none), enter the
-                                              world with it, run a GM command, log out
+                                              character (a human warrior, if the account hasn't
+                                              one of that name), enter the world with it, run a
+                                              GM command, log out
+    auth_check.py world-as HOST USER PASSWORD CHARACTER RACE CLASS
+                                              the same with a character of that race and class
+    auth_check.py characters HOST USER PASSWORD
+                                              print the account's character list: "name race
+                                              class level" a line
 
 Exits non-zero if anything fails. Used by scripts/test-warcraft-server.sh in CI.
 """
@@ -222,7 +228,8 @@ def system_messages(packets):
             yield body[29:29 + size].rstrip(b"\0").decode(errors="replace")
 
 
-def world(host, user, password, character, command=None, port=8085):
+def world_session(host, user, password, port=8085):
+    """A session on the world server, logged in, and a function that lists the characters."""
     user = user.upper()
     _, K = login(host, user, password)
     session = WorldSession(host, port)
@@ -252,22 +259,27 @@ def world(host, user, password, character, command=None, port=8085):
             name = body[pos + 8:end].decode()
             race, cls, _, _, _, _, _, _, level = body[end + 1:end + 10]
             zone, map_id = struct.unpack_from("<II", body, end + 10)
-            found.append((guid, name, level, map_id, zone))
+            found.append((guid, name, level, map_id, zone, race, cls))
             # Then position, guild, flags, first login, pet, and 23 equipment slots.
             pos = end + 10 + 8 + 12 + 4 + 4 + 4 + 1 + 12 + 23 * 9
         return found
 
+    return session, characters
+
+
+def world(host, user, password, character, command=None, race=1, cls=1, port=8085):
+    session, characters = world_session(host, user, password, port)
     chars = characters()
-    if not any(name == character for _, name, *_ in chars):
-        # A human warrior: race 1, class 1, male, default looks.
-        session.send(CMSG_CHAR_CREATE, character.encode() + b"\0" + bytes([1, 1, 0, 0, 0, 0, 0, 0, 0]))
+    if not any(c[1] == character for c in chars):
+        # Male, default looks.
+        session.send(CMSG_CHAR_CREATE, character.encode() + b"\0" + bytes([race, cls, 0, 0, 0, 0, 0, 0, 0]))
         _, body = session.wait_for([SMSG_CHAR_CREATE])
         if body[0] not in (CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE):
             raise RuntimeError(f"creating the character failed: {body[0]:#x}")
         print(f"world: created {character}")
         chars = characters()
-    guid, name, level, map_id, zone = next(c for c in chars if c[1] == character)
-    print(f"world: {name}, level {level}, map {map_id}, zone {zone}")
+    guid, name, level, map_id, zone, race, cls = next(c for c in chars if c[1] == character)
+    print(f"world: {name}, race {race}, class {cls}, level {level}, map {map_id}, zone {zone}")
 
     session.send(CMSG_PLAYER_LOGIN, struct.pack("<Q", guid))
     _, body = session.wait_for([SMSG_LOGIN_VERIFY_WORLD], seconds=120)
@@ -302,6 +314,13 @@ def main():
             print(f"realm\t{rname}\t{address}")
     elif len(sys.argv) in (6, 7) and sys.argv[1] == "world":
         world(*sys.argv[2:])
+    elif len(sys.argv) == 8 and sys.argv[1] == "world-as":
+        world(*sys.argv[2:6], race=int(sys.argv[6]), cls=int(sys.argv[7]))
+    elif len(sys.argv) == 5 and sys.argv[1] == "characters":
+        session, characters = world_session(*sys.argv[2:5])
+        for _, name, level, _, _, race, cls in characters():
+            print(f"{name}\t{race}\t{cls}\t{level}")
+        session.sock.close()
     else:
         print(__doc__, file=sys.stderr)
         sys.exit(2)

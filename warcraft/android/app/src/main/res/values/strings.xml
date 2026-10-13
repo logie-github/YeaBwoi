@@ -59,6 +59,8 @@
     <string name="wow_step_import_note">The first start fills in the world: every creature, quest and item. It takes a few minutes, once.</string>
     <string name="wow_step_auth">Starting the login server…</string>
     <string name="wow_step_world">Loading the world…</string>
+    <string name="wow_step_races">Setting up the custom races…</string>
+    <string name="wow_step_races_note">The custom races were turned on or off: the world database changes with them. It takes a few minutes, once.</string>
     <string name="wow_server_error_path">The app\'s storage is at %1$s, not where the server expects it. The server only runs for the phone\'s main user, not in a second user or a work profile.</string>
     <string name="wow_server_error_unpack">Couldn\'t unpack the server: %1$s</string>
     <string name="wow_server_error_step">The server\'s setup failed (%1$s ended with %2$d).</string>
@@ -262,11 +264,34 @@
     <string name="wow_hd_not_applied">Not in your client yet.</string>
     <string name="wow_hd_retry">Try again</string>
     <string name="wow_mods_title">Changing your client</string>
-    <string name="wow_mods_progress">Downloading the HD look: %1$d%%</string>
+    <string name="wow_mods_progress">Changing your client: %1$d%%</string>
     <string name="wow_mods_done">Your client is changed. It takes effect the next time the game starts.</string>
     <string name="wow_mods_reading">Reading the download\'s contents…</string>
     <string name="wow_mods_error_no_client">Add your 3.3.5a client first (Game files).</string>
     <string name="wow_mods_error_missing">The download no longer has %1$s.</string>
+    <string name="wow_tile_races">Custom races</string>
+    <string name="wow_tile_races_on">On: Goblin, Worgen and 9 more</string>
+    <string name="wow_tile_races_coming">On, not in your client yet</string>
+    <string name="wow_tile_races_off">Off</string>
+    <string name="wow_tile_races_unavailable">Not in this build</string>
+    <string name="wow_races_title">Custom races</string>
+    <string name="wow_races_body">Eleven more races for new characters, Goblin and Worgen among them. Turned on, their package (about 450 MB) is downloaded into your client (Data/patch-Z.MPQ) and the realm, and the realm takes them at its next start, which adds them to the world database (a few minutes, once). The game runs as a copy of Wow.exe that loads changed interface files (your Wow.exe stays as it is).</string>
+    <string name="wow_races_switch">Custom races</string>
+    <string name="wow_races_switch_on">On</string>
+    <string name="wow_races_switch_off">Off: the game\'s own races only</string>
+    <string name="wow_races_in">In your client and the realm.</string>
+    <string name="wow_races_list">The races</string>
+    <string name="wow_races_alliance">Alliance: %1$s</string>
+    <string name="wow_races_horde">Horde: %1$s</string>
+    <string name="wow_races_notes">Turning them off later changes nothing else: characters of these races are kept, left out of the character list until the races are back on, and the realm\'s next start makes the world database again without them. Random bots only ever take the game\'s own races. With the races on, the HD looks keep only their world, water, sky, light, music and loading screens.</string>
+    <string name="wow_races_kept">Their files are kept (about 1.3 GB), so turning them back on needs no download.</string>
+    <string name="wow_races_delete">Delete the races\' files</string>
+    <string name="wow_races_finding">Looking for the races\' package…</string>
+    <string name="wow_races_server_part">The realm\'s part</string>
+    <string name="wow_races_client_part">The client\'s part</string>
+    <string name="wow_races_deleting">Deleting the races\' files…</string>
+    <string name="wow_races_error_unavailable">This build has no custom races package (a build made on a PC). The builds on this repository\'s releases have it.</string>
+    <string name="wow_races_error_missing">The release %2$s has no %1$s.</string>
     <string name="wow_mods_error_exe">Your Wow.exe isn\'t the 3.3.5a (12340) one these changes are made for (%1$s).</string>
 
     <!-- Add-ons (Addons.kt) -->

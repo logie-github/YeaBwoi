@@ -112,6 +112,24 @@ With an HD look, the game runs as `WowPatched.exe`, a copy of your `Wow.exe` tha
 
 With custom races on, the HD characters and creatures (and the alternative patch's spell effects) can't be in the client with them: they replace the same tables. They're set aside (not deleted) while the races are on and come back when the races are off; the world, water, sky, light, music and loading screens stay.
 
+## Custom races
+
+**Custom races** (a launcher tile) is a switch for eleven more races to make characters with, from [mod-worgoblin-high-elf](https://github.com/Medviten/mod-worgoblin-high-elf):
+
+| Alliance | Horde |
+| --- | --- |
+| Worgen, High Elf, Dark Iron Dwarf, Pandaren, Broken | Goblin, Mag'har Orc, Ogre, Zandalari Troll, Vulpera, Pandaren |
+
+Each of them can be any class, Death Knight and Druid included, starting in the home of the race it's closest to (Worgen in Teldrassil, Goblin in Durotar...). Goblins have their racials (Rocket Barrage, Best Deals Anywhere...), Worgen run on all fours (Running Wild, with free riding at 20 and 40).
+
+**On** downloads their package (about 450 MB, from this repository's own release `wow-races-...`) into your client, as the folder `Data/patch-Z.MPQ` (models, textures, sounds, the character creation screen with the new races, and the game's tables), and into the realm (`files/races`: the same tables and the world database's changes). The realm takes them at its next start: the step **Setting up the custom races** adds them to the world database (a few minutes, once). The game runs as `WowPatched.exe` (see **HD look**), which loads the changed interface files the character creation screen needs.
+
+**Off** sets the client's folder aside (`patch-Z.MPQ.off`) and the realm's next start makes the world database again without the races (a few minutes, once). Nothing else changes: characters of the custom races are kept, left out of the character list until the races are back on; your other characters, accounts, the bots and the HD look are as they were. The files stay (about 1.3 GB) so turning the races back on needs no download; **Delete the races' files** removes them. Each race's id is its own for good, so a character always comes back as the race it was made.
+
+Random bots only ever take the game's own ten races.
+
+With the races on, the HD looks keep only their world, water, sky, light, music and loading screens (see **HD look**).
+
 ## Playing from a PC
 
 On a PC on the same Wi-Fi as the phone, in the client's folder, open `Data\enUS\realmlist.wtf` and set its line to the address the app shows under **From a PC on this Wi-Fi** (also in **Server**):
@@ -132,6 +150,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them; **Log in automatically** with one (the game types its password at the login screen; the first account you make here does it from the start). Needs the server running. |
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). And its **HD look** (see below). Takes effect the next time the game starts. |
+| **Custom races** | Goblin, Worgen and nine more races on or off (see **Custom races**). |
 | **Add-ons** | The add-on manager: browse and search warperia.com's 3.3.5a add-ons, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
 | **Updates** | Checks for a newer version and installs it. |
@@ -140,7 +159,7 @@ While the server runs, Android shows a notification for it, with **Stop**. While
 
 ## The server
 
-ChromieCraft runs a progressive realm: content opens bracket by bracket, as the original game did. The server starts the way ChromieCraft did, with the first brackets (`Bracket_0` and `Bracket_1_19`) on, at blizzlike rates. The playerbots module starts with 50 random bots (its own default is 500, too many for a phone), which only run while someone is logged in. Changing brackets, rates, realm options and bots in the launcher comes in stage 3; until then they're in the configs (`files/etc/worldserver.conf`, `files/etc/modules/*.conf`), and a game master can use the GM commands in the game's chat (`.help`).
+ChromieCraft runs a progressive realm: content opens bracket by bracket, as the original game did. The server starts the way ChromieCraft did, with the first brackets (`Bracket_0` and `Bracket_1_19`) on, at blizzlike rates. The playerbots module starts with 50 random bots (of the game's own races, custom races on or not) (its own default is 500, too many for a phone), which only run while someone is logged in. Changing brackets, rates, realm options and bots in the launcher comes in stage 3; until then they're in the configs (`files/etc/worldserver.conf`, `files/etc/modules/*.conf`), and a game master can use the GM commands in the game's chat (`.help`).
 
 Modules: [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots), [mod-progression-system](https://github.com/azerothcore/mod-progression-system), [mod-zone-difficulty](https://github.com/azerothcore/mod-zone-difficulty), [mod-chromie-xp](https://github.com/azerothcore/mod-chromie-xp), and from ChromieCraft's own: [mod-chromiecraft-smartstone](https://github.com/chromiecraft/mod-chromiecraft-smartstone), [mod-hoard-collector](https://github.com/chromiecraft/mod-hoard-collector), [mod-npc-talent-template](https://github.com/chromiecraft/mod-npc-talent-template). ChromieCraft's staff-only modules (GM command presets, contributor bonuses, support tools, the test realm's changes) are left out.
 
@@ -168,25 +187,29 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | --- | --- |
 | `server-version.env` | The core (ChromieCraft's copy of AzerothCore), the playerbots fork's core, the modules, each at a pinned commit |
 | `server-data.env` | The server data the app downloads: AzerothCore's [client-data](https://github.com/wowgaming/client-data) release that the pinned core uses itself, with its size and SHA-256 |
-| `patches/azerothcore/` | Changes to the core (building on musl) |
+| `patches/azerothcore/` | Changes to the core: building on musl, telling the app about selections and cutscenes, the custom races (`0009`: their ids, names, flight paths, costumes, racials) |
+| `patches/mod-playerbots/` | Changes to the playerbots module: random bots of the game's own races only |
+| `races/` | The custom races: `races.env` (mod-worgoblin-high-elf and Thorium at pinned commits), `manifest` (its race packs, in the order that gives each race its id), `meta/` (the layouts of the game's tables Thorium doesn't have) |
+| `../scripts/build-races.py` | Makes the races' tables and world SQL: the game's tables into MariaDB, the race packs' SQL over them, the changed tables back out as DBC files, and the world database's SQL with its variables worked out |
+| `../scripts/build-races-package.sh` | The races' package: the sources at their pins, the game's tables out of the server data, `build-races.py`, then `WarcraftRaces-client.zip` (the client's `patch-Z.MPQ` folder) and `WarcraftRaces-server.zip` (the tables, `world.sql`, `races.txt`) |
 | `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules |
 | `../scripts/compile-azerothcore.sh` | Compiles it all in an Alpine (musl) container, into `build/azerothcore-dist`: the programs, their configs and the SQL. The slow part (CI caches it, and ccache makes a new core revision quicker) |
 | `../scripts/package-azerothcore.sh` | Packs `android/server/server.tar.xz` (git-ignored) from that, in the same Alpine, in a few minutes: the programs with their own musl loader and libraries, Alpine's MariaDB, OpenSSL's legacy provider, the system call shim, the SQL, the configs and a seed database folder |
 | `../scripts/build-azerothcore.sh` | Both, one after the other |
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI |
-| `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does |
+| `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, and the shutdown the app does; then the custom races on (the random bots made again, none of the custom races; a Worgen and a Goblin created and taken into the world) and off (the world database made again, the two left out of the character list but kept) |
 | `winlator-version.env` | The game's runtime: Winlator's Android app at the commit Winlator 11.2 pins, and its install path with this app's |
 | `patches/winlator/` | Changes to Winlator: its runtime in this app's data folder and Exit back to the launcher; `if` chains for its `switch` statements on resource ids (built into the app's module they aren't constants); installing the runtime without its screens; the app's gestures, menu and loading screen over the game screen in place of Winlator's, and Back as Escape |
 | `../scripts/prepare-winlator.sh` | Puts Winlator into `android/winlator` (git-ignored), which the app's module builds with its own code: Winlator's Java code (using the app's `R`), resources, native code (NDK 24, CMake 3.22), prebuilt libraries and assets |
 | `../scripts/winlator-rewrite.py` | Rewrites the install path compiled into every archive of Winlator's runtime (`/data/data/com.winlator/files/rootfs` to `/data/data/com.logie.warcraft/rootfs`, the same length, so programs keep their layout) |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
 | `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset. `game/Game.kt` starts the game; `controls/TouchGestures.kt` is the gestures, `game/GestureView.kt` puts them on the game screen |
-| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, updates, the servers' logs |
+| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, the custom races' list, updates, the servers' logs |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
 | `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
 
-CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners: the compile is cached by the pins, the patches and the compile scripts, and the package by everything in it, so a change to the packaging takes minutes and a change to the app alone reuses the package. It downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, prepares Winlator (cached by its commit and the patches), builds the APK and publishes the release with the Windows tools.
+CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners: the compile is cached by the pins, the patches and the compile scripts, and the package by everything in it, so a change to the packaging takes minutes and a change to the app alone reuses the package. It downloads the server data and checks its SHA-256, tests the server on it (with the custom races on and off), builds the Windows tools, builds the custom races' package when what goes into it changed and publishes it as its own release (`wow-races-<hash>`, a prerelease; each APK names the one it downloads), runs the unit tests, prepares Winlator (cached by its commit and the patches), builds the APK and publishes the release with the Windows tools.
 
 Local builds:
 
@@ -198,6 +221,10 @@ scripts/package-azerothcore.sh
 scripts/test-warcraft-server.sh
 # ...with the server data, all the way into the world (data.zip from server-data.env's URL):
 WOW_DATA_ZIP=/path/to/data.zip scripts/test-warcraft-server.sh
+# The custom races' package (a MariaDB server to build in, Python's pymysql), and the server test
+# with it:
+DB_USER=root DB_PASSWORD=... scripts/build-races-package.sh build/races
+WOW_DATA_ZIP=/path/to/data.zip WOW_RACES_ZIP=build/races/WarcraftRaces-server.zip scripts/test-warcraft-server.sh
 # The game's runtime, once (and after a change to its commit or patches; needs Python's zstandard):
 scripts/prepare-winlator.sh
 # The app (copy server.tar.xz from a release build into warcraft/android/server/ to include it;

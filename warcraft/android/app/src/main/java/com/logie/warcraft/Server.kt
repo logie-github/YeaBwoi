@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit
 object Server {
     enum class Phase { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
 
-    enum class Step { UNPACKING, CONFIGURING, DATABASE, IMPORT, AUTH, WORLD }
+    enum class Step { UNPACKING, CONFIGURING, DATABASE, IMPORT, RACES, AUTH, WORLD }
 
     enum class World {
         /** Not started (the server is stopped, or still on an earlier step). */
@@ -164,6 +164,12 @@ object Server {
                     step(Step.IMPORT, detail = ConsoleText.plain(line))
                 }
                 importedMarker(context).writeText("${System.currentTimeMillis()}\n")
+            }
+            // The custom races into the world database, or out of it (CustomRaces): quick when
+            // there's nothing to change.
+            step(Step.RACES)
+            runToEnd(context, "races", log = File(WowFiles.logs(context), "races.log"), timeoutMinutes = 60) { line ->
+                step(Step.RACES, detail = ConsoleText.plain(line))
             }
             setRealmAddress(context)
 

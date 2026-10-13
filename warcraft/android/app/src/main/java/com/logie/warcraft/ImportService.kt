@@ -62,8 +62,11 @@ class ImportService : Service() {
 
         scope.launch {
             val result = runCatching {
-                // An HD look changes the client only: the realm can keep running.
-                if (kind != Imports.Kind.MODS) Server.stopAndWait(this@ImportService)
+                // An HD look changes the client only: the realm can keep running. Custom races
+                // going in or out change the realm too, at its next start.
+                if (kind != Imports.Kind.MODS || CustomRaces.changesServer(this@ImportService)) {
+                    Server.stopAndWait(this@ImportService)
+                }
                 when (kind) {
                     Imports.Kind.CLIENT -> {
                         val report = { progress: Float, detail: String? -> progress(kind, progress, detail) }
