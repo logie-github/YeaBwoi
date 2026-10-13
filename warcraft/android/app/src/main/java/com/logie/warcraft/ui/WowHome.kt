@@ -45,7 +45,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Extension
-import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
@@ -89,9 +88,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.logie.warcraft.AddonStore
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
-import com.logie.warcraft.CustomRaces
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
+import com.logie.warcraft.LegacyRaces
 import com.logie.warcraft.ModuleStore
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
@@ -152,21 +151,13 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
         if (update != null) updateOffer.launch(WowUpdateActivity.intent(context, update)) else checkUpdate = false
     }
 
-    // A newer custom races package came with this version (they're on): it takes the old one's
-    // place once the update check is done, while the realm is stopped (it reads the races at its
-    // start). How it went shows in the Races dialog.
-    val serverStopped = server.phase == Server.Phase.STOPPED || server.phase == Server.Phase.FAILED
-    LaunchedEffect(checkUpdate, serverStopped, imports is Imports.State.Idle) {
-        if (checkUpdate || !serverStopped || imports !is Imports.State.Idle || racesRefreshTried) return@LaunchedEffect
-        if (CustomRaces.isAvailable && CustomRaces.isWanted(context) && CustomRaces.isInstalled(context) &&
-            !CustomRaces.isApplied(context) && WowFiles.hasClient(context)
-        ) {
-            // Once a run of the app: if it fails (offline), the Races dialog has Try again.
-            racesRefreshTried = true
-            modsDialog = HomeDialog.RACES
-            ImportService.applyMods(context)
-        }
+    // The custom races of earlier versions: their part of the client goes (the realm's part at
+    // its next start).
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) { runCatching { LegacyRaces.cleanClient(context) } }
     }
+
+    val serverStopped = server.phase == Server.Phase.STOPPED || server.phase == Server.Phase.FAILED
 
     // A realm build with the user's modules, asked for earlier: how it went, once at the app's
     // opening; a finished one goes in while the realm is stopped (Modules screen otherwise).
@@ -224,7 +215,6 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             HomeDialog.ACCOUNTS -> AccountsDialog(onDismiss = { dialog = null })
             HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
-            HomeDialog.RACES -> RacesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
             // Over the whole screen, in the box above.
             HomeDialog.ADDONS, HomeDialog.MODULES -> {}
             null -> {}
@@ -232,13 +222,10 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, RACES, ADDONS, MODULES, ICON }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, MODULES, ICON }
 
 /** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
 private var modsDialog = HomeDialog.GRAPHICS
-
-/** Whether this run of the app has put a newer custom races package in (or tried to). */
-private var racesRefreshTried = false
 
 /** Whether this run of the app has looked at a realm build in flight. */
 private var modulesCheckTried = false
@@ -321,10 +308,6 @@ internal fun HomeScreen(
                         modsDialog = HomeDialog.GRAPHICS
                         onDialog(HomeDialog.GRAPHICS)
                     },
-                    HomeTile(Icons.Default.Face, stringResource(R.string.wow_tile_races), racesSummary(context)) {
-                        modsDialog = HomeDialog.RACES
-                        onDialog(HomeDialog.RACES)
-                    },
                     HomeTile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), addonsSummary(context, facts)) {
                         onDialog(HomeDialog.ADDONS)
                     },
@@ -361,16 +344,6 @@ private fun graphicsSummary(context: android.content.Context): String {
     val (width, height) = GameSettings.gameSize(context, resolution)
     return stringResource(R.string.wow_tile_graphics_summary, stringResource(resolution.label), width, height)
 }
-
-@Composable
-private fun racesSummary(context: android.content.Context): String = stringResource(
-    when {
-        !CustomRaces.isAvailable -> R.string.wow_tile_races_unavailable
-        CustomRaces.isWanted(context) && CustomRaces.isInstalled(context) -> R.string.wow_tile_races_on
-        CustomRaces.isWanted(context) -> R.string.wow_tile_races_coming
-        else -> R.string.wow_tile_races_off
-    },
-)
 
 @Composable
 private fun addonsSummary(context: android.content.Context, facts: HomeFacts): String {

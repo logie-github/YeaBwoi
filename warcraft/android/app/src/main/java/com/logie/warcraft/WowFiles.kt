@@ -34,7 +34,7 @@ object WowFiles {
     fun etc(context: Context) = File(root(context), "etc")
     fun data(context: Context) = File(root(context), "data")
     fun client(context: Context) = File(root(context), "client")
-    /** The custom races' files for the server (CustomRaces, ctl.sh races). */
+    /** The custom races' files for the server, from versions that had them (LegacyRaces, ctl.sh races). */
     fun races(context: Context) = File(root(context), "races")
     fun logs(context: Context) = File(root(context), "logs")
     fun run(context: Context) = File(root(context), "run")

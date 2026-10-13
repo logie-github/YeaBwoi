@@ -517,8 +517,22 @@ for the game on the phone itself ("that's the whole point").
   covers its mane, hair and facial hair, its body is the skin) and decode; what looks missing is
   asked of the user.
 
+- Then: "I don't like the custom races options. Remove it. But keep the modules setup." Taken out:
+  the Races tile and dialog, `CustomRaces`/`CustomRaceList`, the races package (`warcraft/races`,
+  `scripts/build-races*.py/.sh`, its CI job and `wow-races-*` downloads), core patch 0009 (the
+  races; the spellbook patch is 0009 now) and the playerbots patch (bots of the original races
+  only), the HD looks' race rules. What phones that had them keep is taken out once
+  (`LegacyRaces`): the client's `Data/patch-Z.MPQ` (or `.off`, `.part`) as the app opens or the
+  game starts, the HD files they set aside back; the realm's part at its next start (`ctl.sh
+  races`: the world database made again when `app_races` is there, `files/races` and
+  `files/data-races` deleted). Characters of the races stay in the database, out of the
+  character list (the stock core skips a race/class it has no playercreateinfo for). CI's server
+  test plants such leftovers (an `app_races` table, the folders, a race-12 copy of the test
+  character) and checks they go, the character stays hidden, and the human still plays. The
+  `wow-races-*` prereleases stay on GitHub (unused). Modules unchanged.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
-the custom races' character creation screen, a realm with modules), then stage 3.
+a realm with modules), then stage 3.
 
 ## Still open
 

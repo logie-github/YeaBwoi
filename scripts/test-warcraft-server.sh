@@ -16,10 +16,10 @@
 #      Without it, it stops where it needs the data (dbc).
 #      The app's add-on message (where the spellbook is) is kept for the app, and cleared at the
 #      logout.
-#   5. With the custom races' server package (WOW_RACES_ZIP: WarcraftRaces-server.zip, see
-#      scripts/build-races-package.sh), the races are turned on the way the app does it: a Worgen
-#      and a Goblin are created and enter the world. Then off: the world database is made again,
-#      the world server starts, and the two are left out of the character list but kept.
+#   5. What earlier versions' custom races left (their SQL in the world database, their files, a
+#      character of one of them) is taken out the way the realm's start does it (ctl.sh races):
+#      the world database is made again, the files go, the world server starts, and the
+#      character is left out of the character list but kept.
 #   6. The auth server starts again the way the app starts it, and the account logs in.
 #   7. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
@@ -212,75 +212,35 @@ if [ -n "$DATA_ZIP" ]; then
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 
-	if [ -n "${WOW_RACES_ZIP:-}" ]; then
-		echo "== custom races on"
-		# What the app does: the package's files in files/races, the switch's mark, then ctl.sh
-		# races before the world server starts.
-		mkdir -p "$FILES/races"
-		unzip -q -o "$WOW_RACES_ZIP" -d "$FILES/races"
-		touch "$FILES/races/on"
-		cat "$FILES/races/races.txt"
-		start=$(date +%s)
-		CTL races > "$FILES/logs/races-on.out" 2>&1 || fail "turning the races on failed: $(tail -5 "$FILES/logs/races-on.out")"
-		cat "$FILES/logs/races-on.out"
-		echo "took $(($(date +%s) - start)) s"
-		for race in 9 12; do
-			classes=$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race = $race" | CTL sql acore_world)
-			echo "race $race: $classes classes"
-			[ "$classes" -gt 0 ] || fail "the world database has no race $race"
-		done
-		grep -q "data-races" "$FILES/etc/worldserver.conf" || fail "the world server doesn't read the races' tables"
-		# The random bots' characters go, so the world server makes them again with the races on.
-		# (A DELETE through an alias wants a default database: the characters'.)
-		echo "DELETE c FROM acore_characters.characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%'; DELETE FROM acore_playerbots.playerbots_random_bots;" |
-			CTL sql acore_characters
-		start_world world-races.out
-		wait_world_ready
-		python3 "$ROOT/warcraft/server/auth_check.py" world-as 127.0.0.1 tester secret123 Testwolf 12 1 |
-			tee "$FILES/logs/world-worgen.out" || fail "a Worgen couldn't get into the world"
-		grep -q "in the world on map" "$FILES/logs/world-worgen.out" || fail "the Worgen didn't enter the world"
-		python3 "$ROOT/warcraft/server/auth_check.py" world-as 127.0.0.1 tester secret123 Testgoblin 9 1 |
-			tee "$FILES/logs/world-goblin.out" || fail "a Goblin couldn't get into the world"
-		grep -q "in the world on map" "$FILES/logs/world-goblin.out" || fail "the Goblin didn't enter the world"
-		bots=$(echo "SELECT COUNT(*) FROM acore_characters.characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%'" | CTL sql)
-		custom=$(echo "SELECT COUNT(*) FROM acore_characters.characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.race NOT IN (1, 2, 3, 4, 5, 6, 7, 8, 10, 11)" | CTL sql)
-		echo "random bots made with the races on: $bots, of the custom races: $custom"
-		[ "$bots" -gt 0 ] || fail "the random bots weren't made again"
-		[ "$custom" = 0 ] || fail "random bots took custom races"
-		stop_world
-
-		# A record of an achievement only the races have, which has to come through.
-		achievement=$(sed -n 's/^achievements \([0-9]*\).*/\1/p' "$FILES/races/achievements.txt")
-		echo "INSERT INTO character_achievement (guid, achievement, date) SELECT guid, $achievement, UNIX_TIMESTAMP() FROM characters WHERE name = 'Testwolf'" |
-			CTL sql acore_characters
-
-		echo "== custom races off"
-		rm "$FILES/races/on"
-		start=$(date +%s)
-		CTL races > "$FILES/logs/races-off.out" 2>&1 || fail "turning the races off failed: $(tail -5 "$FILES/logs/races-off.out")"
-		tail -3 "$FILES/logs/races-off.out"
-		echo "took $(($(date +%s) - start)) s"
-		classes=$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (9, 12)" | CTL sql acore_world)
-		[ "$classes" = 0 ] || fail "the world database still has the races"
-		grep -q "data-races" "$FILES/etc/worldserver.conf" && fail "the world server still reads the races' tables"
-		start_world world-norace.out
-		wait_world_ready
-		python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 |
-			tee "$FILES/logs/characters-norace.out" || fail "the character list didn't come"
-		grep -q "^Testhero" "$FILES/logs/characters-norace.out" || fail "the human left the list"
-		if grep -qE "^(Testwolf|Testgoblin)" "$FILES/logs/characters-norace.out"; then
-			fail "characters of the custom races are in the list with the races off"
-		fi
-		kept=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Testwolf', 'Testgoblin')" | CTL sql acore_characters)
-		echo "characters of the custom races kept: $kept"
-		[ "$kept" = 2 ] || fail "characters of the custom races were deleted"
-		kept=$(echo "SELECT COUNT(*) FROM app_races_achievement WHERE achievement = $achievement" | CTL sql acore_characters)
-		echo "the races' achievements kept aside: $kept"
-		[ "$kept" = 1 ] || fail "the races' achievement wasn't kept aside"
-		python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero |
-			grep -q "in the world on map" || fail "the human couldn't get into the world with the races off"
-		stop_world
-	fi
+	echo "== what earlier versions' custom races left, taken out"
+	# A phone that had them on: their SQL in the world database (the table app_races says so),
+	# their files, and a character of one of them (a Worgen, race 12: a copy of the human).
+	echo "CREATE TABLE app_races (version VARCHAR(255) NOT NULL); INSERT INTO app_races VALUES ('races 52fd006');" |
+		CTL sql acore_world
+	echo "CREATE TEMPORARY TABLE wolf AS SELECT * FROM characters WHERE name = 'Testhero'; UPDATE wolf SET guid = (SELECT MAX(guid) + 1 FROM characters), name = 'Testwolf', race = 12; INSERT INTO characters SELECT * FROM wolf;" |
+		CTL sql acore_characters
+	mkdir -p "$FILES/races/dbc" "$FILES/data-races/dbc"
+	touch "$FILES/races/on" "$FILES/races/world.sql"
+	start=$(date +%s)
+	CTL races > "$FILES/logs/races.out" 2>&1 || fail "taking the races out failed: $(tail -5 "$FILES/logs/races.out")"
+	tail -3 "$FILES/logs/races.out"
+	echo "took $(($(date +%s) - start)) s"
+	tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'acore_world' AND table_name = 'app_races'" | CTL sql)
+	[ "$tables" = 0 ] || fail "the world database still has the races"
+	if [ -e "$FILES/races" ] || [ -e "$FILES/data-races" ]; then fail "the races' files are still there"; fi
+	if grep -q "data-races" "$FILES/etc/worldserver.conf"; then fail "the world server reads the races' tables"; fi
+	start_world world-noraces.out
+	wait_world_ready
+	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 |
+		tee "$FILES/logs/characters-noraces.out" || fail "the character list didn't come"
+	grep -q "^Testhero" "$FILES/logs/characters-noraces.out" || fail "the human left the list"
+	if grep -q "^Testwolf" "$FILES/logs/characters-noraces.out"; then fail "the Worgen is in the character list"; fi
+	kept=$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Testwolf'" | CTL sql acore_characters)
+	echo "characters of the custom races kept: $kept"
+	[ "$kept" = 1 ] || fail "the Worgen was deleted"
+	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero |
+		grep -q "in the world on map" || fail "the human couldn't get into the world after the races went"
+	stop_world
 else
 	# Without the server's data, it runs until it needs dbc, then stops.
 	for _ in $(seq 300); do

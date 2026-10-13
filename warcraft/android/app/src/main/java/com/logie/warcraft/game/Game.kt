@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import com.logie.warcraft.Accounts
 import com.logie.warcraft.ClientMods
+import com.logie.warcraft.LegacyRaces
 import com.logie.warcraft.Database
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
@@ -123,7 +124,10 @@ object Game {
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = resolution
         val container = container(context, width, height)
-        withContext(Dispatchers.IO) { configureClient(context, width, height, accountName = null) }
+        withContext(Dispatchers.IO) {
+            LegacyRaces.cleanClient(context)
+            configureClient(context, width, height, accountName = null)
+        }
 
         _state.value = State.Preparing(Step.REALM)
         val server = Server.status.first {

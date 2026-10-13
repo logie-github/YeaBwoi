@@ -14,15 +14,12 @@ import java.io.IOException
  * Changes to the user's client chosen in the launcher, put in and taken out again by
  * [ImportService] (a job like the others in [Imports]):
  *
- * - **Custom races** ([CustomRaces]): their package's client folder, and the server's files.
  * - **An HD look** ([HdPatches]): the chosen patches' MPQ files in the client's `Data`, downloaded a
  *   file at a time out of their zips. Files of the client's own with the same names are kept aside
- *   (`.user`) and come back when the look is turned off. With custom races on, the patches that
- *   replace the same tables are set aside (`.off`) rather than deleted, so turning the races off
- *   brings them back without a download.
- * - **The executable** ([WowExePatch]): `WowPatched.exe`, a copy of `Wow.exe` that loads changed
- *   interface files (the races' character creation screen) and uses 4 GB, which the game starts
- *   with while any change is in. `Wow.exe` itself is never changed.
+ *   (`.user`) and come back when the look is turned off.
+ * - **The executable** ([WowExePatch]): `WowPatched.exe`, a copy of `Wow.exe` that uses 4 GB (and
+ *   loads changed interface files), which the game starts with while a look is in. `Wow.exe`
+ *   itself is never changed.
  *
  * What's in the client is listed in `files/mods/hd.txt`, so taking things out removes exactly
  * what was put in.
@@ -50,13 +47,11 @@ object ClientMods {
     }
 
     /** Whether the client is as chosen. */
-    fun isApplied(context: Context): Boolean = hd(context) == hdInstalled(context) && CustomRaces.isApplied(context)
+    fun isApplied(context: Context): Boolean = hd(context) == hdInstalled(context)
 
-    /** The program the game starts: the patched copy while any change is in. */
+    /** The program the game starts: the patched copy while a look is in. */
     fun exeName(context: Context): String =
-        if ((hdInstalled(context) != HdPatches.Choice.OFF || CustomRaces.isInstalled(context)) &&
-            File(WowFiles.client(context), PATCHED_EXE).isFile
-        ) PATCHED_EXE else "Wow.exe"
+        if (hdInstalled(context) != HdPatches.Choice.OFF && File(WowFiles.client(context), PATCHED_EXE).isFile) PATCHED_EXE else "Wow.exe"
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -67,13 +62,9 @@ object ClientMods {
         val client = WowFiles.client(context)
         if (!WowFiles.hasClient(context)) throw Imports.ImportException(context.getString(R.string.wow_mods_error_no_client))
         val choice = hd(context)
-        val races = CustomRaces.isWanted(context)
-        // The races need the executable's signature edits: a Wow.exe they don't fit stops here,
-        // before the download.
-        if (races) patchExe(context, client, needSignatures = true)
-        CustomRaces.apply(context, onProgress)
+        LegacyRaces.cleanClient(context)
         val locale = locale(client)
-        val wanted = HdPatches.files(choice, races = false).associateBy { it.target(locale) }
+        val wanted = HdPatches.files(choice).associateBy { it.target(locale) }
         val listed = installedFiles(context).toMutableMap()
 
         // The previous look's files go (the two looks share some names); the client's own come back.
@@ -94,26 +85,15 @@ object ClientMods {
         }
         saveInstalled(context, listed)
 
-        // Custom races on: the patches that replace their tables step aside, and come back after.
-        for ((target, file) in wanted) {
-            if (target !in listed) continue
-            val on = File(client, target)
-            val off = File(client, "$target.off")
-            if (!races || file.withRaces) {
-                if (!on.isFile && off.isFile) off.renameTo(on)
-            } else if (on.isFile) {
-                off.delete()
-                on.renameTo(off)
-            }
-        }
+        bringBackSetAside(context)
 
-        val missing = wanted.filter { (target, file) -> target !in listed && (!races || file.withRaces) }
+        val missing = wanted.filter { (target, _) -> target !in listed }
         if (missing.isNotEmpty()) {
             val source = HdPatches.source(choice)!!
             download(context, client, choice, source, missing, listed, onProgress)
         }
 
-        if (choice != HdPatches.Choice.OFF || races) patchExe(context, client, needSignatures = races) else File(client, PATCHED_EXE).delete()
+        if (choice != HdPatches.Choice.OFF) patchExe(context, client) else File(client, PATCHED_EXE).delete()
         prefs(context).edit().putString(KEY_HD_INSTALLED, choice.name).apply()
     }
 
@@ -121,7 +101,19 @@ object ClientMods {
     fun clientReplaced(context: Context) {
         installedList(context).delete()
         prefs(context).edit().remove(KEY_HD_INSTALLED).apply()
-        CustomRaces.clientReplaced(context)
+    }
+
+    /**
+     * The look's files set aside (`.off`) while the custom races of earlier versions were on come
+     * back ([LegacyRaces]).
+     */
+    fun bringBackSetAside(context: Context) {
+        val client = WowFiles.client(context)
+        for (target in installedFiles(context).keys) {
+            val on = File(client, target)
+            val off = File(client, "$target.off")
+            if (!on.isFile && off.isFile) off.renameTo(on)
+        }
     }
 
     /** The client's language folder in `Data` (enUS...). */
@@ -148,14 +140,13 @@ object ClientMods {
 
     /**
      * `WowPatched.exe` from `Wow.exe`: with the signature edits, or, when they don't fit this
-     * executable and nothing [needSignatures] (custom races do), with 4 GB only.
+     * executable, with 4 GB only.
      */
-    private fun patchExe(context: Context, client: File, needSignatures: Boolean) {
+    private fun patchExe(context: Context, client: File) {
         val original = File(client, "Wow.exe")
         val bytes = original.readBytes()
         var result = WowExePatch.patch(bytes, signatures = true)
         if (result is WowExePatch.Result.Unknown) {
-            if (needSignatures) throw Imports.ImportException(context.getString(R.string.wow_mods_error_exe, result.reason))
             val again = original.readBytes()
             result = WowExePatch.patch(again, signatures = false)
             if (result is WowExePatch.Result.Unknown) throw Imports.ImportException(context.getString(R.string.wow_mods_error_exe, result.reason))

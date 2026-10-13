@@ -59,8 +59,8 @@
     <string name="wow_step_import_note">The first start fills in the world: every creature, quest and item. It takes a few minutes, once.</string>
     <string name="wow_step_auth">Starting the login server…</string>
     <string name="wow_step_world">Loading the world…</string>
-    <string name="wow_step_races">Setting up the custom races…</string>
-    <string name="wow_step_races_note">The custom races were turned on or off: the world database changes with them. It takes a few minutes, once.</string>
+    <string name="wow_step_races">Taking the custom races out…</string>
+    <string name="wow_step_races_note">The custom races are gone from the app: the world database is made again without them (a few minutes, once). Characters made with them stay, out of the character list.</string>
     <string name="wow_server_error_path">The app\'s storage is at %1$s, not where the server expects it. The server only runs for the phone\'s main user, not in a second user or a work profile.</string>
     <string name="wow_server_error_unpack">Couldn\'t unpack the server: %1$s</string>
     <string name="wow_server_error_step">The server\'s setup failed (%1$s ended with %2$d).</string>
@@ -251,15 +251,12 @@
     <!-- Client mods: the HD look (ClientMods.kt, client/HdPatches.kt) -->
     <string name="wow_hd_title">HD look</string>
     <string name="wow_hd_body">HD textures and models for the game, from ChromieCraft\'s downloads page. Only the patch files are downloaded, into your client; picking Off takes them out again. They take effect the next time the game starts. The game runs as a copy of Wow.exe that may use 4 GB of memory (your Wow.exe stays as it is).</string>
-    <string name="wow_hd_races_note">With custom races on, only the HD world, water, sky, light, music and loading screens apply: the HD characters and creatures replace the same tables as the races. They\'re kept aside and come back when the races are off.</string>
     <string name="wow_hd_off">Off</string>
     <string name="wow_hd_off_summary">The game\'s own look</string>
     <string name="wow_hd_chromiecraft">HD patch</string>
     <string name="wow_hd_chromiecraft_summary">ChromieCraft\'s HD patch: characters, creatures and mounts, the world\'s and cities\' textures, sunlight. About 3.4 GB to download.</string>
-    <string name="wow_hd_chromiecraft_summary_races">ChromieCraft\'s HD patch: the world\'s and cities\' textures, sunlight. About 0.4 GB to download.</string>
     <string name="wow_hd_alternative">Alternative HD patch</string>
     <string name="wow_hd_alternative_summary">The community HD client\'s look: HD characters, models and NPCs, the world\'s textures, spells, water, sky, music and loading screens. About 7.6 GB to download.</string>
-    <string name="wow_hd_alternative_summary_races">The community HD client\'s look: the world\'s textures, water, sky, music and loading screens. About 2.9 GB to download.</string>
     <string name="wow_hd_in">In your client.</string>
     <string name="wow_hd_not_applied">Not in your client yet.</string>
     <string name="wow_hd_retry">Try again</string>
@@ -269,29 +266,6 @@
     <string name="wow_mods_reading">Reading the download\'s contents…</string>
     <string name="wow_mods_error_no_client">Add your 3.3.5a client first (Game files).</string>
     <string name="wow_mods_error_missing">The download no longer has %1$s.</string>
-    <string name="wow_tile_races">Custom races</string>
-    <string name="wow_tile_races_on">On: Goblin, Worgen and 9 more</string>
-    <string name="wow_tile_races_coming">On, not in your client yet</string>
-    <string name="wow_tile_races_off">Off</string>
-    <string name="wow_tile_races_unavailable">Not in this build</string>
-    <string name="wow_races_title">Custom races</string>
-    <string name="wow_races_body">Eleven more races for new characters, Goblin and Worgen among them. Turned on, their package (about 450 MB) is downloaded into your client (Data/patch-Z.MPQ) and the realm, and the realm takes them at its next start, which adds them to the world database (a few minutes, once). The game runs as a copy of Wow.exe that loads changed interface files (your Wow.exe stays as it is).</string>
-    <string name="wow_races_switch">Custom races</string>
-    <string name="wow_races_switch_on">On</string>
-    <string name="wow_races_switch_off">Off: the game\'s own races only</string>
-    <string name="wow_races_in">In your client and the realm.</string>
-    <string name="wow_races_list">The races</string>
-    <string name="wow_races_alliance">Alliance: %1$s</string>
-    <string name="wow_races_horde">Horde: %1$s</string>
-    <string name="wow_races_notes">Turning them off later changes nothing else: characters of these races are kept, left out of the character list until the races are back on, and the realm\'s next start makes the world database again without them. Random bots only ever take the game\'s own races. With the races on, the HD looks keep only their world, water, sky, light, music and loading screens.</string>
-    <string name="wow_races_kept">Their files are kept (about 1.3 GB), so turning them back on needs no download.</string>
-    <string name="wow_races_delete">Delete the races\' files</string>
-    <string name="wow_races_finding">Looking for the races\' package…</string>
-    <string name="wow_races_server_part">The realm\'s part</string>
-    <string name="wow_races_client_part">The client\'s part</string>
-    <string name="wow_races_deleting">Deleting the races\' files…</string>
-    <string name="wow_races_error_unavailable">This build has no custom races package (a build made on a PC). The builds on this repository\'s releases have it.</string>
-    <string name="wow_races_error_missing">The release %2$s has no %1$s.</string>
     <string name="wow_mods_error_exe">Your Wow.exe isn\'t the 3.3.5a (12340) one these changes are made for (%1$s).</string>
 
     <!-- Add-ons (Addons.kt) -->
