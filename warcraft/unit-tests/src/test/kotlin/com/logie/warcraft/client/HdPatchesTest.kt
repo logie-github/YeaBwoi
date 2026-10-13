@@ -7,30 +7,28 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HdPatchesTest {
-    private fun targets(choice: Choice, races: Boolean) = HdPatches.files(choice, races).map { it.target("enUS") }
+    private fun targets(choice: Choice) = HdPatches.files(choice).map { it.target("enUS") }
 
     @Test
     fun chromieCraftsPatchesWithoutTheTreesThatSpoilItsTextures() {
         assertEquals(
             listOf("Data/patch-H.MPQ", "Data/patch-F.MPQ", "Data/patch-G.MPQ", "Data/patch-T.MPQ", "Data/patch-S.MPQ"),
-            targets(Choice.CHROMIECRAFT, races = false),
+            targets(Choice.CHROMIECRAFT),
         )
-        // Custom races change the character and creature tables those patches replace.
-        assertEquals(listOf("Data/patch-T.MPQ", "Data/patch-S.MPQ"), targets(Choice.CHROMIECRAFT, races = true))
     }
 
     @Test
     fun theAlternativeClientsLookWithoutItsScreens() {
-        val all = targets(Choice.ALTERNATIVE, races = false)
-        assertTrue("Data/patch-A.MPQ" in all && "Data/enUS/patch-enUS-A.MPQ" in all)
-        assertTrue(all.none { it.contains("-C.") || it.contains("-K.") || it.contains("-D.") || it.contains("-5.") })
+        val all = targets(Choice.ALTERNATIVE)
         assertEquals(
-            listOf("Data/patch-6.MPQ", "Data/patch-W.MPQ", "Data/enUS/patch-enUS-W.MPQ", "Data/patch-X.MPQ",
+            listOf("Data/patch-A.MPQ", "Data/enUS/patch-enUS-A.MPQ", "Data/patch-F.MPQ", "Data/enUS/patch-enUS-F.MPQ",
+                "Data/patch-6.MPQ", "Data/patch-S.MPQ", "Data/patch-W.MPQ", "Data/enUS/patch-enUS-W.MPQ", "Data/patch-X.MPQ",
                 "Data/enUS/patch-enUS-X.MPQ", "Data/patch-E.MPQ", "Data/enUS/patch-enUS-Q.MPQ"),
-            targets(Choice.ALTERNATIVE, races = true),
+            all,
         )
-        assertEquals(listOf("Data/enGB/patch-enGB-Q.MPQ"), HdPatches.files(Choice.ALTERNATIVE, true).takeLast(1).map { it.target("enGB") })
-        assertEquals(emptyList(), targets(Choice.OFF, races = false))
+        assertTrue(all.none { it.contains("-C.") || it.contains("-K.") || it.contains("-D.") || it.contains("-5.") })
+        assertEquals(listOf("Data/enGB/patch-enGB-Q.MPQ"), HdPatches.files(Choice.ALTERNATIVE).takeLast(1).map { it.target("enGB") })
+        assertEquals(emptyList(), targets(Choice.OFF))
     }
 
     @Test

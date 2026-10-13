@@ -5,9 +5,8 @@ name: Build World of Warcraft
 # data the app downloads (warcraft/server-data.env); AzerothCore's data tools for Windows (to make
 # the server's data from the client on a PC); and the app, which ships the server and the game's
 # runtime, Winlator (scripts/prepare-winlator.sh, cached by its commit and the patches). Publishes
-# the app and the Windows tools as a release (wow-build-N). The custom races' package (the
-# launcher's Races switch, scripts/build-races-package.sh) is built once for each version of its
-# inputs and published as a release of its own (wow-races-<hash>), which the app downloads from.
+# the app and the Windows tools as a release (wow-build-N). A realm with the user's own modules is
+# another workflow's (build-warcraft-modules.yml, started by the app).
 #
 # The server is cached at two levels: the compiled programs and SQL (scripts/compile-azerothcore.sh,
 # the slow part) by what goes into the compile alone (the pins, the patches, the compile and fetch
@@ -26,8 +25,6 @@ on:
       - "scripts/package-azerothcore.sh"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
-      - "scripts/build-races.py"
-      - "scripts/build-races-package.sh"
       - "scripts/prepare-winlator.sh"
       - "scripts/winlator-rewrite.py"
       - ".github/workflows/build-warcraft.yml"
@@ -121,72 +118,14 @@ jobs:
           path: warcraft/android/server/server.tar.xz
           key: ${{ env.SERVER_KEY }}
 
-  # The custom races' package, made once for each version of what goes into it, and published as a
-  # release of its own (a prerelease, so it's never the newest app): its client part is 450 MB.
-  races:
-    name: Custom races package
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    outputs:
-      tag: ${{ steps.key.outputs.tag }}
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Release tag
-        id: key
-        run: |
-          hash="${{ hashFiles('warcraft/races/**', 'scripts/build-races.py', 'scripts/build-races-package.sh', 'warcraft/server-data.env') }}"
-          tag="wow-races-${hash::12}"
-          echo "RACES_TAG=$tag" >> "$GITHUB_ENV"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          if gh release view "$tag" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/assets.txt" 2> /dev/null &&
-              grep -qx WarcraftRaces-client.zip "$RUNNER_TEMP/assets.txt" && grep -qx WarcraftRaces-server.zip "$RUNNER_TEMP/assets.txt"; then
-            echo "Already published: $tag"
-            echo "BUILT=1" >> "$GITHUB_ENV"
-          fi
-
-      # MariaDB as the phone's (11.4), its own command line client through docker exec.
-      - name: Build the package
-        if: env.BUILT != '1'
-        run: |
-          docker run -d --name races-db -p 3306:3306 -e MARIADB_ROOT_PASSWORD=races mariadb:11.4 > /dev/null
-          mkdir -p "$RUNNER_TEMP/bin"
-          printf '#!/bin/sh\nexec docker exec -i -e MYSQL_PWD="$MYSQL_PWD" races-db mariadb "$@"\n' > "$RUNNER_TEMP/bin/mariadb"
-          chmod +x "$RUNNER_TEMP/bin/mariadb"
-          export PATH="$RUNNER_TEMP/bin:$PATH"
-          python3 -m venv "$RUNNER_TEMP/venv" && "$RUNNER_TEMP/venv/bin/pip" install -q pymysql
-          export PATH="$RUNNER_TEMP/venv/bin:$PATH"
-          for _ in $(seq 60); do
-            docker exec races-db mariadb-admin -uroot -praces ping > /dev/null 2>&1 && break
-            sleep 2
-          done
-          DB_PASSWORD=races scripts/build-races-package.sh build/races
-
-      - name: Publish the package
-        if: env.BUILT != '1'
-        run: |
-          source warcraft/races/races.env
-          if ! git ls-remote --exit-code --tags origin "refs/tags/$RACES_TAG" > /dev/null; then
-            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$RACES_TAG" -f sha="$GITHUB_SHA" > /dev/null
-          fi
-          gh release view "$RACES_TAG" > /dev/null 2>&1 && gh release delete "$RACES_TAG" --yes
-          gh release create "$RACES_TAG" build/races/WarcraftRaces-client.zip build/races/WarcraftRaces-server.zip \
-            --verify-tag --prerelease \
-            --title "World of Warcraft: custom races (${RACES_COMMIT::7})" \
-            --notes "The custom races package the World of Warcraft app downloads when its Races switch is turned on: mod-worgoblin-high-elf ${RACES_COMMIT::7}'s races (warcraft/races/manifest), built from commit ${GITHUB_SHA::7}.
-
-          $(cat build/races/out/races.txt | sed 's/^/    /')"
-
   # MariaDB, the database import, the auth server (a real login), and the world server on the
   # server data: started all the way, a character created and taken into the world, a GM command,
-  # the shutdown the app does; then the custom races on (a Worgen and a Goblin in the world) and
-  # off again. From the package as the phone unpacks it, with every system call checked against
-  # Android's seccomp policy for apps. Runs on every build, cached package or not.
+  # the shutdown the app does; then what earlier versions' custom races left taken out. From the
+  # package as the phone unpacks it, with every system call checked against Android's seccomp
+  # policy for apps. Runs on every build, cached package or not.
   server-test:
     name: Server for arm64 (test)
-    needs: [server, races]
+    needs: [server]
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     steps:
@@ -208,13 +147,6 @@ jobs:
           echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
           df -h / | tail -1
 
-      - name: Get the custom races
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download "${{ needs.races.outputs.tag }}" -p WarcraftRaces-server.zip -D "$RUNNER_TEMP"
-          echo "WOW_RACES_ZIP=$RUNNER_TEMP/WarcraftRaces-server.zip" >> "$GITHUB_ENV"
-
       - name: Test the server
         timeout-minutes: 100
         run: |
@@ -234,10 +166,10 @@ jobs:
         id: key
         shell: bash
         run: |
-          # Patches 0007 to 0010 change the game server only (selections, cutscenes and the
-          # spellbook for the app's touch controls, the custom races), not the data tools: they
-          # don't make them again.
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', 'scripts/fetch-azerothcore.sh') }}"
+          # Patches 0007 to 0009 change the game server only (selections, cutscenes and the
+          # spellbook for the app's touch controls), not the data tools: they don't make them
+          # again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
@@ -357,7 +289,7 @@ jobs:
   # account's artifact storage is full, and releases are what the phone downloads anyway).
   apk:
     name: Build World of Warcraft APK
-    needs: [unit-tests, server, server-test, windows-tools, races]
+    needs: [unit-tests, server, server-test, windows-tools]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -459,7 +391,6 @@ jobs:
             -PwowApplicationId="$APP_ID" \
             -PwowUpdateRepo="$GITHUB_REPOSITORY" \
             -PwowReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
-            -PwowRacesTag="${{ needs.races.outputs.tag }}" \
             -PwowBuildBranch="$GITHUB_REF_NAME" \
             -PwowUpdateToken="$WOW_UPDATE_TOKEN"
 

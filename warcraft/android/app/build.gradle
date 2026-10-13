@@ -51,8 +51,6 @@ android {
 		buildConfigField "String", "WOW_UPDATE_REPO", "\"${wowProperty("wowUpdateRepo", "")}\""
 		buildConfigField "String", "WOW_RELEASE_TAG_PREFIX", "\"${wowProperty("wowReleaseTagPrefix", "")}\""
 		buildConfigField "String", "WOW_UPDATE_TOKEN", "\"${wowProperty("wowUpdateToken", "")}\""
-		// The custom races' package: the release CI published it as (wow-races-<hash>).
-		buildConfigField "String", "WOW_RACES_TAG", "\"${wowProperty("wowRacesTag", "")}\""
 		// The branch this build is from, where the module browser starts its realm builds
 		// (.github/workflows/build-warcraft-modules.yml), and the realm's own modules.
 		buildConfigField "String", "WOW_BUILD_BRANCH", "\"${wowProperty("wowBuildBranch", "")}\""

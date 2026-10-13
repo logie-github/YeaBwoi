@@ -63,9 +63,8 @@ class ImportService : Service() {
 
         scope.launch {
             val result = runCatching {
-                // An HD look changes the client only: the realm can keep running. Custom races
-                // going in or out change the realm too, at its next start.
-                if (kind != Imports.Kind.MODS || CustomRaces.changesServer(this@ImportService)) {
+                // An HD look changes the client only: the realm can keep running.
+                if (kind != Imports.Kind.MODS) {
                     Server.stopAndWait(this@ImportService)
                 }
                 when (kind) {
@@ -233,7 +232,7 @@ class ImportService : Service() {
                 .putExtra(EXTRA_KIND, Imports.Kind.EXTRACT.name).putExtra(EXTRA_MMAPS, withMmaps),
         )
 
-        /** Brings the client in line with the HD look and custom races chosen (ClientMods). */
+        /** Brings the client in line with the HD look chosen (ClientMods). */
         fun applyMods(context: Context) = start(
             context,
             Intent(context, ImportService::class.java).putExtra(EXTRA_KIND, Imports.Kind.MODS.name),

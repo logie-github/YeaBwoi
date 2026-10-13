@@ -165,11 +165,12 @@ object Server {
                 }
                 importedMarker(context).writeText("${System.currentTimeMillis()}\n")
             }
-            // The custom races into the world database, or out of it (CustomRaces): quick when
-            // there's nothing to change.
-            step(Step.RACES)
-            runToEnd(context, "races", log = File(WowFiles.logs(context), "races.log"), timeoutMinutes = 60) { line ->
-                step(Step.RACES, detail = ConsoleText.plain(line))
+            // The custom races of earlier versions out of the realm, once (LegacyRaces).
+            if (LegacyRaces.inRealm(context)) {
+                step(Step.RACES)
+                runToEnd(context, "races", log = File(WowFiles.logs(context), "races.log"), timeoutMinutes = 60) { line ->
+                    step(Step.RACES, detail = ConsoleText.plain(line))
+                }
             }
             setRealmAddress(context)
 
