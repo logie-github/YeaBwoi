@@ -582,6 +582,11 @@ for the game on the phone itself ("that's the whole point").
   character into the world and was attached to the release. Told the user: take mod-worgoblin
   and DungeonRespawn off the list and build again on 1.0.51. A module that compiles but crashes
   the server still fails the whole build ("failed at: Test the server").
+  The user's own builds from the phone meanwhile: mod-no-hearthstone-cooldown alone on wow-build-49
+  built (that realm is for 1.0.49: built again for a later version); mod-no-hearthstone-cooldown,
+  mod-arac and mod-worgoblin on wow-build-50 failed at the server test (the world server didn't
+  start; mod-worgoblin was in it). mod-arac (all races with all classes) also wants a client patch
+  for the character creation screen to offer the new pairs.
 
 - Answered without changes:
   - Portrait play: possible when the game starts (the X screen and `gxResolution` made tall, an
