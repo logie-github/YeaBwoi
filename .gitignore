@@ -19,3 +19,11 @@
 .idea/
 *.iml
 .DS_Store
+/warcraft/unit-tests/.gradle/
+/warcraft/unit-tests/build/
+/warcraft/unit-tests/.kotlin/
+# The server package scripts/build-azerothcore.sh makes
+/warcraft/android/server/
+__pycache__/
+# Winlator, brought in by scripts/prepare-winlator.sh
+/warcraft/android/winlator/

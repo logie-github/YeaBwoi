@@ -1,0 +1,154 @@
+plugins {
+	id 'com.android.application'
+	id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+// CI passes the app's identity, version, signing key and update source as Gradle properties
+// (-Pwow...). Local builds fall back to these defaults.
+def wowProperty = { String name, String fallback ->
+	project.hasProperty(name) ? project.property(name).toString() : fallback
+}
+def wowKeystore = wowProperty("keystore", "")
+
+// The game's runtime, Winlator, built into this module (scripts/prepare-winlator.sh puts it in
+// ../winlator): its Java code, resources, native code, prebuilt libraries and assets.
+def winlator = file("../winlator")
+if (!new File(winlator, "java").isDirectory()) {
+	throw new GradleException("Winlator isn't in warcraft/android/winlator: run scripts/prepare-winlator.sh")
+}
+
+// The server data the app downloads: warcraft/server-data.env.
+def serverData = [:]
+file("../../server-data.env").eachLine { line ->
+	def match = line =~ /^([A-Z0-9_]+)=(.*)$/
+	if (match) serverData[match[0][1]] = match[0][2]
+}
+
+// The realm's own modules (warcraft/server-version.env), which the module browser shows as in.
+def serverVersion = file("../../server-version.env").text
+def baseModules = ((serverVersion =~ /(?s)MODULES="(.*?)"/)[0][1]).readLines()
+	.collect { it.trim().split(/\s+/)[0] }.findAll { it }.join(",")
+
+android {
+	namespace = "com.logie.warcraft"
+	compileSdk = 35
+
+	buildFeatures {
+		buildConfig = true
+		compose = true
+	}
+
+	defaultConfig {
+		applicationId = wowProperty("wowApplicationId", "com.logie.warcraft")
+		minSdk = 26
+		// 28, like Termux and Winlator: Android lets apps that target 28 or lower run programs from
+		// their own storage, which is where the server (and later the game's Wine) runs from.
+		//noinspection ExpiredTargetSdkVersion
+		targetSdk = 28
+		versionCode = wowProperty("wowVersionCode", "1").toInteger()
+		versionName = wowProperty("wowVersionName", "1.0")
+
+		buildConfigField "String", "WOW_UPDATE_REPO", "\"${wowProperty("wowUpdateRepo", "")}\""
+		buildConfigField "String", "WOW_RELEASE_TAG_PREFIX", "\"${wowProperty("wowReleaseTagPrefix", "")}\""
+		buildConfigField "String", "WOW_UPDATE_TOKEN", "\"${wowProperty("wowUpdateToken", "")}\""
+		// The branch this build is from, where the module browser starts its realm builds
+		// (.github/workflows/build-warcraft-modules.yml), and the realm's own modules.
+		buildConfigField "String", "WOW_BUILD_BRANCH", "\"${wowProperty("wowBuildBranch", "")}\""
+		buildConfigField "String", "WOW_BASE_MODULES", "\"${baseModules}\""
+		buildConfigField "String", "WOW_DATA_VERSION", "\"${serverData.SERVER_DATA_VERSION}\""
+		buildConfigField "String", "WOW_DATA_URL", "\"${serverData.SERVER_DATA_URL}\""
+		buildConfigField "long", "WOW_DATA_SIZE", "${serverData.SERVER_DATA_SIZE}L"
+		buildConfigField "String", "WOW_DATA_SHA256", "\"${serverData.SERVER_DATA_SHA256}\""
+
+		ndk {
+			// Phones only: the server and the game's runtime are built for arm64.
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	// Winlator's native code (its X server, renderers, audio), with the NDK and CMake it's made for.
+	ndkVersion = "24.0.8215888"
+	externalNativeBuild {
+		cmake {
+			path = file("../winlator/cpp/CMakeLists.txt")
+			version = "3.22.1"
+		}
+	}
+
+	packaging {
+		jniLibs {
+			// Winlator loads its libraries from files (extractNativeLibs).
+			useLegacyPackaging = true
+		}
+	}
+
+	signingConfigs {
+		wow {
+			if (wowKeystore) {
+				storeFile = file(wowKeystore)
+				storePassword = wowProperty("storepass", "")
+				keyAlias = wowProperty("keyalias", "")
+				keyPassword = wowProperty("keypass", "")
+			}
+		}
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled = true
+			// Winlator looks some of its resources up by name.
+			shrinkResources = false
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+			signingConfig = wowKeystore ? signingConfigs.wow : signingConfigs.debug
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	sourceSets {
+		main {
+			// server.tar.xz from scripts/build-azerothcore.sh (CI puts it there), Winlator's assets.
+			assets.srcDirs += ['../server', '../winlator/assets']
+			java.srcDirs += ['../winlator/java']
+			res.srcDirs += ['../winlator/res']
+			jniLibs.srcDirs += ['../winlator/jniLibs']
+		}
+	}
+
+	androidResources {
+		// Already xz-compressed.
+		noCompress += ['xz', 'tzst']
+	}
+
+	lint {
+		abortOnError = false
+		checkReleaseBuilds = false
+	}
+}
+
+dependencies {
+	implementation 'androidx.appcompat:appcompat:1.6.1'
+	implementation 'androidx.core:core-ktx:1.12.0'
+	implementation 'com.google.android.material:material:1.11.0'
+	implementation platform('androidx.compose:compose-bom:2025.04.00')
+	implementation 'androidx.compose.ui:ui'
+	implementation 'androidx.compose.material3:material3'
+	implementation 'androidx.compose.material:material-icons-extended'
+	implementation 'androidx.activity:activity-compose:1.9.3'
+	implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+	// Unpacking the server (tar.xz).
+	implementation 'org.apache.commons:commons-compress:1.27.1'
+	implementation 'org.tukaani:xz:1.10'
+	// Reading warperia.com's add-on pages.
+	implementation 'org.jsoup:jsoup:1.18.3'
+	// jsoup's null annotations, for the compiler only.
+	compileOnly 'org.jspecify:jspecify:1.0.0'
+	// Winlator's.
+	implementation 'androidx.preference:preference:1.2.1'
+	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
+}
