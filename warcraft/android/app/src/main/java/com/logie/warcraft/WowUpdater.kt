@@ -10,6 +10,7 @@ import androidx.core.content.pm.PackageInfoCompat
 import com.logie.warcraft.update.UpdatePicker
 import com.logie.warcraft.BuildConfig
 import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.io.Serializable
@@ -76,6 +77,43 @@ object WowUpdater {
             ?: return null
         return Update(update.versionCode, update.title, update.apk.name, update.apk.url, update.apk.size)
     }
+
+    /** A file of a release: its API URL (which works for private repositories too) and size. */
+    data class Asset(val name: String, val url: String, val size: Long)
+
+    /** The files of this repository's release [tag]. Background thread. */
+    fun releaseAssets(tag: String): List<Asset> {
+        val url = "https://$API_HOST/repos/${BuildConfig.WOW_UPDATE_REPO}/releases/tags/$tag"
+        val body = connect(url, "application/vnd.github+json").let { connection ->
+            try {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } finally {
+                connection.disconnect()
+            }
+        }
+        val assets = JSONObject(body).optJSONArray("assets") ?: JSONArray()
+        return List(assets.length()) { i ->
+            val asset = assets.getJSONObject(i)
+            Asset(asset.optString("name"), asset.optString("url"), asset.optLong("size"))
+        }
+    }
+
+    /**
+     * What a request to [url] carries to get a release's file: for GitHub's API, the file itself
+     * and the token; for the server it sends the file from, nothing.
+     */
+    fun assetHeaders(url: URL): Map<String, String> =
+        if (url.host != API_HOST) {
+            emptyMap()
+        } else {
+            buildMap {
+                put("Accept", "application/octet-stream")
+                put("X-GitHub-Api-Version", "2022-11-28")
+                if (BuildConfig.WOW_UPDATE_TOKEN.isNotEmpty()) put("Authorization", "Bearer ${BuildConfig.WOW_UPDATE_TOKEN}")
+            }
+        }
+
+    val userAgent: String get() = "${BuildConfig.APPLICATION_ID}/${BuildConfig.VERSION_NAME}"
 
     /**
      * Downloads [update]'s APK into the cache and checks it's a newer build of this app.

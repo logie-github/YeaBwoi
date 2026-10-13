@@ -46,6 +46,8 @@ android {
 		buildConfigField "String", "WOW_UPDATE_REPO", "\"${wowProperty("wowUpdateRepo", "")}\""
 		buildConfigField "String", "WOW_RELEASE_TAG_PREFIX", "\"${wowProperty("wowReleaseTagPrefix", "")}\""
 		buildConfigField "String", "WOW_UPDATE_TOKEN", "\"${wowProperty("wowUpdateToken", "")}\""
+		// The custom races' package: the release CI published it as (wow-races-<hash>).
+		buildConfigField "String", "WOW_RACES_TAG", "\"${wowProperty("wowRacesTag", "")}\""
 		buildConfigField "String", "WOW_DATA_VERSION", "\"${serverData.SERVER_DATA_VERSION}\""
 		buildConfigField "String", "WOW_DATA_URL", "\"${serverData.SERVER_DATA_URL}\""
 		buildConfigField "long", "WOW_DATA_SIZE", "${serverData.SERVER_DATA_SIZE}L"

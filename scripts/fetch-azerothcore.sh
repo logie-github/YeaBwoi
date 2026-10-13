@@ -38,6 +38,11 @@ echo "$MODULES" | while read -r name repo commit; do
 	git -C "$dir" fetch -q --depth 1 origin "$commit"
 	git -C "$dir" checkout -q --force FETCH_HEAD
 	git -C "$dir" clean -qfdx
+	# The app's own changes to the module (warcraft/patches/<module>/).
+	set -- "$ROOT"/warcraft/patches/"$name"/*.patch
+	if [ -f "$1" ]; then
+		git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@"
+	fi
 done
 for dir in "$SRC"/modules/mod-*; do
 	[ -d "$dir" ] || continue

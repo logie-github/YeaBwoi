@@ -415,8 +415,37 @@ for the game on the phone itself ("that's the whole point").
   address aware. `WowPatched.exe`, used by `Game` while any client mod is in; each edit checks the
   bytes it replaces.
 
-**Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel),
-then stage 3.
+- Then: "build it with the switch. Bots can only use the originals. Also include worgen and
+  goblins. Also if needed can you just retrieve whatever from the other COA and convert it". The
+  races come from Medviten's mod-worgoblin-high-elf (AGPL-3.0, pinned in `races/races.env`), which
+  has Goblin and Worgen as well as the rest, for the stock 12340 client: CoA's files weren't needed
+  (CoA is made for the Ascension client). Its race packs ("modpaks") change the game's tables with
+  SQL; `scripts/build-races.py` loads the stock tables into MariaDB with Thorium's layouts (our own
+  in `races/meta` for the seven it lacks), runs the packs listed in `races/manifest` (the NPC races
+  moved to 169-181; then Goblin 9, Worgen 12, High Elf 13, Mag'har 14, Ogre 15, Dark Iron Dwarf 16,
+  Zandalari Troll 17, Vulpera 18, Pandaren 19 and 20, Broken 21; Kul Tiran and the half-made ones
+  left out), writes the changed tables (31) and the world SQL with the variables worked out, and
+  fixes one typo in the Worgen pack (its mounts' DELETE). The world SQL's one read of the DBC
+  database (totems) is written in. Checked here: the world SQL applies to a clean world database
+  with no errors; every custom race has 10 classes.
+- The switch: on downloads the package (`wow-races-<hash>`, a prerelease CI publishes when its
+  inputs change; client 450 MB zip into `Data/patch-Z.MPQ`, a folder the game loads as a patch,
+  streamed out of the zip with resume; server 9 MB into `files/races`); the server's start runs
+  `ctl.sh races`, which adds the world SQL once (table `app_races` says which version, or that
+  adding it didn't end) and points DataDir at `files/data-races` (links, the races' tables in
+  place). Off sets the client folder aside, and the next start makes `acore_world` again with
+  dbimport. Characters stay (the core leaves a character whose race has no playercreateinfo out of
+  the list). Ids are fixed in the manifest's order.
+- Core patch 0009: the race hunks of the module's `whe-acore.patch` (ids, names, flight paths, the
+  transforms and costumes by race, .pinfo, the pony's banner, druid forms by fur or hair colour)
+  plus Broken, and its scripts (Goblin racials, Worgen Running Wild) without the login
+  announcement; the rest of that patch (fatigue off, faction-free cities, a deleted Scarlet
+  Enclave script, GM speed limits) left out. `patches/mod-playerbots/0001`: random bots of the ten
+  original races only. CI's server test turns the races on (bots made again: none custom; a
+  Worgen and a Goblin into the world) and off (world rebuilt; the two hidden, kept).
+
+**Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
+the custom races' character creation screen), then stage 3.
 
 ## Still open
 

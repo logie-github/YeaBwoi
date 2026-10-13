@@ -14,14 +14,15 @@ import java.io.IOException
  * Changes to the user's client chosen in the launcher, put in and taken out again by
  * [ImportService] (a job like the others in [Imports]):
  *
+ * - **Custom races** ([CustomRaces]): their package's client folder, and the server's files.
  * - **An HD look** ([HdPatches]): the chosen patches' MPQ files in the client's `Data`, downloaded a
  *   file at a time out of their zips. Files of the client's own with the same names are kept aside
  *   (`.user`) and come back when the look is turned off. With custom races on, the patches that
  *   replace the same tables are set aside (`.off`) rather than deleted, so turning the races off
  *   brings them back without a download.
  * - **The executable** ([WowExePatch]): `WowPatched.exe`, a copy of `Wow.exe` that loads changed
- *   interface files and uses 4 GB, which the game starts with while any change is in. `Wow.exe`
- *   itself is never changed.
+ *   interface files (the races' character creation screen) and uses 4 GB, which the game starts
+ *   with while any change is in. `Wow.exe` itself is never changed.
  *
  * What's in the client is listed in `files/mods/hd.txt`, so taking things out removes exactly
  * what was put in.
@@ -48,11 +49,8 @@ object ClientMods {
         prefs(context).edit().putString(KEY_HD, choice.name).apply()
     }
 
-    /** Custom races in the client (CustomRaces). */
-    private fun races(context: Context): Boolean = CustomRaces.isInstalled(context) || CustomRaces.isWanted(context)
-
     /** Whether the client is as chosen. */
-    fun isApplied(context: Context): Boolean = hd(context) == hdInstalled(context)
+    fun isApplied(context: Context): Boolean = hd(context) == hdInstalled(context) && CustomRaces.isApplied(context)
 
     /** The program the game starts: the patched copy while any change is in. */
     fun exeName(context: Context): String =
@@ -69,7 +67,11 @@ object ClientMods {
         val client = WowFiles.client(context)
         if (!WowFiles.hasClient(context)) throw Imports.ImportException(context.getString(R.string.wow_mods_error_no_client))
         val choice = hd(context)
-        val races = races(context)
+        val races = CustomRaces.isWanted(context)
+        // The races need the executable's signature edits: a Wow.exe they don't fit stops here,
+        // before the download.
+        if (races) patchExe(context, client, needSignatures = true)
+        CustomRaces.apply(context, onProgress)
         val locale = locale(client)
         val wanted = HdPatches.files(choice, races = false).associateBy { it.target(locale) }
         val listed = installedFiles(context).toMutableMap()
@@ -119,6 +121,7 @@ object ClientMods {
     fun clientReplaced(context: Context) {
         installedList(context).delete()
         prefs(context).edit().remove(KEY_HD_INSTALLED).apply()
+        CustomRaces.clientReplaced(context)
     }
 
     /** The client's language folder in `Data` (enUS...). */

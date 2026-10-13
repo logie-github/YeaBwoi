@@ -44,6 +44,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
@@ -87,6 +88,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.logie.warcraft.AddonStore
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
+import com.logie.warcraft.CustomRaces
 import com.logie.warcraft.Imports
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
@@ -151,7 +153,7 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     LaunchedEffect(imports) {
         if ((imports is Imports.State.Done || imports is Imports.State.Failed) && dialog == null) {
             val kind = (imports as? Imports.State.Done)?.kind ?: (imports as? Imports.State.Failed)?.kind
-            dialog = if (kind == Imports.Kind.MODS) HomeDialog.GRAPHICS else HomeDialog.FILES
+            dialog = if (kind == Imports.Kind.MODS) modsDialog else HomeDialog.FILES
         }
     }
 
@@ -181,6 +183,7 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             HomeDialog.ACCOUNTS -> AccountsDialog(onDismiss = { dialog = null })
             HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
+            HomeDialog.RACES -> RacesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
             // Over the whole screen, in the box above.
             HomeDialog.ADDONS -> {}
             null -> {}
@@ -188,7 +191,10 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, ICON }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, RACES, ADDONS, ICON }
+
+/** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
+private var modsDialog = HomeDialog.GRAPHICS
 
 /** What's on the phone, read when the screen needs it. */
 data class HomeFacts(
@@ -265,7 +271,12 @@ internal fun HomeScreen(
                         onDialog(HomeDialog.ACCOUNTS)
                     },
                     HomeTile(Icons.Default.Tune, stringResource(R.string.wow_tile_graphics), graphicsSummary(context)) {
+                        modsDialog = HomeDialog.GRAPHICS
                         onDialog(HomeDialog.GRAPHICS)
+                    },
+                    HomeTile(Icons.Default.Face, stringResource(R.string.wow_tile_races), racesSummary(context)) {
+                        modsDialog = HomeDialog.RACES
+                        onDialog(HomeDialog.RACES)
                     },
                     HomeTile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), addonsSummary(context, facts)) {
                         onDialog(HomeDialog.ADDONS)
@@ -300,6 +311,16 @@ private fun graphicsSummary(context: android.content.Context): String {
     val (width, height) = GameSettings.gameSize(context, resolution)
     return stringResource(R.string.wow_tile_graphics_summary, stringResource(resolution.label), width, height)
 }
+
+@Composable
+private fun racesSummary(context: android.content.Context): String = stringResource(
+    when {
+        !CustomRaces.isAvailable -> R.string.wow_tile_races_unavailable
+        CustomRaces.isWanted(context) && CustomRaces.isInstalled(context) -> R.string.wow_tile_races_on
+        CustomRaces.isWanted(context) -> R.string.wow_tile_races_coming
+        else -> R.string.wow_tile_races_off
+    },
+)
 
 @Composable
 private fun addonsSummary(context: android.content.Context, facts: HomeFacts): String {
@@ -465,6 +486,9 @@ private fun RealmPanel(
                 server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
                 if (server.step == Server.Step.IMPORT) {
                     Text(stringResource(R.string.wow_step_import_note), style = MaterialTheme.typography.bodySmall)
+                }
+                if (server.step == Server.Step.RACES && server.detail?.startsWith("Custom races") == false) {
+                    Text(stringResource(R.string.wow_step_races_note), style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
