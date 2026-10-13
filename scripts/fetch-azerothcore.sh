@@ -10,6 +10,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../warcraft/server-version.env
 . "$ROOT/warcraft/server-version.env"
 SRC="${1:-$ROOT/build/azerothcore}"
+# Modules the app's user picked (the module browser; .github/workflows/build-warcraft-modules.yml),
+# as server-version.env lists them: "name repository commit" a line.
+MODULES="$MODULES
+${WOW_EXTRA_MODULES:-}"
 
 if [ ! -d "$SRC/.git" ]; then
 	git init -q "$SRC"
@@ -38,13 +42,16 @@ echo "$MODULES" | while read -r name repo commit; do
 	git -C "$dir" fetch -q --depth 1 origin "$commit"
 	git -C "$dir" checkout -q --force FETCH_HEAD
 	git -C "$dir" clean -qfdx
+	# Some modules bring their libraries as submodules.
+	[ ! -f "$dir/.gitmodules" ] || git -C "$dir" submodule update -q --init --recursive --depth 1
 	# The app's own changes to the module (warcraft/patches/<module>/).
 	set -- "$ROOT"/warcraft/patches/"$name"/*.patch
 	if [ -f "$1" ]; then
 		git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@"
 	fi
 done
-for dir in "$SRC"/modules/mod-*; do
+# Every folder in modules/ is a module (the core keeps only files there): those not listed go.
+for dir in "$SRC"/modules/*/; do
 	[ -d "$dir" ] || continue
 	echo "$MODULES" | grep -q "^$(basename "$dir") " || rm -rf "$dir"
 done

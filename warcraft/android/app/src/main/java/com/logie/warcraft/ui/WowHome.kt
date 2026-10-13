@@ -42,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Face
@@ -91,6 +92,7 @@ import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.CustomRaces
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
+import com.logie.warcraft.ModuleStore
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
 import com.logie.warcraft.ServerPackage
@@ -166,11 +168,32 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
         }
     }
 
+    // A realm build with the user's modules, asked for earlier: how it went, once at the app's
+    // opening; a finished one goes in while the realm is stopped (Modules screen otherwise).
+    LaunchedEffect(checkUpdate, serverStopped, imports is Imports.State.Idle) {
+        if (checkUpdate || !serverStopped || imports !is Imports.State.Idle || modulesCheckTried) return@LaunchedEffect
+        if (!ModuleStore.isAvailable) return@LaunchedEffect
+        ModuleStore.load(context)
+        if (ModuleStore.pending.value == null) return@LaunchedEffect
+        modulesCheckTried = true
+        val build = withContext(Dispatchers.IO) { runCatching { ModuleStore.refresh(context) }.getOrNull() }
+            ?: ModuleStore.pending.value
+        if (build != null && build.succeeded && build.versionCode == BuildConfig.VERSION_CODE &&
+            Imports.state.value is Imports.State.Idle && Server.status.value.phase.let { it == Server.Phase.STOPPED || it == Server.Phase.FAILED }
+        ) {
+            ImportService.installModules(context)
+        }
+    }
+
     // How a long job went, as soon as it's done.
     LaunchedEffect(imports) {
         if ((imports is Imports.State.Done || imports is Imports.State.Failed) && dialog == null) {
             val kind = (imports as? Imports.State.Done)?.kind ?: (imports as? Imports.State.Failed)?.kind
-            dialog = if (kind == Imports.Kind.MODS) modsDialog else HomeDialog.FILES
+            dialog = when (kind) {
+                Imports.Kind.MODS -> modsDialog
+                Imports.Kind.MODULES -> HomeDialog.MODULES
+                else -> HomeDialog.FILES
+            }
         }
     }
 
@@ -193,6 +216,7 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
                 onDialog = { dialog = it },
             )
             if (dialog == HomeDialog.ADDONS) AddonManager(onDismiss = { dialog = null; refresh++ })
+            if (dialog == HomeDialog.MODULES) ModuleManager(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
         }
         when (dialog) {
             HomeDialog.SERVER -> ServerDialog(onDismiss = { dialog = null; refresh++ })
@@ -202,19 +226,22 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.RACES -> RacesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
             // Over the whole screen, in the box above.
-            HomeDialog.ADDONS -> {}
+            HomeDialog.ADDONS, HomeDialog.MODULES -> {}
             null -> {}
         }
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, RACES, ADDONS, ICON }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, RACES, ADDONS, MODULES, ICON }
 
 /** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
 private var modsDialog = HomeDialog.GRAPHICS
 
 /** Whether this run of the app has put a newer custom races package in (or tried to). */
 private var racesRefreshTried = false
+
+/** Whether this run of the app has looked at a realm build in flight. */
+private var modulesCheckTried = false
 
 /** What's on the phone, read when the screen needs it. */
 data class HomeFacts(
@@ -300,6 +327,9 @@ internal fun HomeScreen(
                     },
                     HomeTile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), addonsSummary(context, facts)) {
                         onDialog(HomeDialog.ADDONS)
+                    },
+                    HomeTile(Icons.Default.Build, stringResource(R.string.wow_tile_modules), modulesSummary(context)) {
+                        onDialog(HomeDialog.MODULES)
                     },
                     HomeTile(Icons.Default.Palette, stringResource(R.string.wow_tile_icon), stringResource(AppIcons.current(context).label)) {
                         onDialog(HomeDialog.ICON)
@@ -631,6 +661,8 @@ fun importTitle(state: Imports.State.Working): String = when (state.kind) {
     Imports.Kind.EXTRACT -> stringResource(R.string.wow_extract_progress, state.part, state.parts)
     Imports.Kind.MODS -> state.progress?.let { stringResource(R.string.wow_mods_progress, (it * 100).toInt()) }
         ?: stringResource(R.string.wow_mods_title)
+    Imports.Kind.MODULES -> state.progress?.let { stringResource(R.string.wow_modules_job_progress, (it * 100).toInt()) }
+        ?: stringResource(R.string.wow_modules_job_title)
 }
 
 /** `PRESS START`, gold, breathing with the frost light behind it. */

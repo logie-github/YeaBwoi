@@ -1,0 +1,175 @@
+name: Build World of Warcraft modules
+
+# The realm with AzerothCore modules the app's user picked in its module browser (github.com/topics/
+# azerothcore-module), started by the app (workflow_dispatch, with the user's own GitHub token). A
+# module is C++ built into the world server, so the realm is compiled again with them: from the
+# app's own release (its tag, so the realm fits the app), with the main build's compiler cache, then
+# packaged and tested the way the main build tests its own (the world server started on the server
+# data, a character taken into the world). The package is attached to the app's release as
+# server-<request>.tar.xz, which the app downloads and puts in place of the realm it came with.
+#
+# The modules are other people's code: the job that builds them has a read-only token, and only the
+# job after it, which runs none of their code, can add the package to the release.
+run-name: "${{ github.event_name == 'workflow_dispatch' && format('Modules {0} for {1}', inputs.request, inputs.release) || 'Modules workflow changed' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "The app's release (wow-build-N): the realm is built from its commit"
+        required: true
+      request:
+        description: "The app's name for this build (8 to 32 lowercase letters and digits)"
+        required: true
+      modules:
+        description: "The modules: owner/repository@commit, separated by spaces or new lines"
+        required: true
+  # GitHub takes dispatches only for a workflow it has seen; this branch isn't the repository's
+  # default, so a change to this file runs it once, doing nothing, for GitHub to see it.
+  push:
+    paths:
+      - .github/workflows/build-warcraft-modules.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warcraft-modules
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Realm with the modules (build and test)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    permissions:
+      contents: read
+    steps:
+      - name: Check what was asked
+        env:
+          RELEASE: ${{ inputs.release }}
+          REQUEST: ${{ inputs.request }}
+        run: |
+          [[ "$RELEASE" =~ ^wow-build-[0-9]+$ ]] || { echo "::error::Not an app release: $RELEASE"; exit 1; }
+          [[ "$REQUEST" =~ ^[a-z0-9]{8,32}$ ]] || { echo "::error::Not a request name: $REQUEST"; exit 1; }
+
+      # No token left in the checkout: the modules' build scripts run in it.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release }}
+          persist-credentials: false
+
+      # Each owner/repository@commit, checked, as server-version.env lists modules ("name repository
+      # commit"); the realm's own modules are in it already.
+      - name: The modules
+        env:
+          MODULES_IN: ${{ inputs.modules }}
+        run: |
+          set -f
+          source warcraft/server-version.env
+          own=$(echo "$MODULES" | awk 'NF { print $1 }')
+          list="$RUNNER_TEMP/extra-modules"
+          : > "$list"
+          for spec in $MODULES_IN; do
+            if ! [[ "$spec" =~ ^([A-Za-z0-9_-][A-Za-z0-9_.-]*)/([A-Za-z0-9_-][A-Za-z0-9_.-]*)@([0-9a-f]{40})$ ]]; then
+              echo "::error::Not owner/repository@commit: $spec"
+              exit 1
+            fi
+            owner=${BASH_REMATCH[1]} name=${BASH_REMATCH[2]} commit=${BASH_REMATCH[3]}
+            if echo "$own" | grep -qxF "$name"; then
+              echo "$name: in the realm already"
+              continue
+            fi
+            if grep -q "^$name " "$list"; then
+              echo "::error::Two modules named $name"
+              exit 1
+            fi
+            echo "$name https://github.com/$owner/$name $commit" >> "$list"
+          done
+          [ -s "$list" ] || { echo "::error::No modules to add"; exit 1; }
+          [ "$(wc -l < "$list")" -le 40 ] || { echo "::error::More than 40 modules"; exit 1; }
+          cat "$list"
+          { echo "WOW_EXTRA_MODULES<<END_OF_MODULES"; cat "$list"; echo "END_OF_MODULES"; } >> "$GITHUB_ENV"
+
+      # The main build's cache first time round; this workflow's own after that (saved under a name
+      # the main build never reads).
+      - name: Restore the compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build/ccache
+          key: warcraft-modules-ccache-arm64-${{ github.run_id }}
+          restore-keys: |
+            warcraft-modules-ccache-arm64-
+            warcraft-ccache-arm64-
+
+      - name: Compile the server
+        run: |
+          scripts/compile-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: Save the compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: build/ccache
+          key: warcraft-modules-ccache-arm64-${{ github.run_id }}
+
+      - name: Package the server
+        run: |
+          scripts/package-azerothcore.sh
+          sudo chown -R "$(id -u):$(id -g)" build warcraft/android/server
+          tar -xJOf warcraft/android/server/server.tar.xz server/VERSION
+
+      - name: Get the server data
+        run: |
+          source warcraft/server-data.env
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/data.zip" "$SERVER_DATA_URL"
+          echo "$SERVER_DATA_SHA256  $RUNNER_TEMP/data.zip" | sha256sum -c -
+          echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
+
+      - name: Test the server
+        timeout-minutes: 90
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
+          scripts/test-warcraft-server.sh
+
+      - name: Keep the package for the release
+        uses: actions/cache/save@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: warcraft-modules-package-${{ github.run_id }}
+
+  publish:
+    name: Add the realm to the app's release
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE: ${{ inputs.release }}
+      REQUEST: ${{ inputs.request }}
+    steps:
+      - name: Get the package
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/server/server.tar.xz
+          key: warcraft-modules-package-${{ github.run_id }}
+          fail-on-cache-miss: true
+
+      # The app finds it by its request's name; older ones beyond the last three go.
+      - name: Attach it
+        run: |
+          [[ "$RELEASE" =~ ^wow-build-[0-9]+$ && "$REQUEST" =~ ^[a-z0-9]{8,32}$ ]] || exit 1
+          asset="server-$REQUEST.tar.xz"
+          cp warcraft/android/server/server.tar.xz "$RUNNER_TEMP/$asset"
+          gh release upload "$RELEASE" "$RUNNER_TEMP/$asset" --clobber
+          gh api "repos/$GH_REPO/releases/tags/$RELEASE" \
+            --jq '.assets | map(select(.name | test("^server-[a-z0-9]+\\.tar\\.xz$"))) | sort_by(.created_at) | reverse | .[3:] | .[].name' |
+            while read -r old; do
+              [ -n "$old" ] && gh release delete-asset "$RELEASE" "$old" --yes
+            done
+          echo "Attached $asset to $RELEASE."

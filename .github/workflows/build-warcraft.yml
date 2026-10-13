@@ -460,6 +460,7 @@ jobs:
             -PwowUpdateRepo="$GITHUB_REPOSITORY" \
             -PwowReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
             -PwowRacesTag="${{ needs.races.outputs.tag }}" \
+            -PwowBuildBranch="$GITHUB_REF_NAME" \
             -PwowUpdateToken="$WOW_UPDATE_TOKEN"
 
       - name: Collect APK

@@ -24,6 +24,11 @@ file("../../server-data.env").eachLine { line ->
 	if (match) serverData[match[0][1]] = match[0][2]
 }
 
+// The realm's own modules (warcraft/server-version.env), which the module browser shows as in.
+def serverVersion = file("../../server-version.env").text
+def baseModules = ((serverVersion =~ /(?s)MODULES="(.*?)"/)[0][1]).readLines()
+	.collect { it.trim().split(/\s+/)[0] }.findAll { it }.join(",")
+
 android {
 	namespace = "com.logie.warcraft"
 	compileSdk = 35
@@ -48,6 +53,10 @@ android {
 		buildConfigField "String", "WOW_UPDATE_TOKEN", "\"${wowProperty("wowUpdateToken", "")}\""
 		// The custom races' package: the release CI published it as (wow-races-<hash>).
 		buildConfigField "String", "WOW_RACES_TAG", "\"${wowProperty("wowRacesTag", "")}\""
+		// The branch this build is from, where the module browser starts its realm builds
+		// (.github/workflows/build-warcraft-modules.yml), and the realm's own modules.
+		buildConfigField "String", "WOW_BUILD_BRANCH", "\"${wowProperty("wowBuildBranch", "")}\""
+		buildConfigField "String", "WOW_BASE_MODULES", "\"${baseModules}\""
 		buildConfigField "String", "WOW_DATA_VERSION", "\"${serverData.SERVER_DATA_VERSION}\""
 		buildConfigField "String", "WOW_DATA_URL", "\"${serverData.SERVER_DATA_URL}\""
 		buildConfigField "long", "WOW_DATA_SIZE", "${serverData.SERVER_DATA_SIZE}L"

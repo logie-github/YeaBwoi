@@ -45,6 +45,7 @@ class ImportService : Service() {
         val uri = intent.data
         val withMmaps = intent.getBooleanExtra(EXTRA_MMAPS, false)
         val folder = intent.getBooleanExtra(EXTRA_FOLDER, false)
+        val stock = intent.getBooleanExtra(EXTRA_STOCK, false)
 
         Imports.cancelled = false
         Imports.set(Imports.State.Working(kind))
@@ -52,7 +53,7 @@ class ImportService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:import")
             .apply { acquire(6 * 60 * 60 * 1000L) }
-        if (kind == Imports.Kind.DOWNLOAD || kind == Imports.Kind.MODS) {
+        if (kind == Imports.Kind.DOWNLOAD || kind == Imports.Kind.MODS || kind == Imports.Kind.MODULES) {
             // With the screen off, Android would otherwise slow the Wi-Fi down to save power.
             @Suppress("DEPRECATION")
             wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
@@ -87,6 +88,14 @@ class ImportService : Service() {
                     Imports.Kind.MODS -> ClientMods.apply(this@ImportService) { progress, detail ->
                         Imports.set(Imports.State.Working(kind, progress = progress, detail = detail))
                         notifyThrottled(kind, progress, detail)
+                    }
+                    Imports.Kind.MODULES -> {
+                        val report = { progress: Float?, detail: String? ->
+                            Imports.set(Imports.State.Working(kind, progress = progress, detail = detail))
+                            notifyThrottled(kind, progress, detail)
+                        }
+                        if (stock) ModuleStore.installStock(this@ImportService, report)
+                        else ModuleStore.install(this@ImportService, report)
                     }
                 }
             }
@@ -145,6 +154,7 @@ class ImportService : Service() {
             Imports.Kind.EXTRACT -> R.string.wow_extract_title
             Imports.Kind.SERVER_DATA -> R.string.wow_data_import_title
             Imports.Kind.MODS -> R.string.wow_mods_title
+            Imports.Kind.MODULES -> R.string.wow_modules_job_title
         }
     )
 
@@ -196,6 +206,7 @@ class ImportService : Service() {
         private const val EXTRA_KIND = "kind"
         private const val EXTRA_MMAPS = "mmaps"
         private const val EXTRA_FOLDER = "folder"
+        private const val EXTRA_STOCK = "stock"
         private const val ACTION_CANCEL = "com.logie.warcraft.CANCEL_IMPORT"
 
         private fun start(context: Context, intent: Intent) = ContextCompat.startForegroundService(context, intent)
@@ -226,6 +237,16 @@ class ImportService : Service() {
         fun applyMods(context: Context) = start(
             context,
             Intent(context, ImportService::class.java).putExtra(EXTRA_KIND, Imports.Kind.MODS.name),
+        )
+
+        /**
+         * Puts the realm built with the user's modules in place of the server ([stock]: the app's
+         * own back in its place).
+         */
+        fun installModules(context: Context, stock: Boolean = false) = start(
+            context,
+            Intent(context, ImportService::class.java)
+                .putExtra(EXTRA_KIND, Imports.Kind.MODULES.name).putExtra(EXTRA_STOCK, stock),
         )
 
         fun cancel(context: Context) {

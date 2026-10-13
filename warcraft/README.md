@@ -137,6 +137,17 @@ With the races on, the HD looks keep only their world, water, sky, light, music 
 
 **What the module's files don't have.** mod-worgoblin-high-elf is a work in progress, and some of its races name skins, faces and hair the client files it comes with don't have: the High Elf's own faces and skin tones beyond the Blood Elf's, most of the Broken's (the game has the Broken's few as a creature), the Worgen's facial hair beyond the first style, a few Zandalari faces. The package gives each of those the race's nearest one it has (the same style in another colour, or the same colour in another style), so every choice in the character screen shows a real texture, but some choices look the same as others. The package's build checks every playable race against the files the client gets: its name for the character screen, its models, its skins, its classes, its place and text in the screen; a race that fails stops the build. A new version of the package (one that comes with an app update) replaces the one in at the next opening of the app while the realm is stopped.
 
+## Modules
+
+**Modules** (a launcher tile) adds [AzerothCore modules](https://github.com/topics/azerothcore-module) to your realm: an auction house bot, transmogrification, solo dungeons and the hundreds more GitHub lists under that topic.
+
+- **Browse** lists them from GitHub, by most stars or most recently changed, with a search. A module's page shows its facts and its README; **Add** puts it on your list (**In the realm** marks the realm's own modules, always in).
+- **Your realm** has the list and the build. A module is code built into the realm's world server, so a realm with yours has to be built again: **Build the realm with them** asks this app's repository on GitHub to do it (the workflow `build-warcraft-modules.yml`), with each module at its branch's newest commit, from this version of the app's own release, with the main build's compiler cache. The build is tested the way the app's own realm is (the world server started on the server data, a character taken into the world), then attached to the app's release as `server-<build>.tar.xz` (the last three are kept).
+- The build carries on with the app closed. The screen follows it (the step it's on, **Open on GitHub**, **Stop the build**), and the app looks again each time it opens. Once it's built, **Put it in** (or the app at its next opening, while the realm is stopped) downloads it and puts it in place of the realm. Characters, accounts, bots and settings stay; a module's database changes are made at the realm's next start, and its settings are in `files/etc/modules`.
+- **The app's own realm back** puts the realm the app came with in its place again. An app update brings its own realm: a realm with modules is for the version it was built for, so after an update, build it again.
+- Starting a build needs your own GitHub token: on github.com, **Settings → Developer settings → Personal access tokens → Fine-grained tokens**, with access to this repository only and the permission **Actions: read and write**. The app checks it with GitHub and keeps it in its own private storage; it's sent to GitHub alone. Browsing works without one (GitHub allows fewer searches a minute without).
+- Modules are other people's code, written for AzerothCore, not always for ChromieCraft's copy of it or its playerbots: some don't build with it (the build then fails, with its log on GitHub), some need a client patch or settings of their own. The build runs them with a read-only token; only its last step, which runs none of their code, can add the realm to the release.
+
 ## Playing from a PC
 
 On a PC on the same Wi-Fi as the phone, in the client's folder, open `Data\enUS\realmlist.wtf` and set its line to the address the app shows under **From a PC on this Wi-Fi** (also in **Server**):
@@ -159,6 +170,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). And its **HD look** (see below). Takes effect the next time the game starts. |
 | **Custom races** | Goblin, Worgen and nine more races on or off (see **Custom races**). |
 | **Add-ons** | The add-on manager: browse and search warperia.com's 3.3.5a add-ons, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. |
+| **Modules** | AzerothCore's modules from GitHub: browse them, pick some, have GitHub build the realm with them and put it in (see **Modules**). |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
 | **Updates** | Checks for a newer version and installs it. |
 
@@ -199,7 +211,7 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `races/` | The custom races: `races.env` (mod-worgoblin-high-elf and Thorium at pinned commits), `manifest` (its race packs, in the order that gives each race its id), `meta/` (the layouts of the game's tables Thorium doesn't have), `client/RaceScreen.lua` (the character creation screen's race icons, buttons, backgrounds and texts, loaded after the module's) |
 | `../scripts/build-races.py` | Makes the races' tables and world SQL: the game's tables into MariaDB, the race packs' SQL over them (with fixes to the packs' mistakes: wrong model paths and ids, a misplaced name, doubled backslashes), skins the client lacks given the race's nearest, the changed tables back out as DBC files, every playable race checked against the client's files and the character screen, and the world database's SQL with its variables worked out |
 | `../scripts/build-races-package.sh` | The races' package: the sources at their pins, the game's tables out of the server data, `build-races.py`, then `WarcraftRaces-client.zip` (the client's `patch-Z.MPQ` folder) and `WarcraftRaces-server.zip` (the tables, `world.sql`, `races.txt`) |
-| `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules |
+| `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules (and those in `WOW_EXTRA_MODULES`, the user's, for a realm with modules) |
 | `../scripts/compile-azerothcore.sh` | Compiles it all in an Alpine (musl) container, into `build/azerothcore-dist`: the programs, their configs and the SQL. The slow part (CI caches it, and ccache makes a new core revision quicker) |
 | `../scripts/package-azerothcore.sh` | Packs `android/server/server.tar.xz` (git-ignored) from that, in the same Alpine, in a few minutes: the programs with their own musl loader and libraries, Alpine's MariaDB, OpenSSL's legacy provider, the system call shim, the SQL, the configs and a seed database folder |
 | `../scripts/build-azerothcore.sh` | Both, one after the other |
@@ -211,7 +223,9 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `../scripts/winlator-rewrite.py` | Rewrites the install path compiled into every archive of Winlator's runtime (`/data/data/com.winlator/files/rootfs` to `/data/data/com.logie.warcraft/rootfs`, the same length, so programs keep their layout) |
 | `windows/` | `extract-server-data.bat` and the notes that go with the Windows data tools |
 | `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset. `game/Game.kt` starts the game; `controls/TouchGestures.kt` is the gestures, `game/GestureView.kt` puts them on the game screen |
-| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, the custom races' list, updates, the servers' logs |
+| `android/app/.../modules/`, `ModuleStore.kt`, `ui/WowModules.kt` | The module browser: GitHub's topic search, READMEs as text, the builds asked for and followed, the realm put in |
+| `../.github/workflows/build-warcraft-modules.yml` | A realm with the user's modules, started by the app: checked inputs, the app's release checked out, compiled with the main build's compiler cache, packaged, tested, attached to the release |
+| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, the custom races' list, updates, the servers' logs, GitHub's module lists and READMEs, the module builds' requests and runs |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
 | `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
