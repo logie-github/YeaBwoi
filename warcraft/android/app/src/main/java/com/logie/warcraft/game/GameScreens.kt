@@ -37,6 +37,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
@@ -212,9 +217,16 @@ object GamePrompt {
 
     /**
      * Shows the prompt; [onSend] gets the text and whether to remember it ([Kind.remember]),
-     * [onCancel] runs when it's closed without sending.
+     * [onCancel] runs when it's closed without sending. [onBackspace] deletes a character in the
+     * game's own text box: the keyboard's Backspace once the prompt's box is empty, or ⌫.
      */
-    fun show(activity: Activity, kind: Kind, onSend: (String, Boolean) -> Unit, onCancel: () -> Unit): ComponentDialog {
+    fun show(
+        activity: Activity,
+        kind: Kind,
+        onSend: (String, Boolean) -> Unit,
+        onCancel: () -> Unit,
+        onBackspace: () -> Unit,
+    ): ComponentDialog {
         var dialog: ComponentDialog? = null
         var finished = false
         fun finish(text: String?, remember: Boolean) {
@@ -224,7 +236,7 @@ object GamePrompt {
             if (text != null) onSend(text, remember) else onCancel()
         }
         dialog = fullScreenDialog(activity, dim = false) {
-            Prompt(kind, onSend = { text, remember -> finish(text, remember) }, onCancel = { finish(null, false) })
+            Prompt(kind, onSend = { text, remember -> finish(text, remember) }, onCancel = { finish(null, false) }, onBackspace = onBackspace)
         }
         dialog.setOnCancelListener { finish(null, false) }
         // The keyboard comes up over the game without moving or shrinking anything.
@@ -237,7 +249,7 @@ object GamePrompt {
 }
 
 @Composable
-private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onCancel: () -> Unit) {
+private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var keep by remember { mutableStateOf(true) }
     val focus = remember { FocusRequester() }
@@ -288,15 +300,27 @@ private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onC
                         keyboardActions = KeyboardActions(onAny = { onSend(text, keep) }),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .focusRequester(focus),
+                            .focusRequester(focus)
+                            // With nothing left here, Backspace goes on into the game's box.
+                            .onPreviewKeyEvent { event ->
+                                if (event.key != Key.Backspace || text.isNotEmpty()) return@onPreviewKeyEvent false
+                                if (event.type == KeyEventType.KeyDown) onBackspace()
+                                true
+                            },
                     )
                 }
                 if (kind.remember) {
                     WowSwitchRow(stringResource(R.string.wow_prompt_remember), stringResource(R.string.wow_prompt_remember_summary), keep) { keep = it }
                 }
                 Row(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (!kind.password) {
+                        WowButton(stringResource(R.string.wow_prompt_backspace), primary = false, onClick = onBackspace)
+                    }
                     WowButton(stringResource(R.string.wow_prompt_cancel), primary = false, onClick = onCancel)
                     WowButton(stringResource(kind.action)) { onSend(text, keep) }
+                }
+                if (!kind.password) {
+                    Text(stringResource(R.string.wow_prompt_backspace_note), style = MaterialTheme.typography.bodySmall, color = WowColors.Mist)
                 }
             }
         }
