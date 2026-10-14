@@ -4,7 +4,7 @@
 # can't do: a game master's command finishes the anomalies' quest.
 
 cmd .remix
-expect Timerunner
+expect chapter 0 (the prologue)
 
 # WRM-001, The Weight of Time: the three time-echoes.
 talk 7700001
