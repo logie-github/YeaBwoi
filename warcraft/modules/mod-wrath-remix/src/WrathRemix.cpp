@@ -19,8 +19,10 @@
 #include "Formulas.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "Item.h"
 #include "Log.h"
 #include "LootMgr.h"
+#include "Mail.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -29,6 +31,7 @@
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
 #include "StringFormat.h"
+#include "Trainer.h"
 #include "World.h"
 #include <algorithm>
 #include <cmath>
@@ -43,6 +46,9 @@ namespace WrathRemix
         bool bandsEnabled = true;
         bool announce = true;
         bool freeRiding = true;
+        bool starterKit = true;
+        bool autoLearn = true;
+        bool maxWeaponSkill = true;
         BronzeRates rates;
 
         std::map<std::pair<uint32, uint32>, LevelBand> bands;
@@ -51,6 +57,36 @@ namespace WrathRemix
         std::vector<Destination> destinations;
         std::vector<Ware> wares;
         std::unordered_map<uint32, uint32> questBronze;
+        std::unordered_map<uint8, std::vector<KitPiece>> kits;
+        std::unordered_map<uint8, std::vector<ClassSpell>> classSpells;
+
+        // The starter kit's version: a Timerunner who had an older one (or none) gets this one at login.
+        constexpr uint8 KIT_VERSION = 1;
+
+        // The weapon skills' proficiencies, by weapon subclass, for kit weapons a Timerunner's race
+        // didn't start with (any of their class can learn them from a weapon master).
+        uint32 ProficiencyFor(uint32 weaponSubclass)
+        {
+            switch (weaponSubclass)
+            {
+                case ITEM_SUBCLASS_WEAPON_AXE:      return 196;
+                case ITEM_SUBCLASS_WEAPON_AXE2:     return 197;
+                case ITEM_SUBCLASS_WEAPON_BOW:      return 264;
+                case ITEM_SUBCLASS_WEAPON_GUN:      return 266;
+                case ITEM_SUBCLASS_WEAPON_MACE:     return 198;
+                case ITEM_SUBCLASS_WEAPON_MACE2:    return 199;
+                case ITEM_SUBCLASS_WEAPON_POLEARM:  return 200;
+                case ITEM_SUBCLASS_WEAPON_SWORD:    return 201;
+                case ITEM_SUBCLASS_WEAPON_SWORD2:   return 202;
+                case ITEM_SUBCLASS_WEAPON_STAFF:    return 227;
+                case ITEM_SUBCLASS_WEAPON_FIST:     return 15590;
+                case ITEM_SUBCLASS_WEAPON_DAGGER:   return 1180;
+                case ITEM_SUBCLASS_WEAPON_THROWN:   return 2567;
+                case ITEM_SUBCLASS_WEAPON_CROSSBOW: return 5011;
+                case ITEM_SUBCLASS_WEAPON_WAND:     return 5009;
+                default:                            return 0;
+            }
+        }
 
         std::mutex timerunnersLock;
         std::unordered_map<ObjectGuid::LowType, Timerunner> timerunners;
@@ -83,6 +119,9 @@ namespace WrathRemix
         bandsEnabled = sConfigMgr->GetOption<bool>("WrathRemix.LevelBands.Enable", true, false);
         announce = sConfigMgr->GetOption<bool>("WrathRemix.Announce", true, false);
         freeRiding = sConfigMgr->GetOption<bool>("WrathRemix.FreeRiding", true, false);
+        starterKit = sConfigMgr->GetOption<bool>("WrathRemix.StarterKit", true, false);
+        autoLearn = sConfigMgr->GetOption<bool>("WrathRemix.AutoLearn", true, false);
+        maxWeaponSkill = sConfigMgr->GetOption<bool>("WrathRemix.MaxWeaponSkill", true, false);
         rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", 25, false);
         rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", 1, false);
         rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", 4, false);
@@ -103,6 +142,8 @@ namespace WrathRemix
         destinations.clear();
         wares.clear();
         questBronze.clear();
+        kits.clear();
+        classSpells.clear();
         if (!enabled)
             return;
 
@@ -168,8 +209,25 @@ namespace WrathRemix
                 questBronze[f[0].Get<uint32>()] = f[1].Get<uint32>();
             } while (result->NextRow());
         }
-        LOG_INFO("module", "Wrath Remix: {} level bands, {} transitions, {} chapters, {} destinations, {} wares",
-            bands.size(), bridges.size(), chapters.size(), destinations.size(), wares.size());
+        if (QueryResult result = WorldDatabase.Query("SELECT `class`, `item`, `count` FROM `remix_starter_kit` ORDER BY `class`, `item`"))
+        {
+            do
+            {
+                // (item templates load after this: GiveKit skips an item that doesn't exist)
+                Field* f = result->Fetch();
+                kits[f[0].Get<uint8>()].push_back({ f[1].Get<uint32>(), f[2].Get<uint8>() });
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `class`, `spell`, `level` FROM `remix_class_spell` ORDER BY `class`, `level`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                classSpells[f[0].Get<uint8>()].push_back({ f[1].Get<uint32>(), f[2].Get<uint8>() });
+            } while (result->NextRow());
+        }
+        LOG_INFO("module", "Wrath Remix: {} level bands, {} transitions, {} chapters, {} destinations, {} wares, {} starter kits",
+            bands.size(), bridges.size(), chapters.size(), destinations.size(), wares.size(), kits.size());
     }
 
     LevelBand const* BandFor(uint32 map, uint32 zone)
@@ -252,12 +310,13 @@ namespace WrathRemix
     void Load(Player* player)
     {
         Timerunner t;
-        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter` FROM `remix_character` WHERE `guid` = {}", player->GetGUID().GetCounter()))
+        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter`, `kit` FROM `remix_character` WHERE `guid` = {}", player->GetGUID().GetCounter()))
         {
             Field* f = result->Fetch();
             t.bronze = f[0].Get<uint32>();
             t.earned = f[1].Get<uint32>();
             t.chapter = f[2].Get<uint8>();
+            t.kit = f[3].Get<uint8>();
         }
         else
             t.dirty = true;
@@ -276,8 +335,8 @@ namespace WrathRemix
             it->second.dirty = false;
             t = it->second;
         }
-        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`) VALUES ({}, {}, {}, {})",
-            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter);
+        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`, `kit`) VALUES ({}, {}, {}, {}, {})",
+            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter, t.kit);
     }
 
     void Forget(Player* player)
@@ -330,6 +389,17 @@ namespace WrathRemix
         Save(player);
         if (Chapter const* c = ChapterFor(chapter))
             ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffChapter {}: {}.|r {}", uint32(c->chapter), c->name, c->summary);
+    }
+
+    void SetKit(Player* player, uint8 version)
+    {
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+            t.kit = version;
+            t.dirty = true;
+        }
+        Save(player);
     }
 
     void Record(Player* player, char const* what, uint32 entry, int32 amount)
@@ -399,6 +469,147 @@ namespace WrathRemix
             if (player->GetLevel() >= r.level && !player->HasSpell(r.spell))
                 player->learnSpell(r.spell);
     }
+
+    // Everything the Timerunner's class trainer would teach them at their level, free, as Legion
+    // Remix does, and the abilities class quests teach (remix_class_spell): a Timerunner starts at
+    // 10 and moves fast, without the trips to a capital. The trainers are the Bazaar's instructors'
+    // (the capitals' lists). Ranks need the rank before, so it goes round until nothing is left.
+    static uint32 LearnClassSpells(Player* player)
+    {
+        if (!autoLearn)
+            return 0;
+        std::vector<Trainer::Trainer*> trainers;
+        for (uint32 entry = NPC_INSTRUCTOR_FIRST; entry <= NPC_INSTRUCTOR_LAST; ++entry)
+            if (Trainer::Trainer* trainer = sObjectMgr->GetTrainer(entry))
+                if (trainer->GetTrainerType() == Trainer::Type::Class && trainer->IsTrainerValidForPlayer(player))
+                    trainers.push_back(trainer);
+        auto quested = classSpells.find(player->getClass());
+        uint32 learned = 0;
+        for (int round = 0; round < 10; ++round)
+        {
+            uint32 before = learned;
+            for (Trainer::Trainer* trainer : trainers)
+            {
+                for (Trainer::Spell const& spell : trainer->GetSpells())
+                {
+                    if (!trainer->CanTeachSpell(player, &spell))
+                        continue;
+                    // as a trainer teaches it (Trainer::TeachSpell), without the trainer or the gold
+                    if (!spell.IsCastable())
+                        player->learnSpell(spell.SpellId, false);
+                    else if (sScriptMgr->OnPlayerCanLearnSpell(player, spell.SpellId))
+                        player->CastSpell(player, spell.SpellId, true);
+                    ++learned;
+                }
+            }
+            if (quested != classSpells.end())
+            {
+                for (ClassSpell const& c : quested->second)
+                {
+                    if (player->GetLevel() < c.level || player->HasSpell(c.spell))
+                        continue;
+                    player->learnSpell(c.spell, false);
+                    ++learned;
+                }
+            }
+            if (learned == before)
+                break;
+        }
+        return learned;
+    }
+
+    // Weapon and defense skills at their level's maximum: a character made at 10 has them at 1
+    // otherwise (and misses most of what it swings at).
+    static void MaxWeaponSkills(Player* player)
+    {
+        if (maxWeaponSkill)
+            player->UpdateSkillsToMaxSkillsForLevel();
+    }
+
+    // One piece of the kit: put on in place of what the Timerunner started in (white or grey gear,
+    // item level 5 or lower), into the bags when they've something better on, by mail when the
+    // bags are full.
+    static void GivePiece(Player* player, ItemTemplate const* proto, MailDraft& mail, CharacterDatabaseTransaction trans, bool& mailed)
+    {
+        uint8 slot = player->FindEquipSlot(proto, NULL_SLOT, true);
+        if (slot != NULL_SLOT)
+        {
+            Item* current = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+            uint16 dest;
+            if ((!current || (current->GetTemplate()->ItemLevel <= 5 && current->GetTemplate()->Quality <= ITEM_QUALITY_NORMAL)) &&
+                player->CanEquipNewItem(slot, dest, proto->ItemId, true) == EQUIP_ERR_OK)
+            {
+                if (current)
+                    player->DestroyItem(INVENTORY_SLOT_BAG_0, slot, true);
+                if (player->CanEquipNewItem(slot, dest, proto->ItemId, false) == EQUIP_ERR_OK)
+                {
+                    player->EquipNewItem(dest, proto->ItemId, true);
+                    player->AutoUnequipOffhandIfNeed();
+                    return;
+                }
+            }
+        }
+        ItemPosCountVec dest;
+        if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, proto->ItemId, 1) == EQUIP_ERR_OK)
+        {
+            if (Item* item = player->StoreNewItem(dest, proto->ItemId, true))
+                player->SendNewItem(item, 1, true, false);
+            return;
+        }
+        if (Item* item = Item::CreateItem(proto->ItemId, 1, player))
+        {
+            item->SaveToDB(trans);
+            mail.AddItem(item);
+            mailed = true;
+        }
+    }
+
+    // The class's starter kit (remix_starter_kit), once per kit version. Death knights have
+    // Acherus' gear instead.
+    static void GiveKit(Player* player)
+    {
+        // (a ghost can't put anything on: it waits for the Timerunner to be alive)
+        if (!starterKit || player->getClass() == CLASS_DEATH_KNIGHT || !player->IsAlive() || Get(player).kit >= KIT_VERSION)
+            return;
+        auto kit = kits.find(player->getClass());
+        if (kit == kits.end())
+            return;
+        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+        MailDraft mail("Moratari's provisions", "Your bags were full, so the rest of your provisions came this way. Do try to keep up.");
+        bool mailed = false;
+        for (KitPiece const& piece : kit->second)
+        {
+            ItemTemplate const* proto = sObjectMgr->GetItemTemplate(piece.item);
+            if (!proto)
+                continue;
+            if (proto->Class == ITEM_CLASS_WEAPON)
+                if (uint32 proficiency = ProficiencyFor(proto->SubClass); proficiency && !player->HasSpell(proficiency) &&
+                    player->IsSpellFitByClassAndRace(proficiency))
+                    player->learnSpell(proficiency, false);
+            for (uint8 n = 0; n < piece.count; ++n)
+                GivePiece(player, proto, mail, trans, mailed);
+        }
+        if (mailed)
+            mail.SendMailTo(trans, MailReceiver(player), MailSender(MAIL_NORMAL, 0), MAIL_CHECK_MASK_COPIED);
+        CharacterDatabase.CommitTransaction(trans);
+        SetKit(player, KIT_VERSION);
+        ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r You will want something better than that. Here: gear that grows with you, and a few things to carry you through your first battles.");
+    }
+
+    // A Timerunner's training, kept up as they arrive and as they level: their class's abilities,
+    // their weapon skills, free riding, and (once) the starter kit. Not the realm's playerbots
+    // (sessions without a client): they look after their own spells and gear.
+    static void Train(Player* player)
+    {
+        if (player->GetSession()->GetRemoteAddress() == "headless")
+            return;
+        TeachRiding(player);
+        if (uint32 learned = LearnClassSpells(player))
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: you learn {} {} of your class.", learned,
+                learned == 1 ? "ability" : "abilities");
+        GiveKit(player);
+        MaxWeaponSkills(player);
+    }
 }
 
 using namespace WrathRemix;
@@ -431,6 +642,7 @@ public:
         PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
         PLAYERHOOK_ON_CREATURE_KILL,
         PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
+        PLAYERHOOK_ON_PLAYER_RESURRECT,
     }) { }
 
     void OnPlayerFirstLogin(Player* player) override
@@ -449,7 +661,14 @@ public:
         if (!Active())
             return;
         Load(player);
-        TeachRiding(player);
+        // A moment after arriving, once the Timerunner is in the world: learning casts, and the
+        // kit puts gear on.
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld())
+                Train(p);
+        }, 2s);
         Timerunner const t = Get(player);
         if (Announce())
         {
@@ -479,7 +698,20 @@ public:
     {
         if (!Active())
             return;
-        TeachRiding(player);
+        Train(player);
+    }
+
+    // A Timerunner who arrived dead gets the starter kit once they're back on their feet.
+    void OnPlayerResurrect(Player* player, float /*restorePercent*/, bool& /*applySickness*/) override
+    {
+        if (!Active() || player->GetSession()->GetRemoteAddress() == "headless")
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld() && p->IsAlive())
+                GiveKit(p);
+        }, 1s);
     }
 
     // Called once as a quest is turned in (it works out the experience).
@@ -528,9 +760,10 @@ public:
             loot->gold = std::max<uint32>(1, uint32(std::lround(loot->gold * BandFactor(creature))));
     }
 
+    // (summoned creatures give none: a quest's or a boss's adds aren't for farming)
     void OnPlayerCreatureKill(Player* player, Creature* killed) override
     {
-        if (!Active() || !killed || Acore::XP::Gain(player, killed) == 0)
+        if (!Active() || !killed || killed->IsSummon() || Acore::XP::Gain(player, killed) == 0)
             return;
         BronzeRates const& r = Rates();
         CreatureTemplate const* info = killed->GetCreatureTemplate();
@@ -675,7 +908,7 @@ public:
         for (Creature* creature : creatures)
         {
             CreatureTemplate const* info = creature->GetCreatureTemplate();
-            if (!info || info->Entry >= 7700000)
+            if (!info || (info->Entry >= NPC_MORATARI && info->Entry <= NPC_INSTRUCTOR_LAST))
                 continue;
             bool applies = band && int32(info->minlevel) >= band->originalMin - 5;
             if (applies)

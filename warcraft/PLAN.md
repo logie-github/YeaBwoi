@@ -654,6 +654,39 @@ for the game on the phone itself ("that's the whole point").
     sides, with the Wrathgate and the Battle for the Undercity checked first), Infinite Power,
     Keeper assignments, then challenge content.
 
+- Then (the user played the demo): "really cool"; the intro needs much more explanation of who
+  everyone is (later); "the first NPC I attacked I got absolutely trashed... I need starter gear
+  appropriate to my class for every class". Causes: a character made at 10 has level 1's gear,
+  only level 1's spells (trainers and class quests never happened) and weapon skills at 1 of 50
+  (the core starts them at 1 unless `AlwaysMaxWeaponSkill`), and WRM-003 let three anomalies at
+  it at once. Done (build 56):
+  - A starter kit per class (`remix_starter_kit`, `0008_starter.sql`): heirloom shoulders, chest,
+    weapons, trinket and the Dread Pirate Ring (they scale to 80; heirloom plate and mail are
+    wearable before 40), and the best fixed-stat greens up to level 10 for legs, hands, feet,
+    waist and back, plus The 1 Ring; the shaman's four totems. Put on in place of white or grey
+    gear of item level 5 or less, else into the bags, else by mail; missing weapon proficiencies
+    taught. Once per kit version (`remix_character.kit`), so existing Timerunners get it too.
+    Death knights and the realm's bots (sessions without a client) are left out.
+  - Training at login and every level: every spell the class trainers (the instructors' lists)
+    teach at the level, free, and the abilities class quests teach (`remix_class_spell`:
+    Defensive Stance, Taunt, Sunder Armor, Berserker Stance, the hunter's pet spells, the
+    warlock's demons, Bear Form, Growl, Maul, Redemption, Poisons...); weapon and defense skills
+    at the level's maximum (`UpdateSkillsToMaxSkillsForLevel`). Options `WrathRemix.StarterKit`,
+    `AutoLearn`, `MaxWeaponSkill`.
+  - WRM-003's anomalies come one at a time (each brings the next as it dies), at level 10 and
+    half damage. Found while testing: the realm's random bots are made where every new character
+    starts, the Caverns of Time, and a level 10 bot paladin judged the anomaly; a kill only counts
+    for a player who did half its damage, so the Timerunner lost the credit. Each anomaly's death
+    now credits the Timerunner it came for (a credit entry the quest asks for, 770032), and
+    summoned creatures give no Bronze. CI's test kills them with `.damage` (`.die` gives no
+    credit) and checks each one brings the next.
+  - Ids made small: the core keeps creature templates, quests and items in tables as long as the
+    highest id (`_creatureTemplateStoreFast`, `_questTemplatesFast`, `_itemTemplateStoreFast`), so
+    Remix's 7.7 million ids cost about 120 MB on the phone. Creatures are 770001+ and quests 77nnn
+    now; the SQL removes the old rows and moves Timerunners' quest records.
+  - The Bronze vendors the user asked for before this (Legion Remix's collections for Bronze) are
+    next.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

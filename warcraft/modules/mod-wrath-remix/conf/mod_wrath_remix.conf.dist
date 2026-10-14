@@ -38,6 +38,32 @@ WrathRemix.LevelBands.Enable = 1
 WrathRemix.FreeRiding = 1
 
 #
+#    WrathRemix.StarterKit
+#        Description: A Timerunner's first login (death knights aside) brings gear for their class:
+#                     heirloom shoulders, chest, weapons, trinket and ring, and greens for the other
+#                     slots (remix_starter_kit), put on in place of the starting clothes.
+#        Default:     1
+
+WrathRemix.StarterKit = 1
+
+#
+#    WrathRemix.AutoLearn
+#        Description: Every ability the class trainer teaches at a Timerunner's level, learned free
+#                     at login and at each level, with those their class quests teach
+#                     (remix_class_spell): a Timerunner starts at 10 without those quests.
+#        Default:     1
+
+WrathRemix.AutoLearn = 1
+
+#
+#    WrathRemix.MaxWeaponSkill
+#        Description: Weapon and defense skills kept at their level's maximum (a character made at
+#                     10 has them at 1 otherwise, and misses most of its swings).
+#        Default:     1
+
+WrathRemix.MaxWeaponSkill = 1
+
+#
 #    WrathRemix.Bronze.Quest
 #    WrathRemix.Bronze.Kill
 #    WrathRemix.Bronze.Elite
