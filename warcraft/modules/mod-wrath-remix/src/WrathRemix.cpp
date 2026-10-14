@@ -228,7 +228,7 @@ namespace WrathRemix
             return level;
         double span = std::max(1, band.originalMax - band.originalMin);
         int32 banded = int32(std::lround(band.bandMin + (level - band.originalMin) * (band.bandMax - band.bandMin) / span));
-        return std::clamp(banded, 1, band.bandMax + 3);
+        return std::clamp(banded, std::max(1, band.bandMin - 3), band.bandMax + 3);
     }
 
     uint8 ChapterForLevel(uint8 level)
@@ -453,7 +453,7 @@ public:
         Timerunner const t = Get(player);
         if (Announce())
         {
-            uint8 chapter = std::max(t.chapter, ChapterForLevel(player->GetLevel()));
+            uint8 chapter = t.chapter ? std::max(t.chapter, ChapterForLevel(player->GetLevel())) : 0;
             Chapter const* c = ChapterFor(chapter);
             ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: Timerunner, {} Bronze. {}", t.bronze,
                 c ? Acore::StringFormat("Chapter {}: {}.", uint32(c->chapter), c->name) : std::string("The prologue."));
@@ -636,7 +636,7 @@ public:
             return true;
         }
         Timerunner const t = Get(player);
-        uint8 chapter = std::max(t.chapter, ChapterForLevel(player->GetLevel()));
+        uint8 chapter = t.chapter ? std::max(t.chapter, ChapterForLevel(player->GetLevel())) : 0;
         Chapter const* c = ChapterFor(chapter);
         handler->PSendSysMessage("Wrath Remix: Timerunner {}, level {}, {} Bronze ({} earned), chapter {} ({}).",
             player->GetName(), uint32(player->GetLevel()), t.bronze, t.earned, uint32(chapter), c ? c->name : "the prologue");
@@ -669,20 +669,27 @@ public:
         AnyCreatureInRange check(player, 60.0f);
         Acore::CreatureListSearcher<AnyCreatureInRange> searcher(player, creatures, check);
         Cell::VisitObjects(player, searcher, 60.0f);
-        uint32 shown = 0, lowest = 255, highest = 0;
+        // The band leaves creatures well below the zone's levels (critters, the odd old-world
+        // visitor) as they are; the check counts the ones it applies to.
+        uint32 shown = 0, banded = 0, lowest = 255, highest = 0;
         for (Creature* creature : creatures)
         {
             CreatureTemplate const* info = creature->GetCreatureTemplate();
             if (!info || info->Entry >= 7700000)
                 continue;
-            lowest = std::min<uint32>(lowest, creature->GetLevel());
-            highest = std::max<uint32>(highest, creature->GetLevel());
+            bool applies = band && int32(info->minlevel) >= band->originalMin - 5;
+            if (applies)
+            {
+                ++banded;
+                lowest = std::min<uint32>(lowest, creature->GetLevel());
+                highest = std::max<uint32>(highest, creature->GetLevel());
+            }
             if (shown++ < 12)
-                handler->PSendSysMessage("creature {} {}: level {} (template {}-{})", info->Entry, info->Name,
-                    uint32(creature->GetLevel()), uint32(info->minlevel), uint32(info->maxlevel));
+                handler->PSendSysMessage("creature {} {}: level {} (template {}-{}){}", info->Entry, info->Name,
+                    uint32(creature->GetLevel()), uint32(info->minlevel), uint32(info->maxlevel), applies ? "" : ", not banded");
         }
-        if (shown)
-            handler->PSendSysMessage("Wrath Remix band check: {} creatures, levels {} to {}.", shown, lowest, highest);
+        if (banded)
+            handler->PSendSysMessage("Wrath Remix band check: {} banded creatures, levels {} to {}.", banded, lowest, highest);
         return true;
     }
 
