@@ -29,7 +29,7 @@ INSERT INTO `remix_level_band` (`map`, `zone`, `quest_sort`, `original_min`, `or
 (619, 0, 4494, 73, 75, 28, 32, 2, 'Ahn''kahet: The Old Kingdom'),
 (600, 0, 4196, 74, 76, 36, 42, 3, 'Drak''Tharon Keep'),
 (608, 0, 4415, 75, 77, 40, 46, 4, 'The Violet Hold'),
-(604, 0, 4375, 76, 78, 48, 52, 4, 'Gundrak'),
+(604, 0, 4416, 76, 78, 48, 52, 4, 'Gundrak'),  -- its quests' sort: the instance's zone (4375 is the area outside)
 (599, 0, 4264, 77, 79, 62, 66, 6, 'Halls of Stone'),
 (602, 0, 4272, 79, 81, 66, 70, 6, 'Halls of Lightning'),
 (578, 0, 4228, 79, 81, 74, 78, 7, 'The Oculus'),

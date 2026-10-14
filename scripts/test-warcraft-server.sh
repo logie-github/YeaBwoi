@@ -32,8 +32,8 @@
 #      price an ItemExtendedCost of Bronze); every NPC Remix placed stands on the floor
 #      (remix_check.py floors); the realm writes the game's patch with Bronze's rows
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
-#      leave the Caverns of Time for their chapters. Chapters II's and III's transitions are played
-#      on each side (warcraft/server/remix_campaign_*.steps).
+#      leave the Caverns of Time for their chapters. Chapters II to IV's transitions are played on
+#      each side (warcraft/server/remix_campaign_*.steps).
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
@@ -372,7 +372,7 @@ if [ -n "$DATA_ZIP" ]; then
 
 	# The campaign's transitions after Chapter I, each side with a character of its own (the
 	# original quests before them given by GM commands).
-	echo "== Wrath Remix's campaign, Chapters II and III"
+	echo "== Wrath Remix's campaign, Chapters II to IV"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Wintergarde 1 1 \
 		"$ROOT/warcraft/server/remix_campaign_alliance.steps" | tee "$FILES/logs/remix-campaign-alliance.out" ||
 		fail "the campaign's transitions didn't play through for the Alliance"
