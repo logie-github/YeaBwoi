@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Wrath Remix's people: Moratari (the prologue, the Bazaar, her transitions, the way back to the
- * last chapter that held), Eternus (the choice of coast), the Keepers, the Bronze vendors (Alurmi,
- * Horos, Domelius, Arturos, Aeonicus, Durus: lists of wares as vendor windows),
- * Zephyr's roads, Sa'at's dungeons, the Chronologist's chapters, Momentus, and the prologue's
- * time-echoes.
+ * Wrath Remix's people (STORY.md): Moratari (the prologue, her transitions, the way back to the
+ * last chapter that held), Eternus, the Keepers, the Bronze vendors (Alurmi, Horos, Domelius,
+ * Arturos, Aeonicus, Durus: lists of wares as vendor windows), Zephyr's roads, Sa'at's dungeons,
+ * the Chronologist's chapters, Momentus, the class instructors, and the prologue's echoes of the
+ * war's dead and its anomalies.
  */
 
 #include "WrathRemix.h"
@@ -39,7 +39,6 @@ namespace
     enum MoratariActions : uint32
     {
         ACTION_ANOMALIES = 1,
-        ACTION_BAZAAR,
         ACTION_HISTORY,
         ACTION_RECOVER,
         ACTION_BACK,
@@ -70,7 +69,7 @@ namespace
         player->TeleportTo(d.map, d.x, d.y, d.z, d.o);
     }
 
-    // WRM-003's anomalies come through one at a time: each one Moratari lets through brings the
+    // WRM-013's anomalies come through one at a time: each one Moratari lets through brings the
     // next when it dies, three in all, while the quest still wants them.
     constexpr uint32 ANOMALY_WAVES = 3;
     enum AnomalyData : uint32 { DATA_WAVE = 1 };
@@ -89,7 +88,7 @@ namespace
         }
     }
 
-    // A "talk to" objective of Remix's quests (the Bazaar's Alurmi and Chronologist, Momentus).
+    // A "talk to" objective of Remix's quests (WRM-011's echoes, WRM-012's Alurmi).
     void SpokenTo(Player* player, Creature* creature)
     {
         player->KilledMonsterCredit(creature->GetEntry());
@@ -125,14 +124,12 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
-        bool prologue = creature->GetMapId() == 1;
+        // (as a new Timerunner wakes: where and when they are)
+        bool waking = !player->GetQuestRewardStatus(QUEST_OUT_OF_TIME) && player->getClass() != CLASS_DEATH_KNIGHT;
         if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE)
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "I'm ready. Let the anomalies through.", SENDER_MAIN, ACTION_ANOMALIES);
-        if (prologue && (player->GetQuestStatus(QUEST_BAZAAR) == QUEST_STATUS_INCOMPLETE ||
-                         player->GetQuestStatus(QUEST_BAZAAR) == QUEST_STATUS_COMPLETE || player->GetQuestRewardStatus(QUEST_BAZAAR)))
-            AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Open the way to the Infinite Bazaar.", SENDER_MAIN, ACTION_BAZAAR);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Where are we in history?", SENDER_MAIN, ACTION_HISTORY);
-        SendGossipMenuFor(player, prologue ? TEXT_MORATARI_PROLOGUE : TEXT_MORATARI, creature);
+        SendGossipMenuFor(player, waking ? TEXT_MORATARI_PROLOGUE : TEXT_MORATARI, creature);
         return true;
     }
 
@@ -155,10 +152,6 @@ public:
                 LetAnomalyThrough(creature, player, 1);
                 return true;
             }
-            case ACTION_BAZAAR:
-                if (Destination const* bazaar = DestinationFor(TRAVEL_BAZAAR))
-                    TeleportTo(player, *bazaar);
-                return true;
             case ACTION_HISTORY:
             {
                 uint8 chapter = StableChapter(player);
@@ -203,36 +196,12 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
-        QuestStatus war = player->GetQuestStatus(QUEST_WAR_WE_REMEMBER);
-        bool routes = war == QUEST_STATUS_INCOMPLETE || war == QUEST_STATUS_COMPLETE || player->GetQuestRewardStatus(QUEST_WAR_WE_REMEMBER);
-        if (routes)
-        {
-            bool alliance = IsAlliance(player);
-            uint16 borean = alliance ? TRAVEL_VALIANCE_KEEP : TRAVEL_WARSONG_HOLD;
-            uint16 fjord = alliance ? TRAVEL_VALGARDE : TRAVEL_VENGEANCE_LANDING;
-            for (uint16 id : { borean, fjord })
-                if (Destination const* d = DestinationFor(id))
-                    AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Send me to " + d->name + ".", SENDER_TRAVEL, d->id);
-        }
-        SendGossipMenuFor(player, routes ? TEXT_ETERNUS_ROUTES : TEXT_ETERNUS, creature);
-        return true;
-    }
-
-    bool OnGossipSelect(Player* player, Creature* /*creature*/, uint32 sender, uint32 action) override
-    {
-        if (!Active())
-            return false;
-        Destination const* d = sender == SENDER_TRAVEL ? DestinationFor(uint16(action)) : nullptr;
-        if (d && OnSide(player, d->side))
-            TeleportTo(player, *d);
-        else
-            CloseGossipMenuFor(player);
+        SendGossipMenuFor(player, player->GetQuestRewardStatus(QUEST_WAR_WILL_COST) ? TEXT_ETERNUS_LATER : TEXT_ETERNUS, creature);
         return true;
     }
 };
 
-// Andormu and Nozari: their quests and their words. When Andormu has read the terms (WRM-002),
-// Eternus answers and Moratari has the last word.
+// Andormu and Nozari, the Keepers of Time: their words.
 class npc_remix_keeper : public CreatureScript
 {
 public:
@@ -247,24 +216,6 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
         SendGossipMenuFor(player, creature->GetEntry() == NPC_NOZARI ? TEXT_NOZARI : TEXT_ANDORMU, creature);
         return true;
-    }
-
-    bool OnQuestReward(Player* player, Creature* creature, Quest const* quest, uint32 /*opt*/) override
-    {
-        if (!Active() || quest->GetQuestId() != QUEST_AGREEMENT)
-            return false;
-        if (Creature* eternus = creature->FindNearestCreature(NPC_ETERNUS, 40.0f))
-            eternus->Say("Then let us determine how much of that road truly matters. A champion is more than an obedient witness.", LANG_UNIVERSAL, player);
-        if (Creature* moratari = creature->FindNearestCreature(NPC_MORATARI, 40.0f))
-        {
-            ObjectGuid playerGuid = player->GetGUID();
-            moratari->m_Events.AddEventAtOffset([moratari, playerGuid]()
-            {
-                moratari->Say("Wonderful. A controlled disagreement. These generally produce the best notes.", LANG_UNIVERSAL,
-                    ObjectAccessor::GetPlayer(*moratari, playerGuid));
-            }, 4s);
-        }
-        return false;
     }
 };
 
@@ -308,7 +259,7 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_BAZAAR) == QUEST_STATUS_INCOMPLETE)
+        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE)
             SpokenTo(player, creature);
         BronzeVendorMenu(player, creature);
         return true;
@@ -408,8 +359,6 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_BAZAAR) == QUEST_STATUS_INCOMPLETE)
-            SpokenTo(player, creature);
         ClearGossipMenuFor(player);
         uint8 current = StableChapter(player);
         AddGossipItemFor(player, GOSSIP_ICON_DOT, Acore::StringFormat("You: level {}, {} Bronze, {}.", uint32(player->GetLevel()),
@@ -450,15 +399,13 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_SHADOW_OF_CITY) == QUEST_STATUS_INCOMPLETE)
-            SpokenTo(player, creature);
         ClearGossipMenuFor(player);
         SendGossipMenuFor(player, TEXT_MOMENTUS, creature);
         return true;
     }
 };
 
-// The prologue's frozen moments: looking at one is WRM-001's objective.
+// The war's dead as Eternus shows them (WRM-011): hearing one is the quest's objective.
 class npc_remix_echo : public CreatureScript
 {
 public:
@@ -468,15 +415,15 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_WEIGHT_OF_TIME) == QUEST_STATUS_INCOMPLETE)
+        if (player->GetQuestStatus(QUEST_WAR_WILL_COST) == QUEST_STATUS_INCOMPLETE)
             SpokenTo(player, creature);
         ClearGossipMenuFor(player);
-        SendGossipMenuFor(player, TEXT_ECHO_LANDING + (creature->GetEntry() - NPC_ECHO_LANDING), creature);
+        SendGossipMenuFor(player, TEXT_ECHO_FOOTMAN + (creature->GetEntry() - NPC_ECHO_FOOTMAN), creature);
         return true;
     }
 };
 
-// A Temporal Anomaly of WRM-003: when it dies, Moratari lets the next one through.
+// A Temporal Anomaly of WRM-013: when it dies, Moratari lets the next one through.
 class npc_remix_anomaly : public CreatureScript
 {
 public:
@@ -518,8 +465,27 @@ public:
     }
 };
 
+// The Bazaar's instructors: speaking with one is WRM-012's objective; then their lessons, as any
+// trainer's.
+class npc_remix_instructor : public CreatureScript
+{
+public:
+    npc_remix_instructor() : CreatureScript("npc_remix_instructor") { }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        if (!Active())
+            return false;
+        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE)
+            player->KilledMonsterCredit(NPC_INSTRUCTOR_CREDIT);
+        player->GetSession()->SendTrainerList(creature);
+        return true;
+    }
+};
+
 void AddRemixNpcScripts()
 {
+    new npc_remix_instructor();
     new npc_remix_moratari();
     new npc_remix_eternus();
     new npc_remix_keeper();

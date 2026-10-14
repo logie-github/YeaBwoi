@@ -25,14 +25,14 @@
 #   6. Wrath Remix, the second realm: its databases are made, its world server starts with the
 #      mod-wrath-remix module on (the ChromieCraft realm's said it was off), its SQL is in its
 #      databases and not in ChromieCraft's, both realms are in the realm list, and a new
-#      character there is a level 10 Timerunner in the Caverns of Time who plays the prologue
+#      character there is a level 10 Timerunner at the Infinite Bazaar who plays the prologue
 #      (warcraft/server/remix_prologue.steps) to the first chapter, with Northrend's creatures at
 #      its levels, and has its class's starter kit on, its abilities learned and its weapon skill
 #      at its level's maximum, buys from the Bazaar's Bronze vendors' windows (Bronze an item, a
 #      price an ItemExtendedCost of Bronze); every NPC Remix placed stands on the floor
 #      (remix_check.py floors); the realm writes the game's patch with Bronze's rows
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
-#      leave the Caverns of Time for their chapters. Chapters II to IV's transitions are played on
+#      leave where characters are made for their chapters. Chapters II to IV's transitions are played on
 #      each side (warcraft/server/remix_campaign_*.steps).
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
@@ -334,7 +334,7 @@ if [ -n "$DATA_ZIP" ]; then
 	export WORLD_PORT=8086
 	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Timerunner | tee "$FILES/logs/remix-client.out" ||
 		fail "a character couldn't get into the Remix world"
-	grep -q "level 10, map 1" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 in the Caverns of Time"
+	grep -q "level 10, map 571" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 at the Infinite Bazaar"
 	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 | tee "$FILES/logs/remix-characters.out"
 	if grep -q "^Testhero" "$FILES/logs/remix-characters.out"; then fail "ChromieCraft's character is on Wrath Remix"; fi
 
@@ -390,12 +390,12 @@ if [ -n "$DATA_ZIP" ]; then
 
 	# The realm's bots are made where Timerunners begin; each one in the world is sent to its
 	# chapter (those in the world a moment, as it shut down, aside).
-	echo "== Wrath Remix's bots out of the Caverns of Time"
-	sent=$(grep -c "sent from the Caverns of Time" "$world_log" || true)
-	echo "bots sent from the Caverns of Time to their chapters: $sent"
-	[ "$sent" -gt 0 ] || fail "no bot was sent from the Caverns of Time"
-	left=$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.zone <> 0 AND c.totaltime >= 30 AND c.map = 1 AND c.position_x BETWEEN -8800 AND -8000 AND c.position_y BETWEEN -4800 AND -4000 AND c.position_z < -150" | CTL sql acore_characters_remix)
-	[ "$left" = 0 ] || fail "$left of the realm's bots stayed in the Caverns of Time"
+	echo "== Wrath Remix's bots out of the Infinite Bazaar"
+	sent=$(grep -c "sent from the Infinite Bazaar" "$world_log" || true)
+	echo "bots sent from the Infinite Bazaar to their chapters: $sent"
+	[ "$sent" -gt 0 ] || fail "no bot was sent from the Infinite Bazaar"
+	left=$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.zone <> 0 AND c.totaltime >= 30 AND c.map = 571 AND c.position_x BETWEEN 5580 AND 5820 AND c.position_y BETWEEN 890 AND 1130" | CTL sql acore_characters_remix)
+	[ "$left" = 0 ] || fail "$left of the realm's bots stayed at the Infinite Bazaar"
 
 	echo "== ChromieCraft takes Wrath Remix's patch out of the game"
 	start_world world-again.out

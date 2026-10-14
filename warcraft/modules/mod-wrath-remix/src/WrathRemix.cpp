@@ -627,10 +627,21 @@ namespace WrathRemix
         return false;
     }
 
-    // A bot in the Caverns of Time (where every character is made, and where the playerbots'
-    // travels can bring one back) goes to the start of the chapter its level belongs to, its
-    // side's, and makes its home there: the prologue's anomalies are the Timerunners' to fight.
-    static void SendBotAway(Player* bot)
+    // Where every character is made (the Infinite Bazaar; the Caverns of Time until build 64): a
+    // bot there.
+    static char const* AtTheStart(Player* player, uint32 area)
+    {
+        if (player->GetMapId() == MAP_KALIMDOR && area == AREA_CAVERNS_OF_TIME)
+            return "the Caverns of Time";
+        if (player->GetMapId() == MAP_NORTHREND && player->GetExactDist2d(BAZAAR_X, BAZAAR_Y) < 120.0f)
+            return "the Infinite Bazaar";
+        return nullptr;
+    }
+
+    // A bot where every character is made (and where the playerbots' travels can bring one back)
+    // goes to the start of the chapter its level belongs to, its side's, and makes its home there:
+    // the prologue is the Timerunners'.
+    static void SendBotAway(Player* bot, char const* from)
     {
         if (WithPlayer(bot))
             return;
@@ -641,7 +652,7 @@ namespace WrathRemix
         WorldLocation home(c->map[side], c->x[side], c->y[side], c->z[side], bot->GetOrientation());
         bot->SetHomebind(home, sMapMgr->GetAreaId(PHASEMASK_NORMAL, home));
         bot->TeleportTo(home);
-        LOG_INFO("module", "Wrath Remix: bot {} (level {}) sent from the Caverns of Time to Chapter {}", bot->GetName(), uint32(bot->GetLevel()), uint32(c->chapter));
+        LOG_INFO("module", "Wrath Remix: bot {} (level {}) sent from {} to Chapter {}", bot->GetName(), uint32(bot->GetLevel()), from, uint32(c->chapter));
     }
 
     // A Timerunner's training, kept up as they arrive and as they level: their class's abilities,
@@ -658,6 +669,17 @@ namespace WrathRemix
                 learned == 1 ? "ability" : "abilities");
         GiveKit(player);
         MaxWeaponSkills(player);
+    }
+
+    // A Timerunner made before build 64 and still in the prologue was made in the Caverns of Time,
+    // where the prologue was: they wake at the Bazaar, where it is now, with their home there.
+    static void WakeAtTheBazaar(Player* player)
+    {
+        if (IsBot(player) || Get(player).chapter || player->GetMapId() != MAP_KALIMDOR || player->GetAreaId() != AREA_CAVERNS_OF_TIME)
+            return;
+        WorldLocation bazaar(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+        player->SetHomebind(bazaar, sMapMgr->GetAreaId(PHASEMASK_NORMAL, bazaar));
+        player->TeleportTo(bazaar);
     }
 }
 
@@ -723,7 +745,10 @@ public:
         player->m_Events.AddEventAtOffset([guid]()
         {
             if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld())
+            {
                 Train(p);
+                WakeAtTheBazaar(p);
+            }
         }, 2s);
         Timerunner const t = Get(player);
         if (Announce())
@@ -773,14 +798,14 @@ public:
     // (as a character enters the world too) A moment later: not in the middle of a teleport.
     void OnPlayerUpdateArea(Player* player, uint32 /*oldArea*/, uint32 newArea) override
     {
-        if (!Active() || newArea != AREA_CAVERNS_OF_TIME || player->GetMapId() != MAP_KALIMDOR || !IsBot(player))
+        if (!Active() || !IsBot(player) || !AtTheStart(player, newArea))
             return;
         ObjectGuid guid = player->GetGUID();
         player->m_Events.AddEventAtOffset([guid]()
         {
-            if (Player* bot = ObjectAccessor::FindPlayer(guid); bot && bot->IsInWorld() && !bot->IsBeingTeleported() &&
-                bot->GetMapId() == MAP_KALIMDOR && bot->GetAreaId() == AREA_CAVERNS_OF_TIME)
-                SendBotAway(bot);
+            if (Player* bot = ObjectAccessor::FindPlayer(guid); bot && bot->IsInWorld() && !bot->IsBeingTeleported())
+                if (char const* from = AtTheStart(bot, bot->GetAreaId()))
+                    SendBotAway(bot, from);
         }, 1s);
     }
 
@@ -800,9 +825,7 @@ public:
             if (bridge->map != 0xFFFF)
                 TeleportSoon(player, bridge->map, bridge->x, bridge->y, bridge->z, bridge->o);
         }
-        else if (id == QUEST_WAR_WE_REMEMBER)
-            SetChapter(player, 1);
-        else if (id == QUEST_BAZAAR)
+        else if (id == QUEST_TIMES_TOLL)
         {
             // The hearthstone remembers the Bazaar.
             if (Destination const* bazaar = DestinationFor(TRAVEL_BAZAAR))

@@ -1,33 +1,28 @@
--- Where Wrath Remix's people stand: the prologue in the Caverns of Time, the Infinite Bazaar on the
--- ground of Crystalsong Forest by the Violet Stand (below Dalaran, with the Kirin Tor's teleporter
--- up to the city), and Moratari at each landing and at each of her transitions. Spawn guids in
+-- Where Wrath Remix's people stand: the Infinite Bazaar on the ground of Crystalsong Forest by the
+-- Violet Stand (below Dalaran, with the Kirin Tor's teleporter up to the city), where every new
+-- Timerunner wakes and the prologue is played, and Moratari at each landing and at each of her
+-- transitions. Spawn guids in
 -- Remix's range (7704000+). Moratari beside an original quest giver is placed from that NPC's own
 -- spawn, a step to its side, so she stands where it stands. CI's server test checks the floor under
 -- every one of them.
 
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
-    @MOMENTUS := 770009, @ECHO_LANDING := 770021, @ECHO_WRATHGATE := 770022, @ECHO_ICECROWN := 770023;
+    @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022, @ECHO_BOLVAR := 770023;
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 
--- The prologue, around the Caverns' flight landing (where new Timerunners appear, facing north).
-SET @IX := -8360.7, @IY := -4327.7, @IZ := -208.3;
-INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704001, @MORATARI,       1, 1, 1, 1, @IX,       @IY + 4.5, @IZ, 4.71, 60, 0, 0, 'Wrath Remix: Moratari, prologue'),
-(7704002, @ETERNUS,        1, 1, 1, 1, @IX - 6,   @IY + 7,   @IZ, 5.50, 60, 0, 0, 'Wrath Remix: Eternus, prologue'),
-(7704003, @ANDORMU,        1, 1, 1, 0, @IX + 6,   @IY + 7,   @IZ, 3.93, 60, 0, 0, 'Wrath Remix: Andormu, prologue'),
-(7704004, @ECHO_LANDING,   1, 1, 1, 0, @IX - 9,   @IY + 14,  @IZ, 5.10, 60, 0, 0, 'Wrath Remix: Echo of the Landing'),
-(7704005, @ECHO_WRATHGATE, 1, 1, 1, 0, @IX,       @IY + 17,  @IZ, 4.71, 60, 0, 0, 'Wrath Remix: Echo of the Wrathgate'),
-(7704006, @ECHO_ICECROWN,  1, 1, 1, 0, @IX + 9,   @IY + 14,  @IZ, 4.30, 60, 0, 0, 'Wrath Remix: Echo of Icecrown');
-
--- The Infinite Bazaar, on the flat ground west of the Violet Stand.
+-- The Infinite Bazaar, on the flat ground west of the Violet Stand. A new Timerunner wakes in the
+-- middle of it (playercreateinfo, wrath_remix_world_0003_prologue.sql), facing Eternus and
+-- Moratari, with the echoes of the war's dead beyond them. The Keepers of Time come later, with
+-- the bronze (Chapter II).
 SET @HX := 5700, @HY := 1015, @HZ := 174.6;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704011, @ETERNUS,      571, 1, 1, 1, @HX,      @HY + 8,  @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Eternus, Bazaar'),
 (7704012, @MORATARI,     571, 1, 1, 1, @HX - 5,  @HY + 6,  @HZ, 5.30, 60, 0, 0, 'Wrath Remix: Moratari, Bazaar'),
-(7704013, @ANDORMU,      571, 1, 1, 0, @HX + 5,  @HY + 6,  @HZ, 4.10, 60, 0, 0, 'Wrath Remix: Andormu, Bazaar'),
-(7704014, @NOZARI,       571, 1, 1, 0, @HX + 8,  @HY + 1,  @HZ, 3.60, 60, 0, 0, 'Wrath Remix: Nozari, Bazaar'),
+(7704004, @ECHO_FOOTMAN,  571, 1, 1, 0, @HX - 9, @HY + 16, @HZ, 5.10, 60, 0, 0, 'Wrath Remix: Echo of a Fallen Footman, Bazaar'),
+(7704005, @ECHO_SAURFANG, 571, 1, 1, 0, @HX,     @HY + 19, @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Echo of Dranosh Saurfang, Bazaar'),
+(7704006, @ECHO_BOLVAR,   571, 1, 1, 0, @HX + 9, @HY + 16, @HZ, 4.30, 60, 0, 0, 'Wrath Remix: Echo of Bolvar Fordragon, Bazaar'),
 (7704015, @ALURMI,       571, 1, 1, 0, @HX - 8,  @HY + 1,  @HZ, 6.00, 60, 0, 0, 'Wrath Remix: Alurmi, Bazaar'),
 (7704016, @ZEPHYR,       571, 1, 1, 1, @HX - 7,  @HY - 5,  @HZ, 0.60, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
 (7704017, @SAAT,         571, 1, 1, 0, @HX + 7,  @HY - 5,  @HZ, 2.50, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
@@ -74,7 +69,10 @@ FROM `creature` c JOIN (
   SELECT 19, 105125, 'WRM-401 and WRM-402, the Ebon Watch (Stefan Vadu)', 0 UNION ALL
   SELECT 20, 110645, 'WRM-403, Zul''Drak (Hexxer Ubungo)', 0 UNION ALL
   SELECT 21, 101938, 'WRM-404, Zim''Torga (Witch Doctor Khufu)', 0 UNION ALL
-  SELECT 22, 115292, 'WRM-421, Gundrak (Tol''mar)', 0
+  SELECT 22, 115292, 'WRM-421, Gundrak (Tol''mar)', 0 UNION ALL
+  -- Eternus's first kindness, in Chapter I (wrath_remix_world_0006_bridges.sql)
+  SELECT 25, 116619, 'WRM-017, Valiance Keep (Sergeant Hammerhill)', 0 UNION ALL
+  SELECT 26, 125571, 'WRM-018, Warsong Hold (Overlord Razgor)', 0
 ) b ON c.`guid` = b.beside;
 
 -- The Azure Dragonflight's raiders at the Violet Stand would kill a new Timerunner on arrival:
