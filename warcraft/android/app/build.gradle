@@ -59,6 +59,14 @@ android {
 		buildConfigField "String", "WOW_DATA_URL", "\"${serverData.SERVER_DATA_URL}\""
 		buildConfigField "long", "WOW_DATA_SIZE", "${serverData.SERVER_DATA_SIZE}L"
 		buildConfigField "String", "WOW_DATA_SHA256", "\"${serverData.SERVER_DATA_SHA256}\""
+		// Turtle WoW's realm package (scripts/package-tortoise.sh), published by CI as the release
+		// turtle-server-<hash>: the one this build downloads, with its size and SHA-256. Local builds
+		// without one say so in the Turtle WoW launcher.
+		buildConfigField "String", "TURTLE_SERVER_TAG", "\"${wowProperty("turtleServerTag", "")}\""
+		buildConfigField "String", "TURTLE_SERVER_SHA256", "\"${wowProperty("turtleServerSha256", "")}\""
+		buildConfigField "long", "TURTLE_SERVER_SIZE", "${wowProperty("turtleServerSize", "0")}L"
+		buildConfigField "long", "TURTLE_SERVER_UNPACKED", "${wowProperty("turtleServerUnpacked", "0")}L"
+		buildConfigField "String", "TURTLE_SERVER_COMMIT", "\"${wowProperty("turtleServerCommit", "")}\""
 
 		ndk {
 			// Phones only: the server and the game's runtime are built for arm64.

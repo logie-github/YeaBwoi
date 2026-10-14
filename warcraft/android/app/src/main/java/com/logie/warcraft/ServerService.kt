@@ -144,6 +144,9 @@ class ServerService : Service() {
             gameShown.value = inGame
         }
 
+        /** Whether the game is on screen, read-only (Turtle WoW's service hides its notification too). */
+        val gameOnScreen: kotlinx.coroutines.flow.StateFlow<Boolean> get() = gameShown
+
         private const val CHANNEL = "server"
         private const val NOTIFICATION_ID = 1
         private const val FAILED_ID = 2

@@ -29,6 +29,7 @@ class MainActivity : ComponentActivity() {
         visible = true
         TitleMusic.onShown(this)
         Game.onLauncherShown(this)
+        com.logie.warcraft.turtle.TurtleGame.onLauncherShown(this)
     }
 
     override fun onStop() {

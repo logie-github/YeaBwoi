@@ -13,6 +13,11 @@ name: Build World of Warcraft
 # scripts), and the package (scripts/package-azerothcore.sh, minutes) by everything that goes into
 # it. A change to the packaging (ctl.sh, the shim, the SQL layout) compiles nothing, and a change to
 # the app alone reuses the package.
+#
+# Turtle WoW, the app's second game, has a realm of its own (Tortoise-WoW, warcraft/turtle): built
+# for arm64 once for each version of what goes into it, tested the way the phone runs it, and
+# published as a release of its own (turtle-server-<hash>, a prerelease) that the app downloads
+# when Turtle WoW is installed. Each APK names the one it's made for, with its size and SHA-256.
 on:
   push:
     branches: ["**"]
@@ -27,6 +32,11 @@ on:
       - "scripts/test-warcraft-server.sh"
       - "scripts/prepare-winlator.sh"
       - "scripts/winlator-rewrite.py"
+      - "scripts/fetch-tortoise.sh"
+      - "scripts/compile-tortoise.sh"
+      - "scripts/package-tortoise.sh"
+      - "scripts/test-turtle-server.sh"
+      - "scripts/turtle-manifests.py"
       - ".github/workflows/build-warcraft.yml"
   workflow_dispatch:
 
@@ -152,6 +162,120 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
           scripts/test-warcraft-server.sh
+
+  # Turtle WoW's realm: Tortoise-WoW and ACE compiled for arm64 on musl (cached by the compile's
+  # inputs, ccache across runs), packed with its own MariaDB and a seed database, tested
+  # (scripts/test-turtle-server.sh), then published. Skipped when the release for these inputs is
+  # there already: its turtle-server.json gives the APK the package's size and SHA-256.
+  turtle-server:
+    name: Turtle WoW realm for arm64 (build, test, publish)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 340
+    outputs:
+      tag: ${{ steps.pin.outputs.tag }}
+      sha256: ${{ steps.pin.outputs.sha256 }}
+      size: ${{ steps.pin.outputs.size }}
+      unpacked: ${{ steps.pin.outputs.unpacked }}
+      commit: ${{ steps.pin.outputs.commit }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release tag and cache keys
+        run: |
+          hash="${{ hashFiles('warcraft/turtle/server-version.env', 'warcraft/turtle/patches/**', 'warcraft/turtle/server/**', 'warcraft/server/android_compat.c', 'scripts/fetch-tortoise.sh', 'scripts/compile-tortoise.sh', 'scripts/package-tortoise.sh', 'scripts/test-turtle-server.sh') }}"
+          echo "TURTLE_TAG=turtle-server-${hash::12}" >> "$GITHUB_ENV"
+          echo "COMPILE_KEY=turtle-compile-v1-${{ hashFiles('warcraft/turtle/server-version.env', 'warcraft/turtle/patches/**', 'scripts/fetch-tortoise.sh', 'scripts/compile-tortoise.sh') }}" >> "$GITHUB_ENV"
+          mkdir -p build/turtle
+          if gh release view "turtle-server-${hash::12}" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/assets.txt" 2> /dev/null &&
+              grep -qx turtle-server.tar.xz "$RUNNER_TEMP/assets.txt" && grep -qx turtle-server.json "$RUNNER_TEMP/assets.txt"; then
+            gh release download "turtle-server-${hash::12}" -p turtle-server.json -D build/turtle --clobber
+            echo "Already published: turtle-server-${hash::12}"
+            echo "PUBLISHED=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Look for the compiled realm
+        id: compiled
+        if: env.PUBLISHED != '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/tortoise-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Restore the compiler cache
+        if: env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/ccache-tortoise
+          key: turtle-ccache-arm64-${{ github.run_id }}
+          restore-keys: turtle-ccache-arm64-
+
+      - name: Compile the realm
+        if: env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        run: |
+          scripts/compile-tortoise.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: Save the compiler cache
+        if: always() && env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/ccache-tortoise
+          key: turtle-ccache-arm64-${{ github.run_id }}
+
+      - name: Save the compiled realm
+        if: env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/tortoise-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Package the realm
+        if: env.PUBLISHED != '1'
+        run: |
+          scripts/package-tortoise.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: Test the realm
+        if: env.PUBLISHED != '1'
+        timeout-minutes: 60
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
+          scripts/test-turtle-server.sh
+
+      # The tag first through the refs API (see the APK's release below), then the prerelease.
+      - name: Publish the realm
+        if: env.PUBLISHED != '1'
+        run: |
+          source warcraft/turtle/server-version.env
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TURTLE_TAG" > /dev/null; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TURTLE_TAG" -f sha="$GITHUB_SHA" > /dev/null
+          fi
+          gh release view "$TURTLE_TAG" > /dev/null 2>&1 && gh release delete "$TURTLE_TAG" --yes
+          gh release create "$TURTLE_TAG" build/turtle/turtle-server.tar.xz build/turtle/turtle-server.json \
+            --verify-tag --prerelease \
+            --title "World of Warcraft: Turtle WoW realm (Tortoise-WoW ${TORTOISE_COMMIT::7})" \
+            --notes "Turtle WoW's realm, which the World of Warcraft app downloads when Turtle WoW is installed: Tortoise-WoW ${TORTOISE_COMMIT::7} with ACE $ACE_VERSION and MariaDB for Android arm64 (musl), for the Turtle WoW 1.18.1 (7272) client, built from commit ${GITHUB_SHA::7}.
+
+          \`\`\`
+          $(cat build/turtle/turtle-server.json)
+          \`\`\`"
+
+      - name: The package's pin
+        id: pin
+        run: |
+          python3 - "$TURTLE_TAG" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          info = json.load(open("build/turtle/turtle-server.json"))
+          assert info["file"] == "turtle-server.tar.xz" and len(info["sha256"]) == 64 and info["size"] > 0
+          print(f"tag={sys.argv[1]}")
+          print(f"sha256={info['sha256']}")
+          print(f"size={info['size']}")
+          print(f"unpacked={info['unpacked']}")
+          print(f"commit={info['tortoise']}")
+          PY
+          cat "$GITHUB_OUTPUT"
 
   windows-tools:
     name: Data tools for Windows
@@ -285,11 +409,18 @@ jobs:
       - name: Run unit tests
         run: gradle --no-daemon -p warcraft/unit-tests test
 
+      # The checksums the app checks a Turtle WoW client and its DBC files against come from the
+      # pinned Tortoise-WoW; they must be the ones at that commit.
+      - name: Turtle WoW's checksums match the pinned Tortoise-WoW
+        run: |
+          sh scripts/fetch-tortoise.sh "$PWD/build/tortoise"
+          python3 -I scripts/turtle-manifests.py --check build/tortoise warcraft/android/app/src/main/assets/turtle
+
   # The server package and the Windows tools come from the jobs above through the cache (the
   # account's artifact storage is full, and releases are what the phone downloads anyway).
   apk:
     name: Build World of Warcraft APK
-    needs: [unit-tests, server, server-test, windows-tools]
+    needs: [unit-tests, server, server-test, windows-tools, turtle-server]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -392,7 +523,12 @@ jobs:
             -PwowUpdateRepo="$GITHUB_REPOSITORY" \
             -PwowReleaseTagPrefix="$RELEASE_TAG_PREFIX" \
             -PwowBuildBranch="$GITHUB_REF_NAME" \
-            -PwowUpdateToken="$WOW_UPDATE_TOKEN"
+            -PwowUpdateToken="$WOW_UPDATE_TOKEN" \
+            -PturtleServerTag="${{ needs.turtle-server.outputs.tag }}" \
+            -PturtleServerSha256="${{ needs.turtle-server.outputs.sha256 }}" \
+            -PturtleServerSize="${{ needs.turtle-server.outputs.size }}" \
+            -PturtleServerUnpacked="${{ needs.turtle-server.outputs.unpacked }}" \
+            -PturtleServerCommit="${{ needs.turtle-server.outputs.commit }}"
 
       - name: Collect APK
         run: |
@@ -416,6 +552,8 @@ jobs:
           Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client: **Game files → Your client → Pick folder** (or **Pick zip**) copies it into the app, then **Press start** starts the realm and the game.
 
           **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), which this build was tested with: CI started the world server on it and took a character into the world. **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
+
+          **Turtle WoW — Vanilla+** (a second game, switched to from the launcher): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), installed from the Turtle WoW launcher in one tap, with your own Turtle WoW 1.18.1 (7272) client. Nothing of the 3.3.5a game changes.
 
           Server package:
           \`\`\`
