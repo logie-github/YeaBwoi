@@ -50,6 +50,7 @@ import com.logie.warcraft.Database
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
 import com.logie.warcraft.R
+import com.logie.warcraft.Realms
 import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.Server
 import com.logie.warcraft.ServerPackage
@@ -487,6 +488,37 @@ private fun accountError(context: android.content.Context, error: Throwable): St
 // App icon ---------------------------------------------------------------------------------------
 
 /** The launcher icon: Wrath of the Lich King's frost, or Cataclysm's fire. */
+/**
+ * The realm Press start starts: ChromieCraft or Wrath Remix ([Realms]). Choosing the other one
+ * while a realm runs stops the server, so the next Press start brings up the chosen one.
+ */
+@Composable
+fun RealmDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var current by remember { mutableStateOf(Realms.current(context)) }
+    WowDialog(title = stringResource(R.string.wow_realm_title), onDismiss = onDismiss) {
+        Text(stringResource(R.string.wow_realm_body), style = MaterialTheme.typography.bodySmall)
+        for (realm in Realms.Realm.entries) {
+            WowChoiceRow(title = stringResource(realm.label), summary = stringResource(realm.summary), selected = realm == current) {
+                if (realm == current) return@WowChoiceRow
+                Realms.set(context, realm)
+                current = realm
+                val status = Server.status.value
+                val running = status.phase == Server.Phase.RUNNING || status.phase == Server.Phase.STARTING
+                if (running && status.realm != realm) {
+                    Server.stop(context)
+                    Toast.makeText(context, context.getString(R.string.wow_realm_changed_stopping, realm.displayName), Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, context.getString(R.string.wow_realm_changed, realm.displayName), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        if (current == Realms.Realm.REMIX) {
+            Text(stringResource(R.string.wow_realm_remix_first), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 @Composable
 fun AppIconDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current

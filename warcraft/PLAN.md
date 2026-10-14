@@ -600,8 +600,59 @@ for the game on the phone itself ("that's the whole point").
     come from the server; models and icons must be the game's own; the client's WDB cache keeps
     old quest text). Proposed: kept in this repository, offered in the Modules screen.
   - A "Wrath Remix" game mode (Legion Remix within Wrath, its own realm): assessed in
-    `REMIX-ASSESSMENT.md`. The user wants it in a separate fork; this line continues normal
-    gameplay, and Remix must not change this realm.
+    `REMIX-ASSESSMENT.md`. The user first wanted it in a separate fork (later: built as a second
+    realm in this app, see below); Remix must not change the ChromieCraft realm.
+
+- Then the user sent a Wrath Remix design guide (`REMIX-GUIDE.md`, written with another
+  assistant: Moratari, Eternus and Andormu, a prologue, a Crystalsong Forest hub, seven chapters
+  of original quests with Moratari's transitions between them, levels 10 to 80, Bronze, Infinite
+  Power, Keeper assignments, the original Lich King as the ending) and asked: "Create this as a
+  distinct module or realm separate from the main ChromieCraft." Built as a second realm in this
+  app, not a separate fork, with the module in this repository (`modules/mod-wrath-remix`):
+  - The realm (the guide's phase 1): realm 2, "Wrath Remix", port 8086, sharing the auth server
+    and accounts; its own configs (`files/etc-remix`, made by `ctl.sh configure`: StartPlayerLevel
+    10, quest XP ×3, kill XP ×2, no race intros, no progression brackets, Chromie's XP lock at
+    80, mod-zone-difficulty off, the module on; the module off in ChromieCraft's), its own
+    databases (`acore_world_remix`, `acore_characters_remix`, `acore_playerbots_remix`, made by
+    `ctl.sh dbimport remix`), `ctl.sh realmlist` writing both realms. One world server at a time:
+    the launcher's **Realm** tile picks it (`Realms`, `Server`), `Config.wtf`'s realmName follows,
+    and the client's quest cache goes when the realm changes (`client/RealmCache`). Module configs
+    per realm need the core to read them from the realm's folder: patch 0010,
+    `WOW_MODULES_CONF_DIR`. The module's SQL is in `data/sql/remix/`, listed in the Remix
+    databases' `updates_include` by `ctl.sh`, so ChromieCraft's databases never get it.
+  - The module: the realm gate (enabled and RealmID 2, else every hook returns), Timerunners
+    (Bronze and chapter in `remix_character`), Bronze from quests and kills, Alurmi's Bronze
+    shop (heirlooms, mounts, companions, bags) through gossip (the vendor window can't show a
+    currency the client doesn't have), free riding, death knights brought to the Bazaar after
+    Acherus, `.remix` commands.
+  - The guide's level 10 start, over the assessment's 68: Northrend's zones and dungeons are
+    banded to the chapters' levels (`remix_level_band`): creatures by the zone they appear in
+    (`OnBeforeCreatureSelectLevel`; heroic dungeons and raids untouched), their spells' damage
+    and healing scaled by the ratio of their base damage at the new and old level; quests'
+    levels, minimum levels and gold, and their armor and weapon rewards' item level, stats,
+    armor, damage and price (most of Northrend's rewards ask for no level), worked out in SQL
+    from the originals kept once; dungeons open at the chapter's levels.
+  - The prologue (WRM-001 to 005, 007) in the Caverns of Time (the intro flight's landing) and the
+    Infinite Bazaar by the Violet Stand in Crystalsong Forest (three Azure Dragonflight raiders
+    there removed from Remix's world), with Eternus, Moratari, Andormu, Nozari, Alurmi, Zephyr,
+    Sa'at, the Chronologist, Momentus and an instructor per class (copies of the capitals'
+    trainer lists). Models from the 3.3.5a client's tables (`CreatureDisplayInfo`): Moratari is
+    Lady Alistra's look (blood elf woman, dark plate, glowing runes), Eternus Chrono-Lord Epoch.
+  - The campaign's quests: every title the guide names matched to the world database
+    (`tools/quest_audit.py` → `data/campaign_manifest.csv`, `quest_audit.md`): 271 of 272 found
+    ("Bearly Hanging On" isn't a 3.3.5a quest), 38 titles that are an Alliance and a Horde quest.
+    Chapter I's transitions built from it: WRM-006 (Alliance Borean, Thassarian's trail),
+    WRM-016 (Horde Borean, Mobu's parts), WRM-026 (Alliance Howling Fjord, Westguard's missions),
+    WRM-121 to 124 (each coast to the Dragonblight). The next original quest opens with either
+    the transition or the skipped block's end (`conditions` with an else group), so nothing is
+    marked done that wasn't.
+  - Checked: the SQL applied twice to a copy of the pinned world database (idempotent, Borean
+    rewards a quarter, Enlistment Day level 18); the C++ syntax-checked with the build's flags;
+    CI's server test (see `scripts/test-warcraft-server.sh`, 6) plays the prologue on the Remix
+    realm and checks the floor under every NPC placed. Not on a phone: all of it in the game.
+  - Next, in the guide's order: Chapters II to VII's transitions (one chapter at a time, both
+    sides, with the Wrathgate and the Battle for the Undercity checked first), Infinite Power,
+    Keeper assignments, then challenge content.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the

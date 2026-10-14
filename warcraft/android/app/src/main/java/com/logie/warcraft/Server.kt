@@ -31,10 +31,10 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The private server on the phone: MariaDB, the auth server (port 3724, where the game logs in)
- * and the world server (port 8085, the realm), each a program from `files/server` run through its
- * `ctl.sh`. [start] brings them up in order, setting up what's missing on the way (unpacking the
- * server, the databases); [stop] shuts them down cleanly. [ServerService] keeps the app alive
- * while they run, with its notification.
+ * and a realm's world server (ChromieCraft on port 8085, or Wrath Remix on 8086: [Realms]), each a
+ * program from `files/server` run through its `ctl.sh`. [start] brings them up in order, setting up
+ * what's missing on the way (unpacking the server, the databases); [stop] shuts them down cleanly.
+ * [ServerService] keeps the app alive while they run, with its notification.
  */
 object Server {
     enum class Phase { STOPPED, STARTING, RUNNING, STOPPING, FAILED }
@@ -64,11 +64,11 @@ object Server {
         val log: String? = null,
         /** The phone's address on the Wi-Fi, for a PC's client (`set realmlist ...`). */
         val lanAddress: String? = null,
+        /** The realm being started or running (the one chosen when it started). */
+        val realm: Realms.Realm = Realms.Realm.CHROMIECRAFT,
     )
 
     const val AUTH_PORT = 3724
-    const val WORLD_PORT = 8085
-    const val REALM_NAME = "ChromieCraft"
 
     private val _status = MutableStateFlow(Status())
     val status: StateFlow<Status> = _status
@@ -93,7 +93,7 @@ object Server {
         val app = context.applicationContext
         if (_status.value.phase == Phase.STARTING || _status.value.phase == Phase.RUNNING) return
         // Starting already, so the service doesn't see the server stopped and end itself.
-        update { Status(phase = Phase.STARTING, lanAddress = lanAddress) }
+        update { Status(phase = Phase.STARTING, lanAddress = lanAddress, realm = Realms.current(app)) }
         ContextCompat.startForegroundService(app, Intent(app, ServerService::class.java))
         job = scope.launch { lock.withLock { run(app) } }
     }
@@ -137,9 +137,10 @@ object Server {
     private class StepFailed(message: String, val log: File? = null) : Exception(message)
 
     private suspend fun run(context: Context) {
+        val realm = Realms.current(context)
         try {
             stopping = false
-            update { Status(phase = Phase.STARTING, lanAddress = lanAddress()) }
+            update { Status(phase = Phase.STARTING, lanAddress = lanAddress(), realm = realm) }
             if (!WowFiles.isStandardPath(context)) {
                 throw StepFailed(context.getString(R.string.wow_server_error_path, WowFiles.root(context).path))
             }
@@ -158,12 +159,15 @@ object Server {
             step(Step.DATABASE)
             startDatabase(context)
 
-            if (!importedMarker(context).exists()) {
+            // The auth database and ChromieCraft's come first, whichever realm starts (the accounts
+            // are there); Wrath Remix's own databases the first time it starts.
+            for (imported in listOf(Realms.Realm.CHROMIECRAFT, realm).distinct()) {
+                if (importedMarker(context, imported).exists()) continue
                 step(Step.IMPORT, progress = null)
-                runToEnd(context, "dbimport", log = File(WowFiles.logs(context), "dbimport.log"), timeoutMinutes = 60) { line ->
+                runToEnd(context, "dbimport", imported.key, log = File(WowFiles.logs(context), "dbimport.log"), timeoutMinutes = 60) { line ->
                     step(Step.IMPORT, detail = ConsoleText.plain(line))
                 }
-                importedMarker(context).writeText("${System.currentTimeMillis()}\n")
+                importedMarker(context, imported).writeText("${System.currentTimeMillis()}\n")
             }
             // The custom races of earlier versions out of the realm, once (LegacyRaces).
             if (LegacyRaces.inRealm(context)) {
@@ -174,21 +178,21 @@ object Server {
             }
             // The world database follows the realm's modules: what a module no longer in it put
             // there goes (ctl.sh modules). Quick unless one went; then a few minutes.
-            val modulesGone = worldModulesGone(context)
+            val modulesGone = worldModulesGone(context, realm)
             if (modulesGone) step(Step.MODULES)
-            runToEnd(context, "modules", log = File(WowFiles.logs(context), "modules.log"), timeoutMinutes = 60) { line ->
+            runToEnd(context, "modules", realm.key, log = File(WowFiles.logs(context), "modules.log"), timeoutMinutes = 60) { line ->
                 if (modulesGone) step(Step.MODULES, detail = ConsoleText.plain(line))
             }
             setRealmAddress(context)
 
             step(Step.AUTH)
             val authLog = File(WowFiles.logs(context), "auth.out")
-            auth = launch(context, "auth", authLog)
+            auth = launch(context, authLog, "auth")
             waitForPort(AUTH_PORT, 90, auth!!, authLog, context.getString(R.string.wow_server_error_auth))
             watch(context, auth!!, authLog, R.string.wow_server_error_auth_stopped)
 
             if (WowFiles.hasServerData(context)) {
-                startWorld(context)
+                startWorld(context, realm)
             } else {
                 update { copy(phase = Phase.RUNNING, step = null, detail = null, progress = null, world = World.NO_DATA) }
             }
@@ -201,10 +205,10 @@ object Server {
         }
     }
 
-    private suspend fun startWorld(context: Context) {
+    private suspend fun startWorld(context: Context, realm: Realms.Realm) {
         update { copy(phase = Phase.STARTING, step = Step.WORLD, detail = null, progress = null, world = World.STARTING) }
         val log = File(WowFiles.logs(context), "world.out")
-        val process = launch(context, "world", log, keepInput = true)
+        val process = launch(context, log, "world", realm.key, keepInput = true)
         world = process
         worldInput = process.outputStream.bufferedWriter()
         // Loading the world takes minutes on a phone (longer the first time, when it also fills in
@@ -289,7 +293,7 @@ object Server {
 
     private suspend fun startDatabase(context: Context) {
         val log = File(WowFiles.logs(context), "mariadb.log")
-        val process = launch(context, "db", File(WowFiles.logs(context), "db.out"))
+        val process = launch(context, File(WowFiles.logs(context), "db.out"), "db")
         db = process
         val deadline = System.currentTimeMillis() + 120_000
         while (true) {
@@ -325,11 +329,13 @@ object Server {
             firstTime.writeText("1\n")
         }
         val folders = WowFiles.dataFolders(context)
-        editConf(File(etc, "worldserver.conf")) {
-            setSwitch("vmap.enableLOS", "vmaps" in folders)
-            setSwitch("vmap.enableHeight", "vmaps" in folders)
-            setSwitch("vmap.enableIndoorCheck", "vmaps" in folders)
-            setSwitch("MoveMaps.Enable", "mmaps" in folders)
+        for (realmEtc in listOf(etc, WowFiles.etcRemix(context))) {
+            editConf(File(realmEtc, "worldserver.conf")) {
+                setSwitch("vmap.enableLOS", "vmaps" in folders)
+                setSwitch("vmap.enableHeight", "vmaps" in folders)
+                setSwitch("vmap.enableIndoorCheck", "vmaps" in folders)
+                setSwitch("MoveMaps.Enable", "mmaps" in folders)
+            }
         }
     }
 
@@ -343,27 +349,19 @@ object Server {
     }
 
     /**
-     * The realm's addresses in the auth database: the game on this phone connects to 127.0.0.1, a
-     * PC's client on the Wi-Fi to the phone's address there.
+     * Both realms' addresses in the auth database (`ctl.sh realmlist`): the game on this phone
+     * connects to 127.0.0.1, a PC's client on the Wi-Fi to the phone's address there.
      *
-     * Also clears the realm's "version mismatch" flag: the world server sets it while it starts
+     * It also clears each realm's "version mismatch" flag: the world server sets it while it starts
      * and clears it once it's up, so a world server that stopped while loading leaves it set. The
      * auth server marks every realm offline when it starts and won't run if all of them are both,
      * so the server could never start again.
      */
-    private fun setRealmAddress(context: Context) {
+    private suspend fun setRealmAddress(context: Context) {
         val lan = lanAddress()
         update { copy(lanAddress = lan) }
-        Database.exec(
-            context, "acore_auth",
-            "UPDATE realmlist SET name = '$REALM_NAME', address = '${lan ?: "127.0.0.1"}', " +
-                "localAddress = '127.0.0.1', localSubnetMask = '255.255.255.0', port = $WORLD_PORT, " +
-                "flag = flag & ~$REALM_FLAG_VERSION_MISMATCH WHERE id = 1;",
-        )
+        runToEnd(context, "realmlist", lan ?: "127.0.0.1", log = File(WowFiles.logs(context), "realmlist.log"))
     }
-
-    /** AzerothCore's REALM_FLAG_VERSION_MISMATCH. */
-    private const val REALM_FLAG_VERSION_MISMATCH = 1
 
     /** The phone's IPv4 address on Wi-Fi (or another local network), if it has one. */
     fun lanAddress(): String? = runCatching {
@@ -397,14 +395,19 @@ object Server {
         for (pid in pids) if (File("/proc/$pid").exists()) android.os.Process.sendSignal(pid, 9)
     }
 
-    private fun importedMarker(context: Context) = File(WowFiles.databases(context), ".imported")
+    /** The realm's databases are made (ChromieCraft's: also the auth database). */
+    private fun importedMarker(context: Context, realm: Realms.Realm) = File(
+        WowFiles.databases(context),
+        if (realm == Realms.Realm.CHROMIECRAFT) ".imported" else ".imported-${realm.key}",
+    )
 
     /**
-     * A module whose SQL went into the world database (ctl.sh's record, kept with the databases)
-     * isn't in the realm now.
+     * A module whose SQL went into the realm's world database (ctl.sh's record, kept with the
+     * databases) isn't in the realm package now.
      */
-    private fun worldModulesGone(context: Context): Boolean {
-        val record = File(WowFiles.databases(context), ".world-modules").takeIf { it.isFile } ?: return false
+    private fun worldModulesGone(context: Context, realm: Realms.Realm): Boolean {
+        val name = if (realm == Realms.Realm.CHROMIECRAFT) ".world-modules" else ".world-modules-${realm.key}"
+        val record = File(WowFiles.databases(context), name).takeIf { it.isFile } ?: return false
         val now = File(WowFiles.server(context), "src/modules").listFiles().orEmpty()
             .filter { module -> File(module, "data/sql").listFiles().orEmpty().any { it.isDirectory && it.name.startsWith("db-world") } }
             .map { it.name }
@@ -414,7 +417,7 @@ object Server {
 
     /** Forgets that the databases are set up, after they were deleted. */
     fun forgetDatabases(context: Context) {
-        importedMarker(context).delete()
+        for (realm in Realms.Realm.entries) importedMarker(context, realm).delete()
     }
 
     /** `sh ctl.sh <args>` with the app's folder. */
@@ -440,23 +443,23 @@ object Server {
         return String.format(root, "<%s>%s%02d:%02d", name, if (minutes >= 0) "-" else "+", abs / 60, abs % 60)
     }
 
-    /** Starts a server program with its output going to [log]. */
-    private fun launch(context: Context, command: String, log: File, keepInput: Boolean = false): Process {
+    /** Starts a server program (`ctl.sh <args>`) with its output going to [log]. */
+    private fun launch(context: Context, log: File, vararg args: String, keepInput: Boolean = false): Process {
         log.parentFile?.mkdirs()
-        val builder = ctl(context, command).redirectErrorStream(true).redirectOutput(log)
+        val builder = ctl(context, *args).redirectErrorStream(true).redirectOutput(log)
         if (!keepInput) builder.redirectInput(File("/dev/null"))
         return builder.start()
     }
 
-    /** Runs a ctl.sh command to its end, passing its output lines to [onLine]. */
+    /** Runs a ctl.sh command (and its arguments) to its end, passing its output lines to [onLine]. */
     private suspend fun runToEnd(
         context: Context,
-        command: String,
+        vararg command: String,
         log: File,
         timeoutMinutes: Long = 5,
         onLine: ((String) -> Unit)? = null,
     ) = withContext(Dispatchers.IO) {
-        val process = ctl(context, command).redirectErrorStream(true).redirectInput(File("/dev/null")).start()
+        val process = ctl(context, *command).redirectErrorStream(true).redirectInput(File("/dev/null")).start()
         stepProcess = process
         // The output is read on its own thread, so a program that hangs without a word still
         // runs into the time limit.
@@ -486,10 +489,10 @@ object Server {
         stepProcess = null
         if (!isActive) throw kotlinx.coroutines.CancellationException()
         if (System.currentTimeMillis() > deadline) {
-            throw StepFailed(context.getString(R.string.wow_server_error_step_slow, command), log)
+            throw StepFailed(context.getString(R.string.wow_server_error_step_slow, command.first()), log)
         }
         val code = process.exitValue()
-        if (code != 0) throw StepFailed(context.getString(R.string.wow_server_error_step, command, code), log)
+        if (code != 0) throw StepFailed(context.getString(R.string.wow_server_error_step, command.first(), code), log)
     }
 
     private suspend fun waitForPort(port: Int, seconds: Int, process: Process, log: File, message: String) {

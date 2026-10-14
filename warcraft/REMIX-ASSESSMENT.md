@@ -1,8 +1,10 @@
 # Wrath Remix: assessment
 
-An assessment only: nothing of it is built. The user wants it done in a separate fork, and it
-must leave this realm (its characters, progression and gameplay) as it is. Written against this
-app as of 1.0.51 (wow-build-51).
+The assessment written before it was built, against this app as of 1.0.51 (wow-build-51). Since
+then the user sent their design (`REMIX-GUIDE.md`) and asked for it as a realm separate from
+ChromieCraft: it's built as the app's second realm with `modules/mod-wrath-remix` (README, "Wrath
+Remix"; PLAN.md). The realm separation below is how it was done; where the guide differs (level 10
+with Northrend banded to the chapters, not 68), the guide was followed.
 
 ## The idea
 

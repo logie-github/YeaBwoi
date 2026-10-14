@@ -32,6 +32,8 @@ object WowFiles {
     fun server(context: Context) = File(root(context), "server")
     fun ctl(context: Context) = File(server(context), "ctl.sh")
     fun etc(context: Context) = File(root(context), "etc")
+    /** Wrath Remix's own configs (ctl.sh's realm "remix"). */
+    fun etcRemix(context: Context) = File(root(context), "etc-remix")
     fun data(context: Context) = File(root(context), "data")
     fun client(context: Context) = File(root(context), "client")
     /** The custom races' files for the server, from versions that had them (LegacyRaces, ctl.sh races). */

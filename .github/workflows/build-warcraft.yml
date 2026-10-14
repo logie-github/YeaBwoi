@@ -55,8 +55,8 @@ jobs:
       - name: Cache keys
         id: key
         run: |
-          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
-          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
+          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
+          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
           echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
@@ -166,10 +166,10 @@ jobs:
         id: key
         shell: bash
         run: |
-          # Patches 0007 to 0009 change the game server only (selections, cutscenes and the
-          # spellbook for the app's touch controls), not the data tools: they don't make them
-          # again.
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', 'scripts/fetch-azerothcore.sh') }}"
+          # Patches 0007 to 0010 change the game server only (selections, cutscenes and the
+          # spellbook for the app's touch controls, the realms' module configs), not the data
+          # tools: they don't make them again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
