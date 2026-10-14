@@ -24,26 +24,29 @@ namespace WrathRemix
     // Remix's own ids (the world SQL in data/sql/remix/world).
     enum Ids : uint32
     {
-        NPC_MORATARI      = 7700001,
-        NPC_ETERNUS       = 7700002,
-        NPC_ANDORMU       = 7700003,
-        NPC_NOZARI        = 7700004,
-        NPC_ALURMI        = 7700005,
-        NPC_ZEPHYR        = 7700006,
-        NPC_SAAT          = 7700007,
-        NPC_CHRONOLOGIST  = 7700008,
-        NPC_MOMENTUS      = 7700009,
-        NPC_ECHO_LANDING  = 7700021,
-        NPC_ECHO_WRATHGATE = 7700022,
-        NPC_ECHO_ICECROWN = 7700023,
-        NPC_ANOMALY       = 7700031,
+        NPC_MORATARI      = 770001,
+        NPC_ETERNUS       = 770002,
+        NPC_ANDORMU       = 770003,
+        NPC_NOZARI        = 770004,
+        NPC_ALURMI        = 770005,
+        NPC_ZEPHYR        = 770006,
+        NPC_SAAT          = 770007,
+        NPC_CHRONOLOGIST  = 770008,
+        NPC_MOMENTUS      = 770009,
+        NPC_ECHO_LANDING  = 770021,
+        NPC_ECHO_WRATHGATE = 770022,
+        NPC_ECHO_ICECROWN = 770023,
+        NPC_ANOMALY       = 770031,
+        NPC_ANOMALY_CREDIT = 770032,    // WRM-003's kill credit, given as each anomaly dies
+        NPC_INSTRUCTOR_FIRST = 770101,  // the Bazaar's Timeworn Instructors, one per class trainer list
+        NPC_INSTRUCTOR_LAST  = 770111,
 
-        QUEST_WEIGHT_OF_TIME   = 7701001,
-        QUEST_AGREEMENT        = 7701002,
-        QUEST_DEMONSTRATION    = 7701003,
-        QUEST_BAZAAR           = 7701004,
-        QUEST_WAR_WE_REMEMBER  = 7701005,
-        QUEST_SHADOW_OF_CITY   = 7701007,
+        QUEST_WEIGHT_OF_TIME   = 77001,
+        QUEST_AGREEMENT        = 77002,
+        QUEST_DEMONSTRATION    = 77003,
+        QUEST_BAZAAR           = 77004,
+        QUEST_WAR_WE_REMEMBER  = 77005,
+        QUEST_SHADOW_OF_CITY   = 77007,
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
@@ -117,7 +120,22 @@ namespace WrathRemix
         uint32 bronze = 0;
         uint32 earned = 0;
         uint8 chapter = 0;
+        uint8 kit = 0;      // the starter kit's version this Timerunner has had (0: none yet)
         bool dirty = false;
+    };
+
+    // A piece of a class's starter kit (remix_starter_kit), and an ability its class quests teach
+    // (remix_class_spell).
+    struct KitPiece
+    {
+        uint32 item;
+        uint8 count;
+    };
+
+    struct ClassSpell
+    {
+        uint32 spell;
+        uint8 level;
     };
 
     // Whether Wrath Remix runs here: on, and this is its realm.
@@ -154,6 +172,7 @@ namespace WrathRemix
     void AddBronze(Player* player, uint32 amount, bool announce);
     bool SpendBronze(Player* player, uint32 amount);
     void SetChapter(Player* player, uint8 chapter);
+    void SetKit(Player* player, uint8 version);
     void Record(Player* player, char const* what, uint32 entry, int32 amount);
 
     // Moves a Timerunner a moment from now (after a quest's reward, a gossip's close).

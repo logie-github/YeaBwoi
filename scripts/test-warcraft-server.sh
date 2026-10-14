@@ -27,7 +27,8 @@
 #      databases and not in ChromieCraft's, both realms are in the realm list, and a new
 #      character there is a level 10 Timerunner in the Caverns of Time who plays the prologue
 #      (warcraft/server/remix_prologue.steps) to the first chapter, with Northrend's creatures at
-#      its levels; every NPC Remix placed stands on the floor (remix_check.py floors).
+#      its levels, and has its class's starter kit on, its abilities learned and its weapon skill
+#      at its level's maximum; every NPC Remix placed stands on the floor (remix_check.py floors).
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
@@ -314,8 +315,9 @@ if [ -n "$DATA_ZIP" ]; then
 	wait_world_ready
 	grep -q "Wrath Remix: on (realm 2)" "$world_log" || fail "Wrath Remix didn't turn on in its realm"
 	grep -E "Wrath Remix: [0-9]+ level bands" "$world_log" || fail "Wrath Remix didn't load its tables"
-	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 7700001" | CTL sql acore_world_remix)" = 1 ] || fail "Moratari isn't in the Remix world"
-	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 7700001" | CTL sql acore_world)" = 0 ] || fail "Moratari is in the ChromieCraft world"
+	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 770001" | CTL sql acore_world_remix)" = 1 ] || fail "Moratari isn't in the Remix world"
+	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID >= 1000000" | CTL sql acore_world_remix)" = 0 ] || fail "quests in the millions (the core's quest table grows to the highest id)"
+	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 770001" | CTL sql acore_world)" = 0 ] || fail "Moratari is in the ChromieCraft world"
 	[ "$(echo "SELECT QuestLevel FROM quest_template WHERE ID = 11672" | CTL sql acore_world)" = 71 ] || fail "Remix changed ChromieCraft's quests"
 	echo "Enlistment Day: level $(echo "SELECT QuestLevel FROM quest_template WHERE ID = 11672" | CTL sql acore_world_remix) on Wrath Remix"
 
@@ -335,8 +337,22 @@ if [ -n "$DATA_ZIP" ]; then
 	row=$(echo "SELECT r.bronze, r.chapter FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)
 	echo "Timerunner's record: $row"
 	[ "$row" = "$(printf '225\t1')" ] || fail "the Timerunner's Bronze and chapter weren't kept ($row)"
-	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 42949" | CTL sql acore_characters_remix)" = 1 ] ||
+	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 42985" | CTL sql acore_characters_remix)" = 1 ] ||
 		fail "the heirloom bought from Alurmi isn't in the bags"
+	# The warrior's starter kit, on (every piece in its slot: heirlooms and greens), its
+	# abilities (Defensive Stance from the class quest, Bloodrage from the trainer) and its axe skill
+	# at a level 10's 50.
+	kit=$(echo "SELECT GROUP_CONCAT(CONCAT(i.slot, ':', t.itemEntry) ORDER BY i.slot) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND i.bag = 0 AND i.slot < 19" | CTL sql acore_characters_remix)
+	echo "Timerunner's gear: $kit"
+	for piece in 2:42949 4:48685 5:832 6:2978 7:3302 9:2980 10:8350 11:50255 12:42991 14:2284 15:42943; do
+		case ",$kit," in *",$piece,"*) ;; *) fail "the warrior's starter kit isn't on ($piece missing: $kit)" ;; esac
+	done
+	[ "$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = 'Timerunner' AND s.spell IN (71, 2687)" | CTL sql acore_characters_remix)" = 2 ] ||
+		fail "the warrior didn't learn Defensive Stance and Bloodrage"
+	axe=$(echo "SELECT k.value FROM character_skills k JOIN characters c ON c.guid = k.guid WHERE c.name = 'Timerunner' AND k.skill = 172" | CTL sql acore_characters_remix)
+	[ "$axe" = 50 ] || fail "the warrior's two-handed axe skill isn't 50 ($axe)"
+	[ "$(echo "SELECT kit FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)" = 1 ] ||
+		fail "the starter kit isn't on record"
 
 	echo "== Wrath Remix's NPCs on the floor"
 	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704199 ORDER BY guid" |

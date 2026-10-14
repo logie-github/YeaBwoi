@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `remix_original_quest` (
 INSERT IGNORE INTO `remix_original_quest` (`ID`, `QuestLevel`, `MinLevel`, `RewardMoney`, `quest_sort`)
 SELECT q.`ID`, q.`QuestLevel`, q.`MinLevel`, q.`RewardMoney`, q.`QuestSortID`
 FROM `quest_template` q JOIN `remix_level_band` b ON b.`quest_sort` = q.`QuestSortID`
-WHERE q.`ID` < 7700000;
+WHERE q.`ID` NOT BETWEEN 77000 AND 77999;
 INSERT IGNORE INTO `remix_original_quest` (`ID`, `QuestLevel`, `MinLevel`, `RewardMoney`, `quest_sort`)
 SELECT `ID`, `QuestLevel`, `MinLevel`, `RewardMoney`, 65 FROM `quest_template`
 WHERE `ID` IN (13347, 13369, 13370, 13371, 13377, 13242, 13257, 13266, 13267);

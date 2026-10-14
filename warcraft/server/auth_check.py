@@ -162,6 +162,10 @@ SMSG_LOGIN_VERIFY_WORLD = 0x236
 SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
 SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x0DC
 CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
+CMSG_SET_SELECTION = 0x13D
+
+# AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
+TRACE = os.environ.get("AUTH_CHECK_TRACE") == "1"
 CMSG_QUESTGIVER_ACCEPT_QUEST, CMSG_QUESTGIVER_CHOOSE_REWARD = 0x189, 0x18E
 SMSG_QUESTGIVER_QUEST_COMPLETE, SMSG_QUESTUPDATE_COMPLETE, SMSG_QUESTUPDATE_ADD_KILL = 0x191, 0x198, 0x199
 SMSG_QUESTGIVER_QUEST_INVALID, SMSG_QUESTGIVER_QUEST_FAILED = 0x18F, 0x192
@@ -265,6 +269,8 @@ class WorldSession:
                 self.sock.settimeout(60)
             self.answer(opcode, body)
             seen.append((opcode, body))
+            if TRACE:
+                print(f"trace: {opcode:#05x} {len(body)} bytes {body[:28].hex()}", file=sys.stderr)
 
 
 def system_messages(packets):
@@ -400,6 +406,9 @@ def run_script(session, player_guid, steps):
         go MAP X Y Z                  a GM teleport there
         talk ENTRY                    open the gossip of the nearest creature of that entry
                                       (its guid from mod-wrath-remix's `.remix guid ENTRY`)
+        kill ENTRY                    select the nearest creature of that entry and `.damage` it
+                                      to death (the character's own blow: it gets the kill,
+                                      which `.die` doesn't give)
         select ENTRY TEXT             pick the option of its last menu whose text has TEXT
         accept ENTRY QUEST            take a quest from it
         reward ENTRY QUEST            turn a quest in to it
@@ -487,6 +496,11 @@ def run_script(session, player_guid, steps):
         elif word == "talk":
             session.send(CMSG_GOSSIP_HELLO, struct.pack("<Q", creature_guid(int(rest))))
             session.pump(2.0, packets)
+        elif word == "kill":
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(int(rest))))
+            session.pump(0.5, packets)
+            session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_SAY, LANG_COMMON) + b".damage 100 pct\0")
+            session.pump(3.0, packets)
         elif word == "select":
             entry, text = rest.split(" ", 1)
             guid = creature_guid(int(entry))

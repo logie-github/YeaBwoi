@@ -15,6 +15,7 @@
 #include "Player.h"
 #include "QuestDef.h"
 #include "ScriptMgr.h"
+#include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "StringFormat.h"
 #include "TemporarySummon.h"
@@ -60,6 +61,25 @@ namespace
     {
         CloseGossipMenuFor(player);
         player->TeleportTo(d.map, d.x, d.y, d.z, d.o);
+    }
+
+    // WRM-003's anomalies come through one at a time: each one Moratari lets through brings the
+    // next when it dies, three in all, while the quest still wants them.
+    constexpr uint32 ANOMALY_WAVES = 3;
+    enum AnomalyData : uint32 { DATA_WAVE = 1 };
+
+    void LetAnomalyThrough(Creature* moratari, Player* player, uint32 wave)
+    {
+        float angle = player->GetOrientation() + float(wave) * 2.0f * float(M_PI) / 3.0f;
+        float x = player->GetPositionX() + 7.0f * std::cos(angle);
+        float y = player->GetPositionY() + 7.0f * std::sin(angle);
+        if (Creature* anomaly = moratari->SummonCreature(NPC_ANOMALY, x, y, player->GetPositionZ(), angle + float(M_PI),
+                                                         TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 60000))
+        {
+            anomaly->AI()->SetGUID(player->GetGUID());
+            anomaly->AI()->SetData(DATA_WAVE, wave);
+            anomaly->AI()->AttackStart(player);
+        }
     }
 
     // A "talk to" objective of Remix's quests (the Bazaar's Alurmi and Chronologist, Momentus).
@@ -124,16 +144,8 @@ public:
             case ACTION_ANOMALIES:
             {
                 CloseGossipMenuFor(player);
-                creature->Say("There, through the seams. Mind the teeth.", LANG_UNIVERSAL, player);
-                for (int i = 0; i < 3; ++i)
-                {
-                    float angle = player->GetOrientation() + float(i) * 2.0f * float(M_PI) / 3.0f;
-                    float x = player->GetPositionX() + 7.0f * std::cos(angle);
-                    float y = player->GetPositionY() + 7.0f * std::sin(angle);
-                    if (Creature* anomaly = creature->SummonCreature(NPC_ANOMALY, x, y, player->GetPositionZ(), angle + float(M_PI),
-                                                                     TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 60000))
-                        anomaly->AI()->AttackStart(player);
-                }
+                creature->Say("There, through the seams. One at a time. Mind the teeth.", LANG_UNIVERSAL, player);
+                LetAnomalyThrough(creature, player, 1);
                 return true;
             }
             case ACTION_BAZAAR:
@@ -477,6 +489,48 @@ public:
     }
 };
 
+// A Temporal Anomaly of WRM-003: when it dies, Moratari lets the next one through.
+class npc_remix_anomaly : public CreatureScript
+{
+public:
+    npc_remix_anomaly() : CreatureScript("npc_remix_anomaly") { }
+
+    struct npc_remix_anomalyAI : public ScriptedAI
+    {
+        npc_remix_anomalyAI(Creature* creature) : ScriptedAI(creature) { }
+
+        ObjectGuid timerunner;
+        uint32 wave = ANOMALY_WAVES;
+
+        void SetGUID(ObjectGuid const& guid, int32 /*id*/) override { timerunner = guid; }
+        void SetData(uint32 type, uint32 value) override
+        {
+            if (type == DATA_WAVE)
+                wave = value;
+        }
+
+        void JustDied(Unit* /*killer*/) override
+        {
+            Player* player = ObjectAccessor::GetPlayer(*me, timerunner);
+            if (!player || player->GetQuestStatus(QUEST_DEMONSTRATION) != QUEST_STATUS_INCOMPLETE)
+                return;
+            // The credit is the Timerunner's whoever struck the blow: the realm's bots start here
+            // too, and a kill only counts for a player who did half its damage.
+            player->KilledMonsterCredit(NPC_ANOMALY_CREDIT);
+            if (wave >= ANOMALY_WAVES || !player->IsAlive() || player->GetQuestStatus(QUEST_DEMONSTRATION) != QUEST_STATUS_INCOMPLETE)
+                return;
+            TempSummon* summon = me->ToTempSummon();
+            Creature* moratari = summon ? summon->GetSummonerCreatureBase() : nullptr;
+            LetAnomalyThrough(moratari ? moratari : me, player, wave + 1);
+        }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new npc_remix_anomalyAI(creature);
+    }
+};
+
 void AddRemixNpcScripts()
 {
     new npc_remix_moratari();
@@ -488,4 +542,5 @@ void AddRemixNpcScripts()
     new npc_remix_chronologist();
     new npc_remix_momentus();
     new npc_remix_echo();
+    new npc_remix_anomaly();
 }

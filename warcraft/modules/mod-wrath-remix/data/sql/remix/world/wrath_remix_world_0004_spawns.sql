@@ -5,9 +5,9 @@
 -- spawn, a step to its side, so she stands where it stands. CI's server test checks the floor under
 -- every one of them.
 
-SET @MORATARI := 7700001, @ETERNUS := 7700002, @ANDORMU := 7700003, @NOZARI := 7700004,
-    @ALURMI := 7700005, @ZEPHYR := 7700006, @SAAT := 7700007, @CHRONOLOGIST := 7700008,
-    @MOMENTUS := 7700009, @ECHO_LANDING := 7700021, @ECHO_WRATHGATE := 7700022, @ECHO_ICECROWN := 7700023;
+SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
+    @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
+    @MOMENTUS := 770009, @ECHO_LANDING := 770021, @ECHO_WRATHGATE := 770022, @ECHO_ICECROWN := 770023;
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 
@@ -36,9 +36,9 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 
 -- The instructors, in a row along the Bazaar's east side.
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704020 + (`entry` - 7700100), `entry`, 571, 1, 1, 0, @HX + 14, @HY - 11 + (`entry` - 7700101) * 2.2, @HZ, 3.14, 60, 0, 0,
+SELECT 7704020 + (`entry` - 770100), `entry`, 571, 1, 1, 0, @HX + 14, @HY - 11 + (`entry` - 770101) * 2.2, @HZ, 3.14, 60, 0, 0,
   CONCAT('Wrath Remix: ', `subname`, ', Bazaar')
-FROM `creature_template` WHERE `entry` BETWEEN 7700101 AND 7700111;
+FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770111;
 
 -- Moratari beside original quest givers: at each landing (where WRM-005 ends), at her
 -- transitions (wrath_remix_world_0006_bridges.sql) and at each coast's last quest (WRM-121).

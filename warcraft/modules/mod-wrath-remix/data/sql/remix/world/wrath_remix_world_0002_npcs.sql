@@ -1,15 +1,23 @@
 -- Wrath Remix's people: the Infinite Dragonflight and the Keepers of Time who run the experiment,
 -- the time-echoes and anomalies of the prologue, and the Bazaar's instructors. New entries in
--- Remix's own range (7700000+), on models the 3.3.5a client has: Moratari is a blood elf woman in
+-- Remix's own range (770001+), on models the 3.3.5a client has: Moratari is a blood elf woman in
 -- dark plate with glowing runes (Lady Alistra's look), Eternus the Infinite Dragonflight's
 -- Chrono-Lord Epoch, the Keepers their own Caverns of Time selves.
 
-SET @MORATARI := 7700001, @ETERNUS := 7700002, @ANDORMU := 7700003, @NOZARI := 7700004,
-    @ALURMI := 7700005, @ZEPHYR := 7700006, @SAAT := 7700007, @CHRONOLOGIST := 7700008,
-    @MOMENTUS := 7700009, @ECHO_LANDING := 7700021, @ECHO_WRATHGATE := 7700022,
-    @ECHO_ICECROWN := 7700023, @ANOMALY := 7700031;
+SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
+    @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
+    @MOMENTUS := 770009, @ECHO_LANDING := 770021, @ECHO_WRATHGATE := 770022,
+    @ECHO_ICECROWN := 770023, @ANOMALY := 770031, @ANOMALY_CREDIT := 770032;
 
+-- Until build 56 Remix's creatures were 7700001 and up, which made the core keep a table of
+-- creature templates 7.7 million long (its fast lookups are indexed by entry): gone.
 DELETE FROM `creature_template` WHERE `entry` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_default_trainer` WHERE `CreatureId` BETWEEN 7700001 AND 7700199;
+
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
@@ -25,9 +33,12 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@ECHO_LANDING,   'Echo of the Landing',   'A frozen moment',  80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 1, 1, 2000, 1, 'npc_remix_echo'),
 (@ECHO_WRATHGATE, 'Echo of the Wrathgate', 'A frozen moment',  80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 1, 1, 2000, 1, 'npc_remix_echo'),
 (@ECHO_ICECROWN,  'Echo of Icecrown',      'A frozen moment',  80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 6, 2, 1, 1, 2000, 1, 'npc_remix_echo'),
-(@ANOMALY,        'Temporal Anomaly', NULL,                    10, 11, 0, 14, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 0, 0.8, 0.6, 2000, 1, '');
+(@ANOMALY,        'Temporal Anomaly', NULL,                    10, 10, 0, 14, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 0, 0.8, 0.5, 2000, 1, 'npc_remix_anomaly'),
+-- WRM-003's credit (never spawned): each anomaly's death gives it to the Timerunner it came for,
+-- whoever struck the blow (a passing bot, Moratari's company).
+(@ANOMALY_CREDIT, 'Temporal Anomaly', NULL,                    10, 10, 0, 14, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 128, 1, 1, 2000, 1, '');
 
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
 (@MORATARI, 0, 25458, 1, 1, 0),
 (@ETERNUS, 0, 26580, 1, 1, 0),
@@ -41,16 +52,17 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@ECHO_LANDING, 0, 23033, 1, 1, 0),
 (@ECHO_WRATHGATE, 0, 24879, 1, 1, 0),
 (@ECHO_ICECROWN, 0, 24191, 1, 1, 0),
-(@ANOMALY, 0, 20515, 1, 1, 0);
+(@ANOMALY, 0, 20515, 1, 1, 0),
+(@ANOMALY_CREDIT, 0, 20515, 1, 1, 0);
 
-DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) VALUES
 -- The echoes: half seen, with motes of time about them.
 (@ECHO_LANDING, 0, 0, 0, 1, 0, 0, '44816 37119'),
 (@ECHO_WRATHGATE, 0, 0, 0, 1, 0, 0, '44816 37119'),
 (@ECHO_ICECROWN, 0, 0, 0, 1, 0, 0, '44816 37119');
 
-DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 7700001 AND 7700199;
+DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`) VALUES
 (@MORATARI, 1, 39287, 0, 0, 0),
 (@ETERNUS, 1, 38609, 0, 0, 0),
@@ -93,27 +105,27 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- The Bazaar's instructors: one for each class, every rank of every spell up to your level, as a
 -- capital's trainer teaches them (their trainer lists are the capitals' own). Paladins have two,
 -- for the Alliance's and the Horde's seals.
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 7700101 AND 7700112;
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770112;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
-(7700101, 'Timeworn Instructor', 'Warrior Trainer',          80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700102, 'Timeworn Instructor', 'Paladin Trainer',          80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700103, 'Timeworn Instructor', 'Paladin Trainer (Horde)',  80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700104, 'Timeworn Instructor', 'Hunter Trainer',           80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700105, 'Timeworn Instructor', 'Rogue Trainer',            80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700106, 'Timeworn Instructor', 'Priest Trainer',           80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700107, 'Timeworn Instructor', 'Death Knight Trainer',     80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700108, 'Timeworn Instructor', 'Shaman Trainer',           80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700109, 'Timeworn Instructor', 'Mage Trainer',             80, 80, 2, 35, 48, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700110, 'Timeworn Instructor', 'Warlock Trainer',          80, 80, 2, 35, 48, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
-(7700111, 'Timeworn Instructor', 'Druid Trainer',            80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, '');
+(770101, 'Timeworn Instructor', 'Warrior Trainer',          80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770102, 'Timeworn Instructor', 'Paladin Trainer',          80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770103, 'Timeworn Instructor', 'Paladin Trainer (Horde)',  80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770104, 'Timeworn Instructor', 'Hunter Trainer',           80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770105, 'Timeworn Instructor', 'Rogue Trainer',            80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770106, 'Timeworn Instructor', 'Priest Trainer',           80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770107, 'Timeworn Instructor', 'Death Knight Trainer',     80, 80, 2, 35, 48, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770108, 'Timeworn Instructor', 'Shaman Trainer',           80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770109, 'Timeworn Instructor', 'Mage Trainer',             80, 80, 2, 35, 48, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770110, 'Timeworn Instructor', 'Warlock Trainer',          80, 80, 2, 35, 48, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(770111, 'Timeworn Instructor', 'Druid Trainer',            80, 80, 2, 35, 48, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, '');
 
 -- The Keepers' Steward of Time look, one for each.
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
-SELECT `entry`, 0, 19373, 1, 1, 0 FROM `creature_template` WHERE `entry` BETWEEN 7700101 AND 7700111;
+SELECT `entry`, 0, 19373, 1, 1, 0 FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770111;
 
-DELETE FROM `creature_default_trainer` WHERE `CreatureId` BETWEEN 7700101 AND 7700112;
+DELETE FROM `creature_default_trainer` WHERE `CreatureId` BETWEEN 770101 AND 770112;
 INSERT INTO `creature_default_trainer` (`CreatureId`, `TrainerId`) VALUES
-(7700101, 1), (7700102, 3), (7700103, 4), (7700104, 7), (7700105, 9), (7700106, 11),
-(7700107, 13), (7700108, 14), (7700109, 16), (7700110, 31), (7700111, 33);
+(770101, 1), (770102, 3), (770103, 4), (770104, 7), (770105, 9), (770106, 11),
+(770107, 13), (770108, 14), (770109, 16), (770110, 31), (770111, 33);
