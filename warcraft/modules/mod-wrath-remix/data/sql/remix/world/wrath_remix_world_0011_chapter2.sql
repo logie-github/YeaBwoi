@@ -11,7 +11,8 @@
 --   WRM-202  Alliance  after Return To Angrathar (12499)    by Alexstrasza, before Reborn From The Ashes
 --   WRM-212  Horde     after Return To Angrathar (12500)    by Alexstrasza, before Darkness Stirs
 --   WRM-221  Alliance  after The Battle For The Undercity (13377): to Amberpine Lodge, Chapter III
---   WRM-222  Horde     after The Battle For The Undercity (13267): to Conquest Hold, Chapter III
+--   WRM-222  Horde     after The Battle For The Undercity (13267): to Conquest Hold, Chapter III,
+--                      opening The Conqueror's Task (12468) in place of its Dragonblight breadcrumb
 --
 -- Ids and chains from the Remix world database (data/campaign_manifest.csv, tools/quest_audit.py).
 
@@ -87,16 +88,20 @@ INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `
 (77202, 13347, 2, 65535, 0, 0, 0, 0, ''),
 (77212, 13242, 2, 65535, 0, 0, 0, 0, ''),
 -- To Chapter III's start for each side (remix_chapter's): Amberpine Lodge's Lieutenant Dumont, and
--- Conquest Hold's Windseer Grayhorn.
+-- Conquest Hold, where Conqueror Krenna's The Conqueror's Task begins the Horde's chapter (it asks
+-- for a breadcrumb from the Dragonblight, To Conquest Hold, But Be Careful!, which WRM-222 stands
+-- for).
 (77221, 12292, 3, 571, 3446.4, -2754.1, 199.4, 3.90, ''),
-(77222, 12207, 3, 571, 3258.9, -2263.1, 114.4, 0.50, '');
+(77222, 12468, 3, 571, 3258.9, -2263.1, 114.4, 0.50, '12487');
 
 -- Into Hostile Territory opens with either II-A or both of the block's ends (The Scourge war
 -- machine, and A Righteous Sermon). Their NextQuestID made the block's ends its only way in; the
 -- conditions say it now.
 UPDATE `quest_template_addon` SET `NextQuestID` = 0 WHERE `ID` IN (12281, 12321);
 -- The Kor'kron Vanguard!: either II-A, or the four camps' last quests as the world has it.
-DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12325, 12224);
+-- The Conqueror's Task: either WRM-222 or the breadcrumb.
+UPDATE `quest_template_addon` SET `PrevQuestID` = 0 WHERE `ID` = 12468;
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12325, 12224, 12468);
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 (19, 0, 12325, 0, 0, 8, 0, 77201, 0, 0, 0, 0, 0, '', 'Wrath Remix: Into Hostile Territory after The Road to Angrathar'),
@@ -106,7 +111,9 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (19, 0, 12224, 0, 1, 8, 0, 12008, 0, 0, 0, 0, 0, '', 'Requires quest rewarded'),
 (19, 0, 12224, 0, 1, 8, 0, 12072, 0, 0, 0, 0, 0, '', 'Requires quest rewarded'),
 (19, 0, 12224, 0, 1, 8, 0, 12140, 0, 0, 0, 0, 0, '', 'Requires quest rewarded'),
-(19, 0, 12224, 0, 1, 8, 0, 12221, 0, 0, 0, 0, 0, '', 'Requires quest rewarded');
+(19, 0, 12224, 0, 1, 8, 0, 12221, 0, 0, 0, 0, 0, '', 'Requires quest rewarded'),
+(19, 0, 12468, 0, 0, 8, 0, 77222, 0, 0, 0, 0, 0, '', 'Wrath Remix: The Conqueror''s Task after After Angrathar'),
+(19, 0, 12468, 0, 1, 8, 0, 12487, 0, 0, 0, 0, 0, '', 'Wrath Remix: ... or after To Conquest Hold, But Be Careful!');
 
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77201, 77202, 77211, 77212, 77221, 77222);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES

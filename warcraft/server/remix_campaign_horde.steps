@@ -1,0 +1,117 @@
+# Wrath Remix's campaign transitions, Chapters II and III, as the Horde has them: played by CI as
+# a level 30 orc (auth_check.py script, on the Remix realm). The original quest before each
+# transition is given and turned in with GM commands, Moratari's are played, and what each opens
+# is checked.
+
+cmd .levelup 20
+wait 2
+cmd .remix
+expect level 30
+
+# II-A, WRM-211 (The Road to Angrathar): The Forsaken Blight done. Agmar's Hammer's errands would
+# come next; The Kor'kron Vanguard! isn't open at Overlord Agmar yet.
+cmd .quest add 12221
+cmd .quest complete 12221
+cmd .quest reward 12221
+go 571 3842.4 1489.6 92.6
+talk 26379
+expect-not quest 12224
+# Moratari, by Doctor Sintar Malefious.
+go 571 3747.0 1603.4 87.5
+talk 770001
+expect quest 77211
+accept 770001 77211
+reward 770001 77211
+expect rewarded 77211
+# (back to the Overlord a moment later)
+wait 3
+talk 26379
+expect quest 12224
+
+# II-B, WRM-212 (What We Cannot Change): after Return To Angrathar, by Alexstrasza at the Wrathgate.
+cmd .quest add 12500
+cmd .quest complete 12500
+cmd .quest reward 12500
+go 571 4855.2 1472.2 210.2
+wait 2
+talk 31333
+expect quest 13242
+talk 770001
+expect quest 77212
+accept 770001 77212
+reward 770001 77212
+expect rewarded 77212
+
+# II-C, WRM-222 (After Angrathar): after The Battle For The Undercity, Moratari by Thrall in
+# Lordaeron's throne room (seen once the battle's phase is over) sends the Timerunner to Conquest
+# Hold, Chapter III.
+cmd .quest add 13267
+cmd .quest complete 13267
+cmd .quest reward 13267
+go 0 1945.7 234.1 44.4
+talk 770001
+expect quest 77222
+accept 770001 77222
+reward 770001 77222
+expect rewarded 77222
+wait 4
+cmd .remix
+expect chapter 3
+cmd .gps
+expect Grizzly Hills
+
+# Conqueror Krenna's The Conqueror's Task, opened by WRM-222 in place of its Dragonblight breadcrumb
+# (from level 32: Chapter III's levels from here on).
+cmd .levelup 10
+wait 2
+go 571 3270.9 -2197.2 118.0
+talk 26860
+expect quest 12468
+
+# Chapter III. III-A, WRM-311 (A Shorter Path Through the Woods): Ursoc, the Bear God done;
+# Filling the Cages isn't open at Samir yet.
+cmd .quest add 12236
+cmd .quest complete 12236
+cmd .quest reward 12236
+go 571 3849.4 -1958.8 209.0
+talk 26424
+expect-not quest 11984
+# Moratari, by Windseer Grayhorn.
+go 571 3316.8 -2291.8 110.7
+talk 770001
+expect quest 77311
+accept 770001 77311
+reward 770001 77311
+expect rewarded 77311
+# (to Samir a moment later)
+wait 3
+talk 26424
+expect quest 11984
+
+# III-B, WRM-302 (A Friend of Questionable Judgment): after Voices From the Dust, Moratari at the
+# door of Drak'Tharon Keep.
+cmd .quest add 12068
+cmd .quest complete 12068
+cmd .quest reward 12068
+go 571 4599.7 -4876.9 49.5
+talk 770001
+expect quest 77302
+accept 770001 77302
+reward 770001 77302
+expect rewarded 77302
+
+# WRM-321 (The Truth About Drakuru): after Cleansing Drak'Tharon, the same Moratari sends the
+# Timerunner to Light's Breach, Chapter IV.
+cmd .quest add 12238
+cmd .quest complete 12238
+cmd .quest reward 12238
+talk 770001
+expect quest 77321
+accept 770001 77321
+reward 770001 77321
+expect rewarded 77321
+wait 4
+cmd .remix
+expect chapter 4
+cmd .gps
+expect Zul'Drak

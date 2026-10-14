@@ -1,0 +1,111 @@
+# Wrath Remix's campaign transitions, Chapters II and III, as the Alliance has them: played by CI as
+# a level 30 human (auth_check.py script, on the Remix realm). The original quest before each
+# transition is given and turned in with GM commands, Moratari's are played, and what each opens
+# is checked.
+
+cmd .levelup 20
+wait 2
+cmd .remix
+expect level 30
+
+# II-A, WRM-201 (The Road to Angrathar): Find Durkon! done. Wintergarde's errands would come next;
+# Into Hostile Territory isn't open at the High Commander yet.
+cmd .quest add 12309
+cmd .quest complete 12309
+cmd .quest reward 12309
+go 571 3764.6 -772.4 196.6
+talk 27136
+expect-not quest 12325
+# Moratari, by Cavalier Durkon.
+go 571 3585.3 -806.8 179.7
+talk 770001
+expect quest 77201
+accept 770001 77201
+reward 770001 77201
+expect rewarded 77201
+# (back to the High Commander a moment later)
+wait 3
+talk 27136
+expect quest 12325
+
+# II-B, WRM-202 (What We Cannot Change): after Return To Angrathar, Moratari stands by Alexstrasza
+# at the Wrathgate, in the phase the Wrathgate is in after it, with the Life-Binder's next quest.
+cmd .quest add 12499
+cmd .quest complete 12499
+cmd .quest reward 12499
+go 571 4855.2 1472.2 210.2
+wait 2
+talk 31333
+expect quest 13347
+talk 770001
+expect quest 77202
+accept 770001 77202
+reward 770001 77202
+expect rewarded 77202
+
+# II-C, WRM-221 (After Angrathar): after The Battle For The Undercity, Moratari by King Varian Wrynn
+# sends the Timerunner to Amberpine Lodge, Chapter III.
+cmd .quest add 13377
+cmd .quest complete 13377
+cmd .quest reward 13377
+go 0 -8441.4 333.1 123.2
+talk 770001
+expect quest 77221
+accept 770001 77221
+reward 770001 77221
+expect rewarded 77221
+wait 4
+cmd .remix
+expect chapter 3
+cmd .gps
+expect Grizzly Hills
+
+# Chapter III. III-A, WRM-301 (A Shorter Path Through the Woods): Ursoc, the Bear God done;
+# Filling the Cages isn't open at Samir yet. (Chapter III's levels from here on.)
+cmd .levelup 10
+wait 2
+cmd .quest add 12249
+cmd .quest complete 12249
+cmd .quest reward 12249
+go 571 3849.4 -1958.8 209.0
+talk 26424
+expect-not quest 11984
+# Moratari, by Hierophant Thayreen.
+go 571 3435.2 -2746.4 200.0
+talk 770001
+expect quest 77301
+accept 770001 77301
+reward 770001 77301
+expect rewarded 77301
+# (to Samir a moment later)
+wait 3
+talk 26424
+expect quest 11984
+
+# III-B, WRM-302 (A Friend of Questionable Judgment): after Voices From the Dust, Moratari at the
+# door of Drak'Tharon Keep.
+cmd .quest add 12068
+cmd .quest complete 12068
+cmd .quest reward 12068
+go 571 4599.7 -4876.9 49.5
+talk 770001
+expect quest 77302
+accept 770001 77302
+reward 770001 77302
+expect rewarded 77302
+
+# WRM-321 (The Truth About Drakuru): after Cleansing Drak'Tharon, the same Moratari sends the
+# Timerunner to Light's Breach, Chapter IV.
+cmd .quest add 12238
+cmd .quest complete 12238
+cmd .quest reward 12238
+talk 770001
+expect quest 77321
+accept 770001 77321
+reward 770001 77321
+expect rewarded 77321
+wait 4
+cmd .remix
+expect chapter 4
+cmd .gps
+expect Zul'Drak
