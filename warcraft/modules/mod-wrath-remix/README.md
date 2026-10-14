@@ -41,6 +41,8 @@ Everything new is in the 7,700,000 range: creatures 7700001+ (instructors 770010
 - `.remix bronze add N` (game masters): Bronze for the selected player or yourself.
 - `.remix band` (game masters): the band of the zone you're in and the levels of the creatures
   around you.
+- `.remix guid ENTRY` (game masters): the nearest creature of that entry and its guid (the core
+  gives creatures guids of their map's, so CI's test client asks for them).
 
 ## Updating the campaign
 
