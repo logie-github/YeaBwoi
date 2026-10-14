@@ -1,0 +1,84 @@
+# Wrath Remix's prologue, played by CI as a new Timerunner (auth_check.py script, on the Remix
+# realm): Moratari's first quests in the Caverns of Time, the Bazaar in Crystalsong Forest, a
+# purchase from Alurmi, Eternus' choice of coast, and the first chapter. Combat is the one thing it
+# can't do: a game master's command finishes the anomalies' quest.
+
+cmd .remix
+expect Timerunner
+
+# WRM-001, The Weight of Time: the three time-echoes.
+talk 7704001 7700001
+expect quest 7701001
+accept 7704001 7700001 7701001
+go 1 -8369.7 -4316.0 -208.3
+talk 7704004 7700021
+expect credit 7701001 7700021
+go 1 -8360.7 -4313.0 -208.3
+talk 7704005 7700022
+go 1 -8351.7 -4316.0 -208.3
+talk 7704006 7700023
+expect complete 7701001
+go 1 -8360.7 -4326.0 -208.3
+reward 7704001 7700001 7701001
+expect rewarded 7701001
+
+# WRM-002, An Agreement Across the Hours: Andormu's terms, Eternus' reply.
+talk 7704001 7700001
+accept 7704001 7700001 7701002
+go 1 -8356.5 -4322.5 -208.3
+reward 7704003 7700003 7701002
+expect rewarded 7701002
+
+# WRM-003, A Small Demonstration: Moratari lets the anomalies through.
+go 1 -8360.7 -4326.0 -208.3
+talk 7704001 7700001
+accept 7704001 7700001 7701003
+talk 7704001 7700001
+expect option: anomalies
+select 7704001 7700001 anomalies
+expect through the seams
+cmd .quest complete 7701003
+reward 7704001 7700001 7701003
+expect rewarded 7701003
+
+# WRM-004, The Bazaar Beneath the Violet Sky.
+talk 7704001 7700001
+accept 7704001 7700001 7701004
+talk 7704001 7700001
+select 7704001 7700001 Infinite Bazaar
+expect arrived on map 571
+go 571 5693.5 1015.5 175.0
+talk 7704015 7700005
+expect credit 7701004 7700005
+go 571 5698.0 1009.0 175.0
+talk 7704018 7700008
+expect complete 7701004
+go 571 5700.0 1021.0 175.0
+reward 7704011 7700002 7701004
+expect rewarded 7701004
+
+# Alurmi's Bronze: 425 after the prologue's quests, a heirloom for 300.
+go 571 5693.5 1015.5 175.0
+talk 7704015 7700005
+expect You carry 425 Bronze
+select 7704015 7700005 Heirloom armor
+expect Polished Spaulders of Valor: 300 Bronze
+select 7704015 7700005 Polished Spaulders of Valor
+expect You carry 125 Bronze
+
+# WRM-005, The War We Must Remember: Eternus sends the Timerunner to Valiance Keep.
+go 571 5700.0 1021.0 175.0
+talk 7704011 7700002
+accept 7704011 7700002 7701005
+talk 7704011 7700002
+select 7704011 7700002 Valiance Keep
+wait 3
+go 571 2298.7 5231.5 11.9
+reward 7704051 7700001 7701005
+expect rewarded 7701005
+cmd .remix
+expect chapter 1
+
+# Borean Tundra's creatures at Chapter I's levels.
+cmd .remix band
+expect band: Borean Tundra

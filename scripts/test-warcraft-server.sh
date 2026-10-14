@@ -22,8 +22,14 @@
 #      character is left out of the character list but kept. A module that was in the realm and
 #      isn't now (ctl.sh modules) takes what it put in the world database with it, and the
 #      realm's modules put theirs in again.
-#   6. The auth server starts again the way the app starts it, and the account logs in.
-#   7. With strace, no server program made a system call Android's seccomp policy forbids apps.
+#   6. Wrath Remix, the second realm: its databases are made, its world server starts with the
+#      mod-wrath-remix module on (the ChromieCraft realm's said it was off), its SQL is in its
+#      databases and not in ChromieCraft's, both realms are in the realm list, and a new
+#      character there is a level 10 Timerunner in the Caverns of Time who plays the prologue
+#      (warcraft/server/remix_prologue.steps) to the first chapter, with Northrend's creatures at
+#      its levels; every NPC Remix placed stands on the floor (remix_check.py floors).
+#   7. The auth server starts again the way the app starts it, and the account logs in.
+#   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -143,11 +149,11 @@ if python3 "$ROOT/warcraft/server/auth_check.py" login 127.0.0.1 tester wrongpas
 fi
 
 echo "== world server"
-start_world() { # log name
+start_world() { # log name [realm]
 	world_log="$FILES/logs/$1"
 	rm -f "$FILES/run/world.in"
 	mkfifo "$FILES/run/world.in"
-	CTL world < "$FILES/run/world.in" > "$world_log" 2>&1 & pids+=($!)
+	CTL world ${2:-} < "$FILES/run/world.in" > "$world_log" 2>&1 & pids+=($!)
 	world=$!
 	# Its console: the app stops it with a command there.
 	exec 3> "$FILES/run/world.in"
@@ -265,8 +271,77 @@ if [ -n "$DATA_ZIP" ]; then
 	kept=$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Testwolf'" | CTL sql acore_characters)
 	echo "characters of the custom races kept: $kept"
 	[ "$kept" = 1 ] || fail "the Worgen was deleted"
-	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero |
-		grep -q "in the world on map" || fail "the human couldn't get into the world after the races went"
+	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero ".remix" |
+		tee "$FILES/logs/world-remix-off.out" | grep -q "in the world on map" || fail "the human couldn't get into the world after the races went"
+	grep -q "Wrath Remix: off on this realm" "$FILES/logs/world-remix-off.out" || fail "Wrath Remix answered on the ChromieCraft realm"
+	stop_world
+	grep -q "Wrath Remix: off" "$FILES/logs/world.out" || fail "the ChromieCraft realm's world server didn't say Wrath Remix is off"
+
+	echo "== Wrath Remix: the second realm"
+	start=$(date +%s)
+	CTL dbimport remix > "$FILES/logs/dbimport-remix.out" 2>&1 || fail "the Remix databases weren't made: $(tail -5 "$FILES/logs/dbimport-remix.out")"
+	echo "the Remix databases took $(($(date +%s) - start)) s"
+	for db in acore_world_remix acore_characters_remix acore_playerbots_remix; do
+		tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db'" | CTL sql)
+		echo "$db: $tables tables"
+	done
+	[ "$(echo "SELECT COUNT(*) FROM creature_template" | CTL sql acore_world_remix)" -gt 20000 ] || fail "the Remix world database looks empty"
+	[ "$(echo "SELECT COUNT(*) FROM updates_include WHERE path LIKE '%mod-wrath-remix%'" | CTL sql acore_world_remix)" = 1 ] ||
+		fail "the Remix world database doesn't list Wrath Remix's SQL"
+	[ "$(echo "SELECT COUNT(*) FROM updates_include WHERE path LIKE '%mod-wrath-remix%'" | CTL sql acore_world)" = 0 ] ||
+		fail "the ChromieCraft world database lists Wrath Remix's SQL"
+	CTL modules remix > "$FILES/logs/modules-remix.out" 2>&1 || fail "ctl.sh modules remix failed"
+	[ -f "$FILES/mysql/.world-modules-remix" ] || fail "the Remix realm's modules aren't on record"
+	grep -q "WrathRemix.Enable = 1" "$FILES/etc-remix/modules/mod_wrath_remix.conf" || fail "Wrath Remix isn't on in its realm's config"
+	grep -q "WrathRemix.Enable = 0" "$FILES/etc/modules/mod_wrath_remix.conf" || fail "Wrath Remix isn't off in ChromieCraft's config"
+	grep -q "^RealmID = 2" "$FILES/etc-remix/worldserver.conf" || fail "the Remix world server isn't realm 2"
+	grep -q "^StartPlayerLevel = 10" "$FILES/etc-remix/worldserver.conf" || fail "Timerunners don't start at 10"
+
+	# Both realms in the realm list (the auth server reads it again every 20 s or so).
+	CTL realmlist 192.168.1.50 || fail "ctl.sh realmlist failed"
+	for _ in $(seq 40); do
+		realms=$(python3 "$ROOT/warcraft/server/auth_check.py" login 127.0.0.1 tester secret123 || true)
+		echo "$realms" | grep -q "Wrath Remix" && break
+		sleep 2
+	done
+	echo "$realms"
+	echo "$realms" | grep -q "Wrath Remix	127.0.0.1:8086" || fail "the realm list doesn't have Wrath Remix at 127.0.0.1:8086"
+	echo "$realms" | grep -q "ChromieCraft	127.0.0.1:8085" || fail "the realm list lost ChromieCraft"
+
+	start_world world-remix.out remix
+	wait_world_ready
+	grep -q "Wrath Remix: on (realm 2)" "$world_log" || fail "Wrath Remix didn't turn on in its realm"
+	grep -E "Wrath Remix: [0-9]+ level bands" "$world_log" || fail "Wrath Remix didn't load its tables"
+	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 7700001" | CTL sql acore_world_remix)" = 1 ] || fail "Moratari isn't in the Remix world"
+	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 7700001" | CTL sql acore_world)" = 0 ] || fail "Moratari is in the ChromieCraft world"
+	[ "$(echo "SELECT QuestLevel FROM quest_template WHERE ID = 11672" | CTL sql acore_world)" = 71 ] || fail "Remix changed ChromieCraft's quests"
+	echo "Enlistment Day: level $(echo "SELECT QuestLevel FROM quest_template WHERE ID = 11672" | CTL sql acore_world_remix) on Wrath Remix"
+
+	export WORLD_PORT=8086
+	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Timerunner | tee "$FILES/logs/remix-client.out" ||
+		fail "a character couldn't get into the Remix world"
+	grep -q "level 10, map 1" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 in the Caverns of Time"
+	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 | tee "$FILES/logs/remix-characters.out"
+	if grep -q "^Testhero" "$FILES/logs/remix-characters.out"; then fail "ChromieCraft's character is on Wrath Remix"; fi
+
+	echo "== Wrath Remix's prologue"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Timerunner 1 1 \
+		"$ROOT/warcraft/server/remix_prologue.steps" | tee "$FILES/logs/remix-prologue.out" || fail "the prologue didn't play through"
+	band=$(grep -o "band check: [0-9]* creatures, levels [0-9]* to [0-9]*" "$FILES/logs/remix-prologue.out" | tail -1)
+	echo "Valiance Keep: $band"
+	[ -n "$band" ] && [ "${band##* }" -le 23 ] || fail "Borean Tundra's creatures aren't at Chapter I's levels ($band)"
+	row=$(echo "SELECT r.bronze, r.chapter FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)
+	echo "Timerunner's record: $row"
+	[ "$row" = "$(printf '225\t1')" ] || fail "the Timerunner's Bronze and chapter weren't kept ($row)"
+	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 42949" | CTL sql acore_characters_remix)" = 1 ] ||
+		fail "the heirloom bought from Alurmi isn't in the bags"
+
+	echo "== Wrath Remix's NPCs on the floor"
+	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704199 ORDER BY guid" |
+		CTL sql acore_world_remix > "$FILES/logs/remix-spawns.tsv"
+	python3 "$ROOT/warcraft/server/remix_check.py" floors 127.0.0.1 tester secret123 Timerunner "$FILES/logs/remix-spawns.tsv" |
+		tee "$FILES/logs/remix-floors.out" || fail "Wrath Remix has NPCs floating or buried"
+	unset WORLD_PORT
 	stop_world
 else
 	# Without the server's data, it runs until it needs dbc, then stops.

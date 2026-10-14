@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
@@ -93,6 +94,7 @@ import com.logie.warcraft.Imports
 import com.logie.warcraft.LegacyRaces
 import com.logie.warcraft.ModuleStore
 import com.logie.warcraft.R
+import com.logie.warcraft.Realms
 import com.logie.warcraft.Server
 import com.logie.warcraft.ServerPackage
 import com.logie.warcraft.ServerService
@@ -214,6 +216,7 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             HomeDialog.FILES -> GameFilesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
             HomeDialog.ACCOUNTS -> AccountsDialog(onDismiss = { dialog = null })
             HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
+            HomeDialog.REALM -> RealmDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
             // Over the whole screen, in the box above.
             HomeDialog.ADDONS, HomeDialog.MODULES -> {}
@@ -222,7 +225,7 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, MODULES, ICON }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, MODULES, ICON, REALM }
 
 /** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
 private var modsDialog = HomeDialog.GRAPHICS
@@ -295,6 +298,9 @@ internal fun HomeScreen(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 val tiles = listOf(
+                    HomeTile(Icons.Default.Public, stringResource(R.string.wow_tile_realm), stringResource(Realms.current(context).label)) {
+                        onDialog(HomeDialog.REALM)
+                    },
                     HomeTile(Icons.Default.Dns, stringResource(R.string.wow_tile_server), ServerService.statusText(context, server)) {
                         onDialog(HomeDialog.SERVER)
                     },
@@ -521,7 +527,7 @@ private fun RealmPanel(
         server.phase == Server.Phase.RUNNING -> WowWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 WowTitle(stringResource(R.string.wow_realm_online))
-                WowStatusLine(stringResource(R.string.wow_realm_name), Server.REALM_NAME)
+                WowStatusLine(stringResource(R.string.wow_realm_name), server.realm.displayName)
                 WowStatusLine(
                     stringResource(R.string.wow_realm_world),
                     stringResource(if (server.world == Server.World.UP) R.string.wow_realm_world_up else R.string.wow_realm_world_no_data),
@@ -558,7 +564,8 @@ private fun RealmPanel(
                         !facts.hasData -> R.string.wow_home_start_line_no_data
                         facts.hasClient -> R.string.wow_home_start_line_game
                         else -> R.string.wow_home_start_line
-                    }
+                    },
+                    Realms.current(context).displayName,
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = WowColors.Mist,

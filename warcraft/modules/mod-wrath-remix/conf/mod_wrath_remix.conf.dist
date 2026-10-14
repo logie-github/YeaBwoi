@@ -1,0 +1,63 @@
+[worldserver]
+
+########################################
+# Wrath Remix (mod-wrath-remix)
+########################################
+#
+#    WrathRemix.Enable
+#        Description: Turns Wrath Remix on. It only runs on the realm WrathRemix.RealmID names
+#                     (the app's Wrath Remix realm), and does nothing anywhere else, whatever this
+#                     says. The app sets it: on in the Wrath Remix realm, off in ChromieCraft.
+#        Default:     0
+
+WrathRemix.Enable = 0
+
+#
+#    WrathRemix.RealmID
+#        Description: The only realm Wrath Remix runs on (worldserver.conf's RealmID).
+#        Default:     2
+
+WrathRemix.RealmID = 2
+
+#
+#    WrathRemix.LevelBands.Enable
+#        Description: Northrend's creatures at the levels of Wrath Remix's chapters (Borean
+#                     Tundra and Howling Fjord 10-20, Dragonblight 20-32, ... Icecrown 70-80), by
+#                     the zone or dungeon they're in (the table remix_level_band), with their
+#                     spells' damage and healing scaled to match.
+#        Default:     1
+
+WrathRemix.LevelBands.Enable = 1
+
+#
+#    WrathRemix.FreeRiding
+#        Description: Riding taught for free as a Timerunner reaches 20, 40, 60 and 70, and Cold
+#                     Weather Flying at 77.
+#        Default:     1
+
+WrathRemix.FreeRiding = 1
+
+#
+#    WrathRemix.Bronze.Quest
+#    WrathRemix.Bronze.Kill
+#    WrathRemix.Bronze.Elite
+#    WrathRemix.Bronze.Rare
+#    WrathRemix.Bronze.DungeonBoss
+#    WrathRemix.Bronze.RaidBoss
+#        Description: Bronze earned for a quest turned in, a creature killed that gives
+#                     experience or honor (normal, elite, rare), and a dungeon's or raid's boss.
+#        Default:     25, 1, 4, 20, 40, 150
+
+WrathRemix.Bronze.Quest = 25
+WrathRemix.Bronze.Kill = 1
+WrathRemix.Bronze.Elite = 4
+WrathRemix.Bronze.Rare = 20
+WrathRemix.Bronze.DungeonBoss = 40
+WrathRemix.Bronze.RaidBoss = 150
+
+#
+#    WrathRemix.Announce
+#        Description: Greets a Timerunner at each login with their Bronze and chapter.
+#        Default:     1
+
+WrathRemix.Announce = 1

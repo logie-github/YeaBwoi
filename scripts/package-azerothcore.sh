@@ -150,6 +150,7 @@ core $CORE_COMMIT
 playerbot-core $PLAYERBOT_CORE_COMMIT
 merged $(cat "$DIST/merged")
 $(echo "$MODULES" | awk 'NF { print $1, $3 }')
+$(for dir in /repo/warcraft/modules/*/; do [ -d "$dir" ] && echo "$(basename "$dir") app"; done)
 mariadb $(mariadbd --version | awk '{ print $3 }')
 alpine $(cat /etc/alpine-release) $(uname -m)
 EOF

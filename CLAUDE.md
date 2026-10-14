@@ -10,14 +10,16 @@ self-updating from this repository's GitHub releases.
 | `v3gold/` | V3 Gold (Persona 4 Golden) | `com.logie.v3gold` | Vita3K, patched |
 | `azuredreams/` | Azure Dreams | `com.logie.azure` | SwanStation core + LibretroDroid |
 | `parasiteeve/` | Parasite Eve | `com.logie.pe` | Beetle PSX HW core + LibretroDroid |
-| `warcraft/` | World of Warcraft 3.3.5a (stage 1: launcher + server) | `com.logie.warcraft` | AzerothCore/ChromieCraft + playerbots (musl arm64); Winlator stack next |
+| `warcraft/` | World of Warcraft 3.3.5a: ChromieCraft and Wrath Remix realms, the game on Winlator | `com.logie.warcraft` | AzerothCore/ChromieCraft + playerbots (musl arm64), `mod-wrath-remix`, Winlator |
 
 - **How the apps are made, tested and released:** `docs/single-game-apps.md`. Read it before
   building or changing an app.
 - **The app being built:** `warcraft/PLAN.md` (the user's requirements, decisions, open questions,
   stages and where each stands). The user's art for it is in `warcraft/branding/`.
-- **Wrath Remix** (a Legion Remix-style realm): assessment only, in `warcraft/REMIX-ASSESSMENT.md`.
-  The user wants it built in a separate fork; work on this line keeps to normal gameplay.
+- **Wrath Remix** (a Legion Remix-style realm): the app's second realm, built from the user's guide
+  (`warcraft/REMIX-GUIDE.md`) as `warcraft/modules/mod-wrath-remix` (its README). It must never
+  change the ChromieCraft realm: its SQL goes into the Remix databases only, its module is off on
+  realm 1. Where it stands and what's next: `warcraft/PLAN.md`.
 - Each app's `README.md` is its user manual; keep it current with every change.
 
 ## Rules
