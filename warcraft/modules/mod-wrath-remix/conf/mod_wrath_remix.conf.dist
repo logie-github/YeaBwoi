@@ -30,6 +30,17 @@ WrathRemix.RealmID = 2
 WrathRemix.LevelBands.Enable = 1
 
 #
+#    WrathRemix.Squish.Health
+#    WrathRemix.Squish.Damage
+#        Description: The stat squish: a banded creature's share, in percent, of the health and of
+#                     the damage (melee, spells, damage over time) its new level gives it. 100 is
+#                     a creature of that level as the game has it; less makes Northrend easier.
+#        Default:     75, 75
+
+WrathRemix.Squish.Health = 75
+WrathRemix.Squish.Damage = 75
+
+#
 #    WrathRemix.FreeRiding
 #        Description: Riding taught for free as a Timerunner reaches 20, 40, 60 and 70, and Cold
 #                     Weather Flying at 77.

@@ -49,6 +49,8 @@ namespace WrathRemix
         bool starterKit = true;
         bool autoLearn = true;
         bool maxWeaponSkill = true;
+        uint32 squishHealth = 75;   // WrathRemix.Squish.*: banded creatures' share of their health and damage, in percent
+        uint32 squishDamage = 75;
         BronzeRates rates;
 
         std::map<std::pair<uint32, uint32>, LevelBand> bands;
@@ -122,6 +124,8 @@ namespace WrathRemix
         starterKit = sConfigMgr->GetOption<bool>("WrathRemix.StarterKit", true, false);
         autoLearn = sConfigMgr->GetOption<bool>("WrathRemix.AutoLearn", true, false);
         maxWeaponSkill = sConfigMgr->GetOption<bool>("WrathRemix.MaxWeaponSkill", true, false);
+        squishHealth = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Health", 75, false), 1, 1000);
+        squishDamage = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Damage", 75, false), 1, 1000);
         rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", 25, false);
         rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", 1, false);
         rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", 4, false);
@@ -459,13 +463,15 @@ namespace WrathRemix
         return std::clamp(now->BaseDamage[expansion] / was->BaseDamage[expansion], 0.01f, 1.0f);
     }
 
+    // A banded creature's blow or heal: its spells' at the share their level keeps (BandFactor),
+    // and all of it at the realm's squish (WrathRemix.Squish.*, in percent: [squish]).
     template<typename T>
-    static void Scale(T& amount, Unit* source)
+    static void Scale(T& amount, Unit* source, uint32 squish, bool spell)
     {
         if (!BandsActive() || !amount)
             return;
         if (Creature* creature = BandedSource(source))
-            amount = T(std::max<double>(1.0, std::round(amount * BandFactor(creature))));
+            amount = T(std::max<double>(1.0, std::round(amount * (spell ? BandFactor(creature) : 1.0f) * squish / 100.0)));
     }
 
     static void TeachRiding(Player* player)
@@ -818,6 +824,21 @@ public:
             return;
         level = uint8(BandedLevel(*band, level));
     }
+
+    // The squish: a banded creature at its share of its new level's health (WrathRemix.Squish.Health).
+    void OnCreatureSelectLevel(CreatureTemplate const* info, Creature* creature) override
+    {
+        if (!BandsActive() || squishHealth == 100 || !info || !creature || creature->IsPet() || creature->IsControlledByPlayer())
+            return;
+        if (creature->GetLevel() >= std::min(info->minlevel, info->maxlevel))
+            return;
+        uint32 health = std::max<uint32>(1, uint32(std::lround(creature->GetCreateHealth() * double(squishHealth) / 100.0)));
+        creature->SetCreateHealth(health);
+        creature->SetMaxHealth(health);
+        creature->SetHealth(health);
+        creature->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, float(health));
+        creature->ResetPlayerDamageReq();
+    }
 };
 
 class WrathRemixDamage : public UnitScript
@@ -826,23 +847,31 @@ public:
     WrathRemixDamage() : UnitScript("WrathRemixDamage", true, {
         UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,
         UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
+        UNITHOOK_MODIFY_MELEE_DAMAGE,
         UNITHOOK_MODIFY_HEAL_RECEIVED,
     }) { }
 
     void ModifySpellDamageTaken(Unit* /*target*/, Unit* attacker, int32& damage, SpellInfo const* /*spellInfo*/) override
     {
         if (damage > 0)
-            Scale(damage, attacker);
+            Scale(damage, attacker, squishDamage, true);
     }
 
     void ModifyPeriodicDamageAurasTick(Unit* /*target*/, Unit* attacker, uint32& damage, SpellInfo const* /*spellInfo*/) override
     {
-        Scale(damage, attacker);
+        Scale(damage, attacker, squishDamage, true);
     }
 
+    // (its melee is its new level's already: only the squish)
+    void ModifyMeleeDamage(Unit* /*target*/, Unit* attacker, uint32& damage) override
+    {
+        Scale(damage, attacker, squishDamage, false);
+    }
+
+    // (its heals restore squished health: they're squished as health is)
     void ModifyHealReceived(Unit* /*target*/, Unit* healer, uint32& heal, SpellInfo const* /*spellInfo*/) override
     {
-        Scale(heal, healer);
+        Scale(heal, healer, squishHealth, true);
     }
 };
 
@@ -918,7 +947,8 @@ public:
         Cell::VisitObjects(player, searcher, 60.0f);
         // The band leaves creatures well below the zone's levels (critters, the odd old-world
         // visitor) as they are; the check counts the ones it applies to.
-        uint32 shown = 0, banded = 0, lowest = 255, highest = 0;
+        uint32 shown = 0, banded = 0, lowest = 255, highest = 0, normals = 0;
+        double share = 0;
         for (Creature* creature : creatures)
         {
             CreatureTemplate const* info = creature->GetCreatureTemplate();
@@ -930,6 +960,14 @@ public:
                 ++banded;
                 lowest = std::min<uint32>(lowest, creature->GetLevel());
                 highest = std::max<uint32>(highest, creature->GetLevel());
+                // a normal creature's health against its new level's (the squish's share of it)
+                if (info->rank == CREATURE_ELITE_NORMAL)
+                    if (CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(creature->GetLevel(), info->unit_class))
+                        if (float full = stats->GenerateHealth(info) * sWorld->getRate(RATE_CREATURE_NORMAL_HP); full >= 1.0f)
+                        {
+                            share += creature->GetMaxHealth() / full;
+                            ++normals;
+                        }
             }
             if (shown++ < 12)
                 handler->PSendSysMessage("creature {} {}: level {} (template {}-{}){}", info->Entry, info->Name,
@@ -937,6 +975,9 @@ public:
         }
         if (banded)
             handler->PSendSysMessage("Wrath Remix band check: {} banded creatures, levels {} to {}.", banded, lowest, highest);
+        if (normals)
+            handler->PSendSysMessage("Wrath Remix squish check: {} normal creatures at {}% of their level's health (squish {}%, damage {}%).",
+                normals, uint32(std::lround(100.0 * share / normals)), squishHealth, squishDamage);
         return true;
     }
 

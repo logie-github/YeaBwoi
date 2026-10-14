@@ -123,6 +123,9 @@ expect rewarded 77005
 cmd .remix
 expect chapter 1
 
-# Borean Tundra's creatures at Chapter I's levels.
+# Borean Tundra's creatures at Chapter I's levels, and squished: three quarters of the health of
+# their level.
 cmd .remix band
 expect band: Borean Tundra
+cmd .remix band
+expect at 75% of their level's health
