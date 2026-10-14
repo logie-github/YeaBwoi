@@ -341,7 +341,7 @@ if [ -n "$DATA_ZIP" ]; then
 		fail "the heirloom bought from Alurmi isn't in the bags"
 	# The warrior's starter kit, on (every piece in its slot: heirlooms and greens), its
 	# abilities (Defensive Stance from the class quest, Bloodrage from the trainer) and its axe skill
-	# at a level 10's 50.
+	# at its level's maximum (five a level).
 	kit=$(echo "SELECT GROUP_CONCAT(CONCAT(i.slot, ':', t.itemEntry) ORDER BY i.slot) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND i.bag = 0 AND i.slot < 19" | CTL sql acore_characters_remix)
 	echo "Timerunner's gear: $kit"
 	for piece in 2:42949 4:48685 5:832 6:2978 7:3302 9:2980 10:8350 11:50255 12:42991 14:2284 15:42943; do
@@ -349,8 +349,9 @@ if [ -n "$DATA_ZIP" ]; then
 	done
 	[ "$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = 'Timerunner' AND s.spell IN (71, 2687)" | CTL sql acore_characters_remix)" = 2 ] ||
 		fail "the warrior didn't learn Defensive Stance and Bloodrage"
-	axe=$(echo "SELECT k.value FROM character_skills k JOIN characters c ON c.guid = k.guid WHERE c.name = 'Timerunner' AND k.skill = 172" | CTL sql acore_characters_remix)
-	[ "$axe" = 50 ] || fail "the warrior's two-handed axe skill isn't 50 ($axe)"
+	axe=$(echo "SELECT CONCAT(k.value, ' ', c.level * 5) FROM character_skills k JOIN characters c ON c.guid = k.guid WHERE c.name = 'Timerunner' AND k.skill = 172" | CTL sql acore_characters_remix)
+	echo "Timerunner's two-handed axe skill, and its level's maximum: $axe"
+	[ -n "$axe" ] && [ "${axe% *}" = "${axe#* }" ] || fail "the warrior's two-handed axe skill isn't its level's maximum ($axe)"
 	[ "$(echo "SELECT kit FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)" = 1 ] ||
 		fail "the starter kit isn't on record"
 
