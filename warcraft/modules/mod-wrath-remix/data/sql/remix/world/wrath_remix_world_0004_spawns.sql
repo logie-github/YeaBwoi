@@ -65,7 +65,11 @@ FROM `creature` c JOIN (
   SELECT 12, 108123, 'WRM-211, Horde Dragonblight (Doctor Sintar Malefious)', 0 UNION ALL
   SELECT 13, 132193, 'WRM-202 and WRM-212, the Wrathgate (Alexstrasza)', 0 UNION ALL
   SELECT 14, 10495,  'WRM-221, Stormwind Keep (King Varian Wrynn)', 0 UNION ALL
-  SELECT 15, 3109785, 'WRM-222, the throne room of Lordaeron (Thrall)', 65
+  SELECT 15, 3109785, 'WRM-222, the throne room of Lordaeron (Thrall)', 65 UNION ALL
+  -- Chapter III (wrath_remix_world_0012_chapter3.sql)
+  SELECT 16, 110818, 'WRM-301, Amberpine Lodge (Hierophant Thayreen)', 0 UNION ALL
+  SELECT 17, 107481, 'WRM-311, Conquest Hold (Windseer Grayhorn)', 0 UNION ALL
+  SELECT 18, 43500,  'WRM-302 and WRM-321, Drak''Tharon Keep''s door (Image of Drakuru)', 0
 ) b ON c.`guid` = b.beside;
 
 -- The Azure Dragonflight's raiders at the Violet Stand would kill a new Timerunner on arrival:

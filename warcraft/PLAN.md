@@ -651,7 +651,8 @@ for the game on the phone itself ("that's the whole point").
     CI's server test (see `scripts/test-warcraft-server.sh`, 6) plays the prologue on the Remix
     realm and checks the floor under every NPC placed. Not on a phone: all of it in the game.
   - Next, in the guide's order: Chapters II to VII's transitions (one chapter at a time, both
-    sides, with the Wrathgate and the Battle for the Undercity checked first; II done in build 61),
+    sides, with the Wrathgate and the Battle for the Undercity checked first; II done in build 61,
+    III in 62),
     Infinite Power,
     Keeper assignments, then challenge content.
 
@@ -758,7 +759,8 @@ for the game on the phone itself ("that's the whole point").
     turned in: Moratari in 64 and 1), to Amberpine Lodge or Conquest Hold, Chapter III.
   - `0006` now clears only its own `remix_bridge` rows (it emptied the table, which would have
     taken later chapters' rows whenever it was applied again).
-  - CI plays them on each side (`remix_chapter2_alliance.steps`, `_horde.steps`, a level 30 human
+  - CI plays them on each side (`remix_chapter2_alliance.steps`, `_horde.steps`, now
+    `remix_campaign_*.steps`, a level 30 human
     and orc): the quest before each transition given with `.quest add/complete/reward`, the next
     quest not offered before and offered after, the Wrathgate's phase, Chapter III and the Grizzly
     Hills at the end. The test client learned what that needed: Orcish for the Horde (the server
@@ -770,6 +772,27 @@ for the game on the phone itself ("that's the whole point").
     through, the five new Moratari spawns on the floor. Not checked: the Wrathgate and the Battle
     for the Undercity played for real (the test gives those quests by command), and anything on a
     phone.
+
+- Then Chapter III's transitions (build 62, `0012_chapter3.sql`):
+  - III-A, *A Shorter Path Through the Woods*: after Ursoc, the Bear God (Alliance by Hierophant
+    Thayreen, Horde by Windseer Grayhorn), the hills' other wars left as they are, to Samir; it
+    opens Filling the Cages in place of Drakuru's breadcrumbs (Troll Season!, Good Troll Hunting:
+    their `NextQuestID`s now conditions with else groups).
+  - III-B, *A Friend of Questionable Judgment* (both sides): no skip, after Voices From the Dust,
+    by the Image of Drakuru at Drak'Tharon Keep's door.
+  - WRM-321, *The Truth About Drakuru*: after Cleansing Drak'Tharon, to Crusader Lord Lantinga at
+    Light's Breach (In Search Of Answers, Chapter IV). That quest is turned in to an Image of
+    Drakuru the dungeon summons at its top, so it's the Moratari at the door.
+  - Found on the way: the Horde's Grizzly Hills begins with The Conqueror's Task, which asks for a
+    Dragonblight breadcrumb (To Conquest Hold, But Be Careful!) that WRM-222 had taken the
+    Timerunner past; WRM-222 now opens it too.
+  - CI's steps are one file a side now (`remix_campaign_alliance.steps`, `_horde.steps`), through
+    Chapter III to Light's Breach. Checked here the same way as Chapter II: both sides played, the
+    eight Moratari spawns on the floor. Not checked: Drak'Tharon Keep and the Grizzly Hills'
+    quests played for real.
+  - Next: Chapter IV (Zul'Drak), whose Drakuru chain has two entries (An Invitation, of Sorts...
+    and Darkness Calling, which Drak'Tharon gives) and quests at Voltarus that open only while
+    another is in the log; then V to VII.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
