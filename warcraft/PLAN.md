@@ -818,6 +818,96 @@ for the game on the phone itself ("that's the whole point").
     Base Camp, the four new Moratari spawns on the floor. Not checked: Voltarus, the loa's quests
     and Gundrak played for real.
 
+- Then (after playing the demo): "The intro isn't very clear... there's no introduction to timerunning,
+  why you're there... there needs to be a quest chain in the beginning explaining all that. I also
+  don't like the caverns of time being the base of operations, choose somewhere else. Also it seems
+  as though you get to choose where to start. I don't like that. It also mentions 3 echoes but only
+  shows 2 ghosts... No guessing where to go, each quest leads you to the next one. Also it needs to
+  have some sort of antagonist... The infinite dragonflight already is an antagonist at this point
+  in time... perhaps they pull you back in time as a hero to stop it. But along the way after
+  chapter 1 sylvanas windrunner comes from the future along with Alleria to stop you saying it is
+  crucial to the integrity of Azeroth's world soul that the Lich King's story happens entirely
+  as-is. And Sylvanas stands to gain more than anyone who would benefit from the lich kings story
+  differing. You realize after carrying out some of the quests that youve been working for the
+  wrong side. So rewrite all custom dialogue and quests up to this point... Moratari listens to
+  Sylvanas, uses a spell, dissapears for about 10 seconds then a portal opens and she steps out.
+  She says she learned that Sylvanas is telling the truth and we need to continue the timeline.
+  Eternaus disagrees even though he knows this is what must happen and continues to interfere.
+  From this point on Eternaus is not at the infinite bazaar but Sylvanas and Alleria are. So make
+  the transition quests ones where you have to fight or do quests like this to stop the rest of
+  the infinite dragonflight from changing things. Small changes can happen in quests or between
+  chains as well... Keep everything consistent with lore."
+  Lore notes given back (accepted): post-Shadowlands Sylvanas is serving her sentence, so the
+  bronze dragonflight brings her and Alleria (her stake: a changed Lich King story loses the souls
+  she's atoning for); the 3.3.5 Sylvanas is alive in the Undercity (two Sylvanases: the future one
+  keeps out of her own sight); the argument lands hardest at the Wrathgate (Bolvar must burn there
+  to take the Helm after Arthas and hold the Scourge); Eternus's motive: he believes a kinder
+  timeline is possible and won't let it go. Her motive as read back and confirmed: she'd gain the
+  most if Arthas's story changed (he killed her and made her a banshee), which is why her
+  insisting it stay is what convinces.
+  Decided (the user's answers): the home base and start is the Infinite Bazaar in Crystalsong
+  Forest, not the Caverns of Time; one route through Chapter I, my pick ("as long as it is
+  completely guided... If there's usually a 'find this on your own' without a quest, make it a
+  quest"): Borean Tundra for both sides; the turn right before the Wrathgate ("just keep it lore
+  friendly... fit it in where it's best... I'd rather it insert between quests if needed").
+  Chapter V's transitions (built in the old voice, tested here, not pushed) wait for the rewrite.
+
+- The rewrite, first part (build 64): the prologue at the Infinite Bazaar and a guided Chapter I.
+  - Every new character but a death knight wakes at the Bazaar (`playercreateinfo`), before
+    Moratari and Eternus. Five quests, each given where the last one ended (WRM-010 to 015): where
+    and when you are and why you're weaker; Eternus shows three of the war's dead (echoes with the
+    real people's looks: a Valiance Keep footman, Saurfang the Younger, Bolvar, all at the Bazaar
+    in plain sight; the old prologue's third echo was most likely its big dark Icecrown model at
+    half transparency, in a dim cave) and makes his offer; Alurmi and the class instructor (a
+    credit any instructor gives as they're spoken to; they have the gossip flag now, so the game
+    asks them for it before their lessons) and the hearthstone; the anomalies; and the front,
+    Valiance Keep or Warsong Hold, before the officer who enlists (no choice of coast). The first
+    prologue's quests (77001 to 77009) and the Caverns of Time's spawns are gone; a Timerunner
+    made before and still in the prologue wakes at the Bazaar at their next login.
+  - Chapter I: the Borean Tundra's chains need only one guide (Alliance: Mark Hanes's Word on the
+    Street, a little way from Sergeant Hammerhill); Eternus's first kindness on each side
+    (WRM-017 crypt crawlers on Valiance Keep's beach, WRM-018 the Nerub'ar at Mightstone Quarry),
+    which the next chain quest now waits for; the transitions in the new voice.
+  - The bots: the Bazaar is where characters are made now, so it's where bots are sent from (and
+    the Caverns, for the ones made there before).
+  - Checked here: the server built and run on the real data, the prologue played (the three
+    echoes, the instructor, the anomalies, the purchases, Valiance Keep with Enlistment Day
+    offered), Chapters II to IV on each side, every spawn on the floor, bots made at the Bazaar
+    sent to their chapters. Not on a phone: the look of the echoes and the Bazaar.
+
+- Then, while the rewrite was being built: "Make a button in the menu like under video interface
+  exit etc that says report time anomaly that sends an issue to GitHub with exactly the process my
+  character has made, which quest I'm on, which NPCs I've talked to during the current quest. This
+  should happen invisibly going to GitHub if possible but if not just open it and let the user
+  submit it." Plan: the app's own add-on (WowTouch) adds the button to the game menu on the Wrath
+  Remix realm; it asks the realm (an add-on message, as the spellbook's place goes); the module
+  writes the report (the character, where they are, the quest log with its objectives, and a
+  journal it keeps of quests taken, finished and turned in, NPCs spoken to, transitions,
+  teleports, deaths and levels) into a file for the app; the app files it as an issue with the
+  GitHub token the user gave it for modules, or else opens GitHub's new-issue page filled in.
+
+- Then the ending (the user's, not to be spoiled for them: the user doesn't read STORY.md):
+  "it should end when you reach icecrown before you enter the raid you face Eternaus and the
+  infinite dragonflight in a last ditch effort to stop you. You win obviously, but don't kill
+  Eternaus who retreats at 10% health. then you move on to the icecrown raid. After that you are
+  teleported back to the bazaar after the original cutscene. It also begins a quest called 'See
+  you later' in which you say I'm ready to go back to the future and she sends you back after you
+  say goodbye to key NPCs. She tells the player that because of what happened here and time can be
+  wonky, some people may never know what you did here, and also that in order to preserve future
+  events, she's wiping the memories of the whole thing from Sylvanas and Alleria's mind. At this
+  point you can talk to both of them about theyre experiences past WOTLK expansion, find out their
+  feelings on things in each expansion... actually make it sound natural and in universe... If
+  they weren't present, make up something that was lore accurate potentially or doesn't conflict
+  with the lore. Alleria should have a big of a part in this story as Sylvanas does. Then after
+  talking with them or skipping it entirely if you want to you can tell moratari you're ready to
+  return to your timeline. Similar to how legion remix does it, you can transfer your timerunner
+  character to the ChromieCraft realm, and any items that weren't in the original (there really
+  shouldn't be any) are converted to an equivalent weapon in wotlk stats. You will remain whatever
+  level you were at the end of wrath remix, it will force you to close the game and restart the
+  server, then when you log in it will have you in your factions capitol city."
+  Order of work: the prologue and Chapter I (done, build 64), the report button, Chapter II and the
+  turn, Chapters III and IV rewritten, V to VII, then the ending and the move to ChromieCraft.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

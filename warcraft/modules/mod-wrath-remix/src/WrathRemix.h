@@ -33,11 +33,12 @@ namespace WrathRemix
         NPC_SAAT          = 770007,
         NPC_CHRONOLOGIST  = 770008,
         NPC_MOMENTUS      = 770009,
-        NPC_ECHO_LANDING  = 770021,
-        NPC_ECHO_WRATHGATE = 770022,
-        NPC_ECHO_ICECROWN = 770023,
+        NPC_ECHO_FOOTMAN  = 770021,     // WRM-011's echoes of the war's dead
+        NPC_ECHO_SAURFANG = 770022,
+        NPC_ECHO_BOLVAR   = 770023,
         NPC_ANOMALY       = 770031,
-        NPC_ANOMALY_CREDIT = 770032,    // WRM-003's kill credit, given as each anomaly dies
+        NPC_ANOMALY_CREDIT = 770032,    // WRM-013's kill credit, given as each anomaly dies
+        NPC_INSTRUCTOR_CREDIT = 770033, // WRM-012's, given by any instructor as they're spoken to
         NPC_INSTRUCTOR_FIRST = 770101,  // the Bazaar's Timeworn Instructors, one per class trainer list
         NPC_INSTRUCTOR_LAST  = 770111,
         NPC_HOROS         = 770201,     // the Bazaar's Bronze vendors (Alurmi is one too)
@@ -46,22 +47,22 @@ namespace WrathRemix
         NPC_AEONICUS      = 770204,
         NPC_DURUS         = 770205,
 
-        AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue is
+        AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue was until build 64
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
 
-        QUEST_WEIGHT_OF_TIME   = 77001,
-        QUEST_AGREEMENT        = 77002,
-        QUEST_DEMONSTRATION    = 77003,
-        QUEST_BAZAAR           = 77004,
-        QUEST_WAR_WE_REMEMBER  = 77005,
-        QUEST_SHADOW_OF_CITY   = 77007,
+        QUEST_OUT_OF_TIME      = 77010,     // the prologue at the Bazaar (STORY.md)
+        QUEST_WAR_WILL_COST    = 77011,
+        QUEST_TIMES_TOLL       = 77012,
+        QUEST_DEMONSTRATION    = 77013,
+        QUEST_TO_THE_FRONT_A   = 77014,
+        QUEST_TO_THE_FRONT_H   = 77015,
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
         TEXT_MORATARI_HISTORY  = 7702003,
         TEXT_ETERNUS           = 7702010,
-        TEXT_ETERNUS_ROUTES    = 7702011,
+        TEXT_ETERNUS_LATER     = 7702011,
         TEXT_ANDORMU           = 7702020,
         TEXT_NOZARI            = 7702021,
         TEXT_ALURMI            = 7702030,
@@ -69,19 +70,18 @@ namespace WrathRemix
         TEXT_SAAT              = 7702050,
         TEXT_CHRONOLOGIST      = 7702060,
         TEXT_MOMENTUS          = 7702070,
-        TEXT_ECHO_LANDING      = 7702080,
+        TEXT_ECHO_FOOTMAN      = 7702080,   // then Saurfang's, Bolvar's
         TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
     };
 
-    // The travel entries the routes of WRM-005 use (remix_travel).
+    // The travel entries the module names (remix_travel).
     enum Travel : uint16
     {
         TRAVEL_BAZAAR = 1,
-        TRAVEL_VALIANCE_KEEP = 10,
-        TRAVEL_WARSONG_HOLD = 11,
-        TRAVEL_VALGARDE = 12,
-        TRAVEL_VENGEANCE_LANDING = 13,
     };
+
+    // The Infinite Bazaar's middle, where new Timerunners wake (playercreateinfo).
+    constexpr float BAZAAR_X = 5700.0f, BAZAAR_Y = 1012.0f, BAZAAR_Z = 174.6f, BAZAAR_O = 1.57f;
 
     struct LevelBand
     {

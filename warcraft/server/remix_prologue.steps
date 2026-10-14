@@ -1,7 +1,8 @@
-# Wrath Remix's prologue, played by CI as a new Timerunner (auth_check.py script, on the Remix
-# realm): Moratari's first quests in the Caverns of Time, the Bazaar in Crystalsong Forest, a
-# purchase from Alurmi, Eternus' choice of coast, and the first chapter. The anomalies are killed
-# with a game master's `.damage` (the character's blows, so it gets the kills).
+# Wrath Remix's prologue (STORY.md), played by CI as a new Timerunner (auth_check.py script, on the
+# Remix realm): waking at the Infinite Bazaar, Eternus and the echoes of the war's dead, Alurmi and
+# the class instructor, the anomalies, a purchase from the Bronze vendors, and Eternus sending the
+# Timerunner to Valiance Keep. The anomalies are killed with a game master's `.damage` (the
+# character's blows, so it gets the kills).
 
 cmd .remix
 expect chapter 0 (the prologue)
@@ -10,34 +11,51 @@ expect chapter 0 (the prologue)
 # what the realm wrote down at the end).
 wait 3
 
-# WRM-001, The Weight of Time: the three time-echoes.
+# WRM-010, Out of Time: Moratari, before the waking Timerunner, sends them to Eternus (both within
+# reach from here).
+go 571 5697.5 1019.5 175.0
 talk 770001
-expect quest 77001
-accept 770001 77001
-go 1 -8369.7 -4316.0 -208.3
+expect quest 77010
+accept 770001 77010
+reward 770002 77010
+expect rewarded 77010
+
+# WRM-011, What the War Will Cost: the three echoes, every one of them heard.
+talk 770002
+expect quest 77011
+accept 770002 77011
+go 571 5691.0 1029.0 175.1
 talk 770021
-expect credit 77001 770021
-go 1 -8360.7 -4313.0 -208.3
+expect credit 77011 770021
+go 571 5700.0 1032.0 175.1
 talk 770022
-go 1 -8351.7 -4316.0 -208.3
+expect credit 77011 770022
+go 571 5709.0 1029.0 175.1
 talk 770023
-expect credit 77001 770023
-go 1 -8360.7 -4326.0 -208.3
-reward 770001 77001
-expect rewarded 77001
+expect credit 77011 770023
+go 571 5697.5 1019.5 175.0
+reward 770002 77011
+expect rewarded 77011
 
-# WRM-002, An Agreement Across the Hours: Andormu's terms, Eternus' reply.
-talk 770001
-accept 770001 77002
-go 1 -8356.5 -4322.5 -208.3
-reward 770003 77002
-expect rewarded 77002
+# WRM-012, Time's Toll: Alurmi and the warrior's instructor, then Moratari (the hearthstone remembers
+# the Bazaar).
+talk 770002
+expect quest 77012
+accept 770002 77012
+go 571 5693.5 1015.5 175.0
+talk 770005
+expect credit 77012 770005
+go 571 5712.0 1004.0 175.0
+talk 770101
+expect credit 77012 770033
+go 571 5697.5 1019.5 175.0
+reward 770001 77012
+expect rewarded 77012
 
-# WRM-003, A Small Demonstration: Moratari lets the anomalies through, one at a time (each one
+# WRM-013, A Small Demonstration: Moratari lets the anomalies through, one at a time (each one
 # killed brings the next, three in all).
-go 1 -8360.7 -4326.0 -208.3
 talk 770001
-accept 770001 77003
+accept 770001 77013
 talk 770001
 expect Let the anomalies through
 select 770001 anomalies
@@ -45,34 +63,18 @@ expect through the seams
 # (a moment for each to come through)
 wait 2
 kill 770031
-expect credit 77003 770032 1/3
+expect credit 77013 770032 1/3
 wait 2
 kill 770031
-expect credit 77003 770032 2/3
+expect credit 77013 770032 2/3
 wait 2
 kill 770031
-expect credit 77003 770032 3/3
+expect credit 77013 770032 3/3
 wait 2
 cmd .remix guid 770031
 expect no creature 770031
-reward 770001 77003
-expect rewarded 77003
-
-# WRM-004, The Bazaar Beneath the Violet Sky.
-talk 770001
-accept 770001 77004
-talk 770001
-select 770001 Infinite Bazaar
-expect arrived on map 571
-go 571 5693.5 1015.5 175.0
-talk 770005
-expect credit 77004 770005
-go 571 5698.0 1009.0 175.0
-talk 770008
-expect credit 77004 770008
-go 571 5700.0 1021.0 175.0
-reward 770002 77004
-expect rewarded 77004
+reward 770001 77013
+expect rewarded 77013
 
 # Alurmi's Bronze: 425 after the prologue's quests (summoned anomalies give none), and from her
 # vendor window a heirloom the warrior's kit hasn't got, for 300 Bronze (ItemExtendedCost 7708).
@@ -110,18 +112,19 @@ expect bought 46017
 talk 770205
 expect You carry 125 Bronze
 
-# WRM-005, The War We Must Remember: Eternus sends the Timerunner to Valiance Keep.
-go 571 5700.0 1021.0 175.0
-talk 770002
-accept 770002 77005
-talk 770002
-select 770002 Valiance Keep
+# WRM-014, To the Front: Moratari's, answered by Eternus, who sends the Timerunner to Valiance Keep,
+# before Recruitment Officer Blythe and Enlistment Day.
+go 571 5697.5 1019.5 175.0
+talk 770001
+expect quest 77014
+accept 770001 77014
+reward 770002 77014
+expect rewarded 77014
 wait 3
-go 571 2298.7 5231.5 11.9
-reward 770001 77005
-expect rewarded 77005
 cmd .remix
 expect chapter 1
+talk 25307
+expect quest 11672
 
 # Borean Tundra's creatures at Chapter I's levels, and squished: three quarters of the health of
 # their level.

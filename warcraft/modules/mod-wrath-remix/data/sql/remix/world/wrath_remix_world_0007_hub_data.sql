@@ -22,7 +22,6 @@ DELETE FROM `remix_travel`;
 INSERT INTO `remix_travel` (`id`, `name`, `side`, `min_level`, `map`, `x`, `y`, `z`, `o`) VALUES
 (1, 'The Infinite Bazaar', 0, 1, 571, 5700.0, 1007.0, 174.6, 1.57),
 (2, 'Dalaran', 0, 1, 571, 5813.9, 449.1, 658.8, 1.6),
-(3, 'The Caverns of Time', 0, 1, 1, -8360.7, -4327.7, -208.3, 1.6),
 (10, 'Valiance Keep, Borean Tundra', 1, 10, 571, 2269.5, 5173.7, 11.1, 0.5),
 (11, 'Warsong Hold, Borean Tundra', 2, 10, 571, 2759.3, 6094.6, 77.9, 3.5),
 (12, 'Valgarde, Howling Fjord', 1, 10, 571, 567.4, -5011.0, 11.5, 4.5),
