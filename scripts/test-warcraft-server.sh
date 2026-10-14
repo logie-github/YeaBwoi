@@ -32,7 +32,8 @@
 #      price an ItemExtendedCost of Bronze); every NPC Remix placed stands on the floor
 #      (remix_check.py floors); the realm writes the game's patch with Bronze's rows
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
-#      leave the Caverns of Time for their chapters.
+#      leave the Caverns of Time for their chapters. Chapter II's transitions are played on each
+#      side (warcraft/server/remix_chapter2_*.steps).
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
@@ -368,6 +369,16 @@ if [ -n "$DATA_ZIP" ]; then
 	[ -n "$axe" ] && [ "${axe% *}" = "${axe#* }" ] || fail "the warrior's two-handed axe skill isn't its level's maximum ($axe)"
 	[ "$(echo "SELECT kit FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)" = 1 ] ||
 		fail "the starter kit isn't on record"
+
+	# Chapter II's transitions, each side with a character of its own (the original quests before
+	# them given by GM commands).
+	echo "== Wrath Remix's Chapter II"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Wintergarde 1 1 \
+		"$ROOT/warcraft/server/remix_chapter2_alliance.steps" | tee "$FILES/logs/remix-chapter2-alliance.out" ||
+		fail "Chapter II's transitions didn't play through for the Alliance"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Agmarshammer 2 1 \
+		"$ROOT/warcraft/server/remix_chapter2_horde.steps" | tee "$FILES/logs/remix-chapter2-horde.out" ||
+		fail "Chapter II's transitions didn't play through for the Horde"
 
 	echo "== Wrath Remix's NPCs on the floor"
 	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704299 ORDER BY guid" |

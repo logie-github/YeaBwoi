@@ -1,0 +1,60 @@
+# Wrath Remix's Chapter II transitions as the Alliance has them, played by CI as a level 30 human
+# (auth_check.py script, on the Remix realm): the original quest before each transition is given
+# and turned in with GM commands, Moratari's are played, and what each opens is checked.
+
+cmd .levelup 20
+wait 2
+cmd .remix
+expect level 30
+
+# II-A, WRM-201 (The Road to Angrathar): Find Durkon! done. Wintergarde's errands would come next;
+# Into Hostile Territory isn't open at the High Commander yet.
+cmd .quest add 12309
+cmd .quest complete 12309
+cmd .quest reward 12309
+go 571 3764.6 -772.4 196.6
+talk 27136
+expect-not quest 12325
+# Moratari, by Cavalier Durkon.
+go 571 3585.3 -806.8 179.7
+talk 770001
+expect quest 77201
+accept 770001 77201
+reward 770001 77201
+expect rewarded 77201
+# (back to the High Commander a moment later)
+wait 3
+talk 27136
+expect quest 12325
+
+# II-B, WRM-202 (What We Cannot Change): after Return To Angrathar, Moratari stands by Alexstrasza
+# at the Wrathgate, in the phase the Wrathgate is in after it, with the Life-Binder's next quest.
+cmd .quest add 12499
+cmd .quest complete 12499
+cmd .quest reward 12499
+go 571 4855.2 1472.2 210.2
+wait 2
+talk 31333
+expect quest 13347
+talk 770001
+expect quest 77202
+accept 770001 77202
+reward 770001 77202
+expect rewarded 77202
+
+# II-C, WRM-221 (After Angrathar): after The Battle For The Undercity, Moratari by King Varian Wrynn
+# sends the Timerunner to Amberpine Lodge, Chapter III.
+cmd .quest add 13377
+cmd .quest complete 13377
+cmd .quest reward 13377
+go 0 -8441.4 333.1 123.2
+talk 770001
+expect quest 77221
+accept 770001 77221
+reward 770001 77221
+expect rewarded 77221
+wait 4
+cmd .remix
+expect chapter 3
+cmd .gps
+expect Grizzly Hills

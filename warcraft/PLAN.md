@@ -651,7 +651,8 @@ for the game on the phone itself ("that's the whole point").
     CI's server test (see `scripts/test-warcraft-server.sh`, 6) plays the prologue on the Remix
     realm and checks the floor under every NPC placed. Not on a phone: all of it in the game.
   - Next, in the guide's order: Chapters II to VII's transitions (one chapter at a time, both
-    sides, with the Wrathgate and the Battle for the Undercity checked first), Infinite Power,
+    sides, with the Wrathgate and the Battle for the Undercity checked first; II done in build 61),
+    Infinite Power,
     Keeper assignments, then challenge content.
 
 - Then (the user played the demo): "really cool"; the intro needs much more explanation of who
@@ -739,6 +740,36 @@ for the game on the phone itself ("that's the whole point").
   player. Checked here: the server built and run with the prologue played, 45 bots sent to their
   chapter and none of those in the world saved in the Caverns (the 451 never logged in are
   still where they were made: each goes at its first login); CI checks the same.
+
+- Then (continuing, the guide's order): Chapter II's transitions. Done (build 61), from the Remix
+  world database's chains (`0011_chapter2.sql`):
+  - II-A, *The Road to Angrathar*: Alliance after Find Durkon! (by Cavalier Durkon), standing for
+    The Noble's Crypt to A Righteous Sermon and The Bleeding Ore to Understanding the Scourge War
+    Machine, to Into Hostile Territory (which the world opens only after both ends: their
+    `NextQuestID`s, now conditions with an else group); Horde after The Forsaken Blight (by
+    Doctor Sintar Malefious), standing for the taunka's oath, the Attack by Air! chain and the
+    Icemist rescue, to The Kor'kron Vanguard! (its four required quests kept as the else group).
+    Each takes the Timerunner back to the High Commander or the Overlord.
+  - II-B, *What We Cannot Change*: no skip, after Return To Angrathar, by Alexstrasza at the
+    Wrathgate (Moratari in her phase, 2, the one the Wrathgate is in after it); the guide's text.
+  - II-C, *After Angrathar* (the guide's WRM-221): after the Battle for the Undercity (scripted in
+    this core for both sides, `zone_undercity.cpp`), by King Varian Wrynn in Stormwind Keep or
+    Thrall in Lordaeron's throne room (his spawn is in the battle's phase, 64, which ends as it's
+    turned in: Moratari in 64 and 1), to Amberpine Lodge or Conquest Hold, Chapter III.
+  - `0006` now clears only its own `remix_bridge` rows (it emptied the table, which would have
+    taken later chapters' rows whenever it was applied again).
+  - CI plays them on each side (`remix_chapter2_alliance.steps`, `_horde.steps`, a level 30 human
+    and orc): the quest before each transition given with `.quest add/complete/reward`, the next
+    quest not offered before and offered after, the Wrathgate's phase, Chapter III and the Grizzly
+    Hills at the end. The test client learned what that needed: Orcish for the Horde (the server
+    drops a line, GM commands included, in a language the character doesn't know), a quest giver's
+    hello and quest list for NPCs without gossip, a quest offered at once, calling a walking NPC
+    over (`.npc follow`, past ~10 yards), and the second quest of a menu (it misread every quest
+    after the first).
+  - Checked here: the server run on the real data, the prologue and both sides' Chapter II played
+    through, the five new Moratari spawns on the floor. Not checked: the Wrathgate and the Battle
+    for the Undercity played for real (the test gives those quests by command), and anything on a
+    phone.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
