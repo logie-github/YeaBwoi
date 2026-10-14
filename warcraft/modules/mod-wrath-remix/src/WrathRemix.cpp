@@ -19,11 +19,13 @@
 #include "Formulas.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "Group.h"
 #include "Item.h"
 #include "Log.h"
 #include "LootMgr.h"
 #include "Mail.h"
 #include "Map.h"
+#include "MapMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -609,12 +611,45 @@ namespace WrathRemix
         ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r You will want something better than that. Here: gear that grows with you, and a few things to carry you through your first battles.");
     }
 
+    // The realm's playerbots: sessions without a client.
+    static bool IsBot(Player* player)
+    {
+        return player->GetSession()->GetRemoteAddress() == "headless";
+    }
+
+    // A bot in a group with a player (one following a Timerunner) goes where they go.
+    static bool WithPlayer(Player* bot)
+    {
+        if (Group* group = bot->GetGroup())
+            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                if (Player* member = ref->GetSource(); member && !IsBot(member))
+                    return true;
+        return false;
+    }
+
+    // A bot in the Caverns of Time (where every character is made, and where the playerbots'
+    // travels can bring one back) goes to the start of the chapter its level belongs to, its
+    // side's, and makes its home there: the prologue's anomalies are the Timerunners' to fight.
+    static void SendBotAway(Player* bot)
+    {
+        if (WithPlayer(bot))
+            return;
+        Chapter const* c = ChapterFor(std::max<uint8>(1, ChapterForLevel(bot->GetLevel())));
+        if (!c)
+            return;
+        int side = IsAlliance(bot) ? 0 : 1;
+        WorldLocation home(c->map[side], c->x[side], c->y[side], c->z[side], bot->GetOrientation());
+        bot->SetHomebind(home, sMapMgr->GetAreaId(PHASEMASK_NORMAL, home));
+        bot->TeleportTo(home);
+        LOG_INFO("module", "Wrath Remix: bot {} (level {}) sent from the Caverns of Time to Chapter {}", bot->GetName(), uint32(bot->GetLevel()), uint32(c->chapter));
+    }
+
     // A Timerunner's training, kept up as they arrive and as they level: their class's abilities,
-    // their weapon skills, free riding, and (once) the starter kit. Not the realm's playerbots
-    // (sessions without a client): they look after their own spells and gear.
+    // their weapon skills, free riding, and (once) the starter kit. Not the realm's playerbots:
+    // they look after their own spells and gear.
     static void Train(Player* player)
     {
-        if (player->GetSession()->GetRemoteAddress() == "headless")
+        if (IsBot(player))
             return;
         PayOwedBronze(player);
         TeachRiding(player);
@@ -663,6 +698,7 @@ public:
         PLAYERHOOK_ON_CREATURE_KILL,
         PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
         PLAYERHOOK_ON_PLAYER_RESURRECT,
+        PLAYERHOOK_ON_UPDATE_AREA,
     }) { }
 
     void OnPlayerFirstLogin(Player* player) override
@@ -724,13 +760,27 @@ public:
     // A Timerunner who arrived dead gets the starter kit once they're back on their feet.
     void OnPlayerResurrect(Player* player, float /*restorePercent*/, bool& /*applySickness*/) override
     {
-        if (!Active() || player->GetSession()->GetRemoteAddress() == "headless")
+        if (!Active() || IsBot(player))
             return;
         ObjectGuid guid = player->GetGUID();
         player->m_Events.AddEventAtOffset([guid]()
         {
             if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld() && p->IsAlive())
                 GiveKit(p);
+        }, 1s);
+    }
+
+    // (as a character enters the world too) A moment later: not in the middle of a teleport.
+    void OnPlayerUpdateArea(Player* player, uint32 /*oldArea*/, uint32 newArea) override
+    {
+        if (!Active() || newArea != AREA_CAVERNS_OF_TIME || player->GetMapId() != MAP_KALIMDOR || !IsBot(player))
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* bot = ObjectAccessor::FindPlayer(guid); bot && bot->IsInWorld() && !bot->IsBeingTeleported() &&
+                bot->GetMapId() == MAP_KALIMDOR && bot->GetAreaId() == AREA_CAVERNS_OF_TIME)
+                SendBotAway(bot);
         }, 1s);
     }
 
