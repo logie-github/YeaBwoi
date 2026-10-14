@@ -74,14 +74,40 @@ go 571 5700.0 1021.0 175.0
 reward 770002 77004
 expect rewarded 77004
 
-# Alurmi's Bronze: 425 after the prologue's quests (summoned anomalies give none), a heirloom for 300
-# (one the warrior's kit hasn't got).
+# Alurmi's Bronze: 425 after the prologue's quests (summoned anomalies give none), and from her
+# vendor window a heirloom the warrior's kit hasn't got, for 300 Bronze (ItemExtendedCost 7708).
 go 571 5693.5 1015.5 175.0
 talk 770005
 expect You carry 425 Bronze
-select 770005 Heirloom armor
-expect Tattered Dreadmist Mantle: 300 Bronze
-select 770005 Tattered Dreadmist Mantle
+select 770005 Heirlooms
+expect ware 42985 cost 7708
+buy 770005 42985
+expect bought 42985
+talk 770005
+expect You carry 125 Bronze
+
+# The Bazaar's other Bronze vendors, as a warrior sees them: Horos's mounts, Durus's tier sets (a
+# warrior's pieces, not a mage's) and a legendary, paid for with Bronze a game master gives.
+go 571 5688.0 1023.0 175.0
+talk 770201
+expect Mounts of Northrend
+select 770201 Mounts of Northrend
+expect ware 50818 cost 7726
+go 571 5688.0 1007.0 175.0
+talk 770205
+expect Legendaries
+select 770205 Tier 10, Icecrown Citadel (25 heroic)
+expect ware 51227
+talk 770205
+select 770205 Tier 10, Icecrown Citadel (25 heroic)
+expect-not ware 51280
+cmd .remix bronze add 20000
+talk 770205
+expect You carry 20,125 Bronze
+select 770205 Legendaries
+buy 770205 46017
+expect bought 46017
+talk 770205
 expect You carry 125 Bronze
 
 # WRM-005, The War We Must Remember: Eternus sends the Timerunner to Valiance Keep.

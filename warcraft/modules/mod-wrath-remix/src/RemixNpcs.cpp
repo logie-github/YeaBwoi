@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * Wrath Remix's people: Moratari (the prologue, the Bazaar, her transitions, the way back to the
- * last chapter that held), Eternus (the choice of coast), the Keepers, Alurmi's Bronze shop,
+ * last chapter that held), Eternus (the choice of coast), the Keepers, the Bronze vendors (Alurmi,
+ * Horos, Domelius, Arturos, Aeonicus, Durus: lists of wares as vendor windows),
  * Zephyr's roads, Sa'at's dungeons, the Chronologist's chapters, Momentus, and the prologue's
  * time-echoes.
  */
@@ -19,6 +20,7 @@
 #include "ScriptedGossip.h"
 #include "StringFormat.h"
 #include "TemporarySummon.h"
+#include "WorldSession.h"
 #include <cmath>
 
 using namespace WrathRemix;
@@ -28,8 +30,7 @@ namespace
     enum Senders : uint32
     {
         SENDER_MAIN = GOSSIP_SENDER_MAIN,
-        SENDER_CATEGORY,
-        SENDER_BUY,
+        SENDER_LIST,
         SENDER_TRAVEL,
         SENDER_CHAPTER,
         SENDER_NONE,
@@ -55,6 +56,12 @@ namespace
     bool OnSide(Player* player, uint8 side)
     {
         return side == 0 || (side == 1) == IsAlliance(player);
+    }
+
+    // Bronze in hand: the currency's, and any the realm still owes.
+    uint32 Carried(Player* player)
+    {
+        return Bronze(player) + Get(player).bronze;
     }
 
     void TeleportTo(Player* player, Destination const& d)
@@ -154,10 +161,9 @@ public:
                 return true;
             case ACTION_HISTORY:
             {
-                Timerunner const t = Get(player);
                 uint8 chapter = StableChapter(player);
                 Chapter const* c = ChapterFor(chapter);
-                AddGossipItemFor(player, GOSSIP_ICON_DOT, Acore::StringFormat("You carry {} Bronze. {}", Number(t.bronze),
+                AddGossipItemFor(player, GOSSIP_ICON_DOT, Acore::StringFormat("You carry {} Bronze. {}", Number(Carried(player)),
                     c ? Acore::StringFormat("Chapter {}: {}.", Roman(c->chapter), c->name) : std::string("The prologue.")), SENDER_NONE, 0);
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, "The record became tangled. Return me to my last stable chapter.", SENDER_MAIN, ACTION_RECOVER,
                     "Moratari will take you to the start of your chapter.", 0, false);
@@ -262,38 +268,41 @@ public:
     }
 };
 
+// The Bazaar's Bronze vendors (Alurmi, Horos, Domelius, Arturos, Aeonicus, Durus): each opens
+// its lists (remix_vendor_list) as vendor windows, priced in Bronze.
+static void BronzeVendorMenu(Player* player, Creature* creature)
+{
+    ClearGossipMenuFor(player);
+    AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "You carry " + Number(Carried(player)) + " Bronze.", SENDER_NONE, 0);
+    for (VendorList const& list : VendorLists())
+        if (list.vendor == creature->GetEntry() && OnSide(player, list.side))
+            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, list.label, SENDER_LIST, list.list);
+    uint32 text = creature->GetEntry() == NPC_ALURMI ? uint32(TEXT_ALURMI) : uint32(TEXT_HOROS) + (creature->GetEntry() - NPC_HOROS);
+    SendGossipMenuFor(player, text, creature);
+}
+
+static bool BronzeVendorSelect(Player* player, Creature* creature, uint32 sender, uint32 action)
+{
+    if (sender == SENDER_LIST)
+    {
+        for (VendorList const& list : VendorLists())
+        {
+            if (list.list == action && list.vendor == creature->GetEntry() && OnSide(player, list.side))
+            {
+                CloseGossipMenuFor(player);
+                player->GetSession()->SendListInventory(creature->GetGUID(), list.list);
+                return true;
+            }
+        }
+    }
+    BronzeVendorMenu(player, creature);
+    return true;
+}
+
 class npc_remix_alurmi : public CreatureScript
 {
 public:
     npc_remix_alurmi() : CreatureScript("npc_remix_alurmi") { }
-
-    static char const* CategoryName(uint8 category)
-    {
-        switch (category)
-        {
-            case 1: return "Heirloom armor";
-            case 2: return "Mounts";
-            case 3: return "Companions";
-            case 4: return "Supplies";
-            case 5: return "Heirloom weapons";
-            default: return "Wares";
-        }
-    }
-
-    static void Main(Player* player, Creature* creature)
-    {
-        ClearGossipMenuFor(player);
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "You carry " + Number(Get(player).bronze) + " Bronze.", SENDER_MAIN, 0);
-        for (uint8 category : { 1, 5, 2, 3, 4 })
-        {
-            bool any = false;
-            for (Ware const& w : Wares())
-                any = any || (w.category == category && OnSide(player, w.side));
-            if (any)
-                AddGossipItemFor(player, GOSSIP_ICON_VENDOR, CategoryName(category), SENDER_CATEGORY, category);
-        }
-        SendGossipMenuFor(player, TEXT_ALURMI, creature);
-    }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -301,54 +310,32 @@ public:
             return false;
         if (player->GetQuestStatus(QUEST_BAZAAR) == QUEST_STATUS_INCOMPLETE)
             SpokenTo(player, creature);
-        Main(player, creature);
+        BronzeVendorMenu(player, creature);
         return true;
     }
 
     bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
     {
+        return Active() && BronzeVendorSelect(player, creature, sender, action);
+    }
+};
+
+class npc_remix_bronze_vendor : public CreatureScript
+{
+public:
+    npc_remix_bronze_vendor() : CreatureScript("npc_remix_bronze_vendor") { }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
         if (!Active())
             return false;
-        if (sender == SENDER_CATEGORY)
-        {
-            ClearGossipMenuFor(player);
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "You carry " + Number(Get(player).bronze) + " Bronze.", SENDER_CATEGORY, action);
-            for (Ware const& w : Wares())
-            {
-                if (w.category != action || !OnSide(player, w.side))
-                    continue;
-                ItemTemplate const* item = sObjectMgr->GetItemTemplate(w.item);
-                if (!item)
-                    continue;
-                std::string name = item->Name1 + (w.count > 1 ? " x" + std::to_string(w.count) : "");
-                AddGossipItemFor(player, GOSSIP_ICON_VENDOR, name + ": " + Number(w.price) + " Bronze", SENDER_BUY, w.id,
-                    "Buy " + name + " for " + Number(w.price) + " Bronze?", 0, false);
-            }
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Back.", SENDER_MAIN, 0);
-            SendGossipMenuFor(player, TEXT_ALURMI, creature);
-            return true;
-        }
-        if (sender == SENDER_BUY)
-        {
-            Ware const* w = WareFor(uint16(action));
-            ChatHandler chat(player->GetSession());
-            if (w && OnSide(player, w->side))
-            {
-                if (Get(player).bronze < w->price)
-                    chat.PSendSysMessage("|cffd4a017Alurmi:|r That costs {} Bronze, and you carry {}.", Number(w->price), Number(Get(player).bronze));
-                else if (!player->AddItem(w->item, w->count))
-                    chat.SendSysMessage("|cffd4a017Alurmi:|r Make some room in your bags first.");
-                else
-                {
-                    SpendBronze(player, w->price);
-                    Record(player, "buy", w->item, -int32(w->price));
-                }
-            }
-            OnGossipSelect(player, creature, SENDER_CATEGORY, w ? w->category : 0);
-            return true;
-        }
-        Main(player, creature);
+        BronzeVendorMenu(player, creature);
         return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+    {
+        return Active() && BronzeVendorSelect(player, creature, sender, action);
     }
 };
 
@@ -426,7 +413,7 @@ public:
         ClearGossipMenuFor(player);
         uint8 current = StableChapter(player);
         AddGossipItemFor(player, GOSSIP_ICON_DOT, Acore::StringFormat("You: level {}, {} Bronze, {}.", uint32(player->GetLevel()),
-            Number(Get(player).bronze), current ? Acore::StringFormat("chapter {}", Roman(current)) : std::string("the prologue")), SENDER_NONE, 0);
+            Number(Carried(player)), current ? Acore::StringFormat("chapter {}", Roman(current)) : std::string("the prologue")), SENDER_NONE, 0);
         for (Chapter const& c : Chapters())
         {
             bool open = player->GetLevel() + 2 >= c.levelMin;
@@ -543,4 +530,5 @@ void AddRemixNpcScripts()
     new npc_remix_momentus();
     new npc_remix_echo();
     new npc_remix_anomaly();
+    new npc_remix_bronze_vendor();
 }

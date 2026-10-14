@@ -40,6 +40,13 @@ namespace WrathRemix
         NPC_ANOMALY_CREDIT = 770032,    // WRM-003's kill credit, given as each anomaly dies
         NPC_INSTRUCTOR_FIRST = 770101,  // the Bazaar's Timeworn Instructors, one per class trainer list
         NPC_INSTRUCTOR_LAST  = 770111,
+        NPC_HOROS         = 770201,     // the Bazaar's Bronze vendors (Alurmi is one too)
+        NPC_DOMELIUS      = 770202,
+        NPC_ARTUROS       = 770203,
+        NPC_AEONICUS      = 770204,
+        NPC_DURUS         = 770205,
+
+        ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
 
         QUEST_WEIGHT_OF_TIME   = 77001,
         QUEST_AGREEMENT        = 77002,
@@ -61,6 +68,7 @@ namespace WrathRemix
         TEXT_CHRONOLOGIST      = 7702060,
         TEXT_MOMENTUS          = 7702070,
         TEXT_ECHO_LANDING      = 7702080,
+        TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
     };
 
     // The travel entries the routes of WRM-005 use (remix_travel).
@@ -107,17 +115,18 @@ namespace WrathRemix
         float x, y, z, o;
     };
 
-    struct Ware
+    // A list of Bronze wares one of the Bazaar's vendors opens (remix_vendor_list): its own
+    // hidden vendor template, whose npc_vendor rows are priced in Bronze.
+    struct VendorList
     {
-        uint16 id;
-        uint8 category;
-        uint32 item, count, price;
+        uint32 list, vendor;
         uint8 side;
+        std::string label;
     };
 
     struct Timerunner
     {
-        uint32 bronze = 0;
+        uint32 bronze = 0;  // Bronze owed: what the realm kept before Bronze was an item, or couldn't store
         uint32 earned = 0;
         uint8 chapter = 0;
         uint8 kit = 0;      // the starter kit's version this Timerunner has had (0: none yet)
@@ -152,8 +161,7 @@ namespace WrathRemix
     Chapter const* ChapterFor(uint8 chapter);
     std::vector<Destination> const& Destinations();
     Destination const* DestinationFor(uint16 id);
-    std::vector<Ware> const& Wares();
-    Ware const* WareFor(uint16 id);
+    std::vector<VendorList> const& VendorLists();
     uint32 QuestBronze(uint32 quest);
 
     // A level in a band: unchanged far below the zone's own levels, else on the straight line
@@ -170,10 +178,14 @@ namespace WrathRemix
     void Save(Player* player);
     void Forget(Player* player);
     void AddBronze(Player* player, uint32 amount, bool announce);
-    bool SpendBronze(Player* player, uint32 amount);
+    uint32 Bronze(Player* player);   // what the Timerunner carries
     void SetChapter(Player* player, uint8 chapter);
     void SetKit(Player* player, uint8 version);
     void Record(Player* player, char const* what, uint32 entry, int32 amount);
+
+    // The game's patch (Data/patch-Y.MPQ in the app's client): written as Wrath Remix starts,
+    // taken out as ChromieCraft starts (ClientPatch.cpp).
+    void UpdateClientPatch();
 
     // Moves a Timerunner a moment from now (after a quest's reward, a gossip's close).
     void TeleportSoon(Player* player, uint32 map, float x, float y, float z, float o);
