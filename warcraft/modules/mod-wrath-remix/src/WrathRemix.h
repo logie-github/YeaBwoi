@@ -46,6 +46,8 @@ namespace WrathRemix
         NPC_AEONICUS      = 770204,
         NPC_DURUS         = 770205,
 
+        AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue is
+
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
 
         QUEST_WEIGHT_OF_TIME   = 77001,

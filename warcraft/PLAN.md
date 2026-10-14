@@ -730,6 +730,16 @@ for the game on the phone itself ("that's the whole point").
   run, the prologue's character's band check (Borean Tundra's creatures at 75% of their level's
   health). Not on a phone: the feel of the fights.
 
+- Then (continuing): the realm's random bots out of the prologue. Every character is made at
+  `playercreateinfo`, the Caverns of Time in Remix, and a bot made at 10 isn't moved by the
+  playerbots until its first teleport (an hour or more): the test's own run found 45 of 50 there,
+  one of them the paladin that took the anomalies' credit. Done (build 60): a bot (a session
+  without a client) entering the Caverns of Time area (2300) is sent, a second later, to the
+  start of its level's chapter for its side, with its home there; not one in a group with a
+  player. Checked here: the server built and run with the prologue played, 45 bots sent to their
+  chapter and none of those in the world saved in the Caverns (the 451 never logged in are
+  still where they were made: each goes at its first login); CI checks the same.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.
