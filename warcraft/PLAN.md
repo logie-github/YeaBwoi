@@ -720,6 +720,16 @@ for the game on the phone itself ("that's the whole point").
     Bronze moved into the currency tab; every vendor on the floor. Not on a phone: whether the
     game loads the patch, and the windows' look.
 
+- Then: "maybe a stat squish for enemies not just a level equalizer." Done (build 59): a creature
+  whose level comes from a band (Northrend's, by zone) has a share of its new level's health and
+  deals that share of its new level's damage: `WrathRemix.Squish.Health` and `.Damage`, 75 each
+  (melee, spells, damage over time; its heals scale with the health). The band was already making a
+  creature a classic one of its new level; the squish makes the fights easier than the level alone.
+  Creatures that keep their own level (the Bazaar, above their band) are as they were. `.remix band`
+  reports how many creatures around it are squished and to what. Checked here: the server built and
+  run, the prologue's character's band check (Borean Tundra's creatures at 75% of their level's
+  health). Not on a phone: the feel of the fights.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

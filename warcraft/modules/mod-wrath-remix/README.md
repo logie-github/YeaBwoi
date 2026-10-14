@@ -15,7 +15,7 @@ it's off and its tables don't exist.
 | Path | Contents |
 | --- | --- |
 | `conf/mod_wrath_remix.conf.dist` | The switch, the realm, the level bands, the Bronze rates |
-| `src/WrathRemix.cpp` | The realm gate, the tables, Timerunners (Bronze, chapter, starter kit), the hooks: first login, login, quest rewards (Bronze, Moratari's transitions, the Bazaar as home, death knights brought to the Bazaar), kills (Bronze), a Timerunner's training at login and each level (class trainer and class quest abilities, weapon skills at the level's maximum, free riding at 20/40/60/70/77, the starter kit once), creature levels by band and their spells scaled to match; the `.remix` commands |
+| `src/WrathRemix.cpp` | The realm gate, the tables, Timerunners (Bronze, chapter, starter kit), the hooks: first login, login, quest rewards (Bronze, Moratari's transitions, the Bazaar as home, death knights brought to the Bazaar), kills (Bronze), a Timerunner's training at login and each level (class trainer and class quest abilities, weapon skills at the level's maximum, free riding at 20/40/60/70/77, the starter kit once), creature levels by band and their spells scaled to match, the stat squish (banded creatures' health and damage at `WrathRemix.Squish.*` percent); the `.remix` commands |
 | `src/RemixNpcs.cpp` | Moratari, Eternus, Andormu and Nozari, the Bronze vendors (Alurmi, Horos, Domelius, Arturos, Aeonicus, Durus: their lists open as vendor windows), Zephyr (travel), Sa'at, the Chronologist (chapters), Momentus, the prologue's time-echoes and its anomalies (one at a time) |
 | `src/ClientPatch.cpp` | The game's patch: as Wrath Remix starts, `Item.dbc`, `ItemExtendedCost.dbc` and `CurrencyTypes.dbc` (the server's, with the `*_dbc` tables' rows: Bronze, its currency row, its prices) in an MPQ in the app's client (`Data/patch-Y.MPQ`, beside `patch-Y.MPQ.wrath-remix`, which says it's Remix's); ChromieCraft's world server takes it out. `WOW_CLIENT_DIR` (ctl.sh) says where the client is |
 | `data/sql/remix/world/` | The Remix world database's SQL (`wrath_remix_world_*.sql`): the module's tables, the NPCs and instructors, the prologue's quests (WRM-001 to 007) and the start in the Caverns of Time, the spawns, the level bands with the quests' and their rewards' levels, Chapter I's transitions (WRM-006/016/026, WRM-121 to 124), the chapters and roads, the starter kits and class quest abilities (`0008_starter`), Bronze as a currency and the Bronze vendors (`0009_bronze`), the vendors' lists (`0010_vendors`, made by `tools/vendor_catalog.py`) |
@@ -47,8 +47,8 @@ and moves Timerunners' quest records over.)
 
 - `.remix`: whether Remix runs here; your Bronze, what you've earned, your chapter.
 - `.remix bronze add N` (game masters): Bronze for the selected player or yourself.
-- `.remix band` (game masters): the band of the zone you're in and the levels of the creatures
-  around you.
+- `.remix band` (game masters): the band of the zone you're in, the levels of the creatures
+  around you, and their normal ones' health against their level's (the squish).
 - `.remix guid ENTRY` (game masters): the nearest creature of that entry and its guid (the core
   gives creatures guids of their map's, so CI's test client asks for them).
 
