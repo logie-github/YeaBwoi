@@ -76,7 +76,8 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (@MORATARI, 77006), (@MORATARI, 77016), (@MORATARI, 77026),
 (@MORATARI, 77121), (@MORATARI, 77122), (@MORATARI, 77123), (@MORATARI, 77124);
 
-DELETE FROM `remix_bridge`;
+-- (its own rows: the later chapters' files have theirs)
+DELETE FROM `remix_bridge` WHERE `quest` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `z`, `o`, `skipped`) VALUES
 -- Before Corporal Venn (Thassarian, the Death Knight).
 (77006, 12088, 1, 571, 3116.4, 3841.8, 23.3, 2.60, '11600 11601 11603 11604 11932 12086 11944'),

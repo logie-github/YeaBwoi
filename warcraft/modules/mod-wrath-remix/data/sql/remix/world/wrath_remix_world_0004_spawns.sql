@@ -41,23 +41,31 @@ SELECT 7704020 + (`entry` - 770100), `entry`, 571, 1, 1, 0, @HX + 14, @HY - 11 +
 FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770111;
 
 -- Moratari beside original quest givers: at each landing (where WRM-005 ends), at her
--- transitions (wrath_remix_world_0006_bridges.sql) and at each coast's last quest (WRM-121).
--- A step to the giver's left, facing the same way.
+-- transitions (wrath_remix_world_0006_bridges.sql, and the later chapters') and at each coast's
+-- last quest (WRM-121). A step to the giver's left, facing the same way, in the giver's phases
+-- (or those given: Thrall's after the Battle for the Undercity is in its phase, 64, and the
+-- Timerunner is back in the world's, 1, once it's turned in).
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704050 + n, @MORATARI, c.`map`, 1, c.`phaseMask`, 1,
+SELECT 7704050 + n, @MORATARI, c.`map`, 1, IF(b.phase, b.phase, c.`phaseMask`), 1,
   c.`position_x` + 2.5 * COS(c.`orientation` + PI() / 2), c.`position_y` + 2.5 * SIN(c.`orientation` + PI() / 2),
   c.`position_z`, c.`orientation`, 60, 0, 0, CONCAT('Wrath Remix: Moratari, ', what)
 FROM `creature` c JOIN (
-  SELECT 1 AS n, 116919 AS beside, 'Valiance Keep landing (Recruitment Officer Blythe)' AS what UNION ALL
-  SELECT 2, 125539, 'Warsong Hold landing (Warsong Recruitment Officer)' UNION ALL
-  SELECT 3, 133903, 'Valgarde landing (Macalroy)' UNION ALL
-  SELECT 4, 101906, 'Vengeance Landing (Apothecary Lysander)' UNION ALL
-  SELECT 5, 99763,  'WRM-006, Alliance Borean Tundra (William Allerton)' UNION ALL
-  SELECT 6, 107800, 'WRM-016, Horde Borean Tundra (Mobu)' UNION ALL
-  SELECT 7, 203320, 'WRM-026 and WRM-121, Westguard Keep (Captain Adams)' UNION ALL
-  SELECT 8, 101136, 'WRM-121, Alliance Borean Tundra (Thassarian)' UNION ALL
-  SELECT 9, 125447, 'WRM-121, Horde Borean Tundra (Garrosh Hellscream)' UNION ALL
-  SELECT 10, 113677, 'WRM-121, Horde Howling Fjord ("Hacksaw" Jenny)'
+  SELECT 1 AS n, 116919 AS beside, 'Valiance Keep landing (Recruitment Officer Blythe)' AS what, 0 AS phase UNION ALL
+  SELECT 2, 125539, 'Warsong Hold landing (Warsong Recruitment Officer)', 0 UNION ALL
+  SELECT 3, 133903, 'Valgarde landing (Macalroy)', 0 UNION ALL
+  SELECT 4, 101906, 'Vengeance Landing (Apothecary Lysander)', 0 UNION ALL
+  SELECT 5, 99763,  'WRM-006, Alliance Borean Tundra (William Allerton)', 0 UNION ALL
+  SELECT 6, 107800, 'WRM-016, Horde Borean Tundra (Mobu)', 0 UNION ALL
+  SELECT 7, 203320, 'WRM-026 and WRM-121, Westguard Keep (Captain Adams)', 0 UNION ALL
+  SELECT 8, 101136, 'WRM-121, Alliance Borean Tundra (Thassarian)', 0 UNION ALL
+  SELECT 9, 125447, 'WRM-121, Horde Borean Tundra (Garrosh Hellscream)', 0 UNION ALL
+  SELECT 10, 113677, 'WRM-121, Horde Howling Fjord ("Hacksaw" Jenny)', 0 UNION ALL
+  -- Chapter II (wrath_remix_world_0011_chapter2.sql)
+  SELECT 11, 133653, 'WRM-201, Alliance Dragonblight (Cavalier Durkon)', 0 UNION ALL
+  SELECT 12, 108123, 'WRM-211, Horde Dragonblight (Doctor Sintar Malefious)', 0 UNION ALL
+  SELECT 13, 132193, 'WRM-202 and WRM-212, the Wrathgate (Alexstrasza)', 0 UNION ALL
+  SELECT 14, 10495,  'WRM-221, Stormwind Keep (King Varian Wrynn)', 0 UNION ALL
+  SELECT 15, 3109785, 'WRM-222, the throne room of Lordaeron (Thrall)', 65
 ) b ON c.`guid` = b.beside;
 
 -- The Azure Dragonflight's raiders at the Violet Stand would kill a new Timerunner on arrival:
