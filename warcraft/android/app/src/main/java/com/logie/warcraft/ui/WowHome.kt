@@ -52,6 +52,8 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
+// Turtle WoW's game switch (out of order: kept apart from the Wrath Remix line's import above).
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -88,6 +90,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.logie.warcraft.AddonStore
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
+import com.logie.warcraft.Environments
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
 import com.logie.warcraft.LegacyRaces
@@ -102,6 +105,9 @@ import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
 import com.logie.warcraft.game.Game
 import com.logie.warcraft.game.GameSettings
+import com.logie.warcraft.turtle.ui.GameSwitch
+import com.logie.warcraft.turtle.ui.SwitchToTurtleDialog
+import com.logie.warcraft.turtle.ui.TurtleLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -114,8 +120,21 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
+    // The game chosen (Environments): Turtle WoW has a launcher of its own, in its own look.
+    val environment by Environments.selected(LocalContext.current).collectAsState()
+    if (environment == Environments.Environment.TURTLE) {
+        TurtleLauncher(checkUpdateOnOpen)
+    } else {
+        WrathHomeRoute(activity, checkUpdateOnOpen)
+    }
+}
+
+/** Wrath of the Lich King's launcher, as it has always been, with a way to Turtle WoW's. */
+@Composable
+private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
+    var askTurtle by remember { mutableStateOf(false) }
     val server by Server.status.collectAsState()
     val imports by Imports.state.collectAsState()
     val game by Game.state.collectAsState()
@@ -205,10 +224,12 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
                 onPlay = { play() },
                 onStop = { Server.stop(context) },
                 onDialog = { dialog = it },
+                onSwitchGame = { if (!GameSwitch.trySwitch(context, Environments.Environment.TURTLE)) askTurtle = true },
             )
             if (dialog == HomeDialog.ADDONS) AddonManager(onDismiss = { dialog = null; refresh++ })
             if (dialog == HomeDialog.MODULES) ModuleManager(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
         }
+        if (askTurtle) SwitchToTurtleDialog(onDismiss = { askTurtle = false })
         when (dialog) {
             HomeDialog.SERVER -> ServerDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.FILES -> GameFilesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
@@ -266,6 +287,7 @@ internal fun HomeScreen(
     onPlay: () -> Unit,
     onStop: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
+    onSwitchGame: () -> Unit = {},
 ) {
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -279,7 +301,7 @@ internal fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            WowHeader(screenWidth, screenHeight)
+            WowHeader(screenWidth, screenHeight, onSwitchGame)
             Column(
                 Modifier
                     .widthIn(max = 860.dp)
@@ -320,6 +342,10 @@ internal fun HomeScreen(
                     HomeTile(Icons.Default.SystemUpdate, stringResource(R.string.wow_tile_updates),
                         stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) {
                         WowUpdateActivity.launch(context)
+                    },
+                    // Turtle WoW, a game of its own: the launcher switches to it (GameSwitch).
+                    HomeTile(Icons.Default.SwapHoriz, stringResource(R.string.turtle_tile_name), stringResource(R.string.turtle_tile_name_summary)) {
+                        onSwitchGame()
                     },
                 )
                 val columns = (screenWidth / 260.dp).toInt().coerceIn(1, 3).let { if (screenWidth >= 360.dp) maxOf(it, 2) else it }
@@ -369,7 +395,7 @@ private fun filesSummary(facts: HomeFacts): String = stringResource(
  * slowly closing in; the logo over its lower edge.
  */
 @Composable
-private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
+private fun WowHeader(screenWidth: Dp, screenHeight: Dp, onSwitchGame: () -> Unit) {
     // Tall enough for the Lich King on a phone held upright, leaving room for the realm panel
     // with the phone sideways.
     val headerHeight = min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.62f)
@@ -441,6 +467,30 @@ private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
                 .padding(10.dp)
                 .graphicsLayer { alpha = reveal.value }
         )
+        GameSwitchChip(
+            Modifier
+                .align(Alignment.TopStart)
+                .padding(10.dp)
+                .graphicsLayer { alpha = reveal.value },
+            onSwitchGame,
+        )
+    }
+}
+
+/** To Turtle WoW's launcher: a small chip in the picture's corner. */
+@Composable
+private fun GameSwitchChip(modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier
+            .clip(CircleShape)
+            .background(WowColors.Abyss.copy(alpha = 0.45f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = WowColors.Ice, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(stringResource(R.string.turtle_switch_to_turtle), style = WowDisplayStyle.copy(fontSize = 13.sp))
     }
 }
 

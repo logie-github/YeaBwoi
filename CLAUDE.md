@@ -28,3 +28,9 @@ self-updating from this repository's GitHub releases.
   `--init-script scripts/maven-mirror.init.gradle` (Maven Central rate-limits these machines).
 - Never commit build outputs (`build/`, `.cxx/`, `<app>/android/core/`) or any game files.
 - Tell the user what was tested and what wasn't (nothing here runs on a real phone).
+
+## Turtle WoW
+
+The World of Warcraft app's second game, Turtle WoW (1.18.1) with its own Tortoise-WoW realm, kept
+completely apart from the 3.3.5a game: `warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its
+realm), `com.logie.warcraft.turtle` (its code, every file operation through `turtle/core/SafeFs`).

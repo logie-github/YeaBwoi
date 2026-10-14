@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 16:01:04 +0000
+Subject: [PATCH] Compare strcmp's answer with 0, not NULL
+
+With musl, NULL is nullptr in C++ (glibc's __null passes as an integer), and an int can't be
+compared with nullptr: the account email command didn't compile.
+---
+ src/game/Commands/Commands.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/game/Commands/Commands.cpp b/src/game/Commands/Commands.cpp
+index f21ef82..068acf1 100644
+--- a/src/game/Commands/Commands.cpp
++++ b/src/game/Commands/Commands.cpp
+@@ -18908,14 +18908,14 @@ bool ChatHandler::HandleAccountEmailCommand(char* args)
+     if (!oldEmail || !newEmail || !newEmail2)
+         return false;
+ 
+-    if (strcmp(oldEmail, newEmail) == NULL)
++    if (strcmp(oldEmail, newEmail) == 0)
+     {
+         SendSysMessage("New email must be different than old.");
+         SetSentErrorMessage(true);
+         return false;
+     }
+ 
+-    if (strcmp(newEmail, newEmail2) != NULL)
++    if (strcmp(newEmail, newEmail2) != 0)
+     {
+         SendSysMessage("Email confirmation doesn't match.");
+         SetSentErrorMessage(true);

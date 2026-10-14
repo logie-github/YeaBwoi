@@ -79,6 +79,12 @@
             android:name=".ImportService"
             android:exported="false" />
 
+        <!-- Turtle WoW's realm and its installation jobs (com.logie.warcraft.turtle), apart from
+             the ChromieCraft realm's ServerService. -->
+        <service
+            android:name=".turtle.TurtleService"
+            android:exported="false" />
+
         <!-- The game: Winlator's screen (its X server with Wine and Box64 behind it), its controls
              editor, and the service that keeps the game alive in the background. Its own main
              screen stays, unlisted, for the code that refers to it. -->
