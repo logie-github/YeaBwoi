@@ -1,4 +1,4 @@
-# Wrath Remix's campaign transitions, Chapters II and III, as the Alliance has them: played by CI as
+# Wrath Remix's campaign transitions, Chapters II to IV, as the Alliance has them: played by CI as
 # a level 30 human (auth_check.py script, on the Remix realm). The original quest before each
 # transition is given and turned in with GM commands, Moratari's are played, and what each opens
 # is checked.
@@ -109,3 +109,92 @@ cmd .remix
 expect chapter 4
 cmd .gps
 expect Zul'Drak
+
+# Chapter IV. IV-A, WRM-401 (The Things the Scourge Remembers): The Ebon Watch done; Infiltrating
+# Voltarus isn't open at Stefan Vadu yet.
+cmd .quest add 12884
+cmd .quest complete 12884
+cmd .quest reward 12884
+go 571 5211.8 -1302.1 243.0
+talk 28518
+expect-not quest 12661
+talk 770001
+expect quest 77401
+accept 770001 77401
+reward 770001 77401
+expect rewarded 77401
+talk 28518
+expect quest 12661
+
+# IV-A, WRM-402 (The Paperwork of Betrayal): after Infiltrating Voltarus, the same Moratari opens
+# Sabotage.
+cmd .quest add 12661
+cmd .quest complete 12661
+cmd .quest reward 12661
+talk 28518
+expect-not quest 12676
+talk 770001
+expect quest 77402
+accept 770001 77402
+reward 770001 77402
+expect rewarded 77402
+talk 28518
+expect quest 12676
+
+# WRM-403 (A Pilgrim's Shortcut): after Precious Elemental Fluids, Moratari by Hexxer Ubungo sends
+# the Timerunner to Har'koa at Zim'Torga, past her rescue.
+cmd .quest add 12510
+cmd .quest complete 12510
+cmd .quest reward 12510
+go 571 5746.8 -3606.8 387.7
+talk 28401
+expect-not quest 12666
+go 571 5484.6 -2623.7 307.6
+talk 770001
+expect quest 77403
+accept 770001 77403
+reward 770001 77403
+expect rewarded 77403
+wait 3
+talk 28401
+expect quest 12666
+
+# IV-B, WRM-404 (The Gods Are Still Silent): after You Reap What You Sow and Betrayal, Moratari by
+# Witch Doctor Khufu opens The Gods Have Spoken.
+cmd .quest add 12685
+cmd .quest complete 12685
+cmd .quest reward 12685
+go 571 5736.1 -3571.4 387.5
+talk 770001
+expect-not quest 77404
+cmd .quest add 12713
+cmd .quest complete 12713
+cmd .quest reward 12713
+talk 28479
+expect-not quest 12729
+talk 770001
+expect quest 77404
+accept 770001 77404
+reward 770001 77404
+expect rewarded 77404
+talk 28479
+expect quest 12729
+
+# WRM-421 (A Kingdom Gone): after Gal'darah Must Pay (Gundrak's quests at Chapter IV's levels),
+# Moratari by Tol'mar sends the Timerunner to Nesingwary Base Camp in Sholazar Basin, Chapter V.
+cmd .levelup 10
+wait 2
+cmd .quest add 13096
+cmd .quest complete 13096
+cmd .quest reward 13096
+go 571 6906.5 -4096.1 467.9
+talk 770001
+expect quest 77421
+accept 770001 77421
+reward 770001 77421
+expect rewarded 77421
+wait 4
+cmd .remix
+expect chapter 5
+cmd .gps
+expect Nesingwary Base Camp

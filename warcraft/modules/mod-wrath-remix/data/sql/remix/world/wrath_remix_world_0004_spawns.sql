@@ -69,7 +69,12 @@ FROM `creature` c JOIN (
   -- Chapter III (wrath_remix_world_0012_chapter3.sql)
   SELECT 16, 110818, 'WRM-301, Amberpine Lodge (Hierophant Thayreen)', 0 UNION ALL
   SELECT 17, 107481, 'WRM-311, Conquest Hold (Windseer Grayhorn)', 0 UNION ALL
-  SELECT 18, 43500,  'WRM-302 and WRM-321, Drak''Tharon Keep''s door (Image of Drakuru)', 0
+  SELECT 18, 43500,  'WRM-302 and WRM-321, Drak''Tharon Keep''s door (Image of Drakuru)', 0 UNION ALL
+  -- Chapter IV (wrath_remix_world_0013_chapter4.sql)
+  SELECT 19, 105125, 'WRM-401 and WRM-402, the Ebon Watch (Stefan Vadu)', 0 UNION ALL
+  SELECT 20, 110645, 'WRM-403, Zul''Drak (Hexxer Ubungo)', 0 UNION ALL
+  SELECT 21, 101938, 'WRM-404, Zim''Torga (Witch Doctor Khufu)', 0 UNION ALL
+  SELECT 22, 115292, 'WRM-421, Gundrak (Tol''mar)', 0
 ) b ON c.`guid` = b.beside;
 
 -- The Azure Dragonflight's raiders at the Violet Stand would kill a new Timerunner on arrival:

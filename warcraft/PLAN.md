@@ -652,7 +652,7 @@ for the game on the phone itself ("that's the whole point").
     realm and checks the floor under every NPC placed. Not on a phone: all of it in the game.
   - Next, in the guide's order: Chapters II to VII's transitions (one chapter at a time, both
     sides, with the Wrathgate and the Battle for the Undercity checked first; II done in build 61,
-    III in 62),
+    III in 62, IV in 63),
     Infinite Power,
     Keeper assignments, then challenge content.
 
@@ -790,9 +790,33 @@ for the game on the phone itself ("that's the whole point").
     Chapter III to Light's Breach. Checked here the same way as Chapter II: both sides played, the
     eight Moratari spawns on the floor. Not checked: Drak'Tharon Keep and the Grizzly Hills'
     quests played for real.
-  - Next: Chapter IV (Zul'Drak), whose Drakuru chain has two entries (An Invitation, of Sorts...
-    and Darkness Calling, which Drak'Tharon gives) and quests at Voltarus that open only while
-    another is in the log; then V to VII.
+  - Next: Chapter IV (Zul'Drak); then V to VII.
+
+- Then Chapter IV's transitions (build 63, `0013_chapter4.sql`), all both sides':
+  - IV-A in two, by Stefan Vadu at the Ebon Watch: *The Things the Scourge Remembers* after The
+    Ebon Watch, standing for the chokers' quests (a Withered Troll's drop: item-started, which a
+    test can't give, and drop collecting, which IV-A skips) and the disguise errands, to
+    Infiltrating Voltarus (Reunited, Darkness Calling's way's Voltarus quest, opens after it);
+    *The Paperwork of Betrayal* (the guide's line) after Infiltrating Voltarus, standing for So
+    Far, So Bad, It Rolls Downhill, Hazardous Materials and Zero Tolerance, to Sabotage, so
+    Sabotage, Fuel for the Fire, Disclosure and Betrayal are played.
+  - *A Pilgrim's Shortcut*: the guide's loa list goes from Precious Elemental Fluids to
+    Preparations for the Underworld; between them, eleven quests of Har'koa's rescue. By Hexxer
+    Ubungo, to Har'koa at Zim'Torga.
+  - IV-B, *The Gods Are Still Silent*: after You Reap What You Sow and Betrayal, by Witch Doctor
+    Khufu, standing for The Key of Warlord Zol'Maz and Rampage, to The Gods Have Spoken
+    (Convocation at Zol'Heb and Unfinished Business, into Gundrak, are played).
+  - WRM-421, *A Kingdom Gone*: after Gundrak's Gal'darah Must Pay (turned in outside, to Tol'mar)
+    and Betrayal, to Hemet Nesingwary at his camp in Sholazar Basin, Chapter V. Not to Monte
+    Muzzleshot, whose Welcome to Sholazar Basin starts the zone: Aotona, a hostile rare, flies 11
+    yards from him (the test's character landed in a fight there and couldn't log out), and
+    nothing asks for that quest.
+  - Gundrak's quests weren't on Chapter IV's levels: its band named the area outside (4375), its
+    quests are filed under the instance's (4416). Fixed in `0005_levels.sql`; Gal'darah Must Pay
+    is level 52 now, not 78.
+  - CI plays Chapter IV on each side after III. Checked here: both sides through to Nesingwary
+    Base Camp, the four new Moratari spawns on the floor. Not checked: Voltarus, the loa's quests
+    and Gundrak played for real.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
