@@ -55,7 +55,7 @@ namespace WrathRemix
         std::unordered_map<uint32, Bridge> bridges;
         std::vector<Chapter> chapters;
         std::vector<Destination> destinations;
-        std::vector<Ware> wares;
+        std::vector<VendorList> vendorLists;
         std::unordered_map<uint32, uint32> questBronze;
         std::unordered_map<uint8, std::vector<KitPiece>> kits;
         std::unordered_map<uint8, std::vector<ClassSpell>> classSpells;
@@ -140,7 +140,7 @@ namespace WrathRemix
         bridges.clear();
         chapters.clear();
         destinations.clear();
-        wares.clear();
+        vendorLists.clear();
         questBronze.clear();
         kits.clear();
         classSpells.clear();
@@ -193,12 +193,12 @@ namespace WrathRemix
                 destinations.push_back({ f[0].Get<uint16>(), f[1].Get<std::string>(), f[2].Get<uint8>(), f[3].Get<uint8>(), f[4].Get<uint32>(), f[5].Get<float>(), f[6].Get<float>(), f[7].Get<float>(), f[8].Get<float>() });
             } while (result->NextRow());
         }
-        if (QueryResult result = WorldDatabase.Query("SELECT `id`, `category`, `item`, `count`, `price`, `side` FROM `remix_shop` ORDER BY `category`, `id`"))
+        if (QueryResult result = WorldDatabase.Query("SELECT `list`, `vendor`, `side`, `label` FROM `remix_vendor_list` ORDER BY `vendor`, `sort`"))
         {
             do
             {
                 Field* f = result->Fetch();
-                wares.push_back({ f[0].Get<uint16>(), f[1].Get<uint8>(), f[2].Get<uint32>(), f[3].Get<uint32>(), f[4].Get<uint32>(), f[5].Get<uint8>() });
+                vendorLists.push_back({ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<uint8>(), f[3].Get<std::string>() });
             } while (result->NextRow());
         }
         if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `bronze` FROM `remix_quest_reward`"))
@@ -226,8 +226,8 @@ namespace WrathRemix
                 classSpells[f[0].Get<uint8>()].push_back({ f[1].Get<uint32>(), f[2].Get<uint8>() });
             } while (result->NextRow());
         }
-        LOG_INFO("module", "Wrath Remix: {} level bands, {} transitions, {} chapters, {} destinations, {} wares, {} starter kits",
-            bands.size(), bridges.size(), chapters.size(), destinations.size(), wares.size(), kits.size());
+        LOG_INFO("module", "Wrath Remix: {} level bands, {} transitions, {} chapters, {} destinations, {} vendor lists, {} starter kits",
+            bands.size(), bridges.size(), chapters.size(), destinations.size(), vendorLists.size(), kits.size());
     }
 
     LevelBand const* BandFor(uint32 map, uint32 zone)
@@ -264,15 +264,7 @@ namespace WrathRemix
         return nullptr;
     }
 
-    std::vector<Ware> const& Wares() { return wares; }
-
-    Ware const* WareFor(uint16 id)
-    {
-        for (Ware const& w : wares)
-            if (w.id == id)
-                return &w;
-        return nullptr;
-    }
+    std::vector<VendorList> const& VendorLists() { return vendorLists; }
 
     uint32 QuestBronze(uint32 quest)
     {
@@ -345,35 +337,50 @@ namespace WrathRemix
         timerunners.erase(player->GetGUID().GetCounter());
     }
 
+    uint32 Bronze(Player* player)
+    {
+        return player->GetItemCount(ITEM_BRONZE);
+    }
+
+    // Bronze into the currency tab (the "You receive" line for quests, bosses and rares; a
+    // common kill's single Bronze adds up quietly). What can't be stored is owed and paid at login.
+    static bool StoreBronze(Player* player, uint32 amount, bool show)
+    {
+        ItemPosCountVec dest;
+        if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, ITEM_BRONZE, amount) != EQUIP_ERR_OK)
+            return false;
+        if (Item* item = player->StoreNewItem(dest, ITEM_BRONZE, true))
+            player->SendNewItem(item, amount, true, false, false, show);
+        return true;
+    }
+
     void AddBronze(Player* player, uint32 amount, bool show)
     {
         if (!amount)
             return;
-        uint32 now;
-        {
-            std::lock_guard<std::mutex> lock(timerunnersLock);
-            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+        bool stored = StoreBronze(player, amount, show);
+        std::lock_guard<std::mutex> lock(timerunnersLock);
+        Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+        t.earned += amount;
+        if (!stored)
             t.bronze += amount;
-            t.earned += amount;
-            t.dirty = true;
-            now = t.bronze;
-        }
-        if (show)
-            ChatHandler(player->GetSession()).PSendSysMessage("|cffd4a017You receive {} Bronze.|r (You have {}.)", amount, now);
+        t.dirty = true;
     }
 
-    bool SpendBronze(Player* player, uint32 amount)
+    // Bronze the realm kept for a Timerunner (before Bronze was an item, or when it couldn't be
+    // stored), into their currency tab.
+    static void PayOwedBronze(Player* player)
     {
+        uint32 owed = Get(player).bronze;
+        if (!owed || !StoreBronze(player, owed, true))
+            return;
         {
             std::lock_guard<std::mutex> lock(timerunnersLock);
             Timerunner& t = timerunners[player->GetGUID().GetCounter()];
-            if (t.bronze < amount)
-                return false;
-            t.bronze -= amount;
+            t.bronze = t.bronze > owed ? t.bronze - owed : 0;
             t.dirty = true;
         }
         Save(player);
-        return true;
     }
 
     void SetChapter(Player* player, uint8 chapter)
@@ -603,6 +610,7 @@ namespace WrathRemix
     {
         if (player->GetSession()->GetRemoteAddress() == "headless")
             return;
+        PayOwedBronze(player);
         TeachRiding(player);
         if (uint32 learned = LearnClassSpells(player))
             ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: you learn {} {} of your class.", learned,
@@ -617,7 +625,7 @@ using namespace WrathRemix;
 class WrathRemixWorld : public WorldScript
 {
 public:
-    WrathRemixWorld() : WorldScript("WrathRemixWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
+    WrathRemixWorld() : WorldScript("WrathRemixWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE, WORLDHOOK_ON_STARTUP }) { }
 
     void OnAfterConfigLoad(bool /*reload*/) override
     {
@@ -627,6 +635,12 @@ public:
     void OnLoadCustomDatabaseTable() override
     {
         LoadData();
+    }
+
+    // (on ChromieCraft's realm too: that's where the patch comes out of the game)
+    void OnStartup() override
+    {
+        UpdateClientPatch();
     }
 };
 
@@ -674,7 +688,7 @@ public:
         {
             uint8 chapter = t.chapter ? std::max(t.chapter, ChapterForLevel(player->GetLevel())) : 0;
             Chapter const* c = ChapterFor(chapter);
-            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: Timerunner, {} Bronze. {}", t.bronze,
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: Timerunner, {} Bronze. {}", Bronze(player) + t.bronze,
                 c ? Acore::StringFormat("Chapter {}: {}.", uint32(c->chapter), c->name) : std::string("The prologue."));
         }
         Save(player);
@@ -872,7 +886,7 @@ public:
         uint8 chapter = t.chapter ? std::max(t.chapter, ChapterForLevel(player->GetLevel())) : 0;
         Chapter const* c = ChapterFor(chapter);
         handler->PSendSysMessage("Wrath Remix: Timerunner {}, level {}, {} Bronze ({} earned), chapter {} ({}).",
-            player->GetName(), uint32(player->GetLevel()), t.bronze, t.earned, uint32(chapter), c ? c->name : "the prologue");
+            player->GetName(), uint32(player->GetLevel()), Bronze(player) + t.bronze, t.earned, uint32(chapter), c ? c->name : "the prologue");
         return true;
     }
 

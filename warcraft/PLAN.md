@@ -684,8 +684,41 @@ for the game on the phone itself ("that's the whole point").
     highest id (`_creatureTemplateStoreFast`, `_questTemplatesFast`, `_itemTemplateStoreFast`), so
     Remix's 7.7 million ids cost about 120 MB on the phone. Creatures are 770001+ and quests 77nnn
     now; the SQL removes the old rows and moves Timerunners' quest records.
-  - The Bronze vendors the user asked for before this (Legion Remix's collections for Bronze) are
-    next.
+  - Released in build 57 (build 56's server test expected the axe skill of a level 10; the
+    prologue's quests make the warrior 11).
+
+- Then (before the demo): "the same vendors in legion remix need to be present at the hub... their
+  own wrath specific ones... all the rare and specific wrath raid and dungeon sets and everything
+  introduced there such as pets, toys, mounts, weapons, etc ... buyable with bronze like in legion
+  remix. If bronze is too hard to incorporate then just use a currency like some sort of
+  preexisting token." Done with Bronze itself (build 58):
+  - Bronze is a currency token, item 77001 (Emblem of Frost's template, the bronze dragonflight's
+    head for an icon), with a CurrencyTypes row (342, Wrath of the Lich King, bit 30) and Item.dbc
+    row; prices are ItemExtendedCost rows of n Bronze, a ladder of 27 (25 to 25,000). The server
+    has them from the Remix world database's `*_dbc` tables; the client from a patch the module
+    writes as Wrath Remix starts (`ClientPatch.cpp`: the server's three DBC files with the rows
+    added, in an MPQ of the first format with zlib sectors, as Blizzard's own patches are, at
+    `Data/patch-Y.MPQ`; ChromieCraft's world server takes it out). Y is above every letter the HD
+    patches use; a `patch-Y.MPQ` of the user's own is left alone. Bronze kept in
+    `remix_character.bronze` before is paid into the currency at the next login.
+  - The guide's roster: Alurmi (heirlooms, bags), Horos (rare collections: 109 Wrath mounts),
+    Domelius (65 companions, 24 toys), Arturos (dungeons), Aeonicus (10-player raids), Durus
+    (25-player and heroic raids, Val'anyr and Shadowmourne), Infinite Dragonflight models, in a row
+    on the Bazaar's west side. Each opens its lists as vendor windows (gossip, then
+    `SendListInventory(guid, list)`: a hidden vendor template per list, which the core remembers
+    for the purchase). 48 lists, 4,650 wares, from `tools/vendor_catalog.py`: instance_encounters
+    and the bosses' loot (references followed) and chests by mode, tier sets T7 to T10 by item set
+    and item level, curated mounts, companions, toys and heirlooms. Gear: 200 Bronze at item
+    level 200, 3% more a level, weapons and trinkets more. The core shows each player only their
+    side's wares and their class's bind-on-pickup ones, so a list is split only past 150 for one
+    class (a window's limit; a list holds 255).
+  - Checked here: the server built and run on the real data (x86_64): the patch written, read
+    back by the test's own MPQ reader and by mpyq (every row of the game's kept, Bronze's added),
+    taken out by ChromieCraft's world server; the prologue with Bronze as an item (a heirloom
+    bought in Alurmi's window for 300), Horos's mounts and Durus's Tier 10 as a warrior sees them
+    (the warrior's 10 pieces, no mage's), Val'anyr bought for 20,000; an older character's 225
+    Bronze moved into the currency tab; every vendor on the floor. Not on a phone: whether the
+    game loads the patch, and the windows' look.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the

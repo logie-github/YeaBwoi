@@ -163,6 +163,7 @@ SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
 SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x0DC
 CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
 CMSG_SET_SELECTION = 0x13D
+SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
 
 # AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
 TRACE = os.environ.get("AUTH_CHECK_TRACE") == "1"
@@ -410,6 +411,9 @@ def run_script(session, player_guid, steps):
                                       to death (the character's own blow: it gets the kill,
                                       which `.die` doesn't give)
         select ENTRY TEXT             pick the option of its last menu whose text has TEXT
+        buy ENTRY ITEM                buy ITEM from the vendor window it last opened (heard:
+                                      "ware ITEM cost N" for each ware a window shows, then
+                                      "bought ITEM" or "buy failed REASON")
         accept ENTRY QUEST            take a quest from it
         reward ENTRY QUEST            turn a quest in to it
         expect TEXT                   something since the last expect had TEXT in it (system
@@ -421,6 +425,7 @@ def run_script(session, player_guid, steps):
     """
     heard = []
     menus = {}
+    windows = {}
     transcript = []
 
     def creature_guid(entry):
@@ -473,6 +478,24 @@ def run_script(session, player_guid, steps):
             elif opcode in (SMSG_QUESTGIVER_QUEST_INVALID, SMSG_QUESTGIVER_QUEST_FAILED):
                 print(f"script:   quest refused ({opcode:#x}: {body.hex()})")
                 heard.append("quest refused")
+            elif opcode == SMSG_LIST_INVENTORY:
+                guid, count = struct.unpack_from("<QB", body, 0)
+                wares = {}
+                for n in range(count):
+                    slot, item, _, _, price, _, _, cost = struct.unpack_from("<IIIiIIII", body, 9 + 32 * n)
+                    wares[item] = slot
+                    heard.append(f"ware {item} cost {cost} price {price}")
+                windows[guid] = wares
+                print(f"script:   vendor window: {count} wares")
+                heard.append(f"vendor window {count}")
+            elif opcode == SMSG_BUY_ITEM:
+                _, slot = struct.unpack_from("<QI", body, 0)
+                print(f"script:   bought from slot {slot}")
+                heard.append(f"bought slot {slot}")
+            elif opcode == SMSG_BUY_FAILED:
+                _, item, reason = struct.unpack_from("<QIB", body, 0)
+                print(f"script:   buying {item} failed ({reason})")
+                heard.append(f"buy failed {reason}")
             elif opcode == SMSG_NEW_WORLD:
                 map_id, x, y, z = struct.unpack_from("<Iffff", body, 0)[:4]
                 print(f"script:   arrived on map {map_id} at {x:.1f} {y:.1f} {z:.1f}")
@@ -510,6 +533,15 @@ def run_script(session, player_guid, steps):
                 raise RuntimeError(f"no option with \"{text}\" in {options}")
             session.send(CMSG_GOSSIP_SELECT_OPTION, struct.pack("<QII", guid, menu_id, index) + b"\0")
             session.pump(4.0, packets)
+        elif word == "buy":
+            entry, item = (int(v) for v in rest.split())
+            guid = creature_guid(entry)
+            slot = windows.get(guid, {}).get(item)
+            if slot is None:
+                raise RuntimeError(f"{item} isn't in the window {entry} last opened")
+            session.send(CMSG_BUY_ITEM, struct.pack("<QIIIB", guid, item, slot, 1, 0))
+            session.pump(2.0, packets)
+            heard.append(f"bought {item}" if any(o == SMSG_BUY_ITEM for o, _ in packets) else "not bought")
         elif word == "accept":
             entry, quest = (int(v) for v in rest.split())
             session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", creature_guid(entry), quest, 0))

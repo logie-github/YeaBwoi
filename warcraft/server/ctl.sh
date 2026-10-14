@@ -370,6 +370,9 @@ world)
 	export WOW_INTERFACE_FILE="$RUN/interface"
 	# The realm's own module configs (patches/azerothcore/0010).
 	export WOW_MODULES_CONF_DIR="$R_ETC/modules"
+	# The game's folder: Wrath Remix writes its patch there as it starts (Bronze and its prices,
+	# Data/patch-Y.MPQ) and ChromieCraft's world server takes it out (mod-wrath-remix).
+	export WOW_CLIENT_DIR="$FILES/client"
 	exec "$SERVER/bin/worldserver" -c "$R_ETC/worldserver.conf"
 	;;
 maps)
