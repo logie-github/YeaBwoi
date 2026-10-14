@@ -617,6 +617,7 @@ public:
             { "",       HandleStatus, SEC_PLAYER,     Console::No },
             { "bronze", bronzeTable },
             { "band",   HandleBand,   SEC_GAMEMASTER, Console::No },
+            { "guid",   HandleGuid,   SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -682,6 +683,22 @@ public:
         }
         if (shown)
             handler->PSendSysMessage("Wrath Remix band check: {} creatures, levels {} to {}.", shown, lowest, highest);
+        return true;
+    }
+
+    // .remix guid ENTRY (game masters): the nearest creature of that entry and its guid (CI's
+    // test client talks to Remix's NPCs by it: the core gives creatures a guid of their map's).
+    static bool HandleGuid(ChatHandler* handler, uint32 entry)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Creature* creature = player->FindNearestCreature(entry, 100.0f);
+        if (!creature)
+        {
+            handler->PSendSysMessage("Wrath Remix guid: no creature {} within 100 yards.", entry);
+            return true;
+        }
+        handler->PSendSysMessage("Wrath Remix guid: {} {} at {:.1f} yards.", entry, creature->GetGUID().GetRawValue(),
+            player->GetDistance(creature));
         return true;
     }
 

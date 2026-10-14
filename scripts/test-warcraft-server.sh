@@ -271,8 +271,10 @@ if [ -n "$DATA_ZIP" ]; then
 	kept=$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Testwolf'" | CTL sql acore_characters)
 	echo "characters of the custom races kept: $kept"
 	[ "$kept" = 1 ] || fail "the Worgen was deleted"
-	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero ".remix" |
-		tee "$FILES/logs/world-remix-off.out" | grep -q "in the world on map" || fail "the human couldn't get into the world after the races went"
+	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero ".remix" > "$FILES/logs/world-remix-off.out" ||
+		fail "the human couldn't get into the world after the races went"
+	cat "$FILES/logs/world-remix-off.out"
+	grep -q "in the world on map" "$FILES/logs/world-remix-off.out" || fail "the human couldn't get into the world after the races went"
 	grep -q "Wrath Remix: off on this realm" "$FILES/logs/world-remix-off.out" || fail "Wrath Remix answered on the ChromieCraft realm"
 	stop_world
 	grep -q "Wrath Remix: off" "$FILES/logs/world.out" || fail "the ChromieCraft realm's world server didn't say Wrath Remix is off"

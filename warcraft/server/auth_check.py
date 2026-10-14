@@ -140,10 +140,12 @@ def login(host, user, password, port=3724):
         pos = end + 1
         end = data.index(b"\0", pos)
         address = data[pos:end].decode()
+        # Population, characters, time zone, then the realm's id.
+        realm_id = data[end + 1 + 4 + 2]
         pos = end + 1 + 4 + 3
         if rflags & 0x04:
             pos += 5
-        realms.append((rname, address))
+        realms.append((rname, address, realm_id))
     sock.close()
     return realms, K
 
@@ -277,8 +279,11 @@ def system_messages(packets):
 def world_session(host, user, password, port=None):
     """A session on the world server, logged in, and a function that lists the characters."""
     user = user.upper()
-    _, K = login(host, user, password)
-    session = WorldSession(host, port or int(os.environ.get("WORLD_PORT", "8085")))
+    realms, K = login(host, user, password)
+    port = port or int(os.environ.get("WORLD_PORT", "8085"))
+    # The world server checks the session is for its own realm: the one at this port.
+    realm_id = next((rid for _, address, rid in realms if address.endswith(f":{port}")), 1)
+    session = WorldSession(host, port)
     opcode, body = session.recv()
     if opcode != SMSG_AUTH_CHALLENGE:
         raise RuntimeError(f"expected the auth challenge, got {opcode:#x}")
@@ -287,7 +292,7 @@ def world_session(host, user, password, port=None):
     digest = sha1(user.encode(), bytes(4), client_seed, server_seed, K)
     addons = zlib.compress(struct.pack("<II", 0, int(time.time())))
     session.send(CMSG_AUTH_SESSION, struct.pack("<II", 12340, 0) + user.encode() + b"\0"
-                 + struct.pack("<I", 0) + client_seed + struct.pack("<IIIQ", 0, 0, 1, 0) + digest
+                 + struct.pack("<I", 0) + client_seed + struct.pack("<IIIQ", 0, 0, realm_id, 0) + digest
                  + struct.pack("<I", 8) + addons)
     session.start_crypt(K)
     _, body = session.wait_for([SMSG_AUTH_RESPONSE])
@@ -366,11 +371,6 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=Non
     return transcript
 
 
-def creature_guid(low, entry):
-    """A spawned creature's guid: the high part for units, its entry, and its spawn's guid."""
-    return (0xF130 << 48) | (entry << 24) | low
-
-
 def gossip_menu(body):
     """SMSG_GOSSIP_MESSAGE: the menu id, the options (index, text) and the quests (id, title)."""
     menu_id, text_id, count = struct.unpack_from("<III", body, 8)
@@ -398,10 +398,11 @@ def run_script(session, player_guid, steps):
 
         cmd TEXT                      a GM command (or anything said)
         go MAP X Y Z                  a GM teleport there
-        talk LOW ENTRY                open the gossip of the creature spawned as LOW
-        select LOW ENTRY TEXT         pick the option of its last menu whose text has TEXT
-        accept LOW ENTRY QUEST        take a quest from it
-        reward LOW ENTRY QUEST        turn a quest in to it
+        talk ENTRY                    open the gossip of the nearest creature of that entry
+                                      (its guid from mod-wrath-remix's `.remix guid ENTRY`)
+        select ENTRY TEXT             pick the option of its last menu whose text has TEXT
+        accept ENTRY QUEST            take a quest from it
+        reward ENTRY QUEST            turn a quest in to it
         expect TEXT                   something since the last expect had TEXT in it (system
                                       messages, gossip options and quests, quest updates)
         expect-not TEXT               nothing since the last expect had TEXT
@@ -412,6 +413,18 @@ def run_script(session, player_guid, steps):
     heard = []
     menus = {}
     transcript = []
+
+    def creature_guid(entry):
+        """The nearest creature of [entry], as the realm names it."""
+        session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_SAY, LANG_COMMON) + f".remix guid {entry}".encode() + b"\0")
+        packets = []
+        session.pump(1.5, packets)
+        note(packets)
+        for line in system_messages(packets):
+            words = line.split()
+            if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
+                return int(words[4])
+        raise RuntimeError(f"no creature {entry} near the character")
 
     def note(packets):
         for opcode, body in packets:
@@ -472,12 +485,11 @@ def run_script(session, player_guid, steps):
                          + f".go xyz {x} {y} {z} {map_id}".encode() + b"\0")
             session.pump(4.0, packets)
         elif word == "talk":
-            low, entry = (int(v) for v in rest.split())
-            session.send(CMSG_GOSSIP_HELLO, struct.pack("<Q", creature_guid(low, entry)))
+            session.send(CMSG_GOSSIP_HELLO, struct.pack("<Q", creature_guid(int(rest))))
             session.pump(2.0, packets)
         elif word == "select":
-            low, entry, text = rest.split(" ", 2)
-            guid = creature_guid(int(low), int(entry))
+            entry, text = rest.split(" ", 1)
+            guid = creature_guid(int(entry))
             menu_id, options = menus.get(guid, (0, []))
             index = next((i for i, t in options if text.lower() in t.lower()), None)
             if index is None:
@@ -485,12 +497,12 @@ def run_script(session, player_guid, steps):
             session.send(CMSG_GOSSIP_SELECT_OPTION, struct.pack("<QII", guid, menu_id, index) + b"\0")
             session.pump(4.0, packets)
         elif word == "accept":
-            low, entry, quest = (int(v) for v in rest.split())
-            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", creature_guid(low, entry), quest, 0))
+            entry, quest = (int(v) for v in rest.split())
+            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", creature_guid(entry), quest, 0))
             session.pump(2.0, packets)
         elif word == "reward":
-            low, entry, quest = (int(v) for v in rest.split())
-            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", creature_guid(low, entry), quest, 0))
+            entry, quest = (int(v) for v in rest.split())
+            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", creature_guid(entry), quest, 0))
             session.pump(3.0, packets)
         elif word == "wait":
             session.pump(float(rest), packets)
@@ -519,7 +531,7 @@ def main():
               f"WHERE username = '{user}';")
     elif len(sys.argv) == 5 and sys.argv[1] == "login":
         realms, _ = login(sys.argv[2], sys.argv[3], sys.argv[4])
-        for rname, address in realms:
+        for rname, address, _ in realms:
             print(f"realm\t{rname}\t{address}")
     elif len(sys.argv) in (6, 7) and sys.argv[1] == "world":
         world(*sys.argv[2:])
