@@ -154,7 +154,10 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   with the anticheat on and no Warden module, Warden would also hold the character list back
   for good; the world server's own addon handler still answers Turtle's signed addons. Not yet
   seen on the phone. CI's test can't get a player that far (no game data); it now checks the
-  file and the module.
+  file and the module. Released in `wow-build-73` with the realm `turtle-server-b892772a1586`
+  (packaged and tested on arm64, the system call check included). That run also found a fault
+  in package-tortoise.sh, the first time it packaged from a cached compile: its library check
+  didn't look in the package's own lib/ for ACE (fixed; the run before it failed on it).
 - **Pathfinding made on a computer** (the user asked for the hours-long job off the phone): CI
   can't make it, as nobody publishes Turtle's server data ready-made (AzerothCore does for 3.3.5a,
   which the app downloads) and it can only be made from the user's own client. So
