@@ -13,16 +13,24 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * The launcher's music: Wrath of the Lich King's main title (res/raw/wow_title_music.ogg), looping
- * while the launcher is on screen. It fades in when the launcher shows and pauses when it's left,
+ * The launcher's music, the theme of the game it shows ([Environments]): Wrath of the Lich King's
+ * main title (res/raw/wow_title_music.ogg), or for Turtle WoW, World of Warcraft's main title,
+ * Legends of Azeroth (res/raw/turtle_title_music.ogg), looping while the launcher is on screen.
+ * Switching games fades one into the other ([onGameChanged]). It fades in when the launcher shows and pauses when it's left,
  * when another app plays sound or a call comes. Once the game starts ([stopForGame]) it stops for
  * as long as the app runs. The note in the header turns it off and on, remembered.
  *
  * Main thread only.
  */
 object TitleMusic {
-    /** The track's ReplayGain (-5.5 dB): as loud as other music, not louder. */
-    private const val VOLUME = 0.53f
+    /** Each game's theme, at its ReplayGain (as loud as other music, not louder). */
+    private enum class Track(val res: Int, val volume: Float) {
+        /** -5.5 dB. */
+        WRATH(R.raw.wow_title_music, 0.53f),
+        /** -7.8 dB. */
+        TURTLE(R.raw.turtle_title_music, 0.41f),
+    }
+
     private const val FADE_IN_MS = 2_500L
     private const val FADE_OUT_MS = 700L
     private const val STEP_MS = 40L
@@ -33,6 +41,8 @@ object TitleMusic {
     private val handler = Handler(Looper.getMainLooper())
     private var audio: AudioManager? = null
     private var player: MediaPlayer? = null
+    /** The theme [player] plays. */
+    private var playing: Track? = null
     private var focus: AudioFocusRequest? = null
     private var level = 0f
     private var target = 0f
@@ -70,6 +80,20 @@ object TitleMusic {
         pause()
     }
 
+    /** The launcher switched games: the other game's theme fades out, this one's fades in. */
+    fun onGameChanged(context: Context) {
+        if (player == null || playing == trackFor(context)) return
+        fadeTo(0f, FADE_OUT_MS) {
+            release()
+            play(context)
+        }
+    }
+
+    private fun trackFor(context: Context): Track = when (Environments.current(context)) {
+        Environments.Environment.TURTLE -> Track.TURTLE
+        Environments.Environment.WRATH -> Track.WRATH
+    }
+
     /** The game is starting: the music fades out and stops for as long as the app runs. */
     fun stopForGame() {
         gameStarted = true
@@ -85,13 +109,17 @@ object TitleMusic {
             .build()
             .also { focus = it }
         if (audioManager.requestAudioFocus(request) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) return
+        val track = trackFor(context)
         val current = player ?: runCatching {
-            MediaPlayer.create(context.applicationContext, R.raw.wow_title_music, attributes, audioManager.generateAudioSessionId())
+            MediaPlayer.create(context.applicationContext, track.res, attributes, audioManager.generateAudioSessionId())
         }.getOrNull()?.apply {
             isLooping = true
             setVolume(0f, 0f)
             level = 0f
-        }?.also { player = it } ?: return
+        }?.also {
+            player = it
+            playing = track
+        } ?: return
         if (!current.isPlaying) current.start()
         fadeTo(1f, FADE_IN_MS, null)
     }
@@ -106,6 +134,7 @@ object TitleMusic {
     private fun release() {
         player?.release()
         player = null
+        playing = null
         focus?.let { audio?.abandonAudioFocusRequest(it) }
     }
 
@@ -146,7 +175,7 @@ object TitleMusic {
             }
             level = if (level < target) (level + step).coerceAtMost(target) else (level - step).coerceAtLeast(target)
             // Squared: a fade that sounds even to the ear.
-            val volume = level * level * VOLUME
+            val volume = level * level * (playing?.volume ?: 0f)
             current.setVolume(volume, volume)
             if (level != target) {
                 handler.postDelayed(this, STEP_MS)

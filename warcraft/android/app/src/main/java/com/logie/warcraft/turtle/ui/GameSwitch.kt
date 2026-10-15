@@ -19,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import com.logie.warcraft.Environments
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
+import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
 import com.logie.warcraft.turtle.TurtleServer
@@ -47,6 +48,7 @@ object GameSwitch {
             }
         }
         Environments.select(context, target)
+        TitleMusic.onGameChanged(context)
     }
 
     /** Switches now if the other realm isn't running; else returns false (ask first). */
