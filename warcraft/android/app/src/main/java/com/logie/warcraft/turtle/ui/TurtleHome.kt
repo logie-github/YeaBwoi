@@ -179,7 +179,7 @@ enum class TurtleDialogKind { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, OPTIONS
 
 /** Where a job's progress and outcome show: the client and the data under Game files, the rest under Server. */
 fun dialogFor(kind: TurtleJobs.Kind): TurtleDialogKind = when (kind) {
-    TurtleJobs.Kind.CLIENT, TurtleJobs.Kind.VERIFY, TurtleJobs.Kind.DATA -> TurtleDialogKind.FILES
+    TurtleJobs.Kind.CLIENT, TurtleJobs.Kind.VERIFY, TurtleJobs.Kind.DATA, TurtleJobs.Kind.IMPORT_DATA -> TurtleDialogKind.FILES
     else -> TurtleDialogKind.SERVER
 }
 

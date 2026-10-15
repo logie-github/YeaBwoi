@@ -314,6 +314,9 @@ private fun FilesDialog(onDismiss: () -> Unit) {
     val pickZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) TurtleService.job(context, TurtleJobs.Kind.CLIENT, uri, folder = false, TurtleJobs.Options(withMmaps = withMmaps))
     }
+    val pickData = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) TurtleService.job(context, TurtleJobs.Kind.IMPORT_DATA, uri, folder = false)
+    }
 
     TurtleDialog(
         title = stringResource(R.string.wow_files_title),
@@ -359,6 +362,11 @@ private fun FilesDialog(onDismiss: () -> Unit) {
         }
         TurtleButton(stringResource(R.string.wow_files_extract), primary = hasClient && parts.isEmpty(), enabled = hasClient && installed && !working) {
             TurtleService.job(context, TurtleJobs.Kind.DATA, options = TurtleJobs.Options(withMmaps = withMmaps))
+        }
+        TurtleTitle(stringResource(R.string.turtle_files_data_pc_title), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.turtle_files_data_pc_body), style = MaterialTheme.typography.bodySmall)
+        TurtleButton(stringResource(R.string.turtle_files_data_import), primary = false, enabled = !working) {
+            pickData.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
         }
         Text(stringResource(R.string.wow_files_space, Formatter.formatShortFileSize(context, TurtleFiles.freeSpace(context))), style = MaterialTheme.typography.bodySmall)
     }

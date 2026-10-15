@@ -138,6 +138,16 @@ applied=$(( $(echo "SELECT COUNT(*) FROM migrations" | CTL sql tw_world) + $(ech
 echo "database updates applied: $applied of $updates ($bot_updates of them TortoiseBots')"
 [ "$applied" -eq "$updates" ] || fail "not every database update was applied"
 
+echo "== pathfinding"
+# MoveMapGen --silent ends with 1 when it has built everything; ctl.sh passes that on as 0, as the
+# app takes anything else for a failure (and would throw away hours of the phone's work).
+python3 -I "$CHECK" stand-in-mmap-input "$FILES/data.work"
+CTL mmaps > "$FILES/logs/mmaps.out" 2>&1 || { tail -20 "$FILES/logs/mmaps.out"; fail "ctl.sh mmaps reported a failure for a finished build"; }
+[ -s "$FILES/data.work/mmaps/0130000.mmtile" ] || fail "MoveMapGen made no pathfinding tile"
+od -A n -t x1 -N 12 "$FILES/data.work/mmaps/0130000.mmtile" | grep -q "50 41 4d 4d .* 06 00 00 00" ||
+	fail "the pathfinding tile isn't MMAP version 6 (the app's import checks for it)"
+rm -rf "$FILES/data.work"
+
 echo "== backup and restore"
 CTL backup "$FILES/backups.test.sql"
 grep -q "TURTLETEST" "$FILES/backups.test.sql" || fail "the backup hasn't the account"

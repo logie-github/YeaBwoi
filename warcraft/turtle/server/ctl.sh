@@ -221,10 +221,15 @@ vmaps)
 	rm -rf Buildings
 	;;
 mmaps)
-	# Pathfinding, from maps and vmaps (the slow one).
+	# Pathfinding, from maps and vmaps (the slow one). With --silent, Tortoise's MoveMapGen ends
+	# with 1 once it has built everything and below 0 when it can't start (tools/mmap/src/
+	# generator.cpp): its 1 is passed on as success, as the app takes anything but 0 for a failure.
 	cd "$DATA.work"
 	musl_programs
-	exec "$SERVER/bin/MoveMapGen" --silent --offMeshInput "$SERVER/etc/offmesh.txt"
+	code=0
+	"$SERVER/bin/MoveMapGen" --silent --offMeshInput "$SERVER/etc/offmesh.txt" || code=$?
+	[ "$code" -eq 1 ] && code=0
+	exit "$code"
 	;;
 data-done)
 	# What was made replaces what was there, in one rename; the old data goes after.
