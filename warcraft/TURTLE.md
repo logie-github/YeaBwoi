@@ -86,7 +86,7 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   switching games asks before stopping the other's realm.
 - **The launcher**: a game switch (a chip in the header and a tile); with Turtle WoW chosen the
   whole launcher is Turtle's (`turtle/ui`) in its own look (the map with warm motes, the logo,
-  Legends of Azeroth), and **works as the 3.3.5a launcher does** (the user's ask: "functionally
+  Moonwhisper Coast), and **works as the 3.3.5a launcher does** (the user's ask: "functionally
   identical"): Press start, then the same nine tiles in the same places: Server (each part of the
   realm with its own button, Wi-Fi, logs, battery, backups, Repair, Uninstall, About), Game files
   (client, server data), Accounts, Graphics, Add-ons (the same manager, for warperia.com's Vanilla

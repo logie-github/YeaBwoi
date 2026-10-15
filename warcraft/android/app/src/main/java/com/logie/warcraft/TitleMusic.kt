@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The launcher's music, the theme of the game it shows ([Environments]): Wrath of the Lich King's
- * main title (res/raw/wow_title_music.ogg), or for Turtle WoW, World of Warcraft's main title,
- * Legends of Azeroth (res/raw/turtle_title_music.ogg), looping while the launcher is on screen.
+ * main title (res/raw/wow_title_music.ogg), or for Turtle WoW, Moonwhisper Coast (Turtle WoW's,
+ * res/raw/turtle_title_music.ogg), looping while the launcher is on screen.
  * Switching games fades one into the other ([onGameChanged]). It fades in when the launcher shows and pauses when it's left,
  * when another app plays sound or a call comes. Once the game starts ([stopForGame]) it stops for
  * as long as the app runs. The note in the header turns it off and on, remembered.
@@ -27,8 +27,8 @@ object TitleMusic {
     private enum class Track(val res: Int, val volume: Float) {
         /** -5.5 dB. */
         WRATH(R.raw.wow_title_music, 0.53f),
-        /** -7.8 dB. */
-        TURTLE(R.raw.turtle_title_music, 0.41f),
+        /** -2.5 dB. */
+        TURTLE(R.raw.turtle_title_music, 0.75f),
     }
 
     private const val FADE_IN_MS = 2_500L
