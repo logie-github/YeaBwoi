@@ -32,6 +32,15 @@ object TurtleSettings {
         prefs(context).edit().putString(KEY_RATE + setting.key, value).apply()
     }
 
+    /** How many bots live in the world ([TurtleRealm.botSettings]). */
+    fun worldBots(context: Context): Int =
+        prefs(context).getInt("world_bots", TurtleRealm.WORLD_BOTS_DEFAULT).takeIf { it in TurtleRealm.WORLD_BOTS_CHOICES } ?: TurtleRealm.WORLD_BOTS_DEFAULT
+
+    fun setWorldBots(context: Context, count: Int) {
+        require(count in TurtleRealm.WORLD_BOTS_CHOICES)
+        prefs(context).edit().putInt("world_bots", count).apply()
+    }
+
     /** Make pathfinding (mmaps, hours on a phone) when the server's data is made. */
     fun mmaps(context: Context) = prefs(context).getBoolean("mmaps", false)
 
@@ -46,7 +55,7 @@ object TurtleSettings {
     fun reset(context: Context) = prefs(context).edit().clear().apply()
 
     /**
-     * The settings into mangosd.conf, and what the server's data allows: line of sight and heights
+     * The settings into mangosd.conf (and the bots' into aiplayerbot.conf), and what the server's data allows: line of sight and heights
      * need vmaps, pathfinding mmaps. A local realm: normal (not PvP), no queue.
      */
     fun applyToConfig(context: Context) {
@@ -63,6 +72,9 @@ object TurtleSettings {
         }
         TurtleServer.editConf(File(TurtleFiles.layout(context).etc, "realmd.conf")) {
             for ((key, value) in TurtleRealm.REALMD_SETTINGS) set(key, value)
+        }
+        TurtleServer.editConf(File(TurtleFiles.layout(context).etc, "aiplayerbot.conf")) {
+            for ((key, value) in TurtleRealm.botSettings(worldBots(context))) set(key, value)
         }
     }
 }

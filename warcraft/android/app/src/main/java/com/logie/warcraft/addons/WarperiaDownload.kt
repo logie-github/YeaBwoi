@@ -31,8 +31,15 @@ object WarperiaDownload {
         data class Downloading(val bytes: Long, val size: Long) : Step
     }
 
-    fun fetch(web: Web, slug: String, to: File, onStep: (Step) -> Unit, sleep: (Long) -> Unit = { Thread.sleep(it) }) {
-        val page = Warperia.downloadPageUrl(slug)
+    fun fetch(
+        web: Web,
+        slug: String,
+        to: File,
+        onStep: (Step) -> Unit,
+        sleep: (Long) -> Unit = { Thread.sleep(it) },
+        flavor: Warperia.Flavor = Warperia.Flavor.WOTLK,
+    ) {
+        val page = Warperia.downloadPageUrl(slug, flavor)
         val ticket = Warperia.parseTicket(web.get(page))
         for (left in ticket.seconds downTo 1) {
             onStep(Step.Waiting(left))

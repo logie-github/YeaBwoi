@@ -1,8 +1,9 @@
 #!/bin/sh
 # Compiles Turtle WoW's realm for Linux on musl (Alpine), for this machine's architecture:
-# Tortoise-WoW (warcraft/turtle/server-version.env) with its map tools, and ACE, which Alpine
-# doesn't package, from its release (checked against its SHA-256). Leaves what
-# scripts/package-tortoise.sh packs in build/tortoise-dist: the programs, their configs and the SQL.
+# Tortoise-WoW (warcraft/turtle/server-version.env) with its map tools and the TortoiseBots module
+# compiled in, and ACE, which Alpine doesn't package, from its release (checked against its
+# SHA-256). Leaves what scripts/package-tortoise.sh packs in build/tortoise-dist: the programs,
+# their configs, the SQL (the core's and the module's) and the bots' control addon.
 #
 # The slow part: CI caches its output by its inputs (the pins, the patches, this script and the
 # fetch script). Built apart from the ChromieCraft realm (build/azerothcore*): nothing is shared.
@@ -34,7 +35,7 @@ JOBS="${JOBS:-$(nproc)}"
 
 apk add -q --no-progress build-base cmake samurai git ccache curl perl openssl-dev \
 	mariadb-connector-c-dev readline-dev bzip2-dev zlib-dev linux-headers
-export CCACHE_DIR=/repo/build/ccache-tortoise CCACHE_MAXSIZE=2G
+export CCACHE_DIR=/repo/build/ccache-tortoise CCACHE_MAXSIZE=4G
 export CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime
 git config --global --add safe.directory '*'
 
@@ -82,13 +83,16 @@ if grep -q -- '-march=native' "$SRC/CMakeLists.txt"; then
 fi
 
 # musl gives new threads a 128 KiB stack unless the program asks for more; glibc gives 8 MiB.
+# TortoiseBots is compiled into the world server; it reads its database updates from the
+# package's modules/ folder on the phone (TW_MODULES_DATA_DIR, the app's patch 0004).
 cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_BUILD_TYPE=Release \
 	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
 	-DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,stack-size=8388608" \
 	-DACE_ROOT="$ACE_DIR" \
-	-DDEBUG_SYMBOLS=OFF -DUSE_EXTRACTORS=ON -DMODULES=disabled -DUSE_STD_MALLOC=ON \
+	-DDEBUG_SYMBOLS=OFF -DUSE_EXTRACTORS=ON -DUSE_STD_MALLOC=ON \
+	-DMODULES=static -DMODULE_TORTOISEBOTS=static -DTW_MODULES_DATA_DIR="$PREFIX/modules" \
 	-DUSE_DISCORD_BOT=OFF -DENABLE_SOAP=OFF -DALLOW_TURTLE_ADDONS=ON > "$BUILD.cmake.log" 2>&1 ||
 	{ tail -60 "$BUILD.cmake.log"; exit 1; }
 grep -E "Core revision|Build modules|Memory allocation" "$BUILD.cmake.log" || true
@@ -107,6 +111,10 @@ for prog in mangosd realmd mapextractor vmapextractor vmap_assembler MoveMapGen;
 	cp "$found" "$DIST/bin/"
 done
 cp "$DIST.install$PREFIX"/etc/mangosd.conf.dist "$DIST.install$PREFIX"/etc/realmd.conf.dist "$DIST/etc/"
+# The bots' settings templates (ctl.sh makes the live files from them).
+cp "$DIST.install$PREFIX"/etc/aiplayerbot.conf.dist "$DIST/etc/"
+mkdir -p "$DIST/etc/modules"
+cp "$DIST.install$PREFIX"/etc/modules/tortoise_bots.conf.dist "$DIST/etc/modules/"
 cp "$ACE_DIR"/lib/libACE.so* "$DIST/lib/"
 rm -rf "$DIST.install"
 strip "$DIST"/bin/*
@@ -114,6 +122,14 @@ mkdir -p "$DIST/sql"
 cp "$SRC/sql/create_databases.sql" "$DIST/sql/"
 cp -r "$SRC/sql/base" "$SRC/sql/database_updates" "$DIST/sql/"
 cp "$SRC/tools/mmap/mmapSettings.txt" "$SRC/tools/mmap/offmesh.txt" "$DIST/etc/" 2>/dev/null || true
+# TortoiseBots' database updates, where the world server looks for them (TW_MODULES_DATA_DIR).
+mkdir -p "$DIST/modules/TortoiseBots/data"
+cp -r "$SRC/modules/TortoiseBots/data/sql" "$DIST/modules/TortoiseBots/data/"
+# Its control addon (TortoiseBotsManager, /tbm), which the app puts in the client's AddOns.
+mkdir -p "$DIST/addons/TortoiseBotsManager"
+cp "$SRC-addon"/*.toc "$SRC-addon"/*.lua "$SRC-addon"/LICENSE "$SRC-addon"/README.md "$DIST/addons/TortoiseBotsManager/"
 # The pinned commit (the checkout is that plus the app's patches).
 echo "$TORTOISE_COMMIT" > "$DIST/commit"
+echo "$TORTOISEBOTS_COMMIT" > "$DIST/tortoisebots-commit"
+echo "$TBM_COMMIT" > "$DIST/tbm-commit"
 du -sh "$DIST"

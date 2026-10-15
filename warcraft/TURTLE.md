@@ -44,6 +44,16 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   or private). Docker can't run inside an Android app anyway. Its init scripts were useful: the
   `character_inventory_copy` table the core needs and `create_databases.sql` doesn't make, and the
   order of the setup.
+- **[TortoiseBots](https://github.com/Sagiroth/TortoiseBots)** (Sagiroth; v1.0.0,
+  `c850dc7956c5`): a native playerbots module for Tortoise-WoW's main branch, built into the world
+  server (`MODULES=static`), made for one player on their own realm: world bots that level, quest,
+  travel and trade; hired companions (an inn's recruiter) and the player's own alts as bots, who
+  tank, heal and fill roles in the dungeon finder and battlegrounds. Settings in
+  `aiplayerbot.conf` (template: 500 world bots, a PC's), `etc/modules/tortoise_bots.conf` must be
+  there for the world server to start, and its database updates are in
+  `data/sql/{world,character}`, applied by the core's auto-updater from the module's folder. Its
+  control addon, **[TortoiseBotsManager](https://github.com/Sagiroth/TortoiseBotsManager)**
+  (`/tbm`, MIT). GPL-2.0 with ported AGPL-3.0 playerbots code (its `LICENCE.md`).
 - turtlecraft.gg's look (its stylesheet): page `#100d0c`, the gold-to-coral gradient `#f1c22d` →
   `#ff7757` on buttons, links and borders, orange `#f89d41`, uppercase Fontin Sans headings,
   Friz Quadrata in the menu, thin gold rules fading out both ways.
@@ -75,12 +85,23 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   The two realms' login servers both need the game's port 3724: **one realm runs at a time**, and
   switching games asks before stopping the other's realm.
 - **The launcher**: a game switch (a chip in the header and a tile); with Turtle WoW chosen the
-  whole launcher is Turtle's (`turtle/ui`): the map with warm motes, the logo, Press start, each
-  component on its own line with its own button, and Realm, Accounts, Settings, Updates, Repair &
-  backups, About, Uninstall. The 3.3.5a launcher is unchanged apart from the chip and the tile.
-- **Bots**: none, because the core has none (Settings and About say so). Offered instead: XP,
-  money, reputation and rest rates, and the new characters' level, all checked against Tortoise's
-  `mangosd.conf.dist.in`.
+  whole launcher is Turtle's (`turtle/ui`) in its own look (the map with warm motes, the logo,
+  Legends of Azeroth), and **works as the 3.3.5a launcher does** (the user's ask: "functionally
+  identical"): Press start, then the same nine tiles in the same places: Server (each part of the
+  realm with its own button, Wi-Fi, logs, battery, backups, Repair, Uninstall, About), Game files
+  (client, server data), Accounts, Graphics, Add-ons (the same manager, for warperia.com's Vanilla
+  list), Bots & rates (where Modules is), App icon, Updates, and the switch back. The 3.3.5a
+  launcher is unchanged apart from the chip and the tile; its add-on manager is the same code,
+  now for either game (`AddonStoreOf`, `AddonGame`).
+- **Entering Azeroth**: the loading screen until the game's window is up is each game's own: the
+  user's map with Turtle's logo and motes, or the Lich King with snow.
+- **Bots: TortoiseBots**, compiled into the realm (the core has none of its own). The package
+  carries its database updates (`server/modules/TortoiseBots/data/sql`, where the world server
+  looks: Turtle's patch 0004 makes that folder a build setting) and TortoiseBotsManager, which the
+  app copies into the client's AddOns at each start. World bots: 40 by default, 0 to 150 under
+  Bots & rates (`aiplayerbot.conf`, set at each start); its telemetry port stays off. Also there:
+  XP, money, reputation and rest rates, and the new characters' level, all checked against
+  Tortoise's `mangosd.conf.dist.in`.
 - **Updates**: the realm package is pinned per app version (never an incompatible one); a newer
   realm comes with an app update and is put in with the accounts and characters kept (backed up
   first) and the new database updates applied at the next start.
@@ -107,6 +128,15 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   app setting it to 0 at each start (`TurtleRealm.REALMD_SETTINGS`): both answered. The client's
   patch list is pointed at the phone too (Turtle's own files name its old servers). Not yet seen
   on the phone.
+- **Bots, the launcher rework and the add-on manager** (the next realm package): checked on an
+  x86_64 machine first. The realm compiles with TortoiseBots in it; the package is 56 MB (471 MB
+  installed) with the module's SQL and the addon; its test passes every functional check: the bots'
+  configs are made (`aiplayerbot.conf` with 40 world bots, `etc/modules/tortoise_bots.conf`), the
+  login answers three realm lists in a row (the disconnect above), and the world server applies
+  all 192 database updates, 41 of them TortoiseBots', before it stops at the DBC files. The
+  system call check waits for CI's arm64 run (see below). JVM tests: 176, passing (the bots'
+  settings, the addon's install into the client, warperia.com's Vanilla list and downloads). The
+  launcher's screens were rendered off the phone, each tile's.
 - CI on arm64 (GitHub's `ubuntu-24.04-arm`): Tortoise-WoW and ACE compiled in 20 minutes; the
   package is 51 MB (459 MB installed); its test passed every check, including the system call
   check against Android's seccomp policy (113 server processes and threads): Turtle's MariaDB,
@@ -148,6 +178,9 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
 - tortoise-docker: https://github.com/Nescabir/tortoise-docker (its source fork, Shyalya/tortoise-wow,
   no longer reachable)
 - ACE: https://github.com/DOCGroup/ACE_TAO (release pinned with its SHA-256)
+- TortoiseBots: https://github.com/Sagiroth/TortoiseBots; TortoiseBotsManager:
+  https://github.com/Sagiroth/TortoiseBotsManager (both pinned in `turtle/server-version.env`)
+- warperia.com's Vanilla add-ons: https://warperia.com/vanilla-addons/
 - The shutdown: https://www.pcgamesn.com/world-of-warcraft/turtle-wow-cease-and-desist,
   https://legalclarity.org/blizzard-lawsuit-against-turtle-wow-settlement-and-shutdown/,
   https://gigazine.net/gsc_news/en/20260421-turtle-wow-down/

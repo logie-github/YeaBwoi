@@ -233,7 +233,9 @@
     <string name="turtle_settings_rates">Rates</string>
     <string name="turtle_settings_world">World</string>
     <string name="turtle_settings_bots">Bots</string>
-    <string name="turtle_settings_bots_body">Tortoise-WoW has no playerbots, auction house bot or dungeon scaling, so none are offered. The fork that had playerbots (used by the Docker project) is no longer on GitHub.</string>
+    <string name="turtle_settings_bots_body">TortoiseBots by Sagiroth. Hire a companion from an inn\'s recruiter, or bring your own alts: they follow you, tank, heal and fight in dungeons and raids, and fill missing roles in the dungeon finder and battlegrounds. Control them with the TortoiseBotsManager addon (/tbm), which the app puts in your client. World bots start at level 1 and quest, level, travel and trade around you: more of them make the world livelier and the phone busier. Taken at the realm\'s next start.</string>
+    <string name="turtle_world_bots">Bots in the world</string>
+    <string name="turtle_world_bots_none">None</string>
     <string name="turtle_rate_xp_kill">XP from kills</string>
     <string name="turtle_rate_xp_quest">XP from quests</string>
     <string name="turtle_rate_xp_explore">XP from exploring</string>
@@ -272,7 +274,42 @@
     <string name="turtle_uninstall_type">Type TURTLE to confirm</string>
     <string name="turtle_about_body">Turtle WoW was a fan-made \"Vanilla+\" continuation of World of Warcraft 1.12. This plays it on the phone against your own local realm: Tortoise-WoW (github.com/tortoise-wow/tortoise-wow), the community restoration of Turtle WoW\'s 1.18.1 server, built for arm64 and run by the app with its own MariaDB. No internet is needed once it\'s installed.</string>
     <string name="turtle_about_client">The client is yours: Turtle WoW 1.18.1 (build 7272) with its 2026-04-12 hotfixes, the only one the realm accepts. Blizzard won its lawsuit against Turtle WoW in 2026; the court order bars distributing Turtle\'s client, so the app never downloads it.</string>
-    <string name="turtle_about_bots">Tortoise-WoW has no playerbots, so there are none. Rates and the starting level are in Settings.</string>
+    <string name="turtle_about_bots">Playerbots: TortoiseBots by Sagiroth — https://github.com/Sagiroth/TortoiseBots, with its TortoiseBotsManager addon (/tbm). Hired companions, your own alts as bots, and bots living in the world; Settings sets how many live in the world, and the rates and the starting level.</string>
     <string name="turtle_about_isolation">Turtle WoW lives in its own folder (files/turtle) with its own MariaDB (port 3311), databases (tw_*), world server (port 8090), Windows, accounts, saved login, settings, logs and backups. Its realm and ChromieCraft\'s share the game\'s login port (3724), so one runs at a time.</string>
     <string name="turtle_about_legal">Not affiliated with Blizzard Entertainment, Turtle WoW or the Tortoise-WoW project. Playing on a private server is against Blizzard\'s terms of use.</string>
+
+    <!-- The launcher as the 3.3.5a one: its tiles and screens -->
+    <string name="turtle_tile_options">Bots &amp; rates</string>
+    <string name="turtle_tile_options_summary">%1$d bots in the world · XP and rates</string>
+    <string name="turtle_tile_files_none">Add your Turtle WoW client</string>
+    <string name="turtle_realm_no_client">To play on this phone, add your Turtle WoW 1.18.1 client in Game files. A PC\'s 1.18.1 client on this Wi-Fi can play on the realm too: see Server.</string>
+    <string name="turtle_home_start_line">Starts Turtle WoW\'s realm on this phone.</string>
+    <string name="turtle_home_start_line_game">Starts Turtle WoW\'s realm and the game, on this phone.</string>
+    <string name="turtle_home_start_line_no_data">Starts Turtle WoW\'s realm on this phone. The world server starts once it has the server data.</string>
+    <string name="turtle_home_start_line_install">Downloads and installs Turtle WoW\'s realm on this phone.</string>
+    <string name="turtle_home_start_line_update">Puts in the realm this version of the app comes with. Accounts and characters stay.</string>
+    <string name="turtle_home_no_realm">Turtle WoW\'s realm isn\'t on the phone yet: Press start downloads it (%1$s, checked against its SHA-256) and installs it in its own folder. Free on the phone: %2$s.</string>
+    <string name="turtle_home_no_client">Add your Turtle WoW 1.18.1 client to play. The app can\'t download it: the court order that shut Turtle WoW down bars distributing it.</string>
+    <string name="turtle_home_no_data">The world server needs the server data, made from your client on the phone.</string>
+    <string name="turtle_home_no_account">Make an account to log in to the realm with.</string>
+    <string name="turtle_files_client_state">Turtle WoW 1.18.1 (7272)</string>
+    <string name="turtle_files_client_exact">Added · %1$s · matches 1.18.1</string>
+    <string name="turtle_files_client_different">Added · %1$s · %2$d files differ from 1.18.1</string>
+    <string name="turtle_files_client_body">Your own copy of the Turtle WoW 1.18.1 (build 7272) client with its 2026-04-12 hotfixes, about 9 GB: pick its folder (the one with WoW.exe and Data in it), or a zip of it. Move it onto the phone first (files in cloud folders can\'t be read this way). The app copies it into Turtle\'s own folder and checks every file against Turtle WoW\'s final checksums as it copies. It can\'t download it: the court order that shut Turtle WoW down bars distributing its client.</string>
+    <string name="turtle_files_data_body">The world server needs dbc and maps from your client; vmaps add line of sight, and mmaps pathfinding, which creatures and bots need to move well (hours on a phone). Made on the phone with Tortoise-WoW\'s own tools; the DBC files are checked against its checksums. Adding a client makes them by itself.</string>
+    <string name="turtle_server_parts">Turtle WoW\'s realm</string>
+    <string name="turtle_server_programs">Realm programs</string>
+    <string name="turtle_server_databases">Databases</string>
+    <string name="turtle_server_runtime">Windows runtime</string>
+    <string name="turtle_server_parts_body">Tortoise-WoW with TortoiseBots, its own MariaDB and the map tools (one download, checked), its databases, and Wine and Box64 (built into the app, shared with the 3.3.5a game; Turtle\'s Windows is its own). Press start puts in whatever is missing; each can also be put in again here by itself.</string>
+    <string name="turtle_server_pc_body">On a PC on the same Wi-Fi, in your 1.18.1 client\'s folder, open realmlist.wtf and make its line\n\nset realmlist %1$s\n\nthen start WoW.exe and log in with one of the realm\'s accounts. Let PCs in first (above).</string>
+    <string name="turtle_log_data">Server data</string>
+    <string name="turtle_server_reset_body">Put back or check any part of Turtle WoW, or remove all of it. The 3.3.5a game and its realm aren\'t touched.</string>
+    <string name="turtle_repair_open">Repair</string>
+    <string name="turtle_uninstall_open">Uninstall</string>
+    <string name="turtle_server_about">About</string>
+    <string name="turtle_addons_no_client">Add your Turtle WoW client first (Game files): add-ons go in it.</string>
+    <string name="turtle_addons_search">Search 1.12 add-ons</string>
+    <string name="turtle_addons_search_clear">Clear the search</string>
+    <string name="turtle_addons_none">None yet</string>
 </resources>

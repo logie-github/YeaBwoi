@@ -7,7 +7,9 @@
 # so the process the app holds is the server itself.
 #
 #   ctl.sh configure [lan]          write the configs (from the shipped .dist files) and folders;
-#                                   "lan" lets PCs on the Wi-Fi in (the default is this phone only)
+#                                   "lan" lets PCs on the Wi-Fi in (the default is this phone only).
+#                                   The bots (TortoiseBots) are on, with a phone's share of world
+#                                   bots ($WORLD_BOTS, default 40); the app sets its own count after
 #   ctl.sh db-init                  make MariaDB's data folder from the seed, if there's none
 #   ctl.sh db                       run MariaDB (makes its data folder from the seed first)
 #   ctl.sh db-ping | db-stop        ask MariaDB if it's up / to shut down
@@ -81,6 +83,9 @@ configure() {
 	# A PIN (two-factor) for staff accounts is Tortoise's default (rank 1 and up): a realm on the
 	# phone for its owner, whose first account is its administrator, asks for none (ranks go to 6).
 	setkey "$conf" ForcePinAccountRank 100
+	# Its flood guard drops a client that asks for the realm list twice within the second ("Disconnected
+	# from server"), which the game does against a realm on the same phone (the app sets it too).
+	setkey "$conf" MinRealmListDelay 0
 	conf="$ETC/mangosd.conf"
 	setkey "$conf" LoginDatabase.Info "$(dbinfo tw_logon)"
 	setkey "$conf" WorldDatabase.Info "$(dbinfo tw_world)"
@@ -102,6 +107,21 @@ configure() {
 	setkey "$conf" Warden.WinEnabled 0
 	setkey "$conf" Warden.OSXEnabled 0
 	mkdir -p "$RUN/patches"
+	# The bots: TortoiseBots reads aiplayerbot.conf beside mangosd.conf, and the core loads each
+	# module's .conf from etc/modules/ (it won't start without it). The template's 500 world bots
+	# are an average PC's; a phone gets far fewer (the launcher's Settings change the count).
+	mkdir -p "$ETC/modules"
+	config_from_dist "$SERVER/etc/modules/tortoise_bots.conf.dist" "$ETC/modules/tortoise_bots.conf"
+	config_from_dist "$SERVER/etc/aiplayerbot.conf.dist" "$ETC/aiplayerbot.conf"
+	conf="$ETC/aiplayerbot.conf"
+	bots="${WORLD_BOTS:-40}"
+	setkey "$conf" AiPlayerbot.Enabled 1
+	setkey "$conf" AiPlayerbot.MinRandomBots "$bots"
+	setkey "$conf" AiPlayerbot.MaxRandomBots "$bots"
+	if [ "$bots" -gt 0 ]; then setkey "$conf" AiPlayerbot.RandomBotAutologin 1; else setkey "$conf" AiPlayerbot.RandomBotAutologin 0; fi
+	# Its telemetry (a UDP port) and dashboard stay off.
+	setkey "$conf" AiPlayerbot.Observability 0
+	setkey "$ETC/modules/tortoise_bots.conf" AiPlayerbot.Observability 0
 }
 
 # The programs (musl) run with libandroidcompat preloaded: it makes the system calls Android

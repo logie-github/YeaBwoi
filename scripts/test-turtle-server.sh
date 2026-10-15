@@ -7,8 +7,8 @@
 #      own port, with its own databases (tw_*).
 #   2. An account made the way the app makes it logs in to the login server with the 1.18.1
 #      (7272) protocol and gets the realm list, with the realm on 127.0.0.1:8090.
-#   3. The world server applies Tortoise's database updates and stops where it needs the game's
-#      data (DBC files), which CI can't have: Turtle WoW's client can't be distributed, so the
+#   3. The world server, with TortoiseBots in it, applies Tortoise's database updates and the
+#      bots' own, and stops where it needs the game's data (DBC files), which CI can't have: Turtle WoW's client can't be distributed, so the
 #      data is made on the phone from the user's client. Header-only stand-in map files get it
 #      past its check of the start areas (CI only).
 #   4. A backup of the accounts and characters restores an account deleted after it.
@@ -80,6 +80,16 @@ CTL configure
 grep -E '^(LoginDatabase.Info|DataDir|WorldServerPort|BindIP|Database.AutoUpdate.Path) ' "$FILES/etc/mangosd.conf"
 grep -E '^(LoginDatabaseInfo|RealmServerPort|BindIP) ' "$FILES/etc/realmd.conf"
 grep -q '127.0.0.1;3311;tortoise;tortoise;tw_world' "$FILES/etc/mangosd.conf" || fail "mangosd.conf doesn't use Turtle's database"
+grep -E '^AiPlayerbot\.(Enabled|MinRandomBots|MaxRandomBots|RandomBotAutologin) ' "$FILES/etc/aiplayerbot.conf"
+grep -q '^AiPlayerbot.Enabled = 1$' "$FILES/etc/aiplayerbot.conf" || fail "the bots aren't on"
+grep -q '^AiPlayerbot.MaxRandomBots = 40$' "$FILES/etc/aiplayerbot.conf" || fail "the world bots aren't a phone's share"
+# Every key the launcher and ctl.sh set is one TortoiseBots reads (a misspelt one would only be
+# added to the end of the file and ignored).
+for key in AiPlayerbot.Enabled AiPlayerbot.MinRandomBots AiPlayerbot.MaxRandomBots AiPlayerbot.RandomBotAutologin AiPlayerbot.Observability; do
+	grep -q "^$key *=" "$FILES/server/etc/aiplayerbot.conf.dist" || fail "TortoiseBots' template has no $key"
+done
+[ -f "$FILES/etc/modules/tortoise_bots.conf" ] || fail "no etc/modules/tortoise_bots.conf (the world server won't start without it)"
+[ -f "$FILES/server/addons/TortoiseBotsManager/TortoiseBotsManager.toc" ] || fail "the bots' addon isn't in the package"
 
 echo "== MariaDB"
 CTL db & pids+=($!)
@@ -102,12 +112,17 @@ realms=$(python3 -I "$CHECK" login 127.0.0.1 TURTLETEST Shell1) || fail "the log
 echo "$realms"
 echo "$realms" | grep -q "^Tortoise WoW 127.0.0.1:8090 " || fail "the realm list hasn't the realm on 127.0.0.1:8090"
 if python3 -I "$CHECK" login 127.0.0.1 TURTLETEST wrong > /dev/null 2>&1; then fail "a wrong password logged in"; fi
+# The game asks for the realm list again within the second; Tortoise's flood guard
+# (MinRealmListDelay) dropped it with "Disconnected from server" until ctl.sh turned it off.
+python3 -I "$CHECK" login 127.0.0.1 TURTLETEST Shell1 3 > /dev/null || fail "the login server dropped a realm list asked for again at once"
 
 echo "== world server: database updates"
 # No game data in CI (see above): header-only maps, line of sight and pathfinding off.
 python3 -I "$CHECK" stand-in-maps "$FILES/data/maps"
 sed -i 's/^vmap.enableLOS .*/vmap.enableLOS = 0/; s/^vmap.enableHeight .*/vmap.enableHeight = 0/; s/^mmap.enabled .*/mmap.enabled = 0/' "$FILES/etc/mangosd.conf"
-updates=$(find "$FILES/server/sql/database_updates" -name '*.sql' | wc -l)
+updates=$(find "$FILES/server/sql/database_updates" "$FILES/server/modules" -name '*.sql' | wc -l)
+bot_updates=$(find "$FILES/server/modules/TortoiseBots/data/sql" -name '*.sql' | wc -l)
+[ "$bot_updates" -gt 0 ] || fail "the package has none of TortoiseBots' database updates"
 start=$(date +%s)
 set +e
 CTL mangosd < /dev/null > "$FILES/logs/mangosd.out" 2>&1
@@ -115,10 +130,12 @@ code=$?
 set -e
 echo "mangosd ended with $code after $(($(date +%s) - start)) s"
 grep -E "Auto-Updater|AutoUpdater" "$FILES/logs/mangosd.out" | tail -5 || true
+grep -q "Processing module TortoiseBots updates from $FILES/server/modules/TortoiseBots/data/sql" "$FILES/logs/mangosd.out" ||
+	fail "the world server didn't find TortoiseBots' database updates in the package"
 grep -q "DB AutoUpdater FAILED" "$FILES/logs/mangosd.out" && fail "a database update failed"
 grep -q "required \*.dbc files" "$FILES/logs/mangosd.out" || fail "the world server didn't get as far as the DBC files"
 applied=$(( $(echo "SELECT COUNT(*) FROM migrations" | CTL sql tw_world) + $(echo "SELECT COUNT(*) FROM migrations" | CTL sql tw_char) ))
-echo "database updates applied: $applied of $updates"
+echo "database updates applied: $applied of $updates ($bot_updates of them TortoiseBots')"
 [ "$applied" -eq "$updates" ] || fail "not every database update was applied"
 
 echo "== backup and restore"
