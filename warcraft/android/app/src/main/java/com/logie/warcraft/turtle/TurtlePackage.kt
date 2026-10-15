@@ -8,9 +8,8 @@ import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.WowUpdater
 import com.logie.warcraft.client.ZipDownload
 import com.logie.warcraft.turtle.core.SafeFs
+import com.logie.warcraft.turtle.core.TurtlePackageFormat
 import com.logie.warcraft.turtle.core.VerifiedDownload
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 import java.io.File
 import java.io.FilterInputStream
 import java.io.IOException
@@ -84,33 +83,13 @@ object TurtlePackage {
         val staging = fs.within(layout.serverStaging)
         try {
             val counting = Counting(file.inputStream())
-            TarArchiveInputStream(XZCompressorInputStream(counting.buffered(1 shl 16))).use { tar ->
-                while (true) {
-                    if (cancelled()) throw VerifiedDownload.Cancelled()
-                    val entry = tar.nextEntry ?: break
-                    // Entries are server/...: they go in server.new/...
-                    val relative = entry.name.removePrefix("./").removePrefix("server").trimStart('/')
-                    if (relative.isEmpty()) continue
-                    if (relative.split('/').any { it == ".." || it.isEmpty() }) throw IOException("Bad path in the package: ${entry.name}")
-                    val target = staging.check(File(layout.serverStaging, relative))
-                    when {
-                        entry.isDirectory -> staging.mkdirs(target)
-                        entry.isSymbolicLink -> {
-                            // Only links to files beside them (a library's other names).
-                            val link = entry.linkName
-                            if (link.startsWith("/") || link.split('/').any { it == ".." }) throw IOException("Bad link in the package: ${entry.name}")
-                            target.parentFile?.let { staging.mkdirs(it) }
-                            Os.symlink(link, target.path)
-                        }
-                        else -> {
-                            target.parentFile?.let { staging.mkdirs(it) }
-                            target.outputStream().use { tar.copyTo(it, 1 shl 16) }
-                            if (entry.mode and 0b001_000_000 != 0) target.setExecutable(true, true)
-                        }
-                    }
-                    onProgress(counting.count.toFloat() / pin.size)
-                }
-            }
+            // Entries are server/...: they go in server.new/...
+            TurtlePackageFormat.unpack(
+                counting.buffered(1 shl 16), layout.serverStaging, staging,
+                symlink = { target, link -> Os.symlink(target, link.path) },
+                cancelled = cancelled,
+                onEntry = { onProgress(counting.count.toFloat() / pin.size) },
+            )
             if (!File(layout.serverStaging, "ctl.sh").isFile || !File(layout.serverStaging, "bin/mangosd").isFile) {
                 throw IOException("Not a Turtle WoW realm package")
             }

@@ -87,9 +87,26 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
 
 ## Where it stands
 
-**First version: built and tested off the phone; nothing run on a phone.**
+**First version: released (`wow-build-65`, with its realm `turtle-server-4aa752a01dff`); tested off
+the phone; the user's first install on a phone found a fault (below), fixed in the build after it.**
 
-- Checked here (an x86_64 machine): Tortoise-WoW and ACE compile on musl with the three patches;
+- On the user's phone, **Download and install** downloaded the realm package and then stopped:
+  "Bad path in the package: server/sql/". The app's unpacker refused every folder in it (tar
+  writes folders' names ending in `/`, and the check took the empty part after it for a trick),
+  and no test had unpacked a real package the app's way: CI's test unpacks it with `tar`. The
+  unpacker is now in `turtle/core` (`TurtlePackageFormat`), with a JVM test that makes a package
+  the way `package-tortoise.sh` does (GNU tar, then xz) and unpacks it the app's way, and fails
+  with the phone's error under the old check. The realm package didn't change (the same release),
+  and the downloaded file is kept, so the next try only checks it and unpacks it.
+
+- CI on arm64 (GitHub's `ubuntu-24.04-arm`): Tortoise-WoW and ACE compiled in 20 minutes; the
+  package is 51 MB (459 MB installed); its test passed every check, including the system call
+  check against Android's seccomp policy (113 server processes and threads): Turtle's MariaDB,
+  a 1.18.1 (7272) login with the realm list (Tortoise WoW, 127.0.0.1:8090), all 151 database
+  updates, backup and restore, nothing made beside `files/turtle`. Published as the prerelease
+  `turtle-server-4aa752a01dff`; `wow-build-65`'s APK is pinned to it (size and SHA-256).
+
+- Checked first on an x86_64 machine: Tortoise-WoW and ACE compile on musl with the three patches;
   the package builds (52 MB, 461 MB installed; the seed's world has 283 tables and 12,751 creature
   templates). Its test (`scripts/test-turtle-server.sh`) passes every functional check: Turtle's
   MariaDB from the seed on its own port; an account made the app's way logs in with the 1.18.1
@@ -98,17 +115,20 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   the DBC files (CI has no client data; header-only stand-in maps get it past its map check); a
   backup restores a deleted account; nothing is made beside `files/turtle`. The test found and
   fixed one fault: Tortoise asks staff accounts for a PIN by default, so the app's first account
-  (the realm's administrator) couldn't log in (`ForcePinAccountRank`, in Turtle's `ctl.sh`). The
-  system call check only means something on arm64 (on x86_64 it flags the old calls arm64 doesn't
-  have): that's CI's.
-- JVM tests (37 new, 157 in all, passing): the guard (outside paths, the other game's folders,
+  (the realm's administrator) couldn't log in (`ForcePinAccountRank`, in Turtle's `ctl.sh`). (The system call check
+  only means something on arm64: on x86_64 it flags old calls arm64 doesn't have.)
+- JVM tests (41 new, 161 in all, passing): the guard (outside paths, the other game's folders,
   links that lead out, links in a Wine prefix), a scan of the app's sources (every folder the
   3.3.5a side makes is protected; no raw delete, rename or move in Turtle's code; no reference to
   the other game's storage), the server script's folder and ports and its refusal of another
   folder, the client and DBC manifests, the password hash (MaNGOS's ADMINISTRATOR vector), the
-  install plan, resumed, corrupt and cancelled downloads, the client's settings, Tortoise's log
-  lines and settings.
+  install plan, resumed, corrupt and cancelled downloads, the realm package unpacked the app's way
+  (and packages with entries that lead out refused), the client's settings, Tortoise's log lines and
+  settings.
 - The branch merges into the Wrath Remix line's branch without a conflict.
+- The release APK builds (locally and in CI), and the launcher was rendered off the phone
+  (Robolectric, phone, unfolded and landscape sizes) before install, while downloading, waiting
+  for the client and ready, and the 3.3.5a launcher with its switch.
 - **Not verifiable without a phone and the client**: the game itself (the Turtle client on
   Wine/Box64), making the server's data from a real 1.18.1 client, the world server past the DBC
   load, offline play end to end, and the launcher on the phone.

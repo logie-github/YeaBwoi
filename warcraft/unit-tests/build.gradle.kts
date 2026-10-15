@@ -37,6 +37,9 @@ dependencies {
     // Android has org.json built in; the module browser's code reads GitHub's answers with it.
     implementation("org.json:json:20240303")
     compileOnly("org.jspecify:jspecify:1.0.0")
+    // Turtle WoW's realm package (tar.xz), unpacked as the app does: the same versions as the app.
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10")
     testImplementation(kotlin("test"))
     // Runs the app's add-on (client/TouchAddon) against a stand-in for the game's API.
     testImplementation("org.luaj:luaj-jse:3.0.1")
