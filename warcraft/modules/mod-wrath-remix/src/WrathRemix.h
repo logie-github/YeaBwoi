@@ -33,12 +33,18 @@ namespace WrathRemix
         NPC_SAAT          = 770007,
         NPC_CHRONOLOGIST  = 770008,
         NPC_MOMENTUS      = 770009,
+        NPC_SYLVANAS      = 770011,     // from the future, with the bronze (Chapter II on)
+        NPC_ALLERIA       = 770012,
+        NPC_MORATARI_SCENE = 770013,    // Moratari as WRM-207's scene has her (no quests, seen by one)
         NPC_ECHO_FOOTMAN  = 770021,     // WRM-011's echoes of the war's dead
         NPC_ECHO_SAURFANG = 770022,
         NPC_ECHO_BOLVAR   = 770023,
         NPC_ANOMALY       = 770031,
         NPC_ANOMALY_CREDIT = 770032,    // WRM-013's kill credit, given as each anomaly dies
         NPC_INSTRUCTOR_CREDIT = 770033, // WRM-012's, given by any instructor as they're spoken to
+        NPC_TURN_CREDIT   = 770034,     // WRM-207's, given as its scene ends
+        NPC_INTERLOPER    = 770041,     // Eternus's loyalists on the Wrathgate's cliffs (WRM-208)
+        NPC_TIME_RIFT     = 28409,      // the Culling of Stratholme's time rift, for Moratari's return
         NPC_INSTRUCTOR_FIRST = 770101,  // the Bazaar's Timeworn Instructors, one per class trainer list
         NPC_INSTRUCTOR_LAST  = 770111,
         NPC_HOROS         = 770201,     // the Bazaar's Bronze vendors (Alurmi is one too)
@@ -48,6 +54,8 @@ namespace WrathRemix
         NPC_DURUS         = 770205,
 
         AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue was until build 64
+        ZONE_CRYSTALSONG  = 2817,       // the Bazaar's zone
+        AREA_WYRMREST_TEMPLE = 4161,
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
 
@@ -57,6 +65,9 @@ namespace WrathRemix
         QUEST_DEMONSTRATION    = 77013,
         QUEST_TO_THE_FRONT_A   = 77014,
         QUEST_TO_THE_FRONT_H   = 77015,
+        QUEST_MYSTERY_OF_THE_INFINITE = 12470,  // Chromie's, at Wyrmrest Temple (the game's own)
+        QUEST_STRANGERS        = 77204,     // Chapter II and the turn (STORY.md)
+        QUEST_WEIGHT_OF_TIME   = 77207,
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
@@ -71,6 +82,11 @@ namespace WrathRemix
         TEXT_CHRONOLOGIST      = 7702060,
         TEXT_MOMENTUS          = 7702070,
         TEXT_ECHO_FOOTMAN      = 7702080,   // then Saurfang's, Bolvar's
+        TEXT_SYLVANAS_WYRMREST = 7702090,   // Sylvanas and Alleria at Wyrmrest Temple, at the Bazaar after
+        TEXT_SYLVANAS          = 7702091,   // the turn, and Alleria on the Wrathgate's cliffs
+        TEXT_ALLERIA_WYRMREST  = 7702092,
+        TEXT_ALLERIA           = 7702093,
+        TEXT_ALLERIA_GATE      = 7702094,
         TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
     };
 
@@ -97,6 +113,15 @@ namespace WrathRemix
         uint32 map;
         float x, y, z, o;
         std::string skipped;
+    };
+
+    // A quest that takes the Timerunner somewhere as it's taken (remix_departure): to the Bazaar
+    // to answer Eternus, to the Wrathgate's cliffs.
+    struct Departure
+    {
+        uint32 quest;
+        uint32 map;
+        float x, y, z, o;
     };
 
     struct Chapter
@@ -159,6 +184,7 @@ namespace WrathRemix
     // The tables, as loaded.
     LevelBand const* BandFor(uint32 map, uint32 zone);
     Bridge const* BridgeFor(uint32 quest);
+    Departure const* DepartureFor(uint32 quest);
     std::vector<Chapter> const& Chapters();
     Chapter const* ChapterFor(uint8 chapter);
     std::vector<Destination> const& Destinations();
@@ -183,7 +209,12 @@ namespace WrathRemix
     uint32 Bronze(Player* player);   // what the Timerunner carries
     void SetChapter(Player* player, uint8 chapter);
     void SetKit(Player* player, uint8 version);
+    // A line in a Timerunner's journal (remix_log), where they are: what ("accept", "talk",
+    // "bridge"...), its quest, creature or other entry, and an amount.
     void Record(Player* player, char const* what, uint32 entry, int32 amount);
+
+    // The realm's playerbots: sessions without a client.
+    bool IsBot(Player* player);
 
     // The game's patch (Data/patch-Y.MPQ in the app's client): written as Wrath Remix starts,
     // taken out as ChromieCraft starts (ClientPatch.cpp).
@@ -196,7 +227,7 @@ namespace WrathRemix
     // Bronze amounts (WrathRemix.Bronze.*).
     struct BronzeRates
     {
-        uint32 quest = 25, kill = 1, elite = 4, rare = 20, dungeonBoss = 40, raidBoss = 150;
+        uint32 quest = 500, kill = 15, elite = 60, rare = 500, dungeonBoss = 1000, raidBoss = 5000;
     };
     BronzeRates const& Rates();
     bool Announce();

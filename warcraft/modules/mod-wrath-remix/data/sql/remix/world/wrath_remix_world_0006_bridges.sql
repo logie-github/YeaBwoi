@@ -168,8 +168,8 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77017, 77018, 77019);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
-(77017, 40), (77018, 40), (77019, 10);
+(77017, 800), (77018, 800), (77019, 200);
 
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
-(77006, 40), (77016, 40), (77026, 40), (77121, 75), (77122, 75), (77123, 75), (77124, 75);
+(77006, 800), (77016, 800), (77026, 800), (77121, 1500), (77122, 1500), (77123, 1500), (77124, 1500);

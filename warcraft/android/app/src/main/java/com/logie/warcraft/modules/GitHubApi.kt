@@ -26,7 +26,12 @@ class GitHubApi(private val token: () -> String?, private val userAgent: String)
     }
 
     /** Sends [json]; the answer's status (GitHub answers some with no body). */
-    fun post(url: String, json: String): Int {
+    fun post(url: String, json: String): Int = send(url, json).first
+
+    /** Sends [json]; GitHub's answer (for one that makes something: what it made). */
+    fun postForAnswer(url: String, json: String): String = send(url, json).second
+
+    private fun send(url: String, json: String): Pair<Int, String> {
         val connection = (URI(url).toURL().openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             doOutput = true
@@ -39,7 +44,8 @@ class GitHubApi(private val token: () -> String?, private val userAgent: String)
             connection.outputStream.use { it.write(json.toByteArray()) }
             val code = connection.responseCode
             if (code !in 200..299) throw HttpError(code, reason(connection))
-            return code
+            val answer = if (code == HttpURLConnection.HTTP_NO_CONTENT) "" else connection.inputStream.bufferedReader().use { it.readText() }
+            return code to answer
         } finally {
             connection.disconnect()
         }

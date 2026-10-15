@@ -17,6 +17,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -26,11 +28,13 @@ import kotlinx.coroutines.launch
  * requires a notification for that. The notification says how the server is and has a Stop button.
  * While the game is on screen the notification steps aside (the game in front keeps the app
  * running) and comes back when the game goes behind, or the screen goes off ([setGameShown]).
- * The service ends itself once the server is stopped.
+ * The service ends itself once the server is stopped. While it runs, it sends the reports the
+ * game's Report Time Anomaly asks Wrath Remix for ([AnomalyReports]).
  */
 class ServerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var watcher: Job? = null
+    private var reports: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
     /** The notification is up (the service is in the foreground). */
     private var shown = false
@@ -71,6 +75,14 @@ class ServerService : Service() {
                         }
                         else -> manager().notify(NOTIFICATION_ID, notification(status))
                     }
+                }
+            }
+        }
+        if (reports == null) {
+            reports = scope.launch {
+                while (isActive) {
+                    runCatching { AnomalyReports.sendWaiting(this@ServerService) }
+                    delay(REPORTS_EVERY_MS)
                 }
             }
         }
@@ -144,6 +156,8 @@ class ServerService : Service() {
             gameShown.value = inGame
         }
 
+        /** How often the folder of Time Anomaly reports is looked in. */
+        private const val REPORTS_EVERY_MS = 3_000L
         private const val CHANNEL = "server"
         private const val NOTIFICATION_ID = 1
         private const val FAILED_ID = 2

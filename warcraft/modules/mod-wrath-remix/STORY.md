@@ -112,42 +112,63 @@ shortening the war, and you are helping.
 
 ## Chapter II: The Wrathgate (Dragonblight, 20 to 32)
 
-The chapter the story turns on.
+The chapter the story turns on. Built (build 65), in `wrath_remix_world_0011_chapter2.sql` and the
+scene in `RemixNpcs.cpp`. Alliance and Horde quests have their own ids where the places differ
+(the Horde's is the Alliance's + 10).
 
-1. Arrival, and the faction's chain begins (Alliance: Naxxramas and the Fall of Wintergarde, Horde:
-   Victory Nears...).
-2. **WRM-201 A Summons from Wyrmrest** (Moratari, after the first chain quest): the Wyrmrest Accord
-   has asked for you by name. That should not be possible. To Wyrmrest Temple.
+1. Arrival (WRM-121 to 124), and each side's chain begins: Wintergarde Keep for the Alliance
+   (Naxxramas and the Fall of Wintergarde... Find Durkon!), Agmar's Hammer for the Horde (Victory
+   Nears... The Forsaken Blight).
+2. **WRM-203 / 213 A Summons from Wyrmrest** (Moratari, by Cavalier Durkon or Doctor Sintar
+   Malefious, where The Road to Angrathar used to be offered): Chromie has sent for you by name,
+   which should not be possible. Moratari takes you to her, atop Wyrmrest Temple.
 3. **Mystery of the Infinite** (12470, Chromie, the game's own): Infinite agents attack Chromie's
-   hourglass; you defend it, and your own future self comes to help. Then Chromie introduces the
-   two women she brought back with her.
-4. **WRM-202 Strangers Out of Time** (Sylvanas, at Wyrmrest): Sylvanas and Alleria, from the future.
-   Sylvanas tells you to stop: whatever Eternus has promised, the Lich King's story has to happen
-   as it did, to the letter. You return to the Bazaar; Eternus answers that the woman lecturing you
-   about preserving history will one day burn a world tree, and asks you to keep going.
-5. The faction chain, and **WRM-203 The Road to Angrathar** (II-A, Eternus's): the camp's errands
-   skipped, as before.
-6. **WRM-204 A Warning, Unwritten** (Eternus): Eternus's real plan. The Forsaken will betray everyone
-   at the Wrathgate; he asks you to stop it before it happens (the Alliance: carry a warning to
-   Bolvar's lieutenant at Fordragon Hold; the Horde: spoil the Apothecary Society's batch at
-   Venomspite). You set it in motion.
-7. **WRM-205 The Weight of Time** (Sylvanas, at the Bazaar): Sylvanas and Alleria walk into the
-   Bazaar. Sylvanas tells Moratari what happens if Bolvar does not burn: no one takes the Helm
-   after Arthas, and the Scourge has no master and no leash. Moratari listens, casts a spell and
-   vanishes. Ten seconds later a portal opens and she steps out of it: she has seen it. Sylvanas is
-   telling the truth, and the war has to happen as it did. Eternus knows it too, and refuses: he
-   leaves, and takes his loyal Infinite with him. From now on the Bazaar is Moratari's, Sylvanas's
-   and Alleria's.
-8. **WRM-206 Undo It** (Moratari): stop what you started. Eternus's agents carry your warning (or
-   guard the spoiled batch); fight them and put it right.
-9. **WRM-207 The Hour of the Gate** (Sylvanas, at Angrathar): Eternus sends his agents to the
-   Wrathgate to break the charge. Fight them off, so that history happens.
-10. **Return To Angrathar** (12499 / 12500) and the Wrathgate, as the game has it.
-11. **WRM-208 What We Cannot Change** (II-B, Moratari and Sylvanas, by Alexstrasza): no skip. Sylvanas
-    on Putress: he was hers, she did not order this, and she remembers learning of it.
-12. The post-Wrathgate chains and the Battle for the Undercity, as the game has them (Sylvanas
-    watches her past self take back her city, from where she can't be seen).
-13. **WRM-221 After Angrathar** (II-C, Alleria): to the Grizzly Hills and Chapter III.
+   hourglass; you defend it, and your own future self comes to help.
+4. **WRM-204 Strangers Out of Time** (Chromie → Sylvanas, beside her): one of the Infinite has
+   been bringing heroes from the future into this war, and Chromie went and fetched two people who
+   are unhappy about it. Sylvanas and Alleria appear beside her as you take it. Sylvanas: stop
+   helping him; the war must happen as it did.
+5. **WRM-205 / 215 Ask Him Yourself** (Sylvanas → Eternus; Chromie sends you to the Bazaar as you
+   take it): ask your master what he means to do at the Wrathgate, and who will wear the Helm.
+   Eternus answers that the woman lecturing you will one day set a world tree burning with its
+   people inside it; he wants the war kinder, that is all. Moratari takes you back to the front.
+6. **WRM-201 / 211 The Road to Angrathar** (II-A, Moratari, by Durkon or Sintar): the camp's
+   errands skipped, as before, at Eternus's asking.
+7. The chain to the Wrathgate's door: To Fordragon Hold! (Bolvar) or The Kor'kron Vanguard!
+   (Saurfang's son).
+8. **WRM-206 / 216 A Warning, Unwritten** (Moratari, by Bolvar or Saurfang's son → Eternus at the
+   Bazaar; taking it goes there): Eternus's whole plan. The Forsaken's apothecaries will turn on
+   everyone at the gate; his loyalists are on the cliffs above it, where Putress's men will stand,
+   to strike first, so that Bolvar and Saurfang's son walk home. You are to lead them.
+9. **WRM-207 The Weight of Time** (Eternus → Moratari), the turn, a scene at the Bazaar as you take
+   it: Eternus says something has followed you from Wyrmrest; Sylvanas and Alleria walk in.
+   Eternus throws Teldrassil at Sylvanas; she answers that it is why the bronze sent her, and
+   tells Moratari what Eternus left out: if Bolvar does not burn, no one takes up the Helm when
+   Arthas falls, the Scourge goes masterless, and every soul the Helm has bound is lost; she has
+   spent years freeing souls like those. Alleria feels where Eternus's road ends. Moratari says he
+   told her it was mercy, casts a spell and vanishes; ten seconds later a time rift opens and she
+   steps out of it: the road where Bolvar lives ends at a throne no one holds. It has to happen as
+   it did. Eternus: "I know. I have always known. I will not watch it again." He leaves. From then
+   on the Bazaar is Moratari's, Sylvanas's and Alleria's: Eternus is gone from it (for those past
+   the turn; a new Timerunner still meets him in the prologue).
+10. **WRM-208 / 218 The Hour of the Gate** (Sylvanas → Alleria, on the cliffs above the Wrathgate;
+    taking it goes there): Eternus's loyalists (Infinite Interlopers) wait where the Forsaken's
+    catapults will stand. Slay six; leave the Forsaken be. Sylvanas will not come: she cannot be
+    seen anywhere near the gate. Alleria sends you to Bolvar or Saurfang's son, whose Audience With
+    The Dragon Queen waits for this.
+11. The Wrathgate's chain as the game has it: Audience With The Dragon Queen, Galakrond and the
+    Scourge, On Ruby Wings, **Return To Angrathar** (12499 / 12500) and the Wrathgate.
+12. **WRM-202 / 212 What We Cannot Change** (II-B, Moratari by Alexstrasza): no skip. It happened as
+    it did; we made sure of it. Sylvanas's message: Putress was hers once, she did not order this,
+    and she remembers taking her city back from the ones who did.
+13. The post-Wrathgate chains and the Battle for the Undercity, as the game has them.
+14. **WRM-221 / 222 After Angrathar** (II-C, Moratari by Varian or Thrall): Sylvanas watched the
+    battle from where her past self could not see her; it went exactly as she remembers. To the
+    Grizzly Hills and Chapter III. Eternus will be there before us.
+
+Who is seen where follows the story: Sylvanas and Alleria atop Wyrmrest from WRM-204 until WRM-205
+is turned in; at the Bazaar once WRM-207 is done, when Eternus is gone from it; Alleria and the
+loyalists on the cliffs during WRM-208.
 
 ## After the turn: the transitions
 
@@ -198,5 +219,5 @@ there to play.
 ## Status
 
 Being built in this order: the prologue and Chapter I (with the guiding quests: build 64), the
-"Report Time Anomaly" button, Chapter II and the turn, Chapters III and IV rewritten, V to VII,
-then the end and the move to ChromieCraft.
+"Report Time Anomaly" button and Chapter II with the turn (build 65), Chapters III and IV
+rewritten, V to VII, then the end and the move to ChromieCraft.
