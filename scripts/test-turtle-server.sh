@@ -90,6 +90,11 @@ for key in AiPlayerbot.Enabled AiPlayerbot.MinRandomBots AiPlayerbot.MaxRandomBo
 done
 [ -f "$FILES/etc/modules/tortoise_bots.conf" ] || fail "no etc/modules/tortoise_bots.conf (the world server won't start without it)"
 [ -f "$FILES/server/addons/TortoiseBotsManager/TortoiseBotsManager.toc" ] || fail "the bots' addon isn't in the package"
+# The world server crashed as each player came in on a phone: Tortoise's anticheat (on by its own
+# defaults) set up Warden's RC4 without OpenSSL's legacy module. Off, and the module findable.
+grep -q '^Enable = 0$' "$FILES/run/anticheat.conf" || fail "the anticheat isn't turned off in run/anticheat.conf"
+[ -f "$FILES/server/lib/ossl-modules/legacy.so" ] || fail "OpenSSL's legacy module isn't in the package"
+grep -q 'export OPENSSL_MODULES="$SERVER/lib/ossl-modules"' "$FILES/server/ctl.sh" || fail "ctl.sh doesn't point OpenSSL at the package's modules"
 
 echo "== MariaDB"
 CTL db & pids+=($!)

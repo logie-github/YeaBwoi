@@ -241,7 +241,7 @@ Everything of Turtle WoW is in `files/turtle` (its own `server`, `etc`, `mysql`,
 | --- | --- |
 | `turtle/server-version.env` | Tortoise-WoW's commit, ACE's release (with its SHA-256), the client build, TortoiseBots' release and its addon's commit |
 | `turtle/patches/` | Tortoise-WoW on musl: two G3D fixes and a comparison with `NULL`; and the folder the world server reads modules' database updates from, set at build time (the package's, on the phone) |
-| `turtle/server/ctl.sh`, `seed.sql` | Turtle's realm on the phone (refuses any folder but `files/turtle`), and its database seed |
+| `turtle/server/ctl.sh`, `seed.sql` | Turtle's realm on the phone (refuses any folder but `files/turtle`; Tortoise's anticheat off, OpenSSL pointed at the package's legacy module), and its database seed |
 | `../scripts/fetch-tortoise.sh`, `compile-tortoise.sh`, `package-tortoise.sh` | Checkout, compile (ACE too) and package, in Alpine; `-march=native` replaced by a baseline for phones |
 | `../scripts/test-turtle-server.sh`, `turtle/server/auth_check.py` | CI's test of the package: its MariaDB, a 1.18.1 (7272) login with the realm list, the world server's database updates, a pathfinding tile built and taken as a success, a backup and restore, the system calls |
 | `../scripts/make-turtle-server-data.sh` | Turtle's server data (pathfinding too) made on a computer with Docker from the user's client, for **Import zip** |

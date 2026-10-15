@@ -140,6 +140,21 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   `turtle-server-f239aff1e747`. JVM tests: 176, passing (the bots'
   settings, the addon's install into the client, warperia.com's Vanilla list and downloads). The
   launcher's screens were rendered off the phone, each tile's.
+- On the user's phone, after the realm list fix, logging in still ended in "Disconnected from
+  server": the client authenticated, got the realm list and connected to the world server, which
+  crashed (`Received SIGSEGV` in its log, right after loading the account's tutorials). Tortoise's
+  anticheat reads `anticheat.conf` from the world server's folder; the package has none, so its
+  defaults turned it on, and for each player it set up Warden, whose RC4 needs OpenSSL's legacy
+  module, which the package carries but nothing pointed OpenSSL at (the 3.3.5a realm's ctl.sh
+  exports `OPENSSL_MODULES`; Turtle's didn't). Reproduced with the package's own libcrypto
+  calling OpenSSL as Tortoise's ARC4 does: without the module path it segfaults, with it RC4
+  works. Fixed both ways: the app sets `OPENSSL_MODULES` for the realm and writes
+  `run/anticheat.conf` with the anticheat off (the world server opens it: checked with strace),
+  so the packages already published work too; ctl.sh does the same for later ones. Off, because
+  with the anticheat on and no Warden module, Warden would also hold the character list back
+  for good; the world server's own addon handler still answers Turtle's signed addons. Not yet
+  seen on the phone. CI's test can't get a player that far (no game data); it now checks the
+  file and the module.
 - **Pathfinding made on a computer** (the user asked for the hours-long job off the phone): CI
   can't make it, as nobody publishes Turtle's server data ready-made (AzerothCore does for 3.3.5a,
   which the app downloads) and it can only be made from the user's own client. So
