@@ -43,7 +43,7 @@ Copy files onto the phone before picking them: files in cloud folders can't be r
 
 The game's Windows is one Wine prefix, **World of Warcraft**, with the client as drive D:: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Its programs go in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path they're built for.
 
-While it starts, the app shows its own loading screen (the logo over the dark, with the snow), until the game's window is up.
+While it starts, the app shows its own loading screen, until the game's window is up: the launcher's Lich King picture, darkened, with the logo and the snow over it.
 
 ### Touch controls
 
@@ -201,7 +201,7 @@ Everything carries on with the app in the background, with a notification and **
 
 ### The game
 
-Played like the 3.3.5a game (the same touch controls and keyboard prompt), with three differences, because Tortoise-WoW's realm doesn't tell the app what a tap selected, when a cutscene plays or where the spellbook is (those are the ChromieCraft realm's own patches): a tap on anything the game's cursor offers something for does it at once, as a right click does (talks, loots, gathers, and on an enemy, attacks it); a hold always opens the bags (Back is Escape, to skip a cutscene); and spells are dragged off the spellbook with the mouse only. It logs in by itself with Turtle's own saved login (never ChromieCraft's).
+Played like the 3.3.5a game (the same touch controls and keyboard prompt), with three differences, because Tortoise-WoW's realm doesn't tell the app what a tap selected, when a cutscene plays or where the spellbook is (those are the ChromieCraft realm's own patches): a tap on anything the game's cursor offers something for does it at once, as a right click does (talks, loots, gathers, and on an enemy, attacks it); a hold always opens the bags (Back is Escape, to skip a cutscene); and spells are dragged off the spellbook with the mouse only. It logs in by itself with Turtle's own saved login (never ChromieCraft's). While it starts, its loading screen is Turtle WoW's: the map of Azeroth across the top, Turtle WoW's logo and the launcher's motes drifting up.
 
 ### Its menu
 
@@ -230,7 +230,7 @@ Everything of Turtle WoW is in `files/turtle` (its own `server`, `etc`, `mysql`,
 | `../scripts/test-turtle-server.sh`, `turtle/server/auth_check.py` | CI's test of the package: its MariaDB, a 1.18.1 (7272) login with the realm list, the world server's database updates, a backup and restore, the system calls |
 | `../scripts/turtle-manifests.py`, `android/app/src/main/assets/turtle/` | The client's and the DBC files' checksums, from Tortoise-WoW's `tools/dbc_verification` |
 | `android/app/.../turtle/` | Turtle's code: `core/` (the folder guard, manifests, downloads, accounts, unit-tested), the realm, the installer, the game, `ui/` (its launcher) |
-| `branding/turtle/` | Your art: the map header and the logo |
+| `branding/turtle/` | Your art: the map header, the logo and the loading screen's map (`loading.png`, used as `res/drawable-nodpi/turtle_loading.jpg`) |
 | `TURTLE.md` | The brief: what was asked, found and decided |
 
 CI builds the realm once for each version of its inputs and publishes it as its own release (`turtle-server-<hash>`, a prerelease); each APK names the one it downloads. Local builds of the app have none (the launcher says so): `scripts/compile-tortoise.sh && scripts/package-tortoise.sh && scripts/test-turtle-server.sh` build and test one.

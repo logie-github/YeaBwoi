@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,6 +35,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -58,6 +61,10 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.logie.warcraft.R
+import com.logie.warcraft.turtle.ui.TurtleColors
+import com.logie.warcraft.turtle.ui.TurtleMotes
+import com.logie.warcraft.turtle.ui.TurtleSpinner
+import com.logie.warcraft.turtle.ui.TurtleTheme
 import com.logie.warcraft.ui.WowButton
 import com.logie.warcraft.ui.WowColors
 import com.logie.warcraft.ui.WowSnow
@@ -92,11 +99,15 @@ private fun fullScreenDialog(activity: Activity, dim: Boolean, content: @Composa
 }
 
 /**
- * The loading screen until the game's first window shows: the logo over the dark, snow, a spinner
- * and what's happening. The same calls as the game screen's own loading box, which it replaces
- * (patches/winlator/0004).
+ * The loading screen until the game's first window shows ("Entering Azeroth"): the game's picture,
+ * its logo, a spinner and what's happening. The 3.3.5a game's: the Lich King before Icecrown
+ * Citadel, snow falling. Turtle WoW's ([GestureView.ENVIRONMENT_TURTLE]): the old map of Kalimdor
+ * and the Eastern Kingdoms with warm motes rising, its logo, in its own colours. The same calls as
+ * the game screen's own loading box, which it replaces (patches/winlator/0004).
  */
 class GameLoading(private val activity: Activity) {
+    private val turtle = activity.intent?.getStringExtra(GestureView.EXTRA_ENVIRONMENT) == GestureView.ENVIRONMENT_TURTLE
+
     private var dialog: ComponentDialog? = null
     private val text = mutableStateOf("")
 
@@ -104,7 +115,9 @@ class GameLoading(private val activity: Activity) {
     fun show(textResId: Int) {
         text.value = activity.getString(textResId)
         if (isShowing()) return
-        val created = dialog ?: fullScreenDialog(activity, dim = false) { Loading(text.value) }.also {
+        val created = dialog ?: fullScreenDialog(activity, dim = false) {
+            if (turtle) TurtleTheme { TurtleLoading(text.value) } else Loading(text.value)
+        }.also {
             it.setCancelable(false)
             dialog = it
         }
@@ -124,13 +137,22 @@ class GameLoading(private val activity: Activity) {
 }
 
 @Composable
-private fun Loading(text: String) {
+internal fun Loading(text: String) {
     Box(
         Modifier
             .fillMaxSize()
             .background(WowColors.Abyss),
         contentAlignment = Alignment.Center,
     ) {
+        // The launcher's picture, the Lich King a third of the way in, darkened for the words.
+        Image(
+            painterResource(R.drawable.wow_header),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = BiasAlignment(-0.42f, -0.4f),
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(WowColors.Abyss.copy(alpha = 0.55f), WowColors.Abyss.copy(alpha = 0.85f)))))
         WowSnow(Modifier.fillMaxSize(), alpha = 0.6f)
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(22.dp)) {
             Image(
@@ -141,6 +163,47 @@ private fun Loading(text: String) {
             )
             WowSpinner(48.dp)
             Text(text, style = MaterialTheme.typography.titleMedium, color = WowColors.Mist, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+internal fun TurtleLoading(text: String) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(TurtleColors.Night),
+        contentAlignment = Alignment.Center,
+    ) {
+        // The whole map across the screen (it's a wide one), its edges fading into the night.
+        Box(Modifier.fillMaxWidth().aspectRatio(1920f / 620f)) {
+            Image(
+                painterResource(R.drawable.turtle_loading),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0f to TurtleColors.Night,
+                        0.2f to TurtleColors.Night.copy(alpha = 0.3f),
+                        0.8f to TurtleColors.Night.copy(alpha = 0.3f),
+                        1f to TurtleColors.Night,
+                    )
+                )
+            )
+        }
+        TurtleMotes(Modifier.fillMaxSize(), alpha = 0.8f)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(22.dp)) {
+            Image(
+                painterResource(R.drawable.turtle_logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.width(360.dp),
+            )
+            TurtleSpinner(48.dp)
+            Text(text, style = MaterialTheme.typography.titleMedium, color = TurtleColors.Parchment, textAlign = TextAlign.Center)
         }
     }
 }
