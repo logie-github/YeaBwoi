@@ -179,7 +179,7 @@ The game logs in by itself with the account set to **Log in automatically** (in 
 
 ## Turtle WoW — Vanilla+
 
-The app's second game: **Turtle WoW** (the fan-made "Vanilla+" World of Warcraft 1.12 continuation), played on the phone against its own realm on the phone, completely apart from the 3.3.5a game. The chip at the top left of the launcher's picture (or the **Turtle WoW — Vanilla+** tile) switches the launcher to it, and it turns into Turtle WoW's: the old map of Kalimdor and the Eastern Kingdoms with motes drifting up, Turtle WoW's logo, in turtlecraft.gg's dark warm brown and gold-to-coral. The chip there (**Wrath**) switches back. Switching changes nothing of either game; if the other game's realm is running, the app asks whether to stop it first (both realms use the game's login port, so one runs at a time).
+The app's second game: **Turtle WoW** (the fan-made "Vanilla+" World of Warcraft 1.12 continuation), played on the phone against its own realm on the phone, completely apart from the 3.3.5a game. The chip at the top left of the launcher's picture (or the **Turtle WoW — Vanilla+** tile) switches the launcher to it, and it turns into Turtle WoW's: the old map of Kalimdor and the Eastern Kingdoms with motes drifting up, Turtle WoW's logo, in turtlecraft.gg's dark warm brown and gold-to-coral, with its own music: World of Warcraft's main title, Legends of Azeroth (the note turns it off and on, as in the 3.3.5a launcher; switching games fades one theme into the other). The chip there (**Wrath**) switches back. Switching changes nothing of either game; if the other game's realm is running, the app asks whether to stop it first (both realms use the game's login port, so one runs at a time).
 
 | | |
 | --- | --- |
@@ -269,6 +269,7 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, updates, the servers' logs, GitHub's module lists and READMEs, the module builds' requests and runs |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
+| `android/app/src/main/res/raw/turtle_title_music.ogg` | The Turtle WoW launcher's music: your MP3 of Legends of Azeroth (World of Warcraft's main title), made the same way (3.1 MB) |
 | `fonts/` | Licenses of Cinzel and Jost (SIL OFL) |
 
 CI (`.github/workflows/build-warcraft.yml`) builds the server on GitHub's arm64 runners: the compile is cached by the pins, the patches and the compile scripts, and the package by everything in it, so a change to the packaging takes minutes and a change to the app alone reuses the package. It downloads the server data and checks its SHA-256, tests the server on it, builds the Windows tools, runs the unit tests, prepares Winlator (cached by its commit and the patches), builds the APK and publishes the release with the Windows tools.
