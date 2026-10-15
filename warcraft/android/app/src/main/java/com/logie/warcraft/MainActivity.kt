@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
         // Only a fresh start checks for an update, not coming back. Nothing starts until Press start.
         val fresh = savedInstanceState == null
         TitleMusic.load(this)
+        WowUpdater.userToken = ModuleStore.token(this)
         setContent { WowHomeRoute(activity = this, checkUpdateOnOpen = fresh) }
     }
 

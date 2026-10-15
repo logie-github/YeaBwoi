@@ -267,7 +267,8 @@ data class HomeFacts(
 
     companion object {
         fun of(context: android.content.Context) = HomeFacts(
-            bundled = ServerPackage.isBundled(context),
+            // A build without a server of its own runs the one already unpacked (ServerPackage).
+            bundled = ServerPackage.isBundled(context) || ServerPackage.isInstalled(context),
             standardPath = WowFiles.isStandardPath(context),
             hasClient = WowFiles.hasClient(context),
             dataFolders = WowFiles.dataFolders(context),

@@ -34,9 +34,14 @@ object ServerPackage {
     private fun expectedStamp(context: Context): String =
         ModuleStore.realmForThisVersion(context)?.let { ModuleBuild.stamp(it) } ?: bundledStamp(context)
 
-    /** The unpacked server is the one to run. */
+    /**
+     * The unpacked server is the one to run. A build without a server of its own (one made outside
+     * CI) runs the one already unpacked, if there is one: the same package as the release before it
+     * unless the server changed.
+     */
     fun isInstalled(context: Context): Boolean {
         val file = File(WowFiles.server(context), STAMP)
+        if (!isBundled(context)) return file.isFile
         return file.isFile && runCatching { file.readText() == expectedStamp(context) }.getOrDefault(false)
     }
 
