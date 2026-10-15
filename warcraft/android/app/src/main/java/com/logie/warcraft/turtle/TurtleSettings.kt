@@ -73,6 +73,11 @@ object TurtleSettings {
         TurtleServer.editConf(File(TurtleFiles.layout(context).etc, "realmd.conf")) {
             for ((key, value) in TurtleRealm.REALMD_SETTINGS) set(key, value)
         }
+        // The anticheat off (TurtleRealm.ANTICHEAT_CONF), where the world server reads it.
+        val layout = TurtleFiles.layout(context)
+        val fs = TurtleFiles.fs(context)
+        fs.mkdirs(layout.run)
+        fs.check(File(layout.run, "anticheat.conf")).writeText(TurtleRealm.ANTICHEAT_CONF)
         TurtleServer.editConf(File(TurtleFiles.layout(context).etc, "aiplayerbot.conf")) {
             for ((key, value) in TurtleRealm.botSettings(worldBots(context))) set(key, value)
         }

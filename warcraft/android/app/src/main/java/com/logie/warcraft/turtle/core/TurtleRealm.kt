@@ -56,6 +56,21 @@ object TurtleRealm {
      */
     val REALMD_SETTINGS = mapOf("MinRealmListDelay" to "0")
 
+    /**
+     * Tortoise's anticheat, off. The world server reads it from `anticheat.conf` in the folder it
+     * runs in (run/), which the realm package doesn't have, so its own defaults turned it on. On,
+     * it sets up Warden for each player who connects: Warden's RC4 needs OpenSSL's legacy module,
+     * which nothing told OpenSSL where to find, so the world server crashed as the player came in
+     * (SIGSEGV after the tutorials query; "Disconnected from server" on the phone); and with no
+     * Warden module to send, it would hold the character list back for good
+     * (WardenWin::SetCharEnumPacket). Off, the world server's own addon handler still answers
+     * Turtle's signed addons. A realm on the phone for its owner has nobody to catch.
+     */
+    const val ANTICHEAT_CONF = "[AnticheatConf]\nEnable = 0\n"
+
+    /** OpenSSL's modules in the realm package (its legacy one, RC4), relative to its server folder. */
+    const val OPENSSL_MODULES = "lib/ossl-modules"
+
     /** A setting in mangosd.conf the launcher offers, with Tortoise's default. */
     data class Setting(val key: String, val default: String, val choices: List<String>, val group: Group)
 

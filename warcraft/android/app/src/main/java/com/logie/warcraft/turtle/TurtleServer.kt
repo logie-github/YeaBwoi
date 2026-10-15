@@ -350,6 +350,9 @@ object TurtleServer {
         TurtleFiles.fs(context).mkdirs(layout.run)
         return ProcessBuilder(listOf("/system/bin/sh", layout.ctl.path) + args).apply {
             environment()["FILES"] = TurtleFiles.serverRoot(context)
+            // OpenSSL's legacy module (RC4) is in the package, not where its libcrypto looks; realm
+            // packages before ctl.sh said so themselves crashed the world server without it.
+            environment()["OPENSSL_MODULES"] = File(layout.server, TurtleRealm.OPENSSL_MODULES).path
             environment()["TZ"] = Server.posixTimeZone()
             directory(layout.run)
         }

@@ -37,6 +37,9 @@ WORLD_PORT=8090
 DB_USER=tortoise
 DB_PASS=tortoise
 export HOME="$FILES" TMPDIR="$RUN/tmp"
+# OpenSSL's legacy module (RC4, which the world server's Warden uses) is in the package, not where
+# its libcrypto looks: without this the world server crashed as a player came in.
+export OPENSSL_MODULES="$SERVER/lib/ossl-modules"
 
 case "$FILES" in
 */files/turtle) ;;
@@ -106,6 +109,11 @@ configure() {
 	setkey "$conf" SOAP.Enabled 0
 	setkey "$conf" Warden.WinEnabled 0
 	setkey "$conf" Warden.OSXEnabled 0
+	# Tortoise's anticheat reads its own anticheat.conf from the world server's folder ($RUN), and
+	# without one its defaults turn it on: Warden for every player, with no Warden module to send,
+	# holds the character list back for good. A realm on the phone for its owner: off (the app
+	# writes the same, TurtleRealm.ANTICHEAT_CONF).
+	printf '[AnticheatConf]\nEnable = 0\n' > "$RUN/anticheat.conf"
 	mkdir -p "$RUN/patches"
 	# The bots: TortoiseBots reads aiplayerbot.conf beside mangosd.conf, and the core loads each
 	# module's .conf from etc/modules/ (it won't start without it). The template's 500 world bots
