@@ -14,39 +14,44 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 /**
- * warperia.com's add-ons for 3.3.5a, read from its web pages the way a browser shows them (its API
- * takes a key): the list (a search, a category, an order, 20 to a page), an add-on's own page, and
+ * warperia.com's add-ons (3.3.5a's, or 1.12's for Turtle WoW: [Flavor]), read from its web pages the
+ * way a browser shows them (its API takes a key): the list (a search, a category, an order, 20 to a page), an add-on's own page, and
  * the two steps of its free download, the waiting page and the link the site gives after the wait.
  */
 object Warperia {
     const val SITE = "https://warperia.com"
     const val LIST = "$SITE/wotlk-addons/"
     const val AJAX = "$SITE/wp-admin/admin-ajax.php"
-    private const val TYPE = "addon-wotlk"
+
+    /** The site's sections, each with its list and its add-ons' pages: 3.3.5a's, and 1.12's (Turtle WoW's client). */
+    enum class Flavor(val list: String, val type: String) {
+        WOTLK("$SITE/wotlk-addons/", "addon-wotlk"),
+        VANILLA("$SITE/vanilla-addons/", "addon-vanilla"),
+    }
 
     /** The list's orders, as the site names them. */
     enum class Order(val param: String?) { POPULAR(null), NEW("recent"), UPDATED("updated") }
 
     data class Query(val search: String = "", val category: String? = null, val order: Order = Order.POPULAR)
 
-    fun listUrl(query: Query, page: Int): String {
+    fun listUrl(query: Query, page: Int, flavor: Flavor = Flavor.WOTLK): String {
         val params = buildList {
             query.search.trim().takeIf { it.isNotEmpty() }?.let { add("search" to it) }
             query.category?.let { add("category" to it) }
             query.order.param?.let { add("sort" to it) }
             if (page > 1) add("paged" to page.toString())
         }
-        if (params.isEmpty()) return LIST
-        return LIST + "?" + params.joinToString("&") { (k, v) -> "$k=" + URLEncoder.encode(v, "UTF-8") }
+        if (params.isEmpty()) return flavor.list
+        return flavor.list + "?" + params.joinToString("&") { (k, v) -> "$k=" + URLEncoder.encode(v, "UTF-8") }
     }
 
-    fun pageUrl(slug: String) = "$SITE/$TYPE/$slug/"
+    fun pageUrl(slug: String, flavor: Flavor = Flavor.WOTLK) = "$SITE/${flavor.type}/$slug/"
 
-    fun downloadPageUrl(slug: String) = "$SITE/$TYPE/$slug/download/"
+    fun downloadPageUrl(slug: String, flavor: Flavor = Flavor.WOTLK) = "$SITE/${flavor.type}/$slug/download/"
 
     /** The add-on a link of the site is for: `https://warperia.com/addon-wotlk/<slug>/`. */
-    fun slugOf(url: String): String? =
-        Regex("""^https?://(?:www\.)?warperia\.com/$TYPE/([A-Za-z0-9_-]+)/?(?:[?#].*)?$""").find(url.trim())?.groupValues?.get(1)
+    fun slugOf(url: String, flavor: Flavor = Flavor.WOTLK): String? =
+        Regex("""^https?://(?:www\.)?warperia\.com/${flavor.type}/([A-Za-z0-9_-]+)/?(?:[?#].*)?$""").find(url.trim())?.groupValues?.get(1)
 
     // The list -----------------------------------------------------------------------------------
 
@@ -69,11 +74,11 @@ object Warperia {
 
     data class ListPage(val items: List<Listing>, val page: Int, val pages: Int, val categories: List<Category>)
 
-    fun parseList(html: String): ListPage {
-        val doc = document(html, LIST)
+    fun parseList(html: String, flavor: Flavor = Flavor.WOTLK): ListPage {
+        val doc = document(html, flavor.list)
         val grid = doc.getElementById("addons-grid") ?: doc.body()
         val items = grid.select("a[data-addon-id][href]").mapNotNull { card ->
-            val slug = slugOf(card.absUrl("href")) ?: return@mapNotNull null
+            val slug = slugOf(card.absUrl("href"), flavor) ?: return@mapNotNull null
             val title = firstText(card, ".addon-name-header > span", ".addon-title > span", ".details span.text-white", ".details span")
                 ?: card.selectFirst("img[alt]")?.attr("alt")?.removeSuffix("addon image logo")?.trim()?.ifEmpty { null }
             Listing(
@@ -134,8 +139,8 @@ object Warperia {
         val changelog: List<Change>,
     )
 
-    fun parseDetails(html: String, slug: String): Details {
-        val doc = document(html, pageUrl(slug))
+    fun parseDetails(html: String, slug: String, flavor: Flavor = Flavor.WOTLK): Details {
+        val doc = document(html, pageUrl(slug, flavor))
         // "Addon Version:", "Last Updated:"...: each label's value is the element after it.
         val facts = LinkedHashMap<String, String>()
         for (label in doc.getElementsMatchingOwnText("^[A-Za-z][A-Za-z ]{1,30}:$")) {

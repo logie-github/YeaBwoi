@@ -146,20 +146,26 @@ fun TurtleSwitchRow(title: String, summary: String?, checked: Boolean, enabled: 
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (summary != null) Text(summary, style = MaterialTheme.typography.bodySmall)
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onChange,
-            enabled = enabled,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = TurtleColors.Gold,
-                checkedTrackColor = TurtleColors.Brown,
-                checkedBorderColor = TurtleColors.Orange,
-                uncheckedThumbColor = TurtleColors.Stone,
-                uncheckedTrackColor = Color(0x66000000),
-                uncheckedBorderColor = TurtleColors.Dust,
-            ),
-        )
+        TurtleSwitch(checked, enabled, onChange)
     }
+}
+
+/** An on/off switch in the site's gold. */
+@Composable
+fun TurtleSwitch(checked: Boolean, enabled: Boolean = true, onChange: (Boolean) -> Unit) {
+    Switch(
+        checked = checked,
+        onCheckedChange = onChange,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = TurtleColors.Gold,
+            checkedTrackColor = TurtleColors.Brown,
+            checkedBorderColor = TurtleColors.Orange,
+            uncheckedThumbColor = TurtleColors.Stone,
+            uncheckedTrackColor = Color(0x66000000),
+            uncheckedBorderColor = TurtleColors.Dust,
+        ),
+    )
 }
 
 @Composable

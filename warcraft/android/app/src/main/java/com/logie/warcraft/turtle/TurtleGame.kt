@@ -4,6 +4,7 @@ package com.logie.warcraft.turtle
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
 import com.logie.warcraft.TitleMusic
@@ -11,6 +12,7 @@ import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.game.GestureView
 import com.logie.warcraft.turtle.core.ClientManifest
 import com.logie.warcraft.turtle.core.SafeFs
+import com.logie.warcraft.turtle.core.TurtleAddons
 import com.logie.warcraft.turtle.core.TurtleClientSetup
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
@@ -39,6 +41,8 @@ import kotlin.coroutines.resume
  * the realm, and once the realm is up the game starts at its login screen.
  */
 object TurtleGame {
+    private const val TAG = "TurtleGame"
+
     sealed interface State {
         data object Idle : State
 
@@ -120,7 +124,13 @@ object TurtleGame {
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = resolution
         val container = container(context, width, height)
-        withContext(Dispatchers.IO) { TurtleClientSetup.apply(TurtleFiles.layout(context).client, width, height, accountName = null) }
+        withContext(Dispatchers.IO) {
+            val layout = TurtleFiles.layout(context)
+            // The bots' control addon (/tbm) from the realm package, in the client's AddOns.
+            runCatching { TurtleAddons.install(File(layout.server, "addons"), layout.client, TurtleFiles.fs(context)) }
+                .onFailure { Log.w(TAG, "Couldn't put the realm's addons in the client", it) }
+            TurtleClientSetup.apply(layout.client, width, height, accountName = null)
+        }
 
         _state.value = State.Preparing(Step.REALM)
         val server = TurtleServer.status.first {

@@ -49,9 +49,14 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
@@ -65,6 +70,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
@@ -87,10 +93,13 @@ import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.R
 import com.logie.warcraft.Server
 import com.logie.warcraft.TitleMusic
+import com.logie.warcraft.WowUpdateActivity
+import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.turtle.TurtleFiles
 import com.logie.warcraft.turtle.TurtleGame
 import com.logie.warcraft.turtle.TurtleJobs
@@ -105,11 +114,13 @@ import com.logie.warcraft.turtle.core.InstallState
 import kotlinx.coroutines.delay
 
 /**
- * The launcher when Turtle WoW is the chosen game: the old map of Kalimdor and the Eastern
- * Kingdoms with warm motes drifting up, Turtle WoW's logo, and under them Turtle's own world: its
- * state and the one thing to do next, each of its parts with its own button, and its settings.
- * In turtlecraft.gg's colours. Nothing here reads or changes the 3.3.5a game's files or realm,
- * except [Server.stop] when the user asks to stop ChromieCraft's realm (they share the login port).
+ * The launcher when Turtle WoW is the chosen game. It works the way the 3.3.5a launcher does
+ * (WowHome): the picture and the logo, under them what the realm is doing with the one thing to do
+ * next (Press start, or what's under way, or what's missing with the button that fixes it), then
+ * the same tiles in the same order, each opening its screen. Only the look is Turtle WoW's: the old
+ * map of Kalimdor and the Eastern Kingdoms with warm motes, its logo, turtlecraft.gg's colours and
+ * its own music. Nothing here reads or changes the 3.3.5a game's files or realm, except
+ * [Server.stop] when the user asks to stop ChromieCraft's realm (they share the login port).
  */
 @Composable
 fun TurtleHomeRoute(onSwitchGame: () -> Unit) {
@@ -121,52 +132,56 @@ fun TurtleHomeRoute(onSwitchGame: () -> Unit) {
     var dialog by remember { mutableStateOf<TurtleDialogKind?>(null) }
     val facts = remember(refresh, job, server.phase) { TurtleFacts.of(context) }
 
-    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) TurtleService.job(context, TurtleJobs.Kind.CLIENT, uri, folder = true, TurtleJobs.Options(withMmaps = TurtleSettings.mmaps(context)))
+    /** Press start: what's missing first (the realm, in one tap), then the game, or the realm alone without a client or data. */
+    fun play() {
+        when {
+            facts.blocker != null || facts.pin == null && !facts.programsInstalled -> {}
+            !facts.programsCurrent || !facts.databases ->
+                TurtleService.job(context, TurtleJobs.Kind.INSTALL, options = TurtleJobs.Options(withMmaps = TurtleSettings.mmaps(context)))
+            facts.client && facts.data -> TurtleGame.play(context)
+            else -> TurtleServer.start(context)
+        }
     }
-    val pickZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) TurtleService.job(context, TurtleJobs.Kind.CLIENT, uri, folder = false, TurtleJobs.Options(withMmaps = TurtleSettings.mmaps(context)))
+
+    // How a long job went, as soon as it's done: on the screen it belongs to, as in the 3.3.5a launcher.
+    LaunchedEffect(job) {
+        val kind = (job as? TurtleJobs.State.Done)?.kind ?: (job as? TurtleJobs.State.Failed)?.kind
+        if (kind != null && dialog == null) dialog = dialogFor(kind)
     }
-    val actions = TurtleActions(
-        install = { dialog = TurtleDialogKind.INSTALL },
-        pickFolder = { pickFolder.launch(null) },
-        pickZip = { pickZip.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
-        job = { kind -> TurtleService.job(context, kind, options = TurtleJobs.Options(withMmaps = TurtleSettings.mmaps(context))) },
-        makeData = { withMmaps -> TurtleService.job(context, TurtleJobs.Kind.DATA, options = TurtleJobs.Options(withMmaps = withMmaps)) },
-        play = { TurtleGame.play(context) },
-        start = { TurtleServer.start(context) },
-        stop = { TurtleServer.stop(context) },
-        stopChromieCraft = { Server.stop(context) },
-        open = { dialog = it },
-        switchGame = onSwitchGame,
-    )
 
     LifecycleEventEffect(Lifecycle.Event.ON_START) { refresh++ }
 
     TurtleTheme {
         Box(Modifier.fillMaxSize().background(TurtleColors.Night)) {
-            TurtleHomeScreen(facts, server, job, game, actions)
+            TurtleHomeScreen(
+                facts = facts,
+                server = server,
+                job = job,
+                game = game,
+                onPlay = { play() },
+                onStart = { TurtleServer.start(context) },
+                onStop = { TurtleServer.stop(context) },
+                onDialog = { dialog = it },
+                onSwitchGame = onSwitchGame,
+            )
+            if (dialog == TurtleDialogKind.ADDONS) TurtleAddonManager(onDismiss = { dialog = null; refresh++ })
         }
-        TurtleDialogs(dialog, facts, actions, onDismiss = { dialog = null; refresh++ })
+        TurtleDialogs(dialog, facts, onDialog = { dialog = it }, onDismiss = {
+            if (TurtleJobs.state.value.let { it is TurtleJobs.State.Done || it is TurtleJobs.State.Failed }) TurtleJobs.clearResult()
+            dialog = null
+            refresh++
+        })
     }
 }
 
-/** What the home screen's buttons do. */
-class TurtleActions(
-    val install: () -> Unit,
-    val pickFolder: () -> Unit,
-    val pickZip: () -> Unit,
-    val job: (TurtleJobs.Kind) -> Unit,
-    val makeData: (Boolean) -> Unit,
-    val play: () -> Unit,
-    val start: () -> Unit,
-    val stop: () -> Unit,
-    val stopChromieCraft: () -> Unit,
-    val open: (TurtleDialogKind) -> Unit,
-    val switchGame: () -> Unit,
-)
+/** The screens: the tiles' (as the 3.3.5a launcher's), and the ones the server's opens. */
+enum class TurtleDialogKind { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, OPTIONS, ICON, REPAIR, UNINSTALL }
 
-enum class TurtleDialogKind { INSTALL, REALM, ACCOUNTS, SETTINGS, UPDATES, REPAIR, UNINSTALL, ABOUT }
+/** Where a job's progress and outcome show: the client and the data under Game files, the rest under Server. */
+fun dialogFor(kind: TurtleJobs.Kind): TurtleDialogKind = when (kind) {
+    TurtleJobs.Kind.CLIENT, TurtleJobs.Kind.VERIFY, TurtleJobs.Kind.DATA -> TurtleDialogKind.FILES
+    else -> TurtleDialogKind.SERVER
+}
 
 /** What's on the phone for Turtle WoW, read when the screen needs it. */
 data class TurtleFacts(
@@ -206,7 +221,6 @@ data class TurtleFacts(
         )
     )
     val ready: Boolean get() = InstallPlan.ready(plan)
-    val next: InstallPlan.Line? get() = InstallPlan.next(plan)
 
     companion object {
         fun of(context: Context): TurtleFacts {
@@ -239,7 +253,17 @@ data class TurtleFacts(
 }
 
 @Composable
-private fun TurtleHomeScreen(facts: TurtleFacts, server: TurtleServer.Status, job: TurtleJobs.State, game: TurtleGame.State, actions: TurtleActions) {
+private fun TurtleHomeScreen(
+    facts: TurtleFacts,
+    server: TurtleServer.Status,
+    job: TurtleJobs.State,
+    game: TurtleGame.State,
+    onPlay: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onDialog: (TurtleDialogKind) -> Unit,
+    onSwitchGame: () -> Unit,
+) {
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val screenWidth = maxWidth
@@ -249,26 +273,26 @@ private fun TurtleHomeScreen(facts: TurtleFacts, server: TurtleServer.Status, jo
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).windowInsetsPadding(WindowInsets.navigationBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            TurtleHeader(screenWidth, screenHeight, actions.switchGame)
+            TurtleHeader(screenWidth, screenHeight, onSwitchGame)
             Column(
                 Modifier.widthIn(max = 860.dp).fillMaxWidth().padding(horizontal = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                MainPanel(facts, server, job, game, actions)
+                RealmPanel(facts, server, job, game, onPlay, onStart, onStop, onDialog)
 
-                TurtleTitle(stringResource(R.string.turtle_components), modifier = Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleLarge)
-                Components(facts, job is TurtleJobs.State.Working || TurtleServer.isBusy, actions)
-
-                TurtleTitle(stringResource(R.string.turtle_menu), modifier = Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleLarge)
+                TurtleTitle(stringResource(R.string.wow_home_menu), modifier = Modifier.padding(top = 14.dp), style = MaterialTheme.typography.titleLarge)
+                // The 3.3.5a launcher's tiles, in its order.
                 val tiles = listOf(
-                    Tile(Icons.Default.Dns, stringResource(R.string.turtle_tile_realm), TurtleTexts.server(context, server)) { actions.open(TurtleDialogKind.REALM) },
-                    Tile(Icons.Default.AccountCircle, stringResource(R.string.turtle_tile_accounts), facts.savedAccount ?: stringResource(R.string.turtle_tile_accounts_summary)) { actions.open(TurtleDialogKind.ACCOUNTS) },
-                    Tile(Icons.Default.Tune, stringResource(R.string.turtle_tile_settings), stringResource(R.string.turtle_tile_settings_summary)) { actions.open(TurtleDialogKind.SETTINGS) },
-                    Tile(Icons.Default.SystemUpdate, stringResource(R.string.turtle_tile_updates), stringResource(R.string.turtle_tile_updates_summary, BuildConfig.VERSION_NAME)) { actions.open(TurtleDialogKind.UPDATES) },
-                    Tile(Icons.Default.Build, stringResource(R.string.turtle_tile_repair), stringResource(R.string.turtle_tile_repair_summary)) { actions.open(TurtleDialogKind.REPAIR) },
-                    Tile(Icons.Default.Info, stringResource(R.string.turtle_tile_about), stringResource(R.string.turtle_tile_about_summary)) { actions.open(TurtleDialogKind.ABOUT) },
-                    Tile(Icons.Default.DeleteForever, stringResource(R.string.turtle_tile_uninstall), Formatter.formatShortFileSize(context, facts.used)) { actions.open(TurtleDialogKind.UNINSTALL) },
-                    Tile(Icons.Default.SwapHoriz, stringResource(R.string.turtle_tile_switch), stringResource(R.string.turtle_tile_switch_summary)) { actions.switchGame() },
+                    Tile(Icons.Default.Dns, stringResource(R.string.wow_tile_server), TurtleTexts.server(context, server)) { onDialog(TurtleDialogKind.SERVER) },
+                    Tile(Icons.Default.FolderOpen, stringResource(R.string.wow_tile_files), filesSummary(facts)) { onDialog(TurtleDialogKind.FILES) },
+                    Tile(Icons.Default.People, stringResource(R.string.wow_tile_accounts), facts.savedAccount ?: stringResource(R.string.turtle_tile_accounts_summary)) { onDialog(TurtleDialogKind.ACCOUNTS) },
+                    Tile(Icons.Default.Tune, stringResource(R.string.wow_tile_graphics), graphicsSummary(context)) { onDialog(TurtleDialogKind.GRAPHICS) },
+                    Tile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), turtleAddonsSummary(context, facts)) { onDialog(TurtleDialogKind.ADDONS) },
+                    Tile(Icons.Default.SmartToy, stringResource(R.string.turtle_tile_options), stringResource(R.string.turtle_tile_options_summary, TurtleSettings.worldBots(context))) { onDialog(TurtleDialogKind.OPTIONS) },
+                    Tile(Icons.Default.Palette, stringResource(R.string.wow_tile_icon), stringResource(AppIcons.current(context).label)) { onDialog(TurtleDialogKind.ICON) },
+                    Tile(Icons.Default.SystemUpdate, stringResource(R.string.wow_tile_updates), stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) { WowUpdateActivity.launch(context) },
+                    // Back to the 3.3.5a game (GameSwitch), as its launcher's tile comes here.
+                    Tile(Icons.Default.SwapHoriz, stringResource(R.string.turtle_tile_switch), stringResource(R.string.turtle_tile_switch_summary)) { onSwitchGame() },
                 )
                 val columns = (screenWidth / 260.dp).toInt().coerceIn(1, 3).let { if (screenWidth >= 360.dp) maxOf(it, 2) else it }
                 TileGrid(tiles, columns)
@@ -283,6 +307,23 @@ private fun TurtleHomeScreen(facts: TurtleFacts, server: TurtleServer.Status, jo
         }
     }
 }
+
+@Composable
+private fun graphicsSummary(context: Context): String {
+    val resolution = GameSettings.resolution(context)
+    val (width, height) = GameSettings.gameSize(context, resolution)
+    return stringResource(R.string.wow_tile_graphics_summary, stringResource(resolution.label), width, height)
+}
+
+@Composable
+private fun filesSummary(facts: TurtleFacts): String = stringResource(
+    when {
+        facts.data && facts.client -> R.string.wow_tile_files_all
+        facts.data -> R.string.wow_tile_files_data
+        facts.client -> R.string.wow_tile_files_client
+        else -> R.string.turtle_tile_files_none
+    }
+)
 
 /** The old map, slowly closing in, motes rising over it; the logo over its lower edge. */
 @Composable
@@ -351,6 +392,7 @@ private fun Chip(icon: ImageVector, label: String, modifier: Modifier, onClick: 
     }
 }
 
+/** The launcher music's switch: a note, crossed out while it's off. */
 @Composable
 private fun MusicChip(modifier: Modifier) {
     val context = LocalContext.current
@@ -368,45 +410,24 @@ private fun MusicChip(modifier: Modifier) {
     }
 }
 
-/** What Turtle WoW is doing, and the one thing to do next. */
+/** What the realm is doing, and the one thing to do next (the 3.3.5a launcher's realm panel). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MainPanel(facts: TurtleFacts, server: TurtleServer.Status, job: TurtleJobs.State, game: TurtleGame.State, actions: TurtleActions) {
+private fun RealmPanel(
+    facts: TurtleFacts,
+    server: TurtleServer.Status,
+    job: TurtleJobs.State,
+    game: TurtleGame.State,
+    onPlay: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onDialog: (TurtleDialogKind) -> Unit,
+) {
     val context = LocalContext.current
     val panel = Modifier.fillMaxWidth()
     when {
         facts.blocker != null -> Notice(stringResource(if (facts.blocker == "arm64") R.string.turtle_error_not_arm64 else R.string.turtle_error_blocker))
-        job is TurtleJobs.State.Working -> TurtleWindow(panel, padding = PaddingValues(18.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TurtleSpinner(40.dp)
-                    Spacer(Modifier.width(12.dp))
-                    Text(TurtleTexts.step(context, job.step), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                }
-                job.progress?.let { TurtleProgressLine(it) }
-                job.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
-                stepNote(job.step)?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall) }
-                TurtleButton(stringResource(R.string.turtle_cancel), primary = false, modifier = Modifier.align(Alignment.End)) { TurtleJobs.cancel() }
-            }
-        }
-        job is TurtleJobs.State.Done || job is TurtleJobs.State.Failed -> TurtleWindow(panel, padding = PaddingValues(18.dp)) {
-            val failed = job as? TurtleJobs.State.Failed
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                TurtleTitle(stringResource(if (failed != null) R.string.turtle_job_failed else R.string.turtle_job_done))
-                Text(failed?.message ?: (job as TurtleJobs.State.Done).message, style = MaterialTheme.typography.bodyMedium)
-                failed?.log?.takeIf { it.isNotBlank() }?.let { TurtleLog(it) }
-                FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TurtleButton(stringResource(R.string.turtle_ok), primary = failed == null) { TurtleJobs.clearResult() }
-                    if (failed != null) {
-                        TurtleButton(stringResource(R.string.turtle_repair), primary = false) { TurtleJobs.clearResult(); actions.open(TurtleDialogKind.REPAIR) }
-                        TurtleButton(stringResource(R.string.turtle_retry)) {
-                            TurtleJobs.clearResult()
-                            if (failed.kind == TurtleJobs.Kind.CLIENT) actions.pickFolder() else actions.job(failed.kind)
-                        }
-                    }
-                }
-            }
-        }
+        job is TurtleJobs.State.Working -> JobPanel(job, onOpen = { onDialog(dialogFor(job.kind)) })
         game is TurtleGame.State.Preparing -> TurtleWindow(panel, padding = PaddingValues(18.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -425,9 +446,12 @@ private fun MainPanel(facts: TurtleFacts, server: TurtleServer.Status, job: Turt
                         modifier = Modifier.weight(1f),
                     )
                 }
-                game.progress?.let { TurtleProgressLine(it) }
-                TurtleStatusLine(stringResource(R.string.turtle_tile_realm), TurtleTexts.server(context, server), good = server.worldUp)
-                server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
+                if (game.step == TurtleGame.Step.RUNTIME || game.step == TurtleGame.Step.WINDOWS) {
+                    game.progress?.let { TurtleProgressLine(it) }
+                    Text(stringResource(R.string.wow_game_runtime_note), style = MaterialTheme.typography.bodySmall)
+                }
+                TurtleStatusLine(stringResource(R.string.wow_tile_server), TurtleTexts.server(context, server), good = server.phase == TurtleServer.Phase.RUNNING && server.worldUp)
+                if (server.phase == TurtleServer.Phase.STARTING) server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
             }
         }
         game is TurtleGame.State.Failed -> TurtleWindow(panel, padding = PaddingValues(18.dp)) {
@@ -437,9 +461,9 @@ private fun MainPanel(facts: TurtleFacts, server: TurtleServer.Status, job: Turt
                 FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     TurtleButton(stringResource(R.string.turtle_close), primary = false) { TurtleGame.dismiss() }
                     when {
-                        game.needsAccount -> TurtleButton(stringResource(R.string.turtle_tile_accounts)) { TurtleGame.dismiss(); actions.open(TurtleDialogKind.ACCOUNTS) }
-                        game.chromieCraft -> TurtleButton(stringResource(R.string.turtle_stop_chromiecraft)) { TurtleGame.dismiss(); TurtleServer.dismiss(); actions.stopChromieCraft() }
-                        else -> TurtleButton(stringResource(R.string.turtle_retry)) { TurtleGame.dismiss(); actions.play() }
+                        game.needsAccount -> TurtleButton(stringResource(R.string.wow_tile_accounts)) { TurtleGame.dismiss(); onDialog(TurtleDialogKind.ACCOUNTS) }
+                        game.chromieCraft -> TurtleButton(stringResource(R.string.turtle_stop_chromiecraft)) { TurtleGame.dismiss(); TurtleServer.dismiss(); Server.stop(context) }
+                        else -> TurtleButton(stringResource(R.string.turtle_retry)) { TurtleGame.dismiss(); onPlay() }
                     }
                 }
             }
@@ -457,258 +481,85 @@ private fun MainPanel(facts: TurtleFacts, server: TurtleServer.Status, job: Turt
         }
         server.phase == TurtleServer.Phase.RUNNING -> TurtleWindow(panel, padding = PaddingValues(18.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                TurtleTitle(stringResource(R.string.turtle_realm_online))
-                TurtleStatusLine(stringResource(R.string.turtle_realm_name), com.logie.warcraft.turtle.core.TurtleClientSetup.REALM_NAME)
-                TurtleStatusLine(stringResource(R.string.turtle_realm_world), stringResource(if (server.worldUp) R.string.turtle_realm_world_up else R.string.turtle_realm_world_no_data), good = server.worldUp)
-                TurtleStatusLine(stringResource(R.string.turtle_realm_here), "127.0.0.1")
-                if (TurtleSettings.lan(context)) TurtleStatusLine(stringResource(R.string.turtle_realm_lan), server.lanAddress ?: "—")
+                TurtleTitle(stringResource(R.string.wow_realm_online))
+                TurtleStatusLine(stringResource(R.string.wow_realm_name), com.logie.warcraft.turtle.core.TurtleClientSetup.REALM_NAME)
+                TurtleStatusLine(
+                    stringResource(R.string.wow_realm_world),
+                    stringResource(if (server.worldUp) R.string.wow_realm_world_up else R.string.wow_realm_world_no_data),
+                    good = server.worldUp,
+                )
+                TurtleStatusLine(stringResource(R.string.wow_realm_here), "127.0.0.1")
+                TurtleStatusLine(stringResource(R.string.wow_realm_lan), server.lanAddress ?: stringResource(R.string.wow_realm_lan_none))
+                if (!facts.client) Text(stringResource(R.string.turtle_realm_no_client), style = MaterialTheme.typography.bodySmall)
                 FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TurtleButton(stringResource(R.string.turtle_stop_realm), primary = false, onClick = actions.stop)
-                    if (server.worldUp && facts.client) TurtleButton(stringResource(R.string.turtle_play), onClick = actions.play)
+                    TurtleButton(stringResource(R.string.wow_server_stop), primary = false, onClick = onStop)
+                    if (!server.worldUp || !facts.client) {
+                        TurtleButton(stringResource(R.string.wow_tile_files)) { onDialog(TurtleDialogKind.FILES) }
+                    } else {
+                        TurtleButton(stringResource(R.string.wow_game_play), onClick = onPlay)
+                    }
                 }
             }
         }
         server.phase == TurtleServer.Phase.FAILED -> TurtleWindow(panel, padding = PaddingValues(18.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                TurtleTitle(stringResource(R.string.turtle_realm_failed))
+                TurtleTitle(stringResource(R.string.wow_server_failed))
                 Text(server.error ?: "", style = MaterialTheme.typography.bodyMedium)
                 FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TurtleButton(stringResource(R.string.turtle_details), primary = false) { actions.open(TurtleDialogKind.REALM) }
+                    TurtleButton(stringResource(R.string.wow_server_details), primary = false) { onDialog(TurtleDialogKind.SERVER) }
                     if (server.blockedByChromieCraft) {
-                        TurtleButton(stringResource(R.string.turtle_stop_chromiecraft)) { TurtleServer.dismiss(); actions.stopChromieCraft() }
+                        TurtleButton(stringResource(R.string.turtle_stop_chromiecraft)) { TurtleServer.dismiss(); Server.stop(context) }
                     } else {
-                        TurtleButton(stringResource(R.string.turtle_retry), onClick = actions.start)
+                        TurtleButton(stringResource(R.string.wow_server_retry), onClick = onStart)
                     }
                 }
             }
         }
-        facts.ready -> {
-            PressStart(onClick = actions.play)
+        else -> {
+            PressStart(onClick = onPlay)
             Text(
-                stringResource(R.string.turtle_ready_line),
+                stringResource(
+                    when {
+                        !facts.programsCurrent || !facts.databases -> if (facts.programsInstalled) R.string.turtle_home_start_line_update else R.string.turtle_home_start_line_install
+                        !facts.data -> R.string.turtle_home_start_line_no_data
+                        facts.client -> R.string.turtle_home_start_line_game
+                        else -> R.string.turtle_home_start_line
+                    }
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TurtleColors.Stone,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
-        }
-        else -> SetupPanel(facts, actions)
-    }
-}
-
-private fun stepNote(step: TurtleJobs.Step): Int? = when (step) {
-    TurtleJobs.Step.MAPS, TurtleJobs.Step.VMAPS -> R.string.turtle_step_data_note
-    TurtleJobs.Step.MMAPS -> R.string.turtle_step_mmaps_note
-    TurtleJobs.Step.DOWNLOADING -> R.string.turtle_step_download_note
-    TurtleJobs.Step.COPYING_CLIENT -> R.string.turtle_step_copy_note
-    else -> null
-}
-
-/** Not ready yet: the next thing to do, with the button that does it. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SetupPanel(facts: TurtleFacts, actions: TurtleActions) {
-    val context = LocalContext.current
-    TurtleWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            val next = facts.next
-            when (next?.step) {
-                InstallPlan.Step.SERVER, InstallPlan.Step.DATABASE, null -> {
-                    TurtleTitle(stringResource(if (facts.programsInstalled) R.string.turtle_setup_update_title else R.string.turtle_setup_install_title))
-                    Text(stringResource(R.string.turtle_setup_install_body), style = MaterialTheme.typography.bodyMedium)
-                    facts.pin?.let { pin ->
-                        Text(
-                            stringResource(R.string.turtle_setup_install_size, Formatter.formatShortFileSize(context, pin.size), Formatter.formatShortFileSize(context, facts.free)),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    } ?: Text(stringResource(R.string.turtle_error_not_pinned), style = MaterialTheme.typography.bodySmall, color = TurtleColors.Blood)
-                    TurtleButton(stringResource(R.string.turtle_install), enabled = facts.pin != null, modifier = Modifier.align(Alignment.End), onClick = actions.install)
+            // What's missing, with the button that fixes it (the 3.3.5a launcher's notices).
+            when {
+                facts.pin == null && !facts.programsInstalled -> Notice(stringResource(R.string.turtle_error_not_pinned))
+                !facts.programsCurrent || !facts.databases -> facts.pin?.let { pin ->
+                    Notice(stringResource(R.string.turtle_home_no_realm, Formatter.formatShortFileSize(context, pin.size), Formatter.formatShortFileSize(context, facts.free)))
                 }
-                InstallPlan.Step.CLIENT -> {
-                    TurtleTitle(stringResource(R.string.turtle_setup_client_title))
-                    Text(stringResource(R.string.turtle_setup_client_body), style = MaterialTheme.typography.bodyMedium)
-                    Text(stringResource(R.string.turtle_setup_client_why), style = MaterialTheme.typography.bodySmall)
-                    FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        TurtleButton(stringResource(R.string.turtle_pick_zip), primary = false, onClick = actions.pickZip)
-                        TurtleButton(stringResource(R.string.turtle_pick_folder), onClick = actions.pickFolder)
-                    }
-                }
-                InstallPlan.Step.DATA -> {
-                    TurtleTitle(stringResource(R.string.turtle_setup_data_title))
-                    Text(stringResource(R.string.turtle_setup_data_body), style = MaterialTheme.typography.bodyMedium)
-                    TurtleButton(stringResource(R.string.turtle_make), modifier = Modifier.align(Alignment.End)) { actions.makeData(TurtleSettings.mmaps(context)) }
-                }
-                InstallPlan.Step.ACCOUNT -> {
-                    TurtleTitle(stringResource(R.string.turtle_setup_account_title))
-                    Text(stringResource(R.string.turtle_setup_account_body), style = MaterialTheme.typography.bodyMedium)
-                    TurtleButton(stringResource(R.string.turtle_tile_accounts), modifier = Modifier.align(Alignment.End)) { actions.open(TurtleDialogKind.ACCOUNTS) }
-                }
-                InstallPlan.Step.CHECK, InstallPlan.Step.READY -> Text(stringResource(R.string.turtle_error_blocker), style = MaterialTheme.typography.bodyMedium)
+                !facts.client -> Notice(stringResource(R.string.turtle_home_no_client), stringResource(R.string.wow_tile_files)) { onDialog(TurtleDialogKind.FILES) }
+                !facts.data || !facts.dataCurrent -> Notice(stringResource(R.string.turtle_home_no_data), stringResource(R.string.wow_tile_files)) { onDialog(TurtleDialogKind.FILES) }
+                facts.accounts == 0 && facts.savedAccount == null -> Notice(stringResource(R.string.turtle_home_no_account), stringResource(R.string.wow_tile_accounts)) { onDialog(TurtleDialogKind.ACCOUNTS) }
             }
         }
     }
 }
 
-/**
- * Each part of Turtle WoW on its own line: how it is, and its own one-tap button (install,
- * make, check), so any one of them can be put in or done again by itself.
- */
-@OptIn(ExperimentalLayoutApi::class)
+/** A job under way (installing, copying the client, making the data...); a tap opens its screen. */
 @Composable
-private fun Components(facts: TurtleFacts, busy: Boolean, actions: TurtleActions) {
+private fun JobPanel(job: TurtleJobs.State.Working, onOpen: () -> Unit) {
     val context = LocalContext.current
-    val size = { bytes: Long -> Formatter.formatShortFileSize(context, bytes) }
-    TurtleWindow(Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
-        Column {
-            Component(
-                title = stringResource(R.string.turtle_part_programs),
-                summary = stringResource(R.string.turtle_part_programs_summary),
-                status = when {
-                    facts.programsCurrent -> stringResource(R.string.turtle_part_installed, facts.version ?: "")
-                    facts.programsInstalled -> stringResource(R.string.turtle_part_update)
-                    facts.downloadedSoFar > 0 -> stringResource(R.string.turtle_part_partial, size(facts.downloadedSoFar))
-                    else -> stringResource(R.string.turtle_part_missing)
-                },
-                state = if (facts.programsCurrent) PartState.DONE else PartState.TODO,
-                button = stringResource(if (facts.programsCurrent) R.string.turtle_reinstall else if (facts.downloadedSoFar > 0) R.string.turtle_resume else R.string.turtle_download_install),
-                enabled = !busy && facts.pin != null && facts.blocker == null,
-            ) { actions.job(TurtleJobs.Kind.PROGRAMS) }
-            Component(
-                title = stringResource(R.string.turtle_part_database),
-                summary = stringResource(R.string.turtle_part_database_summary),
-                status = stringResource(if (facts.databases) R.string.turtle_part_created else R.string.turtle_part_missing),
-                state = if (facts.databases) PartState.DONE else if (facts.programsInstalled) PartState.TODO else PartState.WAITING,
-                button = if (facts.databases) null else stringResource(R.string.turtle_create),
-                enabled = !busy && facts.programsInstalled,
-            ) { actions.job(TurtleJobs.Kind.DATABASE) }
-            Component(
-                title = stringResource(R.string.turtle_part_runtime),
-                summary = stringResource(R.string.turtle_part_runtime_summary),
-                status = stringResource(
-                    when {
-                        facts.runtimeReady -> R.string.turtle_part_ready
-                        facts.runtimeThere -> R.string.turtle_part_runtime_old
-                        else -> R.string.turtle_part_missing
-                    }
-                ),
-                state = if (facts.runtimeThere) PartState.DONE else PartState.TODO,
-                button = if (facts.runtimeThere) null else stringResource(R.string.turtle_install_short),
-                enabled = !busy,
-            ) { actions.job(TurtleJobs.Kind.RUNTIME) }
-            ClientComponent(facts, busy, actions)
-            Component(
-                title = stringResource(R.string.turtle_part_data),
-                summary = stringResource(R.string.turtle_part_data_summary),
-                status = when {
-                    facts.data && !facts.dataCurrent -> stringResource(R.string.turtle_part_data_old)
-                    facts.data && facts.state.dbcCheck == InstallState.ClientCheck.DIFFERENT -> stringResource(R.string.turtle_part_data_dbc_different)
-                    facts.data -> stringResource(R.string.turtle_part_data_made, (facts.dataParts - "mmaps").sorted().joinToString())
-                    else -> stringResource(R.string.turtle_part_missing)
-                },
-                state = if (facts.data && facts.dataCurrent) PartState.DONE else if (facts.client && facts.programsInstalled) PartState.TODO else PartState.WAITING,
-                button = stringResource(if (facts.data) R.string.turtle_remake else R.string.turtle_make),
-                enabled = !busy && facts.client && facts.programsInstalled,
-            ) { actions.makeData(false) }
-            Component(
-                title = stringResource(R.string.turtle_part_mmaps),
-                summary = stringResource(R.string.turtle_part_mmaps_summary),
-                status = stringResource(if ("mmaps" in facts.dataParts) R.string.turtle_part_created else R.string.turtle_part_optional),
-                state = if ("mmaps" in facts.dataParts) PartState.DONE else PartState.OPTIONAL,
-                button = stringResource(if ("mmaps" in facts.dataParts) R.string.turtle_remake else R.string.turtle_make),
-                enabled = !busy && facts.client && facts.programsInstalled,
-            ) { actions.makeData(true) }
-            Component(
-                title = stringResource(R.string.turtle_part_account),
-                summary = stringResource(R.string.turtle_part_account_summary),
-                status = facts.savedAccount ?: stringResource(if (facts.accounts > 0) R.string.turtle_part_created else R.string.turtle_part_missing),
-                state = if (facts.savedAccount != null || facts.accounts > 0) PartState.DONE else if (facts.databases) PartState.TODO else PartState.WAITING,
-                button = stringResource(R.string.turtle_tile_accounts),
-                enabled = facts.databases,
-                last = true,
-            ) { actions.open(TurtleDialogKind.ACCOUNTS) }
+    TurtleWindow(Modifier.fillMaxWidth(), padding = PaddingValues(18.dp), onClick = onOpen) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TurtleSpinner(40.dp)
+                Spacer(Modifier.width(12.dp))
+                Text(TurtleTexts.step(context, job.step), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            }
+            job.progress?.let { TurtleProgressLine(it) }
+            job.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 2) }
         }
     }
-    TurtleButton(
-        stringResource(R.string.turtle_install_everything),
-        enabled = !busy && facts.pin != null && facts.blocker == null && !facts.ready,
-        modifier = Modifier.fillMaxWidth(),
-        onClick = actions.install,
-    )
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ClientComponent(facts: TurtleFacts, busy: Boolean, actions: TurtleActions) {
-    val state = facts.state
-    Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        PartHeader(
-            title = stringResource(R.string.turtle_part_client),
-            summary = stringResource(R.string.turtle_part_client_summary),
-            status = when {
-                !facts.client -> stringResource(R.string.turtle_part_client_missing)
-                state.clientCheck == InstallState.ClientCheck.EXACT -> stringResource(R.string.turtle_part_client_exact)
-                state.clientCheck == InstallState.ClientCheck.DIFFERENT -> stringResource(R.string.turtle_part_client_different, state.clientDifferences)
-                else -> stringResource(R.string.turtle_part_client_unchecked)
-            },
-            state = when {
-                !facts.client -> PartState.TODO
-                state.clientCheck == InstallState.ClientCheck.DIFFERENT -> PartState.WARN
-                else -> PartState.DONE
-            },
-        )
-        FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (facts.client) TurtleButton(stringResource(R.string.turtle_check_files), primary = false, enabled = !busy) { actions.job(TurtleJobs.Kind.VERIFY) }
-            TurtleButton(stringResource(R.string.turtle_pick_zip), primary = false, enabled = !busy, onClick = actions.pickZip)
-            TurtleButton(stringResource(R.string.turtle_pick_folder), primary = !facts.client, enabled = !busy, onClick = actions.pickFolder)
-        }
-    }
-    Divider()
-}
-
-enum class PartState { DONE, TODO, WAITING, OPTIONAL, WARN }
-
-@Composable
-private fun Component(
-    title: String,
-    summary: String,
-    status: String,
-    state: PartState,
-    button: String?,
-    enabled: Boolean,
-    last: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        PartHeader(title, summary, status, state)
-        if (button != null) TurtleButton(button, primary = state == PartState.TODO, enabled = enabled, modifier = Modifier.align(Alignment.End), onClick = onClick)
-    }
-    if (!last) Divider()
-}
-
-@Composable
-private fun PartHeader(title: String, summary: String, status: String, state: PartState) {
-    Row(verticalAlignment = Alignment.Top) {
-        TurtleDot(
-            when (state) {
-                PartState.DONE -> TurtleColors.Leaf
-                PartState.TODO -> TurtleColors.Gold
-                PartState.WARN -> TurtleColors.Orange
-                PartState.OPTIONAL, PartState.WAITING -> TurtleColors.Dust
-            },
-            Modifier.padding(top = 6.dp),
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(summary, style = MaterialTheme.typography.bodySmall)
-            Text(status, style = MaterialTheme.typography.bodySmall, color = if (state == PartState.DONE) TurtleColors.Leaf else if (state == PartState.WARN) TurtleColors.Orange else TurtleColors.Parchment)
-        }
-    }
-}
-
-@Composable
-private fun Divider() {
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, TurtleColors.Brown, Color.Transparent))))
 }
 
 /** PRESS START in the site's gold-to-coral capitals, breathing. */
@@ -732,9 +583,13 @@ private fun PressStart(onClick: () -> Unit) {
     }
 }
 
+/** A line about something missing, with the button that fixes it. */
 @Composable
-private fun Notice(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium, color = TurtleColors.Parchment, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(8.dp))
+private fun Notice(text: String, action: String? = null, onAction: () -> Unit = {}) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text, style = MaterialTheme.typography.bodySmall, color = TurtleColors.Parchment, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 560.dp))
+        if (action != null) TurtleButton(action, primary = false, onClick = onAction)
+    }
 }
 
 private class Tile(val icon: ImageVector, val title: String, val subtitle: String, val onClick: () -> Unit)
@@ -742,21 +597,40 @@ private class Tile(val icon: ImageVector, val title: String, val subtitle: Strin
 @Composable
 private fun TileGrid(tiles: List<Tile>, columns: Int) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        tiles.chunked(columns).forEach { row ->
+        tiles.chunked(columns).forEachIndexed { rowIndex, row ->
+            // Tiles side by side are as tall as the tallest.
             Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { tile ->
-                    TurtleWindow(Modifier.weight(1f).fillMaxHeight(), onClick = tile.onClick, padding = PaddingValues(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(tile.icon, contentDescription = null, tint = TurtleColors.Gold, modifier = Modifier.size(26.dp))
-                            Spacer(Modifier.width(14.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(tile.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                                Text(tile.subtitle, style = MaterialTheme.typography.bodySmall, maxLines = 2)
-                            }
-                        }
-                    }
+                row.forEachIndexed { columnIndex, tile ->
+                    TileWindow(tile, rowIndex * columns + columnIndex, Modifier.weight(1f).fillMaxHeight())
                 }
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
+/** A panel that rises out of the dark, one after another, when the screen opens. */
+@Composable
+private fun TileWindow(tile: Tile, index: Int, modifier: Modifier) {
+    val appear = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        delay(450L + index * 90L)
+        appear.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+    }
+    TurtleWindow(
+        modifier = modifier.graphicsLayer {
+            alpha = appear.value
+            translationY = (1f - appear.value) * 14.dp.toPx()
+        },
+        onClick = tile.onClick,
+        padding = PaddingValues(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(tile.icon, contentDescription = null, tint = TurtleColors.Gold, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(tile.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
+                Text(tile.subtitle, style = MaterialTheme.typography.bodySmall, maxLines = 2)
             }
         }
     }

@@ -1,8 +1,9 @@
 #!/bin/sh
 # Packs Turtle WoW's realm into build/turtle/turtle-server.tar.xz: the programs
-# scripts/compile-tortoise.sh left in build/tortoise-dist with every library they load, Alpine's
-# MariaDB, the system call shim, the SQL, the configs, a seed database folder with Tortoise's
-# databases made and its world imported, and its ctl.sh. Next to it, turtle-server.json: the
+# scripts/compile-tortoise.sh left in build/tortoise-dist (the world server with TortoiseBots in
+# it) with every library they load, Alpine's MariaDB, the system call shim, the SQL (the core's and
+# the bots'), the configs, a seed database folder with Tortoise's databases made and its world
+# imported, the bots' control addon (TortoiseBotsManager) and its ctl.sh. Next to it, turtle-server.json: the
 # package's size and SHA-256 (the app checks the download against them) and what's in it.
 #
 # Not shipped in the APK: CI publishes it as a release of its own (turtle-server-<hash>) and the app
@@ -54,11 +55,17 @@ cp -L /usr/lib/ossl-modules/legacy.so "$pkg/lib/ossl-modules/"
 cc -O2 -shared -fPIC -o "$pkg/lib/libandroidcompat.so" /repo/warcraft/server/android_compat.c
 cp -r /usr/share/mariadb "$pkg/share/mariadb"
 cp "$DIST"/etc/*.conf.dist "$pkg/etc/"
+mkdir -p "$pkg/etc/modules"
+cp "$DIST"/etc/modules/*.conf.dist "$pkg/etc/modules/"
 cp "$DIST"/etc/offmesh.txt "$pkg/etc/" 2>/dev/null || touch "$pkg/etc/offmesh.txt"
 # The world server's updates (mangosd applies the ones a database hasn't had, as it starts). The
 # login database has none; the updater makes its folder if it's missing, so it's there already.
 cp -r "$DIST/sql/database_updates" "$pkg/sql/"
 mkdir -p "$pkg/sql/database_updates/auth"
+# TortoiseBots' own updates (modules/TortoiseBots/data/sql/{world,character}), which the world
+# server applies the same way, and its addon, which the app copies into the client's AddOns.
+cp -r "$DIST/modules" "$pkg/modules"
+cp -r "$DIST/addons" "$pkg/addons"
 
 # Every library the programs load, then the programs pointed at them.
 missing=$(for prog in "$pkg"/bin/* "$pkg/lib/ossl-modules/legacy.so"; do
@@ -130,6 +137,8 @@ rm -f "$seed"/*.err "$seed"/*.pid "$seed"/aria_log_control.lock
 
 cat > "$pkg/VERSION" <<EOF
 tortoise $(cat "$DIST/commit")
+tortoisebots $(cat "$DIST/tortoisebots-commit")
+tortoisebotsmanager $(cat "$DIST/tbm-commit")
 ace $ACE_VERSION
 client $CLIENT_BUILD
 mariadb $(mariadbd --version | awk '{ print $3 }')
@@ -151,6 +160,7 @@ cat > "$OUT/turtle-server.json" <<EOF
   "sha256": "$sha",
   "unpacked": $unpacked,
   "tortoise": "$(cat "$DIST/commit")",
+  "tortoisebots": "$(cat "$DIST/tortoisebots-commit")",
   "client_build": $CLIENT_BUILD,
   "arch": "$(uname -m)"
 }

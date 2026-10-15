@@ -63,8 +63,7 @@ object TurtleRealm {
 
     /**
      * What the launcher offers (each key and default checked against Tortoise's
-     * src/mangosd/mangosd.conf.dist.in). Tortoise has no playerbots, auction house bot or dungeon
-     * scaling: those aren't offered.
+     * src/mangosd/mangosd.conf.dist.in). The bots are TortoiseBots' ([botSettings]).
      */
     val SETTINGS = listOf(
         Setting("Rate.XP.Kill", "1", listOf("1", "1.5", "2", "3", "5"), Group.RATES),
@@ -77,4 +76,26 @@ object TurtleRealm {
         Setting("Rate.Rest.Offline.InWilderness", "1", listOf("1", "2", "3"), Group.RATES),
         Setting("StartPlayerLevel", "1", listOf("1", "10", "20", "30", "40", "50", "60"), Group.WORLD),
     )
+
+    /**
+     * The bots: TortoiseBots, compiled into the world server. Hired companions (at an inn) and your
+     * own alts as bots are always there; this is how many bots live in the world on their own (its
+     * pool of random bots, which start at level 1 and quest, level, travel and trade). Its template
+     * has 500, an average PC's; a phone gets [WORLD_BOTS_DEFAULT]. 0: none in the world.
+     */
+    const val WORLD_BOTS_DEFAULT = 40
+    val WORLD_BOTS_CHOICES = listOf(0, 20, 40, 80, 150)
+
+    /** aiplayerbot.conf's keys (TortoiseBots' template, ai/playerbot/aiplayerbot.conf.dist.in) for [worldBots] world bots. */
+    fun botSettings(worldBots: Int): Map<String, String> {
+        val count = worldBots.coerceIn(0, WORLD_BOTS_CHOICES.max())
+        return linkedMapOf(
+            "AiPlayerbot.Enabled" to "1",
+            "AiPlayerbot.MinRandomBots" to "$count",
+            "AiPlayerbot.MaxRandomBots" to "$count",
+            "AiPlayerbot.RandomBotAutologin" to if (count > 0) "1" else "0",
+            // Its telemetry (a UDP port) stays off.
+            "AiPlayerbot.Observability" to "0",
+        )
+    }
 }

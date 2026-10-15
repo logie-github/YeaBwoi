@@ -3,9 +3,10 @@
 
     auth_check.py account-sql USER PASSWORD [RANK]  print the SQL that creates the account, as the
                                                    app writes it (TurtleAccountRules.createSql)
-    auth_check.py login HOST USER PASSWORD         log in to the login server (SRP6, the 1.12
+    auth_check.py login HOST USER PASSWORD [N]     log in to the login server (SRP6, the 1.12
                                                    protocol) and print the realm list: "name
-                                                   address flags" a line
+                                                   address flags" a line; asks for it N times in
+                                                   a row (default 1), as the game does
     auth_check.py stand-in-maps FOLDER             header-only map files for maps 0 and 1, which get
                                                    the world server past its check of the start
                                                    areas (no game data in CI; never on a phone)
@@ -74,8 +75,9 @@ def account_sql(user, password, rank=4):
             "FROM realmlist, account LEFT JOIN realmcharacters ON acctid = account.id WHERE acctid IS NULL;")
 
 
-def login(host, user, password, port=3724):
-    """The realm list: (name, address, flags) for each realm."""
+def login(host, user, password, port=3724, lists=1):
+    """The realm list: (name, address, flags) for each realm. Asked for [lists] times in a row, as
+    the game does, each of which must be answered."""
     user = user.upper()
     sock = socket.create_connection((host, port), timeout=10)
     name = user.encode()
@@ -113,10 +115,11 @@ def login(host, user, password, port=3724):
     if M2 != sha1(A, M1, K):
         raise RuntimeError("server proof doesn't match")
 
-    sock.sendall(bytes([0x10]) + bytes(4))
-    recv_exact(sock, 1)
-    size = struct.unpack("<H", recv_exact(sock, 2))[0]
-    data = recv_exact(sock, size)
+    for _ in range(lists):
+        sock.sendall(bytes([0x10]) + bytes(4))
+        recv_exact(sock, 1)
+        size = struct.unpack("<H", recv_exact(sock, 2))[0]
+        data = recv_exact(sock, size)
     count = data[4]
     pos, realms = 5, []
     for _ in range(count):
@@ -147,8 +150,8 @@ def main():
     args = sys.argv[1:]
     if args[:1] == ["account-sql"] and len(args) in (3, 4):
         print(account_sql(*args[1:]))
-    elif args[:1] == ["login"] and len(args) == 4:
-        for realm in login(args[1], args[2], args[3]):
+    elif args[:1] == ["login"] and len(args) in (4, 5):
+        for realm in login(args[1], args[2], args[3], lists=int(args[4]) if len(args) == 5 else 1):
             print(*realm)
     elif args[:1] == ["stand-in-maps"] and len(args) == 2:
         stand_in_maps(args[1])

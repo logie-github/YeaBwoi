@@ -185,17 +185,17 @@ The app's second game: **Turtle WoW** (the fan-made "Vanilla+" World of Warcraft
 | --- | --- |
 | Realm | [Tortoise-WoW](https://github.com/tortoise-wow/tortoise-wow), the community restoration of Turtle WoW's 1.18.1 server, built for the phone's arm64 with its own MariaDB (`turtle/server-version.env`) |
 | Client | Yours: Turtle WoW **1.18.1 (build 7272)** with its 2026-04-12 hotfixes, Turtle WoW's last. Never part of the app, never downloaded by it. |
-| Bots | None: Tortoise-WoW has no playerbots, auction house bot or dungeon scaling |
+| Bots | [TortoiseBots](https://github.com/Sagiroth/TortoiseBots) by Sagiroth (v1.0.0), compiled into the realm: bots living in the world, companions to hire, your own alts as bots, controlled with its addon, TortoiseBotsManager (`/tbm`), which the app puts in your client |
 
 ### Installing
 
-1. **Install everything** (or **Install** on the main panel) downloads Turtle WoW's realm (one package, about the size the panel says: Tortoise-WoW, its database engine and libraries), checks it against the SHA-256 this version of the app was built with, installs it in Turtle's own folder and creates its databases. Give it an account name and password on the way if you like (the first account is the realm's administrator and logs in by itself), and turn on pathfinding if you want it (hours on a phone).
-2. **Add your Turtle WoW client**: **Pick folder** (the folder with `WoW.exe` and `Data` in it) or **Pick zip**. The app copies it (about 9 GB) and checks every file against Turtle WoW's final 1.18.1 checksums as it copies. A client that differs is taken with a warning. Then it makes the server's data from it by itself: the DBC tables and maps (minutes) and vmaps (minutes more), checked against Tortoise-WoW's checksums.
-3. **Press start**: the realm starts (its database, login server and world server; the first start applies Tortoise-WoW's database updates, a few minutes more), the game's Windows is set up the first time (Turtle's own), the client is pointed at the realm on the phone, and the game starts at its login screen.
+1. **Press start** downloads Turtle WoW's realm (one package, about the size the screen says: Tortoise-WoW with TortoiseBots, its database engine and libraries), checks it against the SHA-256 this version of the app was built with, installs it in Turtle's own folder and creates its databases. Then make an account under **Accounts** (the first account is the realm's administrator and logs in by itself).
+2. **Add your Turtle WoW client** under **Game files**: **Pick folder** (the folder with `WoW.exe` and `Data` in it) or **Pick zip**. The app copies it (about 9 GB) and checks every file against Turtle WoW's final 1.18.1 checksums as it copies. A client that differs is taken with a warning. Then it makes the server's data from it by itself: the DBC tables and maps (minutes) and vmaps (minutes more), checked against Tortoise-WoW's checksums. Turn on **Include mmaps** there for pathfinding (hours on a phone).
+3. **Press start** again: the realm starts (its database, login server and world server; the first start applies Tortoise-WoW's database updates, a few minutes more), the game's Windows is set up the first time (Turtle's own), the client is pointed at the realm on the phone, and the game starts at its login screen.
 
 **Why the client isn't downloaded:** Turtle WoW was shut down in 2026 after Blizzard won its lawsuit; the court's order also bars distributing Turtle's client. Copy your own onto the phone first (files in cloud folders can't be read this way).
 
-Each part also has its own line under **Turtle WoW — Vanilla+**, how it is and a button that does just that part: **Realm programs** (download and install, install again), **Databases** (create), **Windows runtime** (shared with the 3.3.5a game: program files only), **Your Turtle WoW client** (pick folder, pick zip, check files), **Server data** (make, make again), **Pathfinding** (optional, hours), **Account**.
+Each part also has its own line, how it is and a button that does just that part: under **Server**, **Realm programs** (install, install again), **Databases** (create), **Windows runtime** (shared with the 3.3.5a game: program files only); under **Game files**, **Your client** (pick folder, pick zip, check files) and **Server data** (dbc, maps, vmaps, and mmaps if you want them; make again).
 
 Everything carries on with the app in the background, with a notification and **Cancel**. A dropped download carries on from where it got to; a download that isn't the published file is deleted, never used. A step that stops leaves what was there before it, and pressing it again carries on.
 
@@ -203,17 +203,31 @@ Everything carries on with the app in the background, with a notification and **
 
 Played like the 3.3.5a game (the same touch controls and keyboard prompt), with three differences, because Tortoise-WoW's realm doesn't tell the app what a tap selected, when a cutscene plays or where the spellbook is (those are the ChromieCraft realm's own patches): a tap on anything the game's cursor offers something for does it at once, as a right click does (talks, loots, gathers, and on an enemy, attacks it); a hold always opens the bags (Back is Escape, to skip a cutscene); and spells are dragged off the spellbook with the mouse only. It logs in by itself with Turtle's own saved login (never ChromieCraft's). While it starts, its loading screen is Turtle WoW's: the map of Azeroth across the top, Turtle WoW's logo and the launcher's motes drifting up.
 
+### Bots
+
+Turtle WoW's realm has [TortoiseBots](https://github.com/Sagiroth/TortoiseBots) by Sagiroth in it, made for one player on their own realm: the world fills with bots that play the way players do, and your group with bots who tank, heal and fight.
+
+- **Bots in the world** start at level 1 in their starting zones and quest, grind, level, travel by foot and flight path, train, gather and craft, and spread across the world as they level. The first time the realm runs it makes them a few at a time. How many: **Bots & rates → Bots in the world** (none, 20, 40, 80 or 150; 40 at first). TortoiseBots' own default is 500, sized for a PC: more bots make the world livelier and the phone busier and warmer.
+- **Your own party:** hire a companion from an inn's recruiter (a fresh character at your level), or make alts on your account and bring them in as bots. They follow you, tank, heal, deal damage, interrupt, dispel and loot, run dungeons and raids with you, and fill missing roles when you queue for the dungeon finder or a battleground.
+- **Controls:** type `/tbm` in the game for TortoiseBotsManager, the bots' control panel (roster, log in and invite, party orders such as focus skull, pull back, stay, crowd control marks, and each bot's gear and behaviour). The app puts it in your client's `Interface/AddOns` each time you press start. Chat commands work too: `.bot add <name>`, `.bot invite <name>`, `.bot summon <name>`, `.bot role <name> tank|healer|dps`. TortoiseBots' guides: [getting started](https://github.com/Sagiroth/TortoiseBots/blob/main/docs/guides/getting-started.md), [player controls](https://github.com/Sagiroth/TortoiseBots/blob/main/docs/guides/player-controls.md).
+
+What CI checks: the realm builds with it, its database updates go in with Tortoise-WoW's, and the realm starts with it as far as CI can take it (no game data in CI). How the bots play can only be seen on the phone.
+
 ### Its menu
+
+The same tiles as the 3.3.5a launcher, in the same places, each for Turtle WoW's own things (Bots & rates where the 3.3.5a launcher has Modules):
 
 | Tile | What it does |
 | --- | --- |
-| **Realm** | How the realm is, Start and Stop, its logs (world, login, database, map tools), and **Let PCs on this Wi-Fi in** (off: the realm answers this phone only, offline). |
+| **Server** | How the realm is, **Start** and **Stop**; each part of it (realm programs, databases, Windows runtime) with a button to put it in again; **Let PCs on this Wi-Fi in** (off: the realm answers this phone only, offline); its logs (world, login, database, server data); battery; backups of the accounts and characters (**Back up now**, the last six, made by themselves before an update or a reset, and **Restore**); **Repair** (pick what to put back or check: the realm's programs, its configs, your client's files, the server's data, or new databases); **Uninstall** (type TURTLE to confirm: removes all of Turtle WoW, its realm, databases, copied client, data, Windows, logs, backups and settings, nothing else); and what this is and where it comes from. |
+| **Game files** | Your Turtle WoW client (pick folder, pick zip, check its files against 1.18.1's checksums) and the server's data made from it (dbc, maps, vmaps; mmaps if you want pathfinding). |
 | **Accounts** | Turtle WoW's own accounts: make them, change passwords, ranks (player, moderator, developer, administrator), delete; stop logging in automatically. Its database starts by itself for this when the realm is stopped. |
-| **Settings** | XP from kills, quests and exploring, money, reputation, rest, new characters' level; pathfinding. Taken at the realm's next start. |
-| **Updates** | The realm this version of the app is made for, the one installed, and the app's own updates. A newer realm comes with an app update, never one that doesn't fit; updating keeps accounts and characters (backed up first). |
-| **Repair & backups** | Pick what to put back or check: the realm's programs, its configs, your client's files, the server's data, or (after a backup) new databases. Backups of the accounts and characters (the last six, made by themselves before an update or a reset), and **Restore**. |
-| **About** | What this is, where it comes from, and what it can't do. |
-| **Uninstall** | Removes all of Turtle WoW (type TURTLE to confirm): its realm, databases, copied client, data, Windows, logs, backups and settings. Nothing else. |
+| **Graphics** | The game's resolution, as in the 3.3.5a launcher (the same setting for both games). |
+| **Add-ons** | The same add-on manager as the 3.3.5a launcher's (see **Add-ons**), for 1.12 add-ons from [warperia.com's Vanilla list](https://warperia.com/vanilla-addons/) and Turtle's own client: browse and search, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. The bots' TortoiseBotsManager comes with the realm, not from here. |
+| **Bots & rates** | XP from kills, quests and exploring, money, reputation, rest, new characters' level; pathfinding; how many bots live in the world. Taken at the realm's next start. |
+| **App icon** | The app's icon, as in the 3.3.5a launcher. |
+| **Updates** | The app's updates. A newer realm comes with an app update, never one that doesn't fit; updating keeps accounts and characters (backed up first). |
+| **Wrath of the Lich King** | Back to the 3.3.5a game and its ChromieCraft realm (as the chip at the top left). |
 
 ### Kept apart from the 3.3.5a game
 
@@ -223,8 +237,8 @@ Everything of Turtle WoW is in `files/turtle` (its own `server`, `etc`, `mysql`,
 
 | Path | Contents |
 | --- | --- |
-| `turtle/server-version.env` | Tortoise-WoW's commit, ACE's release (with its SHA-256), the client build |
-| `turtle/patches/` | Tortoise-WoW on musl: two G3D fixes and a comparison with `NULL` |
+| `turtle/server-version.env` | Tortoise-WoW's commit, ACE's release (with its SHA-256), the client build, TortoiseBots' release and its addon's commit |
+| `turtle/patches/` | Tortoise-WoW on musl: two G3D fixes and a comparison with `NULL`; and the folder the world server reads modules' database updates from, set at build time (the package's, on the phone) |
 | `turtle/server/ctl.sh`, `seed.sql` | Turtle's realm on the phone (refuses any folder but `files/turtle`), and its database seed |
 | `../scripts/fetch-tortoise.sh`, `compile-tortoise.sh`, `package-tortoise.sh` | Checkout, compile (ACE too) and package, in Alpine; `-march=native` replaced by a baseline for phones |
 | `../scripts/test-turtle-server.sh`, `turtle/server/auth_check.py` | CI's test of the package: its MariaDB, a 1.18.1 (7272) login with the realm list, the world server's database updates, a backup and restore, the system calls |
@@ -235,7 +249,7 @@ Everything of Turtle WoW is in `files/turtle` (its own `server`, `etc`, `mysql`,
 
 CI builds the realm once for each version of its inputs and publishes it as its own release (`turtle-server-<hash>`, a prerelease); each APK names the one it downloads. Local builds of the app have none (the launcher says so): `scripts/compile-tortoise.sh && scripts/package-tortoise.sh && scripts/test-turtle-server.sh` build and test one.
 
-Tortoise-WoW is GPLv2 (from MaNGOS, VMaNGOS and AzerothCore); ACE is under its own open license; Alegreya Sans SC (Turtle's titles) is SIL OFL (`fonts/`). Turtle WoW's name, logo and art belong to their owners and are used here only as the launcher's look for the user's own install. Not affiliated with Turtle WoW, the Tortoise-WoW project or Blizzard.
+Tortoise-WoW is GPLv2 (from MaNGOS, VMaNGOS and AzerothCore); TortoiseBots combines original code with ported playerbots code under GPL-2.0 and AGPL-3.0 (its `LICENCE.md`), and its addon TortoiseBotsManager is MIT; ACE is under its own open license; Alegreya Sans SC (Turtle's titles) is SIL OFL (`fonts/`). Turtle WoW's name, logo and art, and World of Warcraft's music, belong to their owners and are used here only as the launcher's look and sound for the user's own install. Not affiliated with Turtle WoW, the Tortoise-WoW project, TortoiseBots or Blizzard.
 
 ## Saves
 

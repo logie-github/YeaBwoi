@@ -41,6 +41,8 @@ class TurtleLayout(val files: File, val dataDir: File = files.parentFile ?: file
 
     /** Downloads in progress, kept between tries (`*.part`). */
     val downloads = File(root, "downloads")
+    /** What came from warperia.com into Turtle's client (the add-on manager's records). */
+    val addonRecords = File(root, "addons/warperia.tsv")
 
     /** Copies of the databases made before a repair or an update changes them. */
     val backups = File(root, "backups")
