@@ -8,6 +8,11 @@ import android.graphics.drawable.ColorDrawable
 import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.ComponentDialog
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,6 +50,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -60,6 +66,10 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.logie.warcraft.R
+import com.logie.warcraft.felsong.ui.FelsongColors
+import com.logie.warcraft.felsong.ui.FelsongMotes
+import com.logie.warcraft.felsong.ui.FelsongSpinner
+import com.logie.warcraft.felsong.ui.FelsongTheme
 import com.logie.warcraft.turtle.ui.TurtleColors
 import com.logie.warcraft.turtle.ui.TurtleMotes
 import com.logie.warcraft.turtle.ui.TurtleSpinner
@@ -72,6 +82,8 @@ import com.logie.warcraft.ui.WowSwitchRow
 import com.logie.warcraft.ui.WowTheme
 import com.logie.warcraft.ui.WowTitle
 import com.logie.warcraft.ui.WowWindow
+import kotlin.math.PI
+import kotlin.math.cos
 
 /**
  * The app's own screens over the game, in the launcher's look: the loading screen while Windows
@@ -101,11 +113,13 @@ private fun fullScreenDialog(activity: Activity, dim: Boolean, content: @Composa
  * The loading screen until the game's first window shows ("Entering Azeroth"): the game's picture,
  * its logo, a spinner and what's happening. The 3.3.5a game's: the Lich King before Icecrown
  * Citadel, snow falling. Turtle WoW's ([GestureView.ENVIRONMENT_TURTLE]): the old map of Kalimdor
- * and the Eastern Kingdoms with warm motes rising, its logo, in its own colours. The same calls as
- * the game screen's own loading box, which it replaces (patches/winlator/0004).
+ * and the Eastern Kingdoms with warm motes rising, its logo, in its own colours. Felsong's
+ * ([GestureView.ENVIRONMENT_FELSONG]): Illidan before the Black Temple with fel motes rising, its
+ * logo breathing as on felsong.gg's own loading screen. The same calls as the game screen's own
+ * loading box, which it replaces (patches/winlator/0004).
  */
 class GameLoading(private val activity: Activity) {
-    private val turtle = activity.intent?.getStringExtra(GestureView.EXTRA_ENVIRONMENT) == GestureView.ENVIRONMENT_TURTLE
+    private val environment = activity.intent?.getStringExtra(GestureView.EXTRA_ENVIRONMENT)
 
     private var dialog: ComponentDialog? = null
     private val text = mutableStateOf("")
@@ -115,7 +129,11 @@ class GameLoading(private val activity: Activity) {
         text.value = activity.getString(textResId)
         if (isShowing()) return
         val created = dialog ?: fullScreenDialog(activity, dim = false) {
-            if (turtle) TurtleTheme { TurtleLoading(text.value) } else Loading(text.value)
+            when (environment) {
+                GestureView.ENVIRONMENT_TURTLE -> TurtleTheme { TurtleLoading(text.value) }
+                GestureView.ENVIRONMENT_FELSONG -> FelsongTheme { FelsongLoading(text.value) }
+                else -> Loading(text.value)
+            }
         }.also {
             it.setCancelable(false)
             dialog = it
@@ -193,6 +211,47 @@ internal fun TurtleLoading(text: String) {
             )
             TurtleSpinner(48.dp)
             Text(text, style = MaterialTheme.typography.titleMedium, color = TurtleColors.Parchment, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+internal fun FelsongLoading(text: String) {
+    // The logo rising a little and dimming, and back, every two seconds: felsong.gg's own loading
+    // screen (loading.css, `scale`: translateY(-8px) at the half; it dims to 0.5 there, over a
+    // plain veil: here over the picture, to 0.75, so it stays readable).
+    val motion = rememberInfiniteTransition(label = "logo")
+    val beat by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(2_000, easing = LinearEasing)), label = "beat")
+    val lift = (1f - cos(beat * 2 * PI).toFloat()) / 2f
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(FelsongColors.Soot),
+        contentAlignment = Alignment.Center,
+    ) {
+        // The picture fills the screen, its sides past the edges on a phone (it's 2.37:1), Illidan
+        // kept in: his side of it is the one cropped least. Darkened a little for the words.
+        Image(
+            painterResource(R.drawable.felsong_loading),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            alignment = BiasAlignment(0.3f, 0f),
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(FelsongColors.Soot.copy(alpha = 0.25f), FelsongColors.Soot.copy(alpha = 0.55f)))))
+        FelsongMotes(Modifier.fillMaxSize(), alpha = 0.9f)
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Image(
+                painterResource(R.drawable.felsong_logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.width(380.dp).graphicsLayer {
+                    translationY = -8.dp.toPx() * lift
+                    alpha = 1f - 0.25f * lift
+                },
+            )
+            FelsongSpinner(48.dp)
+            Text(text, style = MaterialTheme.typography.titleMedium, color = FelsongColors.Bone, textAlign = TextAlign.Center)
         }
     }
 }

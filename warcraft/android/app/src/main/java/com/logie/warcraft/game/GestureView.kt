@@ -660,9 +660,10 @@ class GestureView(
         const val EXTRA_NEW_ACCOUNT = "new_account"
         /** The account the launcher put in the game's login box. */
         const val EXTRA_ACCOUNT = "account"
-        /** Which game this is: none for the 3.3.5a game, [ENVIRONMENT_TURTLE] for Turtle WoW's. */
+        /** Which game this is: none for the 3.3.5a game, [ENVIRONMENT_TURTLE] for Turtle WoW's, [ENVIRONMENT_FELSONG] for Felsong's. */
         const val EXTRA_ENVIRONMENT = "environment"
         const val ENVIRONMENT_TURTLE = "turtle"
+        const val ENVIRONMENT_FELSONG = "felsong"
 
         private const val CLICK_MS = 30L
         private const val KEY_MS = 60L
