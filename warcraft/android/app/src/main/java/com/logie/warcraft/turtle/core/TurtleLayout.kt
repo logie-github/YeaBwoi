@@ -31,6 +31,8 @@ class TurtleLayout(val files: File, val dataDir: File = files.parentFile ?: file
     /** The server's data made from the Turtle client: dbc, maps, vmaps, mmaps. */
     val data = File(root, "data")
     val dataWork = File(root, "data.work")
+    /** Server data being imported from a zip made on a computer. */
+    val dataImport = File(root, "data.import")
 
     /** The user's Turtle WoW 1.18.1 client, the game's drive D:. */
     val client = File(root, "client")

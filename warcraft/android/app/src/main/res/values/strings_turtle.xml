@@ -297,6 +297,15 @@
     <string name="turtle_files_client_different">Added · %1$s · %2$d files differ from 1.18.1</string>
     <string name="turtle_files_client_body">Your own copy of the Turtle WoW 1.18.1 (build 7272) client with its 2026-04-12 hotfixes, about 9 GB: pick its folder (the one with WoW.exe and Data in it), or a zip of it. Move it onto the phone first (files in cloud folders can\'t be read this way). The app copies it into Turtle\'s own folder and checks every file against Turtle WoW\'s final checksums as it copies. It can\'t download it: the court order that shut Turtle WoW down bars distributing its client.</string>
     <string name="turtle_files_data_body">The world server needs dbc and maps from your client; vmaps add line of sight, and mmaps pathfinding, which creatures and bots need to move well (hours on a phone). Made on the phone with Tortoise-WoW\'s own tools; the DBC files are checked against its checksums. Adding a client makes them by itself.</string>
+    <string name="turtle_files_data_pc_title">Made on a computer</string>
+    <string name="turtle_files_data_pc_body">Much faster than the phone, pathfinding included: on any computer with Docker and a copy of your Turtle WoW client, run scripts/make-turtle-server-data.sh from this app\'s repository (it uses the same Tortoise-WoW version as the realm on the phone). Copy the turtle-server-data.zip it makes to the phone and import it here. A zip of only mmaps adds pathfinding to the data the phone made.</string>
+    <string name="turtle_files_data_import">Import zip</string>
+    <string name="turtle_import_part">%1$s (%2$d files)</string>
+    <string name="turtle_done_import">Imported: %1$s.</string>
+    <string name="turtle_done_import_dbc_different">Imported: %1$s. %2$d DBC files differ from Turtle WoW 1.18.1\'s: the zip was made from a different client.</string>
+    <string name="turtle_error_import_not_data">There\'s no server data in that zip: no dbc, maps, vmaps or mmaps folders with Tortoise-WoW\'s files in them.</string>
+    <string name="turtle_error_import_incomplete">That zip has only %1$s: the world server also needs dbc and maps. Make them here first (Make server data), or import a zip that has them too. Nothing was changed.</string>
+    <string name="turtle_error_import_foreign">%1$d files in that zip aren\'t in this realm\'s format (made by other tools, or another version of Tortoise-WoW\'s), so the world server would ignore them. Nothing was changed. For example: %2$s. Make the zip with scripts/make-turtle-server-data.sh.</string>
     <string name="turtle_server_parts">Turtle WoW\'s realm</string>
     <string name="turtle_server_programs">Realm programs</string>
     <string name="turtle_server_databases">Databases</string>

@@ -140,6 +140,19 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   `turtle-server-f239aff1e747`. JVM tests: 176, passing (the bots'
   settings, the addon's install into the client, warperia.com's Vanilla list and downloads). The
   launcher's screens were rendered off the phone, each tile's.
+- **Pathfinding made on a computer** (the user asked for the hours-long job off the phone): CI
+  can't make it, as nobody publishes Turtle's server data ready-made (AzerothCore does for 3.3.5a,
+  which the app downloads) and it can only be made from the user's own client. So
+  `scripts/make-turtle-server-data.sh` makes it on any computer with Docker, with the tools built
+  from the realm's own commit, and **Game files → Import zip** takes it (`TurtleDataImport`: only
+  the four folders; every map, vmap and mmap file checked by its header, `MAPS`/`z1.4`,
+  `VMAP_6.0`, `MMAP` version 6; refused whole otherwise; DBC checksums). Found on the way and
+  fixed: Tortoise's MoveMapGen `--silent` ends with **1** when it has built everything, which
+  ctl.sh passed on, so the app would have taken hours of finished pathfinding for a failure and
+  thrown it away (seen on a real run; ctl.sh now passes 1 on as 0; a unit test runs ctl.sh with
+  each code, and the realm's CI test builds a tile and checks it). Making the data again without
+  mmaps now keeps the pathfinding already there. The script was run up to the extractor with a
+  stand-in client (no Turtle client here); the import was not run on a phone.
 - CI on arm64 (GitHub's `ubuntu-24.04-arm`): Tortoise-WoW and ACE compiled in 20 minutes; the
   package is 51 MB (459 MB installed); its test passed every check, including the system call
   check against Android's seccomp policy (113 server processes and threads): Turtle's MariaDB,

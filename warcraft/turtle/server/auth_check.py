@@ -10,6 +10,9 @@
     auth_check.py stand-in-maps FOLDER             header-only map files for maps 0 and 1, which get
                                                    the world server past its check of the start
                                                    areas (no game data in CI; never on a phone)
+    auth_check.py stand-in-mmap-input FOLDER       one header-only map and a vmap tree for map 13 in
+                                                   FOLDER/maps and FOLDER/vmaps: MoveMapGen builds
+                                                   one pathfinding tile from them in seconds
 
 Exits non-zero if anything fails. Used by scripts/test-turtle-server.sh in CI.
 """
@@ -146,6 +149,15 @@ def stand_in_maps(folder):
                     out.write(header)
 
 
+def stand_in_mmap_input(folder):
+    os.makedirs(os.path.join(folder, "maps"), exist_ok=True)
+    os.makedirs(os.path.join(folder, "vmaps"), exist_ok=True)
+    with open(os.path.join(folder, "maps", "0130000.map"), "wb") as out:
+        out.write(b"MAPS" + b"z1.4" + bytes(32))
+    with open(os.path.join(folder, "vmaps", "013.vmtree"), "wb") as out:
+        out.write(b"VMAP_6.0" + b"\0" + b"NODE" + bytes(64))
+
+
 def main():
     args = sys.argv[1:]
     if args[:1] == ["account-sql"] and len(args) in (3, 4):
@@ -155,6 +167,8 @@ def main():
             print(*realm)
     elif args[:1] == ["stand-in-maps"] and len(args) == 2:
         stand_in_maps(args[1])
+    elif args[:1] == ["stand-in-mmap-input"] and len(args) == 2:
+        stand_in_mmap_input(args[1])
     else:
         sys.exit(__doc__)
 

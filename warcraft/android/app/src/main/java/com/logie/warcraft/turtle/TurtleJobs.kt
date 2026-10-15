@@ -13,6 +13,7 @@ import com.logie.warcraft.client.ClientBuild
 import com.logie.warcraft.turtle.core.ClientManifest
 import com.logie.warcraft.turtle.core.InstallState
 import com.logie.warcraft.turtle.core.SafeFs
+import com.logie.warcraft.turtle.core.TurtleDataImport
 import com.logie.warcraft.turtle.core.TurtleLayout
 import com.logie.warcraft.turtle.core.VerifiedDownload
 import kotlinx.coroutines.runBlocking
@@ -35,7 +36,7 @@ import java.util.zip.ZipInputStream
  * kept to carry on from), so Install can be pressed again, and Repair or Uninstall clean it up.
  */
 object TurtleJobs {
-    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, VERIFY, DATA, REPAIR, BACKUP, RESTORE, UNINSTALL }
+    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, VERIFY, DATA, IMPORT_DATA, REPAIR, BACKUP, RESTORE, UNINSTALL }
 
     enum class Step { CHECKING, DOWNLOADING, UNPACKING, DATABASE, RUNTIME, COPYING_CLIENT, VERIFYING_CLIENT, MAPS, VMAPS, MMAPS, VERIFYING_DATA, ACCOUNT, BACKUP, RESTORE, REMOVING }
 
@@ -102,6 +103,7 @@ object TurtleJobs {
                 Kind.CLIENT -> importClient(context, uri ?: throw JobException("No client picked"), isFolder, options)
                 Kind.VERIFY -> verifyClient(context)
                 Kind.DATA -> makeData(context, Kind.DATA, options.withMmaps)
+                Kind.IMPORT_DATA -> importData(context, uri ?: throw JobException("No zip picked"))
                 Kind.REPAIR -> repair(context, options)
                 Kind.BACKUP -> backup(context)
                 Kind.RESTORE -> restore(context, options.restoreFile ?: throw JobException("No backup chosen"))
@@ -243,7 +245,7 @@ object TurtleJobs {
     private fun cleanLeftovers(context: Context) {
         val layout = TurtleFiles.layout(context)
         val fs = TurtleFiles.fs(context)
-        for (folder in listOf(layout.serverStaging, layout.serverOld, layout.clientStaging, File(layout.client.path + ".old"), File(layout.server.path + ".old"))) {
+        for (folder in listOf(layout.serverStaging, layout.serverOld, layout.clientStaging, layout.dataImport, File(layout.client.path + ".old"), File(layout.server.path + ".old"))) {
             fs.delete(folder)
         }
     }
@@ -487,6 +489,10 @@ object TurtleJobs {
         if (!File(layout.dataWork, "maps").isDirectory || (File(layout.dataWork, "maps").list()?.size ?: 0) == 0) {
             throw JobException(context.getString(R.string.turtle_error_no_maps), WowFiles.tail(File(layout.logs, "maps.log"), 30))
         }
+        // Pathfinding made before (hours on the phone, or imported) stays when it isn't made again:
+        // it's made from the same 1.18.1 terrain.
+        val mmaps = File(layout.data, "mmaps")
+        if (!withMmaps && mmaps.list()?.isNotEmpty() == true) TurtleFiles.fs(context).move(mmaps, File(layout.dataWork, "mmaps"))
         runCtl(context, kind, Step.VERIFYING_DATA, listOf("data-done"), "data-done.log")
         val exeHash = TurtleFiles.state(context).clientExeSha256
         TurtleFiles.updateState(context) {
@@ -498,6 +504,132 @@ object TurtleJobs {
         }
         return if (dbc.exact) context.getString(R.string.turtle_done_data, TurtleFiles.dataParts(context).sorted().joinToString())
         else context.getString(R.string.turtle_done_data_dbc_different, dbc.missing.size + dbc.different.size)
+    }
+
+    /**
+     * The server's data made on a computer from the user's own client (scripts/make-turtle-server-
+     * data.sh): a zip of any of dbc, maps, vmaps and mmaps, unpacked into `data.import` with every
+     * map, vmap and mmap file checked by its header ([TurtleDataImport]) and the DBC files against
+     * Turtle's checksums, then each folder it has put in place of the server's (the others stay).
+     * Nothing is replaced unless all of it is this realm's format.
+     */
+    private fun importData(context: Context, zip: Uri): String {
+        val kind = Kind.IMPORT_DATA
+        working(kind, Step.CHECKING)
+        preflight(context)
+        if (TurtleServer.isBusy) throw JobException(context.getString(R.string.turtle_error_stop_first))
+        val layout = TurtleFiles.layout(context)
+        val fs = TurtleFiles.fs(context)
+        cleanLeftovers(context)
+        val total = sizeOf(context, zip)
+        // Unpacked, the data takes about twice its zip.
+        checkSpace(context, (if (total > 0) total * 2 else DATA_SPACE) + SPACE_MARGIN)
+        fs.mkdirs(layout.dataImport)
+        try {
+            val counts = unzipData(context, zip, total, layout.dataImport, fs)
+            val found = TurtleDataImport.FOLDERS.filter { (counts[it] ?: 0) > 0 }
+            if (found.isEmpty()) throw JobException(context.getString(R.string.turtle_error_import_not_data))
+            if (!TurtleDataImport.complete(found.toSet(), TurtleFiles.dataParts(context))) {
+                throw JobException(context.getString(R.string.turtle_error_import_incomplete, found.joinToString()))
+            }
+            working(kind, Step.VERIFYING_DATA)
+            val dbc = if ("dbc" in found) TurtleFiles.dbcManifest(context).verify(File(layout.dataImport, "dbc")) else null
+            fs.mkdirs(layout.data)
+            for (folder in found) fs.replace(File(layout.dataImport, folder), File(layout.data, folder))
+            TurtleFiles.updateState(context) { state ->
+                state.copy(
+                    // Made from the user's client: Install doesn't make it again over the import.
+                    dataFrom = if ("dbc" in found || "maps" in found) state.clientExeSha256 else state.dataFrom,
+                    dataParts = TurtleFiles.dataParts(context),
+                    dbcCheck = when {
+                        dbc == null -> state.dbcCheck
+                        dbc.exact -> InstallState.ClientCheck.EXACT
+                        else -> InstallState.ClientCheck.DIFFERENT
+                    },
+                )
+            }
+            val summary = found.joinToString { context.getString(R.string.turtle_import_part, it, counts[it] ?: 0) }
+            return if (dbc != null && !dbc.exact) context.getString(R.string.turtle_done_import_dbc_different, summary, dbc.missing.size + dbc.different.size)
+            else context.getString(R.string.turtle_done_import, summary)
+        } finally {
+            fs.delete(layout.dataImport)
+        }
+    }
+
+    /** Unpacks the data files of [zip] into [into]; how many went into each folder. */
+    private fun unzipData(context: Context, zip: Uri, total: Long, into: File, fs: SafeFs): Map<String, Int> {
+        val input = context.contentResolver.openInputStream(zip) ?: throw JobException(context.getString(R.string.turtle_error_read, zip.lastPathSegment ?: ""))
+        var read = 0L
+        val counting = object : java.io.FilterInputStream(input) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int = super.read(b, off, len).also { if (it > 0) read += it }
+        }
+        val counts = mutableMapOf<String, Int>()
+        val foreign = mutableListOf<String>()
+        try {
+            ZipInputStream(counting.buffered(1 shl 16)).use { stream ->
+                while (true) {
+                    checkCancelled()
+                    val entry = stream.nextEntry ?: break
+                    if (entry.isDirectory) continue
+                    val path = TurtleDataImport.target(entry.name) ?: continue
+                    val head = readHead(stream, TurtleDataImport.HEAD)
+                    when (TurtleDataImport.problem(path, head)) {
+                        null -> {}
+                        TurtleDataImport.Problem.NOT_DATA -> continue
+                        TurtleDataImport.Problem.FOREIGN -> {
+                            foreign += path
+                            continue
+                        }
+                    }
+                    val target = fs.check(File(into, path))
+                    target.parentFile?.let { fs.mkdirs(it) }
+                    target.outputStream().use { output ->
+                        output.write(head)
+                        copyAll(stream, output) {
+                            working(Kind.IMPORT_DATA, Step.UNPACKING, if (total > 0) read.toFloat() / total else null, "${size(context, read)} · $path")
+                        }
+                    }
+                    val folder = path.substringBefore('/')
+                    counts[folder] = (counts[folder] ?: 0) + 1
+                }
+            }
+        } catch (e: java.util.zip.ZipException) {
+            throw JobException(context.getString(R.string.turtle_error_zip, e.message ?: ""))
+        }
+        if (foreign.isNotEmpty()) {
+            throw JobException(context.getString(R.string.turtle_error_import_foreign, foreign.size, foreign.take(3).joinToString()))
+        }
+        return counts
+    }
+
+    /** Up to [count] bytes from the start of [input] (fewer if it's shorter). */
+    private fun readHead(input: InputStream, count: Int): ByteArray {
+        val head = ByteArray(count)
+        var got = 0
+        while (got < count) {
+            val n = input.read(head, got, count - got)
+            if (n < 0) break
+            got += n
+        }
+        return head.copyOf(got)
+    }
+
+    /** Copies the rest of [input] into [output]; [onProgress] every few MB. */
+    private fun copyAll(input: InputStream, output: java.io.OutputStream, onProgress: () -> Unit) {
+        val buffer = ByteArray(1 shl 16)
+        var since = 0
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) break
+            output.write(buffer, 0, n)
+            since += n
+            if (since >= 4 shl 20) {
+                checkCancelled()
+                onProgress()
+                since = 0
+            }
+        }
+        onProgress()
     }
 
     // Repair, backups, uninstall -----------------------------------------------------------------
