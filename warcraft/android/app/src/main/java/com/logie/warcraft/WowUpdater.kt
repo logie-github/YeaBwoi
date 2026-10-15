@@ -102,6 +102,16 @@ object WowUpdater {
      * What a request to [url] carries to get a release's file: for GitHub's API, the file itself
      * and the token; for the server it sends the file from, nothing.
      */
+    /**
+     * The user's own GitHub token (the Modules screen's, kept by [ModuleStore]): what a build made
+     * outside CI, which has none of its own built in, reads this repository's releases with.
+     */
+    @Volatile
+    var userToken: String? = null
+
+    /** The token for this repository's releases: CI's read-only one, else the user's. */
+    private val token: String get() = BuildConfig.WOW_UPDATE_TOKEN.ifEmpty { userToken.orEmpty() }
+
     fun assetHeaders(url: URL): Map<String, String> =
         if (url.host != API_HOST) {
             emptyMap()
@@ -109,7 +119,7 @@ object WowUpdater {
             buildMap {
                 put("Accept", "application/octet-stream")
                 put("X-GitHub-Api-Version", "2022-11-28")
-                if (BuildConfig.WOW_UPDATE_TOKEN.isNotEmpty()) put("Authorization", "Bearer ${BuildConfig.WOW_UPDATE_TOKEN}")
+                if (token.isNotEmpty()) put("Authorization", "Bearer $token")
             }
         }
 
@@ -198,9 +208,7 @@ object WowUpdater {
                 setRequestProperty("User-Agent", "${BuildConfig.APPLICATION_ID}/${BuildConfig.VERSION_NAME}")
                 if (current.host == API_HOST) {
                     setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-                    if (BuildConfig.WOW_UPDATE_TOKEN.isNotEmpty()) {
-                        setRequestProperty("Authorization", "Bearer ${BuildConfig.WOW_UPDATE_TOKEN}")
-                    }
+                    if (token.isNotEmpty()) setRequestProperty("Authorization", "Bearer $token")
                 }
             }
             val code = connection.responseCode

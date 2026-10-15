@@ -14,8 +14,10 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.logie.warcraft.MainActivity
+import com.logie.warcraft.ModuleStore
 import com.logie.warcraft.R
 import com.logie.warcraft.ServerService
+import com.logie.warcraft.WowUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -41,6 +43,8 @@ class TurtleService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A download may start here with the launcher gone (a build without CI's token reads the user's).
+        WowUpdater.userToken = ModuleStore.token(this)
         when (intent?.action) {
             ACTION_STOP -> {
                 TurtleServer.stop(this)

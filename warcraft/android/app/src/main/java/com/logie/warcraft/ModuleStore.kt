@@ -69,6 +69,7 @@ object ModuleStore {
         _realm.value = ModuleBuild.builtFromJson(File(dir, REALM).takeIf { it.isFile }?.readText())
         _saved.value = ModuleBuild.savedFromJson(File(dir, SAVED).takeIf { it.isFile }?.readText())
         _hasToken.value = !token(context).isNullOrBlank()
+        WowUpdater.userToken = token(context)
         loaded = true
         runCatching { tidySaved(context) }
     }
@@ -186,11 +187,13 @@ object ModuleStore {
         GitHubApi({ trimmed }, WowUpdater.userAgent).get(workflowUrl())
         prefs(context).edit().putString(KEY_TOKEN, trimmed).apply()
         _hasToken.value = true
+        WowUpdater.userToken = trimmed
     }
 
     fun clearToken(context: Context) {
         prefs(context).edit().remove(KEY_TOKEN).apply()
         _hasToken.value = false
+        WowUpdater.userToken = null
     }
 
     private fun api(context: Context) = GitHubApi({ token(context) }, WowUpdater.userAgent)

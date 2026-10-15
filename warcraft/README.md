@@ -262,6 +262,8 @@ Accounts, characters and the world are in MariaDB's databases in the app's stora
 
 Like the other apps: the app checks this repository's releases (`wow-build-N`) when it opens and from **Updates**, stops the server, and installs over itself. A private repository needs the `DOLPHINXD_UPDATE_TOKEN` secret (see the main README). It's signed with the same key as the other apps.
 
+**A build made outside CI** (when GitHub won't run Actions, say): build it with the release's flags (`-PwowVersionCode` above the installed release, `-PturtleServer*` from a published `turtle-server-*` release's `turtle-server.json`) and the CI key in `ci/`, and it installs over the release, keeping everything. Without `server.tar.xz` in it, it runs the 3.3.5a server already unpacked from the release before (the same package unless the server changed). Without CI's token built in, it reads this repository's releases (updates, Turtle's realm) with your own token: **Modules → Your realm → Add your token**, a fine-grained token for this repository with Contents and Actions read.
+
 ## How it's built
 
 | Path | Contents |

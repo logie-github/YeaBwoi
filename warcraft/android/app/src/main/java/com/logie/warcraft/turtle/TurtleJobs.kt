@@ -479,7 +479,9 @@ object TurtleJobs {
         }
         if (withMmaps) {
             working(kind, Step.MMAPS, 2f / parts)
-            runCtl(context, kind, Step.MMAPS, listOf("mmaps"), "mmaps.log", timeoutMinutes = 24 * 60) { line ->
+            // MoveMapGen --silent ends with 1 once it has built everything; realm packages before
+            // ctl.sh passed that on as 0 hand it over as it is.
+            runCtl(context, kind, Step.MMAPS, listOf("mmaps"), "mmaps.log", timeoutMinutes = 24 * 60, success = setOf(0, 1)) { line ->
                 working(kind, Step.MMAPS, 2f / parts, line.trim())
             }
         }
@@ -748,7 +750,7 @@ object TurtleJobs {
     // Helpers ------------------------------------------------------------------------------------
 
     /** Runs Turtle's ctl.sh to its end on this thread, its output in `logs/<log>`. */
-    private fun runCtl(context: Context, kind: Kind, step: Step, args: List<String>, log: String, timeoutMinutes: Long = 10, onLine: ((String) -> Unit)? = null) {
+    private fun runCtl(context: Context, kind: Kind, step: Step, args: List<String>, log: String, timeoutMinutes: Long = 10, success: Set<Int> = setOf(0), onLine: ((String) -> Unit)? = null) {
         val layout = TurtleFiles.layout(context)
         val fs = TurtleFiles.fs(context)
         fs.mkdirs(layout.logs)
@@ -780,7 +782,7 @@ object TurtleJobs {
         checkCancelled()
         if (System.currentTimeMillis() > deadline) throw JobException(context.getString(R.string.turtle_error_step_slow, args.first()), WowFiles.tail(logFile, 30))
         val code = process.exitValue()
-        if (code != 0) throw JobException(context.getString(R.string.turtle_error_step, args.first(), code), WowFiles.tail(logFile, 30))
+        if (code !in success) throw JobException(context.getString(R.string.turtle_error_step, args.first(), code), WowFiles.tail(logFile, 30))
         working(kind, step)
     }
 
