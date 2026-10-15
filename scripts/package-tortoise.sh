@@ -67,9 +67,11 @@ mkdir -p "$pkg/sql/database_updates/auth"
 cp -r "$DIST/modules" "$pkg/modules"
 cp -r "$DIST/addons" "$pkg/addons"
 
-# Every library the programs load, then the programs pointed at them.
+# Every library the programs load, then the programs pointed at them. ACE is in $pkg/lib already:
+# the programs' own run path names ACE's build folder, which isn't there when the compile comes
+# from CI's cache (every ACE symbol would read as missing).
 missing=$(for prog in "$pkg"/bin/* "$pkg/lib/ossl-modules/legacy.so"; do
-	ldd "$prog" 2>&1 | grep "not found" | grep -v 'libACE' | sed "s|^|$(basename "$prog"): |"
+	LD_LIBRARY_PATH="$pkg/lib" ldd "$prog" 2>&1 | grep "not found" | sed "s|^|$(basename "$prog"): |"
 done)
 if [ -n "$missing" ]; then
 	echo "$missing" >&2
