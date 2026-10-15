@@ -61,6 +61,9 @@ object TurtleSettings {
             set("GameType", "0")
             set("PlayerLimit", "0")
         }
+        TurtleServer.editConf(File(TurtleFiles.layout(context).etc, "realmd.conf")) {
+            for ((key, value) in TurtleRealm.REALMD_SETTINGS) set(key, value)
+        }
     }
 }
 

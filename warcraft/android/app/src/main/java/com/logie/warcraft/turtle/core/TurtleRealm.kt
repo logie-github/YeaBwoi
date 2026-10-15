@@ -48,6 +48,14 @@ object TurtleRealm {
         }
     }
 
+    /**
+     * realmd.conf for a realm on the phone, set at each start. Tortoise's login server drops a
+     * client that asks for the realm list twice within MinRealmListDelay seconds (1), with no
+     * reason given: the client says "Disconnected from server". A guard for a public server; on
+     * the phone the answer comes at once and the client asks again within the second.
+     */
+    val REALMD_SETTINGS = mapOf("MinRealmListDelay" to "0")
+
     /** A setting in mangosd.conf the launcher offers, with Tortoise's default. */
     data class Setting(val key: String, val default: String, val choices: List<String>, val group: Group)
 

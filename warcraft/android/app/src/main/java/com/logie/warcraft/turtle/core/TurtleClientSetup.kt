@@ -10,7 +10,8 @@ import java.io.File
  * phone before each start, in its own folder only:
  *
  * - `realmlist.wtf` next to WoW.exe (where a 1.12 client reads it, unlike 3.3.5a's `Data/<locale>/`):
- *   `set realmlist 127.0.0.1`;
+ *   `set realmlist 127.0.0.1`, and the patch list too (Turtle's own files name its old servers for
+ *   both);
  * - `WTF/Config.wtf` (the client's other settings stay): the realm by name, the screen, the intro
  *   off, and the account's name in the login box.
  */
@@ -19,6 +20,7 @@ object TurtleClientSetup {
 
     fun values(width: Int, height: Int, accountName: String?): Map<String, String> = buildMap {
         put("realmList", "127.0.0.1")
+        put("patchList", "127.0.0.1")
         put("realmName", REALM_NAME)
         put("readTOS", "1")
         put("readEULA", "1")
@@ -34,7 +36,7 @@ object TurtleClientSetup {
 
     /** Writes the realm list and the settings into [client] (Turtle's client folder). */
     fun apply(client: File, width: Int, height: Int, accountName: String?) {
-        File(client, "realmlist.wtf").writeText(ClientConfig.realmlist("127.0.0.1"))
+        File(client, "realmlist.wtf").writeText(ClientConfig.realmlist("127.0.0.1") + "set patchlist 127.0.0.1\r\n")
         val config = File(client, "WTF/Config.wtf")
         config.parentFile?.mkdirs()
         val text = if (config.isFile) config.readText() else ""

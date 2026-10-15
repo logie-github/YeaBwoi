@@ -99,6 +99,14 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   with the phone's error under the old check. The realm package didn't change (the same release),
   and the downloaded file is kept, so the next try only checks it and unpacks it.
 
+- On the user's phone, every login said "Disconnected from server". Tortoise's login server
+  drops a client that asks for the realm list twice within `MinRealmListDelay` seconds (1 in
+  its realmd.conf), without a word: a guard for a public server, which the phone, answering at
+  once, sets off. Reproduced against the realm's own realmd (two requests in a second: the second
+  closes the connection, "sending CMD_REALM_LIST too frequently" in its log) and fixed by the
+  app setting it to 0 at each start (`TurtleRealm.REALMD_SETTINGS`): both answered. The client's
+  patch list is pointed at the phone too (Turtle's own files name its old servers). Not yet seen
+  on the phone.
 - CI on arm64 (GitHub's `ubuntu-24.04-arm`): Tortoise-WoW and ACE compiled in 20 minutes; the
   package is 51 MB (459 MB installed); its test passed every check, including the system call
   check against Android's seccomp policy (113 server processes and threads): Turtle's MariaDB,
