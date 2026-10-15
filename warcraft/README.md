@@ -203,7 +203,7 @@ Everything carries on with the app in the background, with a notification and **
 
 ### The game
 
-Played like the 3.3.5a game (the same touch controls and keyboard prompt), with three differences, because Tortoise-WoW's realm doesn't tell the app what a tap selected, when a cutscene plays or where the spellbook is (those are the ChromieCraft realm's own patches): a tap on anything the game's cursor offers something for does it at once, as a right click does (talks, loots, gathers, and on an enemy, attacks it); a hold always opens the bags (Back is Escape, to skip a cutscene); and spells are dragged off the spellbook with the mouse only. It logs in by itself with Turtle's own saved login (never ChromieCraft's). While it starts, its loading screen is Turtle WoW's: the map of Azeroth across the top, Turtle WoW's logo and the launcher's motes drifting up.
+Played like the 3.3.5a game (the same touch controls and keyboard prompt), with three differences, because Tortoise-WoW's realm doesn't tell the app what a tap selected, when a cutscene plays or where the spellbook is (those are the ChromieCraft realm's own patches): a tap on anything the game's cursor offers something for does it at once, as a right click does (talks, loots, gathers, and on an enemy, attacks it); a hold always opens the bags (Back is Escape, to skip a cutscene); and spells are dragged off the spellbook with the mouse only. It logs in by itself with Turtle's own saved login (never ChromieCraft's). While it starts, its loading screen is Turtle WoW's: the map of Azeroth filling the screen (its sides past the edges), Turtle WoW's logo and the launcher's motes drifting up.
 
 ### Bots
 

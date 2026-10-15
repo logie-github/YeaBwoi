@@ -13,7 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -175,25 +174,15 @@ internal fun TurtleLoading(text: String) {
             .background(TurtleColors.Night),
         contentAlignment = Alignment.Center,
     ) {
-        // The whole map across the screen (it's a wide one), its edges fading into the night.
-        Box(Modifier.fillMaxWidth().aspectRatio(1920f / 620f)) {
-            Image(
-                painterResource(R.drawable.turtle_loading),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        0f to TurtleColors.Night,
-                        0.2f to TurtleColors.Night.copy(alpha = 0.3f),
-                        0.8f to TurtleColors.Night.copy(alpha = 0.3f),
-                        1f to TurtleColors.Night,
-                    )
-                )
-            )
-        }
+        // The map fills the screen, its sides past the edges (it's wider than any screen), darkened
+        // a little for the words.
+        Image(
+            painterResource(R.drawable.turtle_loading),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(Modifier.fillMaxSize().background(TurtleColors.Night.copy(alpha = 0.35f)))
         TurtleMotes(Modifier.fillMaxSize(), alpha = 0.8f)
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(22.dp)) {
             Image(
