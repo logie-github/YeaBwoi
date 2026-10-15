@@ -26,13 +26,46 @@ class TouchAddonTest {
             GetHitRectInsets = function(self) return 0, 30, 0, 70 end,
             GetEffectiveScale = function(self) return spellbook.scale end,
         }
+        realm = "ChromieCraft"
+        function GetRealmName() return realm end
         frames = {}
-        function CreateFrame(kind)
-            local frame = { scripts = {}, events = {} }
-            function frame:SetScript(name, fn) self.scripts[name] = fn end
+        -- A frame: its scripts and events, its text, its height and where it's anchored.
+        function CreateFrame(kind, name, parent, template)
+            local frame = { scripts = {}, events = {}, hooks = {}, points = {}, height = 21, shown = true, name = name }
+            function frame:SetScript(script, fn) self.scripts[script] = fn end
+            function frame:HookScript(script, fn) table.insert(self.hooks, fn) end
             function frame:RegisterEvent(event) self.events[event] = true end
+            function frame:SetText(text) self.text = text end
+            function frame:GetText() return self.text end
+            function frame:SetHeight(height) self.height = height end
+            function frame:GetHeight() return self.height end
+            function frame:ClearAllPoints() self.points = {} end
+            function frame:SetPoint(...) self.points = { ... } end
+            function frame:GetPoint() return (table.unpack or unpack)(self.points) end
+            function frame:GetName() return self.name end
+            function frame:Show() self.shown = true end
+            function frame:Hide() self.shown = false end
             table.insert(frames, frame)
+            if name then _G[name] = frame end
             return frame
+        end
+        -- The game's menu (its Macros and Log Out buttons) and its popups.
+        GameMenuFrame = CreateFrame("Frame", "GameMenuFrame")
+        GameMenuFrame.height = 292
+        GameMenuButtonMacros = CreateFrame("Button", "GameMenuButtonMacros", GameMenuFrame)
+        GameMenuButtonLogout = CreateFrame("Button", "GameMenuButtonLogout", GameMenuFrame)
+        GameMenuButtonLogout:SetPoint("TOP", GameMenuButtonMacros, "BOTTOM", 0, -16)
+        function HideUIPanel(frame) frame:Hide() end
+        function PlaySound(sound) end
+        StaticPopupDialogs = {}
+        popup = CreateFrame("Frame", "StaticPopup1")
+        popupBox = CreateFrame("EditBox", "StaticPopup1EditBox", popup)
+        function popupBox:SetFocus() end
+        function popupBox:GetParent() return popup end
+        function StaticPopup_Show(which)
+            popup.which = which
+            popup:Show()
+            StaticPopupDialogs[which].OnShow(popup)
         end
     """.trimIndent()
 
@@ -40,7 +73,10 @@ class TouchAddonTest {
         load(game).call()
         load(TouchAddon.files.getValue("WowTouch.lua")).call()
     }
-    private val frame = (lua.get("frames") as LuaTable).get(1)
+    /** The add-on's own frame: the first it makes, after the stand-in's. */
+    private val frame = (lua.get("frames") as LuaTable).let { frames ->
+        (1..frames.length()).map { frames.get(it) }.first { it.get("name").isnil() && !it.get("scripts").get("OnUpdate").isnil() }
+    }
 
     private fun event(name: String) = frame.get("scripts").get("OnEvent").call(frame, LuaValue.valueOf(name))
     private fun update(seconds: Double) = frame.get("scripts").get("OnUpdate").call(frame, LuaValue.valueOf(seconds))
@@ -76,6 +112,49 @@ class TouchAddonTest {
         lua.get("spellbook").set("shown", LuaValue.FALSE)
         update(1.0)
         assertEquals("WowTouch|drag -|WHISPER|Testhero", sent().last())
+    }
+
+    @Test
+    fun theMenuHasReportTimeAnomalyOnlyOnWrathRemix() {
+        event("PLAYER_ENTERING_WORLD")
+        assertTrue(lua.get("GameMenuButtonWowTouchReport").isnil(), "a button on ChromieCraft")
+        assertEquals(292, lua.get("GameMenuFrame").get("height").toint())
+    }
+
+    @Test
+    fun reportTimeAnomalyAsksTheRealmForAReport() {
+        lua.set("realm", LuaValue.valueOf("Wrath Remix"))
+        event("PLAYER_ENTERING_WORLD")
+        val button = lua.get("GameMenuButtonWowTouchReport")
+        assertEquals("Report Time Anomaly", button.get("text").tojstring())
+        // In Log Out's place under Macros, Log Out under it, the menu taller by as much.
+        val menu = lua.get("GameMenuFrame")
+        val logout = lua.get("GameMenuButtonLogout")
+        assertEquals(lua.get("GameMenuButtonMacros"), button.get("points").get(2))
+        assertEquals(button, logout.get("points").get(2))
+        assertEquals(292 + 21 + 16, menu.get("height").toint())
+        // A second entering of the world (a loading screen): the same button, the same menu.
+        event("PLAYER_LEAVING_WORLD")
+        event("PLAYER_ENTERING_WORLD")
+        assertEquals(292 + 21 + 16, menu.get("height").toint())
+
+        // Tapped: the menu closes, the popup asks what went wrong; what's written goes to the
+        // realm on one line.
+        button.get("scripts").get("OnClick").call(button)
+        assertTrue(!menu.get("shown").toboolean())
+        assertEquals("WOWTOUCH_TIME_ANOMALY", lua.get("popup").get("which").tojstring())
+        val box = lua.get("popupBox")
+        box.set("text", LuaValue.valueOf("Moratari\nvanished"))
+        val dialog = lua.get("StaticPopupDialogs").get("WOWTOUCH_TIME_ANOMALY")
+        dialog.get("OnAccept").call(lua.get("popup"))
+        assertEquals("WowRemix|report Moratari vanished|WHISPER|Testhero", sent().last())
+
+        // Nothing written: the report still goes.
+        lua.get("StaticPopup_Show").call(LuaValue.valueOf("WOWTOUCH_TIME_ANOMALY"))
+        assertEquals("", box.get("text").tojstring())
+        dialog.get("EditBoxOnEnterPressed").call(box)
+        assertEquals("WowRemix|report |WHISPER|Testhero", sent().last())
+        assertTrue(!lua.get("popup").get("shown").toboolean())
     }
 
     @Test

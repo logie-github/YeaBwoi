@@ -1,23 +1,63 @@
-# Wrath Remix's campaign transitions, Chapters II to IV, as the Horde has them: played by CI as
-# a level 30 orc (auth_check.py script, on the Remix realm). The original quest before each
-# transition is given and turned in with GM commands, Moratari's are played, and what each opens
-# is checked.
+# Wrath Remix's campaign, Chapters II to IV, as the Horde has them: Chapter II's story and the
+# turn, and Moratari's transitions. Played by CI as a level 30 orc (auth_check.py script, on the
+# Remix realm). The original quests before each step are given and turned in with GM commands, the
+# story's own are played, and what each opens, and who can be seen, is checked.
 
 cmd .levelup 20
 wait 2
 cmd .remix
 expect level 30
 
-# II-A, WRM-211 (The Road to Angrathar): The Forsaken Blight done. Agmar's Hammer's errands would
-# come next; The Kor'kron Vanguard! isn't open at Overlord Agmar yet.
+# Chapter II's story (STORY.md). WRM-213 (A Summons from Wyrmrest): The Forsaken Blight done.
+# Agmar's Hammer's errands would come next; The Kor'kron Vanguard! isn't open yet, and
+# Moratari by Doctor Sintar Malefious has the summons first.
 cmd .quest add 12221
 cmd .quest complete 12221
 cmd .quest reward 12221
 go 571 3842.4 1489.6 92.6
 talk 26379
 expect-not quest 12224
-# Moratari, by Doctor Sintar Malefious.
 go 571 3747.0 1603.4 87.5
+talk 770001
+expect quest 77213
+expect-not quest 77211
+accept 770001 77213
+reward 770001 77213
+expect rewarded 77213
+# (to Chromie atop Wyrmrest Temple a moment later) Mystery of the Infinite, the game's own (its
+# hourglass and its waves are the core's; done here with a GM command), then Strangers Out of Time:
+# Sylvanas and Alleria appear beside her as it's taken.
+wait 3
+cmd .gps
+expect Wyrmrest Temple
+cmd .remix sees 770011
+expect hidden
+talk 27856
+expect quest 12470
+accept 27856 12470
+cmd .quest complete 12470
+reward 27856 12470
+expect rewarded 12470
+talk 27856
+expect quest 77204
+accept 27856 77204
+cmd .remix sees 770011
+expect seen
+cmd .remix sees 770012
+expect seen
+reward 770011 77204
+expect rewarded 77204
+# WRM-215 (Ask Him Yourself): taking it goes to the Bazaar, before Eternus; turning it in comes
+# back to Moratari's The Road to Angrathar.
+talk 770011
+expect quest 77215
+accept 770011 77215
+wait 3
+cmd .gps
+expect Crystalsong Forest
+reward 770002 77215
+expect rewarded 77215
+wait 3
 talk 770001
 expect quest 77211
 accept 770001 77211
@@ -27,6 +67,69 @@ expect rewarded 77211
 wait 3
 talk 26379
 expect quest 12224
+
+# The turn, right before the Wrathgate's chain. WRM-216 (A Warning, Unwritten): The Kor'kron Vanguard!
+# done; Saurfang's son doesn't send the Timerunner to the Dragonqueen yet. Moratari beside him does, to
+# Eternus at the Bazaar.
+cmd .quest add 12224
+cmd .quest complete 12224
+cmd .quest reward 12224
+go 571 4899.5 1343.8 231.5
+talk 25257
+expect-not quest 12496
+talk 770001
+expect quest 77216
+accept 770001 77216
+wait 3
+reward 770002 77216
+expect rewarded 77216
+# WRM-207 (The Weight of Time): its scene plays as it's taken (about a minute and a half), and
+# ends with its credit. Eternus is gone from the Bazaar after it; Sylvanas and Alleria are there.
+talk 770002
+expect quest 77207
+accept 770002 77207
+cmd .remix sees 770001
+expect hidden
+wait 30
+wait 30
+wait 10
+expect It has to happen as it did
+wait 20
+expect credit 77207 770034
+cmd .remix sees 770002
+expect hidden
+cmd .remix sees 770001
+expect seen
+cmd .remix sees 770011
+expect seen
+reward 770001 77207
+expect rewarded 77207
+# WRM-218 (The Hour of the Gate): Sylvanas sends the Timerunner to the cliffs above the gate, where
+# Alleria and Eternus's loyalists are; six slain, then Alleria, then Saurfang's son again, with the
+# Audience offered.
+talk 770011
+expect quest 77218
+accept 770011 77218
+wait 3
+cmd .remix sees 770041
+expect seen
+cmd .cheat god on
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+expect credit 77218 770041 6/6
+wait 2
+cmd .cheat god off
+cmd .remix sees 770041
+expect hidden
+reward 770012 77218
+expect rewarded 77218
+wait 3
+talk 25257
+expect quest 12496
 
 # II-B, WRM-212 (What We Cannot Change): after Return To Angrathar, by Alexstrasza at the Wrathgate.
 cmd .quest add 12500

@@ -147,6 +147,7 @@ configure_realm() {
 		if [ "$REALM" = remix ]; then
 			setkey "$remix_conf" WrathRemix.Enable 1
 			setkey "$remix_conf" WrathRemix.RealmID "$R_ID"
+			remix_bronze_rates "$remix_conf"
 		else
 			setkey "$remix_conf" WrathRemix.Enable 0
 		fi
@@ -167,6 +168,15 @@ remix_defaults() {
 	setkey "$1" Rate.XP.Quest 3
 	setkey "$1" Rate.XP.Kill 2
 	setkey "$1" SkipCinematics 2
+}
+
+# Bronze is earned in Legion Remix's amounts since build 66 (twenty times what it was): each rate
+# still at its old default takes its new one; one the user changed stays.
+remix_bronze_rates() {
+	for rate in Quest:25:500 Kill:1:15 Elite:4:60 Rare:20:500 DungeonBoss:40:1000 RaidBoss:150:5000; do
+		key=WrathRemix.Bronze.${rate%%:*} old=${rate#*:} old=${old%:*} new=${rate##*:}
+		! grep -q "^$key[[:space:]]*=[[:space:]]*$old[[:space:]]*$" "$1" || setkey "$1" "$key" "$new"
+	done
 }
 
 # Wrath Remix's module configs, the first time: as the main realm's first start sets them (50
@@ -368,6 +378,9 @@ world)
 	export WOW_CUTSCENE_FILE="$RUN/cutscene"
 	# Where the app's add-on says the spellbook is: a drag there drags its icons (patches/azerothcore/0009).
 	export WOW_INTERFACE_FILE="$RUN/interface"
+	# Where Wrath Remix writes the reports its Report Time Anomaly asks for, for the app to send to
+	# GitHub (mod-wrath-remix, RemixReport.cpp).
+	export WOW_REPORTS_DIR="$RUN/reports"
 	# The realm's own module configs (patches/azerothcore/0010).
 	export WOW_MODULES_CONF_DIR="$R_ETC/modules"
 	# The game's folder: Wrath Remix writes its patch there as it starts (Bronze and its prices,

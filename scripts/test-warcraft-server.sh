@@ -341,6 +341,19 @@ if [ -n "$DATA_ZIP" ]; then
 	echo "== Wrath Remix's prologue"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Timerunner 1 1 \
 		"$ROOT/warcraft/server/remix_prologue.steps" | tee "$FILES/logs/remix-prologue.out" || fail "the prologue didn't play through"
+	# Report Time Anomaly, asked for during Time's Toll: the realm's report for the app to send to
+	# GitHub, with the quest the Timerunner is on, who gave it, who they've spoken to since, and the
+	# way they came.
+	report=$(ls "$FILES/run/reports"/anomaly-*.md 2> /dev/null | head -1)
+	[ -n "$report" ] || fail "Report Time Anomaly wrote no report in files/run/reports"
+	echo "Time anomaly report $(basename "$report"):"
+	sed -n '1,16p' "$report"
+	for text in "# Time anomaly: Time's Toll (Timerunner, level" "**What happened:** CI's report, from the Bazaar" \
+		"**Time's Toll** (77012), ready to turn in" "from Eternus (770002)" "Spoken to since it was taken: Alurmi (770005)" \
+		"Timeworn Instructor (770101)" "### The way here" "Took **Out of Time** (77010)" \
+		"Spoke to Echo of a Fallen Footman (770021)" "Turned in **What the War Will Cost** (77011)"; do
+		grep -qF "$text" "$report" || fail "the time anomaly report hasn't \"$text\""
+	done
 	band=$(grep -o "band check: [0-9]* banded creatures, levels [0-9]* to [0-9]*" "$FILES/logs/remix-prologue.out" | tail -1)
 	echo "Valiance Keep: $band"
 	[ -n "$band" ] && [ "${band##* }" -le 23 ] || fail "Borean Tundra's creatures aren't at Chapter I's levels ($band)"
@@ -349,7 +362,7 @@ if [ -n "$DATA_ZIP" ]; then
 	[ "$row" = "$(printf '0\t1')" ] || fail "the Timerunner's chapter wasn't kept, or Bronze is owed ($row)"
 	bronze=$(echo "SELECT SUM(t.count) FROM item_instance t JOIN characters c ON c.guid = t.owner_guid WHERE c.name = 'Timerunner' AND t.itemEntry = 77001" | CTL sql acore_characters_remix)
 	echo "Timerunner's Bronze: $bronze"
-	[ "$bronze" = 225 ] || fail "the Timerunner doesn't carry 225 Bronze ($bronze)"
+	[ "$bronze" = 10200 ] || fail "the Timerunner doesn't carry 10,200 Bronze ($bronze)"
 	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 46017" | CTL sql acore_characters_remix)" = 1 ] ||
 		fail "Val'anyr, bought from Durus, isn't in the bags"
 	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 42985" | CTL sql acore_characters_remix)" = 1 ] ||

@@ -22,6 +22,10 @@
 #include "TemporarySummon.h"
 #include "WorldSession.h"
 #include <cmath>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <set>
 
 using namespace WrathRemix;
 
@@ -110,6 +114,154 @@ namespace
 
     char const* ROMAN[] = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
     char const* Roman(uint8 n) { return n < 11 ? ROMAN[n] : "?"; }
+
+    // ---- WRM-207, The Weight of Time: the turn (STORY.md) ---------------------------------------
+    //
+    // Played at the Bazaar as the Timerunner takes the quest from Eternus. Sylvanas and Alleria
+    // walk in; Sylvanas tells Moratari what Eternus left out; Moratari goes to see for herself
+    // and steps back out of a rift ten seconds later; Eternus refuses, and leaves. The visitors
+    // and this Moratari are summoned for the Timerunner alone to see, and the Bazaar's own
+    // Moratari is hidden from them while it plays (visibility conditions,
+    // wrath_remix_world_0011_chapter2.sql). As it ends, the quest's credit hides Eternus from them
+    // for good and shows the Bazaar's own Sylvanas and Alleria, where these two stood.
+
+    enum SceneSpells : uint32
+    {
+        SPELL_TELEPORT_VISUAL = 51347,  // Teleport Visual Only
+        SPELL_TIME_RIFT_CHANNEL = 31387,
+    };
+
+    // The spots, as wrath_remix_world_0004_spawns.sql has the Bazaar's own people.
+    constexpr float HX = 5700.0f, HY = 1015.0f, HZ = 174.6f;
+    Position const MORATARI_SPOT(HX - 5.0f, HY + 6.0f, HZ, 5.30f);
+    Position const SYLVANAS_SPOT(HX + 4.0f, HY + 6.0f, HZ, 3.60f);
+    Position const ALLERIA_SPOT(HX + 6.5f, HY + 3.5f, HZ, 3.40f);
+    Position const VISITORS_FROM(HX + 15.0f, HY - 17.0f, HZ, 2.30f);
+    Position const RIFT_SPOT(HX - 7.5f, HY + 8.5f, HZ, 5.30f);
+
+    struct TurnScene
+    {
+        ObjectGuid player, eternus, sylvanas, alleria, moratari, rift;
+    };
+
+    std::mutex scenesLock;
+    std::set<ObjectGuid> scenes;  // the Timerunners whose scene is playing
+
+    Creature* Actor(Player* player, ObjectGuid guid)
+    {
+        return guid ? ObjectAccessor::GetCreature(*player, guid) : nullptr;
+    }
+
+    void Speak(Player* player, ObjectGuid who, char const* text)
+    {
+        if (Creature* actor = Actor(player, who))
+            actor->Say(text, LANG_UNIVERSAL, player);
+    }
+
+    ObjectGuid Summon(Player* player, uint32 entry, Position const& at)
+    {
+        TempSummon* actor = player->SummonCreature(entry, at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(), at.GetOrientation(),
+            TEMPSUMMON_TIMED_DESPAWN, 150000, nullptr, true);
+        return actor ? actor->GetGUID() : ObjectGuid::Empty;
+    }
+
+    void Unsummon(Player* player, ObjectGuid& guid)
+    {
+        if (Creature* actor = Actor(player, guid))
+            actor->DespawnOrUnsummon();
+        guid.Clear();
+    }
+
+    void EndTurnScene(Player* player, TurnScene& scene)
+    {
+        Unsummon(player, scene.sylvanas);
+        Unsummon(player, scene.alleria);
+        Unsummon(player, scene.moratari);
+        Unsummon(player, scene.rift);
+    }
+
+    void PlayTurnScene(Player* player, Creature* eternus)
+    {
+        {
+            std::lock_guard<std::mutex> lock(scenesLock);
+            if (!scenes.insert(player->GetGUID()).second)
+                return;
+        }
+        auto scene = std::make_shared<TurnScene>();
+        scene->player = player->GetGUID();
+        scene->eternus = eternus->GetGUID();
+        scene->moratari = Summon(player, NPC_MORATARI_SCENE, MORATARI_SPOT);
+        scene->sylvanas = Summon(player, NPC_SYLVANAS, VISITORS_FROM);
+        scene->alleria = Summon(player, NPC_ALLERIA, VISITORS_FROM);
+        if (Creature* sylvanas = Actor(player, scene->sylvanas))
+            sylvanas->GetMotionMaster()->MovePoint(1, SYLVANAS_SPOT);
+        if (Creature* alleria = Actor(player, scene->alleria))
+            alleria->GetMotionMaster()->MovePoint(1, ALLERIA_SPOT);
+        player->UpdateObjectVisibility();
+
+        using Step = std::function<void(Player*, TurnScene&)>;
+        std::vector<std::pair<uint32, Step>> steps = {
+            { 1500, [](Player* p, TurnScene& s) { Speak(p, s.eternus, "Visitors. And not the bronze's usual kind."); } },
+            { 8000, [](Player* p, TurnScene& s) { Speak(p, s.sylvanas, "Your champion was warned, Eternus. Now I will speak to the one who keeps your records."); } },
+            { 14000, [](Player* p, TurnScene& s) { Speak(p, s.eternus, "The Banshee Queen, sent to lecture us on history. Tell them what became of Teldrassil, Windrunner, before you tell anyone what must not change."); } },
+            { 21000, [](Player* p, TurnScene& s) { Speak(p, s.sylvanas, "I know what I am. That is why the bronze sent me. I know what the Lich King's Helm is for, and who made it."); } },
+            { 28000, [](Player* p, TurnScene& s) {
+                if (Creature* sylvanas = Actor(p, s.sylvanas))
+                    if (Creature* moratari = Actor(p, s.moratari))
+                        sylvanas->SetFacingToObject(moratari);
+                Speak(p, s.sylvanas, "Listen to me, Moratari. If Bolvar Fordragon does not burn at the Wrathgate, no one takes up the Helm when Arthas falls. The Scourge goes masterless, and every soul the Helm has bound is lost with it. I have spent years freeing souls like those. I will not watch them thrown away for his kindness."); } },
+            { 38000, [](Player* p, TurnScene& s) { Speak(p, s.alleria, "She speaks the truth. I can feel the shape of the road your master wants. It ends in the dark."); } },
+            { 44000, [](Player* p, TurnScene& s) { Speak(p, s.moratari, "He told me it was mercy. Give me a moment. I will see it for myself."); } },
+            { 47000, [](Player* p, TurnScene& s) {
+                if (Creature* moratari = Actor(p, s.moratari))
+                    moratari->CastSpell(moratari, SPELL_TIME_RIFT_CHANNEL, true); } },
+            { 50000, [](Player* p, TurnScene& s) {
+                if (Creature* moratari = Actor(p, s.moratari))
+                    moratari->CastSpell(moratari, SPELL_TELEPORT_VISUAL, true); } },
+            { 51000, [](Player* p, TurnScene& s) { Unsummon(p, s.moratari); } },
+            { 54000, [](Player* p, TurnScene& s) { Speak(p, s.eternus, "Whatever she finds, champion, remember who brought you here, and why."); } },
+            // (ten seconds gone: a rift opens and she steps out of it)
+            { 60000, [](Player* p, TurnScene& s) { s.rift = Summon(p, NPC_TIME_RIFT, RIFT_SPOT); } },
+            { 61500, [](Player* p, TurnScene& s) {
+                s.moratari = Summon(p, NPC_MORATARI_SCENE, RIFT_SPOT);
+                if (Creature* moratari = Actor(p, s.moratari))
+                {
+                    moratari->CastSpell(moratari, SPELL_TELEPORT_VISUAL, true);
+                    moratari->GetMotionMaster()->MovePoint(1, MORATARI_SPOT);
+                } } },
+            { 64000, [](Player* p, TurnScene& s) { Unsummon(p, s.rift); } },
+            { 65000, [](Player* p, TurnScene& s) { Speak(p, s.moratari, "I walked the road where Bolvar lives. At the end of it there is no one on the Frozen Throne, and the dead have no one to hold them. She is right. It has to happen as it did. All of it."); } },
+            { 74000, [](Player* p, TurnScene& s) { Speak(p, s.eternus, "I know."); } },
+            { 77000, [](Player* p, TurnScene& s) { Speak(p, s.eternus, "I have always known. I will not watch it again. Keep your history, Moratari. I will save whom I can without you."); } },
+            { 84000, [](Player* p, TurnScene& s) {
+                if (Creature* eternus = Actor(p, s.eternus))
+                    eternus->CastSpell(eternus, SPELL_TELEPORT_VISUAL, true); } },
+            { 86000, [](Player* p, TurnScene& s) {
+                // (only if the Timerunner stayed for it: one who left can ask Eternus to begin again)
+                bool watched = Actor(p, s.eternus) && p->GetDistance(MORATARI_SPOT) < 60.0f;
+                EndTurnScene(p, s);
+                if (watched)
+                    p->KilledMonsterCredit(NPC_TURN_CREDIT);
+                p->UpdateObjectVisibility(); } },
+        };
+        for (auto& [at, step] : steps)
+        {
+            player->m_Events.AddEventAtOffset([scene, step]()
+            {
+                Player* p = ObjectAccessor::FindPlayer(scene->player);
+                if (p && p->IsInWorld() && p->GetQuestStatus(QUEST_WEIGHT_OF_TIME) == QUEST_STATUS_INCOMPLETE)
+                    step(p, *scene);
+            }, Milliseconds(at));
+        }
+        // (the scene is over, played to its end or not)
+        player->m_Events.AddEventAtOffset([scene]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(scene->player); p && p->IsInWorld())
+                EndTurnScene(p, *scene);
+            std::lock_guard<std::mutex> lock(scenesLock);
+            scenes.erase(scene->player);
+        }, 88s);
+    }
 }
 
 class npc_remix_moratari : public CreatureScript
@@ -193,10 +345,55 @@ public:
     {
         if (!Active())
             return false;
+        // (one who left while the turn played sees it again)
+        if (player->GetQuestStatus(QUEST_WEIGHT_OF_TIME) == QUEST_STATUS_INCOMPLETE)
+        {
+            CloseGossipMenuFor(player);
+            PlayTurnScene(player, creature);
+            return true;
+        }
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
         SendGossipMenuFor(player, player->GetQuestRewardStatus(QUEST_WAR_WILL_COST) ? TEXT_ETERNUS_LATER : TEXT_ETERNUS, creature);
+        return true;
+    }
+
+    bool OnQuestAccept(Player* player, Creature* creature, Quest const* quest) override
+    {
+        if (Active() && quest->GetQuestId() == QUEST_WEIGHT_OF_TIME)
+        {
+            CloseGossipMenuFor(player);
+            PlayTurnScene(player, creature);
+        }
+        return false;
+    }
+};
+
+// Sylvanas and Alleria Windrunner, from the future: at Wyrmrest Temple with Chromie, on the
+// Wrathgate's cliffs (Alleria), and at the Bazaar after the turn. They're seen only where the
+// story has them (visibility conditions, wrath_remix_world_0011_chapter2.sql).
+class npc_remix_windrunner : public CreatureScript
+{
+public:
+    npc_remix_windrunner() : CreatureScript("npc_remix_windrunner") { }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        if (!Active())
+            return false;
+        ClearGossipMenuFor(player);
+        if (creature->IsQuestGiver())
+            player->PrepareQuestMenu(creature->GetGUID());
+        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS;
+        uint32 text;
+        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
+            text = sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
+        else if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
+            text = sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
+        else
+            text = sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
+        SendGossipMenuFor(player, text, creature);
         return true;
     }
 };
@@ -488,6 +685,7 @@ void AddRemixNpcScripts()
     new npc_remix_instructor();
     new npc_remix_moratari();
     new npc_remix_eternus();
+    new npc_remix_windrunner();
     new npc_remix_keeper();
     new npc_remix_alurmi();
     new npc_remix_zephyr();

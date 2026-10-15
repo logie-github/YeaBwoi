@@ -1,23 +1,63 @@
-# Wrath Remix's campaign transitions, Chapters II to IV, as the Alliance has them: played by CI as
-# a level 30 human (auth_check.py script, on the Remix realm). The original quest before each
-# transition is given and turned in with GM commands, Moratari's are played, and what each opens
-# is checked.
+# Wrath Remix's campaign, Chapters II to IV, as the Alliance has them: Chapter II's story and the
+# turn, and Moratari's transitions. Played by CI as a level 30 human (auth_check.py script, on the
+# Remix realm). The original quests before each step are given and turned in with GM commands, the
+# story's own are played, and what each opens, and who can be seen, is checked.
 
 cmd .levelup 20
 wait 2
 cmd .remix
 expect level 30
 
-# II-A, WRM-201 (The Road to Angrathar): Find Durkon! done. Wintergarde's errands would come next;
-# Into Hostile Territory isn't open at the High Commander yet.
+# Chapter II's story (STORY.md). WRM-203 (A Summons from Wyrmrest): Find Durkon! done.
+# Wintergarde's errands would come next; Into Hostile Territory isn't open yet, and
+# Moratari by Cavalier Durkon has the summons first.
 cmd .quest add 12309
 cmd .quest complete 12309
 cmd .quest reward 12309
 go 571 3764.6 -772.4 196.6
 talk 27136
 expect-not quest 12325
-# Moratari, by Cavalier Durkon.
 go 571 3585.3 -806.8 179.7
+talk 770001
+expect quest 77203
+expect-not quest 77201
+accept 770001 77203
+reward 770001 77203
+expect rewarded 77203
+# (to Chromie atop Wyrmrest Temple a moment later) Mystery of the Infinite, the game's own (its
+# hourglass and its waves are the core's; done here with a GM command), then Strangers Out of Time:
+# Sylvanas and Alleria appear beside her as it's taken.
+wait 3
+cmd .gps
+expect Wyrmrest Temple
+cmd .remix sees 770011
+expect hidden
+talk 27856
+expect quest 12470
+accept 27856 12470
+cmd .quest complete 12470
+reward 27856 12470
+expect rewarded 12470
+talk 27856
+expect quest 77204
+accept 27856 77204
+cmd .remix sees 770011
+expect seen
+cmd .remix sees 770012
+expect seen
+reward 770011 77204
+expect rewarded 77204
+# WRM-205 (Ask Him Yourself): taking it goes to the Bazaar, before Eternus; turning it in comes
+# back to Moratari's The Road to Angrathar.
+talk 770011
+expect quest 77205
+accept 770011 77205
+wait 3
+cmd .gps
+expect Crystalsong Forest
+reward 770002 77205
+expect rewarded 77205
+wait 3
 talk 770001
 expect quest 77201
 accept 770001 77201
@@ -27,6 +67,69 @@ expect rewarded 77201
 wait 3
 talk 27136
 expect quest 12325
+
+# The turn, right before the Wrathgate's chain. WRM-206 (A Warning, Unwritten): To Fordragon Hold!
+# done; Bolvar doesn't send the Timerunner to the Dragonqueen yet. Moratari beside him does, to
+# Eternus at the Bazaar.
+cmd .quest add 12474
+cmd .quest complete 12474
+cmd .quest reward 12474
+go 571 4699.7 1506.8 261.6
+talk 27872
+expect-not quest 12495
+talk 770001
+expect quest 77206
+accept 770001 77206
+wait 3
+reward 770002 77206
+expect rewarded 77206
+# WRM-207 (The Weight of Time): its scene plays as it's taken (about a minute and a half), and
+# ends with its credit. Eternus is gone from the Bazaar after it; Sylvanas and Alleria are there.
+talk 770002
+expect quest 77207
+accept 770002 77207
+cmd .remix sees 770001
+expect hidden
+wait 30
+wait 30
+wait 10
+expect It has to happen as it did
+wait 20
+expect credit 77207 770034
+cmd .remix sees 770002
+expect hidden
+cmd .remix sees 770001
+expect seen
+cmd .remix sees 770011
+expect seen
+reward 770001 77207
+expect rewarded 77207
+# WRM-208 (The Hour of the Gate): Sylvanas sends the Timerunner to the cliffs above the gate, where
+# Alleria and Eternus's loyalists are; six slain, then Alleria, then Bolvar again, with the
+# Audience offered.
+talk 770011
+expect quest 77208
+accept 770011 77208
+wait 3
+cmd .remix sees 770041
+expect seen
+cmd .cheat god on
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+expect credit 77208 770041 6/6
+wait 2
+cmd .cheat god off
+cmd .remix sees 770041
+expect hidden
+reward 770012 77208
+expect rewarded 77208
+wait 3
+talk 27872
+expect quest 12495
 
 # II-B, WRM-202 (What We Cannot Change): after Return To Angrathar, Moratari stands by Alexstrasza
 # at the Wrathgate, in the phase the Wrathgate is in after it, with the Life-Binder's next quest.

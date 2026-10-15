@@ -8,7 +8,8 @@
 
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
-    @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022, @ECHO_BOLVAR := 770023;
+    @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022, @ECHO_BOLVAR := 770023,
+    @SYLVANAS := 770011, @ALLERIA := 770012, @INTERLOPER := 770041;
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 
@@ -27,7 +28,32 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 (7704016, @ZEPHYR,       571, 1, 1, 1, @HX - 7,  @HY - 5,  @HZ, 0.60, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
 (7704017, @SAAT,         571, 1, 1, 0, @HX + 7,  @HY - 5,  @HZ, 2.50, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
 (7704018, @CHRONOLOGIST, 571, 1, 1, 0, @HX - 2,  @HY - 8,  @HZ, 1.40, 60, 0, 0, 'Wrath Remix: Chronologist, Bazaar'),
-(7704019, @MOMENTUS,     571, 1, 1, 0, @HX + 2,  @HY - 8,  @HZ, 1.80, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar');
+(7704019, @MOMENTUS,     571, 1, 1, 0, @HX + 2,  @HY - 8,  @HZ, 1.80, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
+-- After the turn (WRM-207), for those who saw it: where its scene leaves them (RemixNpcs.cpp).
+(7704013, @SYLVANAS,     571, 1, 1, 0, @HX + 4,   @HY + 6,   @HZ, 3.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Bazaar'),
+(7704014, @ALLERIA,      571, 1, 1, 0, @HX + 6.5, @HY + 3.5, @HZ, 3.40, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Bazaar');
+
+-- Chapter II (wrath_remix_world_0011_chapter2.sql): Sylvanas and Alleria atop Wyrmrest Temple, on
+-- either side of Chromie (WRM-204, WRM-205); Alleria on the cliffs above the Wrathgate, where the
+-- Forsaken's catapults stand on the day, with Eternus's loyalists around her (WRM-208). Each is
+-- seen only by those the story has there (the chapter's visibility conditions).
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
+SELECT 7704033, @SYLVANAS, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` + PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` + PI() / 2),
+  c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Wyrmrest Temple (beside Chromie)'
+FROM `creature` c WHERE c.`guid` = 131083
+UNION ALL
+SELECT 7704034, @ALLERIA, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` - PI() / 2),
+  c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Wyrmrest Temple (beside Chromie)'
+FROM `creature` c WHERE c.`guid` = 131083;
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
+(7704035, @ALLERIA,    571, 1, 1, 0, 4974.5, 1383.5, 283.2, 0.30, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, the Wrathgate''s cliffs'),
+(7704040, @INTERLOPER, 571, 1, 1, 0, 4984.9, 1394.4, 284.4, 3.60, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
+(7704041, @INTERLOPER, 571, 1, 1, 0, 4991.0, 1400.3, 284.4, 3.80, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
+(7704042, @INTERLOPER, 571, 1, 1, 0, 5000.5, 1401.6, 284.4, 3.90, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
+(7704043, @INTERLOPER, 571, 1, 1, 0, 4990.0, 1388.0, 284.4, 3.40, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
+(7704044, @INTERLOPER, 571, 1, 1, 0, 4998.0, 1391.0, 284.4, 3.50, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
+(7704045, @INTERLOPER, 571, 1, 1, 0, 4978.7, 1391.8, 284.4, 3.70, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
+(7704046, @INTERLOPER, 571, 1, 1, 0, 5006.0, 1396.0, 284.4, 3.60, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs');
 
 -- The instructors, in a row along the Bazaar's east side.
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
@@ -56,8 +82,10 @@ FROM `creature` c JOIN (
   SELECT 9, 125447, 'WRM-121, Horde Borean Tundra (Garrosh Hellscream)', 0 UNION ALL
   SELECT 10, 113677, 'WRM-121, Horde Howling Fjord ("Hacksaw" Jenny)', 0 UNION ALL
   -- Chapter II (wrath_remix_world_0011_chapter2.sql)
-  SELECT 11, 133653, 'WRM-201, Alliance Dragonblight (Cavalier Durkon)', 0 UNION ALL
-  SELECT 12, 108123, 'WRM-211, Horde Dragonblight (Doctor Sintar Malefious)', 0 UNION ALL
+  SELECT 11, 133653, 'WRM-203 and WRM-201, Alliance Dragonblight (Cavalier Durkon)', 0 UNION ALL
+  SELECT 12, 108123, 'WRM-213 and WRM-211, Horde Dragonblight (Doctor Sintar Malefious)', 0 UNION ALL
+  SELECT 27, 133759, 'WRM-206, Fordragon Hold (Highlord Bolvar Fordragon)', 0 UNION ALL
+  SELECT 28, 111852, 'WRM-216, the Kor''kron Vanguard (Saurfang the Younger)', 0 UNION ALL
   SELECT 13, 132193, 'WRM-202 and WRM-212, the Wrathgate (Alexstrasza)', 0 UNION ALL
   SELECT 14, 10495,  'WRM-221, Stormwind Keep (King Varian Wrynn)', 0 UNION ALL
   SELECT 15, 3109785, 'WRM-222, the throne room of Lordaeron (Thrall)', 65 UNION ALL

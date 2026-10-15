@@ -5,9 +5,11 @@
 
 void AddWrathRemixScripts();
 void AddRemixNpcScripts();
+void AddRemixReportScripts();
 
 void Addmod_wrath_remixScripts()
 {
     AddWrathRemixScripts();
     AddRemixNpcScripts();
+    AddRemixReportScripts();
 }

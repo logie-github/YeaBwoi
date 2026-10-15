@@ -83,14 +83,17 @@ WrathRemix.MaxWeaponSkill = 1
 #    WrathRemix.Bronze.RaidBoss
 #        Description: Bronze earned for a quest turned in, a creature killed that gives
 #                     experience or honor (normal, elite, rare), and a dungeon's or raid's boss.
-#        Default:     25, 1, 4, 20, 40, 150
+#                     As in Legion Remix, a lot: the story from 10 to 80 earns hundreds of
+#                     thousands, for the Bazaar's vendors (Remix's own quests give their own
+#                     amounts, remix_quest_reward).
+#        Default:     500, 15, 60, 500, 1000, 5000
 
-WrathRemix.Bronze.Quest = 25
-WrathRemix.Bronze.Kill = 1
-WrathRemix.Bronze.Elite = 4
-WrathRemix.Bronze.Rare = 20
-WrathRemix.Bronze.DungeonBoss = 40
-WrathRemix.Bronze.RaidBoss = 150
+WrathRemix.Bronze.Quest = 500
+WrathRemix.Bronze.Kill = 15
+WrathRemix.Bronze.Elite = 60
+WrathRemix.Bronze.Rare = 500
+WrathRemix.Bronze.DungeonBoss = 1000
+WrathRemix.Bronze.RaidBoss = 5000
 
 #
 #    WrathRemix.Announce

@@ -905,8 +905,60 @@ for the game on the phone itself ("that's the whole point").
   shouldn't be any) are converted to an equivalent weapon in wotlk stats. You will remain whatever
   level you were at the end of wrath remix, it will force you to close the game and restart the
   server, then when you log in it will have you in your factions capitol city."
-  Order of work: the prologue and Chapter I (done, build 64), the report button, Chapter II and the
-  turn, Chapters III and IV rewritten, V to VII, then the ending and the move to ChromieCraft.
+  Order of work: the prologue and Chapter I (done, build 64), the report button (done, build 65),
+  Chapter II and the turn, Chapters III and IV rewritten, V to VII, then the ending and the move to
+  ChromieCraft.
+
+- Report Time Anomaly (build 65), as planned above:
+  - The game's menu, on Wrath Remix only (the realm's name as the game has it): **Report Time
+    Anomaly** in a group of its own between Macros and Log Out (the menu taller to fit). A popup
+    asks what went wrong (it may stay empty; the box takes the three-finger keyboard) and the
+    add-on whispers "WowRemix<tab>report <text>" to the player itself; the realm keeps it from
+    them (a PlayerScript chat hook, no core patch) and answers in the chat.
+  - The journal (`remix_log`, with the area of each line now): logins, quests taken, objectives
+    finished, quests turned in and dropped, creatures and quest objects spoken to (the same one
+    again within a minute: one line), zones entered, levels, deaths (and to whom), Moratari's
+    transitions. Not the realm's bots.
+  - The report (`RemixReport.cpp`): the player's words; the Timerunner (race, class, side,
+    chapter, where to the yard, alive or not, Bronze, quests turned in, time played); the quest
+    they're on (the one taken last) with its objectives' counts, when, where and from whom it
+    was taken, and who they've spoken to since; the rest of the log the same way; then the
+    journal's last 300 steps. Markdown, the title on its first line, in `files/run/reports`
+    (`WOW_REPORTS_DIR`, ctl.sh).
+  - The app (`AnomalyReports`, run by the server's service every 3 seconds while it's up): an
+    issue labeled *time anomaly* in this repository through GitHub's API with the modules token,
+    then the token the app was built with; if neither may, github.com's new-issue page opens
+    filled in (a long report shortened, oldest steps first); with no network, it waits and tries
+    again a minute later. A toast says how it went; sent and opened reports are kept apart.
+  - Checked here: the add-on against a stand-in for the game's menu and popups (only on Wrath
+    Remix; the button's place and the menu's height; what's whispered), the report's fitting, its
+    issue and its link; the realm built and run on the real data, the prologue played with a
+    report asked for during Time's Toll, and its file read (the quest, who gave it, who was spoken
+    to since, the way there). Not on a phone: the button's look in the menu, the popup and its
+    keyboard, the issue on GitHub (neither the API nor the browser was used from here).
+
+- Then: "Where are we percentage wise being done here" (about 30% of the whole plan, said), "How
+  much until playable", and: "Focus on a build of the intro and chapters 1-2 first. Also you are
+  supposed to have a shit ton of bronze by the end so you can use them at the vendors. Just like
+  in legion remix."
+
+- Build 65: the intro and Chapters I and II in the new story, Report Time Anomaly, and Bronze.
+  - Bronze twenty times what it was: quests 500, kills 15, elites 60, rares 500, dungeon bosses
+    1,000, raid bosses 5,000, Remix's own quests twenty times theirs (the prologue 8,500). The
+    vendors' collectibles alone are about 539,000 (mounts 489,000, companions 37,400, toys 12,250)
+    and each class's gear several hundred thousand more; the old rates earned about 40,000 from 10
+    to 80. ctl.sh moves a realm config still at the old defaults to the new ones.
+  - Chapter II as STORY.md has it: WRM-203/213 (to Chromie), Mystery of the Infinite, WRM-204
+    (Sylvanas and Alleria appear beside Chromie), WRM-205/215 (to Eternus and back), WRM-201/211,
+    then right before the Wrathgate's chain WRM-206/216 (Eternus's plan), WRM-207 (the turn: a
+    scene of about 85 seconds at the Bazaar, its people summoned for the one Timerunner, the
+    Bazaar's own Moratari hidden while it plays; one cut short counts as seen at the next login,
+    or plays again when Eternus is spoken to), WRM-208/218 (six of Eternus's loyalists on the
+    cliffs above the gate, where the Forsaken's catapults stand on the day; Audience With The
+    Dragon Queen waits for it), and the Wrathgate, II-B and II-C rewritten. Who is seen where is
+    visibility conditions (Eternus gone from the Bazaar after the turn, for those past it).
+    Quests that take you somewhere as they're taken: `remix_departure`.
+  - Checked here: see the build's entry below once it's tested.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the

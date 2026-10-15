@@ -109,4 +109,4 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77401, 77402, 77403, 77404, 77421);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
-(77401, 30), (77402, 40), (77403, 40), (77404, 40), (77421, 75);
+(77401, 600), (77402, 800), (77403, 800), (77404, 800), (77421, 1500);

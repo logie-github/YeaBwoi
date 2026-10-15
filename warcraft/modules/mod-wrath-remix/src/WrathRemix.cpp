@@ -12,6 +12,7 @@
 #include "CellImpl.h"
 #include "Chat.h"
 #include "ChatCommand.h"
+#include "ConditionMgr.h"
 #include "Config.h"
 #include "Creature.h"
 #include "CreatureData.h"
@@ -57,6 +58,7 @@ namespace WrathRemix
 
         std::map<std::pair<uint32, uint32>, LevelBand> bands;
         std::unordered_map<uint32, Bridge> bridges;
+        std::unordered_map<uint32, Departure> departures;
         std::vector<Chapter> chapters;
         std::vector<Destination> destinations;
         std::vector<VendorList> vendorLists;
@@ -128,12 +130,12 @@ namespace WrathRemix
         maxWeaponSkill = sConfigMgr->GetOption<bool>("WrathRemix.MaxWeaponSkill", true, false);
         squishHealth = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Health", 75, false), 1, 1000);
         squishDamage = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Damage", 75, false), 1, 1000);
-        rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", 25, false);
-        rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", 1, false);
-        rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", 4, false);
-        rates.rare = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Rare", 20, false);
-        rates.dungeonBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.DungeonBoss", 40, false);
-        rates.raidBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.RaidBoss", 150, false);
+        rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", 500, false);
+        rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", 15, false);
+        rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", 60, false);
+        rates.rare = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Rare", 500, false);
+        rates.dungeonBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.DungeonBoss", 1000, false);
+        rates.raidBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.RaidBoss", 5000, false);
         if (enabled)
             LOG_INFO("module", "Wrath Remix: on (realm {})", realmId);
         else
@@ -144,6 +146,7 @@ namespace WrathRemix
     {
         bands.clear();
         bridges.clear();
+        departures.clear();
         chapters.clear();
         destinations.clear();
         vendorLists.clear();
@@ -168,6 +171,15 @@ namespace WrathRemix
                 Field* f = result->Fetch();
                 Bridge b{ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<uint8>(), f[3].Get<uint32>(), f[4].Get<float>(), f[5].Get<float>(), f[6].Get<float>(), f[7].Get<float>(), f[8].Get<std::string>() };
                 bridges[b.quest] = b;
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `map`, `x`, `y`, `z`, `o` FROM `remix_departure`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                Departure d{ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<float>(), f[3].Get<float>(), f[4].Get<float>(), f[5].Get<float>() };
+                departures[d.quest] = d;
             } while (result->NextRow());
         }
         if (QueryResult result = WorldDatabase.Query("SELECT `chapter`, `name`, `summary`, `level_min`, `level_max`, `alliance_map`, `alliance_x`, `alliance_y`, `alliance_z`, `horde_map`, `horde_x`, `horde_y`, `horde_z` FROM `remix_chapter` ORDER BY `chapter`"))
@@ -248,6 +260,12 @@ namespace WrathRemix
     {
         auto it = bridges.find(quest);
         return it == bridges.end() ? nullptr : &it->second;
+    }
+
+    Departure const* DepartureFor(uint32 quest)
+    {
+        auto it = departures.find(quest);
+        return it == departures.end() ? nullptr : &it->second;
     }
 
     std::vector<Chapter> const& Chapters() { return chapters; }
@@ -417,8 +435,8 @@ namespace WrathRemix
 
     void Record(Player* player, char const* what, uint32 entry, int32 amount)
     {
-        CharacterDatabase.Execute("INSERT INTO `remix_log` (`guid`, `what`, `entry`, `amount`) VALUES ({}, '{}', {}, {})",
-            player->GetGUID().GetCounter(), what, entry, amount);
+        CharacterDatabase.Execute("INSERT INTO `remix_log` (`guid`, `what`, `entry`, `amount`, `area`) VALUES ({}, '{}', {}, {}, {})",
+            player->GetGUID().GetCounter(), what, entry, amount, player->GetAreaId());
     }
 
     void TeleportSoon(Player* player, uint32 map, float x, float y, float z, float o)
@@ -611,8 +629,7 @@ namespace WrathRemix
         ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r You will want something better than that. Here: gear that grows with you, and a few things to carry you through your first battles.");
     }
 
-    // The realm's playerbots: sessions without a client.
-    static bool IsBot(Player* player)
+    bool IsBot(Player* player)
     {
         return player->GetSession()->GetRemoteAddress() == "headless";
     }
@@ -721,7 +738,45 @@ public:
         PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
         PLAYERHOOK_ON_PLAYER_RESURRECT,
         PLAYERHOOK_ON_UPDATE_AREA,
+        PLAYERHOOK_ON_PLAYER_QUEST_ACCEPT,
+        PLAYERHOOK_ON_BEFORE_QUEST_COMPLETE,
     }) { }
+
+    // Who a Timerunner sees changes with the story (visibility conditions in the world SQL:
+    // Sylvanas and Alleria arrive, Eternus leaves the Bazaar, his loyalists wait on the cliffs):
+    // looked at again a moment after one of the story's quests moves on.
+    static bool InTheStory(uint32 quest)
+    {
+        return (quest >= 77000 && quest <= 77999) || quest == QUEST_MYSTERY_OF_THE_INFINITE;
+    }
+
+    static void RefreshSightSoon(Player* player)
+    {
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld())
+                p->UpdateObjectVisibility();
+        }, 500ms);
+    }
+
+    // Some of the story's quests take the Timerunner where they're going as they're taken
+    // (remix_departure): back to the Bazaar to face Eternus, out to the Wrathgate's cliffs.
+    void OnPlayerQuestAccept(Player* player, Quest const* quest) override
+    {
+        if (!Active() || IsBot(player) || !InTheStory(quest->GetQuestId()))
+            return;
+        if (Departure const* d = DepartureFor(quest->GetQuestId()))
+            TeleportSoon(player, d->map, d->x, d->y, d->z, d->o);
+        RefreshSightSoon(player);
+    }
+
+    bool OnPlayerBeforeQuestComplete(Player* player, uint32 questId) override
+    {
+        if (Active() && !IsBot(player) && InTheStory(questId))
+            RefreshSightSoon(player);
+        return true;
+    }
 
     void OnPlayerFirstLogin(Player* player) override
     {
@@ -748,6 +803,9 @@ public:
             {
                 Train(p);
                 WakeAtTheBazaar(p);
+                // WRM-207's scene is played as it's taken; one cut short (a logout) counts as seen.
+                if (p->GetQuestStatus(QUEST_WEIGHT_OF_TIME) == QUEST_STATUS_INCOMPLETE)
+                    p->KilledMonsterCredit(NPC_TURN_CREDIT);
             }
         }, 2s);
         Timerunner const t = Get(player);
@@ -816,6 +874,8 @@ public:
             return;
         uint32 id = quest->GetQuestId();
         AddBronze(player, QuestBronze(id), true);
+        if (InTheStory(id) && !IsBot(player))
+            RefreshSightSoon(player);
 
         if (Bridge const* bridge = BridgeFor(id))
         {
@@ -967,6 +1027,7 @@ public:
             { "bronze", bronzeTable },
             { "band",   HandleBand,   SEC_GAMEMASTER, Console::No },
             { "guid",   HandleGuid,   SEC_GAMEMASTER, Console::No },
+            { "sees",   HandleSees,   SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1067,6 +1128,23 @@ public:
         }
         handler->PSendSysMessage("Wrath Remix guid: {} {} at {:.1f} yards.", entry, creature->GetGUID().GetRawValue(),
             player->GetDistance(creature));
+        return true;
+    }
+
+    // .remix sees ENTRY (game masters): whether the story lets the player see the nearest creature
+    // of that entry (its visibility conditions, as a player without game master mode has them).
+    static bool HandleSees(ChatHandler* handler, uint32 entry)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Creature* creature = player->FindNearestCreature(entry, 100.0f);
+        if (!creature)
+        {
+            handler->PSendSysMessage("Wrath Remix sees: no creature {} within 100 yards.", entry);
+            return true;
+        }
+        ConditionSourceInfo info(player, creature);
+        bool seen = sConditionMgr->IsObjectMeetToConditions(info, sConditionMgr->GetConditionsForObjectVisibility(creature));
+        handler->PSendSysMessage("Wrath Remix sees: {} {} (spawn {}).", entry, seen ? "seen" : "hidden", creature->GetSpawnId());
         return true;
     }
 

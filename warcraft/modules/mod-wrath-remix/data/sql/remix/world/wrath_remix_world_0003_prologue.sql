@@ -114,4 +114,4 @@ INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `
 -- Bronze for the prologue: enough by the demonstration for a first heirloom from Alurmi.
 DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 77010 AND 77015;
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
-(77010, 25), (77011, 50), (77012, 50), (77013, 300), (77014, 100), (77015, 100);
+(77010, 500), (77011, 1000), (77012, 1000), (77013, 6000), (77014, 2000), (77015, 2000);

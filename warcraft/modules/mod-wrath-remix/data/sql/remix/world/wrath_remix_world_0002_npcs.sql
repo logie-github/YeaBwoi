@@ -1,6 +1,7 @@
 -- Wrath Remix's people (STORY.md): Eternus of the Infinite Dragonflight, who brings Timerunners to
 -- Northrend to change the Lich King's war, his lieutenant Moratari, the Keepers of Time, the
--- prologue's echoes of the war's dead and its anomalies, and the Bazaar's instructors. New entries
+-- prologue's echoes of the war's dead and its anomalies, the Bazaar's instructors, and from
+-- Chapter II Sylvanas and Alleria Windrunner and Eternus's loyalists. New entries
 -- in Remix's own range (770001+), on models the 3.3.5a client has: Moratari is a blood elf woman in
 -- dark plate with glowing runes (Lady Alistra's look), Eternus the Infinite Dragonflight's
 -- Chrono-Lord Epoch, the Keepers their own Caverns of Time selves, the echoes the people they were.
@@ -8,7 +9,9 @@
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
     @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022,
-    @ECHO_BOLVAR := 770023, @ANOMALY := 770031, @ANOMALY_CREDIT := 770032, @INSTRUCTOR_CREDIT := 770033;
+    @ECHO_BOLVAR := 770023, @ANOMALY := 770031, @ANOMALY_CREDIT := 770032, @INSTRUCTOR_CREDIT := 770033,
+    @SYLVANAS := 770011, @ALLERIA := 770012, @MORATARI_SCENE := 770013, @TURN_CREDIT := 770034,
+    @INTERLOPER := 770041;
 
 -- Until build 56 Remix's creatures were 7700001 and up, which made the core keep a table of
 -- creature templates 7.7 million long (its fast lookups are indexed by entry): gone.
@@ -40,7 +43,23 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 -- whoever struck the blow (a passing bot, Moratari's company).
 (@ANOMALY_CREDIT, 'Temporal Anomaly', NULL,                    10, 10, 0, 14, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 128, 1, 1, 2000, 1, ''),
 -- WRM-012's (never spawned): given by any of the Bazaar's instructors as they're spoken to.
-(@INSTRUCTOR_CREDIT, 'Your class''s instructor', NULL,          80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, '');
+(@INSTRUCTOR_CREDIT, 'Your class''s instructor', NULL,          80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+-- Chapter II (wrath_remix_world_0011_chapter2.sql): Sylvanas and Alleria Windrunner, brought back
+-- from the future by the bronze; Moratari as WRM-207's scene has her (seen by one Timerunner, no
+-- quests); its credit (never spawned).
+(@SYLVANAS,       'Sylvanas Windrunner', NULL,                 83, 83, 2, 35, 3, 1, 1.14286, 3, 2, 0, 2048, 7, 2, 25, 1, 2000, 1, 'npc_remix_windrunner'),
+(@ALLERIA,        'Alleria Windrunner',  NULL,                 83, 83, 2, 35, 3, 1, 1.14286, 3, 1, 0, 2048, 7, 2, 25, 1, 2000, 1, 'npc_remix_windrunner'),
+(@MORATARI_SCENE, 'Moratari',       'Infinite Dragonflight',   80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
+(@TURN_CREDIT,    'What Sylvanas came to say', NULL,           80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, '');
+
+-- Eternus's loyalists on the Wrathgate's cliffs (WRM-208): the Infinite Assailants of Chromie's
+-- hourglass under another name, at the Dragonblight's levels like them.
+DROP TEMPORARY TABLE IF EXISTS `remix_interloper`;
+CREATE TEMPORARY TABLE `remix_interloper` SELECT * FROM `creature_template` WHERE `entry` = 27896;
+UPDATE `remix_interloper` SET `entry` = @INTERLOPER, `name` = 'Infinite Interloper', `subname` = 'Eternus''s Loyalist',
+  `ScriptName` = '', `AIName` = '', `KillCredit1` = 0, `KillCredit2` = 0;
+INSERT INTO `creature_template` SELECT * FROM `remix_interloper`;
+DROP TEMPORARY TABLE `remix_interloper`;
 
 DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
@@ -58,7 +77,13 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@ECHO_BOLVAR, 0, 24879, 1, 1, 0),     -- Highlord Bolvar Fordragon at the Wrathgate
 (@ANOMALY, 0, 20515, 1, 1, 0),
 (@ANOMALY_CREDIT, 0, 20515, 1, 1, 0),
-(@INSTRUCTOR_CREDIT, 0, 19373, 1, 1, 0);
+(@INSTRUCTOR_CREDIT, 0, 19373, 1, 1, 0),
+(@SYLVANAS, 0, 28213, 1, 1, 0),       -- the Banshee Queen as Wrath has her
+(@ALLERIA, 0, 21741, 1, 1, 0),        -- a living high elf ranger-general: the 3.3.5 game has no Alleria
+(@MORATARI_SCENE, 0, 25458, 1, 1, 0),
+(@TURN_CREDIT, 0, 28213, 1, 1, 0),
+(@INTERLOPER, 0, 19059, 1, 1, 0),
+(@INTERLOPER, 1, 19062, 1, 1, 0);
 
 DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) VALUES
@@ -70,6 +95,7 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`) VALUES
 (@MORATARI, 1, 39287, 0, 0, 0),
+(@MORATARI_SCENE, 1, 39287, 0, 0, 0),
 (@ETERNUS, 1, 38609, 0, 0, 0),
 (@ZEPHYR, 1, 13861, 0, 0, 0);
 
@@ -110,7 +136,19 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (7702081, 'For the Horde... We had him. The gate was open and he came down to meet us, and then the sky went green. Tell my father I did not run.',
           'For the Horde... We had him. The gate was open and he came down to meet us, and then the sky went green. Tell my father I did not run.', 1),
 (7702082, 'The plague, then the fire. Then the cold, and a voice telling me that someone has to hold it. It is so very cold.',
-          'The plague, then the fire. Then the cold, and a voice telling me that someone has to hold it. It is so very cold.', 1);
+          'The plague, then the fire. Then the cold, and a voice telling me that someone has to hold it. It is so very cold.', 1),
+-- Sylvanas and Alleria (Chapter II): atop Wyrmrest Temple, at the Bazaar after the turn, and
+-- Alleria on the Wrathgate's cliffs.
+(7702090, 'The bronze brought us back to this year. I would not have chosen it.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.',
+          'The bronze brought us back to this year. I would not have chosen it.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.', 1),
+(7702091, 'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.',
+          'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.', 1),
+(7702092, 'My sister asked me to come. She does not ask.$B$BThe Void taught me to feel when the shape of the world is wrong. This year feels wrong, Timerunner, and it is getting worse.',
+          'My sister asked me to come. She does not ask.$B$BThe Void taught me to feel when the shape of the world is wrong. This year feels wrong, Timerunner, and it is getting worse.', 1),
+(7702093, 'Moratari keeps the Bazaar now. She is a better host than he was, and a worse liar.$B$BWhen Eternus moves again, I will feel it. You will be the first to know.',
+          'Moratari keeps the Bazaar now. She is a better host than he was, and a worse liar.$B$BWhen Eternus moves again, I will feel it. You will be the first to know.', 1),
+(7702094, 'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. That is the hard part.',
+          'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. That is the hard part.', 1);
 
 -- The Bazaar's instructors: one for each class, every rank of every spell up to your level, as a
 -- capital's trainer teaches them (their trainer lists are the capitals' own). Paladins have two,

@@ -373,6 +373,7 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=Non
             raise RuntimeError(f"the realm didn't keep the add-on's note in {note_file}")
         print(f"world: the realm kept the add-on's note: {note}")
 
+    session.character = character
     transcript = run_script(session, guid, steps) if steps is not None else None
 
     # The server answers in order: the command's lines come before the logout. A game master's
@@ -442,6 +443,8 @@ def run_script(session, player_guid, steps):
                                       messages, gossip options and quests, quest updates)
         expect-not TEXT               nothing since the last expect had TEXT
         wait SECONDS                  read what comes
+        addon PREFIX TEXT             an add-on message whispered to the character itself, as
+                                      the app's add-on (client/TouchAddon) talks to the realm
 
     Returns each step with everything heard during it, in order.
     """
@@ -599,6 +602,11 @@ def run_script(session, player_guid, steps):
             session.pump(3.0, packets)
         elif word == "wait":
             session.pump(float(rest), packets)
+        elif word == "addon":
+            prefix, _, text = rest.partition(" ")
+            session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + session.character.encode() + b"\0"
+                         + prefix.encode() + b"\t" + text.encode() + b"\0")
+            session.pump(3.0, packets)
         elif word in ("expect", "expect-not"):
             found = any(rest.lower() in h.lower() for h in heard)
             if found != (word == "expect"):
