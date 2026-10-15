@@ -270,11 +270,14 @@ class TurtleClientSetupTest {
         val client = createTempDirectory("turtle-client").toFile()
         try {
             File(client, "WTF").mkdirs()
-            File(client, "WTF/Config.wtf").writeText("SET gxResolution \"800x600\"\r\nSET SoundVolume \"0.5\"\r\nSET realmList \"logon.turtle-wow.org\"\r\n")
+            // As Turtle's own client has them: its old servers for the realm and the patches.
+            File(client, "WTF/Config.wtf").writeText("SET gxResolution \"800x600\"\r\nSET SoundVolume \"0.5\"\r\nSET realmList \"logon.turtle-wow.org\"\r\nSET patchlist \"logon.turtle-wow.org\"\r\n")
+            File(client, "realmlist.wtf").writeText("set realmlist logon.turtle-wow.org\r\nset patchlist logon.turtle-wow.org\r\n")
             TurtleClientSetup.apply(client, 2400, 1080, "TURTLE")
-            assertEquals("set realmlist 127.0.0.1\r\n", File(client, "realmlist.wtf").readText())
+            assertEquals("set realmlist 127.0.0.1\r\nset patchlist 127.0.0.1\r\n", File(client, "realmlist.wtf").readText())
             val config = File(client, "WTF/Config.wtf").readText()
             assertTrue("SET realmList \"127.0.0.1\"" in config)
+            assertTrue("SET patchlist \"127.0.0.1\"" in config, config)
             assertTrue("SET gxResolution \"2400x1080\"" in config)
             assertTrue("SET SoundVolume \"0.5\"" in config, "the player's own settings stay")
             assertTrue("SET accountName \"TURTLE\"" in config)
@@ -287,6 +290,12 @@ class TurtleClientSetupTest {
 }
 
 class TurtleRealmTest {
+    /** Tortoise's login server drops a client asking for the realm list twice in a second: not on the phone. */
+    @Test
+    fun theLoginServerAnswersTheRealmListAsOftenAsAsked() {
+        assertEquals("0", TurtleRealm.REALMD_SETTINGS["MinRealmListDelay"])
+    }
+
     @Test
     fun recognisesTortoisesLogLines() {
         // As src/game/World.cpp, DBCStores.cpp and AutoUpdater.cpp write them.
