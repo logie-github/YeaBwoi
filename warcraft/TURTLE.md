@@ -133,8 +133,11 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   installed) with the module's SQL and the addon; its test passes every functional check: the bots'
   configs are made (`aiplayerbot.conf` with 40 world bots, `etc/modules/tortoise_bots.conf`), the
   login answers three realm lists in a row (the disconnect above), and the world server applies
-  all 192 database updates, 41 of them TortoiseBots', before it stops at the DBC files. The
-  system call check waits for CI's arm64 run (see below). JVM tests: 176, passing (the bots'
+  all 192 database updates, 41 of them TortoiseBots', before it stops at the DBC files. On CI's
+  arm64 (run 70): compiled in 45 minutes; the package is 56 MB (468 MB installed); its test passed
+  every check, the system call check against Android's policy included (113 server processes and
+  threads), three realm lists answered, 192 of 192 updates; published as the prerelease
+  `turtle-server-f239aff1e747`. JVM tests: 176, passing (the bots'
   settings, the addon's install into the client, warperia.com's Vanilla list and downloads). The
   launcher's screens were rendered off the phone, each tile's.
 - CI on arm64 (GitHub's `ubuntu-24.04-arm`): Tortoise-WoW and ACE compiled in 20 minutes; the
