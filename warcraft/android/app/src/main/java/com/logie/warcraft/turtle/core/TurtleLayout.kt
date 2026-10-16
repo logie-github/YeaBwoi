@@ -67,12 +67,13 @@ class TurtleLayout(val files: File, val dataDir: File = files.parentFile ?: file
 
         /**
          * The ChromieCraft realm's folders in `files/` (WowFiles, ModuleStore, AddonStore,
-         * ClientMods; Wrath Remix's `etc-remix`), and their staging and leftovers.
+         * ClientMods; Wrath Remix's `etc-remix`; `client-realm`, the realm the 3.3.5a client last
+         * started on), and their staging and leftovers.
          */
         val PROTECTED_NAMES = listOf(
             "server", "server.new", "server.old", "etc", "etc-remix", "mysql", "mysql.deleting",
             "data", "data.work", "data.download", "data.import", "data-races", "races",
-            "client", "client.import", "logs", "run", "addons", "mods", "modules",
+            "client", "client.import", "client-realm", "logs", "run", "addons", "mods", "modules",
         )
 
         /** In the app's data folder: the game's Windows runtime (Wine, Box64), shared, read-only here. */

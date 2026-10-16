@@ -2,8 +2,10 @@
 
 The app's third game: Felsong (World of Warcraft: Legion 7.3.5) against its own local realm, kept
 completely apart from the 3.3.5a game (ChromieCraft) and Turtle WoW, as Turtle is (`TURTLE.md`).
-**Status: research done, theme made; nothing of the game or its realm is in the app yet.** Nothing
-here is released (the user's word: no release until it's playable).
+**Status: research done; Felsong's launcher is in the app with its look and music, and says it
+isn't playable (no Play); its realm (LegionCore) is being ported to the phone and hasn't been built
+through; the client hasn't been tried on a phone.** Nothing here is released (the user's word: no
+release until it's playable).
 
 ## What the user asked for
 
@@ -138,3 +140,23 @@ server's data 10–20 GB, the databases 1.5 GB.
   logo's diamond, rising fel motes. The Entering Azeroth screen (`FelsongLoading`) fills the
   screen with the big picture, its logo bobbing as on felsong.gg's loading screen. Not reachable
   until Felsong's game is in the app.
+- Felsong in the launcher: the game switch is a picker (Wrath of the Lich King, Turtle WoW,
+  Felsong), each game in its own look. Felsong's launcher (`FelsongHome`) has the look above,
+  Kingdoms Will Burn as its music (`res/raw/felsong_title_music.ogg`, −6.5 dB), and says plainly
+  that there's no Play yet, why (the realm, the client and box64 #3061), and that nothing of the
+  other games changes. Released in no build yet.
+
+## In progress: the realm (step 2)
+
+- LegionCore pinned (`felsong/server-version.env`: `fed58f7`, its world and hotfixes release by
+  SHA-256, client build 26972), with the app's patches for arm64, musl and clang 20
+  (`felsong/patches/0001`–`0008`: G3D's x86 assembly, CascLib's and G3D's `stat64`, gSOAP on musl,
+  fmt's compile-time checks, rapidjson's NEON, the CPU mask and `LockedMap::swap`, clang's
+  `DEBUG=1`, `NULL` where a number is meant in three scripts).
+- `scripts/fetch-legioncore.sh`, `scripts/compile-legioncore.sh` (clang in Alpine, natively on arm64
+  or cross-compiled into an arm64 sysroot; hours), `scripts/package-legioncore.sh` (with Alpine's
+  MariaDB and the databases made from LegionCore's release, `felsong/server/seed.sql`), and
+  `felsong/server/ctl.sh` on ports of its own (MariaDB 3312, Battle.net 1119 and 8081, world 8095
+  and 8096).
+- **Not yet:** a complete compile (patch 0008 fixes errors in the game's scripts, so a compile got
+  at least that far; none is recorded as finished), the package, a test of the realm, its CI job, and anything in the app that installs or starts it.
