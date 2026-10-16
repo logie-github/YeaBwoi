@@ -4,8 +4,9 @@ The app's third game: Felsong (World of Warcraft: Legion 7.3.5) against its own 
 completely apart from the 3.3.5a game (ChromieCraft) and Turtle WoW, as Turtle is (`TURTLE.md`).
 **Status: research done; Felsong's launcher is in the app with its look and music, and says it
 isn't playable (no Play); its realm (LegionCore) is being ported to the phone and hasn't been built
-through; the client hasn't been tried on a phone.** Nothing here is released (the user's word: no
-release until it's playable).
+through; the client hasn't been tried on a phone.** Its launcher is in the app's releases from
+build 77 on (the user asked for a release with it, October 16, 2026), saying it isn't playable; the
+game isn't, yet.
 
 ## What the user asked for
 
