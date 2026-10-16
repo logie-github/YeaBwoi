@@ -22,8 +22,20 @@
 #      character is left out of the character list but kept. A module that was in the realm and
 #      isn't now (ctl.sh modules) takes what it put in the world database with it, and the
 #      realm's modules put theirs in again.
-#   6. The auth server starts again the way the app starts it, and the account logs in.
-#   7. With strace, no server program made a system call Android's seccomp policy forbids apps.
+#   6. Wrath Remix, the second realm: its databases are made, its world server starts with the
+#      mod-wrath-remix module on (the ChromieCraft realm's said it was off), its SQL is in its
+#      databases and not in ChromieCraft's, both realms are in the realm list, and a new
+#      character there is a level 10 Timerunner at the Infinite Bazaar who plays the prologue
+#      (warcraft/server/remix_prologue.steps) to the first chapter, with Northrend's creatures at
+#      its levels, and has its class's starter kit on, its abilities learned and its weapon skill
+#      at its level's maximum, buys from the Bazaar's Bronze vendors' windows (Bronze an item, a
+#      price an ItemExtendedCost of Bronze); every NPC Remix placed stands on the floor
+#      (remix_check.py floors); the realm writes the game's patch with Bronze's rows
+#      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
+#      leave where characters are made for their chapters. Chapters II to IV's transitions are played on
+#      each side (warcraft/server/remix_campaign_*.steps).
+#   7. The auth server starts again the way the app starts it, and the account logs in.
+#   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -143,11 +155,11 @@ if python3 "$ROOT/warcraft/server/auth_check.py" login 127.0.0.1 tester wrongpas
 fi
 
 echo "== world server"
-start_world() { # log name
+start_world() { # log name [realm]
 	world_log="$FILES/logs/$1"
 	rm -f "$FILES/run/world.in"
 	mkfifo "$FILES/run/world.in"
-	CTL world < "$FILES/run/world.in" > "$world_log" 2>&1 & pids+=($!)
+	CTL world ${2:-} < "$FILES/run/world.in" > "$world_log" 2>&1 & pids+=($!)
 	world=$!
 	# Its console: the app stops it with a command there.
 	exec 3> "$FILES/run/world.in"
@@ -265,8 +277,144 @@ if [ -n "$DATA_ZIP" ]; then
 	kept=$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Testwolf'" | CTL sql acore_characters)
 	echo "characters of the custom races kept: $kept"
 	[ "$kept" = 1 ] || fail "the Worgen was deleted"
-	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero |
-		grep -q "in the world on map" || fail "the human couldn't get into the world after the races went"
+	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Testhero ".remix" > "$FILES/logs/world-remix-off.out" ||
+		fail "the human couldn't get into the world after the races went"
+	cat "$FILES/logs/world-remix-off.out"
+	grep -q "in the world on map" "$FILES/logs/world-remix-off.out" || fail "the human couldn't get into the world after the races went"
+	grep -q "Wrath Remix: off on this realm" "$FILES/logs/world-remix-off.out" || fail "Wrath Remix answered on the ChromieCraft realm"
+	stop_world
+	grep -q "Wrath Remix: off" "$FILES/logs/world.out" || fail "the ChromieCraft realm's world server didn't say Wrath Remix is off"
+
+	echo "== Wrath Remix: the second realm"
+	start=$(date +%s)
+	CTL dbimport remix > "$FILES/logs/dbimport-remix.out" 2>&1 || fail "the Remix databases weren't made: $(tail -5 "$FILES/logs/dbimport-remix.out")"
+	echo "the Remix databases took $(($(date +%s) - start)) s"
+	for db in acore_world_remix acore_characters_remix acore_playerbots_remix; do
+		tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$db'" | CTL sql)
+		echo "$db: $tables tables"
+	done
+	[ "$(echo "SELECT COUNT(*) FROM creature_template" | CTL sql acore_world_remix)" -gt 20000 ] || fail "the Remix world database looks empty"
+	[ "$(echo "SELECT COUNT(*) FROM updates_include WHERE path LIKE '%mod-wrath-remix%'" | CTL sql acore_world_remix)" = 1 ] ||
+		fail "the Remix world database doesn't list Wrath Remix's SQL"
+	[ "$(echo "SELECT COUNT(*) FROM updates_include WHERE path LIKE '%mod-wrath-remix%'" | CTL sql acore_world)" = 0 ] ||
+		fail "the ChromieCraft world database lists Wrath Remix's SQL"
+	CTL modules remix > "$FILES/logs/modules-remix.out" 2>&1 || fail "ctl.sh modules remix failed"
+	[ -f "$FILES/mysql/.world-modules-remix" ] || fail "the Remix realm's modules aren't on record"
+	grep -q "WrathRemix.Enable = 1" "$FILES/etc-remix/modules/mod_wrath_remix.conf" || fail "Wrath Remix isn't on in its realm's config"
+	grep -q "WrathRemix.Enable = 0" "$FILES/etc/modules/mod_wrath_remix.conf" || fail "Wrath Remix isn't off in ChromieCraft's config"
+	grep -q "^RealmID = 2" "$FILES/etc-remix/worldserver.conf" || fail "the Remix world server isn't realm 2"
+	grep -q "^StartPlayerLevel = 10" "$FILES/etc-remix/worldserver.conf" || fail "Timerunners don't start at 10"
+
+	# Both realms in the realm list (the auth server reads it again every 20 s or so).
+	CTL realmlist 192.168.1.50 || fail "ctl.sh realmlist failed"
+	for _ in $(seq 40); do
+		realms=$(python3 "$ROOT/warcraft/server/auth_check.py" login 127.0.0.1 tester secret123 || true)
+		echo "$realms" | grep -q "Wrath Remix" && break
+		sleep 2
+	done
+	echo "$realms"
+	echo "$realms" | grep -q "Wrath Remix	127.0.0.1:8086" || fail "the realm list doesn't have Wrath Remix at 127.0.0.1:8086"
+	echo "$realms" | grep -q "ChromieCraft	127.0.0.1:8085" || fail "the realm list lost ChromieCraft"
+
+	# A game folder for Wrath Remix's patch (the phone has the client there; CI only the folder).
+	mkdir -p "$FILES/client/Data"
+	start_world world-remix.out remix
+	wait_world_ready
+	grep -q "Wrath Remix: on (realm 2)" "$world_log" || fail "Wrath Remix didn't turn on in its realm"
+	grep -q "Wrath Remix: the game's patch written" "$world_log" || fail "Wrath Remix didn't write the game's patch"
+	python3 "$ROOT/warcraft/server/remix_check.py" patch "$FILES/client/Data/patch-Y.MPQ" "$FILES/data/dbc" ||
+		fail "Wrath Remix's patch for the game isn't right"
+	grep -E "Wrath Remix: [0-9]+ level bands" "$world_log" || fail "Wrath Remix didn't load its tables"
+	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 770001" | CTL sql acore_world_remix)" = 1 ] || fail "Moratari isn't in the Remix world"
+	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID >= 1000000" | CTL sql acore_world_remix)" = 0 ] || fail "quests in the millions (the core's quest table grows to the highest id)"
+	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 770001" | CTL sql acore_world)" = 0 ] || fail "Moratari is in the ChromieCraft world"
+	[ "$(echo "SELECT QuestLevel FROM quest_template WHERE ID = 11672" | CTL sql acore_world)" = 71 ] || fail "Remix changed ChromieCraft's quests"
+	echo "Enlistment Day: level $(echo "SELECT QuestLevel FROM quest_template WHERE ID = 11672" | CTL sql acore_world_remix) on Wrath Remix"
+
+	export WORLD_PORT=8086
+	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Timerunner | tee "$FILES/logs/remix-client.out" ||
+		fail "a character couldn't get into the Remix world"
+	grep -q "level 10, map 571" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 at the Infinite Bazaar"
+	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 | tee "$FILES/logs/remix-characters.out"
+	if grep -q "^Testhero" "$FILES/logs/remix-characters.out"; then fail "ChromieCraft's character is on Wrath Remix"; fi
+
+	echo "== Wrath Remix's prologue"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Timerunner 1 1 \
+		"$ROOT/warcraft/server/remix_prologue.steps" | tee "$FILES/logs/remix-prologue.out" || fail "the prologue didn't play through"
+	# Report Time Anomaly, asked for during Time's Toll: the realm's report for the app to send to
+	# GitHub, with the quest the Timerunner is on, who gave it, who they've spoken to since, and the
+	# way they came.
+	report=$(ls "$FILES/run/reports"/anomaly-*.md 2> /dev/null | head -1)
+	[ -n "$report" ] || fail "Report Time Anomaly wrote no report in files/run/reports"
+	echo "Time anomaly report $(basename "$report"):"
+	sed -n '1,16p' "$report"
+	for text in "# Time anomaly: Time's Toll (Timerunner, level" "**What happened:** CI's report, from the Bazaar" \
+		"**Time's Toll** (77012), ready to turn in" "from Eternus (770002)" "Spoken to since it was taken: Alurmi (770005)" \
+		"Timeworn Instructor (770101)" "### The way here" "Took **Out of Time** (77010)" \
+		"Spoke to Echo of a Fallen Footman (770021)" "Turned in **What the War Will Cost** (77011)"; do
+		grep -qF "$text" "$report" || fail "the time anomaly report hasn't \"$text\""
+	done
+	band=$(grep -o "band check: [0-9]* banded creatures, levels [0-9]* to [0-9]*" "$FILES/logs/remix-prologue.out" | tail -1)
+	echo "Valiance Keep: $band"
+	[ -n "$band" ] && [ "${band##* }" -le 23 ] || fail "Borean Tundra's creatures aren't at Chapter I's levels ($band)"
+	row=$(echo "SELECT r.bronze, r.chapter FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)
+	echo "Timerunner's record (Bronze owed, chapter): $row"
+	[ "$row" = "$(printf '0\t1')" ] || fail "the Timerunner's chapter wasn't kept, or Bronze is owed ($row)"
+	bronze=$(echo "SELECT SUM(t.count) FROM item_instance t JOIN characters c ON c.guid = t.owner_guid WHERE c.name = 'Timerunner' AND t.itemEntry = 77001" | CTL sql acore_characters_remix)
+	echo "Timerunner's Bronze: $bronze"
+	[ "$bronze" = 10200 ] || fail "the Timerunner doesn't carry 10,200 Bronze ($bronze)"
+	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 46017" | CTL sql acore_characters_remix)" = 1 ] ||
+		fail "Val'anyr, bought from Durus, isn't in the bags"
+	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 42985" | CTL sql acore_characters_remix)" = 1 ] ||
+		fail "the heirloom bought from Alurmi isn't in the bags"
+	# The warrior's starter kit, on (every piece in its slot: heirlooms and greens), its
+	# abilities (Defensive Stance from the class quest, Bloodrage from the trainer) and its axe skill
+	# at its level's maximum (five a level).
+	kit=$(echo "SELECT GROUP_CONCAT(CONCAT(i.slot, ':', t.itemEntry) ORDER BY i.slot) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND i.bag = 0 AND i.slot < 19" | CTL sql acore_characters_remix)
+	echo "Timerunner's gear: $kit"
+	for piece in 2:42949 4:48685 5:832 6:2978 7:3302 9:2980 10:8350 11:50255 12:42991 14:2284 15:42943; do
+		case ",$kit," in *",$piece,"*) ;; *) fail "the warrior's starter kit isn't on ($piece missing: $kit)" ;; esac
+	done
+	[ "$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = 'Timerunner' AND s.spell IN (71, 2687)" | CTL sql acore_characters_remix)" = 2 ] ||
+		fail "the warrior didn't learn Defensive Stance and Bloodrage"
+	axe=$(echo "SELECT CONCAT(k.value, ' ', c.level * 5) FROM character_skills k JOIN characters c ON c.guid = k.guid WHERE c.name = 'Timerunner' AND k.skill = 172" | CTL sql acore_characters_remix)
+	echo "Timerunner's two-handed axe skill, and its level's maximum: $axe"
+	[ -n "$axe" ] && [ "${axe% *}" = "${axe#* }" ] || fail "the warrior's two-handed axe skill isn't its level's maximum ($axe)"
+	[ "$(echo "SELECT kit FROM remix_character r JOIN characters c ON c.guid = r.guid WHERE c.name = 'Timerunner'" | CTL sql acore_characters_remix)" = 1 ] ||
+		fail "the starter kit isn't on record"
+
+	# The campaign's transitions after Chapter I, each side with a character of its own (the
+	# original quests before them given by GM commands).
+	echo "== Wrath Remix's campaign, Chapters II to IV"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Wintergarde 1 1 \
+		"$ROOT/warcraft/server/remix_campaign_alliance.steps" | tee "$FILES/logs/remix-campaign-alliance.out" ||
+		fail "the campaign's transitions didn't play through for the Alliance"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Agmarshammer 2 1 \
+		"$ROOT/warcraft/server/remix_campaign_horde.steps" | tee "$FILES/logs/remix-campaign-horde.out" ||
+		fail "the campaign's transitions didn't play through for the Horde"
+
+	echo "== Wrath Remix's NPCs on the floor"
+	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704299 ORDER BY guid" |
+		CTL sql acore_world_remix > "$FILES/logs/remix-spawns.tsv"
+	python3 "$ROOT/warcraft/server/remix_check.py" floors 127.0.0.1 tester secret123 Timerunner "$FILES/logs/remix-spawns.tsv" |
+		tee "$FILES/logs/remix-floors.out" || fail "Wrath Remix has NPCs floating or buried"
+	unset WORLD_PORT
+	stop_world
+
+	# The realm's bots are made where Timerunners begin; each one in the world is sent to its
+	# chapter (those in the world a moment, as it shut down, aside).
+	echo "== Wrath Remix's bots out of the Infinite Bazaar"
+	sent=$(grep -c "sent from the Infinite Bazaar" "$world_log" || true)
+	echo "bots sent from the Infinite Bazaar to their chapters: $sent"
+	[ "$sent" -gt 0 ] || fail "no bot was sent from the Infinite Bazaar"
+	left=$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.zone <> 0 AND c.totaltime >= 30 AND c.map = 571 AND c.position_x BETWEEN 5580 AND 5820 AND c.position_y BETWEEN 890 AND 1130" | CTL sql acore_characters_remix)
+	[ "$left" = 0 ] || fail "$left of the realm's bots stayed at the Infinite Bazaar"
+
+	echo "== ChromieCraft takes Wrath Remix's patch out of the game"
+	start_world world-again.out
+	wait_world_ready
+	grep -q "Wrath Remix: its patch is out of the game" "$world_log" || fail "ChromieCraft's world server didn't take Wrath Remix's patch out"
+	[ ! -e "$FILES/client/Data/patch-Y.MPQ" ] || fail "Wrath Remix's patch is still in the game on ChromieCraft"
 	stop_world
 else
 	# Without the server's data, it runs until it needs dbc, then stops.

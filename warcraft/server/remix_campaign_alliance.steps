@@ -1,0 +1,303 @@
+# Wrath Remix's campaign, Chapters II to IV, as the Alliance has them: Chapter II's story and the
+# turn, and Moratari's transitions. Played by CI as a level 30 human (auth_check.py script, on the
+# Remix realm). The original quests before each step are given and turned in with GM commands, the
+# story's own are played, and what each opens, and who can be seen, is checked.
+
+cmd .levelup 20
+wait 2
+cmd .remix
+expect level 30
+
+# Chapter II's story (STORY.md). WRM-203 (A Summons from Wyrmrest): Find Durkon! done.
+# Wintergarde's errands would come next; Into Hostile Territory isn't open yet, and
+# Moratari by Cavalier Durkon has the summons first.
+cmd .quest add 12309
+cmd .quest complete 12309
+cmd .quest reward 12309
+go 571 3764.6 -772.4 196.6
+talk 27136
+expect-not quest 12325
+go 571 3585.3 -806.8 179.7
+talk 770001
+expect quest 77203
+expect-not quest 77201
+accept 770001 77203
+reward 770001 77203
+expect rewarded 77203
+# (to Chromie atop Wyrmrest Temple a moment later) Mystery of the Infinite, the game's own (its
+# hourglass and its waves are the core's; done here with a GM command), then Strangers Out of Time:
+# Sylvanas and Alleria appear beside her as it's taken.
+wait 3
+cmd .gps
+expect Wyrmrest Temple
+cmd .remix sees 770011
+expect hidden
+talk 27856
+expect quest 12470
+accept 27856 12470
+cmd .quest complete 12470
+reward 27856 12470
+expect rewarded 12470
+talk 27856
+expect quest 77204
+accept 27856 77204
+cmd .remix sees 770011
+expect seen
+cmd .remix sees 770012
+expect seen
+reward 770011 77204
+expect rewarded 77204
+# WRM-205 (Ask Him Yourself): taking it goes to the Bazaar, before Eternus; turning it in comes
+# back to Moratari's The Road to Angrathar.
+talk 770011
+expect quest 77205
+accept 770011 77205
+wait 3
+cmd .gps
+expect Crystalsong Forest
+reward 770002 77205
+expect rewarded 77205
+wait 3
+talk 770001
+expect quest 77201
+accept 770001 77201
+reward 770001 77201
+expect rewarded 77201
+# (back to the High Commander a moment later)
+wait 3
+talk 27136
+expect quest 12325
+
+# The turn, right before the Wrathgate's chain. WRM-206 (A Warning, Unwritten): To Fordragon Hold!
+# done; Bolvar doesn't send the Timerunner to the Dragonqueen yet. Moratari beside him does, to
+# Eternus at the Bazaar.
+cmd .quest add 12474
+cmd .quest complete 12474
+cmd .quest reward 12474
+go 571 4699.7 1506.8 261.6
+talk 27872
+expect-not quest 12495
+talk 770001
+expect quest 77206
+accept 770001 77206
+wait 3
+reward 770002 77206
+expect rewarded 77206
+# WRM-207 (The Weight of Time): its scene plays as it's taken (about a minute and a half), and
+# ends with its credit. Eternus is gone from the Bazaar after it; Sylvanas and Alleria are there.
+talk 770002
+expect quest 77207
+accept 770002 77207
+cmd .remix sees 770001
+expect hidden
+wait 30
+wait 30
+wait 10
+expect It has to happen as it did
+wait 20
+expect credit 77207 770034
+cmd .remix sees 770002
+expect hidden
+cmd .remix sees 770001
+expect seen
+cmd .remix sees 770011
+expect seen
+reward 770001 77207
+expect rewarded 77207
+# WRM-208 (The Hour of the Gate): Sylvanas sends the Timerunner to the cliffs above the gate, where
+# Alleria and Eternus's loyalists are; six slain, then Alleria, then Bolvar again, with the
+# Audience offered.
+talk 770011
+expect quest 77208
+accept 770011 77208
+wait 3
+cmd .remix sees 770041
+expect seen
+cmd .cheat god on
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+kill 770041
+expect credit 77208 770041 6/6
+wait 2
+cmd .cheat god off
+cmd .remix sees 770041
+expect hidden
+reward 770012 77208
+expect rewarded 77208
+wait 3
+talk 27872
+expect quest 12495
+
+# II-B, WRM-202 (What We Cannot Change): after Return To Angrathar, Moratari stands by Alexstrasza
+# at the Wrathgate, in the phase the Wrathgate is in after it, with the Life-Binder's next quest.
+cmd .quest add 12499
+cmd .quest complete 12499
+cmd .quest reward 12499
+go 571 4855.2 1472.2 210.2
+wait 2
+talk 31333
+expect quest 13347
+talk 770001
+expect quest 77202
+accept 770001 77202
+reward 770001 77202
+expect rewarded 77202
+
+# II-C, WRM-221 (After Angrathar): after The Battle For The Undercity, Moratari by King Varian Wrynn
+# sends the Timerunner to Amberpine Lodge, Chapter III.
+cmd .quest add 13377
+cmd .quest complete 13377
+cmd .quest reward 13377
+go 0 -8441.4 333.1 123.2
+talk 770001
+expect quest 77221
+accept 770001 77221
+reward 770001 77221
+expect rewarded 77221
+wait 4
+cmd .remix
+expect chapter 3
+cmd .gps
+expect Grizzly Hills
+
+# Chapter III. III-A, WRM-301 (A Shorter Path Through the Woods): Ursoc, the Bear God done;
+# Filling the Cages isn't open at Samir yet. (Chapter III's levels from here on.)
+cmd .levelup 10
+wait 2
+cmd .quest add 12249
+cmd .quest complete 12249
+cmd .quest reward 12249
+go 571 3849.4 -1958.8 209.0
+talk 26424
+expect-not quest 11984
+# Moratari, by Hierophant Thayreen.
+go 571 3435.2 -2746.4 200.0
+talk 770001
+expect quest 77301
+accept 770001 77301
+reward 770001 77301
+expect rewarded 77301
+# (to Samir a moment later)
+wait 3
+talk 26424
+expect quest 11984
+
+# III-B, WRM-302 (A Friend of Questionable Judgment): after Voices From the Dust, Moratari at the
+# door of Drak'Tharon Keep.
+cmd .quest add 12068
+cmd .quest complete 12068
+cmd .quest reward 12068
+go 571 4599.7 -4876.9 49.5
+talk 770001
+expect quest 77302
+accept 770001 77302
+reward 770001 77302
+expect rewarded 77302
+
+# WRM-321 (The Truth About Drakuru): after Cleansing Drak'Tharon, the same Moratari sends the
+# Timerunner to Light's Breach, Chapter IV.
+cmd .quest add 12238
+cmd .quest complete 12238
+cmd .quest reward 12238
+talk 770001
+expect quest 77321
+accept 770001 77321
+reward 770001 77321
+expect rewarded 77321
+wait 4
+cmd .remix
+expect chapter 4
+cmd .gps
+expect Zul'Drak
+
+# Chapter IV. IV-A, WRM-401 (The Things the Scourge Remembers): The Ebon Watch done; Infiltrating
+# Voltarus isn't open at Stefan Vadu yet.
+cmd .quest add 12884
+cmd .quest complete 12884
+cmd .quest reward 12884
+go 571 5211.8 -1302.1 243.0
+talk 28518
+expect-not quest 12661
+talk 770001
+expect quest 77401
+accept 770001 77401
+reward 770001 77401
+expect rewarded 77401
+talk 28518
+expect quest 12661
+
+# IV-A, WRM-402 (The Paperwork of Betrayal): after Infiltrating Voltarus, the same Moratari opens
+# Sabotage.
+cmd .quest add 12661
+cmd .quest complete 12661
+cmd .quest reward 12661
+talk 28518
+expect-not quest 12676
+talk 770001
+expect quest 77402
+accept 770001 77402
+reward 770001 77402
+expect rewarded 77402
+talk 28518
+expect quest 12676
+
+# WRM-403 (A Pilgrim's Shortcut): after Precious Elemental Fluids, Moratari by Hexxer Ubungo sends
+# the Timerunner to Har'koa at Zim'Torga, past her rescue.
+cmd .quest add 12510
+cmd .quest complete 12510
+cmd .quest reward 12510
+go 571 5746.8 -3606.8 387.7
+talk 28401
+expect-not quest 12666
+go 571 5484.6 -2623.7 307.6
+talk 770001
+expect quest 77403
+accept 770001 77403
+reward 770001 77403
+expect rewarded 77403
+wait 3
+talk 28401
+expect quest 12666
+
+# IV-B, WRM-404 (The Gods Are Still Silent): after You Reap What You Sow and Betrayal, Moratari by
+# Witch Doctor Khufu opens The Gods Have Spoken.
+cmd .quest add 12685
+cmd .quest complete 12685
+cmd .quest reward 12685
+go 571 5736.1 -3571.4 387.5
+talk 770001
+expect-not quest 77404
+cmd .quest add 12713
+cmd .quest complete 12713
+cmd .quest reward 12713
+talk 28479
+expect-not quest 12729
+talk 770001
+expect quest 77404
+accept 770001 77404
+reward 770001 77404
+expect rewarded 77404
+talk 28479
+expect quest 12729
+
+# WRM-421 (A Kingdom Gone): after Gal'darah Must Pay (Gundrak's quests at Chapter IV's levels),
+# Moratari by Tol'mar sends the Timerunner to Nesingwary Base Camp in Sholazar Basin, Chapter V.
+cmd .levelup 10
+wait 2
+cmd .quest add 13096
+cmd .quest complete 13096
+cmd .quest reward 13096
+go 571 6906.5 -4096.1 467.9
+talk 770001
+expect quest 77421
+accept 770001 77421
+reward 770001 77421
+expect rewarded 77421
+wait 4
+cmd .remix
+expect chapter 5
+cmd .gps
+expect Nesingwary Base Camp

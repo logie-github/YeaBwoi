@@ -10,11 +10,13 @@ import com.logie.warcraft.LegacyRaces
 import com.logie.warcraft.Database
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
+import com.logie.warcraft.Realms
 import com.logie.warcraft.SavedLogin
 import com.logie.warcraft.Server
 import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowFiles
 import com.logie.warcraft.client.ClientConfig
+import com.logie.warcraft.client.RealmCache
 import com.logie.warcraft.client.TouchAddon
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
@@ -112,6 +114,7 @@ object Game {
         if (!WowFiles.hasClient(context)) throw GameFailed(context.getString(R.string.wow_game_error_no_client))
         // The realm takes minutes to load: it starts first, and the rest is done while it loads.
         Server.start(context)
+        val realm = Server.status.value.realm
 
         _state.value = State.Preparing(Step.RUNTIME, 0f)
         val installed = withContext(Dispatchers.IO) {
@@ -126,7 +129,8 @@ object Game {
         val container = container(context, width, height)
         withContext(Dispatchers.IO) {
             LegacyRaces.cleanClient(context)
-            configureClient(context, width, height, accountName = null)
+            forgetOtherRealm(context, realm)
+            configureClient(context, width, height, realm, accountName = null)
         }
 
         _state.value = State.Preparing(Step.REALM)
@@ -146,12 +150,12 @@ object Game {
         val saved = SavedLogin.get(context)
         val account = accounts?.firstOrNull { saved != null && it.name.equals(saved.name, ignoreCase = true) }
             ?: accounts?.singleOrNull()
-        if (account != null) withContext(Dispatchers.IO) { configureClient(context, width, height, account.name) }
+        if (account != null) withContext(Dispatchers.IO) { configureClient(context, width, height, realm, account.name) }
         // No characters yet: right after the login the game goes to character creation, where the
         // keyboard stays up for the name.
         val newAccount = account != null && withContext(Dispatchers.IO) {
             runCatching {
-                Database.query(context, "acore_characters", "SELECT COUNT(*) FROM characters WHERE account = ${account.id};")
+                Database.query(context, realm.charactersDatabase, "SELECT COUNT(*) FROM characters WHERE account = ${account.id};")
                     .firstOrNull()?.firstOrNull()?.toIntOrNull() == 0
             }.getOrDefault(false)
         }
@@ -205,8 +209,16 @@ object Game {
         return created ?: throw GameFailed(context.getString(R.string.wow_game_error_windows))
     }
 
+    /** The client's cache goes when it starts on another realm than the last time ([RealmCache]). */
+    private fun forgetOtherRealm(context: Context, realm: Realms.Realm) {
+        val record = File(WowFiles.root(context), "client-realm")
+        val last = record.takeIf { it.isFile }?.readText()
+        if (RealmCache.mustClear(last, realm.key)) File(WowFiles.client(context), "Cache/WDB").deleteRecursively()
+        record.writeText(realm.key + "\n")
+    }
+
     /** Points the client at the realm on this phone, at the game's resolution, intro movie off. */
-    private fun configureClient(context: Context, width: Int, height: Int, accountName: String?) {
+    private fun configureClient(context: Context, width: Int, height: Int, realm: Realms.Realm, accountName: String?) {
         val client = WowFiles.client(context)
         val realmlist = ClientConfig.realmlist("127.0.0.1")
         File(client, "Data").listFiles { file -> file.isDirectory && ClientConfig.LOCALE.matches(file.name) }
@@ -217,7 +229,7 @@ object Game {
         config.parentFile?.mkdirs()
         val values = buildMap {
             put("realmList", "127.0.0.1")
-            put("realmName", Server.REALM_NAME)
+            put("realmName", realm.displayName)
             put("accounttype", "LK")
             put("readTOS", "1")
             put("readEULA", "1")

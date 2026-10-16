@@ -1,0 +1,139 @@
+# Wrath Remix's prologue (STORY.md), played by CI as a new Timerunner (auth_check.py script, on the
+# Remix realm): waking at the Infinite Bazaar, Eternus and the echoes of the war's dead, Alurmi and
+# the class instructor, the anomalies, a purchase from the Bronze vendors, and Eternus sending the
+# Timerunner to Valiance Keep. The anomalies are killed with a game master's `.damage` (the
+# character's blows, so it gets the kills).
+
+cmd .remix
+expect chapter 0 (the prologue)
+
+# The starter kit and the class's abilities, a moment after the first login (the client checks
+# what the realm wrote down at the end).
+wait 3
+
+# WRM-010, Out of Time: Moratari, before the waking Timerunner, sends them to Eternus (both within
+# reach from here).
+go 571 5697.5 1019.5 175.0
+talk 770001
+expect quest 77010
+accept 770001 77010
+reward 770002 77010
+expect rewarded 77010
+
+# WRM-011, What the War Will Cost: the three echoes, every one of them heard.
+talk 770002
+expect quest 77011
+accept 770002 77011
+go 571 5691.0 1029.0 175.1
+talk 770021
+expect credit 77011 770021
+go 571 5700.0 1032.0 175.1
+talk 770022
+expect credit 77011 770022
+go 571 5709.0 1029.0 175.1
+talk 770023
+expect credit 77011 770023
+go 571 5697.5 1019.5 175.0
+reward 770002 77011
+expect rewarded 77011
+
+# WRM-012, Time's Toll: Alurmi and the warrior's instructor, then Moratari (the hearthstone remembers
+# the Bazaar).
+talk 770002
+expect quest 77012
+accept 770002 77012
+go 571 5693.5 1015.5 175.0
+talk 770005
+expect credit 77012 770005
+go 571 5712.0 1004.0 175.0
+talk 770101
+expect credit 77012 770033
+# Report Time Anomaly, from the game's menu (the app's add-on): the realm writes a report of the
+# quest the Timerunner is on, who they've spoken to since they took it and the way they came, for
+# the app to send to GitHub (the server test reads it).
+addon WowRemix report CI's report, from the Bazaar
+expect Time anomaly reported
+go 571 5697.5 1019.5 175.0
+reward 770001 77012
+expect rewarded 77012
+
+# WRM-013, A Small Demonstration: Moratari lets the anomalies through, one at a time (each one
+# killed brings the next, three in all).
+talk 770001
+accept 770001 77013
+talk 770001
+expect Let the anomalies through
+select 770001 anomalies
+expect through the seams
+# (a moment for each to come through)
+wait 2
+kill 770031
+expect credit 77013 770032 1/3
+wait 2
+kill 770031
+expect credit 77013 770032 2/3
+wait 2
+kill 770031
+expect credit 77013 770032 3/3
+wait 2
+cmd .remix guid 770031
+expect no creature 770031
+reward 770001 77013
+expect rewarded 77013
+
+# Alurmi's Bronze: 8,500 after the prologue's quests (summoned anomalies give none), and from her
+# vendor window a heirloom the warrior's kit hasn't got, for 300 Bronze (ItemExtendedCost 7708).
+go 571 5693.5 1015.5 175.0
+talk 770005
+expect You carry 8,500 Bronze
+select 770005 Heirlooms
+expect ware 42985 cost 7708
+buy 770005 42985
+expect bought 42985
+talk 770005
+expect You carry 8,200 Bronze
+
+# The Bazaar's other Bronze vendors, as a warrior sees them: Horos's mounts, Durus's tier sets (a
+# warrior's pieces, not a mage's) and a legendary, paid for with Bronze a game master gives.
+go 571 5688.0 1023.0 175.0
+talk 770201
+expect Mounts of Northrend
+select 770201 Mounts of Northrend
+expect ware 50818 cost 7726
+go 571 5688.0 1007.0 175.0
+talk 770205
+expect Legendaries
+select 770205 Tier 10, Icecrown Citadel (25 heroic)
+expect ware 51227
+talk 770205
+select 770205 Tier 10, Icecrown Citadel (25 heroic)
+expect-not ware 51280
+cmd .remix bronze add 20000
+talk 770205
+expect You carry 28,200 Bronze
+select 770205 Legendaries
+buy 770205 46017
+expect bought 46017
+talk 770205
+expect You carry 8,200 Bronze
+
+# WRM-014, To the Front: Moratari's, answered by Eternus, who sends the Timerunner to Valiance Keep,
+# before Recruitment Officer Blythe and Enlistment Day.
+go 571 5697.5 1019.5 175.0
+talk 770001
+expect quest 77014
+accept 770001 77014
+reward 770002 77014
+expect rewarded 77014
+wait 3
+cmd .remix
+expect chapter 1
+talk 25307
+expect quest 11672
+
+# Borean Tundra's creatures at Chapter I's levels, and squished: three quarters of the health of
+# their level.
+cmd .remix band
+expect band: Borean Tundra
+cmd .remix band
+expect at 75% of their level's health
