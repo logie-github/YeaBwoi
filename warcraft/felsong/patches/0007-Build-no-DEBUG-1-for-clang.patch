@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 06:18:07 +0000
+Subject: [PATCH 7/7] Build: no DEBUG=1 for clang
+
+Clang builds defined DEBUG for all of the core, GCC builds don't. With it, the Battle.net
+server's code saw gSOAP's debug layout of struct soap (SOAP_DEBUG, SOAP_MEM_DEBUG: more fields)
+while the gSOAP library was built without it, and gSOAP logs every message to files.
+---
+ cmake/compiler/clang/settings.cmake | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/cmake/compiler/clang/settings.cmake b/cmake/compiler/clang/settings.cmake
+index 3705f7a..a27071b 100644
+--- a/cmake/compiler/clang/settings.cmake
++++ b/cmake/compiler/clang/settings.cmake
+@@ -40,9 +40,9 @@ target_compile_options(trinity-compile-option-interface
+     -Wno-narrowing
+     -Wno-deprecated-register)
+ 
+-target_compile_definitions(trinity-compile-option-interface
+-  INTERFACE
+-    -DDEBUG=1)
++# No -DDEBUG=1 (it was set here for every clang build): GCC's settings don't set it, and code that
++# includes gSOAP's header with it sees a different struct soap (SOAP_DEBUG, SOAP_MEM_DEBUG) from
++# the gSOAP library built without it.
+ 
+ if (BUILD_SHARED_LIBS)
+   # -fPIC is needed to allow static linking in shared libs.

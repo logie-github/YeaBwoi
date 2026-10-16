@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 06:17:34 +0000
+Subject: [PATCH 4/7] fmt: no compile-time format string checks
+
+fmt 10.2.1's consteval format strings aren't constant expressions to clang 20 (FMT_STRING in
+format-inl.h, os.cc), which refuses them. Its own switch, FMT_CONSTEVAL, set empty for it and
+everything using it.
+---
+ dep/fmt/CMakeLists.txt | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/dep/fmt/CMakeLists.txt b/dep/fmt/CMakeLists.txt
+index fc9b1f7..93d9bb0 100644
+--- a/dep/fmt/CMakeLists.txt
++++ b/dep/fmt/CMakeLists.txt
+@@ -33,6 +33,12 @@ target_include_directories(fmt
+   PUBLIC
+     ${CMAKE_CURRENT_SOURCE_DIR}/include)
+ 
++# Format strings checked as the program runs, not as it compiles: this fmt (10.2.1)'s compile-time
++# check isn't a constant expression to newer clang (20), which then refuses it.
++target_compile_definitions(fmt
++  PUBLIC
++    FMT_CONSTEVAL=)
++
+ target_link_libraries(fmt
+   PRIVATE
+     trinity-dependency-interface)
