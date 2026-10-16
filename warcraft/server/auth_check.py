@@ -18,6 +18,14 @@
     auth_check.py characters HOST USER PASSWORD
                                               print the account's character list: "name race
                                               class level" a line
+    auth_check.py script HOST USER PASSWORD CHARACTER RACE CLASS FILE
+                                              enter the world with the character (made if it
+                                              isn't there) and play the steps in FILE: GM
+                                              commands, teleports, talking to creatures, taking
+                                              and turning in quests, gossip choices, and checks
+                                              of what the realm answered (see run_script)
+
+WORLD_PORT in the environment names the realm's world server port (8085, ChromieCraft's, if not).
 
 Exits non-zero if anything fails. Used by scripts/test-warcraft-server.sh in CI.
 """
@@ -132,10 +140,12 @@ def login(host, user, password, port=3724):
         pos = end + 1
         end = data.index(b"\0", pos)
         address = data[pos:end].decode()
+        # Population, characters, time zone, then the realm's id.
+        realm_id = data[end + 1 + 4 + 2]
         pos = end + 1 + 4 + 3
         if rflags & 0x04:
             pos += 5
-        realms.append((rname, address))
+        realms.append((rname, address, realm_id))
     sock.close()
     return realms, K
 
@@ -150,8 +160,22 @@ CMSG_MESSAGECHAT, SMSG_MESSAGECHAT = 0x095, 0x096
 SMSG_AUTH_CHALLENGE, CMSG_AUTH_SESSION, SMSG_AUTH_RESPONSE = 0x1EC, 0x1ED, 0x1EE
 SMSG_LOGIN_VERIFY_WORLD = 0x236
 SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
+SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x0DC
+CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
+CMSG_SET_SELECTION = 0x13D
+SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
+
+# AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
+TRACE = os.environ.get("AUTH_CHECK_TRACE") == "1"
+CMSG_QUESTGIVER_ACCEPT_QUEST, CMSG_QUESTGIVER_CHOOSE_REWARD = 0x189, 0x18E
+SMSG_QUESTGIVER_QUEST_COMPLETE, SMSG_QUESTUPDATE_COMPLETE, SMSG_QUESTUPDATE_ADD_KILL = 0x191, 0x198, 0x199
+SMSG_QUESTGIVER_QUEST_INVALID, SMSG_QUESTGIVER_QUEST_FAILED = 0x18F, 0x192
+SMSG_QUESTGIVER_QUEST_LIST, SMSG_QUESTGIVER_QUEST_DETAILS = 0x185, 0x188
 AUTH_OK, CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE = 0x0C, 0x2F, 0x31
 CHAT_MSG_SYSTEM, CHAT_MSG_SAY, CHAT_MSG_WHISPER, LANG_COMMON, LANG_ADDON = 0x00, 0x01, 0x07, 7, 0xFFFFFFFF
+LANG_ORCISH = 1
+HORDE_RACES = (2, 5, 6, 8, 10)  # orc, undead, tauren, troll, blood elf: they speak Orcish, not Common
+CMSG_QUESTGIVER_HELLO = 0x184
 
 # The header keys (AzerothCore's AuthCrypt.cpp): RC4 keyed with HMAC-SHA1(key, session key),
 # its first 1024 bytes dropped.
@@ -209,18 +233,49 @@ class WorldSession:
             opcode = header[2] | (header[3] << 8)
         return opcode, recv_exact(self.sock, size - 2)
 
+    def answer(self, opcode, body):
+        """What a client answers by itself: the time checks, and arriving where it was teleported."""
+        if opcode == SMSG_TIME_SYNC_REQ:
+            self.send(CMSG_TIME_SYNC_RESP, body[:4] + struct.pack("<I", int(time.monotonic() * 1000) & 0xFFFFFFFF))
+        elif opcode == SMSG_NEW_WORLD:
+            self.send(MSG_MOVE_WORLDPORT_ACK)
+        elif opcode == MSG_MOVE_TELEPORT_ACK:
+            # The player's packed guid, then the teleport's counter.
+            mask = body[0]
+            size = 1 + bin(mask).count("1")
+            counter = struct.unpack_from("<I", body, size)[0]
+            self.send(MSG_MOVE_TELEPORT_ACK, body[:size] + struct.pack("<II", counter, int(time.monotonic() * 1000) & 0xFFFFFFFF))
+
     def wait_for(self, wanted, seconds=60, seen=None):
         """Reads packets until one of [wanted] comes, answering the server's time checks."""
         end = time.time() + seconds
         while time.time() < end:
             opcode, body = self.recv()
-            if opcode == SMSG_TIME_SYNC_REQ:
-                self.send(CMSG_TIME_SYNC_RESP, body[:4] + struct.pack("<I", int(time.monotonic() * 1000) & 0xFFFFFFFF))
+            self.answer(opcode, body)
             if seen is not None:
                 seen.append((opcode, body))
             if opcode in wanted:
                 return opcode, body
         raise RuntimeError(f"the world server didn't send {[hex(w) for w in wanted]} in {seconds} s")
+
+    def pump(self, seconds, seen):
+        """Reads whatever comes for [seconds], answering as a client does."""
+        end = time.time() + seconds
+        while True:
+            left = end - time.time()
+            if left <= 0:
+                return
+            self.sock.settimeout(left)
+            try:
+                opcode, body = self.recv()
+            except socket.timeout:
+                return
+            finally:
+                self.sock.settimeout(60)
+            self.answer(opcode, body)
+            seen.append((opcode, body))
+            if TRACE:
+                print(f"trace: {opcode:#05x} {len(body)} bytes {body[:28].hex()}", file=sys.stderr)
 
 
 def system_messages(packets):
@@ -232,10 +287,19 @@ def system_messages(packets):
             yield body[29:29 + size].rstrip(b"\0").decode(errors="replace")
 
 
-def world_session(host, user, password, port=8085):
+def say(session, text):
+    """Says [text] (a GM command, or anything), in the character's own language: the server
+    ignores a line in one it doesn't know (Common, for the Horde)."""
+    session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_SAY, getattr(session, "lang", LANG_COMMON)) + text.encode() + b"\0")
+
+
+def world_session(host, user, password, port=None):
     """A session on the world server, logged in, and a function that lists the characters."""
     user = user.upper()
-    _, K = login(host, user, password)
+    realms, K = login(host, user, password)
+    port = port or int(os.environ.get("WORLD_PORT", "8085"))
+    # The world server checks the session is for its own realm: the one at this port.
+    realm_id = next((rid for _, address, rid in realms if address.endswith(f":{port}")), 1)
     session = WorldSession(host, port)
     opcode, body = session.recv()
     if opcode != SMSG_AUTH_CHALLENGE:
@@ -245,7 +309,7 @@ def world_session(host, user, password, port=8085):
     digest = sha1(user.encode(), bytes(4), client_seed, server_seed, K)
     addons = zlib.compress(struct.pack("<II", 0, int(time.time())))
     session.send(CMSG_AUTH_SESSION, struct.pack("<II", 12340, 0) + user.encode() + b"\0"
-                 + struct.pack("<I", 0) + client_seed + struct.pack("<IIIQ", 0, 0, 1, 0) + digest
+                 + struct.pack("<I", 0) + client_seed + struct.pack("<IIIQ", 0, 0, realm_id, 0) + digest
                  + struct.pack("<I", 8) + addons)
     session.start_crypt(K)
     _, body = session.wait_for([SMSG_AUTH_RESPONSE])
@@ -271,7 +335,7 @@ def world_session(host, user, password, port=8085):
     return session, characters
 
 
-def world(host, user, password, character, command=None, race=1, cls=1, port=8085, note_file=None):
+def world(host, user, password, character, command=None, race=1, cls=1, port=None, note_file=None, steps=None):
     session, characters = world_session(host, user, password, port)
     chars = characters()
     if not any(c[1] == character for c in chars):
@@ -284,6 +348,7 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=808
         chars = characters()
     guid, name, level, map_id, zone, race, cls = next(c for c in chars if c[1] == character)
     print(f"world: {name}, race {race}, class {cls}, level {level}, map {map_id}, zone {zone}")
+    session.lang = LANG_ORCISH if race in HORDE_RACES else LANG_COMMON
 
     session.send(CMSG_PLAYER_LOGIN, struct.pack("<Q", guid))
     _, body = session.wait_for([SMSG_LOGIN_VERIFY_WORLD], seconds=120)
@@ -308,10 +373,13 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=808
             raise RuntimeError(f"the realm didn't keep the add-on's note in {note_file}")
         print(f"world: the realm kept the add-on's note: {note}")
 
+    session.character = character
+    transcript = run_script(session, guid, steps) if steps is not None else None
+
     # The server answers in order: the command's lines come before the logout. A game master's
     # account logs out at once.
     if command:
-        session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_SAY, LANG_COMMON) + command.encode() + b"\0")
+        say(session, command)
     seen = []
     session.send(CMSG_LOGOUT_REQUEST)
     session.wait_for([SMSG_LOGOUT_COMPLETE], seconds=40, seen=seen)
@@ -319,6 +387,238 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=808
         print(f"world: system: {line}")
     print("world: logged out")
     session.sock.close()
+    return transcript
+
+
+def gossip_menu(body):
+    """SMSG_GOSSIP_MESSAGE: the menu id, the options (index, text) and the quests (id, title)."""
+    menu_id, text_id, count = struct.unpack_from("<III", body, 8)
+    pos, options = 20, []
+    for _ in range(count):
+        index = struct.unpack_from("<I", body, pos)[0]
+        pos += 4 + 1 + 1 + 4
+        end = body.index(b"\0", pos)
+        text = body[pos:end].decode(errors="replace")
+        pos = body.index(b"\0", end + 1) + 1
+        options.append((index, text))
+    count = struct.unpack_from("<I", body, pos)[0]
+    return menu_id, text_id, options, quest_items(body, pos + 4, count)
+
+
+def quest_items(body, pos, count):
+    """A gossip menu's or quest list's quests: id, icon, level, flags, a byte, title, each."""
+    quests = []
+    for _ in range(count):
+        quest = struct.unpack_from("<I", body, pos)[0]
+        pos += 4 + 4 + 4 + 4 + 1
+        end = body.index(b"\0", pos)
+        quests.append((quest, body[pos:end].decode(errors="replace")))
+        pos = end + 1
+    return quests
+
+
+def quest_list(body):
+    """SMSG_QUESTGIVER_QUEST_LIST (a giver with quests and nothing else to say): its quests."""
+    pos = body.index(b"\0", 8) + 1 + 4 + 4
+    return quest_items(body, pos + 1, body[pos])
+
+
+def run_script(session, player_guid, steps):
+    """Plays [steps], one a line ("#" starts a comment):
+
+        cmd TEXT                      a GM command (or anything said)
+        go MAP X Y Z                  a GM teleport there
+        talk ENTRY                    open the gossip of the nearest creature of that entry
+                                      (its guid from mod-wrath-remix's `.remix guid ENTRY`)
+        kill ENTRY                    select the nearest creature of that entry and `.damage` it
+                                      to death (the character's own blow: it gets the kill,
+                                      which `.die` doesn't give)
+        select ENTRY TEXT             pick the option of its last menu whose text has TEXT
+        buy ENTRY ITEM                buy ITEM from the vendor window it last opened (heard:
+                                      "ware ITEM cost N" for each ware a window shows, then
+                                      "bought ITEM" or "buy failed REASON")
+        accept ENTRY QUEST            take a quest from it
+        reward ENTRY QUEST            turn a quest in to it
+        expect TEXT                   something since the last expect had TEXT in it (system
+                                      messages, gossip options and quests, quest updates)
+        expect-not TEXT               nothing since the last expect had TEXT
+        wait SECONDS                  read what comes
+        addon PREFIX TEXT             an add-on message whispered to the character itself, as
+                                      the app's add-on (client/TouchAddon) talks to the realm
+
+    Returns each step with everything heard during it, in order.
+    """
+    heard = []
+    menus = {}
+    windows = {}
+    transcript = []
+
+    def creature_guid(entry, near=False):
+        """The nearest creature of [entry], as the realm names it ([near]: and how far it is)."""
+        say(session, f".remix guid {entry}")
+        packets = []
+        session.pump(1.5, packets)
+        note(packets)
+        for line in system_messages(packets):
+            words = line.split()
+            if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
+                return (int(words[4]), float(words[6])) if near else int(words[4])
+        raise RuntimeError(f"no creature {entry} near the character")
+
+    def note(packets):
+        for opcode, body in packets:
+            if opcode == SMSG_MESSAGECHAT and body[0] == CHAT_MSG_SYSTEM:
+                for line in system_messages([(opcode, body)]):
+                    print(f"script:   system: {line}")
+                    heard.append(line)
+            elif opcode == SMSG_MESSAGECHAT:
+                # An NPC talking (Moratari, Eternus): its words are at the end.
+                text = body.rstrip(b"\0").rsplit(b"\0", 1)[-1][-200:].decode(errors="replace")
+                print(f"script:   chat type {body[0]}: ...{text[-80:]}")
+                heard.append(f"chat: {text}")
+            elif opcode == SMSG_GOSSIP_MESSAGE:
+                guid = struct.unpack_from("<Q", body, 0)[0]
+                menu_id, text_id, options, quests = gossip_menu(body)
+                menus[guid] = (menu_id, options)
+                print(f"script:   gossip text {text_id}, menu {menu_id}")
+                heard.append(f"gossip text {text_id}")
+                for index, text in options:
+                    print(f"script:   option {index}: {text}")
+                    heard.append(f"option: {text}")
+                for quest, title in quests:
+                    print(f"script:   quest {quest}: {title}")
+                    heard.append(f"quest {quest}: {title}")
+            elif opcode == SMSG_QUESTGIVER_QUEST_LIST:
+                for quest, title in quest_list(body):
+                    print(f"script:   quest {quest}: {title}")
+                    heard.append(f"quest {quest}: {title}")
+            elif opcode == SMSG_QUESTGIVER_QUEST_DETAILS:
+                # A giver with one quest and nothing else to say shows it at once.
+                quest = struct.unpack_from("<I", body, 16)[0]
+                title = body[20:].split(b"\0", 1)[0].decode(errors="replace")
+                print(f"script:   quest {quest}: {title} (offered)")
+                heard.append(f"quest {quest}: {title}")
+            elif opcode == SMSG_QUESTUPDATE_ADD_KILL:
+                quest, entry, count, needed = struct.unpack_from("<IIII", body, 0)
+                print(f"script:   quest {quest}: {entry} {count}/{needed}")
+                heard.append(f"credit {quest} {entry} {count}/{needed}")
+            elif opcode == SMSG_QUESTUPDATE_COMPLETE:
+                quest = struct.unpack_from("<I", body, 0)[0]
+                print(f"script:   quest {quest} complete")
+                heard.append(f"complete {quest}")
+            elif opcode == SMSG_QUESTGIVER_QUEST_COMPLETE:
+                quest = struct.unpack_from("<I", body, 0)[0]
+                print(f"script:   quest {quest} turned in")
+                heard.append(f"rewarded {quest}")
+            elif opcode in (SMSG_QUESTGIVER_QUEST_INVALID, SMSG_QUESTGIVER_QUEST_FAILED):
+                print(f"script:   quest refused ({opcode:#x}: {body.hex()})")
+                heard.append("quest refused")
+            elif opcode == SMSG_LIST_INVENTORY:
+                guid, count = struct.unpack_from("<QB", body, 0)
+                wares = {}
+                for n in range(count):
+                    slot, item, _, _, price, _, _, cost = struct.unpack_from("<IIIiIIII", body, 9 + 32 * n)
+                    wares[item] = slot
+                    heard.append(f"ware {item} cost {cost} price {price}")
+                windows[guid] = wares
+                print(f"script:   vendor window: {count} wares")
+                heard.append(f"vendor window {count}")
+            elif opcode == SMSG_BUY_ITEM:
+                _, slot = struct.unpack_from("<QI", body, 0)
+                print(f"script:   bought from slot {slot}")
+                heard.append(f"bought slot {slot}")
+            elif opcode == SMSG_BUY_FAILED:
+                _, item, reason = struct.unpack_from("<QIB", body, 0)
+                print(f"script:   buying {item} failed ({reason})")
+                heard.append(f"buy failed {reason}")
+            elif opcode == SMSG_NEW_WORLD:
+                map_id, x, y, z = struct.unpack_from("<Iffff", body, 0)[:4]
+                print(f"script:   arrived on map {map_id} at {x:.1f} {y:.1f} {z:.1f}")
+                heard.append(f"arrived on map {map_id}")
+
+    for raw in steps:
+        line = raw.split("#", 1)[0].strip()
+        if not line:
+            continue
+        print(f"script: {line}")
+        word, _, rest = line.partition(" ")
+        packets = []
+        if word == "cmd":
+            say(session, rest)
+            session.pump(2.0, packets)
+        elif word == "go":
+            map_id, x, y, z = rest.split()
+            say(session, f".go xyz {x} {y} {z} {map_id}")
+            session.pump(4.0, packets)
+        elif word == "talk":
+            guid, yards = creature_guid(int(rest), near=True)
+            # (one walking a path may be beyond talking distance, about 10 yards: it's called over)
+            called = yards > 6
+            if called:
+                session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
+                session.pump(0.5, packets)
+                say(session, ".npc follow")
+                session.pump(4.0, packets)
+            session.send(CMSG_GOSSIP_HELLO, struct.pack("<Q", guid))
+            session.pump(2.0, packets)
+            # (a quest giver with nothing to say but its quests doesn't answer that: the game
+            # greets it as a quest giver)
+            if not any(o in (SMSG_GOSSIP_MESSAGE, SMSG_QUESTGIVER_QUEST_LIST, SMSG_QUESTGIVER_QUEST_DETAILS) for o, _ in packets):
+                session.send(CMSG_QUESTGIVER_HELLO, struct.pack("<Q", guid))
+                session.pump(2.0, packets)
+            if called:
+                say(session, ".npc follow stop")
+                session.pump(1.0, packets)
+        elif word == "kill":
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(int(rest))))
+            session.pump(0.5, packets)
+            say(session, ".damage 100 pct")
+            session.pump(3.0, packets)
+        elif word == "select":
+            entry, text = rest.split(" ", 1)
+            guid = creature_guid(int(entry))
+            menu_id, options = menus.get(guid, (0, []))
+            index = next((i for i, t in options if text.lower() in t.lower()), None)
+            if index is None:
+                raise RuntimeError(f"no option with \"{text}\" in {options}")
+            session.send(CMSG_GOSSIP_SELECT_OPTION, struct.pack("<QII", guid, menu_id, index) + b"\0")
+            session.pump(4.0, packets)
+        elif word == "buy":
+            entry, item = (int(v) for v in rest.split())
+            guid = creature_guid(entry)
+            slot = windows.get(guid, {}).get(item)
+            if slot is None:
+                raise RuntimeError(f"{item} isn't in the window {entry} last opened")
+            session.send(CMSG_BUY_ITEM, struct.pack("<QIIIB", guid, item, slot, 1, 0))
+            session.pump(2.0, packets)
+            heard.append(f"bought {item}" if any(o == SMSG_BUY_ITEM for o, _ in packets) else "not bought")
+        elif word == "accept":
+            entry, quest = (int(v) for v in rest.split())
+            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", creature_guid(entry), quest, 0))
+            session.pump(2.0, packets)
+        elif word == "reward":
+            entry, quest = (int(v) for v in rest.split())
+            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", creature_guid(entry), quest, 0))
+            session.pump(3.0, packets)
+        elif word == "wait":
+            session.pump(float(rest), packets)
+        elif word == "addon":
+            prefix, _, text = rest.partition(" ")
+            session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + session.character.encode() + b"\0"
+                         + prefix.encode() + b"\t" + text.encode() + b"\0")
+            session.pump(3.0, packets)
+        elif word in ("expect", "expect-not"):
+            found = any(rest.lower() in h.lower() for h in heard)
+            if found != (word == "expect"):
+                raise RuntimeError(f"{word} \"{rest}\" failed; heard: {heard}")
+            heard.clear()
+            continue
+        else:
+            raise RuntimeError(f"unknown step: {line}")
+        before = len(heard)
+        note(packets)
+        transcript.append((line, heard[before:]))
+    return transcript
 
 
 def main():
@@ -332,7 +632,7 @@ def main():
               f"WHERE username = '{user}';")
     elif len(sys.argv) == 5 and sys.argv[1] == "login":
         realms, _ = login(sys.argv[2], sys.argv[3], sys.argv[4])
-        for rname, address in realms:
+        for rname, address, _ in realms:
             print(f"realm\t{rname}\t{address}")
     elif len(sys.argv) in (6, 7) and sys.argv[1] == "world":
         world(*sys.argv[2:])
@@ -340,6 +640,10 @@ def main():
         world(*sys.argv[2:6], note_file=sys.argv[6])
     elif len(sys.argv) == 8 and sys.argv[1] == "world-as":
         world(*sys.argv[2:6], race=int(sys.argv[6]), cls=int(sys.argv[7]))
+    elif len(sys.argv) == 9 and sys.argv[1] == "script":
+        with open(sys.argv[8]) as f:
+            steps = f.read().splitlines()
+        world(*sys.argv[2:6], race=int(sys.argv[6]), cls=int(sys.argv[7]), steps=steps)
     elif len(sys.argv) == 5 and sys.argv[1] == "characters":
         session, characters = world_session(*sys.argv[2:5])
         for _, name, level, _, _, race, cls in characters():

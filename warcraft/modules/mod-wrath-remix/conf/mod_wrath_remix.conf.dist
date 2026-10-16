@@ -1,0 +1,103 @@
+[worldserver]
+
+########################################
+# Wrath Remix (mod-wrath-remix)
+########################################
+#
+#    WrathRemix.Enable
+#        Description: Turns Wrath Remix on. It only runs on the realm WrathRemix.RealmID names
+#                     (the app's Wrath Remix realm), and does nothing anywhere else, whatever this
+#                     says. The app sets it: on in the Wrath Remix realm, off in ChromieCraft.
+#        Default:     0
+
+WrathRemix.Enable = 0
+
+#
+#    WrathRemix.RealmID
+#        Description: The only realm Wrath Remix runs on (worldserver.conf's RealmID).
+#        Default:     2
+
+WrathRemix.RealmID = 2
+
+#
+#    WrathRemix.LevelBands.Enable
+#        Description: Northrend's creatures at the levels of Wrath Remix's chapters (Borean
+#                     Tundra and Howling Fjord 10-20, Dragonblight 20-32, ... Icecrown 70-80), by
+#                     the zone or dungeon they're in (the table remix_level_band), with their
+#                     spells' damage and healing scaled to match.
+#        Default:     1
+
+WrathRemix.LevelBands.Enable = 1
+
+#
+#    WrathRemix.Squish.Health
+#    WrathRemix.Squish.Damage
+#        Description: The stat squish: a banded creature's share, in percent, of the health and of
+#                     the damage (melee, spells, damage over time) its new level gives it. 100 is
+#                     a creature of that level as the game has it; less makes Northrend easier.
+#        Default:     75, 75
+
+WrathRemix.Squish.Health = 75
+WrathRemix.Squish.Damage = 75
+
+#
+#    WrathRemix.FreeRiding
+#        Description: Riding taught for free as a Timerunner reaches 20, 40, 60 and 70, and Cold
+#                     Weather Flying at 77.
+#        Default:     1
+
+WrathRemix.FreeRiding = 1
+
+#
+#    WrathRemix.StarterKit
+#        Description: A Timerunner's first login (death knights aside) brings gear for their class:
+#                     heirloom shoulders, chest, weapons, trinket and ring, and greens for the other
+#                     slots (remix_starter_kit), put on in place of the starting clothes.
+#        Default:     1
+
+WrathRemix.StarterKit = 1
+
+#
+#    WrathRemix.AutoLearn
+#        Description: Every ability the class trainer teaches at a Timerunner's level, learned free
+#                     at login and at each level, with those their class quests teach
+#                     (remix_class_spell): a Timerunner starts at 10 without those quests.
+#        Default:     1
+
+WrathRemix.AutoLearn = 1
+
+#
+#    WrathRemix.MaxWeaponSkill
+#        Description: Weapon and defense skills kept at their level's maximum (a character made at
+#                     10 has them at 1 otherwise, and misses most of its swings).
+#        Default:     1
+
+WrathRemix.MaxWeaponSkill = 1
+
+#
+#    WrathRemix.Bronze.Quest
+#    WrathRemix.Bronze.Kill
+#    WrathRemix.Bronze.Elite
+#    WrathRemix.Bronze.Rare
+#    WrathRemix.Bronze.DungeonBoss
+#    WrathRemix.Bronze.RaidBoss
+#        Description: Bronze earned for a quest turned in, a creature killed that gives
+#                     experience or honor (normal, elite, rare), and a dungeon's or raid's boss.
+#                     As in Legion Remix, a lot: the story from 10 to 80 earns hundreds of
+#                     thousands, for the Bazaar's vendors (Remix's own quests give their own
+#                     amounts, remix_quest_reward).
+#        Default:     500, 15, 60, 500, 1000, 5000
+
+WrathRemix.Bronze.Quest = 500
+WrathRemix.Bronze.Kill = 15
+WrathRemix.Bronze.Elite = 60
+WrathRemix.Bronze.Rare = 500
+WrathRemix.Bronze.DungeonBoss = 1000
+WrathRemix.Bronze.RaidBoss = 5000
+
+#
+#    WrathRemix.Announce
+#        Description: Greets a Timerunner at each login with their Bronze and chapter.
+#        Default:     1
+
+WrathRemix.Announce = 1

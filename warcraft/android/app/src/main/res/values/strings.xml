@@ -8,9 +8,9 @@
     <!-- Title screen -->
     <string name="wow_home_press_start">Press start</string>
     <string name="wow_home_menu">Launcher</string>
-    <string name="wow_home_start_line">Starts your ChromieCraft realm on this phone.</string>
-    <string name="wow_home_start_line_game">Starts your ChromieCraft realm and the game, on this phone.</string>
-    <string name="wow_home_start_line_no_data">Starts your ChromieCraft realm on this phone. The world server starts once it has the server data.</string>
+    <string name="wow_home_start_line">Starts your %1$s realm on this phone.</string>
+    <string name="wow_home_start_line_game">Starts your %1$s realm and the game, on this phone.</string>
+    <string name="wow_home_start_line_no_data">Starts your %1$s realm on this phone. The world server starts once it has the server data.</string>
     <string name="wow_home_no_data">The world server needs data made from your 3.3.5a client: make it here from the client, or import the server-data.zip made on a PC.</string>
     <string name="wow_home_no_server_build">This build of the app has no server in it. Install a release from GitHub.</string>
 
@@ -23,6 +23,7 @@
     <string name="wow_tile_accounts">Accounts</string>
     <string name="wow_tile_accounts_summary">Logins for the game</string>
     <string name="wow_tile_icon">App icon</string>
+    <string name="wow_tile_realm">Realm</string>
     <string name="wow_tile_updates">Updates</string>
     <string name="wow_tile_updates_summary">Version %1$s</string>
 
@@ -35,6 +36,15 @@
     <string name="wow_realm_here">From this phone</string>
     <string name="wow_realm_lan">From a PC on this Wi-Fi</string>
     <string name="wow_realm_lan_none">No Wi-Fi</string>
+    <string name="wow_realm_title">Realm</string>
+    <string name="wow_realm_body">Two realms live on this phone and run one at a time, with the same accounts. Each has its own characters, world and settings: nothing you do on one changes the other.</string>
+    <string name="wow_realm_chromiecraft">ChromieCraft</string>
+    <string name="wow_realm_chromiecraft_summary">Azeroth as ChromieCraft runs it: from level 1, the content opening bracket by bracket.</string>
+    <string name="wow_realm_remix">Wrath Remix</string>
+    <string name="wow_realm_remix_summary">Northrend\'s story from level 10, with Moratari and the Infinite Dragonflight: every chapter at your level, quicker levels, Bronze to earn and spend, and the Infinite Bazaar.</string>
+    <string name="wow_realm_changed">%1$s chosen: Press start starts it.</string>
+    <string name="wow_realm_changed_stopping">%1$s chosen. The server stops now; Press start starts %1$s.</string>
+    <string name="wow_realm_remix_first">The first start of Wrath Remix makes its own databases (a few minutes, once).</string>
     <string name="wow_realm_no_client">To play on this phone, add your 3.3.5a client in Game files. A PC\'s 3.3.5a client on this Wi-Fi can play on the realm too: see Server.</string>
 
     <!-- The server -->
@@ -445,7 +455,11 @@
     <string name="wow_modules_token_change">Change the token</string>
     <string name="wow_modules_token_remove">Remove the token</string>
     <string name="wow_modules_token_title">GitHub token</string>
-    <string name="wow_modules_token_body">On github.com: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only %1$s. Permissions: Actions, read and write. Paste it here: it\'s checked with GitHub, then kept in this app\'s own storage and sent to GitHub alone.</string>
+    <string name="wow_modules_token_body">On github.com: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only %1$s. Permissions: Actions, read and write; and Issues, read and write, for the game\'s Report Time Anomaly to send its reports unseen. Paste it here: it\'s checked with GitHub, then kept in this app\'s own storage and sent to GitHub alone.</string>
+    <string name="wow_report_sent">Time anomaly reported on GitHub: issue #%1$d.</string>
+    <string name="wow_report_opened">Your time anomaly report is open on GitHub: send it from there.</string>
+    <string name="wow_report_no_browser">Your time anomaly report couldn\'t open: no browser on this phone.</string>
+    <string name="wow_report_waiting">Your time anomaly report will go to GitHub once the phone is online.</string>
     <string name="wow_modules_token_label">Token</string>
     <string name="wow_modules_token_save">Check and keep</string>
     <string name="wow_modules_token_checking">Checking…</string>

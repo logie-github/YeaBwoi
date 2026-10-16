@@ -44,6 +44,13 @@ interface GestureOutput {
     fun dragsAt(x: Float, y: Float): Boolean = false
 
     /**
+     * Whether a hold there is a right click: on the game's windows of items, talents and
+     * abilities (the bags, the bank, the character pane, the talents, the spellbook and the action
+     * bars, where the app's add-on says they are: [InterfaceNote]).
+     */
+    fun rightClicksAt(x: Float, y: Float): Boolean = false
+
+    /**
      * Whether the game shows its character creation screen ([CharacterCreation]), where a finger
      * that moves turns the character: the game turns it while its left button is held on the
      * screen and the mouse goes sideways.
@@ -84,10 +91,13 @@ interface GestureOutput {
  * - **Anywhere:** tap = a click where the finger is, which talks to NPCs, loots and gathers where
  *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
  *   = attack it, on the action bars = two presses, elsewhere = jump (Space)
- *   ([GestureOutput.doubleTapAt]); hold still = bags (B);
- *   tap then hold = map (M).
- * - **On the spellbook, while it's open:** the finger is the mouse with its left button down, so
- *   a spell drags onto the action bars as on a PC, and a tap clicks ([GestureOutput.dragsAt]).
+ *   ([GestureOutput.doubleTapAt]); hold still = a right click on an item, a talent or an ability
+ *   (on the bags, the bank, the character pane, the talents, the spellbook or the action bars,
+ *   where the app's add-on takes a right-clicked action off its bar:
+ *   [GestureOutput.rightClicksAt]), elsewhere bags (B); tap then hold = map (M).
+ * - **On the spellbook, while it's open:** a finger that moves is the mouse with its left button
+ *   down where it came, so a spell drags onto the action bars as on a PC; a tap clicks, a hold
+ *   right-clicks ([GestureOutput.dragsAt]).
  * - **On the character creation screen:** a finger that moves, on either half, turns the character
  *   (the left button held on the middle of the screen, the mouse going sideways), and a hold
  *   presses nothing (B and M would go into the name box) ([GestureOutput.turnsModel]).
@@ -131,7 +141,8 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         const val TURN_SPAN = 0.2f
     }
 
-    private enum class Role { NEW, STICK, LOOK, TURN, DRAG, HELD, PAIR, GROUP, DONE }
+    /** ICON: on a window whose icons drag, until the finger shows a tap, a drag or a hold. */
+    private enum class Role { NEW, STICK, LOOK, TURN, ICON, DRAG, HELD, PAIR, GROUP, DONE }
 
     private class Finger(val id: Int, val startX: Float, val startY: Float, val downAt: Long, val left: Boolean, val secondTap: Boolean) {
         var x = startX
@@ -220,11 +231,10 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         val alone = fingers.isEmpty() && pair == null && groupSize == 0
         fingers[id] = finger
         when {
-            // A finger on its own on a window whose icons drag: the mouse, its left button down.
+            // A finger on its own on a window whose icons drag: the mouse, there.
             alone && out.dragsAt(x, y) -> {
-                finger.role = Role.DRAG
+                finger.role = Role.ICON
                 out.pointerTo(x, y)
-                out.press(Button.LEFT)
             }
             // A third or fourth finger with a pair that hasn't done anything yet: a group tap.
             waitingPair != null || groupSize > 0 -> {
@@ -257,6 +267,12 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             Role.STICK -> steer(finger)
             Role.LOOK -> look(finger)
             Role.TURN -> turn(finger)
+            // Moved off its icon: the left button down where it came, then along with the finger.
+            Role.ICON -> if (finger.moved) {
+                finger.role = Role.DRAG
+                out.press(Button.LEFT)
+                out.pointerTo(x, y)
+            }
             Role.DRAG -> out.pointerTo(x, y)
             Role.PAIR -> pairMoved(finger)
             Role.GROUP -> if (finger.moved) groupAllTaps = false
@@ -294,6 +310,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 out.release(Button.LEFT)
                 turnId = -1
             }
+            Role.ICON -> if (tap) out.click(Button.LEFT)
             Role.DRAG -> out.release(Button.LEFT)
             Role.PAIR -> pairUp(finger, tap)
             Role.GROUP -> {
@@ -309,11 +326,21 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         }
     }
 
-    /** [HOLD_MS] after a finger came down: one still there, not moved and on its own, is a hold. */
+    /**
+     * [HOLD_MS] after a finger came down: one still there, not moved and on its own, is a hold. On
+     * an item, a talent or an ability, a right click there; elsewhere the bags, or the map after a
+     * tap.
+     */
     fun onHold(now: Long) {
         for (finger in fingers.values) {
-            if (finger.role != Role.NEW || finger.moved || now - finger.downAt < HOLD_MS) continue
-            if (!out.turnsModel()) out.tap(if (finger.secondTap) Key.M else Key.B)
+            if ((finger.role != Role.NEW && finger.role != Role.ICON) || finger.moved || now - finger.downAt < HOLD_MS) continue
+            when {
+                finger.role == Role.ICON || out.rightClicksAt(finger.x, finger.y) -> {
+                    out.pointerTo(finger.x, finger.y)
+                    out.click(Button.RIGHT)
+                }
+                !out.turnsModel() -> out.tap(if (finger.secondTap) Key.M else Key.B)
+            }
             finger.role = Role.HELD
         }
     }

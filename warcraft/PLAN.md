@@ -600,8 +600,376 @@ for the game on the phone itself ("that's the whole point").
     come from the server; models and icons must be the game's own; the client's WDB cache keeps
     old quest text). Proposed: kept in this repository, offered in the Modules screen.
   - A "Wrath Remix" game mode (Legion Remix within Wrath, its own realm): assessed in
-    `REMIX-ASSESSMENT.md`. The user wants it in a separate fork; this line continues normal
-    gameplay, and Remix must not change this realm.
+    `REMIX-ASSESSMENT.md`. The user first wanted it in a separate fork (later: built as a second
+    realm in this app, see below); Remix must not change the ChromieCraft realm.
+
+- Then the user sent a Wrath Remix design guide (`REMIX-GUIDE.md`, written with another
+  assistant: Moratari, Eternus and Andormu, a prologue, a Crystalsong Forest hub, seven chapters
+  of original quests with Moratari's transitions between them, levels 10 to 80, Bronze, Infinite
+  Power, Keeper assignments, the original Lich King as the ending) and asked: "Create this as a
+  distinct module or realm separate from the main ChromieCraft." Built as a second realm in this
+  app, not a separate fork, with the module in this repository (`modules/mod-wrath-remix`):
+  - The realm (the guide's phase 1): realm 2, "Wrath Remix", port 8086, sharing the auth server
+    and accounts; its own configs (`files/etc-remix`, made by `ctl.sh configure`: StartPlayerLevel
+    10, quest XP ×3, kill XP ×2, no race intros, no progression brackets, Chromie's XP lock at
+    80, mod-zone-difficulty off, the module on; the module off in ChromieCraft's), its own
+    databases (`acore_world_remix`, `acore_characters_remix`, `acore_playerbots_remix`, made by
+    `ctl.sh dbimport remix`), `ctl.sh realmlist` writing both realms. One world server at a time:
+    the launcher's **Realm** tile picks it (`Realms`, `Server`), `Config.wtf`'s realmName follows,
+    and the client's quest cache goes when the realm changes (`client/RealmCache`). Module configs
+    per realm need the core to read them from the realm's folder: patch 0010,
+    `WOW_MODULES_CONF_DIR`. The module's SQL is in `data/sql/remix/`, listed in the Remix
+    databases' `updates_include` by `ctl.sh`, so ChromieCraft's databases never get it.
+  - The module: the realm gate (enabled and RealmID 2, else every hook returns), Timerunners
+    (Bronze and chapter in `remix_character`), Bronze from quests and kills, Alurmi's Bronze
+    shop (heirlooms, mounts, companions, bags) through gossip (the vendor window can't show a
+    currency the client doesn't have), free riding, death knights brought to the Bazaar after
+    Acherus, `.remix` commands.
+  - The guide's level 10 start, over the assessment's 68: Northrend's zones and dungeons are
+    banded to the chapters' levels (`remix_level_band`): creatures by the zone they appear in
+    (`OnBeforeCreatureSelectLevel`; heroic dungeons and raids untouched), their spells' damage
+    and healing scaled by the ratio of their base damage at the new and old level; quests'
+    levels, minimum levels and gold, and their armor and weapon rewards' item level, stats,
+    armor, damage and price (most of Northrend's rewards ask for no level), worked out in SQL
+    from the originals kept once; dungeons open at the chapter's levels.
+  - The prologue (WRM-001 to 005, 007) in the Caverns of Time (the intro flight's landing) and the
+    Infinite Bazaar by the Violet Stand in Crystalsong Forest (three Azure Dragonflight raiders
+    there removed from Remix's world), with Eternus, Moratari, Andormu, Nozari, Alurmi, Zephyr,
+    Sa'at, the Chronologist, Momentus and an instructor per class (copies of the capitals'
+    trainer lists). Models from the 3.3.5a client's tables (`CreatureDisplayInfo`): Moratari is
+    Lady Alistra's look (blood elf woman, dark plate, glowing runes), Eternus Chrono-Lord Epoch.
+  - The campaign's quests: every title the guide names matched to the world database
+    (`tools/quest_audit.py` → `data/campaign_manifest.csv`, `quest_audit.md`): 271 of 272 found
+    ("Bearly Hanging On" isn't a 3.3.5a quest), 38 titles that are an Alliance and a Horde quest.
+    Chapter I's transitions built from it: WRM-006 (Alliance Borean, Thassarian's trail),
+    WRM-016 (Horde Borean, Mobu's parts), WRM-026 (Alliance Howling Fjord, Westguard's missions),
+    WRM-121 to 124 (each coast to the Dragonblight). The next original quest opens with either
+    the transition or the skipped block's end (`conditions` with an else group), so nothing is
+    marked done that wasn't.
+  - Checked: the SQL applied twice to a copy of the pinned world database (idempotent, Borean
+    rewards a quarter, Enlistment Day level 18); the C++ syntax-checked with the build's flags;
+    CI's server test (see `scripts/test-warcraft-server.sh`, 6) plays the prologue on the Remix
+    realm and checks the floor under every NPC placed. Not on a phone: all of it in the game.
+  - Next, in the guide's order: Chapters II to VII's transitions (one chapter at a time, both
+    sides, with the Wrathgate and the Battle for the Undercity checked first; II done in build 61,
+    III in 62, IV in 63),
+    Infinite Power,
+    Keeper assignments, then challenge content.
+
+- Then (the user played the demo): "really cool"; the intro needs much more explanation of who
+  everyone is (later); "the first NPC I attacked I got absolutely trashed... I need starter gear
+  appropriate to my class for every class". Causes: a character made at 10 has level 1's gear,
+  only level 1's spells (trainers and class quests never happened) and weapon skills at 1 of 50
+  (the core starts them at 1 unless `AlwaysMaxWeaponSkill`), and WRM-003 let three anomalies at
+  it at once. Done (build 56):
+  - A starter kit per class (`remix_starter_kit`, `0008_starter.sql`): heirloom shoulders, chest,
+    weapons, trinket and the Dread Pirate Ring (they scale to 80; heirloom plate and mail are
+    wearable before 40), and the best fixed-stat greens up to level 10 for legs, hands, feet,
+    waist and back, plus The 1 Ring; the shaman's four totems. Put on in place of white or grey
+    gear of item level 5 or less, else into the bags, else by mail; missing weapon proficiencies
+    taught. Once per kit version (`remix_character.kit`), so existing Timerunners get it too.
+    Death knights and the realm's bots (sessions without a client) are left out.
+  - Training at login and every level: every spell the class trainers (the instructors' lists)
+    teach at the level, free, and the abilities class quests teach (`remix_class_spell`:
+    Defensive Stance, Taunt, Sunder Armor, Berserker Stance, the hunter's pet spells, the
+    warlock's demons, Bear Form, Growl, Maul, Redemption, Poisons...); weapon and defense skills
+    at the level's maximum (`UpdateSkillsToMaxSkillsForLevel`). Options `WrathRemix.StarterKit`,
+    `AutoLearn`, `MaxWeaponSkill`.
+  - WRM-003's anomalies come one at a time (each brings the next as it dies), at level 10 and
+    half damage. Found while testing: the realm's random bots are made where every new character
+    starts, the Caverns of Time, and a level 10 bot paladin judged the anomaly; a kill only counts
+    for a player who did half its damage, so the Timerunner lost the credit. Each anomaly's death
+    now credits the Timerunner it came for (a credit entry the quest asks for, 770032), and
+    summoned creatures give no Bronze. CI's test kills them with `.damage` (`.die` gives no
+    credit) and checks each one brings the next.
+  - Ids made small: the core keeps creature templates, quests and items in tables as long as the
+    highest id (`_creatureTemplateStoreFast`, `_questTemplatesFast`, `_itemTemplateStoreFast`), so
+    Remix's 7.7 million ids cost about 120 MB on the phone. Creatures are 770001+ and quests 77nnn
+    now; the SQL removes the old rows and moves Timerunners' quest records.
+  - Released in build 57 (build 56's server test expected the axe skill of a level 10; the
+    prologue's quests make the warrior 11).
+
+- Then (before the demo): "the same vendors in legion remix need to be present at the hub... their
+  own wrath specific ones... all the rare and specific wrath raid and dungeon sets and everything
+  introduced there such as pets, toys, mounts, weapons, etc ... buyable with bronze like in legion
+  remix. If bronze is too hard to incorporate then just use a currency like some sort of
+  preexisting token." Done with Bronze itself (build 58):
+  - Bronze is a currency token, item 77001 (Emblem of Frost's template, the bronze dragonflight's
+    head for an icon), with a CurrencyTypes row (342, Wrath of the Lich King, bit 30) and Item.dbc
+    row; prices are ItemExtendedCost rows of n Bronze, a ladder of 27 (25 to 25,000). The server
+    has them from the Remix world database's `*_dbc` tables; the client from a patch the module
+    writes as Wrath Remix starts (`ClientPatch.cpp`: the server's three DBC files with the rows
+    added, in an MPQ of the first format with zlib sectors, as Blizzard's own patches are, at
+    `Data/patch-Y.MPQ`; ChromieCraft's world server takes it out). Y is above every letter the HD
+    patches use; a `patch-Y.MPQ` of the user's own is left alone. Bronze kept in
+    `remix_character.bronze` before is paid into the currency at the next login.
+  - The guide's roster: Alurmi (heirlooms, bags), Horos (rare collections: 109 Wrath mounts),
+    Domelius (65 companions, 24 toys), Arturos (dungeons), Aeonicus (10-player raids), Durus
+    (25-player and heroic raids, Val'anyr and Shadowmourne), Infinite Dragonflight models, in a row
+    on the Bazaar's west side. Each opens its lists as vendor windows (gossip, then
+    `SendListInventory(guid, list)`: a hidden vendor template per list, which the core remembers
+    for the purchase). 48 lists, 4,650 wares, from `tools/vendor_catalog.py`: instance_encounters
+    and the bosses' loot (references followed) and chests by mode, tier sets T7 to T10 by item set
+    and item level, curated mounts, companions, toys and heirlooms. Gear: 200 Bronze at item
+    level 200, 3% more a level, weapons and trinkets more. The core shows each player only their
+    side's wares and their class's bind-on-pickup ones, so a list is split only past 150 for one
+    class (a window's limit; a list holds 255).
+  - Checked here: the server built and run on the real data (x86_64): the patch written, read
+    back by the test's own MPQ reader and by mpyq (every row of the game's kept, Bronze's added),
+    taken out by ChromieCraft's world server; the prologue with Bronze as an item (a heirloom
+    bought in Alurmi's window for 300), Horos's mounts and Durus's Tier 10 as a warrior sees them
+    (the warrior's 10 pieces, no mage's), Val'anyr bought for 20,000; an older character's 225
+    Bronze moved into the currency tab; every vendor on the floor. Not on a phone: whether the
+    game loads the patch, and the windows' look.
+
+- Then: "maybe a stat squish for enemies not just a level equalizer." Done (build 59): a creature
+  whose level comes from a band (Northrend's, by zone) has a share of its new level's health and
+  deals that share of its new level's damage: `WrathRemix.Squish.Health` and `.Damage`, 75 each
+  (melee, spells, damage over time; its heals scale with the health). The band was already making a
+  creature a classic one of its new level; the squish makes the fights easier than the level alone.
+  Creatures that keep their own level (the Bazaar, above their band) are as they were. `.remix band`
+  reports how many creatures around it are squished and to what. Checked here: the server built and
+  run, the prologue's character's band check (Borean Tundra's creatures at 75% of their level's
+  health). Not on a phone: the feel of the fights.
+
+- Then (continuing): the realm's random bots out of the prologue. Every character is made at
+  `playercreateinfo`, the Caverns of Time in Remix, and a bot made at 10 isn't moved by the
+  playerbots until its first teleport (an hour or more): the test's own run found 45 of 50 there,
+  one of them the paladin that took the anomalies' credit. Done (build 60): a bot (a session
+  without a client) entering the Caverns of Time area (2300) is sent, a second later, to the
+  start of its level's chapter for its side, with its home there; not one in a group with a
+  player. Checked here: the server built and run with the prologue played, 45 bots sent to their
+  chapter and none of those in the world saved in the Caverns (the 451 never logged in are
+  still where they were made: each goes at its first login); CI checks the same.
+
+- Then (continuing, the guide's order): Chapter II's transitions. Done (build 61), from the Remix
+  world database's chains (`0011_chapter2.sql`):
+  - II-A, *The Road to Angrathar*: Alliance after Find Durkon! (by Cavalier Durkon), standing for
+    The Noble's Crypt to A Righteous Sermon and The Bleeding Ore to Understanding the Scourge War
+    Machine, to Into Hostile Territory (which the world opens only after both ends: their
+    `NextQuestID`s, now conditions with an else group); Horde after The Forsaken Blight (by
+    Doctor Sintar Malefious), standing for the taunka's oath, the Attack by Air! chain and the
+    Icemist rescue, to The Kor'kron Vanguard! (its four required quests kept as the else group).
+    Each takes the Timerunner back to the High Commander or the Overlord.
+  - II-B, *What We Cannot Change*: no skip, after Return To Angrathar, by Alexstrasza at the
+    Wrathgate (Moratari in her phase, 2, the one the Wrathgate is in after it); the guide's text.
+  - II-C, *After Angrathar* (the guide's WRM-221): after the Battle for the Undercity (scripted in
+    this core for both sides, `zone_undercity.cpp`), by King Varian Wrynn in Stormwind Keep or
+    Thrall in Lordaeron's throne room (his spawn is in the battle's phase, 64, which ends as it's
+    turned in: Moratari in 64 and 1), to Amberpine Lodge or Conquest Hold, Chapter III.
+  - `0006` now clears only its own `remix_bridge` rows (it emptied the table, which would have
+    taken later chapters' rows whenever it was applied again).
+  - CI plays them on each side (`remix_chapter2_alliance.steps`, `_horde.steps`, now
+    `remix_campaign_*.steps`, a level 30 human
+    and orc): the quest before each transition given with `.quest add/complete/reward`, the next
+    quest not offered before and offered after, the Wrathgate's phase, Chapter III and the Grizzly
+    Hills at the end. The test client learned what that needed: Orcish for the Horde (the server
+    drops a line, GM commands included, in a language the character doesn't know), a quest giver's
+    hello and quest list for NPCs without gossip, a quest offered at once, calling a walking NPC
+    over (`.npc follow`, past ~10 yards), and the second quest of a menu (it misread every quest
+    after the first).
+  - Checked here: the server run on the real data, the prologue and both sides' Chapter II played
+    through, the five new Moratari spawns on the floor. Not checked: the Wrathgate and the Battle
+    for the Undercity played for real (the test gives those quests by command), and anything on a
+    phone.
+
+- Then Chapter III's transitions (build 62, `0012_chapter3.sql`):
+  - III-A, *A Shorter Path Through the Woods*: after Ursoc, the Bear God (Alliance by Hierophant
+    Thayreen, Horde by Windseer Grayhorn), the hills' other wars left as they are, to Samir; it
+    opens Filling the Cages in place of Drakuru's breadcrumbs (Troll Season!, Good Troll Hunting:
+    their `NextQuestID`s now conditions with else groups).
+  - III-B, *A Friend of Questionable Judgment* (both sides): no skip, after Voices From the Dust,
+    by the Image of Drakuru at Drak'Tharon Keep's door.
+  - WRM-321, *The Truth About Drakuru*: after Cleansing Drak'Tharon, to Crusader Lord Lantinga at
+    Light's Breach (In Search Of Answers, Chapter IV). That quest is turned in to an Image of
+    Drakuru the dungeon summons at its top, so it's the Moratari at the door.
+  - Found on the way: the Horde's Grizzly Hills begins with The Conqueror's Task, which asks for a
+    Dragonblight breadcrumb (To Conquest Hold, But Be Careful!) that WRM-222 had taken the
+    Timerunner past; WRM-222 now opens it too.
+  - CI's steps are one file a side now (`remix_campaign_alliance.steps`, `_horde.steps`), through
+    Chapter III to Light's Breach. Checked here the same way as Chapter II: both sides played, the
+    eight Moratari spawns on the floor. Not checked: Drak'Tharon Keep and the Grizzly Hills'
+    quests played for real.
+  - Next: Chapter IV (Zul'Drak); then V to VII.
+
+- Then Chapter IV's transitions (build 63, `0013_chapter4.sql`), all both sides':
+  - IV-A in two, by Stefan Vadu at the Ebon Watch: *The Things the Scourge Remembers* after The
+    Ebon Watch, standing for the chokers' quests (a Withered Troll's drop: item-started, which a
+    test can't give, and drop collecting, which IV-A skips) and the disguise errands, to
+    Infiltrating Voltarus (Reunited, Darkness Calling's way's Voltarus quest, opens after it);
+    *The Paperwork of Betrayal* (the guide's line) after Infiltrating Voltarus, standing for So
+    Far, So Bad, It Rolls Downhill, Hazardous Materials and Zero Tolerance, to Sabotage, so
+    Sabotage, Fuel for the Fire, Disclosure and Betrayal are played.
+  - *A Pilgrim's Shortcut*: the guide's loa list goes from Precious Elemental Fluids to
+    Preparations for the Underworld; between them, eleven quests of Har'koa's rescue. By Hexxer
+    Ubungo, to Har'koa at Zim'Torga.
+  - IV-B, *The Gods Are Still Silent*: after You Reap What You Sow and Betrayal, by Witch Doctor
+    Khufu, standing for The Key of Warlord Zol'Maz and Rampage, to The Gods Have Spoken
+    (Convocation at Zol'Heb and Unfinished Business, into Gundrak, are played).
+  - WRM-421, *A Kingdom Gone*: after Gundrak's Gal'darah Must Pay (turned in outside, to Tol'mar)
+    and Betrayal, to Hemet Nesingwary at his camp in Sholazar Basin, Chapter V. Not to Monte
+    Muzzleshot, whose Welcome to Sholazar Basin starts the zone: Aotona, a hostile rare, flies 11
+    yards from him (the test's character landed in a fight there and couldn't log out), and
+    nothing asks for that quest.
+  - Gundrak's quests weren't on Chapter IV's levels: its band named the area outside (4375), its
+    quests are filed under the instance's (4416). Fixed in `0005_levels.sql`; Gal'darah Must Pay
+    is level 52 now, not 78.
+  - CI plays Chapter IV on each side after III. Checked here: both sides through to Nesingwary
+    Base Camp, the four new Moratari spawns on the floor. Not checked: Voltarus, the loa's quests
+    and Gundrak played for real.
+
+- Then (after playing the demo): "The intro isn't very clear... there's no introduction to timerunning,
+  why you're there... there needs to be a quest chain in the beginning explaining all that. I also
+  don't like the caverns of time being the base of operations, choose somewhere else. Also it seems
+  as though you get to choose where to start. I don't like that. It also mentions 3 echoes but only
+  shows 2 ghosts... No guessing where to go, each quest leads you to the next one. Also it needs to
+  have some sort of antagonist... The infinite dragonflight already is an antagonist at this point
+  in time... perhaps they pull you back in time as a hero to stop it. But along the way after
+  chapter 1 sylvanas windrunner comes from the future along with Alleria to stop you saying it is
+  crucial to the integrity of Azeroth's world soul that the Lich King's story happens entirely
+  as-is. And Sylvanas stands to gain more than anyone who would benefit from the lich kings story
+  differing. You realize after carrying out some of the quests that youve been working for the
+  wrong side. So rewrite all custom dialogue and quests up to this point... Moratari listens to
+  Sylvanas, uses a spell, dissapears for about 10 seconds then a portal opens and she steps out.
+  She says she learned that Sylvanas is telling the truth and we need to continue the timeline.
+  Eternaus disagrees even though he knows this is what must happen and continues to interfere.
+  From this point on Eternaus is not at the infinite bazaar but Sylvanas and Alleria are. So make
+  the transition quests ones where you have to fight or do quests like this to stop the rest of
+  the infinite dragonflight from changing things. Small changes can happen in quests or between
+  chains as well... Keep everything consistent with lore."
+  Lore notes given back (accepted): post-Shadowlands Sylvanas is serving her sentence, so the
+  bronze dragonflight brings her and Alleria (her stake: a changed Lich King story loses the souls
+  she's atoning for); the 3.3.5 Sylvanas is alive in the Undercity (two Sylvanases: the future one
+  keeps out of her own sight); the argument lands hardest at the Wrathgate (Bolvar must burn there
+  to take the Helm after Arthas and hold the Scourge); Eternus's motive: he believes a kinder
+  timeline is possible and won't let it go. Her motive as read back and confirmed: she'd gain the
+  most if Arthas's story changed (he killed her and made her a banshee), which is why her
+  insisting it stay is what convinces.
+  Decided (the user's answers): the home base and start is the Infinite Bazaar in Crystalsong
+  Forest, not the Caverns of Time; one route through Chapter I, my pick ("as long as it is
+  completely guided... If there's usually a 'find this on your own' without a quest, make it a
+  quest"): Borean Tundra for both sides; the turn right before the Wrathgate ("just keep it lore
+  friendly... fit it in where it's best... I'd rather it insert between quests if needed").
+  Chapter V's transitions (built in the old voice, tested here, not pushed) wait for the rewrite.
+
+- The rewrite, first part (build 64): the prologue at the Infinite Bazaar and a guided Chapter I.
+  - Every new character but a death knight wakes at the Bazaar (`playercreateinfo`), before
+    Moratari and Eternus. Five quests, each given where the last one ended (WRM-010 to 015): where
+    and when you are and why you're weaker; Eternus shows three of the war's dead (echoes with the
+    real people's looks: a Valiance Keep footman, Saurfang the Younger, Bolvar, all at the Bazaar
+    in plain sight; the old prologue's third echo was most likely its big dark Icecrown model at
+    half transparency, in a dim cave) and makes his offer; Alurmi and the class instructor (a
+    credit any instructor gives as they're spoken to; they have the gossip flag now, so the game
+    asks them for it before their lessons) and the hearthstone; the anomalies; and the front,
+    Valiance Keep or Warsong Hold, before the officer who enlists (no choice of coast). The first
+    prologue's quests (77001 to 77009) and the Caverns of Time's spawns are gone; a Timerunner
+    made before and still in the prologue wakes at the Bazaar at their next login.
+  - Chapter I: the Borean Tundra's chains need only one guide (Alliance: Mark Hanes's Word on the
+    Street, a little way from Sergeant Hammerhill); Eternus's first kindness on each side
+    (WRM-017 crypt crawlers on Valiance Keep's beach, WRM-018 the Nerub'ar at Mightstone Quarry),
+    which the next chain quest now waits for; the transitions in the new voice.
+  - The bots: the Bazaar is where characters are made now, so it's where bots are sent from (and
+    the Caverns, for the ones made there before).
+  - Checked here: the server built and run on the real data, the prologue played (the three
+    echoes, the instructor, the anomalies, the purchases, Valiance Keep with Enlistment Day
+    offered), Chapters II to IV on each side, every spawn on the floor, bots made at the Bazaar
+    sent to their chapters. Not on a phone: the look of the echoes and the Bazaar.
+
+- Then, while the rewrite was being built: "Make a button in the menu like under video interface
+  exit etc that says report time anomaly that sends an issue to GitHub with exactly the process my
+  character has made, which quest I'm on, which NPCs I've talked to during the current quest. This
+  should happen invisibly going to GitHub if possible but if not just open it and let the user
+  submit it." Plan: the app's own add-on (WowTouch) adds the button to the game menu on the Wrath
+  Remix realm; it asks the realm (an add-on message, as the spellbook's place goes); the module
+  writes the report (the character, where they are, the quest log with its objectives, and a
+  journal it keeps of quests taken, finished and turned in, NPCs spoken to, transitions,
+  teleports, deaths and levels) into a file for the app; the app files it as an issue with the
+  GitHub token the user gave it for modules, or else opens GitHub's new-issue page filled in.
+
+- Then the ending (the user's, not to be spoiled for them: the user doesn't read STORY.md):
+  "it should end when you reach icecrown before you enter the raid you face Eternaus and the
+  infinite dragonflight in a last ditch effort to stop you. You win obviously, but don't kill
+  Eternaus who retreats at 10% health. then you move on to the icecrown raid. After that you are
+  teleported back to the bazaar after the original cutscene. It also begins a quest called 'See
+  you later' in which you say I'm ready to go back to the future and she sends you back after you
+  say goodbye to key NPCs. She tells the player that because of what happened here and time can be
+  wonky, some people may never know what you did here, and also that in order to preserve future
+  events, she's wiping the memories of the whole thing from Sylvanas and Alleria's mind. At this
+  point you can talk to both of them about theyre experiences past WOTLK expansion, find out their
+  feelings on things in each expansion... actually make it sound natural and in universe... If
+  they weren't present, make up something that was lore accurate potentially or doesn't conflict
+  with the lore. Alleria should have a big of a part in this story as Sylvanas does. Then after
+  talking with them or skipping it entirely if you want to you can tell moratari you're ready to
+  return to your timeline. Similar to how legion remix does it, you can transfer your timerunner
+  character to the ChromieCraft realm, and any items that weren't in the original (there really
+  shouldn't be any) are converted to an equivalent weapon in wotlk stats. You will remain whatever
+  level you were at the end of wrath remix, it will force you to close the game and restart the
+  server, then when you log in it will have you in your factions capitol city."
+  Order of work: the prologue and Chapter I (done, build 64), the report button (done, build 65),
+  Chapter II and the turn, Chapters III and IV rewritten, V to VII, then the ending and the move to
+  ChromieCraft.
+
+- Report Time Anomaly (build 65), as planned above:
+  - The game's menu, on Wrath Remix only (the realm's name as the game has it): **Report Time
+    Anomaly** in a group of its own between Macros and Log Out (the menu taller to fit). A popup
+    asks what went wrong (it may stay empty; the box takes the three-finger keyboard) and the
+    add-on whispers "WowRemix<tab>report <text>" to the player itself; the realm keeps it from
+    them (a PlayerScript chat hook, no core patch) and answers in the chat.
+  - The journal (`remix_log`, with the area of each line now): logins, quests taken, objectives
+    finished, quests turned in and dropped, creatures and quest objects spoken to (the same one
+    again within a minute: one line), zones entered, levels, deaths (and to whom), Moratari's
+    transitions. Not the realm's bots.
+  - The report (`RemixReport.cpp`): the player's words; the Timerunner (race, class, side,
+    chapter, where to the yard, alive or not, Bronze, quests turned in, time played); the quest
+    they're on (the one taken last) with its objectives' counts, when, where and from whom it
+    was taken, and who they've spoken to since; the rest of the log the same way; then the
+    journal's last 300 steps. Markdown, the title on its first line, in `files/run/reports`
+    (`WOW_REPORTS_DIR`, ctl.sh).
+  - The app (`AnomalyReports`, run by the server's service every 3 seconds while it's up): an
+    issue labeled *time anomaly* in this repository through GitHub's API with the modules token,
+    then the token the app was built with; if neither may, github.com's new-issue page opens
+    filled in (a long report shortened, oldest steps first); with no network, it waits and tries
+    again a minute later. A toast says how it went; sent and opened reports are kept apart.
+  - Checked here: the add-on against a stand-in for the game's menu and popups (only on Wrath
+    Remix; the button's place and the menu's height; what's whispered), the report's fitting, its
+    issue and its link; the realm built and run on the real data, the prologue played with a
+    report asked for during Time's Toll, and its file read (the quest, who gave it, who was spoken
+    to since, the way there). Not on a phone: the button's look in the menu, the popup and its
+    keyboard, the issue on GitHub (neither the API nor the browser was used from here).
+
+- Then: "Where are we percentage wise being done here" (about 30% of the whole plan, said), "How
+  much until playable", and: "Focus on a build of the intro and chapters 1-2 first. Also you are
+  supposed to have a shit ton of bronze by the end so you can use them at the vendors. Just like
+  in legion remix."
+
+- Build 65: the intro and Chapters I and II in the new story, Report Time Anomaly, and Bronze.
+  - Bronze twenty times what it was: quests 500, kills 15, elites 60, rares 500, dungeon bosses
+    1,000, raid bosses 5,000, Remix's own quests twenty times theirs (the prologue 8,500). The
+    vendors' collectibles alone are about 539,000 (mounts 489,000, companions 37,400, toys 12,250)
+    and each class's gear several hundred thousand more; the old rates earned about 40,000 from 10
+    to 80. ctl.sh moves a realm config still at the old defaults to the new ones.
+  - Chapter II as STORY.md has it: WRM-203/213 (to Chromie), Mystery of the Infinite, WRM-204
+    (Sylvanas and Alleria appear beside Chromie), WRM-205/215 (to Eternus and back), WRM-201/211,
+    then right before the Wrathgate's chain WRM-206/216 (Eternus's plan), WRM-207 (the turn: a
+    scene of about 85 seconds at the Bazaar, its people summoned for the one Timerunner, the
+    Bazaar's own Moratari hidden while it plays; one cut short counts as seen at the next login,
+    or plays again when Eternus is spoken to), WRM-208/218 (six of Eternus's loyalists on the
+    cliffs above the gate, where the Forsaken's catapults stand on the day; Audience With The
+    Dragon Queen waits for it), and the Wrathgate, II-B and II-C rewritten. Who is seen where is
+    visibility conditions (Eternus gone from the Bazaar after the turn, for those past it).
+    Quests that take you somewhere as they're taken: `remix_departure`.
+  - Checked here: see the build's entry below once it's tested.
+
+- Then: "Make it so when you hold tap on an item or talent or ability it counts as a right click.
+  Make it so if the item is on your action bar it removes it from the bar." Done: the add-on
+  (WowTouch, version 3) also says where the bags, the bank, the character pane, the talents and
+  the action bars are ("hold" areas in the same note as the spellbook's "drag"); a hold there, or
+  on the spellbook, is a right click instead of B. On the spellbook the left button now waits for
+  the finger to move (a tap is a click, a hold a right click, a move a drag). The action bars'
+  buttons get no right-click action of their own ("type2"), and a right click picks their action up
+  and lets it go: off the bar. Checked here: unit tests (the gestures, the note, the add-on
+  against stand-ins for the bags, bars and buttons). Not on a phone: the feel of it, and the
+  secure buttons in the real client (a taint report there would show as an "AddOn blocked" line).
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the

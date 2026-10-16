@@ -3,6 +3,7 @@
 // the game's touch gestures, reading warperia.com's add-on pages, GitHub's AzerothCore modules and
 // the realm builds with them, Turtle WoW's isolation and installation logic) on the JVM, without
 // Android. The sources
+// the realm builds with them, Wrath Remix's time anomaly reports) on the JVM, without Android. The sources
 // live in the app.
 
 plugins {
@@ -29,6 +30,7 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/modules")
         // Turtle WoW's platform-independent parts: its folder guard, manifests, downloads, accounts.
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/turtle/core")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/reports")
     }
 }
 

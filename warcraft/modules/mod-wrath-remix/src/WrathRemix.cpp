@@ -1,0 +1,1167 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+/*
+ * Wrath Remix: the realm gate, its tables, Timerunners and their Bronze, the chapters' creature
+ * levels, and the hooks that tie them to the game. The NPCs are in RemixNpcs.cpp.
+ *
+ * Everything here does nothing unless WrathRemix.Enable is on and this world server is the realm
+ * WrathRemix.RealmID names: the same program runs the app's ChromieCraft realm, where Remix's
+ * tables don't even exist.
+ */
+
+#include "WrathRemix.h"
+#include "CellImpl.h"
+#include "Chat.h"
+#include "ChatCommand.h"
+#include "ConditionMgr.h"
+#include "Config.h"
+#include "Creature.h"
+#include "CreatureData.h"
+#include "DatabaseEnv.h"
+#include "Formulas.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
+#include "Group.h"
+#include "Item.h"
+#include "Log.h"
+#include "LootMgr.h"
+#include "Mail.h"
+#include "Map.h"
+#include "MapMgr.h"
+#include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "Player.h"
+#include "QuestDef.h"
+#include "ScriptMgr.h"
+#include "SpellInfo.h"
+#include "StringFormat.h"
+#include "Trainer.h"
+#include "World.h"
+#include <algorithm>
+#include <cmath>
+#include <map>
+#include <mutex>
+
+namespace WrathRemix
+{
+    namespace
+    {
+        bool enabled = false;
+        bool bandsEnabled = true;
+        bool announce = true;
+        bool freeRiding = true;
+        bool starterKit = true;
+        bool autoLearn = true;
+        bool maxWeaponSkill = true;
+        uint32 squishHealth = 75;   // WrathRemix.Squish.*: banded creatures' share of their health and damage, in percent
+        uint32 squishDamage = 75;
+        BronzeRates rates;
+
+        std::map<std::pair<uint32, uint32>, LevelBand> bands;
+        std::unordered_map<uint32, Bridge> bridges;
+        std::unordered_map<uint32, Departure> departures;
+        std::vector<Chapter> chapters;
+        std::vector<Destination> destinations;
+        std::vector<VendorList> vendorLists;
+        std::unordered_map<uint32, uint32> questBronze;
+        std::unordered_map<uint8, std::vector<KitPiece>> kits;
+        std::unordered_map<uint8, std::vector<ClassSpell>> classSpells;
+
+        // The starter kit's version: a Timerunner who had an older one (or none) gets this one at login.
+        constexpr uint8 KIT_VERSION = 1;
+
+        // The weapon skills' proficiencies, by weapon subclass, for kit weapons a Timerunner's race
+        // didn't start with (any of their class can learn them from a weapon master).
+        uint32 ProficiencyFor(uint32 weaponSubclass)
+        {
+            switch (weaponSubclass)
+            {
+                case ITEM_SUBCLASS_WEAPON_AXE:      return 196;
+                case ITEM_SUBCLASS_WEAPON_AXE2:     return 197;
+                case ITEM_SUBCLASS_WEAPON_BOW:      return 264;
+                case ITEM_SUBCLASS_WEAPON_GUN:      return 266;
+                case ITEM_SUBCLASS_WEAPON_MACE:     return 198;
+                case ITEM_SUBCLASS_WEAPON_MACE2:    return 199;
+                case ITEM_SUBCLASS_WEAPON_POLEARM:  return 200;
+                case ITEM_SUBCLASS_WEAPON_SWORD:    return 201;
+                case ITEM_SUBCLASS_WEAPON_SWORD2:   return 202;
+                case ITEM_SUBCLASS_WEAPON_STAFF:    return 227;
+                case ITEM_SUBCLASS_WEAPON_FIST:     return 15590;
+                case ITEM_SUBCLASS_WEAPON_DAGGER:   return 1180;
+                case ITEM_SUBCLASS_WEAPON_THROWN:   return 2567;
+                case ITEM_SUBCLASS_WEAPON_CROSSBOW: return 5011;
+                case ITEM_SUBCLASS_WEAPON_WAND:     return 5009;
+                default:                            return 0;
+            }
+        }
+
+        std::mutex timerunnersLock;
+        std::unordered_map<ObjectGuid::LowType, Timerunner> timerunners;
+
+        // Riding, taught for free as a Timerunner reaches each level (WrathRemix.FreeRiding).
+        struct Riding { uint8 level; uint32 spell; };
+        constexpr Riding RIDING[] = {
+            { 20, 33388 },  // Apprentice Riding
+            { 40, 33391 },  // Journeyman Riding
+            { 60, 34090 },  // Expert Riding
+            { 70, 34091 },  // Artisan Riding
+            { 77, 54197 },  // Cold Weather Flying
+        };
+
+        // The death knights' last quests of Acherus' story: after it, Moratari brings them to the Bazaar.
+        constexpr uint32 QUEST_WHERE_KINGS_WALK = 13188;
+        constexpr uint32 QUEST_WARCHIEFS_BLESSING = 13189;
+    }
+
+    bool Active() { return enabled; }
+    bool BandsActive() { return enabled && bandsEnabled; }
+    BronzeRates const& Rates() { return rates; }
+    bool Announce() { return announce; }
+
+    void LoadConfig()
+    {
+        uint32 realmId = sConfigMgr->GetOption<uint32>("RealmID", 0, false);
+        uint32 remixRealm = sConfigMgr->GetOption<uint32>("WrathRemix.RealmID", 2, false);
+        enabled = sConfigMgr->GetOption<bool>("WrathRemix.Enable", false, false) && realmId == remixRealm;
+        bandsEnabled = sConfigMgr->GetOption<bool>("WrathRemix.LevelBands.Enable", true, false);
+        announce = sConfigMgr->GetOption<bool>("WrathRemix.Announce", true, false);
+        freeRiding = sConfigMgr->GetOption<bool>("WrathRemix.FreeRiding", true, false);
+        starterKit = sConfigMgr->GetOption<bool>("WrathRemix.StarterKit", true, false);
+        autoLearn = sConfigMgr->GetOption<bool>("WrathRemix.AutoLearn", true, false);
+        maxWeaponSkill = sConfigMgr->GetOption<bool>("WrathRemix.MaxWeaponSkill", true, false);
+        squishHealth = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Health", 75, false), 1, 1000);
+        squishDamage = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Damage", 75, false), 1, 1000);
+        rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", 500, false);
+        rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", 15, false);
+        rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", 60, false);
+        rates.rare = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Rare", 500, false);
+        rates.dungeonBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.DungeonBoss", 1000, false);
+        rates.raidBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.RaidBoss", 5000, false);
+        if (enabled)
+            LOG_INFO("module", "Wrath Remix: on (realm {})", realmId);
+        else
+            LOG_INFO("module", "Wrath Remix: off (realm {}; Wrath Remix runs on realm {} when turned on)", realmId, remixRealm);
+    }
+
+    void LoadData()
+    {
+        bands.clear();
+        bridges.clear();
+        departures.clear();
+        chapters.clear();
+        destinations.clear();
+        vendorLists.clear();
+        questBronze.clear();
+        kits.clear();
+        classSpells.clear();
+        if (!enabled)
+            return;
+
+        if (QueryResult result = WorldDatabase.Query("SELECT `map`, `zone`, `original_min`, `original_max`, `band_min`, `band_max`, `chapter`, `name` FROM `remix_level_band`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                bands[{ f[0].Get<uint32>(), f[1].Get<uint32>() }] = { f[2].Get<int32>(), f[3].Get<int32>(), f[4].Get<int32>(), f[5].Get<int32>(), f[6].Get<uint8>(), f[7].Get<std::string>() };
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `z`, `o`, `skipped` FROM `remix_bridge`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                Bridge b{ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<uint8>(), f[3].Get<uint32>(), f[4].Get<float>(), f[5].Get<float>(), f[6].Get<float>(), f[7].Get<float>(), f[8].Get<std::string>() };
+                bridges[b.quest] = b;
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `map`, `x`, `y`, `z`, `o` FROM `remix_departure`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                Departure d{ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<float>(), f[3].Get<float>(), f[4].Get<float>(), f[5].Get<float>() };
+                departures[d.quest] = d;
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `chapter`, `name`, `summary`, `level_min`, `level_max`, `alliance_map`, `alliance_x`, `alliance_y`, `alliance_z`, `horde_map`, `horde_x`, `horde_y`, `horde_z` FROM `remix_chapter` ORDER BY `chapter`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                Chapter c;
+                c.chapter = f[0].Get<uint8>();
+                c.name = f[1].Get<std::string>();
+                c.summary = f[2].Get<std::string>();
+                c.levelMin = f[3].Get<uint8>();
+                c.levelMax = f[4].Get<uint8>();
+                for (int side = 0; side < 2; ++side)
+                {
+                    c.map[side] = f[5 + side * 4].Get<uint32>();
+                    c.x[side] = f[6 + side * 4].Get<float>();
+                    c.y[side] = f[7 + side * 4].Get<float>();
+                    c.z[side] = f[8 + side * 4].Get<float>();
+                }
+                chapters.push_back(c);
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `id`, `name`, `side`, `min_level`, `map`, `x`, `y`, `z`, `o` FROM `remix_travel` ORDER BY `id`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                destinations.push_back({ f[0].Get<uint16>(), f[1].Get<std::string>(), f[2].Get<uint8>(), f[3].Get<uint8>(), f[4].Get<uint32>(), f[5].Get<float>(), f[6].Get<float>(), f[7].Get<float>(), f[8].Get<float>() });
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `list`, `vendor`, `side`, `label` FROM `remix_vendor_list` ORDER BY `vendor`, `sort`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                vendorLists.push_back({ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<uint8>(), f[3].Get<std::string>() });
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `bronze` FROM `remix_quest_reward`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                questBronze[f[0].Get<uint32>()] = f[1].Get<uint32>();
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `class`, `item`, `count` FROM `remix_starter_kit` ORDER BY `class`, `item`"))
+        {
+            do
+            {
+                // (item templates load after this: GiveKit skips an item that doesn't exist)
+                Field* f = result->Fetch();
+                kits[f[0].Get<uint8>()].push_back({ f[1].Get<uint32>(), f[2].Get<uint8>() });
+            } while (result->NextRow());
+        }
+        if (QueryResult result = WorldDatabase.Query("SELECT `class`, `spell`, `level` FROM `remix_class_spell` ORDER BY `class`, `level`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                classSpells[f[0].Get<uint8>()].push_back({ f[1].Get<uint32>(), f[2].Get<uint8>() });
+            } while (result->NextRow());
+        }
+        LOG_INFO("module", "Wrath Remix: {} level bands, {} transitions, {} chapters, {} destinations, {} vendor lists, {} starter kits",
+            bands.size(), bridges.size(), chapters.size(), destinations.size(), vendorLists.size(), kits.size());
+    }
+
+    LevelBand const* BandFor(uint32 map, uint32 zone)
+    {
+        auto it = bands.find({ map, zone });
+        if (it == bands.end())
+            it = bands.find({ map, 0 });
+        return it == bands.end() ? nullptr : &it->second;
+    }
+
+    Bridge const* BridgeFor(uint32 quest)
+    {
+        auto it = bridges.find(quest);
+        return it == bridges.end() ? nullptr : &it->second;
+    }
+
+    Departure const* DepartureFor(uint32 quest)
+    {
+        auto it = departures.find(quest);
+        return it == departures.end() ? nullptr : &it->second;
+    }
+
+    std::vector<Chapter> const& Chapters() { return chapters; }
+
+    Chapter const* ChapterFor(uint8 chapter)
+    {
+        for (Chapter const& c : chapters)
+            if (c.chapter == chapter)
+                return &c;
+        return nullptr;
+    }
+
+    std::vector<Destination> const& Destinations() { return destinations; }
+
+    Destination const* DestinationFor(uint16 id)
+    {
+        for (Destination const& d : destinations)
+            if (d.id == id)
+                return &d;
+        return nullptr;
+    }
+
+    std::vector<VendorList> const& VendorLists() { return vendorLists; }
+
+    uint32 QuestBronze(uint32 quest)
+    {
+        auto it = questBronze.find(quest);
+        return it == questBronze.end() ? rates.quest : it->second;
+    }
+
+    int32 BandedLevel(LevelBand const& band, int32 level)
+    {
+        if (level <= 0 || level < band.originalMin - 5)
+            return level;
+        double span = std::max(1, band.originalMax - band.originalMin);
+        int32 banded = int32(std::lround(band.bandMin + (level - band.originalMin) * (band.bandMax - band.bandMin) / span));
+        return std::clamp(banded, std::max(1, band.bandMin - 3), band.bandMax + 3);
+    }
+
+    uint8 ChapterForLevel(uint8 level)
+    {
+        uint8 found = 0;
+        for (Chapter const& c : chapters)
+            if (level >= c.levelMin)
+                found = c.chapter;
+        return found;
+    }
+
+    bool IsAlliance(Player* player) { return player->GetTeamId() == TEAM_ALLIANCE; }
+
+    Timerunner Get(Player* player)
+    {
+        std::lock_guard<std::mutex> lock(timerunnersLock);
+        auto it = timerunners.find(player->GetGUID().GetCounter());
+        return it == timerunners.end() ? Timerunner() : it->second;
+    }
+
+    void Load(Player* player)
+    {
+        Timerunner t;
+        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter`, `kit` FROM `remix_character` WHERE `guid` = {}", player->GetGUID().GetCounter()))
+        {
+            Field* f = result->Fetch();
+            t.bronze = f[0].Get<uint32>();
+            t.earned = f[1].Get<uint32>();
+            t.chapter = f[2].Get<uint8>();
+            t.kit = f[3].Get<uint8>();
+        }
+        else
+            t.dirty = true;
+        std::lock_guard<std::mutex> lock(timerunnersLock);
+        timerunners[player->GetGUID().GetCounter()] = t;
+    }
+
+    void Save(Player* player)
+    {
+        Timerunner t;
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            auto it = timerunners.find(player->GetGUID().GetCounter());
+            if (it == timerunners.end() || !it->second.dirty)
+                return;
+            it->second.dirty = false;
+            t = it->second;
+        }
+        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`, `kit`) VALUES ({}, {}, {}, {}, {})",
+            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter, t.kit);
+    }
+
+    void Forget(Player* player)
+    {
+        std::lock_guard<std::mutex> lock(timerunnersLock);
+        timerunners.erase(player->GetGUID().GetCounter());
+    }
+
+    uint32 Bronze(Player* player)
+    {
+        return player->GetItemCount(ITEM_BRONZE);
+    }
+
+    // Bronze into the currency tab (the "You receive" line for quests, bosses and rares; a
+    // common kill's single Bronze adds up quietly). What can't be stored is owed and paid at login.
+    static bool StoreBronze(Player* player, uint32 amount, bool show)
+    {
+        ItemPosCountVec dest;
+        if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, ITEM_BRONZE, amount) != EQUIP_ERR_OK)
+            return false;
+        if (Item* item = player->StoreNewItem(dest, ITEM_BRONZE, true))
+            player->SendNewItem(item, amount, true, false, false, show);
+        return true;
+    }
+
+    void AddBronze(Player* player, uint32 amount, bool show)
+    {
+        if (!amount)
+            return;
+        bool stored = StoreBronze(player, amount, show);
+        std::lock_guard<std::mutex> lock(timerunnersLock);
+        Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+        t.earned += amount;
+        if (!stored)
+            t.bronze += amount;
+        t.dirty = true;
+    }
+
+    // Bronze the realm kept for a Timerunner (before Bronze was an item, or when it couldn't be
+    // stored), into their currency tab.
+    static void PayOwedBronze(Player* player)
+    {
+        uint32 owed = Get(player).bronze;
+        if (!owed || !StoreBronze(player, owed, true))
+            return;
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+            t.bronze = t.bronze > owed ? t.bronze - owed : 0;
+            t.dirty = true;
+        }
+        Save(player);
+    }
+
+    void SetChapter(Player* player, uint8 chapter)
+    {
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+            if (chapter <= t.chapter)
+                return;
+            t.chapter = chapter;
+            t.dirty = true;
+        }
+        Save(player);
+        if (Chapter const* c = ChapterFor(chapter))
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffChapter {}: {}.|r {}", uint32(c->chapter), c->name, c->summary);
+    }
+
+    void SetKit(Player* player, uint8 version)
+    {
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+            t.kit = version;
+            t.dirty = true;
+        }
+        Save(player);
+    }
+
+    void Record(Player* player, char const* what, uint32 entry, int32 amount)
+    {
+        CharacterDatabase.Execute("INSERT INTO `remix_log` (`guid`, `what`, `entry`, `amount`, `area`) VALUES ({}, '{}', {}, {}, {})",
+            player->GetGUID().GetCounter(), what, entry, amount, player->GetAreaId());
+    }
+
+    void TeleportSoon(Player* player, uint32 map, float x, float y, float z, float o)
+    {
+        player->m_Events.AddEventAtOffset([player, map, x, y, z, o]()
+        {
+            if (player->IsInWorld() && player->IsAlive())
+                player->TeleportTo(map, x, y, z, o);
+        }, 1500ms);
+    }
+
+    // The creature behind a blow or a heal when its level came from a band: a creature, or the
+    // totem or guardian of one (never a player's pet, guardian or totem).
+    static Creature* BandedSource(Unit* unit)
+    {
+        if (!unit)
+            return nullptr;
+        if (Unit* owner = unit->GetOwner())
+        {
+            if (owner->IsPlayer())
+                return nullptr;
+            unit = owner;
+        }
+        Creature* creature = unit->ToCreature();
+        if (!creature || creature->IsPet())
+            return nullptr;
+        CreatureTemplate const* info = creature->GetCreatureTemplate();
+        if (!info || creature->GetLevel() >= std::min(info->minlevel, info->maxlevel))
+            return nullptr;
+        return creature;
+    }
+
+    // How much of its spells' power a banded creature keeps: its damage at its level now over its
+    // damage at its own level (creature_classlevelstats), as its melee already does.
+    static float BandFactor(Creature* creature)
+    {
+        CreatureTemplate const* info = creature->GetCreatureTemplate();
+        uint8 original = uint8((info->minlevel + info->maxlevel) / 2);
+        CreatureBaseStats const* now = sObjectMgr->GetCreatureBaseStats(creature->GetLevel(), info->unit_class);
+        CreatureBaseStats const* was = sObjectMgr->GetCreatureBaseStats(original, info->unit_class);
+        uint32 expansion = std::min<uint32>(info->expansion, MAX_EXPANSIONS - 1);
+        if (!now || !was || was->BaseDamage[expansion] <= 0.0f)
+            return 1.0f;
+        return std::clamp(now->BaseDamage[expansion] / was->BaseDamage[expansion], 0.01f, 1.0f);
+    }
+
+    // A banded creature's blow or heal: its spells' at the share their level keeps (BandFactor),
+    // and all of it at the realm's squish (WrathRemix.Squish.*, in percent: [squish]).
+    template<typename T>
+    static void Scale(T& amount, Unit* source, uint32 squish, bool spell)
+    {
+        if (!BandsActive() || !amount)
+            return;
+        if (Creature* creature = BandedSource(source))
+            amount = T(std::max<double>(1.0, std::round(amount * (spell ? BandFactor(creature) : 1.0f) * squish / 100.0)));
+    }
+
+    static void TeachRiding(Player* player)
+    {
+        if (!freeRiding)
+            return;
+        for (Riding const& r : RIDING)
+            if (player->GetLevel() >= r.level && !player->HasSpell(r.spell))
+                player->learnSpell(r.spell);
+    }
+
+    // Everything the Timerunner's class trainer would teach them at their level, free, as Legion
+    // Remix does, and the abilities class quests teach (remix_class_spell): a Timerunner starts at
+    // 10 and moves fast, without the trips to a capital. The trainers are the Bazaar's instructors'
+    // (the capitals' lists). Ranks need the rank before, so it goes round until nothing is left.
+    static uint32 LearnClassSpells(Player* player)
+    {
+        if (!autoLearn)
+            return 0;
+        std::vector<Trainer::Trainer*> trainers;
+        for (uint32 entry = NPC_INSTRUCTOR_FIRST; entry <= NPC_INSTRUCTOR_LAST; ++entry)
+            if (Trainer::Trainer* trainer = sObjectMgr->GetTrainer(entry))
+                if (trainer->GetTrainerType() == Trainer::Type::Class && trainer->IsTrainerValidForPlayer(player))
+                    trainers.push_back(trainer);
+        auto quested = classSpells.find(player->getClass());
+        uint32 learned = 0;
+        for (int round = 0; round < 10; ++round)
+        {
+            uint32 before = learned;
+            for (Trainer::Trainer* trainer : trainers)
+            {
+                for (Trainer::Spell const& spell : trainer->GetSpells())
+                {
+                    if (!trainer->CanTeachSpell(player, &spell))
+                        continue;
+                    // as a trainer teaches it (Trainer::TeachSpell), without the trainer or the gold
+                    if (!spell.IsCastable())
+                        player->learnSpell(spell.SpellId, false);
+                    else if (sScriptMgr->OnPlayerCanLearnSpell(player, spell.SpellId))
+                        player->CastSpell(player, spell.SpellId, true);
+                    ++learned;
+                }
+            }
+            if (quested != classSpells.end())
+            {
+                for (ClassSpell const& c : quested->second)
+                {
+                    if (player->GetLevel() < c.level || player->HasSpell(c.spell))
+                        continue;
+                    player->learnSpell(c.spell, false);
+                    ++learned;
+                }
+            }
+            if (learned == before)
+                break;
+        }
+        return learned;
+    }
+
+    // Weapon and defense skills at their level's maximum: a character made at 10 has them at 1
+    // otherwise (and misses most of what it swings at).
+    static void MaxWeaponSkills(Player* player)
+    {
+        if (maxWeaponSkill)
+            player->UpdateSkillsToMaxSkillsForLevel();
+    }
+
+    // One piece of the kit: put on in place of what the Timerunner started in (white or grey gear,
+    // item level 5 or lower), into the bags when they've something better on, by mail when the
+    // bags are full.
+    static void GivePiece(Player* player, ItemTemplate const* proto, MailDraft& mail, CharacterDatabaseTransaction trans, bool& mailed)
+    {
+        uint8 slot = player->FindEquipSlot(proto, NULL_SLOT, true);
+        if (slot != NULL_SLOT)
+        {
+            Item* current = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+            uint16 dest;
+            if ((!current || (current->GetTemplate()->ItemLevel <= 5 && current->GetTemplate()->Quality <= ITEM_QUALITY_NORMAL)) &&
+                player->CanEquipNewItem(slot, dest, proto->ItemId, true) == EQUIP_ERR_OK)
+            {
+                if (current)
+                    player->DestroyItem(INVENTORY_SLOT_BAG_0, slot, true);
+                if (player->CanEquipNewItem(slot, dest, proto->ItemId, false) == EQUIP_ERR_OK)
+                {
+                    player->EquipNewItem(dest, proto->ItemId, true);
+                    player->AutoUnequipOffhandIfNeed();
+                    return;
+                }
+            }
+        }
+        ItemPosCountVec dest;
+        if (player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, proto->ItemId, 1) == EQUIP_ERR_OK)
+        {
+            if (Item* item = player->StoreNewItem(dest, proto->ItemId, true))
+                player->SendNewItem(item, 1, true, false);
+            return;
+        }
+        if (Item* item = Item::CreateItem(proto->ItemId, 1, player))
+        {
+            item->SaveToDB(trans);
+            mail.AddItem(item);
+            mailed = true;
+        }
+    }
+
+    // The class's starter kit (remix_starter_kit), once per kit version. Death knights have
+    // Acherus' gear instead.
+    static void GiveKit(Player* player)
+    {
+        // (a ghost can't put anything on: it waits for the Timerunner to be alive)
+        if (!starterKit || player->getClass() == CLASS_DEATH_KNIGHT || !player->IsAlive() || Get(player).kit >= KIT_VERSION)
+            return;
+        auto kit = kits.find(player->getClass());
+        if (kit == kits.end())
+            return;
+        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+        MailDraft mail("Moratari's provisions", "Your bags were full, so the rest of your provisions came this way. Do try to keep up.");
+        bool mailed = false;
+        for (KitPiece const& piece : kit->second)
+        {
+            ItemTemplate const* proto = sObjectMgr->GetItemTemplate(piece.item);
+            if (!proto)
+                continue;
+            if (proto->Class == ITEM_CLASS_WEAPON)
+                if (uint32 proficiency = ProficiencyFor(proto->SubClass); proficiency && !player->HasSpell(proficiency) &&
+                    player->IsSpellFitByClassAndRace(proficiency))
+                    player->learnSpell(proficiency, false);
+            for (uint8 n = 0; n < piece.count; ++n)
+                GivePiece(player, proto, mail, trans, mailed);
+        }
+        if (mailed)
+            mail.SendMailTo(trans, MailReceiver(player), MailSender(MAIL_NORMAL, 0), MAIL_CHECK_MASK_COPIED);
+        CharacterDatabase.CommitTransaction(trans);
+        SetKit(player, KIT_VERSION);
+        ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r You will want something better than that. Here: gear that grows with you, and a few things to carry you through your first battles.");
+    }
+
+    bool IsBot(Player* player)
+    {
+        return player->GetSession()->GetRemoteAddress() == "headless";
+    }
+
+    // A bot in a group with a player (one following a Timerunner) goes where they go.
+    static bool WithPlayer(Player* bot)
+    {
+        if (Group* group = bot->GetGroup())
+            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                if (Player* member = ref->GetSource(); member && !IsBot(member))
+                    return true;
+        return false;
+    }
+
+    // Where every character is made (the Infinite Bazaar; the Caverns of Time until build 64): a
+    // bot there.
+    static char const* AtTheStart(Player* player, uint32 area)
+    {
+        if (player->GetMapId() == MAP_KALIMDOR && area == AREA_CAVERNS_OF_TIME)
+            return "the Caverns of Time";
+        if (player->GetMapId() == MAP_NORTHREND && player->GetExactDist2d(BAZAAR_X, BAZAAR_Y) < 120.0f)
+            return "the Infinite Bazaar";
+        return nullptr;
+    }
+
+    // A bot where every character is made (and where the playerbots' travels can bring one back)
+    // goes to the start of the chapter its level belongs to, its side's, and makes its home there:
+    // the prologue is the Timerunners'.
+    static void SendBotAway(Player* bot, char const* from)
+    {
+        if (WithPlayer(bot))
+            return;
+        Chapter const* c = ChapterFor(std::max<uint8>(1, ChapterForLevel(bot->GetLevel())));
+        if (!c)
+            return;
+        int side = IsAlliance(bot) ? 0 : 1;
+        WorldLocation home(c->map[side], c->x[side], c->y[side], c->z[side], bot->GetOrientation());
+        bot->SetHomebind(home, sMapMgr->GetAreaId(PHASEMASK_NORMAL, home));
+        bot->TeleportTo(home);
+        LOG_INFO("module", "Wrath Remix: bot {} (level {}) sent from {} to Chapter {}", bot->GetName(), uint32(bot->GetLevel()), from, uint32(c->chapter));
+    }
+
+    // A Timerunner's training, kept up as they arrive and as they level: their class's abilities,
+    // their weapon skills, free riding, and (once) the starter kit. Not the realm's playerbots:
+    // they look after their own spells and gear.
+    static void Train(Player* player)
+    {
+        if (IsBot(player))
+            return;
+        PayOwedBronze(player);
+        TeachRiding(player);
+        if (uint32 learned = LearnClassSpells(player))
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: you learn {} {} of your class.", learned,
+                learned == 1 ? "ability" : "abilities");
+        GiveKit(player);
+        MaxWeaponSkills(player);
+    }
+
+    // A Timerunner made before build 64 and still in the prologue was made in the Caverns of Time,
+    // where the prologue was: they wake at the Bazaar, where it is now, with their home there.
+    static void WakeAtTheBazaar(Player* player)
+    {
+        if (IsBot(player) || Get(player).chapter || player->GetMapId() != MAP_KALIMDOR || player->GetAreaId() != AREA_CAVERNS_OF_TIME)
+            return;
+        WorldLocation bazaar(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+        player->SetHomebind(bazaar, sMapMgr->GetAreaId(PHASEMASK_NORMAL, bazaar));
+        player->TeleportTo(bazaar);
+    }
+}
+
+using namespace WrathRemix;
+
+class WrathRemixWorld : public WorldScript
+{
+public:
+    WrathRemixWorld() : WorldScript("WrathRemixWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE, WORLDHOOK_ON_STARTUP }) { }
+
+    void OnAfterConfigLoad(bool /*reload*/) override
+    {
+        LoadConfig();
+    }
+
+    void OnLoadCustomDatabaseTable() override
+    {
+        LoadData();
+    }
+
+    // (on ChromieCraft's realm too: that's where the patch comes out of the game)
+    void OnStartup() override
+    {
+        UpdateClientPatch();
+    }
+};
+
+class WrathRemixPlayer : public PlayerScript
+{
+public:
+    WrathRemixPlayer() : PlayerScript("WrathRemixPlayer", {
+        PLAYERHOOK_ON_FIRST_LOGIN,
+        PLAYERHOOK_ON_LOGIN,
+        PLAYERHOOK_ON_LOGOUT,
+        PLAYERHOOK_ON_SAVE,
+        PLAYERHOOK_ON_LEVEL_CHANGED,
+        PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
+        PLAYERHOOK_ON_CREATURE_KILL,
+        PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
+        PLAYERHOOK_ON_PLAYER_RESURRECT,
+        PLAYERHOOK_ON_UPDATE_AREA,
+        PLAYERHOOK_ON_PLAYER_QUEST_ACCEPT,
+        PLAYERHOOK_ON_BEFORE_QUEST_COMPLETE,
+    }) { }
+
+    // Who a Timerunner sees changes with the story (visibility conditions in the world SQL:
+    // Sylvanas and Alleria arrive, Eternus leaves the Bazaar, his loyalists wait on the cliffs):
+    // looked at again a moment after one of the story's quests moves on.
+    static bool InTheStory(uint32 quest)
+    {
+        return (quest >= 77000 && quest <= 77999) || quest == QUEST_MYSTERY_OF_THE_INFINITE;
+    }
+
+    static void RefreshSightSoon(Player* player)
+    {
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld())
+                p->UpdateObjectVisibility();
+        }, 500ms);
+    }
+
+    // Some of the story's quests take the Timerunner where they're going as they're taken
+    // (remix_departure): back to the Bazaar to face Eternus, out to the Wrathgate's cliffs.
+    void OnPlayerQuestAccept(Player* player, Quest const* quest) override
+    {
+        if (!Active() || IsBot(player) || !InTheStory(quest->GetQuestId()))
+            return;
+        if (Departure const* d = DepartureFor(quest->GetQuestId()))
+            TeleportSoon(player, d->map, d->x, d->y, d->z, d->o);
+        RefreshSightSoon(player);
+    }
+
+    bool OnPlayerBeforeQuestComplete(Player* player, uint32 questId) override
+    {
+        if (Active() && !IsBot(player) && InTheStory(questId))
+            RefreshSightSoon(player);
+        return true;
+    }
+
+    void OnPlayerFirstLogin(Player* player) override
+    {
+        if (!Active())
+            return;
+        ChatHandler handler(player->GetSession());
+        if (player->getClass() == CLASS_DEATH_KNIGHT)
+            handler.SendSysMessage("|cff8fd3ffWrath Remix.|r Your own story comes first, death knight. When the Ebon Blade lets you go, Moratari will find you.");
+        else
+            handler.SendSysMessage("|cff8fd3ffWrath Remix.|r Welcome, Timerunner. Moratari is waiting for you.");
+    }
+
+    void OnPlayerLogin(Player* player) override
+    {
+        if (!Active())
+            return;
+        Load(player);
+        // A moment after arriving, once the Timerunner is in the world: learning casts, and the
+        // kit puts gear on.
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld())
+            {
+                Train(p);
+                WakeAtTheBazaar(p);
+                // WRM-207's scene is played as it's taken; one cut short (a logout) counts as seen.
+                if (p->GetQuestStatus(QUEST_WEIGHT_OF_TIME) == QUEST_STATUS_INCOMPLETE)
+                    p->KilledMonsterCredit(NPC_TURN_CREDIT);
+            }
+        }, 2s);
+        Timerunner const t = Get(player);
+        if (Announce())
+        {
+            uint8 chapter = t.chapter ? std::max(t.chapter, ChapterForLevel(player->GetLevel())) : 0;
+            Chapter const* c = ChapterFor(chapter);
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: Timerunner, {} Bronze. {}", Bronze(player) + t.bronze,
+                c ? Acore::StringFormat("Chapter {}: {}.", uint32(c->chapter), c->name) : std::string("The prologue."));
+        }
+        Save(player);
+    }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (!Active())
+            return;
+        Save(player);
+        Forget(player);
+    }
+
+    void OnPlayerSave(Player* player) override
+    {
+        if (Active())
+            Save(player);
+    }
+
+    void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override
+    {
+        if (!Active())
+            return;
+        Train(player);
+    }
+
+    // A Timerunner who arrived dead gets the starter kit once they're back on their feet.
+    void OnPlayerResurrect(Player* player, float /*restorePercent*/, bool& /*applySickness*/) override
+    {
+        if (!Active() || IsBot(player))
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld() && p->IsAlive())
+                GiveKit(p);
+        }, 1s);
+    }
+
+    // (as a character enters the world too) A moment later: not in the middle of a teleport.
+    void OnPlayerUpdateArea(Player* player, uint32 /*oldArea*/, uint32 newArea) override
+    {
+        if (!Active() || !IsBot(player) || !AtTheStart(player, newArea))
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* bot = ObjectAccessor::FindPlayer(guid); bot && bot->IsInWorld() && !bot->IsBeingTeleported())
+                if (char const* from = AtTheStart(bot, bot->GetAreaId()))
+                    SendBotAway(bot, from);
+        }, 1s);
+    }
+
+    // Called once as a quest is turned in (it works out the experience).
+    void OnPlayerQuestComputeXP(Player* player, Quest const* quest, uint32& /*xp*/) override
+    {
+        if (!Active())
+            return;
+        uint32 id = quest->GetQuestId();
+        AddBronze(player, QuestBronze(id), true);
+        if (InTheStory(id) && !IsBot(player))
+            RefreshSightSoon(player);
+
+        if (Bridge const* bridge = BridgeFor(id))
+        {
+            Record(player, "bridge", id, 0);
+            if (bridge->chapter)
+                SetChapter(player, bridge->chapter);
+            if (bridge->map != 0xFFFF)
+                TeleportSoon(player, bridge->map, bridge->x, bridge->y, bridge->z, bridge->o);
+        }
+        else if (id == QUEST_TIMES_TOLL)
+        {
+            // The hearthstone remembers the Bazaar.
+            if (Destination const* bazaar = DestinationFor(TRAVEL_BAZAAR))
+                player->SetHomebind(WorldLocation(bazaar->map, bazaar->x, bazaar->y, bazaar->z, bazaar->o), player->GetAreaId());
+        }
+
+        // Death knights, done with Acherus: to the Bazaar, at their level's chapter.
+        if (id == QUEST_WHERE_KINGS_WALK || id == QUEST_WARCHIEFS_BLESSING)
+        {
+            if (Destination const* bazaar = DestinationFor(TRAVEL_BAZAAR))
+            {
+                ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari whispers:|r There you are. Your king will keep. Come, the Bazaar is this way.");
+                SetChapter(player, ChapterForLevel(player->GetLevel()));
+                TeleportSoon(player, bazaar->map, bazaar->x, bazaar->y, bazaar->z, bazaar->o);
+            }
+        }
+    }
+
+    // A banded creature's gold is its template's, for its own level: it drops its new level's share.
+    void OnPlayerBeforeLootMoney(Player* player, Loot* loot) override
+    {
+        if (!BandsActive() || !loot || !loot->gold || !loot->sourceWorldObjectGUID.IsCreature())
+            return;
+        if (Creature* creature = BandedSource(ObjectAccessor::GetCreature(*player, loot->sourceWorldObjectGUID)))
+            loot->gold = std::max<uint32>(1, uint32(std::lround(loot->gold * BandFactor(creature))));
+    }
+
+    // (summoned creatures give none: a quest's or a boss's adds aren't for farming)
+    void OnPlayerCreatureKill(Player* player, Creature* killed) override
+    {
+        if (!Active() || !killed || killed->IsSummon() || Acore::XP::Gain(player, killed) == 0)
+            return;
+        BronzeRates const& r = Rates();
+        CreatureTemplate const* info = killed->GetCreatureTemplate();
+        uint32 amount = r.kill;
+        bool show = false;
+        if (killed->IsDungeonBoss() || (info && info->rank == CREATURE_ELITE_WORLDBOSS))
+        {
+            amount = killed->GetMap()->IsRaid() ? r.raidBoss : r.dungeonBoss;
+            show = true;
+        }
+        else if (info && (info->rank == CREATURE_ELITE_RARE || info->rank == CREATURE_ELITE_RAREELITE))
+        {
+            amount = r.rare;
+            show = true;
+        }
+        else if (info && info->rank == CREATURE_ELITE_ELITE)
+            amount = r.elite;
+        AddBronze(player, amount, show);
+    }
+};
+
+// Northrend's creatures at their chapter's level, and their spells to match.
+class WrathRemixLevels : public AllCreatureScript
+{
+public:
+    WrathRemixLevels() : AllCreatureScript("WrathRemixLevels") { }
+
+    void OnBeforeCreatureSelectLevel(CreatureTemplate const* /*info*/, Creature* creature, uint8& level) override
+    {
+        if (!BandsActive() || !creature || creature->IsPet())
+            return;
+        Map* map = creature->GetMap();
+        if (!map || (map->IsDungeon() && map->IsHeroic()) || map->IsRaid())
+            return;
+        uint32 zone = map->GetZoneId(creature->GetPhaseMask(), creature->GetPositionX(), creature->GetPositionY(), creature->GetPositionZ());
+        LevelBand const* band = BandFor(map->GetId(), zone);
+        if (!band)
+            return;
+        level = uint8(BandedLevel(*band, level));
+    }
+
+    // The squish: a banded creature at its share of its new level's health (WrathRemix.Squish.Health).
+    void OnCreatureSelectLevel(CreatureTemplate const* info, Creature* creature) override
+    {
+        if (!BandsActive() || squishHealth == 100 || !info || !creature || creature->IsPet() || creature->IsControlledByPlayer())
+            return;
+        if (creature->GetLevel() >= std::min(info->minlevel, info->maxlevel))
+            return;
+        uint32 health = std::max<uint32>(1, uint32(std::lround(creature->GetCreateHealth() * double(squishHealth) / 100.0)));
+        creature->SetCreateHealth(health);
+        creature->SetMaxHealth(health);
+        creature->SetHealth(health);
+        creature->SetStatFlatModifier(UNIT_MOD_HEALTH, BASE_VALUE, float(health));
+        creature->ResetPlayerDamageReq();
+    }
+};
+
+class WrathRemixDamage : public UnitScript
+{
+public:
+    WrathRemixDamage() : UnitScript("WrathRemixDamage", true, {
+        UNITHOOK_MODIFY_SPELL_DAMAGE_TAKEN,
+        UNITHOOK_MODIFY_PERIODIC_DAMAGE_AURAS_TICK,
+        UNITHOOK_MODIFY_MELEE_DAMAGE,
+        UNITHOOK_MODIFY_HEAL_RECEIVED,
+    }) { }
+
+    void ModifySpellDamageTaken(Unit* /*target*/, Unit* attacker, int32& damage, SpellInfo const* /*spellInfo*/) override
+    {
+        if (damage > 0)
+            Scale(damage, attacker, squishDamage, true);
+    }
+
+    void ModifyPeriodicDamageAurasTick(Unit* /*target*/, Unit* attacker, uint32& damage, SpellInfo const* /*spellInfo*/) override
+    {
+        Scale(damage, attacker, squishDamage, true);
+    }
+
+    // (its melee is its new level's already: only the squish)
+    void ModifyMeleeDamage(Unit* /*target*/, Unit* attacker, uint32& damage) override
+    {
+        Scale(damage, attacker, squishDamage, false);
+    }
+
+    // (its heals restore squished health: they're squished as health is)
+    void ModifyHealReceived(Unit* /*target*/, Unit* healer, uint32& heal, SpellInfo const* /*spellInfo*/) override
+    {
+        Scale(heal, healer, squishHealth, true);
+    }
+};
+
+using namespace Acore::ChatCommands;
+
+class WrathRemixCommands : public CommandScript
+{
+public:
+    WrathRemixCommands() : CommandScript("WrathRemixCommands") { }
+
+    ChatCommandTable GetCommands() const override
+    {
+        static ChatCommandTable bronzeTable =
+        {
+            { "add", HandleBronzeAdd, SEC_GAMEMASTER, Console::No },
+        };
+        static ChatCommandTable remixTable =
+        {
+            { "",       HandleStatus, SEC_PLAYER,     Console::No },
+            { "bronze", bronzeTable },
+            { "band",   HandleBand,   SEC_GAMEMASTER, Console::No },
+            { "guid",   HandleGuid,   SEC_GAMEMASTER, Console::No },
+            { "sees",   HandleSees,   SEC_GAMEMASTER, Console::No },
+        };
+        static ChatCommandTable commandTable =
+        {
+            { "remix", remixTable },
+        };
+        return commandTable;
+    }
+
+    // .remix: whether Remix runs here, and the Timerunner's Bronze and chapter.
+    static bool HandleStatus(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        if (!Active())
+        {
+            handler->SendSysMessage("Wrath Remix: off on this realm.");
+            return true;
+        }
+        Timerunner const t = Get(player);
+        uint8 chapter = t.chapter ? std::max(t.chapter, ChapterForLevel(player->GetLevel())) : 0;
+        Chapter const* c = ChapterFor(chapter);
+        handler->PSendSysMessage("Wrath Remix: Timerunner {}, level {}, {} Bronze ({} earned), chapter {} ({}).",
+            player->GetName(), uint32(player->GetLevel()), Bronze(player) + t.bronze, t.earned, uint32(chapter), c ? c->name : "the prologue");
+        return true;
+    }
+
+    // .remix bronze add N (game masters).
+    static bool HandleBronzeAdd(ChatHandler* handler, uint32 amount)
+    {
+        if (!Active())
+            return false;
+        Player* player = handler->getSelectedPlayerOrSelf();
+        AddBronze(player, amount, true);
+        Save(player);
+        return true;
+    }
+
+    // .remix band (game masters): the creatures within 60 yards, their level and their band.
+    static bool HandleBand(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        uint32 zone = player->GetZoneId();
+        LevelBand const* band = BandFor(player->GetMapId(), zone);
+        if (band)
+            handler->PSendSysMessage("Wrath Remix band: {} (zone {}), levels {}-{} become {}-{}.", band->name, zone,
+                band->originalMin, band->originalMax, band->bandMin, band->bandMax);
+        else
+            handler->PSendSysMessage("Wrath Remix band: none here (map {}, zone {}).", player->GetMapId(), zone);
+        std::list<Creature*> creatures;
+        AnyCreatureInRange check(player, 60.0f);
+        Acore::CreatureListSearcher<AnyCreatureInRange> searcher(player, creatures, check);
+        Cell::VisitObjects(player, searcher, 60.0f);
+        // The band leaves creatures well below the zone's levels (critters, the odd old-world
+        // visitor) as they are; the check counts the ones it applies to.
+        uint32 shown = 0, banded = 0, lowest = 255, highest = 0, normals = 0;
+        double share = 0;
+        for (Creature* creature : creatures)
+        {
+            CreatureTemplate const* info = creature->GetCreatureTemplate();
+            if (!info || (info->Entry >= NPC_MORATARI && info->Entry <= NPC_INSTRUCTOR_LAST))
+                continue;
+            bool applies = band && int32(info->minlevel) >= band->originalMin - 5;
+            if (applies)
+            {
+                ++banded;
+                lowest = std::min<uint32>(lowest, creature->GetLevel());
+                highest = std::max<uint32>(highest, creature->GetLevel());
+                // a normal creature's health against its new level's (the squish's share of it)
+                if (info->rank == CREATURE_ELITE_NORMAL)
+                    if (CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(creature->GetLevel(), info->unit_class))
+                        if (float full = stats->GenerateHealth(info) * sWorld->getRate(RATE_CREATURE_NORMAL_HP); full >= 1.0f)
+                        {
+                            share += creature->GetMaxHealth() / full;
+                            ++normals;
+                        }
+            }
+            if (shown++ < 12)
+                handler->PSendSysMessage("creature {} {}: level {} (template {}-{}){}", info->Entry, info->Name,
+                    uint32(creature->GetLevel()), uint32(info->minlevel), uint32(info->maxlevel), applies ? "" : ", not banded");
+        }
+        if (banded)
+            handler->PSendSysMessage("Wrath Remix band check: {} banded creatures, levels {} to {}.", banded, lowest, highest);
+        if (normals)
+            handler->PSendSysMessage("Wrath Remix squish check: {} normal creatures at {}% of their level's health (squish {}%, damage {}%).",
+                normals, uint32(std::lround(100.0 * share / normals)), squishHealth, squishDamage);
+        return true;
+    }
+
+    // .remix guid ENTRY (game masters): the nearest creature of that entry and its guid (CI's
+    // test client talks to Remix's NPCs by it: the core gives creatures a guid of their map's).
+    static bool HandleGuid(ChatHandler* handler, uint32 entry)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Creature* creature = player->FindNearestCreature(entry, 100.0f);
+        if (!creature)
+        {
+            handler->PSendSysMessage("Wrath Remix guid: no creature {} within 100 yards.", entry);
+            return true;
+        }
+        handler->PSendSysMessage("Wrath Remix guid: {} {} at {:.1f} yards.", entry, creature->GetGUID().GetRawValue(),
+            player->GetDistance(creature));
+        return true;
+    }
+
+    // .remix sees ENTRY (game masters): whether the story lets the player see the nearest creature
+    // of that entry (its visibility conditions, as a player without game master mode has them).
+    static bool HandleSees(ChatHandler* handler, uint32 entry)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        Creature* creature = player->FindNearestCreature(entry, 100.0f);
+        if (!creature)
+        {
+            handler->PSendSysMessage("Wrath Remix sees: no creature {} within 100 yards.", entry);
+            return true;
+        }
+        ConditionSourceInfo info(player, creature);
+        bool seen = sConditionMgr->IsObjectMeetToConditions(info, sConditionMgr->GetConditionsForObjectVisibility(creature));
+        handler->PSendSysMessage("Wrath Remix sees: {} {} (spawn {}).", entry, seen ? "seen" : "hidden", creature->GetSpawnId());
+        return true;
+    }
+
+    struct AnyCreatureInRange
+    {
+        AnyCreatureInRange(WorldObject const* source, float range) : _source(source), _range(range) { }
+        bool operator()(Creature* creature) const { return _source->IsWithinDistInMap(creature, _range); }
+        WorldObject const* _source;
+        float _range;
+    };
+};
+
+void AddWrathRemixScripts()
+{
+    new WrathRemixWorld();
+    new WrathRemixPlayer();
+    new WrathRemixLevels();
+    new WrathRemixDamage();
+    new WrathRemixCommands();
+}

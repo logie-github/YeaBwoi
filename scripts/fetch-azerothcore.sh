@@ -2,7 +2,7 @@
 # Checks out the World of Warcraft app's server source into the folder given (default
 # build/azerothcore): AzerothCore at the revision ChromieCraft runs (warcraft/server-version.env),
 # the playerbots fork's core changes merged onto it, the app's patches (warcraft/patches/azerothcore/),
-# and the modules at their pinned commits.
+# the modules at their pinned commits, and the app's own modules (warcraft/modules/: Wrath Remix's).
 # Used by scripts/build-azerothcore.sh (the phone's server) and CI's Windows data tools.
 set -eu
 
@@ -50,9 +50,17 @@ echo "$MODULES" | while read -r name repo commit; do
 		git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@"
 	fi
 done
+# The app's own modules, kept in this repository (warcraft/modules/), copied in as they are.
+for dir in "$ROOT"/warcraft/modules/*/; do
+	[ -d "$dir" ] || continue
+	rm -rf "$SRC/modules/$(basename "$dir")"
+	cp -r "${dir%/}" "$SRC/modules/"
+done
 # Every folder in modules/ is a module (the core keeps only files there): those not listed go.
 for dir in "$SRC"/modules/*/; do
 	[ -d "$dir" ] || continue
-	echo "$MODULES" | grep -q "^$(basename "$dir") " || rm -rf "$dir"
+	name=$(basename "$dir")
+	[ ! -d "$ROOT/warcraft/modules/$name" ] || continue
+	echo "$MODULES" | grep -q "^$name " || rm -rf "$dir"
 done
 echo "AzerothCore $(git -C "$SRC" rev-parse --short HEAD) (ChromieCraft ${CORE_COMMIT%"${CORE_COMMIT#???????}"} + playerbots ${PLAYERBOT_CORE_COMMIT%"${PLAYERBOT_CORE_COMMIT#???????}"}) in $SRC"

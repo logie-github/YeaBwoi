@@ -1,18 +1,25 @@
 #!/bin/sh
 # Runs the World of Warcraft app's private server: MariaDB, the database import, the auth and world
 # servers, the client data tools. The app runs it with Android's shell (/system/bin/sh) and CI runs
-# it with busybox's, so it sticks to POSIX sh. Every server command `exec`s, so the process the
-# app holds is the server itself.
+# it with busybox's, so it sticks to POSIX sh. The servers (db, auth, world) are `exec`ed, so the
+# process the app holds is the server itself.
 #
-#   ctl.sh configure                write the configs (from the shipped .dist files) and folders
+#   ctl.sh configure                write both realms' configs (from the shipped .dist files) and folders
 #   ctl.sh db                       run MariaDB (makes its data folder from the seed first)
 #   ctl.sh db-ping | db-stop        ask MariaDB if it's up / to shut down
 #   ctl.sh sql [database]           run the SQL on stdin (prints tab-separated rows)
-#   ctl.sh dbimport                 create and update the databases
+#   ctl.sh dbimport [REALM]         create and update the realm's databases (and the shared auth one)
+#   ctl.sh realmlist [ADDRESS]      both realms in the auth database, for this phone and the Wi-Fi
 #   ctl.sh races                    take out what earlier versions' custom races left (MariaDB up)
-#   ctl.sh modules                  the world database without what modules no longer in put in it
-#   ctl.sh auth | world             run the auth server / world server
+#   ctl.sh modules [REALM]          the realm's world database without what modules no longer in put in it
+#   ctl.sh auth | world [REALM]     run the auth server / the realm's world server
 #   ctl.sh maps|vmaps|mmaps CLIENT  extract the server's data from a 3.3.5a client folder
+#
+# Two realms share the auth server, its accounts and the server's data; each has its own world
+# server, configs and world, characters and playerbots databases. One world server runs at a time.
+#   main   ChromieCraft (realm 1, port 8085): $FILES/etc, acore_world, acore_characters
+#   remix  Wrath Remix (realm 2, port 8086): $FILES/etc-remix, acore_world_remix, ...; the
+#          mod-wrath-remix module is on, and its SQL goes into these databases only
 #
 # FILES is the app's files folder; the programs are built to run from $FILES/server.
 set -eu
@@ -48,45 +55,144 @@ setkey() {
 }
 
 # Copies a shipped .dist config to the live one the first time; settings the user changed stay.
+# Says whether it made it (for the realm's first-time settings).
 config_from_dist() {
 	dist=$1 conf=$2
-	[ -f "$conf" ] || cp "$dist" "$conf"
+	[ ! -f "$conf" ] || return 1
+	cp "$dist" "$conf"
 }
 
 dbinfo() {
 	echo "\"127.0.0.1;$DB_PORT;$DB_USER;$DB_PASS;$1\""
 }
 
+# The realm a command is for (main or remix): its configs, logs, databases, id and port.
+realm() {
+	REALM=${1:-main}
+	case "$REALM" in
+	main)
+		R_ETC="$ETC" R_LOGS="$LOGS" R_ID=1 R_PORT=8085 R_NAME=ChromieCraft
+		R_WORLD=acore_world R_CHARACTERS=acore_characters R_BOTS=acore_playerbots
+		R_WORLD_MODULES="$WORLD_MODULES"
+		;;
+	remix)
+		R_ETC="$FILES/etc-remix" R_LOGS="$LOGS/remix" R_ID=2 R_PORT=8086 R_NAME="Wrath Remix"
+		R_WORLD=acore_world_remix R_CHARACTERS=acore_characters_remix R_BOTS=acore_playerbots_remix
+		R_WORLD_MODULES="$WORLD_MODULES-remix"
+		;;
+	*)
+		echo "No realm \"$REALM\" (main or remix)" >&2
+		exit 2
+		;;
+	esac
+}
+
+# Sets every `Prefix<anything> = ...` line of a config file to the value.
+setall() {
+	file=$1 prefix=$2 value=$3
+	sed -i "s|^\($prefix[A-Za-z0-9_.]*\)[[:space:]]*=.*|\1 = $value|" "$file"
+}
+
 configure() {
-	mkdir -p "$ETC/modules" "$DATA" "$LOGS" "$RUN/tmp"
-	for name in worldserver authserver dbimport; do
-		conf="$ETC/$name.conf"
-		config_from_dist "$SERVER/etc/$name.conf.dist" "$conf"
-		setkey "$conf" LogsDir "\"$LOGS\""
+	mkdir -p "$DATA" "$RUN/tmp"
+	configure_realm main
+	configure_realm remix
+	setkey "$ETC/authserver.conf" PidFile "\"$RUN/authserver.pid\""
+	cp "$SERVER/etc/mmaps-config.yaml" "$ETC/mmaps-config.yaml"
+}
+
+configure_realm() {
+	realm "$1"
+	mkdir -p "$R_ETC/modules" "$R_LOGS"
+	# The auth server is the main realm's (one for both).
+	names="worldserver dbimport"
+	[ "$REALM" != main ] || names="$names authserver"
+	for name in $names; do
+		conf="$R_ETC/$name.conf"
+		new=
+		config_from_dist "$SERVER/etc/$name.conf.dist" "$conf" && new=1
+		setkey "$conf" LogsDir "\"$R_LOGS\""
 		setkey "$conf" TempDir "\"$RUN/tmp\""
 		setkey "$conf" SourceDirectory "\"$SERVER/src\""
 		setkey "$conf" MySQLExecutable "\"$SERVER/bin/mariadb\""
 		setkey "$conf" LoginDatabaseInfo "$(dbinfo acore_auth)"
 		setkey "$conf" Updates.AutoSetup 1
+		if [ "$name" = worldserver ] && [ -n "$new" ] && [ "$REALM" = remix ]; then
+			remix_defaults "$conf"
+		fi
 	done
 	for name in worldserver dbimport; do
-		conf="$ETC/$name.conf"
-		setkey "$conf" WorldDatabaseInfo "$(dbinfo acore_world)"
-		setkey "$conf" CharacterDatabaseInfo "$(dbinfo acore_characters)"
+		conf="$R_ETC/$name.conf"
+		setkey "$conf" WorldDatabaseInfo "$(dbinfo "$R_WORLD")"
+		setkey "$conf" CharacterDatabaseInfo "$(dbinfo "$R_CHARACTERS")"
 	done
-	setkey "$ETC/dbimport.conf" Updates.EnableDatabases 7
-	setkey "$ETC/worldserver.conf" DataDir "\"$DATA\""
-	setkey "$ETC/worldserver.conf" PidFile "\"$RUN/worldserver.pid\""
-	setkey "$ETC/authserver.conf" PidFile "\"$RUN/authserver.pid\""
+	setkey "$R_ETC/dbimport.conf" Updates.EnableDatabases 7
+	setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA\""
+	setkey "$R_ETC/worldserver.conf" PidFile "\"$RUN/worldserver.pid\""
+	setkey "$R_ETC/worldserver.conf" RealmID "$R_ID"
+	setkey "$R_ETC/worldserver.conf" WorldServerPort "$R_PORT"
 	for dist in "$SERVER"/etc/modules/*.conf.dist; do
-		conf="$ETC/modules/$(basename "$dist" .dist)"
-		config_from_dist "$dist" "$conf"
+		conf="$R_ETC/modules/$(basename "$dist" .dist)"
+		if config_from_dist "$dist" "$conf" && [ "$REALM" = remix ]; then
+			remix_module_defaults "$conf"
+		fi
 	done
-	if [ -f "$ETC/modules/playerbots.conf" ]; then
-		setkey "$ETC/modules/playerbots.conf" PlayerbotsDatabaseInfo "$(dbinfo acore_playerbots)"
+	if [ -f "$R_ETC/modules/playerbots.conf" ]; then
+		setkey "$R_ETC/modules/playerbots.conf" PlayerbotsDatabaseInfo "$(dbinfo "$R_BOTS")"
 	fi
-	# dbimport reads module configs too (the playerbots database).
-	cp "$SERVER/etc/mmaps-config.yaml" "$ETC/mmaps-config.yaml"
+	# What makes each realm what it is, every time: Wrath Remix's module on in its realm alone,
+	# and Remix's world as Wrath left it (no progression brackets, nothing stopped at 19).
+	remix_conf="$R_ETC/modules/mod_wrath_remix.conf"
+	if [ -f "$remix_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$remix_conf" WrathRemix.Enable 1
+			setkey "$remix_conf" WrathRemix.RealmID "$R_ID"
+			remix_bronze_rates "$remix_conf"
+		else
+			setkey "$remix_conf" WrathRemix.Enable 0
+		fi
+	fi
+	if [ "$REALM" = remix ]; then
+		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||
+			setall "$R_ETC/modules/progression_system.conf" ProgressionSystem.Bracket_ 0
+		[ ! -f "$R_ETC/modules/chromie-xp.conf" ] ||
+			setkey "$R_ETC/modules/chromie-xp.conf" Chromie.Stable.MaxPlayerLevel 80
+	fi
+}
+
+# Wrath Remix's world server, the first time its config is made (the user's changes stay after):
+# Timerunners start at 10 (death knights at their own 55), quests give three times the experience
+# and kills twice, and no race's intro plays (they start with Moratari, not at home).
+remix_defaults() {
+	setkey "$1" StartPlayerLevel 10
+	setkey "$1" Rate.XP.Quest 3
+	setkey "$1" Rate.XP.Kill 2
+	setkey "$1" SkipCinematics 2
+}
+
+# Bronze is earned in Legion Remix's amounts since build 66 (twenty times what it was): each rate
+# still at its old default takes its new one; one the user changed stays.
+remix_bronze_rates() {
+	for rate in Quest:25:500 Kill:1:15 Elite:4:60 Rare:20:500 DungeonBoss:40:1000 RaidBoss:150:5000; do
+		key=WrathRemix.Bronze.${rate%%:*} old=${rate#*:} old=${old%:*} new=${rate##*:}
+		! grep -q "^$key[[:space:]]*=[[:space:]]*$old[[:space:]]*$" "$1" || setkey "$1" "$key" "$new"
+	done
+}
+
+# Wrath Remix's module configs, the first time: as the main realm's first start sets them (50
+# random bots, idle while nobody plays), and the dungeons' and raids' own damage and health
+# (mod-zone-difficulty's ChromieCraft tuning) off, since Remix sets its own.
+remix_module_defaults() {
+	case "$(basename "$1")" in
+	playerbots.conf)
+		setkey "$1" Playerbots.MinRandomBots 50
+		setkey "$1" Playerbots.MaxRandomBots 50
+		setkey "$1" Playerbots.DisabledWithoutRealPlayer 1
+		;;
+	mod-zone-difficulty.conf)
+		setkey "$1" ModZoneDifficulty.Enable 0
+		;;
+	esac
 }
 
 # The server's programs (musl) run with libandroidcompat preloaded: it makes the system calls
@@ -101,13 +207,51 @@ db_client() {
 	LD_PRELOAD="$COMPAT" "$SERVER/bin/mariadb" --no-defaults -h127.0.0.1 -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" "$@"
 }
 
-# The world database as dbimport makes it, without anything added since (custom races, modules
-# taken out).
+# The realm's world database as dbimport makes it, without anything added since (custom races,
+# modules taken out). realm() first.
 rebuild_world() {
 	echo "Making the world database again"
-	printf 'DROP DATABASE IF EXISTS `acore_world`;\nCREATE DATABASE `acore_world` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' |
-		db_client
-	(cd "$RUN" && musl_programs && "$SERVER/bin/dbimport" -c "$ETC/dbimport.conf")
+	printf 'DROP DATABASE IF EXISTS `%s`;\nCREATE DATABASE `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' \
+		"$R_WORLD" "$R_WORLD" | db_client
+	run_dbimport
+}
+
+# dbimport for the realm (realm() first): the auth database and the realm's own two.
+run_dbimport() {
+	(cd "$RUN" && musl_programs && WOW_MODULES_CONF_DIR="$R_ETC/modules" "$SERVER/bin/dbimport" -c "$R_ETC/dbimport.conf")
+	[ "$REALM" != remix ] || remix_sql
+}
+
+# Wrath Remix's own SQL (its NPCs, quests, hub and the changes to the world it makes) is in the
+# module's data/sql/remix, where the servers don't look on their own: the Remix databases' update
+# lists name it, so it goes into them and never into the main realm's. Run after dbimport (which
+# makes the lists); the world server applies it as it starts.
+remix_sql() {
+	for part in world characters; do
+		db=acore_${part}_remix
+		dir="\$/modules/mod-wrath-remix/data/sql/remix/$part"
+		[ -d "$SERVER/src/modules/mod-wrath-remix/data/sql/remix/$part" ] || continue
+		printf "DELETE FROM updates_include WHERE path = '%s';\nINSERT INTO updates_include (path, state) VALUES ('%s', 'CUSTOM');\n" \
+			"$dir" "$dir" | db_client "$db"
+	done
+}
+
+# The realms in the auth database: the game on this phone reaches them at 127.0.0.1, a PC's
+# client on the Wi-Fi at the phone's address there ($1). Also clears each realm's "version
+# mismatch" flag: a world server sets it while it starts and clears it once it's up, so one that
+# stopped while loading leaves it set, and the auth server won't run if every realm is offline
+# and flagged so.
+realmlist() {
+	address=${1:-127.0.0.1}
+	for name in main remix; do
+		realm "$name"
+		printf "INSERT INTO realmlist (id, name, address, localAddress, localSubnetMask, port, icon, flag, timezone, allowedSecurityLevel, gamebuild)
+VALUES (%s, '%s', '%s', '127.0.0.1', '255.255.255.0', %s, 0, 2, 1, 0, 12340)
+ON DUPLICATE KEY UPDATE name = VALUES(name), address = VALUES(address), localAddress = VALUES(localAddress),
+localSubnetMask = VALUES(localSubnetMask), port = VALUES(port), flag = flag & ~1;\n" \
+			"$R_ID" "$R_NAME" "$address" "$R_PORT"
+	done | db_client acore_auth
+	echo "Realms: ChromieCraft and Wrath Remix at $address (127.0.0.1 here)"
 }
 
 # What's left of the custom races (versions 1.0.44 to 1.0.48 of the app had a Races switch; it's
@@ -115,6 +259,7 @@ rebuild_world() {
 # database made again, and their files ($RACES, $DATA_RACES) go. Characters made with them stay in
 # the characters database, left out of the character list (the core lists the races it knows).
 races() {
+	realm main
 	applied=$(echo "SELECT version FROM app_races" | db_client --batch --skip-column-names acore_world 2> /dev/null || true)
 	[ -z "$applied" ] || rebuild_world
 	rm -rf "$DATA_RACES" "$RACES"
@@ -122,7 +267,7 @@ races() {
 	echo "Custom races taken out"
 }
 
-# The modules in this realm with SQL for the world database, a name a line.
+# The modules in the realm package with SQL for the world database, a name a line.
 world_modules_now() {
 	for dir in "$SERVER"/src/modules/*/data/sql/db-world*; do
 		[ -d "$dir" ] || continue
@@ -133,24 +278,25 @@ world_modules_now() {
 
 # A realm swapped for one without a module (the app's Modules screen) leaves that module's SQL in
 # the world database: its creatures, items, changes to the game's own. If a module whose SQL went
-# in ($WORLD_MODULES) isn't in this realm, the world database is made again, and the realm's
-# modules put theirs in again as the world server starts. What modules keep in the characters
-# database stays (the core keeps a module's applied files on record, so one put back finds it).
+# in ($R_WORLD_MODULES, one record a realm) isn't in this realm package, the realm's world database
+# is made again, and the package's modules put theirs in again as the world server starts. What
+# modules keep in the characters database stays (the core keeps a module's applied files on
+# record, so one put back finds it). realm() first.
 modules() {
 	now=$(world_modules_now)
 	gone=
-	if [ -f "$WORLD_MODULES" ]; then
+	if [ -f "$R_WORLD_MODULES" ]; then
 		while read -r name; do
 			[ -n "$name" ] || continue
 			echo "$now" | grep -qxF "$name" || gone="$gone $name"
-		done < "$WORLD_MODULES"
+		done < "$R_WORLD_MODULES"
 	fi
 	if [ -n "$gone" ]; then
 		echo "Taking out of the world:$gone"
 		rebuild_world
 	fi
-	echo "$now" > "$WORLD_MODULES.new"
-	mv "$WORLD_MODULES.new" "$WORLD_MODULES"
+	echo "$now" > "$R_WORLD_MODULES.new"
+	mv "$R_WORLD_MODULES.new" "$R_WORLD_MODULES"
 	echo "World database matches the realm's modules"
 }
 
@@ -197,12 +343,21 @@ races)
 	races
 	;;
 modules)
+	realm "${1:-main}"
 	modules
 	;;
 dbimport)
-	cd "$RUN"
-	musl_programs
-	exec "$SERVER/bin/dbimport" -c "$ETC/dbimport.conf"
+	realm "${1:-main}"
+	# The Remix databases are made here the first time (the seed has the main realm's).
+	if [ "$REALM" = remix ]; then
+		for db in "$R_WORLD" "$R_CHARACTERS" "$R_BOTS"; do
+			printf 'CREATE DATABASE IF NOT EXISTS `%s` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n' "$db"
+		done | db_client
+	fi
+	run_dbimport
+	;;
+realmlist)
+	realmlist "${1:-}"
 	;;
 auth)
 	cd "$RUN"
@@ -210,6 +365,9 @@ auth)
 	exec "$SERVER/bin/authserver" -c "$ETC/authserver.conf"
 	;;
 world)
+	realm "${1:-main}"
+	[ "$REALM" != remix ] || remix_sql
+	mkdir -p "$R_LOGS"
 	cd "$RUN"
 	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.
 	musl_programs "$SERVER/lib/libjemalloc.so.2"
@@ -220,7 +378,15 @@ world)
 	export WOW_CUTSCENE_FILE="$RUN/cutscene"
 	# Where the app's add-on says the spellbook is: a drag there drags its icons (patches/azerothcore/0009).
 	export WOW_INTERFACE_FILE="$RUN/interface"
-	exec "$SERVER/bin/worldserver" -c "$ETC/worldserver.conf"
+	# Where Wrath Remix writes the reports its Report Time Anomaly asks for, for the app to send to
+	# GitHub (mod-wrath-remix, RemixReport.cpp).
+	export WOW_REPORTS_DIR="$RUN/reports"
+	# The realm's own module configs (patches/azerothcore/0010).
+	export WOW_MODULES_CONF_DIR="$R_ETC/modules"
+	# The game's folder: Wrath Remix writes its patch there as it starts (Bronze and its prices,
+	# Data/patch-Y.MPQ) and ChromieCraft's world server takes it out (mod-wrath-remix).
+	export WOW_CLIENT_DIR="$FILES/client"
+	exec "$SERVER/bin/worldserver" -c "$R_ETC/worldserver.conf"
 	;;
 maps)
 	# dbc, Cameras and maps, from the client's Data folder.
@@ -241,7 +407,7 @@ mmaps)
 	exec "$SERVER/bin/mmaps_generator" --config "$ETC/mmaps-config.yaml" ${1:+--threads "$1"}
 	;;
 *)
-	sed -n '2,18p' "$0" >&2
+	sed -n '2,26p' "$0" >&2
 	exit 2
 	;;
 esac
