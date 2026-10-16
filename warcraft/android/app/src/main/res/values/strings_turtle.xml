@@ -4,8 +4,6 @@
     <string name="turtle_name">Turtle WoW</string>
     <string name="turtle_tile_name">Turtle WoW — Vanilla+</string>
     <string name="turtle_tile_name_summary">A game of its own: the Turtle WoW 1.18.1 client with a Tortoise-WoW realm on the phone</string>
-    <string name="turtle_switch_to_turtle">Turtle WoW</string>
-    <string name="turtle_switch_to_wrath">Wrath</string>
     <string name="turtle_switch_title">The other realm is running</string>
     <string name="turtle_switch_to_turtle_body">ChromieCraft\'s realm is running. Turtle WoW\'s realm uses the same login port, so it can\'t start while ChromieCraft\'s runs. Stop ChromieCraft\'s realm now? Its characters and world are saved as it stops; nothing of it changes.</string>
     <string name="turtle_switch_to_wrath_body">Turtle WoW\'s realm is running. ChromieCraft\'s realm uses the same login port, so it can\'t start while Turtle\'s runs. Stop Turtle WoW\'s realm now? Its characters are saved as it stops.</string>
@@ -56,8 +54,6 @@
     <string name="turtle_tile_about">About</string>
     <string name="turtle_tile_about_summary">What this is, and what it can\'t do</string>
     <string name="turtle_tile_uninstall">Uninstall</string>
-    <string name="turtle_tile_switch">Wrath of the Lich King</string>
-    <string name="turtle_tile_switch_summary">Back to the 3.3.5a game and its ChromieCraft realm</string>
     <string name="turtle_setup_install_title">Install Turtle WoW</string>
     <string name="turtle_setup_update_title">Finish installing Turtle WoW</string>
     <string name="turtle_setup_install_body">One tap downloads and installs Turtle WoW\'s realm (Tortoise-WoW, its own database engine and libraries, all in one checked package), creates its own databases, and, once your client is in, makes the server\'s data from it. Everything goes in its own folder: the 3.3.5a game and its realm stay exactly as they are.</string>

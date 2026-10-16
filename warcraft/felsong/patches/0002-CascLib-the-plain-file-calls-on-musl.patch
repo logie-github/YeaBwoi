@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Fri, 16 Oct 2026 06:16:50 +0000
-Subject: [PATCH 2/7] CascLib: the plain file calls on musl
+Subject: [PATCH 2/8] CascLib: the plain file calls on musl
 
 musl has no stat64, lseek64, ftruncate64 or off64_t (since 1.2.4); its own are 64-bit. CascLib
 mapped them for macOS only. Used by the map extractors, which read the client's CASC storage.

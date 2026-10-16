@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Fri, 16 Oct 2026 06:16:40 +0000
-Subject: [PATCH 1/7] G3D: build for arm64 and musl
+Subject: [PATCH 1/8] G3D: build for arm64 and musl
 
 Its atomics and cycle counter were x86 assembly, cpuid and <xmmintrin.h> x86 only: the compiler's
 atomics, arm64's virtual counter (cntvct_el0), and no cpuid off x86, as TrinityCore's G3D has

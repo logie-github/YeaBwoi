@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Fri, 16 Oct 2026 06:17:51 +0000
-Subject: [PATCH 6/7] Common: musl's cpu_set_t, LockedMap::swap
+Subject: [PATCH 6/8] Common: musl's cpu_set_t, LockedMap::swap
 
 ProcessPriority read the affinity mask as glibc's __cpu_mask, which musl doesn't name: as an
 unsigned long, its first word. LockedMap::swap named a member that doesn't exist (x.storage),

@@ -13,12 +13,14 @@ import kotlinx.coroutines.flow.StateFlow
  *   as the app has always been: `files/server`, `files/client`, `files/mysql`...
  * - [Environment.TURTLE]: Turtle WoW (1.18.1, "Vanilla+") with its Tortoise-WoW realm, all of it in
  *   `files/turtle` (com.logie.warcraft.turtle).
+ * - [Environment.FELSONG]: Felsong (Legion 7.3.5), com.logie.warcraft.felsong: its look and a page
+ *   that says where it stands; its realm (LegionCore) isn't on the phone yet (FELSONG.md).
  *
  * Which one the launcher shows, and themes itself for, is remembered here; choosing one changes
  * nothing of the other's.
  */
 object Environments {
-    enum class Environment(val key: String) { WRATH("wrath"), TURTLE("turtle") }
+    enum class Environment(val key: String) { WRATH("wrath"), TURTLE("turtle"), FELSONG("felsong") }
 
     private const val PREFS = "environments"
     private const val KEY = "selected"

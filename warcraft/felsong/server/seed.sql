@@ -16,3 +16,8 @@ UPDATE `auth`.`realmlist`
 SET `name` = 'Felsong', `address` = '127.0.0.1', `localAddress` = '127.0.0.1',
     `port` = 8095, `gamePort` = 8096, `gamebuild` = 26972, `flag` = 0
 WHERE `id` = 1;
+
+-- LegionCore's database comes with an administrator account whose password is public (GM@GM,
+-- "admin"): gone. The app makes the player's own accounts.
+DELETE FROM `auth`.`account_access` WHERE `id` IN (SELECT `id` FROM `auth`.`account` WHERE `username` = 'GM@GM');
+DELETE FROM `auth`.`account` WHERE `username` = 'GM@GM';
