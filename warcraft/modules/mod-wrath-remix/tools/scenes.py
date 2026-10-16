@@ -95,7 +95,7 @@ SCENES = [
         say(2, "Moratari."),
         ("face", 1, 2),
         say(1, "You should not be here."),
-        say(2, "Neither should you. And yet here we both are, in a garden the titans built to keep life safe from time. Do you know what they were keeping it safe from? From us."),
+        say(2, "Neither should you. And yet here we both are, in a garden the titans built so that nothing living here would ever be lost. They wanted what I want, Moratari. They simply had more time."),
         say(1, "Your agents were draining the Makers' pillar. I know what that much power is for. You are building something that can hold an hour still."),
         say(2, "One hour. Only one. The hour the Lich King falls."),
         say(1, "Why that one?"),

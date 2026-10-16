@@ -312,10 +312,17 @@ namespace WrathRemix
 
     std::vector<VendorList> const& VendorLists() { return vendorLists; }
 
+    // A quest's Bronze: the story's own amount (remix_quest_reward), or an ordinary quest's. After
+    // the prologue, a story quest gives at least an ordinary quest's: a transition stands in for an
+    // afternoon of them.
     uint32 QuestBronze(uint32 quest)
     {
         auto it = questBronze.find(quest);
-        return it == questBronze.end() ? rates.quest : it->second;
+        if (it == questBronze.end())
+            return rates.quest;
+        if (quest >= QUEST_OUT_OF_TIME && quest <= QUEST_TO_THE_FRONT_H)
+            return it->second;
+        return std::max(it->second, rates.quest);
     }
 
     int32 BandedLevel(LevelBand const& band, int32 level)
