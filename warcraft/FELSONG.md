@@ -25,6 +25,9 @@ release until it's playable).
   is not assumed to connect to a local realm.**
 - **Honesty**: nothing incomplete called working; no placeholder servers, simulated connections
   or screens that can't really start the game; what can't be reproduced exactly, said so.
+- **Downloads in order** (October 16, 2026), as the other realms' launchers offer theirs: the
+  launcher lists every file Felsong needs as numbered steps, 1 to N, in the order they're needed,
+  each with its download where one is published, its size and whether it's done.
 - **Theme** from [felsong.gg](https://felsong.gg/en/presentation), the user's logo ("Felsong —
   Forge your own destiny — Legion 7.3.5") and Illidan header; Entering Azeroth with the user's big
   picture (2560×1080) and green motes, filling the screen. The art is in `branding/felsong/`.
@@ -127,7 +130,22 @@ server's data 10–20 GB, the databases 1.5 GB.
 3. **Its data**: imported from a PC (as Turtle's import), or made on the phone (hours).
 4. **The launcher**: `com.logie.warcraft.felsong`, the same as Turtle's (install, server, game
    files, accounts — Battle.net style, an e-mail as the name —, rates and solo scaling, Play), in
-   Felsong's look.
+   Felsong's look. Its setup as numbered steps (the user's ask), each with its source:
+   1. **The client**, 7.3.5.26972 (64-bit): from a folder, a zip, or a link the user pastes,
+      checked against 26972's own files (`Wow-64.exe`'s size and hash) before it's kept. No link
+      is built in: Blizzard serves no 7.x client (its CDN drops a build within days or weeks of
+      the next, and 26972 was replaced in 2018), and every 26972 download found is a third
+      party's copy, not Blizzard's.
+   2. **The realm**: this repository's own release of the LegionCore package (as Turtle's
+      `turtle-server-<hash>`), one tap, size and SHA-256 checked.
+   3. **The world and hotfixes databases**: LegionCore's own release
+      (`LegionCore_full_735.26972_2024_10_23.7z`, 33 MB, `server-version.env`), downloaded and
+      checked, unless the realm's package already carries them.
+   4. **The server's data** (dbc, maps, vmaps, mmaps, cameras, gt): made from the client
+      (nobody publishes it), on the phone (hours) or imported from a PC's zip.
+   5. **The client patched for the local realm** (`connection_patcher`): done by the app, no
+      download.
+   6. **An account**, then Play.
 5. **Felsong+'s systems**, one by one, each listed as done and tested or not.
 6. Built and released by CI when the user says (Actions minutes are used up until about November
    1, 2026; the arm64 builds meanwhile run on this machine).
