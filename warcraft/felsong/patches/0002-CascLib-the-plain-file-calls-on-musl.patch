@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 06:16:50 +0000
+Subject: [PATCH 2/8] CascLib: the plain file calls on musl
+
+musl has no stat64, lseek64, ftruncate64 or off64_t (since 1.2.4); its own are 64-bit. CascLib
+mapped them for macOS only. Used by the map extractors, which read the client's CASC storage.
+---
+ dep/CascLib/src/CascPort.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/dep/CascLib/src/CascPort.h b/dep/CascLib/src/CascPort.h
+index 5d9a710..4d4a278 100644
+--- a/dep/CascLib/src/CascPort.h
++++ b/dep/CascLib/src/CascPort.h
+@@ -199,7 +199,8 @@
+ #endif // !PLATFORM_WINDOWS
+ 
+ // 64-bit calls are supplied by "normal" calls on Mac
+-#if defined(PLATFORM_MAC)
++// musl (Linux without glibc) has no large-file names either: its stat and off_t are 64-bit.
++#if defined(PLATFORM_MAC) || (defined(PLATFORM_LINUX) && !defined(__GLIBC__))
+   #define stat64  stat
+   #define fstat64 fstat
+   #define lseek64 lseek

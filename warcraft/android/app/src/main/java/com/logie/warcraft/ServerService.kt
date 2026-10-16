@@ -156,6 +156,9 @@ class ServerService : Service() {
             gameShown.value = inGame
         }
 
+        /** Whether the game is on screen, read-only (Turtle WoW's service hides its notification too). */
+        val gameOnScreen: kotlinx.coroutines.flow.StateFlow<Boolean> get() = gameShown
+
         /** How often the folder of Time Anomaly reports is looked in. */
         private const val REPORTS_EVERY_MS = 3_000L
         private const val CHANNEL = "server"

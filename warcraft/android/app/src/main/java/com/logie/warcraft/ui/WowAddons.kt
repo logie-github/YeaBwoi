@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.logie.warcraft.AddonStore
+import com.logie.warcraft.AddonStoreOf
 import com.logie.warcraft.R
 import com.logie.warcraft.WowFiles
 import com.logie.warcraft.addons.AddonRecords
@@ -164,15 +165,15 @@ internal fun Modifier.ownTouches() = pointerInput(Unit) {
 
 /** What's installed and what's under way, as one look for the whole screen. */
 private class Shelf(
-    val jobs: Map<String, AddonStore.Job>,
-    val installed: List<AddonStore.Installed>,
+    val jobs: Map<String, AddonStoreOf.Job>,
+    val installed: List<AddonStoreOf.Installed>,
     val updates: Map<String, Warperia.Details>,
 ) {
     fun installed(slug: String) = installed.firstOrNull { it.record?.slug == slug }
 
     /** Where the site's add-on [slug] stands; [updated] is the list's date for it, when known. */
     fun status(slug: String, updated: String? = null): AddonStatus {
-        jobs[slug]?.let { job -> return if (job is AddonStore.Job.Failed) AddonStatus.Failed else AddonStatus.Busy(job) }
+        jobs[slug]?.let { job -> return if (job is AddonStoreOf.Job.Failed) AddonStatus.Failed else AddonStatus.Busy(job) }
         val record = installed(slug)?.record ?: return AddonStatus.New
         val newer = slug in updates || AddonRecords.isOutdated(record, null, updated)
         return if (newer) AddonStatus.Outdated else AddonStatus.Current
@@ -184,7 +185,7 @@ private sealed interface AddonStatus {
     data object Current : AddonStatus
     data object Outdated : AddonStatus
     data object Failed : AddonStatus
-    data class Busy(val job: AddonStore.Job) : AddonStatus
+    data class Busy(val job: AddonStoreOf.Job) : AddonStatus
 }
 
 // The bar at the top ------------------------------------------------------------------------------
@@ -525,12 +526,12 @@ private fun InstallButton(status: AddonStatus, onInstall: () -> Unit) {
             val job = status.job
             Text(
                 when (job) {
-                    AddonStore.Job.Queued -> stringResource(R.string.wow_addons_queued)
-                    is AddonStore.Job.Waiting -> stringResource(R.string.wow_addons_waiting, job.secondsLeft)
-                    is AddonStore.Job.Downloading -> job.fraction?.let { stringResource(R.string.wow_addons_percent, (it * 100).toInt()) }
+                    AddonStoreOf.Job.Queued -> stringResource(R.string.wow_addons_queued)
+                    is AddonStoreOf.Job.Waiting -> stringResource(R.string.wow_addons_waiting, job.secondsLeft)
+                    is AddonStoreOf.Job.Downloading -> job.fraction?.let { stringResource(R.string.wow_addons_percent, (it * 100).toInt()) }
                         ?: stringResource(R.string.wow_addons_downloading)
-                    AddonStore.Job.Installing -> stringResource(R.string.wow_addons_installing)
-                    is AddonStore.Job.Failed -> ""
+                    AddonStoreOf.Job.Installing -> stringResource(R.string.wow_addons_installing)
+                    is AddonStoreOf.Job.Failed -> ""
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = WowColors.Text,
@@ -817,7 +818,7 @@ private fun InstalledPane(shelf: Shelf, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun InstalledRow(item: AddonStore.Installed, shelf: Shelf, modifier: Modifier, onOpen: (String) -> Unit) {
+private fun InstalledRow(item: AddonStoreOf.Installed, shelf: Shelf, modifier: Modifier, onOpen: (String) -> Unit) {
     val context = LocalContext.current
     var confirmDelete by remember(item.key) { mutableStateOf(false) }
     val record = item.record

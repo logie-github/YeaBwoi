@@ -30,3 +30,15 @@ self-updating from this repository's GitHub releases.
   `--init-script scripts/maven-mirror.init.gradle` (Maven Central rate-limits these machines).
 - Never commit build outputs (`build/`, `.cxx/`, `<app>/android/core/`) or any game files.
 - Tell the user what was tested and what wasn't (nothing here runs on a real phone).
+
+## Turtle WoW
+
+The World of Warcraft app's second game, Turtle WoW (1.18.1) with its own Tortoise-WoW realm, kept
+completely apart from the 3.3.5a game: `warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its
+realm), `com.logie.warcraft.turtle` (its code, every file operation through `turtle/core/SafeFs`).
+
+## Felsong
+
+The World of Warcraft app's third game, Felsong (Legion 7.3.5) on LegionCore, kept apart like
+Turtle: `warcraft/FELSONG.md` (the brief, what was found, the plan; the client on a phone is the
+open question). Not released: the user releases it once it's playable.

@@ -53,6 +53,8 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
+// Turtle WoW's game switch (out of order: kept apart from the Wrath Remix line's import above).
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -89,6 +91,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.logie.warcraft.AddonStore
 import com.logie.warcraft.AppIcons
 import com.logie.warcraft.BuildConfig
+import com.logie.warcraft.Environments
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
 import com.logie.warcraft.LegacyRaces
@@ -104,6 +107,11 @@ import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
 import com.logie.warcraft.game.Game
 import com.logie.warcraft.game.GameSettings
+import com.logie.warcraft.turtle.ui.GameSwitch
+import com.logie.warcraft.turtle.ui.SwitchToTurtleDialog
+import com.logie.warcraft.turtle.ui.TurtleLauncher
+import com.logie.warcraft.turtle.ui.WrathGameChooser
+import com.logie.warcraft.felsong.ui.FelsongLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -116,8 +124,23 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
+    // The game chosen (Environments): Turtle WoW and Felsong have launchers of their own, in their
+    // own looks.
+    val environment by Environments.selected(LocalContext.current).collectAsState()
+    when (environment) {
+        Environments.Environment.TURTLE -> TurtleLauncher(checkUpdateOnOpen)
+        Environments.Environment.FELSONG -> FelsongLauncher(checkUpdateOnOpen)
+        else -> WrathHomeRoute(activity, checkUpdateOnOpen)
+    }
+}
+
+/** Wrath of the Lich King's launcher, as it has always been, with a way to the other games'. */
+@Composable
+private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
+    var askTurtle by remember { mutableStateOf(false) }
+    var choosingGame by remember { mutableStateOf(false) }
     val server by Server.status.collectAsState()
     val imports by Imports.state.collectAsState()
     val game by Game.state.collectAsState()
@@ -207,10 +230,16 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
                 onPlay = { play() },
                 onStop = { Server.stop(context) },
                 onDialog = { dialog = it },
+                onSwitchGame = { choosingGame = true },
             )
             if (dialog == HomeDialog.ADDONS) AddonManager(onDismiss = { dialog = null; refresh++ })
             if (dialog == HomeDialog.MODULES) ModuleManager(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
         }
+        if (choosingGame) WrathGameChooser(onDismiss = { choosingGame = false }) { target ->
+            choosingGame = false
+            if (!GameSwitch.trySwitch(context, target)) askTurtle = true
+        }
+        if (askTurtle) SwitchToTurtleDialog(onDismiss = { askTurtle = false })
         when (dialog) {
             HomeDialog.SERVER -> ServerDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.FILES -> GameFilesDialog(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
@@ -249,7 +278,8 @@ data class HomeFacts(
 
     companion object {
         fun of(context: android.content.Context) = HomeFacts(
-            bundled = ServerPackage.isBundled(context),
+            // A build without a server of its own runs the one already unpacked (ServerPackage).
+            bundled = ServerPackage.isBundled(context) || ServerPackage.isInstalled(context),
             standardPath = WowFiles.isStandardPath(context),
             hasClient = WowFiles.hasClient(context),
             dataFolders = WowFiles.dataFolders(context),
@@ -269,6 +299,7 @@ internal fun HomeScreen(
     onPlay: () -> Unit,
     onStop: () -> Unit,
     onDialog: (HomeDialog) -> Unit,
+    onSwitchGame: () -> Unit = {},
 ) {
     val context = LocalContext.current
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -282,7 +313,7 @@ internal fun HomeScreen(
                 .windowInsetsPadding(WindowInsets.navigationBars),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            WowHeader(screenWidth, screenHeight)
+            WowHeader(screenWidth, screenHeight, onSwitchGame)
             Column(
                 Modifier
                     .widthIn(max = 860.dp)
@@ -326,6 +357,10 @@ internal fun HomeScreen(
                     HomeTile(Icons.Default.SystemUpdate, stringResource(R.string.wow_tile_updates),
                         stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) {
                         WowUpdateActivity.launch(context)
+                    },
+                    // Turtle WoW and Felsong, games of their own: the launcher switches to them (GameSwitch).
+                    HomeTile(Icons.Default.SwapHoriz, stringResource(R.string.games_tile), stringResource(R.string.games_tile_wrath_summary)) {
+                        onSwitchGame()
                     },
                 )
                 val columns = (screenWidth / 260.dp).toInt().coerceIn(1, 3).let { if (screenWidth >= 360.dp) maxOf(it, 2) else it }
@@ -375,7 +410,7 @@ private fun filesSummary(facts: HomeFacts): String = stringResource(
  * slowly closing in; the logo over its lower edge.
  */
 @Composable
-private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
+private fun WowHeader(screenWidth: Dp, screenHeight: Dp, onSwitchGame: () -> Unit) {
     // Tall enough for the Lich King on a phone held upright, leaving room for the realm panel
     // with the phone sideways.
     val headerHeight = min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.62f)
@@ -447,6 +482,30 @@ private fun WowHeader(screenWidth: Dp, screenHeight: Dp) {
                 .padding(10.dp)
                 .graphicsLayer { alpha = reveal.value }
         )
+        GameSwitchChip(
+            Modifier
+                .align(Alignment.TopStart)
+                .padding(10.dp)
+                .graphicsLayer { alpha = reveal.value },
+            onSwitchGame,
+        )
+    }
+}
+
+/** To Turtle WoW's launcher: a small chip in the picture's corner. */
+@Composable
+private fun GameSwitchChip(modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier
+            .clip(CircleShape)
+            .background(WowColors.Abyss.copy(alpha = 0.45f))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = WowColors.Ice, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(stringResource(R.string.games_chip), style = WowDisplayStyle.copy(fontSize = 13.sp))
     }
 }
 

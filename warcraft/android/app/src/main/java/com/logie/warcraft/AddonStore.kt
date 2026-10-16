@@ -31,11 +31,13 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The add-on manager behind the Add-ons screen: warperia.com's list and pages, installs from it one
- * at a time (each waits the site's few seconds), what's installed and where it came from, and which
- * of those the site has newer versions of. Jobs carry on while the screen is closed.
+ * The add-on manager behind the Add-ons screen, for one game ([AddonGame]): warperia.com's list and
+ * pages (its section for that game), installs from it one at a time (each waits the site's few
+ * seconds), what's installed and where it came from, and which of those the site has newer versions
+ * of. Jobs carry on while the screen is closed. [AddonStore] is the 3.3.5a game's; Turtle WoW has
+ * its own (com.logie.warcraft.turtle).
  */
-object AddonStore {
+open class AddonStoreOf(val game: AddonGame) {
     /** Where an install from the site is. */
     sealed interface Job {
         data object Queued : Job
@@ -88,14 +90,14 @@ object AddonStore {
     // The site -----------------------------------------------------------------------------------
 
     suspend fun list(query: Warperia.Query, page: Int): Warperia.ListPage = withContext(Dispatchers.IO) {
-        Warperia.parseList(web.get(Warperia.listUrl(query, page)))
+        Warperia.parseList(web.get(Warperia.listUrl(query, page, game.flavor)), game.flavor)
     }
 
     /** An add-on's page, from the last few minutes' copy unless [fresh]. */
     suspend fun details(slug: String, fresh: Boolean = false): Warperia.Details = withContext(Dispatchers.IO) {
         val kept = details[slug]
         if (!fresh && kept != null && System.currentTimeMillis() - kept.first < DETAILS_KEEP_MS) return@withContext kept.second
-        Warperia.parseDetails(web.get(Warperia.pageUrl(slug)), slug).also { details[slug] = System.currentTimeMillis() to it }
+        Warperia.parseDetails(web.get(Warperia.pageUrl(slug, game.flavor)), slug, game.flavor).also { details[slug] = System.currentTimeMillis() to it }
     }
 
     // What's installed ---------------------------------------------------------------------------
@@ -107,14 +109,14 @@ object AddonStore {
     }
 
     private fun reload(context: Context) {
-        val folders = if (WowFiles.hasClient(context)) runCatching { Addons.list(context) }.getOrDefault(emptyList()) else emptyList()
+        val folders = if (game.hasClient(context)) runCatching { Addons.list(context, game) }.getOrDefault(emptyList()) else emptyList()
         val byName = folders.associateBy { it.folder.lowercase() }
         // Records of add-ons that are no longer there (deleted by hand, or a new client) go; looked
         // up on disk again, as an install may have just finished.
-        if (WowFiles.hasClient(context)) {
-            runCatching { Addons.updateRecords(context) { records -> records.filter { r -> r.folders.any { Addons.exists(context, it) } } } }
+        if (game.hasClient(context)) {
+            runCatching { Addons.updateRecords(context, game) { records -> records.filter { r -> r.folders.any { Addons.exists(context, it, game) } } } }
         }
-        val present = Addons.records(context).filter { r -> r.folders.any { it.lowercase() in byName } }
+        val present = Addons.records(context, game).filter { r -> r.folders.any { it.lowercase() in byName } }
         val owned = mutableSetOf<String>()
         val fromSite = present.map { record ->
             val mine = record.folders.mapNotNull { byName[it.lowercase()] }
@@ -168,12 +170,12 @@ object AddonStore {
     }
 
     private suspend fun installNow(context: Context, slug: String) {
-        if (!WowFiles.hasClient(context)) throw IOException(context.getString(R.string.wow_addons_no_client))
+        if (!game.hasClient(context)) throw IOException(game.noClientMessage(context))
         val page = details(slug, fresh = true)
-        val zip = File(context.cacheDir, "warperia-$slug.zip")
+        val zip = game.check(context, File(game.temp(context).also { game.mkdirs(context, it) }, "warperia-$slug.zip"))
         try {
             withContext(Dispatchers.IO) {
-                WarperiaDownload.fetch(web, slug, zip, onStep = { step ->
+                WarperiaDownload.fetch(web, slug, zip, flavor = game.flavor, onStep = { step ->
                     when (step) {
                         is WarperiaDownload.Step.Waiting -> setJob(slug, Job.Waiting(step.secondsLeft))
                         is WarperiaDownload.Step.Downloading ->
@@ -181,7 +183,7 @@ object AddonStore {
                     }
                 })
                 setJob(slug, Job.Installing)
-                val folders = Addons.installZip(context, zip)
+                val folders = Addons.installZip(context, zip, game)
                 val record = AddonRecord(
                     slug = slug,
                     title = page.title,
@@ -191,11 +193,11 @@ object AddonStore {
                     folders = folders,
                     installedAt = System.currentTimeMillis(),
                 )
-                Addons.updateRecords(context) { AddonRecords.put(it, record) }
+                Addons.updateRecords(context, game) { AddonRecords.put(it, record) }
             }
         } finally {
-            zip.delete()
-            File(zip.path + ".part").delete()
+            game.delete(context, zip)
+            game.delete(context, game.check(context, File(zip.path + ".part")))
         }
         _updates.update { it - slug }
         reload(context)
@@ -208,7 +210,7 @@ object AddonStore {
 
     /** Installs the add-ons in a zip the user picked. */
     suspend fun importZip(context: Context, uri: Uri): List<String> = withContext(Dispatchers.IO) {
-        Addons.install(context, uri).also { reload(context) }
+        Addons.install(context, uri, game).also { reload(context) }
     }
 
     // Updates ------------------------------------------------------------------------------------
@@ -260,7 +262,7 @@ object AddonStore {
     fun setOn(context: Context, item: Installed, on: Boolean) {
         val app = context.applicationContext
         scope.launch {
-            for (folder in foldersOf(app, item)) Addons.setOn(app, folder, on)
+            for (folder in foldersOf(app, item)) Addons.setOn(app, folder, on, game)
             reload(app)
         }
     }
@@ -268,9 +270,9 @@ object AddonStore {
     fun delete(context: Context, item: Installed) {
         val app = context.applicationContext
         scope.launch {
-            for (folder in foldersOf(app, item)) Addons.delete(app, folder)
+            for (folder in foldersOf(app, item)) Addons.delete(app, folder, game)
             if (item.record != null) {
-                Addons.updateRecords(app) { records -> records.filterNot { it.slug == item.record.slug } }
+                Addons.updateRecords(app, game) { records -> records.filterNot { it.slug == item.record.slug } }
                 _updates.update { it - item.record.slug }
             }
             reload(app)
@@ -280,10 +282,15 @@ object AddonStore {
     /** An add-on's own folders: libraries another add-on from the site also brought stay. */
     private fun foldersOf(context: Context, item: Installed): List<String> {
         val record = item.record ?: return item.folders
-        val own = AddonRecords.ownFolders(record, Addons.records(context)).map { it.lowercase() }.toSet()
+        val own = AddonRecords.ownFolders(record, Addons.records(context, game)).map { it.lowercase() }.toSet()
         return item.folders.filter { it.lowercase() in own }
     }
 
-    private const val DETAILS_KEEP_MS = 10 * 60_000L
-    private const val CHECK_EVERY_MS = 30 * 60_000L
+    private companion object {
+        const val DETAILS_KEEP_MS = 10 * 60_000L
+        const val CHECK_EVERY_MS = 30 * 60_000L
+    }
 }
+
+/** The 3.3.5a game's add-ons (files/client). */
+object AddonStore : AddonStoreOf(AddonGame.WRATH)

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Felsong's texts (com.logie.warcraft.felsong) and the launcher's game picker, apart from the rest of the app's. -->
+<resources>
+    <string name="games_title">Games</string>
+    <string name="games_chip">Games</string>
+    <string name="games_tile">Other games</string>
+    <string name="games_tile_wrath_summary">Turtle WoW and Felsong, each a game of its own</string>
+    <string name="games_tile_turtle_summary">Wrath of the Lich King and Felsong</string>
+    <string name="wrath_name">Wrath of the Lich King</string>
+    <string name="wrath_name_summary">The 3.3.5a game and its ChromieCraft realm</string>
+    <string name="felsong_name">Felsong — Legion 7.3.5</string>
+    <string name="felsong_name_summary">Not playable yet: its look, and its realm on the way</string>
+    <string name="felsong_status_title">Not playable yet</string>
+    <string name="felsong_status_body">Felsong has its look here and nothing more yet. There\'s no Play: nothing here can start the game yet, and nothing of the other games changes.</string>
+    <string name="felsong_realm_title">The realm</string>
+    <string name="felsong_realm_body">Felsong\'s own server is closed, so its realm here will be LegionCore 7.3.5, the closest public Legion core, with Felsong\'s documented changes made on it and solo scaling. It\'s being made to run on the phone; it isn\'t in the app yet.</string>
+    <string name="felsong_client_title">The client</string>
+    <string name="felsong_client_body">Legion\'s client (7.3.5, build 26972: your own) has to run on the phone through Wine and Box64, and Box64 doesn\'t run any WoW client from Legion on yet (box64 issue #3061). If Wow-64.exe reaches its login screen in Winlator 11.2 on your phone, the rest is worth building.</string>
+</resources>
