@@ -288,6 +288,7 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, updates, the servers' logs, GitHub's module lists and READMEs, the module builds' requests and runs |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
+| `android/app/src/main/res/raw/felsong_title_music.ogg` | The Felsong launcher's music: your MP3 of Kingdoms Will Burn (Legion's soundtrack), made the same way, played at its ReplayGain (−6.5 dB) (13 MB) |
 | `android/app/src/main/res/raw/turtle_title_music.ogg` | The Turtle WoW launcher's music: your MP3 of Moonwhisper Coast (Turtle WoW's soundtrack), made the same way, played at its ReplayGain (−2.5 dB) (2.6 MB) |
 | `fonts/` | Licenses of Cinzel, Jost, Alegreya Sans SC and Marcellus (SIL OFL) |
 
@@ -320,3 +321,7 @@ The app targets Android SDK 28, as Termux and Winlator do: Android lets apps tha
 ## License
 
 The app's code is GPLv3. AzerothCore and mod-playerbots are GPLv2; mod-progression-system, mod-zone-difficulty and mod-chromie-xp are AGPLv3; ChromieCraft's SmartStone and hoard collector modules are MIT (the talent template module's repository has no license file). MariaDB is GPLv2, musl MIT; the other libraries in the server package are under their Alpine packages' licenses. Winlator is LGPL-2.1; its runtime brings Wine (LGPL-2.1), Box64 (MIT), DXVK (zlib) and Mesa (MIT), under their own licenses. Cinzel, Jost, Alegreya Sans SC and Marcellus are under the SIL Open Font License (`fonts/`). World of Warcraft, its art and its music belong to Blizzard Entertainment; the client is yours and isn't part of the app. The server data the app downloads is made from the game's files by the AzerothCore project and published by it. Playing on a private server is against Blizzard's terms of use. This project isn't affiliated with Blizzard, ChromieCraft, AzerothCore, the playerbots project, MariaDB, or Winlator.
+
+## Felsong — Legion 7.3.5 (not playable yet)
+
+The launcher's **Games** chip (or the **Other games** tile) now lists the other games: Wrath of the Lich King, Turtle WoW and **Felsong**. Felsong's launcher is in its own look (felsong.gg's fel green on dark olive, Illidan over the Broken Isles, its logo, fel motes, Kingdoms Will Burn as its music) and says plainly where it stands: **there is no Play yet**. Its realm (LegionCore 7.3.5) is being ported to the phone and the Legion client hasn't been shown to run on Android (Box64 issue #3061). Choosing it changes nothing of the other games. The plan and findings: `FELSONG.md`.

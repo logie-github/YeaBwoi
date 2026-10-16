@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 06:24:37 +0000
+Subject: [PATCH 8/8] Scripts: 0, not NULL, where a number is meant
+
+musl's C++ NULL is nullptr (glibc's is __null, an integer 0), which doesn't convert to a number:
+a threat amount, a spell id in a table and an aura stack count.
+---
+ .../scripts/Pandaria/SiegeofOrgrimmar/boss_general_nazgrim.cpp  | 2 +-
+ src/server/scripts/Spells/spell_generic.cpp                     | 2 +-
+ src/server/scripts/Spells/spell_monk.cpp                        | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/server/scripts/Pandaria/SiegeofOrgrimmar/boss_general_nazgrim.cpp b/src/server/scripts/Pandaria/SiegeofOrgrimmar/boss_general_nazgrim.cpp
+index 4c084d2..901584a 100644
+--- a/src/server/scripts/Pandaria/SiegeofOrgrimmar/boss_general_nazgrim.cpp
++++ b/src/server/scripts/Pandaria/SiegeofOrgrimmar/boss_general_nazgrim.cpp
+@@ -757,7 +757,7 @@ public:
+             }
+ 
+             if (attacker->GetGUID() != plGuid)
+-                me->getThreatManager().addThreat(attacker, NULL);
++                me->getThreatManager().addThreat(attacker, 0.0f);
+         }
+ 
+         void JustDied(Unit* killer)
+diff --git a/src/server/scripts/Spells/spell_generic.cpp b/src/server/scripts/Spells/spell_generic.cpp
+index de131ab..f72cc9e 100644
+--- a/src/server/scripts/Spells/spell_generic.cpp
++++ b/src/server/scripts/Spells/spell_generic.cpp
+@@ -4667,7 +4667,7 @@ class spell_gen_artificial_stamina : public SpellScriptLoader
+ static uint32 const _effects[] = 
+ {
+     ATTACK_POWER_FOR_ATTACKER,
+-    NULL,
++    0,
+     MOD_DAMAGE_DONE_OVERRIDE,
+     MOD_POWER_REGEN_OVERRIDE,
+     STRENGTH_MULTIPLICATIVE,
+diff --git a/src/server/scripts/Spells/spell_monk.cpp b/src/server/scripts/Spells/spell_monk.cpp
+index 206813c..7e4e336 100644
+--- a/src/server/scripts/Spells/spell_monk.cpp
++++ b/src/server/scripts/Spells/spell_monk.cpp
+@@ -685,7 +685,7 @@ class spell_monk_purifying_brew: public SpellScript
+                 if (Aura* aura = caster->GetAura(215479))
+                     aura->SetDuration(aura->GetDuration() + dur);
+                 else
+-                    caster->AddAura(215479, caster, nullptr, NULL, dur);
++                    caster->AddAura(215479, caster, nullptr, 0, dur);
+             }
+         }
+     }

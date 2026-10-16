@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Fri, 16 Oct 2026 06:17:43 +0000
-Subject: [PATCH 5/7] rapidjson: NEON on arm64
+Subject: [PATCH 5/8] rapidjson: NEON on arm64
 
 RAPIDJSON_SSE2 was set for every processor, and <emmintrin.h> doesn't build for arm64. NEON
 there, as TrinityCore has since.

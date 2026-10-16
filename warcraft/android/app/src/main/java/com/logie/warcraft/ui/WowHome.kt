@@ -108,6 +108,8 @@ import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.turtle.ui.GameSwitch
 import com.logie.warcraft.turtle.ui.SwitchToTurtleDialog
 import com.logie.warcraft.turtle.ui.TurtleLauncher
+import com.logie.warcraft.turtle.ui.WrathGameChooser
+import com.logie.warcraft.felsong.ui.FelsongLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -120,21 +122,23 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
-    // The game chosen (Environments): Turtle WoW has a launcher of its own, in its own look.
+    // The game chosen (Environments): Turtle WoW and Felsong have launchers of their own, in their
+    // own looks.
     val environment by Environments.selected(LocalContext.current).collectAsState()
-    if (environment == Environments.Environment.TURTLE) {
-        TurtleLauncher(checkUpdateOnOpen)
-    } else {
-        WrathHomeRoute(activity, checkUpdateOnOpen)
+    when (environment) {
+        Environments.Environment.TURTLE -> TurtleLauncher(checkUpdateOnOpen)
+        Environments.Environment.FELSONG -> FelsongLauncher(checkUpdateOnOpen)
+        else -> WrathHomeRoute(activity, checkUpdateOnOpen)
     }
 }
 
-/** Wrath of the Lich King's launcher, as it has always been, with a way to Turtle WoW's. */
+/** Wrath of the Lich King's launcher, as it has always been, with a way to the other games'. */
 @Composable
 private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
     var askTurtle by remember { mutableStateOf(false) }
+    var choosingGame by remember { mutableStateOf(false) }
     val server by Server.status.collectAsState()
     val imports by Imports.state.collectAsState()
     val game by Game.state.collectAsState()
@@ -224,10 +228,14 @@ private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
                 onPlay = { play() },
                 onStop = { Server.stop(context) },
                 onDialog = { dialog = it },
-                onSwitchGame = { if (!GameSwitch.trySwitch(context, Environments.Environment.TURTLE)) askTurtle = true },
+                onSwitchGame = { choosingGame = true },
             )
             if (dialog == HomeDialog.ADDONS) AddonManager(onDismiss = { dialog = null; refresh++ })
             if (dialog == HomeDialog.MODULES) ModuleManager(onDismiss = { dialog = null; Imports.clearResult(); refresh++ })
+        }
+        if (choosingGame) WrathGameChooser(onDismiss = { choosingGame = false }) { target ->
+            choosingGame = false
+            if (!GameSwitch.trySwitch(context, target)) askTurtle = true
         }
         if (askTurtle) SwitchToTurtleDialog(onDismiss = { askTurtle = false })
         when (dialog) {
@@ -344,8 +352,8 @@ internal fun HomeScreen(
                         stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) {
                         WowUpdateActivity.launch(context)
                     },
-                    // Turtle WoW, a game of its own: the launcher switches to it (GameSwitch).
-                    HomeTile(Icons.Default.SwapHoriz, stringResource(R.string.turtle_tile_name), stringResource(R.string.turtle_tile_name_summary)) {
+                    // Turtle WoW and Felsong, games of their own: the launcher switches to them (GameSwitch).
+                    HomeTile(Icons.Default.SwapHoriz, stringResource(R.string.games_tile), stringResource(R.string.games_tile_wrath_summary)) {
                         onSwitchGame()
                     },
                 )
@@ -491,7 +499,7 @@ private fun GameSwitchChip(modifier: Modifier, onClick: () -> Unit) {
     ) {
         Icon(Icons.Default.SwapHoriz, contentDescription = null, tint = WowColors.Ice, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(6.dp))
-        Text(stringResource(R.string.turtle_switch_to_turtle), style = WowDisplayStyle.copy(fontSize = 13.sp))
+        Text(stringResource(R.string.games_chip), style = WowDisplayStyle.copy(fontSize = 13.sp))
     }
 }
 

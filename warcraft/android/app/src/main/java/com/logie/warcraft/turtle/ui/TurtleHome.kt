@@ -292,7 +292,7 @@ private fun TurtleHomeScreen(
                     Tile(Icons.Default.Palette, stringResource(R.string.wow_tile_icon), stringResource(AppIcons.current(context).label)) { onDialog(TurtleDialogKind.ICON) },
                     Tile(Icons.Default.SystemUpdate, stringResource(R.string.wow_tile_updates), stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) { WowUpdateActivity.launch(context) },
                     // Back to the 3.3.5a game (GameSwitch), as its launcher's tile comes here.
-                    Tile(Icons.Default.SwapHoriz, stringResource(R.string.turtle_tile_switch), stringResource(R.string.turtle_tile_switch_summary)) { onSwitchGame() },
+                    Tile(Icons.Default.SwapHoriz, stringResource(R.string.games_tile), stringResource(R.string.games_tile_turtle_summary)) { onSwitchGame() },
                 )
                 val columns = (screenWidth / 260.dp).toInt().coerceIn(1, 3).let { if (screenWidth >= 360.dp) maxOf(it, 2) else it }
                 TileGrid(tiles, columns)
@@ -375,7 +375,7 @@ private fun TurtleHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit
                     scaleY = scale
                 },
         )
-        Chip(Icons.Default.SwapHoriz, stringResource(R.string.turtle_switch_to_wrath), Modifier.align(Alignment.TopStart).padding(10.dp).graphicsLayer { alpha = reveal.value }, onSwitch)
+        Chip(Icons.Default.SwapHoriz, stringResource(R.string.games_chip), Modifier.align(Alignment.TopStart).padding(10.dp).graphicsLayer { alpha = reveal.value }, onSwitch)
         MusicChip(Modifier.align(Alignment.TopEnd).padding(10.dp).graphicsLayer { alpha = reveal.value })
     }
 }

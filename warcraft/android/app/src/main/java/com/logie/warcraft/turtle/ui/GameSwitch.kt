@@ -24,20 +24,23 @@ import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
 import com.logie.warcraft.turtle.TurtleServer
 import com.logie.warcraft.ui.WowButton
+import com.logie.warcraft.ui.WowChoiceRow
 import com.logie.warcraft.ui.WowDialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Switching the launcher between the games. Nothing of either game changes; only the realm that's
- * running may be stopped, when the user says so: the two realms' login servers use the same port
- * (the game's 3724), so only one realm runs at a time.
+ * Switching the launcher between the games. Nothing of any game changes; only the realm that's
+ * running may be stopped, when the user says so: ChromieCraft's and Turtle WoW's login servers use
+ * the same port (the game's 3724), so only one of them runs at a time. Felsong has no realm on the
+ * phone yet, so switching to or from it stops nothing.
  */
 object GameSwitch {
-    /** The realm of the game other than [target] is running. */
+    /** A realm that [target]'s realm can't run beside is running. */
     fun otherRunning(target: Environments.Environment): Boolean = when (target) {
         Environments.Environment.TURTLE -> Server.status.value.phase.let { it == Server.Phase.STARTING || it == Server.Phase.RUNNING || it == Server.Phase.STOPPING }
         Environments.Environment.WRATH -> TurtleServer.isBusy
+        Environments.Environment.FELSONG -> false
     }
 
     fun switch(context: Context, target: Environments.Environment, stopOther: Boolean) {
@@ -45,6 +48,7 @@ object GameSwitch {
             when (target) {
                 Environments.Environment.TURTLE -> Server.stop(context)
                 Environments.Environment.WRATH -> TurtleServer.stop(context)
+                Environments.Environment.FELSONG -> {}
             }
         }
         Environments.select(context, target)
@@ -78,7 +82,7 @@ fun SwitchToTurtleDialog(onDismiss: () -> Unit) {
 
 /** The question when Turtle's realm runs and the user goes back to Wrath (in Turtle's look). */
 @Composable
-private fun SwitchToWrathDialog(onDismiss: () -> Unit) {
+fun SwitchToWrathDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
     TurtleDialog(
         title = stringResource(R.string.turtle_switch_title),
@@ -93,9 +97,35 @@ private fun SwitchToWrathDialog(onDismiss: () -> Unit) {
     }
 }
 
+/** The other games, in Wrath's look: [onPick] gets the one chosen. */
+@Composable
+fun WrathGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment) -> Unit) {
+    WowDialog(
+        title = stringResource(R.string.games_title),
+        onDismiss = onDismiss,
+        buttons = { WowButton(stringResource(R.string.turtle_cancel), primary = false, onClick = onDismiss) },
+    ) {
+        WowChoiceRow(stringResource(R.string.turtle_tile_name), stringResource(R.string.turtle_tile_name_summary), selected = false) { onPick(Environments.Environment.TURTLE) }
+        WowChoiceRow(stringResource(R.string.felsong_name), stringResource(R.string.felsong_name_summary), selected = false) { onPick(Environments.Environment.FELSONG) }
+    }
+}
+
+/** The other games, in Turtle WoW's look. */
+@Composable
+fun TurtleGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment) -> Unit) {
+    TurtleDialog(
+        title = stringResource(R.string.games_title),
+        onDismiss = onDismiss,
+        buttons = { TurtleButton(stringResource(R.string.turtle_cancel), primary = false, onClick = onDismiss) },
+    ) {
+        TurtleChoiceRow(stringResource(R.string.wrath_name), stringResource(R.string.wrath_name_summary), selected = false) { onPick(Environments.Environment.WRATH) }
+        TurtleChoiceRow(stringResource(R.string.felsong_name), stringResource(R.string.felsong_name_summary), selected = false) { onPick(Environments.Environment.FELSONG) }
+    }
+}
+
 /**
  * The launcher in Turtle WoW's look: its home, the app's update check on opening (as Wrath's home
- * does), and the way back to Wrath of the Lich King.
+ * does), and the way to the other games.
  */
 @Composable
 fun TurtleLauncher(checkUpdateOnOpen: Boolean) {
@@ -108,8 +138,13 @@ fun TurtleLauncher(checkUpdateOnOpen: Boolean) {
         val update = if (WowUpdater.isConfigured) withContext(Dispatchers.IO) { runCatching { WowUpdater.findUpdate() }.getOrNull() } else null
         if (update != null) updateOffer.launch(WowUpdateActivity.intent(context, update)) else checkUpdate = false
     }
-    TurtleHomeRoute(onSwitchGame = {
-        if (!GameSwitch.trySwitch(context, Environments.Environment.WRATH)) asking = true
-    })
+    var choosing by remember { mutableStateOf(false) }
+    TurtleHomeRoute(onSwitchGame = { choosing = true })
+    if (choosing) TurtleTheme {
+        TurtleGameChooser(onDismiss = { choosing = false }) { target ->
+            choosing = false
+            if (!GameSwitch.trySwitch(context, target)) asking = true
+        }
+    }
     if (asking) TurtleTheme { SwitchToWrathDialog(onDismiss = { asking = false }) }
 }

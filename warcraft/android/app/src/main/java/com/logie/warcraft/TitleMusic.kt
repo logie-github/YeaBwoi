@@ -29,6 +29,8 @@ object TitleMusic {
         WRATH(R.raw.wow_title_music, 0.53f),
         /** -2.5 dB. */
         TURTLE(R.raw.turtle_title_music, 0.75f),
+        /** Kingdoms Will Burn, from Legion's soundtrack: -6.5 dB. */
+        FELSONG(R.raw.felsong_title_music, 0.47f),
     }
 
     private const val FADE_IN_MS = 2_500L
@@ -91,6 +93,7 @@ object TitleMusic {
 
     private fun trackFor(context: Context): Track = when (Environments.current(context)) {
         Environments.Environment.TURTLE -> Track.TURTLE
+        Environments.Environment.FELSONG -> Track.FELSONG
         Environments.Environment.WRATH -> Track.WRATH
     }
 
