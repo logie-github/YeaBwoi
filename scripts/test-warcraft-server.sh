@@ -364,7 +364,7 @@ if [ -n "$DATA_ZIP" ]; then
 	[ "$row" = "$(printf '0\t1')" ] || fail "the Timerunner's chapter wasn't kept, or Bronze is owed ($row)"
 	bronze=$(echo "SELECT SUM(t.count) FROM item_instance t JOIN characters c ON c.guid = t.owner_guid WHERE c.name = 'Timerunner' AND t.itemEntry = 77001" | CTL sql acore_characters_remix)
 	echo "Timerunner's Bronze: $bronze"
-	[ "$bronze" = 10200 ] || fail "the Timerunner doesn't carry 10,200 Bronze ($bronze)"
+	[ "$bronze" = 11200 ] || fail "the Timerunner doesn't carry 11,200 Bronze ($bronze)"
 	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 46017" | CTL sql acore_characters_remix)" = 1 ] ||
 		fail "Val'anyr, bought from Durus, isn't in the bags"
 	[ "$(echo "SELECT COUNT(*) FROM character_inventory i JOIN item_instance t ON t.guid = i.item JOIN characters c ON c.guid = i.guid WHERE c.name = 'Timerunner' AND t.itemEntry = 42985" | CTL sql acore_characters_remix)" = 1 ] ||
