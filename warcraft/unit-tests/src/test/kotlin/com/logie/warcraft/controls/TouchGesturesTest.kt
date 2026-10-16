@@ -11,6 +11,9 @@ class TouchGesturesTest {
         /** Where a window whose icons drag is (the spellbook): none at first. */
         var dragArea: ((Float, Float) -> Boolean) = { _, _ -> false }
         override fun dragsAt(x: Float, y: Float) = dragArea(x, y)
+        /** Where a hold is a right click (the bags, the action bars...): none at first. */
+        var rightClickArea: ((Float, Float) -> Boolean) = { _, _ -> false }
+        override fun rightClicksAt(x: Float, y: Float) = rightClickArea(x, y)
         /** The character creation screen is up. */
         var characterCreation = false
         override fun turnsModel() = characterCreation
@@ -198,8 +201,10 @@ class TouchGesturesTest {
     @Test
     fun onTheSpellbookTheFingerDragsWithTheLeftButton() {
         log.dragArea = { x, y -> x < 300 && y < 400 }
-        // A spell dragged from the spellbook down to the action bar, across the screen.
+        // A spell dragged from the spellbook down to the action bar, across the screen: the left
+        // button goes down where the finger came, once it moves.
         gestures.down(0, 100f, 200f, 0)
+        gestures.move(0, 105f, 203f)
         gestures.move(0, 130f, 260f)
         gestures.move(0, 600f, 560f)
         gestures.onHold(TouchGestures.HOLD_MS)
@@ -207,13 +212,35 @@ class TouchGesturesTest {
         // A tap on it: a click (a spell, a tab).
         gestures.down(0, 50f, 50f, 3000)
         gestures.up(0, 50f, 50f, 3080)
+        // A hold on it: a right click there.
+        gestures.down(0, 60f, 70f, 4000)
+        gestures.onHold(4000 + TouchGestures.HOLD_MS)
+        gestures.up(0, 60f, 70f, 4900)
         assertEquals(
             listOf(
                 "to 100,200", "press LEFT", "to 130,260", "to 600,560", "to 610,570", "release LEFT",
-                "to 50,50", "press LEFT", "to 50,50", "release LEFT",
+                "to 50,50", "click LEFT",
+                "to 60,70", "to 60,70", "click RIGHT",
             ),
             log.events,
         )
+    }
+
+    @Test
+    fun aHoldOnAnItemATalentOrAnAbilityIsARightClick() {
+        // The bags on the right, the action bars along the bottom.
+        log.rightClickArea = { x, y -> x > 700 || y > 540 }
+        gestures.down(0, 800f, 300f, 0)
+        gestures.onHold(TouchGestures.HOLD_MS)
+        gestures.up(0, 800f, 300f, 900)
+        gestures.down(0, 300f, 570f, 2000)
+        gestures.onHold(2000 + TouchGestures.HOLD_MS)
+        gestures.up(0, 300f, 570f, 2900)
+        // Elsewhere, still the bags.
+        gestures.down(0, 400f, 200f, 4000)
+        gestures.onHold(4000 + TouchGestures.HOLD_MS)
+        gestures.up(0, 400f, 200f, 4900)
+        assertEquals(listOf("to 800,300", "click RIGHT", "to 300,570", "click RIGHT", "tap B"), log.events)
     }
 
     @Test
