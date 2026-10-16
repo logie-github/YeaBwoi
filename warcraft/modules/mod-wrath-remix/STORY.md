@@ -294,8 +294,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Moratari:** You should not be here.
    >
-   > **Eternus:** Neither should you. And yet here we both are, in a garden the titans built to keep
-   > life safe from time. Do you know what they were keeping it safe from? From us.
+   > **Eternus:** Neither should you. And yet here we both are, in a garden the titans built so that
+   > nothing living here would ever be lost. They wanted what I want, Moratari. They simply had more
+   > time.
    >
    > **Moratari:** Your agents were draining the Makers' pillar. I know what that much power is for.
    > You are building something that can hold an hour still.
@@ -538,17 +539,17 @@ the people in them are summoned where they stand and heard only by that Timerunn
    this war, as people talk: one conversation for each age, in their own words.
 
    Sylvanas:
-   - *After this war*: in a few days her past self will climb this citadel, find his throne empty
-     and the victory hollow, and throw herself from the top; what she saw on the way down, and the
+   - *After this war*: in a few days her past self will climb this citadel, find him already dead,
+     a paladin in his crown and the victory hollow, and throw herself from the top; what she saw on the way down, and the
      val'kyr who brought her back; Gilneas; Garrosh.
    - *Pandaria and Draenor*: Garrosh made the Horde a weapon and pointed it at everyone, the
      Forsaken included; when the Horde turned on him, she turned with it. Draenor was Garrosh's
      madness and Gul'dan's, and she was not there.
-   - *The Legion*: Vol'jin, dying at the Broken Shore, named her Warchief and said the loa told him
-     to; Stormheim, where she tried to bind a queen of the val'kyr so her people would never stop
+   - *The Legion*: Vol'jin, wounded to death at the Broken Shore, named her Warchief and said the
+     spirits told him to; Stormheim, where she tried to bind a queen of the val'kyr so her people would never stop
      rising, and Genn Greymane stopped her.
-   - *The war with the night elves*: Teldrassil, which she will not explain; Lordaeron, where she
-     poisoned her own city before she would give it up; Varok Saurfang, who asked her a question she
+   - *The war with the night elves*: Teldrassil, which she will not explain; Lordaeron, the home she made
+     for her people, where she poisoned her own city before she would give it up; Varok Saurfang, who asked her a question she
      answered badly, and died.
    - *The Shadowlands*: the Helm, broken on Bolvar's head at the top of this citadel; the sky torn
      open; the Jailer she thought she could use, who used her; the judgment, and her sentence.
@@ -560,9 +561,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
 
    Alleria:
    - *This year*: she is beyond the Twisting Nether with Turalyon and the Army of the Light, a war
-     that began before the Dark Portal closed; being nowhere in this year is very freeing.
+     that began before the Dark Portal closed; no one on Azeroth has seen her in this year, which is very freeing.
    - *Coming home*: Argus, Xe'ra and Illidan, the Light that wanted very badly to be obeyed.
-   - *The Void*: Locus-Walker, who taught her; L'ura at the Seat of the Triumvirate, whom she took
+   - *The Void*: Locus-Walker, who taught her on Argus; L'ura at the Seat of the Triumvirate, whom she took
      into herself.
    - *The ren'dorei*: Magister Umbric's exiles, Telogrus Rift, and leading people who only wanted to
      understand what had been done to them.
@@ -570,8 +571,8 @@ the people in them are summoned where they stand and heard only by that Timerunn
      grown and a paladin by the time they came home.
    - *The Shadowlands*: the sky over Icecrown torn open, and every soul going the wrong way, felt in
      the Void like a door left open in winter.
-   - *The war beneath*: Dornogal, the earthen, the nerubians of Azj-Kahet; Xal'atath, who came to
-     Telogrus wearing her fears; why she will keep fighting.
+   - *The war beneath*: Dornogal, the earthen, the nerubians of Azj-Kahet; Xal'atath, the Harbinger of
+     the Void, who wears her fears; why she will keep fighting.
    - *Sylvanas*: she asked Alleria to come. She has never asked her for anything.
 
 4. **WRM-802 Back to Your Own Time** (Moratari, after See You Later). As it is taken:

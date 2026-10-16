@@ -971,6 +971,41 @@ for the game on the phone itself ("that's the whole point").
   against stand-ins for the bags, bars and buttons). Not on a phone: the feel of it, and the
   secure buttons in the real client (a taint report there would show as an "AddOn blocked" line).
 
+- Then: "The bronze is not an issue. Ideally there should be more than enough from quest rewards,
+  world events, random treasures, looting etc to get everything, every bit of armor and weapons
+  and mounts etc. I should have enough leftover even 2x is fine ... Umm the timed dungeons I don't
+  really care about. I should also be able to solo the dungeons without it being too crazy. Finish
+  the story, look at it good and be sure it makes sense lore wise. And also put some real effort
+  into the dialogue. And into the cutscenes and stuff the story of wow is where the real treasure
+  is, not the gameplay. Let me know when it's ready to play."
+  - The story to its end (STORY.md): Chapters III and IV rewritten after the turn (WRM-303/313 The
+    Hollow Crown with Alleria at Ursoc's Den, Sylvanas at Drak'Tharon's door, WRM-405 One Life Too
+    Many on Voltarus), Chapter V (WRM-501, 502 Stolen Hours: Eternus comes for Moratari, 521),
+    Chapter VI (WRM-601, 602 A Gift of Grief: Eternus offers Thorim Sif, 621), Chapter VII
+    (WRM-702 What He Was Offered, 701/711 before the Frozen Halls, 721 The Last Hour at Icecrown
+    Citadel's doors, 800 the Lich King as the game has him), the end (the return to the Bazaar,
+    Eternus's letter, WRM-801 See You Later with the goodbyes and fifteen conversations about what
+    comes after this war, WRM-802 Back to Your Own Time). Read through against the game's lore
+    (the ending's conversations corrected where they weren't: Vol'jin's death, Locus-Walker on
+    Argus, Xal'atath's title, Sylvanas at the top of the citadel).
+  - Scenes (`RemixScenes.cpp`, `remix_scene`, `tools/scenes.py`): 13 of them, 170 steps, their
+    people summoned for the one Timerunner, walking, casting and speaking (reading time per line).
+    The Last Hour is a fight of its own (`RemixLastHour.cpp`): Eternus, his loyalists in waves,
+    Moratari, Sylvanas and Alleria beside the player; he retreats at a tenth.
+  - Home (`RemixEnding.cpp`, `Homecomings.kt`): WRM-802 writes the character as a player dump and
+    takes it out of Remix; the app sees the dump, closes the game and starts ChromieCraft, whose
+    world server loads it into its capital. Bronze stays behind; every other item is Wrath's own.
+  - Bronze for everything: quests 4,000 (the story's at least that), kills 75, elites 300, rares
+    3,000, dungeon bosses 6,000, raid bosses 30,000, treasure chests 1,500, achievements 100 a
+    point (world events' included). Every vendor ware a class can use costs 1.3 to 2.2 million
+    (worked out from `npc_vendor` and `itemextendedcost_dbc`); the story from 10 to 80 at these
+    rates comes to roughly 2.5 to 4 million (an estimate, not a measured playthrough). ctl.sh moves
+    a config still at build 65's defaults to these.
+  - Solo (`RemixSolo.cpp`, `WrathRemix.Solo.*`): an instance's share of a full group (bots count)
+    scales the damage both ways; Icecrown Citadel's group-only mechanics are done for a player
+    nearly alone. Timed dungeons: left out, as asked.
+  - Checked here: see the build's entry once it's tested.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.
