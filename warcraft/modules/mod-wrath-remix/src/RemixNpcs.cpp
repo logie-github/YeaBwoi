@@ -46,6 +46,7 @@ namespace
         ACTION_HISTORY,
         ACTION_RECOVER,
         ACTION_BACK,
+        ACTION_LAST_HOUR,
     };
 
     std::string Number(uint32 n)
@@ -278,8 +279,14 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
         // (as a new Timerunner wakes: where and when they are)
         bool waking = !player->GetQuestRewardStatus(QUEST_OUT_OF_TIME) && player->getClass() != CLASS_DEATH_KNIGHT;
+        // (a scene the Timerunner left before its end plays again)
+        ReplaySceneAt(player, creature);
         if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE)
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "I'm ready. Let the anomalies through.", SENDER_MAIN, ACTION_ANOMALIES);
+        // (the last hour, begun again if the Timerunner died or went before it was over)
+        if (player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE)
+            AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "Take me back to the doors of the Citadel.", SENDER_MAIN, ACTION_LAST_HOUR);
+        AddEndingGossip(player, creature);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Where are we in history?", SENDER_MAIN, ACTION_HISTORY);
         SendGossipMenuFor(player, waking ? TEXT_MORATARI_PROLOGUE : TEXT_MORATARI, creature);
         return true;
@@ -289,6 +296,8 @@ public:
     {
         if (!Active())
             return false;
+        if (EndingGossipSelect(player, creature, sender, action, TEXT_MORATARI))
+            return true;
         ClearGossipMenuFor(player);
         if (sender != SENDER_MAIN)
         {
@@ -297,6 +306,10 @@ public:
         }
         switch (action)
         {
+            case ACTION_LAST_HOUR:
+                CloseGossipMenuFor(player);
+                LastHourAgain(player);
+                return true;
             case ACTION_ANOMALIES:
             {
                 CloseGossipMenuFor(player);
@@ -385,16 +398,30 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
-        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS;
-        uint32 text;
-        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
-            text = sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
-        else if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
-            text = sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
-        else
-            text = sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
-        SendGossipMenuFor(player, text, creature);
+        ReplaySceneAt(player, creature);
+        AddEndingGossip(player, creature);
+        SendGossipMenuFor(player, Words(creature), creature);
         return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+    {
+        if (!Active())
+            return false;
+        if (!EndingGossipSelect(player, creature, sender, action, Words(creature)))
+            CloseGossipMenuFor(player);
+        return true;
+    }
+
+    // What they say where they stand.
+    static uint32 Words(Creature* creature)
+    {
+        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS;
+        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
+            return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
+        if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
+            return sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
+        return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
     }
 };
 
@@ -411,7 +438,17 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
+        AddEndingGossip(player, creature);
         SendGossipMenuFor(player, creature->GetEntry() == NPC_NOZARI ? TEXT_NOZARI : TEXT_ANDORMU, creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+    {
+        if (!Active())
+            return false;
+        if (!EndingGossipSelect(player, creature, sender, action, creature->GetEntry() == NPC_NOZARI ? TEXT_NOZARI : TEXT_ANDORMU))
+            CloseGossipMenuFor(player);
         return true;
     }
 };

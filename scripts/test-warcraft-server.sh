@@ -32,8 +32,10 @@
 #      price an ItemExtendedCost of Bronze); every NPC Remix placed stands on the floor
 #      (remix_check.py floors); the realm writes the game's patch with Bronze's rows
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
-#      leave where characters are made for their chapters. Chapters II to IV's transitions are played on
-#      each side (warcraft/server/remix_campaign_*.steps).
+#      leave where characters are made for their chapters. The campaign from Chapter II to the end is
+#      played on each side (warcraft/server/remix_campaign_*.steps): the story's quests and scenes,
+#      Eternus's agents and his last hour, the return to the Bazaar and the goodbyes; both
+#      Timerunners go home, and ChromieCraft's world server takes them in, in their capitals.
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
 set -euo pipefail
@@ -385,16 +387,26 @@ if [ -n "$DATA_ZIP" ]; then
 
 	# The campaign's transitions after Chapter I, each side with a character of its own (the
 	# original quests before them given by GM commands).
-	echo "== Wrath Remix's campaign, Chapters II to IV"
+	echo "== Wrath Remix's campaign, Chapters II to VII and the end"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Wintergarde 1 1 \
 		"$ROOT/warcraft/server/remix_campaign_alliance.steps" | tee "$FILES/logs/remix-campaign-alliance.out" ||
 		fail "the campaign's transitions didn't play through for the Alliance"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Agmarshammer 2 1 \
 		"$ROOT/warcraft/server/remix_campaign_horde.steps" | tee "$FILES/logs/remix-campaign-horde.out" ||
 		fail "the campaign's transitions didn't play through for the Horde"
+	# Both went home at the end (Back to Your Own Time): written for ChromieCraft, and taken off
+	# Wrath Remix once let go.
+	echo "== Wrath Remix's Timerunners gone home"
+	ls -l "$FILES/run/transfers"
+	for name in Wintergarde Agmarshammer; do
+		grep -q "^$name$" "$FILES"/run/transfers/*.who || fail "$name wasn't written to go home to ChromieCraft"
+	done
+	sleep 8
+	gone=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Wintergarde', 'Agmarshammer')" | CTL sql acore_characters_remix)
+	[ "$gone" = 0 ] || fail "$gone of the Timerunners who went home are still on Wrath Remix"
 
 	echo "== Wrath Remix's NPCs on the floor"
-	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704299 ORDER BY guid" |
+	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704399 ORDER BY guid" |
 		CTL sql acore_world_remix > "$FILES/logs/remix-spawns.tsv"
 	python3 "$ROOT/warcraft/server/remix_check.py" floors 127.0.0.1 tester secret123 Timerunner "$FILES/logs/remix-spawns.tsv" |
 		tee "$FILES/logs/remix-floors.out" || fail "Wrath Remix has NPCs floating or buried"
@@ -410,11 +422,19 @@ if [ -n "$DATA_ZIP" ]; then
 	left=$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.zone <> 0 AND c.totaltime >= 30 AND c.map = 571 AND c.position_x BETWEEN 5580 AND 5820 AND c.position_y BETWEEN 890 AND 1130" | CTL sql acore_characters_remix)
 	[ "$left" = 0 ] || fail "$left of the realm's bots stayed at the Infinite Bazaar"
 
-	echo "== ChromieCraft takes Wrath Remix's patch out of the game"
+	echo "== ChromieCraft takes Wrath Remix's patch out of the game, and its Timerunners in"
 	start_world world-again.out
 	wait_world_ready
 	grep -q "Wrath Remix: its patch is out of the game" "$world_log" || fail "ChromieCraft's world server didn't take Wrath Remix's patch out"
 	[ ! -e "$FILES/client/Data/patch-Y.MPQ" ] || fail "Wrath Remix's patch is still in the game on ChromieCraft"
+	# home in their side's capital: Stormwind (map 0, zone 1519) and Orgrimmar (map 1, zone 1637)
+	for expected in "Wintergarde	0	1519" "Agmarshammer	1	1637"; do
+		name=${expected%%	*}
+		row=$(echo "SELECT name, map, zone FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		echo "came home: $row"
+		[ "$row" = "$expected" ] || fail "$name didn't come home to ChromieCraft in their capital ($row)"
+	done
+	[ -z "$(ls "$FILES"/run/transfers/*.dump 2> /dev/null)" ] || fail "ChromieCraft left Timerunners waiting to come home"
 	stop_world
 else
 	# Without the server's data, it runs until it needs dbc, then stops.

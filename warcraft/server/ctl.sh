@@ -170,12 +170,15 @@ remix_defaults() {
 	setkey "$1" SkipCinematics 2
 }
 
-# Bronze is earned in Legion Remix's amounts since build 66 (twenty times what it was): each rate
-# still at its old default takes its new one; one the user changed stays.
+# Bronze is earned in Legion Remix's amounts: twenty times what it was since build 66, and since
+# the story's end eight times that again, enough by the end to buy everything the Bazaar sells a
+# class. Each rate still at one of its old defaults takes its new one; one the user changed stays.
 remix_bronze_rates() {
-	for rate in Quest:25:500 Kill:1:15 Elite:4:60 Rare:20:500 DungeonBoss:40:1000 RaidBoss:150:5000; do
-		key=WrathRemix.Bronze.${rate%%:*} old=${rate#*:} old=${old%:*} new=${rate##*:}
-		! grep -q "^$key[[:space:]]*=[[:space:]]*$old[[:space:]]*$" "$1" || setkey "$1" "$key" "$new"
+	for rate in Quest:25,500:4000 Kill:1,15:75 Elite:4,60:300 Rare:20,500:3000 DungeonBoss:40,1000:6000 RaidBoss:150,5000:30000; do
+		key=WrathRemix.Bronze.${rate%%:*} olds=${rate#*:} olds=${olds%:*} new=${rate##*:}
+		for old in $(echo "$olds" | tr ',' ' '); do
+			! grep -q "^$key[[:space:]]*=[[:space:]]*$old[[:space:]]*$" "$1" || setkey "$1" "$key" "$new"
+		done
 	done
 }
 
@@ -381,6 +384,9 @@ world)
 	# Where Wrath Remix writes the reports its Report Time Anomaly asks for, for the app to send to
 	# GitHub (mod-wrath-remix, RemixReport.cpp).
 	export WOW_REPORTS_DIR="$RUN/reports"
+	# Where a Wrath Remix Timerunner going home is written for ChromieCraft's world server to take
+	# in (mod-wrath-remix, RemixEnding.cpp; the app restarts the server there: Homecomings.kt).
+	export WOW_TRANSFERS_DIR="$RUN/transfers"
 	# The realm's own module configs (patches/azerothcore/0010).
 	export WOW_MODULES_CONF_DIR="$R_ETC/modules"
 	# The game's folder: Wrath Remix writes its patch there as it starts (Bronze and its prices,

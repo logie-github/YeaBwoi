@@ -39,6 +39,7 @@ import com.winlator.xserver.Pointer
 import com.winlator.xserver.XKeycode
 import com.winlator.xserver.Window
 import com.winlator.xserver.XServer
+import java.lang.ref.WeakReference
 
 /**
  * The game's touch controls ([TouchGestures]) and keyboard over Winlator's game screen, in place
@@ -63,6 +64,10 @@ class GestureView(
 ) : View(activity), GestureOutput {
     private val density = resources.displayMetrics.density
     private val gestures = TouchGestures(this, density)
+
+    init {
+        current = WeakReference(this)
+    }
     /** From the view's pixels to the game screen's. */
     private val xform = XForm.getInstance()
     /** The game screen's pixels per view pixel. */
@@ -654,6 +659,7 @@ class GestureView(
     }
 
     override fun onDetachedFromWindow() {
+        if (current?.get() === this) current = null
         removeCallbacks(hold)
         removeCallbacks(typeNext)
         removeCallbacks(screenCheck)
@@ -663,6 +669,16 @@ class GestureView(
     }
 
     companion object {
+        /** The game screen on show, if one is. */
+        @Volatile private var current: WeakReference<GestureView>? = null
+
+        /** Leaves the game for the launcher, as its own Leave does (a Wrath Remix Timerunner going home). */
+        fun leaveGame(): Boolean {
+            val view = current?.get() ?: return false
+            view.post { view.onLeave.run() }
+            return true
+        }
+
         /** The launcher's word that the account has no characters yet: the game will go to character creation. */
         const val EXTRA_NEW_ACCOUNT = "new_account"
         /** The account the launcher put in the game's login box. */

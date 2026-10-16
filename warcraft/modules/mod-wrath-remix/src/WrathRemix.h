@@ -8,6 +8,7 @@
 #define MOD_WRATH_REMIX_H
 
 #include "Define.h"
+#include "Duration.h"
 #include "ObjectGuid.h"
 #include <string>
 #include <unordered_map>
@@ -68,6 +69,19 @@ namespace WrathRemix
         QUEST_MYSTERY_OF_THE_INFINITE = 12470,  // Chromie's, at Wyrmrest Temple (the game's own)
         QUEST_STRANGERS        = 77204,     // Chapter II and the turn (STORY.md)
         QUEST_WEIGHT_OF_TIME   = 77207,
+        QUEST_LAST_HOUR        = 77721,     // Chapter VII: Eternus at the doors of Icecrown Citadel
+        QUEST_LAST_NECESSARY_BATTLE = 77800,  // the Lich King
+        QUEST_SEE_YOU_LATER    = 77801,     // the end (STORY.md)
+        QUEST_BACK_TO_YOUR_OWN_TIME = 77802,
+
+        NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene
+        NPC_LAST_HOUR_CREDIT = 770036,  // WRM-721's, as Eternus retreats
+        NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, his loyalists, and the three beside you
+        NPC_LAST_CHRONOMANCER = 770062,
+        NPC_LAST_EXECUTIONER = 770063,
+        NPC_ALLY_MORATARI = 770064,
+        NPC_ALLY_SYLVANAS = 770065,
+        NPC_ALLY_ALLERIA  = 770066,
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
@@ -224,10 +238,43 @@ namespace WrathRemix
     void TeleportSoon(Player* player, uint32 map, float x, float y, float z, float o);
     bool IsAlliance(Player* player);
 
-    // Bronze amounts (WrathRemix.Bronze.*).
+    // The story's scenes (RemixScenes.cpp): played as a quest is taken or turned in.
+    enum SceneTrigger : uint8
+    {
+        SCENE_ON_ACCEPT = 1,
+        SCENE_ON_REWARD = 2,
+    };
+    void LoadScenes();
+    bool PlayScene(Player* player, uint32 scene);
+    bool SceneRunning(Player* player);
+    void ScenesForQuest(Player* player, uint32 quest, uint8 trigger);
+    bool ReplaySceneAt(Player* player, Creature* creature);
+
+    // The end (RemixEnding.cpp).
+    void LoadEnding();
+    bool AddEndingGossip(Player* player, Creature* creature);
+    bool EndingGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action, uint32 menuText);
+    void SendHome(Player* player);
+    void ReturnToBazaarSoon(Player* player, Milliseconds after);
+    void TakeInTimerunners();
+    void ForgetGoneHome();
+
+    // Eternus's last hour (RemixLastHour.cpp): begun as WRM-721 brings the Timerunner to the doors.
+    bool BeginLastHour(Player* player);
+    void LastHourAgain(Player* player);
+
+    // Dungeons and raids for however many are there (WrathRemix.Solo.*, RemixSolo.cpp).
+    bool SoloActive();
+    float SoloDungeonDamage();
+    float SoloRaidDamage();
+    float SoloMaxBoost();
+
+    // Bronze amounts (WrathRemix.Bronze.*): enough over the story to buy everything the Bazaar sells
+    // a class, once or twice over.
     struct BronzeRates
     {
-        uint32 quest = 500, kill = 15, elite = 60, rare = 500, dungeonBoss = 1000, raidBoss = 5000;
+        uint32 quest = 4000, kill = 75, elite = 300, rare = 3000, dungeonBoss = 6000, raidBoss = 30000,
+            treasure = 1500, achievementPoint = 100;
     };
     BronzeRates const& Rates();
     bool Announce();
