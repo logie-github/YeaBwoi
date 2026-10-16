@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 06:17:51 +0000
+Subject: [PATCH 6/7] Common: musl's cpu_set_t, LockedMap::swap
+
+ProcessPriority read the affinity mask as glibc's __cpu_mask, which musl doesn't name: as an
+unsigned long, its first word. LockedMap::swap named a member that doesn't exist (x.storage),
+which newer compilers check in templates (issue #257).
+---
+ src/common/Threading/LockedMap.h       | 4 ++--
+ src/common/Threading/ProcessPriority.h | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/common/Threading/LockedMap.h b/src/common/Threading/LockedMap.h
+index 8e326ed..7df5c52 100644
+--- a/src/common/Threading/LockedMap.h
++++ b/src/common/Threading/LockedMap.h
+@@ -202,7 +202,7 @@ namespace Trinity
+         {
+             WriteGuard Guard(GetLock());
+             WriteGuard GuardX(x.GetLock());
+-            m_storage.swap(x.storage);
++            m_storage.swap(x.m_storage);
+         }
+ 
+         void clear(void)
+@@ -455,7 +455,7 @@ namespace Trinity
+         {
+             WriteGuard Guard(GetLock());
+             WriteGuard GuardX(x.GetLock());
+-            m_storage.swap(x.storage);
++            m_storage.swap(x.m_storage);
+         }
+ 
+         void clear(void)
+diff --git a/src/common/Threading/ProcessPriority.h b/src/common/Threading/ProcessPriority.h
+index 42e59a4..915f027 100644
+--- a/src/common/Threading/ProcessPriority.h
++++ b/src/common/Threading/ProcessPriority.h
+@@ -81,7 +81,7 @@ inline void SetProcessPriority(const std::string logChannel)
+         {
+             CPU_ZERO(&mask);
+             sched_getaffinity(0, sizeof(mask), &mask);
+-            TC_LOG_ERROR(logChannel, "Using processors (bitmask, hex): %lx", *(__cpu_mask*)(&mask));
++            TC_LOG_ERROR(logChannel, "Using processors (bitmask, hex): %lx", *(unsigned long*)(&mask));
+         }
+     }
+ 

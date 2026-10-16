@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Fri, 16 Oct 2026 06:17:21 +0000
+Subject: [PATCH 3/7] gSOAP: Linux without glibc (musl)
+
+gSOAP knows Linux by glibc. On musl its sockets took size_t lengths (socklen_t is right), its
+gethostbyname_r the 5-argument Solaris form (musl has glibc's 6-argument one) and its
+strerror_r glibc's char* answer (musl's is the XSI int, whatever _GNU_SOURCE says). The Battle.net
+login server's REST login uses it.
+---
+ dep/gsoap/stdsoap2.cpp | 4 ++--
+ dep/gsoap/stdsoap2.h   | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/dep/gsoap/stdsoap2.cpp b/dep/gsoap/stdsoap2.cpp
+index 191d1df..fe20688 100644
+--- a/dep/gsoap/stdsoap2.cpp
++++ b/dep/gsoap/stdsoap2.cpp
+@@ -4307,7 +4307,7 @@ tcp_gethost(struct soap *soap, const char *addr, struct in_addr *inaddr)
+       return soap->error = SOAP_EOM;
+     return SOAP_OK;
+   }
+-#if defined(__GLIBC__) || (defined(HAVE_GETHOSTBYNAME_R) && (defined(FREEBSD) || defined(__FreeBSD__))) || defined(__ANDROID__)
++#if defined(__GLIBC__) || (defined(HAVE_GETHOSTBYNAME_R) && (defined(FREEBSD) || defined(__FreeBSD__))) || defined(__ANDROID__) || defined(__linux__)
+   if (gethostbyname_r(addr, &hostent, soap->buf, sizeof(soap->buf), &host, &soap->errnum) < 0)
+     host = NULL;
+ #elif defined(_AIX43) || ((defined(TRU64) || defined(HP_UX)) && defined(HAVE_GETHOSTBYNAME_R))
+@@ -18498,7 +18498,7 @@ soap_strerror(struct soap *soap)
+   {
+ #ifndef WIN32
+ # ifdef HAVE_STRERROR_R
+-#  if defined(_GNU_SOURCE) && !defined(__ANDROID__)
++#  if defined(_GNU_SOURCE) && !defined(__ANDROID__) && (defined(__GLIBC__) || !defined(__linux__))
+     return strerror_r(err, soap->msgbuf, sizeof(soap->msgbuf)); /* GNU-specific */
+ #  else
+     strerror_r(err, soap->msgbuf, sizeof(soap->msgbuf)); /* XSI-compliant */
+diff --git a/dep/gsoap/stdsoap2.h b/dep/gsoap/stdsoap2.h
+index 7b1a0eb..40ddb7c 100644
+--- a/dep/gsoap/stdsoap2.h
++++ b/dep/gsoap/stdsoap2.h
+@@ -903,7 +903,7 @@ extern "C" {
+ # endif
+ #elif defined(SOCKLEN_T)
+ # define SOAP_SOCKLEN_T SOCKLEN_T
+-#elif defined(__socklen_t_defined) || defined(_SOCKLEN_T) || defined(CYGWIN) || defined(FREEBSD) || defined(__FreeBSD__) || defined(OPENBSD) || defined(__QNX__) || defined(QNX) || defined(OS390) || defined(__ANDROID__) || defined(_XOPEN_SOURCE)
++#elif defined(__socklen_t_defined) || defined(_SOCKLEN_T) || defined(CYGWIN) || defined(FREEBSD) || defined(__FreeBSD__) || defined(OPENBSD) || defined(__QNX__) || defined(QNX) || defined(OS390) || defined(__ANDROID__) || defined(_XOPEN_SOURCE) || defined(__linux__)
+ # define SOAP_SOCKLEN_T socklen_t
+ #elif defined(IRIX) || defined(WIN32) || defined(__APPLE__) || defined(SUN_OS) || defined(OPENSERVER) || defined(TRU64) || defined(VXWORKS) || defined(HP_UX)
+ # define SOAP_SOCKLEN_T int
