@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 15:50:35 +0000
+Subject: [PATCH] G3D: include <sys/time.h> on every Unix
+
+System.h uses struct timeval, which it only brought in on arm64. On x86_64 with musl nothing else
+does (a local build of the phone's server for a test machine).
+---
+ dep/include/g3dlite/G3D/System.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dep/include/g3dlite/G3D/System.h b/dep/include/g3dlite/G3D/System.h
+index 2d2cf56..3389ffc 100644
+--- a/dep/include/g3dlite/G3D/System.h
++++ b/dep/include/g3dlite/G3D/System.h
+@@ -21,7 +21,7 @@
+ #include "G3D/FileNotFound.h"
+ #include <string>
+ 
+-#if defined(__aarch64__)
++#if !defined(_WIN32)
+ #include <sys/time.h>
+ #endif
+ 

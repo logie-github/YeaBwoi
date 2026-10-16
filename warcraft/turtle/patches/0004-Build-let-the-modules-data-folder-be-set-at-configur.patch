@@ -1,0 +1,38 @@
+From 4efcec2879d5de0dc18893941204c69d2be26bf8 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Thu, 15 Oct 2026 01:36:16 +0000
+Subject: [PATCH] Build: let the modules' data folder be set at configure time
+
+The world server reads each module's database updates from
+TW_SOURCE_MODULES_DIR, which was always the source tree's modules/.
+A server installed somewhere else, without its source, couldn't find
+them. TW_MODULES_DATA_DIR (a cache variable, the source tree's modules/
+by default, so nothing changes for anyone who doesn't set it) names the
+folder.
+---
+ CMakeLists.txt | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index d5a1f77c..9fc01e59 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -587,10 +587,14 @@ endif()
+ 
+ # Add definitions for all build types
+ # Don't place this above 'dep' subdirectory! Because of defines build will crash.
++# Where the world server finds modules' database updates (<dir>/<module>/data/sql) when it runs:
++# the source tree by default; a server installed elsewhere (and without its source) names its own.
++set(TW_MODULES_DATA_DIR "${CMAKE_SOURCE_DIR}/modules" CACHE PATH "Folder with each module's data/sql, read by the world server at run time")
++
+ set(DEFINITIONS
+   ${DEFINITIONS}
+   DO_MYSQL
+-  TW_SOURCE_MODULES_DIR="${CMAKE_SOURCE_DIR}/modules"
++  TW_SOURCE_MODULES_DIR="${TW_MODULES_DATA_DIR}"
+ )
+ 
+ if(WIN32)
+-- 
+2.43.0
+

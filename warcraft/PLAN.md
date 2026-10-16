@@ -975,6 +975,9 @@ for the game on the phone itself ("that's the whole point").
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.
 
+- **Turtle WoW — Vanilla+**, a second game with its own Tortoise-WoW realm, kept apart from this
+  one (released in `wow-build-65`): its brief is `TURTLE.md`.
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 

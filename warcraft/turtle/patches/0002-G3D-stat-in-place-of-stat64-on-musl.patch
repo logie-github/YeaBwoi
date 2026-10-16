@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Wed, 14 Oct 2026 15:52:07 +0000
+Subject: [PATCH] G3D: stat in place of stat64 on musl
+
+musl's stat is 64-bit, and since 1.2.4 it no longer has the large-file names (stat64) that glibc
+keeps. FileSystem::_size used them.
+---
+ dep/src/g3dlite/FileSystem.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/dep/src/g3dlite/FileSystem.cpp b/dep/src/g3dlite/FileSystem.cpp
+index 06e6ff0..35cf1db 100644
+--- a/dep/src/g3dlite/FileSystem.cpp
++++ b/dep/src/g3dlite/FileSystem.cpp
+@@ -33,6 +33,10 @@
+ #else
+ #   include <dirent.h>
+ #   include <fnmatch.h>
++    // musl's stat is 64-bit already and it has no stat64 (glibc's large-file names).
++#   if !defined(__GLIBC__) && !defined(__APPLE__)
++#       define stat64 stat
++#   endif
+ #   include <unistd.h>
+ #   define _getcwd getcwd
+ #   define _stat stat

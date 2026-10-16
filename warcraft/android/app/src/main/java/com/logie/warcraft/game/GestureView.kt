@@ -78,13 +78,21 @@ class GestureView(
     private var pointerMoves = 0
     private var lastTapAt = Long.MIN_VALUE / 2
     private var lastTap: TapResult? = null
-    private val selectionFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "selection")
-    private val cutsceneFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "cutscene")
+    /**
+     * Turtle WoW's game ([EXTRA_ENVIRONMENT]): its own realm's folder (whose server writes none of
+     * the files below, so what they drive stays off) and its own saved login and accounts, never
+     * the ChromieCraft realm's.
+     */
+    private val turtle = activity.intent.getStringExtra(EXTRA_ENVIRONMENT) == ENVIRONMENT_TURTLE
+    private val runFolder: java.io.File =
+        if (turtle) com.logie.warcraft.turtle.TurtleFiles.layout(activity).run else com.logie.warcraft.WowFiles.run(activity)
+    private val selectionFile = java.io.File(runFolder, "selection")
+    private val cutsceneFile = java.io.File(runFolder, "cutscene")
     /**
      * Where the app's add-on last said the spellbook is (patches/azerothcore/0009); it says it again
      * as each character comes into the world.
      */
-    private val interfaceFile = java.io.File(com.logie.warcraft.WowFiles.run(activity), "interface")
+    private val interfaceFile = java.io.File(runFolder, "interface")
     private var lastTapX = 0f
     private var lastTapY = 0f
 
@@ -234,7 +242,12 @@ class GestureView(
         if (loginShown) return
         loginShown = true
         postDelayed(screenCheck, SCREEN_CHECK_MS)
-        val login = SavedLogin.get(activity)?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
+        val saved = if (turtle) {
+            com.logie.warcraft.turtle.TurtleLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
+        } else {
+            SavedLogin.get(activity)
+        }
+        val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         if (login != null) {
             logInWhenReady(login.password, SystemClock.uptimeMillis(), seen = 0)
         } else {
@@ -590,8 +603,15 @@ class GestureView(
         val named = account
         Thread {
             runCatching {
-                val names = if (named != null) listOf(named) else Accounts.list(app).map { it.name }
-                names.firstOrNull { Accounts.isPassword(app, it, password) }?.let { SavedLogin.save(app, it, password) }
+                if (turtle) {
+                    val accounts = com.logie.warcraft.turtle.TurtleAccounts
+                    val names = if (named != null) listOf(named) else accounts.list(app).map { it.name }
+                    names.firstOrNull { accounts.isPassword(app, it, password) }
+                        ?.let { com.logie.warcraft.turtle.TurtleLogin.save(app, it, password) }
+                } else {
+                    val names = if (named != null) listOf(named) else Accounts.list(app).map { it.name }
+                    names.firstOrNull { Accounts.isPassword(app, it, password) }?.let { SavedLogin.save(app, it, password) }
+                }
             }
         }.start()
     }
@@ -647,6 +667,10 @@ class GestureView(
         const val EXTRA_NEW_ACCOUNT = "new_account"
         /** The account the launcher put in the game's login box. */
         const val EXTRA_ACCOUNT = "account"
+        /** Which game this is: none for the 3.3.5a game, [ENVIRONMENT_TURTLE] for Turtle WoW's, [ENVIRONMENT_FELSONG] for Felsong's. */
+        const val EXTRA_ENVIRONMENT = "environment"
+        const val ENVIRONMENT_TURTLE = "turtle"
+        const val ENVIRONMENT_FELSONG = "felsong"
 
         private const val CLICK_MS = 30L
         private const val KEY_MS = 60L

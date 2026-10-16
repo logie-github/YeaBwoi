@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
         // Only a fresh start checks for an update, not coming back. Nothing starts until Press start.
         val fresh = savedInstanceState == null
         TitleMusic.load(this)
+        WowUpdater.userToken = ModuleStore.token(this)
         setContent { WowHomeRoute(activity = this, checkUpdateOnOpen = fresh) }
     }
 
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
         visible = true
         TitleMusic.onShown(this)
         Game.onLauncherShown(this)
+        com.logie.warcraft.turtle.TurtleGame.onLauncherShown(this)
     }
 
     override fun onStop() {
