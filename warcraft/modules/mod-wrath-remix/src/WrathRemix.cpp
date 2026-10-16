@@ -733,7 +733,7 @@ public:
         PLAYERHOOK_ON_LOGOUT,
         PLAYERHOOK_ON_SAVE,
         PLAYERHOOK_ON_LEVEL_CHANGED,
-        PLAYERHOOK_ON_QUEST_COMPUTE_EXP,
+        PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
         PLAYERHOOK_ON_CREATURE_KILL,
         PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
         PLAYERHOOK_ON_PLAYER_RESURRECT,
@@ -867,8 +867,10 @@ public:
         }, 1s);
     }
 
-    // Called once as a quest is turned in (it works out the experience).
-    void OnPlayerQuestComputeXP(Player* player, Quest const* quest, uint32& /*xp*/) override
+    // Once, as a quest is turned in (the end of Player::RewardQuest). Not the experience hook: the
+    // core works out a quest's experience for its details and reward windows too, so Bronze, a
+    // chapter or a bridge's journey would come with every window opened.
+    void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
     {
         if (!Active())
             return;
