@@ -960,6 +960,17 @@ for the game on the phone itself ("that's the whole point").
     Quests that take you somewhere as they're taken: `remix_departure`.
   - Checked here: see the build's entry below once it's tested.
 
+- Then: "Make it so when you hold tap on an item or talent or ability it counts as a right click.
+  Make it so if the item is on your action bar it removes it from the bar." Done: the add-on
+  (WowTouch, version 3) also says where the bags, the bank, the character pane, the talents and
+  the action bars are ("hold" areas in the same note as the spellbook's "drag"); a hold there, or
+  on the spellbook, is a right click instead of B. On the spellbook the left button now waits for
+  the finger to move (a tap is a click, a hold a right click, a move a drag). The action bars'
+  buttons get no right-click action of their own ("type2"), and a right click picks their action up
+  and lets it go: off the bar. Checked here: unit tests (the gestures, the note, the add-on
+  against stand-ins for the bags, bars and buttons). Not on a phone: the feel of it, and the
+  secure buttons in the real client (a taint report there would show as an "AddOn blocked" line).
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

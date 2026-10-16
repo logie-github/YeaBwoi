@@ -62,6 +62,30 @@ class TouchAddonTest {
         popupBox = CreateFrame("EditBox", "StaticPopup1EditBox", popup)
         function popupBox:SetFocus() end
         function popupBox:GetParent() return popup end
+        -- Windows and action buttons, as plain tables: a window's place, a button's action and
+        -- what the add-on sets and hooks on it.
+        function window(left, bottom, width, height)
+            return {
+                shown = true,
+                IsVisible = function(self) return self.shown end,
+                GetRect = function(self) return left, bottom, width, height end,
+                GetEffectiveScale = function(self) return 1 end,
+            }
+        end
+        function actionButton(slot)
+            return {
+                action = slot, attributes = {}, hooks = {},
+                SetAttribute = function(self, name, value) self.attributes[name] = value end,
+                HookScript = function(self, script, fn) self.hooks[script] = fn end,
+            }
+        end
+        inCombat = false
+        function InCombatLockdown() return inCombat end
+        actions = { [1] = true, [13] = false }
+        picked = {}
+        function HasAction(slot) return actions[slot] == true end
+        function PickupAction(slot) table.insert(picked, slot) end
+        function ClearCursor() table.insert(picked, "clear") end
         function StaticPopup_Show(which)
             popup.which = which
             popup:Show()
@@ -90,13 +114,13 @@ class TouchAddonTest {
         update(1.0) // Before the world: nothing.
         assertEquals(emptyList(), sent())
         event("PLAYER_ENTERING_WORLD")
-        assertEquals(listOf("WowTouch|drag -|WHISPER|Testhero"), sent())
+        assertEquals(listOf("WowTouch|drag - hold -|WHISPER|Testhero"), sent())
         update(1.0) // Nothing changed: nothing said.
         assertEquals(1, sent().size)
 
         lua.get("spellbook").set("shown", LuaValue.TRUE)
         update(1.0)
-        assertEquals("WowTouch|drag 156 2891 3613 8646|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|drag 156 2891 3613 8646 hold -|WHISPER|Testhero", sent().last())
 
         // What the app makes of it: the spellbook from the top left, inside its edges.
         val note = sent().last().split('|')[1]
@@ -107,11 +131,11 @@ class TouchAddonTest {
         // Bigger interface: the same place in fractions of the screen moves with it.
         lua.get("spellbook").set("scale", LuaValue.valueOf(1.25))
         update(1.0)
-        assertEquals("WowTouch|drag 195 3613 4517 10807|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|drag 195 3613 4517 10807 hold -|WHISPER|Testhero", sent().last())
 
         lua.get("spellbook").set("shown", LuaValue.FALSE)
         update(1.0)
-        assertEquals("WowTouch|drag -|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|drag - hold -|WHISPER|Testhero", sent().last())
     }
 
     @Test
@@ -155,6 +179,48 @@ class TouchAddonTest {
         dialog.get("EditBoxOnEnterPressed").call(box)
         assertEquals("WowRemix|report |WHISPER|Testhero", sent().last())
         assertTrue(!lua.get("popup").get("shown").toboolean())
+    }
+
+    @Test
+    fun itSaysWhereAHoldIsARightClick() {
+        // An open bag on the right, the main action bar along the bottom, a bar on the right edge.
+        lua.load("""
+            ContainerFrame1 = window(800, 100, 200, 300)
+            ContainerFrame2 = window(800, 420, 200, 100)
+            MainMenuBar = window(0, 0, 1024, 53)
+            MultiBarRight = window(980, 200, 44, 400)
+        """.trimIndent()).call()
+        event("PLAYER_ENTERING_WORLD")
+        val note = sent().last().split('|')[1]
+        assertEquals("drag - hold 7813 1302 9766 6771 0 0 10000 690 9570 2604 10000 7813", note)
+        val holds = InterfaceNote.holdAreas(note)
+        assertTrue(holds[0].contains(0.85f, 0.5f) && holds[1].contains(0.5f, 0.97f))
+
+        // The bag closes: said again.
+        lua.load("ContainerFrame1.shown = false; ContainerFrame2.shown = false").call()
+        update(1.0)
+        assertEquals("WowTouch|drag - hold 0 0 10000 690 9570 2604 10000 7813|WHISPER|Testhero", sent().last())
+    }
+
+    @Test
+    fun aRightClickOnAnActionBarsButtonTakesItOffTheBar() {
+        lua.load("ActionButton1 = actionButton(1); MultiBarRightButton1 = actionButton(13); inCombat = true").call()
+        // (in combat, nothing is set: once it's over)
+        event("PLAYER_ENTERING_WORLD")
+        val button = lua.get("ActionButton1")
+        assertTrue(button.get("attributes").get("type2").isnil())
+        lua.set("inCombat", LuaValue.FALSE)
+        event("PLAYER_REGEN_ENABLED")
+        assertEquals("none", button.get("attributes").get("type2").tojstring())
+
+        val postClick = button.get("hooks").get("PostClick")
+        postClick.call(button, LuaValue.valueOf("LeftButton"))
+        postClick.call(button, LuaValue.valueOf("RightButton"))
+        // An empty button: nothing to take.
+        val empty = lua.get("MultiBarRightButton1")
+        empty.get("hooks").get("PostClick").call(empty, LuaValue.valueOf("RightButton"))
+        val picked = lua.get("picked") as LuaTable
+        assertEquals(listOf("1", "clear"), (1..picked.length()).map { picked.get(it).tojstring() })
     }
 
     @Test

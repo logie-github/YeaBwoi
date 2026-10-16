@@ -448,8 +448,15 @@ class GestureView(
         }
     }.getOrNull()
 
-    override fun dragsAt(x: Float, y: Float): Boolean {
-        val areas = InterfaceNote.dragAreas(runCatching { interfaceFile.readText() }.getOrNull())
+    override fun dragsAt(x: Float, y: Float): Boolean = inAreas(x, y) { InterfaceNote.dragAreas(it) }
+
+    /** On the bags, the bank, the character pane, the talents, the action bars or the spellbook. */
+    override fun rightClicksAt(x: Float, y: Float): Boolean =
+        inAreas(x, y) { InterfaceNote.holdAreas(it) + InterfaceNote.dragAreas(it) }
+
+    /** Whether the screen's [x], [y] is in one of the areas the add-on's last note gives. */
+    private fun inAreas(x: Float, y: Float, areasOf: (String?) -> List<InterfaceNote.Area>): Boolean {
+        val areas = areasOf(runCatching { interfaceFile.readText() }.getOrNull())
         if (areas.isEmpty()) return false
         val point = XForm.transformPoint(xform, x, y)
         val width = xServer.screenInfo.width.toFloat()

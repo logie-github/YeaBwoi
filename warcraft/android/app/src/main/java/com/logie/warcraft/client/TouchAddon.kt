@@ -5,13 +5,20 @@ package com.logie.warcraft.client
 /**
  * The app's own add-on, put into the client's `Interface/AddOns` before each start (and left out
  * of the add-on manager's list): it tells the touch controls where the spellbook is while it's
- * open, so a drag that starts on it drags a spell, as the mouse does on a PC.
+ * open, so a drag that starts on it drags a spell, as the mouse does on a PC; and where the
+ * game's windows of items, talents and abilities are (the bags, the bank, the character pane, the
+ * talents, the action bars), where a hold is a right click.
  *
  * An add-on can't reach the app directly, so it says it to the realm on the phone: an add-on
  * message (prefix `WowTouch`) whispered to the player itself, which the realm keeps for the app
  * instead of passing on (patches/azerothcore/0009, `files/run/interface`). It says it again only
- * when it changes: "drag <left> <bottom> <right> <top>" in ten-thousandths of the screen from its
- * bottom left, inside the window's own edges, or "drag -".
+ * when it changes: "drag <left> <bottom> <right> <top> hold <left> <bottom> <right> <top> ..." in
+ * ten-thousandths of the screen from its bottom left (the spellbook inside its own edges; each
+ * group of windows as one area: the bags, the bank, the character pane, the talents, the bars at
+ * the bottom, the bars on the right), "-" for none.
+ *
+ * A right click on an action bar's button (a hold, from the app) takes its action off the bar, as
+ * dragging it away does on a PC, and does nothing else.
  *
  * On the Wrath Remix realm it also puts **Report Time Anomaly** in the game's menu, under Macros:
  * it asks what went wrong (the player may write nothing) and asks the realm for a report, in an
@@ -30,16 +37,18 @@ object TouchAddon {
         "$FOLDER.toc" to """
             ## Interface: ${AddonLayout.INTERFACE}
             ## Title: WowTouch
-            ## Notes: The World of Warcraft app's touch controls: where the spellbook is, for dragging its spells; Report Time Anomaly on Wrath Remix.
+            ## Notes: The World of Warcraft app's touch controls: where the spellbook is, for dragging its spells; holds as right clicks on items, talents and abilities; Report Time Anomaly on Wrath Remix.
             ## Author: World of Warcraft app
-            ## Version: 2
+            ## Version: 3
             $FOLDER.lua
         """.trimIndent() + "\n",
         "$FOLDER.lua" to """
             -- The World of Warcraft app's touch controls (installed by the app at each start). Says
             -- where the spellbook is while it's open, so a drag that starts on it drags a spell, as
-            -- the mouse does on a PC: in an add-on message to the player itself, which the realm on
-            -- the phone keeps for the app. On Wrath Remix, Report Time Anomaly in the game's menu.
+            -- the mouse does on a PC, and where the windows of items, talents and abilities are,
+            -- where a hold is a right click: in an add-on message to the player itself, which the
+            -- realm on the phone keeps for the app. A right click on an action bar's button takes
+            -- it off the bar. On Wrath Remix, Report Time Anomaly in the game's menu.
 
             local said
             local inWorld = false
@@ -65,13 +74,95 @@ object TouchAddon {
                     share((bottom + height - insetTop) * scale / screenHeight))
             end
 
+            -- Some frames, nil ones too: { n = how many, ... }.
+            local function frames(...)
+                return { n = select("#", ...), ... }
+            end
+
+            -- Shown windows' places together, as one area: "<left> <bottom> <right> <top>", or nil.
+            local function around(list)
+                local left, bottom, right, top
+                local screenWidth = GetScreenWidth() * UIParent:GetEffectiveScale()
+                local screenHeight = GetScreenHeight() * UIParent:GetEffectiveScale()
+                for i = 1, list.n do
+                    local frame = list[i]
+                    if frame and frame:IsVisible() then
+                        local l, b, w, h = frame:GetRect()
+                        if l then
+                            local scale = frame:GetEffectiveScale()
+                            l, b, w, h = l * scale / screenWidth, b * scale / screenHeight, w * scale / screenWidth, h * scale / screenHeight
+                            left = math.min(left or l, l)
+                            bottom = math.min(bottom or b, b)
+                            right = math.max(right or l + w, l + w)
+                            top = math.max(top or b + h, b + h)
+                        end
+                    end
+                end
+                if not left then return nil end
+                return string.format("%d %d %d %d", share(left), share(bottom), share(right), share(top))
+            end
+
+            local function bags()
+                local list = { n = NUM_CONTAINER_FRAMES or 13 }
+                for i = 1, list.n do list[i] = _G["ContainerFrame" .. i] end
+                return list
+            end
+
+            -- Where a hold is a right click: the bags, the bank, the character pane, the talents,
+            -- the action bars at the bottom and on the right.
+            local function holds()
+                local areas = {}
+                for _, list in ipairs({
+                    bags(),
+                    frames(BankFrame),
+                    frames(CharacterFrame),
+                    frames(PlayerTalentFrame),
+                    frames(MainMenuBar, MultiBarBottomLeft, MultiBarBottomRight, ShapeshiftBarFrame, PetActionBarFrame),
+                    frames(MultiBarRight, MultiBarLeft),
+                }) do
+                    local area = around(list)
+                    if area then table.insert(areas, area) end
+                end
+                return #areas > 0 and table.concat(areas, " ") or "-"
+            end
+
             local function tell()
                 if not inWorld then return end
-                local note = "drag " .. place(SpellBookFrame)
+                local note = "drag " .. place(SpellBookFrame) .. " hold " .. holds()
                 if note ~= said then
                     said = note
                     SendAddonMessage("$PREFIX", note, "WHISPER", UnitName("player"))
                 end
+            end
+
+            -- A right click on an action bar's button (a hold, from the app) takes its action off the
+            -- bar and does nothing else: its right click has no action of its own ("type2"), and
+            -- after it the action is picked up and let go of. Set out of combat, as the game asks.
+            local barButtons = { "ActionButton", "BonusActionButton", "MultiBarBottomLeftButton",
+                "MultiBarBottomRightButton", "MultiBarRightButton", "MultiBarLeftButton" }
+            local barsReady = false
+
+            local function takeOff(button, mouseButton)
+                if mouseButton ~= "RightButton" then return end
+                local slot = button.action or (ActionButton_GetPagedID and ActionButton_GetPagedID(button))
+                if slot and HasAction(slot) then
+                    PickupAction(slot)
+                    ClearCursor()
+                end
+            end
+
+            local function readyBars()
+                if barsReady or InCombatLockdown() then return end
+                for _, name in ipairs(barButtons) do
+                    for i = 1, 12 do
+                        local button = _G[name .. i]
+                        if button then
+                            button:SetAttribute("type2", "none")
+                            button:HookScript("PostClick", takeOff)
+                        end
+                    end
+                end
+                barsReady = true
             end
 
             local watcher = CreateFrame("Frame")
@@ -145,10 +236,16 @@ object TouchAddon {
 
             watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
             watcher:RegisterEvent("PLAYER_LEAVING_WORLD")
+            watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
             watcher:SetScript("OnEvent", function(self, event)
+                if event == "PLAYER_REGEN_ENABLED" then
+                    readyBars()
+                    return
+                end
                 inWorld = event == "PLAYER_ENTERING_WORLD"
                 said = nil
                 tell()
+                if inWorld then readyBars() end
                 if inWorld and GetRealmName() == "$REMIX_REALM" then addReportButton() end
             end)
         """.trimIndent() + "\n",
