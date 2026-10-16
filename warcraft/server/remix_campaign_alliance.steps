@@ -1,7 +1,9 @@
-# Wrath Remix's campaign, Chapters II to IV, as the Alliance has them: Chapter II's story and the
-# turn, and Moratari's transitions. Played by CI as a level 30 human (auth_check.py script, on the
-# Remix realm). The original quests before each step are given and turned in with GM commands, the
-# story's own are played, and what each opens, and who can be seen, is checked.
+# Wrath Remix's campaign, Chapters II to VII and the end, as the Alliance has them: the story's quests
+# and scenes, Moratari's transitions, Eternus's agents in each chapter and his last hour, the
+# return to the Bazaar, the goodbyes, and the way home to ChromieCraft. Played by CI as a level 30
+# human (auth_check.py script, on the Remix realm), levelled with each chapter. The original quests
+# before each step are given and turned in with GM commands, the story's own are played, and what
+# each opens, and who can be seen, is checked.
 
 cmd .levelup 20
 wait 2
@@ -163,6 +165,35 @@ expect chapter 3
 cmd .gps
 expect Grizzly Hills
 
+# After the turn (STORY.md), Alleria's The Hollow Crown comes before Ursoc. Vordrassil's Sapling
+# done: she is beside Hierophant Thayreen, who doesn't offer Ursoc, the Bear God yet. Her scene
+# plays as it's taken; the Temporal Anchors are at Ursoc's Den, and she meets the Timerunner there.
+cmd .quest add 12248
+cmd .quest complete 12248
+cmd .quest reward 12248
+go 571 3435.2 -2746.4 200.0
+talk 27295
+expect-not quest 12249
+talk 770012
+expect quest 77303
+accept 770012 77303
+wait 35
+expect Go and break his anchors
+go 571 4688.0 -3860.0 328.0
+cmd .remix sees 770042
+expect seen
+cmd .cheat god on
+kill 770042
+kill 770042
+kill 770042
+expect credit 77303 770042 3/3
+cmd .cheat god off
+reward 770012 77303
+expect rewarded 77303
+go 571 3435.2 -2746.4 200.0
+talk 27295
+expect quest 12249
+
 # Chapter III. III-A, WRM-301 (A Shorter Path Through the Woods): Ursoc, the Bear God done;
 # Filling the Cages isn't open at Samir yet. (Chapter III's levels from here on.)
 cmd .levelup 10
@@ -244,6 +275,38 @@ expect rewarded 77402
 talk 28518
 expect quest 12676
 
+# After the turn, Sylvanas's One Life Too Many comes before Betrayal. Sabotage done: she is beside
+# Stefan Vadu, who doesn't offer Betrayal yet. Taking it goes beneath Voltarus, where her scene
+# plays; Eternus's agents and their rift are there, and turning it in goes back to Stefan Vadu.
+cmd .quest add 12676
+cmd .quest complete 12676
+cmd .quest reward 12676
+talk 28518
+expect-not quest 12713
+talk 770011
+expect quest 77405
+accept 770011 77405
+wait 38
+expect Let the troll keep the price he agreed to
+cmd .remix sees 770044
+expect seen
+cmd .cheat god on
+kill 770044
+kill 770044
+kill 770044
+kill 770044
+kill 770044
+kill 770044
+expect credit 77405 770044 6/6
+kill 770045
+expect credit 77405 770045 1/1
+cmd .cheat god off
+reward 770011 77405
+expect rewarded 77405
+wait 4
+talk 28518
+expect quest 12713
+
 # WRM-403 (A Pilgrim's Shortcut): after Precious Elemental Fluids, Moratari by Hexxer Ubungo sends
 # the Timerunner to Har'koa at Zim'Torga, past her rescue.
 cmd .quest add 12510
@@ -301,3 +364,246 @@ cmd .remix
 expect chapter 5
 cmd .gps
 expect Nesingwary Base Camp
+
+# Chapter V (Sholazar Basin, 52 to 60). V-A, WRM-501 (A Brief Hunting Expedition): Moratari by
+# Hemet Nesingwary sends the Timerunner to Pilot Vic, whose Force of Nature leads to the Avatar.
+talk 770001
+expect quest 77501
+accept 770001 77501
+reward 770001 77501
+expect rewarded 77501
+wait 3
+talk 28746
+expect quest 12803
+
+# WRM-502 (Stolen Hours): once the Maker's Perch is powered, Moratari is on the Maker's Overlook;
+# The Etymidian waits for it. Eternus comes for her as it's turned in.
+cmd .levelup 6
+wait 2
+cmd .quest add 12559
+cmd .quest complete 12559
+cmd .quest reward 12559
+cmd .quest add 12613
+cmd .quest complete 12613
+cmd .quest reward 12613
+go 571 5876.1 4116.5 -84.9
+talk 27801
+expect-not quest 12548
+go 571 5739.0 3050.0 288.6
+talk 770001
+expect quest 77502
+accept 770001 77502
+cmd .remix sees 770046
+expect seen
+cmd .cheat god on
+kill 770046
+kill 770046
+kill 770046
+kill 770046
+kill 770046
+kill 770046
+expect credit 77502 770046 6/6
+kill 770047
+expect credit 77502 770047 1/1
+cmd .cheat god off
+reward 770001 77502
+expect rewarded 77502
+wait 50
+wait 45
+expect Then I will remember them for both of us
+go 571 5876.1 4116.5 -84.9
+talk 27801
+expect quest 12548
+
+# WRM-521 (The Makers' Trail): after Reclamation, Moratari by the Avatar sends the Timerunner to K3,
+# Chapter VI.
+cmd .quest add 12546
+cmd .quest complete 12546
+cmd .quest reward 12546
+talk 770001
+expect quest 77521
+accept 770001 77521
+reward 770001 77521
+expect rewarded 77521
+wait 4
+cmd .remix
+expect chapter 6
+cmd .gps
+expect The Storm Peaks
+
+# Chapter VI (the Storm Peaks, 60 to 70). VI-A, WRM-601 (The Very Long Road to Thorim): after Taking
+# on All Challengers, Moratari by Lok'lira opens Lok'lira's Parting Gift.
+cmd .levelup 8
+wait 2
+cmd .quest add 12971
+cmd .quest complete 12971
+cmd .quest reward 12971
+go 571 6922.2 -1534.6 836.7
+talk 29975
+expect-not quest 13062
+talk 770001
+expect quest 77601
+accept 770001 77601
+reward 770001 77601
+expect rewarded 77601
+talk 29975
+expect quest 13062
+
+# WRM-602 (A Gift of Grief): after The Terrace of the Makers, Moratari by Thorim; Loken's Lackeys
+# waits for it. Eternus stands before Thorim as it's turned in.
+cmd .quest add 13057
+cmd .quest complete 13057
+cmd .quest reward 13057
+go 571 7761.1 -2160.9 1233.8
+talk 30295
+expect-not quest 13035
+talk 770001
+expect quest 77602
+accept 770001 77602
+cmd .remix sees 770048
+expect seen
+cmd .cheat god on
+kill 770048
+kill 770048
+kill 770048
+kill 770048
+expect credit 77602 770048 4/4
+cmd .cheat god off
+reward 770001 77602
+expect rewarded 77602
+wait 50
+wait 40
+expect Keep your grief, Stormlord
+talk 30295
+expect quest 13035
+
+# WRM-621 (Storm's End): after The Reckoning, Moratari by King Jokkum (Dun Niffelem is in a phase
+# of its own) sends the Timerunner to the Argent Vanguard, Chapter VII.
+cmd .quest add 13047
+cmd .quest complete 13047
+cmd .quest reward 13047
+cmd .modify phase 5
+go 571 7345.9 -2812.9 799.1
+talk 770001
+expect quest 77621
+accept 770001 77621
+reward 770001 77621
+expect rewarded 77621
+wait 4
+cmd .modify phase 1
+cmd .remix
+expect chapter 7
+cmd .gps
+expect Icecrown
+
+# Chapter VII (Icecrown, 70 to 80). WRM-702 (What He Was Offered): after Light Within the Darkness,
+# Moratari by Tirion at Crusaders' Pinnacle; its scene is the quest.
+cmd .levelup 10
+wait 2
+cmd .quest add 13083
+cmd .quest complete 13083
+cmd .quest reward 13083
+go 571 6426.7 440.0 511.8
+talk 770001
+expect quest 77702
+accept 770001 77702
+wait 30
+wait 28
+expect credit 77702 770035 1/1
+reward 770001 77702
+expect rewarded 77702
+
+# VII-A, WRM-701 (The Armies Are in Place): after The Crusaders' Pinnacle, the same Moratari takes
+# the Timerunner to Sylvanas at the Bazaar; her scene is the quest, and turning it in goes to
+# Dalaran, before the Frozen Halls' first quest giver.
+cmd .quest add 13157
+cmd .quest complete 13157
+cmd .quest reward 13157
+talk 770001
+expect quest 77701
+accept 770001 77701
+wait 6
+cmd .gps
+expect Crystalsong Forest
+wait 30
+wait 25
+expect credit 77701 770035 1/1
+reward 770011 77701
+expect rewarded 77701
+wait 4
+cmd .gps
+expect Dalaran
+talk 37776
+expect quest 24510
+
+# The Frozen Halls are the core's. WRM-721 (The Last Hour): after the escape from the Halls of
+# Reflection, Moratari outside the Frozen Halls takes the Timerunner to the doors of Icecrown
+# Citadel: Eternus speaks, and the three answer; then the fight, and with a tenth of his strength
+# left he retreats (a game master's blow takes him there at once).
+cmd .levelup 6
+wait 2
+cmd .quest add 24500
+cmd .quest complete 24500
+cmd .quest reward 24500
+go 571 5630.6 1997.6 798.6
+talk 770001
+expect quest 77721
+accept 770001 77721
+wait 30
+wait 35
+expect Then you will have to take it from me
+cmd .cheat god on
+kill 770061
+wait 15
+expect credit 77721 770036 1/1
+wait 20
+expect Come back to us
+cmd .cheat god off
+wait 8
+reward 770001 77721
+expect rewarded 77721
+talk 770001
+expect quest 77800
+accept 770001 77800
+
+# WRM-800 (The Last Necessary Battle): the raid can't be played here. As after the Lich King's fall,
+# the Timerunner is brought back to the Bazaar, where everyone is waiting.
+cmd .quest complete 77800
+cmd .remix return
+wait 8
+cmd .gps
+expect Crystalsong Forest
+wait 35
+expect There is one more thing we have to talk about
+reward 770001 77800
+expect rewarded 77800
+
+# The end. WRM-801 (See You Later): the goodbyes, and what they can tell.
+talk 770001
+expect quest 77801
+accept 770001 77801
+talk 770011
+expect What happens to you, after this war?
+select 770011 Teldrassil
+expect gossip text 7703004
+select 770011 going home
+expect credit 77801 770037 1/1
+talk 770012
+expect The war beneath the earth
+select 770012 going home
+expect credit 77801 770038 1/1
+talk 770003
+select 770003 going home
+expect credit 77801 770039 1/1
+talk 770004
+select 770004 going home
+expect credit 77801 770040 1/1
+reward 770001 77801
+expect rewarded 77801
+
+# WRM-802 (Back to Your Own Time): its scene takes Sylvanas's and Alleria's memories, and the
+# Timerunner goes home: the realm writes the character for ChromieCraft and lets it go.
+talk 770001
+expect quest 77802
+accept 770001 77802
+gone 120

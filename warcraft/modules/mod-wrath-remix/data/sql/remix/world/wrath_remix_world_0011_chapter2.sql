@@ -259,7 +259,9 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 -- Who is seen where (type 30: object visibility, for the player; a spawn's own conditions, by its
 -- guid, or every spawn of an entry's, guid 0). Conditions of one ElseGroup must all hold; any one
 -- ElseGroup will do. Quest states: 2 objectives done, 8 in progress, 64 turned in.
-DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND `SourceEntry` IN (@MORATARI, @ETERNUS, @SYLVANAS, @ALLERIA, @INTERLOPER);
+-- (only its own: the later chapters' files have conditions for these people too)
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceEntry` = @INTERLOPER OR
+  (`SourceEntry` IN (@MORATARI, @ETERNUS, @SYLVANAS, @ALLERIA) AND `SourceId` IN (7704011, 7704012, 7704013, 7704014, 7704033, 7704034, 7704035)));
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 -- The Bazaar: Eternus until the turn is done; its own Moratari but while the turn's scene plays;

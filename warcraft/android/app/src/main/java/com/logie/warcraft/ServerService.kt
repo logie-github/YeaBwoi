@@ -29,7 +29,8 @@ import kotlinx.coroutines.launch
  * While the game is on screen the notification steps aside (the game in front keeps the app
  * running) and comes back when the game goes behind, or the screen goes off ([setGameShown]).
  * The service ends itself once the server is stopped. While it runs, it sends the reports the
- * game's Report Time Anomaly asks Wrath Remix for ([AnomalyReports]).
+ * game's Report Time Anomaly asks Wrath Remix for ([AnomalyReports]), and takes the server to
+ * ChromieCraft when a Wrath Remix Timerunner goes home ([Homecomings]).
  */
 class ServerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -82,6 +83,7 @@ class ServerService : Service() {
             reports = scope.launch {
                 while (isActive) {
                     runCatching { AnomalyReports.sendWaiting(this@ServerService) }
+                    runCatching { Homecomings.check(this@ServerService) }
                     delay(REPORTS_EVERY_MS)
                 }
             }

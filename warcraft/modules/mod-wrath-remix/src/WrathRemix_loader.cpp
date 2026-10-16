@@ -6,10 +6,18 @@
 void AddWrathRemixScripts();
 void AddRemixNpcScripts();
 void AddRemixReportScripts();
+void AddRemixSceneScripts();
+void AddRemixEndingScripts();
+void AddRemixLastHourScripts();
+void AddRemixSoloScripts();
 
 void Addmod_wrath_remixScripts()
 {
     AddWrathRemixScripts();
     AddRemixNpcScripts();
     AddRemixReportScripts();
+    AddRemixSceneScripts();
+    AddRemixEndingScripts();
+    AddRemixLastHourScripts();
+    AddRemixSoloScripts();
 }

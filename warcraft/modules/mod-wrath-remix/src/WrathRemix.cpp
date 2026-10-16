@@ -18,6 +18,7 @@
 #include "CreatureData.h"
 #include "DatabaseEnv.h"
 #include "Formulas.h"
+#include "GameObject.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Group.h"
@@ -37,7 +38,9 @@
 #include "Trainer.h"
 #include "World.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <deque>
 #include <map>
 #include <mutex>
 
@@ -54,6 +57,8 @@ namespace WrathRemix
         bool maxWeaponSkill = true;
         uint32 squishHealth = 75;   // WrathRemix.Squish.*: banded creatures' share of their health and damage, in percent
         uint32 squishDamage = 75;
+        bool solo = true;           // WrathRemix.Solo.*: dungeons and raids for however many are there
+        uint32 soloDungeonDamage = 35, soloRaidDamage = 15, soloMaxBoost = 15;
         BronzeRates rates;
 
         std::map<std::pair<uint32, uint32>, LevelBand> bands;
@@ -97,6 +102,10 @@ namespace WrathRemix
         std::mutex timerunnersLock;
         std::unordered_map<ObjectGuid::LowType, Timerunner> timerunners;
 
+        // The chests each Timerunner has had their treasure's Bronze from, lately.
+        std::mutex treasuresLock;
+        std::unordered_map<ObjectGuid::LowType, std::deque<ObjectGuid>> treasures;
+
         // Riding, taught for free as a Timerunner reaches each level (WrathRemix.FreeRiding).
         struct Riding { uint8 level; uint32 spell; };
         constexpr Riding RIDING[] = {
@@ -113,6 +122,10 @@ namespace WrathRemix
     }
 
     bool Active() { return enabled; }
+    bool SoloActive() { return enabled && solo; }
+    float SoloDungeonDamage() { return soloDungeonDamage / 100.0f; }
+    float SoloRaidDamage() { return soloRaidDamage / 100.0f; }
+    float SoloMaxBoost() { return float(std::max<uint32>(1, soloMaxBoost)); }
     bool BandsActive() { return enabled && bandsEnabled; }
     BronzeRates const& Rates() { return rates; }
     bool Announce() { return announce; }
@@ -130,12 +143,19 @@ namespace WrathRemix
         maxWeaponSkill = sConfigMgr->GetOption<bool>("WrathRemix.MaxWeaponSkill", true, false);
         squishHealth = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Health", 75, false), 1, 1000);
         squishDamage = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Squish.Damage", 75, false), 1, 1000);
-        rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", 500, false);
-        rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", 15, false);
-        rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", 60, false);
-        rates.rare = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Rare", 500, false);
-        rates.dungeonBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.DungeonBoss", 1000, false);
-        rates.raidBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.RaidBoss", 5000, false);
+        BronzeRates const defaults;
+        rates.quest = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Quest", defaults.quest, false);
+        rates.kill = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Kill", defaults.kill, false);
+        rates.elite = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Elite", defaults.elite, false);
+        rates.rare = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Rare", defaults.rare, false);
+        rates.dungeonBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.DungeonBoss", defaults.dungeonBoss, false);
+        rates.raidBoss = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.RaidBoss", defaults.raidBoss, false);
+        rates.treasure = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.Treasure", defaults.treasure, false);
+        rates.achievementPoint = sConfigMgr->GetOption<uint32>("WrathRemix.Bronze.AchievementPoint", defaults.achievementPoint, false);
+        solo = sConfigMgr->GetOption<bool>("WrathRemix.Solo.Enable", true, false);
+        soloDungeonDamage = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Solo.DungeonDamage", 35, false), 1, 100);
+        soloRaidDamage = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Solo.RaidDamage", 15, false), 1, 100);
+        soloMaxBoost = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("WrathRemix.Solo.MaxBoost", 15, false), 1, 50);
         if (enabled)
             LOG_INFO("module", "Wrath Remix: on (realm {})", realmId);
         else
@@ -246,6 +266,8 @@ namespace WrathRemix
         }
         LOG_INFO("module", "Wrath Remix: {} level bands, {} transitions, {} chapters, {} destinations, {} vendor lists, {} starter kits",
             bands.size(), bridges.size(), chapters.size(), destinations.size(), vendorLists.size(), kits.size());
+        LoadScenes();
+        LoadEnding();
     }
 
     LevelBand const* BandFor(uint32 map, uint32 zone)
@@ -357,8 +379,12 @@ namespace WrathRemix
 
     void Forget(Player* player)
     {
-        std::lock_guard<std::mutex> lock(timerunnersLock);
-        timerunners.erase(player->GetGUID().GetCounter());
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            timerunners.erase(player->GetGUID().GetCounter());
+        }
+        std::lock_guard<std::mutex> lock(treasuresLock);
+        treasures.erase(player->GetGUID().GetCounter());
     }
 
     uint32 Bronze(Player* player)
@@ -736,6 +762,8 @@ public:
         PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST,
         PLAYERHOOK_ON_CREATURE_KILL,
         PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
+        PLAYERHOOK_ON_LOOT_ITEM,
+        PLAYERHOOK_ON_ACHI_COMPLETE,
         PLAYERHOOK_ON_PLAYER_RESURRECT,
         PLAYERHOOK_ON_UPDATE_AREA,
         PLAYERHOOK_ON_PLAYER_QUEST_ACCEPT,
@@ -764,11 +792,43 @@ public:
     // (remix_departure): back to the Bazaar to face Eternus, out to the Wrathgate's cliffs.
     void OnPlayerQuestAccept(Player* player, Quest const* quest) override
     {
-        if (!Active() || IsBot(player) || !InTheStory(quest->GetQuestId()))
+        if (!Active() || IsBot(player))
             return;
-        if (Departure const* d = DepartureFor(quest->GetQuestId()))
-            TeleportSoon(player, d->map, d->x, d->y, d->z, d->o);
-        RefreshSightSoon(player);
+        uint32 id = quest->GetQuestId();
+        Departure const* departure = InTheStory(id) ? DepartureFor(id) : nullptr;
+        if (departure)
+            TeleportSoon(player, departure->map, departure->x, departure->y, departure->z, departure->o);
+        if (InTheStory(id))
+            RefreshSightSoon(player);
+        // (a quest that takes them somewhere plays its scene there, a moment after they arrive)
+        if (departure)
+            SceneWhenThere(player->GetGUID(), id, departure->map, departure->x, departure->y, 30);
+        else
+            SceneWhenThere(player->GetGUID(), id, player->GetMapId(), player->GetPositionX(), player->GetPositionY(), 1);
+    }
+
+    // The quest's scene once the Timerunner has arrived at [x, y] on [map] (a far journey can keep
+    // them on a loading screen for a while), a check a second, [tries] times.
+    static void SceneWhenThere(ObjectGuid guid, uint32 quest, uint32 map, float x, float y, uint32 tries)
+    {
+        Player* player = ObjectAccessor::FindPlayer(guid);
+        if (!player || !tries)
+            return;
+        player->m_Events.AddEventAtOffset([guid, quest, map, x, y, tries]()
+        {
+            Player* p = ObjectAccessor::FindPlayer(guid);
+            if (!p)
+                return;
+            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == map && p->GetExactDist2d(x, y) < 40.0f)
+            {
+                if (quest == QUEST_LAST_HOUR)
+                    BeginLastHour(p);
+                else
+                    ScenesForQuest(p, quest, SCENE_ON_ACCEPT);
+            }
+            else
+                SceneWhenThere(guid, quest, map, x, y, tries - 1);
+        }, tries == 30 ? 2500ms : 1000ms);
     }
 
     bool OnPlayerBeforeQuestComplete(Player* player, uint32 questId) override
@@ -878,6 +938,7 @@ public:
         AddBronze(player, QuestBronze(id), true);
         if (InTheStory(id) && !IsBot(player))
             RefreshSightSoon(player);
+        ScenesForQuest(player, id, SCENE_ON_REWARD);
 
         if (Bridge const* bridge = BridgeFor(id))
         {
@@ -906,9 +967,51 @@ public:
         }
     }
 
+    // Treasure: the first thing taken from a chest out in the world, a strongbox, a cache
+    // (WrathRemix.Bronze.Treasure), once a chest; not gathering, nor a quest's objects.
+    static void Treasure(Player* player, ObjectGuid source)
+    {
+        if (!Active() || !source.IsGameObject() || IsBot(player) || !Rates().treasure)
+            return;
+        GameObject* chest = player->GetMap()->GetGameObject(source);
+        if (!chest || chest->GetGoType() != GAMEOBJECT_TYPE_CHEST)
+            return;
+        std::string name = chest->GetGOInfo()->name;
+        std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) { return std::tolower(c); });
+        bool treasure = false;
+        for (char const* word : { "chest", "strongbox", "coffer", "cache", "treasure", "footlocker", "lockbox", "trunk" })
+            treasure = treasure || name.find(word) != std::string::npos;
+        if (!treasure)
+            return;
+        {
+            std::lock_guard<std::mutex> lock(treasuresLock);
+            std::deque<ObjectGuid>& seen = treasures[player->GetGUID().GetCounter()];
+            if (std::find(seen.begin(), seen.end(), source) != seen.end())
+                return;
+            seen.push_back(source);
+            if (seen.size() > 64)
+                seen.pop_front();
+        }
+        AddBronze(player, Rates().treasure, true);
+    }
+
+    void OnPlayerLootItem(Player* player, Item* /*item*/, uint32 /*count*/, ObjectGuid source) override
+    {
+        Treasure(player, source);
+    }
+
+    // Achievements: their points' worth (WrathRemix.Bronze.AchievementPoint a point).
+    void OnPlayerAchievementComplete(Player* player, AchievementEntry const* achievement) override
+    {
+        if (Active() && achievement && achievement->points && !IsBot(player))
+            AddBronze(player, achievement->points * Rates().achievementPoint, true);
+    }
+
     // A banded creature's gold is its template's, for its own level: it drops its new level's share.
     void OnPlayerBeforeLootMoney(Player* player, Loot* loot) override
     {
+        if (loot)
+            Treasure(player, loot->sourceWorldObjectGUID);
         if (!BandsActive() || !loot || !loot->gold || !loot->sourceWorldObjectGUID.IsCreature())
             return;
         if (Creature* creature = BandedSource(ObjectAccessor::GetCreature(*player, loot->sourceWorldObjectGUID)))
@@ -1030,6 +1133,7 @@ public:
             { "band",   HandleBand,   SEC_GAMEMASTER, Console::No },
             { "guid",   HandleGuid,   SEC_GAMEMASTER, Console::No },
             { "sees",   HandleSees,   SEC_GAMEMASTER, Console::No },
+            { "return", HandleReturn, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1063,6 +1167,16 @@ public:
         Player* player = handler->getSelectedPlayerOrSelf();
         AddBronze(player, amount, true);
         Save(player);
+        return true;
+    }
+
+    // .remix return (game masters): back to the Bazaar as after the Lich King's fall, for CI's tests
+    // (the raid itself can't be played there).
+    static bool HandleReturn(ChatHandler* handler)
+    {
+        if (!Active())
+            return false;
+        ReturnToBazaarSoon(handler->GetSession()->GetPlayer(), 2s);
         return true;
     }
 

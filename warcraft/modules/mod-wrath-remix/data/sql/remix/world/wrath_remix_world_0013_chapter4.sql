@@ -110,3 +110,92 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77401, 77402, 77403, 77404, 77421);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
 (77401, 600), (77402, 800), (77403, 800), (77404, 800), (77421, 1500);
+
+-- After the turn (STORY.md, Chapter IV): Sylvanas's chapter. Eternus's agents are beneath Voltarus,
+-- opening a rift to carry Drakuru out of history before the Lich King comes for him: and if the
+-- Lich King never comes to Voltarus, he never sees the Timerunner, never decides they are worth
+-- keeping for the end.
+--
+--   WRM-405  Sylvanas, beside Stefan Vadu at the Ebon Watch once Sabotage (12676) is done (taking it
+--            goes beneath Voltarus, where she waits): six Infinite Timesnatchers and their Unstable
+--            Rift; turned in to her there, and back to Stefan Vadu, whose Betrayal (12713) waits for
+--            it. Spawns 7704220 to 7704239.
+
+SET @SYLVANAS := 770011, @TIMESNATCHER := 770044, @RIFT := 770045;
+
+DELETE FROM `quest_template` WHERE `ID` = 77405;
+INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `RewardXPDifficulty`, `RewardMoney`, `Flags`,
+  `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `QuestCompletionLog`,
+  `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText1`, `ObjectiveText2`, `VerifiedBuild`) VALUES
+(77405, 2, 49, 42, 66, 5, 0, 0, 0,
+ 'One Life Too Many',
+ 'Slay 6 Infinite Timesnatchers and close the Unstable Rift beneath Voltarus, then speak with Sylvanas Windrunner there.',
+ 'Eternus has found another life to save. You will not like whose.$B$BDrakuru''s. The troll who sold his people to the Scourge for a crown. Eternus''s agents are beneath Voltarus, opening a door to carry him away before his master comes for him.$B$BI will meet you there. Do not keep me waiting; I have waited on trolls before.',
+ 'Speak with Sylvanas Windrunner beneath Voltarus.', @TIMESNATCHER, 6, @RIFT, 1, 'Infinite Timesnatcher slain', 'Unstable Rift closed', 0);
+
+DELETE FROM `quest_template_addon` WHERE `ID` = 77405;
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77405, 12676);
+
+DELETE FROM `quest_offer_reward` WHERE `ID` = 77405;
+INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
+(77405, 1, 'Good. Now go and betray him. He has earned that much.$B$BWhen the Lich King comes for him, he will look at you. Look back. Remember his face. You will see it again, at the top of his citadel.$B$BStefan Vadu is waiting. I will send you to him.', 0);
+
+DELETE FROM `creature_queststarter` WHERE `quest` = 77405;
+INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@SYLVANAS, 77405);
+DELETE FROM `creature_questender` WHERE `quest` = 77405;
+INSERT INTO `creature_questender` (`id`, `quest`) VALUES (@SYLVANAS, 77405);
+
+-- Taking it goes beneath Voltarus, before Sylvanas; turning it in goes back to Stefan Vadu.
+CREATE TABLE IF NOT EXISTS `remix_departure` (
+  `quest` INT UNSIGNED NOT NULL,
+  `map` SMALLINT UNSIGNED NOT NULL,
+  `x` FLOAT NOT NULL,
+  `y` FLOAT NOT NULL,
+  `z` FLOAT NOT NULL,
+  `o` FLOAT NOT NULL,
+  PRIMARY KEY (`quest`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DELETE FROM `remix_departure` WHERE `quest` = 77405;
+INSERT INTO `remix_departure` (`quest`, `map`, `x`, `y`, `z`, `o`) VALUES (77405, 571, 6099.0, -1930.0, 235.6, 2.40);
+DELETE FROM `remix_bridge` WHERE `quest` = 77405;
+INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `z`, `o`, `skipped`)
+SELECT 77405, 12713, 4, c.`map`, c.`position_x` + 4 * COS(c.`orientation`), c.`position_y` + 4 * SIN(c.`orientation`),
+  c.`position_z` + 0.5, MOD(c.`orientation` + PI(), 2 * PI()), ''
+FROM `creature` c WHERE c.`guid` = 105125;
+
+-- Betrayal waits for it.
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` = 12713;
+INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
+  `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
+(19, 0, 12713, 0, 0, 8, 0, 77405, 0, 0, 0, 0, 0, '', 'Wrath Remix: Betrayal after One Life Too Many');
+
+-- Sylvanas at the Ebon Watch (a step to Stefan Vadu's right) and beneath Voltarus; the agents and
+-- their rift on the ground below the necropolis, where its geists and vargul walk.
+DELETE FROM `creature` WHERE `guid` BETWEEN 7704220 AND 7704239;
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
+SELECT 7704220, @SYLVANAS, c.`map`, 1, c.`phaseMask`, 0,
+  c.`position_x` + 2.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 2.5 * SIN(c.`orientation` - PI() / 2),
+  c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, WRM-405, the Ebon Watch (Stefan Vadu)'
+FROM `creature` c WHERE c.`guid` = 105125;
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
+(7704221, @SYLVANAS,     571, 1, 1, 0, 6095.3, -1926.8, 235.4, 5.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, WRM-405, beneath Voltarus'),
+(7704222, @TIMESNATCHER, 571, 1, 1, 0, 6121.4, -1936.6, 234.7, 3.50, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704223, @TIMESNATCHER, 571, 1, 1, 0, 6123.2, -1974.4, 236.9, 2.80, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704224, @TIMESNATCHER, 571, 1, 1, 0, 6090.2, -1983.8, 233.5, 1.20, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704225, @TIMESNATCHER, 571, 1, 1, 0, 6124.1, -2007.8, 232.3, 1.90, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704226, @TIMESNATCHER, 571, 1, 1, 0, 6166.3, -1965.4, 233.3, 3.60, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704227, @TIMESNATCHER, 571, 1, 1, 0, 6176.5, -1970.2, 232.3, 3.40, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704228, @TIMESNATCHER, 571, 1, 1, 0, 6145.1, -1986.2, 231.9, 2.60, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704229, @RIFT,         571, 1, 1, 0, 6139.3, -1993.9, 231.9, 0,    45, 0, 0, 'Wrath Remix: Unstable Rift, beneath Voltarus');
+
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceId` BETWEEN 7704220 AND 7704239 OR `SourceEntry` IN (@TIMESNATCHER, @RIFT));
+INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
+  `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
+(30, 0, @SYLVANAS, 7704220, 0, 8, 0, 12676, 0, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at the Ebon Watch after Sabotage'),
+(30, 0, @SYLVANAS, 7704220, 0, 47, 0, 77405, 1, 0, 0, 0, 0, '', 'Wrath Remix: ... until One Life Too Many is taken'),
+(30, 0, @SYLVANAS, 7704221, 0, 47, 0, 77405, 10, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas beneath Voltarus during One Life Too Many'),
+(30, 0, @TIMESNATCHER, 0, 0, 47, 0, 77405, 8, 0, 0, 0, 0, '', 'Wrath Remix: Eternus''s agents beneath Voltarus, for One Life Too Many'),
+(30, 0, @RIFT, 0, 0, 47, 0, 77405, 8, 0, 0, 0, 0, '', 'Wrath Remix: their rift, for One Life Too Many');
+
+DELETE FROM `remix_quest_reward` WHERE `quest` = 77405;
+INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES (77405, 3500);

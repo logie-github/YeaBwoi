@@ -376,6 +376,10 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=Non
     session.character = character
     transcript = run_script(session, guid, steps) if steps is not None else None
 
+    # (a character the realm let go has no session left to log out of)
+    if getattr(session, "closed", False):
+        session.sock.close()
+        return transcript
     # The server answers in order: the command's lines come before the logout. A game master's
     # account logs out at once.
     if command:
@@ -445,6 +449,9 @@ def run_script(session, player_guid, steps):
         wait SECONDS                  read what comes
         addon PREFIX TEXT             an add-on message whispered to the character itself, as
                                       the app's add-on (client/TouchAddon) talks to the realm
+        gone SECONDS                  read until the realm lets the character go and closes the
+                                      connection (Wrath Remix's way home), within SECONDS; the
+                                      script ends there
 
     Returns each step with everything heard during it, in order.
     """
@@ -607,6 +614,19 @@ def run_script(session, player_guid, steps):
             session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + session.character.encode() + b"\0"
                          + prefix.encode() + b"\t" + text.encode() + b"\0")
             session.pump(3.0, packets)
+        elif word == "gone":
+            end = time.time() + float(rest)
+            try:
+                while time.time() < end:
+                    session.pump(1.0, packets)
+            except (RuntimeError, OSError):
+                session.closed = True
+            note(packets)
+            transcript.append((line, heard[:]))
+            if not getattr(session, "closed", False):
+                raise RuntimeError(f"the realm didn't let the character go in {rest} s; heard: {heard}")
+            print("script: the realm let the character go")
+            return transcript
         elif word in ("expect", "expect-not"):
             found = any(rest.lower() in h.lower() for h in heard)
             if found != (word == "expect"):
