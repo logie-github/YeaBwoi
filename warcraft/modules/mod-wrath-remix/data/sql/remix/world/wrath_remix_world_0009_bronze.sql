@@ -76,9 +76,10 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
           'Twenty-five champions, and the heroic hours that broke them. The finest the war ever handed out, and two weapons it handed out only once.', 1);
 
 -- The Bazaar's market row, along its west side (Horos, Domelius, Arturos, Aeonicus, Durus),
--- facing the camp. Spawns 7704201 and up: wrath_remix_world_0004_spawns.sql has 7704001 to 7704199.
+-- facing the camp. Spawns 7704201 to 7704205 (only those: the chapters' files have the rest of
+-- 7704200 to 7704399): wrath_remix_world_0004_spawns.sql has 7704001 to 7704199.
 SET @HX := 5700, @HY := 1015, @HZ := 174.6;
-DELETE FROM `creature` WHERE `guid` BETWEEN 7704201 AND 7704299;
+DELETE FROM `creature` WHERE `guid` BETWEEN 7704201 AND 7704205;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704201, @HOROS,    571, 1, 1, 0, @HX - 14, @HY + 8, @HZ, 0, 60, 0, 0, 'Wrath Remix: Horos, Bazaar'),
 (7704202, @DOMELIUS, 571, 1, 1, 0, @HX - 14, @HY + 4, @HZ, 0, 60, 0, 0, 'Wrath Remix: Domelius, Bazaar'),
