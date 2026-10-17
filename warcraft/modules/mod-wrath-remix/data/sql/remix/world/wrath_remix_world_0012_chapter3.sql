@@ -152,12 +152,12 @@ FROM `creature` c JOIN (
   SELECT 2, 114077, 'WRM-303 and WRM-313, Ursoc''s Den (Tur Ragepaw)'
 ) b ON c.`guid` = b.beside;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704315, @ANCHOR,   571, 1, 1, 0, 4681.5, -3853.0, 327.4, 0, 45, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
-(7704316, @ANCHOR,   571, 1, 1, 0, 4694.0, -3866.5, 327.4, 0, 45, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
-(7704317, @ANCHOR,   571, 1, 1, 0, 4700.0, -3845.0, 327.4, 0, 45, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
-(7704318, @REWINDER, 571, 1, 1, 0, 4684.5, -3857.0, 327.4, 2.40, 45, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den'),
-(7704319, @REWINDER, 571, 1, 1, 0, 4690.0, -3870.0, 327.4, 1.20, 45, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den'),
-(7704320, @REWINDER, 571, 1, 1, 0, 4697.0, -3849.0, 327.4, 3.90, 45, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den');
+(7704315, @ANCHOR,   571, 1, 1, 0, 4681.5, -3853.0, 327.4, 0, 180, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
+(7704316, @ANCHOR,   571, 1, 1, 0, 4694.0, -3866.5, 327.4, 0, 180, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
+(7704317, @ANCHOR,   571, 1, 1, 0, 4700.0, -3845.0, 327.4, 0, 180, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
+(7704318, @REWINDER, 571, 1, 1, 0, 4684.5, -3857.0, 327.4, 2.40, 180, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den'),
+(7704319, @REWINDER, 571, 1, 1, 0, 4690.0, -3870.0, 327.4, 1.20, 180, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den'),
+(7704320, @REWINDER, 571, 1, 1, 0, 4697.0, -3849.0, 327.4, 3.90, 180, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den');
 
 -- Who is seen where: Alleria at the lodges from the chain's last quest until The Hollow Crown is
 -- turned in, at the den while it's being done; the anchors and their Rewinders while it is.

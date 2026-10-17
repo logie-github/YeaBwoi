@@ -86,7 +86,7 @@ FROM `creature` c JOIN (
   SELECT 2, 207220, 'WRM-621, Dun Niffelem (King Jokkum)'
 ) b ON c.`guid` = b.beside;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704263 + n, @WEAVER, c.`map`, 1, 1, 0, c.`position_x` + dx, c.`position_y` + dy, c.`position_z`, o, 45, 0, 0,
+SELECT 7704263 + n, @WEAVER, c.`map`, 1, 1, 0, c.`position_x` + dx, c.`position_y` + dy, c.`position_z`, o, 180, 0, 0,
   'Wrath Remix: Infinite Weaver, the Terrace of the Makers'
 FROM `creature` c JOIN (
   SELECT 0 AS n, 14.0 AS dx, 10.0 AS dy, 3.80 AS o UNION ALL
