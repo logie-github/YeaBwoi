@@ -280,6 +280,7 @@ namespace WrathRemix
             bands.size(), bridges.size(), chapters.size(), destinations.size(), vendorLists.size(), kits.size());
         LoadScenes();
         LoadEnding();
+        LoadLessons();
     }
 
     LevelBand const* BandFor(uint32 map, uint32 zone)

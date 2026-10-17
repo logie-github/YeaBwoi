@@ -24,7 +24,7 @@ DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 SET @HX := 5700, @HY := 1015, @HZ := 174.6;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704011, @ETERNUS,      571, 1, 1, 1, @HX,      @HY + 8,  @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Eternus, Bazaar'),
-(7704012, @MORATARI,     571, 1, 1, 1, @HX - 5,  @HY + 6,  @HZ, 5.30, 60, 0, 0, 'Wrath Remix: Moratari, Bazaar'),
+(7704012, @MORATARI,     571, 1, 1, 1, @HX - 9,  @HY + 2,  @HZ, 5.78, 60, 0, 0, 'Wrath Remix: Moratari, Bazaar'),
 (7704004, @ECHO_FOOTMAN,  571, 1, 1, 0, @HX - 9, @HY + 16, @HZ, 5.10, 60, 0, 0, 'Wrath Remix: Echo of a Fallen Footman, Bazaar'),
 (7704005, @ECHO_SAURFANG, 571, 1, 1, 0, @HX,     @HY + 19, @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Echo of Dranosh Saurfang, Bazaar'),
 (7704006, @ECHO_BOLVAR,   571, 1, 1, 0, @HX + 9, @HY + 16, @HZ, 4.30, 60, 0, 0, 'Wrath Remix: Echo of Bolvar Fordragon, Bazaar'),

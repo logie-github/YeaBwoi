@@ -627,6 +627,17 @@ def run_script(session, player_guid, steps):
             session.pump(3.0, packets)
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
             session.pump(0.5, packets)
+        elif word == "cast":
+            # A spell of the character's, cast on the nearest creature of an entry (a game master's
+            # .cast, triggered: no rage, mana or range needed), as a class lesson asks.
+            spell, entry = rest.split()
+            target = creature_guid(int(entry))
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
+            session.pump(0.5, packets)
+            say(session, f".cast {spell} triggered")
+            session.pump(2.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
         elif word == "select":
             entry, text = rest.split(" ", 1)
             guid = creature_guid(int(entry))

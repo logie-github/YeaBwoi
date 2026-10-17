@@ -13,7 +13,8 @@ SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 7700
     @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022,
     @ECHO_BOLVAR := 770023, @ANOMALY := 770031, @ANOMALY_CREDIT := 770032, @INSTRUCTOR_CREDIT := 770033,
     @SYLVANAS := 770011, @ALLERIA := 770012, @MORATARI_SCENE := 770013, @TURN_CREDIT := 770034,
-    @INTERLOPER := 770041, @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015;
+    @INTERLOPER := 770041, @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015,
+    @LESSON_1 := 770067, @LESSON_2 := 770068, @LESSON_3 := 770069;
 
 -- Until build 56 Remix's creatures were 7700001 and up, which made the core keep a table of
 -- creature templates 7.7 million long (its fast lookups are indexed by entry): gone.
@@ -23,7 +24,9 @@ DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 7700001 AND 7700199;
 DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 7700001 AND 7700199;
 DELETE FROM `creature_default_trainer` WHERE `CreatureId` BETWEEN 7700001 AND 7700199;
 
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 770001 AND 770199;
+-- (the Bazaar's camp, 770070 to 770099, is wrath_remix_world_0023_bazaar.sql's, and the opening's,
+-- 770120 to 770149, wrath_remix_world_0024_intro.sql's: left to them, so this file can change alone)
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 770001 AND 770199 AND `entry` NOT BETWEEN 770070 AND 770099 AND `entry` NOT BETWEEN 770120 AND 770149;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
@@ -46,6 +49,11 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@ANOMALY_CREDIT, 'Temporal Anomaly', NULL,                    10, 10, 0, 14, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 128, 1, 1, 2000, 1, ''),
 -- WRM-012's (never spawned): given by any of the Bazaar's instructors as they're spoken to.
 (@INSTRUCTOR_CREDIT, 'Your class''s instructor', NULL,          80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+-- The class lessons' (wrath_remix_world_0025_lessons.sql; never spawned): each of a lesson's three
+-- abilities used as the instructor asks (src/RemixLessons.cpp).
+(@LESSON_1,       'A lesson''s first ability', NULL,           80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+(@LESSON_2,       'A lesson''s second ability', NULL,          80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+(@LESSON_3,       'A lesson''s third ability', NULL,           80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
 -- Chapter II (wrath_remix_world_0011_chapter2.sql): Sylvanas and Alleria Windrunner, brought back
 -- from the future by the bronze; Moratari as WRM-207's scene has her (seen by one Timerunner, no
 -- quests); its credit (never spawned).
@@ -119,7 +127,7 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@BYE_ANDORMU,       'Goodbye said to Andormu', NULL,        80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
 (@BYE_NOZARI,        'Goodbye said to Nozari', NULL,         80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, '');
 
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770001 AND 770199;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770001 AND 770199 AND `CreatureID` NOT BETWEEN 770070 AND 770099 AND `CreatureID` NOT BETWEEN 770120 AND 770149;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
 (@MORATARI, 0, 25458, 1, 1, 0),
 (@ETERNUS, 0, 26580, 1, 1, 0),
@@ -136,6 +144,9 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@ANOMALY, 0, 20515, 1, 1, 0),
 (@ANOMALY_CREDIT, 0, 20515, 1, 1, 0),
 (@INSTRUCTOR_CREDIT, 0, 19373, 1, 1, 0),
+(@LESSON_1, 0, 19373, 1, 1, 0),
+(@LESSON_2, 0, 19373, 1, 1, 0),
+(@LESSON_3, 0, 19373, 1, 1, 0),
 (@SYLVANAS, 0, 28213, 1, 1, 0),       -- the Banshee Queen as Wrath has her
 (@ALLERIA, 0, 21741, 1, 1, 0),        -- a living high elf ranger-general: the 3.3.5 game has no Alleria
 (@SYLVANAS_ABROAD, 0, 21746, 1, 1, 0), -- an elf woman in a black hood and cloak, as rangers go about
@@ -175,7 +186,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@BYE_ANDORMU, 0, 19267, 1, 1, 0),
 (@BYE_NOZARI, 0, 19268, 1, 1, 0);
 
-DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 770001 AND 770199;
+DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 770001 AND 770199 AND `entry` NOT BETWEEN 770070 AND 770099 AND `entry` NOT BETWEEN 770120 AND 770149;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) VALUES
 -- The echoes: half seen, with motes of time about them.
 (@ECHO_FOOTMAN, 0, 0, 0, 1, 0, 0, '44816 37119'),
@@ -184,7 +195,7 @@ INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `b
 -- Sif as Eternus weaves her out of the hours before she died: half there.
 (@ACT_SIF, 0, 0, 0, 1, 0, 0, '44816 37119');
 
-DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 770001 AND 770199;
+DELETE FROM `creature_equip_template` WHERE `CreatureID` BETWEEN 770001 AND 770199 AND `CreatureID` NOT BETWEEN 770070 AND 770099 AND `CreatureID` NOT BETWEEN 770120 AND 770149;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`) VALUES
 (@MORATARI, 1, 39287, 0, 0, 0),
 (@MORATARI_SCENE, 1, 39287, 0, 0, 0),
@@ -214,8 +225,8 @@ INSERT INTO `creature_template_spell` (`CreatureID`, `Index`, `Spell`, `Verified
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702001 AND 7702199;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- Moratari: before the first quest is done, as you wake; after; on where you are in history.
-(7702001, 'Easy. Breathe. A moment ago you were at the end of this war, $n: the Broken Front, under his sword. Before that, your own time: fel fire on the horizon, the fleets loading for the Broken Shore. You are in neither now.$B$BYou are in Northrend, years before both, at the start of the war against the Lich King. You feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here, the long way round. He will want to tell you why himself.',
-          'Easy. Breathe. A moment ago you were at the end of this war, $n: the Broken Front, under his sword. Before that, your own time: fel fire on the horizon, the fleets loading for the Broken Shore. You are in neither now.$B$BYou are in Northrend, years before both, at the start of the war against the Lich King. You feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here, the long way round. He will want to tell you why himself.', 1),
+(7702001, 'Take your time. A moment ago you stood at the end of this war, $n: the Broken Front, the Lich King''s blade raised over you. Before that, your own hour: fel fire on the horizon, the fleets loading for the Broken Shore. You are in neither now.$B$BThis is Northrend, years before both, at the very start of the war against the Lich King. If you feel weaker, it is because you are. Time takes its toll on those who travel through it.$B$BI am Moratari. Eternus brought you here, and he took the long way round on purpose. He will want to tell you why himself.',
+          'Take your time. A moment ago you stood at the end of this war, $n: the Broken Front, the Lich King''s blade raised over you. Before that, your own hour: fel fire on the horizon, the fleets loading for the Broken Shore. You are in neither now.$B$BThis is Northrend, years before both, at the very start of the war against the Lich King. If you feel weaker, it is because you are. Time takes its toll on those who travel through it.$B$BI am Moratari. Eternus brought you here, and he took the long way round on purpose. He will want to tell you why himself.', 1),
 (7702002, 'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.',
           'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.', 1),
 (7702003, 'Every Timerunner I have sent into this war, I can find again. If you lose your way, I will return you to the start of the chapter you are in.',
@@ -262,23 +273,23 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
           'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. I have never had to stand still for anything harder.', 1);
 
 -- The Bazaar's instructors: one for each class, every rank of every spell up to your level, as a
--- capital's trainer teaches them (their trainer lists are the capitals' own). Paladins have two,
--- for the Alliance's and the Horde's seals.
+-- capital's trainer teaches them (their trainer lists are the capitals' own), and the class's lesson
+-- (wrath_remix_world_0025_lessons.sql). Paladins have two, for the Alliance's and the Horde's seals.
 DELETE FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770112;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
-(770101, 'Timeworn Instructor', 'Warrior Trainer',          80, 80, 2, 35, 49, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770102, 'Timeworn Instructor', 'Paladin Trainer',          80, 80, 2, 35, 49, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770103, 'Timeworn Instructor', 'Paladin Trainer (Horde)',  80, 80, 2, 35, 49, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770104, 'Timeworn Instructor', 'Hunter Trainer',           80, 80, 2, 35, 49, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770105, 'Timeworn Instructor', 'Rogue Trainer',            80, 80, 2, 35, 49, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770106, 'Timeworn Instructor', 'Priest Trainer',           80, 80, 2, 35, 49, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770107, 'Timeworn Instructor', 'Death Knight Trainer',     80, 80, 2, 35, 49, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770108, 'Timeworn Instructor', 'Shaman Trainer',           80, 80, 2, 35, 49, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770109, 'Timeworn Instructor', 'Mage Trainer',             80, 80, 2, 35, 49, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770110, 'Timeworn Instructor', 'Warlock Trainer',          80, 80, 2, 35, 49, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
-(770111, 'Timeworn Instructor', 'Druid Trainer',            80, 80, 2, 35, 49, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor');
+(770101, 'Timeworn Instructor', 'Warrior Trainer',          80, 80, 2, 35, 51, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770102, 'Timeworn Instructor', 'Paladin Trainer',          80, 80, 2, 35, 51, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770103, 'Timeworn Instructor', 'Paladin Trainer (Horde)',  80, 80, 2, 35, 51, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770104, 'Timeworn Instructor', 'Hunter Trainer',           80, 80, 2, 35, 51, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770105, 'Timeworn Instructor', 'Rogue Trainer',            80, 80, 2, 35, 51, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770106, 'Timeworn Instructor', 'Priest Trainer',           80, 80, 2, 35, 51, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770107, 'Timeworn Instructor', 'Death Knight Trainer',     80, 80, 2, 35, 51, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770108, 'Timeworn Instructor', 'Shaman Trainer',           80, 80, 2, 35, 51, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770109, 'Timeworn Instructor', 'Mage Trainer',             80, 80, 2, 35, 51, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770110, 'Timeworn Instructor', 'Warlock Trainer',          80, 80, 2, 35, 51, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
+(770111, 'Timeworn Instructor', 'Druid Trainer',            80, 80, 2, 35, 51, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor');
 
 -- Each one a teacher out of another year and another people, as they would stand in a capital:
 -- an orc's warrior, a human's and a blood elf's paladins, a tauren hunter, a night elf rogue, a

@@ -134,11 +134,11 @@ namespace
 
     // The spots, as wrath_remix_world_0004_spawns.sql has the Bazaar's own people.
     constexpr float HX = 5700.0f, HY = 1015.0f, HZ = 174.6f;
-    Position const MORATARI_SPOT(HX - 5.0f, HY + 6.0f, HZ, 5.30f);
+    Position const MORATARI_SPOT(HX - 9.0f, HY + 2.0f, HZ, 5.78f);   // clear of Eternus, who is large
     Position const SYLVANAS_SPOT(HX + 4.0f, HY + 6.0f, HZ, 3.60f);
     Position const ALLERIA_SPOT(HX + 6.5f, HY + 3.5f, HZ, 3.40f);
     Position const VISITORS_FROM(HX + 15.0f, HY - 17.0f, HZ, 2.30f);
-    Position const RIFT_SPOT(HX - 7.5f, HY + 8.5f, HZ, 5.30f);
+    Position const RIFT_SPOT(HX - 11.5f, HY + 4.5f, HZ, 5.78f);
 
     struct TurnScene
     {
@@ -755,8 +755,8 @@ public:
     }
 };
 
-// The Bazaar's instructors: speaking with one is WRM-012's objective; then their lessons, as any
-// trainer's.
+// The Bazaar's instructors: speaking with the one of your class is WRM-012's objective; they have
+// your class's lesson (RemixLessons.cpp) until it's done, and the trainer's list, as any trainer.
 class npc_remix_instructor : public CreatureScript
 {
 public:
@@ -768,9 +768,27 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE)
+        bool ours = TeachesClassOf(creature, player);
+        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE && ours)
             player->KilledMonsterCredit(NPC_INSTRUCTOR_CREDIT);
+        uint32 lesson = ours ? LessonQuest(player) : 0;
+        if (lesson && !player->GetQuestRewardStatus(lesson))
+        {
+            ClearGossipMenuFor(player);
+            player->PrepareQuestMenu(creature->GetGUID());
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "I would like to train.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRAIN);
+            SendGossipMenuFor(player, TEXT_INSTRUCTOR_LESSON, creature->GetGUID());
+            return true;
+        }
         player->GetSession()->SendTrainerList(creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
+    {
+        CloseGossipMenuFor(player);
+        if (action == GOSSIP_ACTION_TRAIN)
+            player->GetSession()->SendTrainerList(creature);
         return true;
     }
 };

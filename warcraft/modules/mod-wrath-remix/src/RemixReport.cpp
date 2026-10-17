@@ -6,7 +6,8 @@
  * they take, finish, turn in and drop, who they speak to, the zones they enter, their levels and
  * deaths, beside Moratari's transitions. The app's add-on (WowTouch, client/TouchAddon.kt) puts
  * Report Time Anomaly in the game's menu, and asks the realm for a report in an add-on message to
- * the player itself: "WowRemix<tab>report <what the player wrote>". The report says where the
+ * the player itself: "WowRemix<tab>report <what the player wrote>" (a long one in pieces, each one
+ * but the last "report+ <its words>"; up to 2000 characters in all). The report says where the
  * Timerunner is, the quest they're on and who they've spoken to since they took it, the rest of
  * their quest log, and the way they came (the journal's latest steps). It goes, in Markdown with
  * the title on its first line, into the folder WOW_REPORTS_DIR names (ctl.sh: files/run/reports),
@@ -45,6 +46,7 @@ namespace WrathRemix
         constexpr uint32 JOURNAL_STEPS = 300;   // the report's way here: the journal's latest steps
         constexpr time_t TALK_AGAIN = 60;       // the same creature spoken to again within a minute: one line
         constexpr time_t REPORT_AGAIN = 30;     // a report a moment after the last: a second tap
+        constexpr size_t REPORT_LENGTH = 2000;  // what a report's own words can run to (the add-on's box holds 1000)
 
         // What the journal last noted for each Timerunner, so it doesn't repeat itself.
         struct Noted
@@ -53,6 +55,7 @@ namespace WrathRemix
             time_t talkTime = 0;
             uint32 zone = 0;
             time_t report = 0;
+            std::string draft;      // a long report's words so far ("report+" messages, ahead of its last)
         };
         std::mutex notedLock;
         std::unordered_map<uint32, Noted> noted;
@@ -431,6 +434,16 @@ namespace WrathRemix
             return name;
         }
 
+        // A long report comes in pieces (an add-on message holds 255 characters): each but the last
+        // is "report+ <words>", kept until the last one, "report <words>", comes.
+        void ReportPart(Player* player, std::string const& part)
+        {
+            std::lock_guard<std::mutex> lock(notedLock);
+            std::string& draft = noted[player->GetGUID().GetCounter()].draft;
+            if (draft.size() < REPORT_LENGTH)
+                draft += part.substr(0, REPORT_LENGTH - draft.size());
+        }
+
         void Report(Player* player, std::string said)
         {
             ChatHandler handler(player->GetSession());
@@ -438,6 +451,8 @@ namespace WrathRemix
             {
                 std::lock_guard<std::mutex> lock(notedLock);
                 Noted& n = noted[player->GetGUID().GetCounter()];
+                said = (n.draft + said).substr(0, REPORT_LENGTH);
+                n.draft.clear();
                 if (now - n.report < REPORT_AGAIN)
                 {
                     handler.SendSysMessage("|cff8fd3ffTime anomaly:|r you reported one a moment ago. It's on its way.");
@@ -570,7 +585,9 @@ public:
         if (language != LANG_ADDON || type != CHAT_MSG_WHISPER || receiver != player || msg.rfind(ADDON_PREFIX, 0) != 0)
             return true;
         std::string_view request = std::string_view(msg).substr(ADDON_PREFIX.size());
-        if (Journaling(player) && request.rfind("report", 0) == 0)
+        if (Journaling(player) && request.rfind("report+", 0) == 0)
+            ReportPart(player, std::string(request.substr(std::min<size_t>(request.size(), 8))));
+        else if (Journaling(player) && request.rfind("report", 0) == 0)
             Report(player, std::string(request.substr(std::min<size_t>(request.size(), 7))));
         return false;
     }

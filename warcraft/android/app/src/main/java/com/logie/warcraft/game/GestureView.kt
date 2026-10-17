@@ -338,8 +338,10 @@ class GestureView(
 
     /** The second tap of a double tap: attack the enemy the first one selected; otherwise jump. */
     override fun doubleTapAt(x: Float, y: Float) {
-        // On the action bars, quick taps are presses of the buttons, as many as there are.
-        if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat())) return tapAt(x, y)
+        // On the action bars, quick taps are presses of the buttons, as many as there are; on the
+        // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
+        // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
+        if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat()) || rightClicksAt(x, y)) return tapAt(x, y)
         val first = lastTap
         if (first == null || Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density) {
             tap(Key.SPACE)
