@@ -19,10 +19,14 @@ cmd .tele UtgardeKeepInstance
 wait 3
 cmd .remix solo
 expect share 0.20, their damage x0.38, yours x3.93, few in Icecrown: no
+# (the Citadel is for level 80: a game master goes in at 30; one isn't counted among its players,
+# and the share is never less than one player's)
+cmd .gm on
 cmd .tele ICCInstance
 wait 3
 cmd .remix solo
 expect share 0.10, their damage x0.25, yours x7.08, few in Icecrown: yes
+cmd .gm off
 
 # Chapter II's story (STORY.md). WRM-203 (A Summons from Wyrmrest): Find Durkon! done.
 # Wintergarde's errands would come next; Into Hostile Territory isn't open yet, and
