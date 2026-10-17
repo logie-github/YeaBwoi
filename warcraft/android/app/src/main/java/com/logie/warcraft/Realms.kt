@@ -37,7 +37,7 @@ object Realms {
 
     // (in a file, read each time: the app's process and the realm's ([RealmLink]) both read and
     // write it, and preferences are cached per process)
-    private fun file(context: Context) = File(context.filesDir, "realm")
+    private fun file(context: Context) = File(WowFiles.run(context), "realm")
 
     /** The realm Press start starts. */
     fun current(context: Context): Realm {
@@ -47,7 +47,7 @@ object Realms {
     }
 
     fun set(context: Context, realm: Realm) {
-        runCatching { file(context).writeText(realm.key) }
+        runCatching { file(context).apply { parentFile?.mkdirs() }.writeText(realm.key) }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, realm.key).apply()
     }
 }
