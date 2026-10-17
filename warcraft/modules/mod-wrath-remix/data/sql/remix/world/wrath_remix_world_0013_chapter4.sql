@@ -179,14 +179,14 @@ SELECT 7704220, @SYLVANAS, c.`map`, 1, c.`phaseMask`, 0,
 FROM `creature` c WHERE c.`guid` = 105125;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704221, @SYLVANAS,     571, 1, 1, 0, 6095.3, -1926.8, 235.4, 5.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, WRM-405, beneath Voltarus'),
-(7704222, @TIMESNATCHER, 571, 1, 1, 0, 6121.4, -1936.6, 234.7, 3.50, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704223, @TIMESNATCHER, 571, 1, 1, 0, 6123.2, -1974.4, 236.9, 2.80, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704224, @TIMESNATCHER, 571, 1, 1, 0, 6090.2, -1983.8, 233.5, 1.20, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704225, @TIMESNATCHER, 571, 1, 1, 0, 6124.1, -2007.8, 232.3, 1.90, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704226, @TIMESNATCHER, 571, 1, 1, 0, 6166.3, -1965.4, 233.3, 3.60, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704227, @TIMESNATCHER, 571, 1, 1, 0, 6176.5, -1970.2, 232.3, 3.40, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704228, @TIMESNATCHER, 571, 1, 1, 0, 6145.1, -1986.2, 231.9, 2.60, 45, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704229, @RIFT,         571, 1, 1, 0, 6139.3, -1993.9, 231.9, 0,    45, 0, 0, 'Wrath Remix: Unstable Rift, beneath Voltarus');
+(7704222, @TIMESNATCHER, 571, 1, 1, 0, 6121.4, -1936.6, 234.7, 3.50, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704223, @TIMESNATCHER, 571, 1, 1, 0, 6123.2, -1974.4, 236.9, 2.80, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704224, @TIMESNATCHER, 571, 1, 1, 0, 6090.2, -1983.8, 233.5, 1.20, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704225, @TIMESNATCHER, 571, 1, 1, 0, 6124.1, -2007.8, 232.3, 1.90, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704226, @TIMESNATCHER, 571, 1, 1, 0, 6166.3, -1965.4, 233.3, 3.60, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704227, @TIMESNATCHER, 571, 1, 1, 0, 6176.5, -1970.2, 232.3, 3.40, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704228, @TIMESNATCHER, 571, 1, 1, 0, 6145.1, -1986.2, 231.9, 2.60, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704229, @RIFT,         571, 1, 1, 0, 6139.3, -1993.9, 231.9, 0,    180, 0, 0, 'Wrath Remix: Unstable Rift, beneath Voltarus');
 
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceId` BETWEEN 7704220 AND 7704239 OR `SourceEntry` IN (@TIMESNATCHER, @RIFT));
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
