@@ -1013,6 +1013,19 @@ for the game on the phone itself ("that's the whole point").
     Bazaar; anywhere to the Bazaar, at the Bazaar back to where you came from; not in a fight.
     Pushed for a release at the user's request before a local full run of these two; CI's server
     test is their first run.
+  - After the user's first play (build 83): the Bazaar made a camp (`tools/bazaar.py`,
+    `0023_bazaar.sql`: the market lane, training yard, waystation, chronicle corner and campfire,
+    59 props, 25 new people, 48 lines spoken while a player is near, `RemixBazaar.cpp`), everyone in
+    a mortal shape (no dragon models in the Bazaar; the broken Time's Toll was Alurmi hidden among
+    overlapping drakes); the guide (`RemixGuide.cpp`: map flag and *Next:* line for every quest);
+    all riding from the first login and every Bronze ware without requirements (`0022`); saves every
+    30 seconds and the server kept running in the background (build 84, the hotfix). The story's
+    timeline as the user set it: the Timerunner from the eve of the Broken Shore, Sylvanas and
+    Alleria from the days of Midnight; the prologue, Wyrmrest, the last hour and the end rewritten
+    for it (Moratari takes the Timerunner's knowledge of their own future at the end).
+    Checked here: compiled; the Remix realm starts and applies every changed file; the prologue
+    plays through Time's Toll and A Small Demonstration at the new positions (the vendors' part
+    after it, and the campaign, are CI's server test, alongside the release).
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the

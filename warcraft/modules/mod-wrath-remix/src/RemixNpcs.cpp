@@ -270,6 +270,8 @@ class npc_remix_moratari : public CreatureScript
 public:
     npc_remix_moratari() : CreatureScript("npc_remix_moratari") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -354,6 +356,8 @@ class npc_remix_eternus : public CreatureScript
 public:
     npc_remix_eternus() : CreatureScript("npc_remix_eternus") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -391,6 +395,8 @@ class npc_remix_windrunner : public CreatureScript
 {
 public:
     npc_remix_windrunner() : CreatureScript("npc_remix_windrunner") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -431,6 +437,8 @@ class npc_remix_keeper : public CreatureScript
 {
 public:
     npc_remix_keeper() : CreatureScript("npc_remix_keeper") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -490,6 +498,8 @@ class npc_remix_alurmi : public CreatureScript
 public:
     npc_remix_alurmi() : CreatureScript("npc_remix_alurmi") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -511,6 +521,8 @@ class npc_remix_bronze_vendor : public CreatureScript
 public:
     npc_remix_bronze_vendor() : CreatureScript("npc_remix_bronze_vendor") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -529,6 +541,8 @@ class npc_remix_zephyr : public CreatureScript
 {
 public:
     npc_remix_zephyr() : CreatureScript("npc_remix_zephyr") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -565,6 +579,8 @@ class npc_remix_saat : public CreatureScript
 public:
     npc_remix_saat() : CreatureScript("npc_remix_saat") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -589,6 +605,8 @@ class npc_remix_chronologist : public CreatureScript
 {
 public:
     npc_remix_chronologist() : CreatureScript("npc_remix_chronologist") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -630,6 +648,8 @@ class npc_remix_momentus : public CreatureScript
 public:
     npc_remix_momentus() : CreatureScript("npc_remix_momentus") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -645,6 +665,8 @@ class npc_remix_echo : public CreatureScript
 {
 public:
     npc_remix_echo() : CreatureScript("npc_remix_echo") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -706,6 +728,8 @@ class npc_remix_instructor : public CreatureScript
 {
 public:
     npc_remix_instructor() : CreatureScript("npc_remix_instructor") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {

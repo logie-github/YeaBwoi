@@ -42,8 +42,8 @@ WrathRemix.Squish.Damage = 75
 
 #
 #    WrathRemix.FreeRiding
-#        Description: Riding taught for free as a Timerunner reaches 20, 40, 60 and 70, and Cold
-#                     Weather Flying at 77.
+#        Description: All riding taught for free from a Timerunner's first login (Apprentice to
+#                     Artisan, and Cold Weather Flying): any mount, at any level.
 #        Default:     1
 
 WrathRemix.FreeRiding = 1
@@ -56,6 +56,15 @@ WrathRemix.FreeRiding = 1
 #        Default:     30
 
 WrathRemix.SaveSeconds = 30
+
+#
+#    WrathRemix.Guide
+#        Description: Where to go next, always: a flag on the map and minimap at the Timerunner's
+#                     next step (the quest's next objective, who takes it back, or who has the next
+#                     quest), and a line in chat as the step changes.
+#        Default:     1
+
+WrathRemix.Guide = 1
 
 #
 #    WrathRemix.StarterKit

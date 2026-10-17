@@ -55,11 +55,12 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 
 DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770201 AND 770299;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
-(@HOROS, 0, 19066, 1, 1, 0),     -- Infinite Timereaver
-(@DOMELIUS, 0, 19059, 1, 1, 0),  -- Infinite Saboteur
-(@ARTUROS, 0, 19058, 1, 1, 0),   -- Infinite Assassin
-(@AEONICUS, 0, 19061, 1, 1, 0),  -- Infinite Chronomancer
-(@DURUS, 0, 19062, 1, 1, 0);     -- Infinite Executioner
+-- (dragons all, in the mortal guises the Infinite wear among mortals)
+(@HOROS, 0, 21445, 1, 1, 0),     -- an elven lord (Tydormu's look)
+(@DOMELIUS, 0, 21508, 1, 1, 0),  -- an elven lady (Indormi's)
+(@ARTUROS, 0, 1504, 1, 1, 0),    -- a human swordsman (Ander Germaine's)
+(@AEONICUS, 0, 20222, 1, 1, 0),  -- an elven sorceress (Soridormi's)
+(@DURUS, 0, 19549, 1, 1, 0);     -- a human captain (Captain Sanders's)
 
 -- What each says (the module picks it; 7702201 and up, outside 0002's texts).
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702201 AND 7702299;
@@ -75,14 +76,15 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (7702205, 'Twenty-five champions, and the heroic hours that broke them. The finest the war ever handed out, and two weapons it handed out only once.',
           'Twenty-five champions, and the heroic hours that broke them. The finest the war ever handed out, and two weapons it handed out only once.', 1);
 
--- The Bazaar's market row, along its west side (Horos, Domelius, Arturos, Aeonicus, Durus),
--- facing the camp. Spawns 7704201 to 7704205 (only those: the chapters' files have the rest of
--- 7704200 to 7704399): wrath_remix_world_0004_spawns.sql has 7704001 to 7704199.
-SET @HX := 5700, @HY := 1015, @HZ := 174.6;
+-- The Bazaar's market lane, along its west side (Horos, Domelius, Arturos, Aeonicus, Durus after
+-- Alurmi), each behind the counter of a stall facing the lane (the stalls are
+-- wrath_remix_world_0023_bazaar.sql's; tools/bazaar.py keeps these spots). Spawns 7704201 to
+-- 7704205 (only those: the chapters' files have the rest of 7704200 to 7704399):
+-- wrath_remix_world_0004_spawns.sql has 7704001 to 7704199.
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704201 AND 7704205;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704201, @HOROS,    571, 1, 1, 0, @HX - 14, @HY + 8, @HZ, 0, 60, 0, 0, 'Wrath Remix: Horos, Bazaar'),
-(7704202, @DOMELIUS, 571, 1, 1, 0, @HX - 14, @HY + 4, @HZ, 0, 60, 0, 0, 'Wrath Remix: Domelius, Bazaar'),
-(7704203, @ARTUROS,  571, 1, 1, 0, @HX - 14, @HY,     @HZ, 0, 60, 0, 0, 'Wrath Remix: Arturos, Bazaar'),
-(7704204, @AEONICUS, 571, 1, 1, 0, @HX - 14, @HY - 4, @HZ, 0, 60, 0, 0, 'Wrath Remix: Aeonicus, Bazaar'),
-(7704205, @DURUS,    571, 1, 1, 0, @HX - 14, @HY - 8, @HZ, 0, 60, 0, 0, 'Wrath Remix: Durus, Bazaar');
+(7704201, @HOROS,    571, 1, 1, 0, 5677.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Horos, Bazaar'),
+(7704202, @DOMELIUS, 571, 1, 1, 0, 5668.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Domelius, Bazaar'),
+(7704203, @ARTUROS,  571, 1, 1, 0, 5659.0, 1046.0, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Arturos, Bazaar'),
+(7704204, @AEONICUS, 571, 1, 1, 0, 5650.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Aeonicus, Bazaar'),
+(7704205, @DURUS,    571, 1, 1, 0, 5641.5, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Durus, Bazaar');

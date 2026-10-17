@@ -25,6 +25,10 @@ it's off and its tables don't exist.
 | `src/RemixSolo.cpp` | Dungeons and raids for however many are in them (`WrathRemix.Solo.*`): damage scaled to the instance's share of a full group, and Icecrown Citadel's group-only mechanics done for a Timerunner nearly alone |
 | `src/RemixFrozenHalls.cpp` | The Forge of Souls' Sylvanas (the Horde's way in): the game's briefing, then the moment she senses she is observed, and her murmurs about her sisters |
 | `src/RemixHourglass.cpp` | Moratari's Hourglass (item 77002): given as a Timerunner wakes at the Bazaar (a death knight's as they come to it), and again if lost; used anywhere, to the Bazaar; used there, back to where they came to it from (kept by a hook on every teleport to the Bazaar, in `remix_character`) |
+| `src/RemixGuide.cpp` | The guide (`WrathRemix.Guide`): a few times a minute, each Timerunner's next step (the quest's next objective at the nearest of its creatures or objects they can see, the one who takes it back, or the one with their next quest), as a flag on the map and minimap (`SMSG_GOSSIP_POI`) and a *Next:* line in chat as it changes; who can be seen follows the story's visibility conditions |
+| `src/RemixBazaar.cpp` | The Bazaar's life: its people (every spawn with lines in `remix_bazaar_line`) talk now and then while a real player is near, to the air or to someone who answers, heard only by those who can see them |
+| `src/PlayerSaves.cpp` | Each real player's character saved every `WrathRemix.SaveSeconds` (30), on either realm |
+| `tools/bazaar.py`, `data/bazaar_ground.tsv` | The Bazaar's camp: its props, its people (the other Timerunners, the cook, porters, wardens, whelps, the dummies), where the story's own stand, what everyone does and says; heights from the floor's survey (`.remix ground`); writes `0023_bazaar.sql` |
 | `tools/scenes.py` | The scenes as Python, from `STORY.md`'s script: who speaks, how long each line is given to be read, where people walk; writes `0014_scenes.sql` |
 | `src/RemixReport.cpp` | Report Time Anomaly: the journal of each Timerunner's way (`remix_log`: logins, quests taken, objectives finished, quests turned in and dropped, creatures and quest objects spoken to, zones, levels, deaths, beside the transitions), and the report the app's add-on asks for from the game's menu ("WowRemix<tab>report <text>", an add-on whisper to the player itself): where they are, the quest they're on, who gave it and who they've spoken to since, the rest of the quest log, the journal's last 300 steps; in Markdown (the title its first line) in the folder `WOW_REPORTS_DIR` names (ctl.sh: `files/run/reports`), for the app to send to GitHub as an issue |
 | `src/ClientPatch.cpp` | The game's patch: as Wrath Remix starts, `Item.dbc`, `ItemExtendedCost.dbc` and `CurrencyTypes.dbc` (the server's, with the `*_dbc` tables' rows: Bronze, its currency row, its prices) in an MPQ in the app's client (`Data/patch-Y.MPQ`, beside `patch-Y.MPQ.wrath-remix`, which says it's Remix's); ChromieCraft's world server takes it out. `WOW_CLIENT_DIR` (ctl.sh) says where the client is |
@@ -63,6 +67,9 @@ and moves Timerunners' quest records over.)
   gives creatures guids of their map's, so CI's test client asks for them).
 - `.remix sees ENTRY` (game masters): whether the story lets you see the nearest creature of that
   entry (its visibility conditions, as without game master mode), for CI's tests.
+- `.remix hourglass` (game masters): where Moratari's Hourglass is and where it would take you back to.
+- `.remix ground [RADIUS] [STEP]` (game masters): the floor's height in a grid around you (how
+  `data/bazaar_ground.tsv` was surveyed).
 - `.remix return` (game masters): the return to the Infinite Bazaar after the Lich King, as his
   ending does it (for when it doesn't, and for CI's tests).
 

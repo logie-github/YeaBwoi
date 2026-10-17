@@ -208,7 +208,7 @@ INSERT INTO `remix_scene_step` (`scene`, `step`, `at`, `action`, `actor`, `entry
 (802, 10, 13666, 8, 2, 1, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (802, 11, 13966, 4, 2, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'Be quick about it, Moratari. I have had enough long goodbyes for one eternity.'),
 (802, 12, 19166, 8, 2, 255, 0, 0.00, 0.00, 0.00, 0.0000, ''),
-(802, 13, 19466, 4, 2, 0, 0, 0.00, 0.00, 0.00, 0.0000, '$n. Whatever I am when you get home, whatever they say of me there: you saw this. Keep it for me.'),
+(802, 13, 19466, 4, 2, 0, 0, 0.00, 0.00, 0.00, 0.0000, '$n. Whatever I become, whatever they say of me where you are going: you saw this. Keep it for me.'),
 (802, 14, 25932, 4, 2, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'And when we meet, the way we are meant to, do not tell me any of this. Let me find you the long way.'),
 (802, 15, 32598, 8, 3, 255, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (802, 16, 32898, 4, 3, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'And if you see my son... no. Don''t tell him anything. He''ll know.'),
@@ -220,6 +220,9 @@ INSERT INTO `remix_scene_step` (`scene`, `step`, `at`, `action`, `actor`, `entry
 (802, 22, 54031, 7, 3, 0, 51347, 0.00, 0.00, 0.00, 0.0000, ''),
 (802, 23, 57131, 8, 1, 255, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (802, 24, 57431, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'There. They will wake in their own times with nothing but a feeling they cannot name. That is the kindest thing I know how to do.'),
-(802, 25, 66031, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'But I will remember. Someone has to. Goodbye, Timerunner. Go home.'),
-(802, 26, 70431, 7, 1, 255, 51347, 0.00, 0.00, 0.00, 0.0000, ''),
-(802, 27, 73531, 21, 0, 0, 0, 0.00, 0.00, 0.00, 0.0000, '');
+(802, 25, 66031, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'Now you. Hold still. Northrend stays with you: the war, the echoes, the two of them. Only what they told you of the years ahead goes back to the hours it came from.'),
+(802, 26, 76964, 7, 1, 255, 31387, 0.00, 0.00, 0.00, 0.0000, ''),
+(802, 27, 81564, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'There. You will go home not knowing how your war ends, the way everyone else goes into theirs. It is the only fair way to go.'),
+(802, 28, 89897, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'But I will remember. Someone has to. Goodbye, Timerunner. Go home.'),
+(802, 29, 94297, 7, 1, 255, 51347, 0.00, 0.00, 0.00, 0.0000, ''),
+(802, 30, 97397, 21, 0, 0, 0, 0.00, 0.00, 0.00, 0.0000, '');
