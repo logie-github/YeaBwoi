@@ -295,38 +295,53 @@ namespace WrathRemix
         // The Bronze stays at the Bazaar.
         if (uint32 bronze = player->GetItemCount(ITEM_BRONZE, true))
             player->DestroyItemCount(ITEM_BRONZE, bronze, true, false);
-        // (saved now, not queued: the dump reads the character from the database next)
+
+        // Saved first, the way the game saves (asynchronously: some of a character's statements
+        // are only prepared for that), and the dump written once the save is in, since it reads
+        // the character from the database.
+        WorldSession* session = player->GetSession();
+        ObjectGuid guid = player->GetGUID();
+        uint32 account = session->GetAccountId();
+        std::string name = player->GetName();
+        bool alliance = player->GetTeamId() == TEAM_ALLIANCE;
         CharacterDatabaseTransaction save = CharacterDatabase.BeginTransaction();
         player->SaveToDB(save, false, false);
-        CharacterDatabase.DirectCommitTransaction(save);
+        session->AddTransactionCallback(CharacterDatabase.AsyncCommitTransaction(save)).AfterComplete(
+            [guid, account, name, alliance, dir](bool saved)
+        {
+            Player* player = ObjectAccessor::FindConnectedPlayer(guid);
+            ObjectGuid::LowType low = guid.GetCounter();
+            std::string base = dir + "/" + std::to_string(low);
+            std::error_code error;
+            std::filesystem::create_directories(dir, error);
+            PlayerDumpWriter writer;
+            if (!saved || writer.WriteDumpToFile(base + ".dump.part", low) != DUMP_SUCCESS)
+            {
+                LOG_ERROR("module", "Wrath Remix: {} couldn't be written to {} to go home", name, dir);
+                std::filesystem::remove(base + ".dump.part", error);
+                if (player)
+                    ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r Something is wrong with the way home. You are still here; report a time anomaly, and I will look into it.");
+                return;
+            }
+            {
+                std::ofstream who(base + ".who");
+                who << account << "\n" << name << "\n" << (alliance ? "alliance" : "horde") << "\n";
+            }
+            std::filesystem::rename(base + ".dump.part", base + ".dump", error);
+            LOG_INFO("module", "Wrath Remix: {} goes home to ChromieCraft ({}.dump)", name, base);
 
-        std::error_code error;
-        std::filesystem::create_directories(dir, error);
-        ObjectGuid::LowType low = player->GetGUID().GetCounter();
-        std::string base = dir + "/" + std::to_string(low);
-        PlayerDumpWriter writer;
-        if (writer.WriteDumpToFile(base + ".dump.part", low) != DUMP_SUCCESS)
-        {
-            LOG_ERROR("module", "Wrath Remix: {} couldn't be written to {} to go home", player->GetName(), dir);
-            ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r Something is wrong with the way home. You are still here; report a time anomaly, and I will look into it.");
-            return;
-        }
-        {
-            std::ofstream who(base + ".who");
-            who << player->GetSession()->GetAccountId() << "\n" << player->GetName() << "\n"
-                << (player->GetTeamId() == TEAM_ALLIANCE ? "alliance" : "horde") << "\n";
-        }
-        std::filesystem::rename(base + ".dump.part", base + ".dump", error);
-        LOG_INFO("module", "Wrath Remix: {} goes home to ChromieCraft ({}.dump)", player->GetName(), base);
-        Record(player, "home", 0, 0);
-
-        // Off Wrath Remix: let go of the game, and take the Timerunner off this realm.
-        ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r Go home, Timerunner. The game will close, and the server will start again on ChromieCraft: you will wake in your side's capital.");
-        {
-            std::lock_guard<std::mutex> lock(goneLock);
-            gone.push_back({ player->GetGUID(), player->GetSession()->GetAccountId(), std::chrono::steady_clock::now() });
-        }
-        player->GetSession()->KickPlayer("Wrath Remix: gone home to ChromieCraft");
+            // Off Wrath Remix: let go of the game, and take the Timerunner off this realm.
+            {
+                std::lock_guard<std::mutex> lock(goneLock);
+                gone.push_back({ guid, account, std::chrono::steady_clock::now() });
+            }
+            if (player)
+            {
+                Record(player, "home", 0, 0);
+                ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r Go home, Timerunner. The game will close, and the server will start again on ChromieCraft: you will wake in your side's capital.");
+                player->GetSession()->KickPlayer("Wrath Remix: gone home to ChromieCraft");
+            }
+        });
     }
 
     // (the world's update: a Timerunner gone home is taken off the realm once they're logged out

@@ -892,6 +892,10 @@ public:
                 // WRM-207's scene is played as it's taken; one cut short (a logout) counts as seen.
                 if (p->GetQuestStatus(QUEST_WEIGHT_OF_TIME) == QUEST_STATUS_INCOMPLETE)
                     p->KilledMonsterCredit(NPC_TURN_CREDIT);
+                // Back to Your Own Time done, and still here (the way home failed, or the realm
+                // stopped on the way): home now.
+                if (!IsBot(p) && p->GetQuestRewardStatus(QUEST_BACK_TO_YOUR_OWN_TIME))
+                    SendHome(p);
             }
         }, 2s);
         Timerunner const t = Get(player);
