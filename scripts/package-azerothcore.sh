@@ -70,6 +70,11 @@ for dir in "$DIST"/modules/*/; do
 		mkdir -p "$pkg/src/modules/$name/data"
 		cp -r "$dir/data/sql" "$pkg/src/modules/$name/data/sql"
 	fi
+	# What a module makes the game's patch from as the world server starts (mod-skyborne's).
+	if [ -d "$dir/data/client" ]; then
+		mkdir -p "$pkg/src/modules/$name/data"
+		cp -r "$dir/data/client" "$pkg/src/modules/$name/data/client"
+	fi
 	# Older modules (mod-npc-talent-template) keep theirs in sql/<database>, which the servers
 	# don't read: it goes where they look, data/sql/db-<database>. Without it the world server
 	# stops at the end of loading, on a table that isn't there. The servers know an applied file

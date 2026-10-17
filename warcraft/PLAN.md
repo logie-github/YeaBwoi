@@ -1060,6 +1060,52 @@ for the game on the phone itself ("that's the whole point").
     out), unit tests (205). Not built here: the APK and the server (CI); not checked: the game on
     a phone with the modules' patch.
 
+- Then: the modules realm check (fixcheck90, wow-build-90, the user's four modules): the world
+  server started, made its bots and took a character in; the run then stopped at Wrath Remix's
+  prologue (the hourglass's way back), red on every build since 86 from the Remix opening's work on
+  ccr-d466cf9d-qtiixw, which that session is still changing. Until it's green, no module realm passes
+  its test, so none is published.
+
+- Then: "research the Skyborne from WoW: Forever, make a custom module that adds them": blood elf
+  models and textures with blue skins and new hair colours; the Alliance's start in Northshire with the
+  human questlines, the Horde's at Camp Narache; the user's MP3 as the intro's narration; the blood
+  elf's portraits with blue skin and white hair; a Dark Ranger skin (grey, red eyes) for blood elves
+  only; eyes yellow or blue (not green or red); then "look up the actual stats and racials and use
+  those". `warcraft/modules/mod-skyborne` (its README):
+  - Races 13 (High Order, Alliance) and 14 (Windshapers, Horde) on the blood elf's model; the game's
+    Naga and Broken moved to 22 and 23 (their creature looks too). Ids up to 21 because the old custom
+    races used up to 21 (and the client is thought to need playable races there); a phone's old High
+    Elf (13) and Mag'har (14) characters show again as Skyborne of the same side.
+  - `tools/build_data.py` (run here on the server data's DBC files and the core's world SQL, output
+    committed): the world database's `*_dbc` rows (ChrRaces, CharSections, CharStartOutfit,
+    SkillRaceClassInfo and SkillLineAbility masks, Faction standing like the start race, the intro's
+    camera and sound, the racials' Spell rows), starts, action bars, skills, racials, stats (WoW:
+    Forever's class starting stats are the class's with Str -1 Agi +1 Sta -1 Int +1), forms
+    (night elf), totems (tauren), quests/items/conditions of the start race (and the Night Elves'/
+    Blood Elves' for classes the start race hasn't); and `data/client`: the rows to change in the
+    game's tables and `textures.txt` (1392 textures: six blue skins, six hair colours from the blood
+    elf's silver, every face with blue and with yellow eyes, the Dark Ranger skin and faces).
+  - Racials as of WoW: Forever's 15 October beta (Wowhead was unreadable here; Warcraft Tavern,
+    lfcarry, BoostRoom, Blizzard's article): Walk on Air 10 s glide, 90 s; Skysight 0.5 s cast while
+    moving, Elemental Blessing +10% run and mounted speed (not stacking), 30 s, 2 min; Read Ley Line
+    2 s cast while moving, Energized +100% Health and Mana regen, 30 s, 2 min; Wind Blessed +3% haste;
+    Elemental Insight +5% vs Elementals. The 15-minute versions (beside a ley line or convergence)
+    aren't made: Northrend hasn't those.
+  - The game's patch (`SkybornePatch.cpp`, at each world server start, only when the client or the
+    module changed): Data/patch-Z.MPQ from the client's own archives (its MPQ files and folder
+    patches, in the game's order, HD looks included): tables with the rows, textures recoloured in
+    their own format (palettes, DXT end colours), the race icons (column 7: the blood elf's, blue,
+    white-haired, blue-eyed, by hand-drawn face masks), GlueXML.toc with SkyborneCreate.xml/.lua
+    (six more race buttons, each side's column, backgrounds Human/Tauren, texts), the narration.
+    LegacyRaces leaves it alone; the app starts WowPatched.exe while it's in.
+  - Checked here: the recolouring tuned by eye on ChromieCraft's HD character textures (downloaded
+    only for that); `tools/test_client.cpp` (patch made for a stand-in game: stock tables, the HD
+    archive, a race icon sheet; read back; second start keeps it); `tools/test_screen.py` (the Lua in
+    Lua 5.1, ten and twelve native buttons); the SQL in MariaDB 10.11, twice; unit tests. CI: the
+    world server makes the patch from the server's tables, a High Order warrior starts in Northshire
+    and a Windshaper shaman at Camp Narache with their racials. Not checked: the game itself (the
+    screen, the looks, the intro on a phone).
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

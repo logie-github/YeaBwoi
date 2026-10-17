@@ -123,7 +123,21 @@ With an HD look, the game runs as `WowPatched.exe`, a copy of your `Wow.exe` tha
 
 ## Custom races (taken out)
 
-Versions 1.0.44 to 1.0.48 had a **Custom races** switch. It's gone. On a phone that had it on, the app takes out what it left: its folder in your client (`Data/patch-Z.MPQ`) as the app opens, with the HD look's files it had set aside back in place, and the realm's part at the realm's next start (**Taking the custom races out**: the world database made again without them, a few minutes, once). Characters made with them stay in the realm's database, left out of the character list.
+Versions 1.0.44 to 1.0.48 had a **Custom races** switch. It's gone. On a phone that had it on, the app takes out what it left: its folder in your client (`Data/patch-Z.MPQ`) as the app opens, with the HD look's files it had set aside back in place, and the realm's part at the realm's next start (**Taking the custom races out**: the world database made again without them, a few minutes, once). Characters made with them stay in the realm's database, left out of the character list; those of its High Elves and Mag'har (races 13 and 14) are in it again, as Skyborne of the High Order and Windshapers, the Skyborne's races now.
+
+## The Skyborne
+
+WoW: Forever's elves of the wind are playable on both realms, on the blood elf's body, a race for each side (`modules/mod-skyborne`, its README has the details):
+
+- **Skyborne of the High Order** (Alliance) start in Northshire with the Humans: their quests, their standing with Stormwind. Warrior, Hunter, Rogue, Mage, Druid.
+- **Skyborne Windshapers** (Horde) start at Camp Narache with the Tauren: their quests, their standing with Thunder Bluff. Warrior, Hunter, Rogue, Shaman, Druid.
+- **Looks**: the blood elf's skins and six blues; blue or yellow eyes (faces 1-10 blue-eyed, 11-20 yellow-eyed); the blood elf's hair colours and six more (snow white to twilight). Their icon on the character creation screen is the blood elf's, blue with white hair.
+- **Racials** (WoW: Forever's, as of its 15 October beta build): Walk on Air (glide down for 10 sec, 90 sec cooldown), Skysight for the Windshapers (+10% run and mounted speed for 30 sec, 2 min) or Read Ley Line for the High Order (+100% Health and Mana regeneration for 30 sec, 2 min), Wind Blessed (+3% haste) and Elemental Insight (+5% damage to Elementals). (In WoW: Forever the two buffs last 15 minutes beside a convergence or ley line, which Northrend's world hasn't got.)
+- **Stats**: Strength -1, Agility +1, Stamina -1, Intellect +1, as WoW: Forever's starting stats have them.
+- **The intro** is their start race's flight over its land, with the Skyborne's own narration.
+- **Blood elves** get a new skin colour: Dark Ranger (grey, red eyes), after their others.
+
+The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-Z.MPQ`, from your client's own files: the blood elf's textures recoloured; it takes a little longer to start the first time, and again only when the client changes). The game then starts with its patched executable. A `patch-Z.MPQ` of your own is left alone, and the game then won't know them. An HD look's character files are used as the Skyborne's base, whichever look is in.
 
 ## Modules
 
@@ -331,6 +345,7 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `../scripts/package-azerothcore.sh` | Packs `android/server/server.tar.xz` (git-ignored) from that, in the same Alpine, in a few minutes: the programs with their own musl loader and libraries, Alpine's MariaDB, OpenSSL's legacy provider, the system call shim, the SQL, the configs and a seed database folder |
 | `../scripts/build-azerothcore.sh` | Both, one after the other |
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI; both realms (`main`, `remix`): their configs, databases, world servers and realm list entries |
+| `modules/mod-skyborne/` | The Skyborne (its own README): their SQL and the game's patch made from the client's files as the world server starts (`tools/build_data.py` makes its data) |
 | `modules/mod-wrath-remix/` | Wrath Remix (its own README): the module, its SQL for the Remix databases only, the campaign's quests matched to the game's (`tools/quest_audit.py`) |
 | `REMIX-GUIDE.md`, `REMIX-ASSESSMENT.md` | The design Wrath Remix follows (yours), and the earlier assessment |
 | `../scripts/test-warcraft-server.sh`, `server/auth_check.py` | CI's test of the package, unpacked where the phone puts it: MariaDB, the databases, a 3.3.5a login with the realm list, the world server started on the downloaded data, a character created and taken into the world by a 3.3.5a world client written in Python, a GM command, the app's add-on message kept for the app, and the shutdown the app does; then what earlier versions' custom races left taken out (the world database made again, their files gone, a character of one of them left out of the character list but kept), and a module taken out of the realm taking what it put in the world database with it (`ctl.sh modules`); then Wrath Remix: its databases, its world server with the module on (off in ChromieCraft's), both realms in the realm list, a level 10 Timerunner who plays the prologue to the first chapter (`server/remix_prologue.steps`, with a heirloom bought for Bronze), Chapters II to VII and the end on each side (`server/remix_campaign_*.steps`: the story's quests and scenes, Eternus's last hour, the return to the Bazaar, the goodbyes, and the way home: both Timerunners leave Wrath Remix and ChromieCraft's world server takes them in, in their capitals), the floor under every NPC it placed (`server/remix_check.py`), and the realm's bots out of the prologue |

@@ -64,7 +64,8 @@ ninja -C "$BUILD" -j "$JOBS" ${NINJA_ARGS:-}
 ccache -s
 
 # The programs and their configs, installed for the phone's paths, then the SQL: the core's, and
-# each module's wherever it keeps it (data/sql, sql/<database>, the progression brackets').
+# each module's wherever it keeps it (data/sql, sql/<database>, the progression brackets'), and the
+# files a module makes the game's patch from (data/client: mod-skyborne's).
 rm -rf "$DIST" "$DIST.install"
 DESTDIR="$DIST.install" ninja -C "$BUILD" install > /dev/null
 mkdir -p "$DIST/bin" "$DIST/etc/modules" "$DIST/modules"
@@ -83,7 +84,7 @@ rm -rf "$DIST/sql/archive" "$DIST/sql/create" "$DIST/sql/old"
 for dir in "$SRC"/modules/*/; do
 	dir=${dir%/}
 	name=$(basename "$dir")
-	for sql in "$dir"/data/sql "$dir"/sql "$dir"/src/Bracket_*/sql; do
+	for sql in "$dir"/data/sql "$dir"/data/client "$dir"/sql "$dir"/src/Bracket_*/sql; do
 		[ -d "$sql" ] || continue
 		rel=${sql#"$dir/"}
 		mkdir -p "$DIST/modules/$name/$(dirname "$rel")"
