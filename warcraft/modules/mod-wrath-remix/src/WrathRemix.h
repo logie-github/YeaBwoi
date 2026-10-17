@@ -45,7 +45,10 @@ namespace WrathRemix
         NPC_ECHO_BOLVAR   = 770023,
         NPC_ANOMALY       = 770031,
         NPC_ANOMALY_CREDIT = 770032,    // WRM-013's kill credit, given as each anomaly dies
-        NPC_INSTRUCTOR_CREDIT = 770033, // WRM-012's, given by any instructor as they're spoken to
+        NPC_INSTRUCTOR_CREDIT = 770033, // the old WRM-012's (until build 90)
+        NPC_PLAN_WHAT     = 770049,     // WRM-011's: the three things the Timerunner asks Eternus
+        NPC_PLAN_HOW      = 770050,
+        NPC_PLAN_WHY      = 770058,
         NPC_TURN_CREDIT   = 770034,     // WRM-207's, given as its scene ends
         NPC_INTERLOPER    = 770041,     // Eternus's loyalists on the Wrathgate's cliffs (WRM-208)
         NPC_TIME_RIFT     = 28409,      // the Culling of Stratholme's time rift, for Moratari's return
@@ -65,9 +68,11 @@ namespace WrathRemix
         ITEM_HOURGLASS    = 77002,      // Moratari's Hourglass: to the Bazaar and back (RemixHourglass.cpp)
 
         QUEST_OUT_OF_TIME      = 77010,     // the prologue at the Bazaar (STORY.md)
-        QUEST_WAR_WILL_COST    = 77011,
+        QUEST_THE_PLAN         = 77011,
         QUEST_TIMES_TOLL       = 77012,
         QUEST_DEMONSTRATION    = 77013,
+        QUEST_OLD_HABITS       = 77020,
+        QUEST_BAZAAR_KEEPERS   = 77021,
         QUEST_TO_THE_FRONT_A   = 77014,
         QUEST_TO_THE_FRONT_H   = 77015,
         QUEST_MYSTERY_OF_THE_INFINITE = 12470,  // Chromie's, at Wyrmrest Temple (the game's own)
@@ -91,12 +96,16 @@ namespace WrathRemix
 
         QUEST_LESSON_FIRST = 77030,     // the class lessons, one a class (wrath_remix_world_0025_lessons.sql)
         QUEST_LESSON_LAST  = 77039,
+        QUEST_FLAG_ALONE   = 77040,     // never offered: rewarded while the Timerunner has asked Moratari to wait (RemixMoratari.cpp)
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
         TEXT_MORATARI_HISTORY  = 7702003,
         TEXT_ETERNUS           = 7702010,
         TEXT_ETERNUS_LATER     = 7702011,
+        TEXT_ETERNUS_WHAT      = 7702012,   // his answers to WRM-011's questions
+        TEXT_ETERNUS_HOW       = 7702013,
+        TEXT_ETERNUS_WHY       = 7702014,
         TEXT_ANDORMU           = 7702020,
         TEXT_NOZARI            = 7702021,
         TEXT_ALURMI            = 7702030,
@@ -264,6 +273,7 @@ namespace WrathRemix
     void LoadScenes();
     bool PlayScene(Player* player, uint32 scene);
     bool SceneRunning(Player* player);
+    uint32 SceneDuration(uint32 scene);                     // its last step's time, in ms (0: no such scene)
     void ScenesForQuest(Player* player, uint32 quest, uint8 trigger);
     bool ReplaySceneAt(Player* player, Creature* creature);
 
@@ -287,6 +297,27 @@ namespace WrathRemix
     // The class lessons (RemixLessons.cpp): each instructor walks a Timerunner of their class
     // through three of its abilities on the training yard's dummies.
     void LoadLessons();
+
+    // Moratari at the Timerunner's side (RemixMoratari.cpp): her words on quests, the companion, and
+    // remix_talk's things to say (to her, or to the war's own people).
+    void LoadMoratari();
+    std::string Words(Player* player, std::string text);                    // $N, $R, $C, $G... as a quest's text has them
+    void MoratariSays(Player* player, uint32 speaker, std::string const& text);
+    void MoratariOnQuest(Player* player, uint32 quest, uint8 moment);
+    bool IsCompanionSummon();                                               // (while the companion is being summoned)
+    uint8 CompanionLevel();
+    CreatureAI* MoratariCompanionAI(Creature* creature);
+    bool AddTalk(Player* player, Creature* creature);
+    bool HasTalk(Player* player, Creature* creature);
+    bool TalkSelect(Player* player, Creature* creature, uint32 sender, uint32 action);
+    std::string CompanionReport(Player* player);
+
+    // Outings (RemixOutings.cpp): somewhere Moratari takes the Timerunner, a scene played there, and
+    // back again (her tent at the Bazaar, a flight on her back).
+    void LoadOutings();
+    bool StartOuting(Player* player, uint32 outing);
+    bool OnOuting(Player* player);
+    void ScreenFade(Player* player, uint32 milliseconds, std::string const& text);  // dark for a while, words on it
     uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
     bool IsLesson(uint32 quest);
     bool TeachesClassOf(Creature* instructor, Player* player);  // the instructor is their class's

@@ -28,7 +28,8 @@
 #      character there is a level 10 Timerunner at the Infinite Bazaar who plays the prologue
 #      (warcraft/server/remix_prologue.steps) to the first chapter, with Northrend's creatures at
 #      its levels, and has its class's starter kit on, its abilities learned and its weapon skill
-#      at its level's maximum, buys from the Bazaar's Bronze vendors' windows (Bronze an item, a
+#      at its level's maximum; Moratari walks with a Timerunner in the Borean Tundra, fights
+#      beside them, steps away to her post and waits when asked (remix_companion.steps); buys from the Bazaar's Bronze vendors' windows (Bronze an item, a
 #      price an ItemExtendedCost of Bronze); every NPC Remix placed stands on the floor
 #      (remix_check.py floors); the realm writes the game's patch with Bronze's rows
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
@@ -343,19 +344,23 @@ if [ -n "$DATA_ZIP" ]; then
 	echo "== Wrath Remix's prologue"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Timerunner 1 1 \
 		"$ROOT/warcraft/server/remix_prologue.steps" | tee "$FILES/logs/remix-prologue.out" || fail "the prologue didn't play through"
-	# Report Time Anomaly, asked for during Time's Toll: the realm's report for the app to send to
+	# Report Time Anomaly, asked for during the Bazaar's Keepers: the realm's report for the app to send to
 	# GitHub, with the quest the Timerunner is on, who gave it, who they've spoken to since, and the
 	# way they came.
 	report=$(ls "$FILES/run/reports"/anomaly-*.md 2> /dev/null | head -1)
 	[ -n "$report" ] || fail "Report Time Anomaly wrote no report in files/run/reports"
 	echo "Time anomaly report $(basename "$report"):"
 	sed -n '1,16p' "$report"
-	for text in "# Time anomaly: Time's Toll (Timerunner, level" "**What happened:** CI's report, from the Bazaar" \
-		"**Time's Toll** (77012), ready to turn in" "from Eternus (770002)" "Spoken to since it was taken: Alurmi (770005)" \
-		"Timeworn Instructor (770101)" "### The way here" "Took **Out of Time** (77010)" \
-		"Spoke to Echo of a Fallen Footman (770021)" "Turned in **What the War Will Cost** (77011)"; do
+	for text in "# Time anomaly: The Bazaar's Keepers (Timerunner, level" "**What happened:** CI's report, from the Bazaar" \
+		"**The Bazaar's Keepers** (77021), in progress" "from Moratari (770001)" "Spoken to since it was taken: Zephyr (770006)" \
+		"### The way here" "Took **Out of Time** (77010)" "Turned in **The Plan** (77011)" \
+		"Turned in **Old Habits** (77020)" "Spoke to Timeworn Instructor (770101)"; do
 		grep -qF "$text" "$report" || fail "the time anomaly report hasn't \"$text\""
 	done
+	echo "== Moratari beside a Timerunner (the companion)"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Companion 1 1 \
+		"$ROOT/warcraft/server/remix_companion.steps" | tee "$FILES/logs/remix-companion.out" ||
+		fail "Moratari didn't walk with the Timerunner in the Borean Tundra"
 	band=$(grep -o "band check: [0-9]* banded creatures, levels [0-9]* to [0-9]*" "$FILES/logs/remix-prologue.out" | tail -1)
 	echo "Valiance Keep: $band"
 	[ -n "$band" ] && [ "${band##* }" -le 23 ] || fail "Borean Tundra's creatures aren't at Chapter I's levels ($band)"

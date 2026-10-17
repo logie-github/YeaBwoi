@@ -281,6 +281,8 @@ namespace WrathRemix
         LoadScenes();
         LoadEnding();
         LoadLessons();
+        LoadMoratari();
+        LoadOutings();
     }
 
     LevelBand const* BandFor(uint32 map, uint32 zone)
@@ -1049,7 +1051,7 @@ public:
             if (bridge->map != 0xFFFF)
                 TeleportSoon(player, bridge->map, bridge->x, bridge->y, bridge->z, bridge->o);
         }
-        else if (id == QUEST_TIMES_TOLL)
+        else if (id == QUEST_BAZAAR_KEEPERS)
         {
             // The hearthstone remembers the Bazaar.
             if (Destination const* bazaar = DestinationFor(TRAVEL_BAZAAR))
@@ -1153,6 +1155,12 @@ public:
 
     void OnBeforeCreatureSelectLevel(CreatureTemplate const* /*info*/, Creature* creature, uint8& level) override
     {
+        // (Moratari beside a Timerunner is their level)
+        if (uint8 companion = CompanionLevel(); companion && creature && creature->GetEntry() == NPC_MORATARI)
+        {
+            level = companion;
+            return;
+        }
         if (!BandsActive() || !creature || creature->IsPet())
             return;
         Map* map = creature->GetMap();
@@ -1168,7 +1176,7 @@ public:
     // The squish: a banded creature at its share of its new level's health (WrathRemix.Squish.Health).
     void OnCreatureSelectLevel(CreatureTemplate const* info, Creature* creature) override
     {
-        if (!BandsActive() || squishHealth == 100 || !info || !creature || creature->IsPet() || creature->IsControlledByPlayer())
+        if (!BandsActive() || squishHealth == 100 || !info || !creature || creature->IsPet() || creature->IsControlledByPlayer() || CompanionLevel())
             return;
         if (creature->GetLevel() >= std::min(info->minlevel, info->maxlevel))
             return;
@@ -1240,6 +1248,7 @@ public:
             { "hourglass", HandleHourglass, SEC_GAMEMASTER, Console::No },
             { "ground", HandleGround, SEC_GAMEMASTER, Console::No },
             { "intro",  HandleIntro,  SEC_GAMEMASTER, Console::No },
+            { "companion", HandleCompanion, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1292,6 +1301,15 @@ public:
         if (!Active())
             return false;
         handler->SendSysMessage(SoloReport(handler->GetSession()->GetPlayer()));
+        return true;
+    }
+
+    // .remix companion (game masters): Moratari beside them, or why not.
+    static bool HandleCompanion(ChatHandler* handler)
+    {
+        if (!Active())
+            return false;
+        handler->SendSysMessage(CompanionReport(handler->GetSession()->GetPlayer()));
         return true;
     }
 

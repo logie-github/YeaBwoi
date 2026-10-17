@@ -12,7 +12,7 @@ scene walks between them), it has districts a Timerunner can read at a glance:
   - the training yard to the south-east: the instructors at work, dummies and targets to try;
   - the waystation to the north-east: Zephyr, his drake and a door in time; Sa'at's map table;
   - the chronicle corner to the north-west: the Chronologist's shelves, Momentus's orb;
-  - the campfire to the south: other Timerunners from the eve of the Legion's return, and a cook;
+  - the campfire to the south: other Timerunners, veterans of this war from their own hours after it, and a cook;
   - and between them porters on their rounds, wardens walking the edge, whelps underfoot.
 
 Everyone with something to say says it now and then while a Timerunner is about, to the air or to
@@ -318,18 +318,18 @@ LINES = {
     7704029: [("If you can see the fireball coming, you cast it too slowly.", TALK, 0, "", 0)],
     7704030: [("Do not feed the imp. Whatever it tells you.", NO, 0, "", 0)],
     7704031: [("Even on stone, things grow. Slowly. Sideways, sometimes.", 0, 0, "", 0)],
-    # The other Timerunners, from the eve of the Legion's return.
-    7704501: [("Last thing I remember, there were demons in Westfall and every captain in Stormwind was counting ships for the Broken Shore.",
-               TALK, 7704502, "Then we had better be home before they sail.", 0)],
+    # The other Timerunners, veterans of this war, each from their own hour after it.
+    7704501: [("Last thing I remember, I was buying a round in Ironforge to toast the Lich King's fall.",
+               TALK, 7704502, "Then we had better be home before it goes flat.", 0)],
     7704502: [("Third time through the Borean Tundra this week. The penguins are starting to recognize me.", LAUGH,
                7704501, "Those are not penguins taking notes, Vaela. Those are bronze dragons.", TALK)],
     7704503: [("Gnome. Why is my bag lighter than when I came?", QUESTION, 7704504, "Time dilation! Or I borrowed your rations. One of the two.", TALK),
-              ("I fought the Iron Horde on Draenor. Next to them, the Scourge is almost polite.", TALK, 7704504, "Almost. They still bite.", 0)],
+              ("I fought my way into Ulduar. Next to what was under it, the Scourge is almost polite.", TALK, 7704504, "Almost. They still bite.", 0)],
     7704505: [("The Sunwell burns again in this year. In mine too, and still half of Silvermoon lies in ruins. Some wounds take longer than a war.", 0, 0, "", 0)],
     7704506: [("They keep asking if I am from this year. I am barely from this century.", TALK, 7704507,
                "Ya worry too much, mon. Time be a river. We just be fishin'.", LAUGH)],
-    7704507: [("Vol'jin be Warchief where I come from. Here he be a chieftain with a long memory.", TALK, 7704506,
-               "Do not tell him. The dragons get twitchy.", 0)],
+    7704507: [("Vol'jin be chieftain of de Darkspear in dis year, and in mine. Some tings time don't touch.", TALK, 7704506,
+               "Do not say that too loud. The dragons get twitchy.", 0)],
     7704508: [("Best stew in any century. Do not tell the cook I said so.", EAT, 7704509, "I heard that, Steelhide. Second bowl is still Bronze.", LAUGH)],
     7704509: [("Stew's on! Crystalsong mushrooms, and something the gnome swears is a vegetable.", EXCLAIM, 0, "", 0),
               ("Eat while you can. The Scourge does not stop for supper.", TALK, 0, "", 0)],
@@ -344,8 +344,8 @@ LINES = {
 # What the Timerunners and the camp's people say when spoken to (npc_text, gossip_menu).
 GOSSIP = {
     7702401: "Brannigan Holt, Stormwind. Or I was, a few years from now.$B$BYou look like you woke up the same way I did. Get your strength back, then get out there. The war is not going to wait for us twice.",
-    7702402: "Shh. Listen to that fire. In my time the fires all burn green.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?",
-    7702403: "Grukk Ironjaw, of the Frostwolves. I have killed demons and iron orcs and once, by accident, a very large goat.$B$BThe Scourge I know. It is good to fight something I already understand.",
+    7702402: "Shh. Listen to that fire. In my time I cannot sit by one without thinking of the Wrathgate.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?",
+    7702403: "Grukk Ironjaw, of the Frostwolves. I have killed centaur and quilboar and once, by accident, a very large goat.$B$BThe Scourge I know: I followed it all the way to the Frozen Throne. It is good to fight something I already understand.",
     7702404: "Thaddeus Quill, engineer, Timerunner, and the only gnome in this camp who read the warning label on the hourglass.$B$BIt says do not shake. I shook it. That is how I got here, I think.",
     7702405: "The Sunwell is burning again. I can feel it from here, even in this year. It was dark for so long.$B$BWhatever Eternus offers you, $c, ask him what it costs. It always costs something.",
     7702406: "Morrigan Ashe. Forsaken, priestess, and very tired of being asked if I am from around here.$B$BI died in the Third War. I would rather not watch this one do it to anyone else. That is why I listened to Eternus. I am still listening.",
@@ -364,7 +364,7 @@ def main():
 -- the west edge (a stall for each Bronze trader), the training yard to the south-east (the
 -- instructors at work, dummies and targets), the waystation to the north-east (Zephyr, his drake, a
 -- door in time, Sa'at's map table), the chronicle corner to the north-west, the campfire to the
--- south (other Timerunners from the eve of the Legion's return, and a cook), and porters, wardens
+-- south (other Timerunners, veterans of this war from their own hours after it, and a cook), and porters, wardens
 -- and whelps on their rounds. Who says what while a Timerunner is about is remix_bazaar_line
 -- (src/RemixBazaar.cpp). Heights are the floor's (data/bazaar_ground.tsv). The story's own people
 -- stand where wrath_remix_world_0004_spawns.sql, 0009 and 0018 place them.

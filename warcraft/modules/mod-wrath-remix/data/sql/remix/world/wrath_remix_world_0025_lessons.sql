@@ -3,8 +3,9 @@
 -- yard walks them through three of them (WRM-030 to 039, one a class: 77030 the druid's, 77030 +
 -- the class's number for the others). Each ability used as the lesson says is its credit (770067 +
 -- its slot, in wrath_remix_world_0002_npcs.sql): on one of the yard's dummies, or (a seal, a shield,
--- a heal, stealth) within sight of one. Offered by the instructor until it's done, alongside the
--- trainer's list; the lessons' level is the Timerunner's own.
+-- a heal, stealth) within sight of one. The prologue's step after Old Habits (WRM-020), offered by
+-- the instructor until it's done, alongside the trainer's list; the lessons' level is the
+-- Timerunner's own.
 
 CREATE TABLE IF NOT EXISTS `remix_lesson` (
   `class` TINYINT UNSIGNED NOT NULL,
@@ -126,11 +127,13 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
  @LESSON_1, @LESSON_2, @LESSON_3, 1, 1, 1,
  'Moonfire on a Training Dummy', 'Wrath on a Training Dummy', 'Rejuvenation cast in the training yard', 0);
 
--- Each for its own class only.
+-- Each for its own class only, after Old Habits (WRM-020); whichever it was opens the Bazaar's
+-- Keepers (WRM-021: each lesson's NextQuestID, so any one of them will do). A death knight's has no
+-- Old Habits before it (they come to the Bazaar later, by their own road).
 DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 77030 AND 77039;
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `AllowableClasses`) VALUES
-(77031, 0, 1), (77032, 0, 2), (77033, 0, 4), (77034, 0, 8), (77035, 0, 16),
-(77036, 0, 32), (77037, 0, 64), (77038, 0, 128), (77039, 0, 256), (77030, 0, 1024);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `NextQuestID`, `AllowableClasses`) VALUES
+(77031, 77020, 77021, 1), (77032, 77020, 77021, 2), (77033, 77020, 77021, 4), (77034, 77020, 77021, 8), (77035, 77020, 77021, 16),
+(77036, 0, 0, 32), (77037, 77020, 77021, 64), (77038, 77020, 77021, 128), (77039, 77020, 77021, 256), (77030, 77020, 77021, 1024);
 
 DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 77030 AND 77039;
 INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`, `VerifiedBuild`)

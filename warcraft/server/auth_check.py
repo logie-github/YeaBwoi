@@ -583,8 +583,10 @@ def run_script(session, player_guid, steps):
             say(session, rest)
             session.pump(2.0, packets)
         elif word == "go":
-            map_id, x, y, z = rest.split()
-            say(session, f".go xyz {x} {y} {z} {map_id}")
+            # (and a facing, after the height, when a step needs one: Charge wants its target in
+            # front)
+            map_id, x, y, z, *facing = rest.split()
+            say(session, f".go xyz {x} {y} {z} {map_id} {' '.join(facing)}".rstrip())
             session.pump(4.0, packets)
         elif word == "talk":
             guid, yards = creature_guid(int(rest), near=True)

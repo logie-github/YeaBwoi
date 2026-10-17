@@ -222,6 +222,9 @@ namespace
                 }
             }
             case NPC_ANOMALY_CREDIT: return NPC_MORATARI;   // she lets them through
+            case NPC_PLAN_WHAT:                             // the plan: Eternus's answers
+            case NPC_PLAN_HOW:
+            case NPC_PLAN_WHY: return NPC_ETERNUS;
             case NPC_LESSON_CREDIT:                         // a class lesson's abilities: on the yard's dummies
             case NPC_LESSON_CREDIT + 1:
             case NPC_LESSON_CREDIT + 2: return NPC_TRAINING_DUMMY;

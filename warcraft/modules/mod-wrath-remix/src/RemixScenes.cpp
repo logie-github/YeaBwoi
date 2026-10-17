@@ -65,6 +65,7 @@ namespace WrathRemix
             ACT_WHISPER,        // whispers [text] to the Timerunner
             ACT_FACE_ANGLE,     // turns to the scene's angle [o]
             ACT_HOME,           // the Timerunner goes home (Back to Your Own Time: RemixEnding.cpp)
+            ACT_FADE,           // the screen goes dark for [param] ms with [text] on it (the app's add-on; RemixOutings.cpp)
         };
 
         constexpr uint8 TARGET_PLAYER = 255;
@@ -258,6 +259,9 @@ namespace WrathRemix
                 case ACT_HOME:
                     SendHome(player);
                     break;
+                case ACT_FADE:
+                    ScreenFade(player, step.param, step.text);
+                    break;
                 default:
                     break;
             }
@@ -300,6 +304,12 @@ namespace WrathRemix
             } while (result->NextRow());
         }
         LOG_INFO("module", "Wrath Remix: {} scenes", scenes.size());
+    }
+
+    uint32 SceneDuration(uint32 sceneId)
+    {
+        auto found = scenes.find(sceneId);
+        return found == scenes.end() || found->second.steps.empty() ? 0 : found->second.steps.back().at;
     }
 
     bool SceneRunning(Player* player)

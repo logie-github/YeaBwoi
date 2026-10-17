@@ -9,7 +9,9 @@
  * ChromieCraft's starts, it takes the archive out again. WOW_CLIENT_DIR (ctl.sh) says where the
  * client is; without it, or without the client, nothing happens. The archive also carries the
  * game's CreatureDisplayInfo.dbc with the voices Remix gives some of its people's looks
- * (remix_display_sound: Moratari's is a death knight's otherwise).
+ * (remix_display_sound: Moratari's is a death knight's otherwise), and the looks Remix adds
+ * (remix_look: Moratari in an evening dress, and as she is in her tent), each one of the game's
+ * with other clothes, in CreatureDisplayInfo.dbc and CreatureDisplayInfoExtra.dbc.
  *
  * The archive is an MPQ of the first format, the one the 3.3.5a client reads, its files stored as
  * Blizzard's own patches store theirs: in sectors of 4096 bytes, each compressed with zlib, after a
@@ -254,6 +256,27 @@ namespace WrathRemix
             return out;
         }
 
+        // The row of [base] (a DBC file of [fields] whole-number fields) with that id, or none.
+        std::vector<int32> RowOf(Bytes const& base, uint32 fields, uint32 id)
+        {
+            if (base.size() < 20 || std::memcmp(base.data(), "WDBC", 4) != 0 || Get32(base, 8) != fields)
+                return {};
+            uint32 count = Get32(base, 4), size = Get32(base, 12);
+            for (uint32 i = 0; i < count; ++i)
+            {
+                size_t at = 20 + size_t(i) * size;
+                if (base.size() < at + size)
+                    break;
+                if (Get32(base, at) != id)
+                    continue;
+                std::vector<int32> row;
+                for (uint32 f = 0; f < fields; ++f)
+                    row.push_back(int32(Get32(base, at + f * 4)));
+                return row;
+            }
+            return {};
+        }
+
         std::vector<std::vector<int32>> Rows(std::string const& sql, uint32 fields)
         {
             std::vector<std::vector<int32>> rows;
@@ -368,22 +391,66 @@ namespace WrathRemix
                 voices[f[0].Get<uint32>()] = f[1].Get<uint32>();
             } while (result->NextRow());
         }
-        if (!voices.empty())
+        // The looks Remix adds (remix_look): a CreatureDisplayInfoExtra row (21 fields) copied from one
+        // of the game's with its clothes (fields 8 to 18) changed, and without its baked texture (field
+        // 20, the name's offset: 0 is the empty name), so the game dresses the look from those; and a
+        // CreatureDisplayInfo row (16 fields) copied from the game's look, with that extra (field 3).
+        Bytes const displayBase = Read(dbc / "CreatureDisplayInfo.dbc"), extraBase = Read(dbc / "CreatureDisplayInfoExtra.dbc");
+        std::vector<std::vector<int32>> looks, lookExtras;
+        if (QueryResult result = WorldDatabase.Query("SELECT `display`, `from_display`, `extra`, `from_extra`, `bake`, `item1`, `item2`, `item3`, `item4`, `item5`, "
+                                                     "`item6`, `item7`, `item8`, `item9`, `item10`, `item11` FROM `remix_look` ORDER BY `display`"))
         {
-            Bytes patched = WithValues(Read(dbc / "CreatureDisplayInfo.dbc"), 16, 12, voices);
+            do
+            {
+                Field* f = result->Fetch();
+                std::vector<int32> look = RowOf(displayBase, 16, f[1].Get<uint32>()), extra = RowOf(extraBase, 21, f[3].Get<uint32>());
+                if (look.empty() || extra.empty())
+                {
+                    LOG_ERROR("module", "Wrath Remix: look {} is copied from a look ({}) or clothes ({}) the game hasn't", f[0].Get<uint32>(), f[1].Get<uint32>(), f[3].Get<uint32>());
+                    continue;
+                }
+                look[0] = int32(f[0].Get<uint32>());
+                look[3] = int32(f[2].Get<uint32>());
+                extra[0] = int32(f[2].Get<uint32>());
+                for (uint32 i = 0; i < 11; ++i)
+                    extra[8 + i] = int32(f[5 + i].Get<uint32>());
+                if (!f[4].Get<uint8>())
+                    extra[20] = 0;
+                looks.push_back(std::move(look));
+                lookExtras.push_back(std::move(extra));
+            } while (result->NextRow());
+        }
+        if (!voices.empty() || !looks.empty())
+        {
+            Bytes patched = voices.empty() ? displayBase : WithValues(displayBase, 16, 12, voices);
+            if (!patched.empty() && !looks.empty())
+                patched = WithRows(patched, 16, looks);
             if (patched.empty())
-                LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Remix's people keep the game's voices",
+                LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Remix's people keep the game's voices and looks",
                     (dbc / "CreatureDisplayInfo.dbc").string());
             else
             {
                 std::string name = "DBFilesClient\\CreatureDisplayInfo.dbc";
                 files.emplace_back(name, std::move(patched));
                 list += name + "\r\n";
+                if (!lookExtras.empty())
+                {
+                    Bytes extras = WithRows(extraBase, 21, lookExtras);
+                    if (extras.empty())
+                        LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Remix's new looks have no clothes",
+                            (dbc / "CreatureDisplayInfoExtra.dbc").string());
+                    else
+                    {
+                        std::string extraName = "DBFilesClient\\CreatureDisplayInfoExtra.dbc";
+                        files.emplace_back(extraName, std::move(extras));
+                        list += extraName + "\r\n";
+                    }
+                }
             }
         }
         files.emplace_back("(listfile)", Bytes(list.begin(), list.end()));
 
-        std::string const note = "Wrath Remix's patch for the game (Bronze and its prices, and its people's voices): its world server writes " +
+        std::string const note = "Wrath Remix's patch for the game (Bronze and its prices, its people's voices and looks): its world server writes " +
             std::string(PATCH) + " as it starts, and ChromieCraft's takes it out.\n";
         WriteIfChanged(mark, Bytes(note.begin(), note.end()));
         if (WriteIfChanged(patch, Archive(files)))
