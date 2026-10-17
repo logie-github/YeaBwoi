@@ -28,6 +28,7 @@ on:
       - "scripts/build-azerothcore.sh"
       - "scripts/compile-azerothcore.sh"
       - "scripts/package-azerothcore.sh"
+      - "scripts/module-files.py"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
       - "scripts/prepare-winlator.sh"
@@ -68,11 +69,11 @@ jobs:
         id: key
         run: |
           compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
-          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
+          key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'scripts/module-files.py', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
           echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
           # A test that passed on this package, this data and this test script: server-test leaves
           # it there (an arm64 runner for nothing on every app-only build).
-          echo "tested-key=warcraft-server-tested-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'warcraft/server/**', 'warcraft/server-data.env', 'scripts/test-warcraft-server.sh') }}" >> "$GITHUB_OUTPUT"
+          echo "tested-key=warcraft-server-tested-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'scripts/module-files.py', 'warcraft/server/**', 'warcraft/server-data.env', 'scripts/test-warcraft-server.sh') }}" >> "$GITHUB_OUTPUT"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 

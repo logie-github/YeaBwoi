@@ -18,8 +18,8 @@ import java.io.IOException
  *   file at a time out of their zips. Files of the client's own with the same names are kept aside
  *   (`.user`) and come back when the look is turned off.
  * - **The executable** ([WowExePatch]): `WowPatched.exe`, a copy of `Wow.exe` that uses 4 GB (and
- *   loads changed interface files), which the game starts with while a look is in. `Wow.exe`
- *   itself is never changed.
+ *   loads changed interface files), which the game starts with while a look is in, or the realm's
+ *   modules' patch ([hasModulePatch]). `Wow.exe` itself is never changed.
  *
  * What's in the client is listed in `files/mods/hd.txt`, so taking things out removes exactly
  * what was put in.
@@ -49,9 +49,23 @@ object ClientMods {
     /** Whether the client is as chosen. */
     fun isApplied(context: Context): Boolean = hd(context) == hdInstalled(context)
 
-    /** The program the game starts: the patched copy while a look is in. */
+    /** The program the game starts: the patched copy while a look or the modules' patch is in. */
     fun exeName(context: Context): String =
-        if (hdInstalled(context) != HdPatches.Choice.OFF && File(WowFiles.client(context), PATCHED_EXE).isFile) PATCHED_EXE else "Wow.exe"
+        if ((hdInstalled(context) != HdPatches.Choice.OFF || hasModulePatch(context)) && File(WowFiles.client(context), PATCHED_EXE).isFile) PATCHED_EXE else "Wow.exe"
+
+    /**
+     * The realm's modules' patch for the game is in its `Data` (`patch-M.MPQ`, put there by the
+     * realm's start: `ctl.sh modules`): mod-worgoblin's, mod-arac's... Its interface files only load
+     * in the patched executable.
+     */
+    fun hasModulePatch(context: Context): Boolean =
+        File(WowFiles.client(context), "Data/patch-M.MPQ/realm-modules.stamp").isFile
+
+    /** Makes the patched executable when the modules' patch needs it and it isn't there. Background thread. */
+    fun prepareExe(context: Context) {
+        val client = WowFiles.client(context)
+        if (hasModulePatch(context) && !File(client, PATCHED_EXE).isFile) patchExe(context, client)
+    }
 
     private fun prefs(context: Context) = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 

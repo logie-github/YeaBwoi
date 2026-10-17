@@ -37,7 +37,7 @@ if [ ! -x "$DIST/bin/worldserver" ]; then
 	exit 1
 fi
 
-apk add -q --no-progress build-base patchelf xz tar boost-dev openssl-dev mariadb-connector-c-dev \
+apk add -q --no-progress build-base patchelf xz tar python3 boost-dev openssl-dev mariadb-connector-c-dev \
 	readline-dev bzip2-dev zlib-dev mariadb mariadb-client jemalloc
 
 # The package: programs, their libraries, MariaDB, SQL and configs.
@@ -91,6 +91,15 @@ for dir in "$DIST"/modules/*/; do
 		cp -r "$sql" "$pkg/src/modules/$name/$rel"
 	done
 done
+
+# The game files the modules the app's user picked bring: the DBC files they change, for the
+# server's data and the game, and their patch for the game (scripts/module-files.py; ctl.sh puts
+# them in place). Read from the sources the compile used: a module left out isn't there.
+extra=$(echo "${WOW_EXTRA_MODULES:-}" | awk 'NF { print "/repo/build/azerothcore/modules/" $1 }')
+if [ -n "$extra" ]; then
+	# shellcheck disable=SC2086
+	python3 /repo/scripts/module-files.py "$pkg/share" $extra
+fi
 
 # Every library the programs load, then the programs pointed at them. The Alpine here has to have
 # what they were built against (CI caches the compile, while Alpine's packages move on).
