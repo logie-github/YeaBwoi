@@ -198,6 +198,13 @@ expect credit 77313 770042 3/3
 cmd .cheat god off
 reward 770012 77313
 expect rewarded 77313
+# Ursoc, the Bear God also waits for Destroy the Sapling and Vordrassil's Seeds (its group).
+cmd .quest add 12241
+cmd .quest complete 12241
+cmd .quest reward 12241
+cmd .quest add 12242
+cmd .quest complete 12242
+cmd .quest reward 12242
 go 571 3316.8 -2291.8 110.7
 talk 27262
 expect quest 12236
