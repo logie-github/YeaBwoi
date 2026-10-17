@@ -74,6 +74,8 @@ for prog in worldserver authserver dbimport map_extractor vmap4_extractor vmap4_
 done
 cp "$DIST.install$APP_FILES"/etc/*.conf.dist "$DIST/etc/"
 cp "$DIST.install$APP_FILES"/etc/modules/*.conf.dist "$DIST/etc/modules/"
+# ALE's (mod-ale, the Lua engine) own scripts.
+[ ! -d "$DIST.install$PREFIX/bin/lua_scripts" ] || cp -r "$DIST.install$PREFIX/bin/lua_scripts" "$DIST/lua_scripts"
 rm -rf "$DIST.install"
 strip "$DIST"/bin/*
 cp "$SRC/src/tools/mmaps_generator/mmaps-config.yaml" "$DIST/etc/"

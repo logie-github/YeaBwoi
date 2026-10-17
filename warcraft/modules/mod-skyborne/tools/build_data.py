@@ -551,21 +551,21 @@ def main():
 
     # As WoW: Forever has them since its beta build of 15 October 2026 (Walk on Air's cooldown 90
     # seconds, Wind Blessed 3% haste, Skysight and Read Ley Line cast while moving). Their buffs last
-    # 30 seconds: the 15 minutes they last there beside a ley line or an elemental convergence have
-    # nothing to stand for in Northrend's world.
+    # 15 minutes, as they do there beside an elemental convergence or a ley line, everywhere (the
+    # user's choice: Northrend's world has neither).
     no_cost = dict(Reagent_1=0, ReagentCount_1=0, ManaCostPct=0, SpellClassSet=0, SpellClassMask_1=0,
                    SpellClassMask_2=0, SpellClassMask_3=0, BaseLevel=1, SpellLevel=1, RangeIndex=1,
                    ImplicitTargetA_1=1, CastingTimeIndex=1, StartRecoveryCategory=133, StartRecoveryTime=1500,
                    SchoolMask=8, Attributes=0x10, AttributesEx=0, AttributesEx6=0, InterruptFlags=0, DispelType=0)
     trigger = lambda spell_id: dict(Effect_1=64, EffectAura_1=0, EffectBasePoints_1=0, EffectDieSides_1=0,
                                     EffectTriggerSpell_1=spell_id, SpellVisualID_1=0)
-    aura = dict(no_cost, Attributes=0, StartRecoveryCategory=0, StartRecoveryTime=0, DurationIndex=9)
+    aura = dict(no_cost, Attributes=0, StartRecoveryCategory=0, StartRecoveryTime=0, DurationIndex=347)   # 15 min
     spell_rows = [
         spell(130, SPELLS["walk"], "Walk on Air", "Racial",
               "Glide downward through the air for $d.", "Gliding.",
               DurationIndex=1, RecoveryTime=90000, SpellIconID=220, **dict(no_cost, DispelType=1)),
         spell(130, SPELLS["skysight"], "Skysight", "Racial",
-              "Grants an Elemental Blessing that increases run and mounted speed by 10% for 30 sec. "
+              "Grants an Elemental Blessing that increases run and mounted speed by 10% for 15 min. "
               "Does not stack with other movement speed increases.", "",
               RecoveryTime=120000, SpellIconID=1530, **dict(no_cost, CastingTimeIndex=3), **trigger(SPELLS["blessing"])),
         spell(130, SPELLS["blessing"], "Elemental Blessing", "",
@@ -573,7 +573,7 @@ def main():
               SpellIconID=1530, EffectAura_1=171, EffectBasePoints_1=9, EffectDieSides_1=1, SpellVisualID_1=0,
               Effect_2=6, EffectAura_2=172, EffectBasePoints_2=9, EffectDieSides_2=1, ImplicitTargetA_2=1, **aura),
         spell(130, SPELLS["leyline"], "Read Ley Line", "Racial",
-              "Activate a ley line to gain Energized, increasing your Health and Mana regeneration by 100% for 30 sec.", "",
+              "Activate a ley line to gain Energized, increasing your Health and Mana regeneration by 100% for 15 min.", "",
               RecoveryTime=120000, SpellIconID=2158, **dict(no_cost, CastingTimeIndex=5, SchoolMask=64), **trigger(SPELLS["energized"])),
         spell(130, SPELLS["energized"], "Energized", "",
               "Health and Mana regeneration increased by $s1%.", "Health and Mana regeneration increased by $s1%.",
