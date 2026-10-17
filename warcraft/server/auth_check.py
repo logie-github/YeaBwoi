@@ -600,7 +600,16 @@ def run_script(session, player_guid, steps):
                 session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
                 session.pump(0.5, packets)
         elif word == "kill":
-            session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(int(rest))))
+            # (the realm's bots may have got there first: one comes back within its respawn time)
+            for attempt in range(10):
+                try:
+                    target = creature_guid(int(rest))
+                    break
+                except RuntimeError:
+                    if attempt == 9:
+                        raise
+                    session.pump(5.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
             session.pump(0.5, packets)
             say(session, ".damage 100 pct")
             session.pump(3.0, packets)
