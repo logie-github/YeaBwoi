@@ -545,8 +545,8 @@ accept 770001 77711
 wait 6
 cmd .gps
 expect Crystalsong Forest
-wait 30
-wait 25
+wait 35
+wait 35
 expect credit 77711 770035 1/1
 reward 770011 77711
 expect rewarded 77711

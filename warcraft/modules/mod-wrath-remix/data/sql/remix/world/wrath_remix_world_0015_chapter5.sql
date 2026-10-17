@@ -24,8 +24,8 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 -- V-A: Mr. Nesingwary's hunt.
 (77501, 2, 54, 52, 3711, 5, 0, 0, 0,
  'A Brief Hunting Expedition',
- 'Speak with Moratari again to travel to Pilot Vic, whose flying machine came down in the south of the basin.',
- 'Mr. Nesingwary has an impressive catalog. Rhinos, crocolisks, a great many very large cats. He would like you to add to it, and he will be very cheerful about it, and it will take you the better part of a week.$B$BWe shall admire it from a safe temporal distance.$B$BSomething else is happening in this basin, $n. The titans built it to keep life safe, and something here has woken that still remembers how. A gnome named Vic crashed his flying machine not far from it. Let us start with him.',
+ 'Speak with Moratari again to travel to Pilot Vic.',
+ 'Mr. Nesingwary has an impressive catalog. Rhinos, crocolisks, a great many very large cats. He would like you to add to it, and he will be very cheerful about it, and it will take you the better part of a week.$B$BWe shall admire it from a safe temporal distance.$B$BSomething else is happening in this basin, $n. The titans built it to keep life safe, and something here has woken that still remembers how. A pilot named Vic has set down not far from it. Let us start with him.',
  'Speak with Moratari.', 0, 0, 0, 0, '', '', 0),
 -- WRM-502: the Maker's Overlook.
 (77502, 2, 57, 52, 3711, 5, 0, 0, 0,

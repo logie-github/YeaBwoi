@@ -41,7 +41,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77010, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'Out of Time',
  'Speak with Eternus at the Infinite Bazaar.',
- 'You are in Northrend, $n: Crystalsong Forest, beneath the city of Dalaran. The fleets of the Alliance and the Horde are only now reaching these shores. The war against the Lich King has barely begun, and you are years before your own time.$B$BThis is the Infinite Bazaar. My master, Eternus of the Infinite Dragonflight, pulled you out of your own time and into this one. The journey has a price: time takes a traveller''s strength and gives it back slowly. That is why you feel as you do. It will pass.$B$BWe call those who make the journey Timerunners. Eternus will tell you why he needs one. He is waiting, just there.',
+ 'You are in Northrend, $n: Crystalsong Forest, beneath the city of Dalaran. The fleets of the Alliance and the Horde are only now reaching these shores. The war against the Lich King has barely begun, and you are years before your own time.$B$BThis is the Infinite Bazaar. My master, Eternus of the Infinite Dragonflight, pulled you out of your own time and into this one. The journey has a price: time takes a traveler''s strength and gives it back slowly. That is why you feel as you do. It will pass.$B$BWe call those who make the journey Timerunners. Eternus will tell you why he needs one. He is waiting, just there.',
  'Speak with Eternus.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
 (77011, 2, 10, 1, 2817, 4, 0, 8, 0, 0, 0,

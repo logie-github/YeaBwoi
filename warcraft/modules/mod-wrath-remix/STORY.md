@@ -170,6 +170,24 @@ Who is seen where follows the story: Sylvanas and Alleria atop Wyrmrest from WRM
 is turned in; at the Bazaar once WRM-207 is done, when Eternus is gone from it; Alleria and the
 loyalists on the cliffs during WRM-208.
 
+## Two Sylvanases
+
+The Sylvanas of this year is the game's own, and nothing in Wrath Remix changes her: to her the
+Timerunner is one more soldier, through the Battle for the Undercity and into the Frozen Halls. She
+does not know the one from the future is here. Once, in the Forge of Souls (the Horde's way in),
+something reaches her: at the end of her briefing she says the Timerunner's name, says that they are
+being watched, or rather observed, that she senses a presence she has not felt since..., and goes off
+to the other side of the hall. Spoken to there, she is murmuring about her sisters (three variants:
+Alleria gone beyond the Portal; the three of them and Lirath at Windrunner Spire; the presence that
+wears her sister's shadow). It is optional; the dungeon goes on as the game has it
+(`RemixFrozenHalls.cpp`, `wrath_remix_world_0020_frozen_halls.sql`).
+
+The Sylvanas from the future knows the Timerunner far better than the Timerunner knows her: where she
+comes from, they are close. She slips, now and then (a name said too familiarly, "you always stand
+on my left", "you never did listen to me about trolls"), and catches herself; she is open that she
+will not say more, because knowing it would change how it happens. Asked outright ("You talk to me
+like you know me"), she says so. Alleria notices how careful her sister is with the Timerunner.
+
 ## Before the turn: Eternus's small changes
 
 Until the turn, Eternus is folding the war his way, quietly, and the Timerunner can see it. Nine
@@ -330,8 +348,8 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Moratari:** No one can catch a world, Eternus. Not even you.
    >
-   > **Eternus:** Come home, Moratari. You kept my records for longer than this kingdom has had a
-   > name. You know every name I want to save. Help me save them.
+   > **Eternus:** Come home, Moratari. You kept my records for ten thousand years. You know every
+   > name I want to save. Help me save them.
    >
    > **Moratari:** I kept your records. That is exactly why I can't.
    >
@@ -428,7 +446,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > will hate him with everything she has left. And then she will run.
    >
    > *(the Alliance's)* **Sylvanas:** Jaina Proudmoore will lead you in. On the Horde's side of
-   > that day, it was me. We went in for the same reason, she and I. We both came out running.
+   > that day, it was me. We went in for different reasons, she and I. She hoped there was
+   > something left of him to save. I wanted there to be nothing left of him at all. We both came
+   > out running.
    >
    > **Alleria:** You don't have to be anywhere near it, sister.
    >
@@ -472,8 +492,8 @@ the people in them are summoned where they stand and heard only by that Timerunn
    The fight: Eternus and his loyalists, wave after wave, with Moratari, Sylvanas and Alleria
    fighting beside you. As it turns:
 
-   > **Eternus** *(half his strength gone)*: Do you know how many died on the beach at Valiance
-   > Keep? I do. I counted them. I counted every one.
+   > **Eternus** *(half his strength gone)*: Do you know how many died on the beaches of
+   > the Borean Tundra? I do. I counted them. I counted every one.
    >
    > **Eternus** *(a third left)*: Windrunner! I would have given you Quel'Thalas! Not a ruin. Not a
    > grave. Your home, with your people in it!
@@ -600,8 +620,11 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Sylvanas:** Be quick about it, Moratari. I have had enough long goodbyes for one eternity.
    >
-   > **Sylvanas:** Timerunner. Whatever I am when you get home, whatever they say of me there: you
-   > saw this. Keep it for me.
+   > **Sylvanas:** $n. Whatever I am when you get home, whatever they say of me there: you saw
+   > this. Keep it for me.
+   >
+   > **Sylvanas:** And when we meet, the way we are meant to, do not tell me any of this. Let me find
+   > you the long way.
    >
    > **Alleria:** And if you see my son... no. Don't tell him anything. He'll know.
    >
