@@ -4,7 +4,6 @@ package com.logie.warcraft
 
 import android.content.Context
 import android.widget.Toast
-import com.logie.warcraft.game.GestureView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -34,7 +33,7 @@ object Homecomings {
         if (names.isEmpty()) return
         val app = context.applicationContext
         Toast.makeText(app, app.getString(R.string.wow_remix_home, names.joinToString(", ")), Toast.LENGTH_LONG).show()
-        GestureView.leaveGame()
+        RealmLink.leaveGame(app)
         Realms.set(app, Realms.Realm.CHROMIECRAFT)
         Server.stop(app) { Server.start(app) }
     }

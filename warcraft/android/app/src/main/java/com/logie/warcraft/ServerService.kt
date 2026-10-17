@@ -7,6 +7,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
@@ -23,7 +24,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the app, and with it the server's programs, running while the server is up: Android
+ * Runs in the realm's own process (`:realm`, [RealmLink]): the server's programs are started from
+ * it, so the app's screens and the game can be closed, or taken back by Android, and the server
+ * goes on. Only Stop (here, on the launcher, or in the notification) ends it.
+ *
+ * Keeps that process, and with it the server's programs, running while the server is up: Android
  * requires a notification for that. The notification says how the server is and has a Stop button.
  * It stays up the whole time the server runs, the game on screen or not: a service that left the
  * foreground while the game was in front had to come back to it as the app went behind, the moment
@@ -34,6 +39,7 @@ import kotlinx.coroutines.launch
  */
 class ServerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var listening: BroadcastReceiver? = null
     private var watcher: Job? = null
     private var reports: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -42,13 +48,22 @@ class ServerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        listening = RealmLink.listen(this)
+        RealmLink.publish(Server.status.value)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            Server.stop(this)
-            return START_NOT_STICKY
-        }
+        // (in the foreground at once, whatever was asked: the app starts this service in the foreground)
         startForeground(NOTIFICATION_ID, notification(Server.status.value))
         shown = true
+        when (intent?.action) {
+            ACTION_STOP -> Server.stop(this)
+            RealmLink.ACTION_START -> Server.start(this, Realms.Realm.entries.firstOrNull { it.key == intent.getStringExtra(RealmLink.EXTRA_REALM) })
+        }
+        // (the app hears how it is now, whether or not that changed: it may have guessed)
+        RealmLink.publish(Server.status.value)
         if (wakeLock == null) {
             // The server keeps the game world going with the screen off (the phone's own client
             // pauses then, but a PC's doesn't).
@@ -88,6 +103,7 @@ class ServerService : Service() {
     }
 
     override fun onDestroy() {
+        listening?.let { runCatching { unregisterReceiver(it) } }
         scope.cancel()
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
@@ -166,7 +182,7 @@ class ServerService : Service() {
         private const val CHANNEL = "server"
         private const val NOTIFICATION_ID = 1
         private const val FAILED_ID = 2
-        private const val ACTION_STOP = "com.logie.warcraft.STOP_SERVER"
+        private const val ACTION_STOP = RealmLink.ACTION_STOP
 
         /** What the server is doing, in a line. */
         fun statusText(context: Context, status: Server.Status): String = when (status.phase) {
