@@ -7,6 +7,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
@@ -20,19 +21,25 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the app, and with it the server's programs, running while the server is up: Android
+ * Runs in the realm's own process (`:realm`, [RealmLink]): the server's programs are started from
+ * it, so the app's screens and the game can be closed, or taken back by Android, and the server
+ * goes on. Only Stop (here, on the launcher, or in the notification) ends it.
+ *
+ * Keeps that process, and with it the server's programs, running while the server is up: Android
  * requires a notification for that. The notification says how the server is and has a Stop button.
- * While the game is on screen the notification steps aside (the game in front keeps the app
- * running) and comes back when the game goes behind, or the screen goes off ([setGameShown]).
+ * It stays up the whole time the server runs, the game on screen or not: a service that left the
+ * foreground while the game was in front had to come back to it as the app went behind, the moment
+ * Android is quickest to reclaim a big app, and a server killed then lost what hadn't been saved.
  * The service ends itself once the server is stopped. While it runs, it sends the reports the
- * game's Report Time Anomaly asks Wrath Remix for ([AnomalyReports]).
+ * game's Report Time Anomaly asks Wrath Remix for ([AnomalyReports]), and takes the server to
+ * ChromieCraft when a Wrath Remix Timerunner goes home ([Homecomings]).
  */
 class ServerService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var listening: BroadcastReceiver? = null
     private var watcher: Job? = null
     private var reports: Job? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -41,13 +48,22 @@ class ServerService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        listening = RealmLink.listen(this)
+        RealmLink.publish(Server.status.value)
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            Server.stop(this)
-            return START_NOT_STICKY
-        }
+        // (in the foreground at once, whatever was asked: the app starts this service in the foreground)
         startForeground(NOTIFICATION_ID, notification(Server.status.value))
         shown = true
+        when (intent?.action) {
+            ACTION_STOP -> Server.stop(this)
+            RealmLink.ACTION_START -> Server.start(this, Realms.Realm.entries.firstOrNull { it.key == intent.getStringExtra(RealmLink.EXTRA_REALM) })
+        }
+        // (the app hears how it is now, whether or not that changed: it may have guessed)
+        RealmLink.publish(Server.status.value)
         if (wakeLock == null) {
             // The server keeps the game world going with the screen off (the phone's own client
             // pauses then, but a PC's doesn't).
@@ -57,17 +73,13 @@ class ServerService : Service() {
         }
         if (watcher == null) {
             watcher = scope.launch {
-                combine(Server.status, gameShown) { status, inGame -> status to inGame }.collect { (status, inGame) ->
+                Server.status.collect { status ->
                     when {
                         status.phase == Server.Phase.STOPPED || status.phase == Server.Phase.FAILED -> {
                             stopForeground(STOP_FOREGROUND_REMOVE)
                             shown = false
                             if (status.phase == Server.Phase.FAILED) notifyFailed()
                             stopSelf()
-                        }
-                        inGame -> if (shown) {
-                            stopForeground(STOP_FOREGROUND_REMOVE)
-                            shown = false
                         }
                         !shown -> {
                             startForeground(NOTIFICATION_ID, notification(status))
@@ -82,6 +94,7 @@ class ServerService : Service() {
             reports = scope.launch {
                 while (isActive) {
                     runCatching { AnomalyReports.sendWaiting(this@ServerService) }
+                    runCatching { Homecomings.check(this@ServerService) }
                     delay(REPORTS_EVERY_MS)
                 }
             }
@@ -90,6 +103,7 @@ class ServerService : Service() {
     }
 
     override fun onDestroy() {
+        listening?.let { runCatching { unregisterReceiver(it) } }
         scope.cancel()
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
@@ -151,8 +165,12 @@ class ServerService : Service() {
     companion object {
         private val gameShown = MutableStateFlow(false)
 
-        /** The game is on screen (true) or went behind, or its screen went off (false). */
+        /**
+         * The game is on screen (true) or went behind, or its screen went off (false). Going behind,
+         * the realm saves every character at once: the app may not be there when it comes back.
+         */
         fun setGameShown(inGame: Boolean) {
+            if (gameShown.value && !inGame) Server.worldCommand("saveall")
             gameShown.value = inGame
         }
 
@@ -164,7 +182,7 @@ class ServerService : Service() {
         private const val CHANNEL = "server"
         private const val NOTIFICATION_ID = 1
         private const val FAILED_ID = 2
-        private const val ACTION_STOP = "com.logie.warcraft.STOP_SERVER"
+        private const val ACTION_STOP = RealmLink.ACTION_STOP
 
         /** What the server is doing, in a line. */
         fun statusText(context: Context, status: Server.Status): String = when (status.phase) {

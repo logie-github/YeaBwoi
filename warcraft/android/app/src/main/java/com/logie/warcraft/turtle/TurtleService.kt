@@ -16,7 +16,6 @@ import androidx.core.app.NotificationCompat
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.ModuleStore
 import com.logie.warcraft.R
-import com.logie.warcraft.ServerService
 import com.logie.warcraft.WowUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,8 +29,8 @@ import kotlinx.coroutines.launch
  * Keeps the app running while Turtle WoW's realm runs or one of its jobs ([TurtleJobs]) works:
  * Android requires a notification for that, Turtle's own (its own channel and ids, next to the
  * ChromieCraft realm's ServerService, which it never touches). Jobs run here on a thread of their
- * own, one at a time. While the game is on screen the notification steps aside, as ServerService's
- * does; the service ends itself once nothing of Turtle's runs.
+ * own, one at a time. The notification stays up while anything of Turtle's runs, the game on screen
+ * or not, as ServerService's does; the service ends itself once nothing of Turtle's runs.
  */
 class TurtleService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -65,8 +64,8 @@ class TurtleService : Service() {
         if (intent?.action == ACTION_JOB) startJob(intent)
         if (watcher == null) {
             watcher = scope.launch {
-                combine(TurtleServer.status, TurtleJobs.state, ServerService.gameOnScreen) { server, job, inGame -> Triple(server, job, inGame) }
-                    .collect { (server, job, inGame) ->
+                combine(TurtleServer.status, TurtleJobs.state) { server, job -> server to job }
+                    .collect { (server, job) ->
                         val serverIdle = server.phase == TurtleServer.Phase.STOPPED || server.phase == TurtleServer.Phase.FAILED
                         val jobIdle = job !is TurtleJobs.State.Working
                         when {
@@ -75,10 +74,6 @@ class TurtleService : Service() {
                                 shown = false
                                 if (job is TurtleJobs.State.Done || job is TurtleJobs.State.Failed) notifyResult(job)
                                 stopSelf()
-                            }
-                            inGame && jobIdle -> if (shown) {
-                                stopForeground(STOP_FOREGROUND_REMOVE)
-                                shown = false
                             }
                             !shown -> {
                                 startForeground(NOTIFICATION_ID, notification())

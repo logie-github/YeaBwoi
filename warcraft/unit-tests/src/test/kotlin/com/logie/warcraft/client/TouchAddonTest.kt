@@ -43,8 +43,20 @@ class TouchAddonTest {
             function frame:SetPoint(...) self.points = { ... } end
             function frame:GetPoint() return (table.unpack or unpack)(self.points) end
             function frame:GetName() return self.name end
-            function frame:Show() self.shown = true end
+            function frame:Show() self.shown = true; if self.scripts.OnShow then self.scripts.OnShow(self) end end
             function frame:Hide() self.shown = false end
+            function frame:IsShown() return self.shown end
+            function frame:IsVisible() return self.shown end
+            function frame:GetScript(script) return self.scripts[script] end
+            -- (what only a window's looks need: nothing here)
+            for _, method in ipairs({ "SetWidth", "SetFrameStrata", "SetToplevel", "EnableMouse", "SetBackdrop",
+                    "SetBackdropColor", "SetMultiLine", "SetAutoFocus", "SetMaxLetters", "SetFontObject",
+                    "SetScrollChild", "SetJustifyH" }) do
+                frame[method] = function() end
+            end
+            function frame:SetFocus() self.focused = true end
+            function frame:ClearFocus() self.focused = false end
+            function frame:CreateFontString() return CreateFrame("FontString") end
             table.insert(frames, frame)
             if name then _G[name] = frame end
             return frame
@@ -57,11 +69,24 @@ class TouchAddonTest {
         GameMenuButtonLogout:SetPoint("TOP", GameMenuButtonMacros, "BOTTOM", 0, -16)
         function HideUIPanel(frame) frame:Hide() end
         function PlaySound(sound) end
-        StaticPopupDialogs = {}
-        popup = CreateFrame("Frame", "StaticPopup1")
-        popupBox = CreateFrame("EditBox", "StaticPopup1EditBox", popup)
-        function popupBox:SetFocus() end
-        function popupBox:GetParent() return popup end
+        UISpecialFrames = {}
+        -- The toolbar's Help button, as the game makes it.
+        helped = 0
+        HelpMicroButton = CreateFrame("Button", "HelpMicroButton")
+        HelpMicroButton:SetScript("OnClick", function() helped = helped + 1 end)
+        HelpMicroButton.tooltipText = "Help Request"
+        -- The talents' window's buttons (the game's own add-on): a click spends a point.
+        now = 100
+        function GetTime() return now end
+        modifier = false
+        function IsModifierKeyDown() return modifier end
+        learned, shownTooltips = {}, 0
+        function talentButton(id)
+            local button = CreateFrame("Button", "PlayerTalentFrameTalent" .. id)
+            button:SetScript("OnClick", function(self, mouseButton) table.insert(learned, id .. " " .. mouseButton) end)
+            button:SetScript("OnEnter", function(self) shownTooltips = shownTooltips + 1 end)
+            return button
+        end
         -- Windows and action buttons, as plain tables: a window's place, a button's action and
         -- what the add-on sets and hooks on it.
         function window(left, bottom, width, height)
@@ -86,11 +111,6 @@ class TouchAddonTest {
         function HasAction(slot) return actions[slot] == true end
         function PickupAction(slot) table.insert(picked, slot) end
         function ClearCursor() table.insert(picked, "clear") end
-        function StaticPopup_Show(which)
-            popup.which = which
-            popup:Show()
-            StaticPopupDialogs[which].OnShow(popup)
-        end
     """.trimIndent()
 
     private val lua = JsePlatform.standardGlobals().apply {
@@ -102,7 +122,8 @@ class TouchAddonTest {
         (1..frames.length()).map { frames.get(it) }.first { it.get("name").isnil() && !it.get("scripts").get("OnUpdate").isnil() }
     }
 
-    private fun event(name: String) = frame.get("scripts").get("OnEvent").call(frame, LuaValue.valueOf(name))
+    private fun event(name: String, arg: String? = null) = frame.get("scripts").get("OnEvent")
+        .call(frame, LuaValue.valueOf(name), arg?.let { LuaValue.valueOf(it) } ?: LuaValue.NIL)
     private fun update(seconds: Double) = frame.get("scripts").get("OnUpdate").call(frame, LuaValue.valueOf(seconds))
     private fun sent(): List<String> {
         val table = lua.get("sent") as LuaTable
@@ -162,23 +183,131 @@ class TouchAddonTest {
         event("PLAYER_ENTERING_WORLD")
         assertEquals(292 + 21 + 16, menu.get("height").toint())
 
-        // Tapped: the menu closes, the popup asks what went wrong; what's written goes to the
-        // realm on one line.
+        // Tapped: the menu closes, the window asks what went wrong, the box empty and ready; what's
+        // written goes to the realm on one line.
         button.get("scripts").get("OnClick").call(button)
         assertTrue(!menu.get("shown").toboolean())
-        assertEquals("WOWTOUCH_TIME_ANOMALY", lua.get("popup").get("which").tojstring())
-        val box = lua.get("popupBox")
+        val window = lua.get("WowTouchReportFrame")
+        assertTrue(window.get("shown").toboolean())
+        val box = lua.get("WowTouchReportBox")
+        assertEquals("", box.get("text").tojstring())
+        assertTrue(box.get("focused").toboolean())
         box.set("text", LuaValue.valueOf("Moratari\nvanished"))
-        val dialog = lua.get("StaticPopupDialogs").get("WOWTOUCH_TIME_ANOMALY")
-        dialog.get("OnAccept").call(lua.get("popup"))
+        val send = lua.get("WowTouchReportSend")
+        send.get("scripts").get("OnClick").call(send)
         assertEquals("WowRemix|report Moratari vanished|WHISPER|Testhero", sent().last())
+        assertTrue(!window.get("shown").toboolean())
 
         // Nothing written: the report still goes.
-        lua.get("StaticPopup_Show").call(LuaValue.valueOf("WOWTOUCH_TIME_ANOMALY"))
-        assertEquals("", box.get("text").tojstring())
-        dialog.get("EditBoxOnEnterPressed").call(box)
+        button.get("scripts").get("OnClick").call(button)
+        send.get("scripts").get("OnClick").call(send)
         assertEquals("WowRemix|report |WHISPER|Testhero", sent().last())
-        assertTrue(!lua.get("popup").get("shown").toboolean())
+
+        // Cancelled: nothing goes.
+        val before = sent().size
+        button.get("scripts").get("OnClick").call(button)
+        val cancel = lua.get("WowTouchReportCancel")
+        cancel.get("scripts").get("OnClick").call(cancel)
+        assertEquals(before, sent().size)
+        assertTrue(!window.get("shown").toboolean())
+    }
+
+    @Test
+    fun aLongReportGoesInPieces() {
+        lua.set("realm", LuaValue.valueOf("Wrath Remix"))
+        event("PLAYER_ENTERING_WORLD")
+        val button = lua.get("GameMenuButtonWowTouchReport")
+        button.get("scripts").get("OnClick").call(button)
+        // 450 letters, one of them two bytes long where a 200-byte piece would end.
+        val text = "a".repeat(199) + "é" + "b".repeat(250)
+        lua.get("WowTouchReportBox").set("text", LuaValue.valueOf(text.toByteArray(Charsets.UTF_8)))
+        val send = lua.get("WowTouchReportSend")
+        send.get("scripts").get("OnClick").call(send)
+        val pieces = sent().takeLast(3)
+        assertEquals("WowRemix|report+ " + "a".repeat(199) + "|WHISPER|Testhero", pieces[0])
+        assertTrue(pieces[1].startsWith("WowRemix|report+ é" + "b"))
+        assertTrue(pieces[2].startsWith("WowRemix|report b"))
+        val words = pieces.joinToString("") { it.split('|')[1].substringAfter(' ') }
+        assertEquals(text, words)
+    }
+
+    @Test
+    fun theHelpButtonReportsOnWrathRemixOnly() {
+        event("PLAYER_ENTERING_WORLD")
+        val help = lua.get("HelpMicroButton")
+        help.get("scripts").get("OnClick").call(help)
+        assertEquals(1, lua.get("helped").toint(), "ChromieCraft's Help button isn't the game's")
+        assertEquals("Help Request", help.get("tooltipText").tojstring())
+
+        lua.set("realm", LuaValue.valueOf("Wrath Remix"))
+        event("PLAYER_LEAVING_WORLD")
+        event("PLAYER_ENTERING_WORLD")
+        help.get("scripts").get("OnClick").call(help)
+        assertEquals(1, lua.get("helped").toint())
+        assertEquals("Report Time Anomaly", help.get("tooltipText").tojstring())
+        assertTrue(lua.get("WowTouchReportFrame").get("shown").toboolean())
+    }
+
+    @Test
+    fun aTalentsFirstTapShowsItsTooltipAndTheSecondSpendsThePoint() {
+        event("PLAYER_ENTERING_WORLD")
+        // The talents' window loads when it's first opened.
+        lua.load("talentButton(1); talentButton(2)").call()
+        event("ADDON_LOADED", "Blizzard_TalentUI")
+        val first = lua.get("PlayerTalentFrameTalent1")
+        val second = lua.get("PlayerTalentFrameTalent2")
+        fun click(button: LuaValue, mouseButton: String = "LeftButton") =
+            button.get("scripts").get("OnClick").call(button, LuaValue.valueOf(mouseButton))
+        fun learned(): List<String> = (lua.get("learned") as LuaTable).let { t -> (1..t.length()).map { t.get(it).tojstring() } }
+
+        click(first)
+        assertEquals(emptyList(), learned())
+        assertEquals(1, lua.get("shownTooltips").toint())
+        // Another talent: its tooltip, nothing spent.
+        click(second)
+        assertEquals(emptyList(), learned())
+        // The first again, then again at once: spent the second time.
+        click(first)
+        lua.set("now", LuaValue.valueOf(100.4))
+        click(first)
+        assertEquals(listOf("1 LeftButton"), learned())
+        // Long after: a first tap again.
+        lua.set("now", LuaValue.valueOf(110))
+        click(first)
+        assertEquals(listOf("1 LeftButton"), learned())
+        // A right click, or a click with a modifier (a link in chat), is the game's as it was.
+        click(second, "RightButton")
+        lua.set("modifier", LuaValue.TRUE)
+        click(second)
+        assertEquals(listOf("1 LeftButton", "2 RightButton", "2 LeftButton"), learned())
+        // A second loading of the world wraps nothing twice.
+        lua.set("modifier", LuaValue.FALSE)
+        event("PLAYER_ENTERING_WORLD")
+        lua.set("now", LuaValue.valueOf(120))
+        click(first)
+        lua.set("now", LuaValue.valueOf(120.3))
+        click(first)
+        assertEquals(4, learned().size)
+    }
+
+    @Test
+    fun theMountsAndCompanionsDragToo() {
+        lua.load("""
+            PetPaperDollFrameCompanionFrame = window(16, 152, 330, 420)
+            PetPaperDollFrameCompanionFrame.GetHitRectInsets = function(self) return 0, 0, 0, 0 end
+        """.trimIndent()).call()
+        event("PLAYER_ENTERING_WORLD")
+        val alone = sent().last().split('|')[1]
+        assertEquals("drag 156 1979 3379 7448 hold -", alone)
+        // With the spellbook open as well: both.
+        lua.get("spellbook").set("shown", LuaValue.TRUE)
+        update(1.0)
+        val both = sent().last().split('|')[1]
+        assertEquals(2, InterfaceNote.dragAreas(both).size)
+        // Closed: none.
+        lua.load("PetPaperDollFrameCompanionFrame.shown = false; spellbook.shown = false").call()
+        update(1.0)
+        assertEquals("WowTouch|drag - hold -|WHISPER|Testhero", sent().last())
     }
 
     @Test

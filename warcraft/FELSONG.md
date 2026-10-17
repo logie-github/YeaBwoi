@@ -2,8 +2,11 @@
 
 The app's third game: Felsong (World of Warcraft: Legion 7.3.5) against its own local realm, kept
 completely apart from the 3.3.5a game (ChromieCraft) and Turtle WoW, as Turtle is (`TURTLE.md`).
-**Status: research done, theme made; nothing of the game or its realm is in the app yet.** Nothing
-here is released (the user's word: no release until it's playable).
+**Status: research done; Felsong's launcher is in the app with its look and music, and says it
+isn't playable (no Play); its realm (LegionCore) is being ported to the phone and hasn't been built
+through; the client hasn't been tried on a phone.** Its launcher is in the app's releases from
+build 77 on (the user asked for a release with it, October 16, 2026), saying it isn't playable; the
+game isn't, yet.
 
 ## What the user asked for
 
@@ -23,6 +26,9 @@ here is released (the user's word: no release until it's playable).
   is not assumed to connect to a local realm.**
 - **Honesty**: nothing incomplete called working; no placeholder servers, simulated connections
   or screens that can't really start the game; what can't be reproduced exactly, said so.
+- **Downloads in order** (October 16, 2026), as the other realms' launchers offer theirs: the
+  launcher lists every file Felsong needs as numbered steps, 1 to N, in the order they're needed,
+  each with its download where one is published, its size and whether it's done.
 - **Theme** from [felsong.gg](https://felsong.gg/en/presentation), the user's logo ("Felsong —
   Forge your own destiny — Legion 7.3.5") and Illidan header; Entering Azeroth with the user's big
   picture (2560×1080) and green motes, filling the screen. The art is in `branding/felsong/`.
@@ -125,7 +131,22 @@ server's data 10–20 GB, the databases 1.5 GB.
 3. **Its data**: imported from a PC (as Turtle's import), or made on the phone (hours).
 4. **The launcher**: `com.logie.warcraft.felsong`, the same as Turtle's (install, server, game
    files, accounts — Battle.net style, an e-mail as the name —, rates and solo scaling, Play), in
-   Felsong's look.
+   Felsong's look. Its setup as numbered steps (the user's ask), each with its source:
+   1. **The client**, 7.3.5.26972 (64-bit): from a folder, a zip, or a link the user pastes,
+      checked against 26972's own files (`Wow-64.exe`'s size and hash) before it's kept. No link
+      is built in: Blizzard serves no 7.x client (its CDN drops a build within days or weeks of
+      the next, and 26972 was replaced in 2018), and every 26972 download found is a third
+      party's copy, not Blizzard's.
+   2. **The realm**: this repository's own release of the LegionCore package (as Turtle's
+      `turtle-server-<hash>`), one tap, size and SHA-256 checked.
+   3. **The world and hotfixes databases**: LegionCore's own release
+      (`LegionCore_full_735.26972_2024_10_23.7z`, 33 MB, `server-version.env`), downloaded and
+      checked, unless the realm's package already carries them.
+   4. **The server's data** (dbc, maps, vmaps, mmaps, cameras, gt): made from the client
+      (nobody publishes it), on the phone (hours) or imported from a PC's zip.
+   5. **The client patched for the local realm** (`connection_patcher`): done by the app, no
+      download.
+   6. **An account**, then Play.
 5. **Felsong+'s systems**, one by one, each listed as done and tested or not.
 6. Built and released by CI when the user says (Actions minutes are used up until about November
    1, 2026; the arm64 builds meanwhile run on this machine).
@@ -138,3 +159,23 @@ server's data 10–20 GB, the databases 1.5 GB.
   logo's diamond, rising fel motes. The Entering Azeroth screen (`FelsongLoading`) fills the
   screen with the big picture, its logo bobbing as on felsong.gg's loading screen. Not reachable
   until Felsong's game is in the app.
+- Felsong in the launcher: the game switch is a picker (Wrath of the Lich King, Turtle WoW,
+  Felsong), each game in its own look. Felsong's launcher (`FelsongHome`) has the look above,
+  Kingdoms Will Burn as its music (`res/raw/felsong_title_music.ogg`, −6.5 dB), and says plainly
+  that there's no Play yet, why (the realm, the client and box64 #3061), and that nothing of the
+  other games changes. Released in no build yet.
+
+## In progress: the realm (step 2)
+
+- LegionCore pinned (`felsong/server-version.env`: `fed58f7`, its world and hotfixes release by
+  SHA-256, client build 26972), with the app's patches for arm64, musl and clang 20
+  (`felsong/patches/0001`–`0008`: G3D's x86 assembly, CascLib's and G3D's `stat64`, gSOAP on musl,
+  fmt's compile-time checks, rapidjson's NEON, the CPU mask and `LockedMap::swap`, clang's
+  `DEBUG=1`, `NULL` where a number is meant in three scripts).
+- `scripts/fetch-legioncore.sh`, `scripts/compile-legioncore.sh` (clang in Alpine, natively on arm64
+  or cross-compiled into an arm64 sysroot; hours), `scripts/package-legioncore.sh` (with Alpine's
+  MariaDB and the databases made from LegionCore's release, `felsong/server/seed.sql`), and
+  `felsong/server/ctl.sh` on ports of its own (MariaDB 3312, Battle.net 1119 and 8081, world 8095
+  and 8096).
+- **Not yet:** a complete compile (patch 0008 fixes errors in the game's scripts, so a compile got
+  at least that far; none is recorded as finished), the package, a test of the realm, its CI job, and anything in the app that installs or starts it.

@@ -457,6 +457,7 @@
     <string name="wow_modules_token_title">GitHub token</string>
     <string name="wow_modules_token_body">On github.com: Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only %1$s. Permissions: Actions, read and write; and Issues, read and write, for the game\'s Report Time Anomaly to send its reports unseen. Paste it here: it\'s checked with GitHub, then kept in this app\'s own storage and sent to GitHub alone.</string>
     <string name="wow_report_sent">Time anomaly reported on GitHub: issue #%1$d.</string>
+    <string name="wow_remix_home">%1$s went home to ChromieCraft. The server is starting again there: press start to log in, in your side\'s capital.</string>
     <string name="wow_report_opened">Your time anomaly report is open on GitHub: send it from there.</string>
     <string name="wow_report_no_browser">Your time anomaly report couldn\'t open: no browser on this phone.</string>
     <string name="wow_report_waiting">Your time anomaly report will go to GitHub once the phone is online.</string>

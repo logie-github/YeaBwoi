@@ -24,14 +24,16 @@ DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 7701000 AND 7701999;
 DELETE FROM `creature_questender` WHERE `quest` BETWEEN 7701000 AND 7701999;
 DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 7701000 AND 7701999;
 
--- The first prologue (WRM-001 to 007, in the Caverns of Time, until build 64): gone too.
-DELETE FROM `quest_template` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 77001 AND 77009;
-DELETE FROM `creature_questender` WHERE `quest` BETWEEN 77001 AND 77009;
-DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 77001 AND 77009;
+-- The first prologue (WRM-001 to 007, in the Caverns of Time, until build 64): gone too. Not 77006,
+-- which is Chapter I's Alliance transition now (wrath_remix_world_0006_bridges.sql): this file can
+-- change on its own, and its deletes must not take that one out.
+DELETE FROM `quest_template` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
+DELETE FROM `creature_questender` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
+DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
 
 DELETE FROM `quest_template` WHERE `ID` BETWEEN 77010 AND 77015;
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `RewardXPDifficulty`, `RewardMoney`, `Flags`,
@@ -41,7 +43,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77010, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'Out of Time',
  'Speak with Eternus at the Infinite Bazaar.',
- 'You are in Northrend, $n: Crystalsong Forest, beneath the city of Dalaran. The fleets of the Alliance and the Horde are only now reaching these shores. The war against the Lich King has barely begun, and you are years before your own time.$B$BThis is the Infinite Bazaar. My master, Eternus of the Infinite Dragonflight, pulled you out of your own time and into this one. The journey has a price: time takes a traveller''s strength and gives it back slowly. That is why you feel as you do. It will pass.$B$BWe call those who make the journey Timerunners. Eternus will tell you why he needs one. He is waiting, just there.',
+ 'You are in Northrend, $n: Crystalsong Forest, beneath the city of Dalaran. The fleets of the Alliance and the Horde are only now reaching these shores. The war against the Lich King has barely begun.$B$BThe war you left is years from here. Gul''dan has torn open the Tomb of Sargeras, the Legion is pouring through, and the fleets are loading for the Broken Shore. It will wait for you: when you go back, it will be to the very hour you left, and not a moment of it will be lost.$B$BThis is the Infinite Bazaar. My master, Eternus of the Infinite Dragonflight, pulled you out of that hour and into this one, and on the way he showed you where this war ends. He wanted you to see it first. The journey has a price: time takes a traveler''s strength and gives it back slowly. That is why you feel as you do. It will pass.$B$BWe call those who make the journey Timerunners. Eternus will tell you why he needs one. He is waiting, just there.$B$BOh, and the hourglass in your bag is mine. Keep it. I will tell you what it does before you go anywhere.',
  'Speak with Eternus.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
 (77011, 2, 10, 1, 2817, 4, 0, 8, 0, 0, 0,
@@ -53,8 +55,8 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
  'Echo of a Fallen Footman heard', 'Echo of Dranosh Saurfang heard', 'Echo of Bolvar Fordragon heard', 0),
 (77012, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'Time''s Toll',
- 'Speak with Alurmi and with your class''s instructor at the Bazaar, then return to Moratari.',
- 'Before I send you anywhere, you need your strength back, and it will not come back on its own.$B$BBronze is what time leaves behind when you act in it. Earn it, and Alurmi will trade it for gear that grows as you do. Your class''s instructor, among the others at the east side of the camp, will teach you what the journey made you forget.$B$BMoratari has made the arrangements. See them both, and then her.',
+ 'Speak with Alurmi at the head of the market and with your class''s instructor in the training yard, then return to Moratari.',
+ 'Before I send you anywhere, you need your strength back, and it will not come back on its own.$B$BBronze is what time leaves behind when you act in it. Earn it, and Alurmi will trade it for gear that grows as you do; hers is the first stall of the market, on the camp''s west side. Your class''s instructor is in the training yard to the south-east, with the others, and will walk you through the abilities you already have and teach you the ones the journey made you forget.$B$BMoratari has made the arrangements. See them both, and then her.',
  'Return to Moratari.',
  @ALURMI, @INSTRUCTOR_CREDIT, 0, 1, 1, 0, 'Alurmi spoken to', 'Your class''s instructor spoken to', '', 0),
 (77013, 2, 10, 1, 2817, 4, 0, 8, 0, 41599, 2,
@@ -89,9 +91,9 @@ INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`,
 
 DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 77010 AND 77015;
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
-(77010, 1, 'So you are the one Moratari found. Welcome, Timerunner.$B$BYou are wondering why the Infinite Dragonflight would want a hero. Let me show you.', 0),
-(77011, 1, 'There are thousands more. Every one of them a story history will not let finish.$B$BThe bronze dragonflight guards history as though it were sacred. The bronze let Stratholme burn, and called it duty. I would rather save someone. With heroes who know how this war ends, I can: a warning here, a life there, a battle won a day sooner. Small kindnesses, Timerunner. Enough of them, and the Wrathgate never happens.$B$BHelp me. Moratari will see that you are ready.', 0),
-(77012, 1, 'Good. Bronze for every errand finished and every foe felled; Alurmi for the gear; your instructor for the rest, and as you grow, the lessons come back to you on their own.$B$BOne more thing: this Bazaar is your home between battles. Your hearthstone now remembers it.', 0),
+(77010, 1, 'So you are the one Moratari found. Welcome, Timerunner.$B$BYou come from the eve of a war you cannot stop: demons in the fields, ships in the harbors, everyone you know about to sail into the fire. I know that hour well. I took every one of you from it on purpose. On the night before a war, heroes vanish all the time, and no one asks where.$B$BAnd you have seen how this one ends: the snow, the Citadel, his sword. I made sure of it. Now you know what I mean to spare it.$B$BYou are wondering why the Infinite Dragonflight would want a hero. Let me show you.', 0),
+(77011, 1, 'There are thousands more. Every one of them a story history will not let finish.$B$BThe bronze dragonflight guards history as though it were sacred. The bronze let Stratholme burn, and called it duty. I would rather save someone. With heroes who know how this war ends, I can: a warning here, a life there, a battle won a day sooner. Small kindnesses, Timerunner. Enough of them, and the Wrathgate never happens.$B$BYou of all people know what it is to stand on the eve of a war and count the names it will cost. Here, for once, you can do something about it.$B$BHelp me. Moratari will see that you are ready.', 0),
+(77012, 1, 'Good. Bronze for every errand finished and every foe felled; Alurmi for the gear; your instructor for the rest, and as you grow, the lessons come back to you on their own.$B$BOne more thing: this Bazaar is your home between battles. Your hearthstone now remembers it.$B$BAnd the hourglass. Turn it wherever you are, and it brings you here. Turn it here, and it takes you back to wherever you came from. No waiting, no innkeepers. Not in the middle of a fight, though; time is fussy about that.', 0),
 (77013, 4, 'There. You are stronger than you were an hour ago, which is the whole point of you.$B$BTake these bags: you will carry a great deal of the war home with you. And the Bronze; Alurmi will want to see it. When you are ready, Eternus will send you to the front.', 0),
 (77014, 1, 'Remember what the echoes told you. You know how this war goes, and they do not. When I ask you for a kindness, do it.$B$BGo.', 0),
 (77015, 1, 'Remember what the echoes told you. You know how this war goes, and they do not. When I ask you for a kindness, do it.$B$BGo.', 0);

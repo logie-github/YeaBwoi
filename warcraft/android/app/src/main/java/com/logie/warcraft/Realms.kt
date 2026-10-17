@@ -3,6 +3,7 @@
 package com.logie.warcraft
 
 import android.content.Context
+import java.io.File
 
 /**
  * The phone's two realms, one auth server and one set of accounts between them:
@@ -34,13 +35,19 @@ object Realms {
     private const val PREFS = "realms"
     private const val KEY = "realm"
 
+    // (in a file, read each time: the app's process and the realm's ([RealmLink]) both read and
+    // write it, and preferences are cached per process)
+    private fun file(context: Context) = File(WowFiles.run(context), "realm")
+
     /** The realm Press start starts. */
     fun current(context: Context): Realm {
-        val key = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
+        val key = runCatching { file(context).takeIf { it.isFile }?.readText()?.trim() }.getOrNull()
+            ?: context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null)
         return Realm.entries.firstOrNull { it.key == key } ?: Realm.CHROMIECRAFT
     }
 
     fun set(context: Context, realm: Realm) {
+        runCatching { file(context).apply { parentFile?.mkdirs() }.writeText(realm.key) }
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, realm.key).apply()
     }
 }

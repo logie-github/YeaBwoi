@@ -8,12 +8,14 @@
 #define MOD_WRATH_REMIX_H
 
 #include "Define.h"
+#include "Duration.h"
 #include "ObjectGuid.h"
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 class Creature;
+class CreatureAI;
 class Player;
 class Quest;
 class Unit;
@@ -36,6 +38,8 @@ namespace WrathRemix
         NPC_SYLVANAS      = 770011,     // from the future, with the bronze (Chapter II on)
         NPC_ALLERIA       = 770012,
         NPC_MORATARI_SCENE = 770013,    // Moratari as WRM-207's scene has her (no quests, seen by one)
+        NPC_SYLVANAS_ABROAD = 770014,   // the same two anywhere but the Bazaar: hooded, passing for
+        NPC_ALLERIA_ABROAD  = 770015,   // adventurers (no one may learn who they are)
         NPC_ECHO_FOOTMAN  = 770021,     // WRM-011's echoes of the war's dead
         NPC_ECHO_SAURFANG = 770022,
         NPC_ECHO_BOLVAR   = 770023,
@@ -58,6 +62,7 @@ namespace WrathRemix
         AREA_WYRMREST_TEMPLE = 4161,
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
+        ITEM_HOURGLASS    = 77002,      // Moratari's Hourglass: to the Bazaar and back (RemixHourglass.cpp)
 
         QUEST_OUT_OF_TIME      = 77010,     // the prologue at the Bazaar (STORY.md)
         QUEST_WAR_WILL_COST    = 77011,
@@ -68,6 +73,24 @@ namespace WrathRemix
         QUEST_MYSTERY_OF_THE_INFINITE = 12470,  // Chromie's, at Wyrmrest Temple (the game's own)
         QUEST_STRANGERS        = 77204,     // Chapter II and the turn (STORY.md)
         QUEST_WEIGHT_OF_TIME   = 77207,
+        QUEST_LAST_HOUR        = 77721,     // Chapter VII: Eternus at the doors of Icecrown Citadel
+        QUEST_LAST_NECESSARY_BATTLE = 77800,  // the Lich King
+        QUEST_SEE_YOU_LATER    = 77801,     // the end (STORY.md)
+        QUEST_BACK_TO_YOUR_OWN_TIME = 77802,
+
+        NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene
+        NPC_LAST_HOUR_CREDIT = 770036,  // WRM-721's, as Eternus retreats
+        NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, his loyalists, and the three beside you
+        NPC_LAST_CHRONOMANCER = 770062,
+        NPC_LAST_EXECUTIONER = 770063,
+        NPC_ALLY_MORATARI = 770064,
+        NPC_ALLY_SYLVANAS = 770065,
+        NPC_ALLY_ALLERIA  = 770066,
+        NPC_LESSON_CREDIT = 770067,     // a class lesson's three abilities: 770067 + its slot (0 to 2)
+        NPC_TRAINING_DUMMY = 770087,    // the training yard's dummies (wrath_remix_world_0023_bazaar.sql)
+
+        QUEST_LESSON_FIRST = 77030,     // the class lessons, one a class (wrath_remix_world_0025_lessons.sql)
+        QUEST_LESSON_LAST  = 77039,
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
@@ -88,6 +111,7 @@ namespace WrathRemix
         TEXT_ALLERIA           = 7702093,
         TEXT_ALLERIA_GATE      = 7702094,
         TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
+        TEXT_INSTRUCTOR_LESSON = 7702501,   // an instructor with a lesson to give, to see through or to finish
     };
 
     // The travel entries the module names (remix_travel).
@@ -157,6 +181,11 @@ namespace WrathRemix
         uint32 earned = 0;
         uint8 chapter = 0;
         uint8 kit = 0;      // the starter kit's version this Timerunner has had (0: none yet)
+        // Where they came to the Bazaar from, the last time they came (-1: nowhere yet), for
+        // Moratari's Hourglass to take them back to.
+        int32 backMap = -1;
+        float backX = 0.0f, backY = 0.0f, backZ = 0.0f, backO = 0.0f;
+        bool intro = false;  // been through the opening (RemixIntro.cpp)
         bool dirty = false;
     };
 
@@ -209,6 +238,8 @@ namespace WrathRemix
     uint32 Bronze(Player* player);   // what the Timerunner carries
     void SetChapter(Player* player, uint8 chapter);
     void SetKit(Player* player, uint8 version);
+    void SetWayBack(Player* player, int32 map, float x, float y, float z, float o);
+    void SetIntroSeen(Player* player);
     // A line in a Timerunner's journal (remix_log), where they are: what ("accept", "talk",
     // "bridge"...), its quest, creature or other entry, and an amount.
     void Record(Player* player, char const* what, uint32 entry, int32 amount);
@@ -224,10 +255,67 @@ namespace WrathRemix
     void TeleportSoon(Player* player, uint32 map, float x, float y, float z, float o);
     bool IsAlliance(Player* player);
 
-    // Bronze amounts (WrathRemix.Bronze.*).
+    // The story's scenes (RemixScenes.cpp): played as a quest is taken or turned in.
+    enum SceneTrigger : uint8
+    {
+        SCENE_ON_ACCEPT = 1,
+        SCENE_ON_REWARD = 2,
+    };
+    void LoadScenes();
+    bool PlayScene(Player* player, uint32 scene);
+    bool SceneRunning(Player* player);
+    void ScenesForQuest(Player* player, uint32 quest, uint8 trigger);
+    bool ReplaySceneAt(Player* player, Creature* creature);
+
+    // The end (RemixEnding.cpp).
+    void LoadEnding();
+    bool AddEndingGossip(Player* player, Creature* creature);
+    bool EndingGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action, uint32 menuText);
+    void SendHome(Player* player);
+    void ReturnToBazaarSoon(Player* player, Milliseconds after);
+
+    // Moratari's Hourglass (RemixHourglass.cpp): in every Timerunner's bags from the moment they
+    // wake at the Bazaar; anywhere, it takes them to the Bazaar; there, back where they came from.
+    bool AtTheBazaar(Player* player);
+
+    // The opening (RemixIntro.cpp): whether a Timerunner is in it; play it, or end it now.
+    bool InIntro(Player* player);
+    void PlayIntro(Player* player);
+    void SkipIntro(Player* player);
+    void GiveHourglass(Player* player);
+
+    // The class lessons (RemixLessons.cpp): each instructor walks a Timerunner of their class
+    // through three of its abilities on the training yard's dummies.
+    void LoadLessons();
+    uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
+    bool IsLesson(uint32 quest);
+    bool TeachesClassOf(Creature* instructor, Player* player);  // the instructor is their class's
+
+    // The Bazaar's people talking while a Timerunner is about (RemixBazaar.cpp): the AI the camp's
+    // own scripts give them.
+    CreatureAI* BazaarLifeAI(Creature* creature);
+    std::string HourglassReport(Player* player);
+    void TakeInTimerunners();
+    void ForgetGoneHome();
+
+    // Eternus's last hour (RemixLastHour.cpp): begun as WRM-721 brings the Timerunner to the doors.
+    bool BeginLastHour(Player* player);
+    void LastHourAgain(Player* player);
+
+    // Dungeons and raids for however many are there (WrathRemix.Solo.*, RemixSolo.cpp).
+    bool SoloActive();
+    float SoloDungeonDamage();
+    float SoloRaidDamage();
+    float SoloMaxBoost();
+    // What the scaling makes of the instance the player is in (.remix solo).
+    std::string SoloReport(Player* player);
+
+    // Bronze amounts (WrathRemix.Bronze.*): enough over the story to buy everything the Bazaar sells
+    // a class, once or twice over.
     struct BronzeRates
     {
-        uint32 quest = 500, kill = 15, elite = 60, rare = 500, dungeonBoss = 1000, raidBoss = 5000;
+        uint32 quest = 4000, kill = 75, elite = 300, rare = 3000, dungeonBoss = 6000, raidBoss = 30000,
+            treasure = 1500, achievementPoint = 100;
     };
     BronzeRates const& Rates();
     bool Announce();

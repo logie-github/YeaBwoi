@@ -42,11 +42,38 @@ WrathRemix.Squish.Damage = 75
 
 #
 #    WrathRemix.FreeRiding
-#        Description: Riding taught for free as a Timerunner reaches 20, 40, 60 and 70, and Cold
-#                     Weather Flying at 77.
+#        Description: All riding taught for free from a Timerunner's first login (Apprentice to
+#                     Artisan, and Cold Weather Flying): any mount, at any level.
 #        Default:     1
 
 WrathRemix.FreeRiding = 1
+
+#
+#    WrathRemix.SaveSeconds
+#        Description: How often each real player's character is saved, in seconds, on either realm
+#                     (the core saves every 15 minutes; the realm's bots keep that). 0 leaves it to
+#                     the core.
+#        Default:     30
+
+WrathRemix.SaveSeconds = 30
+
+#
+#    WrathRemix.Intro
+#        Description: A new Timerunner's first moments (death knights aside): the Broken Front in
+#                     Icecrown, at the war's end, beside Tirion against the Scourge until the Lich
+#                     King comes and time stops, then the Bazaar. Played once.
+#        Default:     1
+
+WrathRemix.Intro = 1
+
+#
+#    WrathRemix.Guide
+#        Description: Where to go next, always: a flag on the map and minimap at the Timerunner's
+#                     next step (the quest's next objective, who takes it back, or who has the next
+#                     quest), and a line in chat as the step changes.
+#        Default:     1
+
+WrathRemix.Guide = 1
 
 #
 #    WrathRemix.StarterKit
@@ -81,19 +108,50 @@ WrathRemix.MaxWeaponSkill = 1
 #    WrathRemix.Bronze.Rare
 #    WrathRemix.Bronze.DungeonBoss
 #    WrathRemix.Bronze.RaidBoss
+#    WrathRemix.Bronze.Treasure
+#    WrathRemix.Bronze.AchievementPoint
 #        Description: Bronze earned for a quest turned in, a creature killed that gives
-#                     experience or honor (normal, elite, rare), and a dungeon's or raid's boss.
-#                     As in Legion Remix, a lot: the story from 10 to 80 earns hundreds of
-#                     thousands, for the Bazaar's vendors (Remix's own quests give their own
-#                     amounts, remix_quest_reward).
-#        Default:     500, 15, 60, 500, 1000, 5000
+#                     experience or honor (normal, elite, rare), a dungeon's or raid's boss, a
+#                     treasure chest opened out in the world (the first thing taken from it), and
+#                     each point of an achievement. As in Legion Remix, a lot: by the end of the
+#                     story a Timerunner has had enough to buy everything the Bazaar sells their
+#                     class, once or twice over (about 1.3 to 2.2 million, depending on the class;
+#                     Remix's own quests give their own amounts, remix_quest_reward).
+#        Default:     4000, 75, 300, 3000, 6000, 30000, 1500, 100
 
-WrathRemix.Bronze.Quest = 500
-WrathRemix.Bronze.Kill = 15
-WrathRemix.Bronze.Elite = 60
-WrathRemix.Bronze.Rare = 500
-WrathRemix.Bronze.DungeonBoss = 1000
-WrathRemix.Bronze.RaidBoss = 5000
+WrathRemix.Bronze.Quest = 4000
+WrathRemix.Bronze.Kill = 75
+WrathRemix.Bronze.Elite = 300
+WrathRemix.Bronze.Rare = 3000
+WrathRemix.Bronze.DungeonBoss = 6000
+WrathRemix.Bronze.RaidBoss = 30000
+WrathRemix.Bronze.Treasure = 1500
+WrathRemix.Bronze.AchievementPoint = 100
+
+#
+#    WrathRemix.Solo.Enable
+#        Description: Dungeons and raids for however many are there: below a full group (the
+#                     realm's bots count), the instance's creatures hit softer and its players
+#                     harder, its creatures' health as it was (a boss's phases still come at their
+#                     own health). One player in a five-player dungeon takes about two fifths of the
+#                     damage and deals about four times as much. In Icecrown Citadel, with less than
+#                     a third of a raid, the few things only a group can do are done for it.
+#        Default:     1
+#
+#    WrathRemix.Solo.DungeonDamage
+#    WrathRemix.Solo.RaidDamage
+#        Description: The least share of a full group's damage the creatures of a dungeon, or a
+#                     raid, still do to a player, in percent.
+#        Default:     35, 15
+#
+#    WrathRemix.Solo.MaxBoost
+#        Description: The most the players' blows and heals are multiplied by.
+#        Default:     15
+
+WrathRemix.Solo.Enable = 1
+WrathRemix.Solo.DungeonDamage = 35
+WrathRemix.Solo.RaidDamage = 15
+WrathRemix.Solo.MaxBoost = 15
 
 #
 #    WrathRemix.Announce

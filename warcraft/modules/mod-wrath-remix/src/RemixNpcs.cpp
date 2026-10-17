@@ -46,6 +46,7 @@ namespace
         ACTION_HISTORY,
         ACTION_RECOVER,
         ACTION_BACK,
+        ACTION_LAST_HOUR,
     };
 
     std::string Number(uint32 n)
@@ -133,11 +134,11 @@ namespace
 
     // The spots, as wrath_remix_world_0004_spawns.sql has the Bazaar's own people.
     constexpr float HX = 5700.0f, HY = 1015.0f, HZ = 174.6f;
-    Position const MORATARI_SPOT(HX - 5.0f, HY + 6.0f, HZ, 5.30f);
+    Position const MORATARI_SPOT(HX - 9.0f, HY + 2.0f, HZ, 5.78f);   // clear of Eternus, who is large
     Position const SYLVANAS_SPOT(HX + 4.0f, HY + 6.0f, HZ, 3.60f);
     Position const ALLERIA_SPOT(HX + 6.5f, HY + 3.5f, HZ, 3.40f);
     Position const VISITORS_FROM(HX + 15.0f, HY - 17.0f, HZ, 2.30f);
-    Position const RIFT_SPOT(HX - 7.5f, HY + 8.5f, HZ, 5.30f);
+    Position const RIFT_SPOT(HX - 11.5f, HY + 4.5f, HZ, 5.78f);
 
     struct TurnScene
     {
@@ -269,6 +270,8 @@ class npc_remix_moratari : public CreatureScript
 public:
     npc_remix_moratari() : CreatureScript("npc_remix_moratari") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -278,8 +281,14 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
         // (as a new Timerunner wakes: where and when they are)
         bool waking = !player->GetQuestRewardStatus(QUEST_OUT_OF_TIME) && player->getClass() != CLASS_DEATH_KNIGHT;
+        // (a scene the Timerunner left before its end plays again)
+        ReplaySceneAt(player, creature);
         if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE)
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "I'm ready. Let the anomalies through.", SENDER_MAIN, ACTION_ANOMALIES);
+        // (the last hour, begun again if the Timerunner died or went before it was over)
+        if (player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE)
+            AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "Take me back to the doors of the Citadel.", SENDER_MAIN, ACTION_LAST_HOUR);
+        AddEndingGossip(player, creature);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Where are we in history?", SENDER_MAIN, ACTION_HISTORY);
         SendGossipMenuFor(player, waking ? TEXT_MORATARI_PROLOGUE : TEXT_MORATARI, creature);
         return true;
@@ -289,6 +298,8 @@ public:
     {
         if (!Active())
             return false;
+        if (EndingGossipSelect(player, creature, sender, action, TEXT_MORATARI))
+            return true;
         ClearGossipMenuFor(player);
         if (sender != SENDER_MAIN)
         {
@@ -297,6 +308,10 @@ public:
         }
         switch (action)
         {
+            case ACTION_LAST_HOUR:
+                CloseGossipMenuFor(player);
+                LastHourAgain(player);
+                return true;
             case ACTION_ANOMALIES:
             {
                 CloseGossipMenuFor(player);
@@ -341,6 +356,8 @@ class npc_remix_eternus : public CreatureScript
 public:
     npc_remix_eternus() : CreatureScript("npc_remix_eternus") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -372,11 +389,14 @@ public:
 
 // Sylvanas and Alleria Windrunner, from the future: at Wyrmrest Temple with Chromie, on the
 // Wrathgate's cliffs (Alleria), and at the Bazaar after the turn. They're seen only where the
-// story has them (visibility conditions, wrath_remix_world_0011_chapter2.sql).
+// story has them (visibility conditions, wrath_remix_world_0011_chapter2.sql), and anywhere but
+// the Bazaar as two hooded rangers (NPC_SYLVANAS_ABROAD, NPC_ALLERIA_ABROAD).
 class npc_remix_windrunner : public CreatureScript
 {
 public:
     npc_remix_windrunner() : CreatureScript("npc_remix_windrunner") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -385,16 +405,30 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
-        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS;
-        uint32 text;
-        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
-            text = sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
-        else if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
-            text = sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
-        else
-            text = sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
-        SendGossipMenuFor(player, text, creature);
+        ReplaySceneAt(player, creature);
+        AddEndingGossip(player, creature);
+        SendGossipMenuFor(player, Words(creature), creature);
         return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+    {
+        if (!Active())
+            return false;
+        if (!EndingGossipSelect(player, creature, sender, action, Words(creature)))
+            CloseGossipMenuFor(player);
+        return true;
+    }
+
+    // What they say where they stand.
+    static uint32 Words(Creature* creature)
+    {
+        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS || creature->GetEntry() == NPC_SYLVANAS_ABROAD;
+        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
+            return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
+        if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
+            return sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
+        return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
     }
 };
 
@@ -404,6 +438,8 @@ class npc_remix_keeper : public CreatureScript
 public:
     npc_remix_keeper() : CreatureScript("npc_remix_keeper") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -411,7 +447,17 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
+        AddEndingGossip(player, creature);
         SendGossipMenuFor(player, creature->GetEntry() == NPC_NOZARI ? TEXT_NOZARI : TEXT_ANDORMU, creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+    {
+        if (!Active())
+            return false;
+        if (!EndingGossipSelect(player, creature, sender, action, creature->GetEntry() == NPC_NOZARI ? TEXT_NOZARI : TEXT_ANDORMU))
+            CloseGossipMenuFor(player);
         return true;
     }
 };
@@ -452,6 +498,8 @@ class npc_remix_alurmi : public CreatureScript
 public:
     npc_remix_alurmi() : CreatureScript("npc_remix_alurmi") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -473,6 +521,8 @@ class npc_remix_bronze_vendor : public CreatureScript
 public:
     npc_remix_bronze_vendor() : CreatureScript("npc_remix_bronze_vendor") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -491,6 +541,8 @@ class npc_remix_zephyr : public CreatureScript
 {
 public:
     npc_remix_zephyr() : CreatureScript("npc_remix_zephyr") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -527,6 +579,8 @@ class npc_remix_saat : public CreatureScript
 public:
     npc_remix_saat() : CreatureScript("npc_remix_saat") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -551,6 +605,8 @@ class npc_remix_chronologist : public CreatureScript
 {
 public:
     npc_remix_chronologist() : CreatureScript("npc_remix_chronologist") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -592,6 +648,8 @@ class npc_remix_momentus : public CreatureScript
 public:
     npc_remix_momentus() : CreatureScript("npc_remix_momentus") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
@@ -607,6 +665,8 @@ class npc_remix_echo : public CreatureScript
 {
 public:
     npc_remix_echo() : CreatureScript("npc_remix_echo") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -632,12 +692,45 @@ public:
 
         ObjectGuid timerunner;
         uint32 wave = ANOMALY_WAVES;
+        uint32 checkIn = 2000;
 
         void SetGUID(ObjectGuid const& guid, int32 /*id*/) override { timerunner = guid; }
         void SetData(uint32 type, uint32 value) override
         {
             if (type == DATA_WAVE)
                 wave = value;
+        }
+
+        // Each anomaly is one Timerunner's: it never goes for anyone else who comes near (the
+        // Bazaar is where every character is made), and it goes when its Timerunner does (logged
+        // out, dead, gone from the Bazaar, the demonstration over); otherwise, fighting whoever
+        // walked by, it would never leave combat and never despawn.
+        void MoveInLineOfSight(Unit* /*who*/) override { }
+
+        bool Mine(Player* player) const
+        {
+            return player && player->IsInWorld() && player->IsAlive() && player->GetMapId() == me->GetMapId() &&
+                   player->GetDistance(me) < 80.0f && player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE;
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (checkIn <= diff)
+            {
+                checkIn = 2000;
+                Player* player = ObjectAccessor::GetPlayer(*me, timerunner);
+                if (!Mine(player))
+                {
+                    me->DespawnOrUnsummon();
+                    return;
+                }
+                if (!me->GetVictim())
+                    AttackStart(player);
+            }
+            else
+                checkIn -= diff;
+            if (UpdateVictim())
+                DoMeleeAttackIfReady();
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -662,20 +755,40 @@ public:
     }
 };
 
-// The Bazaar's instructors: speaking with one is WRM-012's objective; then their lessons, as any
-// trainer's.
+// The Bazaar's instructors: speaking with the one of your class is WRM-012's objective; they have
+// your class's lesson (RemixLessons.cpp) until it's done, and the trainer's list, as any trainer.
 class npc_remix_instructor : public CreatureScript
 {
 public:
     npc_remix_instructor() : CreatureScript("npc_remix_instructor") { }
 
+    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE)
+        bool ours = TeachesClassOf(creature, player);
+        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE && ours)
             player->KilledMonsterCredit(NPC_INSTRUCTOR_CREDIT);
+        uint32 lesson = ours ? LessonQuest(player) : 0;
+        if (lesson && !player->GetQuestRewardStatus(lesson))
+        {
+            ClearGossipMenuFor(player);
+            player->PrepareQuestMenu(creature->GetGUID());
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "I would like to train.", GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRAIN);
+            SendGossipMenuFor(player, TEXT_INSTRUCTOR_LESSON, creature->GetGUID());
+            return true;
+        }
         player->GetSession()->SendTrainerList(creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 action) override
+    {
+        CloseGossipMenuFor(player);
+        if (action == GOSSIP_ACTION_TRAIN)
+            player->GetSession()->SendTrainerList(creature);
         return true;
     }
 };
