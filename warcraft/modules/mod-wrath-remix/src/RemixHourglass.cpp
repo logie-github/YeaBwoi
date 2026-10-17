@@ -42,7 +42,7 @@ namespace
             return Tell(player, "Not on a flight. Wait until you land.");
         if (player->InBattleground() || player->InArena())
             return Tell(player, "Not here. This fight keeps its own time.");
-        if (SceneRunning(player))
+        if (SceneRunning(player) || InIntro(player))
             return Tell(player, "Not now. Let the moment finish.");
 
         if (AtTheBazaar(player))
@@ -131,7 +131,7 @@ public:
 
     bool OnPlayerBeforeTeleport(Player* player, uint32 mapid, float x, float y, float /*z*/, float /*orientation*/, uint32 /*options*/, Unit* /*target*/) override
     {
-        if (!Active() || !player->IsInWorld() || IsBot(player))
+        if (!Active() || !player->IsInWorld() || IsBot(player) || InIntro(player))
             return true;
         bool toBazaar = mapid == MAP_NORTHREND && std::hypot(x - BAZAAR_X, y - BAZAAR_Y) < BAZAAR_REACH;
         if (toBazaar && !AtTheBazaar(player) && player->GetMapId() != MAP_EBON_HOLD)

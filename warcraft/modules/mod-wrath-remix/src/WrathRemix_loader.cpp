@@ -15,6 +15,7 @@ void AddRemixHourglassScripts();
 void AddPlayerSavesScripts();
 void AddRemixGuideScripts();
 void AddRemixBazaarScripts();
+void AddRemixIntroScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -30,4 +31,5 @@ void Addmod_wrath_remixScripts()
     AddPlayerSavesScripts();
     AddRemixGuideScripts();
     AddRemixBazaarScripts();
+    AddRemixIntroScripts();
 }

@@ -5,6 +5,10 @@
 # before each step are given and turned in with GM commands, the story's own are played, and what
 # each opens, and who can be seen, is checked.
 
+# (the opening is the prologue test's)
+wait 4
+cmd .remix intro skip
+wait 3
 cmd .levelup 20
 wait 2
 # (no harm comes to the test's character: it doesn't fight, a GM command kills for it)

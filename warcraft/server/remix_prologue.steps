@@ -7,6 +7,17 @@
 cmd .remix
 expect chapter 0 (the prologue)
 
+# The opening (RemixIntro.cpp): a new Timerunner's first moments are at the Broken Front in
+# Icecrown, beside Tirion against the Scourge, until the Lich King comes and time stops; then
+# Moratari brings them to the Bazaar.
+wait 8
+cmd .gps
+expect The Broken Front
+wait 92
+expect Frostmourne hungers
+cmd .gps
+expect Crystalsong Forest
+
 # The starter kit and the class's abilities, a moment after the first login (the client checks
 # what the realm wrote down at the end).
 wait 3

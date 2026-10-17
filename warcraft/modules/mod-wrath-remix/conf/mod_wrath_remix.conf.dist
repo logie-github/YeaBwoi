@@ -58,6 +58,15 @@ WrathRemix.FreeRiding = 1
 WrathRemix.SaveSeconds = 30
 
 #
+#    WrathRemix.Intro
+#        Description: A new Timerunner's first moments (death knights aside): the Broken Front in
+#                     Icecrown, at the war's end, beside Tirion against the Scourge until the Lich
+#                     King comes and time stops, then the Bazaar. Played once.
+#        Default:     1
+
+WrathRemix.Intro = 1
+
+#
 #    WrathRemix.Guide
 #        Description: Where to go next, always: a flag on the map and minimap at the Timerunner's
 #                     next step (the quest's next objective, who takes it back, or who has the next
