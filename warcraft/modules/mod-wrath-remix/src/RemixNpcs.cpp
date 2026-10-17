@@ -692,12 +692,45 @@ public:
 
         ObjectGuid timerunner;
         uint32 wave = ANOMALY_WAVES;
+        uint32 checkIn = 2000;
 
         void SetGUID(ObjectGuid const& guid, int32 /*id*/) override { timerunner = guid; }
         void SetData(uint32 type, uint32 value) override
         {
             if (type == DATA_WAVE)
                 wave = value;
+        }
+
+        // Each anomaly is one Timerunner's: it never goes for anyone else who comes near (the
+        // Bazaar is where every character is made), and it goes when its Timerunner does (logged
+        // out, dead, gone from the Bazaar, the demonstration over); otherwise, fighting whoever
+        // walked by, it would never leave combat and never despawn.
+        void MoveInLineOfSight(Unit* /*who*/) override { }
+
+        bool Mine(Player* player) const
+        {
+            return player && player->IsInWorld() && player->IsAlive() && player->GetMapId() == me->GetMapId() &&
+                   player->GetDistance(me) < 80.0f && player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE;
+        }
+
+        void UpdateAI(uint32 diff) override
+        {
+            if (checkIn <= diff)
+            {
+                checkIn = 2000;
+                Player* player = ObjectAccessor::GetPlayer(*me, timerunner);
+                if (!Mine(player))
+                {
+                    me->DespawnOrUnsummon();
+                    return;
+                }
+                if (!me->GetVictim())
+                    AttackStart(player);
+            }
+            else
+                checkIn -= diff;
+            if (UpdateVictim())
+                DoMeleeAttackIfReady();
         }
 
         void JustDied(Unit* /*killer*/) override

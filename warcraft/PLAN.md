@@ -1025,7 +1025,10 @@ for the game on the phone itself ("that's the whole point").
     for it (Moratari takes the Timerunner's knowledge of their own future at the end).
     Checked here: compiled; the Remix realm starts and applies every changed file; the prologue
     plays through Time's Toll and A Small Demonstration at the new positions (the vendors' part
-    after it, and the campaign, are CI's server test, alongside the release).
+    after it, and the campaign, are CI's server test, alongside the release). Found while testing
+    (build 86): a Temporal Anomaly whose Timerunner left mid-demonstration stayed at the Bazaar and
+    attacked everyone who arrived, never leaving combat; now each anomaly fights only its own
+    Timerunner and goes when they do (checked: one left mid-fight, a newcomer wasn't attacked).
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
