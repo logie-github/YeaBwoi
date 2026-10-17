@@ -292,9 +292,11 @@ namespace WrathRemix
             ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r The way home is closed on this realm (WOW_TRANSFERS_DIR). Report a time anomaly, and I will look into it.");
             return;
         }
-        // The Bronze stays at the Bazaar.
+        // The Bronze stays at the Bazaar, and so does Moratari's Hourglass.
         if (uint32 bronze = player->GetItemCount(ITEM_BRONZE, true))
             player->DestroyItemCount(ITEM_BRONZE, bronze, true, false);
+        if (uint32 hourglasses = player->GetItemCount(ITEM_HOURGLASS, true))
+            player->DestroyItemCount(ITEM_HOURGLASS, hourglasses, true, false);
 
         // Saved first, the way the game saves (asynchronously: some of a character's statements
         // are only prepared for that), and the dump written once the save is in, since it reads

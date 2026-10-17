@@ -1005,6 +1005,14 @@ for the game on the phone itself ("that's the whole point").
     scales the damage both ways; Icecrown Citadel's group-only mechanics are done for a player
     nearly alone. Timed dungeons: left out, as asked.
   - Checked here: see the build's entry once it's tested.
+  - Disguises (the user's ask): away from the Bazaar, the Sylvanas and Alleria from the future are
+    the Hooded Ranger and the Cloaked Ranger, *Adventurer* (entries 770014/770015, the scenes' and
+    the last hour's too); the Sylvanas of this year never learns of the other, but for the Forge of
+    Souls' moment. Moratari has no title over her head.
+  - Moratari's Hourglass (item 77002, `RemixHourglass.cpp`): in the bags from the first login at the
+    Bazaar; anywhere to the Bazaar, at the Bazaar back to where you came from; not in a fight.
+    Pushed for a release at the user's request before a local full run of these two; CI's server
+    test is their first run.
 
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the

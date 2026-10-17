@@ -17,7 +17,8 @@ ACCEPT, REWARD = 1, 2
 
 # The people (wrath_remix_world_0002_npcs.sql)
 MORATARI, ETERNUS, ANDORMU, NOZARI = 770001, 770002, 770003, 770004
-SYLVANAS, ALLERIA = 770011, 770012
+SYLVANAS, ALLERIA = 770011, 770012                       # at the Bazaar, as themselves
+SYLVANAS_ABROAD, ALLERIA_ABROAD = 770014, 770015         # anywhere else, as two rangers
 ACT_MORATARI = 770013
 ACT_SYLVANAS, ACT_ALLERIA, ACT_ETERNUS, ACT_THORIM, ACT_SIF = 770051, 770052, 770053, 770054, 770055
 THORIM_TERRACE = 30295
@@ -47,8 +48,8 @@ BACK = math.pi  # facing the way the anchor's eyes look from, i.e. towards it
 
 SCENES = [
     # ---- Chapter III ----------------------------------------------------------------------------
-    *[scene(sid, "The Hollow Crown: Alleria, as it is taken", quest, ACCEPT, ALLERIA, [
-        ("bind", 1, ALLERIA),
+    *[scene(sid, "The Hollow Crown: Alleria, as it is taken", quest, ACCEPT, ALLERIA_ABROAD, [
+        ("bind", 1, ALLERIA_ABROAD),
         ("face", 1, PLAYER),
         say(1, "There is something under these hills, Timerunner. I felt it the moment the bronze set me down. It has a voice, and the voice is very patient."),
         say(1, "Eternus has felt something too, but not the same thing. He sees a god driven mad and he thinks: a wound. Wind it back, and the bear is whole again."),
@@ -79,8 +80,8 @@ SCENES = [
         ("despawn", 1),
     ]),
     # ---- Chapter IV -----------------------------------------------------------------------------
-    scene(401, "One Life Too Many: Sylvanas beneath Voltarus", 77405, ACCEPT, SYLVANAS, [
-        ("bind", 1, SYLVANAS),
+    scene(401, "One Life Too Many: Sylvanas beneath Voltarus", 77405, ACCEPT, SYLVANAS_ABROAD, [
+        ("bind", 1, SYLVANAS_ABROAD),
         ("face", 1, PLAYER),
         say(1, "Drakuru's. The troll who sold his people to the Scourge for a crown. Eternus's agents are beneath Voltarus, opening a door to carry him away before his master comes."),
         say(1, "Here is what happens if they succeed. The Lich King comes to Voltarus for a traitor and finds no one. He never sees you. He never decides that you are worth keeping for the end."),

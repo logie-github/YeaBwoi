@@ -99,7 +99,7 @@ INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
 -- Its scenes (wrath_remix_world_0014_scenes.sql): Alleria as it's taken, and again beside the
 -- Bear God's quest giver as Ursoc's quest is turned in. Spawns 7704310 to 7704329.
 
-SET @ALLERIA := 770012, @ANCHOR := 770042, @REWINDER := 770043;
+SET @ALLERIA_ABROAD := 770015, @ANCHOR := 770042, @REWINDER := 770043;
 
 DELETE FROM `quest_template` WHERE `ID` IN (77303, 77313);
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `RewardXPDifficulty`, `RewardMoney`, `Flags`,
@@ -127,9 +127,9 @@ INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`)
 (77313, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BWindseer Grayhorn is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77303, 77313);
-INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@ALLERIA, 77303), (@ALLERIA, 77313);
+INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@ALLERIA_ABROAD, 77303), (@ALLERIA_ABROAD, 77313);
 DELETE FROM `creature_questender` WHERE `quest` IN (77303, 77313);
-INSERT INTO `creature_questender` (`id`, `quest`) VALUES (@ALLERIA, 77303), (@ALLERIA, 77313);
+INSERT INTO `creature_questender` (`id`, `quest`) VALUES (@ALLERIA_ABROAD, 77303), (@ALLERIA_ABROAD, 77313);
 
 -- Ursoc, the Bear God waits for The Hollow Crown, which waits for Vordrassil's Sapling.
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12249, 12236, 77303);
@@ -143,7 +143,7 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 -- Ragepaw; the anchors around the den's mouth, where the maulers wander, each with a Rewinder.
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704310 AND 7704329;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704310 + n, @ALLERIA, c.`map`, 1, c.`phaseMask`, 0,
+SELECT 7704310 + n, @ALLERIA_ABROAD, c.`map`, 1, c.`phaseMask`, 0,
   c.`position_x` + 2.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 2.5 * SIN(c.`orientation` - PI() / 2),
   c.`position_z`, c.`orientation`, 60, 0, 0, CONCAT('Wrath Remix: Alleria Windrunner, ', what)
 FROM `creature` c JOIN (
@@ -164,12 +164,12 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceId` BETWEEN 7704310 AND 7704329 OR `SourceEntry` IN (@ANCHOR, @REWINDER));
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
-(30, 0, @ALLERIA, 7704310, 0, 8, 0, 12248, 0, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Amberpine Lodge after Vordrassil''s Sapling'),
-(30, 0, @ALLERIA, 7704310, 0, 8, 0, 77303, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until The Hollow Crown'),
-(30, 0, @ALLERIA, 7704311, 0, 8, 0, 12231, 0, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Conquest Hold after The Bear God''s Offspring'),
-(30, 0, @ALLERIA, 7704311, 0, 8, 0, 77313, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until The Hollow Crown'),
-(30, 0, @ALLERIA, 7704312, 0, 47, 0, 77303, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Ursoc''s Den during The Hollow Crown'),
-(30, 0, @ALLERIA, 7704312, 1, 47, 0, 77313, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
+(30, 0, @ALLERIA_ABROAD, 7704310, 0, 8, 0, 12248, 0, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Amberpine Lodge after Vordrassil''s Sapling'),
+(30, 0, @ALLERIA_ABROAD, 7704310, 0, 8, 0, 77303, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until The Hollow Crown'),
+(30, 0, @ALLERIA_ABROAD, 7704311, 0, 8, 0, 12231, 0, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Conquest Hold after The Bear God''s Offspring'),
+(30, 0, @ALLERIA_ABROAD, 7704311, 0, 8, 0, 77313, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until The Hollow Crown'),
+(30, 0, @ALLERIA_ABROAD, 7704312, 0, 47, 0, 77303, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Ursoc''s Den during The Hollow Crown'),
+(30, 0, @ALLERIA_ABROAD, 7704312, 1, 47, 0, 77313, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
 (30, 0, @ANCHOR, 0, 0, 47, 0, 77303, 8, 0, 0, 0, 0, '', 'Wrath Remix: the Temporal Anchors, for The Hollow Crown'),
 (30, 0, @ANCHOR, 0, 1, 47, 0, 77313, 8, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
 (30, 0, @REWINDER, 0, 0, 47, 0, 77303, 8, 0, 0, 0, 0, '', 'Wrath Remix: the Rewinders, for The Hollow Crown'),

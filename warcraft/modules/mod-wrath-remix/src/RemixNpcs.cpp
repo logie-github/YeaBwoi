@@ -385,7 +385,8 @@ public:
 
 // Sylvanas and Alleria Windrunner, from the future: at Wyrmrest Temple with Chromie, on the
 // Wrathgate's cliffs (Alleria), and at the Bazaar after the turn. They're seen only where the
-// story has them (visibility conditions, wrath_remix_world_0011_chapter2.sql).
+// story has them (visibility conditions, wrath_remix_world_0011_chapter2.sql), and anywhere but
+// the Bazaar as two hooded rangers (NPC_SYLVANAS_ABROAD, NPC_ALLERIA_ABROAD).
 class npc_remix_windrunner : public CreatureScript
 {
 public:
@@ -416,7 +417,7 @@ public:
     // What they say where they stand.
     static uint32 Words(Creature* creature)
     {
-        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS;
+        bool sylvanas = creature->GetEntry() == NPC_SYLVANAS || creature->GetEntry() == NPC_SYLVANAS_ABROAD;
         if (creature->GetZoneId() == ZONE_CRYSTALSONG)
             return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
         if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)

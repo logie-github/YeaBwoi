@@ -9,7 +9,8 @@
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
     @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022, @ECHO_BOLVAR := 770023,
-    @SYLVANAS := 770011, @ALLERIA := 770012, @INTERLOPER := 770041;
+    @SYLVANAS := 770011, @ALLERIA := 770012, @INTERLOPER := 770041,
+    @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015;
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 
@@ -36,17 +37,18 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 -- Chapter II (wrath_remix_world_0011_chapter2.sql): Sylvanas and Alleria atop Wyrmrest Temple, on
 -- either side of Chromie (WRM-204, WRM-205); Alleria on the cliffs above the Wrathgate, where the
 -- Forsaken's catapults stand on the day, with Eternus's loyalists around her (WRM-208). Each is
--- seen only by those the story has there (the chapter's visibility conditions).
+-- seen only by those the story has there (the chapter's visibility conditions), and away from the
+-- Bazaar both are in their disguises (two rangers, adventurers like any other).
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704033, @SYLVANAS, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` + PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` + PI() / 2),
+SELECT 7704033, @SYLVANAS_ABROAD, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` + PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` + PI() / 2),
   c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Wyrmrest Temple (beside Chromie)'
 FROM `creature` c WHERE c.`guid` = 131083
 UNION ALL
-SELECT 7704034, @ALLERIA, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` - PI() / 2),
+SELECT 7704034, @ALLERIA_ABROAD, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` - PI() / 2),
   c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Wyrmrest Temple (beside Chromie)'
 FROM `creature` c WHERE c.`guid` = 131083;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704035, @ALLERIA,    571, 1, 1, 0, 4974.5, 1383.5, 283.2, 0.30, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, the Wrathgate''s cliffs'),
+(7704035, @ALLERIA_ABROAD, 571, 1, 1, 0, 4974.5, 1383.5, 283.2, 0.30, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, the Wrathgate''s cliffs'),
 (7704040, @INTERLOPER, 571, 1, 1, 0, 4984.9, 1394.4, 284.4, 3.60, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
 (7704041, @INTERLOPER, 571, 1, 1, 0, 4991.0, 1400.3, 284.4, 3.80, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
 (7704042, @INTERLOPER, 571, 1, 1, 0, 5000.5, 1401.6, 284.4, 3.90, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),

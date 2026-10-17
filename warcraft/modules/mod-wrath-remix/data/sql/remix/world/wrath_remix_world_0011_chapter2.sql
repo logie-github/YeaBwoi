@@ -32,6 +32,7 @@
 -- during WRM-208. Ids and chains from the Remix world database (data/campaign_manifest.csv).
 
 SET @MORATARI := 770001, @ETERNUS := 770002, @SYLVANAS := 770011, @ALLERIA := 770012, @CHROMIE := 27856,
+    @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015,
     @TURN_CREDIT := 770034, @INTERLOPER := 770041;
 
 DELETE FROM `quest_template` WHERE `ID` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
@@ -54,8 +55,8 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 -- WRM-204: Chromie, after Mystery of the Infinite. The two she brought back.
 (77204, 2, 25, 20, 65, 5, 0, 0, 0,
  'Strangers Out of Time',
- 'Speak with Sylvanas Windrunner beside Chromie atop Wyrmrest Temple.',
- 'You did well with the hourglass. And yes, that was you. Don''t think about it too hard; I''ve tried.$B$BThe Infinite aren''t only out there, $n. One of them has been fetching heroes from my future and pointing them at this war. You''re one of them. I know, because I went and fetched two people who are very unhappy about it.$B$BThey''re right behind you. One of them used to be the Banshee Queen. Try not to stare.',
+ 'Speak with Sylvanas Windrunner, hooded as a ranger, beside Chromie atop Wyrmrest Temple.',
+ 'You did well with the hourglass. And yes, that was you. Don''t think about it too hard; I''ve tried.$B$BThe Infinite aren''t only out there, $n. One of them has been fetching heroes from my future and pointing them at this war. You''re one of them. I know, because I went and fetched two people who are very unhappy about it.$B$BThey''re right behind you: the two rangers in the hoods. As far as anyone on this temple knows, they''re adventurers, same as you. The Banshee Queen of this year is very busy with a war of her own, and she must never hear that there are two of her.$B$BThe one in black used to be the Banshee Queen. Try not to stare.',
  'Speak with Sylvanas Windrunner.', 0, 0, '', 0),
 -- WRM-205 / 215: Sylvanas. Ask Eternus yourself (Chromie sends the Timerunner to the Bazaar).
 (77205, 2, 25, 20, 65, 5, 0, 0, 1101,
@@ -147,7 +148,7 @@ DELETE FROM `quest_offer_reward` WHERE `ID` IN (77201, 77202, 77203, 77204, 7720
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77203, 1, 'Hold on. Wyrmrest Temple is very tall, and Chromie is very punctual.', 0),
 (77213, 1, 'Hold on. Wyrmrest Temple is very tall, and Chromie is very punctual.', 0),
-(77204, 1, 'So you are his. You do not know what you have been doing, do you?$B$B<Sylvanas looks at you a moment longer than she needs to.>$B$B...$n.$B$B<She stops herself.>$B$BNo. You do not know me. Not yet. Where I come from, you and I have stood together through more than I will ever tell you, and if I told you any of it now, you would go looking for it, and you would not find it the way you did. So I will not.$B$BI am Sylvanas Windrunner. I did not come here for your forgiveness.$B$BWhatever Eternus has promised you, Timerunner, the war against the Lich King must happen as it did. Every battle. Every grave. I know what it cost. I know better than anyone here what it cost me.$B$BStop helping him.', 0),
+(77204, 1, 'So you are his. You do not know what you have been doing, do you?$B$B<The ranger in the black hood looks at you a moment longer than she needs to.>$B$B...$n.$B$B<She stops herself.>$B$BNo. You do not know me. Not yet. Where I come from, you and I have stood together through more than I will ever tell you, and if I told you any of it now, you would go looking for it, and you would not find it the way you did. So I will not.$B$B<She lowers her voice.>$B$BI am Sylvanas Windrunner. To everyone else on this temple I am a ranger passing through, and that is how it stays: the woman who wears my name in this year must never learn that I am here. I did not come here for your forgiveness.$B$BWhatever Eternus has promised you, Timerunner, the war against the Lich King must happen as it did. Every battle. Every grave. I know what it cost. I know better than anyone here what it cost me.$B$BStop helping him.', 0),
 (77205, 1, 'Sylvanas Windrunner. The bronze sends the woman who will one day set a world tree burning with its people inside it, to lecture you on what must not change.$B$BI will not pretend the war I want is safe. I want it kinder. That is all I have ever wanted.$B$BKeep going, champion. Moratari will see you back to the front.', 0),
 (77215, 1, 'Sylvanas Windrunner. The bronze sends the woman who will one day set a world tree burning with its people inside it, to lecture you on what must not change.$B$BI will not pretend the war I want is safe. I want it kinder. That is all I have ever wanted.$B$BKeep going, champion. Moratari will see you back to the front.', 0),
 (77201, 1, 'Hold on to something. The High Commander does not like to be kept waiting.', 0),
@@ -165,16 +166,16 @@ INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`)
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
   77211, 77212, 77213, 77215, 77216, 77218, 77221, 77222);
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
-(@MORATARI, 77203), (@MORATARI, 77213), (@CHROMIE, 77204), (@SYLVANAS, 77205), (@SYLVANAS, 77215),
+(@MORATARI, 77203), (@MORATARI, 77213), (@CHROMIE, 77204), (@SYLVANAS_ABROAD, 77205), (@SYLVANAS_ABROAD, 77215),
 (@MORATARI, 77201), (@MORATARI, 77211), (@MORATARI, 77206), (@MORATARI, 77216), (@ETERNUS, 77207),
 (@SYLVANAS, 77208), (@SYLVANAS, 77218),
 (@MORATARI, 77202), (@MORATARI, 77212), (@MORATARI, 77221), (@MORATARI, 77222);
 DELETE FROM `creature_questender` WHERE `quest` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
   77211, 77212, 77213, 77215, 77216, 77218, 77221, 77222);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
-(@MORATARI, 77203), (@MORATARI, 77213), (@SYLVANAS, 77204), (@ETERNUS, 77205), (@ETERNUS, 77215),
+(@MORATARI, 77203), (@MORATARI, 77213), (@SYLVANAS_ABROAD, 77204), (@ETERNUS, 77205), (@ETERNUS, 77215),
 (@MORATARI, 77201), (@MORATARI, 77211), (@ETERNUS, 77206), (@ETERNUS, 77216), (@MORATARI, 77207),
-(@ALLERIA, 77208), (@ALLERIA, 77218),
+(@ALLERIA_ABROAD, 77208), (@ALLERIA_ABROAD, 77218),
 (@MORATARI, 77202), (@MORATARI, 77212), (@MORATARI, 77221), (@MORATARI, 77222);
 
 -- Where a quest takes the Timerunner as it's taken (WrathRemix.cpp): to the Bazaar, before
@@ -261,7 +262,7 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 -- ElseGroup will do. Quest states: 2 objectives done, 8 in progress, 64 turned in.
 -- (only its own: the later chapters' files have conditions for these people too)
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceEntry` = @INTERLOPER OR
-  (`SourceEntry` IN (@MORATARI, @ETERNUS, @SYLVANAS, @ALLERIA) AND `SourceId` IN (7704011, 7704012, 7704013, 7704014, 7704033, 7704034, 7704035)));
+  (`SourceEntry` IN (@MORATARI, @ETERNUS, @SYLVANAS, @ALLERIA, @SYLVANAS_ABROAD, @ALLERIA_ABROAD) AND `SourceId` IN (7704011, 7704012, 7704013, 7704014, 7704033, 7704034, 7704035)));
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 -- The Bazaar: Eternus until the turn is done; its own Moratari but while the turn's scene plays;
@@ -271,15 +272,15 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (30, 0, @SYLVANAS, 7704013, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at the Bazaar after The Weight of Time'),
 (30, 0, @ALLERIA, 7704014, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at the Bazaar after The Weight of Time'),
 -- Atop Wyrmrest Temple: from Strangers Out of Time until Ask Him Yourself is turned in.
-(30, 0, @SYLVANAS, 7704033, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at Wyrmrest from Strangers Out of Time'),
-(30, 0, @SYLVANAS, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
-(30, 0, @SYLVANAS, 7704033, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
-(30, 0, @ALLERIA, 7704034, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Wyrmrest from Strangers Out of Time'),
-(30, 0, @ALLERIA, 7704034, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
-(30, 0, @ALLERIA, 7704034, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at Wyrmrest from Strangers Out of Time'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Wyrmrest from Strangers Out of Time'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
 -- The Wrathgate's cliffs: Alleria during The Hour of the Gate, the loyalists while it's being done.
-(30, 0, @ALLERIA, 7704035, 0, 47, 0, 77208, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria on the cliffs during The Hour of the Gate'),
-(30, 0, @ALLERIA, 7704035, 1, 47, 0, 77218, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
+(30, 0, @ALLERIA_ABROAD, 7704035, 0, 47, 0, 77208, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria on the cliffs during The Hour of the Gate'),
+(30, 0, @ALLERIA_ABROAD, 7704035, 1, 47, 0, 77218, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
 (30, 0, @INTERLOPER, 0, 0, 47, 0, 77208, 8, 0, 0, 0, 0, '', 'Wrath Remix: Eternus''s loyalists, for The Hour of the Gate'),
 (30, 0, @INTERLOPER, 0, 1, 47, 0, 77218, 8, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s');
 

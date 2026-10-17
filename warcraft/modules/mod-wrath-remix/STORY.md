@@ -63,8 +63,8 @@ Moratari and the Keepers of Time.
 
 1. **WRM-010 Out of Time** (Moratari, beside you as you wake → Eternus, a few steps away). Moratari
    tells you where and when you are, that Eternus brought you, and why you are weaker than you
-   remember: travelling through time costs strength, and it comes back. She hands you over to
-   Eternus.
+   remember: travelling through time costs strength, and it comes back. The hourglass in your bag
+   is hers; she will tell you what it does. She hands you over to Eternus.
 2. **WRM-011 What the War Will Cost** (Eternus → Eternus). Eternus shows you three echoes of the war
    he means to change, frozen moments standing around the camp: a footman of Valiance Keep who
    will die on the beach and rise again for the Scourge; Dranosh Saurfang at the Wrathgate; Bolvar
@@ -72,7 +72,9 @@ Moratari and the Keepers of Time.
 3. **WRM-012 Time's Toll** (Eternus → Moratari). Moratari explains what you lost and how to get it
    back: Bronze, earned for everything you do; Alurmi, who trades heirloom gear that grows with
    you; your class's instructor, who teaches what you've forgotten. Speak with both, then with
-   Moratari. Your hearthstone now remembers the Bazaar.
+   Moratari. Your hearthstone now remembers the Bazaar, and Moratari tells you what her hourglass
+   does: turned anywhere, it brings you to the Bazaar; turned there, it takes you back to wherever
+   you came from (not in a fight).
 4. **WRM-013 A Small Demonstration** (Moratari → Moratari). Time pushes back against being
    changed, and the seams fray: anomalies come through. Moratari lets three through, one at a time;
    you deal with them.
@@ -170,6 +172,15 @@ Who is seen where follows the story: Sylvanas and Alleria atop Wyrmrest from WRM
 is turned in; at the Bazaar once WRM-207 is done, when Eternus is gone from it; Alleria and the
 loyalists on the cliffs during WRM-208.
 
+Anywhere but the Bazaar, the two from the future go hooded and pass for adventurers, one more pair of
+rangers in a war full of them: the **Hooded Ranger** (Sylvanas, in black) and the **Cloaked Ranger**
+(Alleria, in blue), with *Adventurer* under their names. Chromie says so as she sends the Timerunner
+to them, and Sylvanas, lowering her voice, says who she is and that to everyone else she is a ranger
+passing through. Every place they meet the Timerunner in the world (Wyrmrest, the Wrathgate's
+cliffs, the Grizzly Hills, the Ebon Watch and Voltarus, the scenes, the last hour at Icecrown
+Citadel's doors) has them in their disguises; only the Bazaar has them as themselves. Moratari, who
+meets the Timerunner beside quest givers all over Northrend, wears no title over her head.
+
 ## Two Sylvanases
 
 The Sylvanas of this year is the game's own, and nothing in Wrath Remix changes her: to her the
@@ -181,6 +192,11 @@ to the other side of the hall. Spoken to there, she is murmuring about her siste
 Alleria gone beyond the Portal; the three of them and Lirath at Windrunner Spire; the presence that
 wears her sister's shadow). It is optional; the dungeon goes on as the game has it
 (`RemixFrozenHalls.cpp`, `wrath_remix_world_0020_frozen_halls.sql`).
+
+The Sylvanas from the future is careful never to come near the one of this year, even when she is
+the one deciding what the Timerunner does next: she will not go near the Wrathgate, watches the
+Battle for the Undercity from where her past self cannot see her, and will not set foot in the
+Frozen Halls ("If she sees me..."). The one of this year never learns she is there.
 
 The Sylvanas from the future knows the Timerunner far better than the Timerunner knows her: where she
 comes from, they are close. She slips, now and then (a name said too familiarly, "you always stand

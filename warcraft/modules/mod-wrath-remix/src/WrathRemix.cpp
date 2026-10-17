@@ -373,13 +373,19 @@ namespace WrathRemix
     void Load(Player* player)
     {
         Timerunner t;
-        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter`, `kit` FROM `remix_character` WHERE `guid` = {}", player->GetGUID().GetCounter()))
+        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter`, `kit`, `back_map`, `back_x`, `back_y`, `back_z`, `back_o` "
+            "FROM `remix_character` WHERE `guid` = {}", player->GetGUID().GetCounter()))
         {
             Field* f = result->Fetch();
             t.bronze = f[0].Get<uint32>();
             t.earned = f[1].Get<uint32>();
             t.chapter = f[2].Get<uint8>();
             t.kit = f[3].Get<uint8>();
+            t.backMap = f[4].Get<int32>();
+            t.backX = f[5].Get<float>();
+            t.backY = f[6].Get<float>();
+            t.backZ = f[7].Get<float>();
+            t.backO = f[8].Get<float>();
         }
         else
             t.dirty = true;
@@ -398,8 +404,9 @@ namespace WrathRemix
             it->second.dirty = false;
             t = it->second;
         }
-        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`, `kit`) VALUES ({}, {}, {}, {}, {})",
-            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter, t.kit);
+        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`, `kit`, `back_map`, `back_x`, `back_y`, `back_z`, `back_o`) "
+            "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter, t.kit, t.backMap, t.backX, t.backY, t.backZ, t.backO);
     }
 
     void Forget(Player* player)
@@ -479,6 +486,21 @@ namespace WrathRemix
             std::lock_guard<std::mutex> lock(timerunnersLock);
             Timerunner& t = timerunners[player->GetGUID().GetCounter()];
             t.kit = version;
+            t.dirty = true;
+        }
+        Save(player);
+    }
+
+    void SetWayBack(Player* player, int32 map, float x, float y, float z, float o)
+    {
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+            t.backMap = map;
+            t.backX = x;
+            t.backY = y;
+            t.backZ = z;
+            t.backO = o;
             t.dirty = true;
         }
         Save(player);
@@ -736,6 +758,7 @@ namespace WrathRemix
             ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffWrath Remix|r: you learn {} {} of your class.", learned,
                 learned == 1 ? "ability" : "abilities");
         GiveKit(player);
+        GiveHourglass(player);
         MaxWeaponSkills(player);
     }
 
@@ -1027,6 +1050,7 @@ public:
             {
                 ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari whispers:|r There you are. Your king will keep. Come, the Bazaar is this way.");
                 SetChapter(player, ChapterForLevel(player->GetLevel()));
+                GiveHourglass(player);
                 TeleportSoon(player, bazaar->map, bazaar->x, bazaar->y, bazaar->z, bazaar->o);
             }
         }
@@ -1200,6 +1224,7 @@ public:
             { "sees",   HandleSees,   SEC_GAMEMASTER, Console::No },
             { "return", HandleReturn, SEC_GAMEMASTER, Console::No },
             { "solo",   HandleSolo,   SEC_GAMEMASTER, Console::No },
+            { "hourglass", HandleHourglass, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1252,6 +1277,15 @@ public:
         if (!Active())
             return false;
         handler->SendSysMessage(SoloReport(handler->GetSession()->GetPlayer()));
+        return true;
+    }
+
+    // .remix hourglass (game masters): where Moratari's Hourglass is, and where it leads back to.
+    static bool HandleHourglass(ChatHandler* handler)
+    {
+        if (!Active())
+            return false;
+        handler->SendSysMessage(HourglassReport(handler->GetSession()->GetPlayer()));
         return true;
     }
 
