@@ -314,8 +314,19 @@ namespace WrathRemix
             std::string base = dir + "/" + std::to_string(low);
             std::error_code error;
             std::filesystem::create_directories(dir, error);
+            // (to a string, written here: the core's own file writing refuses a path, with
+            // PlayerDump.DisallowPaths as the app's config has it)
             PlayerDumpWriter writer;
-            if (!saved || writer.WriteDumpToFile(base + ".dump.part", low) != DUMP_SUCCESS)
+            std::string dump;
+            bool written = saved && writer.WriteDumpToString(dump, low) == DUMP_SUCCESS && !dump.empty();
+            if (written)
+            {
+                std::ofstream out(base + ".dump.part", std::ios::trunc);
+                out << dump;
+                out.close();
+                written = !out.fail();
+            }
+            if (!written)
             {
                 LOG_ERROR("module", "Wrath Remix: {} couldn't be written to {} to go home", name, dir);
                 std::filesystem::remove(base + ".dump.part", error);
