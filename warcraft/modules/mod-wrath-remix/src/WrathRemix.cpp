@@ -11,6 +11,7 @@
 #include "WrathRemix.h"
 #include "CellImpl.h"
 #include "Chat.h"
+#include "WorldPacket.h"
 #include "ChatCommand.h"
 #include "ConditionMgr.h"
 #include "Config.h"
@@ -68,6 +69,8 @@ namespace WrathRemix
         std::vector<Destination> destinations;
         std::vector<VendorList> vendorLists;
         std::unordered_map<uint32, uint32> questBronze;
+        // What Eternus whispers as one of the quests he quietly changed is turned in (remix_quest_note)
+        std::unordered_map<uint32, std::string> questNotes;
         std::unordered_map<uint8, std::vector<KitPiece>> kits;
         std::unordered_map<uint8, std::vector<ClassSpell>> classSpells;
 
@@ -247,6 +250,15 @@ namespace WrathRemix
                 questBronze[f[0].Get<uint32>()] = f[1].Get<uint32>();
             } while (result->NextRow());
         }
+        questNotes.clear();
+        if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `text` FROM `remix_quest_note`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                questNotes[f[0].Get<uint32>()] = f[1].Get<std::string>();
+            } while (result->NextRow());
+        }
         if (QueryResult result = WorldDatabase.Query("SELECT `class`, `item`, `count` FROM `remix_starter_kit` ORDER BY `class`, `item`"))
         {
             do
@@ -315,6 +327,12 @@ namespace WrathRemix
     // A quest's Bronze: the story's own amount (remix_quest_reward), or an ordinary quest's. After
     // the prologue, a story quest gives at least an ordinary quest's: a transition stands in for an
     // afternoon of them.
+    std::string const* QuestNote(uint32 quest)
+    {
+        auto it = questNotes.find(quest);
+        return it == questNotes.end() ? nullptr : &it->second;
+    }
+
     uint32 QuestBronze(uint32 quest)
     {
         auto it = questBronze.find(quest);
@@ -969,6 +987,23 @@ public:
         if (InTheStory(id) && !IsBot(player))
             RefreshSightSoon(player);
         ScenesForQuest(player, id, SCENE_ON_REWARD);
+
+        // Until the turn, Eternus is folding the war his way: a quest he quietly changed (its
+        // turn-in text, wrath_remix_world_0019) brings his word on it, a moment later.
+        if (std::string const* note = QuestNote(id); note && !IsBot(player) && !player->GetQuestRewardStatus(QUEST_WEIGHT_OF_TIME))
+        {
+            ObjectGuid guid = player->GetGUID();
+            std::string text = *note;
+            player->m_Events.AddEventAtOffset([guid, text]()
+            {
+                if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld())
+                {
+                    WorldPacket data;
+                    ChatHandler::BuildChatPacket(data, CHAT_MSG_MONSTER_WHISPER, LANG_UNIVERSAL, ObjectGuid::Empty, p->GetGUID(), text, 0, "Eternus", p->GetName());
+                    p->SendDirectMessage(&data);
+                }
+            }, 3s);
+        }
 
         if (Bridge const* bridge = BridgeFor(id))
         {

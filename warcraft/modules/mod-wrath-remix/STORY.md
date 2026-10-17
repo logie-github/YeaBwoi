@@ -170,6 +170,21 @@ Who is seen where follows the story: Sylvanas and Alleria atop Wyrmrest from WRM
 is turned in; at the Bazaar once WRM-207 is done, when Eternus is gone from it; Alleria and the
 loyalists on the cliffs during WRM-208.
 
+## Before the turn: Eternus's small changes
+
+Until the turn, Eternus is folding the war his way, quietly, and the Timerunner can see it. Nine
+original quests on each side's path through the Borean Tundra and the Dragonblight turn in a little
+differently than history has them: the one who takes the quest back notices something small that
+went better than it should have (a transport that came in, a wall braced in the night, a fog over
+the plains, a vial gone missing), and a moment later Eternus whispers that it was him. The people
+in them are history's unnamed: no one the game names lives or dies differently. Their texts and his
+whispers are in `wrath_remix_world_0019_eternus_kindnesses.sql`; the whispers stop at the turn.
+
+- Alliance: Enlistment Day, A Time for Heroes, The Siege, Death From Above, Plug the Sinkholes,
+  Finding the Phylactery, Flight of the Wintergarde Defender, Rescue from Town Square, Find Durkon!
+- Horde: Hellscream's Vigil (both), The Defense of Warsong Hold, Cutting Off the Source, Magic
+  Carpet Ride, The Plains of Nasam, Victory Nears..., Spread the Good Word, The Forsaken Blight.
+
 ## After the turn
 
 From Chapter III on, Eternus is no longer the one guiding you. He keeps trying to save the war's
