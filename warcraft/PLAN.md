@@ -1030,6 +1030,36 @@ for the game on the phone itself ("that's the whole point").
     attacked everyone who arrived, never leaving combat; now each anomaly fights only its own
     Timerunner and goes when they do (checked: one left mid-fight, a newcomer wasn't attacked).
 
+- Then (screenshots: modules build saewd4jpdxxu for wow-build-87 failed; mod-no-hearthstone-cooldown,
+  mod-arac, mod-worgoblin, mod-transmog): "look into why it failed, make it compatible". All four
+  compiled; the server test's world server crashed (segfault) while the random bots were made.
+  mod-worgoblin's SQL makes races 9 and 12 playable (playercreateinfo, chrraces_dbc) but the
+  server's CharSections.dbc has no faces or hair for them, and playerbots indexes those empty lists.
+  Both modules' READMEs have their DBC files copied over the server's and a patch put in the game,
+  which the build didn't do. Done:
+  - `patches/mod-playerbots/0001`: random bots only of races with faces and hair for both sexes
+    (and an empty list never indexed).
+  - `scripts/module-files.py` (package step, picked modules only): every .dbc a module has goes to
+    `share/dbc`; the same file from two modules is put together by record id (mod-arac's and
+    mod-worgoblin's CharBaseInfo, CharStartOutfit and SkillRaceClassInfo: no field conflicts but
+    SkillRaceClassInfo's race masks, OR'd); a file with text from two modules takes the later one's
+    and says so. Patch folders (`patch`, `patch-*.MPQ` with the game's folders) go to `share/client`
+    with those DBC files in its DBFilesClient; mod-arac's Patch-A.MPQ holds only its three DBC
+    files (read from its tables), so MPQs aren't opened. `share/client.stamp` names the content.
+  - `ctl.sh modules` (each start, per realm): `files/data-modules` (links to the data, the modules'
+    DBC files in place of the game's of the same name, any case) and DataDir pointed there, or back
+    at `files/data`; the patch into the client's `Data/patch-M.MPQ` (hard links where possible,
+    copied again only when the stamp changes; a patch-M of the user's own left alone), taken out by
+    a realm without one. The game starts with `WowPatched.exe` while it's there (`ClientMods`).
+  - Known limits: mod-worgoblin's own `skillraceclassinfo_dbc` SQL rows override three of
+    mod-arac's wider masks on the server (guns and maces for some ARAC combinations: 133, 624,
+    625); HD looks (letters after M) win over the modules' files they share; Turtle's SafeFs
+    protects `data-modules`.
+  - Checked here: the merge on the four modules' real files (30 DBC files, 6484 game files, 312 MB),
+    ctl.sh modules with dash on a stand-in files folder (links, case matching, the patch in, kept,
+    out), unit tests (205). Not built here: the APK and the server (CI); not checked: the game on
+    a phone with the modules' patch.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.
