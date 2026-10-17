@@ -117,7 +117,9 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
  'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0);
 
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77303, 77313);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77303, 12248), (77313, 12231);
+-- (The Alliance's opens with Vordrassil's Sapling turned in, as a condition below: as its
+-- PrevQuestID, the core would ask for all of the Sapling's exclusive group, -12248, too.)
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77303, 0), (77313, 12231);
 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77303, 77313);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
@@ -129,12 +131,13 @@ INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@ALLERIA, 77303), (@
 DELETE FROM `creature_questender` WHERE `quest` IN (77303, 77313);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES (@ALLERIA, 77303), (@ALLERIA, 77313);
 
--- Ursoc, the Bear God waits for The Hollow Crown.
-DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12249, 12236);
+-- Ursoc, the Bear God waits for The Hollow Crown, which waits for Vordrassil's Sapling.
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12249, 12236, 77303);
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 (19, 0, 12249, 0, 0, 8, 0, 77303, 0, 0, 0, 0, 0, '', 'Wrath Remix: Ursoc, the Bear God after The Hollow Crown'),
-(19, 0, 12236, 0, 0, 8, 0, 77313, 0, 0, 0, 0, 0, '', 'Wrath Remix: Ursoc, the Bear God after The Hollow Crown');
+(19, 0, 12236, 0, 0, 8, 0, 77313, 0, 0, 0, 0, 0, '', 'Wrath Remix: Ursoc, the Bear God after The Hollow Crown'),
+(19, 0, 77303, 0, 0, 8, 0, 12248, 0, 0, 0, 0, 0, '', 'Wrath Remix: The Hollow Crown after Vordrassil''s Sapling');
 
 -- Alleria beside Thayreen and Grayhorn (a step to their right), and at Ursoc's Den beside Tur
 -- Ragepaw; the anchors around the den's mouth, where the maulers wander, each with a Rewinder.
