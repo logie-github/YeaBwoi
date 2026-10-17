@@ -1,0 +1,84 @@
+# Warcraft — the brief
+
+The user's requirements, what was decided, what's open, and where it stands. The manual is
+`README.md`.
+
+## What the user asked for
+
+- "Look how we made World of Warcraft and all these other games. Can you do the same with this?"
+  with Warcraft III 1.30 (a Google Drive zip, "Warcraft III 1.30 (16by9 ratio) (Multi-Language) by
+  Mashiro", 1.8 GB, and its r/warcraft3 post: a pre-Reforged 1.30.4.11274 repack, RoC and TFT).
+- "A private server not connecting to Blizzard at all", "play the campaign or whatever as long as I
+  upload files", "tell me what I need to import", "a launcher like we did for Warcraft but its own
+  separate app".
+- Warcraft I Remastered and Warcraft II Remastered too; the user provides all the files.
+- "Like the WoW launcher with themes based on the games"; the art came in `branding/`: each game's
+  hero, splash and logo (Warcraft III: RoC and TFT logos and heroes, one splash) and the app icon
+  (the orc portrait in its frame).
+- Asked mid-build: "Are there any key binds that may need touch gesture reworks?" → the quick keys
+  (build 1).
+- After build 1: "Swiping in any direction pans the map in that direction. Don't just assume
+  keybinds. Ask what I want to use." "Make it com.logie.warcrafts and the name simply Warcraft."
+  "Have the launcher tell me exactly what is needed." "Optimize for Z Fold 8." Asked, the user chose:
+  no selection box; tap = right click; touch and hold = left click; a resting finger = Shift; no
+  control groups; pinch = zoom; three-finger tap = keyboard; two-finger tap = the game's menu;
+  gestures only, no keys on screen.
+
+## Decided
+
+- **One app, four looks**: `com.logie.warcrafts`, "Warcraft" (build 1 was `com.logie.warcraftrts`,
+  "Warcraft Collection": a different app on the phone, to uninstall). Warcraft I, Warcraft II,
+  Reign of Chaos, The Frozen Throne; RoC and TFT share one install (1.30 is one program; the game's
+  main menu switches, since 1.28.3).
+- **Winlator**, as in the World of Warcraft app, at the same commit, compiled into the app
+  (`scripts/prepare-winlator-app.sh`, a copy of `prepare-winlator.sh` that takes the app's folder,
+  so the WoW app's build is untouched). The runtime goes to `/data/data/com.logie.warcrafts/winfs`:
+  the package is 3 characters longer than `com.logie.warcraft`, so the folder is 3 shorter to keep
+  the rewritten path as long as Winlator's.
+- **No server**: the campaigns, custom games against the computer and LAN need none. "Private" is
+  done in the runtime: its glibc reads `<rootfs>/etc/hosts` and `etc/nsswitch.conf` (compiled-in
+  paths, checked in `libc.so.6`; neither file ships), so the app writes `hosts: files dns` and a
+  hosts file sending Blizzard's names to 0.0.0.0 before each start (`library/Offline`).
+  A PvPGN Battle.net server was considered: its version checks go up to Warcraft III 1.28.2, not
+  1.30, so it isn't in.
+- **Gestures** (the user's choices, `controls/RtsGestures`): one-finger swipe pans (arrow keys toward
+  the swipe, held while the finger is away from where it landed), tap right click, hold left click
+  on lift (a second hold on the same spot within 0.9 s: double click), a finger resting 0.2 s before
+  another lands holds Shift for the other's taps and holds, two-finger tap F10, pinch wheel, three
+  fingers the keyboard prompt, four the app's menu, Back Escape. The left click comes on lift so a
+  resting finger never clicks.
+- **What's needed** (`library/Needs`): per game, the program, `Data\{data,indices,config}`,
+  `.build.info`, and for WC3 the optional `Maps` and CD keys, each checked case-insensitively in the
+  game's folder and ticked on the launcher; Press start appears once the required ones are in.
+- **Z Fold 8**: two-pane launcher at 700 dp and wider; games at 1080 lines by default, never narrower
+  than 4:3 (letterboxed on the ~10:9 inside screen, not stretched).
+- **Warcraft III setup**: registry `Video\reswidth/resheight/windowmode=2` (the phone's size) and the
+  repack's `Classic Launcher\w3\Locale` (enUS unless set). The repack's first start asks for CD keys:
+  the game menu lists keys found in a text file next to the program (`_SERIAL_KEYS.txt`) and types
+  them.
+- **Remastered games**: the program is found by known names, else the largest non-helper `.exe`
+  (`library/GameLayout`), changeable in Game files; started with `-launch` by default.
+
+## Open (not knowable without the phone and the files)
+
+- Whether 1.30's CEF-based first-run screen (the classic installer choice) works under Wine/Box64.
+- Whether Warcraft III's Direct3D 9 runs well on DXVK + the Fold's Adreno (OpenGL is the fallback
+  in Graphics), and its sound.
+- Whether the Remastered games start without Battle.net at all (`-launch` is unconfirmed for them;
+  Blizzard's forum reports they need a Battle.net login). If they don't, the classic versions inside
+  their folders, or the GOG releases, are the alternatives to try.
+- Whether the registry values above are the ones 1.30 reads (the game also has `preferences.json`).
+
+## Stages
+
+1. **Launcher, imports, the games on Winlator, gestures, quick keys, offline** — build 1
+   (`com.logie.warcraftrts`).
+2. **The user's gestures, `com.logie.warcrafts` "Warcraft", the What's needed checklist, Fold 8
+   layout and resolutions** — built.
+3. After the user's first try: whatever the phone shows (first-run screen, renderer, Remastered).
+
+## Where it stands
+
+Stage 2: built locally and in CI; unit tests pass; launcher screenshots made with Robolectric at the
+Fold's outside (411x960 dp) and inside (832x750 dp, 750x832 dp) sizes. Nothing has run on a phone,
+and no game has been started anywhere (no Windows/ARM device here).
