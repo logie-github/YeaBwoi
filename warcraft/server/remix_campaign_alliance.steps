@@ -32,6 +32,9 @@ expect share 0.10, their damage x0.25, yours x7.08, few in Icecrown: yes
 cmd .quest add 12309
 cmd .quest complete 12309
 cmd .quest reward 12309
+# (one of the quests Eternus quietly changed: he says so, a moment after it's turned in)
+wait 4
+expect His squire's name is Tobin
 go 571 3764.6 -772.4 196.6
 talk 27136
 expect-not quest 12325
