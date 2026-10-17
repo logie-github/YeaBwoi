@@ -71,6 +71,23 @@ SET q.`QuestLevel` = IF(o.`QuestLevel` <= 0 OR o.`QuestLevel` < b.`original_min`
     q.`RewardMoney` = IF(o.`RewardMoney` <= 0 OR o.`QuestLevel` <= 0 OR o.`QuestLevel` < b.`original_min` - 5, o.`RewardMoney`,
       ROUND(o.`RewardMoney` * POW(LEAST(1, LEAST(b.`band_max` + 3, GREATEST(1, ROUND(b.`band_min` + (o.`QuestLevel` - b.`original_min`) * (b.`band_max` - b.`band_min`) / GREATEST(1, b.`original_max` - b.`original_min`)))) / o.`QuestLevel`), 1.5)));
 
+-- And as Legion Remix has them, the quests show the Timerunner's own level (as the game's holiday
+-- quests do: -1), so their experience is a level's worth whenever they're done. Their chapter's
+-- level is kept in remix_quest_level for the guide (src/RemixGuide.cpp), which leaves out the ones
+-- a Timerunner has outgrown.
+CREATE TABLE IF NOT EXISTS `remix_quest_level` (
+  `ID` INT UNSIGNED NOT NULL,
+  `QuestLevel` SMALLINT NOT NULL,
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DELETE FROM `remix_quest_level`;
+INSERT IGNORE INTO `remix_quest_level` (`ID`, `QuestLevel`)
+SELECT q.`ID`, q.`QuestLevel` FROM `quest_template` q
+JOIN `remix_original_quest` o ON o.`ID` = q.`ID`
+JOIN `remix_level_band` b ON b.`quest_sort` = o.`quest_sort`
+WHERE o.`QuestLevel` > 0 AND o.`QuestLevel` >= b.`original_min` - 5 AND q.`QuestLevel` > 0;
+UPDATE `quest_template` q JOIN `remix_quest_level` l ON l.`ID` = q.`ID` SET q.`QuestLevel` = -1;
+
 -- The quests' armour and weapons: most of Northrend's ask for no level at all (the quests did),
 -- so they would arrive at 15 as they are at 70. Their item level, stats, armour, damage and price
 -- (and level, where they have one) shrink with the quest's level, by the same ratio: a reward of a

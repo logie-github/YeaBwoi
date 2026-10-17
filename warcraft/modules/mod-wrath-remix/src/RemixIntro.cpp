@@ -343,7 +343,7 @@ namespace
             if (Creature* moratari = p->FindNearestCreature(NPC_MORATARI, 30.0f))
             {
                 moratari->SetFacingToObject(p);
-                moratari->Say("There. You're out. Easy... breathe.", LANG_UNIVERSAL, p);
+                moratari->Say("Steady. You're safe now. Breathe.", LANG_UNIVERSAL, p);
             }
         }, 2500ms);
     }
@@ -568,7 +568,7 @@ namespace
             if (Creature* king = Who(p, b.lichKing))
             {
                 king->SetFacingToObject(p);
-                king->Say("You. You do not belong to this hour.", LANG_UNIVERSAL, p);
+                king->Say("You... You are not of this hour.", LANG_UNIVERSAL, p);
             }
         });
         At(player, battle, 65000, [](Player* p, Battle& b)
@@ -602,19 +602,19 @@ namespace
             if (Creature* moratari = Who(p, b.moratari))
             {
                 moratari->SetFacingToObject(p);
-                moratari->Say("There you are. Don't move. Nothing here can see you now: for them, this moment isn't over yet.", LANG_UNIVERSAL, p);
+                moratari->Say("Found you. Stay still and stay close: time has stopped around us, and while it holds, nothing here can touch you.", LANG_UNIVERSAL, p);
             }
         });
         At(player, battle, 77500, [](Player* p, Battle& b)
         {
             if (Creature* eternus = Bring(p, b, ETERNUS_VOICE, p->GetPosition()))
-                eternus->Say("Look at it, champion. Look well. This is where this war ends: in the snow, under his sword, every time. Remember it, when I ask you to help me change it.", LANG_UNIVERSAL, p);
+                eternus->Say("Look upon it, champion. This is how the war ends: the snow, the Citadel, his blade. Every time. Remember this hour when I ask for your help.", LANG_UNIVERSAL, p);
         });
         At(player, battle, 88000, [](Player* p, Battle& b)
         {
             if (Creature* moratari = Who(p, b.moratari))
             {
-                moratari->Say("That's enough, Eternus. You're years early, Timerunner, and a long way from where you're meant to wake. Hold on to me.", LANG_UNIVERSAL, p);
+                moratari->Say("Enough, Eternus. They have seen it. Take my hand, Timerunner: this hour is about to start again, and we will not be in it.", LANG_UNIVERSAL, p);
                 moratari->CastSpell(p, SPELL_TIME_RIFT, true);
             }
         });

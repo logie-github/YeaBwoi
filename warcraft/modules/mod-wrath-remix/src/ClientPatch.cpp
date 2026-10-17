@@ -7,7 +7,9 @@
  * server starts, the module writes those three files, the server's own with the rows added, into
  * an archive in the app's client, Data/patch-Y.MPQ, which the game reads over its own; and as
  * ChromieCraft's starts, it takes the archive out again. WOW_CLIENT_DIR (ctl.sh) says where the
- * client is; without it, or without the client, nothing happens.
+ * client is; without it, or without the client, nothing happens. The archive also carries the
+ * game's CreatureDisplayInfo.dbc with the voices Remix gives some of its people's looks
+ * (remix_display_sound: Moratari's is a death knight's otherwise).
  *
  * The archive is an MPQ of the first format, the one the 3.3.5a client reads, its files stored as
  * Blizzard's own patches store theirs: in sectors of 4096 bytes, each compressed with zlib, after a
@@ -28,6 +30,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <set>
 #include <system_error>
 #include <utility>
@@ -232,6 +235,25 @@ namespace WrathRemix
             return out;
         }
 
+        // [base], a DBC file of [fields] whole-number fields, with the field at [field] of the rows
+        // [values] names (by id) set to its value. Empty when [base] isn't such a file.
+        Bytes WithValues(Bytes const& base, uint32 fields, uint32 field, std::map<uint32, uint32> const& values)
+        {
+            if (base.size() < 20 || std::memcmp(base.data(), "WDBC", 4) != 0 || field >= fields)
+                return {};
+            uint32 count = Get32(base, 4), fieldCount = Get32(base, 8), size = Get32(base, 12), strings = Get32(base, 16);
+            if (fieldCount != fields || size != fields * 4 || base.size() < 20 + size_t(count) * size + strings)
+                return {};
+            Bytes out = base;
+            for (uint32 i = 0; i < count; ++i)
+            {
+                size_t at = 20 + size_t(i) * size;
+                if (auto it = values.find(Get32(base, at)); it != values.end())
+                    Put32(out, at + field * 4, it->second);
+            }
+            return out;
+        }
+
         std::vector<std::vector<int32>> Rows(std::string const& sql, uint32 fields)
         {
             std::vector<std::vector<int32>> rows;
@@ -335,9 +357,33 @@ namespace WrathRemix
             files.emplace_back(name, std::move(patched));
             list += name + "\r\n";
         }
+        // The voices some of Remix's people speak with as they're clicked on (remix_display_sound):
+        // CreatureDisplayInfo.dbc's NPCSoundID, field 12 of 16, for their looks.
+        std::map<uint32, uint32> voices;
+        if (QueryResult result = WorldDatabase.Query("SELECT `display`, `npc_sound` FROM `remix_display_sound`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                voices[f[0].Get<uint32>()] = f[1].Get<uint32>();
+            } while (result->NextRow());
+        }
+        if (!voices.empty())
+        {
+            Bytes patched = WithValues(Read(dbc / "CreatureDisplayInfo.dbc"), 16, 12, voices);
+            if (patched.empty())
+                LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Remix's people keep the game's voices",
+                    (dbc / "CreatureDisplayInfo.dbc").string());
+            else
+            {
+                std::string name = "DBFilesClient\\CreatureDisplayInfo.dbc";
+                files.emplace_back(name, std::move(patched));
+                list += name + "\r\n";
+            }
+        }
         files.emplace_back("(listfile)", Bytes(list.begin(), list.end()));
 
-        std::string const note = "Wrath Remix's patch for the game (Bronze and its prices): its world server writes " +
+        std::string const note = "Wrath Remix's patch for the game (Bronze and its prices, and its people's voices): its world server writes " +
             std::string(PATCH) + " as it starts, and ChromieCraft's takes it out.\n";
         WriteIfChanged(mark, Bytes(note.begin(), note.end()));
         if (WriteIfChanged(patch, Archive(files)))

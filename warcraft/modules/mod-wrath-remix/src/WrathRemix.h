@@ -86,6 +86,11 @@ namespace WrathRemix
         NPC_ALLY_MORATARI = 770064,
         NPC_ALLY_SYLVANAS = 770065,
         NPC_ALLY_ALLERIA  = 770066,
+        NPC_LESSON_CREDIT = 770067,     // a class lesson's three abilities: 770067 + its slot (0 to 2)
+        NPC_TRAINING_DUMMY = 770087,    // the training yard's dummies (wrath_remix_world_0023_bazaar.sql)
+
+        QUEST_LESSON_FIRST = 77030,     // the class lessons, one a class (wrath_remix_world_0025_lessons.sql)
+        QUEST_LESSON_LAST  = 77039,
 
         TEXT_MORATARI_PROLOGUE = 7702001,
         TEXT_MORATARI          = 7702002,
@@ -106,6 +111,7 @@ namespace WrathRemix
         TEXT_ALLERIA           = 7702093,
         TEXT_ALLERIA_GATE      = 7702094,
         TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
+        TEXT_INSTRUCTOR_LESSON = 7702501,   // an instructor with a lesson to give, to see through or to finish
     };
 
     // The travel entries the module names (remix_travel).
@@ -277,6 +283,13 @@ namespace WrathRemix
     void PlayIntro(Player* player);
     void SkipIntro(Player* player);
     void GiveHourglass(Player* player);
+
+    // The class lessons (RemixLessons.cpp): each instructor walks a Timerunner of their class
+    // through three of its abilities on the training yard's dummies.
+    void LoadLessons();
+    uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
+    bool IsLesson(uint32 quest);
+    bool TeachesClassOf(Creature* instructor, Player* player);  // the instructor is their class's
 
     // The Bazaar's people talking while a Timerunner is about (RemixBazaar.cpp): the AI the camp's
     // own scripts give them.

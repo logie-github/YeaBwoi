@@ -29,12 +29,13 @@ expect Wrath Remix hourglass: bag 255
 use-hourglass
 expect come here from nowhere yet
 
-# WRM-010, Out of Time: Moratari, before the waking Timerunner, sends them to Eternus (both within
-# reach from here).
-go 571 5697.5 1019.5 175.0
+# WRM-010, Out of Time: Moratari, before the waking Timerunner, sends them to Eternus (a few steps
+# apart: Eternus is large, and she stands clear of him).
+go 571 5693.5 1018.0 175.0
 talk 770001
 expect quest 77010
 accept 770001 77010
+go 571 5697.5 1019.5 175.0
 reward 770002 77010
 expect rewarded 77010
 
@@ -56,22 +57,45 @@ reward 770002 77011
 expect rewarded 77011
 
 # WRM-012, Time's Toll: Alurmi and the warrior's instructor, then Moratari (the hearthstone remembers
-# the Bazaar).
+# the Bazaar). Another class's instructor doesn't count, and has no lesson for a warrior.
 talk 770002
 expect quest 77012
 accept 770002 77012
 go 571 5686.0 1042.5 175.0
 talk 770005
 expect credit 77012 770005
+go 571 5658.0 989.0 175.0
+talk 770110
+expect-not credit 77012 770033
 go 571 5679.0 986.5 175.0
 talk 770101
 expect credit 77012 770033
-# Report Time Anomaly, from the game's menu (the app's add-on): the realm writes a report of the
-# quest the Timerunner is on, who they've spoken to since they took it and the way they came, for
-# the app to send to GitHub (the server test reads it).
-addon WowRemix report CI's report, from the Bazaar
+# Report Time Anomaly, from the game's menu or the toolbar's Help button (the app's add-on): the
+# realm writes a report of the quest the Timerunner is on, who they've spoken to since they took it
+# and the way they came, for the app to send to GitHub (the server test reads it). What they wrote
+# comes in pieces when it's long ("report+" for each but the last).
+addon WowRemix report+ CI's report,
+addon WowRemix report  from the Bazaar
 expect Time anomaly reported
-go 571 5697.5 1019.5 175.0
+
+# The warrior's lesson (RemixLessons.cpp), from the same instructor: Charge, Rend and Heroic Strike
+# on one of the training yard's dummies.
+talk 770101
+expect quest 77031
+accept 770101 77031
+go 571 5674.0 994.0 175.0
+cast 100 770087
+expect credit 77031 770067
+cast 772 770087
+expect credit 77031 770068
+cast 78 770087
+expect credit 77031 770069
+reward 770101 77031
+expect rewarded 77031
+talk 770101
+expect-not quest 77031
+
+go 571 5693.5 1018.0 175.0
 reward 770001 77012
 expect rewarded 77012
 
@@ -133,10 +157,11 @@ expect bought 46017
 
 # WRM-014, To the Front: Moratari's, answered by Eternus, who sends the Timerunner to Valiance Keep,
 # before Recruitment Officer Blythe and Enlistment Day.
-go 571 5697.5 1019.5 175.0
+go 571 5693.5 1018.0 175.0
 talk 770001
 expect quest 77014
 accept 770001 77014
+go 571 5697.5 1019.5 175.0
 reward 770002 77014
 expect rewarded 77014
 wait 3

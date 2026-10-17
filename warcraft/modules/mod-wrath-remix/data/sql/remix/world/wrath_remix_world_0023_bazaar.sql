@@ -147,10 +147,11 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (770085, 0, 19600, 1, 1, 0),
 (770086, 0, 5554, 1, 1, 0);
 
--- The training yard's dummies: the game's own, under a plain name, at a Timerunner's first level.
+-- The training yard's dummies: the game's own, under a plain name, at a Timerunner's first level,
+-- and the class lessons' (npc_remix_dummy, src/RemixLessons.cpp).
 DROP TEMPORARY TABLE IF EXISTS `remix_dummy`;
 CREATE TEMPORARY TABLE `remix_dummy` SELECT * FROM `creature_template` WHERE `entry` = 31146;
-UPDATE `remix_dummy` SET `entry` = 770087, `name` = 'Training Dummy', `subname` = NULL, `minlevel` = 10, `maxlevel` = 10, `rank` = 0;
+UPDATE `remix_dummy` SET `entry` = 770087, `name` = 'Training Dummy', `subname` = NULL, `minlevel` = 10, `maxlevel` = 10, `rank` = 0, `ScriptName` = 'npc_remix_dummy';
 INSERT INTO `creature_template` SELECT * FROM `remix_dummy`;
 DROP TEMPORARY TABLE `remix_dummy`;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)

@@ -62,6 +62,7 @@ namespace
     std::unordered_map<uint32, std::vector<Spawn>> creatureSpawns, objectSpawns;
     std::unordered_map<uint32, std::vector<uint32>> questStarters, questEnders;     // quest: creatures
     std::vector<std::pair<uint32, uint32>> starts;                                  // (quest, creature)
+    std::unordered_map<uint32, int32> chapterLevels;    // quests shown at the Timerunner's level: their chapter's
     std::map<std::pair<uint32, ObjectGuid::LowType>, std::vector<VisibilityCondition>> visibility;
 
     // Where a Timerunner is pointed, and the step they were last told about.
@@ -81,6 +82,7 @@ namespace
         questStarters.clear();
         questEnders.clear();
         starts.clear();
+        chapterLevels.clear();
         visibility.clear();
         enabled = sConfigMgr->GetOption<bool>("WrathRemix.Guide", true, false);
         if (!Active() || !enabled)
@@ -96,6 +98,14 @@ namespace
         }
         for (auto const& [creature, quest] : *sObjectMgr->GetCreatureQuestInvolvedRelationMap())
             questEnders[quest].push_back(creature);
+        if (QueryResult result = WorldDatabase.Query("SELECT `ID`, CAST(`QuestLevel` AS SIGNED) FROM `remix_quest_level`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                chapterLevels[f[0].Get<uint32>()] = int32(f[1].Get<int64>());
+            } while (result->NextRow());
+        }
         if (QueryResult result = WorldDatabase.Query("SELECT `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, "
             "`ConditionValue1`, `ConditionValue2`, `NegativeCondition` FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND `SourceGroup` = 0"))
         {
@@ -212,6 +222,9 @@ namespace
                 }
             }
             case NPC_ANOMALY_CREDIT: return NPC_MORATARI;   // she lets them through
+            case NPC_LESSON_CREDIT:                         // a class lesson's abilities: on the yard's dummies
+            case NPC_LESSON_CREDIT + 1:
+            case NPC_LESSON_CREDIT + 2: return NPC_TRAINING_DUMMY;
             case 770037: return NPC_SYLVANAS;               // the goodbyes
             case 770038: return NPC_ALLERIA;
             case 770039: return NPC_ANDORMU;
@@ -283,7 +296,7 @@ namespace
             Quest const* quest = id ? sObjectMgr->GetQuestTemplate(id) : nullptr;
             if (!quest)
                 continue;
-            if (!story && id >= 77000 && id <= 77999)
+            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id))
                 story = quest;
             if (!ready && player->GetQuestStatus(id) == QUEST_STATUS_COMPLETE)
                 ready = quest;
@@ -365,9 +378,14 @@ namespace
             Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
             if (!quest || quest->IsRepeatable() || quest->IsSeasonal())
                 continue;
-            bool story = questId >= 77000 && questId <= 77999;
-            // (not the grey ones the Timerunner has outgrown)
-            if (!story && quest->GetQuestLevel() > 0 && quest->GetQuestLevel() + 5 < int32(player->GetLevel()))
+            // (a class lesson is offered as the yard's instructors' other quests would be: when near)
+            bool story = questId >= 77000 && questId <= 77999 && !IsLesson(questId);
+            // (not the grey ones the Timerunner has outgrown: by their chapter's level, for those
+            // shown at the Timerunner's own)
+            int32 level = quest->GetQuestLevel();
+            if (auto it = chapterLevels.find(questId); level <= 0 && it != chapterLevels.end())
+                level = it->second;
+            if (!story && level > 0 && level + 5 < int32(player->GetLevel()))
                 continue;
             if (!player->CanTakeQuest(quest, false))
                 continue;

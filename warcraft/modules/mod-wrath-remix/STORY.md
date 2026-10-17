@@ -91,7 +91,7 @@ Kor'kron. Ghouls claw out of the snow at the Lich King's word, abominations and 
 follow, frost bombs and plague burst across the field, a frost wyrm strafes the line, the val'kyr
 come at his call. Then the Lich King himself, and the Scourge kneel. Tirion charges him ("ARTHAS! I
 swore that I would see you dead..."); the winter takes the paladin to his knee; Arthas turns to the
-Timerunner ("You. You do not belong to this hour."), and raises Frostmourne. Time stops. Moratari
+Timerunner ("You... You are not of this hour."), and raises Frostmourne. Time stops. Moratari
 steps out of a rift; Eternus's voice: this is where the war ends, every time, remember it when he
 asks for help changing it. Moratari pulls them out, to the Bazaar, years earlier. Played once.
 
@@ -116,6 +116,16 @@ asks for help changing it. Moratari pulls them out, to the Bazaar, years earlier
    Moratari. Your hearthstone now remembers the Bazaar, and Moratari tells you what her hourglass
    does: turned anywhere, it brings you to the Bazaar; turned there, it takes you back to wherever
    you came from (not in a fight).
+   - **WRM-030 to 039, the class lessons** (your instructor → your instructor; optional, offered
+     until done). The instructor walks you through three of the abilities you woke with, each
+     explained, then used as it says on one of the yard's training dummies or on yourself in the
+     yard: the warrior's Charge, Rend and Heroic Strike; the paladin's Seal of Righteousness,
+     Judgement of Light and Holy Light; the hunter's Hunter's Mark, Serpent Sting and Arcane Shot;
+     the rogue's Stealth, Sinister Strike and Eviscerate; the priest's Shadow Word: Pain, Smite and
+     Power Word: Shield; the death knight's Icy Touch, Plague Strike and Death Coil; the shaman's
+     Lightning Bolt, Earth Shock and Healing Wave; the mage's Frostbolt, Fireball and Fire Blast;
+     the warlock's Corruption, Immolate and Shadow Bolt; the druid's Moonfire, Wrath and
+     Rejuvenation.
 4. **WRM-013 A Small Demonstration** (Moratari → Moratari). Time pushes back against being
    changed, and the seams fray: anomalies come through. Moratari lets three through, one at a time;
    you deal with them.

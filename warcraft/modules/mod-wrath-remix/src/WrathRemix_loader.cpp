@@ -16,6 +16,7 @@ void AddPlayerSavesScripts();
 void AddRemixGuideScripts();
 void AddRemixBazaarScripts();
 void AddRemixIntroScripts();
+void AddRemixLessonScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -32,4 +33,5 @@ void Addmod_wrath_remixScripts()
     AddRemixGuideScripts();
     AddRemixBazaarScripts();
     AddRemixIntroScripts();
+    AddRemixLessonScripts();
 }

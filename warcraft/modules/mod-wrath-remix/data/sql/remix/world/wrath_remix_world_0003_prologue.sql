@@ -54,7 +54,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77012, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'Time''s Toll',
  'Speak with Alurmi at the head of the market and with your class''s instructor in the training yard, then return to Moratari.',
- 'Before I send you anywhere, you need your strength back, and it will not come back on its own.$B$BBronze is what time leaves behind when you act in it. Earn it, and Alurmi will trade it for gear that grows as you do; hers is the first stall of the market, on the camp''s west side. Your class''s instructor is in the training yard to the south-east, with the others, and will teach you what the journey made you forget.$B$BMoratari has made the arrangements. See them both, and then her.',
+ 'Before I send you anywhere, you need your strength back, and it will not come back on its own.$B$BBronze is what time leaves behind when you act in it. Earn it, and Alurmi will trade it for gear that grows as you do; hers is the first stall of the market, on the camp''s west side. Your class''s instructor is in the training yard to the south-east, with the others, and will walk you through the abilities you already have and teach you the ones the journey made you forget.$B$BMoratari has made the arrangements. See them both, and then her.',
  'Return to Moratari.',
  @ALURMI, @INSTRUCTOR_CREDIT, 0, 1, 1, 0, 'Alurmi spoken to', 'Your class''s instructor spoken to', '', 0),
 (77013, 2, 10, 1, 2817, 4, 0, 8, 0, 41599, 2,

@@ -206,7 +206,7 @@ TRAINING_DUMMY = 770087                                               # the game
 # and the checks): guid: (who, x, y, orientation)
 STORY_SPOTS = {
     7704011: ("Eternus", 5700.0, 1023.0, 4.71),
-    7704012: ("Moratari", 5695.0, 1021.0, 5.30),
+    7704012: ("Moratari", 5691.0, 1017.0, 5.78),
     7704013: ("Sylvanas", 5704.0, 1021.0, 3.60),
     7704014: ("Alleria", 5706.5, 1018.5, 3.40),
     7704015: ("Alurmi", 5686.0, 1046.5, EAST),
@@ -405,10 +405,11 @@ def main():
             rows.append(f"({entry}, {i}, {d}, 1, 1, 0)")
     w(",\n".join(rows) + ";")
     w("""
--- The training yard's dummies: the game's own, under a plain name, at a Timerunner's first level.
+-- The training yard's dummies: the game's own, under a plain name, at a Timerunner's first level,
+-- and the class lessons' (npc_remix_dummy, src/RemixLessons.cpp).
 DROP TEMPORARY TABLE IF EXISTS `remix_dummy`;
 CREATE TEMPORARY TABLE `remix_dummy` SELECT * FROM `creature_template` WHERE `entry` = 31146;
-UPDATE `remix_dummy` SET `entry` = 770087, `name` = 'Training Dummy', `subname` = NULL, `minlevel` = 10, `maxlevel` = 10, `rank` = 0;
+UPDATE `remix_dummy` SET `entry` = 770087, `name` = 'Training Dummy', `subname` = NULL, `minlevel` = 10, `maxlevel` = 10, `rank` = 0, `ScriptName` = 'npc_remix_dummy';
 INSERT INTO `creature_template` SELECT * FROM `remix_dummy`;
 DROP TEMPORARY TABLE `remix_dummy`;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
