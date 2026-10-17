@@ -20,14 +20,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
  * Keeps the app, and with it the server's programs, running while the server is up: Android
  * requires a notification for that. The notification says how the server is and has a Stop button.
- * While the game is on screen the notification steps aside (the game in front keeps the app
- * running) and comes back when the game goes behind, or the screen goes off ([setGameShown]).
+ * It stays up the whole time the server runs, the game on screen or not: a service that left the
+ * foreground while the game was in front had to come back to it as the app went behind, the moment
+ * Android is quickest to reclaim a big app, and a server killed then lost what hadn't been saved.
  * The service ends itself once the server is stopped. While it runs, it sends the reports the
  * game's Report Time Anomaly asks Wrath Remix for ([AnomalyReports]), and takes the server to
  * ChromieCraft when a Wrath Remix Timerunner goes home ([Homecomings]).
@@ -58,17 +58,13 @@ class ServerService : Service() {
         }
         if (watcher == null) {
             watcher = scope.launch {
-                combine(Server.status, gameShown) { status, inGame -> status to inGame }.collect { (status, inGame) ->
+                Server.status.collect { status ->
                     when {
                         status.phase == Server.Phase.STOPPED || status.phase == Server.Phase.FAILED -> {
                             stopForeground(STOP_FOREGROUND_REMOVE)
                             shown = false
                             if (status.phase == Server.Phase.FAILED) notifyFailed()
                             stopSelf()
-                        }
-                        inGame -> if (shown) {
-                            stopForeground(STOP_FOREGROUND_REMOVE)
-                            shown = false
                         }
                         !shown -> {
                             startForeground(NOTIFICATION_ID, notification(status))
@@ -153,8 +149,12 @@ class ServerService : Service() {
     companion object {
         private val gameShown = MutableStateFlow(false)
 
-        /** The game is on screen (true) or went behind, or its screen went off (false). */
+        /**
+         * The game is on screen (true) or went behind, or its screen went off (false). Going behind,
+         * the realm saves every character at once: the app may not be there when it comes back.
+         */
         fun setGameShown(inGame: Boolean) {
+            if (gameShown.value && !inGame) Server.worldCommand("saveall")
             gameShown.value = inGame
         }
 
