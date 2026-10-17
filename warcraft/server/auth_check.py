@@ -483,8 +483,13 @@ def run_script(session, player_guid, steps):
         session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
         session.pump(0.5, packets)
         say(session, ".npc follow")
-        session.pump(4.0, packets)
+        session.pump(arrival(yards), packets)
         return guid, True
+
+    def arrival(yards):
+        """Long enough for a creature called over from [yards] away to come (one on a patrol, as
+        Dark Ranger Vorel in Dalaran, may be well down its path), walking."""
+        return min(20.0, max(4.0, 2.0 + yards / 3.0))
 
     def let_go(called):
         if called:
@@ -586,7 +591,7 @@ def run_script(session, player_guid, steps):
                 session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
                 session.pump(0.5, packets)
                 say(session, ".npc follow")
-                session.pump(4.0, packets)
+                session.pump(arrival(yards), packets)
             session.send(CMSG_GOSSIP_HELLO, struct.pack("<Q", guid))
             session.pump(2.0, packets)
             # (a quest giver with nothing to say but its quests doesn't answer that: the game
