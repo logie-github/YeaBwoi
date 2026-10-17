@@ -7,6 +7,8 @@
 
 cmd .levelup 20
 wait 2
+# (no harm comes to the test's character: it doesn't fight, a GM command kills for it)
+cmd .cheat god on
 cmd .remix
 expect level 30
 
@@ -124,7 +126,6 @@ kill 770041
 kill 770041
 expect credit 77218 770041 6/6
 wait 2
-cmd .cheat god off
 cmd .remix sees 770041
 expect hidden
 reward 770012 77218
@@ -196,7 +197,6 @@ kill 770042
 kill 770042
 kill 770042
 expect credit 77313 770042 3/3
-cmd .cheat god off
 reward 770012 77313
 expect rewarded 77313
 # Ursoc, the Bear God also waits for Destroy the Sapling and Vordrassil's Seeds (its group).
@@ -315,7 +315,6 @@ kill 770044
 expect credit 77405 770044 6/6
 kill 770045
 expect credit 77405 770045 1/1
-cmd .cheat god off
 reward 770011 77405
 expect rewarded 77405
 wait 4
@@ -423,7 +422,6 @@ kill 770046
 expect credit 77502 770046 6/6
 kill 770047
 expect credit 77502 770047 1/1
-cmd .cheat god off
 reward 770001 77502
 expect rewarded 77502
 wait 50
@@ -487,7 +485,6 @@ kill 770048
 kill 770048
 kill 770048
 expect credit 77602 770048 4/4
-cmd .cheat god off
 reward 770001 77602
 expect rewarded 77602
 wait 50
@@ -579,7 +576,6 @@ wait 15
 expect credit 77721 770036 1/1
 wait 20
 expect Come back to us
-cmd .cheat god off
 wait 8
 reward 770001 77721
 expect rewarded 77721
