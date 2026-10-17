@@ -90,8 +90,8 @@ SELECT 7704263 + n, @WEAVER, c.`map`, 1, 1, 0, c.`position_x` + dx, c.`position_
   'Wrath Remix: Infinite Weaver, the Terrace of the Makers'
 FROM `creature` c JOIN (
   SELECT 0 AS n, 14.0 AS dx, 10.0 AS dy, 3.80 AS o UNION ALL
-  SELECT 1, 9.0, -14.0, 2.10 UNION ALL
-  SELECT 2, -13.0, -11.0, 0.70 UNION ALL
+  SELECT 1, 10.0, 4.0, 3.50 UNION ALL
+  SELECT 2, -10.0, -2.0, 0.20 UNION ALL
   SELECT 3, -9.0, 15.0, 5.20 UNION ALL
   SELECT 4, 18.0, -3.0, 3.10
 ) w ON c.`guid` = 1955077;

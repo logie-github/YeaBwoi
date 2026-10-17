@@ -87,11 +87,11 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 (7704242, @MORATARI, 571, 1, 1, 1, 5739.0, 3046.0, 288.1, 0.20, 60, 0, 0, 'Wrath Remix: Moratari, WRM-502, the Maker''s Overlook'),
 (7704243, @SIPHONER, 571, 1, 1, 0, 5745.0, 3060.0, 288.1, 4.70, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
 (7704244, @SIPHONER, 571, 1, 1, 0, 5758.0, 3062.0, 288.1, 4.20, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
-(7704245, @SIPHONER, 571, 1, 1, 0, 5762.0, 3040.0, 288.1, 2.40, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
+(7704245, @SIPHONER, 571, 1, 1, 0, 5768.0, 3054.0, 288.0, 2.40, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
 (7704246, @SIPHONER, 571, 1, 1, 0, 5730.0, 3058.0, 288.1, 5.60, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
 (7704247, @SIPHONER, 571, 1, 1, 0, 5772.0, 3058.0, 288.1, 3.60, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
 (7704248, @SIPHONER, 571, 1, 1, 0, 5752.0, 3070.0, 288.1, 4.70, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
-(7704249, @SIPHONER, 571, 1, 1, 0, 5747.0, 3032.0, 288.1, 1.40, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
+(7704249, @SIPHONER, 571, 1, 1, 0, 5735.0, 3050.0, 288.0, 1.40, 180, 0, 0, 'Wrath Remix: Infinite Siphoner, the Maker''s Overlook'),
 (7704250, @SIPHON,   571, 1, 1, 0, 5756.0, 3049.0, 288.1, 0,    180, 0, 0, 'Wrath Remix: Siphon of Hours, the Maker''s Overlook');
 
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceId` BETWEEN 7704240 AND 7704259 OR `SourceEntry` IN (@SIPHONER, @SIPHON));
