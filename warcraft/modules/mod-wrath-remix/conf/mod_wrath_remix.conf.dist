@@ -49,6 +49,15 @@ WrathRemix.Squish.Damage = 75
 WrathRemix.FreeRiding = 1
 
 #
+#    WrathRemix.SaveSeconds
+#        Description: How often each real player's character is saved, in seconds, on either realm
+#                     (the core saves every 15 minutes; the realm's bots keep that). 0 leaves it to
+#                     the core.
+#        Default:     30
+
+WrathRemix.SaveSeconds = 30
+
+#
 #    WrathRemix.StarterKit
 #        Description: A Timerunner's first login (death knights aside) brings gear for their class:
 #                     heirloom shoulders, chest, weapons, trinket and ring, and greens for the other

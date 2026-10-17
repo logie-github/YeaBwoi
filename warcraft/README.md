@@ -207,7 +207,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Updates** | Checks for a newer version and installs it. |
 | **Turtle WoW — Vanilla+** | Switches the launcher to the app's second game, Turtle WoW (see **Turtle WoW**). So does the chip at the top left of the picture. |
 
-While the server runs, Android shows a notification for it, with **Stop**. While the game is on screen the notification goes away (the game in front keeps the app running); it comes back when you leave the game, switch to another app or turn the screen off, so the server keeps going.
+While the server runs, Android shows a notification for it, with **Stop**, the whole time, the game on screen or not: it's what keeps Android from closing the app, and the server with it, when you switch to another app or turn the screen off. The game pauses while it's behind and carries on when you come back. Your character is saved every 30 seconds while you play (`WrathRemix.SaveSeconds` in the realm's `modules/mod_wrath_remix.conf`; the realm's bots keep the server's own 15 minutes), and again the moment you leave the game, so a server the phone stops anyway loses at most those seconds.
 
 ## The server
 
