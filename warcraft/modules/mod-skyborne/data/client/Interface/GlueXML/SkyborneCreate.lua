@@ -90,11 +90,11 @@ RACE_INFO_SKYBORNEA = description.."|n|nThe High Order descends from the Highbor
 RACE_INFO_SKYBORNEH = description.."|n|nThe Windshapers descend from the first shen'dorei to receive the wind spirits' gift of skysight. They seek to restore their lost mentors, and have joined the Horde.";
 
 ABILITY_INFO_SKYBORNEA1 = "- Walk on Air: Glide downward through the air for 10 sec.";
-ABILITY_INFO_SKYBORNEA2 = "- Read Ley Line: Increases Health and Mana regeneration by 100% for 30 sec.";
+ABILITY_INFO_SKYBORNEA2 = "- Read Ley Line: Increases Health and Mana regeneration by 100% for 15 min.";
 ABILITY_INFO_SKYBORNEA3 = "- Wind Blessed: Increases haste by 3%.";
 ABILITY_INFO_SKYBORNEA4 = "- Elemental Insight: Damage dealt to Elementals increased by 5%.";
 ABILITY_INFO_SKYBORNEH1 = ABILITY_INFO_SKYBORNEA1;
-ABILITY_INFO_SKYBORNEH2 = "- Skysight: Increases run and mounted speed by 10% for 30 sec.";
+ABILITY_INFO_SKYBORNEH2 = "- Skysight: Increases run and mounted speed by 10% for 15 min.";
 ABILITY_INFO_SKYBORNEH3 = ABILITY_INFO_SKYBORNEA3;
 ABILITY_INFO_SKYBORNEH4 = ABILITY_INFO_SKYBORNEA4;
 

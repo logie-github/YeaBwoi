@@ -231,6 +231,11 @@ check_modules() {
 	tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'acore_playerbots'" | CTL sql)
 	echo "acore_playerbots: $tables tables (made by the playerbots module)"
 	[ "$tables" -gt 0 ] || fail "the playerbots module didn't set up its database"
+	# ALE (mod-ale), the Lua engine: on, reading the package's scripts.
+	grep -q "^ALE.ScriptPath = \"$FILES/server/lua_scripts\"" "$FILES/etc/modules/mod_ale.conf" ||
+		fail "ALE doesn't read the package's Lua scripts"
+	[ -d "$FILES/server/lua_scripts" ] || fail "the package has no Lua scripts folder"
+	grep -rh "\[ALE\]" "$FILES/logs" 2> /dev/null | head -3 || true
 }
 
 if [ -n "$DATA_ZIP" ]; then

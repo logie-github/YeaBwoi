@@ -204,7 +204,8 @@ namespace Skyborne
         }
         else
             problems.push_back("GlueXML.toc isn't in the game: the character screen won't show them");
-        writer.Add("Sound\\CinematicVoices\\SkyborneNarration.mp3", ReadFile(moduleData / "Sound" / "CinematicVoices" / "SkyborneNarration.mp3"));
+        // The intro's narration (the user's, data/client/intro.mp3), where the game's sound table has it.
+        writer.Add("Sound\\CinematicVoices\\SkyborneNarration.mp3", ReadFile(moduleData / "intro.mp3"));
 
         if (!writer.Finish())
         {

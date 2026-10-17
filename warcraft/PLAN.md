@@ -1106,6 +1106,16 @@ for the game on the phone itself ("that's the whole point").
     and a Windshaper shaman at Camp Narache with their racials. Not checked: the game itself (the
     screen, the looks, the intro on a phone).
 
+- Then the user's answers: Skyborne HD only when the HD look is on (as built: the patch is made from
+  the client's files, an HD look's included); "Eluna into the realm"; the two buffs always 15 minutes;
+  the MP3 kept, named `intro.mp3`. Done: mod-ale (azerothcore/mod-ale, pinned; azerothcore/eluna is
+  its documentation, mod-eluna redirects to it) in `server-version.env`; its extensions folder from
+  the install to `files/server/lua_scripts` (compile and package), ctl.sh points `ALE.ScriptPath` there
+  for both realms; a picked module's `.lua` files go to `lua_scripts/<module>` (not those of the game's
+  add-ons it brings). ALE's README: not compatible with the original Eluna's scripts. Elemental
+  Blessing and Energized last 15 minutes (SpellDuration 347). Not checked: ALE compiled with the
+  playerbots core (CI), a Lua module run on it.
+
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

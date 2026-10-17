@@ -97,6 +97,25 @@ for dir in "$DIST"/modules/*/; do
 	done
 done
 
+# Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
+# Lua (a module's .lua files, but for the game's add-ons it may bring: folders of .toc files, or
+# named client, addon or interface).
+mkdir -p "$pkg/lua_scripts"
+[ ! -d "$DIST/lua_scripts" ] || cp -r "$DIST/lua_scripts/." "$pkg/lua_scripts/"
+echo "${WOW_EXTRA_MODULES:-}" | awk 'NF { print $1 }' | while read -r name; do
+	dir="/repo/build/azerothcore/modules/$name"
+	[ -d "$dir" ] || continue
+	find "$dir" -name '*.lua' ! -path '*/.git/*' | while read -r file; do
+		rel=${file#"$dir/"}
+		case "$(echo "$rel" | tr 'A-Z' 'a-z')" in
+		*client*|*addon*|*interface*) continue ;;
+		esac
+		[ -z "$(find "$(dirname "$file")" -maxdepth 1 -iname '*.toc' | head -1)" ] || continue
+		mkdir -p "$pkg/lua_scripts/$name/$(dirname "$rel")"
+		cp "$file" "$pkg/lua_scripts/$name/$rel"
+	done
+done
+
 # The game files the modules the app's user picked bring: the DBC files they change, for the
 # server's data and the game, and their patch for the game (scripts/module-files.py; ctl.sh puts
 # them in place). Read from the sources the compile used: a module left out isn't there.

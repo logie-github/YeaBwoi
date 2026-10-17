@@ -142,6 +142,10 @@ configure_realm() {
 			remix_module_defaults "$conf"
 		fi
 	done
+	# ALE (mod-ale) reads the Lua scripts the package has (its own, and Lua modules picked in the app).
+	if [ -f "$R_ETC/modules/mod_ale.conf" ]; then
+		setkey "$R_ETC/modules/mod_ale.conf" ALE.ScriptPath "\"$SERVER/lua_scripts\""
+	fi
 	if [ -f "$R_ETC/modules/playerbots.conf" ]; then
 		setkey "$R_ETC/modules/playerbots.conf" PlayerbotsDatabaseInfo "$(dbinfo "$R_BOTS")"
 	fi

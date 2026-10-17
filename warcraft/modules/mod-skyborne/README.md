@@ -25,20 +25,21 @@ move to 22 and 23.
   Twilight: colours 13 to 18), beards with them.
 - **Racials**, as WoW: Forever has them since its beta build of 15 October 2026:
   - Walk on Air (both): glide downward for 10 sec; instant, 90 sec cooldown.
-  - Skysight (Windshapers): Elemental Blessing, run and mounted speed +10% for 30 sec, not stacking
+  - Skysight (Windshapers): Elemental Blessing, run and mounted speed +10% for 15 min, not stacking
     with other speed increases; 0.5 sec cast while moving, 2 min cooldown.
-  - Read Ley Line (High Order): Energized, Health and Mana regeneration +100% for 30 sec; 2 sec cast
+  - Read Ley Line (High Order): Energized, Health and Mana regeneration +100% for 15 min; 2 sec cast
     while moving, 2 min cooldown.
   - Wind Blessed (both, passive): melee, ranged and spell haste +3%.
   - Elemental Insight (both, passive): damage to Elementals +5%.
 
   In WoW: Forever, Skysight and Read Ley Line last 15 minutes beside an elemental convergence or a
-  ley line; Northrend's world has neither, so they always last 30 seconds here.
+  ley line and 30 seconds elsewhere; Northrend's world has neither, so here they last 15 minutes
+  everywhere.
 - **Stats**: WoW: Forever's starting stats for every class are the class's own with Strength -1,
   Agility +1, Stamina -1, Intellect +1 (player_race_stats).
 - **Druid forms**: the night elf's. **Totems**: the tauren's.
 - **The intro**: the start race's flight over its home (Northshire, Mulgore) with the Skyborne's own
-  narration (`data/client/Sound/CinematicVoices/SkyborneNarration.mp3`).
+  narration (`data/client/intro.mp3`).
 - **Character creation**: their icons are the blood elf's with blue skin, white hair and blue eyes;
   each side's races go down its own column; their background is their start race's.
 - **Blood elves** get a Dark Ranger skin (colour 19: grey skin, red eyes).
