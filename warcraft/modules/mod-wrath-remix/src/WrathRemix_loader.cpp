@@ -13,6 +13,8 @@ void AddRemixSoloScripts();
 void AddRemixFrozenHallsScripts();
 void AddRemixHourglassScripts();
 void AddPlayerSavesScripts();
+void AddRemixGuideScripts();
+void AddRemixBazaarScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -26,4 +28,6 @@ void Addmod_wrath_remixScripts()
     AddRemixFrozenHallsScripts();
     AddRemixHourglassScripts();
     AddPlayerSavesScripts();
+    AddRemixGuideScripts();
+    AddRemixBazaarScripts();
 }

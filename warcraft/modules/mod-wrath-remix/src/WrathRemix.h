@@ -15,6 +15,7 @@
 #include <vector>
 
 class Creature;
+class CreatureAI;
 class Player;
 class Quest;
 class Unit;
@@ -269,6 +270,10 @@ namespace WrathRemix
     // wake at the Bazaar; anywhere, it takes them to the Bazaar; there, back where they came from.
     bool AtTheBazaar(Player* player);
     void GiveHourglass(Player* player);
+
+    // The Bazaar's people talking while a Timerunner is about (RemixBazaar.cpp): the AI the camp's
+    // own scripts give them.
+    CreatureAI* BazaarLifeAI(Creature* creature);
     std::string HourglassReport(Player* player);
     void TakeInTimerunners();
     void ForgetGoneHome();

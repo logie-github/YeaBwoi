@@ -128,7 +128,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@ALURMI, 0, 20384, 1, 1, 0),
 (@ZEPHYR, 0, 19282, 1, 1, 0),
 (@SAAT, 0, 19411, 1, 1, 0),
-(@CHRONOLOGIST, 0, 19373, 1, 1, 0),
+(@CHRONOLOGIST, 0, 27756, 1, 1, 0),   -- a bronze dragon as a woman of Lordaeron (Zidormi's look)
 (@MOMENTUS, 0, 19063, 1, 1, 0),
 (@ECHO_FOOTMAN, 0, 23031, 1, 1, 0),    -- a Valiance Keep Footman
 (@ECHO_SAURFANG, 0, 23034, 1, 1, 0),   -- Saurfang the Younger
@@ -214,8 +214,8 @@ INSERT INTO `creature_template_spell` (`CreatureID`, `Index`, `Spell`, `Verified
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702001 AND 7702199;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- Moratari: before the first quest is done, as you wake; after; on where you are in history.
-(7702001, 'Easy. Breathe. You were somewhere else a moment ago, $n: your own time, years from now. You are in Northrend now, at the start of the war against the Lich King, and you feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.',
-          'Easy. Breathe. You were somewhere else a moment ago, $n: your own time, years from now. You are in Northrend now, at the start of the war against the Lich King, and you feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.', 1),
+(7702001, 'Easy. Breathe. A moment ago you were in your own time, $n: fel fire on the horizon, the fleets loading for the Broken Shore. You are not there now.$B$BYou are in Northrend, years before it, at the start of the war against the Lich King. You feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.',
+          'Easy. Breathe. A moment ago you were in your own time, $n: fel fire on the horizon, the fleets loading for the Broken Shore. You are not there now.$B$BYou are in Northrend, years before it, at the start of the war against the Lich King. You feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.', 1),
 (7702002, 'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.',
           'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.', 1),
 (7702003, 'Every Timerunner I have sent into this war, I can find again. If you lose your way, I will return you to the start of the chapter you are in.',
@@ -254,8 +254,8 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
           'The bronze brought us back to this year. I would not have chosen it.$B$BStand on my left. You always do. <She catches herself.> You will. It is a habit you have not given me yet.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.', 1),
 (7702091, 'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.$B$B<For a moment, she almost smiles.> You argued with me just like that, once. You will, I mean. Do not ask me when.',
           'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.$B$B<For a moment, she almost smiles.> You argued with me just like that, once. You will, I mean. Do not ask me when.', 1),
-(7702092, 'My sister asked me to come. She does not ask.$B$BThe Void taught me to feel when the shape of the world is wrong. This year feels wrong, Timerunner, and it is getting worse.',
-          'My sister asked me to come. She does not ask.$B$BThe Void taught me to feel when the shape of the world is wrong. This year feels wrong, Timerunner, and it is getting worse.', 1),
+(7702092, '<The cloaked ranger draws back her hood, only for you, and only for a moment.>$B$BAlleria Windrunner. You know the name, I think. Every history of the Second War ends with it: the ranger who followed Turalyon through the Dark Portal and never came home.$B$BIn your year, they still tell it that way. In mine, I came home. It took me a thousand years.$B$B<She lifts the hood again.>$B$BMy sister asked me to come. She does not ask. And I can feel when the shape of the world is wrong, Timerunner. This year feels wrong, and it is getting worse.',
+          '<The cloaked ranger draws back her hood, only for you, and only for a moment.>$B$BAlleria Windrunner. You know the name, I think. Every history of the Second War ends with it: the ranger who followed Turalyon through the Dark Portal and never came home.$B$BIn your year, they still tell it that way. In mine, I came home. It took me a thousand years.$B$B<She lifts the hood again.>$B$BMy sister asked me to come. She does not ask. And I can feel when the shape of the world is wrong, Timerunner. This year feels wrong, and it is getting worse.', 1),
 (7702093, 'Moratari keeps the Bazaar now. She is a better host than he was, and a worse liar.$B$BWhen Eternus moves again, I will feel it. You will be the first to know.',
           'Moratari keeps the Bazaar now. She is a better host than he was, and a worse liar.$B$BWhen Eternus moves again, I will feel it. You will be the first to know.', 1),
 (7702094, 'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. I have never had to stand still for anything harder.',
@@ -280,9 +280,21 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (770110, 'Timeworn Instructor', 'Warlock Trainer',          80, 80, 2, 35, 49, 1, 1.14286, 0, 8, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor'),
 (770111, 'Timeworn Instructor', 'Druid Trainer',            80, 80, 2, 35, 49, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_instructor');
 
--- The Keepers' Steward of Time look, one for each.
-INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
-SELECT `entry`, 0, 19373, 1, 1, 0 FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770111;
+-- Each one a teacher out of another year and another people, as they would stand in a capital:
+-- an orc's warrior, a human's and a blood elf's paladins, a tauren hunter, a night elf rogue, a
+-- human priestess, a death knight, an orc shaman, a gnome mage, an orc warlock, a night elf druid.
+INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES
+(770101, 0, 4556, 1, 1, 0),     -- Malosh's look
+(770102, 0, 1499, 1, 1, 0),     -- Lord Grayson Shadowbreaker's
+(770103, 0, 15521, 1, 1, 0),    -- Jesthenis Sunstriker's
+(770104, 0, 2112, 1, 1, 0),     -- Kary Thunderhorn's
+(770105, 0, 1725, 1, 1, 0),     -- Frahun Shadewhisper's
+(770106, 0, 1495, 1, 1, 0),     -- High Priestess Laurena's
+(770107, 0, 25468, 1, 1, 0),    -- Amal'thazad's
+(770108, 0, 1360, 1, 1, 0),     -- Kardris Dreamseeker's
+(770109, 0, 3108, 1, 1, 0),     -- Bink's
+(770110, 0, 1326, 1, 1, 0),     -- Zevrost's
+(770111, 0, 2261, 1, 1, 0);     -- Mathrengyl Bearwalker's
 
 DELETE FROM `creature_default_trainer` WHERE `CreatureId` BETWEEN 770101 AND 770112;
 INSERT INTO `creature_default_trainer` (`CreatureId`, `TrainerId`) VALUES

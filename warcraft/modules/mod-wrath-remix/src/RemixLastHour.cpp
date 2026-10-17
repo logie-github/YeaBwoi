@@ -78,12 +78,15 @@ namespace
         { 3000,  0, "So. You came the long way round, as I knew you would." },
         { 8000,  0, "Behind those doors is the last hour of this war. A king on a throne of ice, and a paladin who will burn in his place. You know how it ends. So do I. I have watched it end more times than you have drawn breath." },
         { 20000, 0, "I am not here to stop the Lich King from falling. I am here to keep the hour from closing behind him. Hold this door with me, and every grave in this war stays open long enough for me to reach into it." },
-        { 32000, 1, "And the arch comes down on all of them, Eternus. On everyone who lives because this war ended the way it did." },
-        { 40000, 2, "On me. On my people. On the souls I freed and the ones I failed. You do not get to decide that they were worth less than the ones you mourn." },
-        { 49000, 3, "I can feel the hour you have built, dragon. It isn't open. It's hungry." },
-        { 55000, 0, "Then you will have to take it from me." },
+        // (the Timerunner was taken from the eve of the Broken Shore, and he knows it; so does she)
+        { 33000, 0, "And yours, Timerunner. I know the hour I took you from: a harbor full of ships, the night before they sail for the Broken Shore. I know how many of them come home. Hold this door with me, and they all can." },
+        { 47000, 2, "Do not answer him. Not about that shore." },
+        { 52000, 1, "And the arch comes down on all of them, Eternus. On everyone who lives because this war ended the way it did." },
+        { 60000, 2, "On me. On my people. On the souls I freed and the ones I failed. You do not get to decide that they were worth less than the ones you mourn." },
+        { 70000, 3, "I can feel the hour you have built, dragon. It isn't open. It's hungry." },
+        { 76000, 0, "Then you will have to take it from me." },
     };
-    constexpr uint32 FIGHT_AT = 59000;
+    constexpr uint32 FIGHT_AT = 80000;
 
     std::mutex runningLock;
     std::set<ObjectGuid> running;  // Timerunners whose last hour is on

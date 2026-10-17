@@ -578,7 +578,7 @@ talk 770001
 expect quest 77721
 accept 770001 77721
 wait 30
-wait 35
+wait 52
 expect Then you will have to take it from me
 cmd .cheat god on
 kill 770061
@@ -611,12 +611,12 @@ expect quest 77801
 accept 770001 77801
 talk 770011
 expect What happens to you, after this war?
-select 770011 Teldrassil
+select 770011 after the Legion
 expect gossip text 7703004
 select 770011 going home
 expect credit 77801 770037 1/1
 talk 770012
-expect The war beneath the earth
+expect Who are you fighting, in your own time?
 select 770012 going home
 expect credit 77801 770038 1/1
 talk 770003

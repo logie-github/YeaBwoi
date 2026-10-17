@@ -109,14 +109,14 @@ namespace WrathRemix
         std::mutex treasuresLock;
         std::unordered_map<ObjectGuid::LowType, std::deque<ObjectGuid>> treasures;
 
-        // Riding, taught for free as a Timerunner reaches each level (WrathRemix.FreeRiding).
-        struct Riding { uint8 level; uint32 spell; };
-        constexpr Riding RIDING[] = {
-            { 20, 33388 },  // Apprentice Riding
-            { 40, 33391 },  // Journeyman Riding
-            { 60, 34090 },  // Expert Riding
-            { 70, 34091 },  // Artisan Riding
-            { 77, 54197 },  // Cold Weather Flying
+        // Riding, all of it, taught for free from a Timerunner's first moment (WrathRemix.FreeRiding):
+        // any mount, flying ones in Northrend too, at any level.
+        constexpr uint32 RIDING[] = {
+            33388,  // Apprentice Riding
+            33391,  // Journeyman Riding
+            34090,  // Expert Riding
+            34091,  // Artisan Riding
+            54197,  // Cold Weather Flying
         };
 
         // The death knights' last quests of Acherus' story: after it, Moratari brings them to the Bazaar.
@@ -571,9 +571,9 @@ namespace WrathRemix
     {
         if (!freeRiding)
             return;
-        for (Riding const& r : RIDING)
-            if (player->GetLevel() >= r.level && !player->HasSpell(r.spell))
-                player->learnSpell(r.spell);
+        for (uint32 spell : RIDING)
+            if (!player->HasSpell(spell))
+                player->learnSpell(spell);
     }
 
     // Everything the Timerunner's class trainer would teach them at their level, free, as Legion
@@ -1225,6 +1225,7 @@ public:
             { "return", HandleReturn, SEC_GAMEMASTER, Console::No },
             { "solo",   HandleSolo,   SEC_GAMEMASTER, Console::No },
             { "hourglass", HandleHourglass, SEC_GAMEMASTER, Console::No },
+            { "ground", HandleGround, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1286,6 +1287,30 @@ public:
         if (!Active())
             return false;
         handler->SendSysMessage(HourglassReport(handler->GetSession()->GetPlayer()));
+        return true;
+    }
+
+    // .remix ground [RADIUS] [STEP] (game masters): the floor's height on a grid around the
+    // character, a row a line (west to east, north to south; "-" where there is none within 30
+    // yards), for placing things where they stand on it.
+    static bool HandleGround(ChatHandler* handler, Optional<uint32> radius, Optional<uint32> step)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        int32 r = int32(std::min<uint32>(radius.value_or(40), 120));
+        int32 s = int32(std::max<uint32>(step.value_or(4), 1));
+        float cx = std::round(player->GetPositionX()), cy = std::round(player->GetPositionY()), cz = player->GetPositionZ();
+        handler->PSendSysMessage("Wrath Remix ground: map {} around {:.0f} {:.0f}, every {} yards, x from {:.0f} down, y from {:.0f} down",
+            player->GetMapId(), cx, cy, s, cx + r, cy + r);
+        for (int32 dx = r; dx >= -r; dx -= s)
+        {
+            std::string row = Acore::StringFormat("ground x {:.0f}:", cx + dx);
+            for (int32 dy = r; dy >= -r; dy -= s)
+            {
+                float z = player->GetMap()->GetHeight(player->GetPhaseMask(), cx + dx, cy + dy, cz + 10.0f, true, 40.0f);
+                row += z > INVALID_HEIGHT + 1.0f && std::fabs(z - cz) < 30.0f ? Acore::StringFormat(" {:.1f}", z) : std::string(" -");
+            }
+            handler->SendSysMessage(row);
+        }
         return true;
     }
 

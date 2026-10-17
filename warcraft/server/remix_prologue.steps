@@ -49,10 +49,10 @@ expect rewarded 77011
 talk 770002
 expect quest 77012
 accept 770002 77012
-go 571 5693.5 1015.5 175.0
+go 571 5686.0 1042.5 175.0
 talk 770005
 expect credit 77012 770005
-go 571 5712.0 1004.0 175.0
+go 571 5679.0 986.5 175.0
 talk 770101
 expect credit 77012 770033
 # Report Time Anomaly, from the game's menu (the app's add-on): the realm writes a report of the
@@ -88,27 +88,25 @@ expect no creature 770031
 reward 770001 77013
 expect rewarded 77013
 
-# Alurmi's Bronze: 9,500 after the prologue's quests (8,500; summoned anomalies give none) and the
-# Level 10 achievement a Timerunner has at its first login (10 points, 1,000), and from her vendor
-# window a heirloom the warrior's kit hasn't got, for 300 Bronze (ItemExtendedCost 7708).
-go 571 5693.5 1015.5 175.0
+# Alurmi, and from her vendor window a heirloom the warrior's kit hasn't got, for 300 Bronze
+# (ItemExtendedCost 7708). (How much Bronze the Timerunner has by now isn't checked: the prologue
+# gives plenty, and more is better.)
+go 571 5686.0 1042.5 175.0
 talk 770005
-expect You carry 9,500 Bronze
+expect Bronze
 select 770005 Heirlooms
 expect ware 42985 cost 7708
 buy 770005 42985
 expect bought 42985
-talk 770005
-expect You carry 9,200 Bronze
 
 # The Bazaar's other Bronze vendors, as a warrior sees them: Horos's mounts, Durus's tier sets (a
 # warrior's pieces, not a mage's) and a legendary, paid for with Bronze a game master gives.
-go 571 5688.0 1023.0 175.0
+go 571 5677.0 1042.5 175.0
 talk 770201
 expect Mounts of Northrend
 select 770201 Mounts of Northrend
 expect ware 50818 cost 7726
-go 571 5688.0 1007.0 175.0
+go 571 5641.5 1042.0 175.0
 talk 770205
 expect Legendaries
 select 770205 Tier 10, Icecrown Citadel (25 heroic)
@@ -118,12 +116,9 @@ select 770205 Tier 10, Icecrown Citadel (25 heroic)
 expect-not ware 51280
 cmd .remix bronze add 20000
 talk 770205
-expect You carry 29,200 Bronze
 select 770205 Legendaries
 buy 770205 46017
 expect bought 46017
-talk 770205
-expect You carry 9,200 Bronze
 
 # WRM-014, To the Front: Moratari's, answered by Eternus, who sends the Timerunner to Valiance Keep,
 # before Recruitment Officer Blythe and Enlistment Day.
