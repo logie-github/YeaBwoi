@@ -14,7 +14,8 @@ SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 7700
     @ECHO_BOLVAR := 770023, @ANOMALY := 770031, @ANOMALY_CREDIT := 770032, @INSTRUCTOR_CREDIT := 770033,
     @SYLVANAS := 770011, @ALLERIA := 770012, @MORATARI_SCENE := 770013, @TURN_CREDIT := 770034,
     @INTERLOPER := 770041, @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015,
-    @LESSON_1 := 770067, @LESSON_2 := 770068, @LESSON_3 := 770069;
+    @LESSON_1 := 770067, @LESSON_2 := 770068, @LESSON_3 := 770069,
+    @PLAN_WHAT := 770049, @PLAN_HOW := 770050, @PLAN_WHY := 770058;
 
 -- Until build 56 Remix's creatures were 7700001 and up, which made the core keep a table of
 -- creature templates 7.7 million long (its fast lookups are indexed by entry): gone.
@@ -34,7 +35,7 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@ETERNUS,        'Eternus',        'Infinite Dragonflight',   83, 83, 2, 35, 3, 1, 1.14286, 3, 2, 0, 2048, 2, 2, 25, 1, 2000, 1, 'npc_remix_eternus'),
 (@ANDORMU,        'Andormu',        'Keepers of Time',         80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_keeper'),
 (@NOZARI,         'Nozari',         'Keepers of Time',         80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_keeper'),
-(@ALURMI,         'Alurmi',         'Bronze Quartermaster',    80, 80, 2, 35, 129, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_alurmi'),
+(@ALURMI,         'Alurmi',         'Bronze Quartermaster',    80, 80, 2, 35, 131, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_alurmi'),
 (@ZEPHYR,         'Zephyr',         'Keeper of the Ways',      80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_zephyr'),
 (@SAAT,           'Sa''at',         'Timeline Safety',         80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_saat'),
 (@CHRONOLOGIST,   'Chronologist',   'Wrath Remix',             80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_chronologist'),
@@ -49,6 +50,10 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@ANOMALY_CREDIT, 'Temporal Anomaly', NULL,                    10, 10, 0, 14, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 128, 1, 1, 2000, 1, ''),
 -- WRM-012's (never spawned): given by any of the Bazaar's instructors as they're spoken to.
 (@INSTRUCTOR_CREDIT, 'Your class''s instructor', NULL,          80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+-- WRM-011's (never spawned): each of the three things the Timerunner asks Eternus.
+(@PLAN_WHAT,      'What Eternus wants', NULL,                  80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+(@PLAN_HOW,       'How it is done', NULL,                      80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
+(@PLAN_WHY,       'Why you', NULL,                             80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
 -- The class lessons' (wrath_remix_world_0025_lessons.sql; never spawned): each of a lesson's three
 -- abilities used as the instructor asks (src/RemixLessons.cpp).
 (@LESSON_1,       'A lesson''s first ability', NULL,           80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
@@ -144,6 +149,9 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@ANOMALY, 0, 20515, 1, 1, 0),
 (@ANOMALY_CREDIT, 0, 20515, 1, 1, 0),
 (@INSTRUCTOR_CREDIT, 0, 19373, 1, 1, 0),
+(@PLAN_WHAT, 0, 26580, 1, 1, 0),
+(@PLAN_HOW, 0, 26580, 1, 1, 0),
+(@PLAN_WHY, 0, 26580, 1, 1, 0),
 (@LESSON_1, 0, 19373, 1, 1, 0),
 (@LESSON_2, 0, 19373, 1, 1, 0),
 (@LESSON_3, 0, 19373, 1, 1, 0),
@@ -225,8 +233,8 @@ INSERT INTO `creature_template_spell` (`CreatureID`, `Index`, `Spell`, `Verified
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702001 AND 7702199;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- Moratari: before the first quest is done, as you wake; after; on where you are in history.
-(7702001, 'Take your time. A moment ago you stood at the end of this war, $n: the Broken Front, the Lich King''s blade raised over you. Before that, your own hour: fel fire on the horizon, the fleets loading for the Broken Shore. You are in neither now.$B$BThis is Northrend, years before both, at the very start of the war against the Lich King. If you feel weaker, it is because you are. Time takes its toll on those who travel through it.$B$BI am Moratari. Eternus brought you here, and he took the long way round on purpose. He will want to tell you why himself.',
-          'Take your time. A moment ago you stood at the end of this war, $n: the Broken Front, the Lich King''s blade raised over you. Before that, your own hour: fel fire on the horizon, the fleets loading for the Broken Shore. You are in neither now.$B$BThis is Northrend, years before both, at the very start of the war against the Lich King. If you feel weaker, it is because you are. Time takes its toll on those who travel through it.$B$BI am Moratari. Eternus brought you here, and he took the long way round on purpose. He will want to tell you why himself.', 1),
+(7702001, 'Steady. That passes. Time is hard on a body the first time it is pulled through.$B$BYour friends are still at that table, in your own hour, mid-toast; no one there has missed you, and no one will. Here, it is the year the war began, and none of what I showed you has happened yet.$B$BI am Moratari. Eternus sent me for you, and he will tell you why himself: he is just there.',
+          'Steady. That passes. Time is hard on a body the first time it is pulled through.$B$BYour friends are still at that table, in your own hour, mid-toast; no one there has missed you, and no one will. Here, it is the year the war began, and none of what I showed you has happened yet.$B$BI am Moratari. Eternus sent me for you, and he will tell you why himself: he is just there.', 1),
 (7702002, 'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.',
           'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.', 1),
 (7702003, 'Every Timerunner I have sent into this war, I can find again. If you lose your way, I will return you to the start of the chapter you are in.',
@@ -236,6 +244,12 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
           'I have watched this war more times than I can count, champion. Every time, the same graves. I did not bring you here to watch it with me.', 1),
 (7702011, 'The bronze will tell you history is sacred. The bronze let Stratholme burn, and called it duty. I would rather save someone.',
           'The bronze will tell you history is sacred. The bronze let Stratholme burn, and called it duty. I would rather save someone.', 1),
+(7702012, 'Fewer graves. That is all.$B$BI cannot stop the Lich King''s war: it is too large, and history pushes back against anyone who leans on it too hard. But a war is made of a thousand small moments. A scout who comes back. A tunnel found a day early. A supply cart that arrives. Change enough of the small ones, and the large ones begin to change on their own.$B$BWith you, this war can be won sooner, and cheaper, than you won it the first time.',
+          'Fewer graves. That is all.$B$BI cannot stop the Lich King''s war: it is too large, and history pushes back against anyone who leans on it too hard. But a war is made of a thousand small moments. A scout who comes back. A tunnel found a day early. A supply cart that arrives. Change enough of the small ones, and the large ones begin to change on their own.$B$BWith you, this war can be won sooner, and cheaper, than you won it the first time.', 1),
+(7702013, 'Quietly. You will fight this war again from its first day, beside the same people, and wherever you know a little more than you should, you will use it.$B$BBut no one of this year may ever learn what you are. Not a general, not a friend, not a king. If they knew, they would act on what they knew, and the war would come apart in ways neither of us could follow. A good hunch, a lucky patrol, a careful look at the right map: that is all they may ever see. Some of them will not believe you anyway. Let them doubt; then let them find it for themselves.$B$BMoratari will be with you. She knows this war as well as I do, and she whispers better.',
+          'Quietly. You will fight this war again from its first day, beside the same people, and wherever you know a little more than you should, you will use it.$B$BBut no one of this year may ever learn what you are. Not a general, not a friend, not a king. If they knew, they would act on what they knew, and the war would come apart in ways neither of us could follow. A good hunch, a lucky patrol, a careful look at the right map: that is all they may ever see. Some of them will not believe you anyway. Let them doubt; then let them find it for themselves.$B$BMoratari will be with you. She knows this war as well as I do, and she whispers better.', 1),
+(7702014, 'Because you were there. You know where this war bleeds, because you bled there too.$B$BAnd because you lost someone in it. Everyone I choose has. It makes them careful in a way my kin have forgotten how to be.',
+          'Because you were there. You know where this war bleeds, because you bled there too.$B$BAnd because you lost someone in it. Everyone I choose has. It makes them careful in a way my kin have forgotten how to be.', 1),
 -- The Keepers of Time (with Sylvanas and Alleria, after the turn).
 (7702020, 'The Infinite were always going to try this. We were always going to need someone who remembers how it ends.',
           'The Infinite were always going to try this. We were always going to need someone who remembers how it ends.', 1),

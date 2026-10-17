@@ -1,20 +1,38 @@
 # Wrath Remix's prologue (STORY.md), played by CI as a new Timerunner (auth_check.py script, on the
-# Remix realm): waking at the Infinite Bazaar, Eternus and the echoes of the war's dead, Alurmi and
-# the class instructor, the anomalies, a purchase from the Bronze vendors, and Eternus sending the
-# Timerunner to Valiance Keep. The anomalies are killed with a game master's `.damage` (the
-# character's blows, so it gets the kills).
+# Remix realm): the opening (a tavern in their capital, the war's last battle, what the Lich King's
+# reign cost), then the Infinite Bazaar one thing at a time: Eternus and the plan, Alurmi, the class
+# instructor and lesson, the Bazaar's keepers, the anomalies, a purchase from the Bronze vendors,
+# and Eternus sending the Timerunner to Valiance Keep. The anomalies are killed with a game
+# master's `.damage` (the character's blows, so it gets the kills).
 
 cmd .remix
 expect chapter 0 (the prologue)
 
-# The opening (RemixIntro.cpp): a new Timerunner's first moments are at the Broken Front in
-# Icecrown, beside Tirion against the Scourge, until the Lich King comes and time stops; then
-# Moratari brings them to the Bazaar.
+# The opening (RemixIntro.cpp): drinking with friends in the Gilded Rose, until the room stops and
+# Moratari walks in; the Broken Front in Icecrown, beside Tirion against the Scourge, until the Lich
+# King comes and time stops; the Wrathgate, Wintergarde and Icecrown's fields; then the Bazaar.
 wait 8
 cmd .gps
-expect The Broken Front
-wait 92
+expect Stormwind City
+wait 72
+expect I'm sorry, hero. I need you.
+wait 14
+cmd .gps
+expect Icecrown
+wait 66
 expect Frostmourne hungers
+wait 14
+cmd .gps
+expect Dragonblight
+wait 43
+expect Farmers and miners
+cmd .gps
+expect Dragonblight
+wait 43
+cmd .gps
+expect Icecrown
+wait 48
+expect We can stop all of this
 cmd .gps
 expect Crystalsong Forest
 
@@ -29,8 +47,8 @@ expect Wrath Remix hourglass: bag 255
 use-hourglass
 expect come here from nowhere yet
 
-# WRM-010, Out of Time: Moratari, before the waking Timerunner, sends them to Eternus (a few steps
-# apart: Eternus is large, and she stands clear of him).
+# WRM-010, Out of Time: Moratari, a few steps from where the Timerunner arrives, sends them to
+# Eternus (Eternus is large, and she stands clear of him).
 go 571 5693.5 1018.0 175.0
 talk 770001
 expect quest 77010
@@ -39,53 +57,51 @@ go 571 5697.5 1019.5 175.0
 reward 770002 77010
 expect rewarded 77010
 
-# WRM-011, What the War Will Cost: the three echoes, every one of them heard.
+# WRM-011, The Plan: Eternus answers what he wants, how it is done and why them.
 talk 770002
 expect quest 77011
 accept 770002 77011
-go 571 5691.0 1029.0 175.1
-talk 770021
-expect credit 77011 770021
-go 571 5700.0 1032.0 175.1
-talk 770022
-expect credit 77011 770022
-go 571 5709.0 1029.0 175.1
-talk 770023
-expect credit 77011 770023
-go 571 5697.5 1019.5 175.0
+talk 770002
+expect What do you want from me
+select 770002 What do you want
+expect credit 77011 770049
+select 770002 How is this
+expect credit 77011 770050
+select 770002 Why me
+expect credit 77011 770058
 reward 770002 77011
 expect rewarded 77011
 
-# WRM-012, Time's Toll: Alurmi and the warrior's instructor, then Moratari (the hearthstone remembers
-# the Bazaar). Another class's instructor doesn't count, and has no lesson for a warrior.
+# WRM-012, Time's Toll: to Alurmi, at the head of the market.
 talk 770002
 expect quest 77012
 accept 770002 77012
 go 571 5686.0 1042.5 175.0
+reward 770005 77012
+expect rewarded 77012
+
+# WRM-020, Old Habits: Alurmi sends the Timerunner to their class's instructor; another class's has
+# nothing for a warrior.
 talk 770005
-expect credit 77012 770005
+expect quest 77020
+accept 770005 77020
 go 571 5658.0 989.0 175.0
 talk 770110
-expect-not credit 77012 770033
+expect-not quest 77020
 go 571 5679.0 986.5 175.0
-talk 770101
-expect credit 77012 770033
-# Report Time Anomaly, from the game's menu or the toolbar's Help button (the app's add-on): the
-# realm writes a report of the quest the Timerunner is on, who they've spoken to since they took it
-# and the way they came, for the app to send to GitHub (the server test reads it). What they wrote
-# comes in pieces when it's long ("report+" for each but the last).
-addon WowRemix report+ CI's report,
-addon WowRemix report  from the Bazaar
-expect Time anomaly reported
+reward 770101 77020
+expect rewarded 77020
 
 # The warrior's lesson (RemixLessons.cpp), from the same instructor: Charge, Rend and Heroic Strike
 # on one of the training yard's dummies.
 talk 770101
 expect quest 77031
 accept 770101 77031
-go 571 5674.0 994.0 175.0
+go 571 5674.0 994.0 175.0 4.71
 cast 100 770087
 expect credit 77031 770067
+# (and in reach of it for the next two)
+go 571 5674.0 984.0 175.0 4.71
 cast 772 770087
 expect credit 77031 770068
 cast 78 770087
@@ -95,9 +111,31 @@ expect rewarded 77031
 talk 770101
 expect-not quest 77031
 
+# WRM-021, The Bazaar's Keepers: Zephyr, Sa'at and the Chronologist, then Moratari (the hearthstone
+# remembers the Bazaar).
 go 571 5693.5 1018.0 175.0
-reward 770001 77012
-expect rewarded 77012
+talk 770001
+expect quest 77021
+accept 770001 77021
+go 571 5706.5 986.0 175.0
+talk 770006
+expect credit 77021 770006
+# Report Time Anomaly, from the game's menu or the toolbar's Help button (the app's add-on): the
+# realm writes a report of the quest the Timerunner is on, who they've spoken to since they took it
+# and the way they came, for the app to send to GitHub (the server test reads it). What they wrote
+# comes in pieces when it's long ("report+" for each but the last).
+addon WowRemix report+ CI's report,
+addon WowRemix report  from the Bazaar
+expect Time anomaly reported
+go 571 5694.0 970.5 175.0
+talk 770007
+expect credit 77021 770007
+go 571 5714.0 1040.0 175.0
+talk 770008
+expect credit 77021 770008
+go 571 5693.5 1018.0 175.0
+reward 770001 77021
+expect rewarded 77021
 
 # WRM-013, A Small Demonstration: Moratari lets the anomalies through, one at a time (each one
 # killed brings the next, three in all).

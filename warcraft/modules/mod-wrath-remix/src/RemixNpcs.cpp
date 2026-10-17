@@ -47,6 +47,9 @@ namespace
         ACTION_RECOVER,
         ACTION_BACK,
         ACTION_LAST_HOUR,
+        ACTION_PLAN_WHAT,
+        ACTION_PLAN_HOW,
+        ACTION_PLAN_WHY,
     };
 
     std::string Number(uint32 n)
@@ -97,6 +100,13 @@ namespace
     void SpokenTo(Player* player, Creature* creature)
     {
         player->KilledMonsterCredit(creature->GetEntry());
+    }
+
+    // WRM-021: Zephyr, Sa'at and the Chronologist, each spoken to.
+    void KeeperSpokenTo(Player* player, Creature* creature)
+    {
+        if (player->GetQuestStatus(QUEST_BAZAAR_KEEPERS) == QUEST_STATUS_INCOMPLETE)
+            SpokenTo(player, creature);
     }
 
     // The chapter to go back to when the record is tangled: the furthest reached, or the one
@@ -270,7 +280,8 @@ class npc_remix_moratari : public CreatureScript
 public:
     npc_remix_moratari() : CreatureScript("npc_remix_moratari") { }
 
-    CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
+    // (or, summoned to walk beside a Timerunner, the companion's: RemixMoratari.cpp)
+    CreatureAI* GetAI(Creature* creature) const override { return IsCompanionSummon() ? MoratariCompanionAI(creature) : BazaarLifeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
@@ -289,6 +300,7 @@ public:
         if (player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE)
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "Take me back to the doors of the Citadel.", SENDER_MAIN, ACTION_LAST_HOUR);
         AddEndingGossip(player, creature);
+        AddTalk(player, creature);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Where are we in history?", SENDER_MAIN, ACTION_HISTORY);
         SendGossipMenuFor(player, waking ? TEXT_MORATARI_PROLOGUE : TEXT_MORATARI, creature);
         return true;
@@ -298,6 +310,8 @@ public:
     {
         if (!Active())
             return false;
+        if (TalkSelect(player, creature, sender, action))
+            return true;
         if (EndingGossipSelect(player, creature, sender, action, TEXT_MORATARI))
             return true;
         ClearGossipMenuFor(player);
@@ -372,7 +386,46 @@ public:
         ClearGossipMenuFor(player);
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
-        SendGossipMenuFor(player, player->GetQuestRewardStatus(QUEST_WAR_WILL_COST) ? TEXT_ETERNUS_LATER : TEXT_ETERNUS, creature);
+        AddPlanQuestions(player);
+        SendGossipMenuFor(player, player->GetQuestRewardStatus(QUEST_THE_PLAN) ? TEXT_ETERNUS_LATER : TEXT_ETERNUS, creature);
+        return true;
+    }
+
+    // WRM-011: what the Timerunner asks him, while it's under way.
+    static void AddPlanQuestions(Player* player)
+    {
+        if (player->GetQuestStatus(QUEST_THE_PLAN) != QUEST_STATUS_INCOMPLETE)
+            return;
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "What do you want from me?", SENDER_MAIN, ACTION_PLAN_WHAT);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "How is this to be done?", SENDER_MAIN, ACTION_PLAN_HOW);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Why me?", SENDER_MAIN, ACTION_PLAN_WHY);
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action) override
+    {
+        if (!Active())
+            return false;
+        ClearGossipMenuFor(player);
+        uint32 credit = 0, text = 0;
+        switch (action)
+        {
+            case ACTION_PLAN_WHAT: credit = NPC_PLAN_WHAT; text = TEXT_ETERNUS_WHAT; break;
+            case ACTION_PLAN_HOW:  credit = NPC_PLAN_HOW;  text = TEXT_ETERNUS_HOW;  break;
+            case ACTION_PLAN_WHY:  credit = NPC_PLAN_WHY;  text = TEXT_ETERNUS_WHY;  break;
+            default: break;
+        }
+        if (sender != SENDER_MAIN || !text)
+        {
+            CloseGossipMenuFor(player);
+            return true;
+        }
+        if (player->GetQuestStatus(QUEST_THE_PLAN) == QUEST_STATUS_INCOMPLETE)
+            player->KilledMonsterCredit(credit);
+        // (his answer, and the questions still to ask, and the quest to turn in once all are asked)
+        if (creature->IsQuestGiver())
+            player->PrepareQuestMenu(creature->GetGUID());
+        AddPlanQuestions(player);
+        SendGossipMenuFor(player, text, creature);
         return true;
     }
 
@@ -467,6 +520,9 @@ public:
 static void BronzeVendorMenu(Player* player, Creature* creature)
 {
     ClearGossipMenuFor(player);
+    // (Alurmi takes Time's Toll back and gives Old Habits)
+    if (creature->IsQuestGiver())
+        player->PrepareQuestMenu(creature->GetGUID());
     AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "You carry " + Number(Carried(player)) + " Bronze.", SENDER_NONE, 0);
     for (VendorList const& list : VendorLists())
         if (list.vendor == creature->GetEntry() && OnSide(player, list.side))
@@ -504,8 +560,6 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE)
-            SpokenTo(player, creature);
         BronzeVendorMenu(player, creature);
         return true;
     }
@@ -548,6 +602,7 @@ public:
     {
         if (!Active())
             return false;
+        KeeperSpokenTo(player, creature);
         ClearGossipMenuFor(player);
         uint32 shown = 0;
         for (Destination const& d : Destinations())
@@ -585,6 +640,7 @@ public:
     {
         if (!Active())
             return false;
+        KeeperSpokenTo(player, creature);
         ClearGossipMenuFor(player);
         for (Chapter const& c : Chapters())
             AddGossipItemFor(player, GOSSIP_ICON_DOT, Acore::StringFormat("Chapter {}: {}, levels {} to {}", Roman(c.chapter), c.name,
@@ -612,6 +668,7 @@ public:
     {
         if (!Active())
             return false;
+        KeeperSpokenTo(player, creature);
         ClearGossipMenuFor(player);
         uint8 current = StableChapter(player);
         AddGossipItemFor(player, GOSSIP_ICON_DOT, Acore::StringFormat("You: level {}, {} Bronze, {}.", uint32(player->GetLevel()),
@@ -660,7 +717,8 @@ public:
     }
 };
 
-// The war's dead as Eternus shows them (WRM-011): hearing one is the quest's objective.
+// The war's dead as Eternus shows them (until build 90 WRM-011's, at the Bazaar; now the opening's
+// Wrathgate has Saurfang's son and Bolvar, src/RemixIntro.cpp).
 class npc_remix_echo : public CreatureScript
 {
 public:
@@ -672,8 +730,6 @@ public:
     {
         if (!Active())
             return false;
-        if (player->GetQuestStatus(QUEST_WAR_WILL_COST) == QUEST_STATUS_INCOMPLETE)
-            SpokenTo(player, creature);
         ClearGossipMenuFor(player);
         SendGossipMenuFor(player, TEXT_ECHO_FOOTMAN + (creature->GetEntry() - NPC_ECHO_FOOTMAN), creature);
         return true;
@@ -755,8 +811,8 @@ public:
     }
 };
 
-// The Bazaar's instructors: speaking with the one of your class is WRM-012's objective; they have
-// your class's lesson (RemixLessons.cpp) until it's done, and the trainer's list, as any trainer.
+// The Bazaar's instructors: the one of your class takes Old Habits back (WRM-020) and has your
+// class's lesson (RemixLessons.cpp) until it's done; and the trainer's list, as any trainer.
 class npc_remix_instructor : public CreatureScript
 {
 public:
@@ -769,8 +825,6 @@ public:
         if (!Active())
             return false;
         bool ours = TeachesClassOf(creature, player);
-        if (player->GetQuestStatus(QUEST_TIMES_TOLL) == QUEST_STATUS_INCOMPLETE && ours)
-            player->KilledMonsterCredit(NPC_INSTRUCTOR_CREDIT);
         uint32 lesson = ours ? LessonQuest(player) : 0;
         if (lesson && !player->GetQuestRewardStatus(lesson))
         {
@@ -790,6 +844,15 @@ public:
         if (action == GOSSIP_ACTION_TRAIN)
             player->GetSession()->SendTrainerList(creature);
         return true;
+    }
+
+    // Another class's instructor has nothing for the Timerunner: no mark over them for Old
+    // Habits, which every instructor takes back but only the Timerunner's own should.
+    uint32 GetDialogStatus(Player* player, Creature* creature) override
+    {
+        if (Active() && !TeachesClassOf(creature, player))
+            return DIALOG_STATUS_NONE;
+        return DIALOG_STATUS_SCRIPTED_NO_STATUS;
     }
 };
 

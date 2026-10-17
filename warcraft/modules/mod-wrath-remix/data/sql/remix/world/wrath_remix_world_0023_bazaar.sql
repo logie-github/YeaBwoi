@@ -3,7 +3,7 @@
 -- the west edge (a stall for each Bronze trader), the training yard to the south-east (the
 -- instructors at work, dummies and targets), the waystation to the north-east (Zephyr, his drake, a
 -- door in time, Sa'at's map table), the chronicle corner to the north-west, the campfire to the
--- south (other Timerunners from the eve of the Legion's return, and a cook), and porters, wardens
+-- south (other Timerunners, veterans of this war from their own hours after it, and a cook), and porters, wardens
 -- and whelps on their rounds. Who says what while a Timerunner is about is remix_bazaar_line
 -- (src/RemixBazaar.cpp). Heights are the floor's (data/bazaar_ground.tsv). The story's own people
 -- stand where wrath_remix_world_0004_spawns.sql, 0009 and 0018 place them.
@@ -160,8 +160,8 @@ SELECT 770087, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, 0 FROM
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702401 AND 7702499;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (7702401, 'Brannigan Holt, Stormwind. Or I was, a few years from now.$B$BYou look like you woke up the same way I did. Get your strength back, then get out there. The war is not going to wait for us twice.', 'Brannigan Holt, Stormwind. Or I was, a few years from now.$B$BYou look like you woke up the same way I did. Get your strength back, then get out there. The war is not going to wait for us twice.', 1),
-(7702402, 'Shh. Listen to that fire. In my time the fires all burn green.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?', 'Shh. Listen to that fire. In my time the fires all burn green.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?', 1),
-(7702403, 'Grukk Ironjaw, of the Frostwolves. I have killed demons and iron orcs and once, by accident, a very large goat.$B$BThe Scourge I know. It is good to fight something I already understand.', 'Grukk Ironjaw, of the Frostwolves. I have killed demons and iron orcs and once, by accident, a very large goat.$B$BThe Scourge I know. It is good to fight something I already understand.', 1),
+(7702402, 'Shh. Listen to that fire. In my time I cannot sit by one without thinking of the Wrathgate.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?', 'Shh. Listen to that fire. In my time I cannot sit by one without thinking of the Wrathgate.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?', 1),
+(7702403, 'Grukk Ironjaw, of the Frostwolves. I have killed centaur and quilboar and once, by accident, a very large goat.$B$BThe Scourge I know: I followed it all the way to the Frozen Throne. It is good to fight something I already understand.', 'Grukk Ironjaw, of the Frostwolves. I have killed centaur and quilboar and once, by accident, a very large goat.$B$BThe Scourge I know: I followed it all the way to the Frozen Throne. It is good to fight something I already understand.', 1),
 (7702404, 'Thaddeus Quill, engineer, Timerunner, and the only gnome in this camp who read the warning label on the hourglass.$B$BIt says do not shake. I shook it. That is how I got here, I think.', 'Thaddeus Quill, engineer, Timerunner, and the only gnome in this camp who read the warning label on the hourglass.$B$BIt says do not shake. I shook it. That is how I got here, I think.', 1),
 (7702405, 'The Sunwell is burning again. I can feel it from here, even in this year. It was dark for so long.$B$BWhatever Eternus offers you, $c, ask him what it costs. It always costs something.', 'The Sunwell is burning again. I can feel it from here, even in this year. It was dark for so long.$B$BWhatever Eternus offers you, $c, ask him what it costs. It always costs something.', 1),
 (7702406, 'Morrigan Ashe. Forsaken, priestess, and very tired of being asked if I am from around here.$B$BI died in the Third War. I would rather not watch this one do it to anyone else. That is why I listened to Eternus. I am still listening.', 'Morrigan Ashe. Forsaken, priestess, and very tired of being asked if I am from around here.$B$BI died in the Third War. I would rather not watch this one do it to anyone else. That is why I listened to Eternus. I am still listening.', 1),
@@ -306,13 +306,13 @@ INSERT INTO `remix_bazaar_line` (`guid`, `line`, `text`, `emote`, `reply_guid`, 
 (7704029, 0, 'If you can see the fireball coming, you cast it too slowly.', 1, 0, '', 0),
 (7704030, 0, 'Do not feed the imp. Whatever it tells you.', 274, 0, '', 0),
 (7704031, 0, 'Even on stone, things grow. Slowly. Sideways, sometimes.', 0, 0, '', 0),
-(7704501, 0, 'Last thing I remember, there were demons in Westfall and every captain in Stormwind was counting ships for the Broken Shore.', 1, 7704502, 'Then we had better be home before they sail.', 0),
+(7704501, 0, 'Last thing I remember, I was buying a round in Ironforge to toast the Lich King''s fall.', 1, 7704502, 'Then we had better be home before it goes flat.', 0),
 (7704502, 0, 'Third time through the Borean Tundra this week. The penguins are starting to recognize me.', 11, 7704501, 'Those are not penguins taking notes, Vaela. Those are bronze dragons.', 1),
 (7704503, 0, 'Gnome. Why is my bag lighter than when I came?', 6, 7704504, 'Time dilation! Or I borrowed your rations. One of the two.', 1),
-(7704503, 1, 'I fought the Iron Horde on Draenor. Next to them, the Scourge is almost polite.', 1, 7704504, 'Almost. They still bite.', 0),
+(7704503, 1, 'I fought my way into Ulduar. Next to what was under it, the Scourge is almost polite.', 1, 7704504, 'Almost. They still bite.', 0),
 (7704505, 0, 'The Sunwell burns again in this year. In mine too, and still half of Silvermoon lies in ruins. Some wounds take longer than a war.', 0, 0, '', 0),
 (7704506, 0, 'They keep asking if I am from this year. I am barely from this century.', 1, 7704507, 'Ya worry too much, mon. Time be a river. We just be fishin''.', 11),
-(7704507, 0, 'Vol''jin be Warchief where I come from. Here he be a chieftain with a long memory.', 1, 7704506, 'Do not tell him. The dragons get twitchy.', 0),
+(7704507, 0, 'Vol''jin be chieftain of de Darkspear in dis year, and in mine. Some tings time don''t touch.', 1, 7704506, 'Do not say that too loud. The dragons get twitchy.', 0),
 (7704508, 0, 'Best stew in any century. Do not tell the cook I said so.', 7, 7704509, 'I heard that, Steelhide. Second bowl is still Bronze.', 11),
 (7704509, 0, 'Stew''s on! Crystalsong mushrooms, and something the gnome swears is a vegetable.', 5, 0, '', 0),
 (7704509, 1, 'Eat while you can. The Scourge does not stop for supper.', 1, 0, '', 0),
