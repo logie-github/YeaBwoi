@@ -35,28 +35,36 @@ def floors(host, user, password, character, spawns_file):
             if len(fields) >= 5:
                 spawns.append((fields[0], int(fields[1]), float(fields[2]), float(fields[3]), float(fields[4]),
                                fields[5] if len(fields) > 5 else ""))
-    steps = []
-    for _, map_id, x, y, z, _ in spawns:
-        steps += [f"go {map_id} {x:.2f} {y:.2f} {z + 0.5:.2f}", "cmd .gps"]
-    transcript = auth_check.world(host, user, password, character, steps=steps)
-    gps = [heard for line, heard in transcript if line == "cmd .gps"]
-    bad = 0
-    for (guid, map_id, x, y, z, comment), heard in zip(spawns, gps):
-        match = GPS.search("\n".join(heard))
-        if not match:
-            print(f"floor: {guid} ({comment}): no answer to .gps")
-            bad += 1
-            continue
-        zone, ground, floor = int(match.group(1)), float(match.group(2)), float(match.group(3))
-        off = z - floor
-        ok = abs(off) <= TOLERANCE
-        bad += 0 if ok else 1
-        print(f"floor: {guid} map {map_id} zone {zone} z {z:.1f} floor {floor:.1f} ground {ground:.1f}"
-              f" {'ok' if ok else ('FLOATING' if off > 0 else 'BURIED')} ({comment})")
-    if len(gps) < len(spawns):
-        print(f"floor: only {len(gps)} of {len(spawns)} spawns checked")
-        bad += 1
-    return bad
+    def check(spawns, again):
+        steps = []
+        for _, map_id, x, y, z, _ in spawns:
+            steps += [f"go {map_id} {x:.2f} {y:.2f} {z + 0.5:.2f}", "cmd .gps"]
+        transcript = auth_check.world(host, user, password, character, steps=steps)
+        gps = [heard for line, heard in transcript if line == "cmd .gps"]
+        off_the_floor = []
+        for spawn, heard in zip(spawns, gps):
+            guid, map_id, x, y, z, comment = spawn
+            match = GPS.search("\n".join(heard))
+            if not match:
+                print(f"floor: {guid} ({comment}): no answer to .gps")
+                off_the_floor.append(spawn)
+                continue
+            zone, ground, floor = int(match.group(1)), float(match.group(2)), float(match.group(3))
+            off = z - floor
+            ok = abs(off) <= TOLERANCE
+            if not ok:
+                off_the_floor.append(spawn)
+            print(f"floor: {guid} map {map_id} zone {zone} z {z:.1f} floor {floor:.1f} ground {ground:.1f}"
+                  f" {'ok' if ok else ('FLOATING' if off > 0 else 'BURIED')} ({comment}){' (again)' if again else ''}")
+        off_the_floor += spawns[len(gps):]
+        return off_the_floor
+
+    # (one off the floor is looked at again, once: a reading taken as the character lands can be
+    # the place it came from's)
+    off_the_floor = check(spawns, False)
+    if off_the_floor:
+        off_the_floor = check(off_the_floor, True)
+    return len(off_the_floor)
 
 
 def _crypt_table():

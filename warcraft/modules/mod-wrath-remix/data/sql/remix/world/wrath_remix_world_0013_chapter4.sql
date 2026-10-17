@@ -180,7 +180,7 @@ FROM `creature` c WHERE c.`guid` = 105125;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704221, @SYLVANAS,     571, 1, 1, 0, 6095.3, -1926.8, 235.4, 5.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, WRM-405, beneath Voltarus'),
 (7704222, @TIMESNATCHER, 571, 1, 1, 0, 6121.4, -1936.6, 234.7, 3.50, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
-(7704223, @TIMESNATCHER, 571, 1, 1, 0, 6123.2, -1974.4, 236.9, 2.80, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
+(7704223, @TIMESNATCHER, 571, 1, 1, 0, 6123.2, -1974.4, 234.2, 2.80, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
 (7704224, @TIMESNATCHER, 571, 1, 1, 0, 6090.2, -1983.8, 233.5, 1.20, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
 (7704225, @TIMESNATCHER, 571, 1, 1, 0, 6124.1, -2007.8, 232.3, 1.90, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),
 (7704226, @TIMESNATCHER, 571, 1, 1, 0, 6166.3, -1965.4, 233.3, 3.60, 180, 0, 0, 'Wrath Remix: Infinite Timesnatcher, beneath Voltarus'),

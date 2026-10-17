@@ -152,7 +152,7 @@ jobs:
     needs: [server]
     if: needs.server.outputs.tested != 'true'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
 
@@ -172,8 +172,10 @@ jobs:
           echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
           df -h / | tail -1
 
+      # (Wrath Remix's campaign is played to its end on each side, scenes and all: about 95
+      # minutes on a 4-core x86_64 machine, longer under strace)
       - name: Test the server
-        timeout-minutes: 100
+        timeout-minutes: 210
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
           scripts/test-warcraft-server.sh
