@@ -754,6 +754,14 @@ public:
     void OnStartup() override
     {
         UpdateClientPatch();
+        // What earlier versions kept of characters deleted since: the core gives a deleted
+        // character's guid to the next one made after a restart, which would take over its
+        // Timerunner's chapter, Bronze and starter kit.
+        if (Active())
+        {
+            CharacterDatabase.DirectExecute("DELETE r FROM remix_character r LEFT JOIN characters c ON c.guid = r.guid WHERE c.guid IS NULL");
+            CharacterDatabase.DirectExecute("DELETE l FROM remix_log l LEFT JOIN characters c ON c.guid = l.guid WHERE c.guid IS NULL");
+        }
     }
 };
 
@@ -775,7 +783,18 @@ public:
         PLAYERHOOK_ON_UPDATE_AREA,
         PLAYERHOOK_ON_PLAYER_QUEST_ACCEPT,
         PLAYERHOOK_ON_BEFORE_QUEST_COMPLETE,
+        PLAYERHOOK_ON_DELETE_FROM_DB,
     }) { }
+
+    // A character deleted for good takes its Timerunner's record and journal with it (in the
+    // core's own transaction): its guid goes to the next character made after a restart.
+    void OnPlayerDeleteFromDB(CharacterDatabaseTransaction trans, uint32 guid) override
+    {
+        if (!Active())
+            return;
+        trans->Append("DELETE FROM remix_character WHERE guid = {}", guid);
+        trans->Append("DELETE FROM remix_log WHERE guid = {}", guid);
+    }
 
     // Who a Timerunner sees changes with the story (visibility conditions in the world SQL:
     // Sylvanas and Alleria arrive, Eternus leaves the Bazaar, his loyalists wait on the cliffs):
