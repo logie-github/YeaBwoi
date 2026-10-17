@@ -27,9 +27,9 @@
 __pycache__/
 # Winlator, brought in by scripts/prepare-winlator.sh
 /warcraft/android/winlator/
-# Winlator, brought in by scripts/prepare-winlator-app.sh warcraftrts
-/warcraftrts/android/winlator/
-/warcraftrts/unit-tests/.gradle/
-/warcraftrts/unit-tests/build/
-/warcraftrts/unit-tests/.kotlin/
-/warcraftrts/android/local.properties
+# Winlator, brought in by scripts/prepare-winlator-app.sh warcrafts
+/warcrafts/android/winlator/
+/warcrafts/unit-tests/.gradle/
+/warcrafts/unit-tests/build/
+/warcrafts/unit-tests/.kotlin/
+/warcrafts/android/local.properties

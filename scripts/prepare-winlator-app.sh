@@ -4,7 +4,7 @@
 # <app>/android/winlator (git-ignored), the way scripts/prepare-winlator.sh does for the World of
 # Warcraft app:
 #
-#     scripts/prepare-winlator-app.sh <app folder>        e.g. warcraftrts
+#     scripts/prepare-winlator-app.sh <app folder>        e.g. warcrafts
 #
 # <app>/winlator-version.env names Winlator's commit, the app's package (APP_PACKAGE) and where the
 # app puts the runtime (APP_ROOTFS_PATH, the same length as Winlator's own path); <app>/patches/winlator/
