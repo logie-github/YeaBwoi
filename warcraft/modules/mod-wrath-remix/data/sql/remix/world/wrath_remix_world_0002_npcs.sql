@@ -204,8 +204,8 @@ INSERT INTO `creature_template_spell` (`CreatureID`, `Index`, `Spell`, `Verified
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702001 AND 7702199;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- Moratari: before the first quest is done, as you wake; after; on where you are in history.
-(7702001, 'Easy. Breathe. You were somewhere else a moment ago, $n: your own time, years from now. You are in Northrend now, at the start of the war against the Lich King, and you feel weaker because you are. Time takes its toll on travellers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.',
-          'Easy. Breathe. You were somewhere else a moment ago, $n: your own time, years from now. You are in Northrend now, at the start of the war against the Lich King, and you feel weaker because you are. Time takes its toll on travellers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.', 1),
+(7702001, 'Easy. Breathe. You were somewhere else a moment ago, $n: your own time, years from now. You are in Northrend now, at the start of the war against the Lich King, and you feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.',
+          'Easy. Breathe. You were somewhere else a moment ago, $n: your own time, years from now. You are in Northrend now, at the start of the war against the Lich King, and you feel weaker because you are. Time takes its toll on travelers.$B$BI am Moratari. Eternus brought you here. He will want to tell you why himself.', 1),
 (7702002, 'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.',
           'Hello again, Timerunner. The war is still where we left it. That is either reassuring or the problem, depending on whom you ask.', 1),
 (7702003, 'Every Timerunner I have sent into this war, I can find again. If you lose your way, I will return you to the start of the chapter you are in.',
@@ -234,22 +234,22 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- The echoes (WRM-011): the dead Eternus means to save.
 (7702080, 'The boats came in under the arrows and the cold. I made it off the beach. I did not make it off the second day. When I stood up again, I was fighting for them.',
           'The boats came in under the arrows and the cold. I made it off the beach. I did not make it off the second day. When I stood up again, I was fighting for them.', 1),
-(7702081, 'For the Horde... We had him. The gate was open and he came down to meet us, and then the sky went green. Tell my father I did not run.',
-          'For the Horde... We had him. The gate was open and he came down to meet us, and then the sky went green. Tell my father I did not run.', 1),
+(7702081, 'For the Horde... The gate opened, and he came down to meet us himself. I reached him first. Tell my father I did not run.',
+          'For the Horde... The gate opened, and he came down to meet us himself. I reached him first. Tell my father I did not run.', 1),
 (7702082, 'The plague, then the fire. Then the cold, and a voice telling me that someone has to hold it. It is so very cold.',
           'The plague, then the fire. Then the cold, and a voice telling me that someone has to hold it. It is so very cold.', 1),
 -- Sylvanas and Alleria (Chapter II): atop Wyrmrest Temple, at the Bazaar after the turn, and
 -- Alleria on the Wrathgate's cliffs.
-(7702090, 'The bronze brought us back to this year. I would not have chosen it.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.',
-          'The bronze brought us back to this year. I would not have chosen it.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.', 1),
-(7702091, 'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.',
-          'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.', 1),
+(7702090, 'The bronze brought us back to this year. I would not have chosen it.$B$BStand on my left. You always do. <She catches herself.> You will. It is a habit you have not given me yet.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.',
+          'The bronze brought us back to this year. I would not have chosen it.$B$BStand on my left. You always do. <She catches herself.> You will. It is a habit you have not given me yet.$B$BGo and ask your master what he means to do at the Wrathgate, Timerunner. Ask him who he thinks will wear the Helm when Arthas is gone.', 1),
+(7702091, 'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.$B$B<For a moment, she almost smiles.> You argued with me just like that, once. You will, I mean. Do not ask me when.',
+          'Eternus will not stop, and neither will we. Every change his loyalists make, we unmake.$B$BI am not asking you to love the war as it was. Only to let it happen.$B$B<For a moment, she almost smiles.> You argued with me just like that, once. You will, I mean. Do not ask me when.', 1),
 (7702092, 'My sister asked me to come. She does not ask.$B$BThe Void taught me to feel when the shape of the world is wrong. This year feels wrong, Timerunner, and it is getting worse.',
           'My sister asked me to come. She does not ask.$B$BThe Void taught me to feel when the shape of the world is wrong. This year feels wrong, Timerunner, and it is getting worse.', 1),
 (7702093, 'Moratari keeps the Bazaar now. She is a better host than he was, and a worse liar.$B$BWhen Eternus moves again, I will feel it. You will be the first to know.',
           'Moratari keeps the Bazaar now. She is a better host than he was, and a worse liar.$B$BWhen Eternus moves again, I will feel it. You will be the first to know.', 1),
-(7702094, 'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. That is the hard part.',
-          'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. That is the hard part.', 1);
+(7702094, 'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. I have never had to stand still for anything harder.',
+          'Below us, the gate. Somewhere behind us, the Forsaken who will betray everyone at it. And on these cliffs, Eternus''s loyalists, here to change it.$B$BWe let it happen, Timerunner. I have never had to stand still for anything harder.', 1);
 
 -- The Bazaar's instructors: one for each class, every rank of every spell up to your level, as a
 -- capital's trainer teaches them (their trainer lists are the capitals' own). Paladins have two,

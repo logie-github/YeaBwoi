@@ -28,7 +28,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77402, 2, 46, 42, 66, 5, 0, 0, 0,
  'The Paperwork of Betrayal',
  'Speak with Moratari again to be ready to sabotage Voltarus.',
- 'You are inside. Drakuru believes you are his, the Ebon Blade believes you are theirs, and both are about to ask a great deal of you: plague barrels, propaganda, quotas of the dead to fill.$B$BThe paperwork of betrayal is astonishingly thorough. Its consequences, alas, are rather more interesting. Stefan Vadu is ready to bring Voltarus down around Drakuru''s ears. Let us skip to the sabotage.',
+ 'You are inside. Drakuru believes you are his, the Ebon Blade believes you are theirs, and both are about to ask a great deal of you: plague barrels, propaganda, quotas of the dead to fill.$B$BThe paperwork of betrayal is astonishingly thorough. Its consequences are far more interesting. Stefan Vadu is ready to bring Voltarus down around Drakuru''s ears. Let us skip to the sabotage.',
  'Speak with Moratari.', 0),
 -- The loa: Har'koa's rescue (the mushrooms, Jin'Alai, Rhunok and his prophet, the way back to her).
 (77403, 2, 47, 42, 66, 5, 0, 0, 0,
@@ -56,7 +56,7 @@ DELETE FROM `quest_offer_reward` WHERE `ID` IN (77401, 77402, 77403, 77404, 7742
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77401, 1, 'Do try to look undead. It is mostly a matter of posture.', 0),
 (77402, 1, 'Quietly, now. A necropolis is a terrible place to sneeze.', 0),
-(77403, 1, 'Hold on. Har''koa is a cat: a very large, very divine cat. Do not stare.', 0),
+(77403, 1, 'Hold on. Har''koa is a cat: a very large, very divine cat. Mind your manners.', 0),
 (77404, 1, 'Listen to the gods while they still have voices.', 0),
 (77421, 1, 'Hold on. Sholazar is warm, green and full of things that want to eat you. You will love it.', 0);
 
@@ -130,7 +130,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77405, 2, 49, 42, 66, 5, 0, 0, 0,
  'One Life Too Many',
  'Slay 6 Infinite Timesnatchers and close the Unstable Rift beneath Voltarus, then speak with Sylvanas Windrunner there.',
- 'Eternus has found another life to save. You will not like whose.$B$BDrakuru''s. The troll who sold his people to the Scourge for a crown. Eternus''s agents are beneath Voltarus, opening a door to carry him away before his master comes for him.$B$BI will meet you there. Do not keep me waiting; I have waited on trolls before.',
+ 'Eternus has found another life to save. You will not like whose.$B$BListen, and then I will meet you beneath Voltarus. Do not keep me waiting; I have waited on trolls before.',
  'Speak with Sylvanas Windrunner beneath Voltarus.', @TIMESNATCHER, 6, @RIFT, 1, 'Infinite Timesnatcher slain', 'Unstable Rift closed', 0);
 
 DELETE FROM `quest_template_addon` WHERE `ID` = 77405;
@@ -138,7 +138,7 @@ INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77405, 12676);
 
 DELETE FROM `quest_offer_reward` WHERE `ID` = 77405;
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
-(77405, 1, 'Good. Now go and betray him. He has earned that much.$B$BWhen the Lich King comes for him, he will look at you. Look back. Remember his face. You will see it again, at the top of his citadel.$B$BStefan Vadu is waiting. I will send you to him.', 0);
+(77405, 1, 'Good. Now go and betray him. He has earned that much.$B$BWhen the Lich King comes for him, he will look at you. Look back. Remember his face. You will see it again, at the top of his citadel.$B$B<She hesitates.>$B$BBe careful on that necropolis, $n. I have grown used to you coming back. ...I will grow used to it. Do not ask.$B$BStefan Vadu is waiting. I will send you to him.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` = 77405;
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@SYLVANAS, 77405);

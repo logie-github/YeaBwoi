@@ -44,7 +44,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77721, 2, 80, 70, 210, 5, 0, 0, 0,
  'The Last Hour',
  'Face Eternus at the doors of Icecrown Citadel, then speak with Moratari there.',
- 'You came out. All of you; the record is whole.$B$BWe have reached the part of history we came here to understand, $n. The Citadel. Bolvar''s last hour, and Arthas''s.$B$BAnd Eternus is at its doors. Every Infinite still loyal to him is with him. He means to hold the last hour open, and I do not think he will let anyone talk him out of it this time.$B$BSylvanas and Alleria are already there. So am I, in a moment. Come.',
+ 'You came out. The record is whole.$B$BWe have reached the end of the road, $n. The Citadel. Bolvar''s last hour, and Arthas''s.$B$BAnd Eternus is at its doors. Every Infinite still loyal to him is with him. He means to hold the last hour open, and I do not think he will let anyone talk him out of it this time.$B$BSylvanas and Alleria are already there, and I will be beside you. Come.',
  'Speak with Moratari at the doors of Icecrown Citadel.', @LAST_HOUR_CREDIT, 1, 'Eternus driven off', 0),
 -- WRM-800: the Lich King (a raid's quest: its credit counts in a raid group).
 (77800, 2, 80, 70, 210, 5, 0, 64, 0,
@@ -59,10 +59,10 @@ INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77702, 13083), 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77701, 77702, 77711, 77721, 77800);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77702, 1, 'He never asked any of them. I think he is only now realizing it.$B$BIt may be the most important thing that has happened to him in this whole war, and no one but you and I will ever know.', 0),
-(77701, 1, 'Go. Apprentice Nelphi is waiting for you in Dalaran, by the Frozen Halls'' way. I will not be.', 0),
+(77701, 1, 'Go. Apprentice Nelphi is waiting for you in Dalaran; she knows the way into the Frozen Halls. I will not be going with you.', 0),
 (77711, 1, 'Go. Dark Ranger Vorel is waiting for you in Dalaran. She serves me, in this year. Be kind to her.', 0),
-(77721, 1, 'He''s gone. Not dead. Eternus has never been any good at dying.$B$BThe doors are open, $n.', 0),
-(77800, 1, 'You did it. All of it, exactly as it happened.$B$BSit down a moment. You have earned that, at least.', 0);
+(77721, 1, 'Catch your breath, $n. He will not be back tonight.$B$BEverything we came here for is behind those doors.', 0),
+(77800, 1, 'You are back.$B$BSit down a moment. You have earned that, at least.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77701, 77702, 77711, 77721, 77800);
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES

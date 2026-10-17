@@ -10,6 +10,7 @@ void AddRemixSceneScripts();
 void AddRemixEndingScripts();
 void AddRemixLastHourScripts();
 void AddRemixSoloScripts();
+void AddRemixFrozenHallsScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -20,4 +21,5 @@ void Addmod_wrath_remixScripts()
     AddRemixEndingScripts();
     AddRemixLastHourScripts();
     AddRemixSoloScripts();
+    AddRemixFrozenHallsScripts();
 }

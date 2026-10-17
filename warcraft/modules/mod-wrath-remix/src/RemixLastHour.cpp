@@ -196,7 +196,14 @@ public:
             if (!said50 && me->HealthBelowPctDamaged(50, damage))
             {
                 said50 = true;
-                Say(0, "Do you know how many died on the beach at Valiance Keep? I do. I counted them. I counted every one.");
+                Say(0, "Do you know how many died on the beaches of the Borean Tundra? I do. I counted them. I counted every one.");
+                // (she knows the Timerunner better than the Timerunner knows her, and it shows)
+                if (Creature* sylvanas = Speaker(2))
+                    if (Player* player = Timerunner())
+                    {
+                        std::string line = "Stay behind me, " + player->GetName() + ". Like old times. ...Like old times for one of us, at least.";
+                        sylvanas->m_Events.AddEventAtOffset([sylvanas, line]() { sylvanas->Say(line, LANG_UNIVERSAL); }, 6s);
+                    }
             }
             if (!wave40 && me->HealthBelowPctDamaged(40, damage))
             {
