@@ -10,6 +10,10 @@
 -- Eternus's first kindness, on each side (WRM-017, WRM-018): a squad history lost, saved. Each opens
 -- the chain's next quest. The Alliance's then goes on to Mark Hanes (WRM-019), whose Word on the
 -- Street the game leaves to be found.
+--
+-- (Until build 90, wrath_remix_world_0003_prologue.sql's deletes of the first prologue's quests,
+-- 77001 to 77009, took the Alliance's transition, 77006, out whenever that file changed and this
+-- one didn't: this note makes this file change too, so it comes back.)
 
 SET @MORATARI := 770001, @MARK_HANES := 26155;
 

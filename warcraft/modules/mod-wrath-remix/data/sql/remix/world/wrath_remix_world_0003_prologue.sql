@@ -24,14 +24,16 @@ DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 7701000 AND 7701999;
 DELETE FROM `creature_questender` WHERE `quest` BETWEEN 7701000 AND 7701999;
 DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 7701000 AND 7701999;
 
--- The first prologue (WRM-001 to 007, in the Caverns of Time, until build 64): gone too.
-DELETE FROM `quest_template` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 77001 AND 77009;
-DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 77001 AND 77009;
-DELETE FROM `creature_questender` WHERE `quest` BETWEEN 77001 AND 77009;
-DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 77001 AND 77009;
+-- The first prologue (WRM-001 to 007, in the Caverns of Time, until build 64): gone too. Not 77006,
+-- which is Chapter I's Alliance transition now (wrath_remix_world_0006_bridges.sql): this file can
+-- change on its own, and its deletes must not take that one out.
+DELETE FROM `quest_template` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 77001 AND 77009 AND `ID` <> 77006;
+DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
+DELETE FROM `creature_questender` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
+DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
 
 DELETE FROM `quest_template` WHERE `ID` BETWEEN 77010 AND 77015;
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `RewardXPDifficulty`, `RewardMoney`, `Flags`,
