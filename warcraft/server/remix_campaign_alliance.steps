@@ -201,6 +201,7 @@ expect quest 12249
 # Chapter III. III-A, WRM-301 (A Shorter Path Through the Woods): Ursoc, the Bear God done;
 # Filling the Cages isn't open at Samir yet. (Chapter III's levels from here on.)
 cmd .levelup 10
+clear-backpack
 wait 2
 cmd .quest add 12249
 cmd .quest complete 12249
@@ -248,6 +249,7 @@ expect chapter 4
 cmd .gps
 expect Zul'Drak
 
+clear-backpack
 # Chapter IV. IV-A, WRM-401 (The Things the Scourge Remembers): The Ebon Watch done; Infiltrating
 # Voltarus isn't open at Stefan Vadu yet.
 cmd .quest add 12884
@@ -337,6 +339,7 @@ cmd .quest reward 12685
 go 571 5736.1 -3571.4 387.5
 talk 770001
 expect-not quest 77404
+clear-backpack
 cmd .quest add 12713
 cmd .quest complete 12713
 cmd .quest reward 12713
@@ -353,6 +356,7 @@ expect quest 12729
 # WRM-421 (A Kingdom Gone): after Gal'darah Must Pay (Gundrak's quests at Chapter IV's levels),
 # Moratari by Tol'mar sends the Timerunner to Nesingwary Base Camp in Sholazar Basin, Chapter V.
 cmd .levelup 10
+clear-backpack
 wait 2
 cmd .quest add 13096
 cmd .quest complete 13096
@@ -383,6 +387,7 @@ expect quest 12803
 # WRM-502 (Stolen Hours): once the Maker's Perch is powered, Moratari is on the Maker's Overlook;
 # The Etymidian waits for it. Eternus comes for her as it's turned in.
 cmd .levelup 6
+clear-backpack
 wait 2
 cmd .quest add 12559
 cmd .quest complete 12559
@@ -438,6 +443,7 @@ expect The Storm Peaks
 # Chapter VI (the Storm Peaks, 60 to 70). VI-A, WRM-601 (The Very Long Road to Thorim): after Taking
 # on All Challengers, Moratari by Lok'lira opens Lok'lira's Parting Gift.
 cmd .levelup 8
+clear-backpack
 wait 2
 cmd .quest add 12971
 cmd .quest complete 12971
@@ -503,6 +509,7 @@ expect Icecrown
 # Chapter VII (Icecrown, 70 to 80). WRM-702 (What He Was Offered): after Light Within the Darkness,
 # Moratari by Tirion at Crusaders' Pinnacle; its scene is the quest.
 cmd .levelup 10
+clear-backpack
 wait 2
 cmd .quest add 13083
 cmd .quest complete 13083
@@ -545,6 +552,7 @@ expect quest 24510
 # Citadel: Eternus speaks, and the three answer; then the fight, and with a tenth of his strength
 # left he retreats (a game master's blow takes him there at once).
 cmd .levelup 6
+clear-backpack
 wait 2
 cmd .quest add 24500
 cmd .quest complete 24500
