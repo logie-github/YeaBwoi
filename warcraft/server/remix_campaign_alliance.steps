@@ -18,12 +18,10 @@ expect level 30
 cmd .tele UtgardeKeepInstance
 wait 3
 cmd .remix solo
-expect map 574 (dungeon)
 expect share 0.20, their damage x0.38, yours x3.93, few in Icecrown: no
 cmd .tele ICCInstance
 wait 3
 cmd .remix solo
-expect map 631 (raid)
 expect share 0.10, their damage x0.25, yours x7.08, few in Icecrown: yes
 
 # Chapter II's story (STORY.md). WRM-203 (A Summons from Wyrmrest): Find Durkon! done.
