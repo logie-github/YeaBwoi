@@ -472,6 +472,25 @@ def run_script(session, player_guid, steps):
                 return (int(words[4]), float(words[6])) if near else int(words[4])
         raise RuntimeError(f"no creature {entry} near the character")
 
+    def within_reach(entry):
+        """The nearest creature of [entry], called over if it's beyond talking distance (where a
+        fight left the player, say), and whether it was."""
+        guid, yards = creature_guid(entry, near=True)
+        if yards <= 6:
+            return guid, False
+        session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
+        session.pump(0.5, packets)
+        say(session, ".npc follow")
+        session.pump(4.0, packets)
+        return guid, True
+
+    def let_go(called):
+        if called:
+            say(session, ".npc follow stop")
+            session.pump(1.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
+
     def note(packets):
         for opcode, body in packets:
             if opcode == SMSG_MESSAGECHAT and body[0] == CHAT_MSG_SYSTEM:
@@ -607,12 +626,16 @@ def run_script(session, player_guid, steps):
             heard.append(f"bought {item}" if any(o == SMSG_BUY_ITEM for o, _ in packets) else "not bought")
         elif word == "accept":
             entry, quest = (int(v) for v in rest.split())
-            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", creature_guid(entry), quest, 0))
+            guid, called = within_reach(entry)
+            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", guid, quest, 0))
             session.pump(2.0, packets)
+            let_go(called)
         elif word == "reward":
             entry, quest = (int(v) for v in rest.split())
-            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", creature_guid(entry), quest, 0))
+            guid, called = within_reach(entry)
+            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", guid, quest, 0))
             session.pump(3.0, packets)
+            let_go(called)
         elif word == "wait":
             session.pump(float(rest), packets)
         elif word == "addon":
