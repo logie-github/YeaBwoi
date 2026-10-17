@@ -37,7 +37,7 @@ expect rewarded 77213
 wait 3
 cmd .gps
 expect Wyrmrest Temple
-cmd .remix sees 770011
+cmd .remix sees 770014
 expect hidden
 talk 27856
 expect quest 12470
@@ -48,17 +48,17 @@ expect rewarded 12470
 talk 27856
 expect quest 77204
 accept 27856 77204
-cmd .remix sees 770011
+cmd .remix sees 770014
 expect seen
-cmd .remix sees 770012
+cmd .remix sees 770015
 expect seen
-reward 770011 77204
+reward 770014 77204
 expect rewarded 77204
 # WRM-215 (Ask Him Yourself): taking it goes to the Bazaar, before Eternus; turning it in comes
 # back to Moratari's The Road to Angrathar.
-talk 770011
+talk 770014
 expect quest 77215
-accept 770011 77215
+accept 770014 77215
 wait 3
 cmd .gps
 expect Crystalsong Forest
@@ -131,7 +131,7 @@ expect credit 77218 770041 6/6
 wait 2
 cmd .remix sees 770041
 expect hidden
-reward 770012 77218
+reward 770015 77218
 expect rewarded 77218
 wait 3
 talk 25257
@@ -187,9 +187,9 @@ cmd .quest reward 12231
 go 571 3316.8 -2291.8 110.7
 talk 27262
 expect-not quest 12236
-talk 770012
+talk 770015
 expect quest 77313
-accept 770012 77313
+accept 770015 77313
 wait 35
 expect Go and break his anchors
 go 571 4688.0 -3860.0 328.0
@@ -200,7 +200,7 @@ kill 770042
 kill 770042
 kill 770042
 expect credit 77313 770042 3/3
-reward 770012 77313
+reward 770015 77313
 expect rewarded 77313
 # Ursoc, the Bear God also waits for Destroy the Sapling and Vordrassil's Seeds (its group).
 cmd .quest add 12241
@@ -301,9 +301,9 @@ cmd .quest complete 12676
 cmd .quest reward 12676
 talk 28518
 expect-not quest 12713
-talk 770011
+talk 770014
 expect quest 77405
-accept 770011 77405
+accept 770014 77405
 wait 38
 expect Let the troll keep the price he agreed to
 cmd .remix sees 770044
@@ -318,7 +318,7 @@ kill 770044
 expect credit 77405 770044 6/6
 kill 770045
 expect credit 77405 770045 1/1
-reward 770011 77405
+reward 770014 77405
 expect rewarded 77405
 wait 4
 talk 28518

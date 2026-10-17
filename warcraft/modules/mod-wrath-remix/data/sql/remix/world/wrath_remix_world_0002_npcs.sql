@@ -5,13 +5,15 @@
 -- in Remix's own range (770001+), on models the 3.3.5a client has: Moratari is a blood elf woman in
 -- dark plate with glowing runes (Lady Alistra's look), Eternus the Infinite Dragonflight's
 -- Chrono-Lord Epoch, the Keepers their own Caverns of Time selves, the echoes the people they were.
+-- Moratari has no title over her head: she meets the Timerunner beside quest givers all over
+-- Northrend, and there she is one more traveler in a war full of them.
 
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
     @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022,
     @ECHO_BOLVAR := 770023, @ANOMALY := 770031, @ANOMALY_CREDIT := 770032, @INSTRUCTOR_CREDIT := 770033,
     @SYLVANAS := 770011, @ALLERIA := 770012, @MORATARI_SCENE := 770013, @TURN_CREDIT := 770034,
-    @INTERLOPER := 770041;
+    @INTERLOPER := 770041, @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015;
 
 -- Until build 56 Remix's creatures were 7700001 and up, which made the core keep a table of
 -- creature templates 7.7 million long (its fast lookups are indexed by entry): gone.
@@ -25,7 +27,7 @@ DELETE FROM `creature_template` WHERE `entry` BETWEEN 770001 AND 770199;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
-(@MORATARI,       'Moratari',       'Infinite Dragonflight',   80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_moratari'),
+(@MORATARI,       'Moratari',       NULL,                      80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_moratari'),
 (@ETERNUS,        'Eternus',        'Infinite Dragonflight',   83, 83, 2, 35, 3, 1, 1.14286, 3, 2, 0, 2048, 2, 2, 25, 1, 2000, 1, 'npc_remix_eternus'),
 (@ANDORMU,        'Andormu',        'Keepers of Time',         80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_keeper'),
 (@NOZARI,         'Nozari',         'Keepers of Time',         80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_keeper'),
@@ -49,6 +51,11 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 -- quests); its credit (never spawned).
 (@SYLVANAS,       'Sylvanas Windrunner', NULL,                 83, 83, 2, 35, 3, 1, 1.14286, 3, 2, 0, 2048, 7, 2, 25, 1, 2000, 1, 'npc_remix_windrunner'),
 (@ALLERIA,        'Alleria Windrunner',  NULL,                 83, 83, 2, 35, 3, 1, 1.14286, 3, 1, 0, 2048, 7, 2, 25, 1, 2000, 1, 'npc_remix_windrunner'),
+-- The same two anywhere but the Bazaar: hooded, and passing for two more adventurers in a war
+-- full of them. This year's Sylvanas must never hear of the other one, and no one else may
+-- learn who they are.
+(@SYLVANAS_ABROAD, 'Hooded Ranger',  'Adventurer',             80, 80, 2, 35, 3, 1, 1.14286, 0, 2, 0, 2048, 7, 2, 25, 1, 2000, 1, 'npc_remix_windrunner'),
+(@ALLERIA_ABROAD,  'Cloaked Ranger', 'Adventurer',             80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 25, 1, 2000, 1, 'npc_remix_windrunner'),
 (@MORATARI_SCENE, 'Moratari',       'Infinite Dragonflight',   80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, ''),
 (@TURN_CREDIT,    'What Sylvanas came to say', NULL,           80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, '');
 
@@ -77,9 +84,10 @@ SET @ACT_SYLVANAS := 770051, @ACT_ALLERIA := 770052, @ACT_ETERNUS := 770053, @AC
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
--- The scenes' people (unit flags: not attackable, nor attacking).
-(@ACT_SYLVANAS,  'Sylvanas Windrunner', NULL,                83, 83, 2, 35, 0, 1, 1.14286, 3, 2, 770, 2048, 7, 2, 25, 1, 2000, 1, ''),
-(@ACT_ALLERIA,   'Alleria Windrunner',  NULL,                83, 83, 2, 35, 0, 1, 1.14286, 3, 1, 770, 2048, 7, 2, 25, 1, 2000, 1, ''),
+-- The scenes' people (unit flags: not attackable, nor attacking). Sylvanas and Alleria are only
+-- ever in scenes out in the world, so in their disguises.
+(@ACT_SYLVANAS,  'Hooded Ranger',  'Adventurer',             80, 80, 2, 35, 0, 1, 1.14286, 0, 2, 770, 2048, 7, 2, 25, 1, 2000, 1, ''),
+(@ACT_ALLERIA,   'Cloaked Ranger', 'Adventurer',             80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 770, 2048, 7, 2, 25, 1, 2000, 1, ''),
 (@ACT_ETERNUS,   'Eternus',        'Infinite Dragonflight',  83, 83, 2, 35, 0, 1, 1.14286, 3, 2, 770, 2048, 2, 2, 25, 1, 2000, 1, ''),
 (@ACT_THORIM,    'Thorim',         NULL,                     82, 82, 2, 35, 0, 1, 1.14286, 3, 1, 770, 2048, 7, 2, 25, 1, 2000, 1, ''),
 (@ACT_SIF,       'Echo of Sif',    NULL,                     80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 770, 2048, 7, 2, 1, 1, 2000, 1, ''),
@@ -100,9 +108,9 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@LAST_ETERNUS,  'Eternus',        'The Last Hour',          80, 80, 2, 2111, 0, 1, 1.14286, 3, 2, 0, 2048, 2, 0, 40, 2.5, 2000, 1, 'npc_remix_eternus_last_hour'),
 (@LAST_CHRONOMANCER, 'Infinite Chronomancer', 'Eternus''s Loyalist', 80, 80, 2, 2111, 0, 1, 1.14286, 0, 8, 0, 2048, 2, 0, 1.5, 1, 2000, 1, 'npc_remix_story_foe'),
 (@LAST_EXECUTIONER,  'Infinite Executioner',  'Eternus''s Loyalist', 80, 80, 2, 2111, 0, 1, 1.14286, 0, 1, 0, 2048, 2, 0, 2, 1.2, 2000, 1, 'npc_remix_story_foe'),
-(@ALLY_MORATARI, 'Moratari',       'Infinite Dragonflight',  80, 80, 2, 35, 0, 1, 1.14286, 1, 8, 0, 2048, 7, 0, 60, 1.5, 2000, 1, 'npc_remix_last_hour_ally'),
-(@ALLY_SYLVANAS, 'Sylvanas Windrunner', NULL,                80, 80, 2, 35, 0, 1, 1.14286, 1, 1, 0, 2048, 7, 0, 60, 2, 2000, 1, 'npc_remix_last_hour_ally'),
-(@ALLY_ALLERIA,  'Alleria Windrunner',  NULL,                80, 80, 2, 35, 0, 1, 1.14286, 1, 1, 0, 2048, 7, 0, 60, 2, 2000, 1, 'npc_remix_last_hour_ally'),
+(@ALLY_MORATARI, 'Moratari',       NULL,                     80, 80, 2, 35, 0, 1, 1.14286, 1, 8, 0, 2048, 7, 0, 60, 1.5, 2000, 1, 'npc_remix_last_hour_ally'),
+(@ALLY_SYLVANAS, 'Hooded Ranger',  'Adventurer',           80, 80, 2, 35, 0, 1, 1.14286, 1, 1, 0, 2048, 7, 0, 60, 2, 2000, 1, 'npc_remix_last_hour_ally'),
+(@ALLY_ALLERIA,  'Cloaked Ranger', 'Adventurer',           80, 80, 2, 35, 0, 1, 1.14286, 1, 1, 0, 2048, 7, 0, 60, 2, 2000, 1, 'npc_remix_last_hour_ally'),
 -- Credits (never spawned).
 (@ROAD_CREDIT,       'What was said, heard', NULL,            80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
 (@LAST_HOUR_CREDIT,  'Eternus driven off', NULL,             80, 80, 0, 35, 0, 1, 1.14286, 0, 1, 0, 2048, 7, 128, 1, 1, 2000, 1, ''),
@@ -130,11 +138,13 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@INSTRUCTOR_CREDIT, 0, 19373, 1, 1, 0),
 (@SYLVANAS, 0, 28213, 1, 1, 0),       -- the Banshee Queen as Wrath has her
 (@ALLERIA, 0, 21741, 1, 1, 0),        -- a living high elf ranger-general: the 3.3.5 game has no Alleria
+(@SYLVANAS_ABROAD, 0, 21746, 1, 1, 0), -- an elf woman in a black hood and cloak, as rangers go about
+(@ALLERIA_ABROAD, 0, 21741, 1, 1, 0),  -- her own hood and cloak, the blue ones
 (@MORATARI_SCENE, 0, 25458, 1, 1, 0),
 (@TURN_CREDIT, 0, 28213, 1, 1, 0),
 (@INTERLOPER, 0, 19059, 1, 1, 0),
 (@INTERLOPER, 1, 19062, 1, 1, 0),
-(@ACT_SYLVANAS, 0, 28213, 1, 1, 0),
+(@ACT_SYLVANAS, 0, 21746, 1, 1, 0),
 (@ACT_ALLERIA, 0, 21741, 1, 1, 0),
 (@ACT_ETERNUS, 0, 26580, 1, 1, 0),
 (@ACT_THORIM, 0, 28977, 1, 1, 0),
@@ -156,7 +166,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@LAST_CHRONOMANCER, 0, 19061, 1, 1, 0),
 (@LAST_EXECUTIONER, 0, 19062, 1, 1, 0),
 (@ALLY_MORATARI, 0, 25458, 1, 1, 0),
-(@ALLY_SYLVANAS, 0, 28213, 1, 1, 0),
+(@ALLY_SYLVANAS, 0, 21746, 1, 1, 0),
 (@ALLY_ALLERIA, 0, 21741, 1, 1, 0),
 (@ROAD_CREDIT, 0, 25458, 1, 1, 0),
 (@LAST_HOUR_CREDIT, 0, 26580, 1, 1, 0),

@@ -164,6 +164,7 @@ SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x
 CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
 CMSG_SET_SELECTION = 0x13D
 CMSG_DESTROYITEM = 0x111
+CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
 
 # AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
@@ -434,6 +435,8 @@ def run_script(session, player_guid, steps):
         cmd TEXT                      a GM command (or anything said)
         go MAP X Y Z                  a GM teleport there
         clear-backpack                throws away what's in the backpack (but the hearthstone)
+        use-hourglass                 uses Moratari's Hourglass from the bags, as the game uses an
+                                      item (where it is from mod-wrath-remix's `.remix hourglass`)
         talk ENTRY                    open the gossip of the nearest creature of that entry
                                       (its guid from mod-wrath-remix's `.remix guid ENTRY`)
         kill ENTRY                    select the nearest creature of that entry and `.damage` it
@@ -663,6 +666,20 @@ def run_script(session, player_guid, steps):
             for slot in range(24, 39):
                 session.send(CMSG_DESTROYITEM, struct.pack("<BBBBBB", 255, slot, 0, 0, 0, 0))
             session.pump(1.0, packets)
+        elif word == "use-hourglass":
+            say(session, ".remix hourglass")
+            session.pump(1.5, packets)
+            found = None
+            for message in system_messages(packets):
+                words = message.split()
+                if message.startswith("Wrath Remix hourglass: bag") and len(words) > 10:
+                    found = (int(words[4]), int(words[6]), int(words[8]), int(words[10].rstrip(",")))
+            if not found:
+                raise RuntimeError(f"no hourglass in the bags; heard: {system_messages(packets)}")
+            bag, slot, item, spell = found
+            # bag, slot, cast count, spell, item, glyph index, cast flags; then no targets (itself)
+            session.send(CMSG_USE_ITEM, struct.pack("<BBBIQIB", bag, slot, 1, spell, item, 0, 0) + struct.pack("<I", 0))
+            session.pump(3.0, packets)
         elif word == "addon":
             prefix, _, text = rest.partition(" ")
             session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + session.character.encode() + b"\0"

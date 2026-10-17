@@ -37,6 +37,8 @@ namespace WrathRemix
         NPC_SYLVANAS      = 770011,     // from the future, with the bronze (Chapter II on)
         NPC_ALLERIA       = 770012,
         NPC_MORATARI_SCENE = 770013,    // Moratari as WRM-207's scene has her (no quests, seen by one)
+        NPC_SYLVANAS_ABROAD = 770014,   // the same two anywhere but the Bazaar: hooded, passing for
+        NPC_ALLERIA_ABROAD  = 770015,   // adventurers (no one may learn who they are)
         NPC_ECHO_FOOTMAN  = 770021,     // WRM-011's echoes of the war's dead
         NPC_ECHO_SAURFANG = 770022,
         NPC_ECHO_BOLVAR   = 770023,
@@ -59,6 +61,7 @@ namespace WrathRemix
         AREA_WYRMREST_TEMPLE = 4161,
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
+        ITEM_HOURGLASS    = 77002,      // Moratari's Hourglass: to the Bazaar and back (RemixHourglass.cpp)
 
         QUEST_OUT_OF_TIME      = 77010,     // the prologue at the Bazaar (STORY.md)
         QUEST_WAR_WILL_COST    = 77011,
@@ -171,6 +174,10 @@ namespace WrathRemix
         uint32 earned = 0;
         uint8 chapter = 0;
         uint8 kit = 0;      // the starter kit's version this Timerunner has had (0: none yet)
+        // Where they came to the Bazaar from, the last time they came (-1: nowhere yet), for
+        // Moratari's Hourglass to take them back to.
+        int32 backMap = -1;
+        float backX = 0.0f, backY = 0.0f, backZ = 0.0f, backO = 0.0f;
         bool dirty = false;
     };
 
@@ -223,6 +230,7 @@ namespace WrathRemix
     uint32 Bronze(Player* player);   // what the Timerunner carries
     void SetChapter(Player* player, uint8 chapter);
     void SetKit(Player* player, uint8 version);
+    void SetWayBack(Player* player, int32 map, float x, float y, float z, float o);
     // A line in a Timerunner's journal (remix_log), where they are: what ("accept", "talk",
     // "bridge"...), its quest, creature or other entry, and an amount.
     void Record(Player* player, char const* what, uint32 entry, int32 amount);
@@ -256,6 +264,12 @@ namespace WrathRemix
     bool EndingGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action, uint32 menuText);
     void SendHome(Player* player);
     void ReturnToBazaarSoon(Player* player, Milliseconds after);
+
+    // Moratari's Hourglass (RemixHourglass.cpp): in every Timerunner's bags from the moment they
+    // wake at the Bazaar; anywhere, it takes them to the Bazaar; there, back where they came from.
+    bool AtTheBazaar(Player* player);
+    void GiveHourglass(Player* player);
+    std::string HourglassReport(Player* player);
     void TakeInTimerunners();
     void ForgetGoneHome();
 

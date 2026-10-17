@@ -11,6 +11,13 @@ expect chapter 0 (the prologue)
 # what the realm wrote down at the end).
 wait 3
 
+# Moratari's Hourglass is in the bags from the first moment; turned at the Bazaar before the
+# Timerunner has come to it from anywhere, it has nowhere to take them back to.
+cmd .remix hourglass
+expect Wrath Remix hourglass: bag 255
+use-hourglass
+expect come here from nowhere yet
+
 # WRM-010, Out of Time: Moratari, before the waking Timerunner, sends them to Eternus (both within
 # reach from here).
 go 571 5697.5 1019.5 175.0
@@ -131,6 +138,18 @@ cmd .remix
 expect chapter 1
 talk 25307
 expect quest 11672
+
+# Moratari's Hourglass: from Valiance Keep to the Bazaar, and back to Valiance Keep.
+use-hourglass
+wait 2
+cmd .gps
+expect Crystalsong Forest
+cmd .remix hourglass
+expect way back map 571 at 229
+use-hourglass
+wait 2
+cmd .gps
+expect Borean Tundra
 
 # Borean Tundra's creatures at Chapter I's levels, and squished: three quarters of the health of
 # their level.

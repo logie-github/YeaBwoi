@@ -32,12 +32,12 @@ CREATE TABLE IF NOT EXISTS `remix_scene_step` (
 
 DELETE FROM `remix_scene` WHERE `id` IN (301, 302, 303, 304, 305, 401, 501, 601, 701, 7011, 7111, 800, 802);
 INSERT INTO `remix_scene` (`id`, `quest`, `trigger`, `anchor`, `credit`, `name`) VALUES
-(301, 77303, 1, 770012, 0, 'The Hollow Crown: Alleria, as it is taken'),
-(302, 77313, 1, 770012, 0, 'The Hollow Crown: Alleria, as it is taken'),
+(301, 77303, 1, 770015, 0, 'The Hollow Crown: Alleria, as it is taken'),
+(302, 77313, 1, 770015, 0, 'The Hollow Crown: Alleria, as it is taken'),
 (303, 12249, 2, 27295, 0, 'Ursoc at peace: Alleria beside the Bear God''s quest giver'),
 (304, 12236, 2, 27262, 0, 'Ursoc at peace: Alleria beside the Bear God''s quest giver'),
 (305, 77302, 1, 770001, 0, 'A Friend of Questionable Judgment: Sylvanas at Drak''Tharon''s door'),
-(401, 77405, 1, 770011, 0, 'One Life Too Many: Sylvanas beneath Voltarus'),
+(401, 77405, 1, 770014, 0, 'One Life Too Many: Sylvanas beneath Voltarus'),
 (501, 77502, 2, 770001, 0, 'Stolen Hours: Eternus comes for Moratari'),
 (601, 77602, 2, 770001, 0, 'A Gift of Grief: Eternus before Thorim'),
 (701, 77702, 1, 770001, 770035, 'What He Was Offered: Eternus after Bridenbrad'),
@@ -48,13 +48,13 @@ INSERT INTO `remix_scene` (`id`, `quest`, `trigger`, `anchor`, `credit`, `name`)
 
 DELETE FROM `remix_scene_step` WHERE `scene` IN (301, 302, 303, 304, 305, 401, 501, 601, 701, 7011, 7111, 800, 802);
 INSERT INTO `remix_scene_step` (`scene`, `step`, `at`, `action`, `actor`, `entry`, `param`, `x`, `y`, `z`, `o`, `text`) VALUES
-(301, 1, 500, 2, 1, 770012, 0, 0.00, 0.00, 0.00, 0.0000, ''),
+(301, 1, 500, 2, 1, 770015, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (301, 2, 500, 8, 1, 255, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (301, 3, 800, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'There is something under these hills, Timerunner. I felt it the moment the bronze set me down. It has a voice, and the voice is very patient.'),
 (301, 4, 10200, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'Eternus has felt something too, but not the same thing. He sees a god driven mad and he thinks: a wound. Wind it back, and the bear is whole again.'),
 (301, 5, 20000, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'The madness is not a wound. It is a whisper, and whispers do not care what year it is. Turn Ursoc back, and it only finds another ear. A druid''s. A child''s. Yours.'),
 (301, 6, 30866, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'I know that voice. Not this one: a cousin of it. I have had it in my own head. Go and break his anchors. I will meet you at the den.'),
-(302, 1, 500, 2, 1, 770012, 0, 0.00, 0.00, 0.00, 0.0000, ''),
+(302, 1, 500, 2, 1, 770015, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (302, 2, 500, 8, 1, 255, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (302, 3, 800, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'There is something under these hills, Timerunner. I felt it the moment the bronze set me down. It has a voice, and the voice is very patient.'),
 (302, 4, 10200, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'Eternus has felt something too, but not the same thing. He sees a god driven mad and he thinks: a wound. Wind it back, and the bear is whole again.'),
@@ -82,7 +82,7 @@ INSERT INTO `remix_scene_step` (`scene`, `step`, `at`, `action`, `actor`, `entry
 (305, 6, 19666, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'You never did listen to me about trolls. ...You will not, I mean. Not for years yet.'),
 (305, 7, 25266, 7, 1, 0, 51347, 0.00, 0.00, 0.00, 0.0000, ''),
 (305, 8, 26866, 9, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, ''),
-(401, 1, 500, 2, 1, 770011, 0, 0.00, 0.00, 0.00, 0.0000, ''),
+(401, 1, 500, 2, 1, 770014, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (401, 2, 500, 8, 1, 255, 0, 0.00, 0.00, 0.00, 0.0000, ''),
 (401, 3, 800, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'Drakuru''s. The troll who sold his people to the Scourge for a crown. Eternus''s agents are beneath Voltarus, opening a door to carry him away before his master comes.'),
 (401, 4, 11800, 4, 1, 0, 0, 0.00, 0.00, 0.00, 0.0000, 'Here is what happens if they succeed. The Lich King comes to Voltarus for a traitor and finds no one. He never sees you. He never decides that you are worth keeping for the end.'),
