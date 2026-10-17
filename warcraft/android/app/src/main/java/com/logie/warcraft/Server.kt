@@ -13,6 +13,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
@@ -66,6 +68,8 @@ object Server {
         val lanAddress: String? = null,
         /** The realm being started or running (the one chosen when it started). */
         val realm: Realms.Realm = Realms.Realm.CHROMIECRAFT,
+        /** MariaDB is up (for the app's process, which doesn't run it: [RealmLink]). */
+        val databaseUp: Boolean = false,
     )
 
     const val AUTH_PORT = 3724
@@ -88,19 +92,32 @@ object Server {
     /** The programs are being stopped on purpose: their ending isn't a failure. */
     @Volatile private var stopping = false
 
-    /** Starts the server, and the service that keeps it running. */
-    fun start(context: Context) {
+    /**
+     * Starts the server, and the service that keeps it running. The programs run in the realm's
+     * own process ([RealmLink]): from the app's, this asks it to start them.
+     */
+    fun start(context: Context, realm: Realms.Realm? = null) {
         val app = context.applicationContext
         if (_status.value.phase == Phase.STARTING || _status.value.phase == Phase.RUNNING) return
+        val chosen = realm ?: Realms.current(app)
         // Starting already, so the service doesn't see the server stopped and end itself.
-        update { Status(phase = Phase.STARTING, lanAddress = lanAddress, realm = Realms.current(app)) }
+        update { Status(phase = Phase.STARTING, lanAddress = lanAddress, realm = chosen) }
+        if (!RealmLink.inRealm) {
+            RealmLink.start(app, chosen)
+            return
+        }
         ContextCompat.startForegroundService(app, Intent(app, ServerService::class.java))
-        job = scope.launch { lock.withLock { run(app) } }
+        job = scope.launch { lock.withLock { run(app, chosen) } }
     }
 
     /** Stops the server. [then] runs once it's down (on a background thread). */
     fun stop(context: Context, then: (() -> Unit)? = null) {
         val app = context.applicationContext
+        if (!RealmLink.inRealm) {
+            RealmLink.stop(app)
+            if (then != null) scope.launch { awaitDown(); then() }
+            return
+        }
         val running = job
         scope.launch {
             running?.cancel()
@@ -112,12 +129,18 @@ object Server {
     /** Stops the server if it runs and waits for it to be down. Background thread. */
     suspend fun stopAndWait(context: Context) {
         val app = context.applicationContext
+        if (!RealmLink.inRealm) {
+            RealmLink.stop(app)
+            awaitDown()
+            return
+        }
         job?.cancel()
         lock.withLock { shutDown(app) }
     }
 
     /** Sends a command to the world server's console (`.reload config` and the like, without the dot). */
     fun worldCommand(command: String): Boolean {
+        if (!RealmLink.inRealm) return _status.value.phase == Phase.RUNNING && RealmLink.command(command)
         val input = worldInput ?: return false
         return runCatching {
             input.write(command + "\n")
@@ -125,10 +148,21 @@ object Server {
         }.isSuccess
     }
 
-    val databaseUp: Boolean get() = db?.isAlive == true
+    val databaseUp: Boolean get() = if (RealmLink.inRealm) db?.isAlive == true else _status.value.databaseUp
 
     private fun update(change: Status.() -> Status) {
-        _status.value = _status.value.change()
+        _status.value = _status.value.change().let { if (RealmLink.inRealm) it.copy(databaseUp = db?.isAlive == true) else it }
+        RealmLink.publish(_status.value)
+    }
+
+    /** The app's process: the realm's status, as its process sent it. */
+    internal fun mirror(status: Status) {
+        _status.value = status
+    }
+
+    /** The app's process: until the realm's process says the server is down (a few minutes at most). */
+    private suspend fun awaitDown() {
+        withTimeoutOrNull(180_000) { _status.first { it.phase == Phase.STOPPED || it.phase == Phase.FAILED } }
     }
 
     private fun step(step: Step, detail: String? = null, progress: Float? = null) =
@@ -136,8 +170,7 @@ object Server {
 
     private class StepFailed(message: String, val log: File? = null) : Exception(message)
 
-    private suspend fun run(context: Context) {
-        val realm = Realms.current(context)
+    private suspend fun run(context: Context, realm: Realms.Realm) {
         try {
             stopping = false
             update { Status(phase = Phase.STARTING, lanAddress = lanAddress(), realm = realm) }

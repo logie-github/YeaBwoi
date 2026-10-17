@@ -9,11 +9,22 @@ WRM-nnn is quest 77nnn. Original quests are named with their ids.
 
 ## The premise
 
-You are a hero of Azeroth's present day, after the Shadowlands and the war beneath the earth.
-Eternus of the Infinite Dragonflight has pulled you out of your own time and into Northrend in the
-year the Lich King's war begins. The journey costs travellers their strength: you arrive as a
-level 10 with nothing but what Eternus gives you, and you grow strong again as the war goes on.
-That is what a Timerunner is.
+You are a hero of Azeroth on the eve of the Legion's return. Gul'dan has torn open the Tomb of
+Sargeras, demons are burning Westfall and the Barrens, and the fleets of the Alliance and the Horde
+are loading for the Broken Shore. Eternus of the Infinite Dragonflight pulled you out of that hour
+(every Timerunner comes from it: on the night before a war, heroes vanish all the time and no one
+asks where) and into Northrend in the year the Lich King's war begins. You will go back to the very
+hour you left, and not a moment of your own war will be lost. The journey costs travelers their
+strength: you arrive as a level 10 with nothing but what Eternus gives you, and you grow strong
+again as the war goes on. That is what a Timerunner is.
+
+What you know, and what you don't. This war is years behind you, and so are the Cataclysm, Pandaria
+and Draenor: you know how Northrend ends. You know nothing past the Broken Shore. Sylvanas and
+Alleria do. They come from much further on, the days of Midnight, when the Void has come for
+Quel'Thalas; to you, Sylvanas is still the Banshee Queen of the Undercity, and Alleria a legend who
+went through the Dark Portal and never came home. They know your future; you know their past. That
+gap is the story's dramatic irony, and the rules of time (and, at the end, Moratari) keep it that
+way: you keep Northrend, and lose what they told you of your own years ahead.
 
 Eternus wants the war to go differently. The war against the Lich King cost the world dearly:
 Saurfang's son and Bolvar Fordragon at the Wrathgate, the Forsaken's betrayal there, the dead of
@@ -35,16 +46,18 @@ who believes he is better than the rest.
 - **Moratari** (Infinite Dragonflight): Eternus's lieutenant and your guide. A scholar of what
   she calls variables, dry and curious. She believes in Eternus until Sylvanas gives her a reason
   to look, and then she looks.
-- **Sylvanas Windrunner**, from the future, after her sentence began. The bronze dragonflight
+- **Sylvanas Windrunner**, from the days of Midnight, years into her sentence. The bronze dragonflight
   brings her back, because no one alive understands the Lich King's place in the world better:
   she served the Jailer who made his Helm, and she is spending eternity freeing the souls it took.
   If the war goes differently, those souls are lost, and the Helm passes to no one fit to hold
   it. She also stands to gain more than anyone from a different war: Arthas killed her and made
   her a banshee. That she will not let it change is what makes her believable. She keeps out of
   her own sight: the Sylvanas of this time is alive in the Undercity, and must never see her.
-- **Alleria Windrunner**, from the future: her sister, a ranger touched by the Void, who can feel
-  when the world's shape is wrong. Wry where Sylvanas is cold; she came because Sylvanas asked,
-  which Sylvanas does not do. (The 3.3.5 game has no Alleria; she wears the look of the living
+- **Alleria Windrunner**, from the days of Midnight, taken from Quel'Thalas with the Void at its
+  gates: her sister, a ranger touched by the Void, who can feel when the world's shape is wrong.
+  Wry where Sylvanas is cold; she came because Sylvanas asked, which Sylvanas does not do. To a
+  Timerunner from before her return she is a name from the end of the Second War's histories, and
+  she shows them her face once, at Wyrmrest, before she hides it again. (The 3.3.5 game has no Alleria; she wears the look of the living
   Ranger-General, which is what she looked like before the Void.)
 - **Chromie** (bronze dragonflight), at Wyrmrest Temple, as the game has her: she is already
   fighting the Infinite there (Mystery of the Infinite). She brought Sylvanas and Alleria.
@@ -59,20 +72,60 @@ new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers 
 it is Eternus's camp; after it, Eternus is gone from it and Sylvanas and Alleria are there, with
 Moratari and the Keepers of Time.
 
+It is a camp, not a ring of people (`tools/bazaar.py`): the heart, under a great hourglass, where
+you wake, with Eternus, Moratari and the echoes; the market lane down the west side, a stall for
+each Bronze trader with Alurmi's at its head; the training yard to the south-east, the instructors
+at work among dummies and targets; the waystation to the north-east, Zephyr by a door in time and
+his drake resting, Sa'at at his map table; the chronicle corner to the north, the Chronologist's
+shelves and Momentus's orb; and the campfire to the south, where other Timerunners from your own
+hour sit, eat the cook's stew and talk about home. Porters and wardens make their rounds, whelps
+get underfoot, and while you are near, people talk: to the air, or to each other. While they are
+here, the Bronze dragons and the Infinite wear mortal shapes: elves, orcs, humans, gnomes.
+
+## The opening
+
+Before the Bazaar, the war's end (`src/RemixIntro.cpp`): the Broken Front in Icecrown, the Citadel
+ahead. The Timerunner arrives as the hero they are in their own time, the Light's wings on them,
+beside Highlord Tirion Fordring and the Argent Crusade, with the Skybreaker's marines or the
+Kor'kron. Ghouls claw out of the snow at the Lich King's word, abominations and crypt fiends
+follow, frost bombs and plague burst across the field, a frost wyrm strafes the line, the val'kyr
+come at his call. Then the Lich King himself, and the Scourge kneel. Tirion charges him ("ARTHAS! I
+swore that I would see you dead..."); the winter takes the paladin to his knee; Arthas turns to the
+Timerunner ("You... You are not of this hour."), and raises Frostmourne. Time stops. Moratari
+steps out of a rift; Eternus's voice: this is where the war ends, every time, remember it when he
+asks for help changing it. Moratari pulls them out, to the Bazaar, years earlier. Played once.
+
 ## Prologue: the Infinite Bazaar (level 10)
 
 1. **WRM-010 Out of Time** (Moratari, beside you as you wake → Eternus, a few steps away). Moratari
-   tells you where and when you are, that Eternus brought you, and why you are weaker than you
-   remember: travelling through time costs strength, and it comes back. She hands you over to
-   Eternus.
-2. **WRM-011 What the War Will Cost** (Eternus → Eternus). Eternus shows you three echoes of the war
+   tells you where and when you are, where you were taken from (the eve of the Broken Shore, the
+   Legion pouring through the Tomb of Sargeras), that you will go back to that very hour, that
+   Eternus brought you, and why you are weaker than you remember: traveling through time costs
+   strength, and it comes back. The hourglass in your bag
+   is hers; she will tell you what it does. She hands you over to Eternus.
+2. **WRM-011 What the War Will Cost** (Eternus → Eternus). Eternus knows the hour he took you
+   from, and says so: the eve of a war you cannot stop. He shows you three echoes of the war
    he means to change, frozen moments standing around the camp: a footman of Valiance Keep who
    will die on the beach and rise again for the Scourge; Dranosh Saurfang at the Wrathgate; Bolvar
-   Fordragon in the dragonfire. Speak with all three, then with Eternus: his offer.
+   Fordragon in the dragonfire. Speak with all three, then with Eternus: his offer (you of all people know what it is to
+   count a war's names before it starts; here, for once, you can do something about it).
 3. **WRM-012 Time's Toll** (Eternus → Moratari). Moratari explains what you lost and how to get it
    back: Bronze, earned for everything you do; Alurmi, who trades heirloom gear that grows with
-   you; your class's instructor, who teaches what you've forgotten. Speak with both, then with
-   Moratari. Your hearthstone now remembers the Bazaar.
+   you, at the head of the market lane; your class's instructor, in the training yard, who teaches
+   what you've forgotten. Speak with both, then with
+   Moratari. Your hearthstone now remembers the Bazaar, and Moratari tells you what her hourglass
+   does: turned anywhere, it brings you to the Bazaar; turned there, it takes you back to wherever
+   you came from (not in a fight).
+   - **WRM-030 to 039, the class lessons** (your instructor → your instructor; optional, offered
+     until done). The instructor walks you through three of the abilities you woke with, each
+     explained, then used as it says on one of the yard's training dummies or on yourself in the
+     yard: the warrior's Charge, Rend and Heroic Strike; the paladin's Seal of Righteousness,
+     Judgement of Light and Holy Light; the hunter's Hunter's Mark, Serpent Sting and Arcane Shot;
+     the rogue's Stealth, Sinister Strike and Eviscerate; the priest's Shadow Word: Pain, Smite and
+     Power Word: Shield; the death knight's Icy Touch, Plague Strike and Death Coil; the shaman's
+     Lightning Bolt, Earth Shock and Healing Wave; the mage's Frostbolt, Fireball and Fire Blast;
+     the warlock's Corruption, Immolate and Shadow Bolt; the druid's Moonfire, Wrath and
+     Rejuvenation.
 4. **WRM-013 A Small Demonstration** (Moratari → Moratari). Time pushes back against being
    changed, and the seams fray: anomalies come through. Moratari lets three through, one at a time;
    you deal with them.
@@ -126,8 +179,11 @@ scene in `RemixNpcs.cpp`. Alliance and Horde quests have their own ids where the
    hourglass; you defend it, and your own future self comes to help.
 4. **WRM-204 Strangers Out of Time** (Chromie → Sylvanas, beside her): one of the Infinite has
    been bringing heroes from the future into this war, and Chromie went and fetched two people who
-   are unhappy about it. Sylvanas and Alleria appear beside her as you take it. Sylvanas: stop
-   helping him; the war must happen as it did.
+   are unhappy about it. Sylvanas and Alleria appear beside her as you take it, hooded. Sylvanas
+   (who hears you were taken from the eve of the Broken Shore, and says only "Of course you
+   were"): stop helping him; the war must happen as it did. Alleria, spoken to, lowers her hood for
+   you alone: the ranger every history of the Second War ends with, who in your year has still
+   never come home.
 5. **WRM-205 / 215 Ask Him Yourself** (Sylvanas → Eternus; Chromie sends you to the Bazaar as you
    take it): ask your master what he means to do at the Wrathgate, and who will wear the Helm.
    Eternus answers that the woman lecturing you will one day set a world tree burning with its
@@ -170,54 +226,521 @@ Who is seen where follows the story: Sylvanas and Alleria atop Wyrmrest from WRM
 is turned in; at the Bazaar once WRM-207 is done, when Eternus is gone from it; Alleria and the
 loyalists on the cliffs during WRM-208.
 
-## After the turn: the transitions
+Anywhere but the Bazaar, the two from the future go hooded and pass for adventurers, one more pair of
+rangers in a war full of them: the **Hooded Ranger** (Sylvanas, in black) and the **Cloaked Ranger**
+(Alleria, in blue), with *Adventurer* under their names. Chromie says so as she sends the Timerunner
+to them, and Sylvanas, lowering her voice, says who she is and that to everyone else she is a ranger
+passing through. Every place they meet the Timerunner in the world (Wyrmrest, the Wrathgate's
+cliffs, the Grizzly Hills, the Ebon Watch and Voltarus, the scenes, the last hour at Icecrown
+Citadel's doors) has them in their disguises; only the Bazaar has them as themselves. Moratari, who
+meets the Timerunner beside quest givers all over Northrend, wears no title over her head.
 
-From Chapter III on, a transition is no longer Eternus skipping history for you. It is Eternus's
-agents changing it, and you stopping them. Each one is a fight at the place where the original
-quests would have been (Infinite agents at the chapter's levels), then the block they tried to
-change is safe and Moratari takes you on to the next scene. The original quests are always still
-there to play.
+## Two Sylvanases
 
-- **Chapter III** (Grizzly Hills): *A Shorter Path Through the Woods* (after Ursoc: Infinite agents
-  trying to warn Drakuru away), *A Friend of Questionable Judgment* (at Drak'Tharon's door, no
-  skip), *The Truth About Drakuru* (to Zul'Drak).
-- **Chapter IV** (Zul'Drak): *The Things the Scourge Remembers*, *The Paperwork of Betrayal* (the
-  Infinite inside Voltarus), *A Pilgrim's Shortcut*, *The Gods Are Still Silent*, *A Kingdom Gone*.
-- **Chapter V** (Sholazar Basin): *A Brief Hunting Expedition*, *The Waygate Is Ready*, *The Makers'
-  Trail*.
-- **Chapter VI** (the Storm Peaks): the mine and the pit fights (VI-A), the Halls of Lightning
-  (VI-C), *Storm's End*.
-- **Chapter VII** (Icecrown): the guide's VII-A, VII-B (Bridenbrad), VII-C (the Hall of Memories).
+The Sylvanas of this year is the game's own, and nothing in Wrath Remix changes her: to her the
+Timerunner is one more soldier, through the Battle for the Undercity and into the Frozen Halls. She
+does not know the one from the future is here. Once, in the Forge of Souls (the Horde's way in),
+something reaches her: at the end of her briefing she says the Timerunner's name, says that they are
+being watched, or rather observed, that she senses a presence she has not felt since..., and goes off
+to the other side of the hall. Spoken to there, she is murmuring about her sisters (three variants:
+Alleria gone beyond the Portal; the three of them and Lirath at Windrunner Spire; the presence that
+wears her sister's shadow). It is optional; the dungeon goes on as the game has it
+(`RemixFrozenHalls.cpp`, `wrath_remix_world_0020_frozen_halls.sql`).
 
-## The end (the user's design)
+The Sylvanas from the future is careful never to come near the one of this year, even when she is
+the one deciding what the Timerunner does next: she will not go near the Wrathgate, watches the
+Battle for the Undercity from where her past self cannot see her, and will not set foot in the
+Frozen Halls ("If she sees me..."). The one of this year never learns she is there.
 
-1. **Eternus's last stand**, at the doors of Icecrown Citadel, before the raid: Eternus and the
-   Infinite Dragonflight make a last attempt to stop you. You win. Eternus is not killed: at 10%
-   health he retreats through a rift.
-2. **Icecrown Citadel**, the raid as the game has it: the Lich King's fight and the ending
-   cinematic are untouched.
-3. After the cinematic, you are brought back to the Bazaar, and **See You Later** begins (Moratari):
-   tell her you're ready to go back to the future, then say goodbye to the people who matter
-   (Sylvanas, Alleria, the Keepers, the Bazaar's people). Moratari tells you that because of what
-   happened here, and because time is unreliable, some people may never know what you did; and that
-   to protect what comes after, she will wipe this whole thing from Sylvanas's and Alleria's
-   memories.
-4. **Their stories**: before you go, you can talk with Sylvanas and Alleria about what comes after
-   for them, expansion by expansion, as people talk, not as a list: Sylvanas through the Cataclysm
-   (the Forsaken's war for Gilneas, the val'kyr), Pandaria, Draenor, the Legion and the Broken
-   Shore, her war against the night elves and Teldrassil, Lordaeron, the Shadowlands, her
-   sentence, the Dragon Isles and the war beneath; Alleria through the Twisting Nether and the
-   Army of the Light, Argus, the Void, Telogrus and the ren'dorei, the Shadowlands, Dornogal and
-   Xal'atath. Where one of them wasn't there, what they would say from where they were, without
-   contradicting the lore. Alleria's part in the whole story is as large as Sylvanas's.
-5. **Back to your own time**: talk to them or skip it, then tell Moratari you are ready. As Legion
-   Remix does, your Timerunner goes to the ChromieCraft realm: at the level you reached, with what
-   you carry (anything that isn't Wrath's own, which there shouldn't be, is turned into Wrath gear
-   of the same kind and strength; Bronze stays behind). The game closes and the server restarts;
-   you log in on ChromieCraft in your side's capital, Stormwind or Orgrimmar.
+The Sylvanas from the future knows the Timerunner far better than the Timerunner knows her: where she
+comes from, they are close. She slips, now and then (a name said too familiarly, "you always stand
+on my left", "you never did listen to me about trolls"), and catches herself; she is open that she
+will not say more, because knowing it would change how it happens. Asked outright ("You talk to me
+like you know me"), she says so. Alleria notices how careful her sister is with the Timerunner.
+
+## Before the turn: Eternus's small changes
+
+Until the turn, Eternus is folding the war his way, quietly, and the Timerunner can see it. Nine
+original quests on each side's path through the Borean Tundra and the Dragonblight turn in a little
+differently than history has them: the one who takes the quest back notices something small that
+went better than it should have (a transport that came in, a wall braced in the night, a fog over
+the plains, a vial gone missing), and a moment later Eternus whispers that it was him. The people
+in them are history's unnamed: no one the game names lives or dies differently. Their texts and his
+whispers are in `wrath_remix_world_0019_eternus_kindnesses.sql`; the whispers stop at the turn.
+
+- Alliance: Enlistment Day, A Time for Heroes, The Siege, Death From Above, Plug the Sinkholes,
+  Finding the Phylactery, Flight of the Wintergarde Defender, Rescue from Town Square, Find Durkon!
+- Horde: Hellscream's Vigil (both), The Defense of Warsong Hold, Cutting Off the Source, Magic
+  Carpet Ride, The Plains of Nasam, Victory Nears..., Spread the Good Word, The Forsaken Blight.
+
+## After the turn
+
+From Chapter III on, Eternus is no longer the one guiding you. He keeps trying to save the war's
+dead, and each time he picks a quieter grave than the last, hoping history will not miss it. Each
+chapter has one of these attempts at its heart: his agents (the Infinite still loyal to him) at the
+place where he means to change things, and you stopping them. Then the history he tried to change
+goes on as it did.
+
+Moratari's other transitions stay what they were (skipping an afternoon of errands), but they are
+hers now, not his. Every original quest is always still there to play.
+
+Each chapter belongs a little more to one of the people beside you:
+
+- **Chapter III, Alleria.** The thing under the Grizzly Hills has a voice, and she has heard its
+  cousins.
+- **Chapter IV, Sylvanas.** A troll who sells his people to a king of ice, and a woman who once did
+  worse.
+- **Chapter V, Moratari.** Eternus comes for her himself, and tells her what he is building.
+- **Chapter VI, Eternus.** He offers a grieving god his wife back, and is told the truth about
+  kindness.
+- **Chapter VII, all of them.** The Frozen Halls, the last of Eternus's hours, and the throne.
+
+Scenes are played for the Timerunner alone (`remix_scene`, `wrath_remix_world_0014_scenes.sql`):
+the people in them are summoned where they stand and heard only by that Timerunner.
+
+## Chapter III: The Curse of Grizzly Hills (32 to 42)
+
+1. Arrival at Amberpine Lodge or Conquest Hold (WRM-221 / 222), and each side's Ursoc chain: the
+   Alliance's Hierophant Thayreen (The Failed World Tree... Vordrassil's Sapling), the Horde's
+   Windseer Grayhorn (Vordrassil's Fall... The Bear God's Offspring).
+2. **WRM-303 / 313 The Hollow Crown** (Alleria, beside Thayreen or Grayhorn once Vordrassil's
+   Sapling or The Bear God's Offspring is done; she is there from then until it is turned in).
+   A scene as it is taken. Eternus's agents have set three Temporal Anchors around Ursoc's Den: he
+   means to turn the Bear God back to the years before Vordrassil's roots reached what lies
+   beneath, and give the furbolgs their god whole. Break the anchors (their Infinite Rewinders stand
+   guard), then speak with Alleria at the den, by Tur Ragepaw.
+
+   > **Alleria:** There is something under these hills, Timerunner. I felt it the moment the bronze
+   > set me down. It has a voice, and the voice is very patient.
+   >
+   > **Alleria:** Eternus has felt something too, but not the same thing. He sees a god driven mad
+   > and he thinks: a wound. Wind it back, and the bear is whole again.
+   >
+   > **Alleria:** The madness is not a wound. It is a whisper, and whispers do not care what year
+   > it is. Turn Ursoc back, and it only finds another ear. A druid's. A child's. Yours.
+   >
+   > **Alleria:** I know that voice. Not this one: a cousin of it. I have had it in my own head.
+   > Go and break his anchors. I will meet you at the den.
+
+   Ursoc, the Bear God (12249 / 12236) waits for it. As the Bear God's quest is turned in, Alleria
+   speaks once more, beside the one who gave it:
+
+   > **Alleria:** He is at peace now. The voice is not. It reaches far deeper than that tree, and it
+   > is not alone down there.
+   >
+   > **Alleria:** When you climb into the storm giants' mountains, remember what you felt here. That
+   > is where it lives.
+
+3. **WRM-301 / 311 A Shorter Path Through the Woods** (Moratari, as before): Amberpine Lodge's or
+   Conquest Hold's other wars, left to whoever wants them; to Samir, by Drakuru's cages.
+4. Drakuru's chain: Filling the Cages, Truce?... Voices From the Dust.
+5. **WRM-302 A Friend of Questionable Judgment** (Moratari, at Drak'Tharon's door, no skip).
+   Sylvanas has come to the door too, out of sight of the road:
+
+   > **Sylvanas:** So this is Drakuru's errand. A keep full of his own kind, cleansed by a stranger
+   > he will thank very warmly.
+   >
+   > **Sylvanas:** I know the kind of gratitude he will show you. I have shown it myself. Do what
+   > he asks, Timerunner. Just do not stand with your back to him.
+
+6. **WRM-321 The Truth About Drakuru** (Moratari, after Cleansing Drak'Tharon): to Light's Breach
+   in Zul'Drak, and Chapter IV.
+
+## Chapter IV: The Fallen Empire (42 to 52)
+
+1. **WRM-401 The Things the Scourge Remembers**, **WRM-402 The Paperwork of Betrayal** and
+   **WRM-403 A Pilgrim's Shortcut** (Moratari, as before): the way into Voltarus, the way to its
+   sabotage, and the loa's pilgrimage to Har'koa.
+2. **WRM-405 One Life Too Many** (Sylvanas, at the Ebon Watch beside Stefan Vadu once Sabotage is
+   done; she is there until it is turned in). A scene as it is taken. Eternus's agents are under
+   Voltarus, opening a rift to carry Drakuru out of history before his master comes for him. Slay
+   six Infinite Timesnatchers and close the Unstable Rift, then return to Sylvanas.
+
+   > **Sylvanas:** Eternus has found another life to save. You will not like whose.
+   >
+   > **Sylvanas:** Drakuru's. The troll who sold his people to the Scourge for a crown. Eternus's
+   > agents are beneath Voltarus, opening a door to carry him away before his master comes.
+   >
+   > **Sylvanas:** Here is what happens if they succeed. The Lich King comes to Voltarus for a
+   > traitor and finds no one. He never sees you. He never decides that you are worth keeping for
+   > the end. And everything at the top of his citadel waits on that decision.
+   >
+   > **Sylvanas:** I know what it is to kneel to a king of ice and call it a bargain. I knelt to a
+   > worse one, and I called it freedom. Let the troll keep the price he agreed to.
+
+   Betrayal (12713) waits for it. As it is turned in:
+
+   > **Sylvanas:** Good. Now go and betray him. He has earned that much.
+   >
+   > **Sylvanas:** When the Lich King comes for him, he will look at you. Look back. Remember his
+   > face. You will see it again.
+
+3. Betrayal, as the game has it: Drakuru falls on Voltarus, and the Lich King comes for him himself.
+4. **WRM-404 The Gods Are Still Silent** and **WRM-421 A Kingdom Gone** (Moratari, as before): the
+   last of the loa, Gundrak, and Sholazar Basin.
+
+## Chapter V: The Lifewarden's Warning (52 to 60)
+
+1. **WRM-421** brings the Timerunner to Hemet Nesingwary's camp.
+2. **WRM-501 A Brief Hunting Expedition** (Moratari, by Hemet Nesingwary): the hunt's collections,
+   admired from a safe temporal distance; to Pilot Vic, whose Force of Nature leads to the Avatar of
+   Freya.
+3. The Avatar of Freya's chain: Force of Nature, An Issue of Trust, Returned Sevenfold, The Fallen
+   Pillar, Cultist Incursion, Exterminate the Intruders, Weapons of Destruction, The Lifewarden's
+   Wrath, Freya's Pact.
+4. **WRM-502 Stolen Hours** (Moratari, by the Avatar of Freya, after Freya's Pact; taking it goes to
+   the Maker's Overlook). Eternus's agents have climbed to the Makers' pillar and are bleeding its
+   power away. Slay six Infinite Siphoners and break the Siphon, then speak with Moratari at the
+   Overlook. Powering the Waygate waits for it. As it is turned in, Eternus comes for her:
+
+   > **Eternus:** Moratari.
+   >
+   > **Moratari:** You should not be here.
+   >
+   > **Eternus:** Neither should you. And yet here we both are, in a garden the titans built so that
+   > nothing living here would ever be lost. They wanted what I want, Moratari. They simply had more
+   > time.
+   >
+   > **Moratari:** Your agents were draining the Makers' pillar. I know what that much power is for.
+   > You are building something that can hold an hour still.
+   >
+   > **Eternus:** One hour. Only one. The hour the Lich King falls.
+   >
+   > **Moratari:** Why that one?
+   >
+   > **Eternus:** Because it is the last stone in the arch. While it is open, every hour of this war
+   > before it is wet ink. Let it close, and every grave is written in stone. I would hold it open
+   > long enough to go back. Page by page. Name by name.
+   >
+   > **Moratari:** And the arch comes down on everyone standing under it.
+   >
+   > **Eternus:** I would catch them.
+   >
+   > **Moratari:** No one can catch a world, Eternus. Not even you.
+   >
+   > **Eternus:** Come home, Moratari. You kept my records for ten thousand years. You know every
+   > name I want to save. Help me save them.
+   >
+   > **Moratari:** I kept your records. That is exactly why I can't.
+   >
+   > **Eternus:** Then I will remember them for both of us.
+   >
+   > *(He is gone.)*
+   >
+   > **Moratari:** He was kind to me, $n, when no one else in my flight was. I hope you never have to
+   > choose between a kindness and the truth. I hope you never have to do it twice.
+
+5. The Waygate: Powering the Waygate (the Maker's Perch, the Maker's Overlook), The Etymidian, The
+   Activation Rune in Un'Goro, Back Through the Waygate, Reclamation.
+6. **WRM-521 The Makers' Trail** (Moratari, by the Avatar of Freya, after Reclamation): to K3 in the
+   Storm Peaks, and Chapter VI. Alleria has asked to be told when the Timerunner reaches the
+   mountains.
+
+## Chapter VI: The Secrets of Ulduar (60 to 70)
+
+1. K3 and the Sons of Hodir's road: They Took Our Men!, Leave No Goblin Behind, The Crone's
+   Bargain... The Hyldsmeet, Taking on All Challengers.
+2. **WRM-601 The Very Long Road to Thorim** (Moratari, by Lok'lira the Crone, after Taking on All
+   Challengers): the bear, the harness, the last proto-drake and the pit's sparring matches, annotated
+   rather than fought; Lok'lira's Parting Gift is next, and the Drakkensryd after it.
+3. The Drakkensryd, and Thorim's story: Sibling Rivalry, Mending Fences... Krolmir, Hammer of
+   Storms, The Terrace of the Makers.
+4. **WRM-602 A Gift of Grief** (Moratari, by Thorim on the Terrace of the Makers, after The Terrace
+   of the Makers). Eternus's agents are weaving an echo of Sif out of the hours before she died, to
+   stand before her husband. Slay four Infinite Weavers, then speak with Moratari. Loken's Lackeys
+   and The Earthen Oath wait for it. As it is turned in, Eternus stands before Thorim himself:
+
+   > **Eternus:** Stormlord. I have watched you grieve for longer than these mountains have had
+   > names. Let me give her back to you. Not a memory: her, as she was, before your brother's hand.
+   >
+   > **Thorim:** My brother gave me a story once. Arngrim, he said. Arngrim killed her. I believed
+   > him, because I wanted a name to hate, and I made war on the frost giants for his lie.
+   >
+   > **Thorim:** I have been fed comfort by those who wanted something from me. I know the taste of
+   > it. I will not be lied to with her face. Not by Loken. Not by you.
+   >
+   > **Eternus:** It is no lie. It is a kindness.
+   >
+   > **Thorim:** That is what he called it too.
+   >
+   > **Alleria:** Listen to him, dragon. Grief that is lied to does not heal. It waits. There is
+   > something beneath these mountains that has fed on grief for a very long time, and it is
+   > listening to you right now.
+   >
+   > **Eternus:** ...Keep your grief, Stormlord. I will keep mine.
+   >
+   > *(He is gone.)*
+   >
+   > **Thorim:** Whoever that was, he loved someone once. It is written all over him. Now: Loken. My
+   > brother has much to answer for.
+
+5. Loken's Lackeys, The Earthen Oath, The Reckoning; Loken waits in the Halls of Lightning.
+6. **WRM-621 Storm's End** (Moratari, by King Jokkum, after The Reckoning): to the Argent Vanguard
+   in Icecrown, before Highlord Tirion Fordring, and Chapter VII.
+
+## Chapter VII: Icecrown (70 to 80)
+
+1. The Argent Crusade's war, as the game has it: Honor Above All Else, Scourge Tactics, Curing the
+   Incurable, Defending the Vanguard, If There Are Survivors... The Battle for Crusaders' Pinnacle,
+   The Crusaders' Pinnacle.
+2. **WRM-702 What He Was Offered** (Moratari, by Tirion at Crusaders' Pinnacle, after Light Within
+   the Darkness: only for those who walked Crusader Bridenbrad's road with him). A scene as it is
+   taken:
+
+   > **Eternus:** I went to him before the naaru did. I thought: here is one I can save without
+   > breaking anything. One paladin, dying in the snow. History would not miss a single tabard.
+   >
+   > **Eternus:** I offered him a hundred years. Whole, and out of the plague's reach. He asked me if
+   > the Light would be in them.
+   >
+   > **Eternus:** I could not lie to him. He thanked me, and he asked me to go, and he waited for the
+   > naaru.
+   >
+   > **Eternus:** Tell me, Timerunner. Why is it always the ones who most deserve saving who will
+   > not let me?
+   >
+   > **Moratari:** Because they have already decided what their lives are for, Eternus. You never
+   > asked any of them.
+   >
+   > **Eternus:** ...No. I suppose I never did.
+
+3. **WRM-701 / 711 The Armies Are in Place** (Moratari, by Tirion at Crusaders' Pinnacle, after The
+   Crusaders' Pinnacle; taking it goes to the Bazaar): the rest of Icecrown's war is in hand;
+   Sylvanas wants to see the Timerunner before the Frozen Halls. As it is turned in, at the Bazaar:
+
+   > **Sylvanas:** The Frozen Halls. The forge where he breaks souls, the pit where he works the
+   > living to death, and his hall of mirrors at the end of it all.
+   >
+   > *(the Horde's)* **Sylvanas:** You will meet me in there. The woman I was in this year. She
+   > will lead you through the forge and into his halls, and when she finally stands before him she
+   > will hate him with everything she has left. And then she will run.
+   >
+   > *(the Alliance's)* **Sylvanas:** Jaina Proudmoore will lead you in. On the Horde's side of
+   > that day, it was me. We went in for different reasons, she and I. She hoped there was
+   > something left of him to save. I wanted there to be nothing left of him at all. We both came
+   > out running.
+   >
+   > **Alleria:** You don't have to be anywhere near it, sister.
+   >
+   > **Sylvanas:** I was there the first time. I am not going in again. If she sees me... I am not
+   > going in.
+   >
+   > **Sylvanas:** Uther waits in those halls, Timerunner. What is left of him. He will tell you what
+   > the Lich King is for. Believe him. It will cost you nothing. It cost me everything to learn it.
+   >
+   > **Alleria:** We will be here when you come out. Both of us. Go.
+
+   Moratari's way then goes to Dalaran, before Apprentice Nelphi or Dark Ranger Vorel, and Inside
+   the Frozen Citadel.
+4. The Frozen Halls, as the game has them: Inside the Frozen Citadel, Echoes of Tortured Souls (the
+   Forge of Souls), The Pit of Saron, The Path to the Citadel, Deliverance from the Pit, Frostmourne
+   and Wrath of the Lich King (the Halls of Reflection, and the escape).
+5. **WRM-721 The Last Hour** (Moratari, outside the Frozen Halls once Wrath of the Lich King is
+   done; taking it goes to the doors of Icecrown Citadel). Eternus is there with every Infinite
+   still loyal to him, and so are Moratari, Sylvanas and Alleria, beside you. He speaks first:
+
+   > **Eternus:** So. You came the long way round, as I knew you would.
+   >
+   > **Eternus:** Behind those doors is the last hour of this war. A king on a throne of ice, and a
+   > paladin who will burn in his place. You know how it ends. So do I. I have watched it end more
+   > times than you have drawn breath.
+   >
+   > **Eternus:** I am not here to stop the Lich King from falling. I am here to keep the hour from
+   > closing behind him. Hold this door with me, and every grave in this war stays open long enough
+   > for me to reach into it.
+   >
+   > **Eternus:** And yours, Timerunner. I know the hour I took you from: a harbor full of ships, the
+   > night before they sail for the Broken Shore. I know how many of them come home. Hold this door
+   > with me, and they all can.
+   >
+   > **Sylvanas:** Do not answer him. Not about that shore.
+   >
+   > **Moratari:** And the arch comes down on all of them, Eternus. On everyone who lives because
+   > this war ended the way it did.
+   >
+   > **Sylvanas:** On me. On my people. On the souls I freed and the ones I failed. You do not get
+   > to decide that they were worth less than the ones you mourn.
+   >
+   > **Alleria:** I can feel the hour you have built, dragon. It isn't open. It's hungry.
+   >
+   > **Eternus:** Then you will have to take it from me.
+
+   The fight: Eternus and his loyalists, wave after wave, with Moratari, Sylvanas and Alleria
+   fighting beside you. As it turns:
+
+   > **Eternus** *(half his strength gone)*: Do you know how many died on the beaches of
+   > the Borean Tundra? I do. I counted them. I counted every one.
+   >
+   > **Eternus** *(a third left)*: Windrunner! I would have given you Quel'Thalas! Not a ruin. Not a
+   > grave. Your home, with your people in it!
+   >
+   > **Sylvanas:** I know. That is why I came.
+
+   He is not killed. With a tenth of his strength left, he stops:
+
+   > **Eternus:** ...Enough.
+   >
+   > **Eternus:** Not today, then. The river is long, Timerunner, and I am very patient. One day I
+   > will find a grave that history does not need.
+   >
+   > *(He steps into a rift, and is gone.)*
+   >
+   > **Moratari:** He's gone. Not dead. Eternus has never been any good at dying.
+   >
+   > **Sylvanas:** The doors are open, Timerunner. Go and end it.
+   >
+   > **Alleria:** We will be waiting at the Bazaar. All of us. Come back to us.
+
+6. **WRM-800 The Last Necessary Battle** (Moratari, at the Citadel's doors, after The Last Hour):
+   Icecrown Citadel and the Lich King, as the game has them: the encounter, Tirion, Terenas, and the
+   ending cinematic, untouched. Bolvar takes up the Helm.
+
+## The end
+
+1. **The return.** When the ending cinematic is over, the Timerunner is brought back to the Infinite
+   Bazaar, where everyone is waiting:
+
+   > **Andormu:** The last hour came as it must. The sacrifices are neither erased nor forgotten.
+   >
+   > **Nozari:** Bolvar Fordragon sits the Frozen Throne. The record is whole. I have checked it
+   > twice.
+   >
+   > **Sylvanas:** He is gone. I have imagined saying those words for a very long time. They are
+   > quieter than I thought they would be.
+   >
+   > **Alleria:** Welcome back, Timerunner.
+   >
+   > **Moratari:** Come and see me when you are ready. There is one more thing we have to talk about.
+
+   A letter arrives from Eternus:
+
+   > Timerunner,
+   >
+   > I watched from the river's edge as you went in. I watched the throne take its new king, and the
+   > paladin take up the cold I wanted to spare him. The record held. It always holds, when people
+   > like you are standing under it.
+   >
+   > I will not tell you I was wrong. I will tell you that tonight, for the first time in a very
+   > long while, I have stopped counting graves, and I do not yet know what to do with my hands.
+   >
+   > If you see Moratari, tell her the records are hers now. She always kept them better than I did.
+   >
+   > E.
+
+2. **WRM-801 See You Later** (Moratari, after The Last Necessary Battle). Moratari tells you it is
+   time to go home, and what that means:
+
+   > **Moratari:** You did it. All of it, exactly as it happened. That was the hardest thing anyone
+   > has ever asked of you, and nobody will ever thank you for it.
+   >
+   > **Moratari:** Some of what you did here will never be known, $n. Not by the people you saved
+   > it for, not by anyone in your own time. Time is unreliable that way; it keeps its debts quietly.
+   >
+   > **Moratari:** And there is one more thing. Sylvanas and Alleria cannot take this home with them.
+   > Everything they saw here, everything they told you about what comes after: if they remember it,
+   > it bleeds into choices they have not made yet. So before they go, I am going to take it from
+   > them.
+   >
+   > **Moratari:** And a little from you, $n. Northrend you keep; you earned it. But whatever they
+   > tell you of your own years ahead, the shore you are going back to and everything after it, I
+   > will take that too. You would try to change it. Anyone would.
+   >
+   > **Moratari:** Say your goodbyes. Ask them anything you like. They have a great deal they could
+   > tell you, and for a little while longer, you will both remember it.
+
+   Say goodbye to Sylvanas, Alleria, Andormu and Nozari, then speak with Moratari.
+
+3. **Their stories.** Until you go, Sylvanas and Alleria will talk with you about what comes after
+   this war, as people talk: one conversation for each age, in their own words, asked as a hero
+   from the eve of the Broken Shore would ask (some of it is your past, most of it your future).
+   Moratari, asked whether you will remember any of it: Northrend, yes; your own years ahead, no.
+
+   Sylvanas:
+   - *After this war*: in a few days her past self will climb this citadel, find him already dead,
+     a paladin in his crown and the victory hollow, and throw herself from the top; what she saw on the way down, and the
+     val'kyr who brought her back; Gilneas; Garrosh.
+   - *Garrosh and Draenor* (years you lived through too): Garrosh made the Horde a weapon and pointed it at everyone, the
+     Forsaken included; when the Horde turned on him, she turned with it. Draenor was Garrosh's
+     madness and Gul'dan's, and she stayed home; you know what came next, you were on the dock.
+   - *The Legion, the war you are going back to*: she was on the Broken Shore and will not tell
+     you what happens there; she tells you only what you will hear soon enough: Vol'jin, wounded to death there, named her Warchief and said the
+     spirits told him to; Stormheim, where she tried to bind a queen of the val'kyr so her people would never stop
+     rising, and Genn Greymane stopped her.
+   - *After the Legion*: you will hear the name Teldrassil beside hers, and she will not explain it; Lordaeron, the home she made
+     for her people, where she poisoned her own city before she would give it up; Varok Saurfang, who asked her a question she
+     answered badly, and died.
+   - *The Helm, and Bolvar*: the Helm, broken on Bolvar's head at the top of this citadel; the sky torn
+     open; the Jailer she thought she could use, who used her; the judgment, and her sentence.
+   - *Now*: the Maw, and the souls she frees one at a time; the war beneath the earth, heard of the
+     way the dead hear things, and last, before Chromie found her, that the Void had come for
+     Quel'Thalas and her sister was standing in its way.
+   - *Her sisters*: Alleria, who went through the Dark Portal and came back a thousand years older;
+     Vereesa, in Dalaran in this year with her husband and her boys; Rhonin's death at Theramore,
+     which the Timerunner knows too, and neither of them will tell her.
+
+   Alleria:
+   - *Everyone thinks you're dead*: in this year, and in the Timerunner's, she is beyond the
+     Twisting Nether with Turalyon and the Army of the Light; they will go home to a world that
+     still tells her story with an ending, and should not correct it.
+   - *Coming home* (she will tell it, since Moratari will take it anyway): Argus, Xe'ra and Illidan, the Light that wanted very badly to be obeyed.
+   - *The dark in her* (the Void): Locus-Walker, who taught her on Argus; L'ura at the Seat of the Triumvirate, whom she took
+     into herself.
+   - *Her people now* (the ren'dorei): Magister Umbric's exiles, Telogrus Rift, and leading people who only wanted to
+     understand what had been done to them.
+   - *Her son*, Arator: the son she and Turalyon left behind as a baby (Vereesa kept him safe for a while),
+     grown and a paladin by the time they came home.
+   - *When the Helm broke*: the sky over Icecrown torn open, and every soul going the wrong way, felt in
+     the Void like a door left open in winter.
+   - *Who she is fighting, in her own time*: Xal'atath, the Harbinger of the Void, who wears her
+     fears; Khaz Algar first, then Quel'Thalas, the Sunwell, home; why she will keep fighting.
+   - *Sylvanas*: she asked Alleria to come. She has never asked her for anything.
+
+4. **WRM-802 Back to Your Own Time** (Moratari, after See You Later). As it is taken:
+
+   > **Moratari:** This is the part I have been dreading.
+   >
+   > **Moratari:** Sylvanas. Alleria. You know what I have to do.
+   >
+   > **Alleria:** We know. Time is not fond of people who remember too much of it.
+   >
+   > **Sylvanas:** Be quick about it, Moratari. I have had enough long goodbyes for one eternity.
+   >
+   > **Sylvanas:** $n. Whatever I become, whatever they say of me where you are going: you saw
+   > this. Keep it for me.
+   >
+   > **Sylvanas:** And when we meet, the way we are meant to, do not tell me any of this. Let me find
+   > you the long way.
+   >
+   > **Alleria:** And if you see my son... no. Don't tell him anything. He'll know.
+   >
+   > *(Moratari's spell takes them.)*
+   >
+   > **Alleria:** ...Strange. I had the oddest feeling I was about to say goodbye to someone.
+   >
+   > **Sylvanas:** Chromie. Take us home. Wherever this is, I do not like it.
+   >
+   > *(They are gone.)*
+   >
+   > **Moratari:** There. They will wake in their own times with nothing but a feeling they cannot
+   > name. That is the kindest thing I know how to do.
+   >
+   > **Moratari:** Now you. Hold still. Northrend stays with you: the war, the echoes, the two of
+   > them. Only what they told you of the years ahead goes back to the hours it came from.
+   >
+   > *(The spell takes that from the Timerunner too.)*
+   >
+   > **Moratari:** There. You will go home not knowing how your war ends, the way everyone else goes
+   > into theirs. It is the only fair way to go.
+   >
+   > **Moratari:** But I will remember. Someone has to. Goodbye, Timerunner. Go home.
+
+   **Home.** As Legion Remix does, the Timerunner goes to the ChromieCraft realm: at the level they
+   reached, with everything they carry (it is all Wrath's own; Bronze stays behind at the Bazaar).
+   The game closes, the server starts again on ChromieCraft, and they log in in their side's
+   capital, Stormwind or Orgrimmar. The Timerunner leaves Wrath Remix.
 
 ## Status
 
-Being built in this order: the prologue and Chapter I (with the guiding quests: build 64), the
-"Report Time Anomaly" button and Chapter II with the turn (build 65), Chapters III and IV
-rewritten, V to VII, then the end and the move to ChromieCraft.
+Built in this order: the prologue and Chapter I (build 64), Report Time Anomaly and Chapter II with
+the turn (build 65), and now Chapters III to VII after the turn, Eternus's last hour, the return and
+the way home.

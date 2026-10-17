@@ -29,8 +29,8 @@ interface GestureOutput {
     fun targetNearestEnemy()
 
     /**
-     * The second tap of a double tap, there: attacks the enemy the first one selected, or jumps
-     * (Space) when the first tap wasn't on an enemy.
+     * The second tap of a double tap, there: attacks the enemy the first one selected, clicks
+     * again on the game's windows, or jumps (Space) when the first tap wasn't on an enemy.
      */
     fun doubleTapAt(x: Float, y: Float)
 
@@ -90,8 +90,9 @@ interface GestureOutput {
  *   middle of the screen, so it never lands on the action bars or the map).
  * - **Anywhere:** tap = a click where the finger is, which talks to NPCs, loots and gathers where
  *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
- *   = attack it, on the action bars = two presses, elsewhere = jump (Space)
- *   ([GestureOutput.doubleTapAt]); hold still = a right click on an item, a talent or an ability
+ *   = attack it, on the action bars = two presses, on the game's windows of items, talents and
+ *   abilities = two clicks (a talent's first tap shows it, the second spends the point: the app's
+ *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt]); hold still = a right click on an item, a talent or an ability
  *   (on the bags, the bank, the character pane, the talents, the spellbook or the action bars,
  *   where the app's add-on takes a right-clicked action off its bar:
  *   [GestureOutput.rightClicksAt]), elsewhere bags (B); tap then hold = map (M).

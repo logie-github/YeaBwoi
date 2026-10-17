@@ -9,26 +9,30 @@
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
     @MOMENTUS := 770009, @ECHO_FOOTMAN := 770021, @ECHO_SAURFANG := 770022, @ECHO_BOLVAR := 770023,
-    @SYLVANAS := 770011, @ALLERIA := 770012, @INTERLOPER := 770041;
+    @SYLVANAS := 770011, @ALLERIA := 770012, @INTERLOPER := 770041,
+    @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015;
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 
 -- The Infinite Bazaar, on the flat ground west of the Violet Stand. A new Timerunner wakes in the
 -- middle of it (playercreateinfo, wrath_remix_world_0003_prologue.sql), facing Eternus and
 -- Moratari, with the echoes of the war's dead beyond them. The Keepers of Time come later, with
--- the bronze (Chapter II).
+-- the bronze (Chapter II). The camp around them (its districts, props and people) is
+-- wrath_remix_world_0023_bazaar.sql (tools/bazaar.py, which keeps these spots too): Alurmi at the
+-- head of the market lane, Zephyr at the waystation's door, Sa'at at his map table, the
+-- Chronologist and Momentus in the chronicle corner, the instructors at work in the training yard.
 SET @HX := 5700, @HY := 1015, @HZ := 174.6;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704011, @ETERNUS,      571, 1, 1, 1, @HX,      @HY + 8,  @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Eternus, Bazaar'),
-(7704012, @MORATARI,     571, 1, 1, 1, @HX - 5,  @HY + 6,  @HZ, 5.30, 60, 0, 0, 'Wrath Remix: Moratari, Bazaar'),
+(7704012, @MORATARI,     571, 1, 1, 1, @HX - 9,  @HY + 2,  @HZ, 5.78, 60, 0, 0, 'Wrath Remix: Moratari, Bazaar'),
 (7704004, @ECHO_FOOTMAN,  571, 1, 1, 0, @HX - 9, @HY + 16, @HZ, 5.10, 60, 0, 0, 'Wrath Remix: Echo of a Fallen Footman, Bazaar'),
 (7704005, @ECHO_SAURFANG, 571, 1, 1, 0, @HX,     @HY + 19, @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Echo of Dranosh Saurfang, Bazaar'),
 (7704006, @ECHO_BOLVAR,   571, 1, 1, 0, @HX + 9, @HY + 16, @HZ, 4.30, 60, 0, 0, 'Wrath Remix: Echo of Bolvar Fordragon, Bazaar'),
-(7704015, @ALURMI,       571, 1, 1, 0, @HX - 8,  @HY + 1,  @HZ, 6.00, 60, 0, 0, 'Wrath Remix: Alurmi, Bazaar'),
-(7704016, @ZEPHYR,       571, 1, 1, 1, @HX - 7,  @HY - 5,  @HZ, 0.60, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
-(7704017, @SAAT,         571, 1, 1, 0, @HX + 7,  @HY - 5,  @HZ, 2.50, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
-(7704018, @CHRONOLOGIST, 571, 1, 1, 0, @HX - 2,  @HY - 8,  @HZ, 1.40, 60, 0, 0, 'Wrath Remix: Chronologist, Bazaar'),
-(7704019, @MOMENTUS,     571, 1, 1, 0, @HX + 2,  @HY - 8,  @HZ, 1.80, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
+(7704015, @ALURMI,       571, 1, 1, 0, 5686.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Alurmi, Bazaar'),
+(7704016, @ZEPHYR,       571, 1, 1, 1, 5708.5, 984.0, 174.6, 1.87, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
+(7704017, @SAAT,         571, 1, 1, 0, 5695.5, 968.5, 174.6, 3.28, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
+(7704018, @CHRONOLOGIST, 571, 1, 1, 0, 5716.0, 1041.0, 174.6, 0.00, 60, 0, 0, 'Wrath Remix: Chronologist, Bazaar'),
+(7704019, @MOMENTUS,     571, 1, 1, 0, 5716.0, 1049.5, 174.6, 0.00, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
 -- After the turn (WRM-207), for those who saw it: where its scene leaves them (RemixNpcs.cpp).
 (7704013, @SYLVANAS,     571, 1, 1, 0, @HX + 4,   @HY + 6,   @HZ, 3.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Bazaar'),
 (7704014, @ALLERIA,      571, 1, 1, 0, @HX + 6.5, @HY + 3.5, @HZ, 3.40, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Bazaar');
@@ -36,17 +40,18 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 -- Chapter II (wrath_remix_world_0011_chapter2.sql): Sylvanas and Alleria atop Wyrmrest Temple, on
 -- either side of Chromie (WRM-204, WRM-205); Alleria on the cliffs above the Wrathgate, where the
 -- Forsaken's catapults stand on the day, with Eternus's loyalists around her (WRM-208). Each is
--- seen only by those the story has there (the chapter's visibility conditions).
+-- seen only by those the story has there (the chapter's visibility conditions), and away from the
+-- Bazaar both are in their disguises (two rangers, adventurers like any other).
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704033, @SYLVANAS, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` + PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` + PI() / 2),
+SELECT 7704033, @SYLVANAS_ABROAD, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` + PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` + PI() / 2),
   c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Wyrmrest Temple (beside Chromie)'
 FROM `creature` c WHERE c.`guid` = 131083
 UNION ALL
-SELECT 7704034, @ALLERIA, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` - PI() / 2),
+SELECT 7704034, @ALLERIA_ABROAD, c.`map`, 1, 1, 0, c.`position_x` + 3.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 3.5 * SIN(c.`orientation` - PI() / 2),
   c.`position_z`, c.`orientation`, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Wyrmrest Temple (beside Chromie)'
 FROM `creature` c WHERE c.`guid` = 131083;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704035, @ALLERIA,    571, 1, 1, 0, 4974.5, 1383.5, 283.2, 0.30, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, the Wrathgate''s cliffs'),
+(7704035, @ALLERIA_ABROAD, 571, 1, 1, 0, 4974.5, 1383.5, 283.2, 0.30, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, the Wrathgate''s cliffs'),
 (7704040, @INTERLOPER, 571, 1, 1, 0, 4984.9, 1394.4, 284.4, 3.60, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
 (7704041, @INTERLOPER, 571, 1, 1, 0, 4991.0, 1400.3, 284.4, 3.80, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
 (7704042, @INTERLOPER, 571, 1, 1, 0, 5000.5, 1401.6, 284.4, 3.90, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
@@ -55,11 +60,24 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 (7704045, @INTERLOPER, 571, 1, 1, 0, 4978.7, 1391.8, 284.4, 3.70, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs'),
 (7704046, @INTERLOPER, 571, 1, 1, 0, 5006.0, 1396.0, 284.4, 3.60, 30, 0, 0, 'Wrath Remix: Infinite Interloper, the Wrathgate''s cliffs');
 
--- The instructors, in a row along the Bazaar's east side.
+-- The instructors, at work in the Bazaar's training yard (tools/bazaar.py; what each is doing there,
+-- sparring, kneeling, at the targets, is wrath_remix_world_0023_bazaar.sql's creature_addon).
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
-SELECT 7704020 + (`entry` - 770100), `entry`, 571, 1, 1, 0, @HX + 14, @HY - 11 + (`entry` - 770101) * 2.2, @HZ, 3.14, 60, 0, 0,
-  CONCAT('Wrath Remix: ', `subname`, ', Bazaar')
-FROM `creature_template` WHERE `entry` BETWEEN 770101 AND 770111;
+SELECT 7704020 + (t.`entry` - 770100), t.`entry`, 571, 1, 1, 0, p.x, p.y, p.z, p.o, 60, 0, 0,
+  CONCAT('Wrath Remix: ', t.`subname`, ', Bazaar')
+FROM `creature_template` t JOIN (
+  SELECT 770101 AS entry, 5677.5 AS x, 984.5 AS y, 174.6 AS z, 3.76 AS o UNION ALL
+  SELECT 770102 AS entry, 5684.0 AS x, 976.0 AS y, 174.6 AS z, 4.71 AS o UNION ALL
+  SELECT 770103 AS entry, 5684.0 AS x, 971.0 AS y, 174.6 AS z, 1.57 AS o UNION ALL
+  SELECT 770104 AS entry, 5661.0 AS x, 975.0 AS y, 174.6 AS z, 3.14 AS o UNION ALL
+  SELECT 770105 AS entry, 5680.5 AS x, 989.5 AS y, 174.6 AS z, 4.17 AS o UNION ALL
+  SELECT 770106 AS entry, 5682.0 AS x, 996.5 AS y, 174.6 AS z, 0.00 AS o UNION ALL
+  SELECT 770107 AS entry, 5671.0 AS x, 965.8 AS y, 174.6 AS z, 4.71 AS o UNION ALL
+  SELECT 770108 AS entry, 5654.0 AS x, 994.0 AS y, 174.6 AS z, 1.57 AS o UNION ALL
+  SELECT 770109 AS entry, 5666.0 AS x, 986.5 AS y, 174.6 AS z, 4.71 AS o UNION ALL
+  SELECT 770110 AS entry, 5658.0 AS x, 986.5 AS y, 174.6 AS z, 4.71 AS o UNION ALL
+  SELECT 770111 AS entry, 5649.5 AS x, 992.0 AS y, 174.6 AS z, 0.42 AS o
+) p ON p.entry = t.`entry`;
 
 -- Moratari beside original quest givers: at each landing (where WRM-005 ends), at her
 -- transitions (wrath_remix_world_0006_bridges.sql, and the later chapters') and at each coast's

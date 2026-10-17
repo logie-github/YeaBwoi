@@ -163,6 +163,8 @@ SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
 SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x0DC
 CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
 CMSG_SET_SELECTION = 0x13D
+CMSG_DESTROYITEM = 0x111
+CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
 
 # AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
@@ -376,6 +378,10 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=Non
     session.character = character
     transcript = run_script(session, guid, steps) if steps is not None else None
 
+    # (a character the realm let go has no session left to log out of)
+    if getattr(session, "closed", False):
+        session.sock.close()
+        return transcript
     # The server answers in order: the command's lines come before the logout. A game master's
     # account logs out at once.
     if command:
@@ -428,6 +434,9 @@ def run_script(session, player_guid, steps):
 
         cmd TEXT                      a GM command (or anything said)
         go MAP X Y Z                  a GM teleport there
+        clear-backpack                throws away what's in the backpack (but the hearthstone)
+        use-hourglass                 uses Moratari's Hourglass from the bags, as the game uses an
+                                      item (where it is from mod-wrath-remix's `.remix hourglass`)
         talk ENTRY                    open the gossip of the nearest creature of that entry
                                       (its guid from mod-wrath-remix's `.remix guid ENTRY`)
         kill ENTRY                    select the nearest creature of that entry and `.damage` it
@@ -445,6 +454,9 @@ def run_script(session, player_guid, steps):
         wait SECONDS                  read what comes
         addon PREFIX TEXT             an add-on message whispered to the character itself, as
                                       the app's add-on (client/TouchAddon) talks to the realm
+        gone SECONDS                  read until the realm lets the character go and closes the
+                                      connection (Wrath Remix's way home), within SECONDS; the
+                                      script ends there
 
     Returns each step with everything heard during it, in order.
     """
@@ -464,6 +476,30 @@ def run_script(session, player_guid, steps):
             if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
                 return (int(words[4]), float(words[6])) if near else int(words[4])
         raise RuntimeError(f"no creature {entry} near the character")
+
+    def within_reach(entry):
+        """The nearest creature of [entry], called over if it's beyond talking distance (where a
+        fight left the player, say), and whether it was."""
+        guid, yards = creature_guid(entry, near=True)
+        if yards <= 6:
+            return guid, False
+        session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
+        session.pump(0.5, packets)
+        say(session, ".npc follow")
+        session.pump(arrival(yards), packets)
+        return guid, True
+
+    def arrival(yards):
+        """Long enough for a creature called over from [yards] away to come (one on a patrol, as
+        Dark Ranger Vorel in Dalaran, may be well down its path), walking."""
+        return min(20.0, max(4.0, 2.0 + yards / 3.0))
+
+    def let_go(called):
+        if called:
+            say(session, ".npc follow stop")
+            session.pump(1.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
 
     def note(packets):
         for opcode, body in packets:
@@ -558,7 +594,7 @@ def run_script(session, player_guid, steps):
                 session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
                 session.pump(0.5, packets)
                 say(session, ".npc follow")
-                session.pump(4.0, packets)
+                session.pump(arrival(yards), packets)
             session.send(CMSG_GOSSIP_HELLO, struct.pack("<Q", guid))
             session.pump(2.0, packets)
             # (a quest giver with nothing to say but its quests doesn't answer that: the game
@@ -569,11 +605,39 @@ def run_script(session, player_guid, steps):
             if called:
                 say(session, ".npc follow stop")
                 session.pump(1.0, packets)
+                # (and nothing selected again: a GM command after it, .gps, would be about the
+                # creature)
+                session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+                session.pump(0.5, packets)
         elif word == "kill":
-            session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(int(rest))))
+            # (the realm's bots may have got there first: the dead ones are brought back, as a GM
+            # would, rather than waited for)
+            for attempt in range(6):
+                try:
+                    target = creature_guid(int(rest))
+                    break
+                except RuntimeError:
+                    if attempt == 5:
+                        raise
+                    say(session, ".respawn all")
+                    session.pump(5.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
             session.pump(0.5, packets)
             say(session, ".damage 100 pct")
             session.pump(3.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
+        elif word == "cast":
+            # A spell of the character's, cast on the nearest creature of an entry (a game master's
+            # .cast, triggered: no rage, mana or range needed), as a class lesson asks.
+            spell, entry = rest.split()
+            target = creature_guid(int(entry))
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
+            session.pump(0.5, packets)
+            say(session, f".cast {spell} triggered")
+            session.pump(2.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
         elif word == "select":
             entry, text = rest.split(" ", 1)
             guid = creature_guid(int(entry))
@@ -594,19 +658,57 @@ def run_script(session, player_guid, steps):
             heard.append(f"bought {item}" if any(o == SMSG_BUY_ITEM for o, _ in packets) else "not bought")
         elif word == "accept":
             entry, quest = (int(v) for v in rest.split())
-            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", creature_guid(entry), quest, 0))
+            guid, called = within_reach(entry)
+            session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", guid, quest, 0))
             session.pump(2.0, packets)
+            let_go(called)
         elif word == "reward":
             entry, quest = (int(v) for v in rest.split())
-            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", creature_guid(entry), quest, 0))
+            guid, called = within_reach(entry)
+            session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", guid, quest, 0))
             session.pump(3.0, packets)
+            let_go(called)
         elif word == "wait":
             session.pump(float(rest), packets)
+        elif word == "clear-backpack":
+            # Room for a quest's own item: everything in the backpack but its first slot (the
+            # hearthstone) thrown away, as a player would make room. (A long campaign of GM turn-ins
+            # fills it with rewards.)
+            for slot in range(24, 39):
+                session.send(CMSG_DESTROYITEM, struct.pack("<BBBBBB", 255, slot, 0, 0, 0, 0))
+            session.pump(1.0, packets)
+        elif word == "use-hourglass":
+            say(session, ".remix hourglass")
+            session.pump(1.5, packets)
+            found = None
+            for message in system_messages(packets):
+                words = message.split()
+                if message.startswith("Wrath Remix hourglass: bag") and len(words) > 10:
+                    found = (int(words[4]), int(words[6]), int(words[8]), int(words[10].rstrip(",")))
+            if not found:
+                raise RuntimeError(f"no hourglass in the bags; heard: {system_messages(packets)}")
+            bag, slot, item, spell = found
+            # bag, slot, cast count, spell, item, glyph index, cast flags; then no targets (itself)
+            session.send(CMSG_USE_ITEM, struct.pack("<BBBIQIB", bag, slot, 1, spell, item, 0, 0) + struct.pack("<I", 0))
+            session.pump(3.0, packets)
         elif word == "addon":
             prefix, _, text = rest.partition(" ")
             session.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + session.character.encode() + b"\0"
                          + prefix.encode() + b"\t" + text.encode() + b"\0")
             session.pump(3.0, packets)
+        elif word == "gone":
+            end = time.time() + float(rest)
+            try:
+                while time.time() < end:
+                    session.pump(1.0, packets)
+            except (RuntimeError, OSError):
+                session.closed = True
+            note(packets)
+            transcript.append((line, heard[:]))
+            if not getattr(session, "closed", False):
+                raise RuntimeError(f"the realm didn't let the character go in {rest} s; heard: {heard}")
+            print("script: the realm let the character go")
+            return transcript
         elif word in ("expect", "expect-not"):
             found = any(rest.lower() in h.lower() for h in heard)
             if found != (word == "expect"):

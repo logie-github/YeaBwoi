@@ -17,12 +17,20 @@ package com.logie.warcraft.client
  * group of windows as one area: the bags, the bank, the character pane, the talents, the bars at
  * the bottom, the bars on the right), "-" for none.
  *
+ * The mounts and companions pane (the character pane's Pet tab) drags too, so a mount or a
+ * companion goes onto the action bars as a spell does.
+ *
  * A right click on an action bar's button (a hold, from the app) takes its action off the bar, as
  * dragging it away does on a PC, and does nothing else.
  *
- * On the Wrath Remix realm it also puts **Report Time Anomaly** in the game's menu, under Macros:
- * it asks what went wrong (the player may write nothing) and asks the realm for a report, in an
- * add-on message to the player itself (prefix `WowRemix`, "report <what they wrote>"). The realm
+ * A talent's first tap shows what it does (its tooltip) and spends nothing; a second tap on it
+ * straight after (a double tap: the app clicks twice on the game's windows) spends the point.
+ *
+ * On the Wrath Remix realm it also puts **Report Time Anomaly** in the game's menu, under Macros,
+ * and on the toolbar's Help button (there are no game masters to ask): a window asks what went
+ * wrong, in as many lines as it takes (up to 1000 letters; the player may write nothing), and asks
+ * the realm for a report, in add-on messages to the player itself (prefix `WowRemix`: "report
+ * <what they wrote>", a long one in pieces, each but the last "report+ <its words>"). The realm
  * writes the report (mod-wrath-remix, RemixReport.cpp) and the app sends it to GitHub
  * ([com.logie.warcraft.AnomalyReports]).
  */
@@ -37,18 +45,20 @@ object TouchAddon {
         "$FOLDER.toc" to """
             ## Interface: ${AddonLayout.INTERFACE}
             ## Title: WowTouch
-            ## Notes: The World of Warcraft app's touch controls: where the spellbook is, for dragging its spells; holds as right clicks on items, talents and abilities; Report Time Anomaly on Wrath Remix.
+            ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly on Wrath Remix.
             ## Author: World of Warcraft app
-            ## Version: 3
+            ## Version: 4
             $FOLDER.lua
         """.trimIndent() + "\n",
         "$FOLDER.lua" to """
             -- The World of Warcraft app's touch controls (installed by the app at each start). Says
-            -- where the spellbook is while it's open, so a drag that starts on it drags a spell, as
-            -- the mouse does on a PC, and where the windows of items, talents and abilities are,
-            -- where a hold is a right click: in an add-on message to the player itself, which the
-            -- realm on the phone keeps for the app. A right click on an action bar's button takes
-            -- it off the bar. On Wrath Remix, Report Time Anomaly in the game's menu.
+            -- where the spellbook and the mounts and companions are while they're open, so a drag
+            -- that starts on them drags a spell or a mount, as the mouse does on a PC, and where the
+            -- windows of items, talents and abilities are, where a hold is a right click: in an
+            -- add-on message to the player itself, which the realm on the phone keeps for the app.
+            -- A right click on an action bar's button takes it off the bar. A talent's first tap
+            -- shows its tooltip, a second one spends the point. On Wrath Remix, Report Time Anomaly
+            -- in the game's menu and on the toolbar's Help button.
 
             local said
             local inWorld = false
@@ -108,8 +118,20 @@ object TouchAddon {
                 return list
             end
 
-            -- Where a hold is a right click: the bags, the bank, the character pane, the talents,
-            -- the action bars at the bottom and on the right.
+            -- Where a drag drags: the spellbook, and the mounts and companions (the character
+            -- pane's Pet tab), each inside its own edges.
+            local function drags()
+                local areas = {}
+                for _, frame in ipairs({ SpellBookFrame, _G["PetPaperDollFrameCompanionFrame"] or false }) do
+                    local area = frame and place(frame) or "-"
+                    if area ~= "-" then table.insert(areas, area) end
+                end
+                return #areas > 0 and table.concat(areas, " ") or "-"
+            end
+
+            -- Where a hold is a right click (and a double tap two clicks): the bags, the bank, the
+            -- character pane, the talents, the report window, the action bars at the bottom and on
+            -- the right.
             local function holds()
                 local areas = {}
                 for _, list in ipairs({
@@ -117,6 +139,7 @@ object TouchAddon {
                     frames(BankFrame),
                     frames(CharacterFrame),
                     frames(PlayerTalentFrame),
+                    frames(_G["WowTouchReportFrame"]),
                     frames(MainMenuBar, MultiBarBottomLeft, MultiBarBottomRight, ShapeshiftBarFrame, PetActionBarFrame),
                     frames(MultiBarRight, MultiBarLeft),
                 }) do
@@ -128,7 +151,7 @@ object TouchAddon {
 
             local function tell()
                 if not inWorld then return end
-                local note = "drag " .. place(SpellBookFrame) .. " hold " .. holds()
+                local note = "drag " .. drags() .. " hold " .. holds()
                 if note ~= said then
                     said = note
                     SendAddonMessage("$PREFIX", note, "WHISPER", UnitName("player"))
@@ -165,6 +188,36 @@ object TouchAddon {
                 barsReady = true
             end
 
+            -- A talent's first tap shows what it does (the pointer on it shows its tooltip) and
+            -- spends nothing; a second tap on the same talent soon after spends the point, as the
+            -- game's own click does. The talents' window is the game's own add-on, loaded when it's
+            -- first opened.
+            local TALENT_AGAIN = 1.0
+            local tappedTalent, tappedAt = nil, 0
+
+            local function readyTalents()
+                for i = 1, (MAX_NUM_TALENTS or 40) do
+                    local button = _G["PlayerTalentFrameTalent" .. i]
+                    local click = button and button:GetScript("OnClick")
+                    if click and not button.wowTouch then
+                        button.wowTouch = true
+                        button:SetScript("OnClick", function(self, mouseButton, ...)
+                            if mouseButton == "LeftButton" and not IsModifierKeyDown() then
+                                local now = GetTime()
+                                if tappedTalent ~= self or now - tappedAt > TALENT_AGAIN then
+                                    tappedTalent, tappedAt = self, now
+                                    local enter = self:GetScript("OnEnter")
+                                    if enter then enter(self) end
+                                    return
+                                end
+                                tappedTalent = nil
+                            end
+                            return click(self, mouseButton, ...)
+                        end)
+                    end
+                end
+            end
+
             local watcher = CreateFrame("Frame")
             local wait = 0
             watcher:SetScript("OnUpdate", function(self, elapsed)
@@ -173,42 +226,140 @@ object TouchAddon {
                 wait = 0.1
                 tell()
             end)
-            -- On the Wrath Remix realm: Report Time Anomaly in the game's menu, under Macros. It asks
-            -- what went wrong, then asks the realm for a report of the Timerunner's way so far, which
-            -- the app sends to GitHub.
+            -- On the Wrath Remix realm: Report Time Anomaly in the game's menu, under Macros, and on
+            -- the toolbar's Help button. A window asks what went wrong, then the realm is asked for a
+            -- report of the Timerunner's way so far, which the app sends to GitHub.
+            local REPORT_LETTERS = 1000
+            local REPORT_PIECE = 200
             local reportButton
             local menuHeight
+            local reportFrame
+
+            -- [text] in pieces of at most [size] bytes, none cut inside a letter.
+            local function pieces(text, size)
+                local list, i = {}, 1
+                while i <= #text do
+                    local j = math.min(#text, i + size - 1)
+                    while j < #text and j > i do
+                        local byte = string.byte(text, j + 1)
+                        if byte < 128 or byte >= 192 then break end
+                        j = j - 1
+                    end
+                    table.insert(list, string.sub(text, i, j))
+                    i = j + 1
+                end
+                return list
+            end
 
             local function report(text)
                 text = string.gsub(text or "", "[%c]", " ")
-                SendAddonMessage("$REMIX_PREFIX", "report " .. string.sub(text, 1, 200), "WHISPER", UnitName("player"))
+                local list = pieces(string.sub(text, 1, REPORT_LETTERS * 4), REPORT_PIECE)
+                for i = 1, #list - 1 do
+                    SendAddonMessage("$REMIX_PREFIX", "report+ " .. list[i], "WHISPER", UnitName("player"))
+                end
+                SendAddonMessage("$REMIX_PREFIX", "report " .. (list[#list] or ""), "WHISPER", UnitName("player"))
             end
 
-            StaticPopupDialogs["WOWTOUCH_TIME_ANOMALY"] = {
-                text = "Report a time anomaly?\n\nThe realm writes down where you are, the quest you're on, who you've spoken to and the way you came, and the app sends it to the realm's makers on GitHub.\n\nWhat went wrong? You can leave it empty. (Tap the box, then three fingers for the keyboard.)",
-                button1 = "Report",
-                button2 = CANCEL or "Cancel",
-                hasEditBox = 1,
-                maxLetters = 200,
-                timeout = 0,
-                whileDead = 1,
-                hideOnEscape = 1,
-                OnShow = function(self)
-                    local box = _G[self:GetName() .. "EditBox"]
+            local function reportWindow()
+                if reportFrame then return reportFrame end
+                local frame = CreateFrame("Frame", "WowTouchReportFrame", UIParent)
+                frame:SetWidth(500)
+                frame:SetHeight(340)
+                frame:SetPoint("CENTER", UIParent, "CENTER", 0, 60)
+                frame:SetFrameStrata("DIALOG")
+                frame:SetToplevel(true)
+                frame:EnableMouse(true)
+                frame:SetBackdrop({
+                    bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
+                    edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+                    tile = true, tileSize = 32, edgeSize = 32,
+                    insets = { left = 11, right = 12, top = 12, bottom = 11 },
+                })
+                frame:Hide()
+                table.insert(UISpecialFrames, "WowTouchReportFrame")
+
+                local title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+                title:SetPoint("TOP", frame, "TOP", 0, -20)
+                title:SetText("Report a Time Anomaly")
+
+                local about = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+                about:SetPoint("TOPLEFT", frame, "TOPLEFT", 26, -46)
+                about:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -26, -46)
+                about:SetJustifyH("LEFT")
+                about:SetText("The realm writes down where you are, the quest you're on, who you've spoken to and the way you came, and the app sends it to the realm's makers on GitHub.\n\nWhat went wrong? Write as much as you like, or leave it empty. (Tap the box, then three fingers for the keyboard.)")
+
+                local well = CreateFrame("Frame", nil, frame)
+                well:SetPoint("TOPLEFT", frame, "TOPLEFT", 22, -110)
+                well:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -22, 58)
+                well:SetBackdrop({
+                    bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+                    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+                    tile = true, tileSize = 16, edgeSize = 16,
+                    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+                })
+                well:SetBackdropColor(0, 0, 0, 0.8)
+
+                local scroll = CreateFrame("ScrollFrame", "WowTouchReportScroll", well, "UIPanelScrollFrameTemplate")
+                scroll:SetPoint("TOPLEFT", well, "TOPLEFT", 8, -8)
+                scroll:SetPoint("BOTTOMRIGHT", well, "BOTTOMRIGHT", -28, 8)
+
+                local box = CreateFrame("EditBox", "WowTouchReportBox", scroll)
+                box:SetMultiLine(true)
+                box:SetAutoFocus(false)
+                box:SetMaxLetters(REPORT_LETTERS)
+                box:SetFontObject(ChatFontNormal)
+                box:SetWidth(410)
+                box:SetHeight(150)
+                box:SetScript("OnEscapePressed", function() frame:Hide() end)
+                box:SetScript("OnTextChanged", function(self)
+                    if ScrollingEdit_OnTextChanged then ScrollingEdit_OnTextChanged(self, scroll) end
+                end)
+                box:SetScript("OnCursorChanged", function(self, x, y, w, h)
+                    if ScrollingEdit_OnCursorChanged then ScrollingEdit_OnCursorChanged(self, x, y, w, h) end
+                end)
+                box:SetScript("OnUpdate", function(self, elapsed)
+                    if ScrollingEdit_OnUpdate then ScrollingEdit_OnUpdate(self, elapsed, scroll) end
+                end)
+                scroll:SetScrollChild(box)
+                -- (a tap anywhere in the box's well puts the cursor in it)
+                well:EnableMouse(true)
+                well:SetScript("OnMouseDown", function() box:SetFocus() end)
+
+                local send = CreateFrame("Button", "WowTouchReportSend", frame, "UIPanelButtonTemplate")
+                send:SetWidth(140)
+                send:SetHeight(24)
+                send:SetPoint("BOTTOMRIGHT", frame, "BOTTOM", -8, 22)
+                send:SetText("Report")
+                send:SetScript("OnClick", function()
+                    report(box:GetText())
+                    box:ClearFocus()
+                    frame:Hide()
+                end)
+
+                local cancel = CreateFrame("Button", "WowTouchReportCancel", frame, "UIPanelButtonTemplate")
+                cancel:SetWidth(140)
+                cancel:SetHeight(24)
+                cancel:SetPoint("BOTTOMLEFT", frame, "BOTTOM", 8, 22)
+                cancel:SetText(CANCEL or "Cancel")
+                cancel:SetScript("OnClick", function()
+                    box:ClearFocus()
+                    frame:Hide()
+                end)
+
+                frame:SetScript("OnShow", function()
                     box:SetText("")
                     box:SetFocus()
-                end,
-                OnAccept = function(self)
-                    report(_G[self:GetName() .. "EditBox"]:GetText())
-                end,
-                EditBoxOnEnterPressed = function(self)
-                    report(self:GetText())
-                    self:GetParent():Hide()
-                end,
-                EditBoxOnEscapePressed = function(self)
-                    self:GetParent():Hide()
-                end,
-            }
+                end)
+                frame.box = box
+                reportFrame = frame
+                return frame
+            end
+
+            local function showReport()
+                PlaySound("igMainMenuOption")
+                if GameMenuFrame and GameMenuFrame:IsShown() then HideUIPanel(GameMenuFrame) end
+                reportWindow():Show()
+            end
 
             -- The button, in its own group between Macros and Log Out: in Log Out's place, with Log Out
             -- under it, and the menu taller by as much.
@@ -216,11 +367,7 @@ object TouchAddon {
                 if reportButton or not GameMenuFrame or not GameMenuButtonLogout then return end
                 reportButton = CreateFrame("Button", "GameMenuButtonWowTouchReport", GameMenuFrame, "GameMenuButtonTemplate")
                 reportButton:SetText("Report Time Anomaly")
-                reportButton:SetScript("OnClick", function()
-                    PlaySound("igMainMenuOption")
-                    HideUIPanel(GameMenuFrame)
-                    StaticPopup_Show("WOWTOUCH_TIME_ANOMALY")
-                end)
+                reportButton:SetScript("OnClick", showReport)
                 local point, anchor, relativePoint, x, y = GameMenuButtonLogout:GetPoint()
                 reportButton:ClearAllPoints()
                 reportButton:SetPoint(point, anchor, relativePoint, x, y)
@@ -234,19 +381,40 @@ object TouchAddon {
                 end)
             end
 
+            -- The toolbar's Help button (the question mark): there are no game masters on the
+            -- phone's realm to ask, so it reports a time anomaly.
+            local function takeHelpButton()
+                if not HelpMicroButton or HelpMicroButton.wowTouch then return end
+                HelpMicroButton.wowTouch = true
+                HelpMicroButton:SetScript("OnClick", showReport)
+                HelpMicroButton.tooltipText = "Report Time Anomaly"
+                HelpMicroButton.newbieText = "Tell the realm's makers what went wrong: the realm writes down where you are and the way you came, and the app sends it to GitHub."
+            end
+
             watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
             watcher:RegisterEvent("PLAYER_LEAVING_WORLD")
             watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
-            watcher:SetScript("OnEvent", function(self, event)
+            watcher:RegisterEvent("ADDON_LOADED")
+            watcher:SetScript("OnEvent", function(self, event, name)
                 if event == "PLAYER_REGEN_ENABLED" then
                     readyBars()
+                    return
+                end
+                if event == "ADDON_LOADED" then
+                    if name == "Blizzard_TalentUI" then readyTalents() end
                     return
                 end
                 inWorld = event == "PLAYER_ENTERING_WORLD"
                 said = nil
                 tell()
-                if inWorld then readyBars() end
-                if inWorld and GetRealmName() == "$REMIX_REALM" then addReportButton() end
+                if inWorld then
+                    readyBars()
+                    readyTalents()
+                end
+                if inWorld and GetRealmName() == "$REMIX_REALM" then
+                    addReportButton()
+                    takeHelpButton()
+                end
             end)
         """.trimIndent() + "\n",
     )

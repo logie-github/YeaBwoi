@@ -32,6 +32,7 @@
 -- during WRM-208. Ids and chains from the Remix world database (data/campaign_manifest.csv).
 
 SET @MORATARI := 770001, @ETERNUS := 770002, @SYLVANAS := 770011, @ALLERIA := 770012, @CHROMIE := 27856,
+    @SYLVANAS_ABROAD := 770014, @ALLERIA_ABROAD := 770015,
     @TURN_CREDIT := 770034, @INTERLOPER := 770041;
 
 DELETE FROM `quest_template` WHERE `ID` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
@@ -54,8 +55,8 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 -- WRM-204: Chromie, after Mystery of the Infinite. The two she brought back.
 (77204, 2, 25, 20, 65, 5, 0, 0, 0,
  'Strangers Out of Time',
- 'Speak with Sylvanas Windrunner beside Chromie atop Wyrmrest Temple.',
- 'You did well with the hourglass. And yes, that was you. Don''t think about it too hard; I''ve tried.$B$BThe Infinite aren''t only out there, $n. One of them has been fetching heroes from my future and pointing them at this war. You''re one of them. I know, because I went and fetched two people who are very unhappy about it.$B$BThey''re right behind you. One of them used to be the Banshee Queen. Try not to stare.',
+ 'Speak with Sylvanas Windrunner, hooded as a ranger, beside Chromie atop Wyrmrest Temple.',
+ 'You did well with the hourglass. And yes, that was you. Don''t think about it too hard; I''ve tried.$B$BThe Infinite aren''t only out there, $n. One of them has been fetching heroes from my future and pointing them at this war. You''re one of them. I know, because I went and fetched two people who are very unhappy about it.$B$BThey''re right behind you: the two rangers in the hoods. As far as anyone on this temple knows, they''re adventurers, same as you. The Banshee Queen of this year is very busy with a war of her own, and she must never hear that there are two of her.$B$BYes, the one in black is Sylvanas. From further along than you are; a good deal further. Try not to stare.$B$BAnd the other one... no. Talk to her yourself. Some faces should be seen, not described.',
  'Speak with Sylvanas Windrunner.', 0, 0, '', 0),
 -- WRM-205 / 215: Sylvanas. Ask Eternus yourself (Chromie sends the Timerunner to the Bazaar).
 (77205, 2, 25, 20, 65, 5, 0, 0, 1101,
@@ -103,12 +104,12 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77208, 2, 29, 20, 65, 5, 0, 0, 1101,
  'The Hour of the Gate',
  'Slay 6 Infinite Interlopers on the cliffs above the Wrathgate, then speak with Alleria Windrunner there.',
- 'Eternus''s loyalists are on the cliffs above the Wrathgate, waiting for Putress''s men. If they strike first, Bolvar lives, no one takes the Helm, and everything I told Moratari comes to pass.$B$BMy sister is already there. Go to her, and kill every one of them you find. Leave the Forsaken be. I know what they will do. Let them.$B$BI will not come with you. I cannot be seen anywhere near that gate.',
+ 'Eternus''s loyalists are on the cliffs above the Wrathgate, waiting for Putress''s men. If they strike first, Bolvar lives, no one takes the Helm, and everything I told Moratari comes to pass.$B$BMy sister is already there. Go to her, and kill every one of them you find. Leave the Forsaken be. I know what they will do. Let them.$B$BI will not come with you. I cannot be seen anywhere near that gate.$B$BAnd watch your left on those cliffs, $n. You always forget your left. <She stops.> You will learn not to. Never mind how I know.',
  'Speak with Alleria Windrunner.', @INTERLOPER, 6, 'Infinite Interloper slain', 0),
 (77218, 2, 29, 20, 65, 5, 0, 0, 690,
  'The Hour of the Gate',
  'Slay 6 Infinite Interlopers on the cliffs above the Wrathgate, then speak with Alleria Windrunner there.',
- 'Eternus''s loyalists are on the cliffs above the Wrathgate, waiting for Putress''s men. If they strike first, Saurfang''s son lives, and Bolvar, and no one takes the Helm, and everything I told Moratari comes to pass.$B$BMy sister is already there. Go to her, and kill every one of them you find. Leave the Forsaken be. I know what they will do. Let them.$B$BI will not come with you. I cannot be seen anywhere near that gate.',
+ 'Eternus''s loyalists are on the cliffs above the Wrathgate, waiting for Putress''s men. If they strike first, Saurfang''s son lives, and Bolvar, and no one takes the Helm, and everything I told Moratari comes to pass.$B$BMy sister is already there. Go to her, and kill every one of them you find. Leave the Forsaken be. I know what they will do. Let them.$B$BI will not come with you. I cannot be seen anywhere near that gate.$B$BAnd watch your left on those cliffs, $n. You always forget your left. <She stops.> You will learn not to. Never mind how I know.',
  'Speak with Alleria Windrunner.', @INTERLOPER, 6, 'Infinite Interloper slain', 0),
 -- II-B: no skip. After the Wrathgate, by Alexstrasza, before what she asks next.
 (77202, 2, 29, 20, 65, 5, 0, 0, 1101,
@@ -125,7 +126,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77221, 2, 30, 20, 65, 5, 0, 0, 1101,
  'After Angrathar',
  'Speak with Moratari again to travel to Amberpine Lodge in the Grizzly Hills.',
- 'The Undercity is taken. Putress is dead, Varimathras is dead, and the King of Stormwind came within a breath of starting the next war on the spot. Jaina talked him out of it. History is grateful.$B$BSylvanas watched it from where her past self could not see her. She said nothing for a long time. Then she said it went exactly as she remembers, and walked away.$B$BThe Grizzly Hills, $n. Something is wrong at the heart of an old forest, and a troll named Drakuru is making friends. Eternus will be there before us. Chapter III begins at Amberpine Lodge.',
+ 'The Undercity is taken. Putress is dead, Varimathras is dead, and the King of Stormwind came within a breath of starting the next war on the spot. Jaina pulled him out of there before he could. History is grateful.$B$BSylvanas watched it from where her past self could not see her. She said nothing for a long time. Then she said it went exactly as she remembers, and walked away.$B$BThe Grizzly Hills, $n. Something is wrong at the heart of an old forest, and a troll named Drakuru is making friends. Eternus will be there before us. Chapter III begins at Amberpine Lodge.',
  'Speak with Moratari.', 0, 0, '', 0),
 (77222, 2, 30, 20, 65, 5, 0, 0, 690,
  'After Angrathar',
@@ -147,13 +148,13 @@ DELETE FROM `quest_offer_reward` WHERE `ID` IN (77201, 77202, 77203, 77204, 7720
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77203, 1, 'Hold on. Wyrmrest Temple is very tall, and Chromie is very punctual.', 0),
 (77213, 1, 'Hold on. Wyrmrest Temple is very tall, and Chromie is very punctual.', 0),
-(77204, 1, 'So you are his. You do not know what you have been doing, do you?$B$BI am Sylvanas Windrunner. I know who you are, and I know what I am to you. Keep it. I did not come here for your forgiveness.$B$BWhatever Eternus has promised you, Timerunner, the war against the Lich King must happen as it did. Every battle. Every grave. I know what it cost. I know better than anyone here what it cost me.$B$BStop helping him.', 0),
+(77204, 1, 'So you are his. You do not know what you have been doing, do you?$B$B<The ranger in the black hood looks at you a moment longer than she needs to.>$B$B...$n.$B$B<She stops herself.>$B$BNo. You do not know me. Not yet. Where I come from, you and I have stood together through more than I will ever tell you, and if I told you any of it now, you would go looking for it, and you would not find it the way you did. So I will not.$B$BChromie says you were taken from the eve of the Broken Shore.$B$B<Something crosses her face and is gone.>$B$BOf course you were.$B$B<She lowers her voice.>$B$BI am Sylvanas Windrunner. To everyone else on this temple I am a ranger passing through, and that is how it stays: the woman who wears my name in this year must never learn that I am here. I did not come here for your forgiveness.$B$BWhatever Eternus has promised you, Timerunner, the war against the Lich King must happen as it did. Every battle. Every grave. I know what it cost. I know better than anyone here what it cost me.$B$BStop helping him.', 0),
 (77205, 1, 'Sylvanas Windrunner. The bronze sends the woman who will one day set a world tree burning with its people inside it, to lecture you on what must not change.$B$BI will not pretend the war I want is safe. I want it kinder. That is all I have ever wanted.$B$BKeep going, champion. Moratari will see you back to the front.', 0),
 (77215, 1, 'Sylvanas Windrunner. The bronze sends the woman who will one day set a world tree burning with its people inside it, to lecture you on what must not change.$B$BI will not pretend the war I want is safe. I want it kinder. That is all I have ever wanted.$B$BKeep going, champion. Moratari will see you back to the front.', 0),
 (77201, 1, 'Hold on to something. The High Commander does not like to be kept waiting.', 0),
 (77211, 1, 'Hold on. Saurfang the Younger is a good man to stand beside. Remember that.', 0),
-(77206, 1, 'Here is the whole of it, champion. At the Wrathgate, the Forsaken''s Royal Apothecary Society will turn on everyone there: Alliance, Horde and Scourge alike. Their plague will kill Bolvar Fordragon and Dranosh Saurfang, and thousands with them.$B$BMy loyalists are already on the cliffs above the gate, where Putress''s men will stand. Before the plague is loosed, they strike. Bolvar walks home. Saurfang''s son walks home.$B$BAnd you will lead them.', 0),
-(77216, 1, 'Here is the whole of it, champion. At the Wrathgate, the Forsaken''s Royal Apothecary Society will turn on everyone there: Horde, Alliance and Scourge alike. Their plague will kill Dranosh Saurfang and Bolvar Fordragon, and thousands with them.$B$BMy loyalists are already on the cliffs above the gate, where Putress''s men will stand. Before the plague is loosed, they strike. Saurfang''s son walks home to his father. Bolvar walks home.$B$BAnd you will lead them.', 0),
+(77206, 1, 'Here is the whole of it, champion. At the Wrathgate, the Forsaken''s Royal Apothecary Society will turn on everyone there: Alliance, Horde and Scourge alike. Dranosh Saurfang will fall to the Lich King''s own blade before the gate, and then their plague will take Bolvar Fordragon, and thousands with him.$B$BMy loyalists are already on the cliffs above the gate, where Putress''s men will stand. Before the plague is loosed, they strike, and one of mine will be at Saurfang''s side when the gate opens. Bolvar walks home. Saurfang''s son walks home.$B$BAnd you will lead them.', 0),
+(77216, 1, 'Here is the whole of it, champion. At the Wrathgate, the Forsaken''s Royal Apothecary Society will turn on everyone there: Horde, Alliance and Scourge alike. Dranosh Saurfang will fall to the Lich King''s own blade before the gate, and then their plague will take Bolvar Fordragon, and thousands with him.$B$BMy loyalists are already on the cliffs above the gate, where Putress''s men will stand. Before the plague is loosed, they strike, and one of mine will be at Saurfang''s side when the gate opens. Saurfang''s son walks home to his father. Bolvar walks home.$B$BAnd you will lead them.', 0),
 (77207, 1, 'I kept Eternus''s records for longer than you have been alive, $n. I believed every word of them.$B$BI have seen it now with my own eyes: the road where Bolvar lives ends at a throne no one holds. Eternus knew. He knew, and he brought you here anyway.$B$BSo. We were on the wrong side, you and I. Now we are not. Sylvanas and Alleria will stay at the Bazaar with me. Eternus will not stop. Neither will we.', 0),
 (77208, 1, 'That is the last of them, for today. Eternus will be back; he is too stubborn not to be.$B$BGo to the Highlord now. He will send you to the Dragonqueen, and then to the gate, and it will happen as it did.$B$BI am sorry, $n. That is the hard part of all this: we fought to make sure it happens.', 0),
 (77218, 1, 'That is the last of them, for today. Eternus will be back; he is too stubborn not to be.$B$BGo to Saurfang''s son now. He will send you to the Dragonqueen, and then to the gate, and it will happen as it did.$B$BI am sorry, $n. That is the hard part of all this: we fought to make sure it happens.', 0),
@@ -165,16 +166,16 @@ INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`)
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
   77211, 77212, 77213, 77215, 77216, 77218, 77221, 77222);
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
-(@MORATARI, 77203), (@MORATARI, 77213), (@CHROMIE, 77204), (@SYLVANAS, 77205), (@SYLVANAS, 77215),
+(@MORATARI, 77203), (@MORATARI, 77213), (@CHROMIE, 77204), (@SYLVANAS_ABROAD, 77205), (@SYLVANAS_ABROAD, 77215),
 (@MORATARI, 77201), (@MORATARI, 77211), (@MORATARI, 77206), (@MORATARI, 77216), (@ETERNUS, 77207),
 (@SYLVANAS, 77208), (@SYLVANAS, 77218),
 (@MORATARI, 77202), (@MORATARI, 77212), (@MORATARI, 77221), (@MORATARI, 77222);
 DELETE FROM `creature_questender` WHERE `quest` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
   77211, 77212, 77213, 77215, 77216, 77218, 77221, 77222);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
-(@MORATARI, 77203), (@MORATARI, 77213), (@SYLVANAS, 77204), (@ETERNUS, 77205), (@ETERNUS, 77215),
+(@MORATARI, 77203), (@MORATARI, 77213), (@SYLVANAS_ABROAD, 77204), (@ETERNUS, 77205), (@ETERNUS, 77215),
 (@MORATARI, 77201), (@MORATARI, 77211), (@ETERNUS, 77206), (@ETERNUS, 77216), (@MORATARI, 77207),
-(@ALLERIA, 77208), (@ALLERIA, 77218),
+(@ALLERIA_ABROAD, 77208), (@ALLERIA_ABROAD, 77218),
 (@MORATARI, 77202), (@MORATARI, 77212), (@MORATARI, 77221), (@MORATARI, 77222);
 
 -- Where a quest takes the Timerunner as it's taken (WrathRemix.cpp): to the Bazaar, before
@@ -259,7 +260,9 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 -- Who is seen where (type 30: object visibility, for the player; a spawn's own conditions, by its
 -- guid, or every spawn of an entry's, guid 0). Conditions of one ElseGroup must all hold; any one
 -- ElseGroup will do. Quest states: 2 objectives done, 8 in progress, 64 turned in.
-DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND `SourceEntry` IN (@MORATARI, @ETERNUS, @SYLVANAS, @ALLERIA, @INTERLOPER);
+-- (only its own: the later chapters' files have conditions for these people too)
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceEntry` = @INTERLOPER OR
+  (`SourceEntry` IN (@MORATARI, @ETERNUS, @SYLVANAS, @ALLERIA, @SYLVANAS_ABROAD, @ALLERIA_ABROAD) AND `SourceId` IN (7704011, 7704012, 7704013, 7704014, 7704033, 7704034, 7704035)));
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 -- The Bazaar: Eternus until the turn is done; its own Moratari but while the turn's scene plays;
@@ -269,15 +272,15 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (30, 0, @SYLVANAS, 7704013, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at the Bazaar after The Weight of Time'),
 (30, 0, @ALLERIA, 7704014, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at the Bazaar after The Weight of Time'),
 -- Atop Wyrmrest Temple: from Strangers Out of Time until Ask Him Yourself is turned in.
-(30, 0, @SYLVANAS, 7704033, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at Wyrmrest from Strangers Out of Time'),
-(30, 0, @SYLVANAS, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
-(30, 0, @SYLVANAS, 7704033, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
-(30, 0, @ALLERIA, 7704034, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Wyrmrest from Strangers Out of Time'),
-(30, 0, @ALLERIA, 7704034, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
-(30, 0, @ALLERIA, 7704034, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at Wyrmrest from Strangers Out of Time'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Wyrmrest from Strangers Out of Time'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
 -- The Wrathgate's cliffs: Alleria during The Hour of the Gate, the loyalists while it's being done.
-(30, 0, @ALLERIA, 7704035, 0, 47, 0, 77208, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria on the cliffs during The Hour of the Gate'),
-(30, 0, @ALLERIA, 7704035, 1, 47, 0, 77218, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
+(30, 0, @ALLERIA_ABROAD, 7704035, 0, 47, 0, 77208, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria on the cliffs during The Hour of the Gate'),
+(30, 0, @ALLERIA_ABROAD, 7704035, 1, 47, 0, 77218, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
 (30, 0, @INTERLOPER, 0, 0, 47, 0, 77208, 8, 0, 0, 0, 0, '', 'Wrath Remix: Eternus''s loyalists, for The Hour of the Gate'),
 (30, 0, @INTERLOPER, 0, 1, 47, 0, 77218, 8, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s');
 

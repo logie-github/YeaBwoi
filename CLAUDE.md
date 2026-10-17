@@ -41,4 +41,4 @@ realm), `com.logie.warcraft.turtle` (its code, every file operation through `tur
 
 The World of Warcraft app's third game, Felsong (Legion 7.3.5) on LegionCore, kept apart like
 Turtle: `warcraft/FELSONG.md` (the brief, what was found, the plan; the client on a phone is the
-open question). Not released: the user releases it once it's playable.
+open question). Its launcher is in the releases (from build 77), saying it isn't playable; the game isn't yet.

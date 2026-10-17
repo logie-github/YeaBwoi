@@ -6,10 +6,32 @@
 void AddWrathRemixScripts();
 void AddRemixNpcScripts();
 void AddRemixReportScripts();
+void AddRemixSceneScripts();
+void AddRemixEndingScripts();
+void AddRemixLastHourScripts();
+void AddRemixSoloScripts();
+void AddRemixFrozenHallsScripts();
+void AddRemixHourglassScripts();
+void AddPlayerSavesScripts();
+void AddRemixGuideScripts();
+void AddRemixBazaarScripts();
+void AddRemixIntroScripts();
+void AddRemixLessonScripts();
 
 void Addmod_wrath_remixScripts()
 {
     AddWrathRemixScripts();
     AddRemixNpcScripts();
     AddRemixReportScripts();
+    AddRemixSceneScripts();
+    AddRemixEndingScripts();
+    AddRemixLastHourScripts();
+    AddRemixSoloScripts();
+    AddRemixFrozenHallsScripts();
+    AddRemixHourglassScripts();
+    AddPlayerSavesScripts();
+    AddRemixGuideScripts();
+    AddRemixBazaarScripts();
+    AddRemixIntroScripts();
+    AddRemixLessonScripts();
 }

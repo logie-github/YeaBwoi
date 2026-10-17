@@ -86,3 +86,94 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77301, 77302, 77311, 77321);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
 (77301, 800), (77311, 800), (77302, 500), (77321, 1500);
+
+-- After the turn (STORY.md, Chapter III): Alleria's chapter. Eternus's agents have set Temporal
+-- Anchors around Ursoc's Den, to wind the Bear God back to before Vordrassil's roots reached what
+-- lies beneath; she has heard that voice's cousins, and knows it will only find another ear.
+--
+--   WRM-303  Alliance  Alleria, beside Hierophant Thayreen once Vordrassil's Sapling (12248) is
+--                      done: break three Temporal Anchors, then Alleria at Ursoc's Den.
+--   WRM-313  Horde     the same, beside Windseer Grayhorn once The Bear God's Offspring (12231) is.
+--   Ursoc, the Bear God (12249, 12236) waits for it.
+--
+-- Its scenes (wrath_remix_world_0014_scenes.sql): Alleria as it's taken, and again beside the
+-- Bear God's quest giver as Ursoc's quest is turned in. Spawns 7704310 to 7704329.
+
+SET @ALLERIA_ABROAD := 770015, @ANCHOR := 770042, @REWINDER := 770043;
+
+DELETE FROM `quest_template` WHERE `ID` IN (77303, 77313);
+INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `RewardXPDifficulty`, `RewardMoney`, `Flags`,
+  `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `QuestCompletionLog`,
+  `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `VerifiedBuild`) VALUES
+(77303, 2, 40, 32, 394, 5, 0, 0, 1101,
+ 'The Hollow Crown',
+ 'Break 3 Temporal Anchors around Ursoc''s Den, then speak with Alleria Windrunner there.',
+ 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.',
+ 'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0),
+(77313, 2, 40, 32, 394, 5, 0, 0, 690,
+ 'The Hollow Crown',
+ 'Break 3 Temporal Anchors around Ursoc''s Den, then speak with Alleria Windrunner there.',
+ 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.',
+ 'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0);
+
+DELETE FROM `quest_template_addon` WHERE `ID` IN (77303, 77313);
+-- (The Alliance's opens with Vordrassil's Sapling turned in, as a condition below: as its
+-- PrevQuestID, the core would ask for all of the Sapling's exclusive group, -12248, too.)
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77303, 0), (77313, 12231);
+
+DELETE FROM `quest_offer_reward` WHERE `ID` IN (77303, 77313);
+INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
+(77303, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BHierophant Thayreen is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0),
+(77313, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BWindseer Grayhorn is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0);
+
+DELETE FROM `creature_queststarter` WHERE `quest` IN (77303, 77313);
+INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@ALLERIA_ABROAD, 77303), (@ALLERIA_ABROAD, 77313);
+DELETE FROM `creature_questender` WHERE `quest` IN (77303, 77313);
+INSERT INTO `creature_questender` (`id`, `quest`) VALUES (@ALLERIA_ABROAD, 77303), (@ALLERIA_ABROAD, 77313);
+
+-- Ursoc, the Bear God waits for The Hollow Crown, which waits for Vordrassil's Sapling.
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12249, 12236, 77303);
+INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
+  `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
+(19, 0, 12249, 0, 0, 8, 0, 77303, 0, 0, 0, 0, 0, '', 'Wrath Remix: Ursoc, the Bear God after The Hollow Crown'),
+(19, 0, 12236, 0, 0, 8, 0, 77313, 0, 0, 0, 0, 0, '', 'Wrath Remix: Ursoc, the Bear God after The Hollow Crown'),
+(19, 0, 77303, 0, 0, 8, 0, 12248, 0, 0, 0, 0, 0, '', 'Wrath Remix: The Hollow Crown after Vordrassil''s Sapling');
+
+-- Alleria beside Thayreen and Grayhorn (a step to their right), and at Ursoc's Den beside Tur
+-- Ragepaw; the anchors around the den's mouth, where the maulers wander, each with a Rewinder.
+DELETE FROM `creature` WHERE `guid` BETWEEN 7704310 AND 7704329;
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`)
+SELECT 7704310 + n, @ALLERIA_ABROAD, c.`map`, 1, c.`phaseMask`, 0,
+  c.`position_x` + 2.5 * COS(c.`orientation` - PI() / 2), c.`position_y` + 2.5 * SIN(c.`orientation` - PI() / 2),
+  c.`position_z`, c.`orientation`, 60, 0, 0, CONCAT('Wrath Remix: Alleria Windrunner, ', what)
+FROM `creature` c JOIN (
+  SELECT 0 AS n, 110818 AS beside, 'WRM-303, Amberpine Lodge (Hierophant Thayreen)' AS what UNION ALL
+  SELECT 1, 107481, 'WRM-313, Conquest Hold (Windseer Grayhorn)' UNION ALL
+  SELECT 2, 114077, 'WRM-303 and WRM-313, Ursoc''s Den (Tur Ragepaw)'
+) b ON c.`guid` = b.beside;
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
+(7704315, @ANCHOR,   571, 1, 1, 0, 4681.5, -3853.0, 327.4, 0, 180, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
+(7704316, @ANCHOR,   571, 1, 1, 0, 4694.0, -3866.5, 327.4, 0, 180, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
+(7704317, @ANCHOR,   571, 1, 1, 0, 4700.0, -3845.0, 327.4, 0, 180, 0, 0, 'Wrath Remix: Temporal Anchor, Ursoc''s Den'),
+(7704318, @REWINDER, 571, 1, 1, 0, 4684.5, -3857.0, 327.4, 2.40, 180, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den'),
+(7704319, @REWINDER, 571, 1, 1, 0, 4690.0, -3870.0, 327.4, 1.20, 180, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den'),
+(7704320, @REWINDER, 571, 1, 1, 0, 4697.0, -3849.0, 327.4, 3.90, 180, 0, 0, 'Wrath Remix: Infinite Rewinder, Ursoc''s Den');
+
+-- Who is seen where: Alleria at the lodges from the chain's last quest until The Hollow Crown is
+-- turned in, at the den while it's being done; the anchors and their Rewinders while it is.
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceId` BETWEEN 7704310 AND 7704329 OR `SourceEntry` IN (@ANCHOR, @REWINDER));
+INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
+  `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
+(30, 0, @ALLERIA_ABROAD, 7704310, 0, 8, 0, 12248, 0, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Amberpine Lodge after Vordrassil''s Sapling'),
+(30, 0, @ALLERIA_ABROAD, 7704310, 0, 8, 0, 77303, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until The Hollow Crown'),
+(30, 0, @ALLERIA_ABROAD, 7704311, 0, 8, 0, 12231, 0, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Conquest Hold after The Bear God''s Offspring'),
+(30, 0, @ALLERIA_ABROAD, 7704311, 0, 8, 0, 77313, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until The Hollow Crown'),
+(30, 0, @ALLERIA_ABROAD, 7704312, 0, 47, 0, 77303, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Ursoc''s Den during The Hollow Crown'),
+(30, 0, @ALLERIA_ABROAD, 7704312, 1, 47, 0, 77313, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
+(30, 0, @ANCHOR, 0, 0, 47, 0, 77303, 8, 0, 0, 0, 0, '', 'Wrath Remix: the Temporal Anchors, for The Hollow Crown'),
+(30, 0, @ANCHOR, 0, 1, 47, 0, 77313, 8, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),
+(30, 0, @REWINDER, 0, 0, 47, 0, 77303, 8, 0, 0, 0, 0, '', 'Wrath Remix: the Rewinders, for The Hollow Crown'),
+(30, 0, @REWINDER, 0, 1, 47, 0, 77313, 8, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s');
+
+DELETE FROM `remix_quest_reward` WHERE `quest` IN (77303, 77313);
+INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES (77303, 2500), (77313, 2500);

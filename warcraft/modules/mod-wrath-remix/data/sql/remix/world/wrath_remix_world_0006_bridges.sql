@@ -10,6 +10,10 @@
 -- Eternus's first kindness, on each side (WRM-017, WRM-018): a squad history lost, saved. Each opens
 -- the chain's next quest. The Alliance's then goes on to Mark Hanes (WRM-019), whose Word on the
 -- Street the game leaves to be found.
+--
+-- (Until build 90, wrath_remix_world_0003_prologue.sql's deletes of the first prologue's quests,
+-- 77001 to 77009, took the Alliance's transition, 77006, out whenever that file changed and this
+-- one didn't: this note makes this file change too, so it comes back.)
 
 SET @MORATARI := 770001, @MARK_HANES := 26155;
 
@@ -120,7 +124,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77017, 2, 16, 10, 3537, 5, 0, 0, 1101,
  'A Kindness Out of Time',
  'Slay 8 Crypt Crawlers on the beach below Valiance Keep, then return to Moratari.',
- 'Eternus has his first kindness for you, $n.$B$BThe beach below the keep is quieter now, thanks to you. It does not stay quiet. Tonight a squad of the 7th Legion goes down to the shore to clear the last of the crypt crawlers, and in the record I have, none of them come back up. Within the week they are wearing Scourge colours.$B$BClear the crawlers before the squad goes down, and they will not need to. It is a small change. Eternus believes small changes are where history is kindest.',
+ 'Eternus has his first kindness for you, $n.$B$BThe beach below the keep is quieter now, thanks to you. It does not stay quiet. Tonight a squad of the 7th Legion goes down to the shore to clear the last of the crypt crawlers, and in the record I have, none of them come back up. Within the week they are wearing Scourge colors.$B$BClear the crawlers before the squad goes down, and they will not need to. It is a small change. Eternus believes small changes are where history is kindest.',
  'Return to Moratari.',
  25227, 8, '', 0),
 (77018, 2, 16, 10, 3537, 5, 0, 0, 690,

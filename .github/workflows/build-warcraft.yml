@@ -152,7 +152,7 @@ jobs:
     needs: [server]
     if: needs.server.outputs.tested != 'true'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
 
@@ -172,8 +172,10 @@ jobs:
           echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
           df -h / | tail -1
 
+      # (Wrath Remix's campaign is played to its end on each side, scenes and all: about 95
+      # minutes on a 4-core x86_64 machine, longer under strace)
       - name: Test the server
-        timeout-minutes: 100
+        timeout-minutes: 210
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
           scripts/test-warcraft-server.sh
@@ -443,9 +445,10 @@ jobs:
   # account's artifact storage is full, and releases are what the phone downloads anyway).
   apk:
     name: Build World of Warcraft APK
-    needs: [unit-tests, server, server-test, windows-tools, turtle-server]
-    # server-test is skipped when it passed before on the same inputs; anything failed or
-    # cancelled stops the APK.
+    # The server test (server-test: hours, with Wrath Remix's whole campaign on each side) runs
+    # alongside and doesn't hold the release back, at the user's choice: they play the build
+    # themselves; its result is on the run. Anything here failed or cancelled stops the APK.
+    needs: [unit-tests, server, windows-tools, turtle-server]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -577,7 +580,7 @@ jobs:
 
           Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client: **Game files → Your client → Pick folder** (or **Pick zip**) copies it into the app, then **Press start** starts the realm and the game.
 
-          **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), which this build was tested with: CI started the world server on it and took a character into the world. **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
+          **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), the data CI tests this build's server on (the test runs alongside the release, not before it: its result is on the build's run). **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
 
           **Turtle WoW — Vanilla+** (a second game, switched to from the launcher): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), installed from the Turtle WoW launcher in one tap, with your own Turtle WoW 1.18.1 (7272) client. Nothing of the 3.3.5a game changes.
 
