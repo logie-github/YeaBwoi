@@ -11,6 +11,7 @@ self-updating from this repository's GitHub releases.
 | `azuredreams/` | Azure Dreams | `com.logie.azure` | SwanStation core + LibretroDroid |
 | `parasiteeve/` | Parasite Eve | `com.logie.pe` | Beetle PSX HW core + LibretroDroid |
 | `warcraft/` | World of Warcraft 3.3.5a: ChromieCraft and Wrath Remix realms, the game on Winlator | `com.logie.warcraft` | AzerothCore/ChromieCraft + playerbots (musl arm64), `mod-wrath-remix`, Winlator |
+| `warcraftrts/` | Warcraft Collection: Warcraft I and II Remastered, Warcraft III RoC/TFT 1.30, offline | `com.logie.warcraftrts` | Winlator (the WoW app's commit) |
 
 - **How the apps are made, tested and released:** `docs/single-game-apps.md`. Read it before
   building or changing an app.
@@ -42,3 +43,11 @@ realm), `com.logie.warcraft.turtle` (its code, every file operation through `tur
 The World of Warcraft app's third game, Felsong (Legion 7.3.5) on LegionCore, kept apart like
 Turtle: `warcraft/FELSONG.md` (the brief, what was found, the plan; the client on a phone is the
 open question). Its launcher is in the releases (from build 77), saying it isn't playable; the game isn't yet.
+
+## Warcraft Collection
+
+A separate app (`warcraftrts/`, `com.logie.warcraftrts`): Warcraft I Remastered, Warcraft II
+Remastered and Warcraft III (Reign of Chaos and The Frozen Throne, 1.30) from the user's files on
+Winlator, offline (Blizzard's names blocked in the runtime's hosts file), with RTS touch gestures
+and quick keys. The brief: `warcraftrts/PLAN.md`; the manual: `warcraftrts/README.md`. Its Winlator
+comes from `scripts/prepare-winlator-app.sh warcraftrts` (the WoW app keeps its own script).
