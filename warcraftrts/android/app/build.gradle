@@ -1,0 +1,128 @@
+plugins {
+	id 'com.android.application'
+	id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+// CI passes the app's identity, version, signing key and update source as Gradle properties
+// (-Prts...). Local builds fall back to these defaults.
+def rtsProperty = { String name, String fallback ->
+	project.hasProperty(name) ? project.property(name).toString() : fallback
+}
+def rtsKeystore = rtsProperty("keystore", "")
+
+// The games' runtime, Winlator, built into this module (scripts/prepare-winlator-app.sh warcraftrts
+// puts it in ../winlator): its Java code, resources, native code, prebuilt libraries and assets.
+def winlator = file("../winlator")
+if (!new File(winlator, "java").isDirectory()) {
+	throw new GradleException("Winlator isn't in warcraftrts/android/winlator: run scripts/prepare-winlator-app.sh warcraftrts")
+}
+
+android {
+	namespace = "com.logie.warcraftrts"
+	compileSdk = 35
+
+	buildFeatures {
+		buildConfig = true
+		compose = true
+	}
+
+	defaultConfig {
+		applicationId = rtsProperty("rtsApplicationId", "com.logie.warcraftrts")
+		minSdk = 26
+		// 28, like Termux and Winlator: Android lets apps that target 28 or lower run programs from
+		// their own storage, which is where the games' Wine runs from.
+		//noinspection ExpiredTargetSdkVersion
+		targetSdk = 28
+		versionCode = rtsProperty("rtsVersionCode", "1").toInteger()
+		versionName = rtsProperty("rtsVersionName", "1.0")
+
+		buildConfigField "String", "RTS_UPDATE_REPO", "\"${rtsProperty("rtsUpdateRepo", "")}\""
+		buildConfigField "String", "RTS_RELEASE_TAG_PREFIX", "\"${rtsProperty("rtsReleaseTagPrefix", "")}\""
+		buildConfigField "String", "RTS_UPDATE_TOKEN", "\"${rtsProperty("rtsUpdateToken", "")}\""
+
+		ndk {
+			// Phones only: the games' runtime is built for arm64.
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	// Winlator's native code (its X server, renderers, audio), with the NDK and CMake it's made for.
+	ndkVersion = "24.0.8215888"
+	externalNativeBuild {
+		cmake {
+			path = file("../winlator/cpp/CMakeLists.txt")
+			version = "3.22.1"
+		}
+	}
+
+	packaging {
+		jniLibs {
+			// Winlator loads its libraries from files (extractNativeLibs).
+			useLegacyPackaging = true
+		}
+	}
+
+	signingConfigs {
+		rts {
+			if (rtsKeystore) {
+				storeFile = file(rtsKeystore)
+				storePassword = rtsProperty("storepass", "")
+				keyAlias = rtsProperty("keyalias", "")
+				keyPassword = rtsProperty("keypass", "")
+			}
+		}
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled = true
+			// Winlator looks some of its resources up by name.
+			shrinkResources = false
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+			signingConfig = rtsKeystore ? signingConfigs.rts : signingConfigs.debug
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	sourceSets {
+		main {
+			assets.srcDirs += ['../winlator/assets']
+			java.srcDirs += ['../winlator/java']
+			res.srcDirs += ['../winlator/res']
+			jniLibs.srcDirs += ['../winlator/jniLibs']
+		}
+	}
+
+	androidResources {
+		// Already compressed.
+		noCompress += ['tzst']
+	}
+
+	lint {
+		abortOnError = false
+		checkReleaseBuilds = false
+	}
+}
+
+dependencies {
+	implementation 'androidx.appcompat:appcompat:1.6.1'
+	implementation 'androidx.core:core-ktx:1.12.0'
+	implementation 'com.google.android.material:material:1.11.0'
+	implementation platform('androidx.compose:compose-bom:2025.04.00')
+	implementation 'androidx.compose.ui:ui'
+	implementation 'androidx.compose.material3:material3'
+	implementation 'androidx.compose.material:material-icons-extended'
+	implementation 'androidx.activity:activity-compose:1.9.3'
+	implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+	// Winlator's (its archives: tar, xz, zstd).
+	implementation 'org.apache.commons:commons-compress:1.27.1'
+	implementation 'org.tukaani:xz:1.10'
+	implementation 'androidx.preference:preference:1.2.1'
+	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
+}

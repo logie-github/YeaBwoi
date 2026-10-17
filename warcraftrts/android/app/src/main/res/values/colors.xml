@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rts_abyss">#FF02060B</color>
+    <color name="rts_deep">#FF0B1E30</color>
+    <color name="rts_accent">#FF7FD8F8</color>
+</resources>

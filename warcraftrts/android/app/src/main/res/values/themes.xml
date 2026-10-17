@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WarcraftRts" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/rts_abyss</item>
+        <item name="colorPrimary">@color/rts_accent</item>
+        <item name="colorOnPrimary">@color/rts_abyss</item>
+        <item name="colorSurface">@color/rts_deep</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- The update dialogs, over whatever screen opened them. -->
+    <style name="Theme.WarcraftRts.Overlay">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>
