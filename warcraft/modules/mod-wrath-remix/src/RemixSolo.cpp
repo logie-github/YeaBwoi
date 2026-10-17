@@ -29,6 +29,8 @@
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include <cmath>
+#include <mutex>
+#include <unordered_map>
 
 using namespace WrathRemix;
 
@@ -152,16 +154,22 @@ public:
     {
         if (creature->GetEntry() != NPC_VALITHRIA_DREAMWALKER || !creature->IsAlive() || !creature->IsInCombat() || !FewInIcecrown(creature->GetMap()))
             return;
-        menders += diff;
-        if (menders < 1000)
-            return;
-        menders = 0;
+        // (each Valithria her own second: the maps update on several threads)
+        {
+            std::lock_guard<std::mutex> lock(mendersLock);
+            uint32& since = menders[creature->GetGUID()];
+            since += diff;
+            if (since < 1000)
+                return;
+            since = 0;
+        }
         if (creature->GetHealth() < creature->GetMaxHealth())
             creature->ModifyHealth(int32(creature->CountPctFromMaxHealth(1)));
     }
 
 private:
-    uint32 menders = 0;
+    std::mutex mendersLock;
+    std::unordered_map<ObjectGuid, uint32> menders;
 };
 
 void AddRemixSoloScripts()
