@@ -82,6 +82,19 @@ hour sit, eat the cook's stew and talk about home. Porters and wardens make thei
 get underfoot, and while you are near, people talk: to the air, or to each other. While they are
 here, the Bronze dragons and the Infinite wear mortal shapes: elves, orcs, humans, gnomes.
 
+## The opening
+
+Before the Bazaar, the war's end (`src/RemixIntro.cpp`): the Broken Front in Icecrown, the Citadel
+ahead. The Timerunner arrives as the hero they are in their own time, the Light's wings on them,
+beside Highlord Tirion Fordring and the Argent Crusade, with the Skybreaker's marines or the
+Kor'kron. Ghouls claw out of the snow at the Lich King's word, abominations and crypt fiends
+follow, frost bombs and plague burst across the field, a frost wyrm strafes the line, the val'kyr
+come at his call. Then the Lich King himself, and the Scourge kneel. Tirion charges him ("ARTHAS! I
+swore that I would see you dead..."); the winter takes the paladin to his knee; Arthas turns to the
+Timerunner ("You. You do not belong to this hour."), and raises Frostmourne. Time stops. Moratari
+steps out of a rift; Eternus's voice: this is where the war ends, every time, remember it when he
+asks for help changing it. Moratari pulls them out, to the Bazaar, years earlier. Played once.
+
 ## Prologue: the Infinite Bazaar (level 10)
 
 1. **WRM-010 Out of Time** (Moratari, beside you as you wake → Eternus, a few steps away). Moratari

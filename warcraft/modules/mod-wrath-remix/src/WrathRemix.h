@@ -179,6 +179,7 @@ namespace WrathRemix
         // Moratari's Hourglass to take them back to.
         int32 backMap = -1;
         float backX = 0.0f, backY = 0.0f, backZ = 0.0f, backO = 0.0f;
+        bool intro = false;  // been through the opening (RemixIntro.cpp)
         bool dirty = false;
     };
 
@@ -232,6 +233,7 @@ namespace WrathRemix
     void SetChapter(Player* player, uint8 chapter);
     void SetKit(Player* player, uint8 version);
     void SetWayBack(Player* player, int32 map, float x, float y, float z, float o);
+    void SetIntroSeen(Player* player);
     // A line in a Timerunner's journal (remix_log), where they are: what ("accept", "talk",
     // "bridge"...), its quest, creature or other entry, and an amount.
     void Record(Player* player, char const* what, uint32 entry, int32 amount);
@@ -269,6 +271,11 @@ namespace WrathRemix
     // Moratari's Hourglass (RemixHourglass.cpp): in every Timerunner's bags from the moment they
     // wake at the Bazaar; anywhere, it takes them to the Bazaar; there, back where they came from.
     bool AtTheBazaar(Player* player);
+
+    // The opening (RemixIntro.cpp): whether a Timerunner is in it; play it, or end it now.
+    bool InIntro(Player* player);
+    void PlayIntro(Player* player);
+    void SkipIntro(Player* player);
     void GiveHourglass(Player* player);
 
     // The Bazaar's people talking while a Timerunner is about (RemixBazaar.cpp): the AI the camp's

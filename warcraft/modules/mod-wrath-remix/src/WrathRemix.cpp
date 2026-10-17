@@ -373,7 +373,7 @@ namespace WrathRemix
     void Load(Player* player)
     {
         Timerunner t;
-        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter`, `kit`, `back_map`, `back_x`, `back_y`, `back_z`, `back_o` "
+        if (QueryResult result = CharacterDatabase.Query("SELECT `bronze`, `bronze_earned`, `chapter`, `kit`, `back_map`, `back_x`, `back_y`, `back_z`, `back_o`, `intro` "
             "FROM `remix_character` WHERE `guid` = {}", player->GetGUID().GetCounter()))
         {
             Field* f = result->Fetch();
@@ -386,6 +386,7 @@ namespace WrathRemix
             t.backY = f[6].Get<float>();
             t.backZ = f[7].Get<float>();
             t.backO = f[8].Get<float>();
+            t.intro = f[9].Get<uint8>() != 0;
         }
         else
             t.dirty = true;
@@ -404,9 +405,9 @@ namespace WrathRemix
             it->second.dirty = false;
             t = it->second;
         }
-        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`, `kit`, `back_map`, `back_x`, `back_y`, `back_z`, `back_o`) "
-            "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
-            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter, t.kit, t.backMap, t.backX, t.backY, t.backZ, t.backO);
+        CharacterDatabase.Execute("REPLACE INTO `remix_character` (`guid`, `bronze`, `bronze_earned`, `chapter`, `kit`, `back_map`, `back_x`, `back_y`, `back_z`, `back_o`, `intro`) "
+            "VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+            player->GetGUID().GetCounter(), t.bronze, t.earned, t.chapter, t.kit, t.backMap, t.backX, t.backY, t.backZ, t.backO, t.intro ? 1 : 0);
     }
 
     void Forget(Player* player)
@@ -501,6 +502,17 @@ namespace WrathRemix
             t.backY = y;
             t.backZ = z;
             t.backO = o;
+            t.dirty = true;
+        }
+        Save(player);
+    }
+
+    void SetIntroSeen(Player* player)
+    {
+        {
+            std::lock_guard<std::mutex> lock(timerunnersLock);
+            Timerunner& t = timerunners[player->GetGUID().GetCounter()];
+            t.intro = true;
             t.dirty = true;
         }
         Save(player);
@@ -1226,6 +1238,7 @@ public:
             { "solo",   HandleSolo,   SEC_GAMEMASTER, Console::No },
             { "hourglass", HandleHourglass, SEC_GAMEMASTER, Console::No },
             { "ground", HandleGround, SEC_GAMEMASTER, Console::No },
+            { "intro",  HandleIntro,  SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1293,6 +1306,25 @@ public:
     // .remix ground [RADIUS] [STEP] (game masters): the floor's height on a grid around the
     // character, a row a line (west to east, north to south; "-" where there is none within 30
     // yards), for placing things where they stand on it.
+    // .remix intro [skip]: the opening, for a game master (again, if it was seen); skip ends it now.
+    static bool HandleIntro(ChatHandler* handler, Optional<std::string> what)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        if (!Active())
+            return false;
+        if (what && *what == "skip")
+        {
+            SkipIntro(player);
+            handler->SendSysMessage("Wrath Remix intro: skipped.");
+        }
+        else
+        {
+            PlayIntro(player);
+            handler->SendSysMessage("Wrath Remix intro: playing.");
+        }
+        return true;
+    }
+
     static bool HandleGround(ChatHandler* handler, Optional<uint32> radius, Optional<uint32> step)
     {
         Player* player = handler->GetSession()->GetPlayer();

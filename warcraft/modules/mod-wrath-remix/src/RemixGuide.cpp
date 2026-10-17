@@ -412,7 +412,7 @@ namespace
 
     void Guide(Player* player)
     {
-        if (!Active() || !enabled || IsBot(player) || player->IsBeingTeleported())
+        if (!Active() || !enabled || IsBot(player) || player->IsBeingTeleported() || InIntro(player))
             return;
         Target target;
         if (Quest const* quest = Focus(player))
