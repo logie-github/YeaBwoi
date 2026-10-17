@@ -576,11 +576,17 @@ def run_script(session, player_guid, steps):
             if called:
                 say(session, ".npc follow stop")
                 session.pump(1.0, packets)
+                # (and nothing selected again: a GM command after it, .gps, would be about the
+                # creature)
+                session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+                session.pump(0.5, packets)
         elif word == "kill":
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(int(rest))))
             session.pump(0.5, packets)
             say(session, ".damage 100 pct")
             session.pump(3.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
         elif word == "select":
             entry, text = rest.split(" ", 1)
             guid = creature_guid(int(entry))
