@@ -12,6 +12,20 @@ cmd .cheat god on
 cmd .remix
 expect level 30
 
+# Dungeons and raids for one (WrathRemix.Solo.*): alone in Utgarde Keep, a fifth of its group (their
+# blows at 0.38, the Timerunner's at 3.93); alone in Icecrown Citadel, a tenth (0.25 and 7.08), and
+# the Citadel's group-only mechanics done for them.
+cmd .tele UtgardeKeepInstance
+wait 3
+cmd .remix solo
+expect map 574 (dungeon)
+expect share 0.20, their damage x0.38, yours x3.93, few in Icecrown: no
+cmd .tele ICCInstance
+wait 3
+cmd .remix solo
+expect map 631 (raid)
+expect share 0.10, their damage x0.25, yours x7.08, few in Icecrown: yes
+
 # Chapter II's story (STORY.md). WRM-203 (A Summons from Wyrmrest): Find Durkon! done.
 # Wintergarde's errands would come next; Into Hostile Territory isn't open yet, and
 # Moratari by Cavalier Durkon has the summons first.

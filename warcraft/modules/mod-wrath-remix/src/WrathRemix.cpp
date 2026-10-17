@@ -1164,6 +1164,7 @@ public:
             { "guid",   HandleGuid,   SEC_GAMEMASTER, Console::No },
             { "sees",   HandleSees,   SEC_GAMEMASTER, Console::No },
             { "return", HandleReturn, SEC_GAMEMASTER, Console::No },
+            { "solo",   HandleSolo,   SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -1207,6 +1208,15 @@ public:
         if (!Active())
             return false;
         ReturnToBazaarSoon(handler->GetSession()->GetPlayer(), 2s);
+        return true;
+    }
+
+    // .remix solo (game masters): what the solo scaling makes of the instance you're in.
+    static bool HandleSolo(ChatHandler* handler)
+    {
+        if (!Active())
+            return false;
+        handler->SendSysMessage(SoloReport(handler->GetSession()->GetPlayer()));
         return true;
     }
 

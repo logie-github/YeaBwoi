@@ -268,6 +268,8 @@ namespace WrathRemix
     float SoloDungeonDamage();
     float SoloRaidDamage();
     float SoloMaxBoost();
+    // What the scaling makes of the instance the player is in (.remix solo).
+    std::string SoloReport(Player* player);
 
     // Bronze amounts (WrathRemix.Bronze.*): enough over the story to buy everything the Bazaar sells
     // a class, once or twice over.

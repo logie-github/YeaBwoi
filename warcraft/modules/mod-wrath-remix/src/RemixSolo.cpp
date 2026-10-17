@@ -28,6 +28,7 @@
 #include "ScriptMgr.h"
 #include "SpellAuras.h"
 #include "SpellInfo.h"
+#include "StringFormat.h"
 #include <cmath>
 #include <mutex>
 #include <unordered_map>
@@ -79,6 +80,23 @@ namespace
     {
         return SoloActive() && map && map->GetId() == MAP_REMIX_ICC && GroupShare(map) < FEW;
     }
+}
+
+std::string WrathRemix::SoloReport(Player* player)
+{
+    Map* map = player->GetMap();
+    float share = GroupShare(map);
+    InstanceMap* instance = map->ToInstanceMap();
+    float theirs = 1.0f, yours = 1.0f;
+    if (SoloActive() && share < 1.0f)
+    {
+        theirs = std::max(map->IsRaid() ? SoloRaidDamage() : SoloDungeonDamage(), std::pow(share, 0.6f));
+        yours = std::min(SoloMaxBoost(), std::pow(share, -0.85f));
+    }
+    return Acore::StringFormat("Wrath Remix solo: map {} ({}), {} of {} players, share {:.2f}, their damage x{:.2f}, yours x{:.2f}, few in Icecrown: {}.",
+        map->GetId(), map->IsRaid() ? "raid" : (map->IsDungeon() ? "dungeon" : "world"),
+        map->GetPlayersCountExceptGMs(), instance ? instance->GetMaxPlayers() : 0, share, theirs, yours,
+        FewInIcecrown(map) ? "yes" : "no");
 }
 
 class WrathRemixSolo : public UnitScript
