@@ -54,12 +54,15 @@ object ClientMods {
         if ((hdInstalled(context) != HdPatches.Choice.OFF || hasModulePatch(context)) && File(WowFiles.client(context), PATCHED_EXE).isFile) PATCHED_EXE else "Wow.exe"
 
     /**
-     * The realm's modules' patch for the game is in its `Data` (`patch-M.MPQ`, put there by the
-     * realm's start: `ctl.sh modules`): mod-worgoblin's, mod-arac's... Its interface files only load
-     * in the patched executable.
+     * A module's patch for the game is in its `Data`: the realm's picked modules' (`patch-M.MPQ`, put
+     * there by the realm's start: `ctl.sh modules`; mod-worgoblin's, mod-arac's...) or the Skyborne's
+     * (`patch-Z.MPQ`, made by mod-skyborne as the world server starts). Their interface files only
+     * load in the patched executable.
      */
-    fun hasModulePatch(context: Context): Boolean =
-        File(WowFiles.client(context), "Data/patch-M.MPQ/realm-modules.stamp").isFile
+    fun hasModulePatch(context: Context): Boolean {
+        val data = File(WowFiles.client(context), "Data")
+        return File(data, "patch-M.MPQ/realm-modules.stamp").isFile || File(data, "patch-Z.MPQ.skyborne").isFile
+    }
 
     /** Makes the patched executable when the modules' patch needs it and it isn't there. Background thread. */
     fun prepareExe(context: Context) {

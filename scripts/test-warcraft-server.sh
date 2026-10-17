@@ -205,6 +205,14 @@ stop_world() {
 	tail -3 "$world_log"
 	echo "The world server shut down."
 }
+# A stand-in for the game the Skyborne's patch is made from (mod-skyborne): the server's tables as
+# the game's language archive (a folder, which the module reads like one). No textures in it.
+if [ -n "$DATA_ZIP" ]; then
+	game="$FILES/client/Data/enUS/locale-enUS.MPQ"
+	mkdir -p "$game/Interface/GlueXML"
+	ln -s "$FILES/data/dbc" "$game/DBFilesClient"
+	printf 'GlueParent.lua\r\nCharacterCreate.xml\r\n' > "$game/Interface/GlueXML/GlueXML.toc"
+fi
 start_world world.out
 jemalloc=""
 on_jemalloc() {
@@ -247,6 +255,28 @@ if [ -n "$DATA_ZIP" ]; then
 		tee "$FILES/logs/world-note.out" || fail "the realm didn't keep the add-on's note for the app"
 	[ "$(cat "$FILES/run/interface")" = "-" ] || fail "the add-on's note stayed after the logout"
 	echo "The realm kept the note, and cleared it at the logout."
+
+	echo "== the Skyborne (mod-skyborne)"
+	grep -E "Skyborne: The Skyborne's patch is in the game: 17 tables" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Skyborne's patch"
+	[ -s "$FILES/client/Data/patch-Z.MPQ" ] && [ -s "$FILES/client/Data/patch-Z.MPQ.skyborne" ] || fail "the Skyborne's patch isn't in the game"
+	for race in 13 14; do
+		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
+	done
+	# A warrior of the High Order in Northshire, a shaman of the Windshapers at Camp Narache, each with
+	# their racials.
+	printf 'cmd .gps\nexpect Northshire\n' > "$FILES/run/skyborne-alliance.steps"
+	printf 'cmd .gps\nexpect Camp Narache\n' > "$FILES/run/skyborne-horde.steps"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skyhighorder 13 1 "$FILES/run/skyborne-alliance.steps" |
+		tee "$FILES/logs/skyborne-alliance.out" || fail "the High Order's warrior didn't start in Northshire"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skywindshaper 14 7 "$FILES/run/skyborne-horde.steps" |
+		tee "$FILES/logs/skyborne-horde.out" || fail "the Windshapers' shaman didn't start at Camp Narache"
+	for who in Skyhighorder:98701,98703,98704,98705 Skywindshaper:98701,98702,98704,98705; do
+		name=${who%%:*} spells=${who#*:}
+		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
+		[ "$learned" = 4 ] || fail "$name has $learned of its 4 racials"
+	done
+	echo "The Skyborne start where their side's start races do, with their racials."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

@@ -20,6 +20,8 @@ self-updating from this repository's GitHub releases.
   (`warcraft/REMIX-GUIDE.md`) as `warcraft/modules/mod-wrath-remix` (its README). It must never
   change the ChromieCraft realm: its SQL goes into the Remix databases only, its module is off on
   realm 1. Where it stands and what's next: `warcraft/PLAN.md`.
+- **The Skyborne** (WoW: Forever's race, both realms): `warcraft/modules/mod-skyborne` (its README);
+  `tools/build_data.py` makes its data, committed.
 - Each app's `README.md` is its user manual; keep it current with every change.
 
 ## Rules
