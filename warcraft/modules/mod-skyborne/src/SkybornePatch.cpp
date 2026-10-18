@@ -25,7 +25,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-7";
+        constexpr char const* VERSION = "skyborne-8";
 
         Bytes ReadFile(fs::path const& path)
         {
