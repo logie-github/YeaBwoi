@@ -48,7 +48,7 @@ use-hourglass
 expect come here from nowhere yet
 
 # WRM-010, Out of Time: Moratari, a few steps from where the Timerunner arrives, sends them to
-# Eternus (Eternus is large, and she stands clear of him).
+# Eternus (Eternus is large, and she stands clear of her).
 go 571 5693.5 1018.0 175.0
 talk 770001
 expect quest 77010
@@ -57,7 +57,7 @@ go 571 5697.5 1019.5 175.0
 reward 770002 77010
 expect rewarded 77010
 
-# WRM-011, The Plan: Eternus answers what he wants, how it is done and why them.
+# WRM-011, The Plan: Eternus answers what she wants, how it is done and why them.
 talk 770002
 expect quest 77011
 accept 770002 77011

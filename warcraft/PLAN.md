@@ -841,7 +841,7 @@ for the game on the phone itself ("that's the whole point").
   bronze dragonflight brings her and Alleria (her stake: a changed Lich King story loses the souls
   she's atoning for); the 3.3.5 Sylvanas is alive in the Undercity (two Sylvanases: the future one
   keeps out of her own sight); the argument lands hardest at the Wrathgate (Bolvar must burn there
-  to take the Helm after Arthas and hold the Scourge); Eternus's motive: he believes a kinder
+  to take the Helm after Arthas and hold the Scourge); Eternus's motive: she believes a kinder
   timeline is possible and won't let it go. Her motive as read back and confirmed: she'd gain the
   most if Arthas's story changed (he killed her and made her a banshee), which is why her
   insisting it stay is what convinces.
@@ -858,7 +858,7 @@ for the game on the phone itself ("that's the whole point").
     and when you are and why you're weaker; Eternus shows three of the war's dead (echoes with the
     real people's looks: a Valiance Keep footman, Saurfang the Younger, Bolvar, all at the Bazaar
     in plain sight; the old prologue's third echo was most likely its big dark Icecrown model at
-    half transparency, in a dim cave) and makes his offer; Alurmi and the class instructor (a
+    half transparency, in a dim cave) and makes her offer; Alurmi and the class instructor (a
     credit any instructor gives as they're spoken to; they have the gossip flag now, so the game
     asks them for it before their lessons) and the hearthstone; the anomalies; and the front,
     Valiance Keep or Warsong Hold, before the officer who enlists (no choice of coast). The first
@@ -990,8 +990,8 @@ for the game on the phone itself ("that's the whole point").
     Argus, Xal'atath's title, Sylvanas at the top of the citadel).
   - Scenes (`RemixScenes.cpp`, `remix_scene`, `tools/scenes.py`): 13 of them, 170 steps, their
     people summoned for the one Timerunner, walking, casting and speaking (reading time per line).
-    The Last Hour is a fight of its own (`RemixLastHour.cpp`): Eternus, his loyalists in waves,
-    Moratari, Sylvanas and Alleria beside the player; he retreats at a tenth.
+    The Last Hour is a fight of its own (`RemixLastHour.cpp`): Eternus, her loyalists in waves,
+    Moratari, Sylvanas and Alleria beside the player; she retreats at a tenth.
   - Home (`RemixEnding.cpp`, `Homecomings.kt`): WRM-802 writes the character as a player dump and
     takes it out of Remix; the app sees the dump, closes the game and starts ChromieCraft, whose
     world server loads it into its capital. Bronze stays behind; every other item is Wrath's own.
@@ -1138,18 +1138,38 @@ for the game on the phone itself ("that's the whole point").
     under way locally against this build, passing so far, when it was pushed (the user's time);
     CI's server test runs them all. Not checked: her voice in the game itself, the new levels in a
     real fight on a phone.
-- Open (the user's, not started yet):
-  1. Eternus and Zephyr are women (the user's decision): every he/him for them in STORY.md, the
-     SQL texts, scenes, code and READMEs to she/her (about 300 places; Zephyr's look, 19282, is a
-     blood elf woman already). Her voiced lines already say "her".
-  2. Eternus in her retail dragon form (display 106055, model file 4500511; "no troll anywhere"):
-     `tools/models.py` converts it to 3.3.5 (sections split to 64 bones, her skin, cameras, .anim
-     files), written but not yet run: running it on the downloaded files needs the user's
-     permission in this environment. Then its CreatureModelData/CreatureDisplayInfo rows, the
-     server's, scale and placement, and the packaging step.
-  3. Character creation: a button, bottom-aligned with the character options, that cycles the
-     preview between no gear, starter gear and full champion gear for the race or class, never a
-     helmet.
+- Then (build 112): "do them, prioritizing the character creation".
+  - Eternus and Zephyr are women (the user's decision): every he/him for them to she/her in
+    STORY.md, the SQL texts, scenes, code, READMEs and the tests' comments (285 words in 29 files;
+    WRM-205/215 is now *Ask Her Yourself*; "master" became "mistress" where it named Eternus).
+    Zephyr's look, 19282, was a blood elf woman already; Moratari's voiced lines already said "her".
+  - Eternus in her own shape (the user: "must remain in dragon form", "no troll anywhere"):
+    `tools/models.py` makes the newer games' model (display 106055) one 3.3.5 draws, the package
+    fetches it (`data/models`, never in the repository), `ClientPatch.cpp` and `RemixModels.cpp` put
+    it in the game's patch and on her (0.4 at the Bazaar and in her scenes, 0.5 at the last hour,
+    no staff), `0029_eternus_shape` the realm's rows. Found while converting and fixed: eleven
+    animations with ids newer than 3.3.5's AnimationData (aliases: given ids no creature plays),
+    the animation lookup a hash in the newer format (made a table by id, which reads the same
+    either way), a texture animation lookup naming one that isn't there. Checked here: a structural
+    check of the converted model (every array in bounds, 105 sequences and 14,220 animation blocks
+    against the model and its .anim files, every skin section within 64 bones and every vertex's
+    bones matching its palette, batches, materials (blend modes 0 to 6), lookups), the textures
+    (DXT1/DXT5 with all mip levels), the patch with her rows read back, the realm starting with her
+    look. Not checked: the game drawing her (no client here); her size and place at the Bazaar are
+    judged from the game's own dragon of her size.
+  - The server test: a creature called over that's still out of reach (as the Cloaked Ranger at
+    the Wrathgate's cliffs in build 109's run, back from chasing an interloper) is called again and
+    waited for.
+- Open (the user's):
+  1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
+     options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
+     set (Tier 10, the user's choice), never a helmet, live on the creation screen, no restart, no
+     crash risk (the user). Found: 3.3.5's creation screen dresses its model from CharStartOutfit,
+     read once as the game starts, and its Lua has no function to dress it again; the data ways
+     (classes or races standing in for outfits) break class selection or are known to crash the
+     client. The live way is a change to the game's executable (a function the button calls),
+     which needs the user's Wow.exe (12340) to find the code, and can only be tested on the phone;
+     checked byte by byte before it's applied, as the 4 GB patch is, with an Off switch.
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

@@ -46,6 +46,17 @@ WrathRemix.LevelBands.Enable = 1
 WrathRemix.LevelBands.FollowPlayer = 1
 
 #
+#    WrathRemix.EternusDragon
+#        Description: Eternus in her own shape, the dragon of the newer games (tools/models.py: the
+#                     server package fetches her model and makes it one 3.3.5 draws), at the
+#                     Bazaar, in her scenes and at the last hour. Only when the package has all of
+#                     her files and the game's patch has them; otherwise, or at 0, she keeps the
+#                     infinite dragonspawn's shape.
+#        Default:     1
+
+WrathRemix.EternusDragon = 1
+
+#
 #    WrathRemix.Squish.Health
 #    WrathRemix.Squish.Damage
 #        Description: The stat squish: a banded creature's share, in percent, of the health and of

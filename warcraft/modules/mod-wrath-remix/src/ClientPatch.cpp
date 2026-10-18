@@ -284,6 +284,27 @@ namespace WrathRemix
             return {};
         }
 
+        // [base] (a DBC file of [fields] fields) with [texts] added to its strings, their offsets in
+        // [at]: for rows of its with text, put in after with WithRows. Empty when [base] isn't such a file.
+        Bytes WithStrings(Bytes const& base, uint32 fields, std::vector<std::string> const& texts, std::vector<int32>& at)
+        {
+            if (base.size() < 20 || std::memcmp(base.data(), "WDBC", 4) != 0)
+                return {};
+            uint32 count = Get32(base, 4), size = Get32(base, 12), strings = Get32(base, 16);
+            size_t stringsAt = 20 + size_t(count) * size;
+            if (Get32(base, 8) != fields || size != fields * 4 || base.size() < stringsAt + strings)
+                return {};
+            Bytes grown(base.begin(), base.begin() + stringsAt + strings);
+            for (std::string const& text : texts)
+            {
+                at.push_back(int32(grown.size() - stringsAt));
+                grown.insert(grown.end(), text.begin(), text.end());
+                grown.push_back(0);
+            }
+            Put32(grown, 16, uint32(grown.size() - stringsAt));
+            return grown;
+        }
+
         // A sound: a SoundEntries row of one file in a folder (the game's own spoken lines' kind).
         struct Sound { uint32 id; std::string name, file, folder; };
 
@@ -522,12 +543,75 @@ namespace WrathRemix
                 lookExtras.push_back(std::move(extra));
             } while (result->NextRow());
         }
+        // Eternus's own shape (RemixModels.cpp, tools/models.py): her model's files from the module's
+        // data/models; a CreatureModelData row (28 fields, the model's name the third) copied from
+        // the game's dragon's (Creature\Dragon\Dragon.mdx, her size), with her model and its bounds;
+        // and her look's CreatureDisplayInfo row (copied from that dragon's look), her skin both of
+        // its textures, at scale 1 (each of her parts has its own).
+        std::vector<std::string> const& shape = EternusShapeFiles();
+        Bytes modelData;
+        std::vector<int32> dragonLook;
+        std::vector<std::pair<std::string, Bytes>> shapeFiles;
+        if (!shape.empty())
+        {
+            constexpr uint32 GAME_DRAGON_MODEL = 2723, GAME_DRAGON_LOOK = 23746;
+            constexpr float BOUNDS[6] = { -19.34f, -9.86f, -0.55f, 10.24f, 9.66f, 13.43f };   // her model's, standing (the newer games')
+            Bytes const modelBase = Read(dbc / "CreatureModelData.dbc");
+            std::vector<int32> model = RowOf(modelBase, 28, GAME_DRAGON_MODEL), at;
+            dragonLook = RowOf(displayBase, 16, GAME_DRAGON_LOOK);
+            Bytes grown = model.empty() ? Bytes() : WithStrings(modelBase, 28, { "Creature\\Eternus\\Eternus.mdx" }, at);
+            if (!grown.empty() && !dragonLook.empty())
+            {
+                model[0] = int32(MODEL_ETERNUS_DRAGON);
+                model[2] = at[0];
+                std::memcpy(&model[17], BOUNDS, sizeof(BOUNDS));
+                modelData = WithRows(grown, 28, { model });
+            }
+            for (std::string const& file : shape)
+            {
+                Bytes data = Read(fs::path(ModelsFolder()) / file);
+                std::string name = file;
+                std::replace(name.begin(), name.end(), '/', '\\');
+                if (data.empty())
+                {
+                    modelData.clear();
+                    break;
+                }
+                shapeFiles.emplace_back(name, std::move(data));
+            }
+            if (modelData.empty())
+            {
+                LOG_ERROR("module", "Wrath Remix: {} or her files aren't what it expects; Eternus keeps the dragonspawn's shape",
+                    (dbc / "CreatureModelData.dbc").string());
+                dragonLook.clear();
+            }
+        }
         // (the tables the Skyborne's patch takes in: in their own patch, read after it makes its copy;
         // in patch-Y if the game has no language folder)
         std::vector<std::pair<std::string, Bytes>> localeTables;
-        if (!voices.empty() || !looks.empty())
+        bool dragon = false;
+        if (!voices.empty() || !looks.empty() || !dragonLook.empty())
         {
             Bytes patched = voices.empty() ? displayBase : WithValues(displayBase, 16, 12, voices);
+            if (!patched.empty() && !dragonLook.empty())
+            {
+                std::vector<int32> at;
+                patched = WithStrings(patched, 16, { "EternusSkin" }, at);
+                if (!patched.empty())
+                {
+                    float const scale = 1.0f;
+                    dragonLook[0] = int32(DISPLAY_ETERNUS_DRAGON);
+                    dragonLook[1] = int32(MODEL_ETERNUS_DRAGON);
+                    dragonLook[3] = 0;                          // no extra: a creature's look
+                    std::memcpy(&dragonLook[4], &scale, 4);
+                    dragonLook[5] = 255;
+                    dragonLook[6] = dragonLook[7] = at[0];
+                    dragonLook[8] = dragonLook[9] = 0;
+                    dragonLook[12] = dragonLook[13] = dragonLook[14] = dragonLook[15] = 0;
+                    looks.push_back(dragonLook);
+                    dragon = true;
+                }
+            }
             if (!patched.empty() && !looks.empty())
                 patched = WithRows(patched, 16, looks);
             if (patched.empty())
@@ -538,6 +622,18 @@ namespace WrathRemix
                 std::string name = "DBFilesClient\\CreatureDisplayInfo.dbc";
                 files.emplace_back(name, std::move(patched));
                 list += name + "\r\n";
+                if (dragon)
+                {
+                    files.emplace_back("DBFilesClient\\CreatureModelData.dbc", std::move(modelData));
+                    list += "DBFilesClient\\CreatureModelData.dbc\r\n";
+                    for (auto& [path, file] : shapeFiles)
+                    {
+                        list += path + "\r\n";
+                        files.emplace_back(path, std::move(file));
+                    }
+                    EternusShapeInPatch();
+                    LOG_INFO("module", "Wrath Remix: Eternus's own shape in the game's patch ({} files)", shapeFiles.size());
+                }
                 if (!lookExtras.empty())
                 {
                     Bytes extras = WithRows(extraBase, 21, lookExtras);

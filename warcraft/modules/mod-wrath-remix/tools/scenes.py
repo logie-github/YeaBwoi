@@ -64,9 +64,9 @@ SCENES = [
         ("bind", 1, ALLERIA_ABROAD),
         ("face", 1, PLAYER),
         say(1, "There is something under these hills, Timerunner. I felt it the moment the bronze set me down: a voice, so low you could take it for the wind."),
-        say(1, "Eternus sees only the bear: a god driven mad, and to him that is a wound. Wind it back far enough, and the bear is whole again."),
+        say(1, "Eternus sees only the bear: a god driven mad, and to her that is a wound. Wind it back far enough, and the bear is whole again."),
         say(1, "But the madness is not a wound. It is a whisper, and whispers do not care what year it is. Turn Ursoc back, and it finds another ear. A druid's. A child's. Yours."),
-        say(1, "I know this voice, or one of its cousins. I have had one in my own head for years, and it is poor company. Go and break his anchors. I will meet you at the den."),
+        say(1, "I know this voice, or one of its cousins. I have had one in my own head for years, and it is poor company. Go and break her anchors. I will meet you at the den."),
     ]) for sid, quest in ((301, 77303), (302, 77313))],
     *[scene(sid, "Ursoc at peace: Alleria beside the Bear God's quest giver", quest, REWARD, giver, [
         ("summon", 1, ACT_ALLERIA, 2.0, -3.0, 0.0),
@@ -110,7 +110,7 @@ SCENES = [
         ("face", 1, 2),
         say(1, "You should not be here."),
         say(2, "Neither should you. And yet here we both are, in a garden the titans built so that nothing living in it would ever be lost. They wanted what I want, Moratari. They simply had more time."),
-        say(1, "Your siphons were drinking the Makers' pillar dry. No one needs that many hours unless he means to hold one still."),
+        say(1, "Your siphons were drinking the Makers' pillar dry. No one needs that many hours unless she means to hold one still."),
         say(2, "One hour. Only one. The hour the Lich King falls."),
         say(1, "Why that one?"),
         say(2, "Because it is the keystone. Until it is set, every hour of this war is still sand, and sand can be shaped. Once it is set, every grave in Northrend is stone."),
@@ -126,7 +126,7 @@ SCENES = [
         ("despawn", 2),
         ("wait", 2500),
         ("face", 1, PLAYER),
-        say(1, "He was kind to me, $n, when no one else in my flight was. I hope you never have to choose between a kindness and the truth. I have now done it twice."),
+        say(1, "She was kind to me, $n, when no one else in my flight was. I hope you never have to choose between a kindness and the truth. I have now done it twice."),
     ]),
     # ---- Chapter VI: Eternus's grief ------------------------------------------------------------------
     scene(601, "A Gift of Grief: Eternus before Thorim", 77602, REWARD, MORATARI, [
@@ -162,7 +162,7 @@ SCENES = [
         ("despawn", 3),
         ("wait", 2000),
         ("face", 2, PLAYER),
-        say(2, "Whoever that was, he carries a grief like mine. I know the look of it. Come, little friend. My brother has much to answer for."),
+        say(2, "Whoever that was, she carries a grief like mine. I know the look of it. Come, little friend. My brother has much to answer for."),
         ("cast", 5, SPELL_TELEPORT_VISUAL, 0),
         ("wait", 1000),
         ("despawn", 5),

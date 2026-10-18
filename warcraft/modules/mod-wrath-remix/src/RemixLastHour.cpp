@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * Eternus's last hour (STORY.md, Chapter VII, WRM-721): at the doors of Icecrown Citadel, Eternus
- * and the Infinite still loyal to him, and beside the Timerunner Moratari, Sylvanas and Alleria.
+ * and the Infinite still loyal to her, and beside the Timerunner Moratari, Sylvanas and Alleria.
  *
- * He speaks first, and they answer; then the fight: his loyalists in waves (as it begins, at 70% of
- * his strength and at 40%), his own blows and his time magic. He is not killed: with a tenth of his
- * strength left he stops, says his last, and steps into a rift, and the quest's credit is given to
+ * She speaks first, and they answer; then the fight: her loyalists in waves (as it begins, at 70% of
+ * her strength and at 40%), her own blows and her time magic. She is not killed: with a tenth of her
+ * strength left she stops, says her last, and steps into a rift, and the quest's credit is given to
  * every Timerunner there who is on it. Then the three say theirs and go, and the Moratari of the
  * doors is there with The Last Necessary Battle.
  *
@@ -77,9 +77,9 @@ namespace
         { 3000,  0, "So. You came the long way round, as I knew you would." },
         { 8000,  0, "Behind those doors is the last hour of this war. A king on a throne of ice, and a paladin who will burn in his place. You know how it ends. So do I. I have watched it end more times than you have drawn breath." },
         { 20000, 0, "I am not here to stop the Lich King from falling. I am here to keep the hour from closing behind him. Hold this door with me, and every grave in this war stays open long enough for me to reach into it." },
-        // (the Timerunner was taken from a tavern, after the war, toasting a friend who died in it; he knows it, and so does she)
+        // (the Timerunner was taken from a tavern, after the war, toasting a friend who died in it; she knows it, and so does Sylvanas)
         { 33000, 0, "And yours, Timerunner. I know the hour I took you from: a table of friends toasting a war they won, and one chair empty. Hold this door with me, and no one ever has to sit beside it." },
-        { 47000, 2, "Do not answer him. Not about that chair." },
+        { 47000, 2, "Do not answer her. Not about that chair." },
         { 52000, 1, "And the arch comes down on all of them, Eternus. On everyone who lives because this war ended the way it did." },
         { 60000, 2, "On me. On my people. On the souls I freed and the ones I failed. You do not get to decide that they were worth less than the ones you mourn." },
         { 70000, 3, "I can feel the hour you have built, dragon. It isn't open. It's hungry." },
@@ -152,7 +152,7 @@ public:
         {
             if (!begun)
             {
-                // until he has said his piece
+                // until she has said her piece
                 me->SetReactState(REACT_PASSIVE);
                 me->SetImmuneToAll(true);
                 events.ScheduleEvent(EVENT_INTRO, Milliseconds(INTRO[0].at));
@@ -192,7 +192,7 @@ public:
                 damage = 0;
                 return;
             }
-            // He is not killed: a tenth of his strength left, and he goes.
+            // She is not killed: a tenth of her strength left, and she goes.
             if (me->HealthBelowPctDamaged(10, damage))
             {
                 damage = me->GetHealth() > me->CountPctFromMaxHealth(10) ? me->GetHealth() - me->CountPctFromMaxHealth(10) : 0;
@@ -242,7 +242,7 @@ public:
             me->CombatStop(true);
             me->GetMotionMaster()->Clear();
             me->GetMotionMaster()->MoveIdle();
-            // his loyalists go with him
+            // her loyalists go with her
             for (ObjectGuid const& guid : loyalists)
                 if (Creature* loyalist = ObjectAccessor::GetCreature(*me, guid))
                 {
@@ -329,7 +329,7 @@ public:
                         me->CastSpell(me, SPELL_TELEPORT_VISUAL, true);
                         // the three say theirs, and go
                         char const* last[] = {
-                            "He's gone. Not dead. Eternus has never been any good at dying.",
+                            "She's gone. Not dead. Eternus has never been any good at dying.",
                             "The doors are open, Timerunner. Go and end it.",
                             "We will be waiting at the Bazaar. All of us. Come back to us.",
                         };
@@ -386,7 +386,7 @@ public:
 
         void EnterEvadeMode(EvadeReason why) override
         {
-            // (he doesn't go home to his spawn: he has none; the watch ends it if the Timerunner is gone)
+            // (she doesn't go home to her spawn: she has none; the watch ends it if the Timerunner is gone)
             if (retreating)
                 return;
             ScriptedAI::EnterEvadeMode(why);
@@ -468,8 +468,8 @@ namespace WrathRemix
         if (!Active() || !OnTheLastHour(player) || IsBot(player))
             return false;
         {
-            // (theirs is on while their Eternus is here and alive, as his watch has it; one gone with
-            // his grid, dead or left far off is over, and his watch, finding he isn't theirs, ends it)
+            // (theirs is on while their Eternus is here and alive, as her watch has it; one gone with
+            // her grid, dead or left far off is over, and her watch, finding she isn't theirs, ends it)
             std::lock_guard<std::mutex> lock(runningLock);
             auto it = running.find(player->GetGUID());
             if (it != running.end())
@@ -549,8 +549,8 @@ namespace WrathRemix
     }
 }
 
-// A Timerunner's last hour ends as they log out (their Eternus, if his grid keeps him till they're
-// back, sees it at his next look and goes), to be begun again as if they had died.
+// A Timerunner's last hour ends as they log out (their Eternus, if her grid keeps her till they're
+// back, sees it at her next look and goes), to be begun again as if they had died.
 class RemixLastHourPlayer : public PlayerScript
 {
 public:

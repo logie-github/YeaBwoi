@@ -1202,7 +1202,7 @@ namespace
         });
         At(player, o, 47000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "The rest is my master's to tell. Hold still.");
+            SheSays(p, b, "The rest is my mistress's to tell. Hold still.");
         });
         At(player, o, 50000, [](Player* p, Opening& b)
         {

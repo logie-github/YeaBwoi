@@ -1,7 +1,7 @@
 -- Wrath Remix's prologue (STORY.md, "Prologue"): a new Timerunner, a veteran of the war against
 -- the Lich King pulled out of a tavern in their own hour by Moratari, shown the war's end and its
 -- cost (src/RemixIntro.cpp), arrives at the Infinite Bazaar in Crystalsong Forest, beneath
--- Dalaran, in the year the war began. Eternus tells them plainly what he wants and how it is done;
+-- Dalaran, in the year the war began. Eternus tells them plainly what she wants and how it is done;
 -- then, one thing at a time, Bronze and Alurmi, their class's instructor and lesson, the Bazaar's
 -- keepers, the hourglass and the hearthstone, the anomalies; and the war's first day, in the
 -- Borean Tundra. Each quest is given where the last one ended. WRM-nnn is quest 77nnn.
@@ -39,7 +39,7 @@ DELETE FROM `creature_questender` WHERE `quest` BETWEEN 77001 AND 77009 AND `que
 DELETE FROM `remix_quest_reward` WHERE `quest` BETWEEN 77001 AND 77009 AND `quest` <> 77006;
 
 -- The prologue, one thing at a time: Moratari sends the Timerunner to Eternus (WRM-010), who
--- answers what he wants, how it is done and why them (WRM-011); Time's Toll and Bronze, at Alurmi's
+-- answers what she wants, how it is done and why them (WRM-011); Time's Toll and Bronze, at Alurmi's
 -- stall (WRM-012); their class's instructor (WRM-020) and lesson (WRM-030 to 039,
 -- wrath_remix_world_0025_lessons.sql); the Bazaar's keepers, the hourglass and the hearthstone
 -- (WRM-021); the anomalies (WRM-013); and the front (WRM-014 / 015).
@@ -54,16 +54,16 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77010, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'Out of Time',
  'Speak with Eternus at the heart of the Infinite Bazaar.',
- 'This is the Infinite Bazaar, $n: a camp my flight keeps a little outside the flow of time, here in Crystalsong Forest, beneath Dalaran.$B$BOut there, the Alliance''s ships and the Horde''s zeppelins are only now reaching Northrend. The soldiers aboard them have no idea what is waiting for them. You do.$B$BGo and speak with Eternus. He has been looking forward to this.',
+ 'This is the Infinite Bazaar, $n: a camp my flight keeps a little outside the flow of time, here in Crystalsong Forest, beneath Dalaran.$B$BOut there, the Alliance''s ships and the Horde''s zeppelins are only now reaching Northrend. The soldiers aboard them have no idea what is waiting for them. You do.$B$BGo and speak with Eternus. She has been looking forward to this.',
  'Speak with Eternus.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
 (77011, 2, 10, 1, 2817, 4, 0, 8, 0, 0, 0,
  'The Plan',
- 'Ask Eternus what he wants of you, how it is to be done, and why he chose you.',
+ 'Ask Eternus what she wants of you, how it is to be done, and why she chose you.',
  'You have questions. Good. I would not trust anyone who came this far and had none.$B$BAsk me what I want, how it is to be done, and why it is you. I will answer each of them plainly. Then we begin.',
  'Speak with Eternus.',
  @PLAN_WHAT, @PLAN_HOW, @PLAN_WHY, 1, 1, 1,
- 'Asked what he wants', 'Asked how it is done', 'Asked why you', 0),
+ 'Asked what she wants', 'Asked how it is done', 'Asked why you', 0),
 (77012, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'Time''s Toll',
  'Speak with Alurmi, at the head of the market lane on the camp''s west side.',
@@ -79,13 +79,13 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77021, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
  'The Bazaar''s Keepers',
  'Speak with Zephyr, Sa''at and the Chronologist, then return to Moratari.',
- 'Your instructor tells me you will do.$B$BNow, the Bazaar. Zephyr keeps its roads, at the waystation to the north-east: he can send you to Dalaran, to the landings, and to the camp of any chapter your strength allows. Sa''at has his map table there too. He keeps watch over the dungeons and the raids, and will tell you when each is ready for you. The Chronologist, in the chronicle corner to the north-west, keeps the record of where you are in the war, and can take you back to the start of a chapter. Speak with all three.$B$BAnd the hourglass in your bag is mine. Turn it anywhere, and it brings you here. Turn it here, and it takes you back to wherever you were. Not in the middle of a fight, though: time is fussy about that.',
+ 'Your instructor tells me you will do.$B$BNow, the Bazaar. Zephyr keeps its roads, at the waystation to the north-east: she can send you to Dalaran, to the landings, and to the camp of any chapter your strength allows. Sa''at has his map table there too. He keeps watch over the dungeons and the raids, and will tell you when each is ready for you. The Chronologist, in the chronicle corner to the north-west, keeps the record of where you are in the war, and can take you back to the start of a chapter. Speak with all three.$B$BAnd the hourglass in your bag is mine. Turn it anywhere, and it brings you here. Turn it here, and it takes you back to wherever you were. Not in the middle of a fight, though: time is fussy about that.',
  'Return to Moratari.',
  @ZEPHYR, @SAAT, @CHRONOLOGIST, 1, 1, 1, 'Zephyr spoken to', 'Sa''at spoken to', 'The Chronologist spoken to', 0),
 (77013, 2, 10, 1, 2817, 4, 0, 8, 0, 41599, 2,
  'A Small Demonstration',
  'Defeat 3 Temporal Anomalies, then return to Moratari.',
- 'Eternus wants to know you can survive the war before he sends you into it. So do I.$B$BTime does not like being changed. Where it is pulled on, it frays, and things come through the seams: anomalies. They are drawn to Timerunners, which is unfortunate for you and convenient for me.$B$BTell me when you are ready, and I will let three of them through. Not all at once; I would like you alive at the end of this.',
+ 'Eternus wants to know you can survive the war before she sends you into it. So do I.$B$BTime does not like being changed. Where it is pulled on, it frays, and things come through the seams: anomalies. They are drawn to Timerunners, which is unfortunate for you and convenient for me.$B$BTell me when you are ready, and I will let three of them through. Not all at once; I would like you alive at the end of this.',
  'Return to Moratari.',
  @ANOMALY_CREDIT, 0, 0, 3, 0, 0, 'Temporal Anomaly defeated', '', '', 0),
 (77014, 2, 10, 1, 2817, 4, 0, 8, 1101, 0, 0,

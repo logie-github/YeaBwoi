@@ -346,7 +346,7 @@ WORDS = [
     (WORD_IN_THE_EAR, DONE, ALLIANCE, "Did you see him look at his counselor before he answered you? Every day he looks a little sooner."),
     # A Time for Heroes
     (A_TIME_FOR_HEROES, TAKEN, ALLIANCE, "The keep does not fall, as it happens. It only comes close, three times. Let us make it two."),
-    (A_TIME_FOR_HEROES, TURNED_IN, ALLIANCE, "Wasn't him, he says. He lies worse than you do, $N."),
+    (A_TIME_FOR_HEROES, TURNED_IN, ALLIANCE, "Wasn't her, she says. She lies worse than you do, $N."),
     # The Siege
     (THE_SIEGE, TAKEN, ALLIANCE, "Crypt crawlers. They were nerubians once, citizens of Azjol-Nerub, until the Lich King took their kingdom "
                                  "and kept its dead. Be quick with them. It is the only mercy anyone can give them now."),

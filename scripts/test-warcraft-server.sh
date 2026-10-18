@@ -35,7 +35,7 @@
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
 #      leave where characters are made for their chapters. The campaign from Chapter II to the end is
 #      played on each side (warcraft/server/remix_campaign_*.steps): the story's quests and scenes,
-#      Eternus's agents and his last hour, the return to the Bazaar and the goodbyes; both
+#      Eternus's agents and her last hour, the return to the Bazaar and the goodbyes; both
 #      Timerunners go home, and ChromieCraft's world server takes them in, in their capitals.
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.

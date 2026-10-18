@@ -75,7 +75,7 @@ namespace WrathRemix
         std::vector<Destination> destinations;
         std::vector<VendorList> vendorLists;
         std::unordered_map<uint32, uint32> questBronze;
-        // What Eternus whispers as one of the quests he quietly changed is turned in (remix_quest_note)
+        // What Eternus whispers as one of the quests she quietly changed is turned in (remix_quest_note)
         std::unordered_map<uint32, std::string> questNotes;
         std::unordered_map<uint8, std::vector<KitPiece>> kits;
         std::unordered_map<uint8, std::vector<ClassSpell>> classSpells;
@@ -1202,7 +1202,7 @@ public:
     }
 
     // Who a Timerunner sees changes with the story (visibility conditions in the world SQL:
-    // Sylvanas and Alleria arrive, Eternus leaves the Bazaar, his loyalists wait on the cliffs):
+    // Sylvanas and Alleria arrive, Eternus leaves the Bazaar, her loyalists wait on the cliffs):
     // looked at again a moment after one of the story's quests moves on.
     static bool InTheStory(uint32 quest)
     {
@@ -1380,8 +1380,8 @@ public:
             RefreshSightSoon(player);
         ScenesForQuest(player, id, SCENE_ON_REWARD);
 
-        // Until the turn, Eternus is folding the war his way: a quest he quietly changed (its
-        // turn-in text, wrath_remix_world_0019) brings his word on it, a moment later.
+        // Until the turn, Eternus is folding the war her way: a quest she quietly changed (its
+        // turn-in text, wrath_remix_world_0019) brings her word on it, a moment later.
         if (std::string const* note = QuestNote(id); note && !IsBot(player) && !player->GetQuestRewardStatus(QUEST_WEIGHT_OF_TIME))
         {
             ObjectGuid guid = player->GetGUID();
