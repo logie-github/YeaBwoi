@@ -157,10 +157,15 @@ expect rewarded 77212
 
 # II-C, WRM-222 (After Angrathar): after The Battle For The Undercity, Moratari by Thrall in
 # Lordaeron's throne room (seen once the battle's phase is over) sends the Timerunner to Conquest
-# Hold, Chapter III.
+# Hold, Chapter III. Moratari's war is put back first, after the turn (story_undo.py): The Record
+# Keeps Warsong.
 cmd .quest add 13267
 cmd .quest complete 13267
 cmd .quest reward 13267
+cmd .quest add 77230
+cmd .quest complete 77230
+cmd .quest reward 77230
+wait 2
 go 0 1945.7 234.1 44.4
 talk 770001
 expect quest 77222
