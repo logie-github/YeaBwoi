@@ -467,7 +467,7 @@ for the game on the phone itself ("that's the whole point").
   variables back through `mariadb -B`, which escapes backslashes, so every model path set by a
   variable had doubled backslashes (the Pandaren's skins have them in the pack itself).
   Fixed: `build-races.py` undoes the batch escapes, fixes the packs' mistakes (`FIXES`), gives each
-  skin, face, hair or underwear texture the client hasn't got the race's nearest that it has, and
+  skin, face, hair or other CharSections texture the client hasn't got the race's nearest that it has, and
   checks every playable race against the client's files (the module's client files plus the
   models and skins the stock tables name): file string, prefix, displays and models (a player
   model of the right sex), gear looks, skins, classes, doubled backslashes, and its place, icon

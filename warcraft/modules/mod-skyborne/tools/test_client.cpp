@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 
     Dbc sections;
     Check(patch->Read("DBFilesClient\\CharSections.dbc", bytes) && sections.Parse(bytes), "CharSections.dbc is in it");
-    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, underwear = 0, worn = 0;
+    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, overlays = 0, worn = 0;
     Game hd(data, { "patch-z.mpq", "patch-y.mpq" });
     Bytes probe;
     bool hasExtra = hd.Read("Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", probe);
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
             ++darkRanger;
         if (base == 4)
         {
-            ++underwear;
+            ++overlays;
             if (sections.Get(i, 4) || sections.Get(i, 5) || sections.Get(i, 6))
                 ++worn;
         }
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     Check(looks > 2000, "the Skyborne's looks (" + std::to_string(looks) + ")");
     Check(leftover == 0, "no Naga or Broken looks left on races 13 and 14");
     Check(darkRanger == 2, "the blood elf's Dark Ranger skin, both sexes");
-    Check(underwear > 0 && worn == 0, "no underwear on anyone (" + std::to_string(underwear) + " rows without textures)");
+    Check(overlays > 0 && worn == 0, "section 4 rows carry no textures (" + std::to_string(overlays) + " rows)");
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
