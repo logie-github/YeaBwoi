@@ -25,7 +25,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-5";
+        constexpr char const* VERSION = "skyborne-6";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -73,19 +73,6 @@ namespace Skyborne
             for (char& c : text)
                 c = char(std::tolower(static_cast<unsigned char>(c)));
             return text;
-        }
-
-        // No race or sex wears the underwear the game paints over a bare body (CharSections'
-        // section 4, NakedPelvisSkin/NakedTorsoSkin): its rows stay, with no textures, as the
-        // game's own rows for race 20 have; the body's skin shows.
-        void NoUnderwear(Dbc& dbc)
-        {
-            if (dbc.fields < 10)
-                return;
-            for (size_t row = 0; row < dbc.records.size(); ++row)
-                if (dbc.Get(row, 3) == 4)
-                    for (uint32_t field : { 4u, 5u, 6u })
-                        dbc.Set(row, field, dbc.String(""));
         }
 
         // HD looks (blood elves' among them) give a skin a second texture, <skin>_Extra.blp, with the
@@ -224,8 +211,6 @@ namespace Skyborne
             }
             if (Lower(name) == "charsections")
                 AddExtraSkins(dbc, game, made);
-            if (Lower(name) == "charsections")
-                NoUnderwear(dbc);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
         }
