@@ -88,7 +88,7 @@ cmake -S "$SRC" -B "$BUILD" -G Ninja \
 	-DCMAKE_INSTALL_PREFIX="$PREFIX" \
 	-DCMAKE_C_FLAGS="-march=armv8-a" -DCMAKE_CXX_FLAGS="-march=armv8-a" \
 	-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-	-DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,stack-size=8388608" \
+	-DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld -Wl,-z,stack-size=8388608" \
 	-DTOOLS=1 -DSCRIPTS=static -DWITHOUT_GIT=1 > "$BUILD.cmake.log" 2>&1 ||
 	{ tail -60 "$BUILD.cmake.log"; exit 1; }
 ccache -z > /dev/null
