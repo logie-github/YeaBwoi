@@ -44,6 +44,18 @@ echo "$MODULES" | while read -r name repo commit; do
 	git -C "$dir" clean -qfdx
 	# Some modules bring their libraries as submodules.
 	[ ! -f "$dir/.gitmodules" ] || git -C "$dir" submodule update -q --init --recursive --depth 1
+	# The core changes a module ships for itself (patches/azerothcore-*.patch, e.g. hooks it calls
+	# and the stock core lacks): applied to the core when they apply cleanly. When they don't, the
+	# module is left as it is and fails its own check, which the module build leaves it out for.
+	for hooks in "$dir"/patches/azerothcore-*.patch; do
+		[ -f "$hooks" ] || continue
+		if git -C "$SRC" apply --ignore-space-change --check "$hooks" 2> /dev/null; then
+			git -C "$SRC" apply --ignore-space-change "$hooks"
+			echo "$name: applied its core patch $(basename "$hooks")"
+		else
+			echo "$name: its core patch $(basename "$hooks") doesn't apply to this core" >&2
+		fi
+	done
 	# The app's own changes to the module (warcraft/patches/<module>/).
 	set -- "$ROOT"/warcraft/patches/"$name"/*.patch
 	if [ -f "$1" ]; then
