@@ -351,7 +351,10 @@ with them, whispered when she doesn't.
 - **WRM-050 Beneath the Floor** (after Hellscream's Vigil): warn Garrosh (who scoffs, and calls
   Kel'Thuzad a ghost story), Saurfang (who listens, sends Holgoth hands and scouts onto the plains,
   and tells the Timerunner to say nothing to Hellscream) and the Warsong Captain ("Settle down,
-  soldier! ... You did a good job in warning us": his own lines, unused in the game).
+  soldier! ... You did a good job in warning us": his own lines, unused in the game). On Remix's realm
+  he no longer fights creatures: the game's own assault on the hold (Ith'rix the Harvester's flight,
+  What the Cold Wind Brings..., half of every hour) killed him at the chapter's levels every few
+  minutes, an elite's seven minutes dead each time, while the Timerunner was on the way to warn him.
 - **WRM-051 Hands for Holgoth**: the game's Patience is a Virtue and Bury Those Cockroaches! on the
   road: the four sinkholes under the quarry collapsed before the floor of the keep gives way.
 - **Mobu's parts** are back on the road, Moratari knowing exactly where they are ("Already? Buddy, I

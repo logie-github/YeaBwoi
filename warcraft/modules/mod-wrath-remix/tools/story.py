@@ -35,6 +35,9 @@ and writes the SQL. Each content file may define any of these lists:
   it), in the phases they're seen in (a private outing's is 32768).
 - FLAGS: (quest, title, what it means): quests never offered, "turned in" as flags the story's
   conditions read (romance.py's time jumper).
+- SPARED: (creature, why): the game's own people the story sends the Timerunner to who would
+  otherwise die in the fighting around them; they no longer fight creatures (their own unit flags
+  kept in remix_original_story_unit_flags).
 
 Text tokens, in chat and in replies alike: $N the name, $R the race, $C the class ($r and $c in lower
 case), $Gmale:female; by the Timerunner's sex. Quest texts: $B a new line (the client's).
@@ -60,7 +63,8 @@ TEXT_FIRST, TEXT_LAST = 7702600, 7702999
 GAME_LAST = 700000                                  # the game's own creatures are below this
 
 KEYS = ("WORDS", "COMPANION", "PLACES", "TALK", "QUESTS", "CREATURES", "SPAWNS", "HIDE", "OUTINGS", "LOOKS", "RELATIONS",
-        "OBJECT_TEMPLATES", "OBJECTS", "FLAGS")
+        "OBJECT_TEMPLATES", "OBJECTS", "FLAGS", "SPARED")
+UNIT_FLAG_IMMUNE_TO_NPC = 0x200
 
 
 def gather():
@@ -161,6 +165,23 @@ DELETE FROM `remix_original_story_npcflag`;""")
         w("INSERT INTO `remix_original_story_npcflag` (`entry`, `npcflag`) SELECT `entry`, `npcflag` FROM `creature_template` "
           f"WHERE `entry` IN ({', '.join(map(str, talkers))}) AND (`npcflag` & 3) = 0;")
         w("UPDATE `creature_template` c JOIN `remix_original_story_npcflag` o ON o.`entry` = c.`entry` SET c.`npcflag` = c.`npcflag` | 1;")
+    # The ones the fighting around them would kill before the Timerunner reaches them (the Warsong
+    # Captain, under Ith'rix's assault on the south wall) no longer fight creatures, and so aren't
+    # fought: the same keeping and putting back.
+    spared = sorted({entry for entry, _ in lists["SPARED"]})
+    assert all(entry < GAME_LAST for entry in spared), "SPARED is for the game's own creatures"
+    w("""CREATE TABLE IF NOT EXISTS `remix_original_story_unit_flags` (
+  `entry` INT UNSIGNED NOT NULL,
+  `unit_flags` INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`entry`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+UPDATE `creature_template` c JOIN `remix_original_story_unit_flags` o ON o.`entry` = c.`entry` SET c.`unit_flags` = o.`unit_flags`;
+DELETE FROM `remix_original_story_unit_flags`;""")
+    if spared:
+        w("INSERT INTO `remix_original_story_unit_flags` (`entry`, `unit_flags`) SELECT `entry`, `unit_flags` FROM `creature_template` "
+          f"WHERE `entry` IN ({', '.join(map(str, spared))});")
+        w("UPDATE `creature_template` c JOIN `remix_original_story_unit_flags` o ON o.`entry` = c.`entry` "
+          f"SET c.`unit_flags` = c.`unit_flags` | {UNIT_FLAG_IMMUNE_TO_NPC};")
     w("")
 
 
@@ -452,7 +473,7 @@ def main():
 -- interventions before the turn and their undoing after it, and the romance (RemixMoratari.cpp,
 -- RemixOutings.cpp). This file owns: creatures 770500-770999, spawns 7704330-7704399, NPC texts
 -- 7702600-7702999, its quests, the conditions on the quests it gates, the texts it changes, the gossip
--- flag of the game's creatures it gives something to say.
+-- flag of the game's creatures it gives something to say, the unit flags of those it spares.
 """)
     w(SCHEMA)
     write_companion(w, lists)
