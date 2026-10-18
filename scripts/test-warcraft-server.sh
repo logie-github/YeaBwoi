@@ -270,12 +270,21 @@ if [ -n "$DATA_ZIP" ]; then
 	done
 	# A warrior of the High Order in Northshire, a shaman of the Windshapers at Camp Narache, each with
 	# their racials.
-	printf 'cmd .gps\nexpect Northshire\n' > "$FILES/run/skyborne-alliance.steps"
-	printf 'cmd .gps\nexpect Camp Narache\n' > "$FILES/run/skyborne-horde.steps"
-	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skyhighorder 13 1 "$FILES/run/skyborne-alliance.steps" |
-		tee "$FILES/logs/skyborne-alliance.out" || fail "the High Order's warrior didn't start in Northshire"
-	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skywindshaper 14 7 "$FILES/run/skyborne-horde.steps" |
-		tee "$FILES/logs/skyborne-horde.out" || fail "the Windshapers' shaman didn't start at Camp Narache"
+	# (Where they are is read from the characters table: .gps is a GM's command, and the test account isn't one.)
+	printf 'wait 2\n' > "$FILES/run/skyborne.steps"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skyhighorder 13 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/skyborne-alliance.out" || fail "the High Order's warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skywindshaper 14 7 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/skyborne-horde.out" || fail "the Windshapers' shaman didn't get into the world"
+	for who in Skyhighorder:1:1:Northshire Skywindshaper:6:7:"Camp Narache"; do
+		IFS=: read -r name race class place <<EOF
+$who
+EOF
+		at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
+		echo "$name at $at, $place's start $start"
+		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
+	done
 	for who in Skyhighorder:98701,98703,98704,98705 Skywindshaper:98701,98702,98704,98705; do
 		name=${who%%:*} spells=${who#*:}
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
