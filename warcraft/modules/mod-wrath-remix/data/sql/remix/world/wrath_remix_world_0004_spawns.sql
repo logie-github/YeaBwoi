@@ -107,7 +107,6 @@ FROM `creature` c JOIN (
   -- Chapter III (wrath_remix_world_0012_chapter3.sql)
   SELECT 16, 110818, 'WRM-301, Amberpine Lodge (Hierophant Thayreen)', 0 UNION ALL
   SELECT 17, 107481, 'WRM-311, Conquest Hold (Windseer Grayhorn)', 0 UNION ALL
-  SELECT 18, 43500,  'WRM-302 and WRM-321, Drak''Tharon Keep''s door (Image of Drakuru)', 0 UNION ALL
   -- Chapter IV (wrath_remix_world_0013_chapter4.sql)
   SELECT 19, 105125, 'WRM-401 and WRM-402, the Ebon Watch (Stefan Vadu)', 0 UNION ALL
   SELECT 20, 110645, 'WRM-403, Zul''Drak (Hexxer Ubungo)', 0 UNION ALL
@@ -117,6 +116,14 @@ FROM `creature` c JOIN (
   SELECT 25, 116619, 'WRM-017, Valiance Keep (Sergeant Hammerhill)', 0 UNION ALL
   SELECT 26, 125571, 'WRM-018, Warsong Hold (Overlord Razgor)', 0
 ) b ON c.`guid` = b.beside;
+
+-- WRM-302 and WRM-321 (wrath_remix_world_0012_chapter3.sql): at Drak'Tharon Keep's door in the
+-- Grizzly Hills, where nobody of the game's stands to be beside. On the landing before it, a few
+-- yards from where the keep puts those who leave it (4774.5, -2028.0, 229.4), facing the way up
+-- from the road; its floor's height from the navigation mesh (230.1 there, the landing 229.4 to
+-- 230.1).
+INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
+(7704068, @MORATARI, 571, 1, 1, 1, 4778.0, -2034.0, 229.9, 4.00, 60, 0, 0, 'Wrath Remix: Moratari, WRM-302 and WRM-321, Drak''Tharon Keep''s door');
 
 -- The Azure Dragonflight's raiders at the Violet Stand would kill a new Timerunner on arrival:
 -- not in Remix's world.

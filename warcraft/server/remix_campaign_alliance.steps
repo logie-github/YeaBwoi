@@ -183,6 +183,11 @@ expect rewarded 77202
 cmd .quest add 13377
 cmd .quest complete 13377
 cmd .quest reward 13377
+# (offered already: this Timerunner never did Not Yet Late or No One Left Behind, whose undoing
+# the transition waits for)
+go 0 -8441.4 333.1 123.2
+talk 770001
+expect quest 77221
 cmd .quest add 77048
 cmd .quest complete 77048
 cmd .quest reward 77048
@@ -262,7 +267,7 @@ expect quest 11984
 cmd .quest add 12068
 cmd .quest complete 12068
 cmd .quest reward 12068
-go 571 4599.7 -4876.9 49.5
+go 571 4775.5 -2031.5 230.2
 talk 770001
 expect quest 77302
 accept 770001 77302
@@ -650,4 +655,4 @@ expect rewarded 77801
 talk 770001
 expect quest 77802
 accept 770001 77802
-gone 120
+gone 180

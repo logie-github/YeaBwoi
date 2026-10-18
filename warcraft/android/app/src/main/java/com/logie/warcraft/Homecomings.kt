@@ -18,7 +18,11 @@ import java.io.File
 object Homecomings {
     fun folder(context: Context) = File(WowFiles.run(context), "transfers")
 
-    /** A character waiting to go home: its dump, and the name it went with. */
+    /**
+     * A character waiting to go home: its dump, and the name it went with. (In the folder itself:
+     * ChromieCraft's world server moves the ones it took in to `home/`, the ones it couldn't to
+     * `failed/`.)
+     */
     internal fun waiting(folder: File): List<String> =
         folder.listFiles { file -> file.isFile && file.name.endsWith(".dump") }
             ?.sortedBy { it.name }

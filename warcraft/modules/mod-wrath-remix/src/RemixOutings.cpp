@@ -6,6 +6,10 @@
  * looks: nothing comes off), a scene plays (remix_scene); then their gear is seen again, the world's
  * phase is theirs again, and they're back where they were, and she at her post.
  *
+ * Never from a dungeon, a raid, a battleground, a boat or a vehicle (nowhere to come back to). One
+ * left by going somewhere else (a hearthstone, a summons, a death's release) ends where they go,
+ * without taking them back; one left by logging out is saved where it began.
+ *
  * A flight is a taxi ride on her (her dragon shape is the mount) from one of the game's flight
  * points to another, her words on the way (remix_outing_line), then back.
  *
@@ -17,6 +21,7 @@
 #include "Chat.h"
 #include "DatabaseEnv.h"
 #include "Log.h"
+#include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
@@ -24,8 +29,6 @@
 #include "ScriptMgr.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
-#include <functional>
-#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -34,6 +37,8 @@ using namespace WrathRemix;
 namespace
 {
     constexpr uint32 PHASE_OUTING = 32768;   // a private outing's (her tent's things are in it too)
+    constexpr float THERE = 30.0f;           // this near its place, they're there
+    constexpr float STILL_THERE = 60.0f;     // a teleport to this near its place is its own (or a step in it); farther, away
 
     struct OutingLine
     {
@@ -55,6 +60,8 @@ namespace
     struct OnOutingState : public DataMap::Base
     {
         uint32 outing = 0;
+        uint32 round = 0;       // which of their outings (a timer from an earlier one does nothing): kept between them
+        bool there = false;     // its teleport has taken them there
         uint32 map = 0;
         float x = 0.0f, y = 0.0f, z = 0.0f, o = 0.0f;
         uint32 phase = PHASEMASK_NORMAL;
@@ -64,6 +71,13 @@ namespace
     OnOutingState* StateOf(Player* player)
     {
         return player->CustomData.GetDefault<OnOutingState>("remix_outing");
+    }
+
+    // Whether that outing is still the one under way.
+    bool Still(Player* player, uint32 id, uint32 round)
+    {
+        OnOutingState const* state = StateOf(player);
+        return state->outing == id && state->round == round;
     }
 
     void Undress(Player* player)
@@ -78,23 +92,42 @@ namespace
             player->SetVisibleItemSlot(slot, player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
     }
 
-    // The outing over: their gear seen, the world's phase, and back where they were.
-    void EndOuting(Player* player)
+    // The outing over where they are: their gear seen, the world's phase.
+    void Restore(Player* player)
+    {
+        OnOutingState* state = StateOf(player);
+        if (state->undressed)
+            Dress(player);
+        if (player->GetPhaseMask() == PHASE_OUTING)
+            player->SetPhaseMask(state->phase ? state->phase : PHASEMASK_NORMAL, true);
+        uint32 round = state->round;
+        *state = OnOutingState();
+        state->round = round;
+    }
+
+    // The outing over: their gear seen, the world's phase, and back where they were a moment later
+    // (unless something else has taken them from where it left them by then). [goBack] false: they
+    // left it for somewhere else, and stay there.
+    void EndOuting(Player* player, bool goBack = true)
     {
         OnOutingState* state = StateOf(player);
         if (!state->outing)
             return;
         auto it = outings.find(state->outing);
-        bool back = it == outings.end() || it->second.back;
-        if (state->undressed)
-            Dress(player);
-        if (player->GetPhaseMask() == PHASE_OUTING)
-            player->SetPhaseMask(state->phase ? state->phase : PHASEMASK_NORMAL, true);
+        bool back = goBack && (it == outings.end() || it->second.back);
         uint32 map = state->map;
         float x = state->x, y = state->y, z = state->z, o = state->o;
-        *state = OnOutingState();
-        if (back)
-            TeleportSoon(player, map, x, y, z, o);
+        Restore(player);
+        if (!back)
+            return;
+        uint32 leftMap = player->GetMapId();
+        float leftX = player->GetPositionX(), leftY = player->GetPositionY();
+        player->m_Events.AddEventAtOffset([player, map, x, y, z, o, leftMap, leftX, leftY]()
+        {
+            if (player->IsInWorld() && player->IsAlive() && !player->IsBeingTeleported() && player->GetMapId() == leftMap &&
+                player->GetExactDist2d(leftX, leftY) < STILL_THERE)
+                player->TeleportTo(map, x, y, z, o);
+        }, 1500ms);
     }
 
     void Fly(Player* player, Outing const& outing);
@@ -115,11 +148,11 @@ namespace
         if (outing.scene && PlayScene(player, outing.scene))
             lasts = SceneDuration(outing.scene) + 2500;
         ObjectGuid guid = player->GetGUID();
-        uint32 id = outing.id;
-        player->m_Events.AddEventAtOffset([guid, id]()
+        uint32 id = outing.id, round = state->round;
+        player->m_Events.AddEventAtOffset([guid, id, round]()
         {
             Player* p = ObjectAccessor::FindPlayer(guid);
-            if (!p || !p->IsInWorld() || StateOf(p)->outing != id)
+            if (!p || !p->IsInWorld() || !Still(p, id, round))
                 return;
             auto it = outings.find(id);
             if (it != outings.end() && it->second.flightFrom)
@@ -129,28 +162,51 @@ namespace
         }, Milliseconds(lasts));
     }
 
-    // (a far journey can keep them on a loading screen: a look a second, for half a minute)
-    void WhenThere(ObjectGuid guid, uint32 id, uint32 tries)
+    // (a far journey can keep them on a loading screen: a look a second, for half a minute; and only
+    // once its teleport has taken them, or one begun near its place would start before they're moved)
+    void WhenThere(ObjectGuid guid, uint32 id, uint32 round, uint32 tries)
     {
         Player* player = ObjectAccessor::FindPlayer(guid);
         if (!player || !tries)
             return;
-        player->m_Events.AddEventAtOffset([guid, id, tries]()
+        player->m_Events.AddEventAtOffset([guid, id, round, tries]()
         {
             Player* p = ObjectAccessor::FindPlayer(guid);
-            if (!p || StateOf(p)->outing != id)
+            if (!p || !Still(p, id, round))
                 return;
             auto it = outings.find(id);
             if (it == outings.end())
                 return;
             Outing const& outing = it->second;
-            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == outing.map && p->GetExactDist2d(outing.x, outing.y) < 30.0f)
+            if (StateOf(p)->there && p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == outing.map &&
+                p->GetExactDist2d(outing.x, outing.y) < THERE)
                 Arrived(p, outing);
             else if (tries == 1)
                 EndOuting(p);
             else
-                WhenThere(guid, id, tries - 1);
+                WhenThere(guid, id, round, tries - 1);
         }, 1s);
+    }
+
+    // (landed: a look every two seconds, for up to ten minutes)
+    void WhenLanded(ObjectGuid guid, uint32 id, uint32 round, uint32 tries, Milliseconds after)
+    {
+        Player* player = ObjectAccessor::FindPlayer(guid);
+        if (!player)
+            return;
+        player->m_Events.AddEventAtOffset([guid, id, round, tries]()
+        {
+            Player* p = ObjectAccessor::FindPlayer(guid);
+            if (!p || !Still(p, id, round))
+                return;
+            if (!p->IsInFlight() || !tries)
+            {
+                MoratariVoice(p, "low_profile");     // (her own voice, as they land)
+                EndOuting(p);
+            }
+            else
+                WhenLanded(guid, id, round, tries - 1, 2s);
+        }, after);
     }
 
     // On her back: from the flight point to the other, her words on the way; back when they land.
@@ -170,6 +226,12 @@ namespace
         player->m_taxi.AddTaxiDestination(outing.flightTo);
         player->GetSession()->SendDoFlight(outing.mount, path);
         ObjectGuid guid = player->GetGUID();
+        // (her own voice as she takes off)
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld() && p->IsInFlight())
+                MoratariVoice(p, "wings");
+        }, 1500ms);
         for (OutingLine const& line : outing.lines)
         {
             std::string text = line.text;
@@ -179,22 +241,7 @@ namespace
                     MoratariSays(p, NPC_MORATARI, text);
             }, Milliseconds(line.at));
         }
-        // (landed: a look every two seconds, for up to ten minutes)
-        uint32 id = outing.id;
-        auto landed = std::make_shared<std::function<void(uint32)>>();
-        *landed = [guid, id, landed](uint32 tries)
-        {
-            Player* p = ObjectAccessor::FindPlayer(guid);
-            if (!p || StateOf(p)->outing != id)
-                return;
-            if (!p->IsInFlight() || !tries)
-            {
-                EndOuting(p);
-                return;
-            }
-            p->m_Events.AddEventAtOffset([landed, tries]() { (*landed)(tries - 1); }, 2s);
-        };
-        player->m_Events.AddEventAtOffset([landed]() { (*landed)(300); }, 5s);
+        WhenLanded(guid, outing.id, StateOf(player)->round, 300, 5s);
     }
 }
 
@@ -250,9 +297,14 @@ namespace WrathRemix
         auto it = outings.find(id);
         if (!Active() || it == outings.end() || OnOuting(player) || SceneRunning(player) || player->IsInCombat() || player->IsInFlight() || !player->IsAlive())
             return false;
+        // (from a dungeon, a raid or a battleground, a boat or a vehicle, there would be nowhere to come back to)
+        if (player->GetMap()->Instanceable() || player->GetTransport() || player->GetVehicle())
+            return false;
         Outing const& outing = it->second;
         OnOutingState* state = StateOf(player);
         state->outing = id;
+        uint32 round = ++state->round;
+        state->there = false;
         state->map = player->GetMapId();
         state->x = player->GetPositionX();
         state->y = player->GetPositionY();
@@ -260,9 +312,16 @@ namespace WrathRemix
         state->o = player->GetOrientation();
         state->phase = player->GetPhaseMask();
         Record(player, "outing", id, 0);
-        // (a flight starts at its flight point: there first, its scene, then up)
-        TeleportSoon(player, outing.map, outing.x, outing.y, outing.z, outing.o);
-        WhenThere(player->GetGUID(), id, 30);
+        // (a flight starts at its flight point: there first, its scene, then up; not if it's over
+        // already, they went somewhere else first)
+        uint32 map = outing.map;
+        float x = outing.x, y = outing.y, z = outing.z, o = outing.o;
+        player->m_Events.AddEventAtOffset([player, id, round, map, x, y, z, o]()
+        {
+            if (Still(player, id, round) && player->IsInWorld() && player->IsAlive())
+                player->TeleportTo(map, x, y, z, o);
+        }, 1500ms);
+        WhenThere(player->GetGUID(), id, round, 30);
         return true;
     }
 
@@ -281,18 +340,40 @@ namespace WrathRemix
 class RemixOutingsPlayer : public PlayerScript
 {
 public:
-    RemixOutingsPlayer() : PlayerScript("RemixOutingsPlayer", { PLAYERHOOK_ON_LOGOUT }) { }
+    RemixOutingsPlayer() : PlayerScript("RemixOutingsPlayer", { PLAYERHOOK_ON_BEFORE_LOGOUT, PLAYERHOOK_ON_BEFORE_TELEPORT }) { }
 
-    // (one who leaves the game in the middle of one comes back where it was, dressed, in the world)
-    void OnPlayerLogout(Player* player) override
+    // One who leaves the game in the middle of one is saved where it began, dressed (the character
+    // list's picture too), in the world's phase, off her back: before the core saves them (it saves
+    // before the logout hook; a teleport under way, where it ends). The dead are left where they
+    // died, as the core leaves them.
+    void OnPlayerBeforeLogout(Player* player) override
     {
-        if (Active() && OnOuting(player))
-        {
-            OnOutingState* state = StateOf(player);
-            if (state->undressed)
-                Dress(player);
-            *state = OnOutingState();
-        }
+        if (!Active() || !OnOuting(player))
+            return;
+        OnOutingState const* state = StateOf(player);
+        uint32 map = state->map;
+        float x = state->x, y = state->y, z = state->z, o = state->o;
+        Restore(player);
+        if (player->IsAlive())
+            player->TeleportTo(map, x, y, z, o);
+    }
+
+    // A teleport while one is under way: its own (to its place, or a step within it), or away (a
+    // hearthstone, a summons, a death's release), which ends it where they go: dressed, in the world's
+    // phase, and not brought back.
+    bool OnPlayerBeforeTeleport(Player* player, uint32 mapid, float x, float y, float /*z*/, float /*orientation*/, uint32 /*options*/,
+        Unit* /*target*/) override
+    {
+        if (!Active() || !OnOuting(player))
+            return true;
+        OnOutingState* state = StateOf(player);
+        auto it = outings.find(state->outing);
+        if (it != outings.end() && mapid == it->second.map &&
+            (x - it->second.x) * (x - it->second.x) + (y - it->second.y) * (y - it->second.y) < STILL_THERE * STILL_THERE)
+            state->there = true;
+        else
+            EndOuting(player, false);
+        return true;
     }
 };
 

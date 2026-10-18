@@ -15,10 +15,11 @@ together, without taking back a single life:
 
 Wintergarde's company at Fordragon Hold is recalled by the High Commander himself (WRM-201's text, in
 wrath_remix_world_0011_chapter2.sql); the word sent to Saurfang never reaches his son (Agmar burned
-it: a whisper in story_dragonblight.py). After Angrathar, the end of Chapter II, waits for these.
+it: a whisper in story_dragonblight.py). After Angrathar, the end of Chapter II, waits for those of
+these that put back something the Timerunner changed.
 """
 from story_common import (ALLIANCE, HORDE, TAKEN, DONE, TURNED_IN, WEIGHT_OF_TIME, MORATARI, OBJECTIVES_DONE, IN_PROGRESS, rewarded,
-                          state)
+                          not_rewarded, state)
 from story_borean_alliance import (NOT_YET_LATE, NO_ONE_LEFT_BEHIND, LOST_AT_SEA, FORGED_ORDERS, LIVING_ALLERTON, VENN)
 from story_borean_horde import (THE_CONDEMNED_COAST, RECORD_KEEPS_WARSONG, GORGE, GARROSH, SAURFANG, DARKNESS_STIRS)
 
@@ -93,9 +94,18 @@ QUESTS = [
                 "real, $N. For one afternoon, it was real."),
 ]
 
+# After Angrathar waits for each undoing only where its intervention was made: Lost at Sea for whoever
+# saved Allerton (Not Yet Late), Forged Orders for whoever freed Unit S (No One Left Behind), The Record
+# Keeps Warsong for whoever held the coast (The Condemned Coast). The Howling Fjord, or the Borean
+# Tundra's own quests, leave nothing to put back; and the undoings are offered only after the turn
+# (WRM-207), so whoever never saw it isn't held for them.
 GATES = {
-    AFTER_ANGRATHAR_A: [[rewarded(LOST_AT_SEA), rewarded(FORGED_ORDERS)]],
-    AFTER_ANGRATHAR_H: [[rewarded(RECORD_KEEPS_WARSONG)]],
+    AFTER_ANGRATHAR_A: [[not_rewarded(WEIGHT_OF_TIME)],
+                        [rewarded(LOST_AT_SEA), rewarded(FORGED_ORDERS)],
+                        [rewarded(LOST_AT_SEA), not_rewarded(NO_ONE_LEFT_BEHIND)],
+                        [not_rewarded(NOT_YET_LATE), rewarded(FORGED_ORDERS)],
+                        [not_rewarded(NOT_YET_LATE), not_rewarded(NO_ONE_LEFT_BEHIND)]],
+    AFTER_ANGRATHAR_H: [[not_rewarded(WEIGHT_OF_TIME)], [rewarded(RECORD_KEEPS_WARSONG)], [not_rewarded(THE_CONDEMNED_COAST)]],
 }
 
 TALK = [

@@ -2,6 +2,7 @@
 
 package com.logie.warcraft
 
+import android.app.ActivityManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.io.File
@@ -24,8 +26,9 @@ import java.io.File
  * The app's process sees the server through this: [Server.start] and [Server.stop] there ask the
  * realm's process ([ServerService]), [Server.worldCommand] is passed on to it, and [Server.status]
  * there is the realm's own, sent over as it changes ([publish]) and asked for when the app's
- * process starts ([attach]). The broadcasts stay within the app (its package, and a permission
- * only it holds).
+ * process starts ([attach]); while it says the server is up, the realm's process is looked for now
+ * and then, as Android can end it without a word ([Server.checkRealm]). The broadcasts stay within
+ * the app (its package, and a permission only it holds).
  */
 object RealmLink {
     const val ACTION_START = "com.logie.warcraft.realm.START"
@@ -38,6 +41,8 @@ object RealmLink {
     private const val EXTRA_STATUS = "status"
     private const val EXTRA_TEXT = "text"
     private const val PERMISSION = "com.logie.warcraft.permission.REALM"
+    /** How often the app's process looks that the realm's is there, while the server is up. */
+    private const val ALIVE_EVERY_MS = 5_000L
 
     /** This is the realm's process. */
     val inRealm: Boolean by lazy {
@@ -64,6 +69,22 @@ object RealmLink {
             }
         }, IntentFilter().apply { addAction(ACTION_STATUS); addAction(ACTION_LEAVE_GAME) }, PERMISSION, null)
         send(app, Intent(ACTION_HELLO))
+        // While the realm is said to be up: that its process still is ([Server.checkRealm]).
+        scope.launch {
+            Server.status.collectLatest { status ->
+                if (status.phase == Server.Phase.STOPPED || status.phase == Server.Phase.FAILED) return@collectLatest
+                while (true) {
+                    delay(ALIVE_EVERY_MS)
+                    Server.checkRealm(app)
+                }
+            }
+        }
+    }
+
+    /** The realm's process is there (null: Android didn't say). */
+    fun realmRunning(context: Context): Boolean? {
+        val processes = runCatching { context.getSystemService(ActivityManager::class.java).runningAppProcesses }.getOrNull() ?: return null
+        return processes.any { it.processName.endsWith(":realm") }
     }
 
     fun start(context: Context, realm: Realms.Realm) = toRealm(context, Intent(ACTION_START).putExtra(EXTRA_REALM, realm.key))

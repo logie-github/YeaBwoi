@@ -25,6 +25,9 @@ ACT_MORATARI = 770013
 ACT_SYLVANAS, ACT_ALLERIA, ACT_ETERNUS, ACT_THORIM, ACT_SIF = 770051, 770052, 770053, 770054, 770055
 THORIM_TERRACE = 30295
 HIEROPHANT_THAYREEN, WINDSEER_GRAYHORN = 27295, 27262
+# A scene's credit, given at its end to the scene's own quest alone (RemixScenes.cpp: another quest
+# in the log asking for it doesn't get it), and the reason one cut short plays again at its anchor.
+# Back to Your Own Time's is given by the way home too (RemixEnding.cpp).
 SCENE_CREDIT = 770035
 PLAYER = 255
 
@@ -40,6 +43,13 @@ ACTIONS = dict(summon=1, bind=2, move=3, say=4, yell=5, emote=6, cast=7, face=8,
 
 def say(actor, text):
     return ("say", actor, text)
+
+
+def voiced(actor, text, seconds):
+    """A line said in the game's own recording of it (tools/voices.py): the scene gives it as long as
+    the recording runs, if that's longer than the time to read it."""
+    extra = int(seconds * 1000) + 400 - max(4000, int(len(text) * 1000 / 15))   # (reading_time's, below)
+    return [say(actor, text)] + ([("wait", extra)] if extra > 0 else [])
 
 
 def scene(id, name, quest, trigger, anchor, steps, credit=0):
@@ -253,11 +263,17 @@ SCENES = [
         ("cast", 1, SPELL_TIME_RIFT_CHANNEL, PLAYER),
         ("wait", 4000),
         say(1, "There. You go home knowing no more of what is coming than anyone else at that table. It is the only fair way to go."),
+        # (her farewell in her own voice: Legion Remix's, tools/voices.py)
+        *voiced(1, "This has been quite the experiment, hasn't it? Now the sands of time slip through the hourglass, waiting to be turned over again.", 8.74),
+        *voiced(1, "The strange thing about traveling through time is that goodbyes and hellos tend to blur together. It can be hard to tell them apart.", 8.06),
+        *voiced(1, "And yet, they are, in their own way, so distinct from one another. I wonder why that is. Perhaps they deserve their own experiment.", 8.33),
+        *voiced(1, "Well, if I ever decide to pursue it, I'd be thrilled to have you as an assistant. Then this goodbye would blur into a hello as well.", 8.75),
         say(1, "But I will remember. Goodbye, Timerunner. Go home."),
+        *voiced(1, "I will create a portal for you now.", 1.78),
         ("cast", 1, SPELL_TELEPORT_VISUAL, PLAYER),
         ("wait", 2500),
         ("home",),
-    ]),
+    ], credit=SCENE_CREDIT),
 ]
 
 

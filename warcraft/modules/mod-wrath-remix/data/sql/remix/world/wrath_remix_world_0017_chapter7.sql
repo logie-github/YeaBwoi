@@ -13,9 +13,12 @@
 --            it goes to the doors of Icecrown Citadel): Eternus's last hour
 --   WRM-800  after The Last Hour, Moratari at the Citadel's doors: the Lich King; turned in to
 --            Moratari at the Bazaar, where the Timerunner is brought once the ending cinematic is
---            over (WrathRemix.cpp)
+--            over, or at their next login if they were gone before it (RemixEnding.cpp)
 --
 -- Spawns 7704280 to 7704299.
+--
+-- WRM-702 and WRM-701/711, both from the same Moratari, can be in the log together: each scene's
+-- credit, the scenes' one, goes to its own quest alone (RemixScenes.cpp).
 
 SET @MORATARI := 770001, @SYLVANAS := 770011, @SCENE_CREDIT := 770035, @LAST_HOUR_CREDIT := 770036, @LICH_KING := 36597;
 

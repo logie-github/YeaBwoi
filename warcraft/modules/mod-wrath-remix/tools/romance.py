@@ -518,6 +518,10 @@ SCENES = [
         ("emote", 1, EMOTE_KISS),
         ("emote", PLAYER, EMOTE_KISS),
         ("text_emote", 1, "kisses you as the wind comes down off the glacier, and for a moment it is not cold at all."),
+        ("wait", 2500),
+        # (in her own voice: Legion Remix's, tools/voices.py)
+        ("say", 1, "Well, then we'll simply have to make the most of the time we have, won't we?"),
+        ("wait", 800),
     ]),
     # Whenever they like, after their dinner: the Moratari nearest them (beside them, or at her post).
     dict(id=SCENE_KISS, name="A kiss", quest=0, trigger=0, anchor=0, steps=[

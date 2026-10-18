@@ -119,10 +119,15 @@ namespace WrathRemix
     }
 
     // The instructor teaches the Timerunner's class (their trainer list is that class's).
+    bool TeachesClassOf(uint32 instructor, Player* player)
+    {
+        Trainer::Trainer* trainer = sObjectMgr->GetTrainer(instructor);
+        return trainer && trainer->GetTrainerType() == Trainer::Type::Class && trainer->IsTrainerValidForPlayer(player);
+    }
+
     bool TeachesClassOf(Creature* instructor, Player* player)
     {
-        Trainer::Trainer* trainer = sObjectMgr->GetTrainer(instructor->GetEntry());
-        return trainer && trainer->GetTrainerType() == Trainer::Type::Class && trainer->IsTrainerValidForPlayer(player);
+        return TeachesClassOf(instructor->GetEntry(), player);
     }
 }
 
