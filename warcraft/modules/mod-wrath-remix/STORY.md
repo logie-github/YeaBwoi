@@ -73,8 +73,12 @@ who believes she is better than the rest.
 
 ## The Infinite Bazaar
 
-The home of the whole story, in Crystalsong Forest beneath Dalaran, west of the Violet Stand. Every
-new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers it. Until the turn
+The home of the whole story, in Malykriss: The Vile Hold, the necropolis the Lich King began in Icecrown
+to replace Acherus and never finished (in Crystalsong Forest until build 117). In this year his builders
+are still at work on it; in the Bazaar's hour, a little outside the flow of time, it belongs to the
+infinite dragonflight, to the Knights of the Ebon Blade who keep its gates, and to the last free
+nerubians of Azjol-Nerub, who were building in saronite before the Scourge stole the craft from them
+(`tools/malykriss.py`). Every new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers it. Until the turn
 it is Eternus's camp; after it, Eternus is gone from it and Sylvanas and Alleria are there, with
 Moratari and the Keepers of Time.
 
