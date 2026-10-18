@@ -59,21 +59,21 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77031, 2, -1, 1, -81, 3, 0, 0, 0, 0, 0,
  'Steel Remembers',
  'Use Charge, Rend and Heroic Strike on a Training Dummy in the Bazaar''s training yard, then return to the Timeworn Instructor.',
- 'Your arms remember more than your head does, $n. Let us wake them up.$B$BStart from a distance: Charge closes the gap in a heartbeat and gives you rage to spend. Open with Rend, so your enemy bleeds while you work. Then Heroic Strike: it takes the place of your next swing, so press it and keep swinging.$B$BThe dummies in the yard can take it. Show me all three.',
+ 'A warrior learns with a weapon in hand, $n, so I will keep this short.$B$BStart from a distance: Charge closes the gap in a heartbeat and gives you rage to spend. Rend next, so your enemy bleeds while you work. Then Heroic Strike: it takes the place of your next swing, so press it and keep swinging.$B$BThe dummies in the yard can take it. Show me all three.',
  'Return to the Timeworn Instructor.',
  @LESSON_1, @LESSON_2, @LESSON_3, 1, 1, 1,
  'Charge a Training Dummy', 'Rend a Training Dummy', 'Heroic Strike a Training Dummy', 0),
 (77032, 2, -1, 1, -141, 3, 0, 0, 0, 0, 0,
  'Seal and Judgement',
  'Take up Seal of Righteousness, use Judgement of Light on a Training Dummy and cast Holy Light in the Bazaar''s training yard, then return to the Timeworn Instructor.',
- 'The Light has not left you, $n. You have only forgotten how to call it.$B$BFirst, a seal: Seal of Righteousness rests on you and lends every swing a little holy fire. Then release it with Judgement of Light on your enemy: the seal''s power strikes at once, and the Light mends whoever fights that enemy afterwards. And when the fight turns against you, Holy Light, on yourself if no one else needs it more.$B$BUse the dummies, and stay where I can see you.',
+ 'The Light has not left you, $n. You have only forgotten how to call it.$B$BFirst, a seal: Seal of Righteousness rests on you and lends every swing a little holy fire. Then Judgement of Light on your enemy: it unleashes the seal''s power on them at once, and for a while after, the Light mends whoever strikes them. And when the fight turns against you, Holy Light, on yourself if no one else needs it more.$B$BUse the dummies, and stay where I can see you.',
  'Return to the Timeworn Instructor.',
  @LESSON_1, @LESSON_2, @LESSON_3, 1, 1, 1,
  'Seal of Righteousness taken up', 'Judgement of Light on a Training Dummy', 'Holy Light cast in the training yard', 0),
 (77033, 2, -1, 1, -261, 3, 0, 0, 0, 0, 0,
  'Mark, Sting and Shot',
  'Use Hunter''s Mark, Serpent Sting and Arcane Shot on a Training Dummy in the Bazaar''s training yard, then return to the Timeworn Instructor.',
- 'A hunter fights from where the prey cannot reach, $n. Let us see your aim.$B$BMark your quarry first: Hunter''s Mark shows it to you wherever it runs, and every shot you put into it hits harder. Then Serpent Sting, a poison that works while you do. Then Arcane Shot, quick and hard, between your automatic shots.$B$BStand back from a dummy and put all three into it.',
+ 'A hunter fights from where the prey cannot reach, $n. Let us see your aim.$B$BMark your quarry first: Hunter''s Mark keeps it in your sight even when it hides, and every shot you put into it hits harder. Then Serpent Sting, a poison that works while you do. Then Arcane Shot, quick and hard, between your automatic shots.$B$BStand back from a dummy and put all three into it.',
  'Return to the Timeworn Instructor.',
  @LESSON_1, @LESSON_2, @LESSON_3, 1, 1, 1,
  'Hunter''s Mark on a Training Dummy', 'Serpent Sting on a Training Dummy', 'Arcane Shot on a Training Dummy', 0),
@@ -101,7 +101,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77037, 2, -1, 1, -82, 3, 0, 0, 0, 0, 0,
  'The Elements Answer',
  'Use Lightning Bolt and Earth Shock on a Training Dummy and cast Healing Wave in the Bazaar''s training yard, then return to the Timeworn Instructor.',
- 'The elements have not forgotten you, $n, even if you have forgotten them.$B$BLightning Bolt is your first word to an enemy, from a distance. Earth Shock is instant: use it as they close in, or to break a spell they are casting. And Healing Wave, on yourself or a friend, when a fight runs long.$B$BTwo for a dummy, and one for yourself, here in the yard.',
+ 'The elements have not forgotten you, $n, even if you have forgotten them.$B$BLightning Bolt is your first word to an enemy, from a distance. Earth Shock is instant, and it slows the swings of whatever it strikes: use it as they close in. And Healing Wave, on yourself or a friend, when a fight runs long.$B$BTwo for a dummy, and one for yourself, here in the yard.',
  'Return to the Timeworn Instructor.',
  @LESSON_1, @LESSON_2, @LESSON_3, 1, 1, 1,
  'Lightning Bolt on a Training Dummy', 'Earth Shock on a Training Dummy', 'Healing Wave cast in the training yard', 0),
@@ -142,12 +142,12 @@ SELECT `ID`, 1, 1, 'The dummies are still standing, I see. Go on, I am watching.
 DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 77030 AND 77039;
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77031, 1, 'Good. Rage is earned by fighting and lost by waiting, so spend it. The rest will come back to you as you grow, and I will be here when you need more.', 0),
-(77032, 1, 'There it is. Seal, Judgement, and the Light to carry you through the rest. The rest will come back to you as you grow, and I will be here when you need more.', 0),
+(77032, 1, 'There it is. Seal, Judgement, and the Light to see you through. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77033, 1, 'Clean work. Keep your distance, keep your mark on them, and they will never reach you. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77034, 1, 'I barely saw you. Good. Build your points, spend them well, and never fight fair. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77035, 1, 'Well done. Shield first, then strike; you will outlast far worse than a dummy. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77036, 1, 'Diseases first, then the coil. You remember. The rest will come back to you as you grow, and I will be here when you need more.', 0),
-(77037, 1, 'The elements still answer you. Shock to interrupt, bolt to finish, a wave to stay standing. The rest will come back to you as you grow, and I will be here when you need more.', 0),
+(77037, 1, 'The elements still answer you. Bolt from afar, shock up close, and a wave to keep you standing. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77038, 1, 'Slow them, burn them, and blast what is left. That is most of magic, really. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77039, 1, 'Corruption, Immolate, Shadow Bolt. Let your enemy pay for every second they stand there. The rest will come back to you as you grow, and I will be here when you need more.', 0),
 (77030, 1, 'Moonfire, Wrath, and Rejuvenation to keep you on your feet. Balance. The rest will come back to you as you grow, and I will be here when you need more.', 0);
@@ -169,5 +169,5 @@ SELECT `ID`, 500 FROM `quest_template` WHERE `ID` BETWEEN 77030 AND 77039;
 -- What an instructor says while a Timerunner's lesson is still to do.
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702501 AND 7702509;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
-(7702501, 'Your strength came through with you, Timerunner. Your hands just need reminding how to use it. Let me walk you through what you already know, or teach you something new.',
-          'Your strength came through with you, Timerunner. Your hands just need reminding how to use it. Let me walk you through what you already know, or teach you something new.', 1);
+(7702501, 'The yard is yours, Timerunner. Let me walk you through what you already know, or teach you something new.',
+          'The yard is yours, Timerunner. Let me walk you through what you already know, or teach you something new.', 1);

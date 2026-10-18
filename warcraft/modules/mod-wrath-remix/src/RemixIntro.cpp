@@ -476,7 +476,7 @@ namespace
             if (Creature* moratari = p->FindNearestCreature(NPC_MORATARI, 40.0f))
             {
                 moratari->SetFacingToObject(p);
-                moratari->Say(Words(p, "Welcome to the Infinite Bazaar, $N. Breathe. Eternus will want to see you, just there."), LANG_UNIVERSAL, p);
+                moratari->Say(Words(p, "Welcome to the Infinite Bazaar, $N. Breathe. Eternus will want to see you."), LANG_UNIVERSAL, p);
                 moratari->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
             }
         }, 3s);
@@ -594,27 +594,27 @@ namespace
     // Varian at the Undercity, the Skybreaker over Icecrown; the Horde's Warsong Hold under siege,
     // Garrosh's temper, Saurfang's son at the Gate, Thrall at the Undercity, Orgrim's Hammer.
     TavernLine const ALLIANCE_TAVERN[] = {
-        { 2000, 3, "Another round for the heroes of Icecrown! On the house, this once. Don't tell the Lord Mayor.", EMOTE_ONESHOT_EXCLAMATION },
-        { 7000, 0, "For the Alliance! To King Varian, and to the Frozen Throne, empty at last!", EMOTE_ONESHOT_CHEER },
-        { 14500, 1, "Do you remember the beach at Valiance Keep? The first day? The Scourge came up out of the sand before we had the boats unloaded.", EMOTE_ONESHOT_TALK },
-        { 21500, 2, "I remember Wintergarde. The lower village, under that necropolis. We got there too late for most of them.", EMOTE_ONESHOT_NO },
-        { 28000, 0, "And the Gate. Bolvar standing in the dragonfire, and that green fog coming down the cliffs. Then Varian, kicking in the doors of the Undercity. I've never seen a king that angry.", EMOTE_ONESHOT_TALK },
-        { 36000, 1, "Better to remember the Skybreaker. $N standing on the deck over Icecrown, the wind trying to take us all off it, laughing like a fool.", EMOTE_ONESHOT_LAUGH },
-        { 42500, 2, "To $F, then. He walked into Icecrown with us. He didn't walk out.", EMOTE_ONESHOT_SALUTE },
-        { 49500, 0, "Arthas is dead, the Scourge is scattered, and the ale is free. Whatever comes next can't be worse than that.", EMOTE_ONESHOT_TALK },
-        { 56500, 1, "Don't say that. Every time somebody says that, something worse comes along.", EMOTE_ONESHOT_NO },
+        { 2000, 3, "Another round for the heroes of Icecrown! And put your coin away, all of you. You've paid enough up north.", EMOTE_ONESHOT_EXCLAMATION },
+        { 7000, 0, "Raise 'em up! To King Varian, and to the Frozen Throne, empty at last! For the Alliance!", EMOTE_ONESHOT_CHEER },
+        { 14500, 1, "I still think about our first day at Valiance Keep. The dead were coming up the beach before the last ship was even unloaded.", EMOTE_ONESHOT_TALK },
+        { 21500, 2, "For me it's Wintergarde. We flew gryphons over the lower village all day, pulling out anyone still breathing. There weren't many.", EMOTE_ONESHOT_NO },
+        { 28000, 0, "And the Gate. I was near enough to see Bolvar go down when that green fog came off the cliffs. Then Varian kicked in the doors of the Undercity. Never seen a king so angry.", EMOTE_ONESHOT_TALK },
+        { 36000, 1, "Enough of that. Think of the Skybreaker instead: $N strapping on that goblin's rocket pack and leaping across to the Horde ship, laughing like a fool.", EMOTE_ONESHOT_LAUGH },
+        { 42500, 2, "$F jumped right after you. To $F. He walked into Icecrown with us, and he never walked out.", EMOTE_ONESHOT_SALUTE },
+        { 49500, 0, "Well. Arthas is dead, and the ale's free. Whatever comes next can't be worse than him.", EMOTE_ONESHOT_TALK },
+        { 56500, 1, "Don't tempt fate, Brannoc. You said that at Ulduar, too, and then we found what was chained beneath it.", EMOTE_ONESHOT_NO },
         { 63000, 2, "$N, you've gone quiet. You were there at the very end. What was it like, when he fell?", EMOTE_ONESHOT_QUESTION },
     };
     TavernLine const HORDE_TAVERN[] = {
-        { 2000, 3, "Another round for the heroes of Icecrown! On the house, this once. Don't tell the Warchief.", EMOTE_ONESHOT_EXCLAMATION },
-        { 7000, 0, "Lok'tar ogar! To the Warchief, and to the Frozen Throne, empty at last!", EMOTE_ONESHOT_CHEER },
-        { 14500, 1, "Do you remember Warsong Hold, the first day? The nerubians came up through the floor of the keep while Garrosh was still shouting at the boats.", EMOTE_ONESHOT_TALK },
-        { 21500, 0, "Hellscream wanted to march on Icecrown that afternoon. If Saurfang had not been there, he would have, too.", EMOTE_ONESHOT_LAUGH },
-        { 28000, 2, "And the Gate. Saurfang's son, falling before anyone could reach him, and that green fog coming down the cliffs. Then Thrall and Vol'jin, taking the Undercity back from Varimathras.", EMOTE_ONESHOT_TALK },
-        { 36000, 1, "Better to remember Orgrim's Hammer. $N on the deck over Icecrown, the wind trying to take us all off it, laughing like a fool.", EMOTE_ONESHOT_LAUGH },
-        { 42500, 1, "To $F, then. She walked into Icecrown beside us. The Earth Mother has her now.", EMOTE_ONESHOT_SALUTE },
-        { 49500, 0, "Arthas is dead, the Scourge is scattered, and the grog is free. Whatever comes next cannot be worse than that.", EMOTE_ONESHOT_TALK },
-        { 56500, 2, "Don't say that. Every time somebody says that, something worse comes along.", EMOTE_ONESHOT_NO },
+        { 2000, 3, "Heroes of Icecrown! Lay your axes by the fire, and drink. This round is on the house.", EMOTE_ONESHOT_EXCLAMATION },
+        { 7000, 0, "To the Warchief! And to the Frozen Throne, empty at last! Lok'tar ogar!", EMOTE_ONESHOT_CHEER },
+        { 14500, 1, "I remember the first day at Warsong Hold. The nerubians came up through the floor while Garrosh was still on the walls, roaring at the zeppelins to land faster.", EMOTE_ONESHOT_TALK },
+        { 21500, 0, "Hah! Hellscream wanted to march on Icecrown that same afternoon. If the High Overlord had not held him back, he would have done it, too.", EMOTE_ONESHOT_LAUGH },
+        { 28000, 2, "And the Gate. Saurfang the Younger charging the Lich King alone, then that green fog off the cliffs. Forsaken plague. Ours. Thrall and Vol'jin made Varimathras pay for it.", EMOTE_ONESHOT_TALK },
+        { 36000, 1, "Let us speak of happier things. Orgrim's Hammer over Icecrown, the deck pitching under us, and $N at the rail, laughing at the wind.", EMOTE_ONESHOT_LAUGH },
+        { 42500, 1, "$F was beside you, laughing just as hard. To $F. The Earth Mother has her now.", EMOTE_ONESHOT_SALUTE },
+        { 49500, 0, "Arthas is dead, and the grog is free. Whatever comes next cannot be worse than him.", EMOTE_ONESHOT_TALK },
+        { 56500, 2, "Bite your tongue, Grakka. You said that at Ulduar, the night before we went down to Yogg-Saron.", EMOTE_ONESHOT_NO },
         { 63000, 1, "$N, you have gone quiet. You were there at the very end. What was it like, when he fell?", EMOTE_ONESHOT_QUESTION },
     };
 
@@ -684,7 +684,7 @@ namespace
         At(player, o, 75500, [](Player* p, Opening& b) { SheSays(p, b, "I'm sorry, hero. I need you."); });
         At(player, o, 80500, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Don't be afraid. You will be back before your ale goes warm. But first, you need to remember.");
+            SheSays(p, b, "They cannot hear us. When we are done, I will bring you back to this very moment. But first, there is something you need to see again.");
         });
         At(player, o, 86000, [o](Player* p, Opening&)
         {
@@ -770,7 +770,7 @@ namespace
         });
         At(player, o, 3500, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Do you remember this, $N? The Broken Front, the last day of his war. You stood right here, with Tirion, while the dead poured out of the Citadel.");
+            SheSays(p, b, "Do you remember this, $N? The Broken Front, the last day of his war. Fight, if you like. Nothing here can hurt you.");
         });
         // His voice, from the Citadel: the dead rise.
         At(player, o, 5500, [](Player* p, Opening& b)
@@ -805,7 +805,7 @@ namespace
         });
         At(player, o, 18500, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Look at them. Every one of those ghouls was someone once: a farmer from Lordaeron, a soldier from the Wrathgate, a child from Wintergarde. He wasted no one.");
+            SheSays(p, b, "Look at them. Every one of those ghouls had a name once. He wasted no one.");
         });
         At(player, o, 23000, [](Player* p, Opening& b)
         {
@@ -916,7 +916,7 @@ namespace
         {
             if (Creature* moratari = Who(p, b.moratari))
                 moratari->GetMotionMaster()->MovePoint(1, Spot(p, -1.0f, 1.5f));
-            SheSays(p, b, "This is how it ended. You won. But you remember what it cost to reach this hour, don't you?");
+            SheSays(p, b, "Enough. You know how the rest goes. You won. But you remember what it cost, don't you?");
         });
         At(player, o, 76000, [](Player* p, Opening& b) { SheSays(p, b, "Let me show you what you have been trying to forget."); });
         At(player, o, 81000, [o](Player* p, Opening&) { GoTo(p, o, WRATHGATE, Wrathgate); });
@@ -974,21 +974,21 @@ namespace
 
         At(player, o, 2500, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Angrathar. The Wrathgate. The Alliance and the Horde, side by side for once, at the very door of Icecrown.");
+            SheSays(p, b, "Angrathar, the Wrathgate. The Alliance and the Horde stood side by side here, for once, at the very door of Icecrown.");
         });
         At(player, o, 11000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Dranosh Saurfang fell first, cut down by the Lich King himself. His father would have to face what Arthas made of him.", EMOTE_ONESHOT_POINT);
+            SheSays(p, b, "Dranosh Saurfang fell first, to the Lich King's own blade. Later, in the Citadel, his father had to carry home what Arthas made of him.", EMOTE_ONESHOT_POINT);
         });
         At(player, o, 20000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Then the plague came down from these cliffs, and the red dragonflight's fire after it. Bolvar Fordragon burned in it. Thousands died in a single breath, on both sides.");
+            SheSays(p, b, "Then the Forsaken's plague fell on the living and the dead alike, and the red dragonflight burned it away. Bolvar Fordragon burned with it.");
         });
         At(player, o, 29000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "And the Scourge never had to bury anyone. The Lich King simply had more soldiers in the morning.");
+            SheSays(p, b, "After that day, the Alliance and the Horde were enemies again. That suited the Lich King very well.");
         });
-        At(player, o, 37000, [](Player* p, Opening& b) { SheSays(p, b, "Come. There is worse."); });
+        At(player, o, 37000, [](Player* p, Opening& b) { SheSays(p, b, "Come. The soldiers, at least, knew what they were marching into."); });
         At(player, o, 41000, [o](Player* p, Opening&) { GoTo(p, o, WINTERGARDE, Wintergarde); });
     }
 
@@ -1036,7 +1036,7 @@ namespace
 
         At(player, o, 2500, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Wintergarde. Farmers and miners, under Naxxramas. The Scourge's necropolis hung over their roofs like a second sky.");
+            SheSays(p, b, "Wintergarde. Farmers and miners, with Naxxramas hanging over their roofs like a second sky.");
         });
         At(player, o, 11000, [](Player* p, Opening& b)
         {
@@ -1044,13 +1044,13 @@ namespace
         });
         At(player, o, 20000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "The Scourge does not choose. Children, the old, the sick. It takes, and it adds what it takes to itself.");
+            SheSays(p, b, "He raised the miners and sent them back down their own mine, to dig for him.");
         });
         At(player, o, 29000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "This was Andorhal. It was Stratholme, and Silvermoon, and every town he ever touched. Wintergarde is only one of the last.");
+            SheSays(p, b, "It was the same in Andorhal, and Stratholme, and Silvermoon. Wintergarde was only one of the last.");
         });
-        At(player, o, 37000, [](Player* p, Opening& b) { SheSays(p, b, "One more place. The worst of them."); });
+        At(player, o, 37000, [](Player* p, Opening& b) { SheSays(p, b, "One more. This one, you will know."); });
         At(player, o, 41000, [o](Player* p, Opening&) { GoTo(p, o, FIELDS, Fields); });
     }
 
@@ -1106,28 +1106,28 @@ namespace
 
         At(player, o, 2500, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Icecrown. Where the val'kyr carried the fallen of this war, every one they could reach.");
+            SheSays(p, b, "Icecrown. The val'kyr carried the fallen here from every battle they could reach.");
         });
         At(player, o, 11000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "He gave them back their bodies. Never their souls. They marched for him, and they remembered everything.");
+            SheSays(p, b, "Ask the Forsaken what it is like to march for him. They remember every day of it.");
         });
         At(player, o, 20000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "$F is in those ranks somewhere, $N. You know that. You have known it since the end.");
+            SheSays(p, b, "$F is in those ranks somewhere, $N. I think you have always known that.");
         });
         At(player, o, 28000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "You beat him. And still you could not give them back. No one could.");
+            SheSays(p, b, "You beat him, and still you could not bring them back. No one could.");
         });
         At(player, o, 35000, [](Player* p, Opening& b) { SheSays(p, b, "Unless none of it ever happens."); });
         At(player, o, 40000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "We can stop all of this. We can undo it. Every grave, every plague, every one of them.", EMOTE_ONESHOT_EXCLAMATION);
+            SheSays(p, b, "We can stop all of this. We can undo it. $F could come home.", EMOTE_ONESHOT_EXCLAMATION);
         });
         At(player, o, 47000, [](Player* p, Opening& b)
         {
-            SheSays(p, b, "Come. There is someone who can explain it better than I can. He has been waiting a long time for you.");
+            SheSays(p, b, "The rest is my master's to tell. Hold still.");
         });
         At(player, o, 50000, [](Player* p, Opening& b)
         {

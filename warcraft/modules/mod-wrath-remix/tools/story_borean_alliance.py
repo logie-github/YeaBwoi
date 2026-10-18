@@ -136,80 +136,76 @@ QUESTS = [
          log="Warn General Arlos and Sergeant Hammerhill of what is coming to Valiance Keep, without telling them how you know.",
          desc="You remember this week, don't you? The crawlers on the beach. The flyers over the inner wall. And on the third night, the ground "
               "opening under the western ridge.$B$BThis time, they can be ready. Tell the general in the barracks, and the sergeant at the "
-              "barricade. Not how you know, $N: no one in this year may learn that. Say your scouts saw worm-trails on the ridge. Soldiers believe "
-              "scouts.$B$BAnd mind the counselor at the general's elbow. Tell him nothing you would not tell the Scourge.",
+              "barricade. Not how you know, $N: no one in this year may learn that. Say your scouts saw worm-trails on the ridge.$B$B"
+              "And mind the counselor at the general's elbow. Tell him nothing you would not tell the Scourge.",
          done="Return to Moratari.",
          objectives=[(C_ARLOS, 1, "General Arlos warned"), (C_HAMMERHILL, 1, "Sergeant Hammerhill warned")],
          request="Well? Did they listen?",
-         reward="The general did not believe you. The sergeant did. Remember that, $N: in every war, it is the sergeants who listen.$B$B"
-                "Now the war knows something it did not know yesterday, and nobody can say who told it. That is how we work, you and I."),
+         reward="The general did not believe you. The sergeant did. In my experience, sergeants are the most useful variable in any war.$B$B"
+                "And you lie rather well, for an honest $c. I mean that kindly."),
     dict(COMMON, id=FOURTH_SINKHOLE, title="The Fourth Sinkhole", prev=PLUG_THE_SINKHOLES,
          log="Slay 6 Cultist Necrolytes at the northern sinkhole, then go with Moratari to the dunes behind the beach line.",
-         desc="Hammerhill thinks there were three sinkholes. There were four. The fourth opens under the dunes behind the beach line on the "
-              "third night, and what comes out of it reaches the docks before anyone sounds a horn.$B$BIt has not opened yet. The worms are "
-              "still digging it, and the cult's necrolytes are feeding them from the northern sinkhole, chanting the dead awake under the "
-              "sand.$B$BKill the necrolytes. Then come with me to the dunes. I will show you what a bronze dragon can do with wooden supports "
-              "and a little time.",
+         desc="Eternus told you there was a fourth. It opens under the dunes behind the beach, the same night as the others, and what comes "
+              "out of it reaches the docks before anyone can sound a horn.$B$BIt has not opened yet. The worms are still digging, and the "
+              "cult's necrolytes at the northern sinkhole are feeding them, chanting the dead awake under the sand.$B$BKill the necrolytes. "
+              "Then come with me to the dunes, and I will show you what can be done with wooden supports and a little time.",
          done="Return to Moratari.",
          objectives=[(CULTIST_NECROLYTE, 6, ""), (C_SINKHOLE, 1, "The fourth sinkhole collapsed")],
-         request="Is it done?",
-         reward="Three sinkholes in the reports. Four in the ground. Three in history, now. I like those numbers better.$B$B"
-                "Hammerhill will sleep well on the third night and never know why. That is the best kind of rescue."),
+         request="Not yet? The worms will not wait for us.",
+         reward="Then the docks stay quiet. Hammerhill will sleep through that night and never know why."),
     dict(COMMON, id=NOT_YET_LATE, title="Not Yet Late", prev=WORD_ON_THE_STREET, ender=LIVING_ALLERTON,
          log="Reach William Allerton in the Farshire Mine before the cult's assassin does.",
          desc="Leryssa is about to ask you to find a family friend of hers, William Allerton, at the Farshire mine. Say yes. Then run.$B$B"
-              "In the record I have, you find him on the floor of that mine with his throat cut and no claw marks on him. A man in a Valiance "
-              "tabard climbed the shaft an hour before you, with orders from the inner hold and a knife.$B$BWilliam knows where they sent "
-              "Thassarian. That is why he dies. Today, I would rather he didn't.",
+              "The first time, you found him on the floor of that mine with his throat cut, and not a claw mark on him. A man in a Valiance "
+              "tabard got there an hour before you did.$B$BWilliam knows where they sent Thassarian. That is why he died. Today, I would "
+              "rather he didn't.",
          done="Speak with William Allerton.",
          objectives=[(CULT_ASSASSIN, 1, "")],
-         request="<William Allerton is pressed against the wall of the mine, a hand at his throat.>",
-         reward="You... you're not one of them. Thank the Light.$B$BThat man came up the shaft in a Valiance tabard. Said he had orders for me "
-                "from the inner hold. Then he drew a knife.$B$BI know why, too. I've seen the ledger. I know where they sent Thassarian."),
+         request="<William Allerton is pressed against the wall of the mine, staring at the knife.>",
+         reward="You... you're not one of them? <William Allerton slides down the wall of the mine, shaking.>$B$BHe said he had orders for me "
+                "from the inner hold. I took the paper from him, and he drew a knife.$B$BWhoever you are, thank you."),
     dict(COMMON, id=NAMED_FOR_NO_TOWN, title="Named for No Town", prev=NOT_YET_LATE, giver=LIVING_ALLERTON, ender=LERYSSA,
          log="Ask Old Man Colburn at the inn and Private Brau in the barracks jail about Unit S, then tell Leryssa what you have learned.",
-         desc="Thassarian enlisted the same day I did. The day after, they had him in charge of something called Unit S. All the other units "
-              "are named after towns, $c. Goldshire. Darkshire. Not 'S'.$B$BI started asking questions. Then someone came up my mine shaft "
-              "with a knife.$B$BOld Colburn at the inn knows every unit that ever sailed from Stormwind; ask him. And there's a deserter in "
-              "the barracks jail, Brau, who was in Unit S before he ran. Ask him who signed the order.$B$BThen tell Leryssa. She deserves to "
-              "know where her brother went.",
+         desc="I saw Thassarian in the enlistment line, $c, plain as I see you. Dead all these years, and there he stood, signing his name.$B$B"
+              "The next day they put him in charge of something called Unit S and sent him east. Every other unit in this expedition is "
+              "named after a town. I started asking why. You've seen where that got me.$B$BOld Colburn at the inn knows more about this army "
+              "than the army does; ask him. And there's a deserter in the barracks jail, Brau, who was in Unit S before he ran. Ask him who "
+              "signed the order.$B$BThen tell Leryssa. She deserves to know where her brother went.",
          done="Return to Leryssa at the Valiance Keep inn.",
          objectives=[(C_COLBURN, 1, "Old Man Colburn asked about Unit S"), (C_BRAU, 1, "Private Brau asked who signed the order")],
          request="Did you find William? Is he...",
-         reward="William's alive? Light be praised. And the counselor... <Leryssa sits down, hard.> He's at the general's side every hour of "
-                "the day.$B$BA dozen men and a death knight, sent to die on purpose. And Thassarian is one of them.$B$BPlease, $N. Find my "
-                "brother before they finish what they started."),
+         reward="William's alive? Oh, thank the Light. <Leryssa sits down, hard.>$B$BThe counselor. He's at the general's side every hour of "
+                "the day, and he signed my brother's death warrant.$B$BPlease, $N. Find Thassarian before they finish what they started."),
     dict(COMMON, id=NO_ONE_LEFT_BEHIND, title="No One Left Behind", prev=A_USEFUL_OMISSION, ender=VENN,
          log="Free Private Harker, Private Dunn, Corporal Mabry and Private Sorrel of Unit S, held in the Temple City of En'kilah, then "
              "return to Corporal Venn at Death's Stand.",
-         desc="Venn thinks the rest of Unit S died on the beach where they landed. Most of them did. Four did not.$B$BThe cult took them "
-              "alive, to the necromancers' yard in the Temple City of En'kilah, south of here. In the record, nobody ever goes to look, and in "
-              "a week the cult has four new servants who used to be Stormwind boys.$B$BGo and get them, $N. Quietly: tell them you were "
-              "sent. Soldiers always believe they were sent.",
+         desc="Venn has written off the rest of Unit S. Most of them are dead. Four are not.$B$BThe cult took them alive, to the "
+              "necromancers' yard in the Temple City of En'kilah, north of here. No one ever goes looking for them, and within the week the "
+              "cult has four new servants who used to be Stormwind boys.$B$BGo and get them, $N. Tell them Valiance Keep sent you. It is "
+              "kinder than the truth, and they will believe it.",
          done="Return to Corporal Venn at Death's Stand.",
          objectives=[(C_HARKER, 1, "Private Harker freed"), (C_DUNN, 1, "Private Dunn freed"), (C_MABRY, 1, "Corporal Mabry freed"),
                      (C_SORREL, 1, "Private Sorrel freed")],
-         request="You came from Valiance Keep? Then you're the first. Light, they really did send us here to die.",
-         reward="Harker? Dunn? <Corporal Venn grabs the nearest man by the shoulders and shakes him, laughing.> We buried you! In our heads "
-                "we buried you!$B$BAnd these lads with them say Sergeant Hammerhill sent them. Hammerhill! The one man in that keep who reads "
-                "a map.$B$BThank you, $N. Now go find Thassarian. He went north this morning, alone, and I don't like it."),
+         request="From Valiance Keep? Tell me there's more of you on the road.",
+         reward="Harker? Dunn? <Corporal Venn grabs the nearest man by the shoulders, laughing.> We gave you up for dead! I said the words "
+                "over you myself!$B$BAnd Hammerhill's sent volunteers up from the keep. Says the siege left him men to spare, for once. "
+                "Remind me to buy that dwarf a barrel.$B$BI don't know how you found them, $N, and I'm not going to ask."),
     dict(COMMON, id=BEFORE_SHE_GETS_HURT, title="Before She Gets Hurt", prev=THASSARIAN_THE_DEATH_KNIGHT,
          log="Warn Leryssa, and ask Vindicator Yaala to watch over her, at Valiance Keep's inn. Moratari will take you there and back.",
          desc="'We must finish this before she gets hurt.' He is right to be afraid, $N. In the record, the counselor's men come for Leryssa "
-              "within the week, and she is dragged to the top of Naxxanar as an offering.$B$BI can fold the road to Valiance Keep and back. "
+              "within the week, and she is taken to the top of Naxxanar as an offering.$B$BI can fold the road to Valiance Keep and back. "
               "Warn her. Ask the draenei vindicator at the inn to watch over her. And then... we will see what the hour allows.",
          done="Return to Moratari.",
          departure=(571, 2272.6, 5186.2, 20.38, 3.40),
          bridge=dict(at=(571, 3292.8, 3679.6, 32.55, 0.60)),
          objectives=[(C_LERYSSA, 1, "Leryssa warned"), (C_YAALA, 1, "Vindicator Yaala asked to watch over Leryssa")],
-         request="Did she listen?",
-         reward="She will not run, and Yaala will not sleep. Whether that is enough... we will know at the top of Naxxanar.$B$BBack to "
-                "Thassarian. Hold on."),
+         request="What did she say?",
+         reward="She will not run, and Yaala will not sleep. Whether that is enough, we will know at the top of Naxxanar.$B$BBack to "
+                "Thassarian, then."),
     dict(COMMON, id=THE_KEEP_HOLDS, title="The Keep Holds", prev=LAST_RITES, ender=ARLOS, bronze=1500,
          log="Speak with General Arlos in Valiance Keep's barracks.",
-         desc="Talbot is dead, and the hold he kept on the general's mind died with him. For the first time since he landed, Arlos is "
-              "himself.$B$BHe is about to make three decisions, $N. The first two are his own. The third is about you. Come; I will fold "
-              "the road.",
+         desc="Talbot is dead, and his hold on the general's mind died with him. For the first time since he landed, Arlos is himself, and "
+              "he has asked for you.$B$BCome; I will fold the road.",
          done="Speak with General Arlos.",
          departure=(571, 2110.2, 5300.6, 34.09, 2.30),
          reward="<General Arlos looks older than he did a week ago. He also looks awake.>$B$BCome in, $N. There is a great deal I need to say, "
@@ -228,13 +224,13 @@ GATES = {
 
 TEXTS = {
     THASSARIAN_MY_BROTHER: dict(
-        reward="<William Allerton presses a rag to the shallow cut along his neck.>$B$BLeryssa sent you? Light bless that stubborn girl. "
-               "Another minute and you'd have found me on this floor with my throat open, and not a claw mark on me to explain it.$B$B"
-               "That was no ghoul, $c. That was one of ours. Or one wearing our colors."),
+        reward="<William Allerton presses a rag to the shallow cut along his neck.>$B$BLeryssa sent you? She came all this way? Light bless "
+               "that stubborn girl.$B$BI should never have written to her. If they'll do this to me for asking about Thassarian, what will "
+               "they do to her?"),
     BUYING_SOME_TIME: dict(
         reward="That should buy us some time. Isidorus has been cooperative, but I really needed that alone time with the lich.$B$B"
-               "<Thassarian nods toward the Valiance volunteers at the ziggurat's edge.>$B$BAnd thank Hammerhill's lads for me. I did not ask "
-               "for help. It came anyway. I am not used to that."),
+               "<Thassarian nods toward the Valiance volunteers at the ziggurat's edge.>$B$BAnd thank Hammerhill's lads for me. I didn't ask "
+               "for help. It came anyway. I'd forgotten what that was like."),
 }
 
 PLACES = [
@@ -245,53 +241,59 @@ PLACES = [
 TALK = [
     # WRM-041
     dict(npc=ARLOS, quest=WORD_IN_THE_EAR, credit=C_ARLOS,
-         option="General, the crawlers on the beach are only a vanguard. My scouts found worm-trails under the western ridge, and their flyers "
+         option="General, the crawlers on the beach are only the vanguard. My scouts found worm-trails on the western ridge, and their flyers "
                 "will come over the inner wall.",
-         reply="<General Arlos glances at Counselor Talbot before he answers.>$B$BYour scouts are very... diligent, $N. The counselor has the "
-               "ridge reports, and they say nothing of worms. The walls will hold.$B$BStill, a hero's word is worth something. Take it to "
-               "Sergeant Hammerhill. If anyone has a use for nervous talk about the ground, it is a dwarf."),
+         reply="<General Arlos glances at Counselor Talbot before he answers.>$B$BYour concern does you credit, $N. But Counselor Talbot has "
+               "the ridge reports, and he assures me there is nothing in them to trouble us. The walls will hold.$B$BIf your scouts are still "
+               "uneasy, take it to Sergeant Hammerhill. The defenses are his to worry about."),
     dict(npc=TALBOT, quest=WORD_IN_THE_EAR,
          option="Counselor, the general says you have the ridge reports. I'd like to see them.",
-         reply="<Counselor Talbot smiles. It does not reach his eyes.>$B$BReports are for officers, champion. Kill the crawlers. Leave the "
-               "thinking to those of us who were trained for it.$B$BAnd do tell your scouts to be careful on that ridge. It would be a shame to "
-               "lose them."),
+         reply="<Counselor Talbot smiles. It does not reach his eyes.>$B$BThe ridge reports are for the general's staff, $N. Our men are "
+               "villagers, mostly, and villagers see worms in every shadow. Surely you didn't come all the way to Northrend to chase their "
+               "superstitions?$B$BDo tell your scouts to be careful up there. It would be a shame to lose them."),
     dict(npc=HAMMERHILL, quest=WORD_IN_THE_EAR, credit=C_HAMMERHILL,
-         option="Sergeant, they'll dig under the western ridge and come up behind your line. And their flyers will hit the inner defenses.",
-         reply="Worm-trails, ye say? Hah! The general can keep his reports. Thirty years in the mines taught me to trust the ground over the "
-               "brass.$B$BI'll shift two catapults to the south wall tonight and put spotters on the ridge. If you're wrong, I've lost a "
-               "night's sleep. If you're right... well. Then I owe ye a drink, and I'll pay it."),
+         option="Sergeant, they'll dig under the western ridge and come at the south wall from behind your line. And their flyers will hit "
+                "the inner defenses.",
+         reply="Under the ridge, eh? <Sergeant Hammerhill tugs at his beard.> Blasted worms. Years in the mines teach you to listen to the "
+               "ground, and it's been grumbling at me since we landed.$B$BThe general can keep his reports. I'll have two catapults on the "
+               "south wall by dark and spotters up on that ridge, and if anyone asks, they walked there on their own.$B$BIf you're wrong, "
+               "I've lost a night's sleep. If you're right, I owe you a drink."),
     # WRM-044
     dict(npc=COLBURN, quest=NAMED_FOR_NO_TOWN, credit=C_COLBURN,
-         option="Colburn, what do you know about a unit called Unit S?",
-         reply="<Old Man Colburn squints at you.>$B$BUnit S? There's no such town. Darkshire was sent to the Dragonblight. The Goldshire boys "
-               "went to the Fjord. I know every unit, every brigade, every detachment that ever drew Valiance pay, and there's no S.$B$B"
-               "Which means somebody made it up. And people don't make up units to send them somewhere nice."),
+         option="Colburn, what do you know about Unit S?",
+         reply="<Old Man Colburn looks up from his empty cup, and for a moment his eyes are sharp.>$B$BUnit S... hmmph. Don't make any "
+               "sense. Darkshire went to the Dragonblight. The Goldshire boys went to the Fjord. I know every unit, every brigade, every "
+               "detachment in this expedition, and there's no S.$B$BSo somebody made it up. And people don't make up units to send them "
+               "somewhere nice."),
     dict(npc=BRAU, quest=NAMED_FOR_NO_TOWN, credit=C_BRAU,
          option="Private, who signed the order that sent Unit S east?",
-         reply="<Private Brau glances toward the jailer before he answers, very quietly.>$B$B'S' stood for suicide. That's what the lads "
-               "called it. A dozen of us, one death knight, and a Scourge ziggurat.$B$BThe orders came down from the inner hold, with the "
-               "general's seal. But the general never signed nothing, friend. I saw the hand. It was the counselor's.$B$BDon't say I told you. "
-               "That one by the door hears everything."),
+         reply="<Private Brau looks past you at the guard by the door, and drops his voice.>$B$B'S' stood for suicide. That's what the lads "
+               "called it. A dozen of us against a Scourge ziggurat. Call me a coward if you like; I know a grave when I'm marched into "
+               "one.$B$BThe orders came down from the inner hold with the general's seal on them, but the general never signed nothing, "
+               "friend. I ran letters up there before they put me in that unit. I saw the hand. It was the counselor's.$B$BDon't say I told "
+               "you. That one hears everything."),
     # WRM-045
     dict(npc=HARKER, quest=NO_ONE_LEFT_BEHIND, credit=C_HARKER, option="Private Harker? Get up. Valiance Keep sent me. Head for Death's Stand.",
-         reply="Sent? Somebody sent... <Private Harker scrambles to his feet.> Yes, sir. Death's Stand. I can walk. I can run, if it comes to it."),
+         reply="Sent? Somebody sent... <Private Harker scrambles to his feet.> Yes, $Gsir:ma'am;. Death's Stand. I can walk. I can run, if it "
+               "comes to it."),
     dict(npc=DUNN, quest=NO_ONE_LEFT_BEHIND, credit=C_DUNN, option="Private Dunn. On your feet, soldier. Death's Stand, now.",
          reply="I knew it. I told Harker someone would come. He said I was mad. <Private Dunn laughs, too loudly, then stops.> Death's Stand. Yes."),
     dict(npc=MABRY, quest=NO_ONE_LEFT_BEHIND, credit=C_MABRY, option="Corporal Mabry. Your men are getting out. Lead them to Death's Stand.",
-         reply="Lead them. Right. <Corporal Mabry wipes his face with the back of a bound hand.> The cult said we'd be serving them by the full "
-               "moon. Tell whoever sent you... no. I'll tell them myself."),
-    dict(npc=SORREL, quest=NO_ONE_LEFT_BEHIND, credit=C_SORREL, option="Private Sorrel. Can you stand? Death's Stand is west. Go.",
-         reply="<Private Sorrel stares at you as if you were a ghost.>$B$BThey said no one knew we were here. They said the ledger was burned. "
-               "...West. Yes. West."),
+         reply="Lead them. Right. <Corporal Mabry rubs his rope-burned wrists.> The cult said we'd be serving them by the full moon. Tell "
+               "whoever sent you... no. I'll tell them myself."),
+    dict(npc=SORREL, quest=NO_ONE_LEFT_BEHIND, credit=C_SORREL, option="Private Sorrel. Can you stand? Death's Stand is south. Go.",
+         reply="<Private Sorrel stares at you as if you were a ghost.>$B$BThey said no one knew we were here. They said we didn't even have a "
+               "name.$B$B...South. Yes. South."),
     # WRM-046
     dict(npc=LERYSSA, quest=BEFORE_SHE_GETS_HURT, credit=C_LERYSSA,
          option="Leryssa, the counselor knows you're asking about Thassarian. Leave Valiance Keep tonight. Take the Kraken home.",
-         reply="Go home? <Leryssa laughs, not kindly.>$B$BI sold everything I owned to come here, $N. My brother is alive, somewhere out there "
-               "in the snow, and you want me to sail away before I've seen his face?$B$BNo. Let them come. I'm not leaving without him."),
+         reply="Go home? <Leryssa laughs, not kindly.>$B$BI sold everything I had to get here, $N. My brother is out there somewhere, alive, "
+               "and you want me to sail away before I've even seen his face?$B$BNo. Let them come. I'm not leaving without him."),
     dict(npc=YAALA, quest=BEFORE_SHE_GETS_HURT, credit=C_YAALA,
          option="Vindicator, the woman upstairs is in danger. Someone in the inner hold wants her silenced. Will you watch over her?",
-         reply="<Vindicator Yaala's eyes narrow.>$B$BSomeone in the inner hold. You choose your words carefully, $c. So do I.$B$BThe naaru teach "
-               "that darkness hides best in plain sight. I will keep the girl in mine. If anyone comes for her, they will come through me."),
+         reply="<Vindicator Yaala's eyes narrow.>$B$BThe inner hold. You choose your words carefully, $c. So do I.$B$BI have hunted this cult "
+               "through the keep since we landed: the docks, the jail, this inn's own kitchen. I had not thought it reached so high.$B$BI "
+               "will watch over the girl. If anyone comes for her, they will have to come through me."),
 ]
 
 SCENES = [
@@ -301,8 +303,8 @@ SCENES = [
              ("summon", 1, 770013, 1.5, 2.0, -0.6),
              ("summon", 2, 26250, 8.0, 0.0, 3.14),
              ("face", 1, 2),
-             ("say", 1, "Hear it? Something is chewing. The worms have the shaft dug and the timbers set, and on the third night they pull "
-                        "the timbers out and the dune falls in."),
+             ("say", 1, "Hear it? Something is chewing under there. The worms dig, and the cult shores the tunnel up behind them, so it holds "
+                        "until they want it to open."),
              ("cast", 1, 31387, 2),
              ("say", 1, "Supports are only wood, $N, and wood is only time. A hundred years in a heartbeat."),
              ("wait", 1500),
@@ -310,7 +312,7 @@ SCENES = [
              ("despawn", 2),
              ("wait", 1500),
              ("face", 1, 255),
-             ("say", 1, "There. On the third night, nothing will come out of these dunes. Somewhere in the record a page just went quiet."),
+             ("say", 1, "There. Nothing will come out of these dunes now but sand."),
          ]),
     # WRM-047: Valiance Keep's new day, as it's turned in, at the general.
     dict(id=SCENE_KEEP_HOLDS, name="The Keep Holds: Arlos, Vurenn, and the road to Wintergarde", quest=THE_KEEP_HOLDS, trigger=2, anchor=ARLOS,
@@ -318,97 +320,88 @@ SCENES = [
              ("bind", 1, ARLOS),
              ("bind", 2, VURENN),
              ("face", 1, 255),
-             ("say", 1, "I remember... pieces. His voice, every morning, telling me what I thought. Light help me, I signed what he put in "
-                        "front of me."),
-             ("say", 1, "Unit S. A dozen men, sent to die under my seal. I will carry that for the rest of my life."),
+             ("say", 1, "I remember pieces of it. His voice in my ear every morning, telling me what I thought. Light help me, I signed "
+                        "whatever he put in front of me."),
+             ("say", 1, "Unit S. Thassarian and a dozen good men, sent to die under my seal. I will carry that for the rest of my life."),
              ("face", 1, 2),
              ("say", 1, "Harbinger. Your offer of two regiments. Is it still open?"),
              ("face", 2, 1),
-             ("say", 2, "It was never closed, general. It was only waiting for you to be yourself again."),
-             ("say", 1, "Then the Valiance Expedition accepts, with the gratitude it should have shown you a month ago."),
+             ("say", 2, "It never closed, general. I was only waiting to hear you answer in your own words."),
+             ("say", 1, "Then the Valiance Expedition accepts, with the gratitude it should have shown you from the start."),
              ("face", 1, 255),
-             ("say", 1, "And you. Wyrmbane is holding Wintergarde under the shadow of that floating citadel, and he needs every blade I can "
-                        "send. Go to him, $N. Tell him Valiance Keep holds."),
+             ("say", 1, "And you, $N. High Commander Wyrmbane is holding Wintergarde Keep, and he needs every blade I can send him. Go to "
+                        "him. Tell him Valiance Keep holds."),
          ]),
 ]
 
 WORDS = [
     # Enlistment Day
-    (ENLISTMENT_DAY, TAKEN, ALLIANCE, "Blythe has heard about Outland, not about Icecrown. To this year, you are a hero of the last war, "
-                                      "not this one. Enjoy it. It is the last time anyone will underestimate you."),
-    (ENLISTMENT_DAY, TURNED_IN, ALLIANCE, "The man at the general's elbow is Counselor Talbot. Smile at him. Never turn your back on him. "
-                                          "I will tell you why when I can.", dict(delay=5000)),
+    (ENLISTMENT_DAY, TAKEN, ALLIANCE, "He has heard about Outland. Best not to mention the rest; he has nowhere to write it down."),
+    (ENLISTMENT_DAY, TURNED_IN, ALLIANCE, "Look at the general's eyes when his counselor speaks. I will tell you why when no one is "
+                                          "listening.", dict(delay=5000)),
     # A Word in the General's Ear
-    (WORD_IN_THE_EAR, TAKEN, ALLIANCE, "The general first, in the barracks up the hill. Remember: scouts. Not visions, not dreams, and "
-                                       "certainly not 'a bronze dragon told me'."),
-    (WORD_IN_THE_EAR, DONE, ALLIANCE, "Did you see the counselor's face when you mentioned the ridge? I did. Remember it."),
+    (WORD_IN_THE_EAR, TAKEN, ALLIANCE, "Scouts, $N. Not visions, not dreams, and certainly not 'a dragon told me'."),
+    (WORD_IN_THE_EAR, DONE, ALLIANCE, "Did you see him look at his counselor before he answered you? Every day he looks a little sooner."),
     # A Time for Heroes
-    (A_TIME_FOR_HEROES, TAKEN, ALLIANCE, "'Valiance Keep cannot fall.' It doesn't, you know. It comes close, three times. Let us make it two."),
-    (A_TIME_FOR_HEROES, TURNED_IN, ALLIANCE, "'By Magni's beard.' Hammerhill says it about eleven times a day. I counted once. I had the time."),
+    (A_TIME_FOR_HEROES, TAKEN, ALLIANCE, "The keep does not fall, as it happens. It only comes close, three times. Let us make it two."),
+    (A_TIME_FOR_HEROES, TURNED_IN, ALLIANCE, "Wasn't him, he says. He lies worse than you do, $N."),
     # The Siege
-    (THE_SIEGE, TAKEN, ALLIANCE, "Crypt crawlers. They were nerubians once, citizens of Azjol-Nerub, before the Lich King took their kingdom "
-                                 "and kept the bodies. Kill them kindly. It is the only kindness they will get."),
-    (THE_SIEGE, TURNED_IN, ALLIANCE, "Not a soul lost on the barricade today. You will hear the medic say so, and she will not know who to "
-                                     "thank. Let her thank the sergeant. He moved the catapults."),
+    (THE_SIEGE, TAKEN, ALLIANCE, "Crypt crawlers. They were nerubians once, citizens of Azjol-Nerub, until the Lich King took their kingdom "
+                                 "and kept its dead. Be quick with them. It is the only mercy anyone can give them now."),
+    (THE_SIEGE, TURNED_IN, ALLIANCE, "Twenty years, and he has never seen a day like it. He will call it luck. Soldiers always do."),
     # Death From Above
-    (DEATH_FROM_ABOVE, TAKEN, ALLIANCE, "Fishing nets against flying nerubians. Do not laugh: it works. Dwarven engineering is mostly "
-                                        "refusing to admit something will not work."),
-    (DEATH_FROM_ABOVE, TURNED_IN, ALLIANCE, "Hammerhill wants them to come by sea next, so he can give them 'the beating of their lives'. "
-                                            "They are already dead. I have stopped arguing with dwarves about details."),
+    (DEATH_FROM_ABOVE, TAKEN, ALLIANCE, "Fishing nets, against flying nerubians. It should not work. It does, and I have never understood "
+                                        "why."),
+    (DEATH_FROM_ABOVE, TURNED_IN, ALLIANCE, "He wants them to come by sea next, for the beating of their lives. I have given up arguing with "
+                                            "dwarves about details."),
     # Plug the Sinkholes
-    (PLUG_THE_SINKHOLES, TAKEN, ALLIANCE, "Two sinkholes in Hammerhill's orders. Three in Eternus's notes. Four in the ground. Blow his two; "
-                                          "then come and find me."),
-    (PLUG_THE_SINKHOLES, DONE, ALLIANCE, "See the cultists chanting at the northern sinkhole? Remember where they stand. We are coming back for "
-                                         "them."),
+    (PLUG_THE_SINKHOLES, TAKEN, ALLIANCE, "Two sinkholes in Hammerhill's orders. Three in Eternus's notes. Four in the ground. Collapse his "
+                                          "two and report to him; leave the rest to us."),
+    (PLUG_THE_SINKHOLES, DONE, ALLIANCE, "Those cultists chanting by the northern sinkhole: mark where they stand. We will be back for them."),
     # The Fourth Sinkhole
-    (FOURTH_SINKHOLE, TAKEN, ALLIANCE, "The necrolytes first, at the northern sinkhole. Cultists chanting over a hole in the ground. Some "
-                                       "people have no hobbies."),
+    (FOURTH_SINKHOLE, TAKEN, ALLIANCE, "The necrolytes first. I have always wondered who they think is listening."),
     # A Kindness Out of Time / Word at the Gate / Word on the Street
-    (WORD_AT_THE_GATE, TURNED_IN, ALLIANCE, "Leryssa. Thassarian's sister. She sold everything she owned to cross an ocean for a brother "
-                                            "the whole world says is dead. I like her already."),
-    (WORD_ON_THE_STREET, TURNED_IN, ALLIANCE, "Before she asks you anything: I need you. Now. Take what I am about to give you, then say "
-                                              "yes to her."),
+    (WORD_AT_THE_GATE, TURNED_IN, ALLIANCE, "Of everyone in this keep, she is the one I most wanted to meet."),
+    (WORD_ON_THE_STREET, TURNED_IN, ALLIANCE, "Before she asks you anything: a word with me, $N. Now, please."),
     # Not Yet Late
-    (NOT_YET_LATE, TAKEN, ALLIANCE, "Farshire Mine, east of the keep. Run, $N. I mean it: run."),
-    (NOT_YET_LATE, DONE, ALLIANCE, "Breathe. He's alive. Look at the cut: a knife, not a claw. Leryssa was right to be frightened."),
-    (THASSARIAN_MY_BROTHER, TAKEN, ALLIANCE, "Now you can tell her you found him. Alive. Watch her face when you do; it is worth the run."),
+    (NOT_YET_LATE, TAKEN, ALLIANCE, "Go on. She is waiting, and so is William."),
+    (NOT_YET_LATE, DONE, ALLIANCE, "Alive. I was not at all sure we would be in time."),
+    (THASSARIAN_MY_BROTHER, TAKEN, ALLIANCE, "The mine is north of the keep, past the Farshire fields. Run, $N."),
     # Named for No Town
-    (NAMED_FOR_NO_TOWN, TAKEN, ALLIANCE, "Hear that? 'The inner hold.' He was getting close. That is why there was a knife."),
-    (NAMED_FOR_NO_TOWN, DONE, ALLIANCE, "The counselor's hand. Of course it was. Do not confront him, $N. Not yet. If he falls here, he does "
-                                        "not fall where history needs him to."),
+    (NAMED_FOR_NO_TOWN, TAKEN, ALLIANCE, "Colburn will want a bottle of Kul Tiras wine before he talks. Ask him anyway. It has been years since "
+                                         "anyone wanted to hear what he knows."),
+    (NAMED_FOR_NO_TOWN, DONE, ALLIANCE, "The counselor's hand. I know what you want to do, $N, and you cannot. If he falls in this keep, he "
+                                        "does not fall where history needs him to."),
     # A Useful Omission
-    (A_USEFUL_OMISSION, TAKEN, ALLIANCE, "The wine, the deserter, the tuskarr with a grudge: you have done the part that mattered. Corporal "
-                                         "Venn is holding out where the trail ends."),
+    (A_USEFUL_OMISSION, TAKEN, ALLIANCE, "Venn's men have not heard a friendly voice since they landed. They will be glad of yours."),
     # No One Left Behind
-    (NO_ONE_LEFT_BEHIND, TAKEN, ALLIANCE, "The necromancers' yard, in the Temple City. Four of them, on their knees, waiting for the cult to "
-                                          "decide what they are for."),
+    (NO_ONE_LEFT_BEHIND, TAKEN, ALLIANCE, "They have been kneeling in the cold for days. Do not expect them to run."),
     (NO_ONE_LEFT_BEHIND, DONE, ALLIANCE, "Four. History said none. Let it argue."),
     # Thassarian, the Death Knight
-    (THASSARIAN_THE_DEATH_KNIGHT, TAKEN, ALLIANCE, "Thassarian was one of the first death knights to turn from the Lich King. He once went "
-                                                   "back into Acherus for an orc, against every covenant he had. He will do worse for his "
+    (THASSARIAN_THE_DEATH_KNIGHT, TAKEN, ALLIANCE, "When the Scarlet Crusade took Koltira Deathweaver, Orbaz would have left him to them. "
+                                                   "Thassarian would not: 'In death we are brothers.' Now think what he will do for his "
                                                    "sister."),
-    (THASSARIAN_THE_DEATH_KNIGHT, TURNED_IN, ALLIANCE, "'Before she gets hurt.' Talk to me before you do anything else."),
+    (THASSARIAN_THE_DEATH_KNIGHT, TURNED_IN, ALLIANCE, "He has not seen her in years. Give him a moment, and then talk to me."),
     # Before She Gets Hurt
-    (BEFORE_SHE_GETS_HURT, TAKEN, ALLIANCE, "The inn. She is upstairs, and the vindicator is by the window. Hold on."),
+    (BEFORE_SHE_GETS_HURT, TAKEN, ALLIANCE, "Leryssa first; the vindicator is at the far end of the inn. Hold on."),
     # Finding the Phylactery
-    (FINDING_THE_PHYLACTERY, TAKEN, ALLIANCE, "Dusk knows the way; she has carried him through worse. A lich who keeps his soul in a jar "
-                                              "under the ice. Liches are so predictable."),
+    (FINDING_THE_PHYLACTERY, TAKEN, ALLIANCE, "A lich who hides his soul in the ice and thinks no one will look. Liches are so predictable."),
     # Buying Some Time
-    (BUYING_SOME_TIME, TAKEN, ALLIANCE, "Twenty of them in the Temple City, to keep the cult looking the wrong way. Hammerhill's volunteers "
-                                        "are holding the ziggurat behind you. Thassarian will never have to learn whether he could have held "
-                                        "it alone."),
+    (BUYING_SOME_TIME, TAKEN, ALLIANCE, "Hammerhill's volunteers are holding the ziggurat while you are away. Thassarian would rather not find "
+                                        "out whether he could hold it alone. Now he never has to."),
     # Words of Power
-    (WORDS_OF_POWER, TAKEN, ALLIANCE, "Three priests, three spires, three words. I know all three, and I cannot tell you a single one: you "
-                                      "would have no way to explain how you knew."),
+    (WORDS_OF_POWER, TAKEN, ALLIANCE, "I know all three words, and you will still have to fetch the scrolls. Thassarian would want to know "
+                                      "where you learned them."),
     # Last Rites
-    (LAST_RITES, TAKEN, ALLIANCE, "Leryssa is gone from the inn. Yaala says the general's own escort came for her, under the general's seal, "
-                                  "and she could not refuse a direct order. I am sorry, $N. Some threads are knots."),
-    (LAST_RITES, TURNED_IN, ALLIANCE, "Do you see now? If she had not been on that tower, Valanar would never have knelt before his master "
-                                      "and boasted, and the Alliance would never have seen his face. History needed his offerings. I hate it. "
-                                      "I hate that it held."),
-    (LAST_RITES, TURNED_IN, ALLIANCE, "He will be back, you know. Valanar. At the end, in the Citadel, with his brothers. 'Naxxanar was merely "
-                                      "a setback.' You will enjoy proving him wrong twice.", dict(delay=9000)),
+    (LAST_RITES, TAKEN, ALLIANCE, "Leryssa is gone from the inn. The general's own escort came for her under his seal, and she went with "
+                                  "them like a sleepwalker; Yaala could not hold a woman who wanted to go. I am sorry, $N. Some threads are "
+                                  "knots."),
+    (LAST_RITES, TURNED_IN, ALLIANCE, "He knelt up there with his offerings, the general and Leryssa, and that is the only reason anyone ever "
+                                      "saw the face under Talbot's. History needed her on that tower. I hate that it held."),
+    (LAST_RITES, TURNED_IN, ALLIANCE, "He will be back, you know. In the Citadel, at the very end, with the other princes: 'Naxxanar was "
+                                      "merely a setback.' You will enjoy proving him wrong a second time.", dict(delay=9000)),
     # The Keep Holds
-    (THE_KEEP_HOLDS, TURNED_IN, ALLIANCE, "Two regiments of draenei, a general who thinks his own thoughts, and four Stormwind boys who will "
-                                          "see their mothers. Eternus will call it a good week. So will I.", dict(delay=60000)),
+    (THE_KEEP_HOLDS, TURNED_IN, ALLIANCE, "Two regiments of draenei, a general who thinks his own thoughts, and four of Unit S who will see "
+                                          "their mothers again. I have kept the record of this week for a very long time, $N. I like this "
+                                          "version better.", dict(delay=60000)),
 ]

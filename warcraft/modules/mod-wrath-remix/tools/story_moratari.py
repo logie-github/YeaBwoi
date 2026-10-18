@@ -14,13 +14,13 @@ WORDS = [
     # The landing
     (TO_THE_FRONT_A, TURNED_IN, ALLIANCE, "Valiance Keep. The fleet came in three days ago, and the Scourge has tested the walls every night since. You remember the smell of this place, I imagine: tar, salt, and far too many soldiers in one harbor."),
     (TO_THE_FRONT_A, TURNED_IN, ALLIANCE, "I will walk with you while you find your feet. If you would rather I waited somewhere, say so.", dict(delay=7000)),
-    (TO_THE_FRONT_H, TURNED_IN, HORDE, "Warsong Hold. Garrosh's fortress, dug into a cliff that is already full of Nerubians, though no one inside knows it yet. Well. Almost no one."),
+    (TO_THE_FRONT_H, TURNED_IN, HORDE, "Warsong Hold. Garrosh's fortress, built over tunnels that are already full of nerubians, though no one inside knows it yet. Well. Almost no one."),
     (TO_THE_FRONT_H, TURNED_IN, HORDE, "I will walk with you while you find your feet. If you would rather I waited somewhere, say so.", dict(delay=7000)),
 ]
 
 TALK = [
     dict(key="stay", npc=MORATARI, option="Wait for me here. I'd like to walk alone for a while.",
-         reply="If you like. I will be where I always am: wherever you next need me. Call me back when you want me.",
+         reply="Of course. I will be at the camps, beside whoever has work for you next. Say the word when you want me back.",
          action=STAY),
     dict(key="come", npc=MORATARI, option="Walk with me again.",
          reply="I was hoping you would ask. Lead on, $N.",

@@ -151,17 +151,20 @@ OUTINGS = [
     dict(id=ON_HER_BACK, name="On her back, from Dalaran to Wyrmrest Temple", x=5816.0, y=447.0, z=658.8, o=4.45, scene=SCENE_WINGS,
          flight=(DALARAN_FLIGHT_POINT, WYRMREST_FLIGHT_POINT, BRONZE_DRAKE_MOUNT),
          lines=[(4000, "Lean with me. Not that way. ...There."),
-                (14000, "The Violet Citadel, behind us. Do not wave. The Kirin Tor take anything that waves for a spell."),
+                (14000, "The Violet Citadel, behind us. The Kirin Tor are at war with the blue dragonflight this year; let us hope "
+                        "their sentries know a bronze when they see one."),
                 (28000, "Crystalsong. The trees ring when the wind is right. Listen."),
-                (44000, "You are holding on very tightly. I do not mind."),
-                (62000, "Wyrmrest. My kind built it before yours had names. I wanted you to see it the way we do: from above, and "
-                        "arriving."),
-                (80000, "Thank you for trusting me with this. Dragons do not say that often. I am saying it.")]),
+                (44000, "You are holding on tightly. I do not mind."),
+                (62000, "Wyrmrest. Every dragon comes here in the end, to sleep. I wanted you to see it the way we do: from above, "
+                        "and arriving."),
+                (80000, "Down we go. And not one mage shot at us. A successful first flight, I would say.")]),
     # Her tent: no one else in it (a phase of its own), their gear unseen.
     dict(id=HER_TENT, name="Moratari's tent, the Bazaar", x=TENT_X, y=TENT_Y, z=TENT_Z + 0.1, o=INWARD, scene=SCENE_TENT, private=True,
          undress=True),
-    # A sunny bank of the river below Nesingwary's camp in Sholazar (a crocolisk's; surveyed floor).
-    dict(id=BY_THE_RIVER, name="An afternoon by the river, Sholazar Basin", x=5551.8, y=5850.3, z=-74.6, o=2.0, scene=SCENE_PICNIC),
+    # A sunny bank of the river below Nesingwary's camp in Sholazar (a crocolisk's; surveyed floor), theirs alone: the
+    # river's own crocolisks would kill a time jumper of a low level.
+    dict(id=BY_THE_RIVER, name="An afternoon by the river, Sholazar Basin", x=5551.8, y=5850.3, z=-74.6, o=2.0, scene=SCENE_PICNIC,
+         private=True),
     # The edge of Crusaders' Pinnacle in Icecrown, by the cliff, theirs alone (a phase of its own: no one comes this far).
     dict(id=EDGE_OF_THE_CAMP, name="The edge of the camp, Crusaders' Pinnacle", x=6410.0, y=470.0, z=511.4, o=2.4, scene=SCENE_PROMISE,
          private=True),
@@ -174,15 +177,15 @@ QUESTS = [
     dict(COMMON, id=TEA, title="A Cup of Something Hot",
          gates=[[rewarded(TIME_FOR_HEROES)], [rewarded(DEFENSE_OF_WARSONG_HOLD)]],
          log="Sit with Moratari, and share her tea.",
-         desc="You have walked beside me for days, $N, and you have not once asked me anything about myself.$B$BEveryone asks. Dragons, "
-              "they say: how old are you, how big are you really, do you sleep on gold. You have asked me where the next sinkhole is.$B$B"
-              "I find I would like to be asked something. Sit with me a while. I have tea. Every dragon who keeps time keeps tea; it is "
-              "the one thing that tastes the same in every century.",
+         desc="I have been taking notes on you since the landing, $N: how you fight, what you eat, which way you turn when something "
+              "growls. It occurs to me that you have none on me.$B$BYou ask me where the Scourge will be, and when, and how many. "
+              "Sensible questions. Nobody ever asks a dragon anything else.$B$BSit with me a while. I have tea. Every dragon who keeps "
+              "time keeps tea; it is the one thing that tastes the same in every century.",
          done="Return to Moratari.",
          objectives=[(C_TEA, 1, "Tea shared with Moratari")],
-         request="More tea? There is always more. That is rather the point of it.",
-         reward="Thank you, $N. That was... nice. I had forgotten what nice was. Dragons are not built for it. We are built for centuries, "
-                "and centuries have no time for tea.$B$BAsk me something again sometime. I will try to have better answers."),
+         request="The tea is in no hurry, $N, and neither am I.",
+         reward="Thank you, $N. I had forgotten what it is like to be asked about myself.$B$BAsk me something again sometime. I may have "
+                "a better answer by then."),
     dict(COMMON, id=SHORE_LEAVE, title="Shore Leave", prev=TEA,
          gates=[[rewarded(NOT_YET_LATE)], [rewarded(THE_CONDEMNED_COAST)]],
          log="Have a drink with Moratari at an inn in Dalaran.",
@@ -192,87 +195,85 @@ QUESTS = [
               "Mostly as friends.",
          done="Return to Moratari.",
          objectives=[(C_SHORE_LEAVE, 1, "A drink with Moratari")],
-         request="Was it one drink? I lost count. I never lose count.",
-         reward="'Mostly as friends', I said. I am going to have to think about that 'mostly' for a while.$B$BThe cider was good, "
-                "though. So were you."),
+         request="I have already decided what I am having. That should tell you how long I have been thinking about this.",
+         reward="One drink, as promised. I made no promises about the rest of it.$B$BThank you, $N. I have not enjoyed an evening that "
+                "much in... I was going to say a century. I think it may have been longer."),
     dict(COMMON, id=DINNER, title="Dinner at Krasus' Landing", prev=SHORE_LEAVE, bronze=500,
          gates=[[rewarded(INTO_THE_DRAGONBLIGHT_A)], [rewarded(INTO_THE_DRAGONBLIGHT_H)]],
          log="Have dinner with Moratari at Krasus' Landing in Dalaran.",
-         desc="I have a confession. I bought a dress.$B$BIn the Bazaar you can buy anything from any year, and I spent an hour "
-              "choosing, and a dragon should not spend an hour choosing anything that is not a century.$B$BThere is a landing on the "
-              "edge of Dalaran where the wind comes up from the forest and the whole of Northrend lies under you like a map no one has "
-              "ruined yet. Have dinner with me there, $N. Properly. Not as friends.",
+         desc="I have a confession. I bought a dress.$B$BIn the Bazaar you can buy anything from any year. I tried on eleven. I have "
+              "chosen between whole centuries with less fuss.$B$BThere is a landing on the edge of Dalaran named for "
+              "Krasus, a dragon who sat on the Kirin Tor's council for years in an elf's shape, and hardly anyone knew. I have always "
+              "thought he would understand me.$B$BHave dinner with me there, $N. Properly. Not as friends.",
          done="Return to Moratari.",
          objectives=[(C_DINNER, 1, "Dinner at Krasus' Landing")],
-         request="The dress is back in the Bazaar. I am told I may keep it. I intend to.",
-         reward="<Moratari touches her lips, as if to make sure they are still hers.>$B$BWell. That will be very hard to put back.$B$B"
-                "I am teasing. Mostly. I keep saying 'mostly'. I think it means yes."),
+         request="The dress is ready. I am nearly ready. Give me a moment to stop being nervous.",
+         reward="<Moratari touches her lips, as if to make sure they are still hers.>$B$BI have changed history before, $N. I know "
+                "exactly what it feels like.$B$BIt feels like that.$B$BI am keeping the dress."),
     dict(COMMON, id=WYRMREST_VIEW, title="The View from Wyrmrest", prev=DINNER,
          gates=[[rewarded(STRANGERS)]],
          log="Go with Moratari to the top of Wyrmrest Temple at night.",
-         desc="You stood on Wyrmrest today among the Accord's dragons, and none of them looked at you twice. They looked at me. They "
-              "always do: one of the Infinite, at their own temple. They look at me the way you would look at a wolf in a kennel.$B$B"
-              "I want to show you something, $N, and I want to show it to you from the top, where the dragons do not go at night. Come "
-              "with me.",
+         desc="You were on Wyrmrest today, among the Accord's dragons, and I kept my distance. Dragons always know another dragon, "
+              "whatever shape she wears, and Chromie has met enough of the Infinite this week.$B$BBut there is something I want to "
+              "show you there, $N, from the top of the temple, at night, when the Accord is asleep. Come with me.",
          done="Return to Moratari.",
          objectives=[(C_WYRMREST, 1, "The view from Wyrmrest")],
-         request="The wind up there still has my hair. I shall have to go back for it.",
-         reward="You did not run. Everyone runs, the first time. Even other dragons.$B$BI am going to stop counting the times you surprise "
-                "me, $N. I have run out of fingers, and I refuse to use my claws."),
+         request="Not yet? That is all right. I am still working up my courage.",
+         reward="I was so sure you would step back. I had a speech ready for it.$B$BWould you like to hear it? No? Good. It was a "
+                "terrible speech."),
     dict(COMMON, id=WHAT_HE_LEFT_OUT, title="What Eternus Left Out", prev=WYRMREST_VIEW,
          gates=[[rewarded(WEIGHT_OF_TIME)]],
          log="Stay with Moratari a while.",
-         desc="I need to sit down. Not here. Somewhere no one from any year can see me.$B$B...He knew, $N. Eternus knew the war had to "
-              "happen as it did, and he sent us to change it anyway, and he let me believe every life we saved was a life kept. I do not "
-              "know what I am anymore. A keeper of time who spent a month vandalizing it.$B$BStay with me a while. Please. You do not "
-              "have to say anything.",
+         desc="I need to sit down.$B$B...He knew, $N. Eternus knew the war had to happen as it did, and he sent us to change it "
+              "anyway, and he let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of "
+              "time who spent a month vandalizing it.$B$BSit with me a while. Please. You do not have to say anything.",
          done="Return to Moratari.",
          objectives=[(C_LOVE, 1, "Moratari comforted")],
-         reward="Thank you for staying. I know what comes next: we put things back, one by one, and some of them will hurt.$B$BBut not "
-                "everything we did has to be undone. Some things, the war never needs to hear about."),
+         reward="Thank you for staying.$B$BTomorrow we start putting things back, one at a time. I will find a way to do it without "
+                "losing anyone. I have to.$B$BFor now, I would like to sit here a little longer, with you, and not take a single note."),
     dict(COMMON, id=WINGS, title="On Bronze Wings", prev=WHAT_HE_LEFT_OUT, bronze=500,
          gates=[[rewarded(SHORTER_PATH_A)], [rewarded(SHORTER_PATH_H)]],
          log="Fly with Moratari from Dalaran to Wyrmrest Temple, on her back.",
-         desc="You have flown on gryphons and wyverns and those dreadful bats, and you have never once flown properly.$B$BI am "
-              "offering, $N. My back, the sky over Dalaran, and the long way down to Wyrmrest. I have never let anyone ride me. Dragons "
-              "do not, as a rule; it is considered very forward.$B$BI am considering being very forward.",
+         desc="You have flown on gryphons, and wyverns, and the Accord's drakes, and every one of them was carrying you somewhere "
+              "for the war.$B$BI am offering something else, $N: my back, the sky over Dalaran, and the long way down to Wyrmrest, "
+              "with nowhere we have to be when we land.$B$BI have never carried anyone before. I find I would like to.",
          done="Return to Moratari.",
          objectives=[(C_WINGS, 1, "A flight on Moratari's back")],
-         request="My wings still ache. Do not look so pleased with yourself.",
-         reward="My wings are aching, and I am grinning like a whelp. Do not tell anyone. I have a reputation for dignity.$B$BI do not, "
-                "actually. But I would like one."),
+         request="I have been stretching my wings all morning, and pretending I was not.",
+         reward="My wings ache, and I cannot stop smiling. I had forgotten that flying could be for nothing but the flying.$B$BNext "
+                "time, we do not land."),
     dict(COMMON, id=ADVENTURE, title="An Adventure of Our Own", prev=WINGS,
          gates=[[rewarded(HUNTING_EXPEDITION)]],
          log="Spend an afternoon with Moratari by a river in Sholazar Basin.",
-         desc="For a month I have walked beside you into somebody else's story. Today I want one of our own.$B$BThere is a river in "
-              "Sholazar where the Titans left the water running and forgot to turn it off. There are also crocolisks, who believe the "
-              "sunny banks are theirs. I have brought a blanket and a basket. Shall we discuss it with them?",
+         desc="I have followed you through a great many other people's stories. Today I would like one of our own.$B$BThere is a "
+              "river below Nesingwary's camp, warm and slow, with one good bank in the sun. There are also crocolisks, who believe that "
+              "bank is theirs. I have brought a blanket and a basket. Shall we discuss it with them?",
          done="Return to Moratari.",
          objectives=[(C_PICNIC, 1, "An afternoon by the river")],
-         request="There is sand in the basket. There is always sand in my baskets.",
-         reward="An afternoon with nothing in it but us. I had forgotten they came in that size.$B$BWe should do this again. In "
-                "forty years or so, when the crocolisks have forgotten us."),
+         request="There is sand in the basket already. There is always sand in my baskets.",
+         reward="Somewhere tomorrow, about noon, two crocolisks are going to be very confused.$B$BThank you, $N. I did not know I "
+                "could still have a day like that."),
     dict(COMMON, id=TENT, title="The Lamp That Is Always Lit", prev=ADVENTURE, bronze=500,
          gates=[[rewarded(VERY_LONG_ROAD)]],
          log="Spend the night in Moratari's tent at the Bazaar.",
          desc="I have a tent at the Bazaar. You have walked past it a hundred times: the one with the lamp that is always lit.$B$BNo one "
-              "goes in. Not Eternus, not the gnomes who sweep the sand. It is the only place in any year that is only mine.$B$BI would "
-              "like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.",
+              "goes in. Not Eternus, when he was there; not the porters who sweep the paths. It is the only place in any year that is "
+              "only mine.$B$BI would like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.",
          done="Return to Moratari.",
          objectives=[(C_TENT, 1, "A night in Moratari's tent")],
-         reward="<Moratari is humming. Dragons do not hum.>$B$BFrom now on I walk with you. Everywhere. Let the posts stand empty and "
-                "look mysterious without me.$B$BYou may tell people, if you like. Actually, do not. Let them wonder."),
+         reward="<Moratari is humming. She notices, stops, and then starts again.>$B$BFrom now on I walk with you. Everywhere. Let my "
+                "posts stand empty and look mysterious without me."),
     dict(COMMON, id=AFTER, title="Whatever Comes After", prev=TENT, bronze=1000,
          gates=[[rewarded(ARMIES_IN_PLACE_A)], [rewarded(ARMIES_IN_PLACE_H)]],
          log="Walk with Moratari to the edge of the camp, and hear her promise.",
-         desc="Icecrown. The end of the war is up that glacier, and after the end you go home, to your own year. I cannot follow, $N. "
-              "One of my kind who walks out of her own time does not come back, and someone has to keep the river running for you to go "
-              "home along.$B$BI am not sad. I am... a little sad. Walk with me to the edge of the camp. I want to make you a promise, "
-              "and I want to make it where the wind can hear.",
+         desc="Icecrown. The end of the war is up that glacier, and after the end you go home, to your own year. I cannot follow you "
+              "there, $N. One of my kind who walks out of her own time does not come back, and someone has to stay behind and send you "
+              "home.$B$BI am not sad. I am... a little sad.$B$BWalk with me to the edge of the camp. I want to make you a promise, and I "
+              "would rather not make it in front of Tirion.",
          done="Return to Moratari.",
          objectives=[(C_PROMISE, 1, "Moratari's promise")],
-         reward="Whatever comes after, $N, you are in my record now, in the place I keep the things I do not let the river take.$B$B"
-                "Now. There is a king at the top of that glacier, and you have a very important appointment with him. Shall we?"),
+         reward="<Moratari brushes the frost from your shoulders, though there was hardly any.>$B$BNow. There is a king at the top of "
+                "that glacier, and he has kept you waiting long enough. Shall we?"),
 ]
 
 # A time jumper's quests open without the war's checkpoints, still one after another (each one's prev).
@@ -281,26 +282,29 @@ for _quest in QUESTS:
 
 # ---- What can be said to her -------------------------------------------------------------------
 LOOKING = [
-    (HUMAN, "You have sixty years, if you are careful, and you are not careful. I am looking because I would like to remember this one."),
-    (DWARF, "You have tea in your beard. No, leave it. It suits you."),
-    (NIGHT_ELF, "Ten thousand years, and you still blush. I did not know your people could."),
+    (HUMAN, "Humans change so quickly. I look away for a season, and you are someone else. I am trying to remember you exactly as "
+            "you are now."),
+    (DWARF, "You have tea in your $Gbeard:hair;. No, leave it. It suits you."),
+    (NIGHT_ELF, "I was in Zin-Azshari once, before the Sundering. Your people blushed exactly like that, even then. I am glad some "
+                "things kept."),
     (GNOME, "I am trying to decide whether to kneel down or to pick you up. Both seem rude."),
-    (DRAENEI, "Your tail has been tapping the sand since I sat down. Is that a good sign? Tell me it is a good sign."),
+    (DRAENEI, "Your tail has been tapping the ground since I sat down. Is that a good sign? Tell me it is a good sign."),
     (ORC, "Your tusks. I was wondering how anyone... Never mind. It was purely academic. Drink your tea."),
     (UNDEAD, "Your hands are cold. Here, hold the cup. No, hold it longer. There."),
     (TAUREN, "You are holding that tiny cup as if it were a baby bird. I find that I like that very much."),
     (TROLL, "You have been grinning since I poured. They say trolls grin at everything. I hope they are wrong, and it is only me."),
-    (BLOOD_ELF, "You are lovely and you know it, and it is very annoying. Stop it. ...No. Do not stop it."),
+    (BLOOD_ELF, "I am checking my work. I borrowed this shape from your people, and I have always wondered whether I got the ears "
+                "right. I did, as it happens. Do not let it go to your head."),
 ]
 LOVELY = [
-    (HUMAN, "Flattery. Humans are so good at it. You have so little time, you have to be."),
-    (DWARF, "And you look like a dwarf who has just been told so. Your ears have gone red. It is adorable."),
-    (NIGHT_ELF, "Ten thousand years to practice that line, and it still works. How annoying."),
+    (HUMAN, "Your people say that as if you had all the time in the world. I like that about you. Say it again tomorrow."),
+    (DWARF, "The titans made your people out of stone, you know. It shows: you said that as if it cost you something. Thank you."),
+    (NIGHT_ELF, "I have heard your people say that to the moon. I did not know they said it to anyone else."),
     (GNOME, "Say it again, louder. I am all the way up here."),
     (DRAENEI, "Your tail is doing the thing again. I have decided it is my favorite thing."),
     (ORC, "An orc paying compliments. Somewhere, Garrosh just felt a chill and does not know why."),
     (UNDEAD, "You say that without even breathing. It is a very efficient compliment. I accept it."),
-    (TAUREN, "You are a very large and very gentle person, and you say very large and gentle things. Stop it. Do not stop it."),
+    (TAUREN, "In all my records, I have never once caught a tauren flattering anyone. So I suppose I must believe you."),
     (TROLL, "Dat's what ya say to all de dragons, mon? ...I am sorry. I have wanted to try the accent for weeks."),
     (BLOOD_ELF, "Of course I do. So do you. We are a very good-looking pair, and everyone in the Bazaar is annoyed about it."),
 ]
@@ -313,16 +317,16 @@ TALK = [
          reply="<Moratari pours two cups from a pot that was not there a moment ago.>$B$BCareful. It is hot. It has been hot for about "
                "four hundred years; I keep it in a pocket of an afternoon in Tanaris.$B$BWell? Ask me something."),
     dict(npc=MORATARI, parent="romance_tea", quest=TEA, option="How old are you, really?",
-         reply="Old enough to remember when the Dark Portal was only a rumor, and young enough to still be embarrassed about it. Next "
+         reply="That depends on how you count. About ten thousand years, but not all of them in order, and a few of them twice. Next "
                "question."),
     dict(npc=MORATARI, parent="romance_tea", quest=TEA, option="Is it true that dragons sleep on gold?",
-         reply="Sand. My kind sleeps on sand. It is softer than gold, it gets everywhere, and I have not been comfortable since the Second "
-               "War. Next question."),
+         reply="Only in stories. My kind sleeps on sand: soft, warm, and in your scales for the rest of your life. Next question."),
     *[dict(npc=MORATARI, parent="romance_tea", quest=TEA, races=race, option="You keep looking at me.", reply=f"{words}")
       for race, words in LOOKING],
-    dict(npc=MORATARI, parent="romance_tea", quest=TEA, credit=C_TEA, option="What do you do when you're not saving history?",
-         reply="I... do not know. Nobody has ever asked.$B$B<Moratari looks at you over the rim of her cup for a long moment.>$B$BI think "
-               "I would like to find out. Perhaps you could help."),
+    dict(npc=MORATARI, parent="romance_tea", quest=TEA, credit=C_TEA, option="What do you do when you're not working?",
+         reply="I... read. I keep records, and when I have finished keeping them, I read them.$B$B<Moratari looks at you over the rim of "
+               "her cup for a long moment.>$B$BThat is a dreadful answer, is it not? I think I would like a better one. Perhaps you could "
+               "help me find it."),
     # Shore Leave: to the inn (each side's own)
     dict(npc=MORATARI, quest=SHORE_LEAVE, side=ALLIANCE, action=OUTING, param=INN_A, option="One drink, then. A Hero's Welcome?"),
     dict(npc=MORATARI, quest=SHORE_LEAVE, side=HORDE, action=OUTING, param=INN_H, option="One drink, then. The Filthy Animal?"),
@@ -336,23 +340,24 @@ TALK = [
     # What Eternus Left Out: staying with her
     dict(key="romance_stay", npc=MORATARI, quest=WHAT_HE_LEFT_OUT,
          option="Sit beside her, and take her hand.",
-         reply="<Moratari's hand is warm, and shaking.>$B$BEvery one of them was real. The young man on the barricade. The boys of Unit "
-               "S. A garrison on a condemned coast. They were real, and they were ours, and now I have to help put the record back.$B$B"
-               "Tell me I am not a monster, $N."),
+         reply="<Moratari's hand is warm, and shaking.>$B$BEvery one of them was real, $N. Every soldier who walked off that tundra "
+               "because we were there. I wrote down all their names.$B$BAnd now I have to help put the record back. Tell me I am not a "
+               "monster."),
     dict(key="romance_monster", npc=MORATARI, parent="romance_stay", quest=WHAT_HE_LEFT_OUT,
          option="You're not a monster. You gave them more time than history ever did.",
-         reply="More time. <She laughs, wetly.> That is a very dragon thing to say. Where did you learn to talk like a dragon?"),
+         reply="More time. <She laughs, wetly.> That is such a dragon thing to say. Where did you learn to talk like a dragon?"),
     dict(npc=MORATARI, parent="romance_monster", quest=WHAT_HE_LEFT_OUT, credit=C_LOVE,
          option="From you. I love you, Moratari.",
-         reply="<For a long moment, Moratari says nothing at all.>$B$BI have watched ten thousand years of people say that to each other. "
-               "I never once thought someone would say it to me.$B$B...I love you too. I think I have since the tea. Do not tell anyone. "
-               "They will want to know what it does to the timeline, and I do not care."),
+         reply="<For a long moment, Moratari says nothing at all.>$B$BI have watched people say that to each other for ten thousand "
+               "years. I never once thought anyone would say it to me.$B$B...I love you too. I think I have since the tea. I do not know "
+               "what this does to the record, and for once I do not care."),
     # Afterwards, whenever they like
     *[dict(npc=MORATARI, after=SHORE_LEAVE, races=race, option="Tell her she looks lovely today.", reply=words)
       for race, words in LOVELY],
     dict(npc=MORATARI, after=DINNER, action=SCENE, param=SCENE_KISS, option="Kiss her."),
     # At the Bazaar's campfire, as she sits there with them (RemixCampfire.cpp), and only then: her story from its start.
-    dict(npc=MORATARI, before=TIME_JUMPER, action=TIME_JUMP, option="I'm a time jumper. Let's just start this romance.",
+    dict(npc=MORATARI, before=TIME_JUMPER, action=TIME_JUMP, option="I'm a time jumper. I already know where this goes between us, "
+                                                                    "and I don't want to wait.",
          reply="<Moratari laughs, a real one, surprised out of her.>$B$BA time jumper. Of course you are. You have read ahead, to the "
                "pages with me in them.$B$BVery well. I will not make you wait for the war's permission. Some of what we do will not have "
                "happened yet, for you. Humor me, and pretend it has."),
@@ -364,11 +369,12 @@ SCENES = [
     dict(id=SCENE_INN_A, name="Shore Leave: cider at A Hero's Welcome", quest=0, trigger=0, anchor=0, credit=C_SHORE_LEAVE, steps=[
         ("summon", 1, ACT_MORATARI, 1.8, 0.4, BACK),
         ("wait", 1200),
-        ("say", 1, "Two ciders, please. ...No, the innkeeper cannot hear me from here. I simply like saying it."),
+        ("say", 1, "I asked for two ciders, and the innkeeper asked which of us was the hero. I pointed at you. She gave me the larger "
+                   "cup anyway."),
         ("emote", 1, EMOTE_LAUGH),
-        ("say", 1, "Do you know what I like about inns, $N? Nobody in an inn is ever in a hurry. Even the ones who are about to go out "
-                   "and save the world."),
-        ("say", 1, "To shore leave. And to two days ahead of the record, which Eternus will never get back."),
+        ("say", 1, "The Silver Covenant by the door cannot work out whether I am one of theirs or a Sunreaver. I am letting them "
+                   "wonder."),
+        ("say", 1, "To shore leave, then. And to two days the war will never miss."),
         ("emote", 1, EMOTE_CHEER),
         ("emote", PLAYER, EMOTE_CHEER),
         ("wait", 1500),
@@ -382,32 +388,30 @@ SCENES = [
     dict(id=SCENE_INN_H, name="Shore Leave: cider at The Filthy Animal", quest=0, trigger=0, anchor=0, credit=C_SHORE_LEAVE, steps=[
         ("summon", 1, ACT_MORATARI, 1.8, 0.4, BACK),
         ("wait", 1200),
-        ("say", 1, "The innkeeper says the cider is 'not poison'. From her, I believe that is high praise."),
+        ("say", 1, "Uda says we may drink, feast and rest, but if we fight, she will feed us to her wolves. I like her enormously."),
         ("emote", 1, EMOTE_LAUGH),
-        ("say", 1, "Do you know what I like about inns, $N? Nobody in an inn is ever in a hurry. Even the ones who are about to go out "
-                   "and save the world."),
-        ("say", 1, "To shore leave. And to two days ahead of the record, which Eternus will never get back."),
+        ("say", 1, "Her wolves have names, you know. Nargut and Rhukah. I asked. She looked at me as if nobody ever had."),
+        ("say", 1, "To shore leave. Lok'tar, as they say here. ...Uda says I said it like an elf."),
         ("emote", 1, EMOTE_CHEER),
         ("emote", PLAYER, EMOTE_CHEER),
         ("wait", 1500),
-        ("say", 1, "You have cider on your lip. No, the other side. ...Here."),
-        ("text_emote", 1, "brushes your lip with her thumb, then looks at the thumb as if it has done something without asking her."),
-        ("say", 1, "That was very forward of my thumb. I shall have words with it."),
+        ("say", 1, "Mind your cup; somebody just walked into our table. Here."),
+        ("text_emote", 1, "puts her hand over yours to steady the cup, and leaves it there a little longer than the cup needs."),
+        ("say", 1, "The table has stopped moving, $N. I am aware that my hand has not."),
         ("emote", 1, EMOTE_SHY),
-        ("text_emote", 1, "kisses you on the cheek, quickly, before either of you can think about it."),
-        ("say", 1, "Come on. Before I do something else without asking myself first."),
+        ("text_emote", 1, "kisses you on the cheek, quickly, while Uda is looking the other way."),
+        ("say", 1, "Come on. Before Uda decides that counts as fighting."),
     ]),
     dict(id=SCENE_DINNER, name="Dinner at Krasus' Landing", quest=0, trigger=0, anchor=0, credit=C_DINNER, steps=[
         ("summon", 1, IN_HER_DRESS, 2.0, 0.0, BACK),
         ("wait", 1800),
         ("say", 1, "Well? You are allowed to look. I spent an hour on it; somebody ought to."),
         ("emote", 1, EMOTE_SHY),
-        ("say", 1, "And you look $Ghandsome:beautiful; in this light. I am not supposed to notice. I noticed."),
+        ("say", 1, "And you look $Ghandsome:beautiful; in this light. I am not supposed to notice things like that. I noticed."),
         ("face_angle", 1, math.pi * 0.5),
-        ("say", 1, "There. All of Northrend before anyone ruins it. Crystalsong below us, the Dragonblight past it, and at the end of "
-                   "the world a citadel whose owner is not invited."),
-        ("say", 1, "I have watched this view in a hundred years, $N. The citadel always grows. The forest always dies a little. I have "
-                   "never once watched it with someone."),
+        ("say", 1, "Crystalsong below us, the Dragonblight beyond it, and at the edge of it all, the citadel. Its owner was not "
+                   "invited."),
+        ("say", 1, "I have stood on this landing in a hundred different years, $N. I have never once stood here with anyone."),
         ("face", 1, PLAYER),
         ("say", 1, "May I tell you something a scholar of variables should never say? I do not want to know how this ends. Not this. I "
                    "want to find out."),
@@ -436,7 +440,7 @@ SCENES = [
         ("text_emote", 2, "lowers her great head until one eye is level with yours. It is the color of old bronze, and it is very "
                           "nervous."),
         ("wait", 2000),
-        ("say", 2, "This is me. Bronze, once, like Chromie. The Infinite only changed the color of the shadow."),
+        ("say", 2, "This is me. The shape I hatched in, before I was Infinite: bronze, like Chromie."),
         ("say", 2, "...You are still here."),
         ("cast", 2, SPELL_TELEPORT_VISUAL, 0),
         ("wait", 700),
@@ -452,8 +456,7 @@ SCENES = [
         ("wait", 1200),
         ("say", 1, "Hold on to the ridge along my neck. Not the frills. The frills are ticklish, and I will drop you, and I will feel "
                    "terrible."),
-        ("say", 1, "And if you scream, scream on the way down from the clouds, not on the way up. The Kirin Tor are very easily "
-                   "startled."),
+        ("say", 1, "And do not look down until we are over the forest. After that, look at everything."),
         ("cast", 1, SPELL_TELEPORT_VISUAL, 0),
         ("wait", 800),
         ("despawn", 1),
@@ -461,22 +464,22 @@ SCENES = [
     dict(id=SCENE_TENT, name="The Lamp That Is Always Lit: her tent", quest=0, trigger=0, anchor=0, credit=C_TENT, steps=[
         ("summon", 1, IN_HER_TENT, 2.0, 0.5, BACK),
         ("wait", 1800),
-        ("say", 1, "No armor. Good. I have spent a month watching you buckle it and unbuckle it. I wanted to see you without the "
-                   "buckles."),
+        ("say", 1, "No armor. Good. I have only ever seen you dressed for a war. I wanted to see you without one."),
         ("emote", 1, EMOTE_SHY),
         ("say", 1, "Oh, do not look at me like that. I am a dragon. We are not shy. ...I am a little shy."),
-        ("say", 1, "The lamp has been lit for a very long time, $N, waiting for someone worth keeping it lit for. Sit with me."),
+        ("say", 1, "I lit that lamp the night I first came to the Bazaar, and I have never let it go out. I never knew who I was "
+                   "keeping it lit for. Sit with me, $N."),
         ("emote", 1, EMOTE_KISS),
         ("emote", PLAYER, EMOTE_KISS),
-        ("text_emote", 1, "draws you down beside her among the cushions, and the lamp, very politely, begins to burn low."),
+        ("text_emote", 1, "draws you down beside her among the cushions, and reaches over to turn down the lamp."),
         ("fade", 9000, "The lamp burns low. Outside, the Bazaar goes on selling yesterday to tomorrow. Inside, for once, nobody is "
                        "counting the hours."),
         ("wait", 1500),
         ("say", 1, "Good morning."),
-        ("say", 1, "I have wanted to say that to someone for about a thousand years. It is better than I imagined, and I have a very good "
-                   "imagination."),
+        ("say", 1, "I have written down a great many mornings in my time. Other people's. Not one of them got it right; I shall have to "
+                   "revise the record."),
         ("emote", 1, EMOTE_LAUGH),
-        ("say", 1, "Go on. Your armor is where you left it, and the war is where you left it, and I will be beside you for all of it."),
+        ("say", 1, "Go on, then. Your armor is by the door, and the war is waiting. We should not keep it."),
     ]),
     dict(id=SCENE_PICNIC, name="An Adventure of Our Own: by the river", quest=0, trigger=0, anchor=0, credit=C_PICNIC, steps=[
         ("summon", 2, LAZY_CROCOLISK, 7.0, -2.0, BACK),
@@ -492,26 +495,26 @@ SCENES = [
         ("despawn", 2),
         ("despawn", 3),
         ("face", 1, PLAYER),
-        ("say", 1, "There. One blanket, one basket, no crocolisks. I would like to say I planned that last part."),
+        ("say", 1, "There. One blanket, one basket, and a riverbank with nobody on it but us."),
         ("say", 1, "I brought pastries from a bakery in Dalaran that will not open for another forty years. Do not tell the baker."),
         ("emote", 1, EMOTE_LAUGH),
-        ("say", 1, "Do you know, this is the first day in a month that nobody has needed saving? I did not know what to do with my hands. "
-                   "Then I remembered."),
+        ("say", 1, "Do you know, this is the first day since the tundra that nobody has needed saving? I have been trying to think what "
+                   "people do with a day like this. Then I remembered."),
         ("text_emote", 1, "takes your hand, turns it over, and traces the lines of your palm with one finger, as if reading a map she has "
                           "not seen before."),
-        ("say", 1, "Your line of fate is very long, $N. Mine runs right off the edge of your hand. I have decided to find that romantic."),
+        ("say", 1, "Your life line is a long one, $N. ...No, I have not looked it up. I promised myself I never would."),
     ]),
     dict(id=SCENE_PROMISE, name="Whatever Comes After: her promise", quest=0, trigger=0, anchor=0, credit=C_PROMISE, steps=[
         ("summon", 1, ACT_MORATARI, 2.0, 1.0, BACK),
         ("wait", 1200),
         ("say", 1, "Here. The wind off the glacier is cold enough that nobody comes this far from the fires."),
-        ("say", 1, "When this is over, you go home to your own year. I cannot come. Someone has to keep the river running for you to go "
-                   "home along, and I owe the river more than most."),
-        ("say", 1, "So I am going to make you a promise, $N, where the wind can hear it, because the wind remembers everything and tells "
-                   "no one."),
+        ("say", 1, "I have been trying to work out what to say to you up here since Sholazar. I wrote it down, and then I tore it up, "
+                   "which is a terrible thing for a scholar to do to her notes."),
+        ("say", 1, "So, without notes: I am going to make you a promise, $N, and I am going to keep it."),
         ("face", 1, PLAYER),
-        ("say", 1, "I will write. Letters are the only thing that cross time without breaking. Look in your mailbox when you are home."),
-        ("say", 1, "And whatever comes after, in your year or in mine, you were never a variable. You were the whole equation."),
+        ("say", 1, "I will write to you. Wherever you are in your own year, a letter from me will find you. Time lets letters through; "
+                   "it is only people it argues with."),
+        ("say", 1, "And whatever comes after, in your year or in mine: you were never a variable to me. Not from the first cup of tea."),
         ("emote", 1, EMOTE_KISS),
         ("emote", PLAYER, EMOTE_KISS),
         ("text_emote", 1, "kisses you as the wind comes down off the glacier, and for a moment it is not cold at all."),
@@ -528,14 +531,14 @@ SCENES = [
 
 # ---- Her words, as the story goes ---------------------------------------------------------------
 WORDS = [
-    (TEA, TAKEN, BOTH, "Here. Sit. The sand is warm on this side."),
+    (TEA, TAKEN, BOTH, "Sit. Here, out of the wind."),
     (SHORE_LEAVE, TAKEN, BOTH, "One drink. I will hold you to one. You may hold me to two."),
     (DINNER, TAKEN, BOTH, "Do not look at the dress yet. Look when we get there. I want to see your face."),
     (WYRMREST_VIEW, TAKEN, BOTH, "At night the Accord sleeps on the lower tiers. The top is only wind."),
-    (WINGS, TAKEN, BOTH, "Eat something light first. I am told the first time is memorable."),
+    (WINGS, TAKEN, BOTH, "Eat something light first, and tie down anything you would like to keep."),
     (ADVENTURE, TAKEN, BOTH, "Leave the map in your pack today. We are getting lost on purpose."),
     (ADVENTURE, DONE, BOTH, "Look at that. An afternoon with nothing left to do in it."),
-    (TENT, TAKEN, BOTH, "Whenever you like. I have waited about a thousand years; another hour will not hurt."),
+    (TENT, TAKEN, BOTH, "Come whenever you like. The lamp is lit; it always is."),
     (AFTER, TAKEN, BOTH, "Not far. Just past the last fire, where the wind is."),
     # The main story, for those walking hers too
     (WEIGHT_OF_TIME, TAKEN, BOTH, "Stay close to me today, $N. I do not know why. I only know I want you close.",
@@ -544,10 +547,10 @@ WORDS = [
      dict(after=WHAT_HE_LEFT_OUT, delay=9000)),
     (RECORD_KEEPS_WARSONG, TURNED_IN, HORDE, "We are putting back what we did. Not all of it, though. Not us.",
      dict(after=WHAT_HE_LEFT_OUT, delay=9000)),
-    (LAST_NECESSARY_BATTLE, TAKEN, BOTH, "If you die up there, I will be very cross with you for a very long time. I have a very long "
-                                         "time.", dict(after=TENT)),
-    (SEE_YOU_LATER, TAKEN, BOTH, "'See you later', they all say. I am going to say it too, and I am going to mean it more than any of "
-                                 "them.", dict(after=AFTER)),
-    (BACK_TO_YOUR_OWN_TIME, TAKEN, BOTH, "Look in your mailbox when you are home. I keep my promises. I am a dragon; it is very nearly "
-                                         "all we have.", dict(after=AFTER)),
+    (LAST_NECESSARY_BATTLE, TAKEN, BOTH, "If you die up there, I will be cross with you for a thousand years. I can, you know. I have "
+                                         "them.", dict(after=TENT)),
+    (SEE_YOU_LATER, TAKEN, BOTH, "I have always preferred hello to goodbye. So I will say what everyone says, $N: see you later. I "
+                                 "intend to mean it.", dict(after=AFTER)),
+    (BACK_TO_YOUR_OWN_TIME, TAKEN, BOTH, "When you are home, look in your mailbox. I keep my promises, $N. I always have.",
+     dict(after=AFTER)),
 ]

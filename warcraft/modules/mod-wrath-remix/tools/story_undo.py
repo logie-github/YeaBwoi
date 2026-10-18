@@ -45,51 +45,52 @@ QUESTS = [
     dict(id=LOST_AT_SEA, title="Lost at Sea", side=ALLIANCE, sort=3537, level=-1, min=20, bronze=1000,
          gates=[[rewarded(WEIGHT_OF_TIME), rewarded(NOT_YET_LATE)]],
          log="Persuade William Allerton, in the Farshire Mine, to sail home under another name. Moratari will take you there and back.",
-         desc="I need your help to put something back, $N, and I need you to understand why before you hate me for asking.$B$BWilliam "
-              "Allerton was supposed to die in the Farshire mine. He did not, because of us. Now he is alive in the Borean Tundra, writing "
-              "letters to Stormwind about Unit S, about the counselor, about a hero with a strange way of knowing where to be. Every letter "
-              "is a thread pulling the war somewhere it never went.$B$BHe cannot stay. Not here, and not under his own name. But he does not "
-              "have to die. I will not ask that of you, and I would not do it myself. Talk to him.",
+         desc="I need your help to put something back, $N, and you are not going to like it.$B$BWilliam Allerton was supposed to die in "
+              "the Farshire mine. He did not, because of us. Now he is alive in the Borean Tundra, writing letters to Stormwind about Unit "
+              "S, about the counselor, about a hero with a strange way of knowing where to be. Every letter pulls the war somewhere it "
+              "never went.$B$BHe cannot stay. Not here, and not under his own name. But he does not have to die. I will not ask that of "
+              "you, and I would not do it myself. Talk to him.",
          done="Return to Moratari.",
          departure=(571, 2765.6, 5337.8, 30.03, 0.20),
          bridge=dict(at=BAZAAR),
          objectives=[(C_ALLERTON_SAILS, 1, "William Allerton persuaded to sail home")],
          request="Will he go?",
-         reward="The Kraken sails at dawn. In the ledger, William Allerton died at Farshire, with his throat cut. In Westfall, a farmer called "
-                "Will Allard will grow very good corn, and tell nobody where he learned to look over his shoulder.$B$BThank you, $N. "
-                "That one I could not have done alone."),
+         reward="The Kraken sails at dawn, with a passenger the ledger has never heard of. In Westfall, a farmer called Will Allard will "
+                "grow very good corn, and tell nobody where he learned to look over his shoulder.$B$BThank you, $N. That one I could not "
+                "have done alone."),
     dict(id=FORGED_ORDERS, title="Forged Orders", side=ALLIANCE, sort=3537, level=-1, min=20, bronze=1000,
          gates=[[rewarded(WEIGHT_OF_TIME), rewarded(NO_ONE_LEFT_BEHIND)]],
          log="Give Corporal Venn at Death's Stand the orders that send Unit S's survivors and Hammerhill's volunteers home.",
-         desc="History lost Unit S on a beach. If four men walk into Wintergarde with the counselor's name on their lips, the 7th Legion "
-              "starts asking questions it never asked, and the cult's list of traitors reaches the wrong hands far too soon.$B$BThey cannot "
-              "die again; I will not allow it. But they can go home, quietly. I have written orders sending them to Stormwind's harbor, "
-              "with Hammerhill's volunteers to see them aboard. Chromie lent me the seal. Do not ask.$B$BGive them to Corporal Venn. He will "
-              "understand more than you think.",
+         desc="History lost Unit S on the beach where they landed, and never went looking. If four of them walk back into Valiance Keep "
+              "with the counselor's name on their lips, the questions the Expedition asks next are ones history never asked.$B$BThey are "
+              "not going to die for that. I will not allow it. But they can go home, quietly: I have written orders sending them to "
+              "Stormwind's harbor, with Hammerhill's volunteers to see them aboard. They carry the general's seal. The counselor kept a "
+              "copy in his desk, and he will not be needing it.$B$BTake them to Corporal Venn. He will understand more than you think.",
          done="Return to Moratari.",
          departure=(571, 3111.0, 3840.0, 22.85, 5.75),
          bridge=dict(at=BAZAAR),
          objectives=[(C_VENN_ORDERS, 1, "Corporal Venn given the orders")],
          request="Did he take them?",
-         reward="'S' for 'sent home'. He said that, didn't he? I knew he would.$B$BIn the record, Unit S was lost at the landing, and nobody "
-                "ever comes looking. In Stormwind, four mothers will open their doors to sons the army already wrote to them about. Some "
-                "changes, $N, the war can keep, as long as it never hears of them."),
+         reward="Then the record keeps Unit S on its beach, and Stormwind gets its sons back. Somewhere in the Old Town, a mother is going "
+                "to open her door to a boy the army already wrote to her about.$B$BSome changes, $N, the war can keep, as long as it never "
+                "hears of them."),
     dict(id=RECORD_KEEPS_WARSONG, title="The Record Keeps Warsong", side=HORDE, sort=3537, level=-1, min=20, bronze=1000,
          gates=[[rewarded(WEIGHT_OF_TIME), rewarded(DARKNESS_STIRS), rewarded(THE_CONDEMNED_COAST)]],
          log="Tell Gorge, on the Coast of Echoes, that the Warchief is calling every soldier who can walk back to Orgrimmar. Moratari will "
              "take you there and back.",
-         desc="Orgrimmar is under martial law. The Warchief calls every soldier who can walk back to the city, and in the record the coast "
-              "at Garrosh's Landing is condemned again by the end of the week: no garrison, no spare tanks, no one left on the beach but "
-              "Gorge, a goblin and the mist.$B$BIn our record, there is a garrison there, because of us. It cannot stay, $N. Not with the "
-              "Horde at war with itself in its own capital. Go and tell Gorge. He will take it badly. He takes everything badly.",
+         desc="Orgrimmar is under martial law, and the Warchief is calling every soldier who can walk back to the city. In the record, "
+              "the coast at Garrosh's Landing is condemned again by the end of the week: no garrison, no spare tanks, no one on the beach "
+              "but Gorge, a goblin and the mist.$B$BThere is a garrison there now, because of us. If it stays while the rest of the Horde "
+              "goes home, someone will ask why, and I would rather nobody did, $N.$B$BGo and tell Gorge. He will take it badly. He takes "
+              "everything badly.",
          done="Return to Moratari.",
          departure=(571, 2822.5, 6708.5, 10.8, 2.70),
          bridge=dict(at=BAZAAR),
          objectives=[(C_GORGE_RECALL, 1, "Gorge told of the recall")],
-         request="Is the coast emptied?",
-         reward="Condemned again, as it was. The garrison sails for Orgrimmar, the spare tanks with them, and the wounded who could walk walked "
-                "aboard. History has its coast back.$B$BI keep thinking about the moment at the war map, when he said 'Now we have a "
-                "shipping lane' and did not stamp on anything. It was real, $N. For one afternoon, it was real."),
+         request="Did he take it badly?",
+         reward="Condemned again, as it was. The garrison sails for Orgrimmar with the spare tanks, and the wounded go with them. History "
+                "has its coast back.$B$BI keep thinking of the war map, the day Hellscream gave way and did not stamp on anything. It was "
+                "real, $N. For one afternoon, it was real."),
 ]
 
 GATES = {
@@ -99,20 +100,21 @@ GATES = {
 
 TALK = [
     dict(npc=LIVING_ALLERTON, quest=LOST_AT_SEA, credit=C_ALLERTON_SAILS,
-         option="William, the cult will try again, and next time no one will be there in time. Sail home tonight, under another name.",
-         reply="Another name? <William Allerton laughs, then stops.> You're serious.$B$BThe ledger will say I died in this mine, won't it? "
-               "...Fine. Leryssa knows the truth, and Thassarian's alive. That's enough for me.$B$BI always fancied myself a farmer. "
-               "Somewhere warm, where the ground doesn't open up under you."),
+         option="William, the cult will try again, and next time I won't be there. Sail home tonight, under another name.",
+         reply="Another name? <William Allerton laughs, then stops.> You're serious.$B$BSo as far as the Expedition knows, I died down here. "
+               "...Fine. Leryssa has her brother back. That's what I wrote to her for.$B$BI always fancied myself a farmer. Somewhere warm, "
+               "where the ground doesn't open up under you."),
     dict(npc=VENN, quest=FORGED_ORDERS, credit=C_VENN_ORDERS,
          option="Corporal, these orders send your men home to Stormwind. The record will say Unit S was lost at the landing. Nobody will "
                 "come looking.",
-         reply="Lost at the landing. <Corporal Venn reads the orders twice, then a third time.>$B$BWell. We were, weren't we. For a while.$B$B"
-               "'S' for suicide, they called it. Maybe now it's 'S' for 'sent home'. I'll take it, and I won't ask whose seal that is."),
+         reply="Lost at the landing. <Corporal Venn reads the orders twice, then a third time.>$B$BWell. We were, weren't we? For a while "
+               "there.$B$BGeneral's seal, and not the general's hand. That's how we got sent out here in the first place.$B$B'S' for "
+               "suicide, the lads called it. Maybe now it's 'S' for 'sent home'. I'll take it, friend, and I won't ask who wrote it."),
     dict(npc=GORGE, quest=RECORD_KEEPS_WARSONG, credit=C_GORGE_RECALL,
          option="Gorge, the Warchief is calling every soldier who can walk back to Orgrimmar. The garrison too, and the spare tanks.",
          reply="Orgrimmar? Martial law, they're sayin'... <Gorge spits into the sand.>$B$BCondemned again, then. Figures. Every time I get "
-               "this beach lookin' like somethin', somebody takes it away.$B$BFine! Take 'em! But the six tanks stay with me. Hellscream can "
-               "come get those himself."),
+               "this beach lookin' like somethin', somebody takes it away.$B$BFine! Take 'em, buddy! But the six tanks stay with me. "
+               "Somebody's gotta keep an eye on that mist."),
 ]
 
 SCENES = [
@@ -123,18 +125,18 @@ SCENES = [
              ("bind", 1, GARROSH),
              ("bind", 2, SAURFANG),
              ("face", 1, 2),
-             ("say", 1, "Supply lanes. Patience. Maps on the floor. And your son burned at their gate all the same, old one."),
-             ("say", 2, "Not now, Hellscream."),
-             ("say", 1, "No. Not now. Not ever again. No more waiting. When the Horde marches on Icecrown, it marches on my word."),
+             ("say", 1, "Your son died at the Wrathgate, old one, while we stood at this map arguing over shipping lanes."),
+             ("say", 2, "Not today, Garrosh."),
+             ("say", 1, "No. No more waiting. When the Horde marches on Icecrown, it marches on my word, not yours."),
          ]),
 ]
 
 WORDS = [
     (LOST_AT_SEA, TAKEN, ALLIANCE, "The mine. He has moved his cot down to the bottom level, where the light is worse and the knives have "
                                    "further to climb."),
-    (FORGED_ORDERS, TAKEN, ALLIANCE, "Death's Stand. Venn kept them there, waiting for orders from a keep that no longer had a counselor to "
-                                     "write any."),
+    (FORGED_ORDERS, TAKEN, ALLIANCE, "Death's Stand. Venn has kept them there a week, waiting for orders nobody was ever going to send."),
     (RECORD_KEEPS_WARSONG, TAKEN, HORDE, "The coast. Gorge is by the tanks; he always is."),
-    (DARKNESS_STIRS, TURNED_IN, HORDE, "There it goes. History needed him angry, $N. I am sorry it needed it this way.",
+    (DARKNESS_STIRS, TURNED_IN, HORDE, "And there goes the patience he learned. History needs him angry, $N. I wish it needed something "
+                                       "else.",
      dict(after=WEIGHT_OF_TIME, delay=24000)),
 ]
