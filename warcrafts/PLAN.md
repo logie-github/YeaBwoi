@@ -28,6 +28,9 @@ The user's requirements, what was decided, what's open, and where it stands. The
   to a DOSBox start: "No. Stop. Don't use DOSBox, this must be Android native." Asked, the user
   chose Stratagus (War1gus, Wargus) for I and II, and kept Warcraft III (its 1.30 archive link).
 
+- "The screen I'm playing on is a perfect 4:3 ratio." "Reinvent it a bit so make it play how I
+  want if you have to."
+
 ## Decided
 
 - **One app, four looks**: `com.logie.warcrafts`, "Warcraft" (build 1 was `com.logie.warcraftrts`,
@@ -78,6 +81,16 @@ The user's requirements, what was decided, what's open, and where it stands. The
   - `StratagusActivity` (SDL's activity, process `:stratagus`, killed on leaving so each game starts
     clean) with `StratagusGestureView` over it: the same `RtsGestures`, sent through SDL's JNI
     (`SdlBridge`: mouse with Android's action/button codes, Android key codes, committed text).
+- **Taps where a right click does nothing** (the user's "reinvent it a bit"): with tap = right
+  click, menus and the panel's buttons couldn't be tapped. In Stratagus (patch 0001,
+  `TouchButtonPress` in `sdl.cpp`) a right click becomes the left click unless the game is running
+  with no menu open (`GameCallbacks`) and the cursor is on the map or minimap, and on the map also
+  when none of the player's units is selected (the tap selects); the release follows the press.
+  Warcraft III can't be changed inside: `GestureView` turns taps on its bottom panel (from 76% down)
+  and top bar (top 5%) into left clicks; its full-screen menus still need a hold.
+- **4:3** (the user's inside screen): Wargus 640x480 and War1gus 480x300 with its original pixel
+  ratio (x1.2, 480x360) are 4:3 already; Warcraft III at 1440x1080 by default. The launcher's two
+  columns from 760 dp (the inside screen sideways), its shorter picture from 600 dp.
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.

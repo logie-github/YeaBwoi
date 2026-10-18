@@ -134,11 +134,11 @@
     <string name="rts_import_no_space">Not enough free space: it needs %1$s and %2$s is free.</string>
 
     <!-- Graphics -->
-    <string name="rts_graphics_note">The games are drawn at this size and scaled to the screen; on the Fold\'s nearly square inside screen they\'re 4:3 with bars at the sides, never squeezed. Fewer lines run faster. It applies the next time a game starts, for the screen the launcher is on then.</string>
+    <string name="rts_graphics_note">Warcraft III is drawn at this size and scaled to the screen: on the Fold\'s 4:3 inside screen, its own shape, it fills the screen exactly. Fewer lines run faster. It applies the next time it starts, for the screen the launcher is on then. Warcraft I and II always fill a 4:3 screen at their own resolutions (480×300 drawn 4:3 as the original was, and 640×480).</string>
     <string name="rts_graphics_screen">The screen\'s own</string>
     <string name="rts_graphics_screen_summary">Every pixel of the screen the launcher is on (the Fold\'s inside or outside)</string>
     <string name="rts_graphics_high">1080 lines (default)</string>
-    <string name="rts_graphics_high_summary">The Fold\'s outside screen\'s own; on the inside, a quarter of the pixels to draw</string>
+    <string name="rts_graphics_high_summary">1440×1080 on a 4:3 screen: sharp, and lighter than the inside screen\'s every pixel</string>
     <string name="rts_graphics_balanced">720 lines</string>
     <string name="rts_graphics_balanced_summary">The fastest</string>
     <string name="rts_renderer_title">Warcraft III draws with</string>
@@ -153,7 +153,7 @@
     <string name="rts_controls_swipe">Swipe one finger</string>
     <string name="rts_controls_swipe_does">Pans the map the way you swipe, for as long as the finger stays away from where it landed. Lift to stop.</string>
     <string name="rts_controls_tap">Tap</string>
-    <string name="rts_controls_tap_does">Right click: move, attack, gather, set a rally point.</string>
+    <string name="rts_controls_tap_does">Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, a tap is the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel and top bar.</string>
     <string name="rts_controls_hold">Touch and hold</string>
     <string name="rts_controls_hold_does">Left click when you lift (after a short buzz): select a unit or building, press a button of the game\'s panel or menus.</string>
     <string name="rts_controls_double">Hold twice on the same spot</string>

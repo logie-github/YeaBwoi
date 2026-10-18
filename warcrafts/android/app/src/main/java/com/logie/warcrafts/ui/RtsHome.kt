@@ -197,9 +197,10 @@ private fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Header(screenWidth, screenHeight, onSwitch = { onDialog(HomeDialog.GAMES) })
-            // The Fold's inside screen (about 830 dp wide either way up): the game and its checklist
-            // on the left, the menu on the right, so everything fits without scrolling far.
-            val wide = screenWidth >= 700.dp
+            // The Fold's inside screen held sideways (4:3, well over 760 dp wide): the game and its
+            // checklist on the left, the menu on the right, so everything fits without scrolling far.
+            // Upright, one column of full-width tiles (two narrow columns would cut their names).
+            val wide = screenWidth >= 760.dp
             val play: @Composable () -> Unit = {
                 val working = imports as? Imports.State.Working
                 when {
@@ -360,7 +361,7 @@ private fun needNote(item: Needs.Item): Int = when (item) {
 private fun Header(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit) {
     val look = LocalLook.current
     // On the Fold's inside screen the picture leaves room for the game's panel and checklist.
-    val headerHeight = if (screenWidth >= 700.dp) {
+    val headerHeight = if (screenWidth >= 600.dp) {
         min(screenHeight * 0.4f, 380.dp)
     } else {
         min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.6f)

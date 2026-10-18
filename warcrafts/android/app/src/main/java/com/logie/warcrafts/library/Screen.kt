@@ -6,9 +6,9 @@ package com.logie.warcrafts.library
 object Screen {
     /**
      * In landscape, [lines] high and as wide as the screen's shape, even, but never narrower than
-     * 4:3: the Fold's inside screen is nearly square (about 10:9), narrower than the games' screens
-     * were ever made for, so there the game is 4:3 with bars at its sides rather than squeezed. At
-     * least 800x600, which the games need.
+     * 4:3, the games' own shape: on the Fold's inside screen (4:3) they fill it exactly; on a
+     * narrower screen they'd have bars at their sides rather than be squeezed. At least 800x600,
+     * which Warcraft III needs.
      */
     fun resolution(width: Int, height: Int, lines: Int): Pair<Int, Int> {
         val long = maxOf(width, height).coerceAtLeast(1).toLong()

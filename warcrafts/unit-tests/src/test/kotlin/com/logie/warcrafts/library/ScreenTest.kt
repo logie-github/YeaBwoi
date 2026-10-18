@@ -5,7 +5,14 @@ import kotlin.test.assertEquals
 
 class ScreenTest {
     @Test
-    fun `the Fold's inside screen is played at 4 to 3, not squeezed`() {
+    fun `a 4 to 3 screen is filled exactly`() {
+        assertEquals(2208 to 1656, Screen.resolutionFor(1656, 2208, null))
+        assertEquals(1440 to 1080, Screen.resolutionFor(2208, 1656, 1080))
+        assertEquals(960 to 720, Screen.resolutionFor(2208, 1656, 720))
+    }
+
+    @Test
+    fun `a screen narrower than 4 to 3 gets the game at 4 to 3, not squeezed`() {
         assertEquals(2184 to 1638, Screen.resolutionFor(1968, 2184, null))
         assertEquals(1440 to 1080, Screen.resolutionFor(2184, 1968, 1080))
     }
