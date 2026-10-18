@@ -147,6 +147,15 @@ The user's requirements, what was decided, what's open, and where it stands. The
   without "exit 0", and shows the game's last output with Android's log for that process (`logcat
   --pid`, which an app may read for its own processes), with Copy. The app's own Java exceptions
   (launcher and game processes) are shown the same way.
+- **Lua and FORTIFY** (build 7): build 6's stop report from the phone (Warcraft I): "FORTIFY: strchr:
+  prevented read past end of buffer", signal 6, in Lua's start. The release's `libmain.so` at the
+  reported address is Lua 5.1's `traversetable` (`lgc.c`): `strchr(svalue(mode), 'k')` on a weak
+  table's mode, called as `__strchr_chk` with a size of 0. Lua keeps a string's characters after
+  its header (`getstr(ts)` is `ts + 1`), and with the NDK's `_FORTIFY_SOURCE=2` the compiler sees
+  no room past the header; the first weak table the collector meets ends the game. The bundled Lua
+  is built with `-U_FORTIFY_SOURCE` on Android (deps patch). (The report's function names come
+  from `dladdr`, the nearest exported symbol, so static functions show their neighbour's name; the
+  addresses are exact.)
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry; the CD keys box takes the keys the user has.
@@ -179,11 +188,14 @@ The user's requirements, what was decided, what's open, and where it stands. The
 4. **GOG's offline installers taken as they are** — built (build 4); unpacking worked on the phone.
 5. **The tools' fix for Android, Warcraft III's CD keys box, fullscreen** — built (build 5); the
    conversions ran on the phone, both games stopped at launch.
-6. **Stratagus's folders on Android, what a game says when it stops** — built (build 6).
-7. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
+6. **Stratagus's folders on Android, what a game says when it stops** — built (build 6); the stop
+   report came back from the phone.
+7. **Lua without FORTIFY** — built (build 7).
+8. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
 
 ## Where it stands
 
-Stage 6: built locally and in CI; unit tests pass. On the user's phone: both GOG installers
-unpacked (build 4), both conversions ran (build 5), both games stopped at launch (build 5; the
-folder fix and the stop report are in build 6, not yet run).
+Stage 7: built locally and in CI; unit tests pass. On the user's phone: both GOG installers
+unpacked (build 4), both conversions ran (build 5), the games stopped at launch (build 5); build 6
+got past the folders and stopped in Lua's start on FORTIFY (its report); build 7 builds Lua
+without it, not yet run.
