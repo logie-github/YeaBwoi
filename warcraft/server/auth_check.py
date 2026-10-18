@@ -163,6 +163,7 @@ SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
 SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x0DC
 CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
 CMSG_SET_SELECTION = 0x13D
+CMSG_GAMEOBJ_USE = 0x0B1
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
@@ -433,7 +434,11 @@ def run_script(session, player_guid, steps):
     """Plays [steps], one a line ("#" starts a comment):
 
         cmd TEXT                      a GM command (or anything said)
-        go MAP X Y Z                  a GM teleport there
+        go MAP X Y Z [FACING]         a GM teleport there
+        target ENTRY                  select the nearest creature of that entry (0: nothing), for
+                                      the GM commands after it (.npc info, .gps)
+        use ENTRY                     click the nearest game object of that entry, as the game does
+                                      (its guid from mod-wrath-remix's `.remix goguid ENTRY`)
         clear-backpack                throws away what's in the backpack (but the hearthstone)
         use-hourglass                 uses Moratari's Hourglass from the bags, as the game uses an
                                       item (where it is from mod-wrath-remix's `.remix hourglass`)
@@ -628,6 +633,21 @@ def run_script(session, player_guid, steps):
             say(session, ".damage 100 pct")
             session.pump(3.0, packets)
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
+        elif word == "use":
+            say(session, f".remix goguid {int(rest)}")
+            found = []
+            session.pump(1.5, found)
+            note(found)
+            guid = next((int(line.split()[4]) for line in system_messages(found)
+                         if line.startswith("Wrath Remix goguid:") and len(line.split()) > 4 and line.split()[4].isdigit()), None)
+            if guid is None:
+                raise RuntimeError(f"no object {rest} near the character")
+            session.send(CMSG_GAMEOBJ_USE, struct.pack("<Q", guid))
+            session.pump(2.0, packets)
+        elif word == "target":
+            entry = int(rest)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(entry) if entry else 0))
             session.pump(0.5, packets)
         elif word == "cast":
             # A spell of the character's, cast on the nearest creature of an entry (a game master's

@@ -33,6 +33,11 @@ package com.logie.warcraft.client
  * <what they wrote>", a long one in pieces, each but the last "report+ <its words>"). The realm
  * writes the report (mod-wrath-remix, RemixReport.cpp) and the app sends it to GitHub
  * ([com.logie.warcraft.AnomalyReports]).
+ *
+ * And it darkens the screen for a moment of the story when the realm asks (a scene's fade to black,
+ * Moratari's tent): the realm's add-on message to the player "fade <milliseconds> <words>" (prefix
+ * `WowRemix`, mod-wrath-remix's RemixOutings.cpp). The dark comes up in a second or so, the words in
+ * the middle of it, and it goes again as the time is up.
  */
 object TouchAddon {
     const val FOLDER = "WowTouch"
@@ -45,9 +50,9 @@ object TouchAddon {
         "$FOLDER.toc" to """
             ## Interface: ${AddonLayout.INTERFACE}
             ## Title: WowTouch
-            ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly on Wrath Remix.
+            ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix.
             ## Author: World of Warcraft app
-            ## Version: 4
+            ## Version: 5
             $FOLDER.lua
         """.trimIndent() + "\n",
         "$FOLDER.lua" to """
@@ -58,7 +63,7 @@ object TouchAddon {
             -- add-on message to the player itself, which the realm on the phone keeps for the app.
             -- A right click on an action bar's button takes it off the bar. A talent's first tap
             -- shows its tooltip, a second one spends the point. On Wrath Remix, Report Time Anomaly
-            -- in the game's menu and on the toolbar's Help button.
+            -- in the game's menu and on the toolbar's Help button, and the story's fades to black.
 
             local said
             local inWorld = false
@@ -391,11 +396,62 @@ object TouchAddon {
                 HelpMicroButton.newbieText = "Tell the realm's makers what went wrong: the realm writes down where you are and the way you came, and the app sends it to GitHub."
             end
 
+            -- A moment of the story with the screen dark (a scene's fade to black), its words in the
+            -- middle: the realm's add-on message "fade <milliseconds> <words>". The dark comes up and
+            -- goes again in a second or so; the words stay while it lasts.
+            local FADE_IN, FADE_OUT = 1.2, 1.5
+            local fadeFrame
+
+            local function fadeWindow()
+                if fadeFrame then return fadeFrame end
+                local frame = CreateFrame("Frame", "WowTouchFadeFrame", UIParent)
+                frame:SetAllPoints(UIParent)
+                frame:SetFrameStrata("FULLSCREEN_DIALOG")
+                local dark = frame:CreateTexture(nil, "BACKGROUND")
+                dark:SetAllPoints(frame)
+                dark:SetTexture(0, 0, 0, 1)
+                local words = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightLarge")
+                words:SetPoint("CENTER", frame, "CENTER", 0, 40)
+                words:SetWidth(640)
+                words:SetJustifyH("CENTER")
+                words:SetTextColor(0.86, 0.79, 0.67)
+                frame.words = words
+                frame:SetScript("OnUpdate", function(self, elapsed)
+                    self.at = self.at + elapsed
+                    if self.at >= self.lasts then
+                        self:Hide()
+                        return
+                    end
+                    self:SetAlpha(math.min(1, self.at / FADE_IN, (self.lasts - self.at) / FADE_OUT))
+                end)
+                frame:Hide()
+                fadeFrame = frame
+                return frame
+            end
+
+            local function fade(seconds, text)
+                local frame = fadeWindow()
+                frame.at = 0
+                frame.lasts = math.max(seconds, FADE_IN + FADE_OUT)
+                frame.words:SetText(text or "")
+                frame:SetAlpha(0)
+                frame:Show()
+            end
+
             watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
             watcher:RegisterEvent("PLAYER_LEAVING_WORLD")
             watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
             watcher:RegisterEvent("ADDON_LOADED")
-            watcher:SetScript("OnEvent", function(self, event, name)
+            watcher:RegisterEvent("CHAT_MSG_ADDON")
+            watcher:SetScript("OnEvent", function(self, event, name, message, channel, sender)
+                if event == "CHAT_MSG_ADDON" then
+                    -- (the realm's, to the player itself)
+                    if name == "$REMIX_PREFIX" and sender == UnitName("player") then
+                        local ms, words = string.match(message or "", "^fade (%d+) ?(.*)")
+                        if ms then fade(tonumber(ms) / 1000, words) end
+                    end
+                    return
+                end
                 if event == "PLAYER_REGEN_ENABLED" then
                     readyBars()
                     return

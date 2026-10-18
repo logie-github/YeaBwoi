@@ -108,6 +108,9 @@ PROPS = {
     "portal":      (4713, 0.12, "Door in Time"),
 }
 PROP_ENTRY = {key: 770001 + i for i, key in enumerate(PROPS)}
+# Props that do something when clicked: (game object type, script). The campfire calls Moratari over
+# (RemixCampfire.cpp); a goober (10) is clickable.
+PROP_USE = {"campfire": (10, "go_remix_campfire")}
 
 # Where each thing stands: (prop, x, y, orientation, what it's for)
 PLACED = [
@@ -373,7 +376,8 @@ def main():
     lo, hi = 770001, 770001 + len(PROPS) - 1
     w(f"DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 770001 AND 770099;")
     w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES")
-    w(",\n".join(f"({PROP_ENTRY[k]}, 5, {d}, {sql_text(n)}, '', '', '', {s}, '', '', 0)" for k, (d, s, n) in PROPS.items()) + ";")
+    w(",\n".join(f"({PROP_ENTRY[k]}, {PROP_USE.get(k, (5, ''))[0]}, {d}, {sql_text(n)}, '', '', '', {s}, '', "
+                 f"{sql_text(PROP_USE.get(k, (5, ''))[1])}, 0)" for k, (d, s, n) in PROPS.items()) + ";")
     w("")
     w("DELETE FROM `gameobject` WHERE `guid` BETWEEN 7705001 AND 7705299;")
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`,")

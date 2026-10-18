@@ -19,6 +19,7 @@ void AddRemixIntroScripts();
 void AddRemixLessonScripts();
 void AddRemixMoratariScripts();
 void AddRemixOutingScripts();
+void AddRemixCampfireScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -38,4 +39,5 @@ void Addmod_wrath_remixScripts()
     AddRemixLessonScripts();
     AddRemixMoratariScripts();
     AddRemixOutingScripts();
+    AddRemixCampfireScripts();
 }

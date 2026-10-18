@@ -11,6 +11,11 @@
 -- the chain's next quest. The Alliance's then goes on to Mark Hanes (WRM-019), whose Word on the
 -- Street the game leaves to be found.
 --
+-- Since build 91, Moratari's interventions (wrath_remix_world_0027_moratari.sql) sit in these chains:
+-- WRM-006 follows William Allerton's testimony (he is alive) and leads to Unit S's rescue (WRM-045)
+-- before Thassarian; Mobu's two parts quests are back on the Horde's road (WRM-016 is gone: the
+-- Timerunner knows where the parts are).
+--
 -- (Until build 90, wrath_remix_world_0003_prologue.sql's deletes of the first prologue's quests,
 -- 77001 to 77009, took the Alliance's transition, 77006, out whenever that file changed and this
 -- one didn't: this note makes this file change too, so it comes back.)
@@ -25,13 +30,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77006, 2, 15, 10, 3537, 5, 0, 0, 1101,
  'A Useful Omission',
  'Speak with Moratari again to go where Thassarian''s trail ends.',
- 'Thassarian is alive, and Leryssa will find him. The road there is a dead man''s house, a barrel of wine, a deserter, a coward or two, and a tuskarr with a grudge. Eternus has read every step of it, and he would rather you spent your days where they can change something.$B$BCorporal Venn is holding out where the trail ends, and Thassarian is just beyond. Let me fold the road.$B$BIf you would rather walk every step yourself, the road is still there.',
- 'Speak with Moratari.', 0),
--- Horde, Borean Tundra: the parts for Mobu's tank.
-(77016, 2, 16, 10, 3537, 5, 0, 0, 690,
- 'A Useful Omission',
- 'Speak with Moratari again to have the tank''s parts accounted for.',
- 'Mobu wants parts. Mobu always wants parts: a transjigamarig, some plates, a great deal of shouting. Eternus has read how it goes, and the tank works.$B$BHe would rather you spent your days where they can change something. Let us skip to the part where the tank works, and see what the Horde does with it.$B$BIf you would rather fetch every bolt yourself, Mobu will still be grateful. Loudly.',
+ 'Thassarian is alive, and William has told you where they sent him. The rest of the road is a borrowed ledger, a barrel of wine, a deserter, a coward or two, and a tuskarr with a grudge, and every step of it ends where William''s story already did: at Death''s Stand.$B$BCorporal Venn is holding out there, and Thassarian is just beyond. Let me fold the road.$B$BIf you would rather walk every step yourself, the road is still there.',
  'Speak with Moratari.', 0),
 -- Alliance, Howling Fjord: Scout Knowles' missions and the drunken plan that ends at Mission:
 -- Plague This!, before Operation: Skornful Wrath.
@@ -64,13 +63,12 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES
-(77006, 11599), (77016, 11642), (77026, 11291),
+(77006, 11599), (77026, 11291),
 (77121, 12019), (77122, 11652), (77123, 11250), (77124, 11310);
 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77006, 1, 'I think our records can survive without another afternoon of interviews. Hold on to something.', 0),
-(77016, 1, 'The tank works. History says so, and history is very rarely wrong about tanks.', 0),
 (77026, 1, 'The captain is ready. So, I suspect, are you.', 0),
 (77121, 1, 'Hold on. The Dragonblight is cold even for Northrend.', 0),
 (77122, 1, 'Hold on. The Dragonblight is cold even for Northrend.', 0),
@@ -79,19 +77,18 @@ INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`)
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
-(@MORATARI, 77006), (@MORATARI, 77016), (@MORATARI, 77026),
+(@MORATARI, 77006), (@MORATARI, 77026),
 (@MORATARI, 77121), (@MORATARI, 77122), (@MORATARI, 77123), (@MORATARI, 77124);
 DELETE FROM `creature_questender` WHERE `quest` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
-(@MORATARI, 77006), (@MORATARI, 77016), (@MORATARI, 77026),
+(@MORATARI, 77006), (@MORATARI, 77026),
 (@MORATARI, 77121), (@MORATARI, 77122), (@MORATARI, 77123), (@MORATARI, 77124);
 
 -- (its own rows: the later chapters' files have theirs)
 DELETE FROM `remix_bridge` WHERE `quest` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `z`, `o`, `skipped`) VALUES
--- Before Corporal Venn (Thassarian, the Death Knight).
-(77006, 12088, 1, 571, 3116.4, 3841.8, 23.3, 2.60, '11600 11601 11603 11604 11932 12086 11944'),
-(77016, 11651, 1, 65535, 0, 0, 0, 0, '11643 11644'),
+-- Before Corporal Venn (Unit S's rescue, then Thassarian, the Death Knight).
+(77006, 77045, 1, 571, 3116.4, 3841.8, 23.3, 2.60, '11600 11601 11603 11604 11932 12086 11944'),
 (77026, 11248, 1, 65535, 0, 0, 0, 0, '11199 11202 11327 11328 11330 11331 11332'),
 -- Before High Commander Halford Wyrmbane, and Overlord Agmar.
 (77121, 12235, 2, 571, 3764.6, -772.4, 196.1, 5.54, ''),
@@ -99,17 +96,16 @@ INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `
 (77123, 12235, 2, 571, 3764.6, -772.4, 196.1, 5.54, ''),
 (77124, 12034, 2, 571, 3842.4, 1489.6, 92.1, 4.71, '');
 
--- The next original quest opens with either the transition or the block's own end.
+-- The next original quest opens with either the transition or the block's own end. (Mobu's two parts
+-- quests open Tanks a lot... again as the game has them: both, NextQuestID 11651 with
+-- ExclusiveGroup -11643.)
 UPDATE `quest_template_addon` SET `PrevQuestID` = 0 WHERE `ID` IN (12088, 11248);
-UPDATE `quest_template_addon` SET `NextQuestID` = 0 WHERE `ID` IN (11643, 11644);
+UPDATE `quest_template_addon` SET `NextQuestID` = 11651 WHERE `ID` IN (11643, 11644);
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (12088, 11651, 11248);
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
-(19, 0, 12088, 0, 0, 8, 0, 77006, 0, 0, 0, 0, 0, '', 'Wrath Remix: Thassarian, the Death Knight after A Useful Omission'),
+(19, 0, 12088, 0, 0, 8, 0, 77045, 0, 0, 0, 0, 0, '', 'Wrath Remix: Thassarian, the Death Knight after No One Left Behind (Unit S''s rescue)'),
 (19, 0, 12088, 0, 1, 8, 0, 11944, 0, 0, 0, 0, 0, '', 'Wrath Remix: ... or after Surrounded!'),
-(19, 0, 11651, 0, 0, 8, 0, 77016, 0, 0, 0, 0, 0, '', 'Wrath Remix: Tanks a lot... after A Useful Omission'),
-(19, 0, 11651, 0, 1, 8, 0, 11643, 0, 0, 0, 0, 0, '', 'Wrath Remix: ... or after both of Mobu''s parts quests'),
-(19, 0, 11651, 0, 1, 8, 0, 11644, 0, 0, 0, 0, 0, '', 'Wrath Remix: ... (the plates)'),
 (19, 0, 11248, 0, 0, 8, 0, 77026, 0, 0, 0, 0, 0, '', 'Wrath Remix: Operation: Skornful Wrath after A Useful Omission'),
 (19, 0, 11248, 0, 1, 8, 0, 11332, 0, 0, 0, 0, 0, '', 'Wrath Remix: ... or after Mission: Plague This!');
 
@@ -124,7 +120,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77017, 2, 16, 10, 3537, 5, 0, 0, 1101,
  'A Kindness Out of Time',
  'Slay 8 Crypt Crawlers on the beach below Valiance Keep, then return to Moratari.',
- 'Eternus has his first kindness for you, $n.$B$BThe beach below the keep is quieter now, thanks to you. It does not stay quiet. Tonight a squad of the 7th Legion goes down to the shore to clear the last of the crypt crawlers, and in the record I have, none of them come back up. Within the week they are wearing Scourge colors.$B$BClear the crawlers before the squad goes down, and they will not need to. It is a small change. Eternus believes small changes are where history is kindest.',
+ 'Eternus has his first kindness for you, $n.$B$BThe beach below the keep is quieter now, thanks to you. It does not stay quiet. Tonight a squad of the keep''s footmen goes down to the shore to clear the last of the crypt crawlers, and in the record I have, none of them come back up. Within the week they are wearing Scourge colors.$B$BClear the crawlers before the squad goes down, and they will not need to. It is a small change. Eternus believes small changes are where history is kindest.',
  'Return to Moratari.',
  25227, 8, '', 0),
 (77018, 2, 16, 10, 3537, 5, 0, 0, 690,
@@ -176,4 +172,4 @@ INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
 
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES
-(77006, 800), (77016, 800), (77026, 800), (77121, 1500), (77122, 1500), (77123, 1500), (77124, 1500);
+(77006, 800), (77026, 800), (77121, 1500), (77122, 1500), (77123, 1500), (77124, 1500);

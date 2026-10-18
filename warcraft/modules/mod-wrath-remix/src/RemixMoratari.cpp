@@ -64,6 +64,8 @@ namespace
         TALK_COMPANION_STAY = 3,  // "Wait for me here": she goes back to her posts (QUEST_FLAG_ALONE)
         TALK_COMPANION_COME = 4,  // "Come with me."
         TALK_OUTING         = 5,  // she takes them on outing [param] (remix_outing: RemixOutings.cpp)
+        TALK_TIME_JUMPER    = 6,  // "I'm a time jumper": her story without the war's checkpoints (QUEST_ROMANCE_TIME_JUMPER),
+                                  // said only to her as she sits with them at the Bazaar's campfire (RemixCampfire.cpp)
     };
 
     enum Moment : uint8
@@ -107,6 +109,7 @@ namespace
     std::unordered_map<uint32, TalkEntry> talk;
     std::unordered_map<uint32, std::vector<uint32>> talkRoots;    // by creature entry
     std::unordered_map<uint32, std::vector<uint32>> talkChildren; // by parent entry
+    std::unordered_map<uint32, uint32> talkCredits;               // a credit: whom it is said to
 
     // Set while the companion is being summoned: Moratari's script gives her the companion's mind,
     // and the level hook the Timerunner's level (the core picks both inside SummonCreature, on this
@@ -224,6 +227,7 @@ namespace WrathRemix
         talk.clear();
         talkRoots.clear();
         talkChildren.clear();
+        talkCredits.clear();
         if (!Active())
             return;
         if (QueryResult result = WorldDatabase.Query("SELECT `quest`, `moment`, `side`, `speaker`, `delay_ms`, `after_quest`, `before_quest`, `races`, `text` "
@@ -266,6 +270,8 @@ namespace WrathRemix
                     talkChildren[t.parent].push_back(t.id);
                 else
                     talkRoots[t.npc].push_back(t.id);
+                if (t.credit)
+                    talkCredits.emplace(t.credit, t.npc);
                 talk[t.id] = std::move(t);
             } while (result->NextRow());
         }
@@ -302,6 +308,25 @@ namespace WrathRemix
         }
     }
 
+    uint32 TalkCreditNpc(uint32 credit)
+    {
+        auto it = talkCredits.find(credit);
+        return it == talkCredits.end() ? 0 : it->second;
+    }
+
+    bool PlaceOf(uint32 quest, uint32 credit, uint32& map, float& x, float& y)
+    {
+        for (Place const& p : places)
+            if (p.quest == quest && p.credit == credit)
+            {
+                map = p.map;
+                x = p.x;
+                y = p.y;
+                return true;
+            }
+        return false;
+    }
+
     bool IsCompanionSummon() { return summoningCompanion; }
     uint8 CompanionLevel() { return companionLevel; }
 }
@@ -331,12 +356,13 @@ namespace
         return false;
     }
 
-    // ...and now: they haven't asked her to wait, and nothing in the way (a flight, a scene).
+    // ...and now: they haven't asked her to wait, and nothing in the way (a flight, an outing).
     bool CompanionWanted(Player* player)
     {
         if (!Active() || IsBot(player) || !player->IsAlive() || player->IsInFlight() || player->GetTransport() || InIntro(player))
             return false;
-        if (player->GetMap()->IsBattlegroundOrArena() || Rewarded(player, QUEST_FLAG_ALONE))
+        // (on an outing, she is in its scene)
+        if (player->GetMap()->IsBattlegroundOrArena() || Rewarded(player, QUEST_FLAG_ALONE) || OnOuting(player))
             return false;
         return CompanionRuleApplies(player);
     }
@@ -346,7 +372,8 @@ namespace
     Creature* PostNear(Player* player, float range)
     {
         std::list<Creature*> near;
-        player->GetCreatureListWithEntryInGrid(near, { NPC_MORATARI, NPC_MORATARI_SCENE, NPC_ALLY_MORATARI }, range);
+        player->GetCreatureListWithEntryInGrid(near, { NPC_MORATARI, NPC_MORATARI_SCENE, NPC_ALLY_MORATARI, NPC_MORATARI_DRESS,
+            NPC_MORATARI_TENT, NPC_MORATARI_DRAGON }, range);
         Creature* best = nullptr;
         for (Creature* c : near)
         {
@@ -448,6 +475,8 @@ namespace
         }
         if (!her)
             Summon(player, state);
+        else if (her->GetPhaseMask() != player->GetPhaseMask())
+            her->SetPhaseMask(player->GetPhaseMask(), true);  // (into the Kvaldir's mist with them, and out of it)
     }
 
     // Moratari as the companion: she follows, fights what fights the Timerunner (never first),
@@ -568,7 +597,7 @@ namespace
         }
     };
 
-    bool TalkAvailable(Player* player, TalkEntry const& t)
+    bool TalkAvailable(Player* player, TalkEntry const& t, Creature* creature)
     {
         if (!OnSide(player, t.side) || !OfRace(player, t.races))
             return false;
@@ -600,6 +629,8 @@ namespace
             return false;
         if (t.action == TALK_COMPANION_COME && !Rewarded(player, QUEST_FLAG_ALONE))
             return false;
+        if (t.action == TALK_TIME_JUMPER && !(creature && AtTheCampfire(player, creature)))
+            return false;
         return true;
     }
 
@@ -608,13 +639,13 @@ namespace
         return creature->GetEntry();
     }
 
-    bool AddEntries(Player* player, std::vector<uint32> const& ids)
+    bool AddEntries(Player* player, Creature* creature, std::vector<uint32> const& ids)
     {
         bool any = false;
         for (uint32 id : ids)
         {
             auto it = talk.find(id);
-            if (it == talk.end() || !TalkAvailable(player, it->second))
+            if (it == talk.end() || !TalkAvailable(player, it->second, creature))
                 continue;
             AddGossipItemFor(player, it->second.icon, Words(player, it->second.option), SENDER_TALK, id);
             any = true;
@@ -657,7 +688,7 @@ namespace WrathRemix
         if (!Active())
             return false;
         auto it = talkRoots.find(TalkKey(creature));
-        return it != talkRoots.end() && AddEntries(player, it->second);
+        return it != talkRoots.end() && AddEntries(player, creature, it->second);
     }
 
     bool HasTalk(Player* player, Creature* creature)
@@ -666,7 +697,7 @@ namespace WrathRemix
         if (it == talkRoots.end())
             return false;
         for (uint32 id : it->second)
-            if (auto t = talk.find(id); t != talk.end() && TalkAvailable(player, t->second))
+            if (auto t = talk.find(id); t != talk.end() && TalkAvailable(player, t->second, creature))
                 return true;
         return false;
     }
@@ -684,7 +715,7 @@ namespace WrathRemix
             return true;
         }
         auto it = talk.find(action);
-        if (it == talk.end() || !TalkAvailable(player, it->second))
+        if (it == talk.end() || !TalkAvailable(player, it->second, creature))
         {
             CloseGossipMenuFor(player);
             return true;
@@ -709,6 +740,9 @@ namespace WrathRemix
             case TALK_COMPANION_COME:
                 player->RemoveRewardedQuest(QUEST_FLAG_ALONE);
                 break;
+            case TALK_TIME_JUMPER:
+                player->SetRewardedQuest(QUEST_ROMANCE_TIME_JUMPER);
+                break;
             default:
                 break;
         }
@@ -719,7 +753,7 @@ namespace WrathRemix
         }
         auto children = talkChildren.find(t.id);
         if (children != talkChildren.end())
-            AddEntries(player, children->second);
+            AddEntries(player, creature, children->second);
         AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Back.", SENDER_TALK, TALK_BACK);
         SendGossipMenuFor(player, t.reply, creature);
         return true;
@@ -799,8 +833,10 @@ public:
 
     bool OnPlayerBeforeQuestComplete(Player* player, uint32 questId) override
     {
-        // (a quest with nothing to do is complete as it's taken: its words wait for the first)
-        MoratariOnQuest(player, questId, MOMENT_DONE);
+        // (a quest with nothing to do is complete as it's taken: its words wait for the first; and
+        // one the game completes again, already complete, isn't talked about twice)
+        if (player->GetQuestStatus(questId) != QUEST_STATUS_COMPLETE)
+            MoratariOnQuest(player, questId, MOMENT_DONE);
         return true;
     }
 

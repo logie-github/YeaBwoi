@@ -74,14 +74,14 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77201, 2, 25, 20, 65, 5, 0, 0, 1101,
  'The Road to Angrathar',
  'Speak with Moratari again to return to High Commander Wyrmbane, ready to take the fight into hostile territory.',
- 'Eternus asked me to keep you moving, and for once that is easy: Wintergarde has a crypt to search, a tome to translate, a sermon to sit through, a mine to clear, and a gnome who is very good at blowing things up. None of it is where this war turns.$B$BThe High Commander is ready to carry the fight into hostile territory. Angrathar is where he is going, and so are you.$B$BIf you would rather search every crypt yourself, they will keep. The dead are patient.',
+ 'Eternus asked me to keep you moving, and for once that is easy: Wintergarde has a tome to translate, a sermon to sit through, a mine to clear, and a gnome who is very good at blowing things up. None of it is where this war turns.$B$BThe High Commander has called his company back from Fordragon Hold; he needs every blade for the mausoleum under the old village. I did not stop the rider. I am not sure, any more, that I should have.$B$BHe is ready to carry the fight into hostile territory. Angrathar is where he is going, and so are you. If you would rather sit through every sermon yourself, they will keep.',
  'Speak with Moratari.', 0, 0, '', 0),
 -- II-A, Horde: Agmar's Hammer's errands around the Forsaken's blight (the taunka's oath, the
--- frost wyrms, the Icemist chief in the nerubians' pit).
+-- blightbeasts, the Icemist chief in the nerubians' pit).
 (77211, 2, 25, 20, 65, 5, 0, 0, 690,
  'The Road to Angrathar',
  'Speak with Moratari again to return to Overlord Agmar, ready for the Kor''kron Vanguard.',
- 'Eternus asked me to keep you moving, and for once that is easy: Agmar''s Hammer has an oath for the taunka to swear, frost wyrms to bring down, a high chief to pull out of a nerubian pit. None of it is where this war turns.$B$BOverlord Agmar is sending his best to the Kor''kron Vanguard, and Saurfang''s son will not wait for stragglers.$B$BIf you would rather swear every oath yourself, Agmar will still have work. He always has work.',
+ 'Eternus asked me to keep you moving, and for once that is easy: Agmar''s Hammer has an oath for the taunka to swear, the blightbeasts you already thinned over Icemist to bring down, a high chief to pull out of a nerubian pit. The taunka will get their chief back without us; the Horde makes sure of it. None of it is where this war turns.$B$BOverlord Agmar is sending his best to the Kor''kron Vanguard, and Saurfang''s son will not wait for stragglers.$B$BIf you would rather swear every oath yourself, Agmar will still have work. He always has work.',
  'Speak with Moratari.', 0, 0, '', 0),
 -- WRM-206 / 216: Moratari, by Bolvar or by Saurfang's son, right before the Wrathgate's chain.
 (77206, 2, 28, 20, 65, 5, 0, 0, 1101,
@@ -137,7 +137,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77201, 77202, 77203, 77204, 77205, 77206, 77207, 77208,
   77211, 77212, 77213, 77215, 77216, 77218, 77221, 77222);
 INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES
-(77203, 12309), (77213, 12221), (77204, 12470), (77205, 77204), (77215, 77204),
+(77203, 12311), (77213, 12221), (77204, 12470), (77205, 77204), (77215, 77204),
 (77201, 77205), (77211, 77215), (77206, 12474), (77216, 12224),
 -- (WRM-207 follows either side's WRM-206: the conditions below)
 (77207, 0), (77208, 77207), (77218, 77207),
@@ -204,7 +204,7 @@ DELETE FROM `remix_bridge` WHERE `quest` IN (77201, 77202, 77203, 77204, 77205, 
 INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `z`, `o`, `skipped`) VALUES
 -- Before High Commander Halford Wyrmbane's Into Hostile Territory, and Overlord Agmar's The
 -- Kor'kron Vanguard!
-(77201, 12325, 2, 571, 3764.6, -772.4, 196.1, 5.54, '12311 12312 12319 12320 12321 12272 12275 12276 12277 12281'),
+(77201, 12325, 2, 571, 3764.6, -772.4, 196.1, 5.54, '12312 12319 12320 12321 12272 12275 12276 12277 12281'),
 (77211, 12224, 2, 571, 3842.4, 1489.6, 92.1, 4.71, '11983 12008 12053 12071 12072 12064 12069 12140'),
 -- At the Wrathgate: nothing skipped, nowhere to go.
 (77202, 13347, 2, 65535, 0, 0, 0, 0, ''),

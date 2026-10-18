@@ -89,6 +89,12 @@ namespace WrathRemix
         NPC_LAST_CHRONOMANCER = 770062,
         NPC_LAST_EXECUTIONER = 770063,
         NPC_ALLY_MORATARI = 770064,
+        // Moratari as the romance's scenes have her (tools/romance.py): in her evening dress, in her
+        // tent, and in her true shape
+        NPC_MORATARI_DRESS = 770720,
+        NPC_MORATARI_TENT = 770721,
+        NPC_MORATARI_DRAGON = 770722,
+        NPC_CHROMIE_HOME  = 26527,      // Chromie as ChromieCraft has her, who brings Moratari's letter home
         NPC_ALLY_SYLVANAS = 770065,
         NPC_ALLY_ALLERIA  = 770066,
         NPC_LESSON_CREDIT = 770067,     // a class lesson's three abilities: 770067 + its slot (0 to 2)
@@ -311,12 +317,18 @@ namespace WrathRemix
     bool HasTalk(Player* player, Creature* creature);
     bool TalkSelect(Player* player, Creature* creature, uint32 sender, uint32 action);
     std::string CompanionReport(Player* player);
+    uint32 TalkCreditNpc(uint32 credit);                    // whom a remix_talk credit is said to (0: none)
+    bool PlaceOf(uint32 quest, uint32 credit, uint32& map, float& x, float& y);  // a remix_place's
+    inline bool IsRomance(uint32 quest) { return quest >= 77900 && quest <= 77999; }   // Moratari's own story (optional)
+    constexpr uint32 QUEST_ROMANCE_FIRST = 77901, QUEST_ROMANCE_LAST = 77909;   // its nine (tools/romance.py)
+    constexpr uint32 QUEST_ROMANCE_TIME_JUMPER = 77910;  // "turned in": they told her they're a time jumper (her story without the war's checkpoints)
 
     // Outings (RemixOutings.cpp): somewhere Moratari takes the Timerunner, a scene played there, and
     // back again (her tent at the Bazaar, a flight on her back).
     void LoadOutings();
     bool StartOuting(Player* player, uint32 outing);
     bool OnOuting(Player* player);
+    bool AtTheCampfire(Player* player, Creature* her);      // she walked over to sit with them at the Bazaar's campfire, and is there still (RemixCampfire.cpp)
     void ScreenFade(Player* player, uint32 milliseconds, std::string const& text);  // dark for a while, words on it
     uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
     bool IsLesson(uint32 quest);

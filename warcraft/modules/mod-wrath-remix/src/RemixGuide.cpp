@@ -232,7 +232,11 @@ namespace
             case 770038: return NPC_ALLERIA;
             case 770039: return NPC_ANDORMU;
             case 770040: return NPC_NOZARI;
-            default:     return entry;
+            default:
+                // (what the Timerunner says to someone, remix_talk: whom they say it to)
+                if (uint32 npc = TalkCreditNpc(entry))
+                    return npc;
+                return entry;
         }
     }
 
@@ -299,7 +303,7 @@ namespace
             Quest const* quest = id ? sObjectMgr->GetQuestTemplate(id) : nullptr;
             if (!quest)
                 continue;
-            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id))
+            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id) && !IsRomance(id))
                 story = quest;
             if (!ready && player->GetQuestStatus(id) == QUEST_STATUS_COMPLETE)
                 ready = quest;
@@ -334,6 +338,19 @@ namespace
             std::string what = !quest->ObjectiveText[i].empty() ? quest->ObjectiveText[i] : std::string();
             if (npcOrGo > 0)
             {
+                // (somewhere the quest sends them to see for themselves, remix_place)
+                uint32 placeMap = 0;
+                float placeX = 0.0f, placeY = 0.0f;
+                if (PlaceOf(id, uint32(npcOrGo), placeMap, placeX, placeY) && placeMap == player->GetMapId())
+                {
+                    Target t;
+                    t.found = true;
+                    t.x = placeX;
+                    t.y = placeY;
+                    t.name = quest->GetTitle();
+                    t.step = Acore::StringFormat("{}: {}.", quest->GetTitle(), what.empty() ? "where your map shows" : what);
+                    return t;
+                }
                 uint32 entry = ResolveCredit(player, uint32(npcOrGo));
                 if (Spawn const* spawn = Nearest(player, creatureSpawns, { entry }))
                 {
@@ -380,6 +397,9 @@ namespace
                 continue;
             Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
             if (!quest || quest->IsRepeatable() || quest->IsSeasonal())
+                continue;
+            // (Moratari's own story is the Timerunner's to start, or not: never pointed to)
+            if (IsRomance(questId))
                 continue;
             // (a class lesson is offered as the yard's instructors' other quests would be: when near)
             bool story = questId >= 77000 && questId <= 77999 && !IsLesson(questId);
