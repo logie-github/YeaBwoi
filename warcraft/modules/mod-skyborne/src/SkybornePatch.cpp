@@ -76,16 +76,15 @@ namespace Skyborne
             return text;
         }
 
-        // Female body textures (HD, 512 by 512): each race's settings, the shading taken from the
-        // blood elf man's texture around (337.5, 89).
-        struct BodySpot
+        // Per-race texture settings (HD, 512 by 512).
+        struct Tweak
         {
             char const* race;
             double x, y, strength, across, down;
             bool lightOnly;     // shading in the skin's own colour
-            double pink, smooth;
+            double warm, smooth;
         };
-        constexpr BodySpot BODY_SPOTS[] = {
+        constexpr Tweak TWEAKS[] = {
             { "bloodelf", 314, 86, 1.0, 1.00, 1.00, false, 0, 0 },
             { "human", 312, 86, 1.0, 1.15, 0.70, false, 0, 0 },
             { "dwarf", 318, 90, 1.0, 1.00, 1.00, false, 0, 0 },
@@ -100,16 +99,16 @@ namespace Skyborne
         };
         constexpr double SOURCE_X = 337.5, SOURCE_Y = 89, RADIUS = 9;
 
-        // The settings for [path] when it's a race's female body texture (...\<Race>\Female\<Race>FemaleSkin00_NN.blp).
-        BodySpot const* BodySpotFor(std::string const& path)
+        // The settings for [path], if it has any.
+        Tweak const* TweakFor(std::string const& path)
         {
             std::string lower = Lower(path);
-            for (auto const& spot : BODY_SPOTS)
+            for (auto const& tweak : TWEAKS)
             {
-                std::string race = spot.race;
+                std::string race = tweak.race;
                 if (lower.find("character\\" + race + "\\female\\" + race + "femaleskin00_") == 0
                     && lower.find("_extra") == std::string::npos)
-                    return &spot;
+                    return &tweak;
             }
             return nullptr;
         }
@@ -150,7 +149,7 @@ namespace Skyborne
                 }
         }
 
-        // The shading: the man's texture over its own blur, per channel (and its lightness), around the source spot.
+        // The shading: the man's texture over its own blur, per channel (and its lightness), around the source point.
         struct Shading
         {
             bool ok = false;
@@ -175,7 +174,7 @@ namespace Skyborne
             Image man;
             if (!game.Read("Character\\BloodElf\\Male\\BloodElfMaleSkin00_00.blp", data) || !Decode(data, man) || man.width != 512 || man.height != 512)
                 return s;
-            // The blur reaches 20 texels: the spot's neighbourhood blurred as part of the whole texture.
+            // The source's neighbourhood, blurred as part of the whole texture.
             std::vector<double> planes[4];
             for (int c = 0; c < 4; ++c)
                 planes[c].assign(size_t(512) * 512, 0);
@@ -206,8 +205,8 @@ namespace Skyborne
             return s;
         }
 
-        // [blp] (a female body texture, [spot]'s race) with the details added; false when it isn't HD.
-        bool AddBodyDetails(Bytes& blp, BodySpot const& spot, Shading const& shading)
+        // [blp] retouched with [tweak]'s settings; false when it isn't HD.
+        bool Retouch(Bytes& blp, Tweak const& tweak, Shading const& shading)
         {
             Image im;
             if (!shading.ok || !Decode(blp, im) || im.width != 512 || im.height != 512)
@@ -220,22 +219,22 @@ namespace Skyborne
                 for (size_t i = 0; i < n; ++i)
                     plane[c][i] = im.rgba[i * 4 + c] / 255.0;
             }
-            if (spot.smooth > 0)
+            if (tweak.smooth > 0)
             {
-                // Each region of the body texture on its own, so nothing bleeds across a seam.
+                // Each region of the texture on its own, so nothing bleeds across a seam.
                 static constexpr int REGIONS[][4] = { { 0, 0, 256, 128 }, { 0, 128, 256, 128 }, { 0, 256, 256, 64 }, { 0, 320, 256, 64 },
                     { 0, 384, 256, 128 }, { 256, 0, 256, 128 }, { 256, 128, 256, 64 }, { 256, 192, 256, 128 }, { 256, 320, 256, 128 },
                     { 256, 448, 256, 64 } };
                 for (auto const& r : REGIONS)
                     for (int c = 0; c < 3; ++c)
-                        Blur(plane[c], 512, r[0], r[1], r[0] + r[2], r[1] + r[3], spot.smooth);
+                        Blur(plane[c], 512, r[0], r[1], r[0] + r[2], r[1] + r[3], tweak.smooth);
             }
-            int ylo = int(spot.y - RADIUS * spot.down - 3), yhi = int(spot.y + RADIUS * spot.down + 4);
-            int xlo = int(spot.x - RADIUS * spot.across - 3), xhi = int(spot.x + RADIUS * spot.across + 4);
+            int ylo = int(tweak.y - RADIUS * tweak.down - 3), yhi = int(tweak.y + RADIUS * tweak.down + 4);
+            int xlo = int(tweak.x - RADIUS * tweak.across - 3), xhi = int(tweak.x + RADIUS * tweak.across + 4);
             for (int y = std::max(0, ylo); y < std::min(512, yhi); ++y)
                 for (int x = std::max(0, xlo); x < std::min(512, xhi); ++x)
                 {
-                    double dx = (x - spot.x) / spot.across, dy = (y - spot.y) / spot.down;
+                    double dx = (x - tweak.x) / tweak.across, dy = (y - tweak.y) / tweak.down;
                     double w = std::clamp((RADIUS - std::sqrt(dx * dx + dy * dy)) / (RADIUS * 0.45), 0.0, 1.0);
                     if (w <= 0)
                         continue;
@@ -243,18 +242,18 @@ namespace Skyborne
                     double r[3], in[3], out[3];
                     for (int c = 0; c < 3; ++c)
                     {
-                        r[c] = shading.At(spot.lightOnly ? 3 : c, SOURCE_X + dx, SOURCE_Y + dy);
+                        r[c] = shading.At(tweak.lightOnly ? 3 : c, SOURCE_X + dx, SOURCE_Y + dy);
                         in[c] = plane[c][i];
-                        out[c] = std::clamp(in[c] * (1 + (r[c] - 1) * spot.strength), 0.0, 1.0);
+                        out[c] = std::clamp(in[c] * (1 + (r[c] - 1) * tweak.strength), 0.0, 1.0);
                     }
-                    if (spot.pink > 0)
+                    if (tweak.warm > 0)
                     {
                         double dark = std::clamp(1 - (r[0] + r[1] + r[2]) / 3, 0.0, 1.0) * 4;
-                        double t = std::min(1.0, spot.pink * dark);
+                        double t = std::min(1.0, tweak.warm * dark);
                         double lum = (0.299 * out[0] + 0.587 * out[1] + 0.114 * out[2]) / 0.80;
-                        double pink[3] = { lum, 0.72 * lum, 0.78 * lum };
+                        double warm[3] = { lum, 0.72 * lum, 0.78 * lum };
                         for (int c = 0; c < 3; ++c)
-                            out[c] = out[c] * (1 - t) + std::clamp(pink[c], 0.0, 1.0) * t;
+                            out[c] = out[c] * (1 - t) + std::clamp(warm[c], 0.0, 1.0) * t;
                     }
                     for (int c = 0; c < 3; ++c)
                         plane[c][i] = in[c] * (1 - w) + out[c] * w;
@@ -265,9 +264,8 @@ namespace Skyborne
             return ReplacePixels(blp, im);
         }
 
-        // Every female body texture the table names, for the races above, with the details (those
-        // the patch made already have them).
-        size_t BodyTextures(Dbc const& dbc, Game const& game, Shading const& shading, std::set<std::string>& made, MpqWriter& writer)
+        // Every texture the table names that has settings (those the patch made already have them).
+        size_t RetouchAll(Dbc const& dbc, Game const& game, Shading const& shading, std::set<std::string>& made, MpqWriter& writer)
         {
             if (dbc.fields < 10 || !shading.ok)
                 return 0;
@@ -278,9 +276,9 @@ namespace Skyborne
                     continue;
                 uint32_t at = dbc.Get(row, 4);
                 std::string path = at < dbc.strings.size() ? reinterpret_cast<char const*>(&dbc.strings[at]) : "";
-                BodySpot const* spot = BodySpotFor(path);
+                Tweak const* tweak = TweakFor(path);
                 Bytes data;
-                if (!spot || made.count(Lower(path)) || !game.Read(path, data) || !AddBodyDetails(data, *spot, shading))
+                if (!tweak || made.count(Lower(path)) || !game.Read(path, data) || !Retouch(data, *tweak, shading))
                     continue;
                 writer.Add(path, data);
                 made.insert(Lower(path));
@@ -289,10 +287,8 @@ namespace Skyborne
             return count;
         }
 
-        // No race or sex wears the underwear the game paints over a bare body (CharSections'
-        // section 4, NakedPelvisSkin/NakedTorsoSkin): its rows stay, with no textures, as the
-        // game's own rows for race 20 have; the body's skin shows.
-        void NoUnderwear(Dbc& dbc)
+        // CharSections' section 4 rows stay, with no textures, as the game's own rows for race 20 have.
+        void EmptyOverlayRows(Dbc& dbc)
         {
             if (dbc.fields < 10)
                 return;
@@ -410,8 +406,8 @@ namespace Skyborne
                     continue;
                 }
                 if (!extra)
-                    if (BodySpot const* spot = BodySpotFor(from))
-                        AddBodyDetails(data, *spot, shading);
+                    if (Tweak const* tweak = TweakFor(from))
+                        Retouch(data, *tweak, shading);
                 if (!Recolor(data, recipe))
                 {
                     ++bad;
@@ -443,9 +439,9 @@ namespace Skyborne
             if (Lower(name) == "charsections")
                 AddExtraSkins(dbc, game, made);
             if (Lower(name) == "charsections")
-                NoUnderwear(dbc);
+                EmptyOverlayRows(dbc);
             if (Lower(name) == "charsections")
-                textures += BodyTextures(dbc, game, shading, made, writer);
+                textures += RetouchAll(dbc, game, shading, made, writer);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
         }

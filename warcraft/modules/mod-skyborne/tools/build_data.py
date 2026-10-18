@@ -293,20 +293,20 @@ def main():
 
     for sex in (0, 1):
         skins = {r[9]: r for r in be if r[2] == sex and r[3] == 0 and selectable(r)}
-        under = {r[9]: r for r in be if r[2] == sex and r[3] == 4 and selectable(r)}
+        overlay = {r[9]: r for r in be if r[2] == sex and r[3] == 4 and selectable(r)}
         faces = {(r[8], r[9]): r for r in be if r[2] == sex and r[3] == 1 and selectable(r)}
         hairs = [r for r in be if r[2] == sex and r[3] == 3 and selectable(r)]
         beards = [r for r in be if r[2] == sex and r[3] == 2 and selectable(r)]
-        base_skin, base_under = skins[0], under.get(0)
+        base_skin, base_overlay = skins[0], overlay.get(0)
 
         # The blood elf's Dark Ranger skin.
         dr, (name, s, l) = DARK_RANGER
         t = tex(base_skin)
         section(BLOODELF, sex, 0, [dark_ranger_path(t[0]), "", ""], base_skin[7], 0, dr)
         texture("grey", (s, l) + DARK_RANGER_EYES, t[0], dark_ranger_path(t[0]))
-        # Underwear: none (the patch takes every race's out: SkybornePatch.cpp, NoUnderwear).
-        if base_under:
-            section(BLOODELF, sex, 4, ["", "", ""], base_under[7], 0, dr)
+        # Section 4: no textures (the patch empties every race's: SkybornePatch.cpp, EmptyOverlayRows).
+        if base_overlay:
+            section(BLOODELF, sex, 4, ["", "", ""], base_overlay[7], 0, dr)
         for v in range(FACES):
             f = faces.get((v, 0))
             if not f:
@@ -317,18 +317,18 @@ def main():
                 texture("grey", (s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
 
         for race in (ALLIANCE, HORDE):
-            # Skins (the blood elf's own, and the blues) and underwear rows without textures.
+            # Skins (the blood elf's own, and the blues) and section 4 rows without textures.
             for color, r in sorted(skins.items()):
                 section(race, sex, 0, tex(r), r[7], 0, color)
-            for color, r in sorted(under.items()):
+            for color, r in sorted(overlay.items()):
                 section(race, sex, 4, ["", "", ""], r[7], 0, color)
             for color, (name, h, s, l) in BLUES.items():
                 t = tex(base_skin)
                 section(race, sex, 0, [skyborne_path(t[0], color), "", ""], base_skin[7], 0, color)
                 if race == ALLIANCE:
                     texture("skin", (h, s, l) + EYES[0][1], t[0], skyborne_path(t[0], color))
-                if base_under:
-                    section(race, sex, 4, ["", "", ""], base_under[7], 0, color)
+                if base_overlay:
+                    section(race, sex, 4, ["", "", ""], base_overlay[7], 0, color)
             # Faces: blue eyes (0-9), yellow (10-19), on every skin.
             for e, (eye, eyes) in enumerate(EYES):
                 for v in range(FACES):
