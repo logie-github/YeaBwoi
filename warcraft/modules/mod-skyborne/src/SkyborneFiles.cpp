@@ -285,7 +285,7 @@ namespace Skyborne
                 for (auto it = fs::recursive_directory_iterator(folder, fs::directory_options::follow_directory_symlink, error);
                      !error && it != fs::recursive_directory_iterator(); it.increment(error))
                     if (it->is_regular_file(error))
-                        _files[GamePath(fs::relative(it->path(), folder, error).generic_string())] = it->path();
+                        _files[GamePath(it->path().lexically_relative(folder).generic_string())] = it->path();
             }
 
             bool Read(std::string const& name, Bytes& out) override

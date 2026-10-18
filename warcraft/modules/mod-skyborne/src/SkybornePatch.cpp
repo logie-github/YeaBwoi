@@ -105,7 +105,7 @@ namespace Skyborne
         std::sort(files.begin(), files.end());
         for (auto const& f : files)
         {
-            stamp.Add(fs::relative(f, moduleData, error).generic_string());
+            stamp.Add(f.lexically_relative(moduleData).generic_string());
             stamp.Add(Text(f));
         }
         if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
