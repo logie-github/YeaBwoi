@@ -1418,7 +1418,7 @@ void WrathRemix::SkipIntro(Player* player)
         if (owed && AtATavern(player))
         {
             WorldLocation bazaar(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
-            player->SetHomebind(bazaar, ZONE_CRYSTALSONG);
+            player->SetHomebind(bazaar, AREA_MALYKRISS);
             player->TeleportTo(bazaar);
         }
     }
@@ -1596,7 +1596,7 @@ public:
             if (p->m_homebindMapId != MAP_NORTHREND)
             {
                 WorldLocation bazaar(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
-                p->SetHomebind(bazaar, ZONE_CRYSTALSONG);
+                p->SetHomebind(bazaar, AREA_MALYKRISS);
             }
             Begin(p);
         }, 1500ms);
@@ -1666,7 +1666,7 @@ public:
                     continue;
                 bool alliance = Player::TeamIdForRace(uint8(race)) == TEAM_ALLIANCE;
                 Place start = intro ? SeatsOf(nullptr, alliance).chairs[0] : Place{ MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O };
-                uint32 zone = !intro ? ZONE_CRYSTALSONG : (alliance ? ZONE_STORMWIND_CITY : ZONE_ORGRIMMAR);
+                uint32 zone = !intro ? uint32(AREA_MALYKRISS) : (alliance ? ZONE_STORMWIND_CITY : ZONE_ORGRIMMAR);
                 if (info->mapId == start.map && std::hypot(info->positionX - start.x, info->positionY - start.y) < 1.0f)
                     continue;
                 info->mapId = start.map;

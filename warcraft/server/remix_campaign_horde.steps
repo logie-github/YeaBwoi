@@ -65,7 +65,7 @@ expect quest 77215
 accept 770014 77215
 wait 3
 cmd .gps
-expect Crystalsong Forest
+expect Malykriss: The Vile Hold
 reward 770002 77215
 expect rewarded 77215
 wait 3
@@ -555,7 +555,7 @@ expect quest 77711
 accept 770001 77711
 wait 6
 cmd .gps
-expect Crystalsong Forest
+expect Malykriss: The Vile Hold
 wait 35
 wait 35
 expect credit 77711 770035 1/1
@@ -603,7 +603,7 @@ cmd .quest complete 77800
 cmd .remix return
 wait 8
 cmd .gps
-expect Crystalsong Forest
+expect Malykriss: The Vile Hold
 wait 35
 expect There is one more thing we have to talk about
 reward 770001 77800

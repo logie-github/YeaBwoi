@@ -38,7 +38,7 @@ expect Icecrown
 wait 48
 expect We can stop all of this
 cmd .gps
-expect Crystalsong Forest
+expect Malykriss: The Vile Hold
 
 # The starter kit and the class's abilities, a moment after the first login (the client checks
 # what the realm wrote down at the end).
@@ -53,11 +53,11 @@ expect come here from nowhere yet
 
 # WRM-010, Out of Time: Moratari, a few steps from where the Timerunner arrives, sends them to
 # Eternus (Eternus is large, and she stands clear of her).
-go 571 5693.5 1018.0 175.0
+go 571 6387.5 1872.0 509.1
 talk 770001
 expect quest 77010
 accept 770001 77010
-go 571 5697.5 1019.5 175.0
+go 571 6391.5 1873.5 509.1
 reward 770002 77010
 expect rewarded 77010
 
@@ -80,7 +80,7 @@ expect rewarded 77011
 talk 770002
 expect quest 77012
 accept 770002 77012
-go 571 5686.0 1042.5 175.0
+go 571 6380.0 1896.5 509.1
 reward 770005 77012
 expect rewarded 77012
 
@@ -89,10 +89,10 @@ expect rewarded 77012
 talk 770005
 expect quest 77020
 accept 770005 77020
-go 571 5658.0 989.0 175.0
+go 571 6352.0 1843.0 509.1
 talk 770110
 expect-not quest 77020
-go 571 5679.0 986.5 175.0
+go 571 6373.0 1840.5 509.1
 reward 770101 77020
 expect rewarded 77020
 
@@ -101,11 +101,11 @@ expect rewarded 77020
 talk 770101
 expect quest 77031
 accept 770101 77031
-go 571 5674.0 994.0 175.0 4.71
+go 571 6368.0 1848.0 509.1 4.71
 cast 100 770087
 expect credit 77031 770067
 # (and in reach of it for the next two)
-go 571 5674.0 984.0 175.0 4.71
+go 571 6368.0 1838.0 509.0 4.71
 cast 772 770087
 expect credit 77031 770068
 cast 78 770087
@@ -117,11 +117,11 @@ expect-not quest 77031
 
 # WRM-021, The Bazaar's Keepers: Zephyr, Sa'at and the Chronologist, then Moratari (the hearthstone
 # remembers the Bazaar).
-go 571 5693.5 1018.0 175.0
+go 571 6387.5 1872.0 509.1
 talk 770001
 expect quest 77021
 accept 770001 77021
-go 571 5706.5 986.0 175.0
+go 571 6400.5 1840.0 509.1
 talk 770006
 expect credit 77021 770006
 # Report Time Anomaly, from the game's menu or the toolbar's Help button (the app's add-on): the
@@ -131,13 +131,13 @@ expect credit 77021 770006
 addon WowRemix report+ CI's report,
 addon WowRemix report  from the Bazaar
 expect Time anomaly reported
-go 571 5694.0 970.5 175.0
+go 571 6388.0 1824.5 509.1
 talk 770007
 expect credit 77021 770007
-go 571 5714.0 1040.0 175.0
+go 571 6408.0 1894.0 509.1
 talk 770008
 expect credit 77021 770008
-go 571 5693.5 1018.0 175.0
+go 571 6387.5 1872.0 509.1
 reward 770001 77021
 expect rewarded 77021
 
@@ -168,7 +168,7 @@ expect rewarded 77013
 # Alurmi, and from her vendor window a heirloom the warrior's kit hasn't got, for 300 Bronze
 # (ItemExtendedCost 7708). (How much Bronze the Timerunner has by now isn't checked: the prologue
 # gives plenty, and more is better.)
-go 571 5686.0 1042.5 175.0
+go 571 6380.0 1896.5 509.1
 talk 770005
 expect Bronze
 select 770005 Heirlooms
@@ -178,12 +178,12 @@ expect bought 42985
 
 # The Bazaar's other Bronze vendors, as a warrior sees them: Horos's mounts, Durus's tier sets (a
 # warrior's pieces, not a mage's) and a legendary, paid for with Bronze a game master gives.
-go 571 5677.0 1042.5 175.0
+go 571 6371.0 1896.5 509.1
 talk 770201
 expect Mounts of Northrend
 select 770201 Mounts of Northrend
 expect ware 50818 cost 7726
-go 571 5641.5 1042.0 175.0
+go 571 6335.5 1896.0 509.1
 talk 770205
 expect Legendaries
 select 770205 Tier 10, Icecrown Citadel (25 heroic)
@@ -199,11 +199,11 @@ expect bought 46017
 
 # WRM-014, To the Front: Moratari's, answered by Eternus, who sends the Timerunner to Valiance Keep,
 # before Recruitment Officer Blythe and Enlistment Day.
-go 571 5693.5 1018.0 175.0
+go 571 6387.5 1872.0 509.1
 talk 770001
 expect quest 77014
 accept 770001 77014
-go 571 5697.5 1019.5 175.0
+go 571 6391.5 1873.5 509.1
 reward 770002 77014
 expect rewarded 77014
 wait 3
@@ -216,7 +216,7 @@ expect quest 11672
 use-hourglass
 wait 2
 cmd .gps
-expect Crystalsong Forest
+expect Malykriss: The Vile Hold
 cmd .remix hourglass
 expect way back map 571 at 229
 use-hourglass

@@ -3,7 +3,9 @@
 
     python3 tools/bazaar.py
 
-The Bazaar is a camp, not a ring of people. Around the story's own people at its heart (Eternus,
+The Bazaar is a camp in Malykriss: The Vile Hold, the necropolis the Lich King began in Icecrown and never
+finished (until build 117 it stood in Crystalsong Forest; every spot moved by the same step, x + 694 and
+y + 854, onto the level floor under the necropolis's ribs). It is a camp, not a ring of people. Around the story's own people at its heart (Eternus,
 Moratari, the echoes; wrath_remix_world_0004_spawns.sql and the others place them, and the turn's
 scene walks between them), it has districts a Timerunner can read at a glance:
 
@@ -27,7 +29,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "sql", "remix", "world", "wrath_remix_world_0023_bazaar.sql")
 GROUND = os.path.join(HERE, "..", "data", "bazaar_ground.tsv")
 
-MAP, ZONE = 571, 2817
+MAP, ZONE, AREA = 571, 210, 4520                                     # Icecrown; Malykriss: The Vile Hold
 
 # Emotes (SharedDefines.h): one-shot gestures for lines, looping states for what people do.
 TALK, BOW, WAVE, CHEER, EXCLAIM, QUESTION, EAT, LAUGH, POINT, SALUTE, YES, NO = 1, 2, 3, 4, 5, 6, 7, 11, 25, 66, 273, 274
@@ -80,9 +82,9 @@ PROPS = {
     "hourglass":   (7133, 0.065, "The Great Hourglass"),        # the Caverns of Time's, small
     "rug_green":   (6767, 1.4, "Rug"),
     "rug_red":     (6360, 1.6, "Rug"),
-    "brazier":     (474, 1.0, "Brazier"),                        # purple flame, the Infinite's colour
-    "brazier_sm":  (6765, 1.0, "Brazier"),
-    "lamp":        (8091, 0.55, "Lamppost"),                     # Dalaran's, above us
+    "brazier":     (6660, 1.0, "Brazier"),                       # gold flame, the sands' colour
+    "brazier_sm":  (7842, 1.0, "Brazier"),                       # the Scourge's own, from Malykriss's builders
+    "lamp":        (9195, 1.0, "Brazier"),                       # a Scourge brazier burning orange (Dalaran's lampposts until build 117)
     "stall":       (7498, 0.75, "Stall"),                        # an open canopy
     "pavilion":    (7683, 0.6, "Pavilion"),
     "wagon":       (5392, 0.9, "Wagon"),
@@ -96,7 +98,7 @@ PROPS = {
     "weapon_rack": (130, 1.0, "Weapon Rack"),
     "weapon_crate": (6708, 1.0, "Weapon Crate"),
     "target":      (232, 0.8, "Archery Target"),
-    "banner":      (6794, 0.8, "Banner"),
+    "banner":      (8713, 1.0, "Ebon Blade Banner"),             # the Knights of the Ebon Blade keep the gates
     "campfire":    (6744, 1.6, "Campfire"),
     "cookpot":     (6888, 1.0, "Cooking Pot"),
     "bookshelf":   (137, 1.0, "Bookshelf"),
@@ -104,80 +106,89 @@ PROPS = {
     "book":        (6475, 1.0, "Book"),
     "scroll_map":  (222, 1.0, "Map"),
     "map_table":   (6605, 0.5, "Map Table"),
-    "orb":         (7150, 1.0, "Scrying Orb"),
+    "orb":         (8124, 0.15, "Death's Gaze Orb"),            # an Eye of Acherus, its gaze turned on time
     "portal":      (4713, 0.12, "Door in Time"),
+    # (new kinds go last: the others keep their entries)
+    "rune_circle": (6679, 0.6, "Rune Circle"),                   # a Scourge rune circle, its crystals holding time instead
+    "lightshaft":  (7317, 0.35, "Light"),
+    "runeforge":   (8176, 2.03, "Runeforge"),                    # a death knight's runeforge that works (spell focus 1552)
 }
 PROP_ENTRY = {key: 770001 + i for i, key in enumerate(PROPS)}
 # Props that do something when clicked: (game object type, script). The campfire calls Moratari over
 # (RemixCampfire.cpp); a goober (10) is clickable.
 PROP_USE = {"campfire": (10, "go_remix_campfire")}
+# Spell focuses: (focus, distance), as the Shadow Vault's runeforge (191757) has them.
+PROP_FOCUS = {"runeforge": (1552, 15)}
 
 # Where each thing stands: (prop, x, y, orientation, what it's for)
 PLACED = [
     # The heart: the great hourglass behind the echoes, a rug under Eternus and Moratari, braziers.
-    ("hourglass", 5700.0, 1044.0, 0.0, "the heart"),
-    ("rug_green", 5698.0, 1022.0, 0.0, "the heart, under Eternus and Moratari"),
-    ("brazier", 5693.5, 1027.5, 0.0, "the heart"),
-    ("brazier", 5706.5, 1027.5, 0.0, "the heart"),
-    ("lamp", 5692.5, 1003.0, 0.0, "the heart, south"),
-    ("lamp", 5711.0, 1034.0, 0.0, "the heart, north"),
+    ("hourglass", 6394.0, 1898.0, 0.0, "the heart"),
+    ("rune_circle", 6394.0, 1898.0, 0.0, "the heart, under the hourglass"),
+    ("lightshaft", 6394.0, 1898.0, 0.0, "the heart, on the hourglass"),
+    ("rug_green", 6392.0, 1876.0, 0.0, "the heart, under Eternus and Moratari"),
+    ("brazier", 6387.5, 1881.5, 0.0, "the heart"),
+    ("brazier", 6400.5, 1881.5, 0.0, "the heart"),
+    ("lamp", 6386.5, 1857.0, 0.0, "the heart, south"),
+    ("lamp", 6405.0, 1888.0, 0.0, "the heart, north"),
     # The market lane, down the west edge: a stall for each trader, facing the lane.
-    *[(kind, x, 1048.5, EAST, f"the market, {who}'s stall") for kind, x, who in (
-        ("stall", 5686.0, "Alurmi"), ("stall", 5677.0, "Horos"), ("stall", 5668.0, "Domelius"),
-        ("stall", 5659.0, "Arturos"), ("pavilion", 5650.0, "Aeonicus"), ("pavilion", 5641.5, "Durus"))],
-    ("table", 5686.0, 1044.0, EAST, "Alurmi's counter"),
-    ("weapon_crate", 5688.5, 1046.0, EAST, "Alurmi's heirlooms"),
-    ("weapon_rack", 5683.0, 1047.5, EAST, "Alurmi's heirlooms"),
-    ("crate_be", 5675.0, 1046.0, 0.4, "Horos's stall"),
-    ("table", 5668.0, 1044.0, EAST, "Domelius's counter"),
-    ("crate_open", 5665.5, 1046.0, 0.0, "Domelius's stall"),
-    ("weapon_rack", 5661.5, 1047.5, EAST, "Arturos's stall"),
-    ("weapon_rack", 5656.5, 1047.5, EAST, "Arturos's stall"),
-    ("table_big", 5650.0, 1043.8, EAST, "Aeonicus's counter"),
-    ("table_big", 5641.5, 1043.8, EAST, "Durus's counter"),
-    ("banner", 5690.5, 1043.0, EAST, "the market's mouth"),
-    ("lamp", 5663.5, 1042.0, 0.0, "the market lane"),
+    *[(kind, x, 1902.5, EAST, f"the market, {who}'s stall") for kind, x, who in (
+        ("stall", 6380.0, "Alurmi"), ("stall", 6371.0, "Horos"), ("stall", 6362.0, "Domelius"),
+        ("stall", 6353.0, "Arturos"), ("pavilion", 6344.0, "Aeonicus"), ("pavilion", 6335.5, "Durus"))],
+    ("table", 6380.0, 1898.0, EAST, "Alurmi's counter"),
+    ("weapon_crate", 6382.5, 1900.0, EAST, "Alurmi's heirlooms"),
+    ("weapon_rack", 6377.0, 1901.5, EAST, "Alurmi's heirlooms"),
+    ("crate_be", 6369.0, 1900.0, 0.4, "Horos's stall"),
+    ("table", 6362.0, 1898.0, EAST, "Domelius's counter"),
+    ("crate_open", 6359.5, 1900.0, 0.0, "Domelius's stall"),
+    ("weapon_rack", 6355.5, 1901.5, EAST, "Arturos's stall"),
+    ("weapon_rack", 6350.5, 1901.5, EAST, "Arturos's stall"),
+    ("table_big", 6344.0, 1897.8, EAST, "Aeonicus's counter"),
+    ("table_big", 6335.5, 1897.8, EAST, "Durus's counter"),
+    ("banner", 6384.5, 1897.0, EAST, "the market's mouth"),
+    ("lamp", 6357.5, 1896.0, 0.0, "the market lane"),
     # Across the lane: a trader's wagon, what the porters carry.
-    ("wagon", 5668.0, 1029.0, NORTH, "the market lane"),
-    ("crate", 5678.0, 1033.0, 0.3, "the market lane"),
-    ("crate", 5678.5, 1031.6, 1.1, "the market lane"),
-    ("barrel", 5677.0, 1032.2, 0.0, "the market lane"),
-    ("barrel", 5655.0, 1033.0, 0.0, "the market lane"),
-    ("crate_be", 5656.0, 1031.5, 0.7, "the market lane"),
+    ("wagon", 6362.0, 1883.0, NORTH, "the market lane"),
+    ("crate", 6372.0, 1887.0, 0.3, "the market lane"),
+    ("crate", 6372.5, 1885.6, 1.1, "the market lane"),
+    ("barrel", 6371.0, 1886.2, 0.0, "the market lane"),
+    ("barrel", 6349.0, 1887.0, 0.0, "the market lane"),
+    ("crate_be", 6350.0, 1885.5, 0.7, "the market lane"),
     # The training yard, south-east: targets, racks, banners at its corners.
-    ("target", 5649.0, 972.0, NORTH, "the training yard"),
-    ("target", 5649.0, 978.0, NORTH, "the training yard"),
-    ("weapon_rack", 5669.0, 964.0, WEST, "the training yard"),
-    ("weapon_rack", 5673.0, 964.0, WEST, "the training yard"),
-    ("banner", 5686.0, 964.0, WEST, "the training yard"),
-    ("banner", 5686.0, 999.0, EAST, "the training yard"),
-    ("banner", 5646.0, 999.0, EAST, "the training yard"),
-    ("brazier", 5654.0, 996.5, 0.0, "the training yard, the shaman's fire"),
-    ("brazier_sm", 5656.0, 986.5, 0.0, "the training yard, the warlock's"),
-    ("rug_red", 5682.0, 996.5, 0.0, "the training yard, the priestess's"),
+    ("target", 6343.0, 1826.0, NORTH, "the training yard"),
+    ("target", 6343.0, 1832.0, NORTH, "the training yard"),
+    ("weapon_rack", 6363.0, 1818.0, WEST, "the training yard"),
+    ("weapon_rack", 6367.0, 1818.0, WEST, "the training yard"),
+    ("banner", 6380.0, 1818.0, WEST, "the training yard"),
+    ("banner", 6380.0, 1853.0, EAST, "the training yard"),
+    ("banner", 6340.0, 1853.0, EAST, "the training yard"),
+    ("brazier", 6348.0, 1850.5, 0.0, "the training yard, the shaman's fire"),
+    ("brazier_sm", 6350.0, 1840.5, 0.0, "the training yard, the warlock's"),
+    ("rug_red", 6376.0, 1850.5, 0.0, "the training yard, the priestess's"),
+    ("runeforge", 6374.0, 1815.5, NORTH, "the training yard, the death knight's"),
     # The waystation, north-east: a door in time, Sa'at's map table.
-    ("portal", 5713.5, 981.0, facing(5713.5, 981.0, 5700.0, 1012.0), "the waystation"),
-    ("map_table", 5692.0, 968.0, 0.0, "the waystation, Sa'at's"),
-    ("lamp", 5700.0, 966.0, 0.0, "the waystation"),
+    ("portal", 6407.5, 1835.0, facing(6407.5, 1835.0, 6394.0, 1866.0), "the waystation"),
+    ("map_table", 6386.0, 1822.0, 0.0, "the waystation, Sa'at's"),
+    ("lamp", 6394.0, 1820.0, 0.0, "the waystation"),
     # The chronicle corner, north-west (on the level ground; the rise beyond is the hill's): shelves,
     # books, an orb.
-    ("bookshelf", 5723.0, 1039.0, SOUTH, "the chronicle corner"),
-    ("bookshelf", 5723.0, 1042.5, SOUTH, "the chronicle corner"),
-    ("bookshelf_low", 5723.0, 1045.5, SOUTH, "the chronicle corner"),
-    ("table", 5718.5, 1041.0, 0.0, "the chronicle corner"),
-    ("book", 5718.5, 1041.0, 0.5, "the chronicle corner"),
-    ("scroll_map", 5718.8, 1040.6, 1.2, "the chronicle corner"),
-    ("orb", 5719.0, 1049.5, 0.0, "the chronicle corner, Momentus's"),
-    ("brazier_sm", 5714.0, 1037.0, 0.0, "the chronicle corner"),
+    ("bookshelf", 6417.0, 1893.0, SOUTH, "the chronicle corner"),
+    ("bookshelf", 6417.0, 1896.5, SOUTH, "the chronicle corner"),
+    ("bookshelf_low", 6417.0, 1899.5, SOUTH, "the chronicle corner"),
+    ("table", 6412.5, 1895.0, 0.0, "the chronicle corner"),
+    ("book", 6412.5, 1895.0, 0.5, "the chronicle corner"),
+    ("scroll_map", 6412.8, 1894.6, 1.2, "the chronicle corner"),
+    ("orb", 6413.0, 1903.5, 0.0, "the chronicle corner, Momentus's"),
+    ("brazier_sm", 6408.0, 1891.0, 0.0, "the chronicle corner"),
     # The campfire, south: benches round a fire, the cook's pot, lanterns.
-    ("campfire", 5655.0, 1012.0, 0.0, "the campfire"),
-    ("bench", 5650.5, 1012.0, NORTH, "the campfire"),
-    ("bench", 5659.5, 1012.0, NORTH, "the campfire"),
-    ("cookpot", 5645.5, 1006.0, 0.0, "the campfire, the cook's"),
-    ("barrel", 5643.5, 1004.0, 0.0, "the campfire"),
-    ("crate", 5642.5, 1009.0, 0.6, "the campfire"),
-    ("brazier_sm", 5663.0, 1019.0, 0.0, "the campfire"),
-    ("brazier_sm", 5648.0, 1020.5, 0.0, "the campfire"),
+    ("campfire", 6349.0, 1866.0, 0.0, "the campfire"),
+    ("bench", 6344.5, 1866.0, NORTH, "the campfire"),
+    ("bench", 6353.5, 1866.0, NORTH, "the campfire"),
+    ("cookpot", 6339.5, 1860.0, 0.0, "the campfire, the cook's"),
+    ("barrel", 6337.5, 1858.0, 0.0, "the campfire"),
+    ("crate", 6336.5, 1863.0, 0.6, "the campfire"),
+    ("brazier_sm", 6357.0, 1873.0, 0.0, "the campfire"),
+    ("brazier_sm", 6342.0, 1874.5, 0.0, "the campfire"),
 ]
 
 # ---- Who is in the camp -----------------------------------------------------------------------
@@ -208,78 +219,78 @@ TRAINING_DUMMY = 770087                                               # the game
 # Where the story's own Bazaar people stand now (written into 0004/0009, kept here for the lines
 # and the checks): guid: (who, x, y, orientation)
 STORY_SPOTS = {
-    7704011: ("Eternus", 5700.0, 1023.0, 4.71),
-    7704012: ("Moratari", 5691.0, 1017.0, 5.78),
-    7704013: ("Sylvanas", 5704.0, 1021.0, 3.60),
-    7704014: ("Alleria", 5706.5, 1018.5, 3.40),
-    7704015: ("Alurmi", 5686.0, 1046.5, EAST),
-    7704016: ("Zephyr", 5708.5, 984.0, facing(5708.5, 984.0, 5700.0, 1012.0)),
-    7704017: ("Sa'at", 5695.5, 968.5, facing(5695.5, 968.5, 5692.0, 968.0)),
-    7704018: ("the Chronologist", 5716.0, 1041.0, facing(5716.0, 1041.0, 5718.5, 1041.0)),
-    7704019: ("Momentus", 5716.0, 1049.5, facing(5716.0, 1049.5, 5719.0, 1049.5)),
-    7704201: ("Horos", 5677.0, 1046.5, EAST),
-    7704202: ("Domelius", 5668.0, 1046.5, EAST),
-    7704203: ("Arturos", 5659.0, 1046.0, EAST),
-    7704204: ("Aeonicus", 5650.0, 1046.5, EAST),
-    7704205: ("Durus", 5641.5, 1046.5, EAST),
-    7704300: ("Andormu", 5701.5, 1024.0, 4.71),
-    7704301: ("Nozari", 5698.5, 1024.0, 4.71),
+    7704011: ("Eternus", 6394.0, 1877.0, 4.71),
+    7704012: ("Moratari", 6385.0, 1871.0, 5.78),
+    7704013: ("Sylvanas", 6398.0, 1875.0, 3.60),
+    7704014: ("Alleria", 6400.5, 1872.5, 3.40),
+    7704015: ("Alurmi", 6380.0, 1900.5, EAST),
+    7704016: ("Zephyr", 6402.5, 1838.0, facing(6402.5, 1838.0, 6394.0, 1866.0)),
+    7704017: ("Sa'at", 6389.5, 1822.5, facing(6389.5, 1822.5, 6386.0, 1822.0)),
+    7704018: ("the Chronologist", 6410.0, 1895.0, facing(6410.0, 1895.0, 6412.5, 1895.0)),
+    7704019: ("Momentus", 6410.0, 1903.5, facing(6410.0, 1903.5, 6413.0, 1903.5)),
+    7704201: ("Horos", 6371.0, 1900.5, EAST),
+    7704202: ("Domelius", 6362.0, 1900.5, EAST),
+    7704203: ("Arturos", 6353.0, 1900.0, EAST),
+    7704204: ("Aeonicus", 6344.0, 1900.5, EAST),
+    7704205: ("Durus", 6335.5, 1900.5, EAST),
+    7704300: ("Andormu", 6395.5, 1878.0, 4.71),
+    7704301: ("Nozari", 6392.5, 1878.0, 4.71),
 }
 # The instructors (770101 to 770111, guid 7704020 + n): (x, y, orientation, stand state, emote state)
-DUMMIES = [(5674.0, 982.0), (5666.0, 982.0), (5658.0, 982.0)]
+DUMMIES = [(6368.0, 1836.0), (6360.0, 1836.0), (6352.0, 1836.0)]
 INSTRUCTORS = {
-    770101: (5677.5, 984.5, facing(5677.5, 984.5, 5674.0, 982.0), 0, STATE_READY1H),      # warrior, at a dummy
-    770102: (5684.0, 976.0, facing(5684.0, 976.0, 5684.0, 971.0), 0, 0),                  # the paladins, talking
-    770103: (5684.0, 971.0, facing(5684.0, 971.0, 5684.0, 976.0), 0, 0),
-    770104: (5661.0, 975.0, facing(5661.0, 975.0, 5649.0, 975.0), 0, STATE_BOW),          # hunter, at the targets
-    770105: (5680.5, 989.5, facing(5680.5, 989.5, 5677.5, 984.5), 0, 0),                  # rogue, watching the warrior
-    770106: (5682.0, 996.5, NORTH, KNEEL, 0),                                              # priestess, kneeling
-    770107: (5671.0, 965.8, WEST + math.pi, 0, STATE_WORK),                                # death knight, at the racks
-    770108: (5654.0, 994.0, facing(5654.0, 994.0, 5654.0, 996.5), 0, 0),                  # shaman, at her fire
-    770109: (5666.0, 986.5, facing(5666.0, 986.5, 5666.0, 982.0), 0, STATE_SPELL),        # mage, at a dummy
-    770110: (5658.0, 986.5, facing(5658.0, 986.5, 5658.0, 982.0), 0, 0),                  # warlock, at a dummy
-    770111: (5649.5, 992.0, facing(5649.5, 992.0, 5654.0, 994.0), SIT, 0),                # druid, sitting
+    770101: (6371.5, 1838.5, facing(6371.5, 1838.5, 6368.0, 1836.0), 0, STATE_READY1H),      # warrior, at a dummy
+    770102: (6378.0, 1830.0, facing(6378.0, 1830.0, 6378.0, 1825.0), 0, 0),                  # the paladins, talking
+    770103: (6378.0, 1825.0, facing(6378.0, 1825.0, 6378.0, 1830.0), 0, 0),
+    770104: (6355.0, 1829.0, facing(6355.0, 1829.0, 6343.0, 1829.0), 0, STATE_BOW),          # hunter, at the targets
+    770105: (6374.5, 1843.5, facing(6374.5, 1843.5, 6371.5, 1838.5), 0, 0),                  # rogue, watching the warrior
+    770106: (6376.0, 1850.5, NORTH, KNEEL, 0),                                              # priestess, kneeling
+    770107: (6365.0, 1819.8, WEST + math.pi, 0, STATE_WORK),                                # death knight, at the racks
+    770108: (6348.0, 1848.0, facing(6348.0, 1848.0, 6348.0, 1850.5), 0, 0),                  # shaman, at her fire
+    770109: (6360.0, 1840.5, facing(6360.0, 1840.5, 6360.0, 1836.0), 0, STATE_SPELL),        # mage, at a dummy
+    770110: (6352.0, 1840.5, facing(6352.0, 1840.5, 6352.0, 1836.0), 0, 0),                  # warlock, at a dummy
+    770111: (6343.5, 1846.0, facing(6343.5, 1846.0, 6348.0, 1848.0), SIT, 0),                # druid, sitting
 }
 
 # New spawns, 7704500 and up: (guid, entry, x, y, orientation, stand state, emote state, wander)
 SPAWNS = [
     # The campfire.
-    (7704501, 770070, 5655.0, 1008.3, facing(5655.0, 1008.3, 5655.0, 1012.0), SIT, 0, 0),
-    (7704502, 770071, 5654.0, 1015.7, facing(5654.0, 1015.7, 5655.0, 1012.0), SIT, 0, 0),
-    (7704503, 770072, 5660.5, 1007.8, facing(5660.5, 1007.8, 5655.0, 1012.0), 0, 0, 0),
-    (7704504, 770073, 5657.2, 1015.3, facing(5657.2, 1015.3, 5655.0, 1012.0), SIT, 0, 0),
-    (7704505, 770074, 5662.5, 1021.5, facing(5662.5, 1021.5, 5700.0, 1044.0), 0, 0, 0),
-    (7704506, 770075, 5647.0, 1018.0, facing(5647.0, 1018.0, 5645.5, 1021.5), 0, STATE_TALK, 0),
-    (7704507, 770076, 5645.5, 1021.5, facing(5645.5, 1021.5, 5647.0, 1018.0), 0, 0, 0),
-    (7704508, 770077, 5648.5, 1005.0, facing(5648.5, 1005.0, 5645.5, 1006.0), 0, STATE_EAT, 0),
-    (7704509, 770078, 5644.0, 1007.0, facing(5644.0, 1007.0, 5645.5, 1006.0), 0, STATE_WORK, 0),
+    (7704501, 770070, 6349.0, 1862.3, facing(6349.0, 1862.3, 6349.0, 1866.0), SIT, 0, 0),
+    (7704502, 770071, 6348.0, 1869.7, facing(6348.0, 1869.7, 6349.0, 1866.0), SIT, 0, 0),
+    (7704503, 770072, 6354.5, 1861.8, facing(6354.5, 1861.8, 6349.0, 1866.0), 0, 0, 0),
+    (7704504, 770073, 6351.2, 1869.3, facing(6351.2, 1869.3, 6349.0, 1866.0), SIT, 0, 0),
+    (7704505, 770074, 6356.5, 1875.5, facing(6356.5, 1875.5, 6394.0, 1898.0), 0, 0, 0),
+    (7704506, 770075, 6341.0, 1872.0, facing(6341.0, 1872.0, 6339.5, 1875.5), 0, STATE_TALK, 0),
+    (7704507, 770076, 6339.5, 1875.5, facing(6339.5, 1875.5, 6341.0, 1872.0), 0, 0, 0),
+    (7704508, 770077, 6342.5, 1859.0, facing(6342.5, 1859.0, 6339.5, 1860.0), 0, STATE_EAT, 0),
+    (7704509, 770078, 6338.0, 1861.0, facing(6338.0, 1861.0, 6339.5, 1860.0), 0, STATE_WORK, 0),
     # The market lane's critters, Domelius's companions.
-    (7704510, 770084, 5667.0, 1042.0, 0.0, 0, 0, 3.0),
-    (7704511, 770085, 5669.5, 1041.0, 0.0, 0, 0, 3.0),
-    (7704512, 770086, 5666.0, 1040.0, 0.0, 0, 0, 3.0),
+    (7704510, 770084, 6361.0, 1896.0, 0.0, 0, 0, 3.0),
+    (7704511, 770085, 6363.5, 1895.0, 0.0, 0, 0, 3.0),
+    (7704512, 770086, 6360.0, 1894.0, 0.0, 0, 0, 3.0),
     # Horos's proto-drake, beside his stall; Zephyr's drake, resting.
-    (7704513, 770083, 5677.0, 1058.0, EAST, 0, 0, 0),
-    (7704514, 770082, 5709.5, 969.0, facing(5709.5, 969.0, 5704.0, 977.0), 0, 0, 0),
+    (7704513, 770083, 6371.0, 1912.0, EAST, 0, 0, 0),
+    (7704514, 770082, 6403.5, 1823.0, facing(6403.5, 1823.0, 6398.0, 1831.0), 0, 0, 0),
     # Whelplings underfoot.
-    (7704515, 770081, 5693.0, 1040.0, 0.0, 0, 0, 5.0),
-    (7704516, 770081, 5681.0, 1036.0, 0.0, 0, 0, 5.0),
-    (7704517, 770081, 5664.0, 1004.0, 0.0, 0, 0, 5.0),
+    (7704515, 770081, 6387.0, 1894.0, 0.0, 0, 0, 5.0),
+    (7704516, 770081, 6375.0, 1890.0, 0.0, 0, 0, 5.0),
+    (7704517, 770081, 6358.0, 1858.0, 0.0, 0, 0, 5.0),
     # The training yard's dummies.
     *[(7704520 + i, TRAINING_DUMMY, x, y, NORTH, 0, 0, 0) for i, (x, y) in enumerate(DUMMIES)],
 ]
 
 # Walkers: (guid, entry, [(x, y, pause ms), ...]) on a loop (waypoint_data, path id = guid).
 WALKERS = [
-    (7704530, 770079, [(5688.0, 1040.0, 4000), (5672.0, 1039.0, 0), (5646.0, 1039.0, 5000), (5646.0, 1034.0, 0),
-                       (5672.0, 1035.0, 3000), (5688.0, 1036.0, 0)]),
-    (7704531, 770079, [(5665.0, 1001.0, 3000), (5672.0, 996.0, 0), (5684.0, 1003.0, 0), (5690.0, 1008.0, 4000),
-                       (5676.0, 1012.0, 0), (5667.0, 1016.0, 0)]),
-    (7704532, 770079, [(5698.0, 982.0, 5000), (5689.5, 996.0, 0), (5686.0, 1030.0, 4000), (5689.5, 996.0, 0)]),
+    (7704530, 770079, [(6382.0, 1894.0, 4000), (6366.0, 1893.0, 0), (6340.0, 1893.0, 5000), (6340.0, 1888.0, 0),
+                       (6366.0, 1889.0, 3000), (6382.0, 1890.0, 0)]),
+    (7704531, 770079, [(6359.0, 1855.0, 3000), (6366.0, 1850.0, 0), (6378.0, 1857.0, 0), (6384.0, 1862.0, 4000),
+                       (6370.0, 1866.0, 0), (6361.0, 1870.0, 0)]),
+    (7704532, 770079, [(6392.0, 1836.0, 5000), (6383.5, 1850.0, 0), (6380.0, 1884.0, 4000), (6383.5, 1850.0, 0)]),
     # (the wardens are dragonspawn, two yards round: clear of the training yard's archery targets, and
     # of its racks, banner and lamp along y 964)
-    (7704533, 770080, [(5645.0, 964.0, 2000), (5644.0, 996.0, 0), (5638.0, 1003.0, 0), (5638.0, 1024.0, 0), (5646.0, 1032.0, 0),
-                       (5646.0, 1040.0, 3000), (5646.0, 1032.0, 0), (5638.0, 1024.0, 0), (5638.0, 1003.0, 0), (5644.0, 996.0, 0)]),
-    (7704534, 770080, [(5650.0, 960.5, 2000), (5676.0, 960.5, 0), (5708.0, 960.5, 2000), (5676.0, 960.5, 0)]),
+    (7704533, 770080, [(6339.0, 1818.0, 2000), (6338.0, 1850.0, 0), (6332.0, 1857.0, 0), (6332.0, 1878.0, 0), (6340.0, 1886.0, 0),
+                       (6340.0, 1894.0, 3000), (6340.0, 1886.0, 0), (6332.0, 1878.0, 0), (6332.0, 1857.0, 0), (6338.0, 1850.0, 0)]),
+    (7704534, 770080, [(6344.0, 1814.5, 2000), (6370.0, 1814.5, 0), (6402.0, 1814.5, 2000), (6370.0, 1814.5, 0)]),
 ]
 
 # ---- What they say ------------------------------------------------------------------------------
@@ -336,7 +347,7 @@ LINES = {
     7704507: [("Vol'jin be chieftain of de Darkspear in dis year, and in mine. Some tings time don't touch.", TALK, 7704506,
                "Do not say that too loud. The dragons get twitchy.", 0)],
     7704508: [("Best stew in any century. Do not tell the cook I said so.", EAT, 7704509, "I heard that, Steelhide. Second bowl is still Bronze.", LAUGH)],
-    7704509: [("Stew's on! Crystalsong mushrooms, and something the gnome swears is a vegetable.", EXCLAIM, 0, "", 0),
+    7704509: [("Stew's on! Sholazar mushrooms, and something the gnome swears is a vegetable.", EXCLAIM, 0, "", 0),
               ("Eat while you can. The Scourge does not stop for supper.", TALK, 0, "", 0)],
     # Those on their rounds.
     7704530: [("Mind your feet! Crates of yesterday coming through!", EXCLAIM, 0, "", 0)],
@@ -377,8 +388,9 @@ def main():
     # Props.
     lo, hi = 770001, 770001 + len(PROPS) - 1
     w(f"DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 770001 AND 770099;")
-    w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES")
-    w(",\n".join(f"({PROP_ENTRY[k]}, {PROP_USE.get(k, (5, ''))[0]}, {d}, {sql_text(n)}, '', '', '', {s}, '', "
+    w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `Data0`, `Data1`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES")
+    w(",\n".join(f"({PROP_ENTRY[k]}, {8 if k in PROP_FOCUS else PROP_USE.get(k, (5, ''))[0]}, {d}, {sql_text(n)}, '', '', '', {s}, "
+                 f"{PROP_FOCUS.get(k, (0, 0))[0]}, {PROP_FOCUS.get(k, (0, 0))[1]}, '', "
                  f"{sql_text(PROP_USE.get(k, (5, ''))[1])}, 0)" for k, (d, s, n) in PROPS.items()) + ";")
     w("")
     w("DELETE FROM `gameobject` WHERE `guid` BETWEEN 7705001 AND 7705299;")
@@ -387,7 +399,7 @@ def main():
     rows = []
     for i, (key, x, y, o, what) in enumerate(PLACED):
         z = z_at(x, y)
-        rows.append(f"({7705001 + i}, {PROP_ENTRY[key]}, {MAP}, {ZONE}, 0, 1, 1, {x:.2f}, {y:.2f}, {z:.2f}, {o:.4f}, "
+        rows.append(f"({7705001 + i}, {PROP_ENTRY[key]}, {MAP}, {ZONE}, {AREA}, 1, 1, {x:.2f}, {y:.2f}, {z:.2f}, {o:.4f}, "
                     f"0, 0, {math.sin(o / 2):.6f}, {math.cos(o / 2):.6f}, 300, 100, 1, '', 0, {sql_text('Wrath Remix: ' + PROPS[key][2] + ', ' + what)})")
     w(",\n".join(rows) + ";")
     w("")
