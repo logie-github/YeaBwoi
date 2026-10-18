@@ -339,7 +339,7 @@ namespace WrathRemix
     CreatureAI* BazaarLifeAI(Creature* creature);
     std::string HourglassReport(Player* player);
     void TakeInTimerunners();
-    void ForgetGoneHome();
+    void LetGoOfThoseHome();
 
     // Eternus's last hour (RemixLastHour.cpp): begun as WRM-721 brings the Timerunner to the doors.
     bool BeginLastHour(Player* player);

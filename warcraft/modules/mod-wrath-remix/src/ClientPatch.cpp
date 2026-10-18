@@ -47,6 +47,13 @@ namespace WrathRemix
     {
         constexpr char const* PATCH = "patch-Y.MPQ";
         constexpr char const* MARK = "patch-Y.MPQ.wrath-remix";
+        // The clothes of Remix's new looks (CreatureDisplayInfoExtra.dbc), in the game's language
+        // folder: patch-<locale>-Y.MPQ, read after patch-Y and every HD look's patch, and before the
+        // Skyborne's patch-Z (mod-skyborne), which makes its own copy of that table from the patches
+        // before it, this one included (it leaves out patch-Y, which comes and goes with the realm).
+        // It stays on ChromieCraft's realm too, so the Skyborne's patch isn't made again at each
+        // change of realm: rows of looks only Remix's people wear.
+        constexpr char const* LOOKS_MARK_SUFFIX = ".wrath-remix";
 
         using Bytes = std::vector<uint8>;
 
@@ -325,6 +332,54 @@ namespace WrathRemix
         }
     }
 
+    // The game's language folder (Data/enUS...: the one with its locale-xxXX.MPQ), if it has one.
+    static fs::path LocaleFolder(fs::path const& data)
+    {
+        std::error_code error;
+        for (auto const& entry : fs::directory_iterator(data, error))
+        {
+            std::string name = entry.path().filename().string();
+            if (name.size() == 4 && entry.is_directory(error) && fs::exists(entry.path() / ("locale-" + name + ".MPQ"), error))
+                return entry.path();
+        }
+        return {};
+    }
+
+    // Writes (or, with no rows, takes out) the clothes of Remix's new looks; false when there's no
+    // language folder to put them in.
+    static bool UpdateLooksPatch(fs::path const& data, Bytes const* extras)
+    {
+        fs::path locale = LocaleFolder(data);
+        if (locale.empty())
+            return false;
+        fs::path looks = locale / ("patch-" + locale.filename().string() + "-Y.MPQ"), mark = looks;
+        mark += LOOKS_MARK_SUFFIX;
+        std::error_code error;
+        bool ours = fs::exists(mark, error);
+        if (!ours && fs::exists(looks, error))
+        {
+            LOG_WARN("module", "Wrath Remix: {} isn't Wrath Remix's; left alone, so Remix's new looks have no clothes", looks.string());
+            return true;
+        }
+        if (!extras)
+        {
+            if (ours)
+            {
+                fs::remove(looks, error);
+                fs::remove(mark, error);
+            }
+            return true;
+        }
+        std::string const name = "DBFilesClient\\CreatureDisplayInfoExtra.dbc";
+        std::string const list = name + "\r\n";
+        std::string const note = "Wrath Remix's new looks' clothes for the game: its world server writes this as it starts; it stays for "
+            "ChromieCraft's realm too (rows only Remix's people wear).\n";
+        WriteIfChanged(mark, Bytes(note.begin(), note.end()));
+        if (WriteIfChanged(looks, Archive({ { name, *extras }, { "(listfile)", Bytes(list.begin(), list.end()) } })))
+            LOG_INFO("module", "Wrath Remix: its looks' clothes written ({})", looks.string());
+        return true;
+    }
+
     void UpdateClientPatch()
     {
         char const* client = std::getenv("WOW_CLIENT_DIR");
@@ -420,6 +475,8 @@ namespace WrathRemix
                 lookExtras.push_back(std::move(extra));
             } while (result->NextRow());
         }
+        if (lookExtras.empty())
+            UpdateLooksPatch(data, nullptr);
         if (!voices.empty() || !looks.empty())
         {
             Bytes patched = voices.empty() ? displayBase : WithValues(displayBase, 16, 12, voices);
@@ -439,7 +496,9 @@ namespace WrathRemix
                     if (extras.empty())
                         LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Remix's new looks have no clothes",
                             (dbc / "CreatureDisplayInfoExtra.dbc").string());
-                    else
+                    // (in their own patch, read after the Skyborne's makes its copy; in patch-Y if the
+                    // game has no language folder)
+                    else if (!UpdateLooksPatch(data, &extras))
                     {
                         std::string extraName = "DBFilesClient\\CreatureDisplayInfoExtra.dbc";
                         files.emplace_back(extraName, std::move(extras));

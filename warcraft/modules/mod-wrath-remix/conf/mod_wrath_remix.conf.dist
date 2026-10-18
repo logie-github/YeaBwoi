@@ -67,6 +67,14 @@ WrathRemix.SaveSeconds = 30
 WrathRemix.Intro = 1
 
 #
+#    WrathRemix.HomeCharacterDatabase
+#        Description: ChromieCraft's characters database (on the same MariaDB), which a Timerunner
+#                     going home must have room in (ten characters an account) before they go.
+#        Default:     "acore_characters"
+
+WrathRemix.HomeCharacterDatabase = "acore_characters"
+
+#
 #    WrathRemix.Guide
 #        Description: Where to go next, always: a flag on the map and minimap at the Timerunner's
 #                     next step (the quest's next objective, who takes it back, or who has the next
