@@ -83,8 +83,8 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- wrath_remix_world_0004_spawns.sql has 7704001 to 7704199.
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704201 AND 7704205;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704201, @HOROS,    571, 1, 1, 0, 5677.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Horos, Bazaar'),
-(7704202, @DOMELIUS, 571, 1, 1, 0, 5668.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Domelius, Bazaar'),
-(7704203, @ARTUROS,  571, 1, 1, 0, 5659.0, 1046.0, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Arturos, Bazaar'),
-(7704204, @AEONICUS, 571, 1, 1, 0, 5650.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Aeonicus, Bazaar'),
-(7704205, @DURUS,    571, 1, 1, 0, 5641.5, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Durus, Bazaar');
+(7704201, @HOROS,    571, 1, 1, 0, 6371.0, 1900.5, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Horos, Bazaar'),
+(7704202, @DOMELIUS, 571, 1, 1, 0, 6362.0, 1900.5, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Domelius, Bazaar'),
+(7704203, @ARTUROS,  571, 1, 1, 0, 6353.0, 1900.0, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Arturos, Bazaar'),
+(7704204, @AEONICUS, 571, 1, 1, 0, 6344.0, 1900.5, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Aeonicus, Bazaar'),
+(7704205, @DURUS,    571, 1, 1, 0, 6335.5, 1900.5, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Durus, Bazaar');

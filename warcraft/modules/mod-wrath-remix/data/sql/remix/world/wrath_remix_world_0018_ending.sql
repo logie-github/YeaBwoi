@@ -19,14 +19,14 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
   `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`,
   `RequiredNpcOrGo3`, `RequiredNpcOrGoCount3`, `RequiredNpcOrGo4`, `RequiredNpcOrGoCount4`,
   `ObjectiveText1`, `ObjectiveText2`, `ObjectiveText3`, `ObjectiveText4`, `VerifiedBuild`) VALUES
-(77801, 2, 80, 70, 2817, 5, 0, 0, 0,
+(77801, 2, 80, 70, 210, 5, 0, 0, 0,
  'See You Later',
  'Say goodbye to Sylvanas Windrunner, Alleria Windrunner, Andormu and Nozari at the Infinite Bazaar, then speak with Moratari.',
  'You did it. All of it, exactly as it happened. That was the hardest thing anyone has ever asked of you, and nobody will ever thank you for it.$B$BSome of what you did here will never be known, $n. Not by the people you did it for, not by anyone in your own time. Time is unreliable that way. It keeps its debts quietly.$B$BAnd there is one more thing. Sylvanas and Alleria cannot take this home with them. Everything they saw here, everything they could tell you about what comes after: if they remember it, it bleeds into choices they have not made yet. So before they go, I am going to take it from them.$B$BAnd a little from you, $n. Northrend you keep; you earned it. But whatever they tell you of your own years ahead, the shore you are going back to and everything after it, I will take that too. You would try to change it. Anyone would.$B$BSay your goodbyes. Ask them anything you like. They have a great deal they could tell you, and for a little while longer, you will both remember it.',
  'Speak with Moratari at the Infinite Bazaar.',
  @BYE_SYLVANAS, 1, @BYE_ALLERIA, 1, @BYE_ANDORMU, 1, @BYE_NOZARI, 1,
  'Goodbye said to Sylvanas', 'Goodbye said to Alleria', 'Goodbye said to Andormu', 'Goodbye said to Nozari', 0),
-(77802, 2, 80, 70, 2817, 5, 0, 0, 0,
+(77802, 2, 80, 70, 210, 5, 0, 0, 0,
  'Back to Your Own Time',
  'Tell Moratari you are ready to go home.',
  'When you are ready, I will open the way. You will be back in your own time, in your side''s capital, the moment you left that table, with everything you carry. The Bronze stays here; it was never really yours. It belonged to the hours.$B$BI will not pretend I am glad to see you go. Ready?',
@@ -54,8 +54,8 @@ INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES (77801, 5000), (7780
 -- (wrath_remix_world_0011_chapter2.sql), so that the end can be played.
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704300 AND 7704309;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(7704300, @ANDORMU, 571, 1, 1, 0, 5701.5, 1024.0, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Andormu, Bazaar'),
-(7704301, @NOZARI,  571, 1, 1, 0, 5698.5, 1024.0, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Nozari, Bazaar');
+(7704300, @ANDORMU, 571, 1, 1, 0, 6395.5, 1878.0, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Andormu, Bazaar'),
+(7704301, @NOZARI,  571, 1, 1, 0, 6392.5, 1878.0, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Nozari, Bazaar');
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND `SourceId` BETWEEN 7704300 AND 7704309;
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES

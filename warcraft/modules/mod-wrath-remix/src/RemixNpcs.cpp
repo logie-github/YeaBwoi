@@ -164,7 +164,7 @@ namespace
     };
 
     // The spots, as wrath_remix_world_0004_spawns.sql has the Bazaar's own people.
-    constexpr float HX = 5700.0f, HY = 1015.0f, HZ = 174.6f;
+    constexpr float HX = 6394.0f, HY = 1869.0f, HZ = 508.7f;
     Position const MORATARI_SPOT(HX - 9.0f, HY + 2.0f, HZ, 5.78f);   // clear of Eternus, who is large
     Position const SYLVANAS_SPOT(HX + 4.0f, HY + 6.0f, HZ, 3.60f);
     Position const ALLERIA_SPOT(HX + 6.5f, HY + 3.5f, HZ, 3.40f);
@@ -518,7 +518,7 @@ public:
     static uint32 Words(Creature* creature)
     {
         bool sylvanas = creature->GetEntry() == NPC_SYLVANAS || creature->GetEntry() == NPC_SYLVANAS_ABROAD;
-        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
+        if (creature->GetAreaId() == AREA_MALYKRISS)
             return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
         if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
             return sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;

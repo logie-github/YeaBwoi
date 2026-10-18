@@ -96,8 +96,8 @@ COMPANION = [
 # The tent stands on the level ground south-east of the heart (data/bazaar_ground.tsv: flat for eight yards
 # round, eighteen yards clear of everything else), its door towards her post; what is in it is seen in the
 # world's phase and the private outing's (1 | 32768), so it is there inside and out.
-TENT_X, TENT_Y, TENT_Z = 5719.0, 999.0, 174.5
-TENT_O = math.atan2(1017.0 - TENT_Y, 5691.0 - TENT_X)    # facing her post
+TENT_X, TENT_Y, TENT_Z = 6413.0, 1853.0, 508.6
+TENT_O = math.atan2(1871.0 - TENT_Y, 6385.0 - TENT_X)    # facing her post
 INWARD = TENT_O + math.pi                                 # from the door towards the back
 PHASE_BOTH = 1 | 32768
 

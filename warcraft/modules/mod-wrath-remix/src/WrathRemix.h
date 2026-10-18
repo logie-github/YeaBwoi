@@ -70,7 +70,7 @@ namespace WrathRemix
         NPC_NEDWARD       = 770219,
 
         AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue was until build 64
-        ZONE_CRYSTALSONG  = 2817,       // the Bazaar's zone
+        AREA_MALYKRISS    = 4520,       // Malykriss: The Vile Hold, the Bazaar's home (Crystalsong Forest until build 117)
         AREA_WYRMREST_TEMPLE = 4161,
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
@@ -145,7 +145,7 @@ namespace WrathRemix
     };
 
     // The Infinite Bazaar's middle, where new Timerunners wake (playercreateinfo).
-    constexpr float BAZAAR_X = 5700.0f, BAZAAR_Y = 1012.0f, BAZAAR_Z = 174.6f, BAZAAR_O = 1.57f;
+    constexpr float BAZAAR_X = 6394.0f, BAZAAR_Y = 1866.0f, BAZAAR_Z = 508.7f, BAZAAR_O = 1.57f;
 
     struct LevelBand
     {

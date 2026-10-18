@@ -1,7 +1,7 @@
 -- Wrath Remix's prologue (STORY.md, "Prologue"): a new Timerunner, a veteran of the war against
 -- the Lich King pulled out of a tavern in their own hour by Moratari, shown the war's end and its
--- cost (src/RemixIntro.cpp), arrives at the Infinite Bazaar in Crystalsong Forest, beneath
--- Dalaran, in the year the war began. Eternus tells them plainly what she wants and how it is done;
+-- cost (src/RemixIntro.cpp), arrives at the Infinite Bazaar in Malykriss: The Vile Hold,
+-- Icecrown's unfinished necropolis, in the year the war began. Eternus tells them plainly what she wants and how it is done;
 -- then, one thing at a time, Bronze and Alurmi, their class's instructor and lesson, the Bazaar's
 -- keepers, the hourglass and the hearthstone, the anomalies; and the war's first day, in the
 -- Borean Tundra. Each quest is given where the last one ended. WRM-nnn is quest 77nnn.
@@ -14,8 +14,8 @@ SET @MORATARI := 770001, @ETERNUS := 770002, @ALURMI := 770005,
 -- knights keep Acherus and their own story; the module brings them to the Bazaar after it). The
 -- world server sets it again in its own copy as it starts (src/RemixIntro.cpp): mod-skyborne's SQL,
 -- applied again whenever it changes, puts its races' start back where theirs was.
-UPDATE `playercreateinfo` SET `map` = 571, `zone` = 2817, `position_x` = 5700.0, `position_y` = 1012.0,
-  `position_z` = 174.6, `orientation` = 1.57 WHERE `class` <> 6;
+UPDATE `playercreateinfo` SET `map` = 571, `zone` = 4520, `position_x` = 6394.0, `position_y` = 1866.0,
+  `position_z` = 508.7, `orientation` = 1.57 WHERE `class` <> 6;
 
 -- Until build 56 Remix's quests were 7701nnn, which made the core keep a table of quests 7.7
 -- million long (its fast lookups are indexed by id): gone, with everything that named them.
@@ -51,50 +51,50 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
   `AllowableRaces`, `RewardItem1`, `RewardAmount1`, `LogTitle`, `LogDescription`, `QuestDescription`, `QuestCompletionLog`,
   `RequiredNpcOrGo1`, `RequiredNpcOrGo2`, `RequiredNpcOrGo3`, `RequiredNpcOrGoCount1`, `RequiredNpcOrGoCount2`, `RequiredNpcOrGoCount3`,
   `ObjectiveText1`, `ObjectiveText2`, `ObjectiveText3`, `VerifiedBuild`) VALUES
-(77010, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
+(77010, 2, 10, 1, 210, 3, 0, 8, 0, 0, 0,
  'Out of Time',
  'Speak with Eternus at the heart of the Infinite Bazaar.',
- 'This is the Infinite Bazaar, $n: a camp my flight keeps a little outside the flow of time, here in Crystalsong Forest, beneath Dalaran.$B$BOut there, the Alliance''s ships and the Horde''s zeppelins are only now reaching Northrend. The soldiers aboard them have no idea what is waiting for them. You do.$B$BGo and speak with Eternus. She has been looking forward to this.',
+ 'This is the Infinite Bazaar, $n: Malykriss, the necropolis the Lich King began here in Icecrown and never finished. In this year his builders are still at work on it. In ours, a little outside the flow of time, it belongs to us: to my flight, to the Knights of the Ebon Blade who keep its gates, and to the last free nerubians of Azjol-Nerub, who were building in saronite long before the Scourge stole the craft from them.$B$BOut there, the Alliance''s ships and the Horde''s zeppelins are only now reaching Northrend. The soldiers aboard them have no idea what is waiting for them. You do.$B$BGo and speak with Eternus. She has been looking forward to this.',
  'Speak with Eternus.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
-(77011, 2, 10, 1, 2817, 4, 0, 8, 0, 0, 0,
+(77011, 2, 10, 1, 210, 4, 0, 8, 0, 0, 0,
  'The Plan',
  'Ask Eternus what she wants of you, how it is to be done, and why she chose you.',
  'You have questions. Good. I would not trust anyone who came this far and had none.$B$BAsk me what I want, how it is to be done, and why it is you. I will answer each of them plainly. Then we begin.',
  'Speak with Eternus.',
  @PLAN_WHAT, @PLAN_HOW, @PLAN_WHY, 1, 1, 1,
  'Asked what she wants', 'Asked how it is done', 'Asked why you', 0),
-(77012, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
+(77012, 2, 10, 1, 210, 3, 0, 8, 0, 0, 0,
  'Time''s Toll',
  'Speak with Alurmi, at the head of the market lane on the camp''s west side.',
  'Time takes its toll on those who travel through it. You will feel weaker than the hero who sat in that tavern, because you are: most of what you could do has stayed behind, in your own hour. It comes back. Every day of this war, you will be stronger than the last.$B$BBronze will help. You will gather it as you go, and Alurmi trades it for gear that grows as you do. Hers is the first stall of the market, on the camp''s west side.',
  'Speak with Alurmi.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
-(77020, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
+(77020, 2, 10, 1, 210, 3, 0, 8, 0, 0, 0,
  'Old Habits',
  'Find your class''s Timeworn Instructor in the training yard, on the south-east side of the camp.',
  'Before you spend it, find your instructor, across the camp in the training yard to the south-east. There is one there for every kind of fighter, and the finest heirloom in my stall is wasted on someone who has forgotten what to do with it.$B$BWhen your instructor is done with you, Moratari will want you back.',
  'Speak with your class''s instructor.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
-(77021, 2, 10, 1, 2817, 3, 0, 8, 0, 0, 0,
+(77021, 2, 10, 1, 210, 3, 0, 8, 0, 0, 0,
  'The Bazaar''s Keepers',
  'Speak with Zephyr, Sa''at and the Chronologist, then return to Moratari.',
  'Your instructor tells me you will do.$B$BNow, the Bazaar. Zephyr keeps its roads, at the waystation to the north-east: she can send you to Dalaran, to the landings, and to the camp of any chapter your strength allows. Sa''at has his map table there too. He keeps watch over the dungeons and the raids, and will tell you when each is ready for you. The Chronologist, in the chronicle corner to the north-west, keeps the record of where you are in the war, and can take you back to the start of a chapter. Speak with all three.$B$BAnd the hourglass in your bag is mine. Turn it anywhere, and it brings you here. Turn it here, and it takes you back to wherever you were. Not in the middle of a fight, though: time is fussy about that.',
  'Return to Moratari.',
  @ZEPHYR, @SAAT, @CHRONOLOGIST, 1, 1, 1, 'Zephyr spoken to', 'Sa''at spoken to', 'The Chronologist spoken to', 0),
-(77013, 2, 10, 1, 2817, 4, 0, 8, 0, 41599, 2,
+(77013, 2, 10, 1, 210, 4, 0, 8, 0, 41599, 2,
  'A Small Demonstration',
  'Defeat 3 Temporal Anomalies, then return to Moratari.',
  'Eternus wants to know you can survive the war before she sends you into it. So do I.$B$BTime does not like being changed. Where it is pulled on, it frays, and things come through the seams: anomalies. They are drawn to Timerunners, which is unfortunate for you and convenient for me.$B$BTell me when you are ready, and I will let three of them through. Not all at once; I would like you alive at the end of this.',
  'Return to Moratari.',
  @ANOMALY_CREDIT, 0, 0, 3, 0, 0, 'Temporal Anomaly defeated', '', '', 0),
-(77014, 2, 10, 1, 2817, 4, 0, 8, 1101, 0, 0,
+(77014, 2, 10, 1, 210, 4, 0, 8, 1101, 0, 0,
  'To the Front',
  'Speak with Eternus to be sent to Valiance Keep in the Borean Tundra.',
  'The war begins on the shore, $n, and so do you.$B$BThe Alliance''s fleet has put in at Valiance Keep, in the Borean Tundra, and the Scourge was there to meet it. Eternus will fold the road for you. When you arrive, enlist: Recruitment Officer Blythe is signing up every sword that comes off the boats.$B$BI will be there before you. I usually am.',
  'Speak with Eternus.',
  0, 0, 0, 0, 0, 0, '', '', '', 0),
-(77015, 2, 10, 1, 2817, 4, 0, 8, 690, 0, 0,
+(77015, 2, 10, 1, 210, 4, 0, 8, 690, 0, 0,
  'To the Front',
  'Speak with Eternus to be sent to Warsong Hold in the Borean Tundra.',
  'The war begins at Warsong Hold, $n, and so do you.$B$BThe zeppelins from Orgrimmar are coming in over the Borean Tundra, and the Scourge is already at the Hold''s walls. Garrosh Hellscream would much rather be marching than holding them. Eternus will fold the road for you. When you arrive, report to the Warsong Recruitment Officer at the zeppelin landing.$B$BI will be there before you. I usually am.',

@@ -1,5 +1,5 @@
--- Where Wrath Remix's people stand: the Infinite Bazaar on the ground of Crystalsong Forest by the
--- Violet Stand (below Dalaran, with the Kirin Tor's teleporter up to the city), where every new
+-- Where Wrath Remix's people stand: the Infinite Bazaar in Malykriss: The Vile Hold, the Lich King's
+-- unfinished necropolis in Icecrown (wrath_remix_world_0030_malykriss.sql), where every new
 -- Timerunner wakes and the prologue is played, and Moratari at each landing and at each of her
 -- transitions. Spawn guids in
 -- Remix's range (7704000+). Moratari beside an original quest giver is placed from that NPC's own
@@ -14,22 +14,22 @@ SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 7700
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 
--- The Infinite Bazaar, on the flat ground west of the Violet Stand. A new Timerunner wakes in the
+-- The Infinite Bazaar, on Malykriss's level floor under the necropolis's ribs. A new Timerunner wakes in the
 -- middle of it (playercreateinfo, wrath_remix_world_0003_prologue.sql), facing Eternus and
 -- Moratari, with the echoes of the war's dead beyond them. The Keepers of Time come later, with
 -- the bronze (Chapter II). The camp around them (its districts, props and people) is
 -- wrath_remix_world_0023_bazaar.sql (tools/bazaar.py, which keeps these spots too): Alurmi at the
 -- head of the market lane, Zephyr at the waystation's door, Sa'at at his map table, the
 -- Chronologist and Momentus in the chronicle corner, the instructors at work in the training yard.
-SET @HX := 5700, @HY := 1015, @HZ := 174.6;
+SET @HX := 6394, @HY := 1869, @HZ := 508.7;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704011, @ETERNUS,      571, 1, 1, 1, @HX,      @HY + 8,  @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Eternus, Bazaar'),
 (7704012, @MORATARI,     571, 1, 1, 1, @HX - 9,  @HY + 2,  @HZ, 5.78, 60, 0, 0, 'Wrath Remix: Moratari, Bazaar'),
-(7704015, @ALURMI,       571, 1, 1, 0, 5686.0, 1046.5, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Alurmi, Bazaar'),
-(7704016, @ZEPHYR,       571, 1, 1, 1, 5708.5, 984.0, 174.6, 1.87, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
-(7704017, @SAAT,         571, 1, 1, 0, 5695.5, 968.5, 174.6, 3.28, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
-(7704018, @CHRONOLOGIST, 571, 1, 1, 0, 5716.0, 1041.0, 174.6, 0.00, 60, 0, 0, 'Wrath Remix: Chronologist, Bazaar'),
-(7704019, @MOMENTUS,     571, 1, 1, 0, 5716.0, 1049.5, 174.6, 0.00, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
+(7704015, @ALURMI,       571, 1, 1, 0, 6380.0, 1900.5, 508.7, 4.71, 60, 0, 0, 'Wrath Remix: Alurmi, Bazaar'),
+(7704016, @ZEPHYR,       571, 1, 1, 1, 6402.5, 1838.0, 508.7, 1.87, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
+(7704017, @SAAT,         571, 1, 1, 0, 6389.5, 1822.5, 508.7, 3.28, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
+(7704018, @CHRONOLOGIST, 571, 1, 1, 0, 6410.0, 1895.0, 508.7, 0.00, 60, 0, 0, 'Wrath Remix: Chronologist, Bazaar'),
+(7704019, @MOMENTUS,     571, 1, 1, 0, 6410.0, 1903.5, 508.7, 0.00, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
 -- After the turn (WRM-207), for those who saw it: where its scene leaves them (RemixNpcs.cpp).
 (7704013, @SYLVANAS,     571, 1, 1, 0, @HX + 4,   @HY + 6,   @HZ, 3.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Bazaar'),
 (7704014, @ALLERIA,      571, 1, 1, 0, @HX + 6.5, @HY + 3.5, @HZ, 3.40, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Bazaar');
@@ -125,6 +125,6 @@ FROM `creature` c JOIN (
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704068, @MORATARI, 571, 1, 1, 1, 4778.0, -2034.0, 229.9, 4.00, 60, 0, 0, 'Wrath Remix: Moratari, WRM-302 and WRM-321, Drak''Tharon Keep''s door');
 
--- The Azure Dragonflight's raiders at the Violet Stand would kill a new Timerunner on arrival:
--- not in Remix's world.
+-- The Azure Dragonflight's raiders at the Violet Stand killed new Timerunners on arrival when the
+-- Bazaar was below it (until build 117): not in Remix's world.
 DELETE FROM `creature` WHERE `id` = 31402 AND `guid` IN (72221, 13424, 13423);

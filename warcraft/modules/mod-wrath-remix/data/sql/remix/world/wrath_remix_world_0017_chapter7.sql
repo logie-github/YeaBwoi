@@ -78,8 +78,8 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 -- west); to the doors of Icecrown Citadel, where its raid lets people out.
 DELETE FROM `remix_departure` WHERE `quest` IN (77701, 77711, 77721);
 INSERT INTO `remix_departure` (`quest`, `map`, `x`, `y`, `z`, `o`) VALUES
-(77701, 571, 5700.4, 1019.2, 174.6, 0.46),
-(77711, 571, 5700.4, 1019.2, 174.6, 0.46),
+(77701, 571, 6394.4, 1873.2, 508.7, 0.46),
+(77711, 571, 6394.4, 1873.2, 508.7, 0.46),
 (77721, 571, 5790.0, 2071.5, 636.1, 0.40);
 
 -- Turning in VII-A goes to Dalaran, before the Frozen Halls' first quest giver of each side.
