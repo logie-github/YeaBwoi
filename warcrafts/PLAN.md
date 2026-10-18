@@ -34,7 +34,8 @@ The user's requirements, what was decided, what's open, and where it stands. The
 - After build 3: "I have the install setup exe. The one downloaded from GOG."
 
 - After build 4 (both GOG installers unpacked on the phone, both conversions stopped at "Cannot
-  open … for writing"): "Warcraft 3 needs a CD key", pointing at a key generator site.
+  open … for writing"): "Warcraft 3 needs a CD key", pointing at a key generator site. "They need
+  to be borderless, not windowed", then: "I mean fullscreen."
 
 ## Decided
 
@@ -64,7 +65,7 @@ The user's requirements, what was decided, what's open, and where it stands. The
   game's folder and ticked on the launcher; Press start appears once the required ones are in.
 - **Z Fold 8**: two-pane launcher at 700 dp and wider; games at 1080 lines by default, never narrower
   than 4:3 (letterboxed on the ~10:9 inside screen, not stretched).
-- **Warcraft III setup**: registry `Video\reswidth/resheight/windowmode=2` (the phone's size) and the
+- **Warcraft III setup**: registry `Video\reswidth/resheight/windowmode=2` (the phone's size, fullscreen) and the
   repack's `Classic Launcher\w3\Locale` (enUS unless set). The repack's first start asks for CD keys:
   the game menu lists keys found in a text file next to the program (`_SERIAL_KEYS.txt`) and types
   them.
@@ -118,6 +119,17 @@ The user's requirements, what was decided, what's open, and where it stands. The
   line, a label before it optional) is kept in `files/cdkeys.txt`, apart from the game's folder, and
   the four-finger menu offers it with the keys of a key file that came with the game. The app takes
   the keys the user pastes; it doesn't fetch or carry any.
+- **Fullscreen** (build 5, the user's "I mean fullscreen" after seeing Warcraft III windowed):
+  Stratagus starts with `-F` (Wargus's own preference is windowed, which on Android leaves the
+  phone's bars). Warcraft III starts with `-windowmode fullscreen -nativefullscr` (`library/
+  Wc3Arguments`): patch 1.31's notes replaced 1.30's `-nativefullscr`, `-fullscreen` (windowed
+  fullscreen) and `-window` with `-windowmode fullscreen|windowedfullscreen|windowed`, and the game
+  passes over flags it doesn't know, so both are given; registry `windowmode` 2 (one guide's
+  mapping: 0 windowed, 1 windowed fullscreen, 2 fullscreen; not confirmed for 1.30). A window
+  mode typed in Game files takes its place. Wine's desktop is the screen's size (Winlator's
+  `explorer /desktop`), as is the game's resolution, so fullscreen changes no display mode. The
+  same notes replaced `-opengl` with `-graphicsapi OpenGL`: the OpenGL choice gives both (it gave
+  `-graphicsapi OpenGL2`, which 1.30 may not know).
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
@@ -131,7 +143,9 @@ The user's requirements, what was decided, what's open, and where it stands. The
   #522, sound effects #348). Whether Stratagus's GLES renderer and SDL's audio behave on the Fold.
 - Warcraft I's music: war1tool makes MIDI from the game's XMI; SDL_mixer on Android has no MIDI
   instruments without Timidity patches (not bundled yet), so it may be silent.
-- Whether the registry values above are the ones 1.30 reads (the game also has `preferences.json`).
+- Whether the registry values above are the ones 1.30 reads (the game also has `preferences.json`),
+  and whether fullscreen (`-nativefullscr`) behaves under Wine and DXVK on the phone (windowed
+  fullscreen is the fallback, typed in Game files).
 - Which Inno Setup version the user's GOG installers are, and whether innoextract unpacks them on
   the phone (not run on a GOG installer, nor on arm64, here).
 
@@ -143,7 +157,7 @@ The user's requirements, what was decided, what's open, and where it stands. The
    layout and resolutions** — built.
 3. **Warcraft I and II native on Stratagus from the GOG files** — built (build 3).
 4. **GOG's offline installers taken as they are** — built (build 4); unpacking worked on the phone.
-5. **The tools' fix for Android, Warcraft III's CD keys box** — built (build 5).
+5. **The tools' fix for Android, Warcraft III's CD keys box, fullscreen** — built (build 5).
 6. After the user's next try: whatever the phone shows.
 
 ## Where it stands

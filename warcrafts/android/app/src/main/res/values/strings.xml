@@ -156,7 +156,7 @@
     <string name="rts_renderer_d3d">Direct3D</string>
     <string name="rts_renderer_d3d_summary">The game\'s own default</string>
     <string name="rts_renderer_gl">OpenGL</string>
-    <string name="rts_renderer_gl_summary">-graphicsapi OpenGL2: try it if the picture is wrong with Direct3D</string>
+    <string name="rts_renderer_gl_summary">-opengl: try it if the picture is wrong with Direct3D</string>
     <string name="rts_vibration">Vibrate on a hold</string>
     <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
 

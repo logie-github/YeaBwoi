@@ -189,8 +189,10 @@ object Game {
     }
 
     /**
-     * Warcraft III's settings in the games' Windows registry: the screen's size, in a full-screen
-     * window, and English unless a language was chosen (the repack's "Classic Launcher" key).
+     * Warcraft III's settings in the games' Windows registry: the screen's size, fullscreen
+     * (`windowmode` 2; 1 is windowed fullscreen, 0 windowed; the start's arguments say it too,
+     * [com.logie.warcrafts.library.Wc3Arguments]), and English unless a language was chosen (the
+     * repack's "Classic Launcher" key).
      */
     private fun configureWarcraft3(container: Container, width: Int, height: Int) {
         val userReg = File(container.rootDir, ".wine/user.reg")

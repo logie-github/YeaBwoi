@@ -10,6 +10,7 @@ import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Screen
+import com.logie.warcrafts.library.Wc3Arguments
 
 /** The games' settings chosen in the launcher (Graphics). They apply the next time a game starts. */
 object GameSettings {
@@ -24,10 +25,10 @@ object GameSettings {
         BALANCED(720, R.string.rts_graphics_balanced, R.string.rts_graphics_balanced_summary),
     }
 
-    /** How Warcraft III draws: Direct3D (its default) or OpenGL (`-graphicsapi OpenGL2`). */
-    enum class Renderer(val argument: String, @StringRes val label: Int, @StringRes val summary: Int) {
-        DIRECT3D("", R.string.rts_renderer_d3d, R.string.rts_renderer_d3d_summary),
-        OPENGL("-graphicsapi OpenGL2", R.string.rts_renderer_gl, R.string.rts_renderer_gl_summary),
+    /** How Warcraft III draws: Direct3D (its default) or OpenGL ([Wc3Arguments.OPENGL]). */
+    enum class Renderer(@StringRes val label: Int, @StringRes val summary: Int) {
+        DIRECT3D(R.string.rts_renderer_d3d, R.string.rts_renderer_d3d_summary),
+        OPENGL(R.string.rts_renderer_gl, R.string.rts_renderer_gl_summary),
     }
 
     private const val PREFS = "game"
@@ -55,11 +56,13 @@ object GameSettings {
         prefs(context).edit().putBoolean("vibration", on).apply()
     }
 
-    /** What a game's program is started with: the user's (Game files), and Warcraft III's renderer. */
+    /**
+     * What a game's program is started with: the user's (Game files), and for Warcraft III,
+     * borderless and its renderer ([Wc3Arguments]).
+     */
     fun arguments(context: Context, install: Install): String {
         val own = RtsFiles.arguments(context, install)
-        val renderer = if (install == Install.WC3) renderer(context).argument else ""
-        return listOf(own, renderer).filter { it.isNotBlank() }.joinToString(" ")
+        return if (install == Install.WC3) Wc3Arguments.of(own, renderer(context) == Renderer.OPENGL) else own
     }
 
     /** The screen the launcher is on (a Fold's inside or outside), in pixels. */
