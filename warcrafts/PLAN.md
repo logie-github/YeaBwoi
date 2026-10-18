@@ -24,6 +24,10 @@ The user's requirements, what was decided, what's open, and where it stands. The
   control groups; pinch = zoom; three-finger tap = keyboard; two-finger tap = the game's menu;
   gestures only, no keys on screen.
 
+- After build 2: "I don't like the current setup. Can you use the GOG versions of 1 and 2?", then,
+  to a DOSBox start: "No. Stop. Don't use DOSBox, this must be Android native." Asked, the user
+  chose Stratagus (War1gus, Wargus) for I and II, and kept Warcraft III (its 1.30 archive link).
+
 ## Decided
 
 - **One app, four looks**: `com.logie.warcrafts`, "Warcraft" (build 1 was `com.logie.warcraftrts`,
@@ -56,17 +60,37 @@ The user's requirements, what was decided, what's open, and where it stands. The
   repack's `Classic Launcher\w3\Locale` (enUS unless set). The repack's first start asks for CD keys:
   the game menu lists keys found in a text file next to the program (`_SERIAL_KEYS.txt`) and types
   them.
-- **Remastered games**: the program is found by known names, else the largest non-helper `.exe`
-  (`library/GameLayout`), changeable in Game files; started with `-launch` by default.
+- **Remastered games** (builds 1–2, replaced by the GOG versions in build 3): found by known names, started with `-launch`.
+
+- **Warcraft I and II, native** (build 3): Stratagus master `3d87c93f7` (the engine has no Android
+  build of its own; drodin/Stratagus's Android fork is 3.3.2 from 2022), with War1gus `8ec7576` and
+  Wargus `cde1a07` (the pairing xr.wargus, a Quest port, uses), built with NDK 24 for arm64:
+  - the engine as SDL's `libmain.so` with SDL 2.0.22 statically in it (whole archive, for its JNI);
+    its bundled libraries (ExternalProject) configured with the NDK's ABI, platform and STL;
+    libpng static only; `c++_static` (Winlator ships its own `libc++_shared.so`);
+  - runtime: OpenGL ES 2 renderer, no desktop-GL shaders, text events on without the phone's
+    keyboard (the app's prompt types), no edge scrolling (a lifted finger leaves the pointer at the
+    edge); the user dir is the game dir (`ENABLE_USEGAMEDIR`);
+  - `war1tool` and `wartool` (StormLib for the BNE MPQs) as PIE programs shipped as
+    `lib*.so`, run by the app with the GOG folder and a staging folder; the games' scripts zipped in
+    the APK, unpacked beside the data; the tools' `extracted` file marks it done. They call ffmpeg
+    for videos and WAV music: not on a phone, so intro videos and Warcraft II's music are left out;
+  - `StratagusActivity` (SDL's activity, process `:stratagus`, killed on leaving so each game starts
+    clean) with `StratagusGestureView` over it: the same `RtsGestures`, sent through SDL's JNI
+    (`SdlBridge`: mouse with Android's action/button codes, Android key codes, committed text).
+- The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
+  dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
+  `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
 
 ## Open (not knowable without the phone and the files)
 
 - Whether 1.30's CEF-based first-run screen (the classic installer choice) works under Wine/Box64.
 - Whether Warcraft III's Direct3D 9 runs well on DXVK + the Fold's Adreno (OpenGL is the fallback
   in Graphics), and its sound.
-- Whether the Remastered games start without Battle.net at all (`-launch` is unconfirmed for them;
-  Blizzard's forum reports they need a Battle.net login). If they don't, the classic versions inside
-  their folders, or the GOG releases, are the alternatives to try.
+- Whether the converted GOG data plays fully: Wargus has open issues on BNE extraction (videos
+  #522, sound effects #348). Whether Stratagus's GLES renderer and SDL's audio behave on the Fold.
+- Warcraft I's music: war1tool makes MIDI from the game's XMI; SDL_mixer on Android has no MIDI
+  instruments without Timidity patches (not bundled yet), so it may be silent.
 - Whether the registry values above are the ones 1.30 reads (the game also has `preferences.json`).
 
 ## Stages
@@ -75,10 +99,11 @@ The user's requirements, what was decided, what's open, and where it stands. The
    (`com.logie.warcraftrts`).
 2. **The user's gestures, `com.logie.warcrafts` "Warcraft", the What's needed checklist, Fold 8
    layout and resolutions** — built.
-3. After the user's first try: whatever the phone shows (first-run screen, renderer, Remastered).
+3. **Warcraft I and II native on Stratagus from the GOG files** — built (build 3).
+4. After the user's first try: whatever the phone shows.
 
 ## Where it stands
 
-Stage 2: built locally and in CI; unit tests pass; launcher screenshots made with Robolectric at the
-Fold's outside (411x960 dp) and inside (832x750 dp, 750x832 dp) sizes. Nothing has run on a phone,
-and no game has been started anywhere (no Windows/ARM device here).
+Stage 3: Stratagus, the tools and the APK built locally and in CI; unit tests pass. Nothing has run
+on a phone; neither Stratagus nor the tools have been run anywhere (no GOG files here, no arm64
+Android device).

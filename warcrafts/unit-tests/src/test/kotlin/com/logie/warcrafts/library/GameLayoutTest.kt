@@ -75,23 +75,22 @@ class GameLayoutTest {
     }
 }
 
-class RemasteredLayoutTest {
+class GogLayoutTest {
     @Test
-    fun `Warcraft II Remastered's folder is the one above x86`() {
-        val paths = listOf(
-            "Warcraft II Remastered/x86/Warcraft II.exe",
-            "Warcraft II Remastered/x86/BlizzardError.exe",
-            "Warcraft II Remastered/Data/data/data.000",
-            "Warcraft II Remastered/.build.info",
-        )
-        assertEquals("Warcraft II Remastered", GameLayout.findRoot(paths, Install.WC2.mainNames))
-        val programs = listOf(Program("x86/BlizzardError.exe", 900_000), Program("x86/Warcraft II.exe", 50_000_000))
-        assertEquals("x86/Warcraft II.exe", GameLayout.pickProgram(programs, Install.WC2.mainNames)?.path)
+    fun `GOG Warcraft I's folder is the one with WAR_EXE and DATA`() {
+        val paths = listOf("Warcraft Orcs & Humans/WAR.EXE", "Warcraft Orcs & Humans/DATA/DATA.WAR", "Warcraft Orcs & Humans/DOS4GW.EXE")
+        assertEquals("Warcraft Orcs & Humans", GameLayout.findRoot(paths, Install.WC1.mainNames))
     }
 
     @Test
-    fun `Warcraft I Remastered picked as its own folder`() {
-        val paths = listOf("x86/Warcraft.exe", "Data/indices/0.idx", ".build.info")
-        assertEquals("", GameLayout.findRoot(paths, Install.WC1.mainNames))
+    fun `GOG Warcraft II's folder is the one with the program, the tomes and Install_mpq`() {
+        val paths = listOf("Warcraft II BNE/Warcraft II BNE.exe", "Warcraft II BNE/Support/TOMES/TOME.1", "Warcraft II BNE/Install.mpq")
+        assertEquals("Warcraft II BNE", GameLayout.findRoot(paths, Install.WC2.mainNames))
+    }
+
+    @Test
+    fun `Warcraft II's data alone, without a program, is still found`() {
+        val paths = listOf("War2/Support/TOMES/TOME.1", "War2/Install.mpq")
+        assertEquals("War2", GameLayout.findRoot(paths, Install.WC2.mainNames))
     }
 }

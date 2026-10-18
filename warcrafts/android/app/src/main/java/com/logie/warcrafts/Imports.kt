@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts
 
@@ -27,7 +27,8 @@ import java.util.zip.ZipInputStream
 object Imports {
     sealed interface State {
         data object Idle : State
-        data class Working(val install: Install, val progress: Float? = null, val detail: String? = null) : State
+        /** [converting]: making Stratagus's data from the files (after the copy). */
+        data class Working(val install: Install, val progress: Float? = null, val detail: String? = null, val converting: Boolean = false) : State
         data class Done(val install: Install) : State
         data class Failed(val install: Install, val message: String) : State
     }

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts
 
@@ -23,6 +23,13 @@ object RtsFiles {
     fun gamesRoot(context: Context) = File(context.filesDir, "games")
 
     fun folder(context: Context, install: Install) = File(gamesRoot(context), install.key)
+
+    /** Where Stratagus plays Warcraft I or II from: its game package and the data made from the GOG files ([Conversion]). */
+    fun stratagusDir(context: Context, install: Install) = File(File(context.filesDir, "stratagus"), install.stratagusGame ?: install.key)
+
+    /** Stratagus's data for the game is made (its tool's mark). */
+    fun isConverted(context: Context, install: Install): Boolean =
+        install.stratagusGame != null && File(stratagusDir(context, install), "extracted").isFile
 
     /** Where an import puts the files until they're all there. */
     fun staging(context: Context) = File(context.filesDir, "import.staging")
@@ -50,7 +57,7 @@ object RtsFiles {
         prefs(context).edit().putString("program_${install.key}", path).apply()
     }
 
-    fun hasGame(context: Context, install: Install): Boolean = program(context, install) != null
+    fun hasGame(context: Context, install: Install): Boolean = Needs.ready(needs(context, install))
 
     /** What the program is started with. */
     fun arguments(context: Context, install: Install): String =
@@ -89,7 +96,7 @@ object RtsFiles {
             }
             return true
         }
-        return Needs.check(install, program, cdKeys(context, install).isNotEmpty(), ::exists)
+        return Needs.check(install, program, cdKeys(context, install).isNotEmpty(), isConverted(context, install), ::exists)
     }
 
     /** How much room a game takes. */
@@ -98,6 +105,7 @@ object RtsFiles {
 
     fun delete(context: Context, install: Install) {
         folder(context, install).deleteRecursively()
+        if (install.stratagusGame != null) stratagusDir(context, install).deleteRecursively()
         setProgram(context, install, null)
     }
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts.library
 
@@ -21,10 +21,10 @@ object GameLayout {
      * The folder the game is in: the one [mainNames]' program is in (a name with folders, like
      * `x86/Warcraft II.exe`, is matched from the game's folder), else the top folder that all the
      * picked files share (a zip's single folder), else the top itself (""). Null when there's no
-     * Windows program at all in what was picked.
+     * Windows program nor any of [mainNames] in what was picked.
      */
     fun findRoot(paths: List<String>, mainNames: List<String>): String? {
-        if (paths.none { it.endsWith(".exe", ignoreCase = true) }) return null
+        if (paths.none { path -> path.endsWith(".exe", ignoreCase = true) || mainNames.any { path.endsWith(it, ignoreCase = true) } }) return null
         for (name in mainNames) {
             val match = paths
                 .filter { it.equals(name, ignoreCase = true) || it.endsWith("/$name", ignoreCase = true) }

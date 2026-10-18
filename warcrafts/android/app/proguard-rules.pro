@@ -9,3 +9,5 @@
 # zstd-jni (Winlator's archives): its native code uses its classes' fields and methods by name.
 -keep class com.github.luben.zstd.** { *; }
 -dontwarn com.github.luben.zstd.**
+# SDL (the native games): its native code calls into its Java classes by name.
+-keep class org.libsdl.app.** { *; }

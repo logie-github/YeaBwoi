@@ -17,6 +17,13 @@ if (!new File(winlator, "java").isDirectory()) {
 	throw new GradleException("Winlator isn't in warcrafts/android/winlator: run scripts/prepare-winlator-app.sh warcrafts")
 }
 
+// Warcraft I and II, native: the Stratagus engine, its data tools, SDL's Java activity and the games'
+// scripts (scripts/build-stratagus.sh puts them in ../stratagus).
+def stratagus = file("../stratagus")
+if (!new File(stratagus, "jniLibs/arm64-v8a/libmain.so").isFile()) {
+	throw new GradleException("Stratagus isn't in warcrafts/android/stratagus: run scripts/build-stratagus.sh")
+}
+
 android {
 	namespace = "com.logie.warcrafts"
 	compileSdk = 35
@@ -90,16 +97,16 @@ android {
 
 	sourceSets {
 		main {
-			assets.srcDirs += ['../winlator/assets']
-			java.srcDirs += ['../winlator/java']
+			assets.srcDirs += ['../winlator/assets', '../stratagus/assets']
+			java.srcDirs += ['../winlator/java', '../stratagus/java']
 			res.srcDirs += ['../winlator/res']
-			jniLibs.srcDirs += ['../winlator/jniLibs']
+			jniLibs.srcDirs += ['../winlator/jniLibs', '../stratagus/jniLibs']
 		}
 	}
 
 	androidResources {
 		// Already compressed.
-		noCompress += ['tzst']
+		noCompress += ['tzst', 'zip']
 	}
 
 	lint {
