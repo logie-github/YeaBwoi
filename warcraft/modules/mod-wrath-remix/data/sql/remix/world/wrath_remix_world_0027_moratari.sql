@@ -4,7 +4,7 @@
 -- interventions before the turn and their undoing after it, and the romance (RemixMoratari.cpp,
 -- RemixOutings.cpp). This file owns: creatures 770500-770999, spawns 7704330-7704399, NPC texts
 -- 7702600-7702999, its quests, the conditions on the quests it gates, the texts it changes, the gossip
--- flag of the game's creatures it gives something to say.
+-- flag of the game's creatures it gives something to say, the unit flags of those it spares.
 
 DROP TABLE IF EXISTS `remix_quest_whisper`;
 CREATE TABLE `remix_quest_whisper` (
@@ -351,6 +351,15 @@ UPDATE `creature_template` c JOIN `remix_original_story_npcflag` o ON o.`entry` 
 DELETE FROM `remix_original_story_npcflag`;
 INSERT INTO `remix_original_story_npcflag` (`entry`, `npcflag`) SELECT `entry`, `npcflag` FROM `creature_template` WHERE `entry` IN (25237, 25250, 25251, 25256, 25301, 25302, 25329, 25395, 25446, 25816, 25826, 26187, 26649, 27155, 27156, 27317, 27320, 27846) AND (`npcflag` & 3) = 0;
 UPDATE `creature_template` c JOIN `remix_original_story_npcflag` o ON o.`entry` = c.`entry` SET c.`npcflag` = c.`npcflag` | 1;
+CREATE TABLE IF NOT EXISTS `remix_original_story_unit_flags` (
+  `entry` INT UNSIGNED NOT NULL,
+  `unit_flags` INT UNSIGNED NOT NULL,
+  PRIMARY KEY (`entry`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+UPDATE `creature_template` c JOIN `remix_original_story_unit_flags` o ON o.`entry` = c.`entry` SET c.`unit_flags` = o.`unit_flags`;
+DELETE FROM `remix_original_story_unit_flags`;
+INSERT INTO `remix_original_story_unit_flags` (`entry`, `unit_flags`) SELECT `entry`, `unit_flags` FROM `creature_template` WHERE `entry` IN (25446);
+UPDATE `creature_template` c JOIN `remix_original_story_unit_flags` o ON o.`entry` = c.`entry` SET c.`unit_flags` = c.`unit_flags` | 512;
 
 INSERT INTO `remix_outing` (`id`, `map`, `x`, `y`, `z`, `o`, `scene`, `private`, `undress`, `back`, `flight_from`, `flight_to`, `mount`, `name`) VALUES
 (1, 571, 5851.00, 640.60, 647.60, 1.050, 901, 0, 0, 1, 0, 0, 0, 'Cider at A Hero''s Welcome, Dalaran'),

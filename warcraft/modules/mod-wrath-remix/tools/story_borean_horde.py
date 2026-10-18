@@ -202,6 +202,13 @@ TALK = [
                "the hold. An' if anybody asks, it was my idea."),
 ]
 
+# The captain stands where Ith'rix the Harvester's flight comes down on the hold (the game's own assault,
+# What the Cold Wind Brings..., half of every hour); at the chapter's levels it killed him every few
+# minutes, and an elite lies dead for seven.
+SPARED = [
+    (CAPTAIN, "Beneath the Floor sends the Timerunner to warn him, on the south wall"),
+]
+
 SCENES = [
     # The Plains of Nasam, as it's taken: every tank that will run rolls out with the Timerunner.
     dict(id=SCENE_TANKS_ROLL, name="The Plains of Nasam: the tanks roll out together", quest=PLAINS_OF_NASAM, trigger=1, anchor=GORGE,
