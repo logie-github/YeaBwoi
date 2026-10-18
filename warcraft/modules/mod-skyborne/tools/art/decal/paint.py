@@ -267,7 +267,7 @@ if STYLE:
         ins = swords(100.0 + cfg.get('swords_bottom', 62.0) - float(GHm[ins].min()))
     elif STYLE == 'star':
         from PIL import Image as _I, ImageDraw as _D
-        Rs = cfg.get('star_r', 26.0); rin = cfg.get('star_inner', 0.55) * Rs; hcs = cfg.get('star_bottom', 62.0) + 0.809 * Rs
+        Rs = cfg.get('star_r', 22.0); rin = cfg.get('star_inner', 0.55) * Rs; hcs = cfg.get('star_bottom', 62.0) + 0.809 * Rs
         pts = []
         for k in range(10):
             a = np.radians(90 + 36 * k); rr_ = Rs if k % 2 == 0 else rin
@@ -292,7 +292,7 @@ if STYLE:
     sdf = lambda X, h: map_coordinates(SDF, [np.atleast_1d(np.asarray(h, float)) / GS, (np.atleast_1d(np.asarray(X, float)) + 110.0) / GS], order=1, mode='nearest')
     print('style', STYLE, 'area %.0f mm2 (level 2 %.0f), height %.0f, half width %.0f' % (A_style, A0, SH1 - SH0, SXM))
     def place(count, keep_fn):
-        cnt = int(count * A_start / A0 * (cfg.get('swords_density', 5.0) if STYLE == 'swords' else 2.0 if STYLE == 'star' else 1.5 if STYLE != 'strip' else 1.0)); placed = 0
+        cnt = int(count * A_start / A0 * (cfg.get('swords_density', 5.0) if STYLE == 'swords' else cfg.get('star_density', 4.0) if STYLE == 'star' else 1.5 if STYLE != 'strip' else 1.0)); placed = 0
         for _ in range(cnt * 30):
             if placed >= cnt:
                 break
