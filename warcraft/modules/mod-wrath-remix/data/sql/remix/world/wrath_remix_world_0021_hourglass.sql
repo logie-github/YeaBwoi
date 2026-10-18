@@ -13,7 +13,7 @@ UPDATE `remix_hourglass_item` SET `entry` = @HOURGLASS, `name` = 'Moratari''s Ho
   `ItemLevel` = 1, `RequiredLevel` = 0, `BuyPrice` = 0, `SellPrice` = 0, `bonding` = 1, `maxcount` = 1, `stackable` = 1,
   `spellid_1` = 52096, `spelltrigger_1` = 0, `spellcooldown_1` = -1, `spellcategory_1` = 0, `spellcategorycooldown_1` = -1,
   `ScriptName` = 'item_remix_hourglass',
-  `description` = 'Turn it anywhere to go to the Infinite Bazaar. Turn it at the Bazaar to go back to where you came from.';
+  `description` = 'Turn it anywhere to go to the Infinite Bazaar, in Malykriss. Turn it at the Bazaar to go back to where you came from.';
 INSERT INTO `item_template` SELECT * FROM `remix_hourglass_item`;
 DROP TEMPORARY TABLE `remix_hourglass_item`;
 

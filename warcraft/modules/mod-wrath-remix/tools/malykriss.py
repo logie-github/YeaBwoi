@@ -237,9 +237,10 @@ PROPS = {
     "blood_orb":   (8365, 1.5, "Blood Orb"),
     "egg":         (7803, 1.2, "Nerubian Egg"),
     "saronite":    (7836, 0.5, "Chunk of Saronite"),
+    "small_glass": (7133, 0.012, "Hourglass"),                 # the great hourglass's, a hand high
 }
 PROP_ENTRY = {key: 770220 + i for i, key in enumerate(PROPS)}
-# (prop, x, y, near z, orientation, what it's for)
+# (prop, x, y, near z, orientation, what it's for[, height above the floor, tilt])
 PLACED = [
     ("eb_banner", 6356.0, 1939.0, 508.6, WEST, "the west gate"),
     ("eb_banner", 6334.0, 1939.0, 508.6, WEST, "the west gate"),
@@ -258,6 +259,9 @@ PLACED = [
     ("egg", 6480.0, 1868.0, 509.0, 2.6, "the nerubians' hall"),
     ("saronite", 6486.0, 1830.0, 510.0, 0.7, "the nerubians' hall, the architect's"),
     ("saronite", 6491.0, 1829.0, 510.0, 2.2, "the nerubians' hall, the architect's"),
+    # Over the market lane, hourglasses held in time, each stopped at its own tilt.
+    *[("small_glass", x, 1893.0, 508.6, o, "the market lane, held in time", up, tilt) for x, o, up, tilt in (
+        (6378.0, 0.3, 5.0, 0.35), (6369.0, 2.1, 5.8, -0.25), (6360.0, 4.0, 4.6, 0.45), (6351.0, 5.2, 5.4, -0.4), (6342.0, 1.0, 5.0, 0.2))],
 ]
 
 # ---- What they say ------------------------------------------------------------------------------
@@ -423,9 +427,13 @@ DROP TEMPORARY TABLE `remix_malykriss_gone`;
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`,")
     w("  `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `ScriptName`, `VerifiedBuild`, `Comment`) VALUES")
     rows = []
-    for i, (key, x, y, near, o, what) in enumerate(PLACED):
-        rows.append(f"({7705400 + i}, {PROP_ENTRY[key]}, {MAP}, {ZONE}, {AREA}, 1, 1, {x:.2f}, {y:.2f}, {z_at(x, y, near):.2f}, {o:.4f}, "
-                    f"0, 0, {math.sin(o / 2):.6f}, {math.cos(o / 2):.6f}, 300, 100, 1, '', 0, {sql_text('Wrath Remix: ' + PROPS[key][2] + ', ' + what)})")
+    for i, (key, x, y, near, o, what, *more) in enumerate(PLACED):
+        up, tilt = (more + [0.0, 0.0])[:2]
+        # turned by o about the up axis, then tipped by tilt about its own long one
+        rot = (math.cos(o / 2) * math.sin(tilt / 2), math.sin(o / 2) * math.sin(tilt / 2), math.sin(o / 2) * math.cos(tilt / 2),
+               math.cos(o / 2) * math.cos(tilt / 2))
+        rows.append(f"({7705400 + i}, {PROP_ENTRY[key]}, {MAP}, {ZONE}, {AREA}, 1, 1, {x:.2f}, {y:.2f}, {z_at(x, y, near) + up:.2f}, {o:.4f}, "
+                    f"{rot[0]:.6f}, {rot[1]:.6f}, {rot[2]:.6f}, {rot[3]:.6f}, 300, 100, 1, '', 0, {sql_text('Wrath Remix: ' + PROPS[key][2] + ', ' + what)})")
     w(",\n".join(rows) + ";")
     w("")
 
