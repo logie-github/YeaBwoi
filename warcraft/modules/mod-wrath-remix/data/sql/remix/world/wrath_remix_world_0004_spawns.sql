@@ -20,7 +20,8 @@ DELETE FROM `creature` WHERE `guid` BETWEEN 7704001 AND 7704199;
 -- the bronze (Chapter II). The camp around them (its districts, props and people) is
 -- wrath_remix_world_0023_bazaar.sql (tools/bazaar.py, which keeps these spots too): Alurmi at the
 -- head of the market lane, Zephyr at the waystation's door, Sa'at at his map table, the
--- Chronologist and Momentus in the chronicle corner, the instructors at work in the training yard.
+-- Chronologist in the chronicle corner, the instructors at work in the training yard and Momentus,
+-- the weaponmaster, at its edge.
 SET @HX := 6394, @HY := 1869, @HZ := 508.7;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704011, @ETERNUS,      571, 1, 1, 1, @HX,      @HY + 8,  @HZ, 4.71, 60, 0, 0, 'Wrath Remix: Eternus, Bazaar'),
@@ -29,7 +30,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 (7704016, @ZEPHYR,       571, 1, 1, 1, 6402.5, 1838.0, 508.7, 1.87, 60, 0, 0, 'Wrath Remix: Zephyr, Bazaar'),
 (7704017, @SAAT,         571, 1, 1, 0, 6389.5, 1822.5, 508.7, 3.28, 60, 0, 0, 'Wrath Remix: Sa''at, Bazaar'),
 (7704018, @CHRONOLOGIST, 571, 1, 1, 0, 6410.0, 1895.0, 508.7, 0.00, 60, 0, 0, 'Wrath Remix: Chronologist, Bazaar'),
-(7704019, @MOMENTUS,     571, 1, 1, 0, 6410.0, 1903.5, 508.7, 0.00, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
+(7704019, @MOMENTUS,     571, 1, 1, 1, 6383.0, 1808.5, 508.7, 1.57, 60, 0, 0, 'Wrath Remix: Momentus, Bazaar'),
 -- After the turn (WRM-207), for those who saw it: where its scene leaves them (RemixNpcs.cpp).
 (7704013, @SYLVANAS,     571, 1, 1, 0, @HX + 4,   @HY + 6,   @HZ, 3.60, 60, 0, 0, 'Wrath Remix: Sylvanas Windrunner, Bazaar'),
 (7704014, @ALLERIA,      571, 1, 1, 0, @HX + 6.5, @HY + 3.5, @HZ, 3.40, 60, 0, 0, 'Wrath Remix: Alleria Windrunner, Bazaar');
@@ -63,17 +64,17 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 SELECT 7704020 + (t.`entry` - 770100), t.`entry`, 571, 1, 1, 0, p.x, p.y, p.z, p.o, 60, 0, 0,
   CONCAT('Wrath Remix: ', t.`subname`, ', Bazaar')
 FROM `creature_template` t JOIN (
-  SELECT 770101 AS entry, 5677.5 AS x, 984.5 AS y, 174.6 AS z, 3.76 AS o UNION ALL
-  SELECT 770102 AS entry, 5684.0 AS x, 976.0 AS y, 174.6 AS z, 4.71 AS o UNION ALL
-  SELECT 770103 AS entry, 5684.0 AS x, 971.0 AS y, 174.6 AS z, 1.57 AS o UNION ALL
-  SELECT 770104 AS entry, 5661.0 AS x, 975.0 AS y, 174.6 AS z, 3.14 AS o UNION ALL
-  SELECT 770105 AS entry, 5680.5 AS x, 989.5 AS y, 174.6 AS z, 4.17 AS o UNION ALL
-  SELECT 770106 AS entry, 5682.0 AS x, 996.5 AS y, 174.6 AS z, 0.00 AS o UNION ALL
-  SELECT 770107 AS entry, 5671.0 AS x, 965.8 AS y, 174.6 AS z, 4.71 AS o UNION ALL
-  SELECT 770108 AS entry, 5654.0 AS x, 994.0 AS y, 174.6 AS z, 1.57 AS o UNION ALL
-  SELECT 770109 AS entry, 5666.0 AS x, 986.5 AS y, 174.6 AS z, 4.71 AS o UNION ALL
-  SELECT 770110 AS entry, 5658.0 AS x, 986.5 AS y, 174.6 AS z, 4.71 AS o UNION ALL
-  SELECT 770111 AS entry, 5649.5 AS x, 992.0 AS y, 174.6 AS z, 0.42 AS o
+  SELECT 770101 AS entry, 6371.5 AS x, 1838.5 AS y, 508.7 AS z, 3.76 AS o UNION ALL
+  SELECT 770102 AS entry, 6378.0 AS x, 1830.0 AS y, 508.7 AS z, 4.71 AS o UNION ALL
+  SELECT 770103 AS entry, 6378.0 AS x, 1825.0 AS y, 508.7 AS z, 1.57 AS o UNION ALL
+  SELECT 770104 AS entry, 6355.0 AS x, 1829.0 AS y, 508.7 AS z, 3.14 AS o UNION ALL
+  SELECT 770105 AS entry, 6374.5 AS x, 1843.5 AS y, 508.7 AS z, 4.17 AS o UNION ALL
+  SELECT 770106 AS entry, 6376.0 AS x, 1850.5 AS y, 508.7 AS z, 0.00 AS o UNION ALL
+  SELECT 770107 AS entry, 6365.0 AS x, 1819.8 AS y, 508.7 AS z, 4.71 AS o UNION ALL
+  SELECT 770108 AS entry, 6348.0 AS x, 1848.0 AS y, 508.7 AS z, 1.57 AS o UNION ALL
+  SELECT 770109 AS entry, 6360.0 AS x, 1840.5 AS y, 508.7 AS z, 4.71 AS o UNION ALL
+  SELECT 770110 AS entry, 6352.0 AS x, 1840.5 AS y, 508.7 AS z, 4.71 AS o UNION ALL
+  SELECT 770111 AS entry, 6343.5 AS x, 1846.0 AS y, 508.7 AS z, 0.42 AS o
 ) p ON p.entry = t.`entry`;
 
 -- Moratari beside original quest givers: at each landing (where WRM-005 ends), at her

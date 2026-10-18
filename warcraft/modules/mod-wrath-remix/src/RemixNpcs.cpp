@@ -556,8 +556,8 @@ public:
     }
 };
 
-// The Bazaar's Bronze vendors (Alurmi, Horos, Domelius, Arturos, Aeonicus, Durus): each opens
-// its lists (remix_vendor_list) as vendor windows, priced in Bronze.
+// The Bazaar's Bronze vendors (Alurmi, and Legion Remix's cast from Horos to Erus, 770201 to
+// 770217): each opens its lists (remix_vendor_list) as vendor windows, priced in Bronze.
 // Grandmaster Jakkus's class mounts (Legion Remix's class mounts, Wrath's own): a paladin's
 // warhorse and charger, a warlock's felsteed and dreadsteed, a death knight's deathcharger, taught
 // at any level for Bronze (all riding is known from the first login). The ones still to learn.

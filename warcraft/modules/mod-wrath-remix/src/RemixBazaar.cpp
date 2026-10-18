@@ -2,7 +2,8 @@
 /*
  * The Infinite Bazaar's life (wrath_remix_world_0023_bazaar.sql): the people of the camp talk while
  * a Timerunner is about, to the air or to each other. Each spawn with lines (remix_bazaar_line) says
- * one now and then, a minute or so apart, with the gesture it goes with; a line with a reply has the
+ * one now and then, a minute or so apart, with the gesture it goes with (a line beginning %s is an
+ * emote: Agos the Silent only nods); a line with a reply has the
  * other one turn to it and answer a few seconds later. Nobody talks to an empty camp, nor in a fight,
  * and only those who can see them hear them (the story hides some from some: Sylvanas before the
  * turn, Eternus after it). What they do between (sitting, kneeling, working, reading, walking their rounds) is the world
@@ -77,14 +78,16 @@ namespace
         return seeing;
     }
 
-    // [speaker] says [text] to everyone who can see them.
+    // [speaker] says [text] to everyone who can see them; a text that begins with %s is what they
+    // do instead (an emote: "%s nods.", the game puts their name there).
     void Speak(Creature* speaker, std::string const& text, uint32 emote)
     {
+        ChatMsg type = text.rfind("%s", 0) == 0 ? CHAT_MSG_MONSTER_EMOTE : CHAT_MSG_MONSTER_SAY;
         bool someoneReal;
         for (Player* player : Listeners(speaker, someoneReal))
         {
             WorldPacket data;
-            ChatHandler::BuildChatPacket(data, CHAT_MSG_MONSTER_SAY, LANG_UNIVERSAL, speaker, player, text);
+            ChatHandler::BuildChatPacket(data, type, LANG_UNIVERSAL, speaker, player, text);
             player->SendDirectMessage(&data);
         }
         if (emote)

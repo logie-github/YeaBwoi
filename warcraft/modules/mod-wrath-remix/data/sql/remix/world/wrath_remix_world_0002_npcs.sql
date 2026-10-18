@@ -39,7 +39,7 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (@ZEPHYR,         'Zephyr',         'Keeper of the Ways',      80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_zephyr'),
 (@SAAT,           'Sa''at',         'Timeline Safety',         80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_saat'),
 (@CHRONOLOGIST,   'Chronologist',   'Wrath Remix',             80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_chronologist'),
-(@MOMENTUS,       'Momentus',       'Infinite Power',          80, 80, 2, 35, 1, 1, 1.14286, 0, 2, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_momentus'),
+(@MOMENTUS,       'Momentus',       'Weaponmaster',            80, 80, 2, 35, 1, 1, 1.14286, 0, 2, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_momentus'),
 -- The war's dead as Eternus shows them, frozen at the moment they fell.
 (@ECHO_FOOTMAN,   'Echo of a Fallen Footman', 'Valiance Keep, the first day', 80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 1, 1, 2000, 1, 'npc_remix_echo'),
 (@ECHO_SAURFANG,  'Echo of Dranosh Saurfang', 'Angrathar, the Wrathgate',     80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 1, 1, 2000, 1, 'npc_remix_echo'),
@@ -142,7 +142,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (@ZEPHYR, 0, 19282, 1, 1, 0),
 (@SAAT, 0, 19411, 1, 1, 0),
 (@CHRONOLOGIST, 0, 27756, 1, 1, 0),   -- a bronze dragon as a woman of Lordaeron (Zidormi's look)
-(@MOMENTUS, 0, 19063, 1, 1, 0),
+(@MOMENTUS, 0, 19062, 1, 1, 0),      -- an armoured infinite dragonspawn (an Infinite Executioner's), as Legion Remix's weaponmaster
 (@ECHO_FOOTMAN, 0, 23031, 1, 1, 0),    -- a Valiance Keep Footman
 (@ECHO_SAURFANG, 0, 23034, 1, 1, 0),   -- Saurfang the Younger
 (@ECHO_BOLVAR, 0, 24879, 1, 1, 0),     -- Highlord Bolvar Fordragon at the Wrathgate
@@ -209,6 +209,7 @@ INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`,
 (@MORATARI_SCENE, 1, 39287, 0, 0, 0),
 (@ETERNUS, 1, 38609, 0, 0, 0),
 (@ZEPHYR, 1, 13861, 0, 0, 0),
+(@MOMENTUS, 1, 12950, 0, 0, 0),     -- a warhammer
 (@ACT_ETERNUS, 1, 38609, 0, 0, 0),
 (@LAST_ETERNUS, 1, 38609, 0, 0, 0),
 (@ALLY_MORATARI, 1, 39287, 0, 0, 0);
@@ -264,8 +265,8 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
           'The dungeons of Northrend keep their own hours. Here they keep yours: each is waiting at the level of the chapter it belongs to.', 1),
 (7702060, 'Seven chapters, ten levels to eighty, and the Lich King at the end of them. Here is where you stand.',
           'Seven chapters, ten levels to eighty, and the Lich King at the end of them. Here is where you stand.', 1),
-(7702070, 'Infinite Power is what a champion keeps when time gives back what it took. Not yet, Timerunner. Soon.',
-          'Infinite Power is what a champion keeps when time gives back what it took. Not yet, Timerunner. Soon.', 1),
+(7702070, 'There are few problems that a little heat and a hammer cannot solve.$B$BEvery weapon your hands were made for, $c: I will teach you all of them, today, as if you had trained with each for years. No Bronze for this. We forge our own futures.',
+          'There are few problems that a little heat and a hammer cannot solve.$B$BEvery weapon your hands were made for, $c: I will teach you all of them, today, as if you had trained with each for years. No Bronze for this. We forge our own futures.', 1),
 -- The echoes (WRM-011): the dead Eternus means to save.
 (7702080, 'The boats came in under the arrows and the cold. I made it off the beach. I did not make it off the second day. When I stood up again, I was fighting for them.',
           'The boats came in under the arrows and the cold. I made it off the beach. I did not make it off the second day. When I stood up again, I was fighting for them.', 1),
