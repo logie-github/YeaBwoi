@@ -1738,8 +1738,9 @@ public:
             handler->SendSysMessage("Wrath Remix intro: skipped.");
         }
         else if (what && *what == "status")
-            handler->PSendSysMessage("Wrath Remix intro: {}, {}, at {:.1f} {:.1f} {:.1f} on map {}.", InIntro(player) ? "in it" : "not in it",
-                player->IsAlive() ? "alive" : "dead", player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId());
+            handler->PSendSysMessage("Wrath Remix intro: {}, {}, {}, at {:.1f} {:.1f} {:.1f} on map {}.", InIntro(player) ? "in it" : "not in it",
+                player->IsAlive() ? "alive" : "dead", player->IsSitState() ? "seated" : "standing", player->GetPositionX(), player->GetPositionY(),
+                player->GetPositionZ(), player->GetMapId());
         else if (what && *what == "fall")
         {
             // What the core does to whoever falls under the world (MovementHandler.cpp).
@@ -1801,6 +1802,9 @@ public:
         {
             CreatureTemplate const* info = creature->GetCreatureTemplate();
             if (!info || (info->Entry >= NPC_MORATARI && info->Entry <= NPC_INSTRUCTOR_LAST))
+                continue;
+            // (anyone's pet, guardian or totem, a bot's hunter's say, passing by: the squish leaves them be)
+            if (creature->IsPet() || creature->HasUnitTypeMask(UNIT_MASK_MINION) || creature->GetCharmerOrOwnerGUID() || creature->IsControlledByPlayer())
                 continue;
             bool applies = band && int32(info->minlevel) > band->bandMax;
             if (applies)

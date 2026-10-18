@@ -20,6 +20,8 @@ import sys
 import time
 import urllib.request
 
+USER_AGENT = "YeaBwoi-build/1.0 (+https://github.com/logie-github/YeaBwoi)"   # (wago.tools turns away Python's own)
+
 MODULE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SQL = os.path.join(MODULE, "data", "sql", "remix", "world", "wrath_remix_world_0028_voices.sql")
 FIRST_SOUND = 77001  # SoundEntries ids (the game's own end at 18019)
@@ -123,7 +125,8 @@ def fetch(folder):
         ogg = wav[:-4] + ".ogg"
         for attempt in range(4):
             try:
-                with urllib.request.urlopen("https://wago.tools/api/casc/%d?download" % fdid, timeout=30) as response:
+                with urllib.request.urlopen(urllib.request.Request("https://wago.tools/api/casc/%d?download" % fdid,
+                        headers={"User-Agent": USER_AGENT}), timeout=30) as response:
                     data = response.read()
                 if data[:4] != b"OggS":
                     raise ValueError("not an Ogg file")
@@ -142,8 +145,9 @@ def fetch(folder):
             continue
         fetched += 1
         # 16-bit mono at 22,050 Hz, as the game's own voices
+        # (and nothing else in the file: no tags)
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", ogg, "-ac", "1", "-ar", "22050",
-                        "-c:a", "pcm_s16le", wav], check=True)
+                        "-c:a", "pcm_s16le", "-map_metadata", "-1", "-bitexact", wav], check=True)
         os.remove(ogg)
         got += 1
     print("voices: %d of %d of Moratari's lines in %s" % (got, len(LINES), folder))

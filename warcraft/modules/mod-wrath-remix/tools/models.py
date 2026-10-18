@@ -29,6 +29,8 @@ import sys
 import time
 import urllib.request
 
+USER_AGENT = "YeaBwoi-build/1.0 (+https://github.com/logie-github/YeaBwoi)"   # (wago.tools turns away Python's own)
+
 MODEL = 4500511                     # creature/<her dragon>.m2 (CreatureModelData 13291)
 SKIN_TEXTURE = 4500601              # her display's skin (both of its texture variations)
 SHOWN_GEOSETS = {0, 101, 202, 402}  # her display's geosets (CreatureDisplayInfoGeosetData of 106055)
@@ -342,7 +344,8 @@ def convert(fetch_file, folder):
 def wago(file_id):
     for attempt in range(4):
         try:
-            with urllib.request.urlopen("https://wago.tools/api/casc/%d?download" % file_id, timeout=60) as response:
+            with urllib.request.urlopen(urllib.request.Request("https://wago.tools/api/casc/%d?download" % file_id,
+                                        headers={"User-Agent": USER_AGENT}), timeout=60) as response:
                 return response.read()
         except Exception as error:  # a network hiccup: once more, a little later
             print("models: file %d: %s" % (file_id, error), file=sys.stderr)

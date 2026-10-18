@@ -31,6 +31,7 @@
 #include "GameObject.h"
 #include "Log.h"
 #include "Map.h"
+#include "MapMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
@@ -40,6 +41,7 @@
 #include "SpellAuras.h"
 #include "Random.h"
 #include "TemporarySummon.h"
+#include "Timer.h"
 #include <atomic>
 #include <cmath>
 #include <functional>
@@ -69,6 +71,19 @@ namespace
     // The taverns: the innkeeper where she stands, facing her customers.
     Place const GILDED_ROSE{ 0, -8867.8f, 673.7f, 98.0f, 5.20f };
     Place const BROKEN_TUSK{ 1, 1634.0f, -4439.4f, 15.8f, 2.76f };
+    // The table for four they sit at: in the Gilded Rose its own, by the hearth, with the game's
+    // four chairs around it (the Timerunner's first, facing the room); the Broken Tusk has no table
+    // in the open, so one is set out before the innkeeper (TableAt), the Timerunner's chair with
+    // its back to her, where they stood before.
+    Place const GILDED_ROSE_CHAIRS[4] = {
+        { 0, -8866.53f, 682.95f, 97.94f, 5.315f }, { 0, -8867.01f, 680.74f, 97.94f, 0.602f },
+        { 0, -8864.89f, 680.33f, 97.94f, 2.173f }, { 0, -8864.29f, 682.38f, 97.94f, 3.744f } };
+    Position const GILDED_ROSE_STOP(-8866.2f, 679.5f, 97.94f);          // Moratari, at its edge
+    constexpr float TABLE_FROM_INN = 5.5f, CHAIR_FROM_TABLE = 1.5f;     // the Broken Tusk's
+    constexpr uint32 GO_ALLIANCE_CHAIR = 24469;  // Wooden Chair, the Gilded Rose's own
+    constexpr uint32 GO_HORDE_CHAIR = 191242;    // a log chair
+    constexpr uint32 GO_HORDE_TABLE = 180888;    // OrcTable01
+    constexpr uint32 ZONE_STORMWIND_CITY = 1519, ZONE_ORGRIMMAR = 1637;
     // The three moments: Angrathar's battlefield before the gate, the Forsaken's cliffs on the
     // right; Wintergarde's lower village, its town square, facing Naxxramas; and the Valley of
     // Fallen Heroes, facing the Citadel.
@@ -148,6 +163,7 @@ namespace
         std::vector<ObjectGuid> scourge;  // the battle's dead who fight
         std::vector<ObjectGuid> fallen;   // the bodies on a field, to be raised
         std::vector<ObjectGuid> friends;  // the tavern's three
+        std::vector<ObjectGuid> props;    // the tavern's table and chairs, set out in the opening's phase
         ObjectGuid tirion, lichKing, voice, moratari, innkeeper;
         Place place{};                    // where the act under way has the Timerunner
         uint32 act = 0;                   // each act's steps belong to it alone
@@ -443,11 +459,34 @@ namespace
         for (ObjectGuid guid : b.people)
             if (Creature* c = Who(player, guid))
                 c->DespawnOrUnsummon();
+        for (ObjectGuid guid : b.props)
+            if (GameObject* go = ObjectAccessor::GetGameObject(*player, guid))
+                go->DespawnOrUnsummon();
+        b.props.clear();
         b.people.clear();
         b.scourge.clear();
         b.fallen.clear();
         b.friends.clear();
         b.tirion = b.lichKing = b.voice = b.moratari = b.innkeeper = ObjectGuid::Empty;
+    }
+
+    // At the table: in their chair, and kept there (the game's control of them taken from it)
+    // until Moratari takes them from the tavern; standing for a toast, and sitting again.
+    void SitDown(Player* player)
+    {
+        player->SetStandState(UNIT_STAND_STATE_SIT_MEDIUM_CHAIR);
+        player->SetClientControl(player, false, true);
+    }
+
+    void StandUp(Player* player)
+    {
+        player->SetStandState(UNIT_STAND_STATE_STAND);
+    }
+
+    void GetUp(Player* player)
+    {
+        player->SetStandState(UNIT_STAND_STATE_STAND);
+        player->SetClientControl(player, true);
     }
 
     void EndOpening(Player* player)
@@ -524,6 +563,7 @@ namespace
         b.over = true;
         ++b.act;
         Despawn(player, b);
+        GetUp(player);
         player->RemoveAurasDueToSpell(SPELL_AVENGING_WRATH);
         player->RemoveAurasDueToSpell(SPELL_TIME_STOP_VISUAL);
         player->CombatStop(true);
@@ -590,12 +630,21 @@ namespace
         player->CombatStop(true);
         player->RemoveAurasDueToSpell(SPELL_AVENGING_WRATH);
         player->RemoveAurasDueToSpell(SPELL_TIME_STOP_VISUAL);
-        player->SetStandState(UNIT_STAND_STATE_STAND);
+        GetUp(player);
         player->SetPhaseMask(PHASE_INTRO, true);
+        // (already there, as a new Timerunner is made in their tavern: no journey at all)
+        if (player->GetMapId() == place.map && player->GetExactDist2d(place.x, place.y) < 2.0f)
+        {
+            player->SetFacingTo(place.o);
+            WhenThere(player->GetGUID(), o, b.act, 60, std::move(then));
+            return;
+        }
         player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
-        if (player->GetMapId() == place.map)
+        // (far across the same map: held over the ground until it's loaded; a step indoors isn't)
+        bool far = player->GetMapId() != place.map || player->GetExactDist2d(place.x, place.y) > 100.0f;
+        if (far && player->GetMapId() == place.map)
             HoldOverTheGround(player);
-        if (!player->TeleportTo(place.map, place.x, place.y, place.z + 0.5f, place.o))
+        if (!player->TeleportTo(place.map, place.x, place.y, place.z + (far ? 0.5f : 0.0f), place.o))
         {
             Finish(player, b);
             return;
@@ -692,6 +741,62 @@ namespace
         { 63000, 1, "$N, you have gone quiet. You were there at the very end. What was it like, when he fell?", EMOTE_ONESHOT_QUESTION },
     };
 
+    // Where they sit: the four chairs (the Timerunner's first) and where Moratari stops at the
+    // table's edge; the Broken Tusk's table, set out [TABLE_FROM_INN] yards before the innkeeper.
+    // With [player] there, on the floor as it is; before they are (null), at the innkeeper's height.
+    struct Seats
+    {
+        Place chairs[4];
+        Position stop, table;
+    };
+
+    float Floor(Player* player, float x, float y, float z)
+    {
+        if (!player)
+            return z;
+        float floor = player->GetMap()->GetHeight(player->GetPhaseMask(), x, y, z + 2.0f, true, 10.0f);
+        return floor > z - 3.0f && floor < z + 2.0f ? floor : z;
+    }
+
+    Seats SeatsOf(Player* player, bool alliance)
+    {
+        Seats s;
+        if (alliance)
+        {
+            for (uint32 i = 0; i < 4; ++i)
+                s.chairs[i] = GILDED_ROSE_CHAIRS[i];
+            s.stop = GILDED_ROSE_STOP;
+            return s;
+        }
+        Place const& inn = BROKEN_TUSK;
+        float cx = inn.x + TABLE_FROM_INN * std::cos(inn.o), cy = inn.y + TABLE_FROM_INN * std::sin(inn.o);
+        s.table = Position(cx, cy, Floor(player, cx, cy, inn.z), inn.o);
+        // (the Timerunner's on the innkeeper's side, then round the table, each facing it)
+        float const around[4] = { float(M_PI), float(M_PI) / 2.0f, 0.0f, -float(M_PI) / 2.0f };
+        for (uint32 i = 0; i < 4; ++i)
+        {
+            float a = inn.o + around[i];
+            float x = cx + CHAIR_FROM_TABLE * std::cos(a), y = cy + CHAIR_FROM_TABLE * std::sin(a);
+            s.chairs[i] = Place{ inn.map, x, y, Floor(player, x, y, inn.z), Position::NormalizeOrientation(a + float(M_PI)) };
+        }
+        float a = inn.o + float(M_PI) / 4.0f;
+        float x = cx + 2.3f * std::cos(a), y = cy + 2.3f * std::sin(a);
+        s.stop = Position(x, y, Floor(player, x, y, inn.z));
+        return s;
+    }
+
+    // Everyone at the table on their feet for a toast, or sitting down again after it.
+    void Toast(Player* player, Opening& b, bool up)
+    {
+        for (ObjectGuid guid : b.friends)
+            if (Creature* c = Who(player, guid))
+                c->SetStandState(up ? UNIT_STAND_STATE_STAND : UNIT_STAND_STATE_SIT_MEDIUM_CHAIR);
+        if (up)
+            StandUp(player);
+        else
+            SitDown(player);
+    }
+
     // Everyone at the table drinking (their tankards raised), and the Timerunner with them.
     void Drink(Player* player, Opening& b)
     {
@@ -706,18 +811,39 @@ namespace
         Opening& b = *o;
         bool alliance = Alliance(player);
         Place const& inn = alliance ? GILDED_ROSE : BROKEN_TUSK;
+        Seats const seats = SeatsOf(player, alliance);
         player->SendPlayMusic(alliance ? MUSIC_TAVERN_ALLIANCE : MUSIC_TAVERN_HORDE, true);
         player->PlayDirectSound(SOUND_TAVERN_CROWD, player);
         if (Creature* keeper = Bring(player, b, alliance ? INNKEEPER_A : INNKEEPER_H, Position(inn.x, inn.y, inn.z, inn.o)))
             b.innkeeper = keeper->GetGUID();
+
+        // The table and its chairs, in the opening's phase (the room's own chairs, the game's, are
+        // in everyone's and not seen in it; the Gilded Rose's table is the room's).
+        auto setOut = [player, &b](uint32 entry, float x, float y, float z, float facing)
+        {
+            if (GameObject* go = player->SummonGameObject(entry, x, y, z, facing, 0.0f, 0.0f, std::sin(facing / 2.0f), std::cos(facing / 2.0f), 300))
+                b.props.push_back(go->GetGUID());
+        };
+        if (!alliance)
+            setOut(GO_HORDE_TABLE, seats.table.GetPositionX(), seats.table.GetPositionY(), seats.table.GetPositionZ(), seats.table.GetOrientation());
+        for (Place const& chair : seats.chairs)
+            setOut(alliance ? GO_ALLIANCE_CHAIR : GO_HORDE_CHAIR, chair.x, chair.y, chair.z, chair.o);
+
+        // The Timerunner in their chair (a new one is made in it), and kept there.
+        Place const& mine = seats.chairs[0];
+        if (player->GetExactDist2d(mine.x, mine.y) > 0.5f)
+            player->NearTeleportTo(mine.x, mine.y, mine.z, mine.o);
+        At(player, o, 300, [](Player* p, Opening&) { SitDown(p); });
+
         uint32 const party[3] = { alliance ? BRANNOC : GRAKKA, alliance ? SYLENNA : TAHONO, alliance ? TOBIAS : VEYLAN };
-        float const places[3][2] = { { 4.9f, 1.9f }, { 6.3f, 0.3f }, { 5.0f, -1.9f } };
         for (uint32 i = 0; i < 3; ++i)
         {
-            Position at = Indoors(player, inn, places[i][0], places[i][1]);
-            at.SetOrientation(Facing(at.GetPositionX(), at.GetPositionY(), player->GetPositionX(), player->GetPositionY()));
-            if (Creature* c = Bring(player, b, party[i], at))
+            Place const& chair = seats.chairs[i + 1];
+            if (Creature* c = Bring(player, b, party[i], Position(chair.x, chair.y, chair.z, chair.o)))
+            {
+                c->SetStandState(UNIT_STAND_STATE_SIT_MEDIUM_CHAIR);
                 b.friends.push_back(c->GetGUID());
+            }
         }
 
         for (TavernLine const& line : alliance ? std::vector<TavernLine>(std::begin(ALLIANCE_TAVERN), std::end(ALLIANCE_TAVERN))
@@ -726,10 +852,13 @@ namespace
             At(player, o, line.at, [line](Player* p, Opening& b)
             {
                 ObjectGuid who = line.who == 3 ? b.innkeeper : (line.who < int(b.friends.size()) ? b.friends[line.who] : ObjectGuid::Empty);
-                Speak(p, Who(p, who), line.text, line.emote);
+                Creature* c = Who(p, who);
+                // (one sitting talks without getting up: a gesture would bring them to their feet)
+                Speak(p, c, line.text, c && c->IsSitState() ? 0 : line.emote);
             });
         }
-        // The toast: everyone cheers, the room with them; then they drink.
+        // The toast: on their feet, everyone cheers, the room with them; then they drink, and sit.
+        At(player, o, 6500, [](Player* p, Opening& b) { Toast(p, b, true); });
         At(player, o, 7600, [alliance](Player* p, Opening& b)
         {
             for (ObjectGuid guid : b.friends)
@@ -739,22 +868,25 @@ namespace
             p->PlayDirectSound(alliance ? SOUND_CHEER_ALLIANCE : SOUND_CHEER_HORDE, p);
         });
         At(player, o, 11500, [](Player* p, Opening& b) { Drink(p, b); });
+        At(player, o, 13800, [](Player* p, Opening& b) { Toast(p, b, false); });
+        // And to the friend who didn't come home: up again, a salute, a drink.
+        At(player, o, 42000, [](Player* p, Opening& b) { Toast(p, b, true); });
         At(player, o, 46000, [](Player* p, Opening& b) { Drink(p, b); });
+        At(player, o, 48500, [](Player* p, Opening& b) { Toast(p, b, false); });
 
-        // The room stops, mid-question, and Moratari walks in.
+        // The room stops, mid-question, and Moratari walks in, to the table's edge.
         At(player, o, 69000, [](Player* p, Opening& b)
         {
             Freeze(p, b, false);
             p->SendPlayMusic(0, true);
         });
-        At(player, o, 71000, [inn](Player* p, Opening& b)
+        At(player, o, 71000, [inn, seats](Player* p, Opening& b)
         {
             Position from = Indoors(p, inn, 11.0f, 0.0f);
             if (TempSummon* rift = p->SummonCreature(NPC_TIME_RIFT, from, TEMPSUMMON_TIMED_DESPAWN, 6000, 0, nullptr, true))
                 b.people.push_back(rift->GetGUID());
-            // (to the table's edge, between two friends and clear of them: Tahono, a tauren, is two yards across)
             if (Creature* moratari = BringMoratari(p, b, from))
-                moratari->GetMotionMaster()->MovePoint(1, Indoors(p, inn, 6.5f, -1.5f));
+                moratari->GetMotionMaster()->MovePoint(1, seats.stop);
         });
         At(player, o, 75500, [](Player* p, Opening& b) { SheSays(p, b, "I'm sorry, hero. I need you."); });
         At(player, o, 80500, [](Player* p, Opening& b)
@@ -1256,10 +1388,8 @@ namespace
                 return;
             ++running;
         }
-        // To the tavern: before the innkeeper, at the table with their friends.
-        Place const& inn = Alliance(player) ? GILDED_ROSE : BROKEN_TUSK;
-        Place you{ inn.map, inn.x + 4.0f * std::cos(inn.o), inn.y + 4.0f * std::sin(inn.o), inn.z, Position::NormalizeOrientation(inn.o + float(M_PI)) };
-        GoTo(player, opening, you, Tavern);
+        // To the tavern: in their chair at the table with their friends.
+        GoTo(player, opening, SeatsOf(nullptr, Alliance(player)).chairs[0], Tavern);
     }
 }
 
@@ -1280,7 +1410,18 @@ void WrathRemix::SkipIntro(Player* player)
     if (std::shared_ptr<Opening> opening = OpeningOf(player))
         Finish(player, *opening);
     else if (Active())
+    {
+        bool owed = Owed(player);
         SetIntroSeen(player);
+        // (one made in their tavern, skipping it before it began: to the Bazaar, where it ends, their
+        // hearthstone with it)
+        if (owed && AtATavern(player))
+        {
+            WorldLocation bazaar(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+            player->SetHomebind(bazaar, ZONE_CRYSTALSONG);
+            player->TeleportTo(bazaar);
+        }
+    }
 }
 
 // Everyone in it: in the battle they fight the other side, and the Timerunner's blows land as a
@@ -1496,11 +1637,16 @@ public:
     }
 };
 
-// Every new character but a death knight wakes at the Bazaar (wrath_remix_world_0003_prologue.sql),
-// whatever else rewrites playercreateinfo after that file: mod-skyborne's SQL, applied again each
-// time it changes, puts its races' start back in Northshire and at Camp Narache. Set again in the
+// Where every new character but a death knight is made: in their side's tavern, in their chair at
+// the table, when the opening is theirs (so the first thing loaded is where it begins, and nothing
+// else before it); at the Bazaar without it (wrath_remix_world_0003_prologue.sql). Set in the
 // server's own copy as it starts (before anyone can log in; nothing reads it but a character's
-// making and their first hearthstone).
+// making and their first hearthstone, which the opening sets to the Bazaar), whatever else rewrites
+// playercreateinfo: mod-skyborne's SQL, applied again each time it changes, puts its races' start
+// back in Northshire and at Camp Narache.
+// And everywhere the opening goes, and the Bazaar, loaded as the realm starts (the core keeps a
+// grid it has loaded), so the phone isn't loading those places' ground and people as the
+// Timerunner arrives.
 class RemixIntroWorld : public WorldScript
 {
 public:
@@ -1510,24 +1656,36 @@ public:
     {
         if (!Active())
             return;
+        bool intro = Enabled();
         uint32 moved = 0;
         for (uint32 race = 1; race < RaceMgr::GetMaxRaces(); ++race)
             for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
             {
                 PlayerInfo* info = const_cast<PlayerInfo*>(sObjectMgr->GetPlayerInfo(race, cls));
-                if (!info || cls == CLASS_DEATH_KNIGHT ||
-                    (info->mapId == MAP_NORTHREND && std::hypot(info->positionX - BAZAAR_X, info->positionY - BAZAAR_Y) < 5.0f))
+                if (!info || cls == CLASS_DEATH_KNIGHT)
                     continue;
-                info->mapId = MAP_NORTHREND;
-                info->areaId = ZONE_CRYSTALSONG;
-                info->positionX = BAZAAR_X;
-                info->positionY = BAZAAR_Y;
-                info->positionZ = BAZAAR_Z;
-                info->orientation = BAZAAR_O;
+                bool alliance = Player::TeamIdForRace(uint8(race)) == TEAM_ALLIANCE;
+                Place start = intro ? SeatsOf(nullptr, alliance).chairs[0] : Place{ MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O };
+                uint32 zone = !intro ? ZONE_CRYSTALSONG : (alliance ? ZONE_STORMWIND_CITY : ZONE_ORGRIMMAR);
+                if (info->mapId == start.map && std::hypot(info->positionX - start.x, info->positionY - start.y) < 1.0f)
+                    continue;
+                info->mapId = start.map;
+                info->areaId = zone;
+                info->positionX = start.x;
+                info->positionY = start.y;
+                info->positionZ = start.z;
+                info->orientation = start.o;
                 ++moved;
             }
         if (moved)
-            LOG_INFO("module", "Wrath Remix: {} race and class starts moved to the Infinite Bazaar (playercreateinfo had them elsewhere)", moved);
+            LOG_INFO("module", "Wrath Remix: {} race and class starts moved to {}", moved, intro ? "their side's tavern (the opening)" : "the Infinite Bazaar");
+
+        uint32 started = getMSTime();
+        for (Place const& at : { GILDED_ROSE, BROKEN_TUSK, Place{ MAP_NORTHREND, FRONT_X, FRONT_Y, FRONT_Z, FRONT_O }, WRATHGATE,
+                                 WINTERGARDE, FIELDS, Place{ MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O } })
+            if (Map* map = sMapMgr->CreateBaseMap(at.map))
+                map->LoadGridsInRange(Position(at.x, at.y, at.z), at.map == MAP_NORTHREND && at.x == FRONT_X ? FRONT_REACH : 100.0f);
+        LOG_INFO("module", "Wrath Remix: the opening's places and the Bazaar loaded ({} ms)", GetMSTimeDiffToNow(started));
     }
 };
 

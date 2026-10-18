@@ -14,7 +14,11 @@ expect chapter 0 (the prologue)
 wait 8
 cmd .gps
 expect Stormwind City
-wait 72
+# (in their chair at the table with their friends, between the toasts)
+wait 14
+cmd .remix intro status
+expect seated
+wait 56
 expect I'm sorry, hero. I need you.
 wait 14
 cmd .gps

@@ -404,7 +404,8 @@ EOF
 	export WORLD_PORT=8086
 	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Timerunner | tee "$FILES/logs/remix-client.out" ||
 		fail "a character couldn't get into the Remix world"
-	grep -q "level 10, map 571" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 at the Infinite Bazaar"
+	# (made in the Gilded Rose, in their chair, where the opening begins)
+	grep -q "level 10, map 0, zone" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 in Stormwind's tavern"
 	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 | tee "$FILES/logs/remix-characters.out"
 	if grep -q "^Testhero" "$FILES/logs/remix-characters.out"; then fail "ChromieCraft's character is on Wrath Remix"; fi
 
