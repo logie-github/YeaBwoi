@@ -60,6 +60,14 @@ namespace WrathRemix
         NPC_ARTUROS       = 770203,
         NPC_AEONICUS      = 770204,
         NPC_DURUS         = 770205,
+        // Legion Remix's Bazaar cast, the rest of it (wrath_remix_world_0009_bronze.sql): vendors 770206
+        // to 770217, Grandmaster Jakkus's class mounts besides his wares, Pageturner Metros who
+        // knows where everyone is, Nedward by the barber's chair. (Gossip texts: 7702201 + n.)
+        NPC_PYTHAGORUS    = 770206,
+        NPC_JAKKUS        = 770211,
+        NPC_ERUS          = 770217,
+        NPC_METROS        = 770218,
+        NPC_NEDWARD       = 770219,
 
         AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue was until build 64
         ZONE_CRYSTALSONG  = 2817,       // the Bazaar's zone

@@ -39,6 +39,8 @@ namespace
         SENDER_TRAVEL,
         SENDER_CHAPTER,
         SENDER_NONE,
+        SENDER_MOUNTS,      // Grandmaster Jakkus's class mounts
+        SENDER_WEAPONS,     // Momentus's weapons
     };
 
     enum MoratariActions : uint32
@@ -556,6 +558,38 @@ public:
 
 // The Bazaar's Bronze vendors (Alurmi, Horos, Domelius, Arturos, Aeonicus, Durus): each opens
 // its lists (remix_vendor_list) as vendor windows, priced in Bronze.
+// Grandmaster Jakkus's class mounts (Legion Remix's class mounts, Wrath's own): a paladin's
+// warhorse and charger, a warlock's felsteed and dreadsteed, a death knight's deathcharger, taught
+// at any level for Bronze (all riding is known from the first login). The ones still to learn.
+static std::vector<uint32> ClassMountsToLearn(Player* player)
+{
+    std::vector<uint32> spells;
+    switch (player->getClass())
+    {
+        case CLASS_PALADIN:
+            if (player->getRace() == RACE_BLOODELF)
+                spells = { 34769, 34767 };      // Thalassian Warhorse, Thalassian Charger
+            else
+                spells = { 13819, 23214 };      // Warhorse, Charger
+            break;
+        case CLASS_WARLOCK:
+            spells = { 5784, 23161 };           // Felsteed, Dreadsteed
+            break;
+        case CLASS_DEATH_KNIGHT:
+            spells = { 48778 };                 // Acherus Deathcharger
+            break;
+        default:
+            break;
+    }
+    std::vector<uint32> missing;
+    for (uint32 spell : spells)
+        if (!player->HasSpell(spell))
+            missing.push_back(spell);
+    return missing;
+}
+
+constexpr uint32 CLASS_MOUNTS_PRICE = 10000;
+
 static void BronzeVendorMenu(Player* player, Creature* creature)
 {
     ClearGossipMenuFor(player);
@@ -566,12 +600,32 @@ static void BronzeVendorMenu(Player* player, Creature* creature)
     for (VendorList const& list : VendorLists())
         if (list.vendor == creature->GetEntry() && OnSide(player, list.side))
             AddGossipItemFor(player, GOSSIP_ICON_VENDOR, list.label, SENDER_LIST, list.list);
+    if (creature->GetEntry() == NPC_JAKKUS && !ClassMountsToLearn(player).empty())
+        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Teach me my class's mounts (" + Number(CLASS_MOUNTS_PRICE) + " Bronze).", SENDER_MOUNTS, 0);
     uint32 text = creature->GetEntry() == NPC_ALURMI ? uint32(TEXT_ALURMI) : uint32(TEXT_HOROS) + (creature->GetEntry() - NPC_HOROS);
     SendGossipMenuFor(player, text, creature);
 }
 
 static bool BronzeVendorSelect(Player* player, Creature* creature, uint32 sender, uint32 action)
 {
+    if (sender == SENDER_MOUNTS && creature->GetEntry() == NPC_JAKKUS)
+    {
+        CloseGossipMenuFor(player);
+        std::vector<uint32> spells = ClassMountsToLearn(player);
+        if (spells.empty())
+            return true;
+        if (Bronze(player) < CLASS_MOUNTS_PRICE)
+        {
+            creature->Whisper(Words(player, "Come back with " + Number(CLASS_MOUNTS_PRICE) + " Bronze, $n. A legend's steed is not cheap, even in the past."), LANG_UNIVERSAL, player);
+            return true;
+        }
+        player->DestroyItemCount(ITEM_BRONZE, CLASS_MOUNTS_PRICE, true, false);
+        for (uint32 spell : spells)
+            player->learnSpell(spell);
+        creature->Say(Words(player, "There. Ride it like you mean it, $n."), LANG_UNIVERSAL, player);
+        creature->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
+        return true;
+    }
     if (sender == SENDER_LIST)
     {
         for (VendorList const& list : VendorLists())
@@ -749,12 +803,47 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
+    // Legion Remix's weaponmaster: every weapon the Timerunner's class can wield, taught at once
+    // and at their level's skill.
+    static std::vector<uint32> WeaponsToLearn(Player* player)
+    {
+        // one- and two-handed axes, maces and swords, polearms, staves, bows, guns, daggers,
+        // thrown, crossbows, fist weapons, wands
+        static uint32 const weapons[] = { 196, 197, 198, 199, 200, 201, 202, 227, 264, 266, 1180, 2567, 5011, 15590, 5009 };
+        std::vector<uint32> missing;
+        for (uint32 spell : weapons)
+            if (!player->HasSpell(spell) && player->IsSpellFitByClassAndRace(spell))
+                missing.push_back(spell);
+        return missing;
+    }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
             return false;
         ClearGossipMenuFor(player);
+        if (!WeaponsToLearn(player).empty())
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Teach me every weapon I can wield.", SENDER_WEAPONS, 0);
         SendGossipMenuFor(player, TEXT_MOMENTUS, creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
+    {
+        if (!Active())
+            return false;
+        CloseGossipMenuFor(player);
+        if (sender != SENDER_WEAPONS)
+            return true;
+        std::vector<uint32> spells = WeaponsToLearn(player);
+        for (uint32 spell : spells)
+            player->learnSpell(spell);
+        player->UpdateSkillsToMaxSkillsForLevel();
+        if (!spells.empty())
+        {
+            creature->Say(Words(player, "Every one of them, $n, as if you'd trained for years. In a way, you will have."), LANG_UNIVERSAL, player);
+            creature->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
+        }
         return true;
     }
 };
