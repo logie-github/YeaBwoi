@@ -1,145 +1,17 @@
 {
- "BloodElf": {
-  "area": [
-   256.0,
-   72.0,
-   186.0,
-   266.0
-  ],
-  "canvas": [
-   1024,
-   512
-  ],
-  "region": [
-   676,
-   4,
-   252,
-   396
-  ],
-  "hair_cols": 170
- },
- "Human": {
-  "area": [
-   254.0,
-   45.0,
-   264.0,
-   314.0
-  ],
-  "canvas": [
-   2048,
-   1024
-  ],
-  "region": [
-   1656,
-   348,
-   392,
-   296
-  ],
-  "hair_cols": 175,
-  "below": 0.004
- },
- "Dwarf": {
-  "area": [
-   254.0,
-   45.0,
-   264.0,
-   314.0
-  ],
-  "canvas": [
-   2048,
-   1024
-  ],
-  "region": [
-   1416,
-   8,
-   624,
-   648
-  ],
-  "hair_cols": 165,
-  "below": 0.004,
-  "ymax": 0.12,
-  "geosets": [
-   0,
-   1301,
-   1801
-  ],
-  "ztop": 0.27,
-  "zj": 0.6145,
-  "xmin": -0.03,
-  "hair_scale": 1.2,
-  "triangle": true,
-  "fan": 0.55,
-  "hair_scale_y": 0.95,
-  "lines": false,
-  "lines_scale": 1.2
- },
- "NightElf": {
-  "area": [
-   254.0,
-   45.0,
-   264.0,
-   314.0
-  ],
-  "canvas": [
-   2048,
-   1024
-  ],
-  "region": [
-   1448,
-   4,
-   380,
-   170
-  ],
-  "hair_cols": 175,
-  "geosets": [
-   0,
-   1301
-  ],
-  "ymax": 0.2,
-  "ztop": 0.21,
-  "below": 0.004,
-  "xmin": -0.04,
-  "hair_scale": 1.3,
-  "triangle": true,
-  "fan": 0.55,
-  "hair_scale_y": 1.2,
-  "l4_arch": 5.0,
-  "l4_wave": 0.8,
-  "heart_h": 40.0,
-  "heart_half": 19.0,
-  "heart_bottom": 62.0,
-  "moon_turn": -5.0,
-  "moon_h": 54.0,
-  "moon_dx": 1.5,
-  "moon_centre": 86.0,
-  "strip_half": 15.5
- },
- "Gnome": {
-  "area": [
-   254.0,
-   45.0,
-   264.0,
-   314.0
-  ],
-  "canvas": [
-   2048,
-   1024
-  ],
-  "region": [
-   8,
-   8,
-   960,
-   440
-  ],
-  "hair_cols": 420,
-  "hair_c0": 256,
-  "geosets": [
-   0,
-   1301
-  ],
-  "ymax": 0.09,
-  "ztop": 0.1,
-  "below": 0.004,
-  "xmin": -0.03
- }
+ "BloodElf": {"area": [256.0, 72.0, 186.0, 266.0], "canvas": [1024, 512], "region": [676, 4, 252, 396], "hair_cols": 170},
+ "Human": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "region": [1656, 348, 392, 296], "hair_cols": 175, "below": 0.004},
+ "Dwarf": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "region": [1416, 8, 624, 648], "hair_cols": 165, "below": 0.004,
+  "ymax": 0.12, "geosets": [0, 1301, 1801], "ztop": 0.27, "zj": 0.6145, "xmin": -0.03, "hair_scale": 1.2, "triangle": true, "fan": 0.55,
+  "hair_scale_y": 0.95, "lines": false, "lines_scale": 1.2},
+ "NightElf": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "region": [1448, 4, 380, 170], "hair_cols": 175,
+  "geosets": [0, 1301], "ymax": 0.2, "ztop": 0.21, "below": 0.004, "xmin": -0.04, "hair_scale": 1.3, "triangle": true, "fan": 0.55,
+  "hair_scale_y": 1.2, "l4_arch": 5.0, "l4_wave": 0.8, "heart_h": 40.0, "heart_half": 19.0, "heart_bottom": 62.0, "moon_turn": -5.0,
+  "moon_h": 54.0, "moon_dx": 1.5, "moon_centre": 86.0, "strip_half": 15.5},
+ "Gnome": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "region": [8, 8, 960, 780], "hair_cols": 420, "hair_c0": 256,
+  "geosets": [0, 1301], "ymax": 0.09, "ztop": 0.17, "below": 0.004, "xmin": -0.03, "zj": 0.252, "triangle": true, "fan": 0.55,
+  "hair_scale": 1.1, "hair_scale_y": 0.68, "hair_scale_3": 0.92, "hair_scale_4": 0.84, "lines_shift": 3.0, "lines_cut": 7.0},
+ "Draenei": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "region": [730, 8, 572, 680], "hair_cols": 175,
+  "geosets": [0, 1301, 1801], "ymax": 0.2, "ztop": 0.22, "below": 0.004, "xmin": -0.04, "triangle": true, "fan": 0.55,
+  "hair_scale": 1.3, "hair_scale_y": 1.15, "hair_scale_4": 1.17}
 }

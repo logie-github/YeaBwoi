@@ -22,6 +22,7 @@ CW, CH = cfg['canvas']; RX, RY, RW, RH = cfg['region']
 sH = frames[race]['H'] / frames['BloodElf']['H']
 if 'hair_scale' in cfg:
     sH = cfg['hair_scale']
+sH = cfg.get(f'hair_scale_{level}', sH)
 if 'HAIR_SCALE' in __import__('os').environ:
     sH = float(__import__('os').environ['HAIR_SCALE'])
 bm = np.load('decal/uvmap_BloodElf.npz')

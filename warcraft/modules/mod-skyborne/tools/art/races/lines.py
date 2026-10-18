@@ -16,11 +16,11 @@ u = (xx + 0.5) / k; v = (yy + 0.5) / k
 iu = np.clip(np.round((u - us[0]) / 0.25).astype(int), 0, len(us) - 1); iv = np.clip(np.round((v - vs[0]) / 0.25).astype(int), 0, len(vs) - 1)
 inside = (u >= us[0]) & (u <= us[-1]) & (v >= vs[0]) & (v <= vs[-1])
 ay = np.where(inside, Y[iv, iu], np.nan) * 1000 / sH
-s = np.where(inside, S[iv, iu], np.nan) * 1000 / sH
+s = np.where(inside, S[iv, iu], np.nan) * 1000 / sH - _c.get('lines_shift', 0.0)
 ok = np.isfinite(ay) & np.isfinite(s)
 ay0 = np.where(ok, ay, 0); s0 = np.where(ok, s, 0)
 t = t_old(s0)
-along = np.sin(np.pi * t) ** 0.6 * (t > 0) * (t < 1)
+along = np.sin(np.pi * t) ** 0.6 * (t > 0) * (t < 1) * np.clip((s0 + _c.get('lines_shift', 0.0) - _c.get('lines_cut', 0.0)) / 6.0, 0, 1)
 line = np.exp(-(ay0 / 1.63) ** 2) * along
 fold = np.exp(-((ay0 - 4.2) / 3.1) ** 2) * along
 foldshade = np.exp(-((ay0 - 8.45) / 2.9) ** 2) * along * 0.5
