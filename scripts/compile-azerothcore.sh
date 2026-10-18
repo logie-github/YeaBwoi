@@ -64,7 +64,8 @@ ninja -C "$BUILD" -j "$JOBS" ${NINJA_ARGS:-}
 ccache -s
 
 # The programs and their configs, installed for the phone's paths, then the SQL: the core's, and
-# each module's wherever it keeps it (data/sql, sql/<database>, the progression brackets').
+# each module's wherever it keeps it (data/sql, sql/<database>, the progression brackets'), and the
+# files a module makes the game's patch from (data/client: mod-skyborne's).
 rm -rf "$DIST" "$DIST.install"
 DESTDIR="$DIST.install" ninja -C "$BUILD" install > /dev/null
 mkdir -p "$DIST/bin" "$DIST/etc/modules" "$DIST/modules"
@@ -73,6 +74,8 @@ for prog in worldserver authserver dbimport map_extractor vmap4_extractor vmap4_
 done
 cp "$DIST.install$APP_FILES"/etc/*.conf.dist "$DIST/etc/"
 cp "$DIST.install$APP_FILES"/etc/modules/*.conf.dist "$DIST/etc/modules/"
+# ALE's (mod-ale, the Lua engine) own scripts.
+[ ! -d "$DIST.install$PREFIX/bin/lua_scripts" ] || cp -r "$DIST.install$PREFIX/bin/lua_scripts" "$DIST/lua_scripts"
 rm -rf "$DIST.install"
 strip "$DIST"/bin/*
 cp "$SRC/src/tools/mmaps_generator/mmaps-config.yaml" "$DIST/etc/"
@@ -83,7 +86,7 @@ rm -rf "$DIST/sql/archive" "$DIST/sql/create" "$DIST/sql/old"
 for dir in "$SRC"/modules/*/; do
 	dir=${dir%/}
 	name=$(basename "$dir")
-	for sql in "$dir"/data/sql "$dir"/sql "$dir"/src/Bracket_*/sql; do
+	for sql in "$dir"/data/sql "$dir"/data/client "$dir"/sql "$dir"/src/Bracket_*/sql; do
 		[ -d "$sql" ] || continue
 		rel=${sql#"$dir/"}
 		mkdir -p "$DIST/modules/$name/$(dirname "$rel")"

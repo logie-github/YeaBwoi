@@ -72,7 +72,7 @@ class TurtleLayout(val files: File, val dataDir: File = files.parentFile ?: file
          */
         val PROTECTED_NAMES = listOf(
             "server", "server.new", "server.old", "etc", "etc-remix", "mysql", "mysql.deleting",
-            "data", "data.work", "data.download", "data.import", "data-races", "races",
+            "data", "data.work", "data.download", "data.import", "data-races", "data-modules", "data-modules.new", "races",
             "client", "client.import", "client-realm", "logs", "run", "addons", "mods", "modules",
         )
 
