@@ -38,7 +38,10 @@ interface GestureOutput {
  *
  * - **Swipe** one finger: the map pans the way the finger goes (the arrow keys), for as long as the
  *   finger stays away from where it landed.
- * - **Tap**: right click there (move, attack, gather, set a rally point).
+ * - **Tap**: right click there (move, attack, gather, set a rally point). Where a right click does
+ *   nothing, the games make it a left click: in Warcraft I and II the engine does (menus, buttons,
+ *   nothing of the player's selected: patches/stratagus), in Warcraft III the game screen does for
+ *   its bottom panel and top bar ([com.logie.warcrafts.game.GestureView]).
  * - **Touch and hold** ([HOLD_MS], a buzz): left click there when the finger lifts (select a unit,
  *   press a button of the game's panel or menus). Two holds in a row on the same spot: a double
  *   click (every unit of that kind on the screen).

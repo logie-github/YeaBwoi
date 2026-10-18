@@ -67,7 +67,7 @@ Nothing is drawn over the game. The gestures are the ones you chose.
 | Gesture | In the game |
 | --- | --- |
 | Swipe one finger | Pans the map the way you swipe, for as long as the finger stays away from where it landed; lift to stop |
-| Tap | Right click: move, attack, gather, set a rally point |
+| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel and top bar |
 | Touch and hold | Left click when you lift (after a short buzz): select a unit or building, press a button of the game's panel or menus |
 | Hold twice on the same spot | Double click: every unit of that kind on the screen |
 | Rest one finger, tap or hold with another | Shift-click: queue orders, add units to the selection |
@@ -96,38 +96,14 @@ phone works as on a PC.
 
 ## Galaxy Z Fold 8
 
-- Folded (the outside screen) the launcher is one column; unfolded (the inside screen, about
-  830 dp either way up) the picture is shorter and the game's panel with its checklist sits beside
-  the menu.
-- The games run at 1080 lines unless Graphics says otherwise: the outside screen's own, and on the
-  inside a quarter of the pixels to draw. The inside screen is nearly square (about 10:9), so there
-  the games are 4:3 with bars at the sides rather than squeezed; on the outside they're as wide as
-  the screen.
-- The game's size is set when it starts, for the screen the launcher is on then: unfolding during a
-  game keeps it running at that size, scaled to the new screen.
+- The inside screen is 4:3, the games' own shape, so all three fill it exactly: Warcraft II at its
+  640×480, Warcraft I at 480×300 drawn 4:3 as the original was (War1gus's original pixel ratio),
+  Warcraft III at 1080 lines (1440×1080) unless Graphics says otherwise.
+- Folded (the outside screen) the launcher is one column; unfolded the picture is shorter, and held
+  sideways the game's panel with its checklist sits beside the menu.
+- Warcraft III's size is set when it starts, for the screen the launcher is on then: unfolding during
+  a game keeps it running at that size, scaled to the new screen.
 - Touch distances are measured in dp, so the gestures feel the same on both screens.
-
-## Offline
-
-Everything runs on the phone; no server is involved. Warcraft I and II, native, never go online.
-For Warcraft III, with **Private** on (the default), the runtime looks names up in a hosts file the
-app writes into its folder, which sends Battle.net's, the patch servers' and Blizzard's other names
-to nowhere: it can't sign in, update itself or download anything. Campaigns, custom games against
-the computer and local network games don't need any of that.
-
-## Saves
-
-Warcraft I and II keep their saves and preferences beside their converted data in the app; they
-stay through updates (converting again replaces the data, and the saves with it). Warcraft III's
-saves, replays and settings are in the games' Windows, inside the app (`Documents\Warcraft III` of
-its user): they stay through updates and through importing its files again. All of them go only
-when the app is uninstalled.
-
-## Updates
-
-The app checks this repository's releases when it opens and offers newer builds; **Updates** checks
-on demand. A private repository needs a read-only token as the `DOLPHINXD_UPDATE_TOKEN` secret, as
-for the other apps.
 
 ## How it's built
 

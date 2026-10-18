@@ -164,12 +164,29 @@ class GestureView(
 
     override fun pointerTo(x: Float, y: Float) {
         val point = XForm.transformPoint(xform, x, y)
+        pointerY = point[1]
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
     }
 
+    /** Where the pointer is, down the game's screen (0 top, 1 bottom). */
+    private var pointerY = 0f
+
+    /**
+     * Warcraft III's interface: the panel along the bottom (minimap, portrait, inventory, command
+     * buttons) and the menu bar along the top, where a right click does nothing useful: a tap there
+     * is the left click that presses what's under it. On the battlefield it stays the right click.
+     */
+    private fun onInterface(): Boolean {
+        val height = xServer.screenInfo.height.toFloat()
+        if (height <= 0f) return false
+        val y = pointerY / height
+        return y >= WC3_PANEL_TOP || y <= WC3_BAR_BOTTOM
+    }
+
     override fun click(button: Button) {
-        xServer.injectPointerButtonPress(button.x)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
+        val pressed = if (button == Button.RIGHT && onInterface()) Button.LEFT else button
+        xServer.injectPointerButtonPress(pressed.x)
+        postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS)
     }
 
     override fun doubleClick(button: Button) {
@@ -265,6 +282,9 @@ class GestureView(
         const val EXTRA_TITLE = "com.logie.warcrafts.TITLE"
 
         private const val CLICK_MS = 40L
+        /** Warcraft III's bottom panel starts about three quarters down; its top bar ends 5% down. */
+        private const val WC3_PANEL_TOP = 0.76f
+        private const val WC3_BAR_BOTTOM = 0.05f
         private const val KEY_MS = 50L
         private const val TYPE_STEP_MS = 15L
 
