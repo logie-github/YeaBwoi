@@ -26,7 +26,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-5";
+        constexpr char const* VERSION = "skyborne-6";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -214,15 +214,12 @@ namespace Skyborne
                 return false;
             size_t n = size_t(512) * 512;
             std::vector<double> plane[3];
-            bool alpha = false;
             for (int c = 0; c < 3; ++c)
             {
                 plane[c].resize(n);
                 for (size_t i = 0; i < n; ++i)
                     plane[c][i] = im.rgba[i * 4 + c] / 255.0;
             }
-            for (size_t i = 0; i < n; ++i)
-                alpha = alpha || im.rgba[i * 4 + 3] != 255;
             if (spot.smooth > 0)
             {
                 // Each region of the body texture on its own, so nothing bleeds across a seam.
@@ -265,8 +262,7 @@ namespace Skyborne
             for (int c = 0; c < 3; ++c)
                 for (size_t i = 0; i < n; ++i)
                     im.rgba[i * 4 + c] = uint8_t(std::lround(std::clamp(plane[c][i], 0.0, 1.0) * 255));
-            blp = EncodeBlp(im, alpha);
-            return true;
+            return ReplacePixels(blp, im);
         }
 
         // Every female body texture the table names, for the races above, with the details (those

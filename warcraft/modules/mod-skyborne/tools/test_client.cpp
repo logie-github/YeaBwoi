@@ -143,6 +143,22 @@ int main(int argc, char** argv)
     if (argc > 3)
         std::ofstream(fs::path(argv[3]) / "UI-CharacterCreate-Races.blp", std::ios::binary).write(reinterpret_cast<char const*>(icons.data()), std::streamsize(icons.size()));
 
+    // Textures the patch writes over the game's keep the game's format (a character skin's palette:
+    // the game draws a body in no other).
+    int sameFormat = 0, rewritten = 0;
+    for (char const* race : { "Human", "Orc", "Dwarf", "NightElf", "Scourge", "Tauren", "Gnome", "Troll", "Goblin", "BloodElf", "Draenei" })
+    {
+        std::string name = std::string("Character\\") + race + "\\Female\\" + race + "FemaleSkin00_00.blp";
+        Bytes original, made2;
+        if (!game.Read(name, original) || !patch->Read(name, made2))
+            continue;
+        ++rewritten;
+        Image a, b;
+        if (std::equal(original.begin() + 8, original.begin() + 20, made2.begin() + 8) && Decode(made2, b) && Decode(original, a))
+            ++sameFormat;
+    }
+    Check(sameFormat == rewritten, "body textures written in the game's own format (" + std::to_string(sameFormat) + " of " + std::to_string(rewritten) + ")");
+
     std::cout << (failures ? std::to_string(failures) + " failed\n" : "all passed\n");
     return failures ? 1 : 0;
 }
