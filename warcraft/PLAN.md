@@ -1160,6 +1160,33 @@ for the game on the phone itself ("that's the whole point").
   - The server test: a creature called over that's still out of reach (as the Cloaked Ranger at
     the Wrathgate's cliffs in build 109's run, back from chasing an interloper) is called again and
     waited for.
+- Then (build 112, the user's play of 111): "the tavern scene needs to have us at a table, and so
+  that I can't move"; "it spawns me in Crystalsong then immediately loads another area", "it lags
+  when loading: preload everything, just have me spawn in the tavern"; "Moratari still uses the
+  default lines for blood elf". Done:
+  - A new Timerunner is made in their side's tavern, in their chair (playercreateinfo set as the
+    realm starts, as for the Bazaar before; at the Bazaar still when the opening is off): one
+    loading screen, the tavern's. Seated at the table with their three friends, their movement
+    taken from them (the game's control of them) until Moratari takes them from it; everyone up
+    for the two toasts and sitting again; no gestures from those sitting (one would bring them to
+    their feet). The Gilded Rose's own table, its four chairs set out again in the opening's phase
+    (the game's are in everyone's, not seen in it); the Broken Tusk has no table in the open: an
+    orc table and four log chairs before the innkeeper. A skip before it begins (CI's) goes to the
+    Bazaar, the hearthstone with it.
+  - Everywhere the opening goes and the Bazaar loaded as the realm starts (the core keeps a grid it
+    has loaded): about half a second here.
+  - Moratari's look has no stock voice (0026: NPCSounds 0), so clicking her is her own greeting.
+  - Found in build 111's CI: wago.tools turns away Python's own user agent (403 for all 41 lines:
+    the APK had none of her voice); both fetches now name the build. The prologue's squish check
+    counted a bot's pet (79% for 75%): pets, guardians and player-controlled ones left out.
+  - Checked here: compiled; the realm starting with all of it (Eternus's look in the game's patch,
+    her rows and twelve files read back from it the same, her parts in it; 62 starts in the
+    taverns; the places loaded in 0.2 to 0.5 s; 41 of 41 of Moratari's lines fetched with the new
+    user agent); the prologue for an Alliance Timerunner made in the Gilded Rose (seated there, then
+    everything to Valiance Keep); a Horde one's opening (seated at the Broken Tusk's set-out table,
+    then the Front, then a skip to the Bazaar). Not checked: the game drawing any of it (the seats,
+    the table, her dragon), and the Horde campaign's goodbyes: in a local run of 111, Sylvanas
+    wasn't at the Bazaar for WRM-801 (not traced yet; CI's run will say whether it's this build's).
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
