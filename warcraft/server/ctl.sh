@@ -136,6 +136,9 @@ configure_realm() {
 	setkey "$R_ETC/worldserver.conf" PidFile "\"$RUN/worldserver.pid\""
 	setkey "$R_ETC/worldserver.conf" RealmID "$R_ID"
 	setkey "$R_ETC/worldserver.conf" WorldServerPort "$R_PORT"
+	# Spells learned at creation from playercreateinfo_spell_custom (the Skyborne's racials; the core's
+	# own table is empty): off by default in the core, which then teaches none.
+	setkey "$R_ETC/worldserver.conf" PlayerStart.CustomSpells 1
 	for dist in "$SERVER"/etc/modules/*.conf.dist; do
 		conf="$R_ETC/modules/$(basename "$dist" .dist)"
 		if config_from_dist "$dist" "$conf" && [ "$REALM" = remix ]; then

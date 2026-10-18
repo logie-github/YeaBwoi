@@ -23,7 +23,9 @@ move to 22 and 23.
   are blue or yellow, never the blood elf's green: each face comes twice (faces 1-10 blue-eyed,
   11-20 yellow-eyed). Hair: the blood elf's thirteen colours and nine more (Snow, Sky, Azure, Storm,
   Teal, Twilight, and the pinks Pink, Rose, Blossom: colours 13 to 21), beards with them.
-- **Racials**, as WoW: Forever has them since its beta build of 15 October 2026:
+- **Racials** (learned at creation from `playercreateinfo_spell_custom`, which needs
+  `PlayerStart.CustomSpells = 1` in worldserver.conf: the realm's ctl.sh sets it), as WoW: Forever has
+  them since its beta build of 15 October 2026:
   - Walk on Air (both): glide downward for 10 sec; instant, 90 sec cooldown.
   - Skysight (Windshapers): Elemental Blessing, run and mounted speed +10% for 15 min, not stacking
     with other speed increases; 0.5 sec cast while moving, 2 min cooldown.
