@@ -486,7 +486,8 @@ def run_script(session, player_guid, steps):
         """The nearest creature of [entry], called over if it's beyond talking distance (where a
         fight left the player, say), and whether it was."""
         guid, yards = creature_guid(entry, near=True)
-        if yards <= 6:
+        # (the realm's talking distance is 5.5 yards, sizes taken off as .remix guid's yards are)
+        if yards <= 5:
             return guid, False
         session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
         session.pump(0.5, packets)
