@@ -4,7 +4,9 @@
 #include <array>
 #include <cctype>
 #include <cmath>
+#include <climits>
 #include <cstring>
+#include <map>
 #include <set>
 #include <sstream>
 #include <zlib.h>
@@ -1260,6 +1262,161 @@ namespace Skyborne
             h = nh;
         }
         return out;
+    }
+
+    namespace
+    {
+        int Distance(uint8_t const* a, uint8_t const* b)
+        {
+            int dr = int(a[0]) - b[0], dg = int(a[1]) - b[1], db = int(a[2]) - b[2];
+            return dr * dr + dg * dg + db * db;
+        }
+
+        // The palette entry (RGB, 256 of them) nearest [rgb], among those [allowed] lets (all if empty).
+        uint8_t Nearest(std::vector<std::array<uint8_t, 3>> const& palette, uint8_t const* rgb, std::vector<bool> const& allowed = {})
+        {
+            int best = INT32_MAX;
+            uint8_t pick = 0;
+            for (size_t i = 0; i < palette.size(); ++i)
+            {
+                if (!allowed.empty() && !allowed[i])
+                    continue;
+                int d = Distance(palette[i].data(), rgb);
+                if (d < best)
+                {
+                    best = d;
+                    pick = uint8_t(i);
+                }
+            }
+            return pick;
+        }
+    }
+
+    bool ReplacePixels(Bytes& blp, Image const& image)
+    {
+        Blp b;
+        if (!ReadBlp(blp, b) || image.width != b.width || image.height != b.height)
+            return false;
+        size_t n = size_t(b.width) * b.height;
+        bool alpha = false;
+        for (size_t i = 0; i < n; ++i)
+            alpha = alpha || image.rgba[i * 4 + 3] != 255;
+        if (b.encoding != 1 || b.alphaDepth != 0 || alpha || b.sizes[0] < n)
+        {
+            blp = EncodeBlp(image, alpha || b.alphaDepth != 0);
+            return true;
+        }
+        // A palette texture (the game's character skins): kept one, the game's palette and its pixels'
+        // entries kept where the colour is as it was; the least used entries take the new colours.
+        std::vector<std::array<uint8_t, 3>> palette(256);
+        for (int i = 0; i < 256; ++i)
+            palette[i] = { blp[BLP_HEADER + i * 4 + 2], blp[BLP_HEADER + i * 4 + 1], blp[BLP_HEADER + i * 4] };
+        std::vector<uint8_t> index(blp.begin() + b.offsets[0], blp.begin() + b.offsets[0] + n);
+        std::vector<size_t> changed;
+        std::vector<size_t> uses(256, 0);
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (Distance(palette[index[i]].data(), &image.rgba[i * 4]) != 0)
+                changed.push_back(i);
+            else
+                ++uses[index[i]];
+        }
+        if (!changed.empty())
+        {
+            // The 32 least used entries are freed; what used them takes its nearest kept colour.
+            std::vector<int> order(256);
+            for (int i = 0; i < 256; ++i)
+                order[i] = i;
+            std::stable_sort(order.begin(), order.end(), [&](int a, int c) { return uses[a] < uses[c]; });
+            size_t k = std::min<size_t>(32, changed.size());
+            std::vector<bool> kept(256, true);
+            for (size_t j = 0; j < k; ++j)
+                kept[order[j]] = false;
+            std::vector<uint8_t> moved(256);
+            for (int i = 0; i < 256; ++i)
+                moved[i] = kept[i] ? uint8_t(i) : Nearest(palette, palette[i].data(), kept);
+            for (size_t i = 0; i < n; ++i)
+                index[i] = moved[index[i]];
+            // The new colours: k-means of the changed pixels, from k of them spread by lightness.
+            std::vector<size_t> sorted(changed);
+            auto lum = [&](size_t i) { return 299 * image.rgba[i * 4] + 587 * image.rgba[i * 4 + 1] + 114 * image.rgba[i * 4 + 2]; };
+            std::sort(sorted.begin(), sorted.end(), [&](size_t a, size_t c) { return lum(a) < lum(c); });
+            std::vector<std::array<uint8_t, 3>> centres(k);
+            for (size_t j = 0; j < k; ++j)
+            {
+                size_t i = sorted[(j * 2 + 1) * sorted.size() / (2 * k)];
+                centres[j] = { image.rgba[i * 4], image.rgba[i * 4 + 1], image.rgba[i * 4 + 2] };
+            }
+            for (int pass = 0; pass < 8; ++pass)
+            {
+                std::vector<std::array<double, 4>> sums(k, { 0, 0, 0, 0 });
+                for (size_t i : changed)
+                {
+                    uint8_t c = Nearest(centres, &image.rgba[i * 4]);
+                    for (int ch = 0; ch < 3; ++ch)
+                        sums[c][ch] += image.rgba[i * 4 + ch];
+                    sums[c][3] += 1;
+                }
+                for (size_t j = 0; j < k; ++j)
+                    if (sums[j][3] > 0)
+                        for (int ch = 0; ch < 3; ++ch)
+                            centres[j][ch] = uint8_t(std::lround(sums[j][ch] / sums[j][3]));
+            }
+            for (size_t j = 0; j < k; ++j)
+                palette[order[j]] = centres[j];
+            for (size_t i : changed)
+                index[i] = Nearest(palette, &image.rgba[i * 4]);
+        }
+        // Written as the game's: its header, the palette, then each level's entries (the smaller
+        // levels from the new image halved, each colour its nearest entry).
+        Bytes out(blp.begin(), blp.begin() + BLP_HEADER + BLP_PALETTE);
+        for (int i = 0; i < 256; ++i)
+        {
+            out[BLP_HEADER + i * 4] = palette[i][2];
+            out[BLP_HEADER + i * 4 + 1] = palette[i][1];
+            out[BLP_HEADER + i * 4 + 2] = palette[i][0];
+            out[BLP_HEADER + i * 4 + 3] = 0;
+        }
+        std::vector<uint8_t> level = image.rgba;
+        uint32_t w = b.width, h = b.height;
+        std::map<uint32_t, uint8_t> cache;
+        for (int mip = 0; mip < 16 && b.sizes[mip]; ++mip)
+        {
+            size_t at = out.size();
+            if (mip == 0)
+                out.insert(out.end(), index.begin(), index.end());
+            else
+                for (size_t i = 0; i < size_t(w) * h; ++i)
+                {
+                    uint8_t const* p = &level[i * 4];
+                    uint32_t key = (uint32_t(p[0]) << 16) | (uint32_t(p[1]) << 8) | p[2];
+                    auto it = cache.find(key);
+                    if (it == cache.end())
+                        it = cache.emplace(key, Nearest(palette, p)).first;
+                    out.push_back(it->second);
+                }
+            Put32(&out[20 + mip * 4], uint32_t(at));
+            Put32(&out[84 + mip * 4], uint32_t(out.size() - at));
+            if (w == 1 && h == 1)
+                break;
+            uint32_t nw = std::max<uint32_t>(1, w / 2), nh = std::max<uint32_t>(1, h / 2);
+            std::vector<uint8_t> next(size_t(nw) * nh * 4);
+            for (uint32_t y = 0; y < nh; ++y)
+                for (uint32_t x = 0; x < nw; ++x)
+                    for (int c = 0; c < 4; ++c)
+                    {
+                        uint32_t sum = 0;
+                        for (uint32_t dy = 0; dy < 2; ++dy)
+                            for (uint32_t dx = 0; dx < 2; ++dx)
+                                sum += level[(size_t(std::min(y * 2 + dy, h - 1)) * w + std::min(x * 2 + dx, w - 1)) * 4 + c];
+                        next[(size_t(y) * nw + x) * 4 + c] = uint8_t((sum + 2) / 4);
+                    }
+            level.swap(next);
+            w = nw;
+            h = nh;
+        }
+        blp.swap(out);
+        return true;
     }
 
     bool SkyborneIcons(Bytes& blp)

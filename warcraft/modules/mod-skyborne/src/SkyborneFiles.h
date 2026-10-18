@@ -113,6 +113,9 @@ namespace Skyborne
     bool Decode(Bytes const& blp, Image& image);
     Bytes EncodeDxt5(Image const& image);
     Bytes EncodeBlp(Image const& image, bool alpha);   // DXT5 with [alpha], else DXT1
+    // [blp] with [image]'s pixels (the same size), in [blp]'s own format: a palette texture stays one
+    // (the game's character skins are, and the game draws them only so), anything else is DXT.
+    bool ReplacePixels(Bytes& blp, Image const& image);
 }
 
 #endif
