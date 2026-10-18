@@ -1197,20 +1197,24 @@ namespace Skyborne
                 }
                 indices |= pick << (2 * i);
             }
+            if (c0 == c1)
+                indices = 0;                           // one colour: as DXT1 that's a three-colour block, whose 3 is black
             Put16(out + 8, c0);
             Put16(out + 10, c1);
             Put32(out + 12, indices);
         }
     }
 
-    Bytes EncodeDxt5(Image const& image)
+    Bytes EncodeDxt5(Image const& image) { return EncodeBlp(image, true); }
+
+    Bytes EncodeBlp(Image const& image, bool alpha)
     {
         Bytes out(BLP_HEADER + BLP_PALETTE, 0);
         std::memcpy(out.data(), "BLP2", 4);
         Put32(&out[4], 1);
         out[8] = 2;                                    // compressed
-        out[9] = 8;                                    // 8 bits of alpha
-        out[10] = 7;                                   // DXT5
+        out[9] = alpha ? 8 : 0;                        // 8 bits of alpha, or none
+        out[10] = alpha ? 7 : 0;                       // DXT5, or DXT1
         out[11] = 1;                                   // with smaller copies
         Put32(&out[12], image.width);
         Put32(&out[16], image.height);
@@ -1230,7 +1234,10 @@ namespace Skyborne
                     }
                     uint8_t block[16];
                     EncodeBlock(px, block);
-                    out.insert(out.end(), block, block + 16);
+                    if (alpha)
+                        out.insert(out.end(), block, block + 16);
+                    else
+                        out.insert(out.end(), block + 8, block + 16);   // the colours: DXT1's four-colour block
                 }
             Put32(&out[20 + mip * 4], uint32_t(at));
             Put32(&out[84 + mip * 4], uint32_t(out.size() - at));

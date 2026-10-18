@@ -112,6 +112,7 @@ namespace Skyborne
     };
     bool Decode(Bytes const& blp, Image& image);
     Bytes EncodeDxt5(Image const& image);
+    Bytes EncodeBlp(Image const& image, bool alpha);   // DXT5 with [alpha], else DXT1
 }
 
 #endif
