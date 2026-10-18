@@ -492,13 +492,10 @@ private fun ImportPanel(state: Imports.State.Working, onOpen: () -> Unit) {
     RtsWindow(Modifier.fillMaxWidth(), onClick = onOpen) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                stringResource(
-                    if (state.converting) R.string.rts_convert_title else R.string.rts_import_title,
-                    stringResource(ImportService.installName(state.install)),
-                ),
+                stringResource(ImportService.phaseTitle(state.phase), stringResource(ImportService.installName(state.install))),
                 style = MaterialTheme.typography.titleMedium,
             )
-            if (state.converting) RtsSpinner(28.dp) else RtsProgressLine(state.progress ?: 0f)
+            if (state.progress == null) RtsSpinner(28.dp) else RtsProgressLine(state.progress)
             state.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
         }
     }

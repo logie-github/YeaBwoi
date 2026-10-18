@@ -31,6 +31,8 @@ The user's requirements, what was decided, what's open, and where it stands. The
 - "The screen I'm playing on is a perfect 4:3 ratio." "Reinvent it a bit so make it play how I
   want if you have to."
 
+- After build 3: "I have the install setup exe. The one downloaded from GOG."
+
 ## Decided
 
 - **One app, four looks**: `com.logie.warcrafts`, "Warcraft" (build 1 was `com.logie.warcraftrts`,
@@ -91,6 +93,17 @@ The user's requirements, what was decided, what's open, and where it stands. The
 - **4:3** (the user's inside screen): Wargus 640x480 and War1gus 480x300 with its original pixel
   ratio (x1.2, 480x360) are 4:3 already; Warcraft III at 1440x1080 by default. The launcher's two
   columns from 760 dp (the inside screen sideways), its shorter picture from 600 dp.
+- **GOG's offline installers** (build 4): the app takes the setup `.exe` and its `.bin` parts
+  (picked together, or a folder holding them) and unpacks them on the phone with innoextract,
+  built for arm64 like the tools (`libinnoextract.so`, with Boost 1.84 and liblzma from xz 5.6.3,
+  static). crazy-max's fork at v1.13.0: upstream's master stops at Inno Setup 6.4.0, and GOG's newer
+  installers are made with 6.6 (dscharrer/innoextract#214 names one, 6.6.1); the fork has #210
+  (6.4.2 to 7.0). Tested here, on a PC build of the same source, with Inno Setup's own installers
+  6.2.2 to 6.7.3: all languages listed, all files out into `app/`. Run with `--exclude-temp`
+  and English as `--default-language` (from `--list-languages`); the game's folder in the output
+  is found by its files as for a folder. The installer is copied into the app first (innoextract
+  needs files beside each other, named as GOG named them), deleted once unpacked; then the usual
+  conversion. Old GOG installers with RAR `.bin` parts (before 2015) would need unrar: not bundled.
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
@@ -105,6 +118,8 @@ The user's requirements, what was decided, what's open, and where it stands. The
 - Warcraft I's music: war1tool makes MIDI from the game's XMI; SDL_mixer on Android has no MIDI
   instruments without Timidity patches (not bundled yet), so it may be silent.
 - Whether the registry values above are the ones 1.30 reads (the game also has `preferences.json`).
+- Which Inno Setup version the user's GOG installers are, and whether innoextract unpacks them on
+  the phone (not run on a GOG installer, nor on arm64, here).
 
 ## Stages
 
@@ -113,10 +128,11 @@ The user's requirements, what was decided, what's open, and where it stands. The
 2. **The user's gestures, `com.logie.warcrafts` "Warcraft", the What's needed checklist, Fold 8
    layout and resolutions** — built.
 3. **Warcraft I and II native on Stratagus from the GOG files** — built (build 3).
-4. After the user's first try: whatever the phone shows.
+4. **GOG's offline installers taken as they are** — built (build 4).
+5. After the user's first try: whatever the phone shows.
 
 ## Where it stands
 
-Stage 3: Stratagus, the tools and the APK built locally and in CI; unit tests pass. Nothing has run
-on a phone; neither Stratagus nor the tools have been run anywhere (no GOG files here, no arm64
-Android device).
+Stage 4: Stratagus, the tools, innoextract and the APK built locally and in CI; unit tests pass.
+Nothing has run on a phone; neither Stratagus nor the tools have been run anywhere (no GOG files
+here, no arm64 Android device); innoextract's PC build unpacked Inno Setup's own installers.

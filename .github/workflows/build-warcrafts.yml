@@ -178,8 +178,8 @@ jobs:
 
           Download **$APK_FILE** below on your phone and open it to install. Then, for each game, **Game files → Pick folder** (or **Pick zip**) copies its files into the app, and **Press start** plays it.
 
-          - **Warcraft: Orcs & Humans** (GOG): its installed folder (WAR.EXE, DATA), or a zip of it; the app converts it for the phone.
-          - **Warcraft II: Battle.net Edition** (GOG): its installed folder (Install.mpq, Support/TOMES), or a zip of it; the app converts it for the phone.
+          - **Warcraft: Orcs & Humans** (GOG): its offline installer as GOG gives it (setup_warcraft_….exe and every .bin file that came with it: Game files → Pick GOG installer), or its installed folder (WAR.EXE, DATA), or a zip of it; the app unpacks and converts it for the phone.
+          - **Warcraft II: Battle.net Edition** (GOG): its offline installer (setup_warcraft_ii_….exe and its .bin files), or its installed folder (Install.mpq, Support/TOMES), or a zip of it; the app unpacks and converts it for the phone.
           - **Warcraft III** (Reign of Chaos and The Frozen Throne): the 1.30 folder with *Warcraft III.exe*, *Data* and *Maps*, or its zip."
           # The tag first, on its own (see build-warcraft.yml: GitHub refuses some tokens a tag made by
           # gh release create --target).

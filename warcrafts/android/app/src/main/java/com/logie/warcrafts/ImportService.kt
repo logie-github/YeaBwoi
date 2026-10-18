@@ -13,6 +13,7 @@ import android.net.Uri
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import androidx.core.content.IntentCompat
 import androidx.core.content.ContextCompat
 import com.logie.warcrafts.library.Install
 import kotlinx.coroutines.CoroutineScope
@@ -40,35 +41,35 @@ class ImportService : Service() {
         }
         val install = intent?.getStringExtra(EXTRA_INSTALL)?.let { key -> Install.entries.firstOrNull { it.key == key } }
         val uri = intent?.data
-        if (install == null || (uri == null && !intent.getBooleanExtra(EXTRA_CONVERT_ONLY, false)) || Imports.state.value is Imports.State.Working) {
+        val installer = intent?.let { IntentCompat.getParcelableArrayListExtra(it, EXTRA_INSTALLER, Uri::class.java) }
+        val convertOnly = intent?.getBooleanExtra(EXTRA_CONVERT_ONLY, false) == true
+        if (install == null || (uri == null && installer.isNullOrEmpty() && !convertOnly) || Imports.state.value is Imports.State.Working) {
             return START_NOT_STICKY
         }
         val folder = intent.getBooleanExtra(EXTRA_FOLDER, false)
-        val convertOnly = intent.getBooleanExtra(EXTRA_CONVERT_ONLY, false)
 
         Imports.cancelled = false
-        Imports.set(Imports.State.Working(install))
-        startForeground(NOTIFICATION_ID, notification(install, null))
+        Imports.set(Imports.State.Working(install, phase = if (convertOnly) Imports.Phase.CONVERT else Imports.Phase.COPY))
+        startForeground(NOTIFICATION_ID, notification(install, Imports.Phase.COPY, null))
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcrafts:import")
             .apply { acquire(4 * 60 * 60 * 1000L) }
 
         scope.launch {
             val result = runCatching {
-                val report = { progress: Float, detail: String? ->
-                    Imports.set(Imports.State.Working(install, progress, detail))
-                    notifyThrottled(install, progress)
+                val report = Imports.Report { phase, progress, detail ->
+                    Imports.set(Imports.State.Working(install, progress, detail, phase))
+                    notifyThrottled(install, phase, progress)
                 }
-                if (!convertOnly) {
-                    if (folder) Imports.importFolder(this@ImportService, install, uri!!, report)
-                    else Imports.importZip(this@ImportService, install, uri!!, report)
+                when {
+                    convertOnly -> Unit
+                    !installer.isNullOrEmpty() -> Imports.importInstaller(this@ImportService, install, installer, report)
+                    folder -> Imports.importFolder(this@ImportService, install, uri!!, report)
+                    else -> Imports.importZip(this@ImportService, install, uri!!, report)
                 }
                 // Warcraft I and II: their data for Stratagus, made from the files just brought in.
                 if (install.stratagusGame != null) {
-                    Conversion.run(this@ImportService, install) { line ->
-                        Imports.set(Imports.State.Working(install, null, line, converting = true))
-                        notifyThrottled(install, null)
-                    }
+                    Conversion.run(this@ImportService, install) { line -> report(Imports.Phase.CONVERT, null, line) }
                 }
             }
             RtsFiles.staging(this@ImportService).deleteRecursively()
@@ -95,11 +96,11 @@ class ImportService : Service() {
         super.onDestroy()
     }
 
-    private fun notifyThrottled(install: Install, progress: Float?) {
+    private fun notifyThrottled(install: Install, phase: Imports.Phase, progress: Float?) {
         val now = System.currentTimeMillis()
         if (now - lastNotified < 1000) return
         lastNotified = now
-        manager().notify(NOTIFICATION_ID, notification(install, progress))
+        manager().notify(NOTIFICATION_ID, notification(install, phase, progress))
     }
 
     private fun manager() = getSystemService(NotificationManager::class.java)
@@ -111,7 +112,7 @@ class ImportService : Service() {
         return CHANNEL
     }
 
-    private fun title(install: Install) = getString(R.string.rts_import_title, getString(installName(install)))
+    private fun title(install: Install, phase: Imports.Phase = Imports.Phase.COPY) = getString(phaseTitle(phase), getString(installName(install)))
 
     private fun openApp(): PendingIntent = PendingIntent.getActivity(
         this, 0,
@@ -119,14 +120,14 @@ class ImportService : Service() {
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
 
-    private fun notification(install: Install, progress: Float?): Notification {
+    private fun notification(install: Install, phase: Imports.Phase, progress: Float?): Notification {
         val cancel = PendingIntent.getService(
             this, 1, Intent(this, ImportService::class.java).setAction(ACTION_CANCEL),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return NotificationCompat.Builder(this, channel())
             .setSmallIcon(R.drawable.ic_rts_notification)
-            .setContentTitle(title(install))
+            .setContentTitle(title(install, phase))
             .setContentText(progress?.let { "${(it * 100).toInt()}%" })
             .setProgress(1000, ((progress ?: 0f) * 1000).toInt(), progress == null)
             .setOngoing(true)
@@ -161,12 +162,21 @@ class ImportService : Service() {
         private const val EXTRA_INSTALL = "install"
         private const val EXTRA_FOLDER = "folder"
         private const val EXTRA_CONVERT_ONLY = "convert"
+        private const val EXTRA_INSTALLER = "installer"
         private const val ACTION_CANCEL = "com.logie.warcrafts.CANCEL_IMPORT"
 
         fun start(context: Context, install: Install, uri: Uri, isFolder: Boolean) = ContextCompat.startForegroundService(
             context,
             Intent(context, ImportService::class.java).setData(uri)
                 .putExtra(EXTRA_INSTALL, install.key).putExtra(EXTRA_FOLDER, isFolder),
+        )
+
+        /** GOG's offline installer for Warcraft I or II: its setup program and .bin files, picked together. */
+        fun startInstaller(context: Context, install: Install, uris: List<Uri>) = ContextCompat.startForegroundService(
+            context,
+            Intent(context, ImportService::class.java)
+                .putExtra(EXTRA_INSTALL, install.key)
+                .putParcelableArrayListExtra(EXTRA_INSTALLER, ArrayList(uris)),
         )
 
         /** Makes Stratagus's data again from the files already in the app (Warcraft I and II). */
@@ -177,6 +187,13 @@ class ImportService : Service() {
 
         fun cancel(context: Context) {
             Imports.cancelled = true
+        }
+
+        /** What an import is doing, for its title ("%1$s": the game's name). */
+        fun phaseTitle(phase: Imports.Phase): Int = when (phase) {
+            Imports.Phase.COPY -> R.string.rts_import_title
+            Imports.Phase.UNPACK -> R.string.rts_unpack_title
+            Imports.Phase.CONVERT -> R.string.rts_convert_title
         }
 
         /** A game's name, for what's being imported. */

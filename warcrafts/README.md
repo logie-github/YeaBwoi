@@ -11,22 +11,30 @@ Blizzard.
 | --- | --- |
 | Package | `com.logie.warcrafts`, named Warcraft on the phone (installs next to the other apps) |
 | Releases | `Warcraft 1.0.N`, tag `warcrafts-build-N` |
-| Warcraft I and II | [Stratagus](https://github.com/Wargus/stratagus) with [War1gus](https://github.com/Wargus/war1gus) and [Wargus](https://github.com/Wargus/wargus), built for arm64 into the app (`stratagus-version.env`) |
+| Warcraft I and II | [Stratagus](https://github.com/Wargus/stratagus) with [War1gus](https://github.com/Wargus/war1gus) and [Wargus](https://github.com/Wargus/wargus), built for arm64 into the app (`stratagus-version.env`); GOG's installers unpacked by [innoextract](https://github.com/crazy-max/innoextract) |
 | Warcraft III | [Winlator](https://github.com/brunodev85/winlator) 11.2 (Wine, Box64, the graphics drivers), built into the app |
 
 ## What to import
 
 The launcher says exactly what each game needs, item by item, under **What's needed**, and ticks
 each item once it's in the app (choose the game first with **Games**, or the chip in the picture's
-corner). Put the folder or zip on the phone itself first (Downloads is fine), then **Game files** →
-**Pick folder** or **Pick zip**. A folder or zip with the game in a folder of its own is taken from
-inside it. Importing again replaces what's there; saved games stay.
+corner). Put the files on the phone itself first (Downloads is fine), then **Game files** →
+**Pick GOG installer** (Warcraft I and II), **Pick folder** or **Pick zip**. A folder or zip with
+the game in a folder of its own is taken from inside it. Importing again replaces what's there;
+saved games stay.
 
 | Game | Bring | It must contain |
 | --- | --- | --- |
-| Warcraft: Orcs & Humans (GOG) | The installed game folder (`C:\GOG Games\Warcraft Orcs & Humans` or wherever GOG put it), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` |
-| Warcraft II: Battle.net Edition (GOG) | The installed game folder (`C:\GOG Games\Warcraft II BNE` or wherever GOG put it), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` |
+| Warcraft: Orcs & Humans (GOG) | GOG's offline installer, as downloaded from the game's page in your GOG library (offline backup game installers): `setup_warcraft_….exe` and every `setup_warcraft_…-1.bin` (`-2.bin`…) that came with it. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` (the installer has them) |
+| Warcraft II: Battle.net Edition (GOG) | GOG's offline installer, as above: `setup_warcraft_ii_….exe` and its `.bin` files. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` (the installer has them) |
 | Warcraft III: Reign of Chaos and The Frozen Throne (one import serves both) | The Warcraft III 1.30 folder (the repack's folder as it unzips), or the zip itself (about 1.8 GB) | `Warcraft III.exe`; `Data\data`, `Data\indices`, `Data\config`; `.build.info`. Optional: `Maps` (skirmish and custom maps; the campaigns don't need it) and the CD keys (`_SERIAL_KEYS.txt`, or your own) |
+
+**GOG's installer** (Inno Setup) is unpacked on the phone by innoextract, built for Android into the
+app: **Pick GOG installer**, then in the picker touch and hold the setup `.exe` and tap each `.bin`
+beside it, then confirm (or put them in a folder of their own inside Downloads and **Pick folder**).
+If a `.bin` is missing, the app says so. The installer is copied into the app first and deleted
+once unpacked, so it needs room for the installer and about as much again. GOG Galaxy's small
+downloader can't be used; the offline installer can.
 
 **Warcraft I and II are converted for the phone** right after the import, by the app itself, in a
 few minutes: War1gus's and Wargus's own tools (`war1tool`, `wartool`, built for Android) turn the GOG
@@ -37,7 +45,8 @@ music (its sound effects and speech are in).
 
 `.build.info` (Warcraft III) is a hidden file: on Windows, View → Hidden items shows it; copying
 the whole folder takes it along. The GOG folders' contents are GOG's own lists (GOG Database);
-the app hasn't been run on them here.
+the app hasn't been run on them, nor on GOG's installers, here (innoextract was tested on Inno Setup
+6.2 to 6.7 installers).
 
 After a Warcraft III import, **Game files** shows the program that starts it (you can pick
 another) and what it's started with.
@@ -45,8 +54,9 @@ another) and what it's started with.
 ## First launch
 
 1. Install the APK from the release page, open the app.
-2. **Games** → the game, **Game files** → **Pick folder** or **Pick zip**. The import runs in the
-   background with a notification; it can take several minutes for Warcraft III.
+2. **Games** → the game, **Game files** → **Pick GOG installer** (Warcraft I and II), **Pick
+   folder** or **Pick zip**. The import runs in the background with a notification; it can take
+   several minutes.
 3. **Press start**. The first time, the app installs the games' Windows runtime (about a minute)
    and makes their Windows; after that it goes straight into the game.
 
@@ -134,8 +144,9 @@ CI (`.github/workflows/build-warcrafts.yml`) runs the tests, builds the APK and 
 
 ## License
 
-The app's code is GPL-2.0-or-later; it runs Stratagus, War1gus and Wargus (GPL-2.0) and Winlator
-(LGPL-2.1), whose sources are at the commits in `stratagus-version.env` and `winlator-version.env`.
+The app's code is GPL-2.0-or-later; it runs Stratagus, War1gus and Wargus (GPL-2.0), innoextract
+(zlib license, with Boost and liblzma) and Winlator (LGPL-2.1), whose sources are at the commits in
+`stratagus-version.env` and `winlator-version.env`.
 No game files are in the repository, the APK or CI: you bring your own. This project isn't
 affiliated with Blizzard Entertainment, GOG, the Stratagus team or Winlator's developers; Warcraft
 is a trademark of Blizzard Entertainment.

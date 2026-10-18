@@ -91,6 +91,11 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     val pickZip = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri != null) ImportService.start(context, install, uri, isFolder = false)
     }
+    // GOG's installer: the setup program and the .bin files beside it, picked together.
+    val pickInstaller = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) ImportService.startInstaller(context, install, uris)
+    }
+    val native = install.stratagusGame != null
     val working = imports as? Imports.State.Working
 
     RtsDialog(
@@ -104,13 +109,10 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
         when {
             working != null -> {
                 Text(
-                    stringResource(
-                        if (working.converting) R.string.rts_convert_title else R.string.rts_import_title,
-                        stringResource(ImportService.installName(working.install)),
-                    ),
+                    stringResource(ImportService.phaseTitle(working.phase), stringResource(ImportService.installName(working.install))),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                if (working.converting) RtsSpinner(28.dp) else RtsProgressLine(working.progress ?: 0f)
+                if (working.progress == null) RtsSpinner(28.dp) else RtsProgressLine(working.progress)
                 working.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
                 RtsButton(stringResource(R.string.rts_import_stop), primary = false) { ImportService.cancel(context) }
             }
@@ -134,12 +136,14 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(stringResource(R.string.rts_files_move_first), style = MaterialTheme.typography.bodySmall)
+                if (native) Text(stringResource(R.string.rts_files_installer_how), style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    RtsButton(stringResource(R.string.rts_files_pick_folder)) { pickFolder.launch(null) }
+                    if (native) RtsButton(stringResource(R.string.rts_files_pick_installer)) { pickInstaller.launch(arrayOf("*/*")) }
+                    RtsButton(stringResource(R.string.rts_files_pick_folder), primary = !native) { pickFolder.launch(null) }
                     RtsButton(stringResource(R.string.rts_files_pick_zip), primary = false) {
                         pickZip.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
                     }
-                    if (install.stratagusGame != null && filesIn) {
+                    if (native && filesIn) {
                         RtsButton(stringResource(R.string.rts_convert_again), primary = false) { ImportService.convert(context, install) }
                     }
                 }
