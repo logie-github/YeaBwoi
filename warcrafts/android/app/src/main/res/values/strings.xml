@@ -63,6 +63,10 @@
     <string name="rts_needs_native">Played natively on the phone by Stratagus (War1gus, Wargus): an open-source engine that plays the game from your files, campaigns and skirmishes, the original art and sounds. The intro videos are left out, and Warcraft II\'s music (converting those needs a tool phones don\'t have).</string>
 
     <!-- Conversion (Warcraft I and II) -->
+    <string name="rts_stopped_title">%1$s stopped</string>
+    <string name="rts_stopped_title_app">The app stopped</string>
+    <string name="rts_stopped_text">It ended by itself. This is what it said last (and Android\'s log for it): copy it and send it, so it can be fixed.</string>
+    <string name="rts_stopped_copy">Copy</string>
     <string name="rts_convert_title">Converting %1$s for the phone</string>
     <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
     <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>

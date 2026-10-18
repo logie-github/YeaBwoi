@@ -8,6 +8,7 @@ import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -34,9 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.logie.warcrafts.ImportService
@@ -44,6 +47,7 @@ import com.logie.warcrafts.Imports
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.game.GameSettings
+import com.logie.warcrafts.game.GameStops
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Title
@@ -331,4 +335,31 @@ private fun fieldColors() = LocalLook.current.let { look ->
         unfocusedLabelColor = look.mist,
         cursorColor = look.accent,
     )
+}
+
+/**
+ * A game (or the app) stopped by itself: what it said last ([GameStops]), to copy and send. The
+ * games' output is in English, as the engine writes it.
+ */
+@Composable
+fun GameStoppedDialog(report: GameStops.Report, onDismiss: () -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    val name = report.title?.let { stringResource(ImportService.installName(it.install)) }
+    RtsDialog(
+        if (name != null) stringResource(R.string.rts_stopped_title, name) else stringResource(R.string.rts_stopped_title_app),
+        onDismiss = onDismiss,
+        buttons = {
+            RtsButton(stringResource(R.string.rts_stopped_copy), primary = false) { clipboard.setText(AnnotatedString(report.text)) }
+            RtsButton("OK", onClick = onDismiss)
+        },
+    ) {
+        Text(stringResource(R.string.rts_stopped_text), style = MaterialTheme.typography.bodyMedium)
+        SelectionContainer {
+            Text(
+                report.text,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                color = LocalLook.current.mist,
+            )
+        }
+    }
 }

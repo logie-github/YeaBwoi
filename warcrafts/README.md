@@ -68,6 +68,10 @@ at the screen's size. Arguments typed in Game files that set a window mode (`-wi
 **Warcraft I and II** open on Stratagus's own menus (War1gus, Wargus), with the campaigns and
 skirmish of the original games; saves and preferences stay in the app.
 
+**If a game stops by itself**, the launcher shows what it said last when you come back: the
+engine's output (`stderr.txt`, `stdout.txt` in its folder, with a crash's signal and stack) and
+Android's log for the game's process. **Copy** puts it on the clipboard to send.
+
 **Warcraft III's first start**: the 1.30 repack opens a black window for up to a minute, then asks
 how to install: choose the classic installer that asks for CD keys. Four fingers open the app's
 menu: the CD keys are listed there (those pasted in **Game files → CD keys**, one per line, and
