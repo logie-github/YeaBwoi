@@ -58,6 +58,8 @@ X0, YT, YS, YB = 257.0, 229.3, 240.0, 266.8
 LEVELS = {1: (40.0, 1.0, 0.5, 1.2, 0.0, 0.0), 2: (40.0, 1.0, 0.4, 1.2, 0.0, 0.0),
         3: (43.0, 3.0, 0.85, 0.4, 0.0, 0.0), 4: (46.0, 6.0, 1.0, 0.4, 10.0, 0.06)}
 halfmax, reach, down_f, clear, spread, stray = LEVELS[level]
+if level == 4:
+    stray = cfg.get('l4_stray', stray)
 if level == 2 and 'half' in opts:
     halfmax = opts['half']
 top = YT + 2 - reach
@@ -324,7 +326,7 @@ elif level == 3:
         stroke(xs, ys, rng.uniform(0.55, 0.85) * PXW, shade(), rng.uniform(0.3, 0.5))
 else:
     for ub, vb, side, dpt in place(n(2500), lambda d: np.clip(0.42 + 0.25 * d, 0, 0.8) if d > 0 else (stray if d > -1.5 else 0)):
-        xs, ys = coil(ub, vb, side, rng.uniform(16, 28) * (1.2 if dpt < 0 else 1.0), 0.07, 0.2)
+        xs, ys = coil(ub, vb, side, rng.uniform(16, 28) * cfg.get('l4_len', 1.0) * (1.2 if dpt < 0 else 1.0), 0.07 * cfg.get('l4_turn', 1.0), 0.2 * cfg.get('l4_turn', 1.0))
         stroke(xs, ys, rng.uniform(0.55, 0.9) * PXW, shade(), rng.uniform(0.3, 0.52))
 
 FLAT_TOP = be_phys(X0 + 3.0, top + 0.5)[1]

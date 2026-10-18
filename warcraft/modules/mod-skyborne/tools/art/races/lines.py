@@ -39,7 +39,7 @@ dome = np.exp(-(ay0 / 11.4) ** 2) * np.exp(-((s0 - 80.0) / 26.0) ** 2) * 0.05
 f = (1 - _c.get('lines_depth', 0.95) * line + _c.get('lines_fold', 0.10) * fold - 0.06 * foldshade + dome)
 f = np.where(ok, f, 1.0)
 lw = _c.get('lines_lift_w', 8.0)
-sprof = np.clip((s0 + 3.0) / 10.0, 0, 1) * np.clip((100.0 - s0) / 30.0, 0, 1)
+sprof = np.clip((s0 + 3.0) / 10.0, 0, 1) * np.clip((_c.get('lines_lift_top', 100.0) - s0) / 30.0, 0, 1)
 wl = np.where(ok, np.clip(_c.get('lines_lift', 0.0) * np.exp(-(ay0 / lw) ** 4) * sprof, 0, 1), 0.0)
 tn = _c.get('lines_tone', [0.28, 0.40, 0.17])
 if 'lines_ref' in _c:

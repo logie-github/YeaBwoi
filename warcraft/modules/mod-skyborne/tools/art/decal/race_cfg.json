@@ -18,8 +18,8 @@
   "hair_scale": 1.3, "hair_scale_y": 1.15, "hair_scale_4": 1.17},
  "Orc": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "region": [976, 628, 512, 396], "hair_cols": 165,
   "geosets": [0, 1301, 1801], "ymax": 0.14, "ztop": 0.2, "below": 0.004, "xmin": -0.04, "triangle": true, "fan": 0.55,
-  "hair_scale": 1.3, "hair_scale_y": 1.15, "zj": 0.987, "lines_width": 2.2, "lines_depth": 1.0, "lines_fold": 0.3,
-  "lines_rim": 0.8, "lines_rim_at": 1.6, "lines_rim_w": 0.75, "lines_rim_ramp": 0.4, "lines_rim_k": 1.55, "lines_lift": 1.0,
-  "lines_lift_w": 30, "lines_ref": [258, 222, 276, 232], "lines_tone_k": [[0, 1.0], [40, 1.3], [85, 1.45]], "lines_fill": 4,
-  "lines_fill_u0": 256, "lines_shift": 16}
+  "hair_scale": 1.3, "hair_scale_y": 1.15, "zj": 0.987, "lines_width": 1.4, "lines_shift": 4, "lines_depth": 0.95,
+  "lines_fold": 0.2, "lines_lift": 0.5, "lines_lift_w": 9, "lines_lift_top": 45, "lines_ref": [258, 222, 276, 232],
+  "lines_tone_k": [[0, 1.0], [40, 1.3], [85, 1.45]], "lines_fill": 4, "lines_fill_u0": 256, "hair_scale_4": 1.0,
+  "hair_scale_y_4": 0.95, "l4_len": 0.75, "l4_turn": 0.65, "l4_stray": 0.02, "density": {"4": 0.85}}
 }
