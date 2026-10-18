@@ -304,11 +304,9 @@ def main():
         t = tex(base_skin)
         section(BLOODELF, sex, 0, [dark_ranger_path(t[0]), "", ""], base_skin[7], 0, dr)
         texture("grey", (s, l) + DARK_RANGER_EYES, t[0], dark_ranger_path(t[0]))
+        # Underwear: none (the patch takes every race's out: SkybornePatch.cpp, NoUnderwear).
         if base_under:
-            t = tex(base_under)
-            section(BLOODELF, sex, 4, [dark_ranger_path(x) if x else "" for x in t], base_under[7], 0, dr)
-            for x in t:
-                texture("grey", (s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
+            section(BLOODELF, sex, 4, ["", "", ""], base_under[7], 0, dr)
         for v in range(FACES):
             f = faces.get((v, 0))
             if not f:
@@ -319,22 +317,18 @@ def main():
                 texture("grey", (s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
 
         for race in (ALLIANCE, HORDE):
-            # Skins and underwear: the blood elf's own, and the blues.
+            # Skins (the blood elf's own, and the blues) and underwear rows without textures.
             for color, r in sorted(skins.items()):
                 section(race, sex, 0, tex(r), r[7], 0, color)
             for color, r in sorted(under.items()):
-                section(race, sex, 4, tex(r), r[7], 0, color)
+                section(race, sex, 4, ["", "", ""], r[7], 0, color)
             for color, (name, h, s, l) in BLUES.items():
                 t = tex(base_skin)
                 section(race, sex, 0, [skyborne_path(t[0], color), "", ""], base_skin[7], 0, color)
                 if race == ALLIANCE:
                     texture("skin", (h, s, l) + EYES[0][1], t[0], skyborne_path(t[0], color))
                 if base_under:
-                    t = tex(base_under)
-                    section(race, sex, 4, [skyborne_path(x, color) if x else "" for x in t], base_under[7], 0, color)
-                    if race == ALLIANCE:
-                        for x in t:
-                            texture("skin", (h, s, l) + EYES[0][1], x, skyborne_path(x, color) if x else "")
+                    section(race, sex, 4, ["", "", ""], base_under[7], 0, color)
             # Faces: blue eyes (0-9), yellow (10-19), on every skin.
             for e, (eye, eyes) in enumerate(EYES):
                 for v in range(FACES):
