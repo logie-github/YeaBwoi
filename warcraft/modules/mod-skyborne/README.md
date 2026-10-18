@@ -42,7 +42,8 @@ move to 22 and 23.
   narration (`data/client/intro.mp3`).
 - **Character creation**: their icons are the blood elf's with blue skin, white hair and blue eyes;
   each side's races go down its own column; their background is their start race's.
-- **Blood elves** get a Dark Ranger skin (colour 19: grey skin, red eyes).
+- **Blood elves** get a Dark Ranger skin (colour 19: the blood elf's fairest skin with its
+  saturation turned down to a tenth, so grey, and red eyes; its underwear's straps and trim are grey too).
 - **HD looks**: the HD blood elf takes its ears, jaw and eyeballs from a second skin texture
   (`...Skin00_NN_Extra.blp`, the skin row's second texture in CharSections). The patch makes each
   new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
