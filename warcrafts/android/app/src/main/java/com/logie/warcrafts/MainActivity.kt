@@ -8,11 +8,13 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.logie.warcrafts.game.Game
+import com.logie.warcrafts.game.GameStops
 import com.logie.warcrafts.ui.RtsHomeRoute
 
 /** The launcher ([RtsHomeRoute]); [Game] starts from it. */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        GameStops.catchJavaCrashes(this, "The launcher")
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),

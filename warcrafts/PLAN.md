@@ -37,6 +37,9 @@ The user's requirements, what was decided, what's open, and where it stands. The
   open … for writing"): "Warcraft 3 needs a CD key", pointing at a key generator site. "They need
   to be borderless, not windowed", then: "I mean fullscreen."
 
+- After build 5: "1 and 2 crash on launch and 3 still needs keys. Auto generate them from the
+  website so I don't have to."
+
 ## Decided
 
 - **One app, four looks**: `com.logie.warcrafts`, "Warcraft" (build 1 was `com.logie.warcraftrts`,
@@ -130,6 +133,23 @@ The user's requirements, what was decided, what's open, and where it stands. The
   `explorer /desktop`), as is the game's resolution, so fullscreen changes no display mode. The
   same notes replaced `-opengl` with `-graphicsapi OpenGL`: the OpenGL choice gives both (it gave
   `-graphicsapi OpenGL2`, which 1.30 may not know).
+- **Stratagus's folders on Android** (build 6): built with `ENABLE_USEGAMEDIR`, the engine takes its
+  user folder (preferences, saves, logs) from the data path when its settings are made, before
+  `-d` is read: ".", the working directory, which on Android is "/". Both games' scripts call
+  `SetGameName` at once, which creates `./war1gus` (`./wargus`): refused in "/", the likeliest cause
+  of both games stopping at launch (not seen: no log came back). The app passes `-u <game folder>`;
+  patch `0003` also makes the game folder the working directory on Android.
+- **What a game says when it stops** (build 6): patch `0003` (Android only) sends the engine's
+  output to `stdout.txt` and `stderr.txt` in the game's folder, writes a crash's signal, pc/lr and
+  stack (dladdr names: the engine's functions are exported from `libmain.so`) and an uncaught
+  exception's message there, and "Stratagus: exit N" on its own exits. `StratagusActivity` keeps a
+  `running` file with its process id; `GameStops` in the launcher finds one whose process is gone
+  without "exit 0", and shows the game's last output with Android's log for that process (`logcat
+  --pid`, which an app may read for its own processes), with Copy. The app's own Java exceptions
+  (launcher and game processes) are shown the same way.
+- **CD key generation** (asked after build 5): not built in. The app is published as a release, and
+  generating or fetching keys from a key generator site for a paid game isn't something it will
+  carry; the CD keys box takes the keys the user has.
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
@@ -157,11 +177,13 @@ The user's requirements, what was decided, what's open, and where it stands. The
    layout and resolutions** — built.
 3. **Warcraft I and II native on Stratagus from the GOG files** — built (build 3).
 4. **GOG's offline installers taken as they are** — built (build 4); unpacking worked on the phone.
-5. **The tools' fix for Android, Warcraft III's CD keys box, fullscreen** — built (build 5).
-6. After the user's next try: whatever the phone shows.
+5. **The tools' fix for Android, Warcraft III's CD keys box, fullscreen** — built (build 5); the
+   conversions ran on the phone, both games stopped at launch.
+6. **Stratagus's folders on Android, what a game says when it stops** — built (build 6).
+7. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
 
 ## Where it stands
 
-Stage 5: built locally and in CI; unit tests pass. On the user's phone (build 4): both GOG
-installers unpacked; both conversions stopped (fixed in build 5, not yet run). Stratagus itself
-hasn't run anywhere yet.
+Stage 6: built locally and in CI; unit tests pass. On the user's phone: both GOG installers
+unpacked (build 4), both conversions ran (build 5), both games stopped at launch (build 5; the
+folder fix and the stop report are in build 6, not yet run).

@@ -89,6 +89,7 @@ import com.logie.warcrafts.RtsUpdateActivity
 import com.logie.warcrafts.RtsUpdater
 import com.logie.warcrafts.game.Game
 import com.logie.warcrafts.game.GameSettings
+import com.logie.warcrafts.game.GameStops
 import com.logie.warcrafts.library.Needs
 import com.logie.warcrafts.library.Title
 import kotlinx.coroutines.Dispatchers
@@ -135,6 +136,12 @@ fun RtsHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     }
     LifecycleEventEffect(Lifecycle.Event.ON_START) { refresh++ }
 
+    // A game (or the app) that stopped by itself since: what it said last.
+    var stopped by remember { mutableStateOf<GameStops.Report?>(null) }
+    LaunchedEffect(refresh) {
+        withContext(Dispatchers.IO) { GameStops.take(context) }?.let { stopped = it }
+    }
+
     Crossfade(current, animationSpec = tween(600), label = "look") { shown ->
         RtsTheme(RtsLook.of(shown)) {
             Box(
@@ -165,6 +172,7 @@ fun RtsHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             }
             null -> {}
         }
+        stopped?.let { report -> GameStoppedDialog(report, onDismiss = { stopped = null }) }
         (game as? Game.State.Failed)?.let { failed ->
             RtsDialog(stringResource(R.string.rts_game_failed_title), onDismiss = { Game.dismiss() }) {
                 Text(failed.message, style = MaterialTheme.typography.bodyMedium)
