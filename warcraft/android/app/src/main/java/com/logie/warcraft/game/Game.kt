@@ -160,6 +160,10 @@ object Game {
             }.getOrDefault(false)
         }
 
+        // The realm's modules' patch (put in as the realm started) needs the patched executable;
+        // without it the game starts with its own and the patch's interface files are left out.
+        withContext(Dispatchers.IO) { runCatching { ClientMods.prepareExe(context) } }
+
         _state.value = State.Preparing(Step.STARTING)
         TitleMusic.stopForGame()
         val intent = Intent(context, XServerDisplayActivity::class.java)
