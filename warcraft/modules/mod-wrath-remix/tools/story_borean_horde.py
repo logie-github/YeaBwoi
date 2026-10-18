@@ -85,7 +85,7 @@ SPAWNS = [
          why="the coast's garrison, the Coast of Echoes"),
     dict(guid=7704367, entry=COAST_GUARD, x=2829.0, y=6716.0, z=10.8, o=2.70, visible=[[rewarded(THE_CONDEMNED_COAST), UNTIL_RECALLED]],
          why="the coast's garrison, the Coast of Echoes"),
-    dict(guid=7704368, entry=COAST_GUARD, x=2832.5, y=6727.5, z=10.6, o=2.40, visible=[[rewarded(THE_CONDEMNED_COAST), UNTIL_RECALLED]],
+    dict(guid=7704368, entry=COAST_GUARD, x=2823.0, y=6722.0, z=10.5, o=2.40, visible=[[rewarded(THE_CONDEMNED_COAST), UNTIL_RECALLED]],
          why="the coast's garrison, the Coast of Echoes"),
     dict(guid=7704369, entry=RECOVERING_WARRIOR, x=2812.0, y=6740.0, z=9.8, o=4.70, visible=[[rewarded(PLAINS_OF_NASAM), UNTIL_RECALLED]],
          why="the plains' wounded, recovering by Elder Mootoo"),
@@ -102,44 +102,45 @@ QUESTS = [
          gates=[[rewarded(HELLSCREAMS_VIGIL)], [rewarded(HELLSCREAMS_VIGIL_2)]],
          log="Warn Garrosh Hellscream, High Overlord Saurfang and the Warsong Captain on the south wall of what is coming to Warsong "
              "Hold, without telling them how you know.",
-         desc="You remember the first week here, don't you? The nerubians came up through the floor of the keep while Garrosh was still "
-              "shouting at the boats. And out of the sky, every hour, over the south wall.$B$BThis time the Horde can be ready. Tell "
-              "Garrosh: he will scoff. Tell Saurfang: he will listen, and he will tell no one he did. Tell the captain on the wall to put his "
-              "marksmen up.$B$BNot how you know, $N. No one in this year may learn that. You smelled it in the quarry. You heard it in the "
-              "rock. Orcs believe in instincts.",
+         desc="You remember this hold's first week, $N: what came up through the floor of this 'impregnable fortress', and what dropped "
+              "onto the south wall every hour after.$B$BThis time the Horde can be ready for both. Tell Garrosh; he will scoff. "
+              "Tell Saurfang; he will listen, and tell no one he did. Tell the captain on the wall to put his marksmen up.$B$BBut not "
+              "how you know. No one in this year can ever learn that. Say you have a bad feeling about the quarry. Orcs have gone to war "
+              "on less.",
          done="Return to Moratari.",
          objectives=[(C_GARROSH, 1, "Garrosh Hellscream warned"), (C_SAURFANG, 1, "High Overlord Saurfang warned"),
                      (C_CAPTAIN, 1, "The Warsong Captain warned")],
-         request="Well? Who listened?",
-         reward="Garrosh laughed at you. Saurfang did not. The captain will have his marksmen up before the next attack, and he will think it "
-                "was his own idea by tomorrow.$B$BThat is how we work, you and I: the Horde will be ready, and no one will know who told it."),
+         request="How did they take it?",
+         reward="Hands for the quartermaster, eyes on the plains, and marksmen on the wall before the next attack. Not bad, for a bad "
+                "feeling.$B$BSaurfang has work for you now. Go and see him."),
     dict(COMMON, id=HANDS_FOR_HOLGOTH, title="Hands for Holgoth", prev=TAKING_BACK_MIGHTSTONE, ender=HOLGOTH,
          log="Speak with Quartermaster Holgoth in Warsong Hold.",
-         desc="Saurfang promised Holgoth hands by nightfall. You are the hands.$B$BThe quartermaster has munitions in the quarry and a plan "
-              "for the nerubians' four sinkholes, and no one to carry either. In the record I have, the sinkholes are still open when the "
-              "nerubians come up through the floor. Let us close them first.",
+         desc="Saurfang promised Holgoth hands by nightfall. Yours are the first to arrive.$B$BThe quartermaster's munitions are out in "
+              "the quarry, and he has a plan for the nerubians' sinkholes. In the record, those sinkholes are still open when the floor "
+              "gives way. Let us close them before it does.",
          done="Speak with Quartermaster Holgoth.",
-         reward="The old one sent you? <Holgoth scratches his chin.> Well, I'll not argue with a gift. I've got munitions scattered all over "
-                "that quarry and a dozen holes that need filling."),
+         reward="The High Overlord sent you? <Holgoth scratches his chin.> Huh. First time anybody at that map's remembered this hold has a "
+                "quartermaster.$B$BWell, you're here now. Let's not waste it."),
     dict(COMMON, id=THE_CONDEMNED_COAST, title="The Condemned Coast", prev=TANKS_A_LOT,
          log="Slay 6 Kvaldir Mist Lords in the mist over Garrosh's Landing, and ask Gorge to keep a garrison on the coast.",
-         desc="Hellscream condemned this coast the day the mist came, and left Gorge, a goblin and six tanks to hold it. In the record I "
-              "have, the Kvaldir come back out of the mist the week after the tanks roll, and there is no one left on this beach to stop them "
-              "carrying off what the plains spared.$B$BThin the Mist Lords on the landing. Then tell Gorge to ask Saurfang for a garrison. "
-              "Hellscream condemned the coast. He never said no one could guard it.",
+         desc="This coast was condemned the day the mist came, and only Gorge, a goblin and six tanks stayed. When the tanks "
+              "leave for the plains, the Kvaldir come out of the mist behind them, and there is no one left on this beach to stop "
+              "them.$B$BThin the Mist Lords on the landing. Then tell Gorge to ask Saurfang for a garrison. Hellscream condemned the coast; "
+              "he never said no one could guard it.",
          done="Return to Moratari.",
          objectives=[(KVALDIR_MIST_LORD, 6, ""), (C_GORGE, 1, "Gorge asked to hold the coast")],
          request="Is the landing quiet?",
-         reward="A garrison on the condemned coast, a supply lane from the sea, and two more tanks than history ever had. Saurfang will "
-                "want to know who suggested it. Gorge will say it was his idea. Let him."),
-    dict(COMMON, id=SHIPPING_LANES, title="Shipping Lanes", prev=PLAINS_OF_NASAM, ender=SAURFANG, bronze=1500,
+         reward="Good. With a garrison on it, it will stay that way.$B$BNow think what a held beach is worth, $N, to an army whose ships "
+                "have nowhere on this coast to land. Saurfang will. Give him a day."),
+    dict(COMMON, id=SHIPPING_LANES, title="Shipping Lanes", prev=PLAINS_OF_NASAM, gates=[[rewarded(THE_CONDEMNED_COAST)]], ender=SAURFANG, bronze=1500,
          log="Speak with High Overlord Saurfang in Warsong Hold.",
-         desc="Kel'Thuzad. You saw him with your own eyes, over the plains, and Garrosh heard the name from you before you ever saw him. "
-              "Now he wants to march on Icecrown tonight, before the dread citadel is finished rising.$B$BIn the record I have, Saurfang "
-              "talks him out of it, barely, and they shout at each other over that floor map for the rest of the war. Today, I think the "
-              "argument ends differently. Go and stand beside the old one, $N. He will want a witness.",
+         desc="Kel'Thuzad. You saw him over the plains with your own eyes, and Garrosh has had an hour to think about it, which for "
+              "Garrosh is a long time. You can guess what he has decided.$B$BSaurfang will talk him out of it, barely. He always has. "
+              "But today there is a garrison on Garrosh's Landing, and I think the argument may end differently.$B$BCome, $N. I would not "
+              "miss this one.",
          done="Speak with High Overlord Saurfang.",
-         reward="<High Overlord Saurfang watches Hellscream at the war map.>$B$BStand here, $N. You will want to remember this."),
+         reward="<High Overlord Saurfang glances at Hellscream across the war map.>$B$BYou brought him that name, $N. Stay, and hear what "
+                "he means to do with it."),
 ]
 
 GATES = {
@@ -154,48 +155,51 @@ GATES = {
 TEXTS = {
     BURY_THOSE_COCKROACHES: dict(
         reward="That'll stop 'em - at least I think it'll stop 'em. Either way, you've done your part. That's all an $r can ask for, no?$B$B"
-               "Funny thing. The old one sent me six peons this morning, no questions asked. Somebody's been talking in his ear."),
+               "And the High Overlord's sending sappers out to sit on every one of those holes, in case anything tries digging back up. "
+               "Somebody's been talking in his ear."),
     TRANSJIGAMARIG: dict(
-        reward="Already? Buddy, I been lookin' for that thing since we landed! How'd you know it was in the old hut? ...No. Don't tell me. "
-               "Now where'd I put those spare parts..."),
+        reward="Already? Buddy, I been starin' at that hut since the mist rolled in, tryin' to work up the nerve! You just walked in there "
+               "an' back out like it was nothin'.$B$BNow where'd I put those spare parts..."),
     TANKS_A_LOT: dict(
         reward="With the current state of our transports and shipping lanes, we haven't been able to get a damned siege engine to Warsong. "
                "These tanks are all that we have left from the original expedition. Now that they're operational, you're gonna use 'em to "
-               "stomp the Scourge offensive at the Plains of Nasam.$B$BAnd Mobu says he's got plates left over for two more. Two more! I might "
-               "hug the little gnome."),
+               "stomp the Scourge offensive at the Plains of Nasam.$B$BAn' Mobu says there's plates left over to patch up two more. Two more "
+               "tanks! Maybe I won't cleave the little gnome in two after all."),
     PLAINS_OF_NASAM: dict(
-        desc="Get in a tank and get out to the Plains of Nasam. Use the tank to kill as many Scourge as you can find. If you find any of our "
-             "soldiers, grab 'em! Bring 'em back here!$B$BAnd you ain't alone out there this time. Every tank that'll run is rollin' with "
-             "you. Hellscream wants a show!$B$BTry to get close enough to that structure in the center and see what's going on. If you do all "
-             "of this and live, go to Hellscream!"),
+        desc="Once you're ready, jump into one of the tanks and drive it out to the Plains of Nasam, southeast of here.$B$BUse the tank's "
+             "weapon arsenal to take down the Scourge army. If you get in a jam, the \"Meatpounder\" will tear 'em up and the land mines "
+             "will finish 'em off! If you find any of our soldiers, grab 'em and bring 'em back here! One last thing, fuel tanks can be "
+             "found all over the field.$B$BTry to get close enough to that structure in the center and see what's going on.$B$BIf you do "
+             "all of this and live, go to Hellscream!"),
 }
 
 TALK = [
     # WRM-050
     dict(npc=GARROSH, quest=BENEATH_THE_FLOOR, credit=C_GARROSH,
-         option="The nerubians are under the floor, Hellscream. They'll come up through it, and down out of the sky.",
-         reply="Under my floor? <Garrosh sniffs.> Then they will find my boot waiting.$B$BI smelled your fear when you walked in, $r. Keep it "
-               "out of my hold. The Warsong does not cower from bugs."),
+         option="The nerubians are under the floor, Overlord. When they come, they'll come from below and above at once.",
+         reply="Under my floor? <Garrosh sniffs.> Then they will find my boot waiting for them.$B$BI smelled your fear the moment you walked "
+               "in, $r. Keep it out of my hold. The Warsong does not cower before insects."),
     dict(npc=GARROSH, quest=BENEATH_THE_FLOOR,
-         option="And the cultists in the west serve a lich. Kel'Thuzad.",
-         reply="Kel'Thuzad? The Argent Dawn put that lich in the ground in the Plaguelands. <Garrosh spits.> I do not fight ghost stories, "
-               "$r. I fight what bleeds."),
+         option="And the cultists out west serve a lich. Kel'Thuzad. I'd stake my life on it.",
+         reply="Kel'Thuzad? That lich was destroyed in the Plaguelands. <Garrosh spits.> I do not fight ghost stories, $r. I fight what "
+               "bleeds."),
     dict(npc=SAURFANG, quest=BENEATH_THE_FLOOR, credit=C_SAURFANG,
-         option="High Overlord, the nerubians will come up through the floor of the keep. The quarry is riddled with their tunnels.",
-         reply="<Saurfang is quiet for a long moment.>$B$BRazgor says the quarry is soft. Holgoth says he has charges and no hands to carry "
-               "them. He will have hands by nightfall.$B$BAnd the necromancers in the west wear the Cult's robes. The Cult has one master. If "
-               "he is here, his citadel is not far behind him. I will put scouts on the plains.$B$BSay nothing of this to Hellscream. He has "
-               "enough to shout about."),
+         option="High Overlord, the nerubians will come up through the floor of the hold. The quarry is riddled with their tunnels.",
+         reply="<Saurfang studies you for a long moment.>$B$BRazgor tells me the quarry is soft. Holgoth tells me he has charges and no one "
+               "to carry them. And now you.$B$BHolgoth will have his hands by nightfall.$B$B<Saurfang looks west, toward the plains.>$B$B"
+               "There are necromancers out there in the robes of the Cult of the Damned. Where the Cult goes, plague is never far behind. I "
+               "will put scouts on the plains.$B$BWhat I have told you stays between us. Hellscream has enough to shout about."),
     dict(npc=CAPTAIN, quest=BENEATH_THE_FLOOR, credit=C_CAPTAIN,
          option="Captain, they'll come over the south wall, and out of the sky. Put your marksmen up.",
-         reply="Settle down, soldier!$B$B<The captain looks up at the sky, then back at you.>$B$B...We'll be ready for 'em. You did a good job "
-               "in warning us."),
+         reply="Settle down, soldier!$B$B<The captain looks up at the sky, then back at you.>$B$BWe'll be ready for 'em... "
+               "You did a good job in warning us."),
     # WRM-054
     dict(npc=GORGE, quest=THE_CONDEMNED_COAST, credit=C_GORGE,
-         option="Gorge, keep a garrison on this coast. Ask Saurfang for the men. He'll send them.",
-         reply="A garrison? Here? Hellscream condemned this coast, an' everybody on it! <Gorge chews on that.>$B$B...But Saurfang ain't "
-               "Hellscream. An' I ain't watchin' them mist-men drag off my tanks while I'm out stompin' Scourge.$B$BI'll send a runner. And "
-               "if anybody asks, it was my idea."),
+         option="Gorge, keep a garrison on this coast once the tanks roll out. The Kvaldir will be back the moment the beach is empty. Ask "
+                "Saurfang for the men; he'll send them.",
+         reply="A garrison? Here? Hellscream condemned this coast, an' everybody on it!$B$B<Gorge chews on that.>$B$B...But Saurfang ain't "
+               "Hellscream. An' I ain't sendin' my tanks out to the plains so them mist-men can walk in behind 'em.$B$BI'll send a runner to "
+               "the hold. An' if anybody asks, it was my idea."),
 ]
 
 SCENES = [
@@ -206,11 +210,11 @@ SCENES = [
              ("summon", 2, SCENE_TANK, -6.0, 8.0, 2.4),
              ("summon", 3, SCENE_TANK, -9.0, 4.0, 2.4),
              ("summon", 4, SCENE_TANK, -12.0, 9.0, 2.4),
-             ("yell", 1, "Every tank that runs, rolls! Hellscream wants a show, an' he's gonna get one!"),
+             ("yell", 1, "Every tank that runs, rolls! NO MERCY FOR THE DEAD!"),
              ("move", 2, -60.0, 70.0, 1),
              ("move", 3, -64.0, 64.0, 1),
              ("move", 4, -68.0, 72.0, 1),
-             ("say", 1, "Go on, then! An' bring my soldiers home!"),
+             ("say", 1, "An' I want every one of 'em back in one piece! Those are my tanks!"),
              ("wait", 6000),
              ("despawn", 2),
              ("despawn", 3),
@@ -222,61 +226,55 @@ SCENES = [
              ("bind", 1, GARROSH),
              ("bind", 2, SAURFANG),
              ("face", 1, 2),
-             ("say", 1, "Kel'Thuzad. Then we march on Icecrown tonight, before his citadel is done rising."),
+             ("say", 1, "Kel'Thuzad lives, and Naxxramas with him. We have waited long enough. We march on Icecrown tonight."),
              ("face", 2, 1),
-             ("say", 2, "With what? The tanks rolled today because their parts were found before Mobu asked for them. The coast held because "
-                        "someone garrisoned it. The wounded came home because no one left them on the plains."),
-             ("say", 1, "Shipping lanes. Supplies. You still bore me to death, old one."),
+             ("say", 2, "With what, young Hellscream? Every blade and barrel we own still comes from the far side of this blasted continent. "
+                        "Until we have a port on this coast, we march nowhere."),
+             ("say", 1, "Shipping lanes... supplies... You still bore me to death, old one."),
              ("say", 2, "And you are still alive to be bored."),
              ("wait", 1500),
-             ("say", 1, "...Show me this lane of yours."),
-             ("say", 2, "Garrosh's Landing. The coast you condemned."),
+             ("say", 1, "...Show me this port of yours."),
+             ("say", 2, "Garrosh's Landing. The coast you condemned. Gorge holds it now, with men I sent him."),
              ("say", 1, "Then it is not condemned. There. Now we have a shipping lane."),
          ]),
 ]
 
 WORDS = [
-    (HELLSCREAMS_VIGIL, TAKEN, HORDE, "Garrosh Hellscream, son of Grom. He smells fear on everyone who walks into his hold. Let him smell "
-                                      "nothing on you. It confuses him."),
-    (HELLSCREAMS_VIGIL, TURNED_IN, HORDE, "He and Saurfang have the same argument at that floor map every few minutes. Shipping lanes, "
-                                          "supplies, Garrosh stamping on things. I have counted. I have had the time.", dict(delay=6000)),
-    (BENEATH_THE_FLOOR, TAKEN, HORDE, "Garrosh first; he is closest, and he will not believe you. Then Saurfang. Then the captain on the south "
-                                      "wall, by the battlements."),
-    (BENEATH_THE_FLOOR, DONE, HORDE, "'You did a good job in warning us.' He has had that line ready for a week, and no one ever gave him a "
-                                     "reason to say it."),
-    (DEFENSE_OF_WARSONG_HOLD, TAKEN, HORDE, "'Do not let Hellscream dissuade you.' Saurfang drank Mannoroth's blood beside Grom, and he has "
-                                            "spent every day since making sure Grom's son does not do the same."),
-    (TAKING_BACK_MIGHTSTONE, TAKEN, HORDE, "Some of those cocoons hold soldiers, not peons. Cut them down and they will fight beside you. "
-                                           "Some of them would otherwise be names on the wall of the hold, with a line through them."),
-    (TAKING_BACK_MIGHTSTONE, TURNED_IN, HORDE, "The quarry is the Horde's again. Now let us make sure nothing comes up under it."),
-    (HANDS_FOR_HOLGOTH, TAKEN, HORDE, "Holgoth, by the quartermaster's stores. He has explosives and a plan. Goblin explosives, orc plan. "
-                                      "That is usually how wars are won."),
-    (PATIENCE, TAKEN, HORDE, "Munitions crates, all over the quarry. Pick them up quickly; the nerubians like to sit on them."),
-    (BURY_THOSE_COCKROACHES, TAKEN, HORDE, "Four sinkholes. In the record, they are still open when the floor of the keep caves in. Not this "
-                                           "time."),
-    (BURY_THOSE_COCKROACHES, TURNED_IN, HORDE, "There. The floor of Warsong Hold stays a floor. Garrosh will never know he had nothing to "
-                                               "stamp on."),
-    (CUTTING_OFF_THE_SOURCE, TAKEN, HORDE, "The eggs are on the scaffolding, high and dry. Each one is twenty fewer nerubians, Razgor says. "
-                                           "I checked his arithmetic once. He is being modest."),
-    (WIND_MASTER, TAKEN, HORDE, "To'bor, at the top of the hold. 'Across dat tundra be death, mon.' He is not wrong, but he is very "
-                                "dramatic about it."),
-    (MAGIC_CARPET_RIDE, TAKEN, HORDE, "A thirty percent survival rate, and Yanni calls it an improvement. Hold on tight. I will be there when "
-                                      "you land."),
-    (TANK_AINT_GONNA_FIX_ITSELF, TAKEN, HORDE, "Gorge calls Mobu a gnome. Mobu is a goblin. Do not correct him. Nobody corrects Gorge."),
-    (TANK_AINT_GONNA_FIX_ITSELF, TURNED_IN, HORDE, "He is about to ask for a pneumatic tank transjigamarig and ten metal plates. The "
-                                                   "transjigamarig is in his old hut by the stables, in the mist. The plates are scattered "
-                                                   "over the landing and in the shallows. I have watched him look for them for three days. "
-                                                   "Let us save him the trouble.", dict(delay=4000)),
-    (TRANSJIGAMARIG, TAKEN, HORDE, "Into the mist. The Kvaldir cannot see you any better than you can see them. That is the only comfort I "
-                                   "have to offer."),
-    (TANKS_A_LOT, TURNED_IN, HORDE, "Six tanks, all that is left of the first expedition. Nine more lie burned out on the plains. Today, two "
-                                    "of those nine come back to life."),
-    (THE_CONDEMNED_COAST, TAKEN, HORDE, "The Mist Lords are on the landing, inside the mist. Then Gorge. He will say no first. He always says "
-                                        "no first."),
-    (PLAINS_OF_NASAM, TAKEN, HORDE, "Three seats in that tank for the wounded. Fill them. The Scourge stitch the ones they find into "
-                                    "something called a Stitched Warsong Horror. The name tells you everything."),
-    (PLAINS_OF_NASAM, TURNED_IN, HORDE, "'So it's true.' He said that the first time too, and I always wondered who told him. Now I know."),
-    (SHIPPING_LANES, TAKEN, HORDE, "The war map, in the middle of the hold. Stand where Saurfang can see you."),
-    (SHIPPING_LANES, TURNED_IN, HORDE, "He has never once said that without stamping on something. Remember this day, $N. It does not last.",
+    (HELLSCREAMS_VIGIL, TAKEN, HORDE, "Garrosh holds court at the war map, in the heart of the hold. Do not expect him to welcome you."),
+    (HELLSCREAMS_VIGIL, TURNED_IN, HORDE, "He and Saurfang have the same argument at that map every few minutes: shipping lanes, supplies, "
+                                          "and then Garrosh's boot comes down. I could recite it for you.", dict(delay=6000)),
+    (BENEATH_THE_FLOOR, TAKEN, HORDE, "Garrosh and Saurfang first. Then the captain, up on the battlements of the south wall."),
+    (BENEATH_THE_FLOOR, DONE, HORDE, "That is all three. I wonder which of them will still remember your face when this war is over."),
+    (DEFENSE_OF_WARSONG_HOLD, TAKEN, HORDE, "Saurfang drank the same blood Grom did, and lived to remember everything it made him do. "
+                                            "Garrosh only knows the songs."),
+    (TAKING_BACK_MIGHTSTONE, TAKEN, HORDE, "Some of the cocoons in the quarry hold Warsong soldiers, still alive. Cut them free and they "
+                                           "will fight beside you."),
+    (TAKING_BACK_MIGHTSTONE, TURNED_IN, HORDE, "Razgor is right: more will come. Next time, from underneath."),
+    (HANDS_FOR_HOLGOTH, TAKEN, HORDE, "Holgoth is a few steps away, past Razgor's hut."),
+    (PATIENCE, TAKEN, HORDE, "The crates are scattered across the quarry floor. Gather them quickly; the nerubians will not leave you "
+                             "alone down there for long."),
+    (BURY_THOSE_COCKROACHES, TAKEN, HORDE, "When the last charge goes off, listen. You will hear the tunnels collapse, all the way back "
+                                           "under the hold."),
+    (BURY_THOSE_COCKROACHES, TURNED_IN, HORDE, "In your war, the nerubians were inside the hold by now. Tonight it sleeps on solid stone, "
+                                               "and will never know how close it came."),
+    (CUTTING_OFF_THE_SOURCE, TAKEN, HORDE, "Twenty to an egg, Razgor says. I counted once. He is being modest."),
+    (WIND_MASTER, TAKEN, HORDE, "From the top of the hold you can see what Razgor keeps pointing at."),
+    (MAGIC_CARPET_RIDE, TAKEN, HORDE, "Yanni will quote you his odds. Pay them no mind. I will be at the coast when you land."),
+    (TANK_AINT_GONNA_FIX_ITSELF, TAKEN, HORDE, "Mobu is down by the tanks. Be gentle with him; he has wanted to go home since the day he "
+                                               "got here."),
+    (TANK_AINT_GONNA_FIX_ITSELF, TURNED_IN, HORDE, "He is about to send you for a transjigamarig and ten metal plates. I know where every "
+                                                   "one of them is. Come, we can be back before he has finished complaining.",
+     dict(delay=4000)),
+    (TRANSJIGAMARIG, TAKEN, HORDE, "Into the mist, then. Take heart: the Kvaldir see no better in it than you do."),
+    (TANKS_A_LOT, TURNED_IN, HORDE, "Before the tanks roll, $N, there is one more thing this beach needs."),
+    (THE_CONDEMNED_COAST, TAKEN, HORDE, "The Mist Lords keep to the thickest of the mist, on the landing itself. As for Gorge, let him "
+                                        "shout. He will come around."),
+    (PLAINS_OF_NASAM, TAKEN, HORDE, "Three seats in that tank for the wounded. Fill them, $N. Whoever the Scourge reach first, they stitch "
+                                    "into something else and send back at the Horde."),
+    (PLAINS_OF_NASAM, TURNED_IN, HORDE, "'Underestimated.' From Garrosh Hellscream, that is very nearly an apology. Do not wait for a "
+                                        "second one."),
+    (SHIPPING_LANES, TAKEN, HORDE, "Saurfang is just there, at Garrosh's shoulder. Stand where he can see you."),
+    (SHIPPING_LANES, TURNED_IN, HORDE, "All the other times I have heard him say that, his boot came down on the map. Remember this "
+                                       "afternoon, $N. It does not last.",
      dict(delay=50000)),
 ]

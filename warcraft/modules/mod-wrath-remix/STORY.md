@@ -355,7 +355,8 @@ with them, whispered when she doesn't.
 - **WRM-051 Hands for Holgoth**: the game's Patience is a Virtue and Bury Those Cockroaches! on the
   road: the four sinkholes under the quarry collapsed before the floor of the keep gives way.
 - **Mobu's parts** are back on the road, Moratari knowing exactly where they are ("Already? Buddy, I
-  been lookin' for that thing since we landed!"), and two more tanks patched from the spare plates.
+  been starin' at that hut since the mist rolled in, tryin' to work up the nerve!"), and two more tanks
+  patched from the spare plates; Shipping Lanes waits for the coast to be held.
 - **WRM-054 The Condemned Coast** (after Tanks a lot...): the Kvaldir thinned on the landing, and a
   garrison Gorge asks Saurfang for ("if anybody asks, it was my idea").
 - **The Plains of Nasam**: every tank that will run rolls out together (its accept scene), and the
