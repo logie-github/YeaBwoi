@@ -3,13 +3,14 @@
 <script type="module">
 import * as THREE from 'three';
 const q=new URLSearchParams(location.search);
-const W=+q.get('w')||800,H=+q.get('h')||1000;
+const W=+q.get('w')||800,H=+q.get('h')||1000,GN=+q.get('gain')||1;
 const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
 r.setSize(W,H); r.setClearColor(0x2b2b33); r.outputColorSpace=THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
 const scene=new THREE.Scene();
-scene.add(new THREE.HemisphereLight(0xffffff,0x554444,1.6));
-const key=new THREE.DirectionalLight(0xffffff,1.6); key.position.set(3,1.5,3); scene.add(key);
-const fill=new THREE.DirectionalLight(0xffeedd,0.6); fill.position.set(2,-2,1); scene.add(fill);
+scene.add(new THREE.HemisphereLight(0xffffff,0x554444,1.6*GN));
+const key=new THREE.DirectionalLight(0xffffff,1.6*GN); key.position.set(3,1.5,3); scene.add(key);
+const fill=new THREE.DirectionalLight(0xffeedd,0.6*GN); fill.position.set(2,-2,1); scene.add(fill);
+if(q.get('front')){const hl=new THREE.DirectionalLight(0xffffff,1.6*(+q.get('front'))*GN); hl.position.set(...q.get('cam').split(',').slice(0,3).map(Number)); scene.add(hl);}
 const tl=new THREE.TextureLoader();
 const tex=n=>{const t=tl.load(n); t.flipY=false; t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t;};
 const T={1:tex(q.get('skin')),6:tex('hair.png'),8:tex(q.get('extra')),0:tex('glow.png')};
@@ -23,7 +24,7 @@ for(const b of m.batches){
   const gg=g.clone(); gg.setIndex(b.ind);
   const add=b.blend>=3, alpha=b.blend==2;
   const map=b.tex?tex(b.tex):T[b.texType];
-  const mat=new THREE.MeshLambertMaterial({map,side:THREE.DoubleSide,transparent:add||alpha,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:!(add||alpha),alphaTest:add?0:(alpha?0.02:0.5)});
+  const mat=new (q.get('unlit')?THREE.MeshBasicMaterial:THREE.MeshLambertMaterial)({map,side:THREE.DoubleSide,transparent:add||alpha,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:!(add||alpha),alphaTest:add?0:(alpha?0.02:0.5)});
   root.add(new THREE.Mesh(gg,mat));
 }
 const cam=new THREE.PerspectiveCamera(+q.get('fov')||30,W/H,0.01,100);

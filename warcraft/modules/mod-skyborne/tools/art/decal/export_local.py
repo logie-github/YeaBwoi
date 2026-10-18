@@ -1,5 +1,3 @@
-# export_local.py M2 SKIN OUT.json PIECE.png: a model and skin file read back (the modified ones),
-# the body, legs and the hair piece, for the renderer
 import sys, struct, json
 m2, sk, out, piece = sys.argv[1:5]
 d = open(m2, 'rb').read(); s = open(sk, 'rb').read()

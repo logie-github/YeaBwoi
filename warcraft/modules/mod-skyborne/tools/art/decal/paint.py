@@ -5,7 +5,7 @@ from scipy.ndimage import gaussian_filter, map_coordinates
 
 race, path, level, out = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 share = float(sys.argv[5]) if len(sys.argv) > 5 else 0.33
-STYLE = {5: 'strip', 6: 'heart', 7: 'moon', 8: 'moon'}.get(level)
+STYLE = {5: 'strip', 6: 'heart', 7: 'moon', 8: 'moon', 9: 'star', 10: 'swords'}.get(level)
 MOON_TURN = {7: -5.0, 8: 90.0}.get(level, 30.0)
 if STYLE:
     level = 2
@@ -96,8 +96,8 @@ def depth(ub, vb, sg=1.0):
     d = np.minimum.reduce([side, upper, lower, inner])
     if spread > 0:
         f2 = np.clip((vb - (YS - 6)) / (YB - YS + 6), 0, 1)
-        thigh = np.minimum.reduce([(spread * (0.4 + 0.6 * f2) - (ub - X0 - 4)) / 6.0, (vb - (YS - 6)) / 4.0, (YB - 2 - vb) / 3.0])
-        d = np.where(vb > YS - 6, np.maximum(d, thigh * 0.5), d)
+        flank = np.minimum.reduce([(spread * (0.4 + 0.6 * f2) - (ub - X0 - 4)) / 6.0, (vb - (YS - 6)) / 4.0, (YB - 2 - vb) / 3.0])
+        d = np.where(vb > YS - 6, np.maximum(d, flank * 0.5), d)
     return d
 
 TOPH = be_phys(X0 + 3.0, top)[1]
@@ -129,7 +129,6 @@ def stroke(X, Y, width_mm, color, alpha):
     stamps.append((cx, cy, np.full(len(cx), width_mm / 2 / R), cols, np.full(len(cx), alpha)))
 
 def depth_w(X, h, sg=1.0):
-    """The level's shape in world space for a lines race: (sides, top, bottom), each 0 at its edge and growing inward."""
     X, h = np.asarray(X, float), np.asarray(h, float)
     half = np.maximum(half_lim(h), 2.0)
     side = (1 - np.abs(X) / half) * 2.0 * cfg.get('edge_sharp', 1.0)
@@ -247,6 +246,34 @@ if STYLE:
         Hh = cfg.get('heart_h', 40.0); Wh = cfg.get('heart_half', 19.0); hbot = cfg.get('heart_bottom', 62.0)
         hx = GXa / Wh * xmax; hy = -1.0 + (GHm - hbot) / Hh * (ymax + 1.0)
         ins = ((hx ** 2 + hy ** 2 - 1) ** 3 - hx ** 2 * hy ** 3 <= 0) & (GHm >= hbot)
+    elif STYLE == 'swords':
+        th = np.radians(cfg.get('swords_angle', 40.0)); ks = cfg.get('swords_scale', 1.0)
+        bw, gw, gt = cfg.get('swords_blade', 4.8), cfg.get('swords_guard', 8.5), cfg.get('swords_guard_t', 4.5)
+        gr, pr = cfg.get('swords_grip', 2.6), cfg.get('swords_pommel', 4.0)
+        xc, bl = cfg.get('swords_cross', 16.0), cfg.get('swords_len', 38.0)
+        def swords(hc_s):
+            m_ = np.zeros(GXm.shape, bool)
+            for sgn in (1.0, -1.0):
+                e0, e1 = np.sin(th) * sgn, np.cos(th); q0, q1 = np.cos(th), -np.sin(th) * sgn
+                dx, dh = GXm / ks, (GHm - hc_s) / ks
+                a_ = dx * e0 + dh * e1 + xc; p_ = dx * q0 + dh * q1
+                blade = (a_ >= 0) & (a_ <= bl) & (np.abs(p_) <= bw * np.clip(1 - a_ / bl, 0, 1) ** 0.6)
+                guard = (a_ >= -3) & (a_ <= -3 + gt) & (np.abs(p_) <= gw)
+                grip = (a_ >= -12) & (a_ <= -3) & (np.abs(p_) <= gr)
+                pommel = np.hypot(a_ + 12.0 + pr * 0.45, p_) <= pr
+                m_ |= blade | guard | grip | pommel
+            return m_
+        ins = swords(100.0)
+        ins = swords(100.0 + cfg.get('swords_bottom', 62.0) - float(GHm[ins].min()))
+    elif STYLE == 'star':
+        from PIL import Image as _I, ImageDraw as _D
+        Rs = cfg.get('star_r', 26.0); rin = cfg.get('star_inner', 0.55) * Rs; hcs = cfg.get('star_bottom', 62.0) + 0.809 * Rs
+        pts = []
+        for k in range(10):
+            a = np.radians(90 + 36 * k); rr_ = Rs if k % 2 == 0 else rin
+            pts.append(((rr_ * np.cos(a) + 110.0) / GS, (hcs + rr_ * np.sin(a)) / GS))
+        im_ = _I.new('L', (GXm.shape[1], GXm.shape[0]), 0); _D.Draw(im_).polygon(pts, fill=255)
+        ins = np.asarray(im_) > 0
     else:
         th = np.radians(cfg.get('moon_turn', MOON_TURN)); hc = cfg.get('moon_centre', 86.0)
         R_ = cfg.get('moon_h', 54.0) / 2.0; ax_ = cfg.get('moon_narrow', 1.0); r_ = cfg.get('moon_r', 0.78) * R_; d_ = cfg.get('moon_d', 0.5) * R_
@@ -265,7 +292,7 @@ if STYLE:
     sdf = lambda X, h: map_coordinates(SDF, [np.atleast_1d(np.asarray(h, float)) / GS, (np.atleast_1d(np.asarray(X, float)) + 110.0) / GS], order=1, mode='nearest')
     print('style', STYLE, 'area %.0f mm2 (level 2 %.0f), height %.0f, half width %.0f' % (A_style, A0, SH1 - SH0, SXM))
     def place(count, keep_fn):
-        cnt = int(count * A_start / A0 * (1.5 if STYLE != 'strip' else 1.0)); placed = 0
+        cnt = int(count * A_start / A0 * (cfg.get('swords_density', 5.0) if STYLE == 'swords' else 2.0 if STYLE == 'star' else 1.5 if STYLE != 'strip' else 1.0)); placed = 0
         for _ in range(cnt * 30):
             if placed >= cnt:
                 break

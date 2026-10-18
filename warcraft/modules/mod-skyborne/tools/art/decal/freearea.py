@@ -1,5 +1,3 @@
-# freearea.py RACE [W H]: which texels of the race's hair texture no geoset that uses it draws (every triangle of every
-# batch with the character-hair texture type, from the female and male models), and the largest free rectangles.
 import sys, struct, numpy as np
 sys.path.insert(0, 'tools'); import mpq
 from PIL import Image, ImageDraw

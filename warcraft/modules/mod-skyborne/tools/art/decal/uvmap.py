@@ -1,6 +1,3 @@
-# uvmap.py RACE UMIN UMAX VMIN VMAX [GEOSET...]: for each body-texture position (u, v) in the box, the lateral distance |y| and
-# the distance s along the front midline above the junction (decal/frames.json) of the surface point there, by barycentric
-# interpolation over the model's triangles (default geoset 1301). Saved as decal/uvmap_RACE.npz (step 0.25 texel).
 import sys, json
 import numpy as np
 sys.path.insert(0, 'decal')
