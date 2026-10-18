@@ -1083,8 +1083,8 @@ for the game on the phone itself ("that's the whole point").
     Forever's class starting stats are the class's with Str -1 Agi +1 Sta -1 Int +1), forms
     (night elf), totems (tauren), quests/items/conditions of the start race (and the Night Elves'/
     Blood Elves' for classes the start race hasn't); and `data/client`: the rows to change in the
-    game's tables and `textures.txt` (1392 textures: six blue skins, six hair colours from the blood
-    elf's silver, every face with blue and with yellow eyes, the Dark Ranger skin and faces).
+    game's tables and `textures.txt` (1407 textures: six light blue skins, nine hair colours from the
+    blood elf's silver (three pinks), every face with blue and with yellow eyes, the Dark Ranger skin and faces).
   - Racials as of WoW: Forever's 15 October beta (Wowhead was unreadable here; Warcraft Tavern,
     lfcarry, BoostRoom, Blizzard's article): Walk on Air 10 s glide, 90 s; Skysight 0.5 s cast while
     moving, Elemental Blessing +10% run and mounted speed (not stacking), 30 s, 2 min; Read Ley Line

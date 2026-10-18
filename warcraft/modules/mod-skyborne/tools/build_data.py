@@ -50,15 +50,15 @@ FILESTRING = {ALLIANCE: "SkyborneA", HORDE: "SkyborneH"}
 # Skin colours: the blood elf's ten, then the Skyborne's blues (colour index: name, hue, saturation,
 # lightness), made from the blood elf's fairest skin (colour 0).
 BLUES = {
-    19: ("Sky", 0.56, 0.50, 1.05),
-    20: ("Azure", 0.58, 0.50, 0.95),
-    21: ("Cerulean", 0.60, 0.45, 0.85),
-    22: ("Deep", 0.62, 0.40, 0.68),
-    23: ("Twilight", 0.66, 0.32, 0.80),
-    24: ("Frost", 0.54, 0.25, 1.12),
+    19: ("Sky", 0.54, 0.45, 1.15),
+    20: ("Azure", 0.555, 0.50, 1.06),
+    21: ("Cerulean", 0.565, 0.50, 0.97),
+    22: ("Ocean", 0.57, 0.48, 0.87),
+    23: ("Glacier", 0.58, 0.36, 0.95),
+    24: ("Frost", 0.53, 0.25, 1.20),
 }
-DARK_RANGER = (19, ("Dark Ranger", 0.60, 0.06, 0.75))   # the blood elf's new skin: grey, red eyes
-DARK_RANGER_EYES = (0.0, 0.90, 1.05)
+DARK_RANGER = (19, ("Dark Ranger", 0.58, 0.05, 0.75))   # the blood elf's new skin: grey, red eyes
+DARK_RANGER_EYES = (0.0, 1.0, 1.0)
 # Eyes: each face twice, blue (faces 0-9) and yellow (10-19); never the blood elf's green.
 EYES = [("blue", (0.56, 0.80, 1.15)), ("yellow", (0.13, 0.85, 1.20))]
 # Hair colours: the blood elf's thirteen, then these, from its silver (colour 1).
@@ -69,6 +69,9 @@ HAIRS = {
     16: ("Storm", 0.62, 0.45, 0.60),
     17: ("Teal", 0.50, 0.40, 0.90),
     18: ("Twilight", 0.70, 0.30, 0.85),
+    19: ("Pink", 0.93, 0.55, 1.15),
+    20: ("Rose", 0.95, 0.65, 1.00),
+    21: ("Blossom", 0.91, 0.45, 1.25),
 }
 HAIR_SOURCE = 1
 FACES = 10                                     # the blood elf's faces for everyone (0-9)
@@ -372,6 +375,8 @@ def main():
             client.put("CharSections", st, v)
             moved_sections.append(v)
     sql.comment("Their looks (and the blood elf's Dark Ranger skin); the creatures' races 13 and 14 moved to 22 and 23.")
+    # Their rows' ids follow each other: a build with fewer looks leaves none of the last one's.
+    sql.raw(f"DELETE FROM `charsections_dbc` WHERE `ID` BETWEEN {ID_SECTIONS} AND {ID_SECTIONS + 9999};\n")
     sql.replace("charsections_dbc", COLUMNS["charsections_dbc"], st, new_sections + moved_sections)
 
     # Hair shapes, beards, names, voices (the game's tables only, but for the emotes' sounds).
