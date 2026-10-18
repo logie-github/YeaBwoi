@@ -38,8 +38,8 @@
     <string name="rts_needs_title">What\'s needed</string>
     <string name="rts_needs_title_ready">Everything is in</string>
     <string name="rts_needs_where_wc3">From your PC: the Warcraft III 1.30 folder (the repack\'s folder as it unzips, about 1.8 GB), or its zip as it is. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. These must be in it:</string>
-    <string name="rts_needs_where_wc1">From GOG: the installed Warcraft: Orcs &amp; Humans folder (on a PC, C:\\GOG Games\\Warcraft Orcs &amp; Humans or wherever GOG put it), or a zip of it. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. The app then converts it for the phone by itself (a few minutes). This must be in it:</string>
-    <string name="rts_needs_where_wc2">From GOG: the installed Warcraft II Battle.net Edition folder (on a PC, C:\\GOG Games\\Warcraft II BNE or wherever GOG put it), or a zip of it. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. The app then converts it for the phone by itself (a few minutes). These must be in it:</string>
+    <string name="rts_needs_where_wc1">From GOG: the offline installer of Warcraft: Orcs &amp; Humans (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_….exe, and every setup_warcraft_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
+    <string name="rts_needs_where_wc2">From GOG: the offline installer of Warcraft II: Battle.net Edition (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_ii_….exe, and every setup_warcraft_ii_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_need_war_data">The game\'s data</string>
     <string name="rts_need_war_data_note">The DATA folder with DATA.WAR and the other .WAR files (maps, units, sounds, the cutscenes\' pictures).</string>
     <string name="rts_need_tomes">The game\'s data</string>
@@ -58,12 +58,18 @@
     <string name="rts_need_maps_note">The Maps folder. The campaigns are in the game\'s data and don\'t need it; skirmish and custom games do.</string>
     <string name="rts_need_keys">CD keys (optional here)</string>
     <string name="rts_need_keys_note">Reign of Chaos and The Frozen Throne keys, asked at the first start. The repack\'s _SERIAL_KEYS.txt has them and the app\'s menu types them; your own keys work too.</string>
-    <string name="rts_needs_space_native">Room: the game\'s files, and about as much again for the converted data. Free now: %1$s.</string>
+    <string name="rts_needs_space_native">Room: the installer, about as much again while it\'s unpacked, and the converted data. Free now: %1$s.</string>
     <string name="rts_needs_space">Room: the game\'s size, plus about 1.5 GB for the games\' Windows the first time. Free now: %1$s.</string>
     <string name="rts_needs_native">Played natively on the phone by Stratagus (War1gus, Wargus): an open-source engine that plays the game from your files, campaigns and skirmishes, the original art and sounds. The intro videos are left out, and Warcraft II\'s music (converting those needs a tool phones don\'t have).</string>
 
     <!-- Conversion (Warcraft I and II) -->
     <string name="rts_convert_title">Converting %1$s for the phone</string>
+    <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
+    <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>
+    <string name="rts_installer_missing_parts">The installer\'s .bin file wasn\'t picked: pick the setup .exe and every .bin file that came with it together (touch and hold the first, then tap the others).</string>
+    <string name="rts_installer_not_inno">That .exe isn\'t a GOG offline installer: pick the setup_warcraft_….exe from the game\'s offline backup game installers on GOG\'s site (GOG Galaxy\'s small downloader can\'t be used).</string>
+    <string name="rts_installer_failed">The installer couldn\'t be unpacked (code %1$d). Its last lines:\n%2$s</string>
+    <string name="rts_installer_wrong_game">The installer was unpacked, but this game\'s files aren\'t in it: is it this game\'s installer?</string>
     <string name="rts_convert_scripts">Unpacking the game\'s scripts…</string>
     <string name="rts_convert_failed">The conversion stopped (code %1$d). Its last lines:\n%2$s</string>
     <string name="rts_convert_again">Convert again</string>
@@ -102,13 +108,15 @@
     <!-- Game files -->
     <string name="rts_files_title">%1$s: files</string>
     <string name="rts_files_what_wc3">Bring the Warcraft III 1.30 folder from a PC: the one with Warcraft III.exe, Data and Maps in it (the 1.30 repack\'s folder as it unzips), or the zip itself. It holds both Reign of Chaos and The Frozen Throne, their campaigns and maps.</string>
-    <string name="rts_files_what_wc1">Bring Warcraft: Orcs &amp; Humans from GOG: the installed folder (with WAR.EXE and the DATA folder in it), or a zip of it. The app converts it for the phone after the copy; it\'s then played natively by Stratagus.</string>
-    <string name="rts_files_what_wc2">Bring Warcraft II Battle.net Edition from GOG: the installed folder (with Warcraft II BNE.exe, Install.mpq and Support\\TOMES in it), or a zip of it. The app converts it for the phone after the copy; it\'s then played natively by Stratagus.</string>
+    <string name="rts_files_what_wc1">Bring Warcraft: Orcs &amp; Humans from GOG: its offline installer (the setup .exe and every .bin file that came with it), or the installed folder (with WAR.EXE and the DATA folder in it), or a zip of that folder. The app unpacks and converts it for the phone; it\'s then played natively by Stratagus.</string>
+    <string name="rts_files_what_wc2">Bring Warcraft II Battle.net Edition from GOG: its offline installer (the setup .exe and every .bin file that came with it), or the installed folder (with Warcraft II BNE.exe, Install.mpq and Support\\TOMES in it), or a zip of that folder. The app unpacks and converts it for the phone; it\'s then played natively by Stratagus.</string>
     <string name="rts_files_installed">In the app: %1$s</string>
     <string name="rts_files_missing">Not in the app yet</string>
-    <string name="rts_files_move_first">Put the folder or zip on the phone itself first (Downloads is fine): files in a cloud folder can\'t be read fast enough. Adding again replaces what\'s there.</string>
+    <string name="rts_files_move_first">Put the files on the phone itself first (Downloads is fine): files in a cloud folder can\'t be read fast enough. Adding again replaces what\'s there.</string>
     <string name="rts_files_pick_folder">Pick folder</string>
     <string name="rts_files_pick_zip">Pick zip</string>
+    <string name="rts_files_pick_installer">Pick GOG installer</string>
+    <string name="rts_files_installer_how">Pick GOG installer: in the picker, touch and hold the setup .exe, tap each .bin file beside it, then confirm. Or put them in a folder of their own (one inside Downloads) and Pick folder.</string>
     <string name="rts_files_program">Program that starts it</string>
     <string name="rts_files_arguments">Started with</string>
     <string name="rts_files_arguments_note">What the program is started with (this game\'s default: %1$s).</string>

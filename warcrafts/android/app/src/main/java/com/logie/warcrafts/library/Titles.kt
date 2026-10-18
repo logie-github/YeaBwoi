@@ -29,12 +29,17 @@ enum class Install(
     val defaultArguments: String,
     /** The Stratagus game package ([Engine.STRATAGUS]): its scripts in the APK and its data tool. */
     val stratagusGame: String? = null,
+    /** Its GOG installer's name, to tell it from another game's ([GameLayout.findInstaller]). */
+    val installerHint: Regex? = null,
 ) {
     /** Warcraft: Orcs & Humans (GOG, the DOS game): War1gus. */
-    WC1("wc1", Engine.STRATAGUS, listOf("WAR.EXE", "DATA/DATA.WAR"), "", stratagusGame = "war1gus"),
+    WC1("wc1", Engine.STRATAGUS, listOf("WAR.EXE", "DATA/DATA.WAR"), "", stratagusGame = "war1gus", installerHint = Regex("(?i)orcs")),
 
     /** Warcraft II: Battle.net Edition (GOG): Wargus. */
-    WC2("wc2", Engine.STRATAGUS, listOf("Warcraft II BNE.exe", "Support/TOMES/TOME.1", "Install.mpq"), "", stratagusGame = "wargus"),
+    WC2(
+        "wc2", Engine.STRATAGUS, listOf("Warcraft II BNE.exe", "Support/TOMES/TOME.1", "Install.mpq"), "",
+        stratagusGame = "wargus", installerHint = Regex("(?i)warcraft[ _]?(ii|2)|tides|bne"),
+    ),
 
     /** Warcraft III 1.30.4: Reign of Chaos and The Frozen Throne. */
     WC3("wc3", Engine.WINE, listOf("Warcraft III.exe", "Frozen Throne.exe", "war3.exe"), ""),

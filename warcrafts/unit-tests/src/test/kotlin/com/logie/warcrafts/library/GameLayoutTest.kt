@@ -94,3 +94,58 @@ class GogLayoutTest {
         assertEquals("War2", GameLayout.findRoot(paths, Install.WC2.mainNames))
     }
 }
+
+class GogInstallerTest {
+    private val wc2 = "setup_warcraft_ii_2.02_v4_(28456)"
+    private val wc1 = "setup_warcraft_orcs__humans_1.2_(28330)"
+
+    @Test
+    fun `GOG's installer is its setup program and the bin parts named after it`() {
+        val paths = listOf("$wc2.exe", "$wc2-1.bin", "$wc2-2.bin", "notes.txt")
+        assertEquals(GameLayout.Installer("$wc2.exe", listOf("$wc2-1.bin", "$wc2-2.bin")), GameLayout.findInstaller(paths, Install.WC2.installerHint))
+    }
+
+    @Test
+    fun `an installer of one exe has no parts`() {
+        assertEquals(GameLayout.Installer("$wc1.exe", emptyList()), GameLayout.findInstaller(listOf("$wc1.exe"), Install.WC1.installerHint))
+    }
+
+    @Test
+    fun `with both games' installers in a folder, each game takes its own`() {
+        val paths = listOf("GOG/$wc1.exe", "GOG/$wc2.exe", "GOG/$wc2-1.bin")
+        assertEquals(GameLayout.Installer("GOG/$wc1.exe", emptyList()), GameLayout.findInstaller(paths, Install.WC1.installerHint))
+        assertEquals(GameLayout.Installer("GOG/$wc2.exe", listOf("GOG/$wc2-1.bin")), GameLayout.findInstaller(paths, Install.WC2.installerHint))
+    }
+
+    @Test
+    fun `renamed parts are still taken when none is named after the setup program`() {
+        val paths = listOf("SETUP.EXE", "part1.bin")
+        assertEquals(GameLayout.Installer("SETUP.EXE", listOf("part1.bin")), GameLayout.findInstaller(paths, Install.WC1.installerHint))
+    }
+
+    @Test
+    fun `no setup program is no installer`() {
+        assertNull(GameLayout.findInstaller(listOf("WAR.EXE", "DATA/DATA.WAR"), Install.WC1.installerHint))
+    }
+
+    @Test
+    fun `an installed game is told apart from its installer`() {
+        assertTrue(GameLayout.hasMain(listOf("Warcraft/WAR.EXE", "Warcraft/DATA/DATA.WAR"), Install.WC1.mainNames))
+        assertFalse(GameLayout.hasMain(listOf("$wc1.exe"), Install.WC1.mainNames))
+        assertTrue(GameLayout.hasMain(listOf("app/Support/TOMES/TOME.1"), Install.WC2.mainNames))
+    }
+
+    @Test
+    fun `innoextract's unpacked app folder is the game's folder`() {
+        val paths = listOf("app/WAR.EXE", "app/DATA/DATA.WAR", "app/DOSBOX/DOSBox.exe", "commonappdata/x.ini")
+        assertEquals("app", GameLayout.findRoot(paths, Install.WC1.mainNames))
+    }
+
+    @Test
+    fun `English is picked from the installer's languages`() {
+        assertEquals("english", GameLayout.englishLanguage(listOf("german Deutsch", "english English", "french Français")))
+        assertEquals("en-US", GameLayout.englishLanguage(listOf("de-DE", "en-US")))
+        assertNull(GameLayout.englishLanguage(listOf("german Deutsch")))
+        assertNull(GameLayout.englishLanguage(emptyList()))
+    }
+}

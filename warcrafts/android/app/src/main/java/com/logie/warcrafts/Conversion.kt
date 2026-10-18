@@ -20,7 +20,7 @@ import java.util.zip.ZipInputStream
  */
 object Conversion {
     fun tool(context: Context, install: Install): File =
-        File(context.applicationInfo.nativeLibraryDir, if (install == Install.WC2) "libwartool.so" else "libwar1tool.so")
+        Tools.file(context, if (install == Install.WC2) "libwartool.so" else "libwar1tool.so")
 
     fun run(context: Context, install: Install, onLine: (String) -> Unit) {
         val game = install.stratagusGame ?: error("$install isn't played by Stratagus")
@@ -47,26 +47,12 @@ object Conversion {
             }
         }
 
-        val log = File(staging, "conversion.log")
-        val process = ProcessBuilder(tool(context, install).path, RtsFiles.folder(context, install).path, staging.path)
-            .directory(staging)
-            .redirectErrorStream(true)
-            .apply { environment()["HOME"] = staging.path }
-            .start()
-        val tail = ArrayDeque<String>()
-        log.bufferedWriter().use { out ->
-            process.inputStream.bufferedReader().forEachLine { line ->
-                out.appendLine(line)
-                tail.addLast(line)
-                if (tail.size > 12) tail.removeFirst()
-                if (Imports.cancelled) process.destroy()
-                onLine(line)
-            }
-        }
-        val code = process.waitFor()
-        if (Imports.cancelled) throw Imports.ImportException(context.getString(R.string.rts_import_cancelled))
-        if (code != 0 || !File(staging, "extracted").isFile) {
-            throw Imports.ImportException(context.getString(R.string.rts_convert_failed, code, tail.joinToString("\n")))
+        val result = Tools.run(
+            listOf(tool(context, install).path, RtsFiles.folder(context, install).path, staging.path),
+            staging, File(staging, "conversion.log"), mapOf("HOME" to staging.path), onLine,
+        )
+        if (result.code != 0 || !File(staging, "extracted").isFile) {
+            throw Imports.ImportException(context.getString(R.string.rts_convert_failed, result.code, result.tail.joinToString("\n")))
         }
         target.deleteRecursively()
         if (!staging.renameTo(target)) throw Imports.ImportException("Can't move the converted game into place")
