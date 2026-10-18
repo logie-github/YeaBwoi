@@ -804,7 +804,7 @@ public:
     // The game's patch with the tables (on ChromieCraft's realm too: that's where the patch comes out
     // of the game), before any module's startup: the Skyborne's patch (mod-skyborne, patch-Z.MPQ,
     // read after this one) is made at the startup from the game's tables as the patches before it
-    // have them, this one's looks included.
+    // have them, the clothes of Remix's looks (patch-<locale>-Y.MPQ, ClientPatch.cpp) included.
     void OnLoadCustomDatabaseTable() override
     {
         LoadData();

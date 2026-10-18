@@ -622,7 +622,7 @@ def run_script(session, player_guid, steps):
             # would, rather than waited for)
             for attempt in range(6):
                 try:
-                    target = creature_guid(int(rest))
+                    target, yards = creature_guid(int(rest), near=True)
                     break
                 except RuntimeError:
                     if attempt == 5:
@@ -631,6 +631,11 @@ def run_script(session, player_guid, steps):
                     session.pump(5.0, packets)
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
             session.pump(0.5, packets)
+            # (one far off is called over first: a kill only counts for a quest from so far, and the
+            # next of a camp may be across it)
+            if yards > 30:
+                say(session, ".npc follow")
+                session.pump(arrival(yards), packets)
             say(session, ".damage 100 pct")
             session.pump(3.0, packets)
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))

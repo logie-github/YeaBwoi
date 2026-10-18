@@ -17,6 +17,7 @@
 
 #include "WrathRemix.h"
 #include "Chat.h"
+#include "Config.h"
 #include "Creature.h"
 #include "DatabaseEnv.h"
 #include "GossipDef.h"
@@ -85,16 +86,6 @@ namespace WrathRemix
         std::mutex returningLock;
         std::set<ObjectGuid> returning;
 
-        // Timerunners gone home, to take off Wrath Remix once their session has let them go: their
-        // account, and when they went.
-        struct GoneHome
-        {
-            ObjectGuid guid;
-            uint32 account;
-            std::chrono::steady_clock::time_point at;
-        };
-        std::mutex goneLock;
-        std::vector<GoneHome> gone;
 
         Goodbye const* GoodbyeOf(uint32 npc)
         {
@@ -122,6 +113,27 @@ namespace WrathRemix
         {
             char const* dir = std::getenv("WOW_TRANSFERS_DIR");
             return dir ? dir : "";
+        }
+
+        // ChromieCraft's characters (the same MariaDB): the core takes no character into an account
+        // that has ten there (PlayerDump.cpp), so a Timerunner who'd be one too many stays.
+        constexpr uint32 HOME_ROOM = 10;
+
+        std::string HomeDatabase()
+        {
+            return sConfigMgr->GetOption<std::string>("WrathRemix.HomeCharacterDatabase", "acore_characters");
+        }
+
+        // A homecoming ChromieCraft couldn't take, set aside in failed/ with why (the app takes the
+        // server to ChromieCraft again only for one in the folder itself).
+        void SetAside(std::string const& dir, std::string const& base, std::string const& why)
+        {
+            std::error_code error;
+            std::filesystem::create_directories(dir + "/failed", error);
+            std::string stem = std::filesystem::path(base).filename().string();
+            for (char const* ext : { ".dump", ".who" })
+                std::filesystem::rename(base + ext, dir + "/failed/" + stem + ext, error);
+            std::ofstream(dir + "/failed/" + stem + ".why") << why << "\n";
         }
 
         void BringBack(ObjectGuid guid)
@@ -292,6 +304,28 @@ namespace WrathRemix
             ChatHandler(player->GetSession()).SendSysMessage("|cff8fd3ffMoratari:|r The way home is closed on this realm (WOW_TRANSFERS_DIR). Report a time anomaly, and I will look into it.");
             return;
         }
+        // The last try, if ChromieCraft couldn't take them: why, and tried again now.
+        {
+            std::string failed = dir + "/failed/" + std::to_string(player->GetGUID().GetCounter());
+            std::error_code error;
+            if (std::ifstream why(failed + ".why"); why)
+            {
+                std::string reason;
+                std::getline(why, reason);
+                why.close();
+                ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffMoratari:|r The way home closed on you last time ({}). Again, then.", reason);
+                for (char const* ext : { ".dump", ".who", ".why" })
+                    std::filesystem::remove(failed + ext, error);
+            }
+        }
+        // Room for them in their own time, before anything of theirs is touched.
+        if (QueryResult room = CharacterDatabase.Query("SELECT COUNT(*) FROM `{}`.`characters` WHERE `account` = {}", HomeDatabase(), player->GetSession()->GetAccountId());
+            room && room->Fetch()[0].Get<uint64>() >= HOME_ROOM)
+        {
+            ChatHandler(player->GetSession()).PSendSysMessage("|cff8fd3ffMoratari:|r Your own time has no room for you yet: {} of your heroes are on ChromieCraft "
+                "already, and that is all a realm keeps. Let one of them go there, then come back here, and I will take you home.", HOME_ROOM);
+            return;
+        }
         // The Bronze stays at the Bazaar, and so does Moratari's Hourglass.
         if (uint32 bronze = player->GetItemCount(ITEM_BRONZE, true))
             player->DestroyItemCount(ITEM_BRONZE, bronze, true, false);
@@ -349,11 +383,8 @@ namespace WrathRemix
             std::filesystem::rename(base + ".dump.part", base + ".dump", error);
             LOG_INFO("module", "Wrath Remix: {} goes home to ChromieCraft ({}.dump)", name, base);
 
-            // Off Wrath Remix: let go of the game, and take the Timerunner off this realm.
-            {
-                std::lock_guard<std::mutex> lock(goneLock);
-                gone.push_back({ guid, account, std::chrono::steady_clock::now() });
-            }
+            // Off Wrath Remix: let go of the game. The Timerunner is taken off this realm once
+            // ChromieCraft has them (LetGoOfThoseHome, at this realm's next start).
             if (player)
             {
                 Record(player, "home", 0, 0);
@@ -363,31 +394,37 @@ namespace WrathRemix
         });
     }
 
-    // (the world's update: a Timerunner gone home is taken off the realm once they're logged out
-    // and saved, a few seconds on)
-    void ForgetGoneHome()
+    // As Wrath Remix starts: the Timerunners ChromieCraft has taken in (home/, by their guid here)
+    // are taken off this realm, each once (a .who done is renamed), and only the character that
+    // went (the core gives a deleted character's guid to the next one made).
+    void LetGoOfThoseHome()
     {
-        std::vector<GoneHome> ready;
+        std::string dir = TransfersDir();
+        std::error_code error;
+        if (dir.empty() || !std::filesystem::is_directory(dir + "/home", error))
+            return;
+        for (auto const& entry : std::filesystem::directory_iterator(dir + "/home", error))
         {
-            std::lock_guard<std::mutex> lock(goneLock);
-            if (gone.empty())
-                return;
-            auto now = std::chrono::steady_clock::now();
-            for (auto it = gone.begin(); it != gone.end();)
+            if (!entry.is_regular_file() || entry.path().extension() != ".who")
+                continue;
+            ObjectGuid::LowType low = ObjectGuid::LowType(std::strtoul(entry.path().stem().string().c_str(), nullptr, 10));
+            std::ifstream who(entry.path());
+            uint32 account = 0;
+            std::string name;
+            bool read = bool(who >> account >> name);
+            who.close();
+            if (read && low)
             {
-                if (now - it->at > std::chrono::seconds(5) && !ObjectAccessor::FindConnectedPlayer(it->guid))
+                CharacterDatabase.EscapeString(name);
+                if (CharacterDatabase.Query("SELECT 1 FROM `characters` WHERE `guid` = {} AND `account` = {} AND `name` = '{}'", low, account, name))
                 {
-                    ready.push_back(*it);
-                    it = gone.erase(it);
+                    Player::DeleteFromDB(low, account, true, true);
+                    LOG_INFO("module", "Wrath Remix: Timerunner {} ({}) taken off Wrath Remix: home on ChromieCraft", name, low);
                 }
-                else
-                    ++it;
             }
-        }
-        for (GoneHome const& g : ready)
-        {
-            Player::DeleteFromDB(g.guid.GetCounter(), g.account, true, true);
-            LOG_INFO("module", "Wrath Remix: Timerunner {} taken off Wrath Remix (gone home)", g.guid.GetCounter());
+            std::filesystem::path done = entry.path();
+            done += ".let-go";
+            std::filesystem::rename(entry.path(), done, error);
         }
     }
 
@@ -444,6 +481,8 @@ namespace WrathRemix
             if (!(who >> account >> name >> side))
             {
                 LOG_ERROR("module", "Wrath Remix: {} has no word of who it is ({}.who)", entry.path().string(), base);
+                who.close();
+                SetAside(dir, base, "the record of who you are was lost on the way");
                 continue;
             }
             if (!(who >> romance))
@@ -456,6 +495,8 @@ namespace WrathRemix
             if (loaded != DUMP_SUCCESS)
             {
                 LOG_ERROR("module", "Wrath Remix: {} couldn't come home to ChromieCraft ({}, error {})", name, entry.path().string(), uint32(loaded));
+                SetAside(dir, base, loaded == DUMP_TOO_MANY_CHARS ? "ChromieCraft had no room: ten characters on the account there"
+                                                                   : "ChromieCraft couldn't read the record (error " + std::to_string(uint32(loaded)) + ")");
                 continue;
             }
             // In its side's capital, at home there (queued after the dump's own writes, which are
@@ -537,22 +578,18 @@ public:
 };
 
 // ChromieCraft takes in the Timerunners who came home, as its world server starts; Wrath Remix lets
-// them go once they've left.
+// them go at its own next start, once ChromieCraft has them.
 class WrathRemixHomecoming : public WorldScript
 {
 public:
-    WrathRemixHomecoming() : WorldScript("WrathRemixHomecoming", { WORLDHOOK_ON_STARTUP, WORLDHOOK_ON_UPDATE }) { }
+    WrathRemixHomecoming() : WorldScript("WrathRemixHomecoming", { WORLDHOOK_ON_STARTUP }) { }
 
     void OnStartup() override
     {
         if (!Active())
             TakeInTimerunners();
-    }
-
-    void OnUpdate(uint32 /*diff*/) override
-    {
-        if (Active())
-            ForgetGoneHome();
+        else
+            LetGoOfThoseHome();
     }
 };
 
