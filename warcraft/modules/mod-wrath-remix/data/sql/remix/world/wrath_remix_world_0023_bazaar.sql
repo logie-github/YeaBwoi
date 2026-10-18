@@ -1,12 +1,15 @@
 -- The Infinite Bazaar's camp (tools/bazaar.py writes this file: edit that and run it again). Around
 -- the story's people at its heart, districts a Timerunner can read at a glance: the market lane along
--- the west edge (a stall for each Bronze trader), the training yard to the south-east (the
--- instructors at work, dummies and targets), the waystation to the north-east (Zephyr, her drake, a
--- door in time, Sa'at's map table), the chronicle corner to the north-west, the campfire to the
--- south (other Timerunners, veterans of this war from their own hours after it, and a cook), and porters, wardens
--- and whelps on their rounds. Who says what while a Timerunner is about is remix_bazaar_line
--- (src/RemixBazaar.cpp). Heights are the floor's (data/bazaar_ground.tsv). The story's own people
--- stand where wrath_remix_world_0004_spawns.sql, 0009 and 0018 place them.
+-- the west edge (a stall for each Bronze trader), the north row along the north edge (the heroic
+-- raids' pavilions, the apparel stalls, Nedward's barber's chair), the training yard to the
+-- south-east (the instructors at work, dummies and targets; Jakkus and Momentus at its edge), the
+-- waystation to the north-east (Zephyr, her drake, a door in time, Sa'at's map table, Hemet's
+-- mounts), the chronicle corner to the north-west (Lidamorrutu's gems, Lindormi's emblems), the
+-- campfire to the south (other Timerunners, veterans of this war from their own hours after it, a
+-- cook, Nostwin's snacks, Erus's scrap), and porters, wardens and whelps on their rounds. Who says
+-- what while a Timerunner is about is remix_bazaar_line (src/RemixBazaar.cpp). Heights are the
+-- floor's (data/bazaar_ground.tsv). The story's own people and the Bazaar's cast stand where
+-- wrath_remix_world_0004_spawns.sql, 0009 and 0018 place them.
 
 DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 770001 AND 770099;
 INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `Data0`, `Data1`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES
@@ -41,7 +44,22 @@ INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconNa
 (770029, 5, 4713, 'Door in Time', '', '', '', 0.12, 0, 0, '', '', 0),
 (770030, 5, 6679, 'Rune Circle', '', '', '', 0.6, 0, 0, '', '', 0),
 (770031, 5, 7317, 'Light', '', '', '', 0.35, 0, 0, '', '', 0),
-(770032, 8, 8176, 'Runeforge', '', '', '', 2.03, 1552, 15, '', '', 0);
+(770032, 8, 8176, 'Runeforge', '', '', '', 2.03, 1552, 15, '', '', 0),
+(770033, 32, 7896, 'Barbershop Chair', '', '', '', 1.0, 2, 0, '', '', 0),
+(770034, 5, 166, 'Anvil', '', '', '', 1.0, 0, 0, '', '', 0),
+(770035, 5, 7949, 'Weapon Rack', '', '', '', 0.8, 0, 0, '', '', 0),
+(770036, 5, 8686, 'Scrap', '', '', '', 1.0, 0, 0, '', '', 0),
+(770037, 5, 7114, 'Scrap', '', '', '', 1.2, 0, 0, '', '', 0),
+(770038, 5, 566, 'Roast Boar', '', '', '', 0.6, 0, 0, '', '', 0),
+(770039, 5, 6145, 'Hay', '', '', '', 0.8, 0, 0, '', '', 0),
+(770040, 5, 6148, 'Water Trough', '', '', '', 0.9, 0, 0, '', '', 0),
+(770041, 5, 7733, 'Gem Grinder', '', '', '', 1.0, 0, 0, '', '', 0),
+(770042, 5, 7456, 'Uncut Gems', '', '', '', 0.6, 0, 0, '', '', 0),
+(770043, 5, 259, 'Coffer', '', '', '', 0.9, 0, 0, '', '', 0),
+(770044, 5, 7738, 'Armor Stand', '', '', '', 1.2, 0, 0, '', '', 0),
+(770045, 5, 7827, 'Armor Stand', '', '', '', 1.2, 0, 0, '', '', 0),
+(770046, 5, 4031, 'Wardrobe', '', '', '', 1.0, 0, 0, '', '', 0),
+(770047, 5, 7933, 'Argent Crusade Banner', '', '', '', 1.0, 0, 0, '', '', 0);
 
 DELETE FROM `gameobject` WHERE `guid` BETWEEN 7705001 AND 7705299;
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`,
@@ -98,7 +116,7 @@ INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, 
 (7705050, 770014, 571, 210, 4520, 1, 1, 6412.50, 1895.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Table, the chronicle corner'),
 (7705051, 770025, 571, 210, 4520, 1, 1, 6412.50, 1895.00, 508.60, 0.5000, 0, 0, 0.247404, 0.968912, 300, 100, 1, '', 0, 'Wrath Remix: Book, the chronicle corner'),
 (7705052, 770026, 571, 210, 4520, 1, 1, 6412.80, 1894.60, 508.60, 1.2000, 0, 0, 0.564642, 0.825336, 300, 100, 1, '', 0, 'Wrath Remix: Map, the chronicle corner'),
-(7705053, 770028, 571, 210, 4520, 1, 1, 6413.00, 1903.50, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Death''s Gaze Orb, the chronicle corner, Momentus''s'),
+(7705053, 770028, 571, 210, 4520, 1, 1, 6413.00, 1903.50, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Death''s Gaze Orb, the chronicle corner'),
 (7705054, 770005, 571, 210, 4520, 1, 1, 6408.00, 1891.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Brazier, the chronicle corner'),
 (7705055, 770021, 571, 210, 4520, 1, 1, 6349.00, 1866.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Campfire, the campfire'),
 (7705056, 770016, 571, 210, 4520, 1, 1, 6344.50, 1866.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Bench, the campfire'),
@@ -107,7 +125,43 @@ INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, 
 (7705059, 770013, 571, 210, 4520, 1, 1, 6337.50, 1858.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Barrel, the campfire'),
 (7705060, 770010, 571, 210, 4520, 1, 1, 6336.50, 1863.00, 508.60, 0.6000, 0, 0, 0.295520, 0.955336, 300, 100, 1, '', 0, 'Wrath Remix: Crate, the campfire'),
 (7705061, 770005, 571, 210, 4520, 1, 1, 6357.00, 1873.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Brazier, the campfire'),
-(7705062, 770005, 571, 210, 4520, 1, 1, 6342.00, 1874.50, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Brazier, the campfire');
+(7705062, 770005, 571, 210, 4520, 1, 1, 6342.00, 1874.50, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Brazier, the campfire'),
+(7705063, 770008, 571, 210, 4520, 1, 1, 6431.50, 1888.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Pavilion, the north row, Pythagorus''s'),
+(7705064, 770015, 571, 210, 4520, 1, 1, 6426.80, 1888.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Table, Pythagorus''s counter'),
+(7705065, 770008, 571, 210, 4520, 1, 1, 6431.50, 1879.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Pavilion, the north row, Sacerdormu''s'),
+(7705066, 770015, 571, 210, 4520, 1, 1, 6426.80, 1879.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Table, Sacerdormu''s counter'),
+(7705067, 770007, 571, 210, 4520, 1, 1, 6431.50, 1870.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Stall, the north row, Agos''s stall'),
+(7705068, 770017, 571, 210, 4520, 1, 1, 6433.00, 1867.50, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Weapon Rack, Agos''s stall'),
+(7705069, 770045, 571, 210, 4520, 1, 1, 6433.00, 1872.50, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Armor Stand, Agos''s stall'),
+(7705070, 770007, 571, 210, 4520, 1, 1, 6431.50, 1861.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Stall, the north row, Unicus''s stall'),
+(7705071, 770044, 571, 210, 4520, 1, 1, 6433.00, 1858.50, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Armor Stand, Unicus''s ensembles'),
+(7705072, 770044, 571, 210, 4520, 1, 1, 6433.00, 1863.50, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Armor Stand, Unicus''s ensembles'),
+(7705073, 770007, 571, 210, 4520, 1, 1, 6431.50, 1852.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Stall, the north row, Larah''s stall'),
+(7705074, 770047, 571, 210, 4520, 1, 1, 6433.00, 1854.50, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Argent Crusade Banner, Larah''s stall'),
+(7705075, 770012, 571, 210, 4520, 1, 1, 6433.00, 1849.50, 508.60, 0.5000, 0, 0, 0.247404, 0.968912, 300, 100, 1, '', 0, 'Wrath Remix: Crate, Larah''s stall'),
+(7705076, 770007, 571, 210, 4520, 1, 1, 6431.50, 1843.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Stall, the north row, Freddie''s stall'),
+(7705077, 770046, 571, 210, 4520, 1, 1, 6433.50, 1843.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Wardrobe, Freddie''s cloaks'),
+(7705078, 770033, 571, 210, 4520, 1, 1, 6427.50, 1832.00, 508.60, 3.1416, 0, 0, 1.000000, 0.000000, 300, 100, 1, '', 0, 'Wrath Remix: Barbershop Chair, the north row, Nedward''s'),
+(7705079, 770039, 571, 210, 4520, 1, 1, 6420.50, 1823.00, 508.60, 2.1231, 0, 0, 0.873112, 0.487519, 300, 100, 1, '', 0, 'Wrath Remix: Hay, the waystation, Hemet''s'),
+(7705080, 770040, 571, 210, 4520, 1, 1, 6426.00, 1818.50, 508.60, 1.5708, 0, 0, 0.707107, 0.707107, 300, 100, 1, '', 0, 'Wrath Remix: Water Trough, the waystation, Hemet''s'),
+(7705081, 770007, 571, 210, 4520, 1, 1, 6370.00, 1806.50, 508.60, 1.5708, 0, 0, 0.707107, 0.707107, 300, 100, 1, '', 0, 'Wrath Remix: Stall, the training yard, Jakkus''s stall'),
+(7705082, 770014, 571, 210, 4520, 1, 1, 6373.00, 1809.00, 508.60, 1.5708, 0, 0, 0.707107, 0.707107, 300, 100, 1, '', 0, 'Wrath Remix: Table, Jakkus''s glyphs'),
+(7705083, 770025, 571, 210, 4520, 1, 1, 6373.00, 1809.00, 509.60, 0.4000, 0, 0, 0.198669, 0.980067, 300, 100, 1, '', 0, 'Wrath Remix: Book, Jakkus''s glyphs'),
+(7705084, 770035, 571, 210, 4520, 1, 1, 6383.00, 1805.00, 508.60, 1.5708, 0, 0, 0.707107, 0.707107, 300, 100, 1, '', 0, 'Wrath Remix: Weapon Rack, the training yard, Momentus''s'),
+(7705085, 770034, 571, 210, 4520, 1, 1, 6386.00, 1810.00, 508.60, 1.5708, 0, 0, 0.707107, 0.707107, 300, 100, 1, '', 0, 'Wrath Remix: Anvil, the training yard, Momentus''s'),
+(7705086, 770014, 571, 210, 4520, 1, 1, 6353.00, 1880.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Table, the campfire, Nostwin''s snacks'),
+(7705087, 770038, 571, 210, 4520, 1, 1, 6353.00, 1880.00, 509.60, 0.3000, 0, 0, 0.149438, 0.988771, 300, 100, 1, '', 0, 'Wrath Remix: Roast Boar, Nostwin''s snacks'),
+(7705088, 770012, 571, 210, 4520, 1, 1, 6347.00, 1881.00, 508.60, 0.6000, 0, 0, 0.295520, 0.955336, 300, 100, 1, '', 0, 'Wrath Remix: Crate, Nostwin''s stuff'),
+(7705089, 770036, 571, 210, 4520, 1, 1, 6325.50, 1863.00, 508.60, 0.1270, 0, 0, 0.063444, 0.997985, 300, 100, 1, '', 0, 'Wrath Remix: Scrap, the campfire, Erus''s scrap'),
+(7705090, 770037, 571, 210, 4520, 1, 1, 6325.00, 1868.50, 508.60, 0.8000, 0, 0, 0.389418, 0.921061, 300, 100, 1, '', 0, 'Wrath Remix: Scrap, Erus''s scrap'),
+(7705091, 770010, 571, 210, 4520, 1, 1, 6323.50, 1866.00, 508.60, 0.3000, 0, 0, 0.149438, 0.988771, 300, 100, 1, '', 0, 'Wrath Remix: Crate, Erus''s scrap'),
+(7705092, 770014, 571, 210, 4520, 1, 1, 6402.50, 1866.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Table, the heart, Metros''s desk'),
+(7705093, 770025, 571, 210, 4520, 1, 1, 6402.50, 1866.30, 509.60, 1.2000, 0, 0, 0.564642, 0.825336, 300, 100, 1, '', 0, 'Wrath Remix: Book, Metros''s desk'),
+(7705094, 770026, 571, 210, 4520, 1, 1, 6402.40, 1865.60, 509.60, 0.5000, 0, 0, 0.247404, 0.968912, 300, 100, 1, '', 0, 'Wrath Remix: Map, Metros''s desk'),
+(7705095, 770014, 571, 210, 4520, 1, 1, 6420.50, 1901.00, 508.60, 0.0000, 0, 0, 0.000000, 1.000000, 300, 100, 1, '', 0, 'Wrath Remix: Table, the chronicle corner, Lidamorrutu''s'),
+(7705096, 770042, 571, 210, 4520, 1, 1, 6420.50, 1901.00, 509.60, 0.5000, 0, 0, 0.247404, 0.968912, 300, 100, 1, '', 0, 'Wrath Remix: Uncut Gems, Lidamorrutu''s'),
+(7705097, 770041, 571, 210, 4520, 1, 1, 6424.00, 1906.00, 508.60, 4.0689, 0, 0, 0.894427, -0.447214, 300, 100, 1, '', 0, 'Wrath Remix: Gem Grinder, Lidamorrutu''s'),
+(7705098, 770043, 571, 210, 4520, 1, 1, 6408.50, 1906.50, 508.60, 4.3686, 0, 0, 0.817641, -0.575729, 300, 100, 1, '', 0, 'Wrath Remix: Coffer, the chronicle corner, Lindormi''s');
 
 DELETE FROM `creature_template` WHERE `entry` BETWEEN 770070 AND 770099;
 DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770070 AND 770099;
@@ -127,7 +181,7 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `
 (770080, 'Bazaar Warden', 'Keepers of Time', 77050, 80, 80, 2, 35, 1, 1, 1.14286, 0, 1, 770, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_bazaar_life'),
 (770081, 'Bronze Whelpling', NULL, 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 770, 2048, 2, 2, 10, 1, 2000, 1, ''),
 (770082, 'Zephyr''s Drake', NULL, 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 33555202, 2048, 2, 2, 10, 1, 2000, 1, ''),
-(770083, 'Time-Lost Proto-Drake', 'Horos''s Collection', 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 33555202, 2048, 2, 2, 10, 1, 2000, 1, ''),
+(770083, 'Time-Lost Proto-Drake', 'Hemet''s Collection', 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 33555202, 2048, 2, 2, 10, 1, 2000, 1, ''),
 (770084, 'Hyacinth Macaw', 'Domelius''s Companions', 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 770, 2048, 1, 2, 10, 1, 2000, 1, ''),
 (770085, 'Mana Wyrmling', 'Domelius''s Companions', 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 770, 2048, 10, 2, 10, 1, 2000, 1, ''),
 (770086, 'Orange Tabby Cat', 'Domelius''s Companions', 0, 80, 80, 2, 35, 0, 1, 1.14286, 0, 1, 770, 2048, 1, 2, 10, 1, 2000, 1, '');
@@ -202,7 +256,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 (7704510, 770084, 571, 1, 1, 0, 6361.00, 1896.00, 508.70, 0.0000, 60, 3.0, 1, 'Wrath Remix: Hyacinth Macaw, Bazaar'),
 (7704511, 770085, 571, 1, 1, 0, 6363.50, 1895.00, 508.70, 0.0000, 60, 3.0, 1, 'Wrath Remix: Mana Wyrmling, Bazaar'),
 (7704512, 770086, 571, 1, 1, 0, 6360.00, 1894.00, 508.70, 0.0000, 60, 3.0, 1, 'Wrath Remix: Orange Tabby Cat, Bazaar'),
-(7704513, 770083, 571, 1, 1, 0, 6371.00, 1912.00, 508.70, 4.7124, 60, 0.0, 0, 'Wrath Remix: Time-Lost Proto-Drake, Bazaar'),
+(7704513, 770083, 571, 1, 1, 0, 6421.00, 1813.00, 508.70, 2.0420, 60, 0.0, 0, 'Wrath Remix: Time-Lost Proto-Drake, Bazaar'),
 (7704514, 770082, 571, 1, 1, 0, 6403.50, 1823.00, 508.70, 2.1731, 60, 0.0, 0, 'Wrath Remix: Zephyr''s Drake, Bazaar'),
 (7704515, 770081, 571, 1, 1, 0, 6387.00, 1894.00, 508.70, 0.0000, 60, 5.0, 1, 'Wrath Remix: Bronze Whelpling, Bazaar'),
 (7704516, 770081, 571, 1, 1, 0, 6375.00, 1890.00, 508.70, 0.0000, 60, 5.0, 1, 'Wrath Remix: Bronze Whelpling, Bazaar'),
@@ -277,7 +331,7 @@ CREATE TABLE IF NOT EXISTS `remix_bazaar_line` (
   `reply_emote` INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`guid`, `line`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-DELETE FROM `remix_bazaar_line`;
+DELETE FROM `remix_bazaar_line` WHERE `guid` < 7706000;  -- (Malykriss's own, 7706000 and up, are wrath_remix_world_0030_malykriss.sql's)
 INSERT INTO `remix_bazaar_line` (`guid`, `line`, `text`, `emote`, `reply_guid`, `reply`, `reply_emote`) VALUES
 (7704011, 0, 'Every stall in this camp holds something history threw away. I only kept it.', 1, 0, '', 0),
 (7704011, 1, 'Do not let the sands hurry you, champion. Here, at least, there is time.', 1, 0, '', 0),
@@ -291,17 +345,53 @@ INSERT INTO `remix_bazaar_line` (`guid`, `line`, `text`, `emote`, `reply_guid`, 
 (7704017, 0, 'Every dungeon in Northrend, waiting at the hour you are ready for it. Ask, and I will tell you which.', 1, 0, '', 0),
 (7704018, 0, 'Valiance Keep, the first day... no, this page is smudged. Someone keeps changing things.', 6, 0, '', 0),
 (7704018, 1, 'Every record says the same war. That is the comforting part. It is also the frightening part.', 1, 0, '', 0),
-(7704019, 0, 'Power kept is power owed. Time always collects.', 1, 0, '', 0),
+(7704019, 0, 'There are few problems that a little heat and a hammer cannot solve.', 1, 0, '', 0),
+(7704019, 1, 'We forge our own futures.', 0, 0, '', 0),
+(7704019, 2, 'Grandmaster, that rib up there was not so low yesterday.', 25, 7704211, 'Nonsense. The sky is barely even falling.', 1),
 (7704013, 0, 'Stop watching the hourglass, sister. It will not run out.', 1, 7704014, 'It already has, in a hundred places. You just cannot hear it.', 1),
 (7704013, 1, 'This year smells of plague and ice. I had forgotten. I had made myself forget.', 0, 0, '', 0),
 (7704014, 0, 'When the bronze came for me, the Void was at the gates of Quel''Thalas. I hope they are still holding.', 1, 7704013, 'They will hold. Our people always hold, until the moment they do not.', 0),
 (7704300, 0, 'The record is quieter today.', 1, 7704301, 'Quieter is not the same as whole, Andormu.', 1),
-(7704201, 0, 'Proto-drakes, mammoths, a horse made entirely of bones. Every mount Northrend ever saw, and a few it only dreamed of.', 5, 0, '', 0),
-(7704202, 0, 'Careful, that whelp bites. No, the other one.', 25, 0, '', 0),
-(7704202, 1, 'Companions, keepsakes, toys. History remembers the battles. I remember what people carried into them.', 1, 0, '', 0),
-(7704203, 0, 'Every blade on this rack came out of a dungeon in a braver hand than mine. It can go back in with yours.', 1, 0, '', 0),
-(7704204, 0, 'Ten champions against the Scourge, again and again. Their spoils look better on you than in a tomb.', 1, 0, '', 0),
-(7704205, 0, 'Twenty-five against the Lich King''s halls. This is what they carried home. The ones who came home.', 1, 0, '', 0),
+(7704201, 0, 'We will have everything in time.', 1, 0, '', 0),
+(7704201, 1, 'Toys, trinkets, a music box that plays a song nobody has written yet. Every curiosity Northrend ever lost, I found.', 5, 0, '', 0),
+(7704202, 0, 'I am late. So very, very late.', 6, 0, '', 0),
+(7704202, 1, 'Perhaps I should get a clock.', 1, 0, '', 0),
+(7704202, 2, 'Careful, that whelp bites. No, the other one.', 25, 0, '', 0),
+(7704203, 0, 'Good to see you, champion! How fare your hunts?', 3, 0, '', 0),
+(7704203, 1, 'Every blade on this rack came out of a dungeon in a braver hand than mine. It can go back in with yours.', 1, 0, '', 0),
+(7704204, 0, 'Oh, a Timerunner! I bet you''ve got stories to tell.', 5, 0, '', 0),
+(7704204, 1, 'Ten champions against the Scourge, again and again. Their spoils look better on you than in a tomb.', 1, 0, '', 0),
+(7704204, 2, 'Durus! Which is heavier, do you think: a shield, or a promise?', 6, 7704205, 'Patience wins wars. But if you ask one more question, I will swallow my shield.', 0),
+(7704205, 0, 'Keep your shield up, and patience will see you through any battle.', 1, 0, '', 0),
+(7704205, 1, 'Twenty-five against the Lich King''s halls. This is what they carried home. The ones who came home.', 1, 0, '', 0),
+(7704206, 0, 'Offers? My wares are full price!', 274, 0, '', 0),
+(7704206, 1, 'Of course I can lift it. It''s a sword.', 11, 0, '', 0),
+(7704207, 0, 'Why choose between substance and style when you can have both?', 1, 0, '', 0),
+(7704207, 1, '%s glances over at Pythagorus and sighs.', 0, 0, '', 0),
+(7704208, 0, '%s gives a passerby a knowing nod.', 273, 0, '', 0),
+(7704208, 1, '%s nods silently, closing their eyes to show their sincerity.', 273, 0, '', 0),
+(7704214, 0, 'Styles change all the time, but nothing stays out of style forever.', 1, 0, '', 0),
+(7704209, 0, 'Oh honey, you need a new look.', 1, 0, '', 0),
+(7704209, 1, 'Ooh! I''ve always wanted to dress up like a baddie.', 5, 7704214, 'Curious.', 0),
+(7704210, 0, 'Hey there, kitty-cat, you look like you could use some threads.', 3, 0, '', 0),
+(7704210, 1, 'Everybody who''s anybody knows somebody who knows Freddie Threads.', 1, 0, '', 0),
+(7704219, 0, 'Sit, sit! A little off the top, a little out of the timeline.', 1, 0, '', 0),
+(7704219, 1, 'Hold still. The last fellow fidgeted and left with next Tuesday''s beard.', 11, 0, '', 0),
+(7704212, 0, 'The name''s Hemet Nesingwary, tha seventeenth.', 1, 0, '', 0),
+(7704212, 1, 'Surely you''ve ''eard of my esteemed and grand familial lineage.', 1, 0, '', 0),
+(7704212, 2, 'Them death knights keep a fine ''orse. Bit bony.', 11, 0, '', 0),
+(7704211, 0, 'I remember my training like it was yesterday. For a dragon, it very nearly was.', 11, 0, '', 0),
+(7704213, 0, '%s munches on something delicious.', 7, 0, '', 0),
+(7704213, 1, 'Hi! Can I interest you in a fancy paper or this jar of bees I found?', 1, 0, '', 0),
+(7704213, 2, 'Erus! Can this go in the scrap pile? I already ate the good part.', 6, 7704217, 'Snacks are for snacking, just as scraps are for scrapping. No exceptions.', 274),
+(7704217, 0, 'Erus scrap junk for you.', 1, 0, '', 0),
+(7704217, 1, 'Everything has its time.', 0, 0, '', 0),
+(7704218, 0, 'Need something? I''ve got theories to sort through.', 1, 0, '', 0),
+(7704218, 1, 'Day in, day out, count count count.', 0, 0, '', 0),
+(7704215, 0, 'If you''re in a rush, I can pluck a gem you''ve yet to find from a different timeline. It just takes a little Bronze.', 1, 0, '', 0),
+(7704216, 0, 'Tales of adventure are the best! Dark dungeons, terrifying monsters, shiny treasures... I want to hear all about them!', 5, 0, '', 0),
+(7704216, 1, 'Oh wow, you''re not dead! That''s so cool!', 4, 0, '', 0),
+(7704216, 2, 'Lidamorrutu! Tell me a story. A dark one, with treasure in it!', 5, 7704215, 'Hmph.', 0),
 (7704021, 0, 'Again. Shield up. No, the other shield.', 1, 0, '', 0),
 (7704025, 0, 'You telegraph every swing, orc.', 1, 7704021, 'And you hide behind every tent. We all have our gifts.', 11),
 (7704022, 0, 'The Light sounds the same in every year.', 1, 7704023, 'Says a man who has never heard it sung in Silvermoon.', 1),

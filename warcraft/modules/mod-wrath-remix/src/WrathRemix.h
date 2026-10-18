@@ -64,7 +64,16 @@ namespace WrathRemix
         // to 770217, Grandmaster Jakkus's class mounts besides his wares, Pageturner Metros who
         // knows where everyone is, Nedward by the barber's chair. (Gossip texts: 7702201 + n.)
         NPC_PYTHAGORUS    = 770206,
+        NPC_SACERDORMU    = 770207,
+        NPC_AGOS          = 770208,     // Agos the Silent (he only nods)
+        NPC_LARAH         = 770209,     // Larah Treebender
+        NPC_FREDDIE       = 770210,     // Freddie Threads
         NPC_JAKKUS        = 770211,
+        NPC_HEMET         = 770212,     // Hemet Nesingwary XVII
+        NPC_NOSTWIN       = 770213,
+        NPC_UNICUS        = 770214,
+        NPC_LIDAMORRUTU   = 770215,
+        NPC_LINDORMI      = 770216,
         NPC_ERUS          = 770217,
         NPC_METROS        = 770218,
         NPC_NEDWARD       = 770219,

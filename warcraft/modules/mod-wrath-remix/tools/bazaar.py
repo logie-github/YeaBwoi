@@ -9,13 +9,22 @@ y + 854, onto the level floor under the necropolis's ribs). It is a camp, not a 
 Moratari, the echoes; wrath_remix_world_0004_spawns.sql and the others place them, and the turn's
 scene walks between them), it has districts a Timerunner can read at a glance:
 
-  - the heart, under a great hourglass, where every Timerunner wakes;
+  - the heart, under a great hourglass, where every Timerunner wakes; Pageturner Metros's desk;
   - the market lane along the west edge: a stall for each Bronze trader, Alurmi's first;
+  - the north row along the north edge, facing the heart: the heroic raids' pavilions (Pythagorus,
+    Sacerdormu), the apparel stalls (Agos, Unicus, Larah, Freddie), Nedward's barber's chair;
   - the training yard to the south-east: the instructors at work, dummies and targets to try;
+    Grandmaster Jakkus's stall and Momentus the weaponmaster at its east edge;
   - the waystation to the north-east: Zephyr, her drake and a door in time; Sa'at's map table;
-  - the chronicle corner to the north-west: the Chronologist's shelves, Momentus's orb;
-  - the campfire to the south: other Timerunners, veterans of this war from their own hours after it, and a cook;
+    Hemet Nesingwary's mounts and proto-drake;
+  - the chronicle corner to the north-west: the Chronologist's shelves, an orb; Lidamorrutu's gems,
+    Lindormi's emblems;
+  - the campfire to the south: other Timerunners, veterans of this war from their own hours after it,
+    a cook; Nostwin's snacks, Erus's scrap;
   - and between them porters on their rounds, wardens walking the edge, whelps underfoot.
+
+Legion Remix's Bazaar cast (the Bronze vendors, Metros, Nedward) are wrath_remix_world_0009_bronze.sql's
+creatures, placed there (STORY_SPOTS keeps their spots); their stalls and lines are here.
 
 Everyone with something to say says it now and then while a Timerunner is about, to the air or to
 someone near them (src/RemixBazaar.cpp). Positions are the world's (x north, y west); heights are
@@ -112,6 +121,22 @@ PROPS = {
     "rune_circle": (6679, 0.6, "Rune Circle"),                   # a Scourge rune circle, its crystals holding time instead
     "lightshaft":  (7317, 0.35, "Light"),
     "runeforge":   (8176, 2.03, "Runeforge"),                    # a death knight's runeforge that works (spell focus 1552)
+    # (the Legion Remix cast's: Nedward's chair, and what each trader keeps by them)
+    "barber_chair": (7896, 1.0, "Barbershop Chair"),             # a barbershop's chair that works (PROP_CHAIR)
+    "anvil":       (166, 1.0, "Anvil"),
+    "weapon_rack_sc": (7949, 0.8, "Weapon Rack"),                # the Scourge's own
+    "gear_chest":  (8686, 1.0, "Scrap"),                         # a crate of Ulduar's gears
+    "junk":        (7114, 1.2, "Scrap"),
+    "platter":     (566, 0.6, "Roast Boar"),
+    "hay":         (6145, 0.8, "Hay"),
+    "trough":      (6148, 0.9, "Water Trough"),
+    "gem_grinder": (7733, 1.0, "Gem Grinder"),
+    "gems":        (7456, 0.6, "Uncut Gems"),
+    "treasure":    (259, 0.9, "Coffer"),
+    "armor_stand": (7738, 1.2, "Armor Stand"),
+    "armor_stand_mail": (7827, 1.2, "Armor Stand"),
+    "wardrobe":    (4031, 1.0, "Wardrobe"),
+    "argent_banner": (7933, 1.0, "Argent Crusade Banner"),
 }
 PROP_ENTRY = {key: 770001 + i for i, key in enumerate(PROPS)}
 # Props that do something when clicked: (game object type, script). The campfire calls Moratari over
@@ -119,8 +144,11 @@ PROP_ENTRY = {key: 770001 + i for i, key in enumerate(PROPS)}
 PROP_USE = {"campfire": (10, "go_remix_campfire")}
 # Spell focuses: (focus, distance), as the Shadow Vault's runeforge (191757) has them.
 PROP_FOCUS = {"runeforge": (1552, 15)}
+# Barber chairs (type 32): the chair's height, as the game's (190683) has it. A click sits the
+# Timerunner in it and opens the barbershop, anywhere (GameObject::Use; the haircut is paid in gold).
+PROP_CHAIR = {"barber_chair": 2}
 
-# Where each thing stands: (prop, x, y, orientation, what it's for)
+# Where each thing stands: (prop, x, y, orientation, what it's for[, height above the floor: on a table])
 PLACED = [
     # The heart: the great hourglass behind the echoes, a rug under Eternus and Moratari, braziers.
     ("hourglass", 6394.0, 1898.0, 0.0, "the heart"),
@@ -178,7 +206,7 @@ PLACED = [
     ("table", 6412.5, 1895.0, 0.0, "the chronicle corner"),
     ("book", 6412.5, 1895.0, 0.5, "the chronicle corner"),
     ("scroll_map", 6412.8, 1894.6, 1.2, "the chronicle corner"),
-    ("orb", 6413.0, 1903.5, 0.0, "the chronicle corner, Momentus's"),
+    ("orb", 6413.0, 1903.5, 0.0, "the chronicle corner"),
     ("brazier_sm", 6408.0, 1891.0, 0.0, "the chronicle corner"),
     # The campfire, south: benches round a fire, the cook's pot, lanterns.
     ("campfire", 6349.0, 1866.0, 0.0, "the campfire"),
@@ -189,6 +217,51 @@ PLACED = [
     ("crate", 6336.5, 1863.0, 0.6, "the campfire"),
     ("brazier_sm", 6357.0, 1873.0, 0.0, "the campfire"),
     ("brazier_sm", 6342.0, 1874.5, 0.0, "the campfire"),
+    # (new things go last: the others keep their spawns)
+    # The north row, along the north edge facing the heart: the heroic raids' pavilions, the
+    # apparel stalls (Agos's arena wares, Unicus's ensembles, Larah's factions, Freddie's cloaks),
+    # Nedward's barber's chair at its end.
+    ("pavilion", 6431.5, 1888.0, SOUTH, "the north row, Pythagorus's"),
+    ("table_big", 6426.8, 1888.0, SOUTH, "Pythagorus's counter"),
+    ("pavilion", 6431.5, 1879.0, SOUTH, "the north row, Sacerdormu's"),
+    ("table_big", 6426.8, 1879.0, SOUTH, "Sacerdormu's counter"),
+    ("stall", 6431.5, 1870.0, SOUTH, "the north row, Agos's stall"),
+    ("weapon_rack", 6433.0, 1867.5, SOUTH, "Agos's stall"),
+    ("armor_stand_mail", 6433.0, 1872.5, SOUTH, "Agos's stall"),
+    ("stall", 6431.5, 1861.0, SOUTH, "the north row, Unicus's stall"),
+    ("armor_stand", 6433.0, 1858.5, SOUTH, "Unicus's ensembles"),
+    ("armor_stand", 6433.0, 1863.5, SOUTH, "Unicus's ensembles"),
+    ("stall", 6431.5, 1852.0, SOUTH, "the north row, Larah's stall"),
+    ("argent_banner", 6433.0, 1854.5, SOUTH, "Larah's stall"),
+    ("crate_open", 6433.0, 1849.5, 0.5, "Larah's stall"),
+    ("stall", 6431.5, 1843.0, SOUTH, "the north row, Freddie's stall"),
+    ("wardrobe", 6433.5, 1843.0, SOUTH, "Freddie's cloaks"),
+    ("barber_chair", 6427.5, 1832.0, SOUTH, "the north row, Nedward's"),
+    # The waystation's north-east corner: Hemet's mounts, by his proto-drake.
+    ("hay", 6420.5, 1823.0, facing(6420.5, 1823.0, 6394.0, 1866.0), "the waystation, Hemet's"),
+    ("trough", 6426.0, 1818.5, WEST, "the waystation, Hemet's"),
+    # The training yard's east edge, facing into it: Jakkus's stall and glyphs, Momentus's weapons.
+    ("stall", 6370.0, 1806.5, WEST, "the training yard, Jakkus's stall"),
+    ("table", 6373.0, 1809.0, WEST, "Jakkus's glyphs"),
+    ("book", 6373.0, 1809.0, 0.4, "Jakkus's glyphs", 1.0),
+    ("weapon_rack_sc", 6383.0, 1805.0, WEST, "the training yard, Momentus's"),
+    ("anvil", 6386.0, 1810.0, WEST, "the training yard, Momentus's"),
+    # The campfire: Nostwin's snacks on the market side, Erus's scrap on the far side.
+    ("table", 6353.0, 1880.0, 0.0, "the campfire, Nostwin's snacks"),
+    ("platter", 6353.0, 1880.0, 0.3, "Nostwin's snacks", 1.0),
+    ("crate_open", 6347.0, 1881.0, 0.6, "Nostwin's stuff"),
+    ("gear_chest", 6325.5, 1863.0, facing(6325.5, 1863.0, 6349.0, 1866.0), "the campfire, Erus's scrap"),
+    ("junk", 6325.0, 1868.5, 0.8, "Erus's scrap"),
+    ("crate", 6323.5, 1866.0, 0.3, "Erus's scrap"),
+    # The heart: Metros's desk, where a newcomer asks the way.
+    ("table", 6402.5, 1866.0, NORTH, "the heart, Metros's desk"),
+    ("book", 6402.5, 1866.3, 1.2, "Metros's desk", 1.0),
+    ("scroll_map", 6402.4, 1865.6, 0.5, "Metros's desk", 1.0),
+    # The chronicle corner: Lidamorrutu's gems, Lindormi's coffer of emblems.
+    ("table", 6420.5, 1901.0, 0.0, "the chronicle corner, Lidamorrutu's"),
+    ("gems", 6420.5, 1901.0, 0.5, "Lidamorrutu's", 1.0),
+    ("gem_grinder", 6424.0, 1906.0, facing(6424.0, 1906.0, 6394.0, 1866.0), "Lidamorrutu's"),
+    ("treasure", 6408.5, 1906.5, facing(6408.5, 1906.5, 6394.0, 1866.0), "the chronicle corner, Lindormi's"),
 ]
 
 # ---- Who is in the camp -----------------------------------------------------------------------
@@ -209,7 +282,7 @@ PEOPLE = {
     770080: ("Bazaar Warden", "Keepers of Time", [14887], 2, 0, "npc_remix_bazaar_life", 7702410),
     770081: ("Bronze Whelpling", None, [6292], 2, 0, "", 0),
     770082: ("Zephyr's Drake", None, [25852], 2, NOT_SELECTABLE, "", 0),
-    770083: ("Time-Lost Proto-Drake", "Horos's Collection", [28045], 2, NOT_SELECTABLE, "", 0),
+    770083: ("Time-Lost Proto-Drake", "Hemet's Collection", [28045], 2, NOT_SELECTABLE, "", 0),
     770084: ("Hyacinth Macaw", "Domelius's Companions", [6192], 1, 0, "", 0),
     770085: ("Mana Wyrmling", "Domelius's Companions", [19600], 10, 0, "", 0),
     770086: ("Orange Tabby Cat", "Domelius's Companions", [5554], 1, 0, "", 0),
@@ -227,12 +300,29 @@ STORY_SPOTS = {
     7704016: ("Zephyr", 6402.5, 1838.0, facing(6402.5, 1838.0, 6394.0, 1866.0)),
     7704017: ("Sa'at", 6389.5, 1822.5, facing(6389.5, 1822.5, 6386.0, 1822.0)),
     7704018: ("the Chronologist", 6410.0, 1895.0, facing(6410.0, 1895.0, 6412.5, 1895.0)),
-    7704019: ("Momentus", 6410.0, 1903.5, facing(6410.0, 1903.5, 6413.0, 1903.5)),
+    7704019: ("Momentus", 6383.0, 1808.5, WEST),                       # the training yard's weaponmaster (in the chronicle corner before Malykriss)
     7704201: ("Horos", 6371.0, 1900.5, EAST),
     7704202: ("Domelius", 6362.0, 1900.5, EAST),
     7704203: ("Arturos", 6353.0, 1900.0, EAST),
     7704204: ("Aeonicus", 6344.0, 1900.5, EAST),
     7704205: ("Durus", 6335.5, 1900.5, EAST),
+    # The rest of Legion Remix's cast (0009, 7704201 + their entry's n): the north row, ...
+    7704206: ("Pythagorus", 6429.5, 1888.0, SOUTH),
+    7704207: ("Sacerdormu", 6429.5, 1879.0, SOUTH),
+    7704208: ("Agos the Silent", 6429.5, 1870.0, SOUTH),
+    7704214: ("Unicus", 6429.5, 1861.0, SOUTH),
+    7704209: ("Larah Treebender", 6429.5, 1852.0, SOUTH),
+    7704210: ("Freddie Threads", 6429.5, 1843.0, SOUTH),
+    7704219: ("Nedward", 6430.5, 1834.5, facing(6430.5, 1834.5, 6427.5, 1832.0)),
+    # ... Hemet by the waystation, Jakkus at the training yard, Nostwin and Erus at the campfire,
+    # Metros at the heart, Lidamorrutu and Lindormi in the chronicle corner
+    7704212: ("Hemet Nesingwary XVII", 6415.0, 1818.5, facing(6415.0, 1818.5, 6394.0, 1866.0)),
+    7704211: ("Grandmaster Jakkus", 6370.0, 1808.5, WEST),
+    7704213: ("Nostwin", 6350.0, 1879.5, facing(6350.0, 1879.5, 6349.0, 1866.0)),
+    7704217: ("Erus", 6328.0, 1866.0, NORTH),
+    7704218: ("Pageturner Metros", 6405.0, 1866.0, facing(6405.0, 1866.0, 6394.0, 1866.0)),
+    7704215: ("Lidamorrutu", 6422.0, 1903.0, facing(6422.0, 1903.0, 6394.0, 1866.0)),
+    7704216: ("Lindormi", 6409.5, 1903.0, facing(6409.5, 1903.0, 6394.0, 1866.0)),
     7704300: ("Andormu", 6395.5, 1878.0, 4.71),
     7704301: ("Nozari", 6392.5, 1878.0, 4.71),
 }
@@ -268,8 +358,8 @@ SPAWNS = [
     (7704510, 770084, 6361.0, 1896.0, 0.0, 0, 0, 3.0),
     (7704511, 770085, 6363.5, 1895.0, 0.0, 0, 0, 3.0),
     (7704512, 770086, 6360.0, 1894.0, 0.0, 0, 0, 3.0),
-    # Horos's proto-drake, beside his stall; Zephyr's drake, resting.
-    (7704513, 770083, 6371.0, 1912.0, EAST, 0, 0, 0),
+    # Hemet's proto-drake, beside him (Horos's, behind his stall, before Malykriss); Zephyr's drake, resting.
+    (7704513, 770083, 6421.0, 1813.0, facing(6421.0, 1813.0, 6394.0, 1866.0), 0, 0, 0),
     (7704514, 770082, 6403.5, 1823.0, facing(6403.5, 1823.0, 6398.0, 1831.0), 0, 0, 0),
     # Whelplings underfoot.
     (7704515, 770081, 6387.0, 1894.0, 0.0, 0, 0, 5.0),
@@ -309,20 +399,59 @@ LINES = {
     7704017: [("Every dungeon in Northrend, waiting at the hour you are ready for it. Ask, and I will tell you which.", TALK, 0, "", 0)],
     7704018: [("Valiance Keep, the first day... no, this page is smudged. Someone keeps changing things.", QUESTION, 0, "", 0),
               ("Every record says the same war. That is the comforting part. It is also the frightening part.", TALK, 0, "", 0)],
-    7704019: [("Power kept is power owed. Time always collects.", TALK, 0, "", 0)],
+    7704019: [("There are few problems that a little heat and a hammer cannot solve.", TALK, 0, "", 0),
+              ("We forge our own futures.", 0, 0, "", 0),
+              ("Grandmaster, that rib up there was not so low yesterday.", POINT, 7704211, "Nonsense. The sky is barely even falling.", TALK)],
     7704013: [("Stop watching the hourglass, sister. It will not run out.", TALK, 7704014,
                "It already has, in a hundred places. You just cannot hear it.", TALK),
               ("This year smells of plague and ice. I had forgotten. I had made myself forget.", 0, 0, "", 0)],
     7704014: [("When the bronze came for me, the Void was at the gates of Quel'Thalas. I hope they are still holding.", TALK,
                7704013, "They will hold. Our people always hold, until the moment they do not.", 0)],
     7704300: [("The record is quieter today.", TALK, 7704301, "Quieter is not the same as whole, Andormu.", TALK)],
-    # The traders.
-    7704201: [("Proto-drakes, mammoths, a horse made entirely of bones. Every mount Northrend ever saw, and a few it only dreamed of.", EXCLAIM, 0, "", 0)],
-    7704202: [("Careful, that whelp bites. No, the other one.", POINT, 0, "", 0),
-              ("Companions, keepsakes, toys. History remembers the battles. I remember what people carried into them.", TALK, 0, "", 0)],
-    7704203: [("Every blade on this rack came out of a dungeon in a braver hand than mine. It can go back in with yours.", TALK, 0, "", 0)],
-    7704204: [("Ten champions against the Scourge, again and again. Their spoils look better on you than in a tomb.", TALK, 0, "", 0)],
-    7704205: [("Twenty-five against the Lich King's halls. This is what they carried home. The ones who came home.", TALK, 0, "", 0)],
+    # The traders, Legion Remix's Bazaar cast (their own words where the game has them; a line that
+    # begins with %s is an emote).
+    7704201: [("We will have everything in time.", TALK, 0, "", 0),
+              ("Toys, trinkets, a music box that plays a song nobody has written yet. Every curiosity Northrend ever lost, I found.", EXCLAIM, 0, "", 0)],
+    7704202: [("I am late. So very, very late.", QUESTION, 0, "", 0),
+              ("Perhaps I should get a clock.", TALK, 0, "", 0),
+              ("Careful, that whelp bites. No, the other one.", POINT, 0, "", 0)],
+    7704203: [("Good to see you, champion! How fare your hunts?", WAVE, 0, "", 0),
+              ("Every blade on this rack came out of a dungeon in a braver hand than mine. It can go back in with yours.", TALK, 0, "", 0)],
+    7704204: [("Oh, a Timerunner! I bet you've got stories to tell.", EXCLAIM, 0, "", 0),
+              ("Ten champions against the Scourge, again and again. Their spoils look better on you than in a tomb.", TALK, 0, "", 0),
+              ("Durus! Which is heavier, do you think: a shield, or a promise?", QUESTION, 7704205,
+               "Patience wins wars. But if you ask one more question, I will swallow my shield.", 0)],
+    7704205: [("Keep your shield up, and patience will see you through any battle.", TALK, 0, "", 0),
+              ("Twenty-five against the Lich King's halls. This is what they carried home. The ones who came home.", TALK, 0, "", 0)],
+    7704206: [("Offers? My wares are full price!", NO, 0, "", 0),
+              ("Of course I can lift it. It's a sword.", LAUGH, 0, "", 0)],
+    7704207: [("Why choose between substance and style when you can have both?", TALK, 0, "", 0),
+              ("%s glances over at Pythagorus and sighs.", 0, 0, "", 0)],
+    7704208: [("%s gives a passerby a knowing nod.", YES, 0, "", 0),
+              ("%s nods silently, closing their eyes to show their sincerity.", YES, 0, "", 0)],
+    7704214: [("Styles change all the time, but nothing stays out of style forever.", TALK, 0, "", 0)],
+    7704209: [("Oh honey, you need a new look.", TALK, 0, "", 0),
+              ("Ooh! I've always wanted to dress up like a baddie.", EXCLAIM, 7704214, "Curious.", 0)],
+    7704210: [("Hey there, kitty-cat, you look like you could use some threads.", WAVE, 0, "", 0),
+              ("Everybody who's anybody knows somebody who knows Freddie Threads.", TALK, 0, "", 0)],
+    7704219: [("Sit, sit! A little off the top, a little out of the timeline.", TALK, 0, "", 0),
+              ("Hold still. The last fellow fidgeted and left with next Tuesday's beard.", LAUGH, 0, "", 0)],
+    7704212: [("The name's Hemet Nesingwary, tha seventeenth.", TALK, 0, "", 0),
+              ("Surely you've 'eard of my esteemed and grand familial lineage.", TALK, 0, "", 0),
+              ("Them death knights keep a fine 'orse. Bit bony.", LAUGH, 0, "", 0)],
+    7704211: [("I remember my training like it was yesterday. For a dragon, it very nearly was.", LAUGH, 0, "", 0)],
+    7704213: [("%s munches on something delicious.", EAT, 0, "", 0),
+              ("Hi! Can I interest you in a fancy paper or this jar of bees I found?", TALK, 0, "", 0),
+              ("Erus! Can this go in the scrap pile? I already ate the good part.", QUESTION, 7704217,
+               "Snacks are for snacking, just as scraps are for scrapping. No exceptions.", NO)],
+    7704217: [("Erus scrap junk for you.", TALK, 0, "", 0),
+              ("Everything has its time.", 0, 0, "", 0)],
+    7704218: [("Need something? I've got theories to sort through.", TALK, 0, "", 0),
+              ("Day in, day out, count count count.", 0, 0, "", 0)],
+    7704215: [("If you're in a rush, I can pluck a gem you've yet to find from a different timeline. It just takes a little Bronze.", TALK, 0, "", 0)],
+    7704216: [("Tales of adventure are the best! Dark dungeons, terrifying monsters, shiny treasures... I want to hear all about them!", EXCLAIM, 0, "", 0),
+              ("Oh wow, you're not dead! That's so cool!", CHEER, 0, "", 0),
+              ("Lidamorrutu! Tell me a story. A dark one, with treasure in it!", EXCLAIM, 7704215, "Hmph.", 0)],
     # The instructors.
     7704021: [("Again. Shield up. No, the other shield.", TALK, 0, "", 0)],
     7704025: [("You telegraph every swing, orc.", TALK, 7704021, "And you hide behind every tent. We all have our gifts.", LAUGH)],
@@ -377,28 +506,39 @@ def main():
     w = out.append
     w("""-- The Infinite Bazaar's camp (tools/bazaar.py writes this file: edit that and run it again). Around
 -- the story's people at its heart, districts a Timerunner can read at a glance: the market lane along
--- the west edge (a stall for each Bronze trader), the training yard to the south-east (the
--- instructors at work, dummies and targets), the waystation to the north-east (Zephyr, her drake, a
--- door in time, Sa'at's map table), the chronicle corner to the north-west, the campfire to the
--- south (other Timerunners, veterans of this war from their own hours after it, and a cook), and porters, wardens
--- and whelps on their rounds. Who says what while a Timerunner is about is remix_bazaar_line
--- (src/RemixBazaar.cpp). Heights are the floor's (data/bazaar_ground.tsv). The story's own people
--- stand where wrath_remix_world_0004_spawns.sql, 0009 and 0018 place them.
+-- the west edge (a stall for each Bronze trader), the north row along the north edge (the heroic
+-- raids' pavilions, the apparel stalls, Nedward's barber's chair), the training yard to the
+-- south-east (the instructors at work, dummies and targets; Jakkus and Momentus at its edge), the
+-- waystation to the north-east (Zephyr, her drake, a door in time, Sa'at's map table, Hemet's
+-- mounts), the chronicle corner to the north-west (Lidamorrutu's gems, Lindormi's emblems), the
+-- campfire to the south (other Timerunners, veterans of this war from their own hours after it, a
+-- cook, Nostwin's snacks, Erus's scrap), and porters, wardens and whelps on their rounds. Who says
+-- what while a Timerunner is about is remix_bazaar_line (src/RemixBazaar.cpp). Heights are the
+-- floor's (data/bazaar_ground.tsv). The story's own people and the Bazaar's cast stand where
+-- wrath_remix_world_0004_spawns.sql, 0009 and 0018 place them.
 """)
     # Props.
     lo, hi = 770001, 770001 + len(PROPS) - 1
     w(f"DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 770001 AND 770099;")
     w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconName`, `castBarCaption`, `unk1`, `size`, `Data0`, `Data1`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES")
-    w(",\n".join(f"({PROP_ENTRY[k]}, {8 if k in PROP_FOCUS else PROP_USE.get(k, (5, ''))[0]}, {d}, {sql_text(n)}, '', '', '', {s}, "
-                 f"{PROP_FOCUS.get(k, (0, 0))[0]}, {PROP_FOCUS.get(k, (0, 0))[1]}, '', "
+    def kind(k):
+        """(type, Data0, Data1) of a prop's template."""
+        if k in PROP_CHAIR:
+            return 32, PROP_CHAIR[k], 0
+        if k in PROP_FOCUS:
+            return (8,) + PROP_FOCUS[k]
+        return PROP_USE.get(k, (5, ''))[0], 0, 0
+    w(",\n".join(f"({PROP_ENTRY[k]}, {kind(k)[0]}, {d}, {sql_text(n)}, '', '', '', {s}, "
+                 f"{kind(k)[1]}, {kind(k)[2]}, '', "
                  f"{sql_text(PROP_USE.get(k, (5, ''))[1])}, 0)" for k, (d, s, n) in PROPS.items()) + ";")
     w("")
     w("DELETE FROM `gameobject` WHERE `guid` BETWEEN 7705001 AND 7705299;")
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`,")
     w("  `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `ScriptName`, `VerifiedBuild`, `Comment`) VALUES")
     rows = []
-    for i, (key, x, y, o, what) in enumerate(PLACED):
-        z = z_at(x, y)
+    assert len(PLACED) <= 299, "the camp's things are spawns 7705001 to 7705299"
+    for i, (key, x, y, o, what, *up) in enumerate(PLACED):
+        z = z_at(x, y) + (up[0] if up else 0.0)
         rows.append(f"({7705001 + i}, {PROP_ENTRY[key]}, {MAP}, {ZONE}, {AREA}, 1, 1, {x:.2f}, {y:.2f}, {z:.2f}, {o:.4f}, "
                     f"0, 0, {math.sin(o / 2):.6f}, {math.cos(o / 2):.6f}, 300, 100, 1, '', 0, {sql_text('Wrath Remix: ' + PROPS[key][2] + ', ' + what)})")
     w(",\n".join(rows) + ";")
@@ -488,7 +628,7 @@ SELECT 770087, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, 0 FROM
   `reply_emote` INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`guid`, `line`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-DELETE FROM `remix_bazaar_line`;""")
+DELETE FROM `remix_bazaar_line` WHERE `guid` < 7706000;  -- (Malykriss's own, 7706000 and up, are wrath_remix_world_0030_malykriss.sql's)""")
     w("INSERT INTO `remix_bazaar_line` (`guid`, `line`, `text`, `emote`, `reply_guid`, `reply`, `reply_emote`) VALUES")
     rows = []
     for guid, lines in LINES.items():
