@@ -595,6 +595,11 @@ def main():
     sql.comment("Their racials: Walk on Air, Skysight (Windshapers, with Elemental Blessing), Read Ley Line (High Order,\n"
                 "with Energized), Wind Blessed, Elemental Insight.")
     sql.replace("spell_dbc", COLUMNS["spell_dbc"], spt, spell_rows)
+    client.put("ItemDisplayInfo", "issssssiiiiiiiissssssssii",
+               [SPELLS["goggles"], "Helm_Goggles_B_01.mdx", "", "Helm_Goggles_B_01Xray", "", "INV_Misc_Goggles_Xray", "", 0, 0, 0, 0, 0, 7, 0, 0]
+               + [""] * 8 + [0, 0])
+    textures.append("goggles\t0\tItem\\ObjectComponents\\Head\\Helm_Goggles_B_01GreenBlack.blp\tItem\\ObjectComponents\\Head\\Helm_Goggles_B_01Xray.blp")
+    textures.append("goggles\t0\tInterface\\Icons\\INV_Helmet_47.blp\tInterface\\Icons\\INV_Misc_Goggles_Xray.blp")
 
     # The world database: starts, skills, stats, forms, quests, standing --------------------------------
     sql.comment("Where they start (their start race's place), for every class.")
