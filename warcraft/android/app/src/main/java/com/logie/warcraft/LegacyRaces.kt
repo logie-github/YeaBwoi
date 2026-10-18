@@ -31,7 +31,8 @@ object LegacyRaces {
         val data = File(WowFiles.client(context), "Data")
         // The folder by that name is theirs once the package was put in; a folder of the user's own
         // by that name was moved aside (.user) and comes back.
-        if (prefs.contains("races_client")) File(data, FOLDER).deleteRecursively()
+        // (Now the name of the Skyborne's patch, made by the realm: that one stays.)
+        if (prefs.contains("races_client") && !File(data, "$FOLDER.skyborne").exists()) File(data, FOLDER).deleteRecursively()
         File(data, "$FOLDER.off").deleteRecursively()
         File(data, "$FOLDER.part").deleteRecursively()
         val user = File(data, "$FOLDER.user")

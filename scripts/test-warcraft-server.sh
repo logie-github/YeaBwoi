@@ -138,10 +138,27 @@ echo "creature_template: $creatures rows"
 [ "$creatures" -gt 20000 ] || fail "the world database looks empty"
 
 echo "== the realm's modules on record for the world database (ctl.sh modules, as each start runs it)"
+# A game folder for the modules' patch and Wrath Remix's (the phone has the client there; CI only
+# the folder).
+mkdir -p "$FILES/client/Data"
 CTL modules > "$FILES/logs/modules.out" 2>&1 || fail "ctl.sh modules failed: $(tail -5 "$FILES/logs/modules.out")"
 cat "$FILES/logs/modules.out"
 grep -qxF mod-zone-difficulty "$FILES/mysql/.world-modules" || fail "the realm's modules aren't on record"
 if grep -q "Taking out" "$FILES/logs/modules.out"; then fail "the first start made the world database again"; fi
+# Modules the app's user picked that change the game's DBC files (scripts/module-files.py): the
+# world server reads theirs over the game's, and their patch is in the game.
+if [ -d "$FILES/server/share/dbc" ]; then
+	cat "$FILES/server/share/module-files.txt"
+	grep -q "^DataDir = \"$FILES/data-modules\"" "$FILES/etc/worldserver.conf" || fail "the world server doesn't read the modules' DBC files"
+	for file in "$FILES"/server/share/dbc/*; do
+		[ "$(ls "$FILES/data-modules/dbc" | grep -icxF "${file##*/}")" = 1 ] || fail "${file##*/} is in the server's data twice or not at all"
+	done
+	[ "$(ls "$FILES/data-modules/dbc" | wc -l)" -ge "$(ls "$FILES/data/dbc" | wc -l)" ] || fail "the modules' data lacks some of the game's DBC files"
+	cmp -s "$FILES/server/share/client.stamp" "$FILES/client/Data/patch-M.MPQ/realm-modules.stamp" || fail "the modules' patch isn't in the game"
+	CTL modules > "$FILES/logs/modules-same.out" 2>&1 || fail "ctl.sh modules failed the second time"
+	if grep -q "Putting" "$FILES/logs/modules-same.out"; then fail "the modules' patch was copied again for nothing"; fi
+	echo "The world server reads the modules' DBC files; their patch is in the game."
+fi
 
 echo "== auth server"
 python3 "$ROOT/warcraft/server/auth_check.py" account-sql tester secret123 | CTL sql acore_auth
@@ -189,6 +206,14 @@ stop_world() {
 	tail -3 "$world_log"
 	echo "The world server shut down."
 }
+# A stand-in for the game the Skyborne's patch is made from (mod-skyborne): the server's tables as
+# the game's language archive (a folder, which the module reads like one). No textures in it.
+if [ -n "$DATA_ZIP" ]; then
+	game="$FILES/client/Data/enUS/locale-enUS.MPQ"
+	mkdir -p "$game/Interface/GlueXML"
+	ln -s "$FILES/data/dbc" "$game/DBFilesClient"
+	printf 'GlueParent.lua\r\nCharacterCreate.xml\r\n' > "$game/Interface/GlueXML/GlueXML.toc"
+fi
 start_world world.out
 jemalloc=""
 on_jemalloc() {
@@ -207,6 +232,11 @@ check_modules() {
 	tables=$(echo "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'acore_playerbots'" | CTL sql)
 	echo "acore_playerbots: $tables tables (made by the playerbots module)"
 	[ "$tables" -gt 0 ] || fail "the playerbots module didn't set up its database"
+	# ALE (mod-ale), the Lua engine: on, reading the package's scripts.
+	grep -q "^ALE.ScriptPath = \"$FILES/server/lua_scripts\"" "$FILES/etc/modules/mod_ale.conf" ||
+		fail "ALE doesn't read the package's Lua scripts"
+	[ -d "$FILES/server/lua_scripts" ] || fail "the package has no Lua scripts folder"
+	grep -rh "\[ALE\]" "$FILES/logs" 2> /dev/null | head -3 || true
 }
 
 if [ -n "$DATA_ZIP" ]; then
@@ -231,6 +261,37 @@ if [ -n "$DATA_ZIP" ]; then
 		tee "$FILES/logs/world-note.out" || fail "the realm didn't keep the add-on's note for the app"
 	[ "$(cat "$FILES/run/interface")" = "-" ] || fail "the add-on's note stayed after the logout"
 	echo "The realm kept the note, and cleared it at the logout."
+
+	echo "== the Skyborne (mod-skyborne)"
+	grep -E "Skyborne: The Skyborne's patch is in the game: 17 tables" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Skyborne's patch"
+	[ -s "$FILES/client/Data/patch-Z.MPQ" ] && [ -s "$FILES/client/Data/patch-Z.MPQ.skyborne" ] || fail "the Skyborne's patch isn't in the game"
+	for race in 13 14; do
+		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
+	done
+	# A warrior of the High Order in Northshire, a shaman of the Windshapers at Camp Narache, each with
+	# their racials.
+	# (Where they are is read from the characters table: .gps is a GM's command, and the test account isn't one.)
+	printf 'wait 2\n' > "$FILES/run/skyborne.steps"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skyhighorder 13 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/skyborne-alliance.out" || fail "the High Order's warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skywindshape 14 7 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/skyborne-horde.out" || fail "the Windshapers' shaman didn't get into the world"
+	for who in Skyhighorder:1:1:Northshire Skywindshape:6:7:"Camp Narache"; do
+		IFS=: read -r name race class place <<EOF
+$who
+EOF
+		at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
+		echo "$name at $at, $place's start $start"
+		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
+	done
+	for who in Skyhighorder:98701,98703,98704,98705 Skywindshape:98701,98702,98704,98705; do
+		name=${who%%:*} spells=${who#*:}
+		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
+		[ "$learned" = 4 ] || fail "$name has $learned of its 4 racials"
+	done
+	echo "The Skyborne start where their side's start races do, with their racials."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
@@ -276,7 +337,13 @@ if [ -n "$DATA_ZIP" ]; then
 	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 |
 		tee "$FILES/logs/characters-noraces.out" || fail "the character list didn't come"
 	grep -q "^Testhero" "$FILES/logs/characters-noraces.out" || fail "the human left the list"
-	if grep -q "^Testwolf" "$FILES/logs/characters-noraces.out"; then fail "the Worgen is in the character list"; fi
+	# Unless a module the app's user picked makes race 12 playable (mod-worgoblin's Worgen).
+	worgen=$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race = 12" | CTL sql acore_world)
+	if [ "$worgen" = 0 ]; then
+		if grep -q "^Testwolf" "$FILES/logs/characters-noraces.out"; then fail "the Worgen is in the character list"; fi
+	else
+		echo "A module of this realm makes race 12 playable: the Worgen is listed."
+	fi
 	kept=$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Testwolf'" | CTL sql acore_characters)
 	echo "characters of the custom races kept: $kept"
 	[ "$kept" = 1 ] || fail "the Worgen was deleted"
@@ -319,13 +386,13 @@ if [ -n "$DATA_ZIP" ]; then
 	echo "$realms" | grep -q "Wrath Remix	127.0.0.1:8086" || fail "the realm list doesn't have Wrath Remix at 127.0.0.1:8086"
 	echo "$realms" | grep -q "ChromieCraft	127.0.0.1:8085" || fail "the realm list lost ChromieCraft"
 
-	# A game folder for Wrath Remix's patch (the phone has the client there; CI only the folder).
-	mkdir -p "$FILES/client/Data"
 	start_world world-remix.out remix
 	wait_world_ready
 	grep -q "Wrath Remix: on (realm 2)" "$world_log" || fail "Wrath Remix didn't turn on in its realm"
 	grep -q "Wrath Remix: the game's patch written" "$world_log" || fail "Wrath Remix didn't write the game's patch"
-	python3 "$ROOT/warcraft/server/remix_check.py" patch "$FILES/client/Data/patch-Y.MPQ" "$FILES/data/dbc" ||
+	# Against the DBC files its world server read (the modules' over the game's, when there are).
+	remix_data=$(sed -n 's/^DataDir = "\(.*\)"$/\1/p' "$FILES/etc-remix/worldserver.conf")
+	python3 "$ROOT/warcraft/server/remix_check.py" patch "$FILES/client/Data/patch-Y.MPQ" "$remix_data/dbc" ||
 		fail "Wrath Remix's patch for the game isn't right"
 	grep -E "Wrath Remix: [0-9]+ level bands" "$world_log" || fail "Wrath Remix didn't load its tables"
 	[ "$(echo "SELECT COUNT(*) FROM creature_template WHERE entry = 770001" | CTL sql acore_world_remix)" = 1 ] || fail "Moratari isn't in the Remix world"

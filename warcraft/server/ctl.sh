@@ -11,7 +11,8 @@
 #   ctl.sh dbimport [REALM]         create and update the realm's databases (and the shared auth one)
 #   ctl.sh realmlist [ADDRESS]      both realms in the auth database, for this phone and the Wi-Fi
 #   ctl.sh races                    take out what earlier versions' custom races left (MariaDB up)
-#   ctl.sh modules [REALM]          the realm's world database without what modules no longer in put in it
+#   ctl.sh modules [REALM]          the realm's world database without what modules no longer in put
+#                                   in it; the modules' DBC files for the world server, their patch in the game
 #   ctl.sh auth | world [REALM]     run the auth server / the realm's world server
 #   ctl.sh maps|vmaps|mmaps CLIENT  extract the server's data from a 3.3.5a client folder
 #
@@ -31,6 +32,10 @@ DATA="$FILES/data"
 RACES="$FILES/races"
 DATA_RACES="$FILES/data-races"
 DB_DIR="$FILES/mysql"
+# The world server's data with the DBC files of the realm's modules over the game's (ctl.sh modules).
+DATA_MODULES="$FILES/data-modules"
+# What the modules the app's user picked bring for the game's files (scripts/module-files.py).
+MODULE_FILES="$SERVER/share"
 # The modules whose SQL went into the world database (ctl.sh modules); goes with the databases.
 WORLD_MODULES="$DB_DIR/.world-modules"
 LOGS="$FILES/logs"
@@ -137,6 +142,10 @@ configure_realm() {
 			remix_module_defaults "$conf"
 		fi
 	done
+	# ALE (mod-ale) reads the Lua scripts the package has (its own, and Lua modules picked in the app).
+	if [ -f "$R_ETC/modules/mod_ale.conf" ]; then
+		setkey "$R_ETC/modules/mod_ale.conf" ALE.ScriptPath "\"$SERVER/lua_scripts\""
+	fi
 	if [ -f "$R_ETC/modules/playerbots.conf" ]; then
 		setkey "$R_ETC/modules/playerbots.conf" PlayerbotsDatabaseInfo "$(dbinfo "$R_BOTS")"
 	fi
@@ -301,6 +310,67 @@ modules() {
 	echo "$now" > "$R_WORLD_MODULES.new"
 	mv "$R_WORLD_MODULES.new" "$R_WORLD_MODULES"
 	echo "World database matches the realm's modules"
+	module_data
+	module_client
+}
+
+# A module that adds races or classes (mod-arac, mod-worgoblin) changes DBC files, which its README
+# has copied over the server's (data/dbc). The world server reads $DATA_MODULES instead: links to
+# the game's data, with the module's files in place of the game's of the same name (whatever its
+# case). A realm without such modules reads $DATA. realm() first.
+module_data() {
+	if [ ! -d "$MODULE_FILES/dbc" ] || [ ! -d "$DATA/dbc" ]; then
+		rm -rf "$DATA_MODULES"
+		setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA\""
+		return
+	fi
+	rm -rf "$DATA_MODULES.new"
+	mkdir -p "$DATA_MODULES.new/dbc"
+	for entry in "$DATA"/*; do
+		[ "${entry##*/}" = dbc ] || ln -s "$entry" "$DATA_MODULES.new/${entry##*/}"
+	done
+	for file in "$DATA"/dbc/*; do
+		ln -s "$file" "$DATA_MODULES.new/dbc/${file##*/}"
+	done
+	count=0
+	for file in "$MODULE_FILES"/dbc/*; do
+		name=${file##*/}
+		game=$(ls "$DATA/dbc" | grep -ixF -m1 "$name" || true)
+		rm -f "$DATA_MODULES.new/dbc/${game:-$name}"
+		ln -s "$file" "$DATA_MODULES.new/dbc/${game:-$name}"
+		count=$((count + 1))
+	done
+	rm -rf "$DATA_MODULES"
+	mv "$DATA_MODULES.new" "$DATA_MODULES"
+	setkey "$R_ETC/worldserver.conf" DataDir "\"$DATA_MODULES\""
+	echo "The world server reads $count DBC files of the realm's modules over the game's"
+}
+
+# The modules' patch for the game (their models, interface, the DBC files above) goes in the game's
+# Data as patch-M.MPQ, a folder the game reads like an archive; a realm without one takes it out.
+# realm-modules.stamp in it says which it is, so it's copied again only when the realm's changes
+# (hard links where the phone's storage allows, so it isn't stored twice). A patch-M.MPQ of the
+# user's own is left alone.
+module_client() {
+	data="$FILES/client/Data"
+	patch="$data/patch-M.MPQ"
+	mark="$patch/realm-modules.stamp"
+	[ -d "$data" ] || return 0
+	if [ -f "$MODULE_FILES/client.stamp" ]; then
+		! cmp -s "$MODULE_FILES/client.stamp" "$mark" 2> /dev/null || return 0
+		if [ -e "$patch" ] && [ ! -f "$mark" ]; then
+			echo "The game has a Data/patch-M.MPQ of its own: the modules' files for the game aren't put in"
+			return 0
+		fi
+		echo "Putting the realm's modules' files in the game (Data/patch-M.MPQ)"
+		rm -rf "$patch" "$patch.new"
+		cp -rl "$MODULE_FILES/client" "$patch.new" 2> /dev/null || { rm -rf "$patch.new"; cp -r "$MODULE_FILES/client" "$patch.new"; }
+		cp "$MODULE_FILES/client.stamp" "$patch.new/realm-modules.stamp"
+		mv "$patch.new" "$patch"
+	elif [ -f "$mark" ]; then
+		echo "Taking the modules' files out of the game (Data/patch-M.MPQ)"
+		rm -rf "$patch"
+	fi
 }
 
 cmd=${1:-}
