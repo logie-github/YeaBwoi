@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 
     Dbc sections;
     Check(patch->Read("DBFilesClient\\CharSections.dbc", bytes) && sections.Parse(bytes), "CharSections.dbc is in it");
-    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, underwear = 0, worn = 0;
+    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, overlays = 0, worn = 0;
     Game hd(data, { "patch-z.mpq", "patch-y.mpq" });
     Bytes probe;
     bool hasExtra = hd.Read("Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", probe);
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
             ++darkRanger;
         if (base == 4)
         {
-            ++underwear;
+            ++overlays;
             if (sections.Get(i, 4) || sections.Get(i, 5) || sections.Get(i, 6))
                 ++worn;
         }
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     Check(looks > 2000, "the Skyborne's looks (" + std::to_string(looks) + ")");
     Check(leftover == 0, "no Naga or Broken looks left on races 13 and 14");
     Check(darkRanger == 2, "the blood elf's Dark Ranger skin, both sexes");
-    Check(underwear > 0 && worn == 0, "no underwear on anyone (" + std::to_string(underwear) + " rows without textures)");
+    Check(overlays > 0 && worn == 0, "section 4 rows carry no textures (" + std::to_string(overlays) + " rows)");
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
@@ -144,7 +144,7 @@ int main(int argc, char** argv)
         std::ofstream(fs::path(argv[3]) / "UI-CharacterCreate-Races.blp", std::ios::binary).write(reinterpret_cast<char const*>(icons.data()), std::streamsize(icons.size()));
 
     // Textures the patch writes over the game's keep the game's format (a character skin's palette:
-    // the game draws a body in no other).
+    // the game draws a character skin in no other).
     int sameFormat = 0, rewritten = 0;
     for (char const* race : { "Human", "Orc", "Dwarf", "NightElf", "Scourge", "Tauren", "Gnome", "Troll", "Goblin", "BloodElf", "Draenei" })
     {
@@ -157,7 +157,7 @@ int main(int argc, char** argv)
         if (std::equal(original.begin() + 8, original.begin() + 20, made2.begin() + 8) && Decode(made2, b) && Decode(original, a))
             ++sameFormat;
     }
-    Check(sameFormat == rewritten, "body textures written in the game's own format (" + std::to_string(sameFormat) + " of " + std::to_string(rewritten) + ")");
+    Check(sameFormat == rewritten, "rewritten textures keep the game's own format (" + std::to_string(sameFormat) + " of " + std::to_string(rewritten) + ")");
 
     std::cout << (failures ? std::to_string(failures) + " failed\n" : "all passed\n");
     return failures ? 1 : 0;
