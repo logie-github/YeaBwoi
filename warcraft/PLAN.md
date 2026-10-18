@@ -1138,7 +1138,7 @@ for the game on the phone itself ("that's the whole point").
     under way locally against this build, passing so far, when it was pushed (the user's time);
     CI's server test runs them all. Not checked: her voice in the game itself, the new levels in a
     real fight on a phone.
-- Then (build 112): "do them, prioritizing the character creation".
+- Then (build 116): "do them, prioritizing the character creation".
   - Eternus and Zephyr are women (the user's decision): every he/him for them to she/her in
     STORY.md, the SQL texts, scenes, code, READMEs and the tests' comments (285 words in 29 files;
     WRM-205/215 is now *Ask Her Yourself*; "master" became "mistress" where it named Eternus).
@@ -1160,7 +1160,7 @@ for the game on the phone itself ("that's the whole point").
   - The server test: a creature called over that's still out of reach (as the Cloaked Ranger at
     the Wrathgate's cliffs in build 109's run, back from chasing an interloper) is called again and
     waited for.
-- Then (build 112, the user's play of 111): "the tavern scene needs to have us at a table, and so
+- Then (build 116, the user's play of 111): "the tavern scene needs to have us at a table, and so
   that I can't move"; "it spawns me in Crystalsong then immediately loads another area", "it lags
   when loading: preload everything, just have me spawn in the tavern"; "Moratari still uses the
   default lines for blood elf". Done:
