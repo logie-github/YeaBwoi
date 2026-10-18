@@ -14,6 +14,7 @@
 
 #include "SkybornePatch.h"
 #include "SkyborneFiles.h"
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <set>
@@ -24,7 +25,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-4";
+        constexpr char const* VERSION = "skyborne-5";
 
         Bytes ReadFile(fs::path const& path)
         {
