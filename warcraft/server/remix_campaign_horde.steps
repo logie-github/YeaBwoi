@@ -434,6 +434,8 @@ kill 770046
 expect credit 77502 770046 6/6
 kill 770047
 expect credit 77502 770047 1/1
+# (back on the Overlook beside her: the fight can throw the character off it)
+go 571 5739.0 3050.0 288.6
 reward 770001 77502
 expect rewarded 77502
 wait 50
