@@ -1116,6 +1116,40 @@ for the game on the phone itself ("that's the whole point").
   Blessing and Energized last 15 minutes (SpellDuration 347). Not checked: ALE compiled with the
   playerbots core (CI), a Lua module run on it.
 
+- Then (builds 106 to 111): "finish Wrath Remix", "remove all bugs", every branch's work in one
+  build (the tavern opening included: 106, 109 and 110 have it, for characters made from then on;
+  the user: no replay for older characters), and Moratari's own voice. Done:
+  - The bug hunt in five parts (scenes and the ending; the last hour, the Frozen Halls and the
+    hourglass; the companion, outings and the romance; the intro, guide, lessons and Bazaar; the
+    app's anomaly reports and homecomings), each fix in the module's README.
+  - Creatures at the Timerunner's level, as in Legion Remix (`WrathRemix.LevelBands.FollowPlayer`):
+    the nearest real player's out in the banded zones, the highest's in Wrath's dungeons, bosses up
+    to 2 or 3 above, never above their own; re-levelled out of combat every 1.5 s within 100 yards.
+    Kill Bronze to whoever the game rewards (a companion's kills too); dailies a fifth, repeatables
+    a tenth; the heal hooks' units put right (the core passes a cast heal's swapped).
+  - Moratari's voice (the user's answers: greetings yes, whispered when she isn't near, the lines
+    that could fit used once each, the farewell as judged best, size no object): 41 of her Legion
+    Remix lines (`tools/voices.py`, `remix_voice`), fetched by file id from wago.tools and made WAVs
+    as the server is packaged (never in the repository), put in patch-Y with SoundEntries 77001+.
+    Eternus's answer to "How is this to be done?" now says the experiment can't last (her line 32
+    refers to it).
+  - Checked here: compiled; the realm starts, 41 of 41 lines voiced; the patch holds the WAVs and
+    the 41 SoundEntries rows; the unit tests (209). The prologue and the Alliance campaign were
+    under way locally against this build, passing so far, when it was pushed (the user's time);
+    CI's server test runs them all. Not checked: her voice in the game itself, the new levels in a
+    real fight on a phone.
+- Open (the user's, not started yet):
+  1. Eternus and Zephyr are women (the user's decision): every he/him for them in STORY.md, the
+     SQL texts, scenes, code and READMEs to she/her (about 300 places; Zephyr's look, 19282, is a
+     blood elf woman already). Her voiced lines already say "her".
+  2. Eternus in her retail dragon form (display 106055, model file 4500511; "no troll anywhere"):
+     `tools/models.py` converts it to 3.3.5 (sections split to 64 bones, her skin, cameras, .anim
+     files), written but not yet run: running it on the downloaded files needs the user's
+     permission in this environment. Then its CreatureModelData/CreatureDisplayInfo rows, the
+     server's, scale and placement, and the packaging step.
+  3. Character creation: a button, bottom-aligned with the character options, that cycles the
+     preview between no gear, starter gear and full champion gear for the race or class, never a
+     helmet.
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.
