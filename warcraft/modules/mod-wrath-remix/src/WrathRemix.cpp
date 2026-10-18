@@ -801,15 +801,18 @@ public:
         LoadConfig();
     }
 
+    // The game's patch with the tables (on ChromieCraft's realm too: that's where the patch comes out
+    // of the game), before any module's startup: the Skyborne's patch (mod-skyborne, patch-Z.MPQ,
+    // read after this one) is made at the startup from the game's tables as the patches before it
+    // have them, this one's looks included.
     void OnLoadCustomDatabaseTable() override
     {
         LoadData();
+        UpdateClientPatch();
     }
 
-    // (on ChromieCraft's realm too: that's where the patch comes out of the game)
     void OnStartup() override
     {
-        UpdateClientPatch();
         // What earlier versions kept of characters deleted since: the core gives a deleted
         // character's guid to the next one made after a restart, which would take over its
         // Timerunner's chapter, Bronze and starter kit.
@@ -1336,6 +1339,16 @@ public:
         {
             SkipIntro(player);
             handler->SendSysMessage("Wrath Remix intro: skipped.");
+        }
+        else if (what && *what == "status")
+            handler->PSendSysMessage("Wrath Remix intro: {}, {}, at {:.1f} {:.1f} {:.1f} on map {}.", InIntro(player) ? "in it" : "not in it",
+                player->IsAlive() ? "alive" : "dead", player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId());
+        else if (what && *what == "fall")
+        {
+            // What the core does to whoever falls under the world (MovementHandler.cpp).
+            player->SetPlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
+            player->KillPlayer();
+            handler->SendSysMessage("Wrath Remix intro: fell under the world.");
         }
         else
         {

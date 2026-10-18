@@ -446,6 +446,59 @@ namespace
             --running;
     }
 
+    // Taken far across the same map, the game shows no loading screen while the ground there
+    // loads, and on a slow phone the Timerunner falls through it: the core kills whoever falls under
+    // the world, whatever spares them otherwise (a level 10 ghost left in Icecrown). Held off the
+    // ground (no gravity) until it's there; the last hold given is the one that ends.
+    struct GroundHold : public DataMap::Base
+    {
+        uint32 given = 0;
+    };
+
+    constexpr Milliseconds GROUND_LOADS_IN = 8s;
+
+    void HoldOverTheGround(Player* player)
+    {
+        uint32 hold = ++player->CustomData.GetDefault<GroundHold>("remix_ground_hold")->given;
+        player->SetDisableGravity(true);
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid, hold]()
+        {
+            if (Player* p = ObjectAccessor::FindConnectedPlayer(guid); p && p->CustomData.GetDefault<GroundHold>("remix_ground_hold")->given == hold)
+                p->SetDisableGravity(false);
+        }, GROUND_LOADS_IN);
+    }
+
+    // Back from a death (in the opening, any the core deals around its rules), to [at].
+    void BackFromDeath(Player* player, Place const& at)
+    {
+        player->ResurrectPlayer(1.0f);
+        player->SpawnCorpseBones();
+        // (only a release to a graveyard clears this, after a fall under the world)
+        player->RemovePlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
+        HoldOverTheGround(player);
+        if (player->GetMapId() == at.map)
+            player->NearTeleportTo(at.x, at.y, at.z + 0.5f, at.o);
+        else
+            player->TeleportTo(at.map, at.x, at.y, at.z + 0.5f, at.o);
+    }
+
+    // Nothing in the opening hurts the Timerunner, but the core kills whoever falls under the world,
+    // and a few things kill outright: a death in it is undone at once, where the act has them.
+    void UndoDeath(Player* player)
+    {
+        std::shared_ptr<Opening> opening = OpeningOf(player);
+        if (!opening || opening->over)
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid, opening]()
+        {
+            Player* p = ObjectAccessor::FindConnectedPlayer(guid);
+            if (p && p->IsInWorld() && !p->IsAlive() && !opening->over)
+                BackFromDeath(p, opening->place);
+        }, 500ms);
+    }
+
     // The end of it: out of the phase, to the Bazaar, the opening seen.
     void Finish(Player* player, Opening& b)
     {
@@ -461,6 +514,8 @@ namespace
         SetIntroSeen(player);
         // (still in the opening as it goes: the hourglass doesn't count where it was as somewhere they came from)
         player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
+        if (player->GetMapId() == MAP_NORTHREND)
+            HoldOverTheGround(player);
         player->TeleportTo(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
         EndOpening(player);
         ObjectGuid guid = player->GetGUID();
@@ -521,6 +576,8 @@ namespace
         player->SetStandState(UNIT_STAND_STATE_STAND);
         player->SetPhaseMask(PHASE_INTRO, true);
         player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
+        if (player->GetMapId() == place.map)
+            HoldOverTheGround(player);
         if (!player->TeleportTo(place.map, place.x, place.y, place.z + 0.5f, place.o))
         {
             Finish(player, b);
@@ -1273,7 +1330,7 @@ public:
 class RemixIntroDamage : public UnitScript
 {
 public:
-    RemixIntroDamage() : UnitScript("RemixIntroDamage", true, { UNITHOOK_ON_DAMAGE }) { }
+    RemixIntroDamage() : UnitScript("RemixIntroDamage", true, { UNITHOOK_ON_DAMAGE, UNITHOOK_ON_UNIT_DEATH }) { }
 
     static bool OfTheOpening(Unit const* unit)
     {
@@ -1304,12 +1361,19 @@ public:
             damage = std::min<uint32>(damage, std::max<uint32>(1, uint32(victim->GetMaxHealth() * cap)));
         }
     }
+
+    // (a kill outright; a fall under the world is the player script's)
+    void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
+    {
+        if (Player* hero = unit->ToPlayer(); hero && running.load())
+            UndoDeath(hero);
+    }
 };
 
 class RemixIntroPlayer : public PlayerScript
 {
 public:
-    RemixIntroPlayer() : PlayerScript("RemixIntroPlayer", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT }) { }
+    RemixIntroPlayer() : PlayerScript("RemixIntroPlayer", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT, PLAYERHOOK_ON_PLAYER_JUST_DIED }) { }
 
     void OnPlayerLogin(Player* player) override
     {
@@ -1319,9 +1383,25 @@ public:
         // (after the realm's own first moments: the kit on, the abilities learned)
         player->m_Events.AddEventAtOffset([guid]()
         {
-            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld() && Wanted(p))
+            Player* p = ObjectAccessor::FindPlayer(guid);
+            if (!p || !p->IsInWorld())
+                return;
+            // Dead in Northrend in the prologue (a ghost the opening left in Icecrown, before deaths
+            // in it were undone): alive again, at the Bazaar. (A death knight's prologue is Acherus's.)
+            if (!p->IsAlive() && Get(p).chapter == 0 && p->GetMapId() == MAP_NORTHREND && p->getClass() != CLASS_DEATH_KNIGHT)
+            {
+                BackFromDeath(p, Place{ MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O });
+                return;
+            }
+            if (Wanted(p))
                 Begin(p);
         }, 1500ms);
+    }
+
+    // (the core's kill for a fall under the world)
+    void OnPlayerJustDied(Player* player) override
+    {
+        UndoDeath(player);
     }
 
     // Cut short: the opening goes with them, and they see it again at their next login.
