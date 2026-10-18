@@ -64,7 +64,10 @@ echo "$MODULES" | while read -r name repo commit; do
 		# A module whose files have CRLF line endings looks modified after the checkout, which
 		# git am refuses: the patches are applied as they are then.
 		git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@" ||
-			{ git -C "$dir" am --abort; git -C "$dir" apply "$@"; }
+			{
+				git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am --abort
+				git -C "$dir" apply "$@"
+			}
 	fi
 done
 # The app's own modules, kept in this repository (warcraft/modules/), copied in as they are.
