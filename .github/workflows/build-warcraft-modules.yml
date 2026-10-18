@@ -122,14 +122,18 @@ jobs:
             [ "$round" -lt 4 ] || exit 1
             fetch=0
             extra=$(echo "$WOW_EXTRA_MODULES" | awk 'NF { print $1 }' | sort)
-            failed=$(grep -o 'job failed[^:]*: .* -c /repo/build/azerothcore/modules/[^/ ]*/' "$log" |
-              sed 's|.*/modules/||; s|/$||' | sort -u || true)
+            # A compile failure (ninja names the module's file) or a module's own CMake check
+            # (CMake Error at modules/<name>/...) fails the round; both leave the module out.
+            failed=$({ grep -o 'job failed[^:]*: .* -c /repo/build/azerothcore/modules/[^/ ]*/' "$log" |
+              sed 's|.*/modules/||; s|/$||';
+              grep -o 'CMake Error at modules/[^/ ]*/' "$log" | sed 's|.*modules/||; s|/$||'; } | sort -u || true)
             ours=$(comm -12 <(echo "$failed") <(echo "$extra") | sed '/^$/d')
             others=$(comm -23 <(echo "$failed") <(echo "$extra") | sed '/^$/d')
             if [ -z "$ours" ] || [ -n "$others" ]; then exit 1; fi
             for name in $ours; do
               why=$(grep -F "/repo/build/azerothcore/modules/$name/" "$log" | grep -m1 ': error: ' |
                 sed "s|^.*/repo/build/azerothcore/modules/$name/||" | cut -c1-300 || true)
+              [ -n "$why" ] || why=$(grep -A1 -m1 "CMake Error at modules/$name/" "$log" | tail -1 | sed 's/^ *//' | cut -c1-300 || true)
               printf '%s\t%s\n' "$name" "$why" >> "$left"
               echo "::warning::$name left out: it doesn't compile with this realm's AzerothCore. $why"
               sudo rm -rf "build/azerothcore/modules/$name"

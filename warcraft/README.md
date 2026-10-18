@@ -136,7 +136,6 @@ WoW: Forever's elves of the wind are playable on both realms, on the blood elf's
 - **Stats**: Strength -1, Agility +1, Stamina -1, Intellect +1, as WoW: Forever's starting stats have them.
 - **The intro** is their start race's flight over its land, with the Skyborne's own narration.
 - **Blood elves** get a new skin colour: Dark Ranger (grey, red eyes), after their others.
-- **No underwear** on any race: the Skyborne's patch takes the underwear the game paints over a bare body off everyone (armour is as it was).
 
 The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-Z.MPQ`, from your client's own files: the blood elf's textures recoloured; it takes a little longer to start the first time, and again only when the client changes). The game then starts with its patched executable. A `patch-Z.MPQ` of your own is left alone, and the game then won't know them. An HD look's character files are used as the Skyborne's base, whichever look is in.
 

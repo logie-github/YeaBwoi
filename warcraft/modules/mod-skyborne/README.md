@@ -46,9 +46,6 @@ move to 22 and 23.
   each side's races go down its own column; their background is their start race's.
 - **Blood elves** get a Dark Ranger skin (colour 19: the blood elf's fairest skin with its
   saturation turned down to a tenth, so grey, and red eyes).
-- **No underwear on anyone**: the patch empties every race's and sex's underwear row (CharSections
-  section 4, the NakedPelvisSkin/NakedTorsoSkin textures the game paints over a bare body), as the
-  game's own rows for race 20 are; the body's skin shows. Armour is as it was.
 - **HD looks**: the HD blood elf takes its ears, jaw and eyeballs from a second skin texture
   (`...Skin00_NN_Extra.blp`, the skin row's second texture in CharSections). The patch makes each
   new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
