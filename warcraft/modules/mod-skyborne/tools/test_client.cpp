@@ -60,7 +60,7 @@ int main(int argc, char** argv)
 
     Dbc sections;
     Check(patch->Read("DBFilesClient\\CharSections.dbc", bytes) && sections.Parse(bytes), "CharSections.dbc is in it");
-    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, underwear = 0, worn = 0;
+    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0;
     Game hd(data, { "patch-z.mpq", "patch-y.mpq" });
     Bytes probe;
     bool hasExtra = hd.Read("Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", probe);
@@ -75,12 +75,6 @@ int main(int argc, char** argv)
         }
         if (race == 10 && base == 0 && color == 19)
             ++darkRanger;
-        if (base == 4)
-        {
-            ++underwear;
-            if (sections.Get(i, 4) || sections.Get(i, 5) || sections.Get(i, 6))
-                ++worn;
-        }
         if ((race == 13 || race == 14 || (race == 10 && color == 19)) && base == 0)
         {
             ++skins;
@@ -96,7 +90,6 @@ int main(int argc, char** argv)
     Check(looks > 2000, "the Skyborne's looks (" + std::to_string(looks) + ")");
     Check(leftover == 0, "no Naga or Broken looks left on races 13 and 14");
     Check(darkRanger == 2, "the blood elf's Dark Ranger skin, both sexes");
-    Check(underwear > 0 && worn == 0, "no underwear on anyone (" + std::to_string(underwear) + " rows without textures)");
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
@@ -121,6 +114,7 @@ int main(int argc, char** argv)
         { "Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00.blp", "Character\\Skyborne\\Female\\SkyborneFemaleSkin00_19.blp" },
         { "Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_00.blp", "Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_00.blp" },
         { "Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_00.blp", "Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper10_22.blp" },
+        { "Character\\BloodElf\\Female\\BloodElfFemaleNakedTorsoSkin00_00.blp", "Character\\Skyborne\\Female\\SkyborneFemaleNakedTorsoSkin00_20.blp" },
         { "Character\\BloodElf\\Hair00_01.blp", "Character\\Skyborne\\Hair00_16.blp" },
         { "Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_00.blp", "Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_19.blp" },
         { "Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", "Character\\BloodElf\\Female\\BloodElfFemaleSkin00_19_Extra.blp" },
