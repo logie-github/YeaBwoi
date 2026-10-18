@@ -474,9 +474,9 @@ EOF
 	for name in Wintergarde Agmarshammer; do
 		grep -q "^$name$" "$FILES"/run/transfers/*.who || fail "$name wasn't written to go home to ChromieCraft"
 	done
-	sleep 8
-	gone=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Wintergarde', 'Agmarshammer')" | CTL sql acore_characters_remix)
-	[ "$gone" = 0 ] || fail "$gone of the Timerunners who went home are still on Wrath Remix"
+	# (kept on Wrath Remix until ChromieCraft has them: never on neither realm)
+	kept=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Wintergarde', 'Agmarshammer')" | CTL sql acore_characters_remix)
+	[ "$kept" = 2 ] || fail "only $kept of the Timerunners going home are still on Wrath Remix before ChromieCraft has them"
 
 	echo "== Wrath Remix's NPCs on the floor"
 	echo "SELECT guid, map, position_x, position_y, position_z, Comment FROM creature WHERE guid BETWEEN 7704001 AND 7704399 ORDER BY guid" |
@@ -508,6 +508,14 @@ EOF
 		[ "$row" = "$expected" ] || fail "$name didn't come home to ChromieCraft in their capital ($row)"
 	done
 	[ -z "$(ls "$FILES"/run/transfers/*.dump 2> /dev/null)" ] || fail "ChromieCraft left Timerunners waiting to come home"
+	stop_world
+
+	# Taken off Wrath Remix at its next start, now that ChromieCraft has them.
+	echo "== Wrath Remix lets go of its Timerunners who went home"
+	start_world world-remix-again.out remix
+	wait_world_ready
+	gone=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Wintergarde', 'Agmarshammer')" | CTL sql acore_characters_remix)
+	[ "$gone" = 0 ] || fail "$gone of the Timerunners who went home are still on Wrath Remix"
 	stop_world
 else
 	# Without the server's data, it runs until it needs dbc, then stops.
