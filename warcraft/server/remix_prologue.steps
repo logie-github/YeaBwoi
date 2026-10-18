@@ -176,21 +176,25 @@ expect ware 42985 cost 7708
 buy 770005 42985
 expect bought 42985
 
-# The Bazaar's other Bronze vendors, as a warrior sees them: Horos's mounts, Durus's tier sets (a
-# warrior's pieces, not a mage's) and a legendary, paid for with Bronze a game master gives.
-go 571 6371.0 1896.5 509.1
-talk 770201
+# The Bazaar's other Bronze vendors, as a warrior sees them: Hemet Nesingwary's mounts by the
+# waystation, Pythagorus's heroic tier sets in the north row (a warrior's pieces, not a mage's), and
+# Durus's legendary at the market lane's end, paid for with Bronze a game master gives.
+go 571 6413.5 1822.0 509.1
+talk 770212
 expect Mounts of Northrend
-select 770201 Mounts of Northrend
+select 770212 Mounts of Northrend
 expect ware 50818 cost 7726
+go 571 6424.5 1888.0 509.1
+talk 770206
+expect Tier 10, Icecrown Citadel (25 heroic)
+select 770206 Tier 10, Icecrown Citadel (25 heroic)
+expect ware 51227
+talk 770206
+select 770206 Tier 10, Icecrown Citadel (25 heroic)
+expect-not ware 51280
 go 571 6335.5 1896.0 509.1
 talk 770205
 expect Legendaries
-select 770205 Tier 10, Icecrown Citadel (25 heroic)
-expect ware 51227
-talk 770205
-select 770205 Tier 10, Icecrown Citadel (25 heroic)
-expect-not ware 51280
 cmd .remix bronze add 20000
 talk 770205
 select 770205 Legendaries
