@@ -189,7 +189,7 @@ QUESTS = [
     dict(COMMON, id=SHORE_LEAVE, title="Shore Leave", prev=TEA,
          gates=[[rewarded(NOT_YET_LATE)], [rewarded(THE_CONDEMNED_COAST)]],
          log="Have a drink with Moratari at an inn in Dalaran.",
-         desc="Eternus says we are ahead of the record. Two days, perhaps three. He says it as if it were a problem.$B$BI say it is "
+         desc="Eternus says we are ahead of the record. Two days, perhaps three. She says it as if it were a problem.$B$BI say it is "
               "shore leave. There is an inn in Dalaran (in this year the city has only just arrived, and the floors are still settling) "
               "where nobody knows either of us, and the cider is better than it has any right to be.$B$BOne drink, $N. As friends. "
               "Mostly as friends.",
@@ -224,8 +224,8 @@ QUESTS = [
     dict(COMMON, id=WHAT_HE_LEFT_OUT, title="What Eternus Left Out", prev=WYRMREST_VIEW,
          gates=[[rewarded(WEIGHT_OF_TIME)]],
          log="Stay with Moratari a while.",
-         desc="I need to sit down.$B$B...He knew, $N. Eternus knew the war had to happen as it did, and he sent us to change it "
-              "anyway, and he let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of "
+         desc="I need to sit down.$B$B...She knew, $N. Eternus knew the war had to happen as it did, and she sent us to change it "
+              "anyway, and she let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of "
               "time who spent a month vandalizing it.$B$BSit with me a while. Please. You do not have to say anything.",
          done="Return to Moratari.",
          objectives=[(C_LOVE, 1, "Moratari comforted")],
@@ -257,7 +257,7 @@ QUESTS = [
          gates=[[rewarded(VERY_LONG_ROAD)]],
          log="Spend the night in Moratari's tent at the Bazaar.",
          desc="I have a tent at the Bazaar. You have walked past it a hundred times: the one with the lamp that is always lit.$B$BNo one "
-              "goes in. Not Eternus, when he was there; not the porters who sweep the paths. It is the only place in any year that is "
+              "goes in. Not Eternus, when she was there; not the porters who sweep the paths. It is the only place in any year that is "
               "only mine.$B$BI would like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.",
          done="Return to Moratari.",
          objectives=[(C_TENT, 1, "A night in Moratari's tent")],

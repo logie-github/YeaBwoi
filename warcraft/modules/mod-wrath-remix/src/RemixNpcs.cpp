@@ -239,9 +239,9 @@ namespace
                 if (Creature* sylvanas = Actor(p, s.sylvanas))
                     if (Creature* moratari = Actor(p, s.moratari))
                         sylvanas->SetFacingToObject(moratari);
-                Speak(p, s.sylvanas, "Listen to me, Moratari. If Bolvar Fordragon does not burn at the Wrathgate, no one takes up the Helm when Arthas falls. The Scourge goes masterless, and every soul the Helm has bound is lost with it. I have spent years freeing souls like those. I will not watch them thrown away for his kindness."); } },
-            { 38000, [](Player* p, TurnScene& s) { Speak(p, s.alleria, "She speaks the truth. I can feel the shape of the road your master wants. It ends in the dark."); } },
-            { 44000, [](Player* p, TurnScene& s) { Speak(p, s.moratari, "He told me it was mercy. Give me a moment. I will see it for myself."); } },
+                Speak(p, s.sylvanas, "Listen to me, Moratari. If Bolvar Fordragon does not burn at the Wrathgate, no one takes up the Helm when Arthas falls. The Scourge goes masterless, and every soul the Helm has bound is lost with it. I have spent years freeing souls like those. I will not watch them thrown away for her kindness."); } },
+            { 38000, [](Player* p, TurnScene& s) { Speak(p, s.alleria, "She speaks the truth. I can feel the shape of the road your mistress wants. It ends in the dark."); } },
+            { 44000, [](Player* p, TurnScene& s) { Speak(p, s.moratari, "She told me it was mercy. Give me a moment. I will see it for myself."); } },
             { 47000, [](Player* p, TurnScene& s) {
                 if (Creature* moratari = Actor(p, s.moratari))
                     moratari->CastSpell(moratari, SPELL_TIME_RIFT_CHANNEL, true); } },
@@ -430,7 +430,7 @@ public:
         return true;
     }
 
-    // WRM-011: what the Timerunner asks him, while it's under way.
+    // WRM-011: what the Timerunner asks her, while it's under way.
     static void AddPlanQuestions(Player* player)
     {
         if (player->GetQuestStatus(QUEST_THE_PLAN) != QUEST_STATUS_INCOMPLETE)
@@ -460,7 +460,7 @@ public:
         }
         if (player->GetQuestStatus(QUEST_THE_PLAN) == QUEST_STATUS_INCOMPLETE)
             player->KilledMonsterCredit(credit);
-        // (his answer, and the questions still to ask, and the quest to turn in once all are asked)
+        // (her answer, and the questions still to ask, and the quest to turn in once all are asked)
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
         AddPlanQuestions(player);

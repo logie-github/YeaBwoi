@@ -10,7 +10,7 @@ scene walks between them), it has districts a Timerunner can read at a glance:
   - the heart, under a great hourglass, where every Timerunner wakes;
   - the market lane along the west edge: a stall for each Bronze trader, Alurmi's first;
   - the training yard to the south-east: the instructors at work, dummies and targets to try;
-  - the waystation to the north-east: Zephyr, his drake and a door in time; Sa'at's map table;
+  - the waystation to the north-east: Zephyr, her drake and a door in time; Sa'at's map table;
   - the chronicle corner to the north-west: the Chronologist's shelves, Momentus's orb;
   - the campfire to the south: other Timerunners, veterans of this war from their own hours after it, and a cook;
   - and between them porters on their rounds, wardens walking the edge, whelps underfoot.
@@ -352,7 +352,7 @@ GOSSIP = {
     7702402: "Shh. Listen to that fire. In my time I cannot sit by one without thinking of the Wrathgate.$B$BI know. I know what Eternus wants. I have not decided what I think about it yet. Have you?",
     7702403: "Grukk Ironjaw, of the Frostwolves. I have killed centaur and quilboar and once, by accident, a very large goat.$B$BThe Scourge I know: I followed it all the way to the Frozen Throne. It is good to fight something I already understand.",
     7702404: "Thaddeus Quill, engineer, Timerunner, and the only gnome in this camp who read the warning label on the hourglass.$B$BIt says do not shake. I shook it. That is how I got here, I think.",
-    7702405: "The Sunwell is burning again. I can feel it from here, even in this year. It was dark for so long.$B$BWhatever Eternus offers you, $c, ask him what it costs. It always costs something.",
+    7702405: "The Sunwell is burning again. I can feel it from here, even in this year. It was dark for so long.$B$BWhatever Eternus offers you, $c, ask her what it costs. It always costs something.",
     7702406: "Morrigan Ashe. Forsaken, priestess, and very tired of being asked if I am from around here.$B$BI died in the Third War. I would rather not watch this one do it to anyone else. That is why I listened to Eternus. I am still listening.",
     7702407: "Zhar'ka of the Darkspear. De spirits be very confused in dis place, mon. Dey keep askin' me what year it be.$B$BI tell dem: all of dem.",
     7702408: "Korvan Steelhide, Ironforge. If you are looking for the stew, it is behind me, and it is mine.$B$B...Fine. There is enough for two.",
@@ -367,7 +367,7 @@ def main():
     w("""-- The Infinite Bazaar's camp (tools/bazaar.py writes this file: edit that and run it again). Around
 -- the story's people at its heart, districts a Timerunner can read at a glance: the market lane along
 -- the west edge (a stall for each Bronze trader), the training yard to the south-east (the
--- instructors at work, dummies and targets), the waystation to the north-east (Zephyr, his drake, a
+-- instructors at work, dummies and targets), the waystation to the north-east (Zephyr, her drake, a
 -- door in time, Sa'at's map table), the chronicle corner to the north-west, the campfire to the
 -- south (other Timerunners, veterans of this war from their own hours after it, and a cook), and porters, wardens
 -- and whelps on their rounds. Who says what while a Timerunner is about is remix_bazaar_line

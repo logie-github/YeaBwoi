@@ -22,6 +22,7 @@ void AddRemixOutingScripts();
 void AddRemixCampfireScripts();
 void AddRemixQuestFixupScripts();
 void AddRemixVoiceScripts();
+void AddRemixModelScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -44,4 +45,5 @@ void Addmod_wrath_remixScripts()
     AddRemixCampfireScripts();
     AddRemixQuestFixupScripts();
     AddRemixVoiceScripts();
+    AddRemixModelScripts();
 }

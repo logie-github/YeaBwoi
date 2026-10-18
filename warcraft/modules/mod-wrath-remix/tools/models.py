@@ -6,9 +6,6 @@ dragon of Thaldraszus and both Remixes: model file 4500511), made a model the 3.
                                                the 3.3.5 model into DIR (Creature/Eternus/...)
     python3 tools/models.py convert SRC DIR    the same from files already fetched (named by their ids)
 
-Not yet run or wired in (warcraft/PLAN.md, "Open", item 2): nothing calls it, and the packaging
-step, RemixModels.cpp and the patch rows described below are still to be made.
-
 Her files are the game's, so they are never in this repository: the server package fetches and
 converts them (scripts/package-azerothcore.sh) into the module's data/models, where the world server
 finds them (ClientPatch.cpp puts them in the game's patch with their CreatureModelData and
@@ -19,7 +16,9 @@ What changes from the game's (format 274) to 3.3.5's (264): the chunked wrapper 
 the MD20 inside it), its textures get names in place of file ids, its mesh sections are split so
 none has more than 64 bones (3.3.5 draws a section with at most that many), each drawn with her
 skin alone (the newer shaders don't exist in 3.3.5), only the geosets her display shows are kept,
-her cameras are written in 3.3.5's layout, her particles (a newer layout) are left out, and her
+her cameras are written in 3.3.5's layout, her particles (a newer layout) are left out, her
+animations with newer ids (aliases of older ones) take ids 3.3.5 has that a creature never plays,
+the animation lookup is a table by id, and her
 animations kept in their own files are written as 3.3.5 .anim files (the same data without its
 chunk header). Everything else (vertices, bones, animation tracks, attachments, events) is the
 same in both.
@@ -35,13 +34,19 @@ SKIN_TEXTURE = 4500601              # her display's skin (both of its texture va
 SHOWN_GEOSETS = {0, 101, 202, 402}  # her display's geosets (CreatureDisplayInfoGeosetData of 106055)
 NAME = "Eternus"
 FOLDER = "Creature/Eternus"
+MANIFEST = "eternus.files"
 MAX_BONES = 64
 
 # the 3.3.5 header: name, then each array's place (count, offset)
-H_NAME, H_FLAGS, H_SEQS, H_BONES, H_VERTS, H_VIEWS = 8, 16, 28, 44, 60, 68
-H_TEXTURES, H_BONE_LOOKUP, H_TEX_LOOKUP, H_TEX_UNIT_LOOKUP = 80, 120, 128, 136
+H_NAME, H_FLAGS, H_SEQS, H_SEQ_LOOKUP, H_BONES, H_VERTS, H_VIEWS = 8, 16, 28, 36, 44, 60, 68
+H_TEXTURES, H_TEX_TRANSFORMS, H_BONE_LOOKUP, H_TEX_LOOKUP, H_TEX_UNIT_LOOKUP = 80, 96, 120, 128, 136
+H_TRANSFORM_LOOKUP = 152
 H_LIGHTS, H_CAMERAS, H_RIBBONS, H_PARTICLES = 264, 272, 288, 296
 TEXTURE_SKIN = 11                   # a creature's first replaceable texture
+LAST_ANIMATION = 505                # 3.3.5's AnimationData ends here
+# The newer animations (in her model all aliases of older ones, with no data of their own) given
+# ids 3.3.5 has that no creature is ever asked to play: jousting, the stocks, a two-handed carry.
+SPARE_ANIMATIONS = [476, 477, 478, 479, 480, 481, 482, 483, 490, 491, 502, 503, 504, 505]
 
 
 def chunks_of(data):
@@ -75,6 +80,30 @@ class Blob:
         return offset
 
 
+def fix_sequences(blob):
+    """Her sequences with ids 3.3.5 has, and their lookup as a table by id (an id's first
+    sequence at its own place, which reads the same whether the game indexes it or hashes it).
+    Returns the ids given in place of the newer ones."""
+    count, offset = blob.array(H_SEQS)
+    ids = [struct.unpack_from("<H", blob.data, offset + i * 64)[0] for i in range(count)]
+    spare = [a for a in SPARE_ANIMATIONS if a not in ids]
+    renamed = {}
+    for i, sid in enumerate(ids):
+        if sid > LAST_ANIMATION:
+            if sid not in renamed:
+                if not spare:
+                    raise ValueError("no spare animation id for %d" % sid)
+                renamed[sid] = spare.pop(0)
+            ids[i] = renamed[sid]
+            struct.pack_into("<H", blob.data, offset + i * 64, ids[i])
+    table = [-1] * (max(ids) + 1)
+    for i, sid in enumerate(ids):
+        if table[sid] < 0:
+            table[sid] = i
+    blob.set_array(H_SEQ_LOOKUP, len(table), blob.append(struct.pack("<%dh" % len(table), *table)))
+    return renamed
+
+
 def texture_name(index):
     return "%s\\%s%d.blp" % (FOLDER.replace("/", "\\"), NAME, index)
 
@@ -91,6 +120,14 @@ def convert_model(m2, skin):
     struct.pack_into("<I", blob.data, H_FLAGS, struct.unpack_from("<I", blob.data, H_FLAGS)[0] & 0x3)
     name = NAME.encode() + b"\0"
     blob.set_array(H_NAME, len(name), blob.append(name))
+    renamed = fix_sequences(blob)
+
+    # a texture animation's lookup naming one the model hasn't: none
+    transforms = blob.array(H_TEX_TRANSFORMS)[0]
+    count, offset = blob.array(H_TRANSFORM_LOOKUP)
+    for i in range(count):
+        if struct.unpack_from("<h", blob.data, offset + i * 2)[0] >= transforms:
+            struct.pack_into("<h", blob.data, offset + i * 2, -1)
 
     # textures: names for the hard-coded ones (their file ids are in TXID)
     file_ids = struct.unpack("<%dI" % (len(chunks["TXID"]) // 4), chunks["TXID"])
@@ -152,6 +189,7 @@ def convert_model(m2, skin):
         raw = chunks["AFID"]
         for i in range(0, len(raw), 8):
             anim, sub, file_id = struct.unpack_from("<HHI", raw, i)
+            anim = renamed.get(anim, anim)
             if file_id:
                 anims[file_id] = "%s/%s%04d-%02d.anim" % (FOLDER, NAME, anim, sub)
     return bytes(blob.data), new_skin, needed, anims
@@ -289,17 +327,22 @@ def convert(fetch_file, folder):
     for name, data in files.items():
         if name.endswith(".blp") and data[:4] != b"BLP2":
             raise ValueError("%s isn't a BLP2 texture" % name)
+    for name, data in files.items():
         path = os.path.join(folder, name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as out:
             out.write(data)
+    # the list of her files, written last: the world server takes her shape only when it's there
+    # and every file it names is (ClientPatch.cpp, RemixModels.cpp)
+    with open(os.path.join(folder, MANIFEST), "w") as out:
+        out.write("".join(name + "\n" for name in sorted(files)))
     print("models: Eternus's dragon, %d files in %s" % (len(files), folder))
 
 
 def wago(file_id):
     for attempt in range(4):
         try:
-            with urllib.request.urlopen("https://wago.tools/api/casc/%d?download" % file_id, timeout=120) as response:
+            with urllib.request.urlopen("https://wago.tools/api/casc/%d?download" % file_id, timeout=60) as response:
                 return response.read()
         except Exception as error:  # a network hiccup: once more, a little later
             print("models: file %d: %s" % (file_id, error), file=sys.stderr)

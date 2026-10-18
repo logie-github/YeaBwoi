@@ -493,6 +493,14 @@ def run_script(session, player_guid, steps):
         session.pump(0.5, packets)
         say(session, ".npc follow")
         session.pump(arrival(yards), packets)
+        # (one still out of reach, as one that chased a foe off in the fight before and walked home
+        # first: called again, and waited for)
+        for _ in range(3):
+            _, yards = creature_guid(entry, near=True)
+            if yards <= 5:
+                break
+            say(session, ".npc follow")
+            session.pump(arrival(yards), packets)
         return guid, True
 
     def arrival(yards):

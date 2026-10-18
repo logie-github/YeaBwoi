@@ -104,6 +104,10 @@ if [ -d "$DIST/modules/mod-wrath-remix" ]; then
 	apk add -q --no-progress ffmpeg
 	python3 /repo/warcraft/modules/mod-wrath-remix/tools/voices.py fetch "$pkg/src/modules/mod-wrath-remix/data/voices" ||
 		echo "Moratari's voice wasn't all fetched: she speaks without it where it's missing" >&2
+	# Eternus's own shape (tools/models.py): her dragon from the game's files by their ids, made a
+	# model 3.3.5 draws. Its list of files is written last; without it she keeps the dragonspawn's.
+	python3 /repo/warcraft/modules/mod-wrath-remix/tools/models.py fetch "$pkg/src/modules/mod-wrath-remix/data/models" ||
+		echo "Eternus's own shape wasn't fetched: she keeps the dragonspawn's" >&2
 fi
 
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are

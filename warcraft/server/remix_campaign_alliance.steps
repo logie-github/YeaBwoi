@@ -1,5 +1,5 @@
 # Wrath Remix's campaign, Chapters II to VII and the end, as the Alliance has them: the story's quests
-# and scenes, Moratari's transitions, Eternus's agents in each chapter and his last hour, the
+# and scenes, Moratari's transitions, Eternus's agents in each chapter and her last hour, the
 # return to the Bazaar, the goodbyes, and the way home to ChromieCraft. Played by CI as a level 30
 # human (auth_check.py script, on the Remix realm), levelled with each chapter. The original quests
 # before each step are given and turned in with GM commands, the story's own are played, and what
@@ -39,7 +39,7 @@ cmd .gm off
 cmd .quest add 12309
 cmd .quest complete 12309
 cmd .quest reward 12309
-# (one of the quests Eternus quietly changed: he says so, a moment after it's turned in)
+# (one of the quests Eternus quietly changed: she says so, a moment after it's turned in)
 wait 4
 expect His squire's name is Tobin
 cmd .quest add 12311
@@ -79,7 +79,7 @@ cmd .remix sees 770015
 expect seen
 reward 770014 77204
 expect rewarded 77204
-# WRM-205 (Ask Him Yourself): taking it goes to the Bazaar, before Eternus; turning it in comes
+# WRM-205 (Ask Her Yourself): taking it goes to the Bazaar, before Eternus; turning it in comes
 # back to Moratari's The Road to Angrathar.
 talk 770014
 expect quest 77205
@@ -220,7 +220,7 @@ talk 770015
 expect quest 77303
 accept 770015 77303
 wait 35
-expect Go and break his anchors
+expect Go and break her anchors
 go 571 4688.0 -3860.0 328.0
 cmd .remix sees 770042
 expect seen
@@ -587,8 +587,8 @@ expect quest 24510
 
 # The Frozen Halls are the core's. WRM-721 (The Last Hour): after the escape from the Halls of
 # Reflection, Moratari outside the Frozen Halls takes the Timerunner to the doors of Icecrown
-# Citadel: Eternus speaks, and the three answer; then the fight, and with a tenth of his strength
-# left he retreats (a game master's blow takes him there at once).
+# Citadel: Eternus speaks, and the three answer; then the fight, and with a tenth of her strength
+# left she retreats (a game master's blow takes her there at once).
 cmd .levelup 6
 clear-backpack
 wait 2

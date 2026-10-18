@@ -114,7 +114,7 @@ def write_sql():
 
 def fetch(folder):
     os.makedirs(folder, exist_ok=True)
-    got = 0
+    got = fetched = 0
     for number, fdid, seconds, moment, words in LINES:
         wav = os.path.join(folder, file_name(number))
         if os.path.exists(wav) and os.path.getsize(wav) > 44:
@@ -123,7 +123,7 @@ def fetch(folder):
         ogg = wav[:-4] + ".ogg"
         for attempt in range(4):
             try:
-                with urllib.request.urlopen("https://wago.tools/api/casc/%d?download" % fdid, timeout=60) as response:
+                with urllib.request.urlopen("https://wago.tools/api/casc/%d?download" % fdid, timeout=30) as response:
                     data = response.read()
                 if data[:4] != b"OggS":
                     raise ValueError("not an Ogg file")
@@ -134,7 +134,13 @@ def fetch(folder):
                 print("voices: file %d (%s): %s" % (fdid, file_name(number), error), file=sys.stderr)
                 time.sleep(2 * (attempt + 1))
         if not os.path.exists(ogg):
+            if not fetched:
+                # (the first one not to come at all: the service isn't answering this machine,
+                # so the build doesn't wait on each of the others too)
+                print("voices: wago.tools isn't answering; the rest aren't tried", file=sys.stderr)
+                break
             continue
+        fetched += 1
         # 16-bit mono at 22,050 Hz, as the game's own voices
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", ogg, "-ac", "1", "-ar", "22050",
                         "-c:a", "pcm_s16le", wav], check=True)

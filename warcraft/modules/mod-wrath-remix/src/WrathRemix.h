@@ -86,7 +86,7 @@ namespace WrathRemix
 
         NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene (each scene's to its own quest alone)
         NPC_LAST_HOUR_CREDIT = 770036,  // WRM-721's, as Eternus retreats
-        NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, his loyalists, and the three beside you
+        NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, her loyalists, and the three beside you
         NPC_LAST_CHRONOMANCER = 770062,
         NPC_LAST_EXECUTIONER = 770063,
         NPC_ALLY_MORATARI = 770064,
@@ -110,7 +110,7 @@ namespace WrathRemix
         TEXT_MORATARI_HISTORY  = 7702003,
         TEXT_ETERNUS           = 7702010,
         TEXT_ETERNUS_LATER     = 7702011,
-        TEXT_ETERNUS_WHAT      = 7702012,   // his answers to WRM-011's questions
+        TEXT_ETERNUS_WHAT      = 7702012,   // her answers to WRM-011's questions
         TEXT_ETERNUS_HOW       = 7702013,
         TEXT_ETERNUS_WHY       = 7702014,
         TEXT_ANDORMU           = 7702020,
@@ -316,6 +316,14 @@ namespace WrathRemix
     void LoadVoices();
     bool MoratariVoice(Player* player, std::string const& moment, int32 index = -1, Creature* moratari = nullptr);
     uint32 MoratariVoiceFor(std::string const& words);                      // the sound of words she has voiced (0: none)
+    // Eternus in her own shape (RemixModels.cpp, tools/models.py): her dragon's files (relative to
+    // ModelsFolder) when the server package has every one of them, else none. ClientPatch.cpp puts
+    // them in the game's patch with the rows of her look and says so (EternusShapeInPatch); only
+    // then does she take that look.
+    constexpr uint32 DISPLAY_ETERNUS_DRAGON = 32900, MODEL_ETERNUS_DRAGON = 3500;
+    std::string ModelsFolder();
+    std::vector<std::string> const& EternusShapeFiles();
+    void EternusShapeInPatch();
     void MoratariOnQuest(Player* player, uint32 quest, uint8 moment);
     bool IsCompanionSummon();                                               // (while the companion is being summoned)
     uint8 CompanionLevel();

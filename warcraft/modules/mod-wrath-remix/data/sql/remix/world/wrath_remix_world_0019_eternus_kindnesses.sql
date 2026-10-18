@@ -1,8 +1,8 @@
--- Wrath Remix (STORY.md, "Before the turn"): until Sylvanas and Alleria stop him, Eternus is
--- folding the war his way, quietly. Some of the original quests on the story's path through the
+-- Wrath Remix (STORY.md, "Before the turn"): until Sylvanas and Alleria stop her, Eternus is
+-- folding the war her way, quietly. Some of the original quests on the story's path through the
 -- Borean Tundra and the Dragonblight turn in a little differently than history has them: an NPC
 -- notices a small thing that went better than it should have (their turn-in text), and Eternus
--- whispers that it was him (remix_quest_note: only before WRM-207, The Weight of Time; WrathRemix.cpp).
+-- whispers that it was her (remix_quest_note: only before WRM-207, The Weight of Time; WrathRemix.cpp).
 -- The originals are kept in remix_original_reward_text, and each text is made from its original.
 CREATE TABLE IF NOT EXISTS `remix_original_reward_text` (
   `ID` INT UNSIGNED NOT NULL,
