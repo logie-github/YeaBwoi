@@ -4,6 +4,7 @@ package com.logie.warcrafts
 
 import android.content.Context
 import com.logie.warcrafts.library.CdKeys
+import com.logie.warcrafts.library.Engine
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Needs
@@ -74,14 +75,29 @@ object RtsFiles {
         prefs(context).edit().putBoolean("private", value).apply()
     }
 
-    /** The CD keys in a text file next to the game's program (Warcraft III's repack has one). */
+    /**
+     * The CD keys the user pasted in Game files (Warcraft III), as typed. Kept beside the games'
+     * folders, so importing the game again keeps them.
+     */
+    fun pastedKeys(context: Context): String =
+        File(context.filesDir, "cdkeys.txt").takeIf { it.isFile }?.let { runCatching { it.readText() }.getOrNull() }.orEmpty()
+
+    fun setPastedKeys(context: Context, text: String) {
+        File(context.filesDir, "cdkeys.txt").writeText(text)
+    }
+
+    /**
+     * The CD keys the game menu offers: those pasted in Game files, then those in a text file next
+     * to the game's program (Warcraft III's repack has one).
+     */
     fun cdKeys(context: Context, install: Install): List<CdKeys.Found> {
-        val program = program(context, install) ?: return emptyList()
-        val dir = File(folder(context, install), program).parentFile ?: return emptyList()
-        return dir.listFiles { file -> file.isFile && file.length() < 64 * 1024 && CdKeys.isKeyFile(file.name) }
+        val pasted = if (install.engine == Engine.WINE) CdKeys.findPasted(pastedKeys(context)) else emptyList()
+        val program = program(context, install) ?: return pasted
+        val dir = File(folder(context, install), program).parentFile ?: return pasted
+        val inFiles = dir.listFiles { file -> file.isFile && file.length() < 64 * 1024 && CdKeys.isKeyFile(file.name) }
             .orEmpty()
             .flatMap { file -> runCatching { CdKeys.find(file.readText()) }.getOrDefault(emptyList()) }
-            .distinctBy { it.key }
+        return (pasted + inFiles).distinctBy { it.key }
     }
 
     /** The launcher's checklist for [install]: each thing the game needs, and whether it's in the app. */

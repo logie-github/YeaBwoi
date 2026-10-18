@@ -43,4 +43,30 @@ class CdKeysTest {
         assertFalse(CdKeys.isKeyFile("README.txt"))
         assertFalse(CdKeys.isKeyFile("CustomKeyInfo.txt.bak"))
     }
+
+    @Test
+    fun `pasted keys are taken line by line, with or without labels and dashes`() {
+        val pasted = """
+            RoC: ABCD-EFGH-1234-5678-WXYZ
+            tft2k3j4h5g6f7d8s9a0q1w2e3
+
+            not a key
+            abcdefgh12345678
+        """.trimIndent()
+        assertEquals(
+            listOf(
+                CdKeys.Found("RoC", "ABCD-EFGH-1234-5678-WXYZ"),
+                CdKeys.Found("", "TFT2K3J4H5G6F7D8S9A0Q1W2E3"),
+                CdKeys.Found("", "ABCDEFGH12345678"),
+            ),
+            CdKeys.findPasted(pasted),
+        )
+    }
+
+    @Test
+    fun `the same key pasted twice is offered once, and nothing pasted is no key`() {
+        assertEquals(1, CdKeys.findPasted("ABCDEFGH12345678\nabcdefgh12345678").size)
+        assertTrue(CdKeys.findPasted("").isEmpty())
+        assertTrue(CdKeys.findPasted("short1234\nwords only here").isEmpty())
+    }
 }

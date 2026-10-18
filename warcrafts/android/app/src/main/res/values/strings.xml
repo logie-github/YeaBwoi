@@ -57,7 +57,7 @@
     <string name="rts_need_maps">Skirmish and custom maps (optional)</string>
     <string name="rts_need_maps_note">The Maps folder. The campaigns are in the game\'s data and don\'t need it; skirmish and custom games do.</string>
     <string name="rts_need_keys">CD keys (optional here)</string>
-    <string name="rts_need_keys_note">Reign of Chaos and The Frozen Throne keys, asked at the first start. The repack\'s _SERIAL_KEYS.txt has them and the app\'s menu types them; your own keys work too.</string>
+    <string name="rts_need_keys_note">Reign of Chaos and The Frozen Throne keys, asked at the first start: in a key file that came with the game (the repack\'s _SERIAL_KEYS.txt), or your own pasted in Game files → CD keys. The four-finger menu types them into the game.</string>
     <string name="rts_needs_space_native">Room: the installer, about as much again while it\'s unpacked, and the converted data. Free now: %1$s.</string>
     <string name="rts_needs_space">Room: the game\'s size, plus about 1.5 GB for the games\' Windows the first time. Free now: %1$s.</string>
     <string name="rts_needs_native">Played natively on the phone by Stratagus (War1gus, Wargus): an open-source engine that plays the game from your files, campaigns and skirmishes, the original art and sounds. The intro videos are left out, and Warcraft II\'s music (converting those needs a tool phones don\'t have).</string>
@@ -93,7 +93,7 @@
     <string name="rts_game_menu_back">Back to the game</string>
     <string name="rts_game_menu_keyboard">Keyboard</string>
     <string name="rts_game_menu_chat">Chat or cheat code</string>
-    <string name="rts_game_menu_keys">CD keys that came with the game: a tap types it into the game\'s key box (tap the box first).</string>
+    <string name="rts_game_menu_keys">CD keys: a tap types it into the game\'s key box (tap the box first).</string>
     <string name="rts_game_menu_leave">Leave the game</string>
     <string name="rts_game_menu_leave_note">Save first: leaving ends the game where it is. A two-finger tap opens the game\'s own menu, with Save and Quit.</string>
     <string name="rts_prompt_chat">Chat</string>
@@ -115,6 +115,9 @@
     <string name="rts_files_move_first">Put the files on the phone itself first (Downloads is fine): files in a cloud folder can\'t be read fast enough. Adding again replaces what\'s there.</string>
     <string name="rts_files_pick_folder">Pick folder</string>
     <string name="rts_files_pick_zip">Pick zip</string>
+    <string name="rts_files_keys_title">CD keys</string>
+    <string name="rts_files_keys_label">Your CD keys, one per line</string>
+    <string name="rts_files_keys_note">Warcraft III asks for a Reign of Chaos key and a Frozen Throne key the first time it starts. Paste yours here, one per line (a label before a key, like \"TFT: …\", shows with it). In the game, tap the key box, then four fingers → the key. Keys found in the box: %1$d.</string>
     <string name="rts_files_pick_installer">Pick GOG installer</string>
     <string name="rts_files_installer_how">Pick GOG installer: in the picker, touch and hold the setup .exe, tap each .bin file beside it, then confirm. Or put them in a folder of their own (one inside Downloads) and Pick folder.</string>
     <string name="rts_files_program">Program that starts it</string>

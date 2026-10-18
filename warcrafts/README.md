@@ -27,7 +27,7 @@ saved games stay.
 | --- | --- | --- |
 | Warcraft: Orcs & Humans (GOG) | GOG's offline installer, as downloaded from the game's page in your GOG library (offline backup game installers): `setup_warcraft_….exe` and every `setup_warcraft_…-1.bin` (`-2.bin`…) that came with it. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` (the installer has them) |
 | Warcraft II: Battle.net Edition (GOG) | GOG's offline installer, as above: `setup_warcraft_ii_….exe` and its `.bin` files. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` (the installer has them) |
-| Warcraft III: Reign of Chaos and The Frozen Throne (one import serves both) | The Warcraft III 1.30 folder (the repack's folder as it unzips), or the zip itself (about 1.8 GB) | `Warcraft III.exe`; `Data\data`, `Data\indices`, `Data\config`; `.build.info`. Optional: `Maps` (skirmish and custom maps; the campaigns don't need it) and the CD keys (`_SERIAL_KEYS.txt`, or your own) |
+| Warcraft III: Reign of Chaos and The Frozen Throne (one import serves both) | The Warcraft III 1.30 folder (the repack's folder as it unzips), or the zip itself (about 1.8 GB) | `Warcraft III.exe`; `Data\data`, `Data\indices`, `Data\config`; `.build.info`. Optional: `Maps` (skirmish and custom maps; the campaigns don't need it) and the CD keys (`_SERIAL_KEYS.txt`, or your own pasted in **Game files → CD keys**) |
 
 **GOG's installer** (Inno Setup) is unpacked on the phone by innoextract, built for Android into the
 app: **Pick GOG installer**, then in the picker touch and hold the setup `.exe` and tap each `.bin`
@@ -65,8 +65,9 @@ skirmish of the original games; saves and preferences stay in the app.
 
 **Warcraft III's first start**: the 1.30 repack opens a black window for up to a minute, then asks
 how to install: choose the classic installer that asks for CD keys. Four fingers open the app's
-menu: the CD keys from the repack's `_SERIAL_KEYS.txt` are listed there, and a tap types one into
-the game's key box (tap the box first). **Reign of Chaos or The Frozen Throne**: the game's own main
+menu: the CD keys are listed there (those pasted in **Game files → CD keys**, one per line, and
+those in a key file that came with the game, like the repack's `_SERIAL_KEYS.txt`), and a tap types
+one into the game's key box (tap the box first). Pasted keys stay when the game is imported again. **Reign of Chaos or The Frozen Throne**: the game's own main
 menu switches between them (since patch 1.28.3) and remembers; the launcher's two looks are the
 same game files.
 
@@ -100,8 +101,8 @@ phone works as on a PC.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
   Warcraft III draws (Direct3D, or OpenGL with `-graphicsapi OpenGL2` if the picture is wrong) and
   the hold's vibration.
-- **In the game** (four fingers): back to the game, keyboard, chat or cheat code, the CD keys that
-  came with the game, leave the game. Save in the game first (two-finger tap, the game's menu):
+- **In the game** (four fingers): back to the game, keyboard, chat or cheat code, the CD keys
+  (pasted in Game files or in a key file that came with the game), leave the game. Save in the game first (two-finger tap, the game's menu):
   leaving ends it where it is.
 
 ## Galaxy Z Fold 8
