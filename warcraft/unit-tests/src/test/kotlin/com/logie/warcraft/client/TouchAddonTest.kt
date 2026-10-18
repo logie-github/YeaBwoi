@@ -51,9 +51,11 @@ class TouchAddonTest {
             -- (what only a window's looks need: nothing here)
             for _, method in ipairs({ "SetWidth", "SetFrameStrata", "SetToplevel", "EnableMouse", "SetBackdrop",
                     "SetBackdropColor", "SetMultiLine", "SetAutoFocus", "SetMaxLetters", "SetFontObject",
-                    "SetScrollChild", "SetJustifyH" }) do
+                    "SetScrollChild", "SetJustifyH", "SetAllPoints", "SetTexture", "SetTextColor" }) do
                 frame[method] = function() end
             end
+            function frame:SetAlpha(alpha) self.alpha = alpha end
+            function frame:CreateTexture() return CreateFrame("Texture") end
             function frame:SetFocus() self.focused = true end
             function frame:ClearFocus() self.focused = false end
             function frame:CreateFontString() return CreateFrame("FontString") end
@@ -350,6 +352,39 @@ class TouchAddonTest {
         empty.get("hooks").get("PostClick").call(empty, LuaValue.valueOf("RightButton"))
         val picked = lua.get("picked") as LuaTable
         assertEquals(listOf("1", "clear"), (1..picked.length()).map { picked.get(it).tojstring() })
+    }
+
+    @Test
+    fun theRealmsFadeDarkensTheScreenWithItsWordsForAsLongAsItSays() {
+        fun addonMessage(prefix: String, text: String, sender: String) = frame.get("scripts").get("OnEvent").invoke(
+            arrayOf(frame, LuaValue.valueOf("CHAT_MSG_ADDON"), LuaValue.valueOf(prefix), LuaValue.valueOf(text),
+                LuaValue.valueOf("WHISPER"), LuaValue.valueOf(sender)))
+        event("PLAYER_ENTERING_WORLD")
+        // Someone else's, or another add-on's: nothing.
+        addonMessage("WowRemix", "fade 6000 Not from the realm.", "Otherhero")
+        addonMessage("SomethingElse", "fade 6000 Not ours.", "Testhero")
+        assertTrue(lua.get("WowTouchFadeFrame").isnil())
+
+        addonMessage("WowRemix", "fade 6000 The lamp burns low.", "Testhero")
+        val fade = lua.get("WowTouchFadeFrame")
+        assertTrue(fade.get("shown").toboolean())
+        assertEquals("The lamp burns low.", fade.get("words").get("text").tojstring())
+        assertEquals(0.0, fade.get("alpha").todouble())
+        val tick = fade.get("scripts").get("OnUpdate")
+        tick.call(fade, LuaValue.valueOf(0.6))
+        assertEquals(0.5, fade.get("alpha").todouble(), 0.001)  // coming up
+        tick.call(fade, LuaValue.valueOf(2.0))
+        assertEquals(1.0, fade.get("alpha").todouble(), 0.001)  // dark
+        tick.call(fade, LuaValue.valueOf(2.65))
+        assertEquals(0.5, fade.get("alpha").todouble(), 0.001)  // going, 0.75 s from the end
+        assertTrue(fade.get("shown").toboolean())
+        tick.call(fade, LuaValue.valueOf(1.0))
+        assertTrue(!fade.get("shown").toboolean(), "gone after six seconds")
+
+        // (one shorter than its coming and going is given the time for both)
+        addonMessage("WowRemix", "fade 500", "Testhero")
+        assertEquals("", fade.get("words").get("text").tojstring())
+        assertEquals(2.7, fade.get("lasts").todouble(), 0.001)
     }
 
     @Test

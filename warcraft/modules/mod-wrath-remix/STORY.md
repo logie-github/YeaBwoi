@@ -175,8 +175,11 @@ shortening the war, and you are helping.
   Thassarian), Thassarian, the Death Knight, Finding the Phylactery, Buying Some Time, Words of
   Power, Last Rites.
 - **Horde:** Hellscream's Vigil, The Defense of Warsong Hold, Taking Back Mightstone Quarry, Cutting
-  Off the Source, Wind Master To'bor, Magic Carpet Ride, Tank Ain't Gonna Fix Itself (WRM-016 *A
-  Useful Omission*: the tank's parts), Tanks a lot..., The Plains of Nasam.
+  Off the Source, Wind Master To'bor, Magic Carpet Ride, Tank Ain't Gonna Fix Itself, Mobu's
+  Pneumatic Tank Transjigamarig and Super Strong Metal Plates! (until build 91 WRM-016 skipped
+  them), Tanks a lot..., The Plains of Nasam.
+- Moratari walks with the Timerunner through the whole of the Borean Tundra, and her interventions
+  sit in both chains: see "Moratari in the war".
 - **WRM-017 / WRM-018 A Kindness Out of Time** (mid-chapter, by Sergeant Hammerhill after Plug the
   Sinkholes, or by Overlord Razgor after Cutting Off the Source): Eternus's first "improvement".
   Moratari brings his request: a squad history lost (the 7th Legion's on Valiance Keep's beach, a
@@ -290,13 +293,144 @@ original quests on each side's path through the Borean Tundra and the Dragonblig
 differently than history has them: the one who takes the quest back notices something small that
 went better than it should have (a transport that came in, a wall braced in the night, a fog over
 the plains, a vial gone missing), and a moment later Eternus whispers that it was him. The people
-in them are history's unnamed: no one the game names lives or dies differently. Their texts and his
-whispers are in `wrath_remix_world_0019_eternus_kindnesses.sql`; the whispers stop at the turn.
+in his are history's unnamed. (Moratari's go further: a named man lives, see "Moratari in the war".)
+Their texts and his whispers are in `wrath_remix_world_0019_eternus_kindnesses.sql`; the whispers
+stop at the turn.
 
 - Alliance: Enlistment Day, A Time for Heroes, The Siege, Death From Above, Plug the Sinkholes,
   Finding the Phylactery, Flight of the Wintergarde Defender, Rescue from Town Square, Find Durkon!
 - Horde: Hellscream's Vigil (both), The Defense of Warsong Hold, Cutting Off the Source, Magic
   Carpet Ride, The Plains of Nasam, Victory Nears..., Spread the Good Word, The Forsaken Blight.
+
+## Moratari in the war
+
+The user's brief after the first chapters: Moratari more involved in the war's own quests, at the
+Timerunner's side while they find their feet, steering it with them until the Timerunner meets the
+future Sylvanas; after that, the quests that undo it. Built in build 91 (`RemixMoratari.cpp`,
+`tools/story.py` and its `story_*.py`, `0027_moratari.sql`).
+
+**The rules it keeps.** The time travel stays secret: no one of this year is told or finds out. The
+Timerunner warns with a scout's report, a veteran's eye, a hunch, a soldier's superstition, and the
+people of the year doubt them as they would (Arlos glances at his counselor; Garrosh scoffs; Leoric
+asks on whose authority). Established events stay: Valanar is still unmasked and killed at
+Naxxanar, Leryssa is still taken there, the Wrathgate burns, Dranosh dies. What is directly changed
+is said plainly; what follows from it is only rumored. Not everything works.
+
+**At the Timerunner's side.** Through the Borean Tundra (both sides) Moratari walks with them: their
+level, fighting what fights them and healing them, stepping aside to her own spawn when they come
+near one, waiting when asked. Everywhere, she has words for the game's own quests: lore, the war's
+timeline, what happens to these people later, a joke now and then; said beside them when she walks
+with them, whispered when she doesn't.
+
+**Alliance, the Borean Tundra.**
+- **WRM-041 A Word in the General's Ear** (after Enlistment Day): warn General Arlos (who glances at
+  Counselor Talbot and waves it away) and Sergeant Hammerhill (who moves two catapults: the ones
+  Eternus's note on A Time for Heroes speaks of). Talbot, asked for the ridge reports, smiles.
+- **WRM-042 The Fourth Sinkhole** (after Plug the Sinkholes): the cult's necrolytes feeding the worms
+  at the northern sinkhole, and a fourth tunnel under the dunes that history never records:
+  Moratari ages its supports a hundred years in a heartbeat.
+- **WRM-043 Not Yet Late** (after Word on the Street): William Allerton, in the game a corpse in the
+  Farshire Mine with his throat cut "and no claw marks", is reached before the cult's assassin in a
+  Valiance tabard. He lives, and takes back Leryssa's quest himself.
+- **WRM-044 Named for No Town**: his testimony, Old Man Colburn ("people don't make up units to send
+  them somewhere nice") and Private Brau ("'S' stood for suicide... I saw the hand. It was the
+  counselor's."). The Timerunner does not confront Talbot: if he falls in the keep, he does not fall
+  where history needs him to.
+- **WRM-045 No One Left Behind** (after A Useful Omission, at Death's Stand): four of Unit S, taken
+  alive to the necromancers' yard at En'kilah, freed; Hammerhill's volunteers (the warning, again)
+  hold Death's Stand and the Wailing Ziggurat behind Thassarian.
+- **WRM-046 Before She Gets Hurt** (after Thassarian, the Death Knight): Leryssa warned (she will not
+  leave without her brother) and Vindicator Yaala asked to watch her. It fails: the general's own
+  escort comes for her under his seal, and Last Rites plays as the game has it. Moratari: if Leryssa
+  had not been on that tower, Valanar would never have knelt before his master and boasted.
+- **WRM-047 The Keep Holds** (after Last Rites): the chapter's new end, at Valiance Keep: Arlos himself
+  again (his apology, Unit S on his conscience), Vurenn's two regiments accepted at last, and the
+  road to Wintergarde (WRM-121 waits for it). Talbot is gone from the barracks after Last Rites.
+
+**Horde, the Borean Tundra.**
+- **WRM-050 Beneath the Floor** (after Hellscream's Vigil): warn Garrosh (who scoffs, and calls
+  Kel'Thuzad a ghost story), Saurfang (who listens, sends Holgoth hands and scouts onto the plains,
+  and tells the Timerunner to say nothing to Hellscream) and the Warsong Captain ("Settle down,
+  soldier! ... You did a good job in warning us": his own lines, unused in the game).
+- **WRM-051 Hands for Holgoth**: the game's Patience is a Virtue and Bury Those Cockroaches! on the
+  road: the four sinkholes under the quarry collapsed before the floor of the keep gives way.
+- **Mobu's parts** are back on the road, Moratari knowing exactly where they are ("Already? Buddy, I
+  been lookin' for that thing since we landed!"), and two more tanks patched from the spare plates.
+- **WRM-054 The Condemned Coast** (after Tanks a lot...): the Kvaldir thinned on the landing, and a
+  garrison Gorge asks Saurfang for ("if anybody asks, it was my idea").
+- **The Plains of Nasam**: every tank that will run rolls out together (its accept scene), and the
+  wounded recover on the coast. At the turn-in Garrosh says, as the game has him, "So it's true".
+- **WRM-056 Shipping Lanes**: the chapter's new end: the argument Garrosh and Saurfang have at the war
+  map every few minutes, settled the other way, once: "Then it is not condemned. There. Now we have
+  a shipping lane." WRM-122 waits for it.
+
+**The Dragonblight.**
+- Alliance: **WRM-223 The Second Sky** (Lynore, Leoric and Urik warned of Naxxramas's next blows);
+  **The Noble's Crypt** (Necrolord Amarion) put on the road before Chromie's summons, and a 7th
+  Legion company sent to Bolvar at Fordragon Hold, which the High Commander recalls after the
+  Timerunner has met Sylvanas (WRM-201: "I did not stop the rider").
+- Horde: **WRM-236 Eyes and Ears** (a soldier's word for Saurfang's son, through Messenger Torvus;
+  Agmar burns it, she learns after the turn); **WRM-234 Before the Second Wave** (the cultists
+  breathing on Icemist's blightbeasts, and the road to Venomspite); **WRM-235 A Careful Inventory**
+  (what the Royal Apothecary Society's people let slip: blight consigned to "the Grand Apothecary's
+  special detachment"; the Timerunner must show no one).
+- The bronze: Moratari waits outside the time storm at the Bronze Dragonshrine; after Mystery of the
+  Infinite, one of the Infinite on the edge of Wyrmrest's platform was watching the Timerunner, not
+  the hourglass.
+
+**Undoing it, after the turn.** Moratari, who now knows what Eternus left out, asks the Timerunner to
+help her put back what the record cannot keep, without taking a single life:
+- **WRM-048 Lost at Sea** (Alliance): William Allerton sails home under another name; the ledger
+  keeps him dead at Farshire.
+- **WRM-049 Forged Orders** (Alliance): Unit S's freed men and the volunteers go home to Stormwind's
+  harbor; the record keeps Unit S lost at the landing ("'S' for 'sent home'").
+- **WRM-230 The Record Keeps Warsong** (Horde, after Darkness Stirs): the coast's garrison, the spare
+  tanks and the wounded go back to Orgrimmar under the Warchief's martial law. At Darkness Stirs
+  Garrosh's lesson breaks: "No more waiting."
+- After Angrathar, the end of Chapter II, waits for these.
+
+## Moratari, if you like
+
+The user's brief: an optional romance with Moratari, flirting first and then something real, gated by
+the main story; kisses, dates, adventures, her dragon shape, a fade to black; her private tent at the
+Bazaar, where both appear without their gear and from which she goes back to her post and the gear comes
+back on; a full companion as it grows; it ends when the Timerunner goes home, with a letter in the mail.
+The same words for every Timerunner, whatever their sex, now and then a word about their race; PG-13
+and in Warcraft's voice. Built in `tools/romance.py` (`0027_moratari.sql`, scenes 901 to 909),
+`RemixOutings.cpp` (the dates), `RemixCampfire.cpp`, `RemixEnding.cpp` (the letter).
+
+Nine quests, each given by Moratari wherever she is, each opened by the one before it and a point in the
+war (the guide leaves them out of "your next quest"):
+1. **WRM-901 A Cup of Something Hot** (after A Time for Heroes or The Defense of Warsong Hold, the
+   third quest of each side's Borean Tundra): tea, and what she is asked over it (how old she is,
+   whether dragons sleep on gold, why she keeps looking: a word for each race).
+2. **WRM-902 Shore Leave** (after Not Yet Late or The Condemned Coast): a drink in Dalaran, at the
+   side's own inn, A Hero's Welcome or The Filthy Animal; a kiss on the cheek.
+3. **WRM-903 Dinner at Krasus' Landing** (after Into the Dragonblight): her evening dress (a new look,
+   the Lovely Red Dress), all of Northrend below, the first kiss.
+4. **WRM-904 The View from Wyrmrest** (after Strangers Out of Time): the top of the temple at night,
+   where she shows the Timerunner her true shape (the bronze she was before the Infinite), and they
+   don't run.
+5. **WRM-905 What Eternus Left Out** (after The Weight of Time): she is shaken by the turn; they stay
+   with her; "I love you."
+6. **WRM-906 On Bronze Wings** (after A Shorter Path Through the Woods): a flight on her back from
+   Dalaran to Wyrmrest Temple, her words on the way.
+7. **WRM-907 An Adventure of Our Own** (after A Brief Hunting Expedition): an afternoon by a river in
+   Sholazar Basin, two crocolisks sent to tomorrow noon, a blanket.
+8. **WRM-908 The Lamp That Is Always Lit** (after The Very Long Road to Thorim): her tent at the
+   Bazaar, theirs alone (a phase of its own), their gear unseen and hers set aside, the screen fading
+   to black, "Good morning." From then on she walks with them everywhere until they go home.
+9. **WRM-909 Whatever Comes After** (after The Armies Are in Place): the edge of the camp at
+   Crusaders' Pinnacle, and her promise to write.
+
+Any time after the dinner: "Kiss her." After the drink: "Tell her she looks lovely today." (a word for
+each race). On the war's last quests she has a few words of her own for them. On ChromieCraft, after
+the way home, a letter waits in the mailbox, brought by Chromie: the whole letter for one who finished
+her story, a shorter one for one who reached its heart, a note for one who only had tea.
+
+**The campfire.** Clicking the Bazaar's campfire has her walk over from her post and sit with the
+Timerunner a while (and nothing happens there otherwise). Only while she sits there can they tell her
+they're a time jumper; then her quests open one after another without waiting for the war's points.
 
 ## After the turn
 

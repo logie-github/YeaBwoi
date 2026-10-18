@@ -306,10 +306,16 @@ namespace WrathRemix
         uint32 account = session->GetAccountId();
         std::string name = player->GetName();
         bool alliance = player->GetTeamId() == TEAM_ALLIANCE;
+        // (how far they came with Moratari, for her letter on ChromieCraft: the last of her
+        // story's quests turned in, 1 to 9, or 0)
+        uint32 romance = 0;
+        for (uint32 quest = QUEST_ROMANCE_FIRST; quest <= QUEST_ROMANCE_LAST; ++quest)
+            if (player->GetQuestRewardStatus(quest))
+                romance = quest - QUEST_ROMANCE_FIRST + 1;
         CharacterDatabaseTransaction save = CharacterDatabase.BeginTransaction();
         player->SaveToDB(save, false, false);
         session->AddTransactionCallback(CharacterDatabase.AsyncCommitTransaction(save)).AfterComplete(
-            [guid, account, name, alliance, dir](bool saved)
+            [guid, account, name, alliance, romance, dir](bool saved)
         {
             Player* player = ObjectAccessor::FindConnectedPlayer(guid);
             ObjectGuid::LowType low = guid.GetCounter();
@@ -338,7 +344,7 @@ namespace WrathRemix
             }
             {
                 std::ofstream who(base + ".who");
-                who << account << "\n" << name << "\n" << (alliance ? "alliance" : "horde") << "\n";
+                who << account << "\n" << name << "\n" << (alliance ? "alliance" : "horde") << "\n" << romance << "\n";
             }
             std::filesystem::rename(base + ".dump.part", base + ".dump", error);
             LOG_INFO("module", "Wrath Remix: {} goes home to ChromieCraft ({}.dump)", name, base);
@@ -385,6 +391,39 @@ namespace WrathRemix
         }
     }
 
+    // Moratari's letter to one who has gone home, by how far they came in her story (tools/romance.py):
+    // the whole of it, its heart (from What Eternus Left Out), or its beginning.
+    static std::pair<std::string, std::string> MoratariLetter(uint32 stage, std::string const& name)
+    {
+        if (stage >= 9)
+            return { "A letter, slightly singed",
+                "Chromie here! This turned up in my hourglass this morning with your name on it and a very stern note that said DO NOT READ. "
+                "So I read it. Here you go.\n\n-\n\n" + name + ",\n\n"
+                "You are home now, in your own year, and I am in mine, which is all of them. I looked for you in the record this morning. You "
+                "are there: stubborn, and brave, and walking into trouble on the second page. I have read that page more often than a scholar "
+                "of variables should.\n\n"
+                "I kept the tea warm. I kept the tent. I kept the lamp lit, because a dragon is allowed one foolish thing an age, and you were "
+                "mine.\n\n"
+                "Do not come looking for me. My kind is very bad at being found, and you have a world to save on the usual schedule. But if, "
+                "some evening, a cup of tea turns up beside you that you do not remember pouring, drink it. It is from me.\n\n"
+                "Whatever comes after,\nM." };
+        if (stage >= 5)
+            return { "Something I did not get to say",
+                "Chromie here. Somebody asked me to deliver this and made me promise not to read it. I am terrible at promises.\n\n-\n\n"
+                + name + ",\n\n"
+                "We did not get to finish, you and I. There was always another quest, another hour, another thing to put back. I am sorry for "
+                "that. I am not sorry for the rest of it. Not one minute.\n\n"
+                "You are home now. Be happy there. Let someone pour you a drink, and laugh at your jokes, and notice when you are tired. If "
+                "they do not, tell them a dragon said they should.\n\n"
+                "I will be watching the record. I always am. Now I have a favorite page.\n\nM." };
+        return { "You still owe me a cup of tea",
+            "Chromie here. A friend of mine asked me to pass this along. She was blushing. Dragons don't blush, so I must have imagined "
+            "it.\n\n-\n\n" + name + ",\n\n"
+            "You still owe me a cup of tea. I am a patient creature, and I keep very good accounts.\n\n"
+            "Go and be a hero in your own year. Try to stay out of sinkholes. And if you ever wonder what might have happened if we had had "
+            "a little more time... so do I.\n\nM." };
+    }
+
     // On ChromieCraft, as its world server starts: the Timerunners who came home from Wrath Remix,
     // in their side's capital.
     void TakeInTimerunners()
@@ -400,13 +439,15 @@ namespace WrathRemix
                 continue;
             std::string base = entry.path().parent_path().string() + "/" + entry.path().stem().string();
             std::ifstream who(base + ".who");
-            uint32 account = 0;
+            uint32 account = 0, romance = 0;
             std::string name, side;
             if (!(who >> account >> name >> side))
             {
                 LOG_ERROR("module", "Wrath Remix: {} has no word of who it is ({}.who)", entry.path().string(), base);
                 continue;
             }
+            if (!(who >> romance))
+                romance = 0;  // (one from before her story)
             who.close();
             // (the guid the dump takes: the next free one)
             ObjectGuid::LowType guid = sObjectMgr->GetGenerator<HighGuid::Player>().GetNextAfterMaxUsed();
@@ -429,9 +470,17 @@ namespace WrathRemix
                 CharacterDatabase.Execute("INSERT INTO `character_homebind` (`guid`, `mapId`, `zoneId`, `posX`, `posY`, `posZ`) VALUES ({}, {}, {}, {}, {}, {})",
                     guid, map, zone, x, y, z);
             }
+            // Moratari's letter, for one who walked some of her story with her (Chromie brings it).
+            if (romance)
+            {
+                auto [subject, body] = MoratariLetter(romance, name);
+                CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+                MailDraft(subject, body).SendMailTo(trans, MailReceiver(guid), MailSender(MAIL_CREATURE, NPC_CHROMIE_HOME), MAIL_CHECK_MASK_COPIED);
+                CharacterDatabase.CommitTransaction(trans);
+            }
             for (char const* ext : { ".dump", ".who" })
                 std::filesystem::rename(base + ext, dir + "/home/" + std::filesystem::path(base).filename().string() + ext, error);
-            LOG_INFO("module", "Wrath Remix: {} came home to ChromieCraft", name);
+            LOG_INFO("module", "Wrath Remix: {} came home to ChromieCraft{}", name, romance ? ", and a letter with them" : "");
         }
     }
 }

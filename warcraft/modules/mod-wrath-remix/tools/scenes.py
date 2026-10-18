@@ -10,8 +10,10 @@ is given time to be read: about 15 letters a second, at least four seconds), whe
 they do. Positions are yards forward and to the left of the scene's anchor, as it faces; a facing
 is added to the anchor's (pi: facing back the way it looks).
 """
+import importlib
 import math
 import os
+import sys
 
 ACCEPT, REWARD = 1, 2
 
@@ -33,7 +35,7 @@ EMOTE_TALK, EMOTE_BOW, EMOTE_POINT, EMOTE_NO, EMOTE_KNEEL = 1, 2, 25, 274, 16
 
 ACTIONS = dict(summon=1, bind=2, move=3, say=4, yell=5, emote=6, cast=7, face=8, despawn=9, credit=10, sound=11,
                stand=12, text_emote=13, teleport=14, movie=15, cinematic=16, aura=17, remove_aura=18, whisper=19,
-               face_angle=20, home=21)
+               face_angle=20, home=21, fade=22)
 
 
 def say(actor, text):
@@ -267,8 +269,19 @@ def sql_text(text):
     return "'" + text.replace("\\", "\\\\").replace("'", "''") + "'"
 
 
+# Moratari's part in the war (tools/story_*.py, romance.py) has scenes of its own: written here too.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+for _name in ("story_borean_alliance", "story_borean_horde", "story_dragonblight", "story_undo", "romance"):
+    if os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), _name + ".py")):
+        SCENES += [dict({"credit": 0}, **_s) for _s in getattr(importlib.import_module(_name), "SCENES", [])]
+
+
 def main():
     rows, steps = [], []
+    seen = set()
+    for s in SCENES:
+        assert s["id"] not in seen, f"scene {s['id']} twice"
+        seen.add(s["id"])
     for s in SCENES:
         rows.append(f"({s['id']}, {s['quest']}, {s['trigger']}, {s['anchor']}, {s['credit']}, {sql_text(s['name'])})")
         at, n = 500, 0
@@ -278,8 +291,18 @@ def main():
                 at += step[1]
                 continue
             actor, entry, param, x, y, z, o, text = 0, 0, 0, 0.0, 0.0, 0.0, 0.0, ""
-            if kind == "say":
+            if kind in ("say", "yell", "whisper", "text_emote"):
                 actor, text = step[1], step[2]
+            elif kind == "fade":
+                # ("fade", milliseconds, words): the screen goes dark with words on it (the app's add-on)
+                param, text = step[1], step[2]
+            elif kind == "sound":
+                param = step[1]
+            elif kind == "teleport":
+                # ("teleport", map, x, y, z, o): the Timerunner, to absolute coordinates
+                entry, x, y, z, o = step[1], step[2], step[3], step[4], step[5]
+            elif kind == "face_angle":
+                actor, o = step[1], step[2]
             elif kind in ("bind",):
                 actor, entry = step[1], step[2]
             elif kind == "summon":
@@ -303,7 +326,12 @@ def main():
             n += 1
             steps.append(f"({s['id']}, {n}, {at}, {ACTIONS[kind]}, {actor}, {entry}, {param}, {x:.2f}, {y:.2f}, {z:.2f}, {o:.4f}, {sql_text(text)})")
             # what each step takes before the next one starts
-            at += reading_time(text) if kind == "say" else {"summon": 300, "cast": 600, "face": 300}.get(kind, 0)
+            if kind in ("say", "yell", "whisper"):
+                at += reading_time(text)
+            elif kind == "fade":
+                at += step[1]
+            else:
+                at += {"summon": 300, "cast": 600, "face": 300, "text_emote": 2500}.get(kind, 0)
     out = os.path.join(os.path.dirname(__file__), "..", "data", "sql", "remix", "world", "wrath_remix_world_0014_scenes.sql")
     ids = ", ".join(str(s["id"]) for s in SCENES)
     with open(out, "w") as f:

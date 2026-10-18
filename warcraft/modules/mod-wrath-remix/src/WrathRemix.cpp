@@ -1242,6 +1242,7 @@ public:
             { "bronze", bronzeTable },
             { "band",   HandleBand,   SEC_GAMEMASTER, Console::No },
             { "guid",   HandleGuid,   SEC_GAMEMASTER, Console::No },
+            { "goguid", HandleGoGuid, SEC_GAMEMASTER, Console::No },
             { "sees",   HandleSees,   SEC_GAMEMASTER, Console::No },
             { "return", HandleReturn, SEC_GAMEMASTER, Console::No },
             { "solo",   HandleSolo,   SEC_GAMEMASTER, Console::No },
@@ -1429,6 +1430,22 @@ public:
         }
         handler->PSendSysMessage("Wrath Remix guid: {} {} at {:.1f} yards.", entry, creature->GetGUID().GetRawValue(),
             player->GetDistance(creature));
+        return true;
+    }
+
+    // .remix goguid ENTRY (game masters): the same for the nearest game object of that entry (the
+    // test client clicks the Bazaar's campfire by it).
+    static bool HandleGoGuid(ChatHandler* handler, uint32 entry)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        GameObject* object = player->FindNearestGameObject(entry, 100.0f);
+        if (!object)
+        {
+            handler->PSendSysMessage("Wrath Remix goguid: no object {} within 100 yards.", entry);
+            return true;
+        }
+        handler->PSendSysMessage("Wrath Remix goguid: {} {} at {:.1f} yards.", entry, object->GetGUID().GetRawValue(),
+            player->GetDistance(object));
         return true;
     }
 

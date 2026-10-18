@@ -55,13 +55,13 @@ namespace WrathRemix
             ACT_DESPAWN,        // goes (a summoned actor)
             ACT_CREDIT,         // the Timerunner gets the credit of creature [entry]
             ACT_SOUND,          // the Timerunner hears sound [param]
-            ACT_STAND,          // stand state [param] (0 stand, 1 sit, 8 kneel)
+            ACT_STAND,          // stand state [param] (0 stand, 1 sit, 8 kneel; 255: the Timerunner too)
             ACT_TEXT_EMOTE,     // "[name] [text]", as an emote line
             ACT_TELEPORT,       // the Timerunner goes to map [entry] at x y z o (absolute)
             ACT_MOVIE,          // the Timerunner watches movie [param]
             ACT_CINEMATIC,      // the Timerunner watches cinematic [param]
-            ACT_AURA,           // aura [param] on the actor
-            ACT_REMOVE_AURA,    // aura [param] off the actor
+            ACT_AURA,           // aura [param] on the actor (255: the Timerunner)
+            ACT_REMOVE_AURA,    // aura [param] off the actor (255: the Timerunner)
             ACT_WHISPER,        // whispers [text] to the Timerunner
             ACT_FACE_ANGLE,     // turns to the scene's angle [o]
             ACT_HOME,           // the Timerunner goes home (Back to Your Own Time: RemixEnding.cpp)
@@ -97,6 +97,7 @@ namespace WrathRemix
             Position anchor;
             std::map<uint8, ObjectGuid> actors;
             std::set<uint8> summoned;
+            bool over = false;  // (ended early: the Timerunner left its place)
         };
 
         std::mutex runningLock;
@@ -128,14 +129,9 @@ namespace WrathRemix
             return ActorOf(player, run, uint8(target));
         }
 
-        std::string Personal(Player* player, std::string text)
+        std::string Personal(Player* player, std::string const& text)
         {
-            for (char const* token : { "$n", "$N" })
-                for (size_t at; (at = text.find(token)) != std::string::npos;)
-                    text.replace(at, 2, player->GetName());
-            for (size_t at; (at = text.find("$B")) != std::string::npos;)
-                text.replace(at, 2, " ");
-            return text;
+            return Words(player, text);
         }
 
         // Words only this Timerunner hears (the actors are theirs alone, and so are their lines).
@@ -153,6 +149,15 @@ namespace WrathRemix
                     creature->DespawnOrUnsummon();
             run.summoned.clear();
             player->UpdateObjectVisibility();
+        }
+
+        // Over early: its people gone, and the Timerunner free for another.
+        void Abandon(Player* player, SceneRun& run)
+        {
+            run.over = true;
+            EndScene(player, run);
+            std::lock_guard<std::mutex> lock(runningLock);
+            running.erase(run.player);
         }
 
         void Play(Player* player, SceneRun& run, SceneStep const& step, uint32 duration)
@@ -201,7 +206,10 @@ namespace WrathRemix
                         Speak(player, actor, CHAT_MSG_MONSTER_EMOTE, std::string("%s ") + step.text);
                     break;
                 case ACT_EMOTE:
-                    if (actor)
+                    // (the Timerunner too: a kiss, a dance)
+                    if (step.actor == TARGET_PLAYER)
+                        player->HandleEmoteCommand(step.param);
+                    else if (actor)
                         actor->HandleEmoteCommand(step.param);
                     break;
                 case ACT_CAST:
@@ -236,7 +244,9 @@ namespace WrathRemix
                     player->PlayDirectSound(step.param, player);
                     break;
                 case ACT_STAND:
-                    if (actor)
+                    if (step.actor == TARGET_PLAYER)
+                        player->SetStandState(step.param);
+                    else if (actor)
                         actor->SetStandState(step.param);
                     break;
                 case ACT_TELEPORT:
@@ -249,11 +259,15 @@ namespace WrathRemix
                     player->SendCinematicStart(step.param);
                     break;
                 case ACT_AURA:
-                    if (actor)
+                    if (step.actor == TARGET_PLAYER)
+                        player->AddAura(step.param, player);
+                    else if (actor)
                         actor->AddAura(step.param, actor);
                     break;
                 case ACT_REMOVE_AURA:
-                    if (actor)
+                    if (step.actor == TARGET_PLAYER)
+                        player->RemoveAurasDueToSpell(step.param);
+                    else if (actor)
                         actor->RemoveAurasDueToSpell(step.param);
                     break;
                 case ACT_HOME:
@@ -343,15 +357,24 @@ namespace WrathRemix
             player->m_Events.AddEventAtOffset([run, step, duration]()
             {
                 Player* p = ObjectAccessor::FindPlayer(run->player);
-                // (a Timerunner who left the scene's place, or died, misses the rest of it)
-                if (!p || !p->IsInWorld() || p->GetMapId() != run->map || p->GetExactDist2d(run->anchor) > 120.0f)
+                if (!p || run->over)
                     return;
+                // (a Timerunner who left the scene's place misses the rest of it, and is free for
+                // the next one at once)
+                if (!p->IsInWorld() || p->GetMapId() != run->map || p->GetExactDist2d(run->anchor) > 120.0f)
+                {
+                    if (p->IsInWorld() && !p->IsBeingTeleported())
+                        Abandon(p, *run);
+                    return;
+                }
                 Play(p, *run, step, duration);
             }, Milliseconds(step.at));
         }
         uint32 credit = scene.credit;
         player->m_Events.AddEventAtOffset([run, credit]()
         {
+            if (run->over)
+                return;
             if (Player* p = ObjectAccessor::FindPlayer(run->player); p && p->IsInWorld())
             {
                 EndScene(p, *run);

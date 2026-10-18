@@ -97,7 +97,10 @@ namespace
             TeleportSoon(player, map, x, y, z, o);
     }
 
-    // There: its phase, their looks, its scene, and its end when the scene's over.
+    void Fly(Player* player, Outing const& outing);
+
+    // There: its phase, their looks, its scene, and when the scene's over, the flight or the way
+    // back.
     void Arrived(Player* player, Outing const& outing)
     {
         OnOutingState* state = StateOf(player);
@@ -115,7 +118,13 @@ namespace
         uint32 id = outing.id;
         player->m_Events.AddEventAtOffset([guid, id]()
         {
-            if (Player* p = ObjectAccessor::FindPlayer(guid); p && p->IsInWorld() && StateOf(p)->outing == id)
+            Player* p = ObjectAccessor::FindPlayer(guid);
+            if (!p || !p->IsInWorld() || StateOf(p)->outing != id)
+                return;
+            auto it = outings.find(id);
+            if (it != outings.end() && it->second.flightFrom)
+                Fly(p, it->second);
+            else
                 EndOuting(p);
         }, Milliseconds(lasts));
     }
@@ -251,22 +260,7 @@ namespace WrathRemix
         state->o = player->GetOrientation();
         state->phase = player->GetPhaseMask();
         Record(player, "outing", id, 0);
-        if (outing.flightFrom)
-        {
-            // (to the flight point first, then up)
-            ObjectGuid guid = player->GetGUID();
-            TeleportSoon(player, outing.map, outing.x, outing.y, outing.z, outing.o);
-            player->m_Events.AddEventAtOffset([guid, id]()
-            {
-                Player* p = ObjectAccessor::FindPlayer(guid);
-                auto o = outings.find(id);
-                if (p && p->IsInWorld() && !p->IsBeingTeleported() && o != outings.end() && StateOf(p)->outing == id)
-                    Fly(p, o->second);
-                else if (p)
-                    EndOuting(p);
-            }, 4s);
-            return true;
-        }
+        // (a flight starts at its flight point: there first, its scene, then up)
         TeleportSoon(player, outing.map, outing.x, outing.y, outing.z, outing.o);
         WhenThere(player->GetGUID(), id, 30);
         return true;
