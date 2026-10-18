@@ -178,6 +178,8 @@ All quests and dialogue in this section are **new, original Wrath Remix material
 
 ## 5. Hub: Infinite Bazaar — Crystalsong Expedition
 
+*(Moved at the user's request in build 117 to Malykriss: The Vile Hold in Icecrown; see `PLAN.md`.)*
+
 **Preferred placement:** an existing traversable, sufficiently flat clearing in Crystalsong Forest on the ground *outside/near Dalaran*, not inside Dalaran, not inside an instance and not on the invisible floating-city geometry. This is inspired by Legion Remix's bazaar south of Dalaran but must be verified using the user's 3.3.5 maps with `.gps`, line-of-sight, collision, transport/flight, Z-height, and escape-route tests. **Coordinates are intentionally TBD** rather than fabricated. If no safe clearing is available, use a small ground-level site elsewhere in Crystalsong Forest and link to Dalaran by two-way portal.
 
 Physical layout: central hourglass/obelisk (gossip); Moratari's research tent; Eternus's platform; Keeper observation station; Bronze market stalls; gear salvager; training and class-access alcove; dungeon and raid challenge board; portals to faction invasion sites and Dalaran; neutral resting area. Existing tents, torches, banners, gameobjects and Bronze dragon visuals keep client compatibility.

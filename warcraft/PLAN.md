@@ -1187,6 +1187,30 @@ for the game on the phone itself ("that's the whole point").
     then the Front, then a skip to the Bazaar). Not checked: the game drawing any of it (the seats,
     the table, her dragon), and the Horde campaign's goodbyes: in a local run of 111, Sylvanas
     wasn't at the Bazaar for WRM-801 (not traced yet; CI's run will say whether it's this build's).
+- Then (build 117): "the infinite bazaar doesn't feel magical... have the same NPCs from the legion
+  remix" (the user's answers: working roles, Wrath versions; keep all of Wrath's); then "move it into
+  an icecrown area... Let's use the unfinished area malykriss. So rewrite the quests or whatever and
+  the hourglass. ... alive and magical but also scourge themed and include death knights"; "a custom
+  set of death knight armor found in a location. It's never mentioned but displayed in a chest. ...
+  a short and easy questline ... like an heirloom that scales ... even if they aren't a death knight";
+  "living Nerubians ... an independent faction who has aligned with the cause ... a very personal
+  reason to hate Arthas". Decided here (no questions asked):
+  - The site: Malykriss's crater floor (area 4520), level at 508.6 under the unfinished necropolis's
+    bare ribs (Icecrown_Necropolis_Deathstar01). Seen by rendering the server's own collision data
+    (terrain, WMOs, M2s) and the navmesh, as no client here draws it; the old camp fitted onto it
+    whole by a search over shifts and turns (x + 694, y + 854, no turn: every one of its 144 spots on
+    level floor with 6 yards clear), then the realm's `.remix ground` survey: all 508.6.
+  - Malykriss's Scourge garrison taken out of Remix's world, and the Shadow Vault's twelve quests
+    that need it off (`disables`); the Nerubians as a faction in name (their subname), friendly to
+    all, not a reputation (that would need the client's Faction tables).
+  - Done (`tools/malykriss.py`, `0030_malykriss`, `src/RemixMalykriss.cpp`): the Ebon Blade's gate,
+    quarter, Runeworks and walkways; the nerubians' hall by the Blood Forge, their wardens and
+    skyguards; the time-magic at the hourglass (sands, beams, rift, frost spheres); the camp's props
+    rethemed (Ebon Blade banners, Scourge braziers, a rune circle and light at the hourglass, a
+    working runeforge). The start, homebind, hourglass, travel hub, scenes' spots, the romance's
+    tent, the prologue's text and the tests all moved with the camp.
+  - Being built alongside: the rest of Legion Remix's cast with their wares and lines; the hidden
+    death knight set and its quests (WRM-061 to 063).
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
