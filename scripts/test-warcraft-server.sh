@@ -274,9 +274,9 @@ if [ -n "$DATA_ZIP" ]; then
 	printf 'wait 2\n' > "$FILES/run/skyborne.steps"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skyhighorder 13 1 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/skyborne-alliance.out" || fail "the High Order's warrior didn't get into the world"
-	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skywindshaper 14 7 "$FILES/run/skyborne.steps" |
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Skywindshape 14 7 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/skyborne-horde.out" || fail "the Windshapers' shaman didn't get into the world"
-	for who in Skyhighorder:1:1:Northshire Skywindshaper:6:7:"Camp Narache"; do
+	for who in Skyhighorder:1:1:Northshire Skywindshape:6:7:"Camp Narache"; do
 		IFS=: read -r name race class place <<EOF
 $who
 EOF
@@ -285,7 +285,7 @@ EOF
 		echo "$name at $at, $place's start $start"
 		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
 	done
-	for who in Skyhighorder:98701,98703,98704,98705 Skywindshaper:98701,98702,98704,98705; do
+	for who in Skyhighorder:98701,98703,98704,98705 Skywindshape:98701,98702,98704,98705; do
 		name=${who%%:*} spells=${who#*:}
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = 4 ] || fail "$name has $learned of its 4 racials"
