@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts.game
 
@@ -7,6 +7,7 @@ import android.content.Intent
 import com.logie.warcrafts.MainActivity
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
+import com.logie.warcrafts.library.Engine
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Offline
 import com.logie.warcrafts.library.Title
@@ -29,7 +30,8 @@ import java.io.File
 import kotlin.coroutines.resume
 
 /**
- * A game: the user's own files (`files/games/<game>/`) on Winlator, which runs Windows programs on
+ * A game. Warcraft I and II are native: [StratagusActivity] plays the data made from the user's GOG
+ * files. Warcraft III is the user's own files (`files/games/wc3/`) on Winlator, which runs Windows programs on
  * the phone (Wine, Box64 and its own X server; scripts/prepare-winlator-app.sh builds it into the
  * app). [play] gets everything ready and starts it:
  *
@@ -104,6 +106,17 @@ object Game {
 
     private suspend fun run(context: Context, title: Title, resolution: Pair<Int, Int>) {
         val install = title.install
+        // Warcraft I and II: native, Stratagus playing the data made from the GOG files.
+        if (install.engine == Engine.STRATAGUS) {
+            if (!RtsFiles.isConverted(context, install)) {
+                throw GameFailed(context.getString(R.string.rts_game_error_no_game, context.getString(com.logie.warcrafts.ImportService.installName(install))))
+            }
+            _state.value = State.Preparing(Step.STARTING)
+            val intent = StratagusActivity.intent(context, title, RtsFiles.stratagusDir(context, install).path)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (MainActivity.visible) context.startActivity(intent) else pending = intent
+            return
+        }
         val program = withContext(Dispatchers.IO) { RtsFiles.program(context, install) }
             ?: throw GameFailed(context.getString(R.string.rts_game_error_no_game, context.getString(com.logie.warcrafts.ImportService.installName(install))))
 
@@ -146,7 +159,7 @@ object Game {
     /** The games' Windows: made the first time, its screen and drives set every time. */
     private suspend fun container(context: Context, width: Int, height: Int): Container {
         val manager = ContainerManager(context)
-        val drives = Install.entries.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path }
+        val drives = Install.entries.filter { it.engine == Engine.WINE }.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path }
         val screenSize = "${width}x$height"
         val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
         if (existing != null) {

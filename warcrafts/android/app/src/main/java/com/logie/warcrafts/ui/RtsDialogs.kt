@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts.ui
 
@@ -76,11 +76,13 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     var arguments by remember(refresh) { mutableStateOf(RtsFiles.arguments(context, install)) }
     var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var filesIn by remember { mutableStateOf(false) }
     LaunchedEffect(refresh, imports) {
         withContext(Dispatchers.IO) {
+            filesIn = com.logie.warcrafts.library.Needs.filesIn(RtsFiles.needs(context, install))
             programs = GameLayout.candidates(RtsFiles.programs(context, install))
             program = RtsFiles.program(context, install)
-            size = if (program != null) RtsFiles.size(context, install) else -1L
+            size = if (program != null || filesIn) RtsFiles.size(context, install) else -1L
         }
     }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -101,8 +103,14 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
         Text(stringResource(whatToImport(install)), style = MaterialTheme.typography.bodyMedium)
         when {
             working != null -> {
-                Text(stringResource(R.string.rts_import_title, stringResource(ImportService.installName(working.install))), style = MaterialTheme.typography.titleMedium)
-                RtsProgressLine(working.progress ?: 0f)
+                Text(
+                    stringResource(
+                        if (working.converting) R.string.rts_convert_title else R.string.rts_import_title,
+                        stringResource(ImportService.installName(working.install)),
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                if (working.converting) RtsSpinner(28.dp) else RtsProgressLine(working.progress ?: 0f)
                 working.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
                 RtsButton(stringResource(R.string.rts_import_stop), primary = false) { ImportService.cancel(context) }
             }
@@ -111,10 +119,14 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                     Text(stringResource(R.string.rts_import_failed, it.message), style = MaterialTheme.typography.bodyMedium, color = look.blood)
                 }
                 (imports as? Imports.State.Done)?.takeIf { it.install == install }?.let {
-                    Text(stringResource(R.string.rts_import_done), style = MaterialTheme.typography.bodyMedium, color = look.good)
+                    Text(
+                        stringResource(if (install.stratagusGame != null) R.string.rts_convert_done else R.string.rts_import_done),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = look.good,
+                    )
                 }
                 Text(
-                    if (program != null && size >= 0) {
+                    if ((program != null || filesIn) && size >= 0) {
                         stringResource(R.string.rts_files_installed, Formatter.formatShortFileSize(context, size))
                     } else {
                         stringResource(R.string.rts_files_missing)
@@ -127,11 +139,15 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                     RtsButton(stringResource(R.string.rts_files_pick_zip), primary = false) {
                         pickZip.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
                     }
+                    if (install.stratagusGame != null && filesIn) {
+                        RtsButton(stringResource(R.string.rts_convert_again), primary = false) { ImportService.convert(context, install) }
+                    }
                 }
             }
         }
 
-        if (programs.isNotEmpty()) {
+        // Warcraft III's program and arguments (Warcraft I and II are played by Stratagus).
+        if (install.engine == com.logie.warcrafts.library.Engine.WINE && programs.isNotEmpty()) {
             RtsTitle(stringResource(R.string.rts_files_program), style = MaterialTheme.typography.titleLarge)
             for (candidate in programs.take(6)) {
                 RtsChoiceRow(
@@ -167,7 +183,7 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
             RtsFiles.setPrivate(context, it)
         }
 
-        if (program != null && working == null) {
+        if ((program != null || filesIn) && working == null) {
             if (confirmDelete) {
                 Text(stringResource(R.string.rts_files_delete_confirm), style = MaterialTheme.typography.bodyMedium, color = look.blood)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

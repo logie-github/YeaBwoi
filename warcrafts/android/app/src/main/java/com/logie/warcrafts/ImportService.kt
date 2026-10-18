@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts
 
@@ -40,8 +40,11 @@ class ImportService : Service() {
         }
         val install = intent?.getStringExtra(EXTRA_INSTALL)?.let { key -> Install.entries.firstOrNull { it.key == key } }
         val uri = intent?.data
-        if (install == null || uri == null || Imports.state.value is Imports.State.Working) return START_NOT_STICKY
+        if (install == null || (uri == null && !intent.getBooleanExtra(EXTRA_CONVERT_ONLY, false)) || Imports.state.value is Imports.State.Working) {
+            return START_NOT_STICKY
+        }
         val folder = intent.getBooleanExtra(EXTRA_FOLDER, false)
+        val convertOnly = intent.getBooleanExtra(EXTRA_CONVERT_ONLY, false)
 
         Imports.cancelled = false
         Imports.set(Imports.State.Working(install))
@@ -56,8 +59,17 @@ class ImportService : Service() {
                     Imports.set(Imports.State.Working(install, progress, detail))
                     notifyThrottled(install, progress)
                 }
-                if (folder) Imports.importFolder(this@ImportService, install, uri, report)
-                else Imports.importZip(this@ImportService, install, uri, report)
+                if (!convertOnly) {
+                    if (folder) Imports.importFolder(this@ImportService, install, uri!!, report)
+                    else Imports.importZip(this@ImportService, install, uri!!, report)
+                }
+                // Warcraft I and II: their data for Stratagus, made from the files just brought in.
+                if (install.stratagusGame != null) {
+                    Conversion.run(this@ImportService, install) { line ->
+                        Imports.set(Imports.State.Working(install, null, line, converting = true))
+                        notifyThrottled(install, null)
+                    }
+                }
             }
             RtsFiles.staging(this@ImportService).deleteRecursively()
             val state = result.fold(
@@ -148,6 +160,7 @@ class ImportService : Service() {
         private const val DONE_ID = 4
         private const val EXTRA_INSTALL = "install"
         private const val EXTRA_FOLDER = "folder"
+        private const val EXTRA_CONVERT_ONLY = "convert"
         private const val ACTION_CANCEL = "com.logie.warcrafts.CANCEL_IMPORT"
 
         fun start(context: Context, install: Install, uri: Uri, isFolder: Boolean) = ContextCompat.startForegroundService(
@@ -156,14 +169,20 @@ class ImportService : Service() {
                 .putExtra(EXTRA_INSTALL, install.key).putExtra(EXTRA_FOLDER, isFolder),
         )
 
+        /** Makes Stratagus's data again from the files already in the app (Warcraft I and II). */
+        fun convert(context: Context, install: Install) = ContextCompat.startForegroundService(
+            context,
+            Intent(context, ImportService::class.java).putExtra(EXTRA_INSTALL, install.key).putExtra(EXTRA_CONVERT_ONLY, true),
+        )
+
         fun cancel(context: Context) {
             Imports.cancelled = true
         }
 
         /** A game's name, for what's being imported. */
         fun installName(install: Install): Int = when (install) {
-            Install.WC1 -> R.string.rts_title_wc1
-            Install.WC2 -> R.string.rts_title_wc2
+            Install.WC1 -> R.string.rts_install_wc1
+            Install.WC2 -> R.string.rts_install_wc2
             Install.WC3 -> R.string.rts_install_wc3
         }
     }

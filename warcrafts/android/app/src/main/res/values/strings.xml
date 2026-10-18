@@ -2,11 +2,13 @@
 <resources>
     <string name="app_name">Warcraft</string>
 
-    <string name="rts_title_wc1">Warcraft: Orcs &amp; Humans Remastered</string>
-    <string name="rts_title_wc2">Warcraft II: Tides of Darkness Remastered</string>
+    <string name="rts_title_wc1">Warcraft: Orcs &amp; Humans</string>
+    <string name="rts_title_wc2">Warcraft II: Battle.net Edition</string>
     <string name="rts_title_roc">Warcraft III: Reign of Chaos</string>
     <string name="rts_title_tft">Warcraft III: The Frozen Throne</string>
     <string name="rts_install_wc3">Warcraft III</string>
+    <string name="rts_install_wc1">Warcraft I</string>
+    <string name="rts_install_wc2">Warcraft II</string>
 
     <!-- Launcher -->
     <string name="rts_press_start">Press start</string>
@@ -24,7 +26,7 @@
     <string name="rts_tile_controls_summary">Swipe pans · tap right-clicks · hold left-clicks</string>
     <string name="rts_tile_updates">Updates</string>
     <string name="rts_tile_updates_summary">Version %1$s</string>
-    <string name="rts_version">Warcraft %1$s · offline, no Battle.net</string>
+    <string name="rts_version">Warcraft %1$s · offline, no Battle.net · Warcraft I and II by Stratagus</string>
     <string name="rts_close">Close</string>
 
     <string name="rts_games_title">Games</string>
@@ -36,8 +38,16 @@
     <string name="rts_needs_title">What\'s needed</string>
     <string name="rts_needs_title_ready">Everything is in</string>
     <string name="rts_needs_where_wc3">From your PC: the Warcraft III 1.30 folder (the repack\'s folder as it unzips, about 1.8 GB), or its zip as it is. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. These must be in it:</string>
-    <string name="rts_needs_where_wc1">From a PC with Battle.net: the whole game folder, C:\\Program Files (x86)\\Warcraft I Remastered (or wherever you installed it). Copy it, or a zip of it, to the phone\'s Downloads, then Game files → Pick folder or Pick zip. These must be in it:</string>
-    <string name="rts_needs_where_wc2">From a PC with Battle.net: the whole game folder, C:\\Program Files (x86)\\Warcraft II Remastered (or wherever you installed it). Copy it, or a zip of it, to the phone\'s Downloads, then Game files → Pick folder or Pick zip. These must be in it:</string>
+    <string name="rts_needs_where_wc1">From GOG: the installed Warcraft: Orcs &amp; Humans folder (on a PC, C:\\GOG Games\\Warcraft Orcs &amp; Humans or wherever GOG put it), or a zip of it. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. The app then converts it for the phone by itself (a few minutes). This must be in it:</string>
+    <string name="rts_needs_where_wc2">From GOG: the installed Warcraft II Battle.net Edition folder (on a PC, C:\\GOG Games\\Warcraft II BNE or wherever GOG put it), or a zip of it. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. The app then converts it for the phone by itself (a few minutes). These must be in it:</string>
+    <string name="rts_need_war_data">The game\'s data</string>
+    <string name="rts_need_war_data_note">The DATA folder with DATA.WAR and the other .WAR files (maps, units, sounds, the cutscenes\' pictures).</string>
+    <string name="rts_need_tomes">The game\'s data</string>
+    <string name="rts_need_tomes_note">The four tomes in Support\\TOMES: maps, units, graphics.</string>
+    <string name="rts_need_install_mpq">Sounds and speech</string>
+    <string name="rts_need_install_mpq_note">Install.mpq, beside the game\'s program (about 490 MB).</string>
+    <string name="rts_need_converted">Converted for the phone</string>
+    <string name="rts_need_converted_note">The app does this itself once the files above are in, in a few minutes. Game files → Convert again redoes it.</string>
     <string name="rts_need_program">The game\'s program</string>
     <string name="rts_need_program_note">What starts the game. Game files can point at another .exe if yours is elsewhere.</string>
     <string name="rts_need_data">The game\'s data</string>
@@ -48,8 +58,16 @@
     <string name="rts_need_maps_note">The Maps folder. The campaigns are in the game\'s data and don\'t need it; skirmish and custom games do.</string>
     <string name="rts_need_keys">CD keys (optional here)</string>
     <string name="rts_need_keys_note">Reign of Chaos and The Frozen Throne keys, asked at the first start. The repack\'s _SERIAL_KEYS.txt has them and the app\'s menu types them; your own keys work too.</string>
+    <string name="rts_needs_space_native">Room: the game\'s files, and about as much again for the converted data. Free now: %1$s.</string>
     <string name="rts_needs_space">Room: the game\'s size, plus about 1.5 GB for the games\' Windows the first time. Free now: %1$s.</string>
-    <string name="rts_needs_battlenet">On a PC this game signs in to Battle.net to start. Private keeps Battle.net out of reach, so it may refuse to start; that hasn\'t been tried. Private can be turned off in Game files.</string>
+    <string name="rts_needs_native">Played natively on the phone by Stratagus (War1gus, Wargus): an open-source engine that plays the game from your files, campaigns and skirmishes, the original art and sounds. The intro videos are left out, and Warcraft II\'s music (converting those needs a tool phones don\'t have).</string>
+
+    <!-- Conversion (Warcraft I and II) -->
+    <string name="rts_convert_title">Converting %1$s for the phone</string>
+    <string name="rts_convert_scripts">Unpacking the game\'s scripts…</string>
+    <string name="rts_convert_failed">The conversion stopped (code %1$d). Its last lines:\n%2$s</string>
+    <string name="rts_convert_again">Convert again</string>
+    <string name="rts_convert_done">Converted: Press start to play.</string>
 
     <!-- Starting a game -->
     <string name="rts_game_step_runtime">Installing the games\' Windows runtime…</string>
@@ -84,8 +102,8 @@
     <!-- Game files -->
     <string name="rts_files_title">%1$s: files</string>
     <string name="rts_files_what_wc3">Bring the Warcraft III 1.30 folder from a PC: the one with Warcraft III.exe, Data and Maps in it (the 1.30 repack\'s folder as it unzips), or the zip itself. It holds both Reign of Chaos and The Frozen Throne, their campaigns and maps.</string>
-    <string name="rts_files_what_wc1">Bring Warcraft: Orcs &amp; Humans Remastered\'s folder from a PC (Battle.net installs it in Program Files (x86)\\Warcraft Remastered or similar): the whole folder with the game\'s .exe in it, or a zip of it.</string>
-    <string name="rts_files_what_wc2">Bring Warcraft II Remastered\'s folder from a PC (Battle.net installs it in Program Files (x86)\\Warcraft II Remastered or similar): the whole folder with the game\'s .exe in it, or a zip of it.</string>
+    <string name="rts_files_what_wc1">Bring Warcraft: Orcs &amp; Humans from GOG: the installed folder (with WAR.EXE and the DATA folder in it), or a zip of it. The app converts it for the phone after the copy; it\'s then played natively by Stratagus.</string>
+    <string name="rts_files_what_wc2">Bring Warcraft II Battle.net Edition from GOG: the installed folder (with Warcraft II BNE.exe, Install.mpq and Support\\TOMES in it), or a zip of it. The app converts it for the phone after the copy; it\'s then played natively by Stratagus.</string>
     <string name="rts_files_installed">In the app: %1$s</string>
     <string name="rts_files_missing">Not in the app yet</string>
     <string name="rts_files_move_first">Put the folder or zip on the phone itself first (Downloads is fine): files in a cloud folder can\'t be read fast enough. Adding again replaces what\'s there.</string>

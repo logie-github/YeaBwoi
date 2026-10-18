@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.Warcrafts" parent="Theme.Material3.Dark.NoActionBar">
         <item name="android:windowBackground">@color/rts_abyss</item>
         <item name="colorPrimary">@color/rts_accent</item>
@@ -7,6 +7,13 @@
         <item name="colorSurface">@color/rts_deep</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- The native games' screen: black, edge to edge. -->
+    <style name="Theme.Warcrafts.Game" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
     </style>
 
     <!-- The update dialogs, over whatever screen opened them. -->

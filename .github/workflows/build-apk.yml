@@ -35,6 +35,7 @@ on:
       - ".github/workflows/build-warcraft.yml"
       - "warcrafts/**"
       - "scripts/prepare-winlator-app.sh"
+      - "scripts/build-stratagus.sh"
       - ".github/workflows/build-warcrafts.yml"
       - "docs/**"
       - "scripts/maven-mirror.init.gradle"

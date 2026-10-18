@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 package com.logie.warcrafts.ui
 
@@ -299,22 +299,27 @@ private fun NeedsPanel(title: Title, needs: List<Pair<Needs.Need, Boolean>>, rea
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(needLabel(need.item)), style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            need.paths.joinToString("  ·  ") { it.replace('/', '\\') },
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
-                            color = look.accent,
-                        )
+                        if (need.paths.isNotEmpty()) {
+                            Text(
+                                need.paths.joinToString("  ·  ") { it.replace('/', '\\') },
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
+                                color = look.accent,
+                            )
+                        }
                         Text(stringResource(needNote(need.item)), style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
             val free = remember { android.os.StatFs(context.filesDir.path).availableBytes }
             Text(
-                stringResource(R.string.rts_needs_space, android.text.format.Formatter.formatShortFileSize(context, free)),
+                stringResource(
+                    if (install.stratagusGame != null) R.string.rts_needs_space_native else R.string.rts_needs_space,
+                    android.text.format.Formatter.formatShortFileSize(context, free),
+                ),
                 style = MaterialTheme.typography.bodySmall,
             )
-            if (install != com.logie.warcrafts.library.Install.WC3) {
-                Text(stringResource(R.string.rts_needs_battlenet), style = MaterialTheme.typography.bodySmall, color = look.gold)
+            if (install.stratagusGame != null) {
+                Text(stringResource(R.string.rts_needs_native), style = MaterialTheme.typography.bodySmall, color = look.gold)
             }
         }
     }
@@ -327,6 +332,10 @@ private fun needsWhere(install: com.logie.warcrafts.library.Install): Int = when
 }
 
 private fun needLabel(item: Needs.Item): Int = when (item) {
+    Needs.Item.WAR_DATA -> R.string.rts_need_war_data
+    Needs.Item.TOMES -> R.string.rts_need_tomes
+    Needs.Item.INSTALL_MPQ -> R.string.rts_need_install_mpq
+    Needs.Item.CONVERTED -> R.string.rts_need_converted
     Needs.Item.PROGRAM -> R.string.rts_need_program
     Needs.Item.DATA -> R.string.rts_need_data
     Needs.Item.BUILD_INFO -> R.string.rts_need_build_info
@@ -335,6 +344,10 @@ private fun needLabel(item: Needs.Item): Int = when (item) {
 }
 
 private fun needNote(item: Needs.Item): Int = when (item) {
+    Needs.Item.WAR_DATA -> R.string.rts_need_war_data_note
+    Needs.Item.TOMES -> R.string.rts_need_tomes_note
+    Needs.Item.INSTALL_MPQ -> R.string.rts_need_install_mpq_note
+    Needs.Item.CONVERTED -> R.string.rts_need_converted_note
     Needs.Item.PROGRAM -> R.string.rts_need_program_note
     Needs.Item.DATA -> R.string.rts_need_data_note
     Needs.Item.BUILD_INFO -> R.string.rts_need_build_info_note
@@ -478,10 +491,13 @@ private fun ImportPanel(state: Imports.State.Working, onOpen: () -> Unit) {
     RtsWindow(Modifier.fillMaxWidth(), onClick = onOpen) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                stringResource(R.string.rts_import_title, stringResource(ImportService.installName(state.install))),
+                stringResource(
+                    if (state.converting) R.string.rts_convert_title else R.string.rts_import_title,
+                    stringResource(ImportService.installName(state.install)),
+                ),
                 style = MaterialTheme.typography.titleMedium,
             )
-            RtsProgressLine(state.progress ?: 0f)
+            if (state.converting) RtsSpinner(28.dp) else RtsProgressLine(state.progress ?: 0f)
             state.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
         }
     }

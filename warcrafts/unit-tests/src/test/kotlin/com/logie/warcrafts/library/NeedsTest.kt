@@ -25,13 +25,19 @@ class NeedsTest {
     }
 
     @Test
-    fun `the Remastered games need their program, data and build info`() {
-        assertEquals(
-            listOf(Needs.Item.PROGRAM, Needs.Item.DATA, Needs.Item.BUILD_INFO),
-            Needs.of(Install.WC2).map { it.item },
-        )
-        assertEquals(listOf("x86/Warcraft II.exe"), Needs.of(Install.WC2).first().paths)
-        assertEquals(listOf("x86/Warcraft.exe"), Needs.of(Install.WC1).first().paths)
-        assertFalse(Needs.ready(Needs.check(Install.WC1, null, hasKeys = false) { false }))
+    fun `GOG Warcraft I needs DATA_WAR, then the conversion`() {
+        val gog = setOf("data/data.war")
+        val imported = Needs.check(Install.WC1, null, false, converted = false) { it.lowercase() in gog }
+        assertTrue(Needs.filesIn(imported))
+        assertFalse(Needs.ready(imported))
+        assertTrue(Needs.ready(Needs.check(Install.WC1, null, false, converted = true) { it.lowercase() in gog }))
+    }
+
+    @Test
+    fun `GOG Warcraft II needs the four tomes and Install_mpq`() {
+        val gog = (1..4).map { "support/tomes/tome.$it" }.toSet() + "install.mpq"
+        assertTrue(Needs.filesIn(Needs.check(Install.WC2, null, false) { it.lowercase() in gog }))
+        assertFalse(Needs.filesIn(Needs.check(Install.WC2, null, false) { it.lowercase() in gog - "support/tomes/tome.3" }))
+        assertFalse(Needs.filesIn(Needs.check(Install.WC2, null, false) { it.lowercase() in gog - "install.mpq" }))
     }
 }

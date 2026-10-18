@@ -13,6 +13,7 @@ on:
       - "!warcrafts/**.md"
       - "scripts/prepare-winlator-app.sh"
       - "scripts/winlator-rewrite.py"
+      - "scripts/build-stratagus.sh"
       - ".github/workflows/build-warcrafts.yml"
   workflow_dispatch:
 
@@ -101,6 +102,28 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;36.0.0" \
             "ndk;24.0.8215888" "cmake;3.22.1" > /dev/null
 
+      # Warcraft I and II, native: Stratagus, War1gus's and Wargus's tools, SDL (minutes): made again
+      # only when the pins, the patches or the scripts that build them change.
+      - name: Look for Stratagus
+        id: stratagus
+        uses: actions/cache/restore@v4
+        with:
+          path: warcrafts/android/stratagus
+          key: warcrafts-stratagus-v1-${{ hashFiles('warcrafts/stratagus-version.env', 'warcrafts/patches/stratagus/**', 'warcrafts/patches/stratagus-deps/**', 'warcrafts/stratagus/**', 'scripts/build-stratagus.sh') }}
+
+      - name: Build Stratagus
+        if: steps.stratagus.outputs.cache-hit != 'true'
+        run: |
+          cmake --version | head -1
+          ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/24.0.8215888" scripts/build-stratagus.sh
+
+      - name: Save Stratagus
+        if: steps.stratagus.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: warcrafts/android/stratagus
+          key: ${{ steps.stratagus.outputs.cache-primary-key }}
+
       - name: Choose signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.DOLPHINXD_KEYSTORE_BASE64 }}
@@ -141,7 +164,7 @@ jobs:
           mkdir -p dist
           cp warcrafts/android/app/build/outputs/apk/release/app-release.apk "dist/$APK_FILE"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "dist/$APK_FILE" | head -3
-          unzip -l "dist/$APK_FILE" | grep -E "assets/(rootfs|container_pattern)|lib/arm64-v8a/libwinlator"
+          unzip -l "dist/$APK_FILE" | grep -E "assets/(rootfs|container_pattern|stratagus/)|lib/arm64-v8a/(libwinlator|libmain|libwartool|libwar1tool)"
           ls -la dist
 
       # The APK is published as a GitHub release: release downloads work straight from a phone.
@@ -150,12 +173,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           source warcrafts/winlator-version.env
-          notes="$APP_NAME for Android: $GAME_NAME from your own files, on the phone (Wine and Box64 inside the app, with touch gestures), offline: Blizzard's servers are blocked unless you turn Private off. Built from commit ${GITHUB_SHA::7}.
+          source warcrafts/stratagus-version.env
+          notes="$APP_NAME for Android, offline: Warcraft I and II (GOG) native, played by Stratagus ${STRATAGUS_COMMIT::7} with War1gus ${WAR1GUS_COMMIT::7} and Wargus ${WARGUS_COMMIT::7}; Warcraft III 1.30 on Wine and Box64 inside the app (Blizzard's servers blocked unless you turn Private off). Touch gestures throughout. Built from commit ${GITHUB_SHA::7}.
 
           Download **$APK_FILE** below on your phone and open it to install. Then, for each game, **Game files → Pick folder** (or **Pick zip**) copies its files into the app, and **Press start** plays it.
 
-          - **Warcraft III** (Reign of Chaos and The Frozen Throne): the 1.30 folder with *Warcraft III.exe*, *Data* and *Maps*, or its zip.
-          - **Warcraft I Remastered** and **Warcraft II Remastered**: each game's install folder from a PC, or a zip of it."
+          - **Warcraft: Orcs & Humans** (GOG): its installed folder (WAR.EXE, DATA), or a zip of it; the app converts it for the phone.
+          - **Warcraft II: Battle.net Edition** (GOG): its installed folder (Install.mpq, Support/TOMES), or a zip of it; the app converts it for the phone.
+          - **Warcraft III** (Reign of Chaos and The Frozen Throne): the 1.30 folder with *Warcraft III.exe*, *Data* and *Maps*, or its zip."
           # The tag first, on its own (see build-warcraft.yml: GitHub refuses some tokens a tag made by
           # gh release create --target).
           if ! git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" > /dev/null; then

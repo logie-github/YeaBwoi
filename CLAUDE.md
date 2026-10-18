@@ -11,7 +11,7 @@ self-updating from this repository's GitHub releases.
 | `azuredreams/` | Azure Dreams | `com.logie.azure` | SwanStation core + LibretroDroid |
 | `parasiteeve/` | Parasite Eve | `com.logie.pe` | Beetle PSX HW core + LibretroDroid |
 | `warcraft/` | World of Warcraft 3.3.5a: ChromieCraft and Wrath Remix realms, the game on Winlator | `com.logie.warcraft` | AzerothCore/ChromieCraft + playerbots (musl arm64), `mod-wrath-remix`, Winlator |
-| `warcrafts/` | Warcraft (on the phone): Warcraft I and II Remastered, Warcraft III RoC/TFT 1.30, offline | `com.logie.warcrafts` | Winlator (the WoW app's commit) |
+| `warcrafts/` | Warcraft (on the phone): Warcraft I and II (GOG) native, Warcraft III RoC/TFT 1.30, offline | `com.logie.warcrafts` | Stratagus + War1gus/Wargus (arm64); Winlator (the WoW app's commit) for WC3 |
 
 - **How the apps are made, tested and released:** `docs/single-game-apps.md`. Read it before
   building or changing an app.
@@ -46,8 +46,9 @@ open question). Its launcher is in the releases (from build 77), saying it isn't
 
 ## Warcraft
 
-A separate app (`warcrafts/`, `com.logie.warcrafts`): Warcraft I Remastered, Warcraft II
-Remastered and Warcraft III (Reign of Chaos and The Frozen Throne, 1.30) from the user's files on
-Winlator, offline (Blizzard's names blocked in the runtime's hosts file), with RTS touch gestures
-and the touch gestures the user chose. The brief: `warcrafts/PLAN.md`; the manual: `warcrafts/README.md`. Its Winlator
+A separate app (`warcrafts/`, `com.logie.warcrafts`): Warcraft I and II from the user's GOG files,
+native on Android (Stratagus with War1gus/Wargus, `scripts/build-stratagus.sh`; the user ruled out
+DOSBox and wants them Android-native), and Warcraft III (Reign of Chaos and The Frozen Throne, 1.30)
+on Winlator, offline (Blizzard's names blocked in the runtime's hosts file), with the touch gestures
+the user chose. The brief: `warcrafts/PLAN.md`; the manual: `warcrafts/README.md`. Its Winlator
 comes from `scripts/prepare-winlator-app.sh warcrafts` (the WoW app keeps its own script).

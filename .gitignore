@@ -33,3 +33,4 @@ __pycache__/
 /warcrafts/unit-tests/build/
 /warcrafts/unit-tests/.kotlin/
 /warcrafts/android/local.properties
+/warcrafts/android/stratagus/
