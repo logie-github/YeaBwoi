@@ -37,7 +37,7 @@ if [ ! -x "$DIST/bin/worldserver" ]; then
 	exit 1
 fi
 
-apk add -q --no-progress build-base patchelf xz tar boost-dev openssl-dev mariadb-connector-c-dev \
+apk add -q --no-progress build-base patchelf xz tar python3 boost-dev openssl-dev mariadb-connector-c-dev \
 	readline-dev bzip2-dev zlib-dev mariadb mariadb-client jemalloc
 
 # The package: programs, their libraries, MariaDB, SQL and configs.
@@ -70,6 +70,11 @@ for dir in "$DIST"/modules/*/; do
 		mkdir -p "$pkg/src/modules/$name/data"
 		cp -r "$dir/data/sql" "$pkg/src/modules/$name/data/sql"
 	fi
+	# What a module makes the game's patch from as the world server starts (mod-skyborne's).
+	if [ -d "$dir/data/client" ]; then
+		mkdir -p "$pkg/src/modules/$name/data"
+		cp -r "$dir/data/client" "$pkg/src/modules/$name/data/client"
+	fi
 	# Older modules (mod-npc-talent-template) keep theirs in sql/<database>, which the servers
 	# don't read: it goes where they look, data/sql/db-<database>. Without it the world server
 	# stops at the end of loading, on a table that isn't there. The servers know an applied file
@@ -91,6 +96,34 @@ for dir in "$DIST"/modules/*/; do
 		cp -r "$sql" "$pkg/src/modules/$name/$rel"
 	done
 done
+
+# Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
+# Lua (a module's .lua files, but for the game's add-ons it may bring: folders of .toc files, or
+# named client, addon or interface).
+mkdir -p "$pkg/lua_scripts"
+[ ! -d "$DIST/lua_scripts" ] || cp -r "$DIST/lua_scripts/." "$pkg/lua_scripts/"
+echo "${WOW_EXTRA_MODULES:-}" | awk 'NF { print $1 }' | while read -r name; do
+	dir="/repo/build/azerothcore/modules/$name"
+	[ -d "$dir" ] || continue
+	find "$dir" -name '*.lua' ! -path '*/.git/*' | while read -r file; do
+		rel=${file#"$dir/"}
+		case "$(echo "$rel" | tr 'A-Z' 'a-z')" in
+		*client*|*addon*|*interface*) continue ;;
+		esac
+		[ -z "$(find "$(dirname "$file")" -maxdepth 1 -iname '*.toc' | head -1)" ] || continue
+		mkdir -p "$pkg/lua_scripts/$name/$(dirname "$rel")"
+		cp "$file" "$pkg/lua_scripts/$name/$rel"
+	done
+done
+
+# The game files the modules the app's user picked bring: the DBC files they change, for the
+# server's data and the game, and their patch for the game (scripts/module-files.py; ctl.sh puts
+# them in place). Read from the sources the compile used: a module left out isn't there.
+extra=$(echo "${WOW_EXTRA_MODULES:-}" | awk 'NF { print "/repo/build/azerothcore/modules/" $1 }')
+if [ -n "$extra" ]; then
+	# shellcheck disable=SC2086
+	python3 /repo/scripts/module-files.py "$pkg/share" $extra
+fi
 
 # Every library the programs load, then the programs pointed at them. The Alpine here has to have
 # what they were built against (CI caches the compile, while Alpine's packages move on).
