@@ -3,7 +3,8 @@
 -- she names the one who asked her to begin, senses a presence she has not felt since she was alive,
 -- and goes off to the other side of the hall, murmuring about her sisters if anyone speaks to her
 -- (RemixFrozenHalls.cpp). The dungeon and its quests go on as they always do. Jaina, the Alliance's,
--- is as the game has her.
+-- is as the game has her: the instance makes this same creature Jaina for an Alliance group, and
+-- the script then gives her the game's own (npc_fos_leader, her briefing).
 
 UPDATE `creature_template` SET `ScriptName` = 'npc_remix_fos_sylvanas' WHERE `entry` = 37596;
 

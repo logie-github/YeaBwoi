@@ -24,7 +24,7 @@ After the turn, story_undo.py puts back what the record cannot keep (Allerton, U
 """
 from story_common import (ALLIANCE, MORATARI, TAKEN, DONE, TURNED_IN, OUTING, ZONE_BOREAN_TUNDRA,
                           INTO_THE_DRAGONBLIGHT_A, rewarded, not_rewarded, state, IN_PROGRESS, NOT_TAKEN,
-                          TAKEN_OR_DONE)
+                          OBJECTIVES_DONE, TAKEN_OR_DONE)
 
 # The game's people
 BLYTHE, ARLOS, TALBOT, VURENN, HAMMERHILL, MARK_HANES = 25307, 25250, 25301, 25285, 25816, 26155
@@ -83,10 +83,12 @@ CREATURES = [
 ]
 
 # Who sees them: the living Allerton from the moment the Timerunner sets out to save him, until he
-# sails (WRM-048); the dead one only for whoever never set out; the assassin while it's being done;
-# the captives while they wait; the survivors and volunteers from their rescue until the record takes
-# them back (WRM-049); the draenei from the keep's new day.
-ALIVE = [[state(NOT_YET_LATE, TAKEN_OR_DONE), not_rewarded(LOST_AT_SEA)]]
+# sails (WRM-048), and after it to whoever still has Thassarian, My Brother to give him (Leryssa offers
+# it all the while, and he is its only ender then); the dead one only for whoever never set out; the
+# assassin while it's being done; the captives while they wait; the survivors and volunteers from their
+# rescue until the record takes them back (WRM-049); the draenei from the keep's new day.
+ALIVE = [[state(NOT_YET_LATE, TAKEN_OR_DONE), not_rewarded(LOST_AT_SEA)],
+         [state(NOT_YET_LATE, TAKEN_OR_DONE), state(THASSARIAN_MY_BROTHER, IN_PROGRESS | OBJECTIVES_DONE)]]
 SAVED = [[rewarded(NO_ONE_LEFT_BEHIND), not_rewarded(FORGED_ORDERS)]]
 SPAWNS = [
     dict(guid=7704330, equip=0, entry=LIVING_ALLERTON, x=2768.0, y=5339.9, z=30.03, o=3.05, visible=ALIVE,

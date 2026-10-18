@@ -45,6 +45,8 @@ class ServerService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     /** The notification is up (the service is in the foreground). */
     private var shown = false
+    /** The last start this service took: it ends itself only if none came after ([stopSelf]). */
+    private var lastStart = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -59,6 +61,7 @@ class ServerService : Service() {
         // (in the foreground at once, whatever was asked: the app starts this service in the foreground)
         startForeground(NOTIFICATION_ID, notification(Server.status.value))
         shown = true
+        lastStart = startId
         when (intent?.action) {
             ACTION_STOP -> Server.stop(this)
             RealmLink.ACTION_START -> Server.start(this, Realms.Realm.entries.firstOrNull { it.key == intent.getStringExtra(RealmLink.EXTRA_REALM) })
@@ -80,7 +83,10 @@ class ServerService : Service() {
                             stopForeground(STOP_FOREGROUND_REMOVE)
                             shown = false
                             if (status.phase == Server.Phase.FAILED) notifyFailed()
-                            stopSelf()
+                            // (not if the server was started again meanwhile, a Timerunner's homecoming:
+                            // that start, on its way to this service, keeps it, and it comes back to
+                            // the foreground; one after this makes the service anew)
+                            stopSelf(lastStart)
                         }
                         !shown -> {
                             startForeground(NOTIFICATION_ID, notification(status))

@@ -23,9 +23,10 @@
 #include "WorldSession.h"
 #include <cmath>
 #include <functional>
+#include <list>
+#include <map>
 #include <memory>
 #include <mutex>
-#include <set>
 
 using namespace WrathRemix;
 
@@ -96,6 +97,18 @@ namespace
         }
     }
 
+    // One of the Timerunner's anomalies still about: their three are under way (another three
+    // let through now would be on them at once). Each goes when it loses them (80 yards).
+    bool AnomaliesAbout(Player* player)
+    {
+        std::list<Creature*> anomalies;
+        player->GetCreatureListWithEntryInGrid(anomalies, NPC_ANOMALY, 100.0f);
+        for (Creature* anomaly : anomalies)
+            if (anomaly->IsAlive() && anomaly->AI() && anomaly->AI()->GetGUID() == player->GetGUID())
+                return true;
+        return false;
+    }
+
     // A "talk to" objective of Remix's quests (WRM-011's echoes, WRM-012's Alurmi).
     void SpokenTo(Player* player, Creature* creature)
     {
@@ -110,10 +123,16 @@ namespace
     }
 
     // The chapter to go back to when the record is tangled: the furthest reached, or the one
-    // the Timerunner's level belongs to.
+    // the Timerunner's level belongs to. One who hasn't reached the war yet (To the Front not
+    // taken back) is in the prologue (0: the Bazaar), however their level reads (Chapter I's
+    // begins at 10, where they wake); a death knight, whose prologue is Acherus's, at their level's.
     uint8 StableChapter(Player* player)
     {
-        return std::max(Get(player).chapter, ChapterForLevel(player->GetLevel()));
+        uint8 chapter = Get(player).chapter;
+        if (!chapter && player->getClass() != CLASS_DEATH_KNIGHT && !player->GetQuestRewardStatus(QUEST_TO_THE_FRONT_A) &&
+            !player->GetQuestRewardStatus(QUEST_TO_THE_FRONT_H))
+            return 0;
+        return std::max(chapter, ChapterForLevel(player->GetLevel()));
     }
 
     void ToChapter(Player* player, Chapter const& c)
@@ -156,7 +175,7 @@ namespace
     };
 
     std::mutex scenesLock;
-    std::set<ObjectGuid> scenes;  // the Timerunners whose scene is playing
+    std::map<ObjectGuid, std::shared_ptr<TurnScene>> scenes;  // the Timerunners whose scene is playing
 
     Creature* Actor(Player* player, ObjectGuid guid)
     {
@@ -193,12 +212,12 @@ namespace
 
     void PlayTurnScene(Player* player, Creature* eternus)
     {
+        auto scene = std::make_shared<TurnScene>();
         {
             std::lock_guard<std::mutex> lock(scenesLock);
-            if (!scenes.insert(player->GetGUID()).second)
+            if (!scenes.emplace(player->GetGUID(), scene).second)
                 return;
         }
-        auto scene = std::make_shared<TurnScene>();
         scene->player = player->GetGUID();
         scene->eternus = eternus->GetGUID();
         scene->moratari = Summon(player, NPC_MORATARI_SCENE, MORATARI_SPOT);
@@ -270,8 +289,26 @@ namespace
             if (Player* p = ObjectAccessor::FindPlayer(scene->player); p && p->IsInWorld())
                 EndTurnScene(p, *scene);
             std::lock_guard<std::mutex> lock(scenesLock);
-            scenes.erase(scene->player);
+            if (auto it = scenes.find(scene->player); it != scenes.end() && it->second == scene)
+                scenes.erase(it);
         }, 88s);
+    }
+
+    // A Timerunner's scene, gone with its steps (theirs, which a logout ends): its people taken
+    // away, and the scene free to play again when the quest is taken again.
+    void ForgetTurnScene(Player* player)
+    {
+        std::shared_ptr<TurnScene> scene;
+        {
+            std::lock_guard<std::mutex> lock(scenesLock);
+            auto it = scenes.find(player->GetGUID());
+            if (it == scenes.end())
+                return;
+            scene = it->second;
+            scenes.erase(it);
+        }
+        if (player->IsInWorld())
+            EndTurnScene(player, *scene);
     }
 }
 
@@ -294,7 +331,7 @@ public:
         bool waking = !player->GetQuestRewardStatus(QUEST_OUT_OF_TIME) && player->getClass() != CLASS_DEATH_KNIGHT;
         // (a scene the Timerunner left before its end plays again)
         ReplaySceneAt(player, creature);
-        if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE)
+        if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE && !AnomaliesAbout(player))
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "I'm ready. Let the anomalies through.", SENDER_MAIN, ACTION_ANOMALIES);
         // (the last hour, begun again if the Timerunner died or went before it was over)
         if (player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE)
@@ -329,6 +366,8 @@ public:
             case ACTION_ANOMALIES:
             {
                 CloseGossipMenuFor(player);
+                if (player->GetQuestStatus(QUEST_DEMONSTRATION) != QUEST_STATUS_INCOMPLETE || AnomaliesAbout(player))
+                    return true;
                 creature->Say("There, through the seams. One at a time. Mind the teeth.", LANG_UNIVERSAL, player);
                 LetAnomalyThrough(creature, player, 1);
                 return true;
@@ -693,7 +732,10 @@ public:
             return false;
         Chapter const* c = sender == SENDER_CHAPTER ? ChapterFor(uint8(action)) : nullptr;
         if (c && player->GetLevel() + 2 >= c->levelMin)
+        {
             ToChapter(player, *c);
+            MoratariVoice(player, "jump_forward");   // (Moratari's own voice, from wherever she is)
+        }
         else
             CloseGossipMenuFor(player);
         return true;
@@ -751,6 +793,7 @@ public:
         uint32 checkIn = 2000;
 
         void SetGUID(ObjectGuid const& guid, int32 /*id*/) override { timerunner = guid; }
+        ObjectGuid GetGUID(int32 /*id*/) const override { return timerunner; }
         void SetData(uint32 type, uint32 value) override
         {
             if (type == DATA_WAVE)
@@ -856,8 +899,29 @@ public:
     }
 };
 
+// WRM-207's scene, cut short by a logout: over (the login gives its credit, WrathRemix.cpp), and
+// played again if the quest is dropped and taken again.
+class RemixTurnScenePlayer : public PlayerScript
+{
+public:
+    RemixTurnScenePlayer() : PlayerScript("RemixTurnScenePlayer", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT }) { }
+
+    void OnPlayerLogin(Player* player) override
+    {
+        if (Active())
+            ForgetTurnScene(player);
+    }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (Active())
+            ForgetTurnScene(player);
+    }
+};
+
 void AddRemixNpcScripts()
 {
+    new RemixTurnScenePlayer();
     new npc_remix_instructor();
     new npc_remix_moratari();
     new npc_remix_eternus();

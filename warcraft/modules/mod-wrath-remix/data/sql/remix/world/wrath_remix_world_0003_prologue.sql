@@ -11,7 +11,9 @@ SET @MORATARI := 770001, @ETERNUS := 770002, @ALURMI := 770005,
     @ANOMALY_CREDIT := 770032, @INSTRUCTOR_CREDIT := 770033;
 
 -- Every new character but a death knight wakes at the Bazaar, before Eternus and Moratari (death
--- knights keep Acherus and their own story; the module brings them to the Bazaar after it).
+-- knights keep Acherus and their own story; the module brings them to the Bazaar after it). The
+-- world server sets it again in its own copy as it starts (src/RemixIntro.cpp): mod-skyborne's SQL,
+-- applied again whenever it changes, puts its races' start back where theirs was.
 UPDATE `playercreateinfo` SET `map` = 571, `zone` = 2817, `position_x` = 5700.0, `position_y` = 1012.0,
   `position_z` = 174.6, `orientation` = 1.57 WHERE `class` <> 6;
 

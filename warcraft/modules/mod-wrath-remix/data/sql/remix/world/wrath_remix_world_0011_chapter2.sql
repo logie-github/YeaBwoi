@@ -27,7 +27,8 @@
 --
 -- Who is seen where (conditions of type 30, object visibility; rechecked as the story's quests
 -- move, WrathRemix.cpp): Sylvanas and Alleria atop Wyrmrest from WRM-204 until WRM-205; at the
--- Bazaar once WRM-207 is done, when Eternus is gone from it; the Bazaar's own Moratari hidden
+-- Bazaar once WRM-207 is done, when Eternus is gone from it (or, for one who never saw the turn,
+-- from Chapter VII's quests: below); the Bazaar's own Moratari hidden
 -- while WRM-207's scene plays (its own Moratari acts); Alleria and the loyalists on the cliffs
 -- during WRM-208. Ids and chains from the Remix world database (data/campaign_manifest.csv).
 
@@ -266,11 +267,28 @@ DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceEntry`
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 -- The Bazaar: Eternus until the turn is done; its own Moratari but while the turn's scene plays;
--- Sylvanas and Alleria once it's done.
+-- Sylvanas and Alleria once it's done. One who never saw the turn (a death knight, who starts at
+-- Chapter V; one the Chronologist sent past it) has it so all the same for Chapter VII and the end,
+-- from the first of The Armies Are in Place (WRM-701/711), The Last Hour (WRM-721) or The Last
+-- Necessary Battle (WRM-800) taken, done or turned in: Eternus gone (the Keepers in his place,
+-- wrath_remix_world_0018_ending.sql), Sylvanas and Alleria there; never the three of them at
+-- once. (Until then Chapter II is still there for them to play, Eternus's part in it with it.)
 (30, 0, @ETERNUS, 7704011, 0, 47, 0, 77207, 66, 0, 1, 0, 0, '', 'Wrath Remix: Eternus gone from the Bazaar after The Weight of Time'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77701, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77711, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77721, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77800, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
 (30, 0, @MORATARI, 7704012, 0, 47, 0, 77207, 8, 0, 1, 0, 0, '', 'Wrath Remix: the Bazaar''s Moratari away while The Weight of Time plays'),
 (30, 0, @SYLVANAS, 7704013, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at the Bazaar after The Weight of Time'),
+(30, 0, @SYLVANAS, 7704013, 1, 47, 0, 77701, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @SYLVANAS, 7704013, 2, 47, 0, 77711, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @SYLVANAS, 7704013, 3, 47, 0, 77721, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @SYLVANAS, 7704013, 4, 47, 0, 77800, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
 (30, 0, @ALLERIA, 7704014, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at the Bazaar after The Weight of Time'),
+(30, 0, @ALLERIA, 7704014, 1, 47, 0, 77701, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @ALLERIA, 7704014, 2, 47, 0, 77711, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @ALLERIA, 7704014, 3, 47, 0, 77721, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @ALLERIA, 7704014, 4, 47, 0, 77800, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
 -- Atop Wyrmrest Temple: from Strangers Out of Time until Ask Him Yourself is turned in.
 (30, 0, @SYLVANAS_ABROAD, 7704033, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at Wyrmrest from Strangers Out of Time'),
 (30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),

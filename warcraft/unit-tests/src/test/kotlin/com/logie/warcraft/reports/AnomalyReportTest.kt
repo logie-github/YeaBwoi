@@ -1,10 +1,13 @@
 package com.logie.warcraft.reports
 
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLDecoder
 import java.net.URLEncoder
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -89,5 +92,45 @@ class AnomalyReportTest {
         assertEquals(12 to "https://github.com/o/r/issues/12",
             AnomalyReport.openedIssue("""{"number": 12, "html_url": "https://github.com/o/r/issues/12", "title": "x"}"""))
         assertNull(AnomalyReport.openedIssue("not json"))
+    }
+
+    @Test
+    fun aReportSentBeforeIsFoundByItsMark() {
+        val name = "anomaly-20261014-182000-5.md"
+        val text = file(300)
+        // The same file: the same mark at every try; another report: another.
+        val marker = AnomalyReport.marker(name, text)
+        assertEquals(marker, AnomalyReport.marker(name, text))
+        assertNotEquals(marker, AnomalyReport.marker(name, file(299)))
+        assertNotEquals(marker, AnomalyReport.marker("anomaly-20261014-182001-5.md", text))
+        // At the start of the issue, unseen there, however short the report is made.
+        val report = AnomalyReport.parse(text)!!.signed("Sent by the app").marked(marker)
+        assertTrue(report.fitted(4_000).body.startsWith("<!-- $marker -->\n**What happened:**"))
+        val body = JSONObject(report.issueJson()).getString("body")
+        assertTrue(body.startsWith("<!-- $marker -->\n"))
+        // GitHub's list of issues, with it among them.
+        val issues = JSONArray()
+            .put(JSONObject().put("number", 14).put("html_url", "https://github.com/o/r/issues/14").put("body", "Another"))
+            .put(JSONObject().put("number", 13).put("html_url", "https://github.com/o/r/issues/13").put("body", JSONObject.NULL))
+            .put(JSONObject().put("number", 12).put("html_url", "https://github.com/o/r/issues/12").put("body", body))
+            .toString()
+        assertEquals(12 to "https://github.com/o/r/issues/12", AnomalyReport.markedIssue(issues, marker))
+        assertNull(AnomalyReport.markedIssue(issues, AnomalyReport.marker(name, file(299))))
+        assertNull(AnomalyReport.markedIssue("[]", marker))
+        assertNull(AnomalyReport.markedIssue("not json", marker))
+    }
+
+    @Test
+    fun aBusyGitHubIsTriedAgainARefusalIsNot() {
+        assertTrue(AnomalyReport.busy(502, null))
+        assertTrue(AnomalyReport.busy(503, "Service Unavailable"))
+        assertTrue(AnomalyReport.busy(429, null))
+        assertTrue(AnomalyReport.busy(403, "You have exceeded a secondary rate limit. Please wait a few minutes before you try again."))
+        assertTrue(AnomalyReport.busy(403, "API rate limit exceeded for user ID 1."))
+        assertFalse(AnomalyReport.busy(403, "Resource not accessible by personal access token"))
+        assertFalse(AnomalyReport.busy(401, "Bad credentials"))
+        assertFalse(AnomalyReport.busy(404, "Not Found"))
+        assertFalse(AnomalyReport.busy(410, "Issues are disabled for this repo"))
+        assertFalse(AnomalyReport.busy(422, null))
     }
 }

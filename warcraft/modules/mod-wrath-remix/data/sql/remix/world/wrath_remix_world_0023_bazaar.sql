@@ -207,8 +207,8 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipmen
 (7704530, 770079, 571, 1, 1, 0, 5688.00, 1040.00, 174.60, 0, 60, 0, 2, 'Wrath Remix: Sand Gnome Porter, Bazaar, on rounds'),
 (7704531, 770079, 571, 1, 1, 0, 5665.00, 1001.00, 174.60, 0, 60, 0, 2, 'Wrath Remix: Sand Gnome Porter, Bazaar, on rounds'),
 (7704532, 770079, 571, 1, 1, 0, 5698.00, 982.00, 174.60, 0, 60, 0, 2, 'Wrath Remix: Sand Gnome Porter, Bazaar, on rounds'),
-(7704533, 770080, 571, 1, 1, 0, 5646.00, 964.00, 174.60, 0, 60, 0, 2, 'Wrath Remix: Bazaar Warden, Bazaar, on rounds'),
-(7704534, 770080, 571, 1, 1, 0, 5650.00, 962.50, 174.40, 0, 60, 0, 2, 'Wrath Remix: Bazaar Warden, Bazaar, on rounds');
+(7704533, 770080, 571, 1, 1, 0, 5645.00, 964.00, 174.30, 0, 60, 0, 2, 'Wrath Remix: Bazaar Warden, Bazaar, on rounds'),
+(7704534, 770080, 571, 1, 1, 0, 5650.00, 960.50, 173.90, 0, 60, 0, 2, 'Wrath Remix: Bazaar Warden, Bazaar, on rounds');
 DELETE FROM `creature_addon` WHERE `guid` BETWEEN 7704500 AND 7704599 OR `guid` BETWEEN 7704021 AND 7704031;
 INSERT INTO `creature_addon` (`guid`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) VALUES
 (7704501, 0, 0, 1, 1, 0, 0, ''),
@@ -246,7 +246,7 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (7704532, 2, 5689.50, 996.00, 174.60, NULL, 0, 0),
 (7704532, 3, 5686.00, 1030.00, 174.60, NULL, 4000, 0),
 (7704532, 4, 5689.50, 996.00, 174.60, NULL, 0, 0),
-(7704533, 1, 5646.00, 964.00, 174.60, NULL, 2000, 0),
+(7704533, 1, 5645.00, 964.00, 174.30, NULL, 2000, 0),
 (7704533, 2, 5644.00, 996.00, 174.40, NULL, 0, 0),
 (7704533, 3, 5638.00, 1003.00, 174.60, NULL, 0, 0),
 (7704533, 4, 5638.00, 1024.00, 174.80, NULL, 0, 0),
@@ -256,10 +256,10 @@ INSERT INTO `waypoint_data` (`id`, `point`, `position_x`, `position_y`, `positio
 (7704533, 8, 5638.00, 1024.00, 174.80, NULL, 0, 0),
 (7704533, 9, 5638.00, 1003.00, 174.60, NULL, 0, 0),
 (7704533, 10, 5644.00, 996.00, 174.40, NULL, 0, 0),
-(7704534, 1, 5650.00, 962.50, 174.40, NULL, 2000, 0),
-(7704534, 2, 5676.00, 962.50, 174.60, NULL, 0, 0),
-(7704534, 3, 5708.00, 962.50, 174.60, NULL, 2000, 0),
-(7704534, 4, 5676.00, 962.50, 174.60, NULL, 0, 0);
+(7704534, 1, 5650.00, 960.50, 173.90, NULL, 2000, 0),
+(7704534, 2, 5676.00, 960.50, 174.60, NULL, 0, 0),
+(7704534, 3, 5708.00, 960.50, 174.60, NULL, 2000, 0),
+(7704534, 4, 5676.00, 960.50, 174.60, NULL, 0, 0);
 
 CREATE TABLE IF NOT EXISTS `remix_bazaar_line` (
   `guid` INT UNSIGNED NOT NULL,

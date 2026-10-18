@@ -97,6 +97,15 @@ for dir in "$DIST"/modules/*/; do
 	done
 done
 
+# Moratari's own voice (mod-wrath-remix, tools/voices.py): her Legion Remix lines, fetched from the
+# game's files by their ids and made WAVs here (they are never in the repository); the world server
+# puts them in the game's patch. Without them she speaks in text alone.
+if [ -d "$DIST/modules/mod-wrath-remix" ]; then
+	apk add -q --no-progress ffmpeg
+	python3 /repo/warcraft/modules/mod-wrath-remix/tools/voices.py fetch "$pkg/src/modules/mod-wrath-remix/data/voices" ||
+		echo "Moratari's voice wasn't all fetched: she speaks without it where it's missing" >&2
+fi
+
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
 # Lua (a module's .lua files, but for the game's add-ons it may bring: folders of .toc files, or
 # named client, addon or interface).

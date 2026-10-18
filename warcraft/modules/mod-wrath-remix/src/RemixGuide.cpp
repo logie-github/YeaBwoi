@@ -313,11 +313,22 @@ namespace
         return story ? story : ready ? ready : first;
     }
 
+    // Who takes it back from this Timerunner. The Bazaar's instructors all take back Old Habits, but
+    // each only from their own class (src/RemixNpcs.cpp): the Timerunner's own.
+    std::vector<uint32> EndersFor(Player* player, std::vector<uint32> const& enders)
+    {
+        std::vector<uint32> theirs;
+        for (uint32 entry : enders)
+            if (entry < NPC_INSTRUCTOR_FIRST || entry > NPC_INSTRUCTOR_LAST || TeachesClassOf(entry, player))
+                theirs.push_back(entry);
+        return theirs;
+    }
+
     Target TurnIn(Player* player, Quest const* quest)
     {
         auto enders = questEnders.find(quest->GetQuestId());
         if (enders != questEnders.end())
-            if (Spawn const* spawn = Nearest(player, creatureSpawns, enders->second))
+            if (Spawn const* spawn = Nearest(player, creatureSpawns, EndersFor(player, enders->second)))
                 return At(spawn, CreatureName(spawn->entry),
                     Acore::StringFormat("{}: take it back to {}.", quest->GetTitle(), CreatureName(spawn->entry)));
         return FromPoi(player, quest, true, Acore::StringFormat("{}: turn it in where your map shows.", quest->GetTitle()));

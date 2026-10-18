@@ -18,9 +18,9 @@
  * Timerunner has arrived (a far journey keeps them on a loading screen a while), and a step of an
  * act that is over does nothing. In the battle they are the hero they were, the Light's wings on
  * them; nothing can hurt them, and the dead fall to them in a blow or three. Once seen it is not
- * seen again (remix_character.intro); one cut short (a logout) plays again from the tavern at the
- * next login. Death knights, who have Acherus, and the realm's bots don't have it. `.remix intro`
- * plays it for a game master, `.remix intro skip` ends it.
+ * seen again (remix_character.intro); one cut short (a logout, a crash: wherever it left them)
+ * plays again from the tavern at the next login. Death knights, who have Acherus, and the realm's
+ * bots don't have it. `.remix intro` plays it for a game master, `.remix intro skip` ends it.
  */
 
 #include "WrathRemix.h"
@@ -29,9 +29,12 @@
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "GameObject.h"
+#include "Log.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
+#include "RaceMgr.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
@@ -212,13 +215,21 @@ namespace
 
     // A place [forward] yards ahead of [at] and [left] to its left, on the ground (from [above]
     // yards over the place's height, so indoors it's the floor and not the roof), turned [facing]
-    // from the place's own facing.
+    // from the place's own facing. Outdoors, up a slope higher than that, nothing is found beneath:
+    // the land's own height there (never a roof), not the place's, which would be inside the hill.
+    // (Indoors, from 2 yards over the floor, land higher than that is never the room's floor: the
+    // floor's own height, as before.)
     Position Around(Player* player, Place const& at, float forward, float left, float facing = 0.0f, float above = 10.0f)
     {
         float x = at.x + forward * std::cos(at.o) - left * std::sin(at.o);
         float y = at.y + forward * std::sin(at.o) + left * std::cos(at.o);
         float z = player->GetMap()->GetHeight(player->GetPhaseMask(), x, y, at.z + above, true, above + 30.0f);
-        if (z < at.z - 25.0f || z > at.z + above)
+        if (z < at.z - 25.0f)
+        {
+            float land = above > 2.0f ? player->GetMap()->GetGridHeight(x, y) : at.z;
+            z = land > at.z + above && land < at.z + 40.0f ? land : at.z;
+        }
+        else if (z > at.z + above)
             z = at.z;
         return Position(x, y, z + 0.1f, Position::NormalizeOrientation(at.o + facing));
     }
@@ -469,13 +480,19 @@ namespace
         }, GROUND_LOADS_IN);
     }
 
-    // Back from a death (in the opening, any the core deals around its rules), to [at].
-    void BackFromDeath(Player* player, Place const& at)
+    // Alive again where they are (a death in the opening, any the core deals around its rules).
+    void Revive(Player* player)
     {
         player->ResurrectPlayer(1.0f);
         player->SpawnCorpseBones();
         // (only a release to a graveyard clears this, after a fall under the world)
         player->RemovePlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS);
+    }
+
+    // Back from a death, to [at].
+    void BackFromDeath(Player* player, Place const& at)
+    {
+        Revive(player);
         HoldOverTheGround(player);
         if (player->GetMapId() == at.map)
             player->NearTeleportTo(at.x, at.y, at.z + 0.5f, at.o);
@@ -735,8 +752,9 @@ namespace
             Position from = Indoors(p, inn, 11.0f, 0.0f);
             if (TempSummon* rift = p->SummonCreature(NPC_TIME_RIFT, from, TEMPSUMMON_TIMED_DESPAWN, 6000, 0, nullptr, true))
                 b.people.push_back(rift->GetGUID());
+            // (to the table's edge, between two friends and clear of them: Tahono, a tauren, is two yards across)
             if (Creature* moratari = BringMoratari(p, b, from))
-                moratari->GetMotionMaster()->MovePoint(1, Indoors(p, inn, 6.2f, -1.0f));
+                moratari->GetMotionMaster()->MovePoint(1, Indoors(p, inn, 6.5f, -1.5f));
         });
         At(player, o, 75500, [](Player* p, Opening& b) { SheSays(p, b, "I'm sorry, hero. I need you."); });
         At(player, o, 80500, [](Player* p, Opening& b)
@@ -1194,14 +1212,38 @@ namespace
         At(player, o, 53000, [](Player* p, Opening& b) { Finish(p, b); });
     }
 
-    bool Wanted(Player* player)
+    // A Timerunner the opening is still owed to: never seen through, nor the prologue begun. Not a
+    // death knight, who has Acherus, nor one of the realm's bots.
+    bool Owed(Player* player)
     {
         if (!Active() || !Enabled() || IsBot(player) || player->getClass() == CLASS_DEATH_KNIGHT)
             return false;
-        if (Get(player).intro || player->GetQuestStatus(QUEST_OUT_OF_TIME) != QUEST_STATUS_NONE ||
-            player->GetQuestRewardStatus(QUEST_OUT_OF_TIME))
-            return false;
+        return !Get(player).intro && player->GetQuestStatus(QUEST_OUT_OF_TIME) == QUEST_STATUS_NONE &&
+            !player->GetQuestRewardStatus(QUEST_OUT_OF_TIME);
+    }
+
+    // Where a new Timerunner is made (the Bazaar), or where the opening keeps one who left it.
+    bool AtTheStart(Player* player)
+    {
         return AtTheBazaar(player) || AtTheFront(player) || AtATavern(player);
+    }
+
+    // Owed it at login, and somewhere it begins from: at the start; or anywhere at all for one who
+    // hasn't begun the war (chapter 0), since the realm saves them every half minute, a crash
+    // leaves them wherever the opening had them, and a start playercreateinfo got wrong (a
+    // Skyborne's, in Northshire or at Camp Narache) is nowhere near the Bazaar. Only a new one
+    // (under an hour played: the opening is six minutes), not one made before it, who went their
+    // own way without the prologue and has played since. Not from the Caverns of Time, where
+    // Timerunners were made until build 64: they wake at the Bazaar first (WrathRemix.cpp), and it
+    // begins there at their next login.
+    bool Wanted(Player* player)
+    {
+        if (!Owed(player))
+            return false;
+        if (AtTheStart(player))
+            return true;
+        return Get(player).chapter == 0 && player->GetTotalPlayedTime() < uint32(HOUR) &&
+            !(player->GetMapId() == MAP_KALIMDOR && player->GetAreaId() == AREA_CAVERNS_OF_TIME);
     }
 
     void Begin(Player* player)
@@ -1373,7 +1415,7 @@ public:
 class RemixIntroPlayer : public PlayerScript
 {
 public:
-    RemixIntroPlayer() : PlayerScript("RemixIntroPlayer", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT, PLAYERHOOK_ON_PLAYER_JUST_DIED }) { }
+    RemixIntroPlayer() : PlayerScript("RemixIntroPlayer", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_BEFORE_LOGOUT, PLAYERHOOK_ON_PLAYER_JUST_DIED }) { }
 
     void OnPlayerLogin(Player* player) override
     {
@@ -1386,15 +1428,36 @@ public:
             Player* p = ObjectAccessor::FindPlayer(guid);
             if (!p || !p->IsInWorld())
                 return;
-            // Dead in Northrend in the prologue (a ghost the opening left in Icecrown, before deaths
-            // in it were undone): alive again, at the Bazaar. (A death knight's prologue is Acherus's.)
-            if (!p->IsAlive() && Get(p).chapter == 0 && p->GetMapId() == MAP_NORTHREND && p->getClass() != CLASS_DEATH_KNIGHT)
+            bool owed = Owed(p);
+            bool begin = Wanted(p);
+            // (the Light's wings, saved with them by the realm's own saves, if a crash cut it short)
+            if (owed)
             {
-                BackFromDeath(p, Place{ MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O });
-                return;
+                p->RemoveAurasDueToSpell(SPELL_AVENGING_WRATH);
+                p->RemoveAurasDueToSpell(SPELL_TIME_STOP_VISUAL);
             }
-            if (Wanted(p))
-                Begin(p);
+            // Dead in the prologue (a ghost the opening left in Icecrown, before deaths in it were
+            // undone): alive again, and into the opening if it's still theirs, else at the Bazaar.
+            // (A death knight's prologue is Acherus's.)
+            if (!p->IsAlive() && Get(p).chapter == 0 && p->getClass() != CLASS_DEATH_KNIGHT)
+            {
+                if (begin)
+                    Revive(p);
+                else if (p->GetMapId() == MAP_NORTHREND)
+                {
+                    BackFromDeath(p, Place{ MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O });
+                    return;
+                }
+            }
+            if (!begin)
+                return;
+            // (one made anywhere but the Bazaar has their hearthstone remember it, as everyone else's does)
+            if (p->m_homebindMapId != MAP_NORTHREND)
+            {
+                WorldLocation bazaar(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+                p->SetHomebind(bazaar, ZONE_CRYSTALSONG);
+            }
+            Begin(p);
         }, 1500ms);
     }
 
@@ -1404,21 +1467,67 @@ public:
         UndoDeath(player);
     }
 
-    // Cut short: the opening goes with them, and they see it again at their next login.
-    void OnPlayerLogout(Player* player) override
+    // Cut short: the opening goes with them, and it begins again from the tavern at their next
+    // login. Before the core saves them (it saves before the logout hook): in Northrend they're
+    // saved at the Bazaar, alive and without its wings; one who left in the tavern, there. (A
+    // teleport while they log out moves nothing but where they're saved: the core saves a
+    // teleport under way at its end. Still in the opening as it goes, so the hourglass doesn't
+    // count where it had them as somewhere they came from.)
+    void OnPlayerBeforeLogout(Player* player) override
     {
         std::shared_ptr<Opening> opening = OpeningOf(player);
         if (!opening)
             return;
         opening->over = true;
-        Despawn(player, *opening);
         player->RemoveAurasDueToSpell(SPELL_AVENGING_WRATH);
-        player->SetPhaseMask(PHASEMASK_NORMAL, false);
-        // (in Northrend they're kept at the Bazaar; one who left in the tavern is kept there, and it
-        // all begins again from the tavern at their next login)
-        if (player->GetMapId() == MAP_NORTHREND)
-            player->Relocate(BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+        player->RemoveAurasDueToSpell(SPELL_TIME_STOP_VISUAL);
+        // (one the core couldn't bring into a map is left where they're saved: the next login
+        // begins it again from anywhere, chapter 0 as they are)
+        if (player->IsInWorld())
+        {
+            Despawn(player, *opening);
+            player->SetPhaseMask(PHASEMASK_NORMAL, false);
+            if (!player->IsAlive())
+                Revive(player);
+            if (player->GetMapId() == MAP_NORTHREND)
+                player->TeleportTo(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+        }
         EndOpening(player);
+    }
+};
+
+// Every new character but a death knight wakes at the Bazaar (wrath_remix_world_0003_prologue.sql),
+// whatever else rewrites playercreateinfo after that file: mod-skyborne's SQL, applied again each
+// time it changes, puts its races' start back in Northshire and at Camp Narache. Set again in the
+// server's own copy as it starts (before anyone can log in; nothing reads it but a character's
+// making and their first hearthstone).
+class RemixIntroWorld : public WorldScript
+{
+public:
+    RemixIntroWorld() : WorldScript("RemixIntroWorld", { WORLDHOOK_ON_STARTUP }) { }
+
+    void OnStartup() override
+    {
+        if (!Active())
+            return;
+        uint32 moved = 0;
+        for (uint32 race = 1; race < RaceMgr::GetMaxRaces(); ++race)
+            for (uint32 cls = 1; cls < MAX_CLASSES; ++cls)
+            {
+                PlayerInfo* info = const_cast<PlayerInfo*>(sObjectMgr->GetPlayerInfo(race, cls));
+                if (!info || cls == CLASS_DEATH_KNIGHT ||
+                    (info->mapId == MAP_NORTHREND && std::hypot(info->positionX - BAZAAR_X, info->positionY - BAZAAR_Y) < 5.0f))
+                    continue;
+                info->mapId = MAP_NORTHREND;
+                info->areaId = ZONE_CRYSTALSONG;
+                info->positionX = BAZAAR_X;
+                info->positionY = BAZAAR_Y;
+                info->positionZ = BAZAAR_Z;
+                info->orientation = BAZAAR_O;
+                ++moved;
+            }
+        if (moved)
+            LOG_INFO("module", "Wrath Remix: {} race and class starts moved to the Infinite Bazaar (playercreateinfo had them elsewhere)", moved);
     }
 };
 
@@ -1427,4 +1536,5 @@ void AddRemixIntroScripts()
     new npc_remix_intro();
     new RemixIntroDamage();
     new RemixIntroPlayer();
+    new RemixIntroWorld();
 }

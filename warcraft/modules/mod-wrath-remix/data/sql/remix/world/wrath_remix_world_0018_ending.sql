@@ -48,7 +48,10 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES (@MORATARI, 77801), (@M
 DELETE FROM `remix_quest_reward` WHERE `quest` IN (77801, 77802);
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES (77801, 5000), (77802, 0);
 
--- The Keepers of Time at the Bazaar, where Eternus stood, once the turn is done.
+-- The Keepers of Time at the Bazaar, where Eternus stood, once the turn is done; for one who never
+-- saw it (a death knight, one the Chronologist sent past it), once Eternus has gone from it all the
+-- same, from The Armies Are in Place, The Last Hour or The Last Necessary Battle
+-- (wrath_remix_world_0011_chapter2.sql), so that the end can be played.
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704300 AND 7704309;
 INSERT INTO `creature` (`guid`, `id`, `map`, `spawnMask`, `phaseMask`, `equipment_id`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (7704300, @ANDORMU, 571, 1, 1, 0, 5701.5, 1024.0, 174.6, 4.71, 60, 0, 0, 'Wrath Remix: Andormu, Bazaar'),
@@ -57,7 +60,15 @@ DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND `SourceId` BET
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 (30, 0, @ANDORMU, 7704300, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Andormu at the Bazaar after The Weight of Time'),
-(30, 0, @NOZARI, 7704301, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Nozari at the Bazaar after The Weight of Time');
+(30, 0, @ANDORMU, 7704300, 1, 47, 0, 77701, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @ANDORMU, 7704300, 2, 47, 0, 77711, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @ANDORMU, 7704300, 3, 47, 0, 77721, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @ANDORMU, 7704300, 4, 47, 0, 77800, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
+(30, 0, @NOZARI, 7704301, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Nozari at the Bazaar after The Weight of Time'),
+(30, 0, @NOZARI, 7704301, 1, 47, 0, 77701, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @NOZARI, 7704301, 2, 47, 0, 77711, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @NOZARI, 7704301, 3, 47, 0, 77721, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @NOZARI, 7704301, 4, 47, 0, 77800, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle');
 
 -- What Sylvanas and Alleria can tell, once the Lich King has fallen (npc_remix_windrunner offers
 -- these as a conversation, one gossip option each, while See You Later or Back to Your Own Time is

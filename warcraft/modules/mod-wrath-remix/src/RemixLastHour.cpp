@@ -10,7 +10,8 @@
  * doors is there with The Last Necessary Battle.
  *
  * Begun as WRM-721 brings the Timerunner to the doors; the Moratari outside the Frozen Halls takes
- * them back to begin again if they died, or went, before it was over.
+ * them back to begin again if they died, went or logged out before it was over. Theirs is on while
+ * their Eternus is there and alive: one the grid took away with it, unwatched, never holds it up.
  */
 
 #include "WrathRemix.h"
@@ -23,11 +24,9 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "TemporarySummon.h"
-#include <functional>
 #include <iterator>
-#include <memory>
 #include <mutex>
-#include <set>
+#include <unordered_map>
 
 using namespace WrathRemix;
 
@@ -89,17 +88,27 @@ namespace
     constexpr uint32 FIGHT_AT = 80000;
 
     std::mutex runningLock;
-    std::set<ObjectGuid> running;  // Timerunners whose last hour is on
+    std::unordered_map<ObjectGuid, ObjectGuid> running;  // Timerunners whose last hour is on, and their Eternus
 
     bool OnTheLastHour(Player* player)
     {
         return player && player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE;
     }
 
-    void Finished(ObjectGuid player)
+    // Whether [eternus] is still [player]'s (a logout ends theirs, and a new one replaces one gone).
+    bool Theirs(ObjectGuid player, ObjectGuid eternus)
     {
         std::lock_guard<std::mutex> lock(runningLock);
-        running.erase(player);
+        auto it = running.find(player);
+        return it != running.end() && it->second == eternus;
+    }
+
+    void Finished(ObjectGuid player, ObjectGuid eternus)
+    {
+        std::lock_guard<std::mutex> lock(runningLock);
+        auto it = running.find(player);
+        if (it != running.end() && it->second == eternus)
+            running.erase(it);
     }
 }
 
@@ -344,15 +353,16 @@ public:
                                     p->UpdateObjectVisibility();
                             }, 25s);
                         }
-                        Finished(timerunner);
+                        Finished(timerunner, me->GetGUID());
                         me->DespawnOrUnsummon(1200ms);
                         break;
                     }
                     case EVENT_WATCH:
                     {
-                        // The Timerunner died, or went: it's over, to be begun again.
+                        // The Timerunner died, went or logged out: it's over, to be begun again.
                         Player* player = Timerunner();
-                        if (!player || !player->IsInWorld() || !player->IsAlive() || player->GetDistance(me) > 100.0f || !OnTheLastHour(player))
+                        if (!player || !player->IsInWorld() || !player->IsAlive() || player->GetDistance(me) > 100.0f || !OnTheLastHour(player)
+                            || !Theirs(timerunner, me->GetGUID()))
                         {
                             for (ObjectGuid const& guid : loyalists)
                                 if (Creature* loyalist = ObjectAccessor::GetCreature(*me, guid))
@@ -360,7 +370,7 @@ public:
                             for (ObjectGuid const& guid : allies)
                                 if (Creature* ally = ObjectAccessor::GetCreature(*me, guid))
                                     ally->DespawnOrUnsummon();
-                            Finished(timerunner);
+                            Finished(timerunner, me->GetGUID());
                             me->DespawnOrUnsummon();
                             return;
                         }
@@ -458,9 +468,17 @@ namespace WrathRemix
         if (!Active() || !OnTheLastHour(player) || IsBot(player))
             return false;
         {
+            // (theirs is on while their Eternus is here and alive, as his watch has it; one gone with
+            // his grid, dead or left far off is over, and his watch, finding he isn't theirs, ends it)
             std::lock_guard<std::mutex> lock(runningLock);
-            if (!running.insert(player->GetGUID()).second)
-                return false;
+            auto it = running.find(player->GetGUID());
+            if (it != running.end())
+            {
+                Creature* eternus = ObjectAccessor::GetCreature(*player, it->second);
+                if (eternus && eternus->IsInWorld() && eternus->IsAlive() && eternus->GetDistance(player) <= 100.0f)
+                    return false;
+                running.erase(it);
+            }
         }
         Record(player, "last hour", NPC_LAST_ETERNUS, 0);
         // Eternus a dozen yards before the Timerunner, facing them; the three at their side.
@@ -469,9 +487,10 @@ namespace WrathRemix
         Creature* eternus = player->SummonCreature(NPC_LAST_ETERNUS, at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(),
             Position::NormalizeOrientation(o + float(M_PI)), TEMPSUMMON_MANUAL_DESPAWN);
         if (!eternus)
-        {
-            Finished(player->GetGUID());
             return false;
+        {
+            std::lock_guard<std::mutex> lock(runningLock);
+            running[player->GetGUID()] = eternus->GetGUID();
         }
         eternus->CastSpell(eternus, 51347, true);
         eternus->AI()->SetGUID(player->GetGUID(), 0);
@@ -492,6 +511,29 @@ namespace WrathRemix
     }
 }
 
+namespace
+{
+    // The last hour once the Timerunner is at the doors (a far journey can keep them on a loading
+    // screen for a while: out of the world, their own events waiting), a check a second, [tries]
+    // times.
+    void BeginWhenThere(Player* player, uint32 map, float x, float y, uint32 tries)
+    {
+        if (!tries)
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid, map, x, y, tries]()
+        {
+            Player* p = ObjectAccessor::FindPlayer(guid);
+            if (!p)
+                return;
+            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == map && p->GetExactDist2d(x, y) < 40.0f)
+                BeginLastHour(p);
+            else
+                BeginWhenThere(p, map, x, y, tries - 1);
+        }, tries == 30 ? 2500ms : 1000ms);
+    }
+}
+
 namespace WrathRemix
 {
     // Back to the doors, to begin it again (the Moratari outside the Frozen Halls).
@@ -503,26 +545,29 @@ namespace WrathRemix
         if (!doors)
             return;
         player->TeleportTo(doors->map, doors->x, doors->y, doors->z, doors->o);
-        ObjectGuid guid = player->GetGUID();
-        float x = doors->x, y = doors->y;
-        auto tries = std::make_shared<uint32>(30);
-        auto wait = std::make_shared<std::function<void()>>();
-        *wait = [guid, x, y, tries, wait]()
-        {
-            Player* p = ObjectAccessor::FindPlayer(guid);
-            if (!p || !(*tries)--)
-                return;
-            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetExactDist2d(x, y) < 40.0f)
-                BeginLastHour(p);
-            else
-                p->m_Events.AddEventAtOffset([wait]() { (*wait)(); }, 1s);
-        };
-        player->m_Events.AddEventAtOffset([wait]() { (*wait)(); }, 2500ms);
+        BeginWhenThere(player, doors->map, doors->x, doors->y, 30);
     }
 }
+
+// A Timerunner's last hour ends as they log out (their Eternus, if his grid keeps him till they're
+// back, sees it at his next look and goes), to be begun again as if they had died.
+class RemixLastHourPlayer : public PlayerScript
+{
+public:
+    RemixLastHourPlayer() : PlayerScript("RemixLastHourPlayer", { PLAYERHOOK_ON_LOGOUT }) { }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (!Active())
+            return;
+        std::lock_guard<std::mutex> lock(runningLock);
+        running.erase(player->GetGUID());
+    }
+};
 
 void AddRemixLastHourScripts()
 {
     new npc_remix_eternus_last_hour();
     new npc_remix_last_hour_ally();
+    new RemixLastHourPlayer();
 }

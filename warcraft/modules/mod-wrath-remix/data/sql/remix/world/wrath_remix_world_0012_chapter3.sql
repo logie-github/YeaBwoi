@@ -9,9 +9,10 @@
 --   WRM-302  both      after Voices From the Dust (12068)         at Drak'Tharon's door, before Cleansing Drak'Tharon
 --   WRM-321  both      after Cleansing Drak'Tharon (12238): to Light's Breach in Zul'Drak, Chapter IV
 --
--- Cleansing Drak'Tharon is turned in to an Image of Drakuru the dungeon summons at its top, where
--- nobody can stand beside it: WRM-321's Moratari is the one at the door, by the Image of Drakuru
--- outside.
+-- Voices From the Dust is turned in to the Image of Drakuru at Drakil'jin Ruins, Cleansing
+-- Drak'Tharon to the one the dungeon summons at its top, where nobody can stand beside it: WRM-302's
+-- and WRM-321's Moratari stands at the keep's door in the Grizzly Hills instead
+-- (wrath_remix_world_0004_spawns.sql), where the Timerunner goes in and the keep puts them out again.
 
 SET @MORATARI := 770001;
 

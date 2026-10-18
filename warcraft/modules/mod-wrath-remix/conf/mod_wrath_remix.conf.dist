@@ -30,6 +30,22 @@ WrathRemix.RealmID = 2
 WrathRemix.LevelBands.Enable = 1
 
 #
+#    WrathRemix.LevelBands.FollowPlayer
+#        Description: As in Legion Remix, enemies at the Timerunner's level: in the banded zones a
+#                     hostile or neutral creature takes the level (and that level's health and
+#                     damage, then the squish) of the real player nearest it, in Wrath's dungeons
+#                     and raids the level of the highest real player there; world bosses up to 3
+#                     above, a dungeon's or raid's bosses up to 2, never above a creature's own
+#                     level. Elites and rares are as strong as their rank makes them. A creature
+#                     changes level, every second and a half within 100 yards of a real player, as
+#                     they level or another comes, only while it's out of combat, alive and at full
+#                     health. Where no real player is near (the realm's bots), the bands. Town
+#                     people, critters, pets and companions keep the bands. Needs LevelBands.Enable.
+#        Default:     1
+
+WrathRemix.LevelBands.FollowPlayer = 1
+
+#
 #    WrathRemix.Squish.Health
 #    WrathRemix.Squish.Damage
 #        Description: The stat squish: a banded creature's share, in percent, of the health and of
@@ -118,10 +134,13 @@ WrathRemix.MaxWeaponSkill = 1
 #    WrathRemix.Bronze.RaidBoss
 #    WrathRemix.Bronze.Treasure
 #    WrathRemix.Bronze.AchievementPoint
-#        Description: Bronze earned for a quest turned in, a creature killed that gives
+#        Description: Bronze earned for a quest turned in (a daily quest a fifth of it, one that
+#                     can be done again at will a tenth), a creature killed that gives
 #                     experience or honor (normal, elite, rare), a dungeon's or raid's boss, a
 #                     treasure chest opened out in the world (the first thing taken from it), and
-#                     each point of an achievement. As in Legion Remix, a lot: by the end of the
+#                     each point of an achievement. A kill's goes to whoever the game rewards for
+#                     it (the one who tapped it, and their group near it), whoever struck the last
+#                     blow; never to the realm's bots. As in Legion Remix, a lot: by the end of the
 #                     story a Timerunner has had enough to buy everything the Bazaar sells their
 #                     class, once or twice over (about 1.3 to 2.2 million, depending on the class;
 #                     Remix's own quests give their own amounts, remix_quest_reward).

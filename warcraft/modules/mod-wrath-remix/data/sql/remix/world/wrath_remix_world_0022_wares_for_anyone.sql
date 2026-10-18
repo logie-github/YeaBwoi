@@ -4,7 +4,9 @@
 -- taught from the first login: WrathRemix.FreeRiding). The wares are the Bronze vendors' lists
 -- (npc_vendor 770301 to 770499, wrath_remix_world_0010_vendors.sql). What each had is kept in
 -- remix_original_ware_requirement; this file comes after the level bands' (0005), which scale some
--- of the same items' levels first.
+-- of the same items' levels first. The files are applied each on its own, as it changes (0005 or
+-- 0010 again without this one would put requirements back), so the module also takes them off
+-- the wares in memory as the realm starts (FreeWares, src/WrathRemix.cpp).
 
 CREATE TABLE IF NOT EXISTS `remix_original_ware_requirement` (
   `entry` INT UNSIGNED NOT NULL,

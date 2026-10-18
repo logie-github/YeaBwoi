@@ -18,6 +18,7 @@ class Creature;
 class CreatureAI;
 class Player;
 class Quest;
+class SpellInfo;
 class Unit;
 struct CreatureTemplate;
 
@@ -83,7 +84,7 @@ namespace WrathRemix
         QUEST_SEE_YOU_LATER    = 77801,     // the end (STORY.md)
         QUEST_BACK_TO_YOUR_OWN_TIME = 77802,
 
-        NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene
+        NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene (each scene's to its own quest alone)
         NPC_LAST_HOUR_CREDIT = 770036,  // WRM-721's, as Eternus retreats
         NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, his loyalists, and the three beside you
         NPC_LAST_CHRONOMANCER = 770062,
@@ -236,8 +237,8 @@ namespace WrathRemix
     std::vector<VendorList> const& VendorLists();
     uint32 QuestBronze(uint32 quest);
 
-    // A level in a band: unchanged far below the zone's own levels, else on the straight line
-    // from the original range to the band's, at most 3 above its top.
+    // A level in a band: unchanged at or below the band's top (critters, the odd visitor), else
+    // on the straight line from the original range to the band's, within 3 of its ends.
     int32 BandedLevel(LevelBand const& band, int32 level);
 
     // The chapter a level belongs to (1 to 7), or 0 below the first.
@@ -309,6 +310,12 @@ namespace WrathRemix
     void LoadMoratari();
     std::string Words(Player* player, std::string text);                    // $N, $R, $C, $G... as a quest's text has them
     void MoratariSays(Player* player, uint32 speaker, std::string const& text);
+    // Her own voice (RemixVoices.cpp, remix_voice): a line of a moment's said to [player] (by
+    // [moratari] when she's near, else whispered), with her voice when the game has it.
+    std::string VoicesFolder();
+    void LoadVoices();
+    bool MoratariVoice(Player* player, std::string const& moment, int32 index = -1, Creature* moratari = nullptr);
+    uint32 MoratariVoiceFor(std::string const& words);                      // the sound of words she has voiced (0: none)
     void MoratariOnQuest(Player* player, uint32 quest, uint8 moment);
     bool IsCompanionSummon();                                               // (while the companion is being summoned)
     uint8 CompanionLevel();
@@ -333,6 +340,7 @@ namespace WrathRemix
     uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
     bool IsLesson(uint32 quest);
     bool TeachesClassOf(Creature* instructor, Player* player);  // the instructor is their class's
+    bool TeachesClassOf(uint32 instructor, Player* player);     // (by the instructor's entry)
 
     // The Bazaar's people talking while a Timerunner is about (RemixBazaar.cpp): the AI the camp's
     // own scripts give them.
@@ -352,6 +360,21 @@ namespace WrathRemix
     float SoloMaxBoost();
     // What the scaling makes of the instance the player is in (.remix solo).
     std::string SoloReport(Player* player);
+
+    // The heal hook's two units (UnitScript::ModifyHealReceived), put right: the core passes them
+    // the wrong way round for a heal that's cast (Unit::HealBySpell, the healer first) and the
+    // right way for a heal over time's tick, which comes through the periodic damage hook first,
+    // with the same amount. A script with both hooks keeps a thread_local HealTick of its own:
+    // MarkHealTick in the periodic hook (true: a heal's tick, to scale in the heal hook only),
+    // HealUnits first thing in the heal hook.
+    struct HealTick
+    {
+        Unit const* target = nullptr;
+        Unit const* caster = nullptr;
+        uint32 const* amount = nullptr;
+    };
+    bool MarkHealTick(HealTick& tick, Unit* target, Unit* caster, uint32 const& amount, SpellInfo const* spell);
+    void HealUnits(HealTick& tick, Unit*& target, Unit*& healer, uint32 const& amount);
 
     // Bronze amounts (WrathRemix.Bronze.*): enough over the story to buy everything the Bazaar sells
     // a class, once or twice over.
