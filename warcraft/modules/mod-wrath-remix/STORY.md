@@ -68,8 +68,9 @@ who believes she is better than the rest.
 - **Chromie** (bronze dragonflight), at Wyrmrest Temple, as the game has her: she is already
   fighting the Infinite there (Mystery of the Infinite). She brought Sylvanas and Alleria.
 - **Andormu and Nozari** (Keepers of Time): arrive at the Bazaar after the turn, with the bronze.
-- At the Bazaar throughout: Alurmi (Bronze trader, sells to anyone), the Bronze vendors, Zephyr's
-  roads, Sa'at's dungeons, the Chronologist, Momentus (Infinite Power), the class instructors.
+- At the Bazaar throughout: Alurmi (Bronze trader, sells to anyone), the Bronze vendors (Legion
+  Remix's Bazaar cast, Horos to Erus), Pageturner Metros, Nedward the barber, Zephyr's roads, Sa'at's
+  dungeons, the Chronologist, Momentus (the weaponmaster), the class instructors.
 
 ## The Infinite Bazaar
 
@@ -84,13 +85,18 @@ Moratari and the Keepers of Time.
 
 It is a camp, not a ring of people (`tools/bazaar.py`): the heart, under a great hourglass, where
 you wake, with Eternus, Moratari and the echoes; the market lane down the west side, a stall for
-each Bronze trader with Alurmi's at its head; the training yard to the south-east, the instructors
-at work among dummies and targets; the waystation to the north-east, Zephyr by a door in time and
-her drake resting, Sa'at at his map table; the chronicle corner to the north, the Chronologist's
-shelves and Momentus's orb; and the campfire to the south, where other Timerunners from your own
-hour sit, eat the cook's stew and talk about home. Porters and wardens make their rounds, whelps
-get underfoot, and while you are near, people talk: to the air, or to each other. While they are
-here, the Bronze dragons and the Infinite wear mortal shapes: elves, orcs, humans, gnomes.
+each Bronze trader with Alurmi's at its head; the north row, the heroic raids' pavilions and the
+apparel stalls, with Nedward's barber's chair at its end; the training yard to the south-east, the
+instructors at work among dummies and targets, Grandmaster Jakkus and Momentus the weaponmaster at
+its edge; the waystation to the north-east, Zephyr by a door in time and her drake resting, Sa'at at
+his map table, Hemet Nesingwary with his mounts; the chronicle corner to the north, the
+Chronologist's shelves, Lidamorrutu's gems and Lindormi's emblems; and the campfire to the south,
+where other Timerunners from your own hour sit, eat the cook's stew and talk about home, and Nostwin
+sells snacks beside Erus's scrap. Pageturner Metros keeps a desk at the heart and knows where
+everyone is. Porters and wardens make their rounds, whelps get underfoot, and while you are near,
+people talk: to the air, or to each other. While they are here, the Bronze dragons and the Infinite
+wear mortal shapes (elves, orcs, humans, gnomes, a pandaren), or come as Legion Remix has its
+traders: the infinite dragonflight's dragonspawn and drakonid, and a whelp.
 
 ## The opening
 
