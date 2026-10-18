@@ -57,7 +57,7 @@ BLUES = {
     23: ("Glacier", 0.58, 0.36, 0.95),
     24: ("Frost", 0.53, 0.25, 1.20),
 }
-DARK_RANGER = (19, ("Dark Ranger", 0.58, 0.05, 0.75))   # the blood elf's new skin: grey, red eyes
+DARK_RANGER = (19, ("Dark Ranger", 0.10, 0.85))   # the blood elf's new skin: its colours' saturation x0.10, lightness x0.85; red eyes
 DARK_RANGER_EYES = (0.0, 1.0, 1.0)
 # Eyes: each face twice, blue (faces 0-9) and yellow (10-19); never the blood elf's green.
 EYES = [("blue", (0.56, 0.80, 1.15)), ("yellow", (0.13, 0.85, 1.20))]
@@ -300,15 +300,15 @@ def main():
         base_skin, base_under = skins[0], under.get(0)
 
         # The blood elf's Dark Ranger skin.
-        dr, (name, h, s, l) = DARK_RANGER
+        dr, (name, s, l) = DARK_RANGER
         t = tex(base_skin)
         section(BLOODELF, sex, 0, [dark_ranger_path(t[0]), "", ""], base_skin[7], 0, dr)
-        texture("skin", (h, s, l) + DARK_RANGER_EYES, t[0], dark_ranger_path(t[0]))
+        texture("grey", (s, l) + DARK_RANGER_EYES, t[0], dark_ranger_path(t[0]))
         if base_under:
             t = tex(base_under)
             section(BLOODELF, sex, 4, [dark_ranger_path(x) if x else "" for x in t], base_under[7], 0, dr)
             for x in t:
-                texture("skin", (h, s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
+                texture("grey", (s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
         for v in range(FACES):
             f = faces.get((v, 0))
             if not f:
@@ -316,7 +316,7 @@ def main():
             t = tex(f)
             section(BLOODELF, sex, 1, [dark_ranger_path(x) if x else "" for x in t], f[7], v, dr)
             for x in t:
-                texture("skin", (h, s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
+                texture("grey", (s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
 
         for race in (ALLIANCE, HORDE):
             # Skins and underwear: the blood elf's own, and the blues.
@@ -684,7 +684,8 @@ def main():
     with open(os.path.join(MODULE, "data", "client", "textures.txt"), "w", newline="\n") as f:
         f.write("# The Skyborne's textures, made from the game's own as the realm starts (tools/build_data.py).\n"
                 "# op<TAB>params<TAB>source<TAB>destination. skin: hue,saturation,lightness[,eye hue,eye saturation,eye lightness]\n"
-                "# (eye hue -1: eyes as they are); eyes: hue,saturation,lightness; hair: hue,saturation,lightness.\n")
+                "# (eye hue -1: eyes as they are); grey: saturation kept,lightness,eye hue,eye saturation,eye lightness;\n"
+                "# eyes: hue,saturation,lightness; hair: hue,saturation,lightness.\n")
         f.write("\n".join(unique) + "\n")
     print(f"{len(new_sections)} looks, {len(unique)} textures, {len(client.files)} tables, {len(spell_rows)} spells")
 

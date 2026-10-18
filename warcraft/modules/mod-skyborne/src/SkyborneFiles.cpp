@@ -402,6 +402,8 @@ namespace Skyborne
                 }
                 case Recipe::EYES:
                     return Eyes(in, in, r);
+                case Recipe::GREY:
+                    return Eyes(in, FromHls(c.h, Clamp(c.l * r.lightness), c.s * r.saturation), r);
                 case Recipe::HAIR:
                 {
                     // The hair is grey with warm streaks and highlights; the jewellery is saturated.
@@ -998,6 +1000,11 @@ namespace Skyborne
         if (op == "skin" && v.size() == 6)
         {
             r = { Recipe::SKIN, v[0], v[1], v[2], v[3], v[4], v[5] };
+            return true;
+        }
+        if (op == "grey" && v.size() == 5)
+        {
+            r = { Recipe::GREY, 0, v[0], v[1], v[2], v[3], v[4] };
             return true;
         }
         if (op == "eyes" && v.size() == 3)

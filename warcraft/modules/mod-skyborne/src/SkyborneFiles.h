@@ -83,11 +83,12 @@ namespace Skyborne
     // "set" a field of the row with an id. Says what went wrong, or nothing.
     std::string ApplyChanges(Dbc& dbc, std::string const& changes);
 
-    // How a texture's colours change (data/client/textures.txt): a skin's (a blue, the Dark
-    // Ranger's grey), a face's eyes, hair.
+    // How a texture's colours change (data/client/textures.txt): a skin's (a blue), a face's eyes,
+    // hair, or every colour's saturation turned down (the Dark Ranger's grey: saturation is the
+    // part kept).
     struct Recipe
     {
-        enum Kind { SKIN, EYES, HAIR } kind;
+        enum Kind { SKIN, EYES, HAIR, GREY } kind;
         double hue = 0, saturation = 0, lightness = 1;          // the skin's or hair's new colour
         double eyeHue = -1, eyeSaturation = 0, eyeLightness = 1; // the eyes' (-1: as they are)
     };
