@@ -108,8 +108,7 @@ CREATE TABLE `remix_talk` (
 INSERT INTO `remix_companion` (`id`, `side`, `zone`, `from_quest`, `until_quest`, `during_quest`, `comment`) VALUES
 (1, 1, 3537, 77014, 77121, 0, 'Chapter I: the Borean Tundra, while the Timerunner finds their feet'),
 (2, 2, 3537, 77015, 77122, 0, 'Chapter I: the Borean Tundra, while the Timerunner finds their feet'),
-(3, 0, 0, 0, 0, 77907, 'An Adventure of Our Own: the afternoon is theirs'),
-(4, 0, 0, 77908, 77802, 0, 'After her tent: everywhere, until they go home');
+(3, 0, 0, 77908, 77802, 0, 'After her tent: everywhere, until they go home');
 
 INSERT INTO `remix_place` (`quest`, `credit`, `map`, `x`, `y`, `radius`, `scene`, `text`) VALUES
 (77042, 770532, 571, 2332.0, 5470.0, 14.0, 101, 'Here. Under the dune. Put your ear to the sand.');
@@ -266,9 +265,9 @@ INSERT INTO `remix_talk` (`id`, `npc`, `parent`, `ord`, `side`, `races`, `gender
 (77044, 770001, 0, 6, 0, 0, 0, 77903, 0, 0, 0, 'I''d love to. Show me this landing.', 0, 0, 5, 3),
 (77045, 770001, 0, 7, 0, 0, 0, 77904, 0, 0, 0, 'Show me.', 0, 0, 5, 4),
 (77046, 770001, 0, 8, 0, 0, 0, 77906, 0, 0, 0, 'I''m ready. Take me flying.', 0, 0, 5, 5),
-(77047, 770001, 0, 9, 0, 0, 0, 77907, 0, 0, 0, 'Lay out the blanket. The crocolisks can wait.', 0, 0, 1, 907),
+(77047, 770001, 0, 9, 0, 0, 0, 77907, 0, 0, 0, 'Lead the way. I''ll carry the basket.', 0, 0, 5, 7),
 (77048, 770001, 0, 10, 0, 0, 0, 77908, 0, 0, 0, 'Take me to your tent.', 0, 0, 5, 6),
-(77049, 770001, 0, 11, 0, 0, 0, 77909, 0, 0, 0, 'Walk with her to the edge of the camp.', 0, 0, 1, 908),
+(77049, 770001, 0, 11, 0, 0, 0, 77909, 0, 0, 0, 'Walk with her to the edge of the camp.', 0, 0, 5, 8),
 (77050, 770001, 0, 12, 0, 0, 0, 77905, 0, 0, 0, 'Sit beside her, and take her hand.', 7702641, 0, 0, 0),
 (77051, 770001, 77050, 1, 0, 0, 0, 77905, 0, 0, 0, 'You''re not a monster. You gave them more time than history ever did.', 7702642, 0, 0, 0),
 (77052, 770001, 77051, 1, 0, 0, 0, 77905, 0, 0, 0, 'From you. I love you, Moratari.', 7702643, 770704, 0, 0),
@@ -282,7 +281,8 @@ INSERT INTO `remix_talk` (`id`, `npc`, `parent`, `ord`, `side`, `races`, `gender
 (77060, 770001, 0, 20, 0, 32, 0, 0, 77902, 0, 0, 'Tell her she looks lovely today.', 7702651, 0, 0, 0),
 (77061, 770001, 0, 21, 0, 128, 0, 0, 77902, 0, 0, 'Tell her she looks lovely today.', 7702652, 0, 0, 0),
 (77062, 770001, 0, 22, 0, 512, 0, 0, 77902, 0, 0, 'Tell her she looks lovely today.', 7702653, 0, 0, 0),
-(77063, 770001, 0, 23, 0, 0, 0, 0, 77903, 0, 0, 'Kiss her.', 0, 0, 1, 909);
+(77063, 770001, 0, 23, 0, 0, 0, 0, 77903, 0, 0, 'Kiss her.', 0, 0, 1, 909),
+(77064, 770001, 0, 24, 0, 0, 0, 0, 0, 77910, 0, 'I''m a time jumper. Let''s just start this romance.', 7702654, 0, 6, 0);
 
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702600 AND 7702999;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
@@ -339,7 +339,8 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (7702650, 'You say that without even breathing. It is a very efficient compliment. I accept it.', 'You say that without even breathing. It is a very efficient compliment. I accept it.', 1),
 (7702651, 'You are a very large and very gentle person, and you say very large and gentle things. Stop it. Do not stop it.', 'You are a very large and very gentle person, and you say very large and gentle things. Stop it. Do not stop it.', 1),
 (7702652, 'Dat''s what ya say to all de dragons, mon? ...I am sorry. I have wanted to try the accent for weeks.', 'Dat''s what ya say to all de dragons, mon? ...I am sorry. I have wanted to try the accent for weeks.', 1),
-(7702653, 'Of course I do. So do you. We are a very good-looking pair, and everyone in the Bazaar is annoyed about it.', 'Of course I do. So do you. We are a very good-looking pair, and everyone in the Bazaar is annoyed about it.', 1);
+(7702653, 'Of course I do. So do you. We are a very good-looking pair, and everyone in the Bazaar is annoyed about it.', 'Of course I do. So do you. We are a very good-looking pair, and everyone in the Bazaar is annoyed about it.', 1),
+(7702654, '<Moratari laughs, a real one, surprised out of her.>$B$BA time jumper. Of course you are. You have read ahead, to the pages with me in them.$B$BVery well. I will not make you wait for the war''s permission. Some of what we do will not have happened yet, for you. Humor me, and pretend it has.', '<Moratari laughs, a real one, surprised out of her.>$B$BA time jumper. Of course you are. You have read ahead, to the pages with me in them.$B$BVery well. I will not make you wait for the war''s permission. Some of what we do will not have happened yet, for you. Humor me, and pretend it has.', 1);
 
 CREATE TABLE IF NOT EXISTS `remix_original_story_npcflag` (
   `entry` INT UNSIGNED NOT NULL,
@@ -357,7 +358,9 @@ INSERT INTO `remix_outing` (`id`, `map`, `x`, `y`, `z`, `o`, `scene`, `private`,
 (3, 571, 5806.00, 444.00, 658.80, 4.450, 903, 0, 0, 1, 0, 0, 0, 'Dinner at Krasus'' Landing, Dalaran'),
 (4, 571, 3528.00, 268.00, 342.80, 2.400, 904, 0, 0, 1, 0, 0, 0, 'Atop Wyrmrest Temple, at night'),
 (5, 571, 5816.00, 447.00, 658.80, 4.450, 905, 0, 0, 1, 310, 252, 25833, 'On her back, from Dalaran to Wyrmrest Temple'),
-(6, 571, 5712.00, 1068.00, 174.60, 4.712, 906, 1, 1, 1, 0, 0, 0, 'Moratari''s tent, the Bazaar');
+(6, 571, 5719.00, 999.00, 174.60, 5.712, 906, 1, 1, 1, 0, 0, 0, 'Moratari''s tent, the Bazaar'),
+(7, 571, 5551.80, 5850.30, -74.60, 2.000, 907, 0, 0, 1, 0, 0, 0, 'An afternoon by the river, Sholazar Basin'),
+(8, 571, 6410.00, 470.00, 511.40, 2.400, 908, 1, 0, 1, 0, 0, 0, 'The edge of the camp, Crusaders'' Pinnacle');
 INSERT INTO `remix_outing_line` (`outing`, `at_ms`, `text`) VALUES
 (5, 4000, 'Lean with me. Not that way. ...There.'),
 (5, 14000, 'The Violet Citadel, behind us. Do not wave. The Kirin Tor take anything that waves for a spell.'),
@@ -615,6 +618,14 @@ DROP TEMPORARY TABLE `remix_story_770722`;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) SELECT 770722, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, 0 FROM `creature_template_model` WHERE `CreatureID` = 31696;
 INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) SELECT 770722, 0, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras` FROM `creature_template_addon` WHERE `entry` = 31696;
 INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`) SELECT 770722, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, 0 FROM `creature_equip_template` WHERE `CreatureID` = 31696;
+-- The crocolisks on the sunny bank of the picnic's river (a scene's, never fought)
+CREATE TEMPORARY TABLE `remix_story_770723` SELECT * FROM `creature_template` WHERE `entry` = 28002;
+UPDATE `remix_story_770723` SET `entry` = 770723, `KillCredit1` = 0, `KillCredit2` = 0, `ScriptName` = '', `AIName` = '', `gossip_menu_id` = 0, `faction` = 35, `unit_flags` = 770, `lootid` = 0;
+INSERT INTO `creature_template` SELECT * FROM `remix_story_770723`;
+DROP TEMPORARY TABLE `remix_story_770723`;
+INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) SELECT 770723, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, 0 FROM `creature_template_model` WHERE `CreatureID` = 28002;
+INSERT INTO `creature_template_addon` (`entry`, `path_id`, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras`) SELECT 770723, 0, `mount`, `bytes1`, `bytes2`, `emote`, `visibilityDistanceType`, `auras` FROM `creature_template_addon` WHERE `entry` = 28002;
+INSERT INTO `creature_equip_template` (`CreatureID`, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, `VerifiedBuild`) SELECT 770723, `ID`, `ItemID1`, `ItemID2`, `ItemID3`, 0 FROM `creature_equip_template` WHERE `CreatureID` = 28002;
 
 DELETE FROM `creature` WHERE `guid` BETWEEN 7704330 AND 7704399;
 DELETE FROM `creature_addon` WHERE `guid` BETWEEN 7704330 AND 7704399;
@@ -731,16 +742,16 @@ INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconNa
 (770104, 5, 6038, 'Lantern', '', '', '', 1.0, '', '', 0),
 (770105, 5, 194, 'Brazier', '', '', '', 1.0, '', '', 0);
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `ScriptName`, `VerifiedBuild`, `Comment`) VALUES
-(7705300, 770100, 571, 0, 0, 1, 32769, 5712.00, 1068.00, 174.50, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: Moratari''s tent, the Bazaar'),
-(7705301, 770101, 571, 0, 0, 1, 32769, 5712.00, 1067.50, 174.52, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s rug'),
-(7705302, 770102, 571, 0, 0, 1, 32769, 5710.80, 1065.40, 174.52, 5.0124, 0, 0, 0.593498, -0.804835, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
-(7705303, 770102, 571, 0, 0, 1, 32769, 5712.90, 1065.20, 174.52, 4.3124, 0, 0, 0.833492, -0.552531, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
-(7705304, 770102, 571, 0, 0, 1, 32769, 5714.30, 1066.40, 174.52, 5.9124, 0, 0, 0.184338, -0.982863, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
-(7705305, 770103, 571, 0, 0, 1, 32769, 5709.40, 1064.60, 174.52, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
-(7705306, 770103, 571, 0, 0, 1, 32769, 5714.40, 1064.40, 174.52, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
-(7705307, 770103, 571, 0, 0, 1, 32769, 5714.80, 1069.80, 174.52, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
-(7705308, 770105, 571, 0, 0, 1, 32769, 5709.20, 1068.60, 174.52, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s brazier'),
-(7705309, 770104, 571, 0, 0, 1, 32769, 5713.60, 1073.80, 174.50, 4.7124, 0, 0, 0.707107, -0.707107, 300, 100, 1, '', 0, 'Wrath Remix: the lamp by her tent''s door');
+(7705300, 770100, 571, 0, 0, 1, 32769, 5719.00, 999.00, 174.50, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: Moratari''s tent, the Bazaar'),
+(7705301, 770101, 571, 0, 0, 1, 32769, 5719.42, 998.73, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s rug'),
+(7705302, 770102, 571, 0, 0, 1, 32769, 5721.32, 996.32, 174.52, 2.8703, 0, 0, 0.990811, 0.135253, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
+(7705303, 770102, 571, 0, 0, 1, 32769, 5722.57, 997.89, 174.52, 2.1703, 0, 0, 0.884363, 0.466800, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
+(7705304, 770102, 571, 0, 0, 1, 32769, 5722.59, 999.78, 174.52, 3.7703, 0, 0, 0.951003, -0.309181, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
+(7705305, 770103, 571, 0, 0, 1, 32769, 5721.24, 994.71, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
+(7705306, 770103, 571, 0, 0, 1, 32769, 5723.89, 998.47, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
+(7705307, 770103, 571, 0, 0, 1, 32769, 5719.00, 1002.33, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
+(7705308, 770105, 571, 0, 0, 1, 32769, 5716.98, 996.97, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s brazier'),
+(7705309, 770104, 571, 0, 0, 1, 32769, 5714.31, 1003.91, 174.50, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: the lamp by her tent''s door');
 
 DELETE FROM `quest_template` WHERE `ID` IN (77041, 77042, 77043, 77044, 77045, 77046, 77047, 77050, 77051, 77054, 77056, 77223, 77236, 77234, 77235, 77048, 77049, 77230, 77901, 77902, 77903, 77904, 77905, 77906, 77907, 77908, 77909);
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77041, 77042, 77043, 77044, 77045, 77046, 77047, 77050, 77051, 77054, 77056, 77223, 77236, 77234, 77235, 77048, 77049, 77230, 77901, 77902, 77903, 77904, 77905, 77906, 77907, 77908, 77909);
@@ -776,7 +787,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77904, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'The View from Wyrmrest', 'Go with Moratari to the top of Wyrmrest Temple at night.', 'You stood on Wyrmrest today among the Accord''s dragons, and none of them looked at you twice. They looked at me. They always do: one of the Infinite, at their own temple. They look at me the way you would look at a wolf in a kennel.$B$BI want to show you something, $N, and I want to show it to you from the top, where the dragons do not go at night. Come with me.', 'Return to Moratari.', 770703, 1, 0, 0, 0, 0, 0, 0, 'The view from Wyrmrest', '', '', '', 0, 0, 0),
 (77905, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'What Eternus Left Out', 'Stay with Moratari a while.', 'I need to sit down. Not here. Somewhere no one from any year can see me.$B$B...He knew, $N. Eternus knew the war had to happen as it did, and he sent us to change it anyway, and he let me believe every life we saved was a life kept. I do not know what I am anymore. A keeper of time who spent a month vandalizing it.$B$BStay with me a while. Please. You do not have to say anything.', 'Return to Moratari.', 770704, 1, 0, 0, 0, 0, 0, 0, 'Moratari comforted', '', '', '', 0, 0, 0),
 (77906, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'On Bronze Wings', 'Fly with Moratari from Dalaran to Wyrmrest Temple, on her back.', 'You have flown on gryphons and wyverns and those dreadful bats, and you have never once flown properly.$B$BI am offering, $N. My back, the sky over Dalaran, and the long way down to Wyrmrest. I have never let anyone ride me. Dragons do not, as a rule; it is considered very forward.$B$BI am considering being very forward.', 'Return to Moratari.', 770705, 1, 0, 0, 0, 0, 0, 0, 'A flight on Moratari''s back', '', '', '', 0, 0, 0),
-(77907, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'An Adventure of Our Own', 'Evict 3 Mangal Crocolisks from the riverbanks of Sholazar Basin, then sit with Moratari by the river.', 'For a month I have walked beside you into somebody else''s story. Today I want one of our own.$B$BThere is a river in Sholazar where the Titans left the water running and forgot to turn it off. There are also crocolisks, who believe the sunny banks are theirs. I have brought a blanket and a basket. Shall we discuss it with them?', 'Return to Moratari.', 28002, 3, 770706, 1, 0, 0, 0, 0, '', 'An afternoon by the river', '', '', 0, 0, 0),
+(77907, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'An Adventure of Our Own', 'Spend an afternoon with Moratari by a river in Sholazar Basin.', 'For a month I have walked beside you into somebody else''s story. Today I want one of our own.$B$BThere is a river in Sholazar where the Titans left the water running and forgot to turn it off. There are also crocolisks, who believe the sunny banks are theirs. I have brought a blanket and a basket. Shall we discuss it with them?', 'Return to Moratari.', 770706, 1, 0, 0, 0, 0, 0, 0, 'An afternoon by the river', '', '', '', 0, 0, 0),
 (77908, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'The Lamp That Is Always Lit', 'Spend the night in Moratari''s tent at the Bazaar.', 'I have a tent at the Bazaar. You have walked past it a hundred times: the one with the lamp that is always lit.$B$BNo one goes in. Not Eternus, not the gnomes who sweep the sand. It is the only place in any year that is only mine.$B$BI would like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.', 'Return to Moratari.', 770707, 1, 0, 0, 0, 0, 0, 0, 'A night in Moratari''s tent', '', '', '', 0, 0, 0),
 (77909, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'Whatever Comes After', 'Walk with Moratari to the edge of the camp, and hear her promise.', 'Icecrown. The end of the war is up that glacier, and after the end you go home, to your own year. I cannot follow, $N. One of my kind who walks out of her own time does not come back, and someone has to keep the river running for you to go home along.$B$BI am not sad. I am... a little sad. Walk with me to the edge of the camp. I want to make you a promise, and I want to make it where the wind can hear.', 'Return to Moratari.', 770708, 1, 0, 0, 0, 0, 0, 0, 'Moratari''s promise', '', '', '', 0, 0, 0);
 INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `NextQuestID`, `ExclusiveGroup`) VALUES
@@ -903,18 +914,27 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (19, 0, 77230, 0, 0, 8, 0, 77054, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77230 in the story'),
 (19, 0, 77901, 0, 0, 8, 0, 11727, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77901 in the story'),
 (19, 0, 77901, 0, 1, 8, 0, 11596, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77901 in the story'),
+(19, 0, 77901, 0, 2, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77901 in the story'),
 (19, 0, 77902, 0, 0, 8, 0, 77043, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77902 in the story'),
 (19, 0, 77902, 0, 1, 8, 0, 77054, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77902 in the story'),
+(19, 0, 77902, 0, 2, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77902 in the story'),
 (19, 0, 77903, 0, 0, 8, 0, 77121, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77903 in the story'),
 (19, 0, 77903, 0, 1, 8, 0, 77122, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77903 in the story'),
+(19, 0, 77903, 0, 2, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77903 in the story'),
 (19, 0, 77904, 0, 0, 8, 0, 77204, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77904 in the story'),
+(19, 0, 77904, 0, 1, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77904 in the story'),
 (19, 0, 77905, 0, 0, 8, 0, 77207, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77905 in the story'),
+(19, 0, 77905, 0, 1, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77905 in the story'),
 (19, 0, 77906, 0, 0, 8, 0, 77301, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77906 in the story'),
 (19, 0, 77906, 0, 1, 8, 0, 77311, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77906 in the story'),
+(19, 0, 77906, 0, 2, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77906 in the story'),
 (19, 0, 77907, 0, 0, 8, 0, 77501, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77907 in the story'),
+(19, 0, 77907, 0, 1, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77907 in the story'),
 (19, 0, 77908, 0, 0, 8, 0, 77601, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77908 in the story'),
+(19, 0, 77908, 0, 1, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77908 in the story'),
 (19, 0, 77909, 0, 0, 8, 0, 77701, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77909 in the story'),
-(19, 0, 77909, 0, 1, 8, 0, 77711, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77909 in the story');
+(19, 0, 77909, 0, 1, 8, 0, 77711, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77909 in the story'),
+(19, 0, 77909, 0, 2, 8, 0, 77910, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77909 in the story');
 
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES (770550, 11599);
 -- The game's quests' texts this file changes, from their originals (kept the first time, and put
@@ -950,6 +970,7 @@ INSERT INTO `quest_offer_reward` (`ID`, `RewardText`, `VerifiedBuild`) VALUES (1
 
 -- Never offered: flags, "rewarded" while they hold (RemixMoratari.cpp): the Timerunner has asked Moratari to
 -- wait, and the others the content files name.
-DELETE FROM `quest_template` WHERE `ID` IN (77040);
+DELETE FROM `quest_template` WHERE `ID` IN (77040, 77910);
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `LogTitle`, `LogDescription`, `QuestDescription`, `VerifiedBuild`) VALUES
-(77040, 2, 1, 1, 0, 0, 'Walking Alone', '', 'Moratari waits at her posts while you walk alone.', 0);
+(77040, 2, 1, 1, 0, 0, 'Walking Alone', '', 'Moratari waits at her posts while you walk alone.', 0),
+(77910, 2, 1, 1, 0, 0, 'A Time Jumper', '', 'You told Moratari you are a time jumper: her story opens without waiting for the war''s.', 0);
