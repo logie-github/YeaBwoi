@@ -3,8 +3,9 @@
 package com.logie.warcrafts.library
 
 /**
- * CD keys in a text file that came with the game (Warcraft III asks for its keys on its first
- * start): what the game menu offers to type. Plain Kotlin, unit-tested.
+ * CD keys in a text file that came with the game, or pasted by the user in Game files (Warcraft III
+ * asks for its keys on its first start): what the game menu offers to type. Plain Kotlin,
+ * unit-tested.
  */
 object CdKeys {
     /** A key with a label for it: the text before it on its line (like "Reign of Chaos:"), if any. */
@@ -31,4 +32,20 @@ object CdKeys {
         }
         return found.distinctBy { it.key }
     }
+
+    /**
+     * Keys the user pasted or typed, line by line: what [find] sees on a line, else a line that is
+     * one run of 16 to 32 letters and digits (a key written without dashes).
+     */
+    fun findPasted(text: String): List<Found> =
+        text.lines().flatMap { line ->
+            find(line).ifEmpty {
+                val bare = line.trim()
+                if (bare.length in 16..32 && bare.all { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }) {
+                    listOf(Found("", bare.uppercase()))
+                } else {
+                    emptyList()
+                }
+            }
+        }.distinctBy { it.key }
 }

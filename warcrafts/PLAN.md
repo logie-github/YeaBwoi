@@ -33,6 +33,9 @@ The user's requirements, what was decided, what's open, and where it stands. The
 
 - After build 3: "I have the install setup exe. The one downloaded from GOG."
 
+- After build 4 (both GOG installers unpacked on the phone, both conversions stopped at "Cannot
+  open … for writing"): "Warcraft 3 needs a CD key", pointing at a key generator site.
+
 ## Decided
 
 - **One app, four looks**: `com.logie.warcrafts`, "Warcraft" (build 1 was `com.logie.warcraftrts`,
@@ -104,6 +107,17 @@ The user's requirements, what was decided, what's open, and where it stands. The
   is found by its files as for a folder. The installer is copied into the app first (innoextract
   needs files beside each other, named as GOG named them), deleted once unpacked; then the usual
   conversion. Old GOG installers with RAR `.bin` parts (before 2015) would need unrar: not bundled.
+- **The tools on Android** (build 5): build 4's first try on the phone showed both installers
+  unpacked (652 MB, 737 MB) and both tools stopping on copying the game's archives into their output
+  (`CAVE1.WAR`, `Support/TOMES/TOME.2`). Stratagus's `stratagus-gameutils.h` cuts a path to its
+  folder with `dirname(x)` alone, counting on glibc's changing `x`; Android's (like macOS's) returns
+  the folder and leaves `x` as it was, so the tools made a folder of the file's own name and couldn't
+  open it. Patch `0002`: the macOS form, `strcpy(x, dirname(x))`, on Android too. It is the tools'
+  only use of it; their other folders are made by `CheckPath`, which doesn't need it.
+- **Warcraft III's CD keys** (build 5): Game files has a CD keys box; what's pasted (one key per
+  line, a label before it optional) is kept in `files/cdkeys.txt`, apart from the game's folder, and
+  the four-finger menu offers it with the keys of a key file that came with the game. The app takes
+  the keys the user pastes; it doesn't fetch or carry any.
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
@@ -128,11 +142,12 @@ The user's requirements, what was decided, what's open, and where it stands. The
 2. **The user's gestures, `com.logie.warcrafts` "Warcraft", the What's needed checklist, Fold 8
    layout and resolutions** — built.
 3. **Warcraft I and II native on Stratagus from the GOG files** — built (build 3).
-4. **GOG's offline installers taken as they are** — built (build 4).
-5. After the user's first try: whatever the phone shows.
+4. **GOG's offline installers taken as they are** — built (build 4); unpacking worked on the phone.
+5. **The tools' fix for Android, Warcraft III's CD keys box** — built (build 5).
+6. After the user's next try: whatever the phone shows.
 
 ## Where it stands
 
-Stage 4: Stratagus, the tools, innoextract and the APK built locally and in CI; unit tests pass.
-Nothing has run on a phone; neither Stratagus nor the tools have been run anywhere (no GOG files
-here, no arm64 Android device); innoextract's PC build unpacked Inno Setup's own installers.
+Stage 5: built locally and in CI; unit tests pass. On the user's phone (build 4): both GOG
+installers unpacked; both conversions stopped (fixed in build 5, not yet run). Stratagus itself
+hasn't run anywhere yet.
