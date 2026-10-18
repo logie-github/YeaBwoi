@@ -131,7 +131,7 @@ WoW: Forever's elves of the wind are playable on both realms, on the blood elf's
 
 - **Skyborne of the High Order** (Alliance) start in Northshire with the Humans: their quests, their standing with Stormwind. Warrior, Hunter, Rogue, Mage, Druid.
 - **Skyborne Windshapers** (Horde) start at Camp Narache with the Tauren: their quests, their standing with Thunder Bluff. Warrior, Hunter, Rogue, Shaman, Druid.
-- **Looks**: the blood elf's skins and six blues; blue or yellow eyes (faces 1-10 blue-eyed, 11-20 yellow-eyed); the blood elf's hair colours and six more (snow white to twilight). Their icon on the character creation screen is the blood elf's, blue with white hair.
+- **Looks**: the blood elf's skins and six light sky blues; blue or yellow eyes (faces 1-10 blue-eyed, 11-20 yellow-eyed); the blood elf's hair colours and nine more (snow white to twilight, and three pinks). Their icon on the character creation screen is the blood elf's, blue with white hair.
 - **Racials** (WoW: Forever's, as of its 15 October beta build): Walk on Air (glide down for 10 sec, 90 sec cooldown), Skysight for the Windshapers (+10% run and mounted speed for 15 min, 2 min cooldown) or Read Ley Line for the High Order (+100% Health and Mana regeneration for 15 min, 2 min cooldown), Wind Blessed (+3% haste) and Elemental Insight (+5% damage to Elementals). (In WoW: Forever the two buffs last 15 minutes only beside a convergence or ley line; here they always do.)
 - **Stats**: Strength -1, Agility +1, Stamina -1, Intellect +1, as WoW: Forever's starting stats have them.
 - **The intro** is their start race's flight over its land, with the Skyborne's own narration.

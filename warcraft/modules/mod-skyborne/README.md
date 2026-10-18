@@ -19,10 +19,10 @@ move to 22 and 23.
 ## What they have
 
 - **Looks**: the blood elf's model, faces, hair styles, voices and names. Skins: the blood elf's ten
-  and six blues (Sky, Azure, Cerulean, Deep, Twilight, Frost: colours 19 to 24). Eyes are blue or
-  yellow, never the blood elf's green: each face comes twice (faces 1-10 blue-eyed, 11-20
-  yellow-eyed). Hair: the blood elf's ten colours and six more (Snow, Sky, Azure, Storm, Teal,
-  Twilight: colours 13 to 18), beards with them.
+  and six light, sky blues (Sky, Azure, Cerulean, Ocean, Glacier, Frost: colours 19 to 24). Eyes
+  are blue or yellow, never the blood elf's green: each face comes twice (faces 1-10 blue-eyed,
+  11-20 yellow-eyed). Hair: the blood elf's thirteen colours and nine more (Snow, Sky, Azure, Storm,
+  Teal, Twilight, and the pinks Pink, Rose, Blossom: colours 13 to 21), beards with them.
 - **Racials**, as WoW: Forever has them since its beta build of 15 October 2026:
   - Walk on Air (both): glide downward for 10 sec; instant, 90 sec cooldown.
   - Skysight (Windshapers): Elemental Blessing, run and mounted speed +10% for 15 min, not stacking
@@ -43,6 +43,10 @@ move to 22 and 23.
 - **Character creation**: their icons are the blood elf's with blue skin, white hair and blue eyes;
   each side's races go down its own column; their background is their start race's.
 - **Blood elves** get a Dark Ranger skin (colour 19: grey skin, red eyes).
+- **HD looks**: the HD blood elf takes its ears, jaw and eyeballs from a second skin texture
+  (`...Skin00_NN_Extra.blp`, the skin row's second texture in CharSections). The patch makes each
+  new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
+  The eye glow is the model's own (pale green, added over the eyes) for every skin.
 
 ## How it's made
 
@@ -55,7 +59,7 @@ move to 22 and 23.
 - As the world server starts (`src/Skyborne.cpp`), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
-  size), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, and the narration. It's
+  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, and the narration. It's
   made again only when the client's archives or the module's files change (the stamp in
   `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.

@@ -14,7 +14,9 @@
 
 #include "SkybornePatch.h"
 #include "SkyborneFiles.h"
+#include <cctype>
 #include <chrono>
+#include <set>
 #include <cstdio>
 #include <sstream>
 
@@ -22,7 +24,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-1";
+        constexpr char const* VERSION = "skyborne-2";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -63,6 +65,36 @@ namespace Skyborne
             if (path.size() < 4)
                 return "";
             return path.substr(0, path.size() - 4) + "_Extra" + path.substr(path.size() - 4);
+        }
+
+        std::string Lower(std::string text)
+        {
+            for (char& c : text)
+                c = char(std::tolower(static_cast<unsigned char>(c)));
+            return text;
+        }
+
+        // HD looks (blood elves' among them) give a skin a second texture, <skin>_Extra.blp, with the
+        // ears, jaw and eyes: CharSections' second texture of the skin's row. The rows put here come
+        // from the server's tables, which haven't it: a skin row without one gets its _Extra where the
+        // game or the patch has it, or the ears and eyes keep another skin's colours.
+        void AddExtraSkins(Dbc& dbc, Game const& game, std::set<std::string> const& made)
+        {
+            if (dbc.fields < 10)
+                return;
+            auto text = [&](uint32_t at) { return at < dbc.strings.size() ? std::string(reinterpret_cast<char const*>(&dbc.strings[at])) : std::string(); };
+            for (size_t row = 0; row < dbc.records.size(); ++row)
+            {
+                if (dbc.Get(row, 3) != 0 || !text(dbc.Get(row, 5)).empty())
+                    continue;
+                std::string skin = text(dbc.Get(row, 4));
+                std::string extra = Extra(skin);
+                if (extra.empty())
+                    continue;
+                Bytes data;
+                if (made.count(Lower(extra)) || game.Read(extra, data))
+                    dbc.Set(row, 5, dbc.String(extra));
+            }
         }
     }
 
@@ -118,28 +150,8 @@ namespace Skyborne
         size_t tables = 0, textures = 0, missing = 0, bad = 0;
         std::vector<std::string> problems;
 
-        // Tables.
-        for (auto it = fs::directory_iterator(moduleData / "dbc", error); !error && it != fs::directory_iterator(); it.increment(error))
-        {
-            std::string name = it->path().stem().string();
-            Bytes data;
-            Dbc dbc;
-            if (!game.Read("DBFilesClient\\" + name + ".dbc", data) || !dbc.Parse(data))
-            {
-                problems.push_back(name + ".dbc isn't in the game");
-                continue;
-            }
-            std::string problem = ApplyChanges(dbc, Text(it->path()));
-            if (!problem.empty())
-            {
-                problems.push_back(name + ".dbc: " + problem);
-                continue;
-            }
-            writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
-            ++tables;
-        }
-
-        // Textures.
+        // Textures (first: the tables name the ones made).
+        std::set<std::string> made;
         std::istringstream recipes(Text(moduleData / "textures.txt"));
         std::string line;
         while (std::getline(recipes, line))
@@ -174,8 +186,32 @@ namespace Skyborne
                     continue;
                 }
                 writer.Add(to, data);
+                made.insert(Lower(to));
                 ++textures;
             }
+        }
+
+        // Tables.
+        for (auto it = fs::directory_iterator(moduleData / "dbc", error); !error && it != fs::directory_iterator(); it.increment(error))
+        {
+            std::string name = it->path().stem().string();
+            Bytes data;
+            Dbc dbc;
+            if (!game.Read("DBFilesClient\\" + name + ".dbc", data) || !dbc.Parse(data))
+            {
+                problems.push_back(name + ".dbc isn't in the game");
+                continue;
+            }
+            std::string problem = ApplyChanges(dbc, Text(it->path()));
+            if (!problem.empty())
+            {
+                problems.push_back(name + ".dbc: " + problem);
+                continue;
+            }
+            if (Lower(name) == "charsections")
+                AddExtraSkins(dbc, game, made);
+            writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
+            ++tables;
         }
 
         // The character creation screen: the race icons, the screen's own file list with theirs.

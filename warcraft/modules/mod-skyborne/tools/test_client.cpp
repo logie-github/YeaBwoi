@@ -60,7 +60,10 @@ int main(int argc, char** argv)
 
     Dbc sections;
     Check(patch->Read("DBFilesClient\\CharSections.dbc", bytes) && sections.Parse(bytes), "CharSections.dbc is in it");
-    int looks = 0, leftover = 0, darkRanger = 0;
+    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0;
+    Game hd(data, { "patch-z.mpq", "patch-y.mpq" });
+    Bytes probe;
+    bool hasExtra = hd.Read("Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", probe);
     for (size_t i = 0; i < sections.records.size(); ++i)
     {
         uint32_t race = sections.Get(i, 1), base = sections.Get(i, 3), color = sections.Get(i, 9);
@@ -72,7 +75,18 @@ int main(int argc, char** argv)
         }
         if (race == 10 && base == 0 && color == 19)
             ++darkRanger;
+        if ((race == 13 || race == 14 || (race == 10 && color == 19)) && base == 0)
+        {
+            ++skins;
+            uint32_t at = sections.Get(i, 5);
+            std::string second = at < sections.strings.size() ? reinterpret_cast<char const*>(&sections.strings[at]) : "";
+            if (!second.empty() && patch->Read(second, probe) == (second.find("Skyborne") != std::string::npos || color == 19))
+                ++withExtra;
+        }
     }
+    // HD looks: a skin's ears, jaw and eyes are its _Extra texture; theirs too (made, or the blood elf's).
+    if (hasExtra)
+        Check(withExtra == skins, "every skin has its _Extra texture (" + std::to_string(withExtra) + " of " + std::to_string(skins) + ")");
     Check(looks > 2000, "the Skyborne's looks (" + std::to_string(looks) + ")");
     Check(leftover == 0, "no Naga or Broken looks left on races 13 and 14");
     Check(darkRanger == 2, "the blood elf's Dark Ranger skin, both sexes");
@@ -103,6 +117,9 @@ int main(int argc, char** argv)
         { "Character\\BloodElf\\Female\\BloodElfFemaleNakedTorsoSkin00_00.blp", "Character\\Skyborne\\Female\\SkyborneFemaleNakedTorsoSkin00_20.blp" },
         { "Character\\BloodElf\\Hair00_01.blp", "Character\\Skyborne\\Hair00_16.blp" },
         { "Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_00.blp", "Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_19.blp" },
+        { "Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", "Character\\BloodElf\\Female\\BloodElfFemaleSkin00_19_Extra.blp" },
+        { "Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", "Character\\Skyborne\\Female\\SkyborneFemaleSkin00_20_Extra.blp" },
+        { "Character\\BloodElf\\Hair00_01.blp", "Character\\Skyborne\\Hair00_19.blp" },
     };
     for (auto const& p : pairs)
     {
