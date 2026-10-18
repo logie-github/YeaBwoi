@@ -51,6 +51,11 @@ the app hasn't been run on them, nor on GOG's installers, here (innoextract was 
 After a Warcraft III import, **Game files** shows the program that starts it (you can pick
 another) and what it's started with.
 
+**Fullscreen**: every game fills the screen. Warcraft I and II run Stratagus fullscreen (`-F`);
+Warcraft III starts with `-windowmode fullscreen -nativefullscr` (1.31's and 1.30's words for it)
+at the screen's size. Arguments typed in Game files that set a window mode (`-window`,
+`-fullscreen` for windowed fullscreen, `-windowmode …`) take its place.
+
 ## First launch
 
 1. Install the APK from the release page, open the app.
@@ -99,7 +104,7 @@ phone works as on a PC.
   started with, **Private** (on: Blizzard's servers are out of reach for every game), and deleting
   the game's files.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
-  Warcraft III draws (Direct3D, or OpenGL with `-graphicsapi OpenGL2` if the picture is wrong) and
+  Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong) and
   the hold's vibration.
 - **In the game** (four fingers): back to the game, keyboard, chat or cheat code, the CD keys
   (pasted in Game files or in a key file that came with the game), leave the game. Save in the game first (two-finger tap, the game's menu):

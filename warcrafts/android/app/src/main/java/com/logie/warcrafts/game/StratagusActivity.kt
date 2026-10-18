@@ -27,8 +27,11 @@ class StratagusActivity : SDLActivity() {
     /** SDL is linked into libmain.so (scripts/build-stratagus.sh). */
     override fun getLibraries(): Array<String> = arrayOf("main")
 
-    /** Stratagus plays the game whose data is in the folder after -d. */
-    override fun getArguments(): Array<String> = arrayOf("-d", intent.getStringExtra(EXTRA_DATA) ?: "")
+    /**
+     * Stratagus plays the game whose data is in the folder after -d, full screen (-F: over the
+     * game's own preference, windowed in Wargus, which on Android leaves the phone's bars showing).
+     */
+    override fun getArguments(): Array<String> = arrayOf("-F", "-d", intent.getStringExtra(EXTRA_DATA) ?: "")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
