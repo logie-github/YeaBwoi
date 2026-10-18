@@ -13,6 +13,8 @@
 #include <cstdlib>
 #include <filesystem>
 
+void AddSkyborneGogglesScripts();
+
 namespace fs = std::filesystem;
 
 class SkyborneWorld : public WorldScript
@@ -48,4 +50,5 @@ public:
 void AddSkyborneScripts()
 {
     new SkyborneWorld();
+    AddSkyborneGogglesScripts();
 }

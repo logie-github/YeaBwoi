@@ -87,7 +87,7 @@ ID_SEQUENCE = {ALLIANCE: 9001, HORDE: 9002}
 ID_CAMERA = {ALLIANCE: 9001, HORDE: 9002}
 ID_SOUND = 900001
 SPELLS = {"walk": 98701, "skysight": 98702, "leyline": 98703, "wind": 98704, "insight": 98705,
-          "blessing": 98706, "energized": 98707}
+          "blessing": 98706, "energized": 98707, "goggles": 98708}
 
 
 class Dbc:
@@ -587,6 +587,10 @@ def main():
         spell(20557, SPELLS["insight"], "Elemental Insight", "Racial Passive",
               "Damage dealt to Elementals increased by 5%.", "",
               SpellIconID=2017, EffectMiscValue_1=1 << (4 - 1)),
+        spell(130, SPELLS["goggles"], "X-ray Goggles", "",
+              "All female characters in the world show no worn gear for $d.", "All female characters show no worn gear.",
+              SpellIconID=2590, EffectAura_1=4, EffectBasePoints_1=0, EffectDieSides_1=1, SpellVisualID_1=0,
+              Effect_2=0, EffectAura_2=0, EffectBasePoints_2=0, EffectDieSides_2=0, ImplicitTargetA_2=0, **aura),
     ]
     sql.comment("Their racials: Walk on Air, Skysight (Windshapers, with Elemental Blessing), Read Ley Line (High Order,\n"
                 "with Energized), Wind Blessed, Elemental Insight.")
