@@ -51,7 +51,8 @@ class ServerService : Service() {
     override fun onCreate() {
         super.onCreate()
         listening = RealmLink.listen(this)
-        RealmLink.publish(Server.status.value)
+        // (no status yet: a new process's would say stopped before it takes the start it was made
+        // for, and the app would take that for the server stopping; onStartCommand says how it is)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

@@ -4,6 +4,7 @@ package com.logie.warcraft
 
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.logie.warcraft.config.ConfFile
 import com.logie.warcraft.logs.ConsoleText
@@ -103,6 +104,7 @@ object Server {
         // Starting already, so the service doesn't see the server stopped and end itself.
         update { Status(phase = Phase.STARTING, lanAddress = lanAddress, realm = chosen) }
         if (!RealmLink.inRealm) {
+            startAsked = SystemClock.elapsedRealtime()
             RealmLink.start(app, chosen)
             return
         }
@@ -114,6 +116,7 @@ object Server {
     fun stop(context: Context, then: (() -> Unit)? = null) {
         val app = context.applicationContext
         if (!RealmLink.inRealm) {
+            startAsked = 0L
             RealmLink.stop(app)
             if (then != null) scope.launch { awaitDown(); then() }
             return
@@ -130,6 +133,7 @@ object Server {
     suspend fun stopAndWait(context: Context) {
         val app = context.applicationContext
         if (!RealmLink.inRealm) {
+            startAsked = 0L
             RealmLink.stop(app)
             awaitDown()
             return
@@ -155,8 +159,28 @@ object Server {
         RealmLink.publish(_status.value)
     }
 
+    /**
+     * The app's process: when it last asked the realm's process to start the server, until that
+     * process says how the start goes. A status of stopped sent before it took the start (a new
+     * realm process says how it is as it begins) doesn't end it; one still so a while later does.
+     */
+    @Volatile private var startAsked = 0L
+    private const val START_TAKEN_MS = 15_000L
+
     /** The app's process: the realm's status, as its process sent it. */
     internal fun mirror(status: Status) {
+        val asked = startAsked
+        if (asked != 0L) {
+            val waited = SystemClock.elapsedRealtime() - asked
+            if (status.phase == Phase.STOPPED && waited < START_TAKEN_MS) {
+                scope.launch {
+                    delay(START_TAKEN_MS - waited)
+                    if (startAsked == asked) mirror(status)
+                }
+                return
+            }
+            startAsked = 0L
+        }
         _status.value = status
     }
 
