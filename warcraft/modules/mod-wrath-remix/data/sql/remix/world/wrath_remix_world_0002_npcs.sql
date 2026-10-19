@@ -231,7 +231,7 @@ INSERT INTO `creature_template_spell` (`CreatureID`, `Index`, `Spell`, `Verified
 (@LAST_EXECUTIONER, 1, 52771, 0);     -- Wounding Strike
 
 -- What each of them says when spoken to (the module picks the text).
-DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702001 AND 7702199;
+DELETE FROM `npc_text` WHERE `ID` BETWEEN 7702001 AND 7702099;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 -- Moratari: before the first quest is done, as you wake; after; on where you are in history.
 (7702001, 'Steady. That passes. Time is hard on a body the first time it is pulled through.$B$BYour friends are still at that table, in your own hour, mid-toast; no one there has missed you, and no one will. Here, it is the year the war began, and none of what I showed you has happened yet.$B$BI am Moratari. Eternus sent me for you, and she will tell you why herself: she is just there.',

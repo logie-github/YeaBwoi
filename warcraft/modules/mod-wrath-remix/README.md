@@ -121,7 +121,8 @@ points (`quest_poi`) show once a quest is in the log. A click starts WRM-061 (br
 runes: game objects clickable only while it's in the log), WRM-062 (the Runesmith's Tally, 77020,
 used within 12 yards of the Great Hourglass), WRM-063 (/kneel within 8 yards of the coffer), whose
 reward, Plate of the Unrisen (77019), holds the nine pieces. Afterwards the coffer gives back a
-piece the Timerunner has nowhere (bags, bank, worn) while that container isn't about.
+piece the Timerunner has nowhere (bags, bank, worn) while that container isn't about. The way home
+leaves it all at the Bazaar, as it does Bronze (`RemixEnding.cpp`): ChromieCraft has no such items.
 
 The pieces (77010 to 77018) are heirlooms (quality 7, bind to account, level 1 to 80) of armour
 subclass Miscellaneous: any class wears them (the core asks a skill only of cloth to shield; their

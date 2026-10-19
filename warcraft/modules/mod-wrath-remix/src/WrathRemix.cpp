@@ -1094,7 +1094,7 @@ namespace WrathRemix
     // asks the realm for an item's requirements, so its tooltips say the same.
     static void FreeWares()
     {
-        constexpr uint32 WARES_FIRST = 770301, WARES_LAST = 770499;   // the lists' vendor templates
+        constexpr uint32 WARES_FIRST = 770301, WARES_LAST = 770399;   // the lists' vendor templates
         uint32 freed = 0;
         for (uint32 list = WARES_FIRST; list <= WARES_LAST; ++list)
         {
