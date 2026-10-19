@@ -47,7 +47,7 @@ object FelsongClient {
 
     /**
      * The files a copy of the client must have for the game and the server's data tools: the
-     * program, the launcher's record and the CASC storage (`Data/data/*.idx`, `Data/data/data.NNN`).
+     * program, the launcher's record and the CASC storage (the `.idx` files and `data.NNN` under `Data/data`).
      */
     fun missing(paths: List<String>, root: String): List<String> {
         val prefix = if (root.isEmpty()) "" else "$root/"
