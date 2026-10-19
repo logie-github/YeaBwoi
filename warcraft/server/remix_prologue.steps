@@ -16,10 +16,16 @@ expect chapter 0 (the prologue)
 wait 8
 cmd .gps
 expect Stormwind City
-# (in their chair at the table with their friends, between the toasts)
-wait 14
+# (in their chair at the table with their friends, between the toasts: the curtain lifts about 4 s
+# after the login and the talk starts 2.5 s later; they stand for the toast at +9 s and sit again
+# at +16 s, until the next toast at +44 s)
+wait 21
 cmd .remix intro status
 expect seated
+# (the curtain was drawn three times, the login's, the way to the tavern's and the arrival's, and
+# this client answered each: the realm heard "settled" three times)
+cmd .remix intro status
+expect settled 3
 until I'm sorry, hero. I need you. 100
 wait 14
 cmd .gps

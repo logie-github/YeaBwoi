@@ -1743,9 +1743,9 @@ public:
             handler->SendSysMessage("Wrath Remix intro: skipped.");
         }
         else if (what && *what == "status")
-            handler->PSendSysMessage("Wrath Remix intro: {}, {}, {}, at {:.1f} {:.1f} {:.1f} on map {}.", InIntro(player) ? "in it" : "not in it",
+            handler->PSendSysMessage("Wrath Remix intro: {}, {}, {}, at {:.1f} {:.1f} {:.1f} on map {}; {}.", InIntro(player) ? "in it" : "not in it",
                 player->IsAlive() ? "alive" : "dead", player->IsSitState() ? "seated" : "standing", player->GetPositionX(), player->GetPositionY(),
-                player->GetPositionZ(), player->GetMapId());
+                player->GetPositionZ(), player->GetMapId(), CurtainStatus(player));
         else if (what && *what == "fall")
         {
             // What the core does to whoever falls under the world (MovementHandler.cpp).

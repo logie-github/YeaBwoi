@@ -59,8 +59,8 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <chrono>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 using namespace WrathRemix;
@@ -223,13 +223,25 @@ namespace
 
     // ---- The curtain ----------------------------------------------------------------------------
 
+    // Each player's curtains: how many were drawn and how many times their game said its frames run
+    // smoothly since the last one (`.remix intro status` tells, for the test and for a phone that
+    // seems to wait the whole SettleSeconds).
+    struct Curtains
+    {
+        uint32 drawn = 0;
+        uint32 settles = 0;
+        bool settled = false;                   // since the last curtain
+        std::chrono::steady_clock::time_point drawnAt;
+        std::chrono::steady_clock::time_point settledAt;
+    };
     std::mutex settledLock;
-    std::unordered_set<ObjectGuid> settled;   // whose game has said its frames run smoothly, since their last curtain
+    std::unordered_map<ObjectGuid, Curtains> curtains;
 
     bool HasSettled(ObjectGuid guid)
     {
         std::lock_guard<std::mutex> lock(settledLock);
-        return settled.count(guid) > 0;
+        auto it = curtains.find(guid);
+        return it != curtains.end() && it->second.settled;
     }
 
     // Dark at once, [caption] on it; the add-on starts watching its frames afresh.
@@ -237,7 +249,10 @@ namespace
     {
         {
             std::lock_guard<std::mutex> lock(settledLock);
-            settled.erase(player->GetGUID());
+            Curtains& c = curtains[player->GetGUID()];
+            ++c.drawn;
+            c.settled = false;
+            c.drawnAt = std::chrono::steady_clock::now();
         }
         TellAddon(player, Acore::StringFormat("curtain {} {}", CURTAIN_MS, caption));
     }
@@ -1551,7 +1566,31 @@ void WrathRemix::ClientSettled(Player* player)
     if (!player)
         return;
     std::lock_guard<std::mutex> lock(settledLock);
-    settled.insert(player->GetGUID());
+    Curtains& c = curtains[player->GetGUID()];
+    ++c.settles;
+    c.settled = true;
+    c.settledAt = std::chrono::steady_clock::now();
+}
+
+std::string WrathRemix::CurtainStatus(Player* player)
+{
+    if (!player)
+        return "no curtain";
+    std::lock_guard<std::mutex> lock(settledLock);
+    auto it = curtains.find(player->GetGUID());
+    if (it == curtains.end() || it->second.drawn == 0)
+        return "no curtain yet";
+    Curtains const& c = it->second;
+    auto ago = [](std::chrono::steady_clock::time_point at)
+    {
+        return std::chrono::duration<float>(std::chrono::steady_clock::now() - at).count();
+    };
+    std::string text = Acore::StringFormat("curtain {} ({:.1f} s ago)", c.drawn, ago(c.drawnAt));
+    if (c.settles)
+        text += Acore::StringFormat(", settled {} ({:.1f} s ago{})", c.settles, ago(c.settledAt), c.settled ? "" : ", before the curtain");
+    else
+        text += ", never settled";
+    return text;
 }
 
 // Where a journey goes, as the curtain says it: the Bazaar by name; a dungeon or a raid by its

@@ -331,10 +331,13 @@ namespace WrathRemix
         return true;
     }
 
+    // (By guid, not by the player: the builder marks a game master's own words as a game master's
+    // chat, another packet (SMSG_GM_MESSAGECHAT), which the test client didn't read; the add-on's word
+    // is a plain whisper to the player themself whoever they are.)
     void TellAddon(Player* player, std::string const& message)
     {
         WorldPacket data;
-        ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, player, player, "WowRemix\t" + message);
+        ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, player->GetGUID(), player->GetGUID(), "WowRemix\t" + message, 0);
         player->SendDirectMessage(&data);
     }
 
