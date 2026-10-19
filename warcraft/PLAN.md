@@ -1223,7 +1223,8 @@ for the game on the phone itself ("that's the whole point").
   - CI's run 120 (before the move) played both campaigns through for the first time since build 108
     and failed only at ChromieCraft taking the Timerunners in: the test asked before its queued
     writes landed (now it waits).
-  - Being built alongside: the hidden death knight set and its quests (WRM-061 to 063).
+  - The hidden death knight set (`0031_vile_hold_set`): nine heirloom pieces any class wears, in a Scourge
+    coffer on the south terrace, WRM-061 to 063. Compiled, SQL loaded; not yet run in the realm or seen.
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
