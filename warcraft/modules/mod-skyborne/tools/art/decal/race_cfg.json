@@ -28,6 +28,7 @@
   "lines_fold": 0.2, "lines_lift": 0.5, "lines_lift_w": 9, "lines_lift_top": 45, "lines_ref": [258, 218, 276, 228],
   "lines_tone_k": [[0, 0.7], [40, 0.85], [85, 0.95]], "lines_fill": 4, "lines_fill_u0": 256, "hair_scale_4": 1.06,
   "hair_scale_y_4": 0.95, "l4_len": 0.9, "l4_turn": 1.0, "l4_stray": 0.02, "density": {"4": 1.6}},
- "Tauren": {"lines_scale": 1.5, "lines_width": 1.7, "lines_shift": 4, "lines_depth": 0.8, "lines_fold": 0.15, "lines_lift": 0,
-  "lines_fill": 4, "lines_fill_u0": 256, "lines_core": [1.0, 0.62, 0.66], "lines_core_w": 5.5, "lines_slot_w": 1.5}
+ "Tauren": {"lines_scale": 1.5, "lines_width": 1.7, "lines_shift": 4, "lines_depth": 0.7, "lines_fold": 0.15, "lines_lift": 0,
+  "lines_fill": 4, "lines_fill_u0": 256, "lines_core": [1.0, 0.6, 0.64], "lines_core_w": 6.0, "lines_slot_w": 0.9,
+  "lines_core_k": 0.95, "lines_slot_k": 0.75}
 }
