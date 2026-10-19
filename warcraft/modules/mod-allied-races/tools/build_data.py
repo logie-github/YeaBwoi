@@ -571,6 +571,9 @@ def main():
             f"INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, "
             f"`ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES\n"
             f"({SPELLS['entropic']}, 0, 0, 0, 0, 0, 0x55554, 0, 2, 0, 0, 0, 0, 10, 30000, 0);")
+    sql.raw(f"DELETE FROM `spell_script_names` WHERE `spell_id` IN ({SPELLS['rift']}, {SPELLS['rift_open']});\n"
+            f"INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES ({SPELLS['rift']}, 'spell_allied_spatial_rift'), "
+            f"({SPELLS['rift_open']}, 'spell_allied_spatial_rift_open');")
     sql.comment("Spatial Rift's rift: a creature that stands where the rift is torn (AlliedRacesSpells.cpp).")
     sql.raw(f"DELETE FROM `creature_template` WHERE `entry` = {NPC_RIFT};\n"
             f"INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `unit_flags`, `type`, `type_flags`, "
