@@ -477,17 +477,22 @@ def run_script(session, player_guid, steps):
     windows = {}
     transcript = []
 
-    def creature_guid(entry, near=False):
-        """The nearest creature of [entry], as the realm names it ([near]: and how far it is)."""
-        say(session, f".remix guid {entry}")
-        packets = []
-        session.pump(1.5, packets)
-        note(packets)
-        for line in system_messages(packets):
-            words = line.split()
-            if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
-                return (int(words[4]), float(words[6])) if near else int(words[4])
-        raise RuntimeError(f"no creature {entry} near the character")
+    def creature_guid(entry, near=False, patience=10.0):
+        """The nearest creature of [entry], as the realm names it ([near]: and how far it is). One
+        not there yet is asked for again, [patience] seconds at most: Moratari as the companion
+        comes on the realm's next second after the character arrives, later when the realm is slow."""
+        end = time.time() + patience
+        while True:
+            say(session, f".remix guid {entry}")
+            packets = []
+            session.pump(1.5, packets)
+            note(packets)
+            for line in system_messages(packets):
+                words = line.split()
+                if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
+                    return (int(words[4]), float(words[6])) if near else int(words[4])
+            if time.time() >= end:
+                raise RuntimeError(f"no creature {entry} near the character")
 
     def within_reach(entry):
         """The nearest creature of [entry], called over if it's beyond talking distance (where a
@@ -637,7 +642,7 @@ def run_script(session, player_guid, steps):
             # would, rather than waited for)
             for attempt in range(6):
                 try:
-                    target, yards = creature_guid(int(rest), near=True)
+                    target, yards = creature_guid(int(rest), near=True, patience=0)
                     break
                 except RuntimeError:
                     if attempt == 5:
