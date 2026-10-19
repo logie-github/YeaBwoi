@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Warcraft</string>
+
+    <string name="rts_title_wc1">Warcraft: Orcs &amp; Humans</string>
+    <string name="rts_title_wc2">Warcraft II: Battle.net Edition</string>
+    <string name="rts_title_roc">Warcraft III: Reign of Chaos</string>
+    <string name="rts_title_tft">Warcraft III: The Frozen Throne</string>
+    <string name="rts_install_wc3">Warcraft III</string>
+    <string name="rts_install_wc1">Warcraft I</string>
+    <string name="rts_install_wc2">Warcraft II</string>
+
+    <!-- Launcher -->
+    <string name="rts_press_start">Press start</string>
+    <string name="rts_games_chip">Games</string>
+    <string name="rts_home_menu">Menu</string>
+    <string name="rts_home_no_game">%1$s isn\'t ready yet: the list below says exactly what\'s missing.</string>
+    <string name="rts_home_add_files">Add game files</string>
+    <string name="rts_tile_files">Game files</string>
+    <string name="rts_tile_files_ready">In and ready</string>
+    <string name="rts_tile_files_none">Not added yet</string>
+    <string name="rts_tile_games">Games</string>
+    <string name="rts_tile_graphics">Graphics</string>
+    <string name="rts_tile_graphics_summary">%1$s · %2$d×%3$d</string>
+    <string name="rts_tile_controls">Controls</string>
+    <string name="rts_tile_controls_summary">Swipe pans · tap right-clicks · hold left-clicks</string>
+    <string name="rts_tile_updates">Updates</string>
+    <string name="rts_tile_updates_summary">Version %1$s</string>
+    <string name="rts_version">Warcraft %1$s · offline, no Battle.net · Warcraft I and II by Stratagus</string>
+    <string name="rts_close">Close</string>
+
+    <string name="rts_games_title">Games</string>
+    <string name="rts_games_ready">Files in: ready to play</string>
+    <string name="rts_games_missing">No files yet</string>
+    <string name="rts_games_wc3_note">Reign of Chaos and The Frozen Throne are one Warcraft III install: its files serve both. Which of the two the game opens is chosen in its own main menu, and it remembers.</string>
+
+    <!-- What's needed -->
+    <string name="rts_needs_title">What\'s needed</string>
+    <string name="rts_needs_title_ready">Everything is in</string>
+    <string name="rts_needs_where_wc3">From your PC: the Warcraft III 1.30 folder (the repack\'s folder as it unzips, about 1.8 GB), or its zip as it is. Copy it to the phone\'s Downloads, then Game files → Pick folder or Pick zip. These must be in it:</string>
+    <string name="rts_needs_where_wc1">From GOG: the offline installer of Warcraft: Orcs &amp; Humans (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_….exe, and every setup_warcraft_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
+    <string name="rts_needs_where_wc2">From GOG: the offline installer of Warcraft II: Battle.net Edition (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_ii_….exe, and every setup_warcraft_ii_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
+    <string name="rts_need_war_data">The game\'s data</string>
+    <string name="rts_need_war_data_note">The DATA folder with DATA.WAR and the other .WAR files (maps, units, sounds, the cutscenes\' pictures).</string>
+    <string name="rts_need_tomes">The game\'s data</string>
+    <string name="rts_need_tomes_note">The four tomes in Support\\TOMES: maps, units, graphics.</string>
+    <string name="rts_need_install_mpq">Sounds and speech</string>
+    <string name="rts_need_install_mpq_note">Install.mpq, beside the game\'s program (about 490 MB).</string>
+    <string name="rts_need_converted">Converted for the phone</string>
+    <string name="rts_need_converted_note">The app does this itself once the files above are in, in a few minutes. Game files → Convert again redoes it.</string>
+    <string name="rts_need_program">The game\'s program</string>
+    <string name="rts_need_program_note">What starts the game. Game files can point at another .exe if yours is elsewhere.</string>
+    <string name="rts_need_data">The game\'s data</string>
+    <string name="rts_need_data_note">The Data folder, with the data, indices and config folders inside it: maps, units, sound and video.</string>
+    <string name="rts_need_build_info">The data\'s version</string>
+    <string name="rts_need_build_info_note">.build.info, a hidden file beside Data. On Windows, turn on View → Hidden items to see it; copying the whole folder takes it along.</string>
+    <string name="rts_need_maps">Skirmish and custom maps (optional)</string>
+    <string name="rts_need_maps_note">The Maps folder. The campaigns are in the game\'s data and don\'t need it; skirmish and custom games do.</string>
+    <string name="rts_need_keys">CD keys (optional here)</string>
+    <string name="rts_need_keys_note">Reign of Chaos and The Frozen Throne keys, asked at the first start: in a key file that came with the game (the repack\'s _SERIAL_KEYS.txt), or your own pasted in Game files → CD keys. The four-finger menu types them into the game.</string>
+    <string name="rts_needs_space_native">Room: the installer, about as much again while it\'s unpacked, and the converted data. Free now: %1$s.</string>
+    <string name="rts_needs_space">Room: the game\'s size, plus about 1.5 GB for the games\' Windows the first time. Free now: %1$s.</string>
+    <string name="rts_needs_native">Played natively on the phone by Stratagus (War1gus, Wargus): an open-source engine that plays the game from your files, campaigns and skirmishes, the original art and sounds. The intro videos are left out, and Warcraft II\'s music (converting those needs a tool phones don\'t have).</string>
+
+    <!-- Conversion (Warcraft I and II) -->
+    <string name="rts_stopped_title">%1$s stopped</string>
+    <string name="rts_stopped_title_app">The app stopped</string>
+    <string name="rts_stopped_text">It ended by itself. This is what it said last (and Android\'s log for it): copy it and send it, so it can be fixed.</string>
+    <string name="rts_stopped_copy">Copy</string>
+    <string name="rts_convert_title">Converting %1$s for the phone</string>
+    <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
+    <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>
+    <string name="rts_installer_missing_parts">The installer\'s .bin file wasn\'t picked: pick the setup .exe and every .bin file that came with it together (touch and hold the first, then tap the others).</string>
+    <string name="rts_installer_not_inno">That .exe isn\'t a GOG offline installer: pick the setup_warcraft_….exe from the game\'s offline backup game installers on GOG\'s site (GOG Galaxy\'s small downloader can\'t be used).</string>
+    <string name="rts_installer_failed">The installer couldn\'t be unpacked (code %1$d). Its last lines:\n%2$s</string>
+    <string name="rts_installer_wrong_game">The installer was unpacked, but this game\'s files aren\'t in it: is it this game\'s installer?</string>
+    <string name="rts_convert_scripts">Unpacking the game\'s scripts…</string>
+    <string name="rts_convert_failed">The conversion stopped (code %1$d). Its last lines:\n%2$s</string>
+    <string name="rts_convert_again">Convert again</string>
+    <string name="rts_convert_done">Converted: Press start to play.</string>
+
+    <!-- Starting a game -->
+    <string name="rts_game_step_runtime">Installing the games\' Windows runtime…</string>
+    <string name="rts_game_step_runtime_note">Only the first time, and after an update that changes it.</string>
+    <string name="rts_game_step_windows">Getting Windows ready…</string>
+    <string name="rts_game_step_starting">Starting the game…</string>
+    <string name="rts_game_loading">Entering the battlefield…</string>
+    <string name="rts_game_loading_update">Updating Windows\' files…</string>
+    <string name="rts_game_failed_title">The game didn\'t start</string>
+    <string name="rts_game_error">Something went wrong: %1$s</string>
+    <string name="rts_game_error_no_game">%1$s isn\'t on this phone yet: add its files in Game files.</string>
+    <string name="rts_game_error_runtime">The Windows runtime couldn\'t be installed. Check there\'s free space (about 1.5 GB) and try again.</string>
+    <string name="rts_game_error_windows">The games\' Windows couldn\'t be made. Check there\'s free space and try again.</string>
+
+    <!-- Game menu and prompt -->
+    <string name="rts_game_menu">Menu</string>
+    <string name="rts_game_menu_back">Back to the game</string>
+    <string name="rts_game_menu_keyboard">Keyboard</string>
+    <string name="rts_game_menu_chat">Chat or cheat code</string>
+    <string name="rts_game_menu_keys">CD keys: a tap types it into the game\'s key box (tap the box first).</string>
+    <string name="rts_game_menu_leave">Leave the game</string>
+    <string name="rts_game_menu_leave_note">Save first: leaving ends the game where it is. A two-finger tap opens the game\'s own menu, with Save and Quit.</string>
+    <string name="rts_prompt_chat">Chat</string>
+    <string name="rts_prompt_chat_hint">A message, or a cheat code</string>
+    <string name="rts_prompt_text">Type into the game</string>
+    <string name="rts_prompt_text_hint">A name, a CD key, a saved game\'s name…</string>
+    <string name="rts_prompt_send">Send</string>
+    <string name="rts_prompt_type">Type</string>
+    <string name="rts_prompt_cancel">Cancel</string>
+    <string name="rts_prompt_backspace">⌫</string>
+
+    <!-- Game files -->
+    <string name="rts_files_title">%1$s: files</string>
+    <string name="rts_files_what_wc3">Bring the Warcraft III 1.30 folder from a PC: the one with Warcraft III.exe, Data and Maps in it (the 1.30 repack\'s folder as it unzips), or the zip itself. It holds both Reign of Chaos and The Frozen Throne, their campaigns and maps.</string>
+    <string name="rts_files_what_wc1">Bring Warcraft: Orcs &amp; Humans from GOG: its offline installer (the setup .exe and every .bin file that came with it), or the installed folder (with WAR.EXE and the DATA folder in it), or a zip of that folder. The app unpacks and converts it for the phone; it\'s then played natively by Stratagus.</string>
+    <string name="rts_files_what_wc2">Bring Warcraft II Battle.net Edition from GOG: its offline installer (the setup .exe and every .bin file that came with it), or the installed folder (with Warcraft II BNE.exe, Install.mpq and Support\\TOMES in it), or a zip of that folder. The app unpacks and converts it for the phone; it\'s then played natively by Stratagus.</string>
+    <string name="rts_files_installed">In the app: %1$s</string>
+    <string name="rts_files_missing">Not in the app yet</string>
+    <string name="rts_files_move_first">Put the files on the phone itself first (Downloads is fine): files in a cloud folder can\'t be read fast enough. Adding again replaces what\'s there.</string>
+    <string name="rts_files_pick_folder">Pick folder</string>
+    <string name="rts_files_pick_zip">Pick zip</string>
+    <string name="rts_files_keys_title">CD keys</string>
+    <string name="rts_files_keys_label">Your CD keys, one per line</string>
+    <string name="rts_files_keys_note">Warcraft III asks for a Reign of Chaos key and a Frozen Throne key the first time it starts. Paste yours here, one per line (a label before a key, like \"TFT: …\", shows with it). In the game, tap the key box, then four fingers → the key. Keys found in the box: %1$d.</string>
+    <string name="rts_files_pick_installer">Pick GOG installer</string>
+    <string name="rts_files_installer_how">Pick GOG installer: in the picker, touch and hold the setup .exe, tap each .bin file beside it, then confirm. Or put them in a folder of their own (one inside Downloads) and Pick folder.</string>
+    <string name="rts_files_program">Program that starts it</string>
+    <string name="rts_files_arguments">Started with</string>
+    <string name="rts_files_arguments_note">What the program is started with (this game\'s default: %1$s).</string>
+    <string name="rts_files_private_title">Private</string>
+    <string name="rts_files_private">Keep Blizzard\'s servers out of reach</string>
+    <string name="rts_files_private_summary">Battle.net, the patch servers and Blizzard\'s sites are blocked for every game: nothing can sign in, update or download. Campaigns, custom games against the computer and local network games don\'t need them.</string>
+    <string name="rts_files_delete">Delete these files</string>
+    <string name="rts_files_delete_confirm">Delete this game\'s files from the app? Saved games stay (they\'re in the games\' Windows); add the files again to play.</string>
+    <string name="rts_files_delete_yes">Delete</string>
+    <string name="rts_files_delete_no">Keep</string>
+
+    <!-- Imports -->
+    <string name="rts_import_channel">Game files</string>
+    <string name="rts_import_title">Adding %1$s</string>
+    <string name="rts_import_stop">Stop</string>
+    <string name="rts_import_done">Added. Press start to play.</string>
+    <string name="rts_import_failed">Not added: %1$s</string>
+    <string name="rts_import_cancelled">Stopped. Nothing was changed.</string>
+    <string name="rts_import_notify_done">Done: the game is ready.</string>
+    <string name="rts_import_notify_failed">It didn\'t work: open the app to see why.</string>
+    <string name="rts_import_no_program">There\'s no Windows program (.exe) in what was picked: pick the game\'s folder itself, or its zip.</string>
+    <string name="rts_import_error_read">Can\'t read %1$s.</string>
+    <string name="rts_import_no_space">Not enough free space: it needs %1$s and %2$s is free.</string>
+
+    <!-- Graphics -->
+    <string name="rts_graphics_note">Warcraft III is drawn at this size and scaled to the screen: on the Fold\'s 4:3 inside screen, its own shape, it fills the screen exactly. Fewer lines run faster. It applies the next time it starts, for the screen the launcher is on then. Warcraft I and II always fill a 4:3 screen at their own resolutions (480×300 drawn 4:3 as the original was, and 640×480).</string>
+    <string name="rts_graphics_screen">The screen\'s own</string>
+    <string name="rts_graphics_screen_summary">Every pixel of the screen the launcher is on (the Fold\'s inside or outside)</string>
+    <string name="rts_graphics_high">1080 lines (default)</string>
+    <string name="rts_graphics_high_summary">1440×1080 on a 4:3 screen: sharp, and lighter than the inside screen\'s every pixel</string>
+    <string name="rts_graphics_balanced">720 lines</string>
+    <string name="rts_graphics_balanced_summary">The fastest</string>
+    <string name="rts_renderer_title">Warcraft III draws with</string>
+    <string name="rts_renderer_d3d">Direct3D</string>
+    <string name="rts_renderer_d3d_summary">The game\'s own default</string>
+    <string name="rts_renderer_gl">OpenGL</string>
+    <string name="rts_renderer_gl_summary">-opengl: try it if the picture is wrong with Direct3D</string>
+    <string name="rts_vibration">Vibrate on a hold</string>
+    <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
+
+    <!-- Controls -->
+    <string name="rts_controls_swipe">Swipe one finger</string>
+    <string name="rts_controls_swipe_does">Pans the map the way you swipe, for as long as the finger stays away from where it landed. Lift to stop.</string>
+    <string name="rts_controls_tap">Tap</string>
+    <string name="rts_controls_tap_does">Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, a tap is the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel and top bar.</string>
+    <string name="rts_controls_hold">Touch and hold</string>
+    <string name="rts_controls_hold_does">Left click when you lift (after a short buzz): select a unit or building, press a button of the game\'s panel or menus.</string>
+    <string name="rts_controls_double">Hold twice on the same spot</string>
+    <string name="rts_controls_double_does">Double click: every unit of that kind on the screen.</string>
+    <string name="rts_controls_rest">Rest one finger, tap or hold with another</string>
+    <string name="rts_controls_rest_does">Shift-click: queue orders one after another, add units to the selection.</string>
+    <string name="rts_controls_two_tap">Two-finger tap</string>
+    <string name="rts_controls_two_tap_does">The game\'s menu (save, load, options, quit).</string>
+    <string name="rts_controls_pinch">Pinch</string>
+    <string name="rts_controls_pinch_does">Zoom (the mouse wheel), where the game has it.</string>
+    <string name="rts_controls_three">Three-finger tap</string>
+    <string name="rts_controls_three_does">The phone\'s keyboard, for chat and cheat codes (sent with Enter).</string>
+    <string name="rts_controls_four">Four-finger tap</string>
+    <string name="rts_controls_four_does">The app\'s menu: keyboard, CD keys, leave the game.</string>
+    <string name="rts_controls_back">Back</string>
+    <string name="rts_controls_back_does">Escape: cancel what\'s being aimed, close a window.</string>
+    <string name="rts_controls_mouse">A mouse or keyboard connected to the phone works as on a PC.</string>
+
+    <!-- Updates -->
+    <string name="rts_update_checking">Checking for updates…</string>
+    <string name="rts_update_available_title">Update available</string>
+    <string name="rts_update_available">%1$s is available. You have %2$s.\n\nDownload it (%3$s) and install it now? Your game files and saves stay.</string>
+    <string name="rts_update_download">Download</string>
+    <string name="rts_update_later">Not now</string>
+    <string name="rts_update_latest_title">You\'re up to date</string>
+    <string name="rts_update_latest">%1$s %2$s is the newest version.</string>
+    <string name="rts_update_downloading">Downloading %1$s…</string>
+    <string name="rts_update_progress">%1$s\n%2$s of %3$s</string>
+    <string name="rts_update_check_failed">Couldn\'t check for updates</string>
+    <string name="rts_update_download_failed">Couldn\'t download the update</string>
+    <string name="rts_update_not_configured">This build doesn\'t know where its updates are published. Builds from GitHub Actions do.</string>
+    <string name="rts_update_no_access">GitHub didn\'t let the app see the releases (error %1$d). If the repository is private, the build needs an update token (see Updates in the README).</string>
+    <string name="rts_update_http_error">GitHub answered with error %1$d. Try again later.</string>
+    <string name="rts_update_offline">Can\'t reach GitHub. Check your internet connection and try again.</string>
+    <string name="rts_update_wrong_file">The downloaded file isn\'t an update for this app.</string>
+    <string name="rts_update_permission_title">Allow updates</string>
+    <string name="rts_update_permission">Android needs your permission for %1$s to install its updates. Turn on \"Allow from this source\", then come back.</string>
+    <string name="rts_update_open_settings">Open settings</string>
+</resources>
