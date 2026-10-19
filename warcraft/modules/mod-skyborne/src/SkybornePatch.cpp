@@ -26,7 +26,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-5";
+        constexpr char const* VERSION = "skyborne-6";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -474,8 +474,15 @@ namespace Skyborne
                     text += "\r\n";
                 text += "SkyborneCreate.xml\r\nSkyborneCreate.lua\r\n";
             }
+            // The gear button, after the race and class buttons it sits by: its data, the button, its code.
+            if (text.find("SkyborneGear.xml") == std::string::npos)
+            {
+                if (!text.empty() && text.back() != '\n')
+                    text += "\r\n";
+                text += "SkyborneGearData.lua\r\nSkyborneGear.xml\r\nSkyborneGear.lua\r\n";
+            }
             writer.Add("Interface\\GlueXML\\GlueXML.toc", Bytes(text.begin(), text.end()));
-            for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua" })
+            for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua", "SkyborneGearData.lua", "SkyborneGear.xml", "SkyborneGear.lua" })
                 writer.Add(std::string("Interface\\GlueXML\\") + name, ReadFile(moduleData / "Interface" / "GlueXML" / name));
         }
         else

@@ -44,6 +44,16 @@ move to 22 and 23.
   each side's races go down its own column; their background is their start race's.
 - **Blood elves** get a Dark Ranger skin (colour 19: the blood elf's fairest skin with its
   saturation turned down to a tenth, so grey, and red eyes).
+- **Gear button** on the character creation screen (`SkyborneGear.xml/.lua`, data in
+  `SkyborneGearData.lua`): one button that cycles the preview between no gear (the fig leaf,
+  INV_Misc_Leaf_01), the starting gear of the race and class selected (CharStartOutfit; its icon is
+  the starting chest's, the shirt where a class starts without a chest piece) and champion gear (the
+  class's top raid set: the class's own set with the highest item level, Tier 10's heroic 25-player
+  pieces at 277, the damage dealers' set where a class has one for each role; its icon is the set's
+  chest piece). The preview is dressed through the screen's model (`Undress` and `TryOn`), found by
+  what it can do; if the screen has no such model the tooltip says so (and lists the frames it
+  looked at) and the preview is left as it is. The Skyborne take their start race's outfit; a race
+  with no start of its own for a class takes the first race's that has one. Not yet seen in the game.
 - **No underwear on anyone**: the patch empties every race's and sex's underwear row (CharSections
   section 4, the NakedPelvisSkin/NakedTorsoSkin textures the game paints over a bare body), as the
   game's own rows for race 20 are; the body's skin shows. Armour is as it was.
@@ -60,10 +70,14 @@ move to 22 and 23.
   race) and `data/client` (`dbc/*.txt`: the rows to change in the game's tables; `textures.txt`:
   which textures to make from which, and how). Its output is committed; run it again after changing
   it.
+- `tools/build_gear.py` reads the same tables and writes the gear button's data
+  (`data/client/Interface/GlueXML/SkyborneGearData.lua`: starting outfits, champion sets, icons).
+  Its output is committed; run it again after changing it (`CHAMPION_SETS` in it picks a different
+  set for a class).
 - As the world server starts (`src/Skyborne.cpp`), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
-  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, and the narration. It's
+  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua` and the gear button's three files, and the narration. It's
   made again only when the client's archives or the module's files change (the stamp in
   `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.
@@ -75,6 +89,9 @@ move to 22 and 23.
 - `tools/test_client.cpp`: the patch made for a game folder and read back (races, looks, racials,
   textures, icons, the character screen, a second start keeping it). Built and run here against the
   server's tables and ChromieCraft's HD character archive.
+- `tools/test_gear.py`: `SkyborneGear.lua` and its data in Lua 5.1 against stand-ins for the screen
+  (cycling, the icons, the items on the model, dressing again after a race or class is picked, a
+  model that can't be dressed).
 - `tools/test_screen.py`: `SkyborneCreate.lua` in Lua 5.1 against stand-ins for the game's screen,
   with the game's ten race buttons and with mod-worgoblin's twelve.
 - CI's server test: the world server makes the patch from the server's tables (no textures there),
