@@ -1241,7 +1241,9 @@ for the game on the phone itself ("that's the whole point").
     (blood elf woman's 15, an NPC's: face painted in) has no face or overlay rows there; the game
     always bakes such NPCs. Fixed in the Skyborne's patch (patch-Z, the one with CharSections): every
     NPC skin gets empty face and overlay rows (skyborne-7). The likeliest cause, not proven: no game
-    here to crash.
+    here to crash. Checked here: the patch made from the server's tables (CI's stand-in game) has
+    them (her skin's face 2 and overlay rows; 74 NPC skins, none missing a face), and the players'
+    skins and the death knights' faces as they were.
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
