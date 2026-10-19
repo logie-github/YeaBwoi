@@ -64,6 +64,12 @@ move to 22 and 23.
   (`...Skin00_NN_Extra.blp`, the skin row's second texture in CharSections). The patch makes each
   new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
   The eye glow is the model's own (pale green, added over the eyes) for every skin.
+- **NPC skins**: a skin the game gives only its NPCs (its face painted into it) has no face or overlay
+  rows in CharSections, as the game always draws such an NPC from a texture baked beforehand. A look
+  the game has to put together itself with one (Wrath Remix's Moratari in her dress and in her tent)
+  asked for rows that weren't there and could crash the game; each such skin gets a face row for
+  every face of its race and sex, and an overlay row, with no textures (its own face shows). Skins a
+  player can choose keep the faces they have.
 
 ## How it's made
 
