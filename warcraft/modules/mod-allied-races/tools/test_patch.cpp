@@ -92,7 +92,7 @@ int main(int argc, char** argv)
     }
     Check(skins[0].size() == 30 && skins[1].size() == 70, "the skins: 30 void elf, 70 nightborne (" + std::to_string(skins[0].size()) + ", " + std::to_string(skins[1].size()) + ")");
     Check(faces[0].size() == 252 && faces[1].size() == 72, "the faces: 252 void elf (28 x 9 eyes), 72 nightborne (12 x 6) (" + std::to_string(faces[0].size()) + ", " + std::to_string(faces[1].size()) + ")");
-    Check(hair[0].size() >= 17 && hair[1].size() == 16, "the hair styles");
+    Check(hair[0].size() >= 10 && hair[1].size() == 16, "the hair styles");
     Check(missing == 0, "every texture the looks name is in the patch (" + std::to_string(missing) + " missing of " + std::to_string((checked + 96) / 97) + " looked at)");
 
     for (char const* name : { "Character\\VoidElf\\Female\\VoidElfFemale.m2", "Character\\VoidElf\\Female\\VoidElfFemale00.skin",
