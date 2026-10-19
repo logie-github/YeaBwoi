@@ -333,12 +333,15 @@ class Merged:
 TABLE_GROUPS = {0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 15, 18}   # 3.3.5 picks from these by its tables
 
 
+LAST_KNOWN_GROUP = 18   # 3.3.5 shows the first geoset of each group up to the belt's; later groups it doesn't draw
+
+
 def complete_policy(policy, geosets):
     """The geosets kept, old id (as text) -> new ids: the policy's own (tools/races.py: hair,
-    features, ears, the eye glow...); of the groups it doesn't name, the groups 3.3.5's tables
-    choose from whole, the head group's two lowest (the mouth and the head), the groups the
-    policy drops none, and the rest their lowest (the one shown without an item, as 3.3.5 shows
-    every geoset of a group it doesn't know)."""
+    features, ears, the eye glow, the head...); of the groups it doesn't name, the groups 3.3.5's
+    tables choose from whole, the groups the policy drops none, and the rest their lowest (the one
+    shown without an item): kept as it is in a group 3.3.5 knows, folded into geoset 0 (always
+    drawn) in a group it doesn't (today's toes, torso and forearms in groups 20, 22 and 23)."""
     out = {k: list(v) for k, v in policy["geoset_policy"].items()}
     named = {int(k) // 100 for k in out}
     drop = set(policy.get("drop_groups", []))
@@ -352,8 +355,10 @@ def complete_policy(policy, geosets):
                 continue
             if group in named or group in drop:
                 continue
-            if group in TABLE_GROUPS or g == members[0]:
+            if group in TABLE_GROUPS:
                 out[str(g)] = [g]
+            elif g == members[0]:
+                out[str(g)] = [g] if group <= LAST_KNOWN_GROUP else [0]
     return out
 
 

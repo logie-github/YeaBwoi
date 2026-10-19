@@ -100,8 +100,11 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     in `.anim` files; the body's texture coordinates stretched across (today's body texture is
     twice as wide as tall, the head in its right half; 3.3.5 composes a square), the head's into
     the face region, the eyes' (a texture of their own today) into the FaceUpper strip; the
-    geosets 3.3.5's tables choose from kept whole (hair, features, armour), of the groups it
-    doesn't know only the chosen variant (shown always), hair styles copied with the tentacles;
+    geosets 3.3.5's tables choose from kept whole (hair, features, armour); the body parts today's
+    models keep in groups 3.3.5 doesn't know (the head, mouth, eyes and eyebrows, the toes, torso
+    and forearms: groups 20 and up, which the game doesn't draw) folded into geoset 0, which it
+    always draws, as the HD look's models keep their body; of other groups only the first
+    variant; hair styles copied with the tentacles;
     every batch one texture (body, cape, hair; the tentacle and jewellery textures fixed); mesh
     sections of at most 64 bones, each section's bone combo naming the very bones its vertices
     carry (the game draws with the combo); cameras in 3.3.5's layout. `<Name>.layout.json` tells the
@@ -139,6 +142,10 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - `tools/test_patch.cpp`: the patch made for a stand-in game from the package's files and read
   back (races, looks and their textures, models, voices, spells, the screen, a second start keeping
   it). Built and run here against the server's tables and a local package.
+- **`tools/render_m2.py MODEL.m2 FILES DBC_DIR OUT.png`** draws a converted model the way the game
+  reads it (the sections through their bone combos, posed on Stand, the composed character
+  texture, the model's own cameras) to a PNG: how the model will look, short of the game itself.
+  Run here on all four models before a release.
 - `tools/check_m2.py` on every converted model (every vertex's bone slots lead through its
   section's combo to the bones the vertex names: the first models' didn't, and the game drew them
   in pieces; run here: all four pass; the HD look's blood elf,
