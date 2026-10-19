@@ -92,6 +92,12 @@
             android:name=".turtle.TurtleService"
             android:exported="false" />
 
+        <!-- Felsong's realm and its installation jobs (com.logie.warcraft.felsong), apart from the
+             other realms' services. -->
+        <service
+            android:name=".felsong.FelsongService"
+            android:exported="false" />
+
         <!-- The game: Winlator's screen (its X server with Wine and Box64 behind it), its controls
              editor, and the service that keeps the game alive in the background. Its own main
              screen stays, unlisted, for the code that refers to it. -->
