@@ -7,6 +7,12 @@
  * db-world, tools/build_data.py); the game, from the patch this makes as the world server starts
  * (AlliedRacesPatch.cpp) in the client WOW_CLIENT_DIR names (ctl.sh), from the module's files
  * and the races' models, textures and voices the server package fetched (tools/package.py).
+ *
+ * The patch is made as soon as the configuration is read, before any module's tables are loaded:
+ * Wrath Remix's patch (patch-Y, made at the custom tables' load) and the Skyborne's (patch-Z, at
+ * the startup) are read by the game after this one and are made from the game's tables with this
+ * patch in, so they carry its rows on. Made at the startup, as those are, it came after them on a
+ * first start, and the game didn't know the races until the next.
  */
 
 #include "AlliedRacesPatch.h"
@@ -21,10 +27,12 @@ namespace fs = std::filesystem;
 class AlliedRacesWorld : public WorldScript
 {
 public:
-    AlliedRacesWorld() : WorldScript("AlliedRacesWorld", { WORLDHOOK_ON_STARTUP }) { }
+    AlliedRacesWorld() : WorldScript("AlliedRacesWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD }) { }
 
-    void OnStartup() override
+    void OnAfterConfigLoad(bool reload) override
     {
+        if (reload)
+            return;
         char const* client = std::getenv("WOW_CLIENT_DIR");
         if (!client || !*client)
             return;
