@@ -2,8 +2,10 @@
 """The gear button's code (data/client/Interface/GlueXML/SkyborneGear.lua and its data) run in Lua 5.1
 against stand-ins for the game's character creation screen: the button cycles no gear, starting gear
 and champion gear, its icon is the mode's, the preview is dressed through the model's Undress and
-TryOn with the race and class's items, dressed again when a race or class is picked, and a screen
-whose model can't be dressed is told so in the tooltip and nothing breaks. Needs lupa (pip)."""
+TryOn with the race and class's items, dressed again when a race or class is picked, its tooltip
+through the creation screen's own (GlueTooltip_SetOwner and GlueTooltip_SetText, functions in 3.3.5:
+the tooltip frame has no SetOwner method here, as in the game), and on a screen whose model can't be
+dressed (3.3.5's) the button is hidden and nothing breaks. Needs lupa (pip)."""
 import os, sys
 from lupa import lua51
 
@@ -33,20 +35,24 @@ local function Frame(name)
   function f:ClearAllPoints() self.points = {} end
   function f:SetPoint(...) self.points[#self.points + 1] = { ... } end
   function f:SetNormalTexture(t) self.texture = t end
+  function f:Show() self.shown = true end
+  function f:Hide() self.shown = false end
   return f
 end
 function CreateFrame() LAST_FRAME = Frame("timer"); return LAST_FRAME end
 CharacterCreateConfigurationFrame = Frame("CharacterCreateConfigurationFrame")
 CharacterCreateGenderButtonFemale = Frame("CharacterCreateGenderButtonFemale")
 SkyborneGearButton = Frame("SkyborneGearButton")
-GlueTooltip = {}
 GlueParent = Frame("GlueParent")
 MakeFrame = Frame
-function GlueTooltip:SetOwner() self.lines = {} end
-function GlueTooltip:SetText(t) self.lines[#self.lines + 1] = t end
-function GlueTooltip:AddLine(t) self.lines[#self.lines + 1] = t end
-function GlueTooltip:Show() self.shown = true end
-function GlueTooltip:Hide() self.shown = false end
+-- 3.3.5's tooltips on this screen: frames with no SetOwner method, set by GlueXML's functions.
+GlueTooltip = Frame("GlueTooltip")
+CharacterCreateTooltip = Frame("CharacterCreateTooltip")
+CharacterCreateTooltip.lines = {}
+function GlueTooltip_SetOwner(owner, tip, x, y) tip.owner = owner; tip.lines = {}; tip.shown = true end
+function GlueTooltip_SetText(text, tip)
+  for line in string.gmatch(text, "[^\n]+") do tip.lines[#tip.lines + 1] = line end
+end
 
 -- The screen: ten races and ten classes in lists, the selection by position.
 local RACES = { {"Human","Human",1}, {"Dwarf","Dwarf",3}, {"Night Elf","NightElf",4}, {"Gnome","Gnome",7},
@@ -162,10 +168,11 @@ lua2 = start(dressable=False)
 g2 = lua2.globals()
 click(lua2)
 check(worn(lua2) == [], "a model that can't be dressed is left alone")
-lua2.execute("SkyborneGearButton.scripts.OnEnter()")
-lines = [str(v) for v in g2.GlueTooltip.lines.values()]
-check(any("can't be dressed" in l for l in lines), "its tooltip says the model can't be dressed (%s)" % lines[-1])
-check(str(g2.SkyborneGearButton.texture).startswith("Interface\\Icons\\"), "the icon still cycles")
+check(not g2.SkyborneGearButton.shown, "the button is hidden on a screen whose model can't be dressed (3.3.5's)")
+settle(lua2)
+check(not g2.SkyborneGearButton.shown, "and stays hidden as the screen settles")
+lua2.execute("SkyborneGearButton.scripts.OnEnter(); SkyborneGearButton.scripts.OnLeave()")
+check(True, "its tooltip calls don't fail there either")
 
 # ---- placement -------------------------------------------------------------------------------
 LAYOUT = r"""
@@ -176,6 +183,7 @@ local function Box(kind, name, l, r, b, t, parent)
 end
 SCREEN = MakeFrame("CharacterCreate"); SCREEN.rect = { 0, 1920, 0, 1080 }
 CharacterCreate = SCREEN
+CharacterCreateModel = MODEL                                                      -- (a preview that can be dressed)
 local config = Box("Frame", "ConfigPanel", 20, 300, 100, 900, SCREEN)           -- left: the races, classes, sexes
 for i = 1, 12 do Box("Button", "RaceButton"..i, 30, 70, 900 - 45 * i, 940 - 45 * i, config) end
 Box("EditBox", "NameBox", 700, 1000, 30, 60, SCREEN)                              -- the name box
@@ -206,8 +214,10 @@ check(vals[0] == "BOTTOMLEFT" and vals[1] == "GlueParent" and float(vals[3]) == 
 check(float(vals[4]) == 140, "its bottom level with the lowest arrow button (y %s)" % vals[4])
 check(lua3.eval("SkyborneGearButton.parent == CharacterCreate"), "it is on the creation screen")
 lua3.execute("SkyborneGearButton.scripts.OnEnter()")
-tips = [str(v) for v in lua3.globals().GlueTooltip.lines.values()]
+tips = [str(v) for v in lua3.globals().CharacterCreateTooltip.lines.values()]
 check(any("Placed between NameBox and CustomizePanel" in t for t in tips), "its tooltip says what it was placed by (%s)" % [t for t in tips if "Placed" in t])
+check(lua3.eval("CharacterCreateTooltip.owner == SkyborneGearButton"), "the creation screen's tooltip, owned by the button")
+check(lua3.eval("SkyborneGearButton.shown"), "the button shows where the model can be dressed")
 
 lua4 = placed(scale=0.5)
 pt = lua4.eval("SkyborneGearButton.points[#SkyborneGearButton.points]")
@@ -220,11 +230,13 @@ before = len(lua5.eval("SkyborneGearButton.points"))
 lua5.execute("for i = 1, 20 do LAST_FRAME.scripts.OnUpdate(LAST_FRAME, 0.1) end")
 check(len(lua5.eval("SkyborneGearButton.points")) == before, "with no name box found it keeps its first place")
 lua5.execute("SkyborneGearButton.scripts.OnEnter()")
-tips = [str(v) for v in lua5.globals().GlueTooltip.lines.values()]
+tips = [str(v) for v in lua5.globals().CharacterCreateTooltip.lines.values()]
 check(any("no name box found" in t for t in tips), "and says so")
 
 # ---- the button's XML -----------------------------------------------------------------------
 check('name="SkyborneGearButton"' in XML and 'parent="CharacterCreateConfigurationFrame"' in XML, "the XML makes the button on the creation screen")
+check("UI-Quickslot" not in XML and "<Layers>" not in XML, "no frame drawn round its icon")
+check(":SetOwner" not in LUA and "Tooltip:AddLine" not in LUA, "no tooltip method calls (3.3.5's tooltips here have none)")
 
 print("%d failure(s)" % failures)
 sys.exit(1 if failures else 0)
