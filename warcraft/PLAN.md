@@ -1235,6 +1235,13 @@ for the game on the phone itself ("that's the whole point").
     the quests never even become available and it's entirely ours." Done: in Out of Time's text as
     the Timerunner wakes, and a line of hers now and then at the Bazaar; the hidden plate's tally and
     STORY.md say the same.
+  - Then: "one of the moratari romance quests crashed the game. The one where she teleports you to
+    the inn after she reveals her new dress" (Dinner at Krasus' Landing). Found: her dress look (and
+    her tent's) has no baked texture, so the game puts it together from CharSections, and her skin
+    (blood elf woman's 15, an NPC's: face painted in) has no face or overlay rows there; the game
+    always bakes such NPCs. Fixed in the Skyborne's patch (patch-Z, the one with CharSections): every
+    NPC skin gets empty face and overlay rows (skyborne-7). The likeliest cause, not proven: no game
+    here to crash.
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
