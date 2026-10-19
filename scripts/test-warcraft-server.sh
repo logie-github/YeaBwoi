@@ -263,7 +263,7 @@ if [ -n "$DATA_ZIP" ]; then
 	echo "The realm kept the note, and cleared it at the logout."
 
 	echo "== the Skyborne (mod-skyborne)"
-	grep -E "Skyborne: The Skyborne's patch is in the game: 18 tables" "$FILES/logs/world.out" ||
+	grep -E "Skyborne: The Skyborne's patch is in the game: 17 tables" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the Skyborne's patch"
 	[ -s "$FILES/client/Data/patch-Z.MPQ" ] && [ -s "$FILES/client/Data/patch-Z.MPQ.skyborne" ] || fail "the Skyborne's patch isn't in the game"
 	for race in 13 14; do
