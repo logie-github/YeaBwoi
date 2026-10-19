@@ -325,8 +325,16 @@ namespace Skyborne
                     text += "\r\n";
                 text += "SkyborneGearData.lua\r\nSkyborneGear.xml\r\nSkyborneGear.lua\r\n";
             }
+            // The preview's zoom (the mouse wheel: the app's pinch).
+            if (text.find("SkyborneZoom.lua") == std::string::npos)
+            {
+                if (!text.empty() && text.back() != '\n')
+                    text += "\r\n";
+                text += "SkyborneZoom.lua\r\n";
+            }
             writer.Add("Interface\\GlueXML\\GlueXML.toc", Bytes(text.begin(), text.end()));
-            for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua", "SkyborneGearData.lua", "SkyborneGear.xml", "SkyborneGear.lua" })
+            for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua", "SkyborneGearData.lua", "SkyborneGear.xml", "SkyborneGear.lua",
+                                      "SkyborneZoom.lua" })
                 writer.Add(std::string("Interface\\GlueXML\\") + name, ReadFile(moduleData / "Interface" / "GlueXML" / name));
         }
         else

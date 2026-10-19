@@ -46,6 +46,12 @@ move to 22 and 23.
   each side's races go down its own column; their background is their start race's.
 - **Blood elves** get a Dark Ranger skin (colour 19: the blood elf's fairest skin with its
   saturation turned down to a tenth, so grey, and red eyes).
+- **Zoom** on the character creation screen (`SkyborneZoom.lua`): the mouse wheel (the app's pinch)
+  zooms the preview in, up to two and a half times, and back out to the whole screen. 3.3.5's
+  preview is the screen's ModelFFX, whose camera Lua can't move; a model frame draws its scene to
+  fit its rectangle, so zooming makes that frame larger around where the character stands (the
+  middle of the screen, a little above its middle), the panels kept over the whole screen
+  (`CharacterCreateFrame` anchored to `GlueParent`). Showing the screen again starts zoomed out.
 - **Gear button** on the character creation screen (`SkyborneGear.xml/.lua`, data in
   `SkyborneGearData.lua`): one button that cycles the preview between no gear (a leaf icon,
   INV_Misc_Leaf_01), the starting gear of the race and class selected (CharStartOutfit; its icon is
@@ -102,6 +108,9 @@ move to 22 and 23.
 - `tools/test_client.cpp`: the patch made for a game folder and read back (races, looks, racials,
   textures, icons, the character screen, a second start keeping it). Built and run here against the
   server's tables and ChromieCraft's HD character archive.
+- `tools/test_zoom.py`: `SkyborneZoom.lua` in Lua 5.1 against stand-ins for the screen (the wheel
+  growing the preview's frame around the character and back, its limits, the panels staying put,
+  a fresh start when the screen is shown).
 - `tools/test_gear.py`: `SkyborneGear.lua` and its data in Lua 5.1 against stand-ins for the screen
   (cycling, the icons, the items on the model, dressing again after a race or class is picked, the
   screen's own tooltip functions with tooltips that have no methods, as 3.3.5's, and the button
