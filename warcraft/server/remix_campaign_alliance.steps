@@ -219,8 +219,7 @@ expect-not quest 12249
 talk 770015
 expect quest 77303
 accept 770015 77303
-wait 35
-expect Go and break her anchors
+until Go and break her anchors 60
 go 571 4688.0 -3860.0 328.0
 cmd .remix sees 770042
 expect seen
