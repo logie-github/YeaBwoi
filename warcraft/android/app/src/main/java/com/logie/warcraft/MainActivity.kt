@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
         TitleMusic.onShown(this)
         Game.onLauncherShown(this)
         com.logie.warcraft.turtle.TurtleGame.onLauncherShown(this)
+        com.logie.warcraft.felsong.FelsongGame.onLauncherShown(this)
     }
 
     override fun onStop() {
