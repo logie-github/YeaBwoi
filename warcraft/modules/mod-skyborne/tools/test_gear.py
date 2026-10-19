@@ -17,8 +17,18 @@ STUBS = r"""
 strupper = string.upper
 LOG = {}
 local function Frame(name)
-  local f = { name = name, scripts = {}, points = {} }
+  local f = { name = name, scripts = {}, points = {}, kids = {}, scale = 1, shown = true, kind = "Frame" }
   function f:GetName() return self.name end
+  function f:GetObjectType() return self.kind end
+  function f:GetChildren() return unpack(self.kids) end
+  function f:IsVisible() return self.shown end
+  function f:GetEffectiveScale() return self.scale end
+  function f:GetWidth() return 38 end
+  function f:SetParent(p) self.parent = p end
+  function f:GetLeft() return self.rect and self.rect[1] end
+  function f:GetRight() return self.rect and self.rect[2] end
+  function f:GetBottom() return self.rect and self.rect[3] end
+  function f:GetTop() return self.rect and self.rect[4] end
   function f:SetScript(k, fn) self.scripts[k] = fn end
   function f:ClearAllPoints() self.points = {} end
   function f:SetPoint(...) self.points[#self.points + 1] = { ... } end
@@ -30,6 +40,8 @@ CharacterCreateConfigurationFrame = Frame("CharacterCreateConfigurationFrame")
 CharacterCreateGenderButtonFemale = Frame("CharacterCreateGenderButtonFemale")
 SkyborneGearButton = Frame("SkyborneGearButton")
 GlueTooltip = {}
+GlueParent = Frame("GlueParent")
+MakeFrame = Frame
 function GlueTooltip:SetOwner() self.lines = {} end
 function GlueTooltip:SetText(t) self.lines[#self.lines + 1] = t end
 function GlueTooltip:AddLine(t) self.lines[#self.lines + 1] = t end
@@ -154,6 +166,62 @@ lua2.execute("SkyborneGearButton.scripts.OnEnter()")
 lines = [str(v) for v in g2.GlueTooltip.lines.values()]
 check(any("can't be dressed" in l for l in lines), "its tooltip says the model can't be dressed (%s)" % lines[-1])
 check(str(g2.SkyborneGearButton.texture).startswith("Interface\\Icons\\"), "the icon still cycles")
+
+# ---- placement -------------------------------------------------------------------------------
+LAYOUT = r"""
+local function Box(kind, name, l, r, b, t, parent)
+  local f = MakeFrame(name); f.kind = kind; f.rect = { l, r, b, t }
+  if parent then parent.kids[#parent.kids + 1] = f end
+  return f
+end
+SCREEN = MakeFrame("CharacterCreate"); SCREEN.rect = { 0, 1920, 0, 1080 }
+CharacterCreate = SCREEN
+local config = Box("Frame", "ConfigPanel", 20, 300, 100, 900, SCREEN)           -- left: the races, classes, sexes
+for i = 1, 12 do Box("Button", "RaceButton"..i, 30, 70, 900 - 45 * i, 940 - 45 * i, config) end
+Box("EditBox", "NameBox", 700, 1000, 30, 60, SCREEN)                              -- the name box
+local custom = Box("Frame", "CustomizePanel", 1400, 1700, 120, 700, SCREEN)       -- right: the customize panel
+LOWEST = nil
+for row = 1, 5 do
+  local bottom = 640 - 100 * row
+  Box("Button", "Left"..row, 1410, 1440, bottom, bottom + 30, custom)
+  Box("Button", "Right"..row, 1660, 1690, bottom, bottom + 30, custom)
+end
+Box("Button", "Randomize", 1450, 1650, 125, 150, SCREEN)                          -- not in the panel
+"""
+
+def placed(scale=1.0):
+    lua = start()
+    lua.execute(LAYOUT)
+    lua.execute("SkyborneGearButton.scale = %s" % scale)
+    lua.execute("for i = 1, 20 do LAST_FRAME.scripts.OnUpdate(LAST_FRAME, 0.1) end")
+    return lua
+
+lua3 = placed()
+pt = lua3.eval("SkyborneGearButton.points[#SkyborneGearButton.points]")
+vals = [str(pt[i]) if i != 2 else getattr(pt[i], "name", "?") for i in range(1, 6)]
+# between the name box (right edge 1000) and the customize panel (left edge 1400), minus half the button's width
+check(vals[0] == "BOTTOMLEFT" and vals[1] == "GlueParent" and float(vals[3]) == 1200 - 19,
+      "halfway between the name box and the customize panel (x %s)" % vals[3])
+# level with the lowest arrow button (row 5: 640 - 500 = 140), not the panel's bottom (120) or the randomize button's (125)
+check(float(vals[4]) == 140, "its bottom level with the lowest arrow button (y %s)" % vals[4])
+check(lua3.eval("SkyborneGearButton.parent == CharacterCreate"), "it is on the creation screen")
+lua3.execute("SkyborneGearButton.scripts.OnEnter()")
+tips = [str(v) for v in lua3.globals().GlueTooltip.lines.values()]
+check(any("Placed between NameBox and CustomizePanel" in t for t in tips), "its tooltip says what it was placed by (%s)" % [t for t in tips if "Placed" in t])
+
+lua4 = placed(scale=0.5)
+pt = lua4.eval("SkyborneGearButton.points[#SkyborneGearButton.points]")
+check(float(pt[4]) == (1200 - 19 / 2) / 0.5, "a scaled button's x is in its own units too (x %s)" % pt[4])
+check(float(pt[5]) == 140 / 0.5, "a scaled button's offsets are in its own units (y %s)" % pt[5])
+
+# without a name box or a panel the button stays where it was
+lua5 = start()
+before = len(lua5.eval("SkyborneGearButton.points"))
+lua5.execute("for i = 1, 20 do LAST_FRAME.scripts.OnUpdate(LAST_FRAME, 0.1) end")
+check(len(lua5.eval("SkyborneGearButton.points")) == before, "with no name box found it keeps its first place")
+lua5.execute("SkyborneGearButton.scripts.OnEnter()")
+tips = [str(v) for v in lua5.globals().GlueTooltip.lines.values()]
+check(any("no name box found" in t for t in tips), "and says so")
 
 # ---- the button's XML -----------------------------------------------------------------------
 check('name="SkyborneGearButton"' in XML and 'parent="CharacterCreateConfigurationFrame"' in XML, "the XML makes the button on the creation screen")

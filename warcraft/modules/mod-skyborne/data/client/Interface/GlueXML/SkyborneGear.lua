@@ -5,6 +5,8 @@
 --   starter   the starting outfit of the race and class selected, its chest's icon
 --   champion  the class's top raid set (Tier 10), its chest piece's icon
 --
+-- It sits at the bottom of the customization panel's arrow buttons, halfway between the name box and
+-- that panel (measured from the screen as it is laid out; by the race and class lists if it can't be).
 -- SkyborneGearData.lua (tools/build_gear.py) has the items and icons. The preview is dressed
 -- through the model's own calls (Undress and TryOn); where the screen's model has none, the button
 -- says so in its tooltip and changes nothing, and lists the frames it looked at. It is put after
@@ -155,6 +157,127 @@ end
 
 local button = SkyborneGearButton;
 
+-- Placement ----------------------------------------------------------------------------------
+-- The screen's frames in pixels (their scales undone), or nil while they aren't laid out.
+local function Pixels(frame)
+	if ( type(frame) ~= "table" or type(frame.GetLeft) ~= "function" ) then
+		return nil;
+	end
+	local ok, l, r, b, t = pcall(function() return frame:GetLeft(), frame:GetRight(), frame:GetBottom(), frame:GetTop(); end);
+	if ( not ok or not (l and r and b and t) ) then
+		return nil;
+	end
+	local scale = (type(frame.GetEffectiveScale) == "function" and frame:GetEffectiveScale()) or 1;
+	return l * scale, r * scale, b * scale, t * scale;
+end
+
+local function Visible(frame)
+	return type(frame) == "table" and (type(frame.IsVisible) ~= "function" or frame:IsVisible());
+end
+
+local function Descendants(root, depth, out)
+	out = out or {};
+	if ( type(root) ~= "table" or type(root.GetChildren) ~= "function" or depth < 1 ) then
+		return out;
+	end
+	for _, child in ipairs({ root:GetChildren() }) do
+		if ( type(child) == "table" and #out < 400 ) then
+			out[#out + 1] = child;
+			Descendants(child, depth - 1, out);
+		end
+	end
+	return out;
+end
+
+local function TypeOf(frame)
+	return type(frame.GetObjectType) == "function" and frame:GetObjectType() or "";
+end
+
+local function NameOf(frame)
+	return (type(frame) == "table" and type(frame.GetName) == "function" and frame:GetName()) or "?";
+end
+
+-- Where the button was put (or why not), for the tooltip.
+local placed = "by the sex buttons";
+
+local function Place()
+	local origin = GlueParent or UIParent;
+	local root = CharacterCreate;
+	if ( not button or type(origin) ~= "table" or type(root) ~= "table" or type(root.GetChildren) ~= "function" ) then
+		return false;
+	end
+	local all = Descendants(root, 6);
+	-- The name box: the screen's, or the first edit box showing.
+	local nameBox = CharacterCreateNameEdit;
+	if ( not (Visible(nameBox) and Pixels(nameBox)) ) then
+		nameBox = nil;
+		for _, f in ipairs(all) do
+			if ( TypeOf(f) == "EditBox" and Visible(f) and Pixels(f) ) then
+				nameBox = f;
+				break;
+			end
+		end
+	end
+	if ( not nameBox ) then
+		placed = "by the sex buttons (no name box found)";
+		return false;
+	end
+	local nl, nr = Pixels(nameBox);
+	local nameCenter = (nl + nr) / 2;
+	-- The customize panel: the screen's, or the frame right of the name box that holds the most buttons.
+	local panel;
+	for _, name in ipairs({ "CharacterCustomizationFrame", "CharacterCreateCustomizationFrame" }) do
+		local f = _G[name];
+		if ( Visible(f) and Pixels(f) ) then
+			panel = f;
+			break;
+		end
+	end
+	if ( not panel ) then
+		local most = 3;
+		for _, f in ipairs(all) do
+			local l = Pixels(f);
+			if ( Visible(f) and l and l > nameCenter and f ~= nameBox ) then
+				local buttons = 0;
+				for _, d in ipairs(Descendants(f, 4)) do
+					if ( TypeOf(d) == "Button" and Visible(d) ) then
+						buttons = buttons + 1;
+					end
+				end
+				if ( buttons > most ) then
+					most, panel = buttons, f;
+				end
+			end
+		end
+	end
+	if ( not panel ) then
+		placed = "by the sex buttons (no customize panel found)";
+		return false;
+	end
+	local pl, _, pb = Pixels(panel);
+	-- The bottom of the arrow buttons (the panel's buttons): the lowest of them, else the panel's.
+	local bottom, lowest, lowestName = pb, nil, nil;
+	for _, d in ipairs(Descendants(panel, 4)) do
+		if ( TypeOf(d) == "Button" and Visible(d) ) then
+			local _, _, b = Pixels(d);
+			if ( b and (not lowest or b < lowest) ) then
+				lowest = b;
+				lowestName = NameOf(d);
+			end
+		end
+	end
+	bottom = lowest or bottom;
+	local scale = (type(button.GetEffectiveScale) == "function" and button:GetEffectiveScale()) or 1;
+	local width = ((type(button.GetWidth) == "function" and button:GetWidth()) or 38) * scale;
+	local x = (nr + pl) / 2 - width / 2;
+	button:SetParent(root);
+	button:ClearAllPoints();
+	button:SetPoint("BOTTOMLEFT", origin, "BOTTOMLEFT", x / scale, bottom / scale);
+	placed = "between "..NameOf(nameBox).." and "..NameOf(panel)..", level with "..(lowest and lowestName or "its bottom");
+	return true;
+end
+
+
 local function Refresh()
 	local items, icon = Gear(MODES[mode]);
 	if ( icon ) then
@@ -182,6 +305,7 @@ timer:SetScript("OnUpdate", function(self, elapsed)
 		waits[i] = waits[i] - elapsed;
 		if ( waits[i] <= 0 ) then
 			table.remove(waits, i);
+			Place();
 			Apply();
 		end
 	end
@@ -228,6 +352,7 @@ if ( button ) then
 		GlueTooltip:SetOwner(button, "ANCHOR_RIGHT");
 		GlueTooltip:SetText(NAMES[MODES[mode]]..(extra and (": "..extra) or ""), 1, 1, 1);
 		GlueTooltip:AddLine("Click to change what the preview wears.", 0.8, 0.8, 0.8, 1);
+		GlueTooltip:AddLine("Placed "..placed..".", 0.6, 0.6, 0.6, 1);
 		if ( not FindModel() ) then
 			GlueTooltip:AddLine("This screen's model can't be dressed here (looked at: "..table.concat(looked, ", ")..").", 1, 0.3, 0.3, 1);
 		end
@@ -236,10 +361,14 @@ if ( button ) then
 	button:SetScript("OnEnter", function()
 		button.tooltip();
 	end);
+	button:SetScript("OnShow", function()
+		waits = { 0.05, 0.4, 1.2 };
+	end);
 	button:SetScript("OnLeave", function()
 		if ( GlueTooltip ) then
 			GlueTooltip:Hide();
 		end
 	end);
 	Refresh();
+	waits = { 0.05, 0.4, 1.2 };
 end
