@@ -78,7 +78,10 @@ namespace
     void TeleportTo(Player* player, Destination const& d)
     {
         CloseGossipMenuFor(player);
-        player->TeleportTo(d.map, d.x, d.y, d.z, d.o);
+        std::string name = PlaceName(d.map, d.x, d.y, d.z);
+        JourneyFromTheDark(player, name.empty() ? d.name : name, d.map, d.x, d.y);
+        if (!player->TeleportTo(d.map, d.x, d.y, d.z, d.o))
+            LiftTheCurtain(player);
     }
 
     // WRM-013's anomalies come through one at a time: each one Moratari lets through brings the
@@ -138,15 +141,17 @@ namespace
         return std::max(chapter, ChapterForLevel(player->GetLevel()));
     }
 
+    char const* ROMAN[] = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
+    char const* Roman(uint8 n) { return n < 11 ? ROMAN[n] : "?"; }
+
     void ToChapter(Player* player, Chapter const& c)
     {
         int side = IsAlliance(player) ? 0 : 1;
         CloseGossipMenuFor(player);
-        player->TeleportTo(c.map[side], c.x[side], c.y[side], c.z[side], player->GetOrientation());
+        JourneyFromTheDark(player, Acore::StringFormat("Chapter {}: {}", Roman(c.chapter), c.name), c.map[side], c.x[side], c.y[side]);
+        if (!player->TeleportTo(c.map[side], c.x[side], c.y[side], c.z[side], player->GetOrientation()))
+            LiftTheCurtain(player);
     }
-
-    char const* ROMAN[] = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
-    char const* Roman(uint8 n) { return n < 11 ? ROMAN[n] : "?"; }
 
     // ---- WRM-207, The Weight of Time: the turn (STORY.md) ---------------------------------------
     //

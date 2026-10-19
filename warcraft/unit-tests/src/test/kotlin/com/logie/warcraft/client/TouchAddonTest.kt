@@ -424,6 +424,73 @@ class TouchAddonTest {
     }
 
     @Test
+    fun theOpeningsCurtainIsDarkAtOnceUntilTheRealmLiftsIt() {
+        fun addonMessage(text: String) = frame.get("scripts").get("OnEvent").invoke(
+            arrayOf(frame, LuaValue.valueOf("CHAT_MSG_ADDON"), LuaValue.valueOf("WowRemix"), LuaValue.valueOf(text), LuaValue.NIL, LuaValue.valueOf("Testhero")))
+        addonMessage("curtain 30000 The Gilded Rose, Stormwind | Some months after the fall of the Lich King")
+        val curtain = lua.get("WowTouchFadeFrame")
+        assertTrue(curtain.get("shown").toboolean())
+        assertEquals(1.0, curtain.get("alpha").todouble(), "dark at once")
+        assertEquals("The Gilded Rose, Stormwind\nSome months after the fall of the Lich King", curtain.get("words").get("text").tojstring())
+        val tick = curtain.get("scripts").get("OnUpdate")
+        tick.call(curtain, LuaValue.valueOf(10.0))
+        assertEquals(1.0, curtain.get("alpha").todouble(), 0.001, "still dark ten seconds on")
+        addonMessage("lift 2000")
+        tick.call(curtain, LuaValue.valueOf(1.0))
+        assertEquals(0.5, curtain.get("alpha").todouble(), 0.001, "half gone a second into the lift")
+        tick.call(curtain, LuaValue.valueOf(1.1))
+        assertTrue(!curtain.get("shown").toboolean(), "gone after the lift")
+        // Never lifted: it goes by itself when its time is up.
+        addonMessage("curtain 5000")
+        tick.call(curtain, LuaValue.valueOf(2.5))
+        assertEquals(1.0, curtain.get("alpha").todouble(), 0.001)
+        tick.call(curtain, LuaValue.valueOf(1.25))
+        assertEquals(0.5, curtain.get("alpha").todouble(), 0.001, "fading out over its last two and a half seconds")
+        tick.call(curtain, LuaValue.valueOf(1.5))
+        assertTrue(!curtain.get("shown").toboolean())
+        // A lift with nothing up does nothing.
+        addonMessage("lift 1000")
+        assertTrue(!curtain.get("shown").toboolean())
+    }
+
+    @Test
+    fun theAddonTellsTheRealmOnceTheFramesHaveSettled() {
+        fun settled() = sent().filter { it.startsWith("WowRemix|settled") }
+        fun addonMessage(text: String) = frame.get("scripts").get("OnEvent").invoke(
+            arrayOf(frame, LuaValue.valueOf("CHAT_MSG_ADDON"), LuaValue.valueOf("WowRemix"), LuaValue.valueOf(text), LuaValue.NIL, LuaValue.valueOf("Testhero")))
+        // On ChromieCraft nothing is said, however smooth the frames.
+        event("PLAYER_ENTERING_WORLD")
+        repeat(60) { update(0.05) }
+        assertEquals(0, settled().size)
+
+        lua.set("realm", LuaValue.valueOf("Wrath Remix"))
+        event("PLAYER_ENTERING_WORLD")
+        // Choppy: a long frame every half second keeps it waiting.
+        repeat(6) { update(0.5); repeat(10) { update(0.05) } }
+        assertEquals(0, settled().size, "no word while frames hitch")
+        // Smooth for a second and a half (two seconds in at least): said once.
+        repeat(30) { update(0.05) }
+        assertEquals(1, settled().size, "said once the frames run smoothly: ${sent()}")
+        val took = settled()[0].substringAfter("settled ").substringBefore("|").toInt()
+        assertTrue(took in 6900..7100, "with the time it took (${settled()[0]})")
+        repeat(100) { update(0.05) }
+        assertEquals(1, settled().size, "and not again")
+        // The realm's curtain starts the watch again.
+        addonMessage("curtain 30000 The Broken Front, Icecrown")
+        repeat(41) { update(0.05) }
+        assertEquals(2, settled().size, "said again after a curtain, once two smooth seconds are in")
+        assertTrue(settled()[1].startsWith("WowRemix|settled 20"), settled()[1])
+        // Leaving the world stops the watch; entering it starts another.
+        addonMessage("curtain 30000")
+        event("PLAYER_LEAVING_WORLD")
+        repeat(100) { update(0.05) }
+        assertEquals(2, settled().size)
+        event("PLAYER_ENTERING_WORLD")
+        repeat(41) { update(0.05) }
+        assertEquals(3, settled().size)
+    }
+
+    @Test
     fun theTocLoadsTheScriptForThisGame() {
         val toc = TouchAddon.files.getValue("WowTouch.toc")
         assertEquals(AddonLayout.INTERFACE, AddonLayout.tocFields(toc)["Interface"]?.trim())
