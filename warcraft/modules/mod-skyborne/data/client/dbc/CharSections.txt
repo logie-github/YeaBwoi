@@ -1,7 +1,7 @@
 # CharSections: the Skyborne's changes (tools/build_data.py)
 types	iiiisssiii
 put	900000	10	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_19.blp			17	0	19
-put	900001	10	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	19
+put	900001	10	0	4				17	0	19
 put	900002	10	0	1	Character\\BloodElf\\Male\\BloodElfMaleFaceLower00_19.blp	Character\\BloodElf\\Male\\BloodElfMaleFaceUpper00_19.blp		1	0	19
 put	900003	10	0	1	Character\\BloodElf\\Male\\BloodElfMaleFaceLower01_19.blp	Character\\BloodElf\\Male\\BloodElfMaleFaceUpper01_19.blp		1	1	19
 put	900004	10	0	1	Character\\BloodElf\\Male\\BloodElfMaleFaceLower02_19.blp	Character\\BloodElf\\Male\\BloodElfMaleFaceUpper02_19.blp		1	2	19
@@ -22,28 +22,28 @@ put	900018	13	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_06.blp			17	0	6
 put	900019	13	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_07.blp			17	0	7
 put	900020	13	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_08.blp			17	0	8
 put	900021	13	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_09.blp			17	0	9
-put	900022	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	0
-put	900023	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_01.blp			17	0	1
-put	900024	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_02.blp			17	0	2
-put	900025	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_03.blp			17	0	3
-put	900026	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_04.blp			17	0	4
-put	900027	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_05.blp			17	0	5
-put	900028	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_06.blp			17	0	6
-put	900029	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_07.blp			17	0	7
-put	900030	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_08.blp			17	0	8
-put	900031	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_09.blp			17	0	9
+put	900022	13	0	4				17	0	0
+put	900023	13	0	4				17	0	1
+put	900024	13	0	4				17	0	2
+put	900025	13	0	4				17	0	3
+put	900026	13	0	4				17	0	4
+put	900027	13	0	4				17	0	5
+put	900028	13	0	4				17	0	6
+put	900029	13	0	4				17	0	7
+put	900030	13	0	4				17	0	8
+put	900031	13	0	4				17	0	9
 put	900032	13	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_19.blp			17	0	19
-put	900033	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	19
+put	900033	13	0	4				17	0	19
 put	900034	13	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_20.blp			17	0	20
-put	900035	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	20
+put	900035	13	0	4				17	0	20
 put	900036	13	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_21.blp			17	0	21
-put	900037	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	21
+put	900037	13	0	4				17	0	21
 put	900038	13	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_22.blp			17	0	22
-put	900039	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	22
+put	900039	13	0	4				17	0	22
 put	900040	13	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_23.blp			17	0	23
-put	900041	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	23
+put	900041	13	0	4				17	0	23
 put	900042	13	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_24.blp			17	0	24
-put	900043	13	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	24
+put	900043	13	0	4				17	0	24
 put	900044	13	0	1	Character\\Skyborne\\Male\\SkyborneMaleFaceLower00_00.blp	Character\\Skyborne\\Male\\SkyborneMaleFaceUpper00_00.blp		1	0	0
 put	900045	13	0	1	Character\\Skyborne\\Male\\SkyborneMaleFaceLower00_01.blp	Character\\Skyborne\\Male\\SkyborneMaleFaceUpper00_01.blp		1	0	1
 put	900046	13	0	1	Character\\Skyborne\\Male\\SkyborneMaleFaceLower00_02.blp	Character\\Skyborne\\Male\\SkyborneMaleFaceUpper00_02.blp		1	0	2
@@ -773,28 +773,28 @@ put	900769	14	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_06.blp			17	0	6
 put	900770	14	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_07.blp			17	0	7
 put	900771	14	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_08.blp			17	0	8
 put	900772	14	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_09.blp			17	0	9
-put	900773	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	0
-put	900774	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_01.blp			17	0	1
-put	900775	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_02.blp			17	0	2
-put	900776	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_03.blp			17	0	3
-put	900777	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_04.blp			17	0	4
-put	900778	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_05.blp			17	0	5
-put	900779	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_06.blp			17	0	6
-put	900780	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_07.blp			17	0	7
-put	900781	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_08.blp			17	0	8
-put	900782	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_09.blp			17	0	9
+put	900773	14	0	4				17	0	0
+put	900774	14	0	4				17	0	1
+put	900775	14	0	4				17	0	2
+put	900776	14	0	4				17	0	3
+put	900777	14	0	4				17	0	4
+put	900778	14	0	4				17	0	5
+put	900779	14	0	4				17	0	6
+put	900780	14	0	4				17	0	7
+put	900781	14	0	4				17	0	8
+put	900782	14	0	4				17	0	9
 put	900783	14	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_19.blp			17	0	19
-put	900784	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	19
+put	900784	14	0	4				17	0	19
 put	900785	14	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_20.blp			17	0	20
-put	900786	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	20
+put	900786	14	0	4				17	0	20
 put	900787	14	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_21.blp			17	0	21
-put	900788	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	21
+put	900788	14	0	4				17	0	21
 put	900789	14	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_22.blp			17	0	22
-put	900790	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	22
+put	900790	14	0	4				17	0	22
 put	900791	14	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_23.blp			17	0	23
-put	900792	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	23
+put	900792	14	0	4				17	0	23
 put	900793	14	0	0	Character\\Skyborne\\Male\\SkyborneMaleSkin00_24.blp			17	0	24
-put	900794	14	0	4	Character\\BloodElf\\Male\\BloodElfMaleNakedPelvisSkin00_00.blp			17	0	24
+put	900794	14	0	4				17	0	24
 put	900795	14	0	1	Character\\Skyborne\\Male\\SkyborneMaleFaceLower00_00.blp	Character\\Skyborne\\Male\\SkyborneMaleFaceUpper00_00.blp		1	0	0
 put	900796	14	0	1	Character\\Skyborne\\Male\\SkyborneMaleFaceLower00_01.blp	Character\\Skyborne\\Male\\SkyborneMaleFaceUpper00_01.blp		1	0	1
 put	900797	14	0	1	Character\\Skyborne\\Male\\SkyborneMaleFaceLower00_02.blp	Character\\Skyborne\\Male\\SkyborneMaleFaceUpper00_02.blp		1	0	2
@@ -1515,7 +1515,7 @@ put	901511	14	0	2	Character\\Skyborne\\FacialLowerHair00_21.blp	Character\\Skybo
 put	901512	14	0	2	Character\\Skyborne\\FacialLowerHair00_21.blp	Character\\Skyborne\\FacialUpperHair00_21.blp		17	8	21
 put	901513	14	0	2	Character\\Skyborne\\FacialLowerHair00_21.blp	Character\\Skyborne\\FacialUpperHair00_21.blp		17	9	21
 put	901514	10	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_19.blp			17	0	19
-put	901515	10	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	19
+put	901515	10	1	4				17	0	19
 put	901516	10	1	1	Character\\BloodElf\\Female\\BloodElfFemaleFaceLower00_19.blp	Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper00_19.blp		1	0	19
 put	901517	10	1	1	Character\\BloodElf\\Female\\BloodElfFemaleFaceLower01_19.blp	Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper01_19.blp		1	1	19
 put	901518	10	1	1	Character\\BloodElf\\Female\\BloodElfFemaleFaceLower02_19.blp	Character\\BloodElf\\Female\\BloodElfFemaleFaceUpper02_19.blp		1	2	19
@@ -1536,28 +1536,28 @@ put	901532	13	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_06.blp			17	
 put	901533	13	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_07.blp			17	0	7
 put	901534	13	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_08.blp			17	0	8
 put	901535	13	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_09.blp			17	0	9
-put	901536	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	0
-put	901537	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_01.blp			17	0	1
-put	901538	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_02.blp			17	0	2
-put	901539	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_03.blp			17	0	3
-put	901540	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_04.blp			17	0	4
-put	901541	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_05.blp			17	0	5
-put	901542	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_06.blp			17	0	6
-put	901543	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_07.blp			17	0	7
-put	901544	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_08.blp			17	0	8
-put	901545	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_09.blp			17	0	9
+put	901536	13	1	4				17	0	0
+put	901537	13	1	4				17	0	1
+put	901538	13	1	4				17	0	2
+put	901539	13	1	4				17	0	3
+put	901540	13	1	4				17	0	4
+put	901541	13	1	4				17	0	5
+put	901542	13	1	4				17	0	6
+put	901543	13	1	4				17	0	7
+put	901544	13	1	4				17	0	8
+put	901545	13	1	4				17	0	9
 put	901546	13	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_19.blp			17	0	19
-put	901547	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	19
+put	901547	13	1	4				17	0	19
 put	901548	13	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_20.blp			17	0	20
-put	901549	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	20
+put	901549	13	1	4				17	0	20
 put	901550	13	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_21.blp			17	0	21
-put	901551	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	21
+put	901551	13	1	4				17	0	21
 put	901552	13	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_22.blp			17	0	22
-put	901553	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	22
+put	901553	13	1	4				17	0	22
 put	901554	13	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_23.blp			17	0	23
-put	901555	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	23
+put	901555	13	1	4				17	0	23
 put	901556	13	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_24.blp			17	0	24
-put	901557	13	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	24
+put	901557	13	1	4				17	0	24
 put	901558	13	1	1	Character\\Skyborne\\Female\\SkyborneFemaleFaceLower00_00.blp	Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_00.blp		1	0	0
 put	901559	13	1	1	Character\\Skyborne\\Female\\SkyborneFemaleFaceLower00_01.blp	Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_01.blp		1	0	1
 put	901560	13	1	1	Character\\Skyborne\\Female\\SkyborneFemaleFaceLower00_02.blp	Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_02.blp		1	0	2
@@ -2154,28 +2154,28 @@ put	902150	14	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_06.blp			17	
 put	902151	14	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_07.blp			17	0	7
 put	902152	14	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_08.blp			17	0	8
 put	902153	14	1	0	Character\\BloodElf\\Female\\BloodElfFemaleSkin00_09.blp			17	0	9
-put	902154	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	0
-put	902155	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_01.blp			17	0	1
-put	902156	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_02.blp			17	0	2
-put	902157	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_03.blp			17	0	3
-put	902158	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_04.blp			17	0	4
-put	902159	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_05.blp			17	0	5
-put	902160	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_06.blp			17	0	6
-put	902161	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_07.blp			17	0	7
-put	902162	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_08.blp			17	0	8
-put	902163	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_09.blp			17	0	9
+put	902154	14	1	4				17	0	0
+put	902155	14	1	4				17	0	1
+put	902156	14	1	4				17	0	2
+put	902157	14	1	4				17	0	3
+put	902158	14	1	4				17	0	4
+put	902159	14	1	4				17	0	5
+put	902160	14	1	4				17	0	6
+put	902161	14	1	4				17	0	7
+put	902162	14	1	4				17	0	8
+put	902163	14	1	4				17	0	9
 put	902164	14	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_19.blp			17	0	19
-put	902165	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	19
+put	902165	14	1	4				17	0	19
 put	902166	14	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_20.blp			17	0	20
-put	902167	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	20
+put	902167	14	1	4				17	0	20
 put	902168	14	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_21.blp			17	0	21
-put	902169	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	21
+put	902169	14	1	4				17	0	21
 put	902170	14	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_22.blp			17	0	22
-put	902171	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	22
+put	902171	14	1	4				17	0	22
 put	902172	14	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_23.blp			17	0	23
-put	902173	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	23
+put	902173	14	1	4				17	0	23
 put	902174	14	1	0	Character\\Skyborne\\Female\\SkyborneFemaleSkin00_24.blp			17	0	24
-put	902175	14	1	4	Character\\BloodElf\\Female\\BloodElfFemaleNakedPelvisSkin00_00.blp			17	0	24
+put	902175	14	1	4				17	0	24
 put	902176	14	1	1	Character\\Skyborne\\Female\\SkyborneFemaleFaceLower00_00.blp	Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_00.blp		1	0	0
 put	902177	14	1	1	Character\\Skyborne\\Female\\SkyborneFemaleFaceLower00_01.blp	Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_01.blp		1	0	1
 put	902178	14	1	1	Character\\Skyborne\\Female\\SkyborneFemaleFaceLower00_02.blp	Character\\Skyborne\\Female\\SkyborneFemaleFaceUpper00_02.blp		1	0	2

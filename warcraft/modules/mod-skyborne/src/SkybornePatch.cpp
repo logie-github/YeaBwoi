@@ -291,15 +291,14 @@ namespace Skyborne
             return count;
         }
 
-        // CharSections' section 4 rows (the underwear) keep their first texture, the pelvis's; the
-        // others (the torso's) go.
+        // CharSections' section 4 rows stay, with no textures, as the game's own rows for race 20 have.
         void EmptyOverlayRows(Dbc& dbc)
         {
             if (dbc.fields < 10)
                 return;
             for (size_t row = 0; row < dbc.records.size(); ++row)
                 if (dbc.Get(row, 3) == 4)
-                    for (uint32_t field : { 5u, 6u })
+                    for (uint32_t field : { 4u, 5u, 6u })
                         dbc.Set(row, field, dbc.String(""));
         }
 
