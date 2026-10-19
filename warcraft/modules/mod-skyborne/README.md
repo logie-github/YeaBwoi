@@ -81,6 +81,10 @@ move to 22 and 23.
   every face of its race and sex, and an overlay row, with no textures (its own face shows). Skins a
   player can choose keep the faces they have.
 
+- **Underwear**: every race keeps the bottoms (CharSections' section 4 rows keep their first
+  texture, the pelvis's; the Skyborne's are the blood elf's); the top (the torso's texture) is
+  taken out (`SkybornePatch.cpp`, `EmptyOverlayRows`).
+
 ## How it's made
 
 - `tools/build_data.py` reads the game's tables (the server's dbc folder) and the core's world SQL,
