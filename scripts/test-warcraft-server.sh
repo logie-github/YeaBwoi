@@ -293,6 +293,36 @@ EOF
 	done
 	echo "The Skyborne start where their side's start races do, with their racials."
 
+	echo "== the void elves and the nightborne (mod-allied-races)"
+	grep -E "Allied races: The races' patch is in the game: 19 tables, [0-9]+ files" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the races' patch"
+	[ -s "$FILES/client/Data/patch-V.MPQ" ] && [ -s "$FILES/client/Data/patch-V.MPQ.alliedraces" ] || fail "the races' patch isn't in the game"
+	for race in 15 16; do
+		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
+	done
+	looks=$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (15, 16)" | CTL sql acore_world)
+	[ "$looks" -gt 20000 ] || fail "the races' looks aren't in the world database ($looks rows)"
+	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, each with their racials.
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Voidtester 15 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/allied-voidelf.out" || fail "the void elf warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nighttester 16 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/allied-nightborne.out" || fail "the nightborne warrior didn't get into the world"
+	for who in Voidtester:11:1:"Ammen Vale" Nighttester:5:1:Deathknell; do
+		IFS=: read -r name race class place <<EOF
+$who
+EOF
+		at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
+		echo "$name at $at, $place's start $start"
+		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
+	done
+	for who in Voidtester:98711,98713,98715,98716,98717:5 Nighttester:98718,98720,98721,98722:4; do
+		name=${who%%:*} rest=${who#*:} spells=${rest%%:*} count=${rest#*:}
+		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
+		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
+	done
+	echo "The void elves and the nightborne start with the Draenei and the Forsaken, with their racials."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 

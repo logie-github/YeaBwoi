@@ -1,0 +1,15 @@
+[worldserver]
+
+########################################
+# The void elves and the nightborne (mod-allied-races)
+########################################
+#
+#    AlliedRaces.ClientPatch
+#        Description: Makes the game's patch for the two races (Data/patch-V.MPQ in the client
+#                     WOW_CLIENT_DIR names) as the world server starts, when the client, the
+#                     module or the races' files changed: their tables, models, textures, voices,
+#                     character creation screen and intros. Off: the patch is taken out, and the
+#                     game doesn't know them.
+#        Default:     1
+
+AlliedRaces.ClientPatch = 1
