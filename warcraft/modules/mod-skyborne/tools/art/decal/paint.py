@@ -417,11 +417,17 @@ P = [gaussian_filter((Cs[c] / np.maximum(As, 1e-9)).reshape(CHH, CWW) * A, 1.2) 
 A = gaussian_filter(A, 1.2)
 yy, xx = np.mgrid[0:RH, 0:RW].astype(float)
 Xr = (pc['y0'] + (xx + 0.5) / RW * (pc['y1'] - pc['y0'])) * 1000 / sH
-hr = (pc['s1'] - (yy + 0.5) / RH * (pc['s1'] - pc['s0'])) * 1000 / SV
+hr = ((pc['s1'] - (yy + 0.5) / RH * (pc['s1'] - pc['s0'])) * 1000 + cfg.get('hair_drop', 0.0)) / SV
 px, py = to_canvas(Xr, hr)
 samp = lambda img: map_coordinates(img, [py, px], order=1, mode='constant', cval=0.0)
 a = np.clip(samp(A), 0, 1)
 rgb = np.stack([samp(P[c]) for c in range(3)], -1) / np.maximum(a, 1e-6)[..., None]
+if 'hair_clear' in cfg:
+    hw_, st_ = cfg['hair_clear']
+    s_real = (pc['s1'] - (yy + 0.5) / RH * (pc['s1'] - pc['s0'])) * 1000
+    y_real = np.abs(Xr) * sH
+    sm_ = lambda e0, e1, x: (lambda t: t * t * (3 - 2 * t))(np.clip((x - e0) / (e1 - e0), 0, 1))
+    a = a * (1 - cfg.get('hair_clear_k', 0.9) * np.exp(-(y_real / hw_) ** 2) * sm_(st_ + 4.0, st_ - 4.0, s_real)) * sm_(0.0, 6.0, s_real)
 tex[RY:RY + RH, RX:RX + RW, :3] = np.clip(rgb, 0, 1)
 tex[RY:RY + RH, RX:RX + RW, 3] = a
 Image.fromarray((tex * 255).round().astype(np.uint8), 'RGBA').save(out)
