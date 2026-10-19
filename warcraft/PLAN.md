@@ -1274,6 +1274,17 @@ for the game on the phone itself ("that's the whole point").
     SettleSeconds`, 25, the longest wait; never under 1.5 s so the act's people are in place). The
     tavern's talk starts once the room is up. The Bazaar at the end the same, Moratari's welcome
     after the lift. CI's test client answers a curtain at once (it has no frames).
+  - Tested locally (the realm built, a new Timerunner logged in by the test client): at first every
+    act waited the whole 25 s. Found: the core's chat packet builder marks a game master's own words
+    as GM chat (`SMSG_GM_MESSAGECHAT`), the realm's whispers to the player themself among them, and
+    the test account is a game master, so its client never saw a curtain and never answered. Fixed
+    both ways: the realm builds the add-on's whispers by guid (plain chat, whoever the player is;
+    the app can make the phone's account a game master too), and the test client reads both
+    packets. Verified: three curtains at a new login (the login's, the way to the tavern's, the
+    arrival's), each answered; the curtain lifts 4.3 s after the login and the talk starts 2.5 s
+    later; `.remix intro status` now counts curtains and settles ("curtain 3 (1.6 s ago), settled 3
+    (1.6 s ago)") so a phone that seems to wait the whole SettleSeconds can be read. The prologue
+    script's seated check moved to 30 s (the toast has them standing from +9 to +16 s).
   - See "Not sure" below for what the phone will show.
 - Open (the user's):
   0. **The next fix** (the user: "Put this on the next fix"): the future Sylvanas, Alleria and
@@ -1394,6 +1405,42 @@ for the game on the phone itself ("that's the whole point").
 
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
+
+## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
+
+Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
+without it. Each is small on its own.
+
+- **The curtain on the phone.** The add-on calls the frames settled after 1.5 s without a frame
+  over 0.2 s (2 s in at least, 60 s at most); the realm waits 25 s at most (`WrathRemix.Intro.
+  SettleSeconds`). On the Fold the right numbers may differ: a city that never runs smoothly
+  means every act waits the whole 25 s; too lax and the room is still loading as it's revealed.
+  `.remix intro status` says how many curtains were drawn and answered and when.
+- **The caption's look.** White text on black, two lines ("The Gilded Rose, Stormwind / Some months
+  after the fall of the Lich King"), the add-on's fade frame's font and size: not seen on a screen.
+- **Game masters' add-on messages.** Until this build the realm's whispers to a game master's own
+  character went out as GM chat; the app can make the phone's account a game master, and whether
+  the game's add-on still heard them wasn't verified (the test client didn't). They're plain chat
+  now, whoever the player is.
+- **The bots at a first login.** Fifty bots load with the realm; their CPU time on the phone in the
+  opening's first minute, and whether it keeps the frames from settling, is unmeasured.
+- **The pinch zoom on the creation screen.** The model frame is grown around the character (the
+  screen's middle, a little above its centre); whether 3.3.5's ModelFFX draws its scene to the
+  frame's rectangle as assumed, and where the character actually stands on the Fold, isn't seen.
+- **Eternus's dragon model, Malykriss's look, the barber chair, the heirloom set's stats, the
+  gendered words ($G) in lines:** all built from the data and the formats, none watched in the
+  game yet (the earlier entries above say what each is).
+- **The Bazaar's name.** Malykriss keeps its own area name in the game (patch-Y is ChromieCraft's
+  too, so the area isn't renamed); the Bazaar is named in its captions and its people's words.
+- **The hooded Cloaked Ranger and the new looks.** The Bazaar's people got new looks from the data;
+  how the hooded ranger reads beside them is a matter of taste for the screen.
+- **Felsong's texts.** The 103 strings the Felsong code needed were written here in Turtle WoW's
+  words said of Felsong, so the app builds; the Felsong session may word them its own way.
+- **The Features (Hair Design) row.** Another session is building it (its "Hair Design" row and
+  server-side design table); nothing of it is written here. The user wants one row cycling the hair
+  art and the body shading like the face and hair rows.
+- **CI's triggers.** The push of the Felsong texts started no run on either branch (every push
+  before did); the run was started by hand (157). Whether GitHub skipped it or was late is unknown.
 
 ## Still open
 
