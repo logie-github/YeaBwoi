@@ -355,15 +355,19 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
                 geoset_policy[g].append(702)
     glow = glow_geosets.get(eyes[0]["choice"]) if eyes else None
     geoset_policy[glow or GLOW_GROUP * 100 + 1].extend([1702, 1703])
-    geoset_policy[3301].append(3301)                       # the eyeballs (drawn from the face region)
-    geoset_policy[3201].append(3201)                       # the mouth, beside the head the Eyes choice picks
+    # The body parts today's models keep in groups 3.3.5 doesn't know (the head and mouth in 32,
+    # the eyeballs in 33, the eyebrows in 34; the toes, torso and forearms in 20, 22 and 23, which
+    # m2.complete_policy folds) become geoset 0, which the game always draws (the HD look's models
+    # keep their whole body there).
+    geoset_policy[3301].append(0)                          # the eyeballs (drawn from the face region)
+    geoset_policy[3201].append(0)                          # the mouth, beside the head the Eyes choice picks
     geoset_policy[0].append(0)                             # the scalp
     for oname in ("Eyes", "Eyebrows"):
         for c in tables.option_choices(model_id, oname, only_available=False)[:1]:
             for g in tables.choice_geosets(c):
-                geoset_policy[g].append(g)
+                geoset_policy[g].append(0)
     if not tables.option_choices(model_id, "Eyes", only_available=False):
-        geoset_policy[3202].append(3202)                   # the head (an Eyes choice picks one otherwise)
+        geoset_policy[3202].append(0)                      # the head (an Eyes choice picks one otherwise)
     out.update({"hardcoded": hardcoded, "hardcoded_files": hardcoded_files, "eye_geosets": [3301],
                 "hair": hair, "hair_colors": hair_colors, "skins": skins, "base_skins": len(base_skins), "faces": faces, "eyes": eyes,
                 "features": features, "feature_options": feature_options, "geoset_policy": {str(k): sorted(set(v)) for k, v in geoset_policy.items()},

@@ -37,7 +37,7 @@ namespace AlliedRaces
         constexpr char const* PATCH = "patch-V.MPQ";
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-2";   // 2: the models' bone combos name the vertices' bones
+        constexpr char const* VERSION = "allied-races-3";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0
 
         Bytes ReadFile(fs::path const& path)
         {
