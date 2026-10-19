@@ -103,7 +103,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     geosets 3.3.5's tables choose from kept whole (hair, features, armour), of the groups it
     doesn't know only the chosen variant (shown always), hair styles copied with the tentacles;
     every batch one texture (body, cape, hair; the tentacle and jewellery textures fixed); mesh
-    sections of at most 64 bones; cameras in 3.3.5's layout. `<Name>.layout.json` tells the
+    sections of at most 64 bones, each section's bone combo naming the very bones its vertices
+    carry (the game draws with the combo); cameras in 3.3.5's layout. `<Name>.layout.json` tells the
     texture tool where the head went. **`tools/check_m2.py`** checks a model the way the game
     would trip over it.
   - **`tools/textures.py`**: the skins (512 x 512 palettized, as the HD looks': 3.3.5's compositing
@@ -138,7 +139,9 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - `tools/test_patch.cpp`: the patch made for a stand-in game from the package's files and read
   back (races, looks and their textures, models, voices, spells, the screen, a second start keeping
   it). Built and run here against the server's tables and a local package.
-- `tools/check_m2.py` on every converted model (run here: all four pass; the HD look's blood elf,
+- `tools/check_m2.py` on every converted model (every vertex's bone slots lead through its
+  section's combo to the bones the vertex names: the first models' didn't, and the game drew them
+  in pieces; run here: all four pass; the HD look's blood elf,
   read the same way, passes but for what the HD look itself leaves out).
 - CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
   Remix's, the races are playable in the world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne

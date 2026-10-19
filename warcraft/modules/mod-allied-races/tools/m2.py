@@ -675,11 +675,15 @@ def convert(files, policy, out_dir, log=print):
         first = i_start + level * 65536
         kind = texture_types[model.texture_lookup[b[9]]]
         uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
+        # Each vertex's bones: the model's bone indices the vertex itself carries (the skin's slots
+        # are relative to the source section's combo, and the game, drawing with a section's combo,
+        # puts a vertex on the bone its slot names there: the combos made here must name these).
         bones_of = {}
         for k in set(skin.indices[first:first + i_count]):
             g = skin.vertices[k]
             w = model.vertices[g][12:16]
-            bones_of[k] = [(skin.properties[k][j], w[j]) for j in range(4) if w[j]]
+            vb = model.vertices[g][16:20]
+            bones_of[k] = [(vb[j], w[j]) for j in range(4) if w[j]]
         groups = []
         for t in range(first, first + i_count, 3):
             tri = skin.indices[t:t + 3]
