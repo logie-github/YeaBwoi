@@ -1209,8 +1209,21 @@ for the game on the phone itself ("that's the whole point").
     rethemed (Ebon Blade banners, Scourge braziers, a rune circle and light at the hourglass, a
     working runeforge). The start, homebind, hourglass, travel hub, scenes' spots, the romance's
     tent, the prologue's text and the tests all moved with the camp.
-  - Being built alongside: the rest of Legion Remix's cast with their wares and lines; the hidden
-    death knight set and its quests (WRM-061 to 063).
+  - The rest of Legion Remix's cast, Wrath versions (looks from the game's infinite dragonflight,
+    each with their wares, a stall and their lines from the wiki): a north row of apparel sellers
+    (Pythagorus, Sacerdormu, Agos, Unicus, Larah, Freddie), Nedward and his barber's chair, Hemet
+    XVII's mounts at the waystation, Jakkus and Momentus (Weaponmaster now) at the training yard,
+    Nostwin and Erus by the campfire, Metros at the heart, Lidamorrutu and Lindormi in the
+    chronicle corner. The instructors' spawns had stayed in Crystalsong: moved.
+  - Checked here: compiled; the realm started with all of it; every Malykriss resident where it
+    should be (`.remix guid`, the skyguards and frost spheres moving); the prologue played through
+    for an Alliance Timerunner (65 checks: woken in Malykriss, the hourglass there and back, Hemet's
+    mounts, Pythagorus's tier set). Not checked: the game drawing any of it (no client here: the
+    props' sizes, the beams, the barber's window away from a barbershop).
+  - CI's run 120 (before the move) played both campaigns through for the first time since build 108
+    and failed only at ChromieCraft taking the Timerunners in: the test asked before its queued
+    writes landed (now it waits).
+  - Being built alongside: the hidden death knight set and its quests (WRM-061 to 063).
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
