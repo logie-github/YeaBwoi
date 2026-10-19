@@ -140,6 +140,20 @@ WoW: Forever's elves of the wind are playable on both realms, on the blood elf's
 
 The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-Z.MPQ`, from your client's own files: the blood elf's textures recoloured; it takes a little longer to start the first time, and again only when the client changes). The game then starts with its patched executable. A `patch-Z.MPQ` of your own is left alone, and the game then won't know them. An HD look's character files are used as the Skyborne's base, whichever look is in.
 
+## The void elves and the nightborne
+
+Blizzard's allied races of today are playable on both realms, in their own models, looks and voices, a race for each side (`modules/mod-allied-races`, its README has the details):
+
+- **Void elves** (Alliance) start in Ammen Vale with the Draenei: their quests, their standing with the Exodar. Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock.
+- **Nightborne** (Horde) start in Deathknell with the Forsaken: their quests, their standing with Undercity. The same classes.
+- **Models and looks**: today's player models, skeletons and animations, made 3.3.5's; every skin colour a player picks today (the nightborne's with each body tattoo), every face with every eye colour (face 1 eye 1, face 1 eye 2...; void elves 28 faces x 9 eye colours, nightborne 12 x 6), every hair style (void elves also with their tentacles) and colour; the feature slider carries the men's facial hair or the women's earrings (void elves), or every chin decoration, mustache and jaw jewellery, or jaw jewellery, earrings and necklace (nightborne). Ears, eyebrows, eye style, face tattoos and jewellery stay at their first choice.
+- **Voices and names**: today's.
+- **Racials**: Spatial Rift (a rift up to 15 yards ahead; use it again within 6 sec to teleport through it; 3 min cooldown), Entropic Embrace (a chance to empower you: +5% damage and healing for 12 sec), Chill of Night, Preternatural Calm and Cantrips (a mailbox for 10 min) for the void elves; Arcane Pulse (Arcane damage around you and a 50% slow, 3 min cooldown), Arcane Resistance, Magical Affinity and Ancient History (Inscription +15) for the nightborne. Ethereal Connection (transmogrification) has nothing to act on here.
+- **Quests**: the start race's own start quests are cloned for the new race, their givers taking in who the player is before sending them down the same road (a void elf washed up with the Exodar's survivors; a nightborne sent to learn the Forsaken's ways in Deathknell); the originals are untouched, and every other quest of the start race is open to the new race.
+- **The intro** is the start race's flight over its land, with each race's own narration.
+
+The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-V.MPQ`, from the module's tables and the races' models, textures and voices the server package brings: about 230 MB, made again only when the client or the package changes). It is read after an HD look's patches and before Wrath Remix's and the Skyborne's, which carry its rows on. A `patch-V.MPQ` of your own is left alone, and the game then won't know them. Not yet seen in the game: nothing here runs the 3.3.5 client.
+
 ## Modules
 
 **Modules** (a launcher tile) adds [AzerothCore modules](https://github.com/topics/azerothcore-module) to your realm: an auction house bot, transmogrification, solo dungeons and the hundreds more GitHub lists under that topic.

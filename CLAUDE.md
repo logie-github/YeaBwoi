@@ -22,6 +22,10 @@ self-updating from this repository's GitHub releases.
   realm 1. Where it stands and what's next: `warcraft/PLAN.md`.
 - **The Skyborne** (WoW: Forever's race, both realms): `warcraft/modules/mod-skyborne` (its README);
   `tools/build_data.py` makes its data, committed.
+- **The void elves and the nightborne** (Blizzard's allied races in their own models, both realms):
+  `warcraft/modules/mod-allied-races` (its README); `tools/races.py`, `tools/build_data.py` and
+  `tools/quests.py` make its data, committed; `tools/package.py` fetches and converts the game's
+  files as the server is packaged (never committed).
 - Each app's `README.md` is its user manual; keep it current with every change.
 
 ## Rules

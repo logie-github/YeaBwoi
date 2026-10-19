@@ -19,6 +19,7 @@
  */
 
 #include "WrathRemix.h"
+#include "../../mod-skyborne/src/SkyborneFiles.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "Field.h"
@@ -478,6 +479,18 @@ namespace WrathRemix
         }
 
         fs::path dbc = fs::path(sConfigMgr->GetOption<std::string>("DataDir", "./")) / "dbc";
+        // The looks' and models' tables as the game has them (its own, the HD looks' patches and
+        // the other modules' in: mod-allied-races' patch-V.MPQ adds the void elves' and the
+        // nightborne's looks and models), so this patch, read after them, carries their rows too;
+        // the server's file where the game hasn't one.
+        Skyborne::Game clientGame(data, { "patch-y.mpq", "patch-z.mpq" });
+        auto clientTable = [&](char const* name) -> Bytes
+        {
+            Bytes table;
+            if (clientGame.Read(std::string("DBFilesClient\\") + name, table) && !table.empty())
+                return table;
+            return Read(dbc / name);
+        };
         struct File { char const* name; char const* table; std::vector<char const*> columns; };
         std::vector<File> const tables = {
             { "Item.dbc", "item_dbc", { "ID", "ClassID", "SubclassID", "Sound_Override_Subclassid", "Material",
@@ -518,7 +531,7 @@ namespace WrathRemix
         // of the game's with its clothes (fields 8 to 18) changed, and without its baked texture (field
         // 20, the name's offset: 0 is the empty name), so the game dresses the look from those; and a
         // CreatureDisplayInfo row (16 fields) copied from the game's look, with that extra (field 3).
-        Bytes const displayBase = Read(dbc / "CreatureDisplayInfo.dbc"), extraBase = Read(dbc / "CreatureDisplayInfoExtra.dbc");
+        Bytes const displayBase = clientTable("CreatureDisplayInfo.dbc"), extraBase = clientTable("CreatureDisplayInfoExtra.dbc");
         std::vector<std::vector<int32>> looks, lookExtras;
         if (QueryResult result = WorldDatabase.Query("SELECT `display`, `from_display`, `extra`, `from_extra`, `bake`, `item1`, `item2`, `item3`, `item4`, `item5`, "
                                                      "`item6`, `item7`, `item8`, `item9`, `item10`, `item11` FROM `remix_look` ORDER BY `display`"))
@@ -556,7 +569,7 @@ namespace WrathRemix
         {
             constexpr uint32 GAME_DRAGON_MODEL = 2723, GAME_DRAGON_LOOK = 23746;
             constexpr float BOUNDS[6] = { -19.34f, -9.86f, -0.55f, 10.24f, 9.66f, 13.43f };   // her model's, standing (the newer games')
-            Bytes const modelBase = Read(dbc / "CreatureModelData.dbc");
+            Bytes const modelBase = clientTable("CreatureModelData.dbc");
             std::vector<int32> model = RowOf(modelBase, 28, GAME_DRAGON_MODEL), at;
             dragonLook = RowOf(displayBase, 16, GAME_DRAGON_LOOK);
             Bytes grown = model.empty() ? Bytes() : WithStrings(modelBase, 28, { "Creature\\Eternus\\Eternus.mdx" }, at);

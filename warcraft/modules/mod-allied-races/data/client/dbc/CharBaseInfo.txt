@@ -1,0 +1,15 @@
+# CharBaseInfo: the void elves' and the nightborne's changes (tools/build_data.py)
+appendraw	0f01
+appendraw	0f03
+appendraw	0f04
+appendraw	0f05
+appendraw	0f06
+appendraw	0f08
+appendraw	0f09
+appendraw	1001
+appendraw	1003
+appendraw	1004
+appendraw	1005
+appendraw	1006
+appendraw	1008
+appendraw	1009
