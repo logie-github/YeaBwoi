@@ -30,6 +30,8 @@ sourceSets {
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/modules")
         // Turtle WoW's platform-independent parts: its folder guard, manifests, downloads, accounts.
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/turtle/core")
+        // Felsong's platform-independent parts: its folder layout, install plan, Legion accounts, client checks.
+        kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/felsong/core")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/reports")
     }
 }

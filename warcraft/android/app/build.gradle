@@ -67,6 +67,13 @@ android {
 		buildConfigField "long", "TURTLE_SERVER_SIZE", "${wowProperty("turtleServerSize", "0")}L"
 		buildConfigField "long", "TURTLE_SERVER_UNPACKED", "${wowProperty("turtleServerUnpacked", "0")}L"
 		buildConfigField "String", "TURTLE_SERVER_COMMIT", "\"${wowProperty("turtleServerCommit", "")}\""
+		// Felsong's realm package (scripts/package-legioncore.sh), published by CI as the release
+		// felsong-server-<hash>: the one this build downloads, with its size and SHA-256.
+		buildConfigField "String", "FELSONG_SERVER_TAG", "\"${wowProperty("felsongServerTag", "")}\""
+		buildConfigField "String", "FELSONG_SERVER_SHA256", "\"${wowProperty("felsongServerSha256", "")}\""
+		buildConfigField "long", "FELSONG_SERVER_SIZE", "${wowProperty("felsongServerSize", "0")}L"
+		buildConfigField "long", "FELSONG_SERVER_UNPACKED", "${wowProperty("felsongServerUnpacked", "0")}L"
+		buildConfigField "String", "FELSONG_SERVER_COMMIT", "\"${wowProperty("felsongServerCommit", "")}\""
 
 		ndk {
 			// Phones only: the server and the game's runtime are built for arm64.
