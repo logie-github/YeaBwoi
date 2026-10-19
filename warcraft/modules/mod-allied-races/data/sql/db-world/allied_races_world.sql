@@ -27873,6 +27873,6 @@ REPLACE INTO `player_race_stats` (`Race`, `Strength`, `Agility`, `Stamina`, `Int
 UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | 16384 WHERE `AllowableRaces` & 1025 AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF AND `ID` NOT IN (9279, 9280, 9283, 9463, 9473, 9505, 9612, 9603, 9604, 9605, 9606, 9753, 9756, 9759, 9760, 9761, 9762);
 UPDATE `item_template` SET `AllowableRace` = `AllowableRace` | 16384 WHERE `AllowableRace` <> -1 AND `AllowableRace` & 1025 AND `AllowableRace` & 0x7FFFFFFF <> 0x7FFFFFFF;
 UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | 16384 WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & 1025;
-UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | 32768 WHERE `AllowableRaces` & 528 AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF AND `ID` NOT IN (363, 5847, 6321, 6323, 6322, 6324);
+UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | 32768 WHERE `AllowableRaces` & 528 AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF AND `ID` NOT IN (363, 6321, 6323, 6322, 6324);
 UPDATE `item_template` SET `AllowableRace` = `AllowableRace` | 32768 WHERE `AllowableRace` <> -1 AND `AllowableRace` & 528 AND `AllowableRace` & 0x7FFFFFFF <> 0x7FFFFFFF;
 UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | 32768 WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & 528;
