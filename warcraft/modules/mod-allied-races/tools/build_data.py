@@ -53,7 +53,7 @@ MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # whose model
 PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb"}
 NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne"}
 NARRATION = {VOIDELF: "VoidElfNarration.mp3", NIGHTBORNE: "NightborneNarration.mp3"}
-FEATURE_LABELS = {VOIDELF: ("NORMAL", "EARRINGS", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL")}
+FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL")}
 # The quests of the start race alone that are cloned for the new race (tools/quests.py): those
 # keep their race, the clone is the new race's; every other quest of the start race opens to it.
 CLONED = json.load(open(os.path.join(MODULE, "data", "retail", "cloned_quests.json"))) if os.path.exists(

@@ -72,6 +72,27 @@ check(complete["401"] == [401] and complete["402"] == [402], "the tables' groups
 check(complete["702"] == [702] and "703" not in complete, "other groups the game knows keep their lowest")
 check(complete["2001"] == [0] and "2002" not in complete and complete["2201"] == [0] and "2202" not in complete, "groups the game doesn't know: their lowest becomes the body")
 check(complete["3301"] == [0], "the eyes go to the body as named")
+capped = m2.complete_policy({"geoset_policy": {"0": [0]}, "drop_groups": []}, [0, 501, 502, 506, 507, 510, 1502, 1507])
+check(all(k in capped for k in ("501", "502", "506", "1502")) and not any(k in capped for k in ("507", "510", "1507")), "gear variants no 3.3.5 item asks for go")
+
+# The mesh simplifier: a grid comes down to the count asked, keeping its outline; the budget planner
+# takes from the tiers in order, no further than their floors.
+import decimate  # noqa: E402
+n = 21
+gx, gy = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
+gpos = np.stack([gx.ravel(), gy.ravel(), np.zeros(n * n)], axis=1)
+gtris = []
+for i in range(n - 1):
+    for j in range(n - 1):
+        a = i * n + j
+        gtris += [(a, a + 1, a + n), (a + 1, a + n + 1, a + n)]
+cut = decimate.decimate(gpos, np.array(gtris), 300)
+corners = {0, n - 1, n * (n - 1), n * n - 1}
+check(290 <= len(cut) <= 300 and corners <= set(cut.ravel().tolist()), "a grid of %d triangles comes down to %d, corners kept" % (len(gtris), len(cut)))
+keep = decimate.plan({"body": 100, "hair": 100, "gear": 100}, 250, [("gear", 0.5), ("hair", 0.6), ("body", 0.75)])
+check(keep["gear"] == 0.5 and keep["body"] == 1.0 and abs(keep["hair"] - 1.0) < 1e-9, "the planner takes from the gear first and only what's needed")
+keep = decimate.plan({"body": 100, "gear": 100}, 120, [("gear", 0.5)])
+check(abs(keep["gear"] - 0.5 * 120 / 150) < 1e-9 and abs(keep["body"] - 120 / 150) < 1e-9, "past the floors, every tier gives the same share")
 check("5101" not in complete, "dropped groups go")
 check("3" not in complete and complete["0"] == [0], "hair styles not named go; the scalp stays")
 

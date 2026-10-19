@@ -349,7 +349,9 @@ def render(model, skin, texture, hair_tex, files, shown, world, camera, size, li
             tx = np.full((4, 4, 4), 255, dtype=np.uint8)
         tx = np.asarray(tx)
         th, tw = tx.shape[:2]
-        first = is_ + level * 65536
+        # The game reads the 16-bit start alone: the modern format's high word (level) is lost on
+        # it, so a section placed past the first 65535 indices draws from the wrong triangles.
+        first = is_
         tris = skin.indices[first:first + ic].reshape(-1, 3)
         for tri in tris:
             if not ok[tri].all():

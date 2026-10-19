@@ -27,12 +27,13 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     face today has textures for the skins of its kind (the eight void faces for the void skins,
     the twenty high elf faces for the high elf skins): on a skin of the other kind, a face number
     shows that kind's face of the same rank, so every face draws on every skin.
-  - *Hair style*: every style; void elves also get each style that has void tentacles once more
-    with them (today's Tentacles switch).
+  - *Hair style*: every style.
   - *Hair colour*: every colour a player picks today (16 each).
-  - *Feature*: void elf men their facial hair (8), void elf women their earrings (5); nightborne
-    men every chin decoration x mustache x jaw jewellery (160), nightborne women every jaw
-    jewellery x earrings x necklace (160).
+  - *Feature*: void elf men their facial hair x void tentacles (8 x 7: today's Tentacles switch
+    gives each hair style its own tentacle shape; here the shapes are variants named for the
+    style they were made for, and any goes with any style), void elf women their earrings x
+    tentacles (5 x 7); nightborne men every chin decoration x mustache x jaw jewellery (160),
+    nightborne women every jaw jewellery x earrings x necklace (160).
   - Left at their first choice (3.3.5 has no slider for them): ears, eyebrows, eye style and
     eyesight, face tattoos, face jewellery, headdresses, hair decorations, luminous hands. Faces
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5
@@ -104,8 +105,12 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     models keep in groups 3.3.5 doesn't know (the head, mouth, eyes and eyebrows, the toes, torso
     and forearms: groups 20 and up, which the game doesn't draw) folded into geoset 0, which it
     always draws, as the HD look's models keep their body; of other groups only the first
-    variant; hair styles copied with the tentacles;
-    every batch one texture (body, cape, hair; the tentacle and jewellery textures fixed); mesh
+    variant; **the mesh cut down to 65535 indices** (`tools/decimate.py`: 3.3.5 reads a section's
+    triangle start as 16 bits, so every section has to begin within the first 65535 indices, and
+    today's models have 85,000 to 140,000; quadric-error half-edge collapses, which keep every
+    vertex's texture coordinates, normal and bones and leave boundaries and seams alone, take
+    from the gear first, then the features and the hair, the body last: the log says how much of
+    each); every batch one texture (body, cape, hair; the tentacle and jewellery textures fixed); mesh
     sections of at most 64 bones, each section's bone combo naming the very bones its vertices
     carry (the game draws with the combo); cameras in 3.3.5's layout. `<Name>.layout.json` tells the
     texture tool where the head went. **`tools/check_m2.py`** checks a model the way the game
@@ -145,7 +150,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - **`tools/render_m2.py MODEL.m2 FILES DBC_DIR OUT.png`** draws a converted model the way the game
   reads it (the sections through their bone combos, posed on Stand, the composed character
   texture, the model's own cameras) to a PNG: how the model will look, short of the game itself.
-  Run here on all four models before a release.
+  Run here on all four models before a release. It reads the sections' triangle starts as the
+  game does (16 bits), so a model over the limit shows its damage here first.
 - `tools/check_m2.py` on every converted model (every vertex's bone slots lead through its
   section's combo to the bones the vertex names: the first models' didn't, and the game drew them
   in pieces; run here: all four pass; the HD look's blood elf,
