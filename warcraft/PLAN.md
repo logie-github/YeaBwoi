@@ -1337,7 +1337,18 @@ for the game on the phone itself ("that's the whole point").
      the sex buttons' parent, is drawn over them and always has an icon. Checked here: the patch made
      for a stand-in client with a GlueXML.toc, its creation screen files read back out of it and run
      in its order in one Lua 5.1 runtime (all load; the button shown with its icon between the sex
-     buttons; each side two to a row); test_gear.py, both test_screen.py. Not checked: the game. Earlier checks: test_gear.py
+     buttons; each side two to a row); test_gear.py, both test_screen.py. Not checked: the game. Then the user's
+     screenshots (build 182): the button shown, its tooltip saying the preview can't be dressed ("it
+     gives a message saying it doesn't work"); "The size of these models is off" (the nightborne
+     filled the screen, heads cut off). Found and fixed: 3.3.5's race and class lists give each one's
+     name, file and whether it can be picked (1), never an id, and GetSelectedClass gives the name,
+     file and position: the gear button took the 1 for Human and the position for the class; it
+     now goes by the file name. The
+     nightborne take the Night Elves' scene (each race's scene has a camera framed for that race's
+     height: the Forsaken's, for the stooped undead, cut off the night-elf-sized nightborne; their
+     meshes measure as the night elves', 2.55 and 2.36). Still open: dressing the preview needs code
+     in the game itself (a DLL, the community's 3.3.5a extension route: WotLK-Extensions has the
+     glue Lua hook and CharStartOutfit's table at 0xAD3350); not started, the user to decide. Earlier checks: test_gear.py
      (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
      so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
      patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model

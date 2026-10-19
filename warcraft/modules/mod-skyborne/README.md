@@ -70,8 +70,10 @@ move to 22 and 23.
   own, `GlueTooltip_SetOwner` and `GlueTooltip_SetText`, and its icon has no frame; it was then
   hidden in 3.3.5, until the user asked for it shown between the sex buttons.) The Skyborne take
   their start race's outfit; a race with no start of its own for a class takes the first race's that
-  has one. The button stands between the sex buttons: where the middle of the two was (3.3.5's: the
-  configuration panel's top, 392 down), the male button moved to its left and the female to its
+  has one. The race and class are their file names' (`GetSelectedClass` gives the name, file and
+  position; the lists' third value is whether one can be picked, not an id). The button stands between the sex buttons: where the middle of the two was (3.3.5's: the
+  configuration panel's top, 392 down), the
+  male button moved to its left and the female to its
   right, 12 apart (their centres 50 either side of the middle). It takes the sex buttons' parent and
   is drawn over them, and has the leaf for its icon until its data gives one (a button with no
   texture isn't seen). Not yet seen in the game.

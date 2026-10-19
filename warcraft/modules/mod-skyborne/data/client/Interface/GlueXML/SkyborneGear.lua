@@ -18,21 +18,24 @@ local MODES = { "nude", "starter", "champion" };
 local NAMES = { nude = "No gear", starter = "Starting gear", champion = "Champion gear" };
 local mode = 1;
 
--- Race and class by the file names the screen gives (its lists' second values), where it gives no id.
+-- Race and class by the file names the screen gives (its lists' second values).
 local RACE_IDS = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUREN = 6, GNOME = 7, TROLL = 8,
-	BLOODELF = 10, DRAENEI = 11, SKYBORNEA = 13, SKYBORNEH = 14 };
+	BLOODELF = 10, DRAENEI = 11, SKYBORNEA = 13, SKYBORNEH = 14, VOIDELF = 15, NIGHTBORNE = 16 };
 local CLASS_IDS = { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, DEATHKNIGHT = 6, SHAMAN = 7,
 	MAGE = 8, WARLOCK = 9, DRUID = 11 };
 
--- The screen's lists, by position: the races and classes it enumerates (name, file, id) three at a time.
+-- The screen's lists, by position: the races and classes it enumerates three at a time (name, file,
+-- enabled in 3.3.5, whose third value is whether it can be picked, 1 or 0, not an id): each is its
+-- file's.
 local raceList, classList = {}, {};
 
 local function Capture(list, ids, ...)
 	for i = 1, select("#", ...), 3 do
-		local name, file, id = select(i, ...);
+		local _, file, third = select(i, ...);
 		local n = (i - 1) / 3 + 1;
-		if ( type(id) ~= "number" and type(file) == "string" ) then
-			id = ids[strupper(file)];
+		local id = type(file) == "string" and ids[strupper(file)] or nil;
+		if ( not id and type(third) == "number" and third > 1 ) then
+			id = third;
 		end
 		list[n] = id;
 	end
@@ -50,21 +53,21 @@ end
 Wrap("CharacterCreateEnumerateRaces", raceList, RACE_IDS);
 Wrap("CharacterCreateEnumerateClasses", classList, CLASS_IDS);
 
--- The selected race or class id: the screen's getter may give the position in its list, or the
--- name, file and id.
+-- The selected race or class id: by the file the screen's getter gives (GetSelectedClass: name, file
+-- and position in its list), else by the position (GetSelectedRace: the position alone).
 local function Selected(getter, list, ids)
 	if ( type(getter) ~= "function" ) then
 		return nil;
 	end
 	local a, b, c = getter();
+	if ( type(b) == "string" and ids[strupper(b)] ) then
+		return ids[strupper(b)];
+	end
 	if ( type(a) == "number" and list[a] ) then
 		return list[a];
 	end
-	if ( type(c) == "number" ) then
-		return c;
-	end
-	if ( type(b) == "string" and ids[strupper(b)] ) then
-		return ids[strupper(b)];
+	if ( type(c) == "number" and list[c] ) then
+		return list[c];
 	end
 	return nil;
 end

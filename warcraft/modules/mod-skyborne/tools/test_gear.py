@@ -69,17 +69,19 @@ end
 local RACES = { {"Human","Human",1}, {"Dwarf","Dwarf",3}, {"Night Elf","NightElf",4}, {"Gnome","Gnome",7},
   {"Draenei","Draenei",11}, {"SkyborneA","SkyborneA",13}, {"Orc","Orc",2}, {"Undead","Scourge",5},
   {"Tauren","Tauren",6}, {"Troll","Troll",8}, {"Blood Elf","BloodElf",10}, {"SkyborneH","SkyborneH",14} }
-local CLASSES = { {"Warrior","WARRIOR",1}, {"Paladin","PALADIN",2}, {"Hunter","HUNTER",3}, {"Rogue","ROGUE",4},
+CLASSES = { {"Warrior","WARRIOR",1}, {"Paladin","PALADIN",2}, {"Hunter","HUNTER",3}, {"Rogue","ROGUE",4},
   {"Priest","PRIEST",5}, {"Death Knight","DEATHKNIGHT",6}, {"Shaman","SHAMAN",7}, {"Mage","MAGE",8},
   {"Warlock","WARLOCK",9}, {"Druid","DRUID",11} }
 SELECTED = { race = 1, class = 1, sex = 2 }
 SEX_FEMALE = 3
+-- (as 3.3.5's: the race by its position; the class's name, file and position)
 function GetSelectedRace() return SELECTED.race end
-function GetSelectedClass() return SELECTED.class end
+function GetSelectedClass() local c = CLASSES[SELECTED.class]; return c[1], c[2], SELECTED.class end
 function GetSelectedSex() return SELECTED.sex end
 local function flat(list)
   local out = {}
-  for _, e in ipairs(list) do out[#out + 1] = e[1]; out[#out + 1] = e[2]; out[#out + 1] = e[3] end
+  -- (3.3.5's lists: name, file and whether it can be picked, 1, never the id)
+  for _, e in ipairs(list) do out[#out + 1] = e[1]; out[#out + 1] = e[2]; out[#out + 1] = 1 end
   return unpack(out)
 end
 function CharacterCreateEnumerateRaces() end
