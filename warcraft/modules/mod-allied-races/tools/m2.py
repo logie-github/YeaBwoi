@@ -33,7 +33,30 @@ import os
 import struct
 import sys
 
+import numpy as np
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import decimate  # noqa: E402
+
 MAX_BONES = 64
+INDEX_BUDGET = 65535            # the game reads a section's triangle start as 16 bits: every section within this
+# What gives way when a model has more than that (decimate.py), and how far: the gear first, then
+# the features and the hair, the body (the face among it) last.
+TIER_FLOORS = [("gear", 0.45), ("features", 0.6), ("hair", 0.6), ("body", 0.75)]
+TIER_FLOORS_MORE = [("gear", 0.3), ("features", 0.4), ("hair", 0.4), ("body", 0.6)]
+GEAR_GROUPS = {4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19, 20}
+GEAR_MAX_VARIANT = 6            # 3.3.5's items ask for a group's variants 1 to 6 (ItemDisplayInfo's geoset groups 0 to 5)
+
+
+def tier_of(geoset):
+    """Which part of the model a (new) geoset id is, for the index budget."""
+    if geoset == 0 or geoset == 702:
+        return "body"
+    if geoset < 100:
+        return "hair"
+    if geoset // 100 in (1, 2, 3, 16, 17):
+        return "features"
+    return "gear"
 LAST_ANIMATION = 505                 # 3.3.5's AnimationData ends here
 KEY_BONES = 27                       # 3.3.5 knows key bones 0 to 26
 M2_FLAGS = 0x2080                    # what the known HD conversions keep of the newer flags
@@ -356,6 +379,8 @@ def complete_policy(policy, geosets):
             if group in named or group in drop:
                 continue
             if group in TABLE_GROUPS:
+                if group in GEAR_GROUPS and g % 100 > GEAR_MAX_VARIANT:
+                    continue                       # a variant no 3.3.5 item asks for
                 out[str(g)] = [g]
             elif g == members[0]:
                 out[str(g)] = [g] if group <= LAST_KNOWN_GROUP else [0]
@@ -673,26 +698,69 @@ def convert(files, policy, out_dir, log=print):
                     continue
                 for new in news:
                     plan.append((new, s, b))
-    vertices_bytes = []
-    for new_id, s, b in sorted(plan, key=lambda p: (p[0], p[1])):
+
+    # The triangles of each section (as the model's vertex ids), cut down to what 3.3.5 can
+    # address: it reads a section's triangle start as 16 bits, so every section has to begin
+    # within the first 65535 indices. Today's models have twice that; the gear gives way first,
+    # then the features and the hair, the body last (decimate.py).
+    positions = np.array([struct.unpack_from("<3f", v) for v in model.vertices])
+    source_tris = {}
+    for new_id, s, b in plan:
+        if s in source_tris:
+            continue
         sec = skin.sections[s]
-        level, i_start, i_count, combo = sec[1], sec[4], sec[5], sec[7]
-        first = i_start + level * 65536
+        first = sec[4] + sec[1] * 65536
+        ks = np.array(skin.indices[first:first + sec[5]], dtype=np.int64)
+        source_tris[s] = np.array(skin.vertices, dtype=np.int64)[ks].reshape(-1, 3)
+    sizes = {}
+    for new_id, s, b in plan:
+        t = tier_of(new_id)
+        sizes[t] = sizes.get(t, 0) + len(source_tris[s]) * 3
+    cut = dict(source_tris)
+    tier_of_section = {s: tier_of(new_id) for new_id, s, b in plan}
+    # A pass takes what the floors allow; a mesh may not give all that was asked of it (its
+    # outline and seams stay), so further passes ask for the rest, more from every tier.
+    copies = {}
+    for n, s, b in plan:
+        copies[s] = copies.get(s, 0) + 1
+    for step in range(12):
+        now = {}
+        for s, t in tier_of_section.items():
+            now[t] = now.get(t, 0) + len(cut[s]) * 3 * copies[s]
+        total = sum(now.values())
+        if total <= INDEX_BUDGET:
+            break
+        floors = TIER_FLOORS if step == 0 else TIER_FLOORS_MORE if step == 1 else []
+        keep = decimate.plan(now, INDEX_BUDGET - 300, floors)
+        before = total
+        for s, t in tier_of_section.items():
+            fraction = keep[t]
+            if fraction < 0.999 and len(cut[s]) > 2:
+                cut[s] = decimate.decimate(positions, cut[s], max(1, int(round(len(cut[s]) * fraction))))
+        total = sum(len(cut[s]) * 3 * copies[s] for s in tier_of_section)
+        if total >= before:
+            raise ValueError("%s: the meshes can't be cut to %d indices (%d)" % (name, INDEX_BUDGET, total))
+    for t in sorted(sizes):
+        kept = sum(len(cut[s]) * 3 for n, s, b in plan if tier_of(n) == t)
+        log("%s: %s %.0f%% (%d of %d indices)" % (name, t, 100.0 * kept / max(1, sizes[t]), kept, sizes[t]))
+
+    vertices_bytes = []
+    for new_id, s, b in sorted(plan, key=lambda p: (tier_of(p[0]) == "body", p[0], p[1])):
+        sec = skin.sections[s]
         kind = texture_types[model.texture_lookup[b[9]]]
         uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
-        # Each vertex's bones: the model's bone indices the vertex itself carries (the skin's slots
-        # are relative to the source section's combo, and the game, drawing with a section's combo,
-        # puts a vertex on the bone its slot names there: the combos made here must name these).
+        # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
+        # drawing with a section's combo, puts a vertex on the bone its slot names there: the
+        # combos made here must name these).
         bones_of = {}
-        for k in set(skin.indices[first:first + i_count]):
-            g = skin.vertices[k]
+        for g in set(int(v) for v in cut[s].ravel()):
             w = model.vertices[g][12:16]
             vb = model.vertices[g][16:20]
-            bones_of[k] = [(vb[j], w[j]) for j in range(4) if w[j]]
+            bones_of[g] = [(vb[j], w[j]) for j in range(4) if w[j]]
         groups = []
-        for t in range(first, first + i_count, 3):
-            tri = skin.indices[t:t + 3]
-            used = {bone for k in tri for bone, _ in bones_of[k]}
+        for tri in cut[s]:
+            tri = tuple(int(v) for v in tri)
+            used = {bone for g in tri for bone, _ in bones_of[g]}
             if not groups or len(set(groups[-1][0]) | used) > MAX_BONES:
                 groups.append([[], []])
             palette = groups[-1][0]
@@ -705,24 +773,24 @@ def convert(files, policy, out_dir, log=print):
             vertex_start, index_start = len(out_vertices), len(out_indices)
             influences = 0
             for tri in triangles:
-                for k in tri:
-                    if k not in place:
-                        place[k] = len(out_vertices)
-                        out_vertices.append(vertex(skin.vertices[k], uv_kind))
-                        w = model.vertices[skin.vertices[k]][12:16]
+                for g in tri:
+                    if g not in place:
+                        place[g] = len(out_vertices)
+                        out_vertices.append(vertex(g, uv_kind))
+                        w = model.vertices[g][12:16]
                         slot = [0, 0, 0, 0]
                         n = 0
                         for j in range(4):
                             if w[j]:
-                                slot[j] = palette.index(bones_of[k][n][0])
+                                slot[j] = palette.index(bones_of[g][n][0])
                                 n += 1
                         influences = max(influences, n)
                         out_props.append(bytes(slot))
-                    out_indices.append(place[k])
+                    out_indices.append(place[g])
             combo_index = len(out_lookup)
             out_lookup.extend(palette)
-            out_sections.append(struct.pack("<10H7f", new_id, index_start >> 16, vertex_start & 0xFFFF, len(place),
-                                            index_start & 0xFFFF, len(triangles) * 3, len(palette), combo_index,
+            out_sections.append(struct.pack("<10H7f", new_id, 0, vertex_start, len(place),
+                                            index_start, len(triangles) * 3, len(palette), combo_index,
                                             max(1, influences), sec[9], *sec[10:17]))
             texture = texture_index[model.texture_lookup[b[9]]]
             shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
@@ -731,6 +799,8 @@ def convert(files, policy, out_dir, log=print):
                                            -1, b[6], 0, 1, texture, 0, b[11] if b[11] < len(model.transparency_lookup) else 0, b[12]))
     if len(out_vertices) > 65535:
         raise ValueError("%s: too many vertices for one skin (%d)" % (name, len(out_vertices)))
+    if len(out_indices) > 65535:
+        raise ValueError("%s: too many indices for one skin (%d): the game reads 16-bit starts" % (name, len(out_indices)))
     # vertices in the model: the ones drawn, in the skin's order, with their bones as the model's
     vertices = bytearray()
     for (index, kind), (new, data) in sorted(new_vertex.items(), key=lambda kv: kv[1][0]):

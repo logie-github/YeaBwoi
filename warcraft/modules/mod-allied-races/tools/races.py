@@ -17,8 +17,8 @@ How today's options become 3.3.5's five sliders (skin, face, hair style, hair co
     255 faces: 28 faces x 9). A face today has textures for the skins of its kind (the void
     faces for the void skins, the high elf faces for the high elf skins); the other skins take
     the nearest face of their own kind, so every face number draws on every skin.
-  * Hair style: every style; void elves also get each style that has void tentacles once more
-    with them (today's Tentacles switch).
+  * Hair style: every style. The void elves' tentacles (today's switch beside the hair style)
+    are on the feature slider, a variant a shape.
   * Hair colour: every colour a player may pick.
   * Feature: void elf men their facial hair, void elf women their earrings; nightborne men
     every chin decoration x mustache x jaw jewellery, nightborne women every jaw jewellery x
@@ -163,23 +163,24 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         hair.append({"variation": i, "geoset": geoset, "name": c["Name_lang"], "choice": c["ID"]})
         if geoset:
             geoset_policy[geoset].append(geoset)
+    # Void tentacles: today a switch beside the hair style, each style with its own shape (a
+    # group 2 geoset). They go on the feature slider (below), one variant a shape, named for the
+    # style the shape was made for: a copy of every style with its tentacles on would double the
+    # hair's triangles, and 3.3.5 can address 65535 indices in a model (m2.py).
     tentacles = tables.option_choices(model_id, "Tentacles", only_available=False)
     hardcoded = {}
     hardcoded_files = {}
+    tentacle_variants = []
     if len(tentacles) > 1:
         on = tentacles[1]
-        next_id = 21
         style_of_choice = {h["choice"]: h for h in hair}
         for e in tables.elements[on["ID"]]:
             if e["ChrCustomizationGeosetID"] != "0" and e["RelatedChrCustomizationChoiceID"] in style_of_choice:
                 tentacle = tables.geoset_of(e)
                 style = style_of_choice[e["RelatedChrCustomizationChoiceID"]]
-                new = next_id
-                next_id += 1
-                hair.append({"variation": len(hair), "geoset": new, "name": style["name"] + ", tentacles", "choice": style["choice"], "tentacles": True})
-                if style["geoset"]:
-                    geoset_policy[style["geoset"]].append(new)
-                geoset_policy[tentacle].append(new)
+                if tentacle // 100 == 2 and tentacle % 100:
+                    tentacle_variants.append({"name": "Tentacles (%s)" % style["name"], "geosets": [(2, tentacle % 100)]})
+                    geoset_policy[tentacle].append(tentacle)
         for _, files in tables.choice_materials(on, TARGET_TENTACLES):
             if files:
                 path = "%s\\%sHairVoid.blp" % (folder, name)
@@ -316,6 +317,8 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
                     geoset_policy[g].append(group * 100 + variant)
             variants.append({"name": c["Name_lang"], "geosets": kept})
         per_option.append(variants)
+    if tentacle_variants:
+        per_option.append([{"name": "", "geosets": []}] + tentacle_variants)
     features = []
 
     def combos(level, chosen):
@@ -326,7 +329,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
                 for group, variant in v["geosets"]:
                     geo[group] = variant
                 names.append(v["name"])
-            features.append({"variation": len(features), "geosets": [geo[1], geo[3], geo[2], 0, 2], "name": ", ".join(names)})
+            features.append({"variation": len(features), "geosets": [geo[1], geo[3], geo[2], 0, 2], "name": ", ".join(n for n in names if n)})
             return
         for v in per_option[level]:
             combos(level + 1, chosen + [v])
