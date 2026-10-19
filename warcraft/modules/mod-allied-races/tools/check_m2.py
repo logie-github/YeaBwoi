@@ -186,10 +186,20 @@ def check(path, verbose=False):
             if not vstart <= k < vstart + vcount:
                 say("section %d (geoset %d): index %d outside its vertices %d..%d" % (i, sec[0], k, vstart, vstart + vcount))
                 break
+        # Each vertex's bone slots name bones of the section's combo, and through the model's bone
+        # lookup the very bones the vertex itself names (the game draws with the combo: a slot
+        # naming another bone puts the vertex on it).
+        bone_lookup = struct.unpack_from("<%dH" % n_bone_lookup, m, bone_lookup_at)
+        wrong = 0
         for k in range(vstart, min(vstart + vcount, pn)):
+            v = vertices[k]
             for j in range(4):
-                if s[po + k * 4 + j] >= bcount and j < binfl:
-                    pass
+                if v < n_verts and m[verts_at + v * 48 + 12 + j]:
+                    slot = s[po + k * 4 + j]
+                    if slot >= bcount or bone_lookup[bcombo + slot] != m[verts_at + v * 48 + 16 + j]:
+                        wrong += 1
+        if wrong:
+            say("section %d (geoset %d): %d vertex bone slots name other bones than the vertices" % (i, sec[0], wrong))
     batches = [struct.unpack_from("<BbHHHhHHHHHHH", s, bo + i * 24) for i in range(bn)]
     for i, b in enumerate(batches):
         if b[3] >= sn:
