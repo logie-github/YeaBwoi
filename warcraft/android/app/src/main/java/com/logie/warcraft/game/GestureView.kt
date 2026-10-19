@@ -89,8 +89,13 @@ class GestureView(
      * the ChromieCraft realm's.
      */
     private val turtle = activity.intent.getStringExtra(EXTRA_ENVIRONMENT) == ENVIRONMENT_TURTLE
-    private val runFolder: java.io.File =
-        if (turtle) com.logie.warcraft.turtle.TurtleFiles.layout(activity).run else com.logie.warcraft.WowFiles.run(activity)
+    /** Felsong's game: the same, with Felsong's folder, saved login and accounts. */
+    private val felsong = activity.intent.getStringExtra(EXTRA_ENVIRONMENT) == ENVIRONMENT_FELSONG
+    private val runFolder: java.io.File = when {
+        turtle -> com.logie.warcraft.turtle.TurtleFiles.layout(activity).run
+        felsong -> com.logie.warcraft.felsong.FelsongFiles.layout(activity).run
+        else -> com.logie.warcraft.WowFiles.run(activity)
+    }
     private val selectionFile = java.io.File(runFolder, "selection")
     private val cutsceneFile = java.io.File(runFolder, "cutscene")
     /**
@@ -247,10 +252,10 @@ class GestureView(
         if (loginShown) return
         loginShown = true
         postDelayed(screenCheck, SCREEN_CHECK_MS)
-        val saved = if (turtle) {
-            com.logie.warcraft.turtle.TurtleLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
-        } else {
-            SavedLogin.get(activity)
+        val saved = when {
+            turtle -> com.logie.warcraft.turtle.TurtleLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
+            felsong -> com.logie.warcraft.felsong.FelsongLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
+            else -> SavedLogin.get(activity)
         }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
         if (login != null) {
@@ -615,6 +620,11 @@ class GestureView(
                     val names = if (named != null) listOf(named) else accounts.list(app).map { it.name }
                     names.firstOrNull { accounts.isPassword(app, it, password) }
                         ?.let { com.logie.warcraft.turtle.TurtleLogin.save(app, it, password) }
+                } else if (felsong) {
+                    val accounts = com.logie.warcraft.felsong.FelsongAccounts
+                    val names = if (named != null) listOf(named) else accounts.list(app).map { it.name }
+                    names.firstOrNull { accounts.isPassword(app, it, password) }
+                        ?.let { com.logie.warcraft.felsong.FelsongLogin.save(app, it, password) }
                 } else {
                     val names = if (named != null) listOf(named) else Accounts.list(app).map { it.name }
                     names.firstOrNull { Accounts.isPassword(app, it, password) }?.let { SavedLogin.save(app, it, password) }
