@@ -35,7 +35,7 @@ INSERT INTO `itemextendedcost_dbc` (`ID`, `HonorPoints`, `ArenaPoints`, `ArenaBr
 (7727, 0, 0, 0, 77001, 0, 0, 0, 0, 25000, 0, 0, 0, 0, 0, 0);
 
 -- Each list is a vendor template of its own, never spawned: the Bazaar's vendors open it.
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 770301 AND 770499;
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 770301 AND 770399;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `unit_class`, `flags_extra`) VALUES
 (770301, 'Wrath Remix wares', 'Northrend''s dungeons, part 1', 80, 80, 35, 128, 1, 128),
 (770302, 'Wrath Remix wares', 'Northrend''s dungeons, part 2', 80, 80, 35, 128, 1, 128),
@@ -120,9 +120,9 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlev
 (770381, 'Wrath Remix wares', 'Emblems', 80, 80, 35, 128, 1, 128),
 (770382, 'Wrath Remix wares', 'Materials of Northrend', 80, 80, 35, 128, 1, 128),
 (770383, 'Wrath Remix wares', 'Cloaks, item level 167 to 284', 80, 80, 35, 128, 1, 128);
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770301 AND 770499;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 770301 AND 770399;
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`)
-SELECT `entry`, 0, 19373, 1, 1, 0 FROM `creature_template` WHERE `entry` BETWEEN 770301 AND 770499;
+SELECT `entry`, 0, 19373, 1, 1, 0 FROM `creature_template` WHERE `entry` BETWEEN 770301 AND 770399;
 
 DELETE FROM `remix_vendor_list`;
 INSERT INTO `remix_vendor_list` (`list`, `vendor`, `sort`, `side`, `label`) VALUES
@@ -210,7 +210,7 @@ INSERT INTO `remix_vendor_list` (`list`, `vendor`, `sort`, `side`, `label`) VALU
 (770382, 770217, 82, 0, 'Materials of Northrend'),
 (770383, 770210, 83, 0, 'Cloaks, item level 167 to 284');
 
-DELETE FROM `npc_vendor` WHERE `entry` BETWEEN 770301 AND 770499;
+DELETE FROM `npc_vendor` WHERE `entry` BETWEEN 770301 AND 770399;
 -- Northrend's dungeons, part 1
 INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`) VALUES
 (770301, 0, 35572, 0, 0, 7702),

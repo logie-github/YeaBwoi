@@ -303,7 +303,7 @@ namespace
             Quest const* quest = id ? sObjectMgr->GetQuestTemplate(id) : nullptr;
             if (!quest)
                 continue;
-            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id) && !IsRomance(id))
+            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id) && !IsRomance(id) && !IsUnrisen(id))
                 story = quest;
             if (!ready && player->GetQuestStatus(id) == QUEST_STATUS_COMPLETE)
                 ready = quest;
@@ -409,8 +409,9 @@ namespace
             Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
             if (!quest || quest->IsRepeatable() || quest->IsSeasonal())
                 continue;
-            // (Moratari's own story is the Timerunner's to start, or not: never pointed to)
-            if (IsRomance(questId))
+            // (Moratari's own story is the Timerunner's to start, or not, and the hidden plate theirs to
+            // find: never pointed to)
+            if (IsRomance(questId) || IsUnrisen(questId))
                 continue;
             // (a class lesson is offered as the yard's instructors' other quests would be: when near)
             bool story = questId >= 77000 && questId <= 77999 && !IsLesson(questId);

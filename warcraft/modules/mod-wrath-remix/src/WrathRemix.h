@@ -352,6 +352,7 @@ namespace WrathRemix
     uint32 TalkCreditNpc(uint32 credit);                    // whom a remix_talk credit is said to (0: none)
     bool PlaceOf(uint32 quest, uint32 credit, uint32& map, float& x, float& y);  // a remix_place's
     inline bool IsRomance(uint32 quest) { return quest >= 77900 && quest <= 77999; }   // Moratari's own story (optional)
+    inline bool IsUnrisen(uint32 quest) { return quest >= 77061 && quest <= 77063; }   // the hidden plate's (RemixVileHoldSet.cpp): never pointed to
     constexpr uint32 QUEST_ROMANCE_FIRST = 77901, QUEST_ROMANCE_LAST = 77909;   // its nine (tools/romance.py)
     constexpr uint32 QUEST_ROMANCE_TIME_JUMPER = 77910;  // "turned in": they told her they're a time jumper (her story without the war's checkpoints)
 

@@ -343,6 +343,11 @@ namespace WrathRemix
             player->DestroyItemCount(ITEM_BRONZE, bronze, true, false);
         if (uint32 hourglasses = player->GetItemCount(ITEM_HOURGLASS, true))
             player->DestroyItemCount(ITEM_HOURGLASS, hourglasses, true, false);
+        // So does the Unrisen's plate, worn or not (items 77010 to 77020, wrath_remix_world_0031:
+        // ChromieCraft's world has no such items).
+        for (uint32 item = 77010; item <= 77020; ++item)
+            if (uint32 count = player->GetItemCount(item, true))
+                player->DestroyItemCount(item, count, true, false);
 
         // Saved first, the way the game saves (asynchronously: some of a character's statements
         // are only prepared for that), and the dump written once the save is in, since it reads
