@@ -1224,7 +1224,10 @@ for the game on the phone itself ("that's the whole point").
     and failed only at ChromieCraft taking the Timerunners in: the test asked before its queued
     writes landed (now it waits).
   - The hidden death knight set (`0031_vile_hold_set`): nine heirloom pieces any class wears, in a Scourge
-    coffer on the south terrace, WRM-061 to 063. Compiled, SQL loaded; not yet run in the realm or seen.
+    coffer on the south terrace, WRM-061 to 063. Checked here on the realm: the coffer offers WRM-061, the
+    three runes each give its credit, the three quests follow at the coffer, and a mage ends with Plate of
+    the Unrisen (all nine pieces in it); the floor there reads 525.2 as placed. Not checked: the stats on
+    a character (the agent's table is from the DBCs, as the core computes them), the tooltips, the look.
     Kept out of the guide (never pointed to: it's to be found). Found while adding it: 0002 and 0010,
     re-applied, cleared other files' NPC texts and creature templates; each now clears only its own.
   - Then: "Just have moratari mention that the hero may remember this area but when they started
