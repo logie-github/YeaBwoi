@@ -1,18 +1,9 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
 	<!-- The gear button on the character creation screen (mod-skyborne): its icon and what it does are
-	     SkyborneGear.lua's, from SkyborneGearData.lua. -->
+	     SkyborneGear.lua's, from SkyborneGearData.lua; the icon alone, no frame round it. Hidden
+	     where the preview can't be dressed (3.3.5's can't). -->
 	<Button name="SkyborneGearButton" parent="CharacterCreateConfigurationFrame">
 		<Size x="38" y="38"/>
-		<Layers>
-			<Layer level="OVERLAY">
-				<Texture name="$parentBorder" file="Interface\Buttons\UI-Quickslot2">
-					<Size x="64" y="64"/>
-					<Anchors>
-						<Anchor point="CENTER" x="0" y="-1"/>
-					</Anchors>
-				</Texture>
-			</Layer>
-		</Layers>
 		<HighlightTexture file="Interface\Buttons\ButtonHilight-Square" alphaMode="ADD"/>
 	</Button>
 </Ui>

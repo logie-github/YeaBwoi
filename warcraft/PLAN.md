@@ -1288,7 +1288,22 @@ for the game on the phone itself ("that's the whole point").
        Out of Time) and takes them home in Back to Your Own Time, the game's own Chromie keeping
        hers. To ask: whether the hooded "Cloaked Ranger" versions away from the Bazaar keep their
        hoods (the story's disguise) or take the new looks too.
-  1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
+  1. Character creation (on hold, the user's choice). The gear button another session added (PR
+     #17) showed in the user's game (build 132) as a square frame round an icon, doing nothing, and
+     its tooltip failed ("SkyborneGear.lua:352: attempt to call method 'SetOwner' (a nil value)",
+     with any race). Found: 3.3.5's tooltips on that screen are set by GlueXML's functions
+     (`GlueTooltip_SetOwner(owner, tooltip, x, y)`, `GlueTooltip_SetText(text, tooltip)`), not
+     methods; its preview is a ModelFFX with no `Undress` or `TryOn`, so no interface code can dress
+     it. Fixed: the creation screen's tooltip through those functions, no frame round the icon,
+     and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
+     shows only if a change to the executable ever makes it dressable). Checked here: test_gear.py
+     (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
+     so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
+     patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model
+     frame grown around the character, up to 2.5 times, back to the whole screen; the panels kept
+     where they are). Checked here: test_zoom.py (10 checks). Not checked: the game (that the
+     ModelFFX draws its scene to its larger rectangle, as model frames do). What follows is the
+     executable route, still on hold: a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
      set (Tier 10, the user's choice), never a helmet, live on the creation screen, no restart, no
      crash risk (the user). Found: 3.3.5's creation screen dresses its model from CharStartOutfit,
