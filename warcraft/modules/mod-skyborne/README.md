@@ -108,7 +108,7 @@ move to 22 and 23.
   exported by `tools/art/races/features_export.py` to `data/client/features` (the pelvis texture of
   each race, 256 by 128, a design's alpha and colours); the patch makes them as
   `Character\<Race>\Female\<Race>FemaleFeature<NN>.blp`, for a race whose model and body texture
-  are the ones the designs were made for. Not yet seen in the game.
+  are the ones the designs were made for (a race that isn't has its design rows emptied, the skins still there with no art). A design is chosen when the character is made: the barber's chair changes hair and beard, not skin. Not yet seen in the game.
 
 ## How it's made
 

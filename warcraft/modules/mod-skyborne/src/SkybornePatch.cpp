@@ -300,15 +300,22 @@ namespace Skyborne
         }
 
         // CharSections' section 4 rows stay, with no textures, as the game's own rows for race 20 have;
-        // but for the Features' (the first texture is a design's: MakeFeatures).
-        void EmptyOverlayRows(Dbc& dbc)
+        // but for the Features' (the first texture is a design's, where MakeFeatures made it: a race
+        // whose body files aren't the ones the designs were made for has its design rows empty too).
+        void EmptyOverlayRows(Dbc& dbc, std::set<std::string> const& made)
         {
             if (dbc.fields < 10)
                 return;
             for (size_t row = 0; row < dbc.records.size(); ++row)
-                if (dbc.Get(row, 3) == 4 && Lower(StringAt(dbc, row, 4)).find("femalefeature") == std::string::npos)
-                    for (uint32_t field : { 4u, 5u, 6u })
-                        dbc.Set(row, field, dbc.String(""));
+            {
+                if (dbc.Get(row, 3) != 4)
+                    continue;
+                std::string first = Lower(StringAt(dbc, row, 4));
+                if (first.find("femalefeature") != std::string::npos && made.count(first))
+                    continue;
+                for (uint32_t field : { 4u, 5u, 6u })
+                    dbc.Set(row, field, dbc.String(""));
+            }
         }
 
         // The Features' textures (data/client/features, tools/art/races/features_export.py): each race's
@@ -638,7 +645,7 @@ namespace Skyborne
             if (Lower(name) == "charsections")
                 AddExtraSkins(dbc, game, made);
             if (Lower(name) == "charsections")
-                EmptyOverlayRows(dbc);
+                EmptyOverlayRows(dbc, made);
             if (Lower(name) == "charsections")
                 CompleteSkins(dbc);
             if (Lower(name) == "charsections")
