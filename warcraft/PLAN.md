@@ -1297,7 +1297,12 @@ for the game on the phone itself ("that's the whole point").
      it. Fixed: the creation screen's tooltip through those functions, no frame round the icon,
      and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
      shows only if a change to the executable ever makes it dressable). Checked here: test_gear.py
-     (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. What follows is the
+     (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
+     so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
+     patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model
+     frame grown around the character, up to 2.5 times, back to the whole screen; the panels kept
+     where they are). Checked here: test_zoom.py (10 checks). Not checked: the game (that the
+     ModelFFX draws its scene to its larger rectangle, as model frames do). What follows is the
      executable route, still on hold: a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
      set (Tier 10, the user's choice), never a helmet, live on the creation screen, no restart, no
