@@ -1225,6 +1225,13 @@ for the game on the phone itself ("that's the whole point").
     writes landed (now it waits).
   - The hidden death knight set (`0031_vile_hold_set`): nine heirloom pieces any class wears, in a Scourge
     coffer on the south terrace, WRM-061 to 063. Compiled, SQL loaded; not yet run in the realm or seen.
+    Kept out of the guide (never pointed to: it's to be found). Found while adding it: 0002 and 0010,
+    re-applied, cleared other files' NPC texts and creature templates; each now clears only its own.
+  - Then: "Just have moratari mention that the hero may remember this area but when they started
+    cleaning up the timeline they took care of the scourge infestation here. What this means is that
+    the quests never even become available and it's entirely ours." Done: in Out of Time's text as
+    the Timerunner wakes, and a line of hers now and then at the Bazaar; the hidden plate's tally and
+    STORY.md say the same.
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
