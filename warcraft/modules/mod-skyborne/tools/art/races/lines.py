@@ -57,5 +57,19 @@ rc = np.array(_c.get('lines_rim_col', [1.0, 1.0, 1.0]))
 if 'lines_ref' in _c and 'lines_rim_k' in _c:
     rc = np.clip(ref * _c['lines_rim_k'], 0, 1)
 out = out + (rc - out) * (np.where(ok, rim, 0.0) * _c.get('lines_rim', 0.0))[..., None]
+if 'lines_core' in _c:
+    sm = lambda e0, e1, x: (lambda t: t * t * (3 - 2 * t))(np.clip((x - e0) / (e1 - e0), 0, 1))
+    sel = ok & (s0 > 30) & (s0 < 110) & (ay0 < 25)
+    lum_ref = float(np.median(im[sel] @ np.array([0.299, 0.587, 0.114])))
+    cw = _c.get('lines_core_w', 4.0)
+    prof = np.sqrt(np.clip(1 - ((t - _c.get('lines_core_c', 0.15)) / _c.get('lines_core_h', 0.21)) ** 2, 0, 1))
+    cwv = np.maximum(cw * prof ** 0.8, 1e-3)
+    wp = (1 - sm(cwv * 0.55, cwv, ay0)) * _c.get('lines_core_k', 0.95) * sm(0.0, 0.35, prof) * (along > 0)
+    shade_k = 0.88 + 0.12 * min(1.0, lum_ref * 2.0)
+    cc = np.array(_c['lines_core']) * shade_k
+    out = out * (1 - wp[..., None]) + cc[None, None, :] * wp[..., None]
+    inner = np.exp(-(ay0 / _c.get('lines_slot_w', 1.3)) ** 2) * np.clip(prof * 2.0, 0, 1) * wp
+    deep = np.array(_c.get('lines_slot_col', [0.55, 0.16, 0.22])) * shade_k
+    out = out * (1 - _c.get('lines_slot_k', 0.85) * inner[..., None]) + deep[None, None, :] * (_c.get('lines_slot_k', 0.85) * inner)[..., None]
 Image.fromarray((np.clip(out, 0, 1) * 255).round().astype(np.uint8)).save(dst)
 print(race, 'texels shaded', int(ok.sum()), 'line texels', int((line > 0.3).sum()))
