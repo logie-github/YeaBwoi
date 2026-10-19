@@ -149,6 +149,11 @@ namespace Skyborne
         }
     }
 
+    bool BodyShade::Has(std::string const& race) const
+    {
+        return _races.count(Lower(race)) > 0;
+    }
+
     bool BodyShade::Apply(std::string const& path, Image& im) const
     {
         if (im.width != 512 || im.height != 512)

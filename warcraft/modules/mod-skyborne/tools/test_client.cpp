@@ -63,7 +63,8 @@ int main(int argc, char** argv)
 
     Dbc sections;
     Check(patch->Read("DBFilesClient\\CharSections.dbc", bytes) && sections.Parse(bytes), "CharSections.dbc is in it");
-    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, overlays = 0, worn = 0;
+    int looks = 0, leftover = 0, darkRanger = 0, skins = 0, withExtra = 0, overlays = 0, worn = 0, designRows = 0, noDesign = 0;
+    std::set<std::string> designs;
     Game hd(data, { "patch-z.mpq", "patch-y.mpq" });
     Bytes probe;
     bool hasExtra = hd.Read("Character\\BloodElf\\Female\\BloodElfFemaleSkin00_00_Extra.blp", probe);
@@ -81,7 +82,28 @@ int main(int argc, char** argv)
         if (base == 4)
         {
             ++overlays;
-            if (sections.Get(i, 4) || sections.Get(i, 5) || sections.Get(i, 6))
+            uint32_t at4 = sections.Get(i, 4);
+            std::string first = at4 < sections.strings.size() ? reinterpret_cast<char const*>(&sections.strings[at4]) : "";
+            if (first.find("FemaleFeature") != std::string::npos)
+            {
+                // a Features design's pelvis texture: made, the pelvis' size (a quarter of the body texture's height
+                // and half its width), and painted (some texels visible: the sparsest designs are faint)
+                ++designRows;
+                if (designs.insert(first).second)
+                {
+                    Bytes blp;
+                    Image pelvis;
+                    size_t opaque = 0;
+                    bool good = patch->Read(first, blp) && Decode(blp, pelvis) && pelvis.width == 256 && pelvis.height == 128;
+                    for (size_t px = 3; good && px < pelvis.rgba.size(); px += 4)
+                        opaque += pelvis.rgba[px] > 16;
+                    if (!good || opaque == 0)
+                        ++noDesign;
+                }
+                if (sections.Get(i, 5) || sections.Get(i, 6))
+                    ++worn;
+            }
+            else if (at4 || sections.Get(i, 5) || sections.Get(i, 6))
                 ++worn;
         }
         if ((race == 13 || race == 14 || (race == 10 && color == 19)) && base == 0)
@@ -99,7 +121,10 @@ int main(int argc, char** argv)
     Check(looks > 2000, "the Skyborne's looks (" + std::to_string(looks) + ")");
     Check(leftover == 0, "no Naga or Broken looks left on races 13 and 14");
     Check(darkRanger == 2, "the blood elf's Dark Ranger skin, both sexes");
-    Check(overlays > 0 && worn == 0, "section 4 rows carry no textures (" + std::to_string(overlays) + " rows)");
+    Check(overlays > 0 && worn == 0, "section 4 rows carry no textures, but the Features' pelvis textures (" + std::to_string(overlays) + " rows)");
+    // Features: ten bodies' twelve designs (the blood elf's are the Skyborne's too), each a pelvis texture in the patch.
+    Check(designs.size() >= 12 * 8 && designRows > 1000 && noDesign == 0,
+          "the Features' pelvis textures are in it, 256 by 128, painted (" + std::to_string(designs.size()) + " textures for " + std::to_string(designRows) + " rows)");
     // An NPC's skin (flag 1 off) has a face row for every face its race and sex have (a look the game
     // puts together itself with such a skin, Wrath Remix's Moratari in her dress, fails without one).
     {
@@ -139,6 +164,11 @@ int main(int argc, char** argv)
               && patch->Read("Interface\\GlueXML\\SkyborneGearData.lua", bytes) && bytes.size() > 1000
               && patch->Read("Interface\\GlueXML\\SkyborneGear.xml", bytes) && patch->Read("Interface\\GlueXML\\SkyborneGear.lua", bytes),
           "the character screen has the gear button");
+    Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneFeatures.lua") != std::string::npos
+              && std::string(toc.begin(), toc.end()).find("SkyborneFeaturesData.lua") < std::string(toc.begin(), toc.end()).find("SkyborneFeatures.xml")
+              && patch->Read("Interface\\GlueXML\\SkyborneFeatures.xml", bytes) && patch->Read("Interface\\GlueXML\\SkyborneFeatures.lua", bytes)
+              && patch->Read("Interface\\GlueXML\\SkyborneFeaturesData.lua", bytes),
+          "the character screen has the Features row (its data first)");
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneZoom.lua") != std::string::npos
               && patch->Read("Interface\\GlueXML\\SkyborneZoom.lua", bytes) && bytes.size() > 500,
           "the character screen zooms");

@@ -1413,6 +1413,19 @@ for the game on the phone itself ("that's the whole point").
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 
+- The Features row: "Make sure the new features for the races are added into the game ... just be sure
+  they're wired in. In the skyborne module." Done in mod-skyborne: `tools/art/races/features_export.py`
+  makes `data/client/features` (twelve designs for the nine bodies), `tools/build_data.py` makes the
+  Features' skin, face and pelvis rows (19,452 CharSections rows, ids 970000 to 989451, colours above
+  every colour the race and sex have; a first version started right after the selectable skins and
+  collided with the game's NPC-only skins, which the patch test found) and the Lua data, the patch
+  (`SkybornePatch.cpp`) makes the pelvis textures, and `SkyborneFeatures.xml/.lua` is the row. Tested:
+  `tools/test_features.py` (the row on stand-in screens, the data against each other) and
+  `tools/test_client.cpp` against the server's tables and the HD archive (all 108 textures made at
+  256 by 128 and painted; the patch's one other failure there is the race icons, which that folder
+  doesn't have, as before). The user told me not to look at the art: its pixels were checked by
+  count only.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
@@ -1443,9 +1456,13 @@ without it. Each is small on its own.
   how the hooded ranger reads beside them is a matter of taste for the screen.
 - **Felsong's texts.** The 103 strings the Felsong code needed were written here in Turtle WoW's
   words said of Felsong, so the app builds; the Felsong session may word them its own way.
-- **The Features (Hair Design) row.** Another session is building it (its "Hair Design" row and
-  server-side design table); nothing of it is written here. The user wants one row cycling the hair
-  art and the body shading like the face and hair rows.
+- **The Features row (mod-skyborne).** Built from the user's art, not seen in the game. Assumed: that
+  the game's skin colour list wraps around (the arrows step it by the race's skin count, so the last
+  design must wrap to none), that a design's pelvis texture (the underwear's first) is drawn with its
+  alpha under the legs, that a new look may start with a design (the game's random look picks any skin
+  colour), and that the decals' hair colour (the race's first hair colour) suits the skin. Tauren have
+  shading only (no hair art settings) and the goblin isn't a player's race: neither has the row. The
+  body shading stays automatic for every female skin. The user is adding loincloths over the designs.
 - **CI's triggers.** The push of the Felsong texts started no run on either branch (every push
   before did); the run was started by hand (157). Whether GitHub skipped it or was late is unknown.
 

@@ -31,7 +31,10 @@ wait 14
 cmd .gps
 expect Icecrown
 until Frostmourne hungers 110
-wait 14
+# (the journey to the Wrathgate: its curtain is drawn as the Lich King finishes, and lifts once the
+# game has settled there)
+until Angrathar 60
+wait 8
 cmd .gps
 expect Dragonblight
 until Farmers and miners 70

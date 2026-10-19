@@ -78,6 +78,15 @@ FACES = 10                                     # the blood elf's faces for every
 
 # New rows' ids, high enough to stay clear of the game's and other modules' (mod-worgoblin's...).
 ID_SECTIONS = 900000
+ID_FEATURES = 970000                           # CharSections rows of the Features (the allied races' are 920000-969999)
+ID_FEATURES_END = 999999
+FEATURES = os.path.join(MODULE, "data", "client", "features")   # tools/art/races/features_export.py
+# The designs' names by their place (0: none), as the Features row's tooltip says them; the order is
+# the export's (tools/art/races/features_export.py DESIGNS).
+FEATURE_NAMES = ["None", "Sparse", "Light", "Medium", "Full", "Strip", "Heart", "Moon", "Crescent", "Star", "Swords", "Skull", "Patchy"]
+# The races with designs, by the game's race ids, and the body (the game's path name) each has them on.
+FEATURE_BODIES = {HUMAN: "Human", ORC: "Orc", DWARF: "Dwarf", NIGHTELF: "NightElf", UNDEAD: "Scourge", GNOME: "Gnome",
+                  TROLL: "Troll", BLOODELF: "BloodElf", DRAENEI: "Draenei", ALLIANCE: "BloodElf", HORDE: "BloodElf"}
 ID_OUTFIT = 9000
 ID_HAIRGEO = 9000
 ID_NAMEGEN = 90000
@@ -360,6 +369,60 @@ def main():
                     if race == ALLIANCE:
                         for x, y in zip(t, dst):
                             texture("hair", (h, s, l), x, y)
+
+    # Features ---------------------------------------------------------------------------------------
+    # The character creation screen's Features row: a female's body-hair design (data/client/features,
+    # tools/art/races/features_export.py) is chosen with her skin colour, as another block of skins.
+    # A race with S skins (colours c_0 < ... < c_(S-1); "top" the highest colour any row of the race and
+    # sex has) has them again for design d (1 to D) as colours top + 1 + (d - 1) * S + i: the same textures, faces and flags, but for the
+    # pelvis (section 4's first texture: the design's, SkybornePatch.cpp MakeFeatures makes it). The
+    # game lists the skins by colour, so stepping the skin colour by S (the row's arrows:
+    # SkyborneFeatures.lua) is the same skin in the next design, and the list wraps around to none.
+    # A character keeps the colour she was made with (the designs only add colours after the others).
+    feature_races, feature_skins = set(), {}
+    if os.path.exists(os.path.join(FEATURES, "features.txt")):
+        for line in open(os.path.join(FEATURES, "features.txt")):
+            if line.startswith("["):
+                feature_races.add(line.strip()[1:-1])
+            elif line.startswith("designs "):
+                designs = len(line.split()) - 1
+    if feature_races:
+        assert designs + 1 == len(FEATURE_NAMES), (designs, FEATURE_NAMES)
+        feature_id = [ID_FEATURES]
+
+        def feature_section(race, sex, base, tex_, flags, variation, color):
+            v = [feature_id[0], race, sex, base, tex_[0], tex_[1], tex_[2], flags, variation, color]
+            feature_id[0] += 1
+            client.put("CharSections", st, v)
+            new_sections.append(v)
+
+        for race, body in sorted(FEATURE_BODIES.items()):
+            if body not in feature_races:
+                continue
+            looks = [(r[3], tex(r), r[7], r[8], r[9]) for r in sections.rows if r[1] == race and r[2] == 1]
+            looks += [(v[3], [v[4], v[5], v[6]], v[7], v[8], v[9]) for v in new_sections if v[1] == race and v[2] == 1 and v[0] < ID_FEATURES]
+            skins = {c: (t, f) for b, t, f, var, c in looks if b == 0 and f & 1 and not f & 4}
+            faces = {(var, c): (t, f) for b, t, f, var, c in looks if b == 1 and f & 1 and not f & 4}
+            if not skins:
+                continue
+            colors = sorted(skins)
+            # (above every colour of any row the race and sex have, the game's NPC-only skins' too: a
+            # colour is a row's key with the race and sex, and an NPC's look finds its row by it)
+            top = max(c for b, t, f, var, c in looks)
+            assert top + designs * len(colors) <= 255, (race, top, len(colors))
+            for d in range(1, designs + 1):
+                decal = f"Character\\{body}\\Female\\{body}FemaleFeature{d:02d}.blp"
+                for i, c in enumerate(colors):
+                    color = top + 1 + (d - 1) * len(colors) + i
+                    t, f = skins[c]
+                    feature_section(race, 1, 0, t, f, 0, color)
+                    feature_section(race, 1, 4, [decal, "", ""], f, 0, color)
+                    for (var, fc), (ft, ff) in sorted(faces.items()):
+                        if fc == c:
+                            feature_section(race, 1, 1, ft, ff, var, color)
+            feature_skins[race] = len(colors)
+        assert feature_id[0] <= ID_FEATURES_END + 1, feature_id[0]
+        sql.raw(f"DELETE FROM `charsections_dbc` WHERE `ID` BETWEEN {ID_FEATURES} AND {ID_FEATURES_END};\n")
 
     # The moved races' looks.
     for r in sections.rows:
@@ -690,6 +753,15 @@ def main():
                 "# (eye hue -1: eyes as they are); grey: saturation kept,lightness,eye hue,eye saturation,eye lightness;\n"
                 "# eyes: hue,saturation,lightness; hair: hue,saturation,lightness.\n")
         f.write("\n".join(unique) + "\n")
+    lua = ["-- SPDX-License-Identifier: GPL-3.0-or-later",
+           "-- The Features row's data (mod-skyborne, tools/build_data.py): the designs' names, and how many skins a",
+           "-- female of each race (by id) has, which is how far the row's arrows step the skin colour.",
+           "SKYBORNE_FEATURES = {",
+           "\tnames = { " + ", ".join(f'[{i}] = "{n}"' for i, n in enumerate(FEATURE_NAMES)) + " },",
+           "\tskins = { " + ", ".join(f"[{r}] = {n}" for r, n in sorted(feature_skins.items())) + " },",
+           "};"]
+    with open(os.path.join(MODULE, "data", "client", "Interface", "GlueXML", "SkyborneFeaturesData.lua"), "w", newline="\n") as f:
+        f.write("\n".join(lua) + "\n")
     print(f"{len(new_sections)} looks, {len(unique)} textures, {len(client.files)} tables, {len(spell_rows)} spells")
 
 

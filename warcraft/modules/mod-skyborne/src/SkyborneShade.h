@@ -24,6 +24,8 @@ namespace Skyborne
         // False when the path isn't one with settings or the image isn't 512 by 512.
         bool Apply(std::string const& path, Image& image) const;
         size_t Races() const { return _races.size(); }
+        // Whether [race] (its name in the game's paths, any case) has fields that fit the game's model.
+        bool Has(std::string const& race) const;
 
         struct Race
         {

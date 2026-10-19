@@ -87,6 +87,29 @@ move to 22 and 23.
   retouching, for the Skyborne's blood elf skins too. A race whose model isn't the one the fields
   were made for is left as it is.
 
+- **Features** (`SkyborneFeatures.xml/.lua`, its data in `SkyborneFeaturesData.lua`): a sixth row of the
+  character creation screen's customize panel, above the skin colour's and built like the others (the
+  game's own row template, the arrows of the face's and the hair's), for a female's body-hair design:
+  twelve besides none (Sparse, Light, Medium, Full, Strip, Heart, Moon, Crescent, Star, Swords, Skull,
+  Patchy), on the bodies of Human, Orc, Dwarf, Night Elf, Undead, Gnome, Troll, Blood Elf (the
+  Skyborne's too) and Draenei. Tauren have shading only (no hair art was made for them) and the goblin
+  isn't a player's race, so they have none; a male has none. The row is shown for a female of a race
+  that has designs and hidden for anyone else. The game has no slider for it, so a design is a block
+  of skin colours: a race with S skins has the same S again for each design (the same textures, faces
+  and flags; only the pelvis texture differs), as the colours after every colour the race and sex
+  already have (CharSections rows 970000 to 989451, `tools/build_data.py`; the NPCs' skins keep theirs).
+  The game lists the skins by colour, so stepping the skin colour by S is the same skin in the next
+  design, which is all the row's arrows do (`CycleCharCustomization(1, ±S)`); the list wraps around, so
+  after the last design comes none. The Skin Color row still steps by one, and at the end of a block
+  steps into the next design. The game's own random look and the Randomize button pick any skin
+  colour, so a new look may start with a design. A design is the underwear's first texture of its
+  rows (CharSections section 4, the pelvis; the patch empties every other section 4 row), so it shows
+  under the legs' armour and hides under it. The designs are painted by `tools/art/decal/paint.py` and
+  exported by `tools/art/races/features_export.py` to `data/client/features` (the pelvis texture of
+  each race, 256 by 128, a design's alpha and colours); the patch makes them as
+  `Character\<Race>\Female\<Race>FemaleFeature<NN>.blp`, for a race whose model and body texture
+  are the ones the designs were made for. Not yet seen in the game.
+
 ## How it's made
 
 - `tools/build_data.py` reads the game's tables (the server's dbc folder) and the core's world SQL,
@@ -99,10 +122,16 @@ move to 22 and 23.
   (`data/client/Interface/GlueXML/SkyborneGearData.lua`: starting outfits, champion sets, icons).
   Its output is committed; run it again after changing it (`CHAMPION_SETS` in it picks a different
   set for a class).
+- `tools/art/races/features_export.py` (with `model_json.py` for the blood elf's model and
+  `decal/uvmap.py BloodElf 250 330 215 280`, in `tools/art` with the HD archive's `Patch-H.MPQ`)
+  paints every race's designs with `decal/paint.py` (`LAYERS=` saves its canvas) and samples them at
+  the pelvis texture's texels through the shading's fields (`data/client/shade`), into
+  `data/client/features`. Its output is committed; `tools/build_data.py` also writes the Features'
+  CharSections rows and `SkyborneFeaturesData.lua` from it.
 - As the world server starts (`src/Skyborne.cpp`), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
-  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua` and the gear button's three files, and the narration. It's
+  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's and the Features row's three, the Features' pelvis textures (from `data/client/features`), and the narration. It's
   made again only when the client's archives or the module's files change (the stamp in
   `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.
@@ -116,6 +145,10 @@ move to 22 and 23.
   server's tables and ChromieCraft's HD character archive.
 - `tools/test_shade.cpp`: each race's first female skin shaded, written as PPM files to compare with
   `tools/art/races/lines.py`'s (the same pixels).
+- `tools/test_features.py`: `SkyborneFeatures.lua` in Lua 5.1 against stand-ins for the screen (shown
+  for a female of a race with designs, hidden for a male or a race without, the arrows stepping by the
+  race's skin count, the Skyborne's too, a getter that gives the id), and the data against each other
+  (every design's colours follow the others and fit a byte, its faces and pelvis textures, the files).
 - `tools/test_zoom.py`: `SkyborneZoom.lua` in Lua 5.1 against stand-ins for the screen (the wheel
   growing the preview's frame around the character and back, its limits, the panels staying put,
   a fresh start when the screen is shown).

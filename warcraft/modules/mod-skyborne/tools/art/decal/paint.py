@@ -415,6 +415,11 @@ A = (1 - np.exp(lnT)).reshape(CHH, CWW)
 A = A * np.clip((HTOP - (np.arange(CHH) + 0.5) * R - 12.0) / 10.0, 0, 1)[:, None]
 P = [gaussian_filter((Cs[c] / np.maximum(As, 1e-9)).reshape(CHH, CWW) * A, 1.2) for c in range(3)]
 A = gaussian_filter(A, 1.2)
+if __import__('os').environ.get('LAYERS'):
+    # (the canvas as painted, for the Features export (races/features_export.py): its alpha and its
+    # colour, the canvas's frame and the scales the hair texture's mapping below uses)
+    np.savez_compressed(__import__('os').environ['LAYERS'], A=A.astype(np.float32), P=np.stack(P).astype(np.float32),
+                        R=R, XW=XW, HTOP=HTOP, sH=sH, SV=SV, hair_drop=cfg.get('hair_drop', 0.0), strokes=len(stamps))
 yy, xx = np.mgrid[0:RH, 0:RW].astype(float)
 Xr = (pc['y0'] + (xx + 0.5) / RW * (pc['y1'] - pc['y0'])) * 1000 / sH
 hr = ((pc['s1'] - (yy + 0.5) / RH * (pc['s1'] - pc['s0'])) * 1000 + cfg.get('hair_drop', 0.0)) / SV

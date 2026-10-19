@@ -452,6 +452,7 @@ jobs:
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_screen.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_gear.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_zoom.py
+          "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_features.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-allied-races/tools/test_screen.py
 
       # The void elves' and the nightborne's tools: the model converter's pieces, the textures'
