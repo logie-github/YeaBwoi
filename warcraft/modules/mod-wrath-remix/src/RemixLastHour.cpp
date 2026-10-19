@@ -546,7 +546,9 @@ namespace WrathRemix
         Departure const* doors = DepartureFor(QUEST_LAST_HOUR);
         if (!doors)
             return;
-        player->TeleportTo(doors->map, doors->x, doors->y, doors->z, doors->o);
+        JourneyFromTheDark(player, "Icecrown Citadel | The last hour", doors->map, doors->x, doors->y, 500, 2000);
+        if (!player->TeleportTo(doors->map, doors->x, doors->y, doors->z, doors->o))
+            LiftTheCurtain(player);
         BeginWhenThere(player, doors->map, doors->x, doors->y, 30);
     }
 }

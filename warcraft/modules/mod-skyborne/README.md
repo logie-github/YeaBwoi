@@ -81,6 +81,12 @@ move to 22 and 23.
   every face of its race and sex, and an overlay row, with no textures (its own face shows). Skins a
   player can choose keep the faces they have.
 
+- **Body textures**: every race's female skins get their shading from `data/client/shade` (the
+  fields of each race's texture and its settings, made by `tools/art/races/shade_export.py`;
+  `src/SkyborneShade.cpp` is the same calculation as `tools/art/races/lines.py`), after the earlier
+  retouching, for the Skyborne's blood elf skins too. A race whose model isn't the one the fields
+  were made for is left as it is.
+
 ## How it's made
 
 - `tools/build_data.py` reads the game's tables (the server's dbc folder) and the core's world SQL,
@@ -108,6 +114,8 @@ move to 22 and 23.
 - `tools/test_client.cpp`: the patch made for a game folder and read back (races, looks, racials,
   textures, icons, the character screen, a second start keeping it). Built and run here against the
   server's tables and ChromieCraft's HD character archive.
+- `tools/test_shade.cpp`: each race's first female skin shaded, written as PPM files to compare with
+  `tools/art/races/lines.py`'s (the same pixels).
 - `tools/test_zoom.py`: `SkyborneZoom.lua` in Lua 5.1 against stand-ins for the screen (the wheel
   growing the preview's frame around the character and back, its limits, the panels staying put,
   a fresh start when the screen is shown).

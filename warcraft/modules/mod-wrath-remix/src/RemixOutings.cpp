@@ -122,11 +122,14 @@ namespace
             return;
         uint32 leftMap = player->GetMapId();
         float leftX = player->GetPositionX(), leftY = player->GetPositionY();
+        JourneyFromTheDark(player, PlaceName(map, x, y, z), map, x, y);
         player->m_Events.AddEventAtOffset([player, map, x, y, z, o, leftMap, leftX, leftY]()
         {
             if (player->IsInWorld() && player->IsAlive() && !player->IsBeingTeleported() && player->GetMapId() == leftMap &&
                 player->GetExactDist2d(leftX, leftY) < STILL_THERE)
                 player->TeleportTo(map, x, y, z, o);
+            else
+                LiftTheCurtain(player);
         }, 1500ms);
     }
 
@@ -316,22 +319,29 @@ namespace WrathRemix
         // already, they went somewhere else first)
         uint32 map = outing.map;
         float x = outing.x, y = outing.y, z = outing.z, o = outing.o;
+        JourneyFromTheDark(player, PlaceName(map, x, y, z), map, x, y);
         player->m_Events.AddEventAtOffset([player, id, round, map, x, y, z, o]()
         {
             if (Still(player, id, round) && player->IsInWorld() && player->IsAlive())
                 player->TeleportTo(map, x, y, z, o);
+            else
+                LiftTheCurtain(player);
         }, 1500ms);
         WhenThere(player->GetGUID(), id, round, 30);
         return true;
     }
 
+    void TellAddon(Player* player, std::string const& message)
+    {
+        WorldPacket data;
+        ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, player, player, "WowRemix\t" + message);
+        player->SendDirectMessage(&data);
+    }
+
     void ScreenFade(Player* player, uint32 milliseconds, std::string const& text)
     {
         std::string words = Words(player, text);
-        WorldPacket data;
-        ChatHandler::BuildChatPacket(data, CHAT_MSG_WHISPER, LANG_ADDON, player, player,
-            Acore::StringFormat("WowRemix\tfade {} {}", milliseconds, words));
-        player->SendDirectMessage(&data);
+        TellAddon(player, Acore::StringFormat("fade {} {}", milliseconds, words));
         if (!words.empty())
             ChatHandler(player->GetSession()).SendSysMessage("|cffc8b8a0" + words + "|r");
     }

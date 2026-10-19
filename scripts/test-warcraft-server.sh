@@ -263,7 +263,7 @@ if [ -n "$DATA_ZIP" ]; then
 	echo "The realm kept the note, and cleared it at the logout."
 
 	echo "== the Skyborne (mod-skyborne)"
-	grep -E "Skyborne: The Skyborne's patch is in the game: 17 tables" "$FILES/logs/world.out" ||
+	grep -E "Skyborne: The Skyborne's patch is in the game: 18 tables" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the Skyborne's patch"
 	[ -s "$FILES/client/Data/patch-Z.MPQ" ] && [ -s "$FILES/client/Data/patch-Z.MPQ.skyborne" ] || fail "the Skyborne's patch isn't in the game"
 	for race in 13 14; do
@@ -300,6 +300,8 @@ EOF
 	# Made before Wrath Remix's and the Skyborne's patches, which the game reads after it: they carry
 	# its rows on only when it's there as they're made.
 	allied=$(grep -n -m1 "Allied races: The races' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	# (a patch not made in this run, Wrath Remix's on ChromieCraft's realm, is no failure: under
+	# set -e a grep that finds nothing would end the test here, silently)
 	for later in "Skyborne: The Skyborne's patch is in the game" "Wrath Remix: the game's patch written"; do
 		at=$(grep -n -m1 "$later" "$FILES/logs/world.out" | cut -d: -f1 || true)
 		echo "world.out: the races' patch at line ${allied:-?}, '$later' at line ${at:-none}"

@@ -555,12 +555,17 @@ namespace WrathRemix
             player->GetGUID().GetCounter(), what, entry, amount, player->GetAreaId());
     }
 
+    // (from the dark: the curtain down now, with the place's name on it, lifted once the game has
+    // settled there)
     void TeleportSoon(Player* player, uint32 map, float x, float y, float z, float o)
     {
+        JourneyFromTheDark(player, PlaceName(map, x, y, z), map, x, y);
         player->m_Events.AddEventAtOffset([player, map, x, y, z, o]()
         {
             if (player->IsInWorld() && player->IsAlive())
                 player->TeleportTo(map, x, y, z, o);
+            else
+                LiftTheCurtain(player);
         }, 1500ms);
     }
 

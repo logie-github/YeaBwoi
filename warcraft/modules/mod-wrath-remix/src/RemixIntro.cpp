@@ -21,6 +21,14 @@
  * seen again (remix_character.intro); one cut short (a logout, a crash: wherever it left them)
  * plays again from the tavern at the next login. Death knights, who have Acherus, and the realm's
  * bots don't have it. `.remix intro` plays it for a game master, `.remix intro skip` ends it.
+ *
+ * Each act opens from the dark: the app's add-on (TouchAddon.kt) holds a curtain over the screen,
+ * with where and when the act is written on it, from the moment the Timerunner is sent there (a
+ * new one's from before their first loading screen ends) until the game has finished loading the
+ * place (its frames run smoothly again: the add-on says "settled"), and then lifts it over a few
+ * seconds as the act begins. A phone loads a city or a battlefield choppily for a while; none of
+ * that is seen. Without the add-on (CI's test client answers the curtain at once) an act waits
+ * WrathRemix.Intro.SettleSeconds at most.
  */
 
 #include "WrathRemix.h"
@@ -28,6 +36,7 @@
 #include "Config.h"
 #include "Creature.h"
 #include "CreatureAI.h"
+#include "DBCStores.h"
 #include "GameObject.h"
 #include "Log.h"
 #include "Map.h"
@@ -39,6 +48,7 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
+#include "StringFormat.h"
 #include "Random.h"
 #include "TemporarySummon.h"
 #include "Timer.h"
@@ -50,6 +60,7 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using namespace WrathRemix;
@@ -57,6 +68,20 @@ using namespace WrathRemix;
 namespace
 {
     constexpr uint32 PHASE_INTRO = 16384;
+
+    // The curtain: dark at once for CURTAIN_MS at most (the add-on lifts it by itself after that),
+    // lifted over LIFT_MS once the client has settled (or SettleSeconds are up); never sooner than
+    // SETTLE_LEAST_MS after the Timerunner is there, so the act's people are in place under it.
+    constexpr uint32 CURTAIN_MS = 45000, LIFT_MS = 2500, SETTLE_LEAST_MS = 1500, SETTLE_POLL_MS = 250;
+    // What the curtain says: where and when the act is (" | " a new line).
+    char const* const CAPTION_TAVERN_A = "The Gilded Rose, Stormwind | Some months after the fall of the Lich King";
+    char const* const CAPTION_TAVERN_H = "The Broken Tusk, Orgrimmar | Some months after the fall of the Lich King";
+    char const* const CAPTION_FRONT = "The Broken Front, Icecrown | The last day of his war";
+    char const* const CAPTION_WRATHGATE = "Angrathar, the Wrathgate";
+    char const* const CAPTION_WINTERGARDE = "Wintergarde Keep, the Dragonblight";
+    char const* const CAPTION_FIELDS = "The Valley of Fallen Heroes, Icecrown";
+    char const* const CAPTION_BAZAAR = "The Infinite Bazaar, Malykriss | Years earlier";
+    char const* const CAPTION_BAZAAR_HOME = "The Infinite Bazaar | Malykriss: The Vile Hold";   // (any later journey to it)
 
     // A place an act happens at: where the Timerunner stands, facing what they should see.
     struct Place
@@ -166,6 +191,7 @@ namespace
         std::vector<ObjectGuid> props;    // the tavern's table and chairs, set out in the opening's phase
         ObjectGuid tirion, lichKing, voice, moratari, innkeeper;
         Place place{};                    // where the act under way has the Timerunner
+        char const* caption = "";         // the curtain's words for the act under way
         uint32 act = 0;                   // each act's steps belong to it alone
         bool frozen = false, over = false;
     };
@@ -188,6 +214,85 @@ namespace
     bool Enabled()
     {
         return sConfigMgr->GetOption<bool>("WrathRemix.Intro", true, false);
+    }
+
+    uint32 SettleMs()
+    {
+        return 1000 * sConfigMgr->GetOption<uint32>("WrathRemix.Intro.SettleSeconds", 25, false);
+    }
+
+    // ---- The curtain ----------------------------------------------------------------------------
+
+    std::mutex settledLock;
+    std::unordered_set<ObjectGuid> settled;   // whose game has said its frames run smoothly, since their last curtain
+
+    bool HasSettled(ObjectGuid guid)
+    {
+        std::lock_guard<std::mutex> lock(settledLock);
+        return settled.count(guid) > 0;
+    }
+
+    // Dark at once, [caption] on it; the add-on starts watching its frames afresh.
+    void Curtain(Player* player, char const* caption)
+    {
+        {
+            std::lock_guard<std::mutex> lock(settledLock);
+            settled.erase(player->GetGUID());
+        }
+        TellAddon(player, Acore::StringFormat("curtain {} {}", CURTAIN_MS, caption));
+    }
+
+    void Lift(Player* player, uint32 liftMs = LIFT_MS)
+    {
+        TellAddon(player, Acore::StringFormat("lift {}", liftMs));
+    }
+
+    // Once the game has settled behind the curtain (never sooner than [leastMs], never later than
+    // SettleSeconds), the curtain lifts over [liftMs] and [then] runs.
+    void WhenSettled(ObjectGuid guid, uint32 waited, uint32 leastMs, uint32 liftMs, std::function<void(Player*)> then)
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(guid);
+        if (!player)
+            return;
+        player->m_Events.AddEventAtOffset([guid, waited, leastMs, liftMs, then]()
+        {
+            Player* p = ObjectAccessor::FindConnectedPlayer(guid);
+            if (!p || !p->IsInWorld())
+                return;
+            uint32 now = waited + SETTLE_POLL_MS;
+            if ((now >= leastMs && HasSettled(guid)) || now >= SettleMs())
+            {
+                Lift(p, liftMs);
+                then(p);
+            }
+            else
+                WhenSettled(guid, now, leastMs, liftMs, then);
+        }, Milliseconds(SETTLE_POLL_MS));
+    }
+
+    // A journey anywhere in the story (JourneyFromTheDark): there (a check every half second, for
+    // [tries]), the curtain again and the game watched until it has settled, then the lift. One who
+    // never gets there has the curtain lifted all the same.
+    void WhenArrived(ObjectGuid guid, uint32 map, float x, float y, uint32 tries, std::string caption, uint32 leastMs, uint32 liftMs)
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(guid);
+        if (!player)
+            return;
+        player->m_Events.AddEventAtOffset([guid, map, x, y, tries, caption, leastMs, liftMs]()
+        {
+            Player* p = ObjectAccessor::FindConnectedPlayer(guid);
+            if (!p)
+                return;
+            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == map && p->GetExactDist2d(x, y) < 60.0f)
+            {
+                Curtain(p, caption.c_str());
+                WhenSettled(guid, 0, leastMs, liftMs, [](Player*) { });
+            }
+            else if (tries > 1)
+                WhenArrived(guid, map, x, y, tries - 1, caption, leastMs, liftMs);
+            else if (p->IsInWorld())
+                Lift(p, liftMs);
+        }, 500ms);
     }
 
     bool AtTheFront(Player const* player)
@@ -555,6 +660,8 @@ namespace
         }, 500ms);
     }
 
+    void WhenAtTheBazaar(ObjectGuid guid, uint32 tries);
+
     // The end of it: out of the phase, to the Bazaar, the opening seen.
     void Finish(Player* player, Opening& b)
     {
@@ -571,27 +678,56 @@ namespace
         SetIntroSeen(player);
         // (still in the opening as it goes: the hourglass doesn't count where it was as somewhere they came from)
         player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
+        Curtain(player, CAPTION_BAZAAR);
         if (player->GetMapId() == MAP_NORTHREND)
             HoldOverTheGround(player);
         player->TeleportTo(MAP_NORTHREND, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
         EndOpening(player);
-        ObjectGuid guid = player->GetGUID();
-        player->m_Events.AddEventAtOffset([guid]()
+        WhenAtTheBazaar(player->GetGUID(), 60);
+    }
+
+    // Arrived at the Bazaar at the opening's end: the curtain lifts once the game has settled, and
+    // Moratari welcomes them. A check a second; a curtain the add-on holds lifts by itself if they
+    // never get there.
+    void WhenAtTheBazaar(ObjectGuid guid, uint32 tries)
+    {
+        Player* player = ObjectAccessor::FindConnectedPlayer(guid);
+        if (!player)
+            return;
+        player->m_Events.AddEventAtOffset([guid, tries]()
         {
-            Player* p = ObjectAccessor::FindPlayer(guid);
-            if (!p || !p->IsInWorld())
+            Player* p = ObjectAccessor::FindConnectedPlayer(guid);
+            if (!p)
                 return;
-            // The hourglass has nowhere to take them back to. (Once they're there: a teleport asked
-            // for in a step goes once the player's update is over, and the hourglass's hook, seeing
-            // the opening over by then, would take the last place of it for where they came from.)
-            SetWayBack(p, -1, 0.0f, 0.0f, 0.0f, 0.0f);
-            if (Creature* moratari = p->FindNearestCreature(NPC_MORATARI, 40.0f))
+            if (!(p->IsInWorld() && !p->IsBeingTeleported() && AtTheBazaar(p)))
             {
-                moratari->SetFacingToObject(p);
-                moratari->Say(Words(p, "Welcome to the Infinite Bazaar, $N. Breathe. Eternus will want to see you."), LANG_UNIVERSAL, p);
-                moratari->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
+                if (tries > 1)
+                    WhenAtTheBazaar(guid, tries - 1);
+                return;
             }
-        }, 3s);
+            Curtain(p, CAPTION_BAZAAR);
+            WhenSettled(guid, 0, SETTLE_LEAST_MS, LIFT_MS, [](Player* p)
+            {
+                // The hourglass has nowhere to take them back to. (Once they're there: a teleport
+                // asked for in a step goes once the player's update is over, and the hourglass's
+                // hook, seeing the opening over by then, would take the last place of it for where
+                // they came from.)
+                SetWayBack(p, -1, 0.0f, 0.0f, 0.0f, 0.0f);
+                ObjectGuid guid = p->GetGUID();
+                p->m_Events.AddEventAtOffset([guid]()
+                {
+                    Player* p = ObjectAccessor::FindPlayer(guid);
+                    if (!p || !p->IsInWorld())
+                        return;
+                    if (Creature* moratari = p->FindNearestCreature(NPC_MORATARI, 40.0f))
+                    {
+                        moratari->SetFacingToObject(p);
+                        moratari->Say(Words(p, "Welcome to the Infinite Bazaar, $N. Breathe. Eternus will want to see you."), LANG_UNIVERSAL, p);
+                        moratari->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
+                    }
+                }, Milliseconds(LIFT_MS));
+            });
+        }, 1s);
     }
 
     // Arrived where the act is (a far journey keeps them on a loading screen a while): the act
@@ -610,7 +746,14 @@ namespace
             if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == at.map && p->GetExactDist2d(at.x, at.y) < 40.0f)
             {
                 p->SetPhaseMask(PHASE_INTRO, true);
-                then(p, o);
+                // (there: the curtain again, so the game's frames are watched from here on, and the
+                // act once they run smoothly)
+                Curtain(p, o->caption);
+                WhenSettled(guid, 0, SETTLE_LEAST_MS, LIFT_MS, [o, act, then](Player* p)
+                {
+                    if (!o->over && o->act == act)
+                        then(p, o);
+                });
             }
             else if (tries > 1)
                 WhenThere(guid, o, act, tries - 1, then);
@@ -619,14 +762,17 @@ namespace
         }, 1s);
     }
 
-    // On to the next act: everyone of this one gone, the Timerunner taken there.
-    void GoTo(Player* player, std::shared_ptr<Opening> o, Place const& place, Act then)
+    // On to the next act: everyone of this one gone, the curtain down (its [caption] on it), the
+    // Timerunner taken there.
+    void GoTo(Player* player, std::shared_ptr<Opening> o, Place const& place, Act then, char const* caption)
     {
         Opening& b = *o;
         Despawn(player, b);
         ++b.act;
         b.frozen = false;
         b.place = place;
+        b.caption = caption;
+        Curtain(player, caption);
         player->CombatStop(true);
         player->RemoveAurasDueToSpell(SPELL_AVENGING_WRATH);
         player->RemoveAurasDueToSpell(SPELL_TIME_STOP_VISUAL);
@@ -808,6 +954,8 @@ namespace
 
     void Tavern(Player* player, std::shared_ptr<Opening> o)
     {
+        // (the room is seen as the curtain lifts: its talk starts once it's up)
+        constexpr uint32 REVEAL = LIFT_MS;
         Opening& b = *o;
         bool alliance = Alliance(player);
         Place const& inn = alliance ? GILDED_ROSE : BROKEN_TUSK;
@@ -849,7 +997,7 @@ namespace
         for (TavernLine const& line : alliance ? std::vector<TavernLine>(std::begin(ALLIANCE_TAVERN), std::end(ALLIANCE_TAVERN))
                                                : std::vector<TavernLine>(std::begin(HORDE_TAVERN), std::end(HORDE_TAVERN)))
         {
-            At(player, o, line.at, [line](Player* p, Opening& b)
+            At(player, o, line.at + REVEAL, [line](Player* p, Opening& b)
             {
                 ObjectGuid who = line.who == 3 ? b.innkeeper : (line.who < int(b.friends.size()) ? b.friends[line.who] : ObjectGuid::Empty);
                 Creature* c = Who(p, who);
@@ -858,8 +1006,8 @@ namespace
             });
         }
         // The toast: on their feet, everyone cheers, the room with them; then they drink, and sit.
-        At(player, o, 6500, [](Player* p, Opening& b) { Toast(p, b, true); });
-        At(player, o, 7600, [alliance](Player* p, Opening& b)
+        At(player, o, 6500 + REVEAL, [](Player* p, Opening& b) { Toast(p, b, true); });
+        At(player, o, 7600 + REVEAL, [alliance](Player* p, Opening& b)
         {
             for (ObjectGuid guid : b.friends)
                 if (Creature* c = Who(p, guid))
@@ -867,20 +1015,20 @@ namespace
             p->HandleEmoteCommand(EMOTE_ONESHOT_CHEER);
             p->PlayDirectSound(alliance ? SOUND_CHEER_ALLIANCE : SOUND_CHEER_HORDE, p);
         });
-        At(player, o, 11500, [](Player* p, Opening& b) { Drink(p, b); });
-        At(player, o, 13800, [](Player* p, Opening& b) { Toast(p, b, false); });
+        At(player, o, 11500 + REVEAL, [](Player* p, Opening& b) { Drink(p, b); });
+        At(player, o, 13800 + REVEAL, [](Player* p, Opening& b) { Toast(p, b, false); });
         // And to the friend who didn't come home: up again, a salute, a drink.
-        At(player, o, 42000, [](Player* p, Opening& b) { Toast(p, b, true); });
-        At(player, o, 46000, [](Player* p, Opening& b) { Drink(p, b); });
-        At(player, o, 48500, [](Player* p, Opening& b) { Toast(p, b, false); });
+        At(player, o, 42000 + REVEAL, [](Player* p, Opening& b) { Toast(p, b, true); });
+        At(player, o, 46000 + REVEAL, [](Player* p, Opening& b) { Drink(p, b); });
+        At(player, o, 48500 + REVEAL, [](Player* p, Opening& b) { Toast(p, b, false); });
 
         // The room stops, mid-question, and Moratari walks in, to the table's edge.
-        At(player, o, 69000, [](Player* p, Opening& b)
+        At(player, o, 69000 + REVEAL, [](Player* p, Opening& b)
         {
             Freeze(p, b, false);
             p->SendPlayMusic(0, true);
         });
-        At(player, o, 71000, [inn, seats](Player* p, Opening& b)
+        At(player, o, 71000 + REVEAL, [inn, seats](Player* p, Opening& b)
         {
             Position from = Indoors(p, inn, 11.0f, 0.0f);
             if (TempSummon* rift = p->SummonCreature(NPC_TIME_RIFT, from, TEMPSUMMON_TIMED_DESPAWN, 6000, 0, nullptr, true))
@@ -888,15 +1036,15 @@ namespace
             if (Creature* moratari = BringMoratari(p, b, from))
                 moratari->GetMotionMaster()->MovePoint(1, seats.stop);
         });
-        At(player, o, 75500, [](Player* p, Opening& b) { SheSays(p, b, "I'm sorry, hero. I need you."); });
-        At(player, o, 80500, [](Player* p, Opening& b)
+        At(player, o, 75500 + REVEAL, [](Player* p, Opening& b) { SheSays(p, b, "I'm sorry, hero. I need you."); });
+        At(player, o, 80500 + REVEAL, [](Player* p, Opening& b)
         {
             SheSays(p, b, "They cannot hear us. When we are done, I will bring you back to this very moment. But first, there is something you need to see again.");
         });
-        At(player, o, 86000, [o](Player* p, Opening&)
+        At(player, o, 86000 + REVEAL, [o](Player* p, Opening&)
         {
             float x = FRONT_X - 2.0f * std::cos(FRONT_O), y = FRONT_Y - 2.0f * std::sin(FRONT_O);
-            GoTo(p, o, Place{ MAP_NORTHREND, x, y, FRONT_Z, FRONT_O }, Front);
+            GoTo(p, o, Place{ MAP_NORTHREND, x, y, FRONT_Z, FRONT_O }, Front, CAPTION_FRONT);
         });
     }
 
@@ -1126,7 +1274,7 @@ namespace
             SheSays(p, b, "Enough. You know how the rest goes. You won. But you remember what it cost, don't you?");
         });
         At(player, o, 76000, [](Player* p, Opening& b) { SheSays(p, b, "Let me show you what you have been trying to forget."); });
-        At(player, o, 81000, [o](Player* p, Opening&) { GoTo(p, o, WRATHGATE, Wrathgate); });
+        At(player, o, 81000, [o](Player* p, Opening&) { GoTo(p, o, WRATHGATE, Wrathgate, CAPTION_WRATHGATE); });
     }
 
     // ---- What his reign cost ----------------------------------------------------------------------
@@ -1196,7 +1344,7 @@ namespace
             SheSays(p, b, "After that day, the Alliance and the Horde were enemies again. That suited the Lich King very well.");
         });
         At(player, o, 37000, [](Player* p, Opening& b) { SheSays(p, b, "Come. The soldiers, at least, knew what they were marching into."); });
-        At(player, o, 41000, [o](Player* p, Opening&) { GoTo(p, o, WINTERGARDE, Wintergarde); });
+        At(player, o, 41000, [o](Player* p, Opening&) { GoTo(p, o, WINTERGARDE, Wintergarde, CAPTION_WINTERGARDE); });
     }
 
     void Wintergarde(Player* player, std::shared_ptr<Opening> o)
@@ -1258,7 +1406,7 @@ namespace
             SheSays(p, b, "It was the same in Andorhal, and Stratholme, and Silvermoon. Wintergarde was only one of the last.");
         });
         At(player, o, 37000, [](Player* p, Opening& b) { SheSays(p, b, "One more. This one, you will know."); });
-        At(player, o, 41000, [o](Player* p, Opening&) { GoTo(p, o, FIELDS, Fields); });
+        At(player, o, 41000, [o](Player* p, Opening&) { GoTo(p, o, FIELDS, Fields, CAPTION_FIELDS); });
     }
 
     void Fields(Player* player, std::shared_ptr<Opening> o)
@@ -1389,13 +1537,58 @@ namespace
             ++running;
         }
         // To the tavern: in their chair at the table with their friends.
-        GoTo(player, opening, SeatsOf(nullptr, Alliance(player)).chairs[0], Tavern);
+        GoTo(player, opening, SeatsOf(nullptr, Alliance(player)).chairs[0], Tavern, Alliance(player) ? CAPTION_TAVERN_A : CAPTION_TAVERN_H);
     }
 }
 
 bool WrathRemix::InIntro(Player* player)
 {
     return player && OpeningOf(player) != nullptr;
+}
+
+void WrathRemix::ClientSettled(Player* player)
+{
+    if (!player)
+        return;
+    std::lock_guard<std::mutex> lock(settledLock);
+    settled.insert(player->GetGUID());
+}
+
+// Where a journey goes, as the curtain says it: the Bazaar by name; a dungeon or a raid by its
+// map's; anywhere else its area, and its zone after it where that's another name ("Wyrmrest
+// Temple | Dragonblight"). The place's terrain is read for it (loaded if it isn't yet: the journey
+// is about to need it anyway).
+std::string WrathRemix::PlaceName(uint32 map, float x, float y, float z)
+{
+    MapEntry const* entry = sMapStore.LookupEntry(map);
+    if (!entry)
+        return "";
+    if (entry->Instanceable())
+        return entry->name[0];
+    if (map == MAP_NORTHREND && std::hypot(x - BAZAAR_X, y - BAZAAR_Y) < 150.0f)
+        return CAPTION_BAZAAR_HOME;
+    uint32 zone = 0, area = 0;
+    sMapMgr->GetZoneAndAreaId(PHASEMASK_NORMAL, zone, area, map, x, y, z);
+    AreaTableEntry const* in = sAreaTableStore.LookupEntry(area);
+    AreaTableEntry const* of = sAreaTableStore.LookupEntry(zone);
+    std::string name = in ? in->area_name[0] : "";
+    if (of && zone != area && name != of->area_name[0])
+        name += (name.empty() ? "" : " | ") + std::string(of->area_name[0]);
+    return name;
+}
+
+void WrathRemix::JourneyFromTheDark(Player* player, std::string const& caption, uint32 map, float x, float y, uint32 leastMs, uint32 liftMs)
+{
+    if (!player || IsBot(player))
+        return;
+    Curtain(player, caption.c_str());
+    WhenArrived(player->GetGUID(), map, x, y, 40, caption, leastMs, liftMs);
+}
+
+void WrathRemix::LiftTheCurtain(Player* player)
+{
+    if (player && !IsBot(player))
+        Lift(player, 1000);
 }
 
 void WrathRemix::PlayIntro(Player* player)
@@ -1563,14 +1756,21 @@ public:
         if (!Active() || IsBot(player))
             return;
         ObjectGuid guid = player->GetGUID();
+        // The curtain before their loading screen ends (the game keeps what the realm sends it
+        // meanwhile), so the tavern isn't seen loading; lifted below if the opening isn't theirs after all.
+        bool curtained = Wanted(player);
+        if (curtained)
+            Curtain(player, Alliance(player) ? CAPTION_TAVERN_A : CAPTION_TAVERN_H);
         // (after the realm's own first moments: the kit on, the abilities learned)
-        player->m_Events.AddEventAtOffset([guid]()
+        player->m_Events.AddEventAtOffset([guid, curtained]()
         {
             Player* p = ObjectAccessor::FindPlayer(guid);
             if (!p || !p->IsInWorld())
                 return;
             bool owed = Owed(p);
             bool begin = Wanted(p);
+            if (!begin && curtained)
+                Lift(p);
             // (the Light's wings, saved with them by the realm's own saves, if a crash cut it short)
             if (owed)
             {

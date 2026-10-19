@@ -242,6 +242,11 @@ class WorldSession:
             self.send(CMSG_TIME_SYNC_RESP, body[:4] + struct.pack("<I", int(time.monotonic() * 1000) & 0xFFFFFFFF))
         elif opcode == SMSG_NEW_WORLD:
             self.send(MSG_MOVE_WORLDPORT_ACK)
+        elif opcode == SMSG_MESSAGECHAT and body[0] == CHAT_MSG_WHISPER and b"WowRemix\tcurtain" in body:
+            # The realm's curtain over the opening's next act (RemixIntro.cpp): the app's add-on says
+            # "settled" once the game's frames run smoothly again; this client has no frames, so at once.
+            self.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + self.character.encode() + b"\0"
+                      + b"WowRemix\tsettled 0\0")
         elif opcode == MSG_MOVE_TELEPORT_ACK:
             # The player's packed guid, then the teleport's counter.
             mask = body[0]
@@ -709,6 +714,24 @@ def run_script(session, player_guid, steps):
             session.pump(3.0, packets)
         elif word == "wait":
             session.pump(float(rest), packets)
+        elif word == "until":
+            # until <text> <seconds>: reads until [text] is heard, [seconds] at most, then forgets
+            # what was heard, as expect does (a moment whose time the realm sets: the opening's acts
+            # wait for the game to settle behind their curtain).
+            text, _, limit = rest.rpartition(" ")
+            end = time.time() + float(limit)
+            noted = []
+            while not any(text.lower() in h.lower() for h in heard):
+                if time.time() >= end:
+                    raise RuntimeError(f"until \"{text}\" timed out after {limit} s; heard: {heard}")
+                chunk = []
+                session.pump(1.0, chunk)
+                before = len(heard)
+                note(chunk)
+                noted.extend(heard[before:])
+            transcript.append((line, noted))
+            heard.clear()
+            continue
         elif word == "clear-backpack":
             # Room for a quest's own item: everything in the backpack but its first slot (the
             # hearthstone) thrown away, as a player would make room. (A long campaign of GM turn-ins
