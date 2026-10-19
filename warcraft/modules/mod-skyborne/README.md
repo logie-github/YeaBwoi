@@ -43,7 +43,9 @@ move to 22 and 23.
 - **The intro**: the start race's flight over its home (Northshire, Mulgore) with the Skyborne's own
   narration (`data/client/intro.mp3`).
 - **Character creation**: their icons are the blood elf's with blue skin, white hair and blue eyes;
-  each side's races go down its own column; their background is their start race's.
+  each side's races in two columns (the Alliance's left, the Horde's right), two to a row from the
+  top in the screen's order, the side by the game's `GetFactionForRace`, or by the race where the
+  game gives none; their background is their start race's.
 - **Blood elves** get a Dark Ranger skin (colour 19: the blood elf's fairest skin with its
   saturation turned down to a tenth, so grey, and red eyes).
 - **Zoom** on the character creation screen (`SkyborneZoom.lua`): the mouse wheel (the app's pinch)
@@ -70,8 +72,9 @@ move to 22 and 23.
   their start race's outfit; a race with no start of its own for a class takes the first race's that
   has one. The button stands between the sex buttons: where the middle of the two was (3.3.5's: the
   configuration panel's top, 392 down), the male button moved to its left and the female to its
-  right, 12 apart, so each sits under its race column (50 either side of the middle,
-  `SkyborneCreate.lua`'s layout). Not yet seen in the game.
+  right, 12 apart (their centres 50 either side of the middle). It takes the sex buttons' parent and
+  is drawn over them, and has the leaf for its icon until its data gives one (a button with no
+  texture isn't seen). Not yet seen in the game.
 - **HD looks**: the HD blood elf takes its ears, jaw and eyeballs from a second skin texture
   (`...Skin00_NN_Extra.blp`, the skin row's second texture in CharSections). The patch makes each
   new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
@@ -160,7 +163,8 @@ move to 22 and 23.
   the sex buttons and theirs, and, where the model can't be dressed, the button still shown and
   cycling with a tooltip that says so).
 - `tools/test_screen.py`: `SkyborneCreate.lua` in Lua 5.1 against stand-ins for the game's screen,
-  with the game's ten race buttons and with mod-worgoblin's twelve.
+  with the game's ten race buttons and with mod-worgoblin's twelve, and with no sides from the game
+  (the races' own then): each side two to a row.
 - CI's server test: the world server makes the patch from the server's tables (no textures there),
   and a High Order warrior starts in Northshire and a Windshaper shaman at Camp Narache, each with
   their racials.

@@ -5,8 +5,7 @@
 --   starter   the starting outfit of the race and class selected, its chest's icon
 --   champion  the class's top raid set (Tier 10), its chest piece's icon
 --
--- It sits between the sex buttons, which move apart to make room for it (each under its race
--- column). SkyborneGearData.lua (tools/build_gear.py) has the items and icons. The preview is
+-- It sits between the sex buttons, which move apart to make room for it. SkyborneGearData.lua (tools/build_gear.py) has the items and icons. The preview is
 -- dressed through the model's own calls (Undress and TryOn); 3.3.5's preview has none (it is a
 -- ModelFFX, dressed by the game itself from CharStartOutfit), so there the button shows and cycles
 -- but the preview stays as the game dresses it, and its tooltip says so. Its tooltip is the creation
@@ -179,7 +178,7 @@ end
 
 -- Placement ----------------------------------------------------------------------------------
 -- The middle of where the sex buttons stand (the screen's: 20 either side of the middle), and they
--- move out to 50 either side, under the race columns (SkyborneCreate.lua's), the button between.
+-- move out to 50 either side, the button between.
 local GAP = 12;
 
 local function Place()
@@ -197,6 +196,14 @@ local function Place()
 	if ( not (ok and ok2 and point and type(x) == "number" and type(x2) == "number") or relativeTo == button ) then
 		point, relativeTo, relativePoint, x, y, x2 = "TOP", CharacterCreateConfigurationFrame, "TOP", -20, -392, 20;
 	end
+	-- with the sex buttons, over them
+	local parent = type(male.GetParent) == "function" and male:GetParent();
+	if ( parent ) then
+		button:SetParent(parent);
+	end
+	if ( type(male.GetFrameLevel) == "function" and type(button.SetFrameLevel) == "function" ) then
+		button:SetFrameLevel(male:GetFrameLevel() + 1);
+	end
 	button:SetPoint(point, relativeTo, relativePoint, (x + x2) / 2, y);
 	male:ClearAllPoints();
 	male:SetPoint("RIGHT", button, "LEFT", -GAP, 0);
@@ -205,10 +212,14 @@ local function Place()
 	return true;
 end
 
+-- The mode's icon; the leaf until there is one (a button with no texture isn't seen).
+local iconSet = false;
+
 local function Refresh()
 	local items, icon = Gear(MODES[mode]);
-	if ( icon ) then
-		button:SetNormalTexture("Interface\\Icons\\"..icon);
+	if ( icon or not iconSet ) then
+		button:SetNormalTexture("Interface\\Icons\\"..(icon or "INV_Misc_Leaf_01"));
+		iconSet = true;
 	end
 	return items;
 end
@@ -232,6 +243,7 @@ timer:SetScript("OnUpdate", function(self, elapsed)
 		waits[i] = waits[i] - elapsed;
 		if ( waits[i] <= 0 ) then
 			table.remove(waits, i);
+			button:Show();
 			Apply();
 		end
 	end

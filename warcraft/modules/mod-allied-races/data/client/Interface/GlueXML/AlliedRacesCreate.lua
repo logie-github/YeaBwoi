@@ -6,9 +6,9 @@
 --  * More race buttons: the game's screen has ten (CharacterCreateRaceButton1-10);
 --    AlliedRacesCreate.xml makes six more, here given the names the screen looks for, where it
 --    hasn't a button by that number already (another patch's screen may have more).
---  * Where they go: after the screen lays out its races, each side's go down its own column (the
---    Alliance's left, the Horde's right), closer together when a side has more than five (the
---    Skyborne's screen lays them out the same way, after this).
+--  * Where they go: after the screen lays out its races, each side's in two columns (the
+--    Alliance's left, the Horde's right), two to a row from the top (the Skyborne's screen lays
+--    them out the same way, after this).
 --  * Their icons: their portraits in the last column of the race icons (the patch paints them
 --    there: data/client/icons).
 --  * Their backgrounds: the void elves' is the Draenei's (they start in Ammen Vale), the
@@ -44,42 +44,52 @@ if ( highest > MAX_RACES ) then
 	MAX_RACES = highest;
 end
 
-local function LayOut()
+-- Each side's races in two columns, the Alliance's on the left and the Horde's on the right, two to
+-- a row from the top in the screen's order. The side is the game's (GetFactionForRace), or the
+-- race's own where the game gives none.
+local SIDES = { HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance",
+	WORGEN = "Alliance", SKYBORNEA = "Alliance", VOIDELF = "Alliance", LIGHTFORGED = "Alliance",
+	ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde", GOBLIN = "Horde",
+	SKYBORNEH = "Horde", NIGHTBORNE = "Horde", ZANDALARI = "Horde" };
+local COLUMNS = { Alliance = { -90, -46 }, Horde = { 46, 90 } };
+
+local function LayOut(...)
 	local first = CharacterCreateRaceButton1;
 	if ( not first or not CharacterCreate.numRaces ) then
 		return;
 	end
 	local parent = first:GetParent();
-	local columns = { Alliance = {}, Horde = {} };
+	local sides = { Alliance = {}, Horde = {} };
 	for i = 1, CharacterCreate.numRaces do
-		local _, faction = GetFactionForRace(i);
-		local column = columns[faction] or columns.Alliance;
-		column[#column + 1] = _G["CharacterCreateRaceButton"..i];
+		local ok, _, faction = pcall(GetFactionForRace, i);
+		if ( not (ok and sides[faction]) ) then
+			faction = SIDES[strupper(select(i * 3 - 1, ...) or "")] or "Alliance";
+		end
+		local side = sides[faction];
+		side[#side + 1] = _G["CharacterCreateRaceButton"..i];
 	end
-	local most = math.max(#columns.Alliance, #columns.Horde);
-	local gap = 10;
-	if ( most > 5 ) then
-		-- The game's five fill 230 points with gaps of 10; more fill what's free above the sex buttons.
-		gap = math.max(2, math.floor((326 - 38 * most) / (most - 1)));
+	-- Rows 50 apart (the game's buttons are 38), closer if more than fit above the sex buttons.
+	local rows = math.ceil(math.max(#sides.Alliance, #sides.Horde) / 2);
+	local step = 50;
+	if ( rows > 1 ) then
+		step = math.min(50, math.floor((326 - 38) / (rows - 1)));
 	end
-	for side, x in pairs({ Alliance = -50, Horde = 50 }) do
-		local previous;
-		for _, button in ipairs(columns[side]) do
+	for faction, x in pairs(COLUMNS) do
+		for n, button in ipairs(sides[faction]) do
 			button:ClearAllPoints();
-			if ( previous ) then
-				button:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -gap);
-			else
-				button:SetPoint("TOP", parent, "TOP", x, -50);
-			end
-			previous = button;
+			button:SetPoint("TOP", parent, "TOP", x[(n - 1) % 2 + 1], -50 - step * math.floor((n - 1) / 2));
 		end
 	end
 end
 
 local enumerateRaces = CharacterCreateEnumerateRaces;
 function CharacterCreateEnumerateRaces(...)
-	enumerateRaces(...);
-	LayOut();
+	-- (laid out even if the screen's own code stops on a race it doesn't know; its error still shows)
+	local ok, problem = pcall(enumerateRaces, ...);
+	LayOut(...);
+	if ( not ok ) then
+		error(problem, 0);
+	end
 end
 
 local setBackgroundModel = SetBackgroundModel;
