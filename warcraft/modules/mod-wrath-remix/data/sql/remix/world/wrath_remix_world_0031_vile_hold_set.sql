@@ -131,7 +131,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77062, 2, -1, 10, 210, 3, 0, 0, 0, 77020, 0, 0,
  'A Name Never Written',
  'Use the Runesmith''s Tally at the Great Hourglass in the heart of the Infinite Bazaar, then return to the Unclaimed Coffer.',
- 'The tally''s line for this suit reads: The fortieth knight of Malykriss. To be raised in the new necropolis. Fitted to the one who rises.$B$BNo one rose to wear it. Out in this year, the Lich King''s builders are still at work on Malykriss. In the Bazaar''s hour, a little outside time, they never finished it, and the knight this plate was waiting for was never raised. The line beside the number stayed blank.$B$BThe infinite dragonflight deals in blank lines, $n. In this hour, your own name is not written anywhere either.$B$BTake the tally to the Great Hourglass at the heart of the Bazaar and hold it up to the sands. Then bring it back here.',
+ 'The tally''s line for this suit reads: The fortieth knight of Malykriss. To be raised in the new necropolis. Fitted to the one who rises.$B$BNo one rose to wear it. The Bazaar''s dragons swept the Lich King''s builders out of Malykriss when they began putting the timeline in order, before they ever finished it, and the knight this plate was waiting for was never raised. The line beside the number stayed blank.$B$BThe infinite dragonflight deals in blank lines, $n. In this hour, your own name is not written anywhere either.$B$BTake the tally to the Great Hourglass at the heart of the Bazaar and hold it up to the sands. Then bring it back here.',
  'Return to the Unclaimed Coffer.',
  -770205, 0, 0, 1, 0, 0,
  'Name written at the Great Hourglass', '', '', 0),
