@@ -70,8 +70,10 @@ move to 22 and 23.
   own, `GlueTooltip_SetOwner` and `GlueTooltip_SetText`, and its icon has no frame; it was then
   hidden in 3.3.5, until the user asked for it shown between the sex buttons.) The Skyborne take
   their start race's outfit; a race with no start of its own for a class takes the first race's that
-  has one. The button stands between the sex buttons: where the middle of the two was (3.3.5's: the
-  configuration panel's top, 392 down), the male button moved to its left and the female to its
+  has one. The race and class are their file names' (`GetSelectedClass` gives the name, file and
+  position; the lists' third value is whether one can be picked, not an id). The button stands between the sex buttons: where the middle of the two was (3.3.5's: the
+  configuration panel's top, 392 down, raised 48 with the class buttons for the Features row), the
+  male button moved to its left and the female to its
   right, 12 apart (their centres 50 either side of the middle). It takes the sex buttons' parent and
   is drawn over them, and has the leaf for its icon until its data gives one (a button with no
   texture isn't seen). Not yet seen in the game.
@@ -98,8 +100,12 @@ move to 22 and 23.
   twelve besides none (Sparse, Light, Medium, Full, Strip, Heart, Moon, Crescent, Star, Swords, Skull,
   Patchy), on the bodies of Human, Orc, Dwarf, Night Elf, Undead, Gnome, Troll, Blood Elf (the
   Skyborne's too) and Draenei. Tauren have shading only (no hair art was made for them) and the goblin
-  isn't a player's race, so they have none; a male has none. The row is shown for a female of a race
-  that has designs and hidden for anyone else. The game has no slider for it, so a design is a block
+  isn't a player's race, so they have none; a male has none, and the void elves and the nightborne
+  (mod-allied-races) have none. The row is shown for a female of a race that has designs and hidden
+  for anyone else; the race is the one its file name says (3.3.5's race list gives each race's name,
+  file and whether it can be made, never its id: the row first took that 1 for Human, and showed
+  for every woman). To make room for it, the sex and class buttons and their labels sit 48 higher
+  (`SkyborneCreate.lua`: the user's screenshots had the row over the second row of classes). The game has no slider for it, so a design is a block
   of skin colours: a race with S skins has the same S again for each design (the same textures, faces
   and flags; only the pelvis texture differs), as the colours after every colour the race and sex
   already have (CharSections rows 970000 to 989451, `tools/build_data.py`; the NPCs' skins keep theirs).
@@ -152,7 +158,8 @@ move to 22 and 23.
   `tools/art/races/lines.py`'s (the same pixels).
 - `tools/test_features.py`: `SkyborneFeatures.lua` in Lua 5.1 against stand-ins for the screen (shown
   for a female of a race with designs, hidden for a male or a race without, the arrows stepping by the
-  race's skin count, the Skyborne's too, a getter that gives the id), and the data against each other
+  race's skin count, the Skyborne's too, none for the void elves' and the nightborne's women, the race
+  list as 3.3.5 gives it, a getter that gives the file), and the data against each other
   (every design's colours follow the others and fit a byte, its faces and pelvis textures, the files).
 - `tools/test_zoom.py`: `SkyborneZoom.lua` in Lua 5.1 against stand-ins for the screen (the wheel
   growing the preview's frame around the character and back, its limits, the panels staying put,

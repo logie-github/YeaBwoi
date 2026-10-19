@@ -45,7 +45,8 @@ function CycleCharCustomization(feature, delta) CYCLES[#CYCLES + 1] = { feature,
 
 local RACES = { {"Human","Human",1}, {"Dwarf","Dwarf",3}, {"Night Elf","NightElf",4}, {"Gnome","Gnome",7},
   {"Draenei","Draenei",11}, {"SkyborneA","SkyborneA",13}, {"Orc","Orc",2}, {"Undead","Scourge",5},
-  {"Tauren","Tauren",6}, {"Troll","Troll",8}, {"Blood Elf","BloodElf",10}, {"SkyborneH","SkyborneH",14} }
+  {"Tauren","Tauren",6}, {"Troll","Troll",8}, {"Blood Elf","BloodElf",10}, {"SkyborneH","SkyborneH",14},
+  {"Void Elf","VoidElf",15}, {"Nightborne","Nightborne",16} }
 SELECTED = { race = 1, sex = 3 }
 SEX_FEMALE = 3
 function GetSelectedRace() return SELECTED.race end
@@ -55,7 +56,8 @@ function CharacterCreateRaceButton_OnClick() end
 function CharacterCreateGenderButton_OnClick() end
 function ENUMERATE()
   local out = {}
-  for _, e in ipairs(RACES) do out[#out + 1] = e[1]; out[#out + 1] = e[2]; out[#out + 1] = e[3] end
+  -- (as 3.3.5 gives it: name, file and whether the race can be made, 1, never its id)
+  for _, e in ipairs(RACES) do out[#out + 1] = e[1]; out[#out + 1] = e[2]; out[#out + 1] = 1 end
   CharacterCreateEnumerateRaces(unpack(out))
 end
 function PICK(race, sex)
@@ -98,12 +100,18 @@ for position, name, skins in ((6, "SkyborneA", 16), (12, "SkyborneH", 16), (11, 
     click(lua, "Right")
     check(shown(lua) and cycles(lua) == [(1, skins)], "%s: the row steps %d" % (name, skins))
 
+# the void elves and the nightborne have no designs: no row for their women (the race is the file's,
+# not the list's third value, which is 1 for every race that can be made)
+for position, name in ((13, "Void Elf"), (14, "Nightborne")):
+    lua.execute("PICK(%d, 3); CYCLES = {}" % position)
+    check(not shown(lua), "%s woman: no Features row" % name)
+
 # a screen whose getter gives the name, file and id instead of a position
 lua2 = lua51.LuaRuntime(unpack_returned_tuples=True)
 lua2.execute(STUBS.replace("function GetSelectedRace() return SELECTED.race end", 'function GetSelectedRace() return "Human", "Orc", 2 end'))
 lua2.execute(DATA); lua2.execute(LUA)
 click(lua2, "Right")
-check(cycles(lua2) == [(1, 9)], "a getter that gives (name, file, id) is read by its id: %s" % cycles(lua2))
+check(cycles(lua2) == [(1, 9)], "a getter that gives (name, file, id) is read by its file: %s" % cycles(lua2))
 
 # without the data the file does nothing, and breaks nothing
 lua3 = lua51.LuaRuntime(unpack_returned_tuples=True)

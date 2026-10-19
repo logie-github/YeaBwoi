@@ -82,7 +82,7 @@ for native, races, with_skyborne in [
     lua.execute('SetBackgroundModel("m", "VoidElf")')
     check(g.BACKGROUND == "Draenei", "the void elves' background is the Draenei's")
     lua.execute('SetBackgroundModel("m", "Nightborne")')
-    check(g.BACKGROUND == "Scourge", "the nightborne's background is the Forsaken's")
+    check(g.BACKGROUND == "NightElf", "the nightborne's background is the Night Elves' (framed for their height)")
     lua.execute('SetBackgroundModel("m", "Orc")')
     check(g.BACKGROUND == "Orc", "the game's own backgrounds stay")
     check(g.RACE_INFO_VOIDELF and g.ABILITY_INFO_NIGHTBORNE4 and g.VOIDELF_DISABLED, "the races' texts")

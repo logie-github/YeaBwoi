@@ -20,6 +20,14 @@ local function Button(name)
   return b
 end
 Frame = { name = "CharacterCreateConfigurationFrame" }
+-- what's between the races and the rows of looks, as 3.3.5's XML anchors it
+for name, p in pairs({ CharacterCreateGender = { "BOTTOM", "TOP", 0, -388 }, CharacterCreateGenderButtonMale = { "TOP", "TOP", -20, -392 },
+    CharacterCreateGenderButtonFemale = { "TOP", "TOP", 20, -392 }, CharacterCreateClassName = { "BOTTOM", "TOP", 0, -456 },
+    CharacterCreateClassButton1 = { "TOP", "TOP", -90, -463 } }) do
+  local r = Button(name)
+  r.points = { { p[1], Frame, p[2], p[3], p[4] } }
+  function r:GetPoint(i) return unpack(self.points[i or 1]) end
+end
 for i = 1, NATIVE do Button("CharacterCreateRaceButton"..i).parent = Frame end
 for i = 11, 16 do Button("SkyborneRaceButton"..i).parent = { name = "xml" } end
 MAX_RACES = NATIVE
@@ -71,6 +79,14 @@ for native, races, no_sides in [
     for side, xs in (("A", (-90, -46)), ("H", (46, 90))):
         want = [("TOP", True, "TOP", xs[n % 2], -50 - 50 * (n // 2)) for n in range(len(placed[side]))]
         check(placed[side] == want, f"{label}: the {'Alliance' if side == 'A' else 'Horde'}'s races two to a row, {xs} ({placed[side]})")
+    if native == 10 and not no_sides:
+        moved = {n: [list(g[n].points.values())[0][k] for k in (1, 3, 4, 5)] for n in
+                 ("CharacterCreateGender", "CharacterCreateGenderButtonMale", "CharacterCreateGenderButtonFemale",
+                  "CharacterCreateClassName", "CharacterCreateClassButton1")}
+        check(moved == {"CharacterCreateGender": ["BOTTOM", "TOP", 0, -340], "CharacterCreateGenderButtonMale": ["TOP", "TOP", -20, -344],
+                        "CharacterCreateGenderButtonFemale": ["TOP", "TOP", 20, -344], "CharacterCreateClassName": ["BOTTOM", "TOP", 0, -408],
+                        "CharacterCreateClassButton1": ["TOP", "TOP", -90, -415]},
+              f"the sex and class buttons and their labels 48 up, for the Features row: {moved}")
     lua.execute('SetBackgroundModel(nil, "SkyborneA")')
     check(g.BACKGROUND == "Human", "the High Order's background is the Humans'")
     lua.execute('SetBackgroundModel(nil, "SKYBORNEH")')

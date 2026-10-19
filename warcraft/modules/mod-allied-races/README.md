@@ -74,8 +74,9 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the last
   column of the race icons; each side's races in two columns, two to a row from the top
   (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after, the same way);
-  the Draenei's and the
-  Forsaken's backgrounds; their texts.
+  the Draenei's background for the void elves and the Night Elves' for the nightborne (each
+  scene's camera is framed for its race's height: the Forsaken's, which they had first, cut off the
+  nightborne's heads); their texts.
 
 ## How it's made
 

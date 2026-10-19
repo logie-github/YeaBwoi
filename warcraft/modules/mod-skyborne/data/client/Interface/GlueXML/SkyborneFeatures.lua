@@ -14,37 +14,40 @@ if ( not frame or type(SKYBORNE_FEATURES) ~= "table" ) then
 	return;
 end
 
--- Race by the file names the screen gives (its list's second values), where it gives no id.
+-- Race by the file names the screen gives (its list's second values).
 local RACE_IDS = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUREN = 6, GNOME = 7, TROLL = 8,
-	BLOODELF = 10, DRAENEI = 11, SKYBORNEA = 13, SKYBORNEH = 14 };
+	BLOODELF = 10, DRAENEI = 11, SKYBORNEA = 13, SKYBORNEH = 14, VOIDELF = 15, NIGHTBORNE = 16 };
 
--- The screen's race list, by position: (name, file, id) three at a time.
+-- The screen's race list, by position: (name, file, enabled) three at a time in 3.3.5, whose third
+-- value is whether the race can be made (1 or 0), not its id: the race is its file's.
 local raceList = {};
 local function Capture(...)
 	for i = 1, select("#", ...), 3 do
-		local _, file, id = select(i, ...);
+		local _, file, third = select(i, ...);
 		local n = (i - 1) / 3 + 1;
-		if ( type(id) ~= "number" and type(file) == "string" ) then
-			id = RACE_IDS[strupper(file)];
+		local id = type(file) == "string" and RACE_IDS[strupper(file)] or nil;
+		if ( not id and type(third) == "number" and third > 1 ) then
+			id = third;
 		end
 		raceList[n] = id;
 	end
 end
 
--- The selected race's id: the screen's getter may give the position in its list, or the name, file and id.
+-- The selected race's id: by the file the screen's getter gives, if it gives one, else by its position
+-- in the list (3.3.5's GetSelectedRace gives the position alone).
 local function SelectedRace()
 	if ( type(GetSelectedRace) ~= "function" ) then
 		return nil;
 	end
 	local a, b, c = GetSelectedRace();
+	if ( type(b) == "string" and RACE_IDS[strupper(b)] ) then
+		return RACE_IDS[strupper(b)];
+	end
 	if ( type(a) == "number" and raceList[a] ) then
 		return raceList[a];
 	end
-	if ( type(c) == "number" ) then
-		return c;
-	end
-	if ( type(b) == "string" and RACE_IDS[strupper(b)] ) then
-		return RACE_IDS[strupper(b)];
+	if ( type(c) == "number" and raceList[c] ) then
+		return raceList[c];
 	end
 	return nil;
 end

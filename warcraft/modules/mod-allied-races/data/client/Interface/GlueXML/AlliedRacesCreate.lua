@@ -12,10 +12,12 @@
 --  * Their icons: their portraits in the last column of the race icons (the patch paints them
 --    there: data/client/icons).
 --  * Their backgrounds: the void elves' is the Draenei's (they start in Ammen Vale), the
---    nightborne's the Forsaken's (Deathknell).
+--    nightborne's the Night Elves'. Each scene's camera is framed for its own race's height: the
+--    Forsaken's, for the shorter, stooped undead, cut off the nightborne's head (a night elf's
+--    height); the Night Elves' fits them.
 --  * Their text.
 
-local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "Scourge" };
+local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "NightElf" };
 
 RACE_ICON_TCOORDS["VOIDELF_MALE"]      = { 0.875, 1.0, 0, 0.25 };
 RACE_ICON_TCOORDS["NIGHTBORNE_MALE"]   = { 0.875, 1.0, 0.25, 0.5 };

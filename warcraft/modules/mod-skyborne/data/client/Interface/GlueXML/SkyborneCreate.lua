@@ -80,6 +80,22 @@ local function LayOut(...)
 	end
 end
 
+-- Room for a sixth row of looks (the Features row, SkyborneFeatures.lua) between the classes and the
+-- rows under them: the sex and class buttons and their labels go 48 up (the races above them, two to
+-- a row, end well above). Before the gear button's file, which stands between the sex buttons.
+local RAISE = 48;
+for _, name in ipairs({ "CharacterCreateGender", "CharacterCreateGenderButtonMale", "CharacterCreateGenderButtonFemale",
+		"CharacterCreateClassName", "CharacterCreateClassButton1" }) do
+	local region = _G[name];
+	if ( type(region) == "table" and type(region.GetPoint) == "function" and type(region.SetPoint) == "function" ) then
+		local ok, point, relativeTo, relativePoint, x, y = pcall(region.GetPoint, region, 1);
+		if ( ok and point and type(x) == "number" and type(y) == "number" ) then
+			region:ClearAllPoints();
+			region:SetPoint(point, relativeTo, relativePoint, x, y + RAISE);
+		end
+	end
+end
+
 local enumerateRaces = CharacterCreateEnumerateRaces;
 function CharacterCreateEnumerateRaces(...)
 	-- (laid out even if the screen's own code stops on a race it doesn't know; its error still shows)
