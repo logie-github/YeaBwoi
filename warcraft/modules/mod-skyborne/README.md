@@ -53,7 +53,11 @@ move to 22 and 23.
   chest piece). The preview is dressed through the screen's model (`Undress` and `TryOn`), found by
   what it can do; if the screen has no such model the tooltip says so (and lists the frames it
   looked at) and the preview is left as it is. The Skyborne take their start race's outfit; a race
-  with no start of its own for a class takes the first race's that has one. Not yet seen in the game.
+  with no start of its own for a class takes the first race's that has one. The button sits halfway
+  between the name box and the customize panel, its bottom level with the lowest of the panel's
+  arrow buttons: it measures them on the laid-out screen (the name box is the screen's edit box, the
+  panel the frame right of it that holds the most buttons) and keeps its first place by the sex
+  buttons where it can't; its tooltip says which. Not yet seen in the game.
 - **No underwear on anyone**: the patch empties every race's and sex's underwear row (CharSections
   section 4, the NakedPelvisSkin/NakedTorsoSkin textures the game paints over a bare body), as the
   game's own rows for race 20 are; the body's skin shows. Armour is as it was.
