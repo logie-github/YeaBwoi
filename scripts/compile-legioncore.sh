@@ -40,11 +40,21 @@ export CCACHE_DIR=/repo/build/ccache-legioncore CCACHE_MAXSIZE=3G
 export CCACHE_SLOPPINESS=pch_defines,time_macros,include_file_mtime,include_file_ctime
 git config --global --add safe.directory '*'
 
+# musl's C++11 NULL is nullptr (stddef.h, stdio.h, string.h, stdlib.h, time.h, unistd.h, locale.h,
+# wchar.h); glibc's is __null, which converts to a number. The core's scripts pass NULL where a
+# number is meant in more places than are worth patching one by one (a stack count, a spell id, a
+# threat amount...), so in the compiler's headers, used for this build only, NULL is glibc's kind
+# of null: 0L. The phone never sees these headers.
+integer_null() {
+	find "$1" -maxdepth 1 -name '*.h' -exec sed -i 's/define NULL nullptr/define NULL 0L/' {} +
+}
+
 TOOLCHAIN=/repo/build/legioncore-toolchain.cmake
 if [ "$(uname -m)" = aarch64 ]; then
 	# shellcheck disable=SC2086
 	apk add -q --no-progress $DEPS
 	SYSROOT=
+	integer_null /usr/include
 	cat > "$TOOLCHAIN" <<EOF
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
@@ -61,6 +71,7 @@ else
 			--keys-dir /usr/share/apk/keys/aarch64 --repositories-file /etc/apk/repositories $DEPS
 		echo "$ALPINE_VERSION $DEPS" > "$SYSROOT/.made"
 	fi
+	integer_null "$SYSROOT/usr/include"
 	cat > "$TOOLCHAIN" <<EOF
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
