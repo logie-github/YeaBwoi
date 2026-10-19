@@ -30,5 +30,11 @@
   "hair_scale_y_4": 0.95, "l4_len": 0.9, "l4_turn": 1.0, "l4_stray": 0.02, "density": {"4": 1.6}},
  "Tauren": {"lines_scale": 1.5, "lines_width": 1.7, "lines_shift": 4, "lines_depth": 0.7, "lines_fold": 0.15, "lines_lift": 0,
   "lines_fill": 4, "lines_fill_u0": 256, "lines_core": [1.0, 0.6, 0.64], "lines_core_w": 6.0, "lines_slot_w": 0.9,
-  "lines_core_k": 0.95, "lines_slot_k": 0.75}
+  "lines_core_k": 0.95, "lines_slot_k": 0.75},
+ "Troll": {"area": [254.0, 45.0, 264.0, 314.0], "canvas": [2048, 1024], "geosets": [0, 1301, 1801], "ymax": 0.1, "ztop": 0.26,
+  "below": 0.004, "xmin": -0.04, "triangle": true, "fan": 0.55, "hair_scale": 1.35, "hair_scale_y": 1.0, "zj": 1.207,
+  "hair_cols": 170, "lines_width": 1.4, "lines_shift": -2, "lines_depth": 0.95, "lines_fold": 0.2, "lines_lift": 0.5,
+  "lines_lift_w": 9, "lines_lift_top": 45, "lines_ref": [258, 222, 276, 232], "lines_tone_k": [[0, 1.0], [40, 1.0], [85, 1.0]],
+  "lines_fill": 4, "lines_fill_u0": 256, "region": [1896, 272, 152, 752], "hair_scale_4": 1.2, "hair_scale_y_4": 0.88,
+  "density": {"4": 1.6}, "lines_scale": 1.5}
 }
