@@ -24,6 +24,7 @@ void AddRemixQuestFixupScripts();
 void AddRemixVoiceScripts();
 void AddRemixModelScripts();
 void AddRemixCastScripts();
+void AddRemixVileHoldSetScripts();
 void AddRemixMalykrissScripts();
 
 void Addmod_wrath_remixScripts()
@@ -49,5 +50,6 @@ void Addmod_wrath_remixScripts()
     AddRemixVoiceScripts();
     AddRemixModelScripts();
     AddRemixCastScripts();
+    AddRemixVileHoldSetScripts();
     AddRemixMalykrissScripts();
 }
