@@ -65,11 +65,13 @@ for sid in set(ids):
 check(ok and -1 in table, "the sequence lookup finds every id (its first variation) and has empty slots")
 
 # The geoset policy: named groups keep what's named, the tables' groups everything, others their lowest.
-policy = {"geoset_policy": {"2": [2, 21], "201": [21], "3501": [301], "1701": [1702, 1703], "3301": [3301], "0": [0]}, "drop_groups": [51]}
-complete = m2.complete_policy(policy, [0, 1, 2, 3, 201, 202, 401, 402, 702, 703, 1701, 1702, 2001, 2002, 3201, 3202, 3301, 3501, 3502, 5101])
+policy = {"geoset_policy": {"2": [2, 21], "201": [21], "3501": [301], "1701": [1702, 1703], "3301": [0], "0": [0]}, "drop_groups": [51]}
+complete = m2.complete_policy(policy, [0, 1, 2, 3, 201, 202, 401, 402, 702, 703, 1701, 1702, 2001, 2002, 2201, 2202, 3201, 3202, 3301, 3501, 3502, 5101])
 check(complete["2"] == [2, 21] and "202" not in complete and "3502" not in complete, "named groups keep only what's named")
 check(complete["401"] == [401] and complete["402"] == [402], "the tables' groups stay whole")
-check(complete["2001"] == [2001] and "2002" not in complete and complete["702"] == [702] and "703" not in complete, "other groups keep their lowest")
+check(complete["702"] == [702] and "703" not in complete, "other groups the game knows keep their lowest")
+check(complete["2001"] == [0] and "2002" not in complete and complete["2201"] == [0] and "2202" not in complete, "groups the game doesn't know: their lowest becomes the body")
+check(complete["3301"] == [0], "the eyes go to the body as named")
 check("5101" not in complete, "dropped groups go")
 check("3" not in complete and complete["0"] == [0], "hair styles not named go; the scalp stays")
 
