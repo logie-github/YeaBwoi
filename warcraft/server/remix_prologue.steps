@@ -44,7 +44,9 @@ until Arise minions 80
 cmd .gps
 expect Icecrown
 until We can stop all of this 90
-wait 5
+# (the journey to the Bazaar, thirteen seconds on: its curtain is drawn as it starts)
+until Malykriss | Years earlier 60
+wait 8
 cmd .gps
 expect Malykriss: The Vile Hold
 
