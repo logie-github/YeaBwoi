@@ -51,6 +51,12 @@ move to 22 and 23.
   new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
   The eye glow is the model's own (pale green, added over the eyes) for every skin.
 
+- **Body textures**: every race's female skins get their shading from `data/client/shade` (the
+  fields of each race's texture and its settings, made by `tools/art/races/shade_export.py`;
+  `src/SkyborneShade.cpp` is the same calculation as `tools/art/races/lines.py`), after the earlier
+  retouching, for the Skyborne's blood elf skins too. A race whose model isn't the one the fields
+  were made for is left as it is.
+
 ## How it's made
 
 - `tools/build_data.py` reads the game's tables (the server's dbc folder) and the core's world SQL,
@@ -74,6 +80,8 @@ move to 22 and 23.
 - `tools/test_client.cpp`: the patch made for a game folder and read back (races, looks, racials,
   textures, icons, the character screen, a second start keeping it). Built and run here against the
   server's tables and ChromieCraft's HD character archive.
+- `tools/test_shade.cpp`: each race's first female skin shaded, written as PPM files to compare with
+  `tools/art/races/lines.py`'s (the same pixels).
 - `tools/test_screen.py`: `SkyborneCreate.lua` in Lua 5.1 against stand-ins for the game's screen,
   with the game's ten race buttons and with mod-worgoblin's twelve.
 - CI's server test: the world server makes the patch from the server's tables (no textures there),

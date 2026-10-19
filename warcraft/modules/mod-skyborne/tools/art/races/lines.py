@@ -64,10 +64,10 @@ if 'lines_core' in _c:
     lum_ref = float(np.median(im[sel] @ np.array([0.299, 0.587, 0.114])))
     cw = _c.get('lines_core_w', 3.3)
     cwv = cw * np.clip(along, 0.05, 1) ** 0.6
-    wp = (1 - sm(cwv * 0.55, cwv, ay0)) * _c.get('lines_core_k', 0.9) * np.clip(along * 1.6, 0, 1)
+    wp = (1 - sm(cwv * 0.55, cwv, ay0)) * _c.get('lines_core_k', 0.9) * np.clip(along * 1.6, 0, 1) * ok
     cc = np.array(_c['lines_core']) * (0.88 + 0.12 * min(1.0, lum_ref * 2.0))
     out = out * (1 - wp[..., None]) + cc[None, None, :] * wp[..., None]
-    slot = np.exp(-(ay0 / _c.get('lines_slot_w', 0.9)) ** 2) * along
+    slot = np.exp(-(ay0 / _c.get('lines_slot_w', 0.9)) ** 2) * along * ok
     out = out * (1 - _c.get('lines_slot_k', 0.8) * slot)[..., None]
 if 'lines_detail' in _c:
     D = _c['lines_detail']

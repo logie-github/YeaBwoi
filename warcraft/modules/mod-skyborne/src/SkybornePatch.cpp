@@ -14,6 +14,7 @@
 
 #include "SkybornePatch.h"
 #include "SkyborneFiles.h"
+#include "SkyborneShade.h"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -26,7 +27,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-8";
+        constexpr char const* VERSION = "skyborne-9";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -206,7 +207,7 @@ namespace Skyborne
         }
 
         // [blp] retouched with [tweak]'s settings; false when it isn't HD.
-        bool Retouch(Bytes& blp, Tweak const& tweak, Shading const& shading)
+        bool Retouch(Bytes& blp, Tweak const& tweak, Shading const& shading, BodyShade const& body, std::string const& path)
         {
             Image im;
             if (!shading.ok || !Decode(blp, im) || im.width != 512 || im.height != 512)
@@ -261,11 +262,12 @@ namespace Skyborne
             for (int c = 0; c < 3; ++c)
                 for (size_t i = 0; i < n; ++i)
                     im.rgba[i * 4 + c] = uint8_t(std::lround(std::clamp(plane[c][i], 0.0, 1.0) * 255));
+            body.Apply(path, im);
             return ReplacePixels(blp, im);
         }
 
         // Every texture the table names that has settings (those the patch made already have them).
-        size_t RetouchAll(Dbc const& dbc, Game const& game, Shading const& shading, std::set<std::string>& made, MpqWriter& writer)
+        size_t RetouchAll(Dbc const& dbc, Game const& game, Shading const& shading, BodyShade const& body, std::set<std::string>& made, MpqWriter& writer)
         {
             if (dbc.fields < 10 || !shading.ok)
                 return 0;
@@ -278,7 +280,7 @@ namespace Skyborne
                 std::string path = at < dbc.strings.size() ? reinterpret_cast<char const*>(&dbc.strings[at]) : "";
                 Tweak const* tweak = TweakFor(path);
                 Bytes data;
-                if (!tweak || made.count(Lower(path)) || !game.Read(path, data) || !Retouch(data, *tweak, shading))
+                if (!tweak || made.count(Lower(path)) || !game.Read(path, data) || !Retouch(data, *tweak, shading, body, path))
                     continue;
                 writer.Add(path, data);
                 made.insert(Lower(path));
@@ -377,6 +379,8 @@ namespace Skyborne
         // Textures (first: the tables name the ones made).
         std::set<std::string> made;
         Shading shading = MakeShading(game);
+        BodyShade body;
+        body.Load(moduleData / "shade", game, log);
         std::istringstream recipes(Text(moduleData / "textures.txt"));
         std::string line;
         while (std::getline(recipes, line))
@@ -407,7 +411,7 @@ namespace Skyborne
                 }
                 if (!extra)
                     if (Tweak const* tweak = TweakFor(from))
-                        Retouch(data, *tweak, shading);
+                        Retouch(data, *tweak, shading, body, from);
                 if (!Recolor(data, recipe))
                 {
                     ++bad;
@@ -441,7 +445,7 @@ namespace Skyborne
             if (Lower(name) == "charsections")
                 EmptyOverlayRows(dbc);
             if (Lower(name) == "charsections")
-                textures += RetouchAll(dbc, game, shading, made, writer);
+                textures += RetouchAll(dbc, game, shading, body, made, writer);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
         }
