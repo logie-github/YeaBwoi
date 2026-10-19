@@ -299,9 +299,10 @@ EOF
 	[ -s "$FILES/client/Data/patch-V.MPQ" ] && [ -s "$FILES/client/Data/patch-V.MPQ.alliedraces" ] || fail "the races' patch isn't in the game"
 	# Made before Wrath Remix's and the Skyborne's patches, which the game reads after it: they carry
 	# its rows on only when it's there as they're made.
-	allied=$(grep -n -m1 "Allied races: The races' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1)
+	allied=$(grep -n -m1 "Allied races: The races' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
 	for later in "Skyborne: The Skyborne's patch is in the game" "Wrath Remix: the game's patch written"; do
-		at=$(grep -n -m1 "$later" "$FILES/logs/world.out" | cut -d: -f1)
+		at=$(grep -n -m1 "$later" "$FILES/logs/world.out" | cut -d: -f1 || true)
+		echo "world.out: the races' patch at line ${allied:-?}, '$later' at line ${at:-none}"
 		[ -z "$at" ] || [ "$allied" -lt "$at" ] || fail "the races' patch was made after the one read over it ($later)"
 	done
 	for race in 15 16; do
