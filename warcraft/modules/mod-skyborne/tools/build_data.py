@@ -87,7 +87,7 @@ ID_SEQUENCE = {ALLIANCE: 9001, HORDE: 9002}
 ID_CAMERA = {ALLIANCE: 9001, HORDE: 9002}
 ID_SOUND = 900001
 SPELLS = {"walk": 98701, "skysight": 98702, "leyline": 98703, "wind": 98704, "insight": 98705,
-          "blessing": 98706, "energized": 98707, "goggles": 98708}
+          "blessing": 98706, "energized": 98707}
 
 
 class Dbc:
@@ -289,6 +289,7 @@ def main():
 
     be = [r for r in sections.rows if r[1] == BLOODELF]
     tex = lambda r: [sections.s(r[4]), sections.s(r[5]), sections.s(r[6])]
+    pelvis = lambda r: [sections.s(r[4]), "", ""]                # an underwear row's bottoms, no top
     selectable = lambda r: (r[7] & 1) and not (r[7] & 4)    # a player's, not only a death knight's
 
     for sex in (0, 1):
@@ -304,9 +305,10 @@ def main():
         t = tex(base_skin)
         section(BLOODELF, sex, 0, [dark_ranger_path(t[0]), "", ""], base_skin[7], 0, dr)
         texture("grey", (s, l) + DARK_RANGER_EYES, t[0], dark_ranger_path(t[0]))
-        # Section 4: no textures (the patch empties every race's: SkybornePatch.cpp, EmptyOverlayRows).
+        # Section 4: the pelvis's texture only (the patch empties every race's torso: SkybornePatch.cpp,
+        # EmptyOverlayRows).
         if base_overlay:
-            section(BLOODELF, sex, 4, ["", "", ""], base_overlay[7], 0, dr)
+            section(BLOODELF, sex, 4, pelvis(base_overlay), base_overlay[7], 0, dr)
         for v in range(FACES):
             f = faces.get((v, 0))
             if not f:
@@ -317,18 +319,18 @@ def main():
                 texture("grey", (s, l) + DARK_RANGER_EYES, x, dark_ranger_path(x) if x else "")
 
         for race in (ALLIANCE, HORDE):
-            # Skins (the blood elf's own, and the blues) and section 4 rows without textures.
+            # Skins (the blood elf's own, and the blues) and section 4 rows with the pelvis's texture.
             for color, r in sorted(skins.items()):
                 section(race, sex, 0, tex(r), r[7], 0, color)
             for color, r in sorted(overlay.items()):
-                section(race, sex, 4, ["", "", ""], r[7], 0, color)
+                section(race, sex, 4, pelvis(r), r[7], 0, color)
             for color, (name, h, s, l) in BLUES.items():
                 t = tex(base_skin)
                 section(race, sex, 0, [skyborne_path(t[0], color), "", ""], base_skin[7], 0, color)
                 if race == ALLIANCE:
                     texture("skin", (h, s, l) + EYES[0][1], t[0], skyborne_path(t[0], color))
                 if base_overlay:
-                    section(race, sex, 4, ["", "", ""], base_overlay[7], 0, color)
+                    section(race, sex, 4, pelvis(base_overlay), base_overlay[7], 0, color)
             # Faces: blue eyes (0-9), yellow (10-19), on every skin.
             for e, (eye, eyes) in enumerate(EYES):
                 for v in range(FACES):
@@ -587,19 +589,10 @@ def main():
         spell(20557, SPELLS["insight"], "Elemental Insight", "Racial Passive",
               "Damage dealt to Elementals increased by 5%.", "",
               SpellIconID=2017, EffectMiscValue_1=1 << (4 - 1)),
-        spell(130, SPELLS["goggles"], "X-ray Goggles", "",
-              "All female characters in the world show no worn gear for $d.", "All female characters show no worn gear.",
-              SpellIconID=2590, EffectAura_1=4, EffectBasePoints_1=0, EffectDieSides_1=1, SpellVisualID_1=0,
-              Effect_2=0, EffectAura_2=0, EffectBasePoints_2=0, EffectDieSides_2=0, ImplicitTargetA_2=0, **aura),
     ]
     sql.comment("Their racials: Walk on Air, Skysight (Windshapers, with Elemental Blessing), Read Ley Line (High Order,\n"
                 "with Energized), Wind Blessed, Elemental Insight.")
     sql.replace("spell_dbc", COLUMNS["spell_dbc"], spt, spell_rows)
-    client.put("ItemDisplayInfo", "issssssiiiiiiiissssssssii",
-               [SPELLS["goggles"], "Helm_Goggles_B_01.mdx", "", "Helm_Goggles_B_01Xray", "", "INV_Misc_Goggles_Xray", "", 0, 0, 0, 0, 0, 7, 0, 0]
-               + [""] * 8 + [0, 0])
-    textures.append("goggles\t0\tItem\\ObjectComponents\\Head\\Helm_Goggles_B_01GreenBlack.blp\tItem\\ObjectComponents\\Head\\Helm_Goggles_B_01Xray.blp")
-    textures.append("goggles\t0\tInterface\\Icons\\INV_Helmet_47.blp\tInterface\\Icons\\INV_Misc_Goggles_Xray.blp")
 
     # The world database: starts, skills, stats, forms, quests, standing --------------------------------
     sql.comment("Where they start (their start race's place), for every class.")

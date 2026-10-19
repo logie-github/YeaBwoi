@@ -88,7 +88,7 @@ namespace Skyborne
     // part kept).
     struct Recipe
     {
-        enum Kind { SKIN, EYES, HAIR, GREY, GOGGLES } kind;
+        enum Kind { SKIN, EYES, HAIR, GREY } kind;
         double hue = 0, saturation = 0, lightness = 1;          // the skin's or hair's new colour
         double eyeHue = -1, eyeSaturation = 0, eyeLightness = 1; // the eyes' (-1: as they are)
     };

@@ -406,18 +406,6 @@ namespace Skyborne
                     return Eyes(in, in, r);
                 case Recipe::GREY:
                     return Eyes(in, FromHls(c.h, Clamp(c.l * r.lightness), c.s * r.saturation), r);
-                case Recipe::GOGGLES:
-                {
-                    // The green lenses become blue, red where they are brightest; the rest goes black.
-                    double lens = Clamp(1 - (HueDistance(c.h, 0.36) - 0.14) / 0.05) * Clamp((c.s - 0.1) / 0.1) * Clamp((c.l - 0.04) / 0.05);
-                    Rgb rest = FromHls(c.h, Clamp(c.l * 0.35), c.s * 0.2);
-                    if (lens <= 0)
-                        return rest;
-                    double glint = Clamp((c.l - 0.42) / 0.14);
-                    Rgb blue = FromHls(0.62, Clamp(c.l), Clamp(0.55 + 0.45 * c.s));
-                    Rgb red = FromHls(0.0, Clamp(c.l * 0.9 + 0.05), 0.85);
-                    return Mix(rest, Mix(blue, red, glint), lens);
-                }
                 case Recipe::HAIR:
                 {
                     // The hair is grey with warm streaks and highlights; the jewellery is saturated.
@@ -1029,11 +1017,6 @@ namespace Skyborne
         if (op == "hair" && v.size() == 3)
         {
             r = { Recipe::HAIR, v[0], v[1], v[2] };
-            return true;
-        }
-        if (op == "goggles" && v.size() == 1)
-        {
-            r = { Recipe::GOGGLES };
             return true;
         }
         return false;

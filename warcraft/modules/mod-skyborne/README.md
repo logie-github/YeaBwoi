@@ -86,6 +86,12 @@ move to 22 and 23.
   `src/SkyborneShade.cpp` is the same calculation as `tools/art/races/lines.py`), after the earlier
   retouching, for the Skyborne's blood elf skins too. A race whose model isn't the one the fields
   were made for is left as it is.
+- **Underwear**: every race keeps the bottoms (CharSections' section 4 rows keep their first
+  texture, the pelvis's; the Skyborne's are the blood elf's); the top (the torso's texture) is
+  taken out (`SkybornePatch.cpp`, `EmptyOverlayRows`).
+- **The goggles are gone** (item and spell 98708, which hid every woman's worn gear):
+  `data/sql/db-world/skyborne_goggles_removed.sql` takes them out of a world database that had
+  them, and the core deletes a character's pair as the character loads (its item is gone).
 
 ## How it's made
 
