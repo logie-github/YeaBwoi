@@ -27763,6 +27763,8 @@ REPLACE INTO `spell_dbc` (`ID`, `Category`, `DispelType`, `Mechanic`, `Attribute
 DELETE FROM `spell_proc` WHERE `SpellId` = 98713;
 INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, `ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES
 (98713, 0, 0, 0, 0, 0, 0x55554, 0, 2, 0, 0, 0, 0, 10, 30000, 0);
+DELETE FROM `spell_script_names` WHERE `spell_id` IN (98711, 98712);
+INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (98711, 'spell_allied_spatial_rift'), (98712, 'spell_allied_spatial_rift_open');
 
 -- Spatial Rift's rift: a creature that stands where the rift is torn (AlliedRacesSpells.cpp).
 DELETE FROM `creature_template` WHERE `entry` = 900101;
