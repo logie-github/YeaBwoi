@@ -1335,6 +1335,63 @@ for the game on the phone itself ("that's the whole point").
 - **Turtle WoW — Vanilla+**, a second game with its own Tortoise-WoW realm, kept apart from this
   one (released in `wow-build-65`): its brief is `TURTLE.md`.
 
+- Then: "Look up how you took Sylvanas and Alleria and put them into the game. Do the same thing by
+  adding void elves ... Also for nightborne ... Combine face and eye colors ... Use the voice lines
+  used by both races ... Make the void elves start in the draenei area with draenei quests. Clone
+  the quests specific to dreini but have them acknowledge you are a void elf but then help you
+  integrate to the storyline. But don't mess up regular draenei quests. Make nightbourne start in
+  the undead area and do the same ... Do it as a new module ... I'm using the HD patches. It should
+  only add to chromie craft and wrath remix not turtle ... No compromises don't use the classic sd
+  models. Don't use blood elves as a base I want the races ported exactly as is." The user sent the
+  two intro narrations (MP3s) and asked for the character creation portraits from Wowhead.
+  `warcraft/modules/mod-allied-races` (its README):
+  - (Sylvanas and Alleria aren't playable: they're Wrath Remix's people, and their retail looks were
+    only found, not wired in; the precedents were the Skyborne's playable races and Eternus's model
+    conversion.) Races 15 (Void Elf, Alliance) and 16 (Nightborne, Horde); the game's Skeleton and
+    Vrykul moved to 24 and 25.
+  - Found first (wago.tools, and ChromieCraft's HD character archive read as the reference of what
+    the 3.3.5 client takes): today's player models are chunked format 274 with a child skeleton over
+    a parent's (the blood elf's, the night elf's), the body texture 1024 x 512 with the head in its
+    right half and the eyes a texture of their own; the HD look's models are format 264 with 512
+    palettized skins, faces 256 x 128 + 256 x 64, sequences past 3.3.5's ids kept, the sequence
+    lookup a hash table, geoset groups 3.3.5 doesn't know shown as they are. `tools/m2.py` converts
+    on that (merged skeleton, every track an entry a sequence, coordinates remapped: body stretched,
+    head into the face region, eyes into the FaceUpper strip; geosets pruned to the chosen variant
+    of the groups 3.3.5 can't switch; 64-bone sections); `tools/textures.py` bakes the textures
+    (palettized skins and faces, as the HD look's). All four models pass `tools/check_m2.py`; the
+    HD blood elf read the same way passes but for what the HD look itself leaves out.
+  - The looks: every skin, face x eye colour (void elves' nine eye colours: 3.3.5's face byte holds
+    255, and 28 faces x 10 wouldn't fit; the tenth, a late addition, is left), hair style (with the
+    tentacles as styles of their own) and colour, the feature slider as the README says; options
+    with no slider at their first choice. Faces differ by texture alone (today's bone files aren't
+    3.3.5's).
+  - The racials as today's where 3.3.5 allows (Spatial Rift as a two-step spell script; Entropic
+    Embrace a 10% proc with a 30 s rest; Ethereal Connection has no transmogrification to act on).
+  - The quests: the Draenei's seventeen own quests of Ammen Vale, Azuremyst and Bloodmyst and the
+    Forsaken's five of Deathknell and the ride to the Undercity cloned (ids +950000) for the new race
+    with the givers' acknowledgments (`tools/quests.py`); the rest opened by race bit. Scripted
+    events bound to an original's id don't fire for its clone.
+  - The patch is `patch-V.MPQ` (W is the alternative HD look's water); Wrath Remix's `ClientPatch`
+    now takes CreatureDisplayInfo, CreatureDisplayInfoExtra and CreatureModelData from the client
+    (with this patch in) rather than the server's dbc folder, so its patch-Y carries the races' looks
+    and models on that realm (and an HD look's creature tables, which it used to put the stock ones
+    over). The user's first try (1.0.148): the races didn't show at all. Found: the patch was made
+    at the startup hook, after Remix's (the custom tables' load) and the Skyborne's (the startup,
+    registered first), so on a first start patch-Y and patch-Z, read after it, carried ChrRaces,
+    GlueXML.toc and the display tables without the races; the next start would have had them.
+    Now made at the configuration's load, before both (the realm test checks the order).
+  - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
+    wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
+    minutes here); the server package grows by about 300 MB (voices as MP3).
+  - Checked here: the converter and textures on the fetched files; `tools/test_patch.cpp` (the patch
+    made for a stand-in game from the package and read back, 233 MB, 14 s; a second start keeps it);
+    `tools/test_tools.py`, `tools/test_screen.py` (alone and with the Skyborne's screen code).
+    Not checked: the game itself (the models drawn, the composite textures, the voices, the screen,
+    the intros), the server build and SQL (CI), the quests played.
+  - To ask: whether the options with no 3.3.5 slider (eyebrows, ears, face tattoos, jewellery) should
+    take some other slider's place; whether the tenth void elf eye colour should replace one of the
+    nine; the Wowhead portraits are 56 px (the game's cells are larger: they're scaled up).
+
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 

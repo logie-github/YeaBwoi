@@ -110,6 +110,17 @@ if [ -d "$DIST/modules/mod-wrath-remix" ]; then
 		echo "Eternus's own shape wasn't fetched: she keeps the dragonspawn's" >&2
 fi
 
+# The void elves' and the nightborne's models, textures and voices (mod-allied-races, tools/package.py):
+# Blizzard's files of today, fetched by their ids and made 3.3.5's here (they are never in the
+# repository; build/allied-races-cache keeps what was fetched, CI caches it); the world server puts
+# them in the game's patch with the module's tables. Without them the races aren't in the game.
+if [ -d "$DIST/modules/mod-allied-races" ]; then
+	apk add -q --no-progress ffmpeg py3-numpy py3-pillow
+	python3 /repo/warcraft/modules/mod-allied-races/tools/package.py fetch /repo/build/allied-races-cache \
+		"$pkg/src/modules/mod-allied-races/data/files" ||
+		echo "The void elves' and the nightborne's files weren't all made: the races aren't in the game" >&2
+fi
+
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
 # Lua (a module's .lua files, but for the game's add-ons it may bring: folders of .toc files, or
 # named client, addon or interface).
