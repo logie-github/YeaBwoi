@@ -1398,6 +1398,13 @@ for the game on the phone itself ("that's the whole point").
     look's blood elf and the retail file agree on the rule (combo[slot] is the vertex's own bone);
     `check_m2.py` now checks it (the old models fail, 85 sections). Patch version 2, so phones
     remake patch-V (the files' sizes, which the stamp holds, don't change).
+  - `tools/render_m2.py` (new): a converted model drawn as the game reads it (sections through
+    their combos, posed on Stand, the composed texture, the model's cameras). It reproduces the
+    pieces on the old models and a whole figure on the new, and showed the next fault: the upper
+    arms missing. Today's models keep the shoulders and upper arms in geoset 0 but the head,
+    mouth, eyes, eyebrows, toes, torso and forearms in groups 20-34, which 3.3.5 doesn't know
+    (its defaults go up to group 18; the HD look's blood elf keeps its whole body in geoset 0).
+    Those are now folded into geoset 0; the renderer shows only what 3.3.5 shows.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).
