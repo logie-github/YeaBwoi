@@ -6,15 +6,12 @@ from scipy.ndimage import gaussian_filter, map_coordinates
 race, path, level, out = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
 share = float(sys.argv[5]) if len(sys.argv) > 5 else 0.33
 STYLE = {5: 'strip', 6: 'heart', 7: 'moon', 8: 'moon', 9: 'star', 10: 'swords', 11: 'skull'}.get(level)
-THEME = {12: 'leather', 13: 'blackjaw', 14: 'greyjaw', 15: 'straps', 16: 'shards', 17: 'bone', 19: 'worms'}.get(level)
 PATCHY = level == 18
 if PATCHY:
     level = 3
 MOON_TURN = {7: -5.0, 8: 90.0}.get(level, 30.0)
 if STYLE:
     level = 2
-if THEME:
-    level = 1
 cfg = json.load(open('decal/race_cfg.json'))[race]
 if __import__('os').environ.get('CFG_OVER'):
     cfg.update(json.loads(__import__('os').environ['CFG_OVER']))
@@ -135,160 +132,6 @@ def stroke(X, Y, width_mm, color, alpha):
     else:
         cols = np.tile(color, (len(cx), 1))
     stamps.append((cx, cy, np.full(len(cx), width_mm / 2 / R), cols, np.full(len(cx), alpha)))
-
-DECAL = None
-TS = cfg.get('theme_scale', 1.3)
-def dec_new():
-    global DECAL
-    DECAL = [np.zeros((CHH, CWW)), np.zeros((CHH, CWW, 3))]
-def dec_over(y0, y1, x0, x1, cov, color):
-    a = np.clip(cov, 0, 1)
-    A0 = DECAL[0][y0:y1, x0:x1]; C0 = DECAL[1][y0:y1, x0:x1]
-    na = a + A0 * (1 - a)
-    DECAL[1][y0:y1, x0:x1] = (np.asarray(color, float) * a[..., None] + C0 * (A0 * (1 - a))[..., None]) / np.maximum(na, 1e-9)[..., None]
-    DECAL[0][y0:y1, x0:x1] = na
-def dec_win(cx, cy, rp):
-    return max(0, int(cx - rp) - 2), min(CWW, int(cx + rp) + 3), max(0, int(cy - rp) - 2), min(CHH, int(cy + rp) + 3)
-def dec_px(x, h):
-    return (np.asarray(x, float) * TS + XW) / R, (HTOP - np.asarray(h, float) * TS) / R
-def dec_disc(x, h, r_mm, color, alpha, edge=1.0):
-    cx, cy = dec_px(x, h); rp = r_mm * TS / R
-    x0, x1, y0, y1 = dec_win(cx, cy, rp + edge * 3)
-    yy, xx = np.mgrid[y0:y1, x0:x1]
-    d = np.hypot(xx + 0.5 - cx, yy + 0.5 - cy)
-    dec_over(y0, y1, x0, x1, np.clip((rp + 0.5 - d) / max(edge, 1e-3), 0, 1) * alpha, color)
-def dec_line(xa, ha, xb, hb, w_mm, color, alpha):
-    ax, ay = dec_px(xa, ha); bx, by = dec_px(xb, hb); rp = w_mm * TS / 2 / R
-    x0, x1, y0, y1 = dec_win((ax + bx) / 2, (ay + by) / 2, np.hypot(bx - ax, by - ay) / 2 + rp)
-    yy, xx = np.mgrid[y0:y1, x0:x1]; px, py = xx + 0.5 - ax, yy + 0.5 - ay
-    vx, vy = bx - ax, by - ay; t = np.clip((px * vx + py * vy) / max(vx * vx + vy * vy, 1e-9), 0, 1)
-    d = np.hypot(px - t * vx, py - t * vy)
-    dec_over(y0, y1, x0, x1, np.clip(rp + 0.5 - d, 0, 1) * alpha, color)
-def dec_curve(xs, hs, w_mm, color, alpha):
-    for i in range(len(xs) - 1):
-        dec_line(xs[i], hs[i], xs[i + 1], hs[i + 1], w_mm, color, alpha)
-def dec_poly(pts, color, alpha):
-    from PIL import Image as _I, ImageDraw as _D
-    P_ = np.array([dec_px(x, h) for x, h in pts])
-    x0, x1, y0, y1 = int(P_[:, 0].min()) - 2, int(P_[:, 0].max()) + 3, int(P_[:, 1].min()) - 2, int(P_[:, 1].max()) + 3
-    x0, y0, x1, y1 = max(0, x0), max(0, y0), min(CWW, x1), min(CHH, y1)
-    im_ = _I.new('L', (4 * (x1 - x0), 4 * (y1 - y0)), 0)
-    _D.Draw(im_).polygon([(4 * (px - x0), 4 * (py - y0)) for px, py in P_], fill=255)
-    cov = np.asarray(im_.resize((x1 - x0, y1 - y0), _I.BOX)).astype(float) / 255
-    dec_over(y0, y1, x0, x1, cov * alpha, color)
-def rag_fn(r, q):
-    ph = q.uniform(0, 6.28, 4)
-    return lambda th: r * (1 + 0.28 * np.sin(3 * th + ph[0]) + 0.17 * np.sin(5 * th + ph[1]) + 0.10 * np.sin(9 * th + ph[2]) + 0.06 * np.sin(15 * th + ph[3]))
-def rag_pts(cx_, ch_, f, sx=1.0, sy=1.0, n=72):
-    th = np.linspace(0, 2 * np.pi, n, endpoint=False); rr = f(th)
-    return [(cx_ + rr[i] * np.cos(th[i]) * sx, ch_ + rr[i] * np.sin(th[i]) * sy) for i in range(n)]
-
-def dec_sprite(name, cx_, ch_, width_mm, rot=0.0, opacity=1.0):
-    from PIL import Image as _I
-    im = _I.open(f'decal/sprites/{name}.png').convert('RGBA')
-    wpx = max(2, int(round(width_mm * TS / R))); hpx = max(2, int(round(im.height * wpx / im.width)))
-    im = im.convert('RGBa').resize((wpx, hpx), _I.LANCZOS).convert('RGBA')
-    if rot:
-        im = im.convert('RGBa').rotate(rot, expand=True, resample=_I.BICUBIC).convert('RGBA')
-    a = np.asarray(im).astype(float) / 255
-    cxp, cyp = dec_px(cx_, ch_)
-    x0 = int(round(cxp - a.shape[1] / 2)); y0 = int(round(cyp - a.shape[0] / 2))
-    sx0, sy0 = max(0, -x0), max(0, -y0); sx1, sy1 = min(a.shape[1], CWW - x0), min(a.shape[0], CHH - y0)
-    dec_over(y0 + sy0, y0 + sy1, x0 + sx0, x0 + sx1, a[sy0:sy1, sx0:sx1, 3] * opacity, a[sy0:sy1, sx0:sx1, :3])
-
-def dec_poly_tex(pts, tex, alpha=1.0, scale=1.0):
-    from PIL import Image as _I, ImageDraw as _D
-    P_ = np.array([dec_px(x, h) for x, h in pts])
-    x0, x1, y0, y1 = int(P_[:, 0].min()) - 2, int(P_[:, 0].max()) + 3, int(P_[:, 1].min()) - 2, int(P_[:, 1].max()) + 3
-    x0, y0, x1, y1 = max(0, x0), max(0, y0), min(CWW, x1), min(CHH, y1)
-    im_ = _I.new('L', (4 * (x1 - x0), 4 * (y1 - y0)), 0)
-    _D.Draw(im_).polygon([(4 * (px - x0), 4 * (py - y0)) for px, py in P_], fill=255)
-    cov = np.asarray(im_.resize((x1 - x0, y1 - y0), _I.BOX)).astype(float) / 255
-    yy, xx = np.mgrid[y0:y1, x0:x1]
-    th, tw = tex.shape[:2]
-    def mirrored(i, n):
-        m = i % (2 * n)
-        return np.where(m < n, m, 2 * n - 1 - m)
-    col = tex[mirrored((yy * scale).astype(int), th), mirrored((xx * scale).astype(int), tw)]
-    dec_over(y0, y1, x0, x1, cov * alpha, col)
-
-def bone_texture():
-    sk = __import__('os').environ.get('SKIN_N', '00')
-    import io as _io
-    from PIL import Image as _I
-    mm = mpq.Mpq('Patch-H.MPQ'); lw = {n.lower(): n for n in mm.listfile()}
-    ex = _I.open(_io.BytesIO(mm.read(lw[f'character\\scourge\\female\\scourgefemaleskin00_{sk}_extra.blp']))).convert('RGB')
-    return np.asarray(ex.crop(cfg.get('bone_box', (14, 322, 250, 440)))).astype(float) / 255
-
-def paint_theme(name):
-    dec_new()
-    if name in ('leather', 'blackjaw', 'greyjaw', 'straps', 'shards'):
-        wd = {'leather': 46.0, 'blackjaw': 60.0, 'greyjaw': 54.0, 'straps': 58.0, 'shards': 52.0}[name]
-        dec_sprite(name, cfg.get('theme_x', 0.0), cfg.get('theme_h', 82.0), cfg.get(name + '_w', wd), cfg.get(name + '_rot', 180.0 if name == 'leather' else 0.0))
-    elif name == 'bone':
-        tex = np.clip(bone_texture() * 1.3, 0, 1); q = np.random.default_rng(1700)
-        ch_ = cfg.get('bone_h', 72.0); k_ = cfg.get('bone_scale', 1.0)
-        half = [(0, 30), (13, 31), (25, 27), (31, 18), (30, 7), (25, -3), (20, -13), (15, -21), (9, -27), (4.5, -26.5), (3.2, -20.5), (0, -18)]
-        def chaikin(pts, it=3):
-            for _ in range(it):
-                out = []
-                for i in range(len(pts)):
-                    p0, p1 = np.array(pts[i]), np.array(pts[(i + 1) % len(pts)])
-                    out += [tuple(0.75 * p0 + 0.25 * p1), tuple(0.25 * p0 + 0.75 * p1)]
-                pts = out
-            return pts
-        right = half[:-1]; left = [(-x, y) for x, y in reversed(half[1:-1])]
-        base = np.array(right + [half[-1]] + left)
-        def outline(grow):
-            c = np.array([0.0, 0.0]); out = []
-            for x, y in base:
-                v = np.array([x, y]) - c; n = np.hypot(*v) + 1e-6
-                out.append((x * k_ + grow * v[0] / n, ch_ + y * k_ + grow * v[1] / n))
-            return chaikin(out)
-        ph = q.uniform(0, 6.28, 3)
-        def jag(pts, amp):
-            return [(x + amp * np.sin(3.1 * y + ph[0]) , y + amp * np.sin(2.7 * x + ph[1])) for x, y in pts]
-        dec_poly(jag(outline(5.5), 0.5), [0.20, 0.13, 0.17], 0.4)
-        dec_poly(jag(outline(3.0), 0.7), [0.30, 0.20, 0.26], 0.96)
-        dec_poly(outline(0.8), [0.17, 0.12, 0.10], 0.92)
-        dec_poly_tex(outline(-1.0), tex, 1.0, 0.5)
-        for sg in (-1, 1):
-            fo = [(sg * 15.5 + 3.4 * np.cos(t) * k_ - sg * 1.6 * np.sin(t), ch_ - 7.0 + 6.8 * np.sin(t) * k_ + 0.0) for t in np.linspace(0, 6.28, 40, endpoint=False)]
-            dec_poly([(x + 0.0, y) for x, y in fo], [0.15, 0.10, 0.09], 0.97)
-            dec_poly_tex([((x - sg * 15.5) * 0.78 + sg * 15.5, (y - (ch_ - 7.0)) * 0.78 + ch_ - 7.0) for x, y in fo], tex[::-1, ::-1] * 0.32, 0.97, 0.5)
-        dec_line(0, ch_ - 17.0, 0, ch_ - 3.0, 0.8, [0.20, 0.16, 0.12], 0.8)
-        for k in range(18):
-            a_ = q.uniform(0, 6.28); r0 = 1.0
-            pts_o = outline(2.2)
-            x_, h_ = pts_o[int(q.integers(len(pts_o)))]
-            dx, dy = x_ - 0.0, h_ - ch_; nn = np.hypot(dx, dy) + 1e-6; ux, uy = dx / nn, dy / nn
-            tip = [(x_ + 0.9 * uy, h_ - 0.9 * ux), (x_ - 0.9 * uy, h_ + 0.9 * ux), (x_ + 3.8 * ux, h_ + 3.8 * uy)]
-            dec_poly(tip, [0.30, 0.20, 0.26], 0.95)
-    else:
-        q = np.random.default_rng(1900)
-        colours = [[0.84, 0.64, 0.60], [0.62, 0.45, 0.35], [0.76, 0.68, 0.64], [0.70, 0.52, 0.46]]
-        def worm(x_, h_, L, ang, col, w0=1.35, bend=0.1):
-            n = int(L / 0.45); pts = [(x_, h_)]; ph_ = q.uniform(0, 6.28); fr = q.uniform(0.18, 0.3)
-            for i in range(n):
-                ang += q.normal(0, 0.04) + bend * np.sin(i * fr + ph_) * 0.5
-                x_ += 0.45 * np.cos(ang); h_ += 0.45 * np.sin(ang); pts.append((x_, h_))
-            for i in range(len(pts) - 1):
-                dec_line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], w0 * (0.9 - 0.45 * (i / n) ** 2) + 0.55, [0.12, 0.07, 0.07], 0.55)
-            for i in range(len(pts) - 1):
-                wd_ = w0 * (1.0 - 0.5 * (i / n) ** 2)
-                shade = 0.93 + 0.07 * np.cos(i * 1.4)
-                dec_line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], wd_, np.clip(np.array(col) * shade, 0, 1), 0.97)
-            for i in range(0, len(pts) - 1, 2):
-                dec_line(pts[i][0] - 0.15, pts[i][1] + 0.25, pts[i + 1][0] - 0.15, pts[i + 1][1] + 0.25, wd_ * 0.22, np.clip(np.array(col) * 1.22 + 0.05, 0, 1), 0.45)
-            dec_disc(pts[0][0], pts[0][1], w0 * 0.55, np.clip(np.array(col) * 0.7, 0, 1), 0.97)
-        holes = [(q.uniform(-22, 22), q.uniform(40, 100)) for _ in range(5)]
-        for hx, hh in holes:
-            dec_poly(rag_pts(hx, hh, rag_fn(1.5, q)), [0.15, 0.10, 0.09], 0.95)
-        for _ in range(cfg.get('worm_n', 20)):
-            x_, h_ = np.clip(q.normal(0, 14), -27, 27), q.uniform(36, 104)
-            worm(x_, h_, q.uniform(8, 17), q.uniform(0, 6.28), colours[q.integers(len(colours))])
-        for hx, hh in holes:
-            worm(hx, hh, q.uniform(5, 9), q.normal(np.pi / 2, 0.8), colours[q.integers(len(colours))])
 
 def depth_w(X, h, sg=1.0):
     X, h = np.asarray(X, float), np.asarray(h, float)
@@ -490,9 +333,7 @@ if STYLE:
 
 PXW = 0.93
 n = lambda k: int(k * share * cfg.get('density', {}).get(str(level), 1.0))
-if THEME:
-    paint_theme(THEME)
-elif level == 1:
+if level == 1:
     for ub, vb, side, dpt in place(n(1700), lambda d: 0.8 * (lambda q: q * q * (3 - 2 * q))(min(1.0, max(0.0, (d + 0.35) / 1.1))) if d > -0.35 else 0):
         X, h = start(ub, vb, side)
         stroke([X, X + 0.56], [h, h - 0.37], rng.uniform(0.6, 0.9) * PXW, shade(), rng.uniform(0.18, 0.32))
@@ -574,12 +415,6 @@ A = (1 - np.exp(lnT)).reshape(CHH, CWW)
 A = A * np.clip((HTOP - (np.arange(CHH) + 0.5) * R - 12.0) / 10.0, 0, 1)[:, None]
 P = [gaussian_filter((Cs[c] / np.maximum(As, 1e-9)).reshape(CHH, CWW) * A, 1.2) for c in range(3)]
 A = gaussian_filter(A, 1.2)
-if DECAL is not None:
-    Ad = gaussian_filter(DECAL[0], 0.6)
-    Pd = [gaussian_filter(DECAL[1][..., c] * DECAL[0], 0.6) for c in range(3)]
-    P = [P[c] + Pd[c] * (1 - A) for c in range(3)]
-    A = A + Ad * (1 - A)
-
 yy, xx = np.mgrid[0:RH, 0:RW].astype(float)
 Xr = (pc['y0'] + (xx + 0.5) / RW * (pc['y1'] - pc['y0'])) * 1000 / sH
 hr = (pc['s1'] - (yy + 0.5) / RH * (pc['s1'] - pc['s0'])) * 1000 / SV

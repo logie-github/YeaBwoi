@@ -23,7 +23,7 @@ import sys
 from PIL import Image, ImageDraw
 tag,out,combos=sys.argv[1],sys.argv[2],sys.argv[3].split()
 cols=[int(x) for x in sys.argv[4].split()]
-L={i:'level %d' % i for i in range(5)}; L.update({5:'strip',6:'heart',7:'moon',8:'moon turned',9:'star',10:'crossed swords',11:'skull',12:'patch',13:'plate 1',14:'plate 2',15:'straps',16:'shards',17:'bone',18:'level 3b',19:'level 5'})
+L={i:'level %d' % i for i in range(5)}; L.update({5:'strip',6:'heart',7:'moon',8:'moon turned',9:'star',10:'crossed swords',11:'skull',18:'level 3b'})
 c=Image.new('RGB',(380*len(cols),len(combos)*400),(43,43,51)); d=ImageDraw.Draw(c)
 for r,cb in enumerate(combos):
     sk,hh=cb.split(':')
