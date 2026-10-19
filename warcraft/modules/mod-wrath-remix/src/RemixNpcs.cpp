@@ -23,6 +23,7 @@
 #include "WorldSession.h"
 #include <cmath>
 #include <functional>
+#include <initializer_list>
 #include <list>
 #include <map>
 #include <memory>
@@ -501,7 +502,7 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
         ReplaySceneAt(player, creature);
         AddEndingGossip(player, creature);
-        SendGossipMenuFor(player, Words(creature), creature);
+        SendGossipMenuFor(player, Words(player, creature), creature);
         return true;
     }
 
@@ -509,19 +510,43 @@ public:
     {
         if (!Active())
             return false;
-        if (!EndingGossipSelect(player, creature, sender, action, Words(creature)))
+        if (!EndingGossipSelect(player, creature, sender, action, Words(player, creature)))
             CloseGossipMenuFor(player);
         return true;
     }
 
-    // What they say where they stand.
-    static uint32 Words(Creature* creature)
+    // Whether [player] has come as far as any of [quests] (taken, done or handed in).
+    static bool Reached(Player* player, std::initializer_list<uint32> quests)
+    {
+        for (uint32 quest : quests)
+            if (player->GetQuestStatus(quest) != QUEST_STATUS_NONE || player->GetQuestRewardStatus(quest))
+                return true;
+        return false;
+    }
+
+    // What they say where they stand. Alleria at the Bazaar keeps the Timerunner at arm's length
+    // less and less as the war goes on (STORY.md): from Chapter V, from Chapter VII, and once the
+    // Lich King has fallen.
+    static uint32 Words(Player* player, Creature* creature)
     {
         bool sylvanas = creature->GetEntry() == NPC_SYLVANAS || creature->GetEntry() == NPC_SYLVANAS_ABROAD;
         if (creature->GetAreaId() == AREA_MALYKRISS)
-            return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
+        {
+            if (sylvanas)
+                return TEXT_SYLVANAS;
+            if (player->GetQuestRewardStatus(QUEST_LAST_NECESSARY_BATTLE) ||
+                player->GetQuestStatus(QUEST_LAST_NECESSARY_BATTLE) == QUEST_STATUS_COMPLETE)
+                return TEXT_ALLERIA_AFTER;
+            if (Reached(player, { 77701, 77711, 77702, QUEST_LAST_HOUR }))
+                return TEXT_ALLERIA_LAST;
+            if (Reached(player, { 77501, 77502, 77521, 77601, 77602, 77621 }))
+                return TEXT_ALLERIA_LATER;
+            return TEXT_ALLERIA;
+        }
         if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
             return sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
+        if (!sylvanas && creature->GetZoneId() == ZONE_GRIZZLY_HILLS)
+            return TEXT_ALLERIA_HILLS;
         return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
     }
 };

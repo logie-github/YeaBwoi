@@ -63,7 +63,11 @@ who believes she is better than the rest.
   gates: her sister, a ranger touched by the Void, who can feel when the world's shape is wrong.
   Wry where Sylvanas is cold; she came because Sylvanas asked, which Sylvanas does not do. To a
   Timerunner from before her return she is a name from the end of the Second War's histories, and
-  she shows them her face once, at Wyrmrest, before she hides it again. (The 3.3.5 game has no Alleria; she wears the look of the living
+  she shows them her face once, at Wyrmrest, before she hides it again. Where she comes from, the
+  Timerunner is family to her, a brother or sister in all but blood (Argus, and every road the Void
+  has walked since), and she keeps them at arm's length here for it: prickly, proud, insisting she
+  is only here for the timeline, and giving herself away in small ways. She finally says it as they
+  say goodbye. (The 3.3.5 game has no Alleria; she wears the look of the living
   Ranger-General, which is what she looked like before the Void.)
 - **Chromie** (bronze dragonflight), at Wyrmrest Temple, as the game has her: she is already
   fighting the Infinite there (Mystery of the Infinite). She brought Sylvanas and Alleria.
@@ -298,6 +302,23 @@ on my left", "you never did listen to me about trolls"), and catches herself; sh
 will not say more, because knowing it would change how it happens. Asked outright ("You talk to me
 like you know me"), she says so. Alleria notices how careful her sister is with the Timerunner.
 
+Alleria knows them too, and is worse at hiding it, and hides it harder. She looks after the
+Timerunner the way an eldest sister does, crossly: they have not been sleeping, they should eat,
+that scratch wants cleaning, they went in ahead of her again ("do that again and I will shoot you
+myself"). Every kindness comes with its excuse: it is for the timeline, for her sister's sake, as a
+matter of policy, "it is not as if I would miss you". She slips into the future tense ("you always
+do that", "you will hear it again at the bottom of Ulduar"), and takes it back. Her words at the
+Bazaar warm as the war goes on (`npc_remix_windrunner`: after the turn, from Chapter V, from
+Chapter VII, and once the war is over), until, before the Citadel, she tells them there is
+something she would say if things were otherwise: "Ask me after." After the war, asked why she
+keeps looking out for them, she denies it, then admits it ("Sylvanas is careful with you. I am
+not careful. I am cross with you, constantly, which in our family is very much worse"), and tells
+them to ask again when they say goodbye. Her goodbye says it: where she comes from, the
+Timerunner is family; Turalyon says she treats them the way she treated Lirath, her little brother,
+before the war took him, and he is right; she kept her distance so they could find their own way
+to it; she will see them in the future. It is platonic, a sibling's love; Sylvanas's "someone I
+trust" is a soldier's.
+
 ## Before the turn: Eternus's small changes
 
 Until the turn, Eternus is folding the war her way, quietly, and the Timerunner can see it. Nine
@@ -495,7 +516,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > it is. Turn Ursoc back, and it only finds another ear. A druid's. A child's. Yours.
    >
    > **Alleria:** I know that voice. Not this one: a cousin of it. I have had it in my own head.
-   > Go and break her anchors. I will meet you at the den.
+   >
+   > **Alleria:** Go and break her anchors. I will meet you at the den. If you are late, I will
+   > come looking, and you will not enjoy being found.
 
    Ursoc, the Bear God (12249 / 12236) waits for it. As the Bear God's quest is turned in, Alleria
    speaks once more, beside the one who gave it:
@@ -503,8 +526,10 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Alleria:** He is at peace now. The voice is not. It reaches far deeper than that tree, and it
    > is not alone down there.
    >
-   > **Alleria:** When you climb into the storm giants' mountains, remember what you felt here. That
-   > is where it lives.
+   > **Alleria:** You will hear it again at the bottom of Ulduar. ...You may. I cannot know that.
+   > When you reach the Storm Peaks, listen for it, and send me word.
+   >
+   > **Alleria:** I want to know where it is. That is all. Do not read anything into it.
 
 3. **WRM-301 / 311 A Shorter Path Through the Woods** (Moratari, as before): Amberpine Lodge's or
    Conquest Hold's other wars, left to whoever wants them; to Samir, by Drakuru's cages.
@@ -648,6 +673,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Thorim:** Whoever that was, she loved someone once. It is written all over her. Now: Loken. My
    > brother has much to answer for.
+   >
+   > **Alleria:** That was meant for you as much as for him. Whatever you were toasting when the
+   > bronze found you, do not let anyone sell it back to you. ...As a matter of policy. Go on.
 
 5. Loken's Lackeys, The Earthen Oath, The Reckoning; Loken waits in the Halls of Lightning.
 6. **WRM-621 Storm's End** (Moratari, by King Jokkum, after The Reckoning): to the Argent Vanguard
@@ -703,7 +731,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Sylvanas:** Uther waits in those halls, Timerunner. What is left of him. He will tell you what
    > the Lich King is for. Believe him. It will cost you nothing. It cost me everything to learn it.
    >
-   > **Alleria:** We will be here when you come out. Both of us. Go.
+   > **Alleria:** She means be careful. So do I. A little. Go, before I say something foolish.
 
    Moratari's way then goes to Dalaran, before Apprentice Nelphi or Dark Ranger Vorel, and Inside
    the Frozen Citadel.
@@ -764,7 +792,8 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Sylvanas:** The doors are open, Timerunner. Go and end it.
    >
-   > **Alleria:** We will be waiting at the Bazaar. All of us. Come back to us.
+   > **Alleria:** We will be waiting at the Bazaar. All of us. Come back to us. I will not say it
+   > twice.
 
 6. **WRM-800 The Last Necessary Battle** (Moratari, at the Citadel's doors, after The Last Hour):
    Icecrown Citadel and the Lich King, as the game has them: the encounter, Tirion, Terenas, and the
@@ -783,7 +812,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Sylvanas:** He is gone. I have imagined saying those words for a very long time. They are
    > quieter than I thought they would be.
    >
-   > **Alleria:** Welcome back, Timerunner.
+   > **Alleria:** Welcome back, Timerunner. You took your time. Not that anyone was counting.
    >
    > **Moratari:** Come and see me when you are ready. There is one more thing we have to talk about.
 
@@ -869,7 +898,22 @@ the people in them are summoned where they stand and heard only by that Timerunn
      the Void like a door left open in winter.
    - *Who she is fighting, in her own time*: Xal'atath, the Harbinger of the Void, who wears her
      fears; Khaz Algar first, then Quel'Thalas, the Sunwell, home; why she will keep fighting.
-   - *Sylvanas*: she asked Alleria to come. She has never asked her for anything.
+   - *Sylvanas*: she asked Alleria to come. She has never asked her for anything. And she is careful
+     with the Timerunner; she is not the only one, Alleria supposes, and then: "We were talking about
+     Sylvanas."
+   - *Why she keeps looking out for you*: she does not; you are imagining it; you are not. Ask her
+     again when you say goodbye.
+
+   Her stories carry her guard too: you would hate Argus, and go anyway; the Void is hers to carry
+   and she does not need anyone worrying over her, you least of all; someone once told her going
+   first is the only leading worth the name, and she will not say who; family is sometimes only the
+   people who keep turning up ("That is a general observation").
+
+   Her goodbye is the reveal: where she comes from, you are family, her brother or sister in every
+   way that counts; Turalyon says she treats you as she treated Lirath, and he is right; she kept her
+   distance so you could find your own way to it. She embraces you, briefly, and lets go before you
+   can return it: "Go home, Timerunner. Hug someone for me. You don't have to tell them why. I will
+   see you in the future, $n. Try not to be late. You always are."
 
 4. **WRM-802 Back to Your Own Time** (Moratari, after See You Later). As it is taken:
 
@@ -888,6 +932,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > you the long way.
    >
    > **Alleria:** And if you see my son... no. Don't tell him anything. He'll know.
+   >
+   > **Alleria:** And you, $n. You heard me the first time. I will see you in the future. Do not be
+   > late.
    >
    > *(Moratari's spell takes them.)*
    >

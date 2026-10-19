@@ -109,12 +109,12 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77303, 2, 40, 32, 394, 5, 0, 0, 1101,
  'The Hollow Crown',
  'Break 3 Temporal Anchors around Ursoc''s Den, then speak with Alleria Windrunner there.',
- 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.',
+ 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.$B$BFor the world''s sake. Do not flatter yourself.',
  'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0),
 (77313, 2, 40, 32, 394, 5, 0, 0, 690,
  'The Hollow Crown',
  'Break 3 Temporal Anchors around Ursoc''s Den, then speak with Alleria Windrunner there.',
- 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.',
+ 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.$B$BFor the world''s sake. Do not flatter yourself.',
  'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0);
 
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77303, 77313);
@@ -124,8 +124,8 @@ INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77303, 0), (773
 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77303, 77313);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
-(77303, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BHierophant Thayreen is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0),
-(77313, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BWindseer Grayhorn is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0);
+(77303, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$B<She looks you over for wounds, finds none worth mentioning, and mentions one anyway.>$B$BClean that before it festers. I am not asking.$B$BHierophant Thayreen is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0),
+(77313, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$B<She looks you over for wounds, finds none worth mentioning, and mentions one anyway.>$B$BClean that before it festers. I am not asking.$B$BWindseer Grayhorn is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77303, 77313);
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@ALLERIA_ABROAD, 77303), (@ALLERIA_ABROAD, 77313);
