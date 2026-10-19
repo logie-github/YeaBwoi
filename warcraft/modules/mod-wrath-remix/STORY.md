@@ -75,11 +75,13 @@ who believes she is better than the rest.
 ## The Infinite Bazaar
 
 The home of the whole story, in Malykriss: The Vile Hold, the necropolis the Lich King began in Icecrown
-to replace Acherus and never finished (in Crystalsong Forest until build 117). In this year his builders
-are still at work on it; in the Bazaar's hour, a little outside the flow of time, it belongs to the
-infinite dragonflight, to the Knights of the Ebon Blade who keep its gates, and to the last free
-nerubians of Azjol-Nerub, who were building in saronite before the Scourge stole the craft from them
-(`tools/malykriss.py`). Every new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers it. Until the turn
+to replace Acherus and never finished (in Crystalsong Forest until build 117). When the Bazaar's dragons
+started cleaning up the timeline, the Scourge infestation here was one of the first things they took
+care of: the Ebon Blade's fight for it (Vereth's riders, Orbaz Bloodbane) never happens, and Malykriss
+is entirely theirs, the infinite dragonflight's, the Knights of the Ebon Blade's who keep its gates,
+and the last free nerubians of Azjol-Nerub's, who were building in saronite before the Scourge stole
+the craft from them (`tools/malykriss.py`). Moratari says so as the Timerunner wakes: they may
+remember it otherwise. Every new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers it. Until the turn
 it is Eternus's camp; after it, Eternus is gone from it and Sylvanas and Alleria are there, with
 Moratari and the Keepers of Time.
 

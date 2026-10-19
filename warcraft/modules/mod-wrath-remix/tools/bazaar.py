@@ -390,6 +390,7 @@ LINES = {
     7704011: [("Every stall in this camp holds something history threw away. I only kept it.", TALK, 0, "", 0),
               ("Do not let the sands hurry you, champion. Here, at least, there is time.", TALK, 0, "", 0)],
     7704012: [("Mind the hourglass. It runs in every direction at once, and it hates being bumped.", POINT, 0, "", 0),
+              ("If this hall looks familiar, it should. We cleared the Scourge out of it when we started tidying the timeline. It is ours now, every rib of it.", TALK, 0, "", 0),
               ("Every Timerunner who wakes here asks me the same thing first. The answer is no: you cannot go back yet.", TALK, 0, "", 0)],
     7704015: [("Heirlooms! Gear that grows with you, for Timerunners with no time to shop twice.", EXCLAIM, 0, "", 0),
               ("Bronze only. Gold has no sense of history.", TALK, 0, "", 0),

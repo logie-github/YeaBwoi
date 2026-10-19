@@ -6,7 +6,8 @@
 Malykriss is the necropolis the Lich King began in Icecrown to replace Acherus and never finished: a
 crater of saronite under the ribs of a necropolis with no skin, its walkways a hundred and twenty
 yards up. The Bazaar stands on the crater's level floor (tools/bazaar.py). In Remix's world the
-Scourge's garrison is gone (its spawns and the game's quests that need them: the Shadow Vault's
+Scourge's garrison is gone (the Bazaar's dragons took care of it when they started cleaning up the
+timeline, as Moratari tells a Timerunner who wakes there) (its spawns and the game's quests that need them: the Shadow Vault's
 Malykriss quests), and the hall belongs to the Bazaar's allies:
 
   - the Knights of the Ebon Blade: their quarter in the east field (their commander, duelists,
