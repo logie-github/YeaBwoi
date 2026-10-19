@@ -1260,6 +1260,34 @@ for the game on the phone itself ("that's the whole point").
     memories go. Also in her quest texts, the Hollow Crown and Ursoc scenes, Thorim's, the Frozen
     Halls', the last hour and the return; Sylvanas's "someone I trust" stays hers. STORY.md tells it.
 - Open (the user's):
+  0. **The next fix** (the user: "Put this on the next fix"): the future Sylvanas, Alleria and
+     Chromie in their retail looks and voices. The user's links: Lady Sylvanas Windrunner (10181),
+     Alleria Windrunner (223944), Chromie (167032); "Chromie brings them back in time"; "use their
+     voice lines at least for greeting and idle stuff and attacks". Found (wago.tools; nothing
+     converted or wired in yet):
+     - Sylvanas: 10181's display 28213 is now `creature/sylvanas/sylvanas.m2` (1245874); its bones,
+       sequences and attachments are in a separate skeleton (.skel 3476709, with its own AFID);
+       skin 1246126, four textures (1246113 to 1246116), geoset 0 only.
+     - Alleria: 223944's display 118072 (scale 1.3) is model 5395590: nine textures, 54 animations
+       in their own files (AFID), BFID and PFDC chunks (left out), geoset 0 only.
+     - Chromie: `creature/chromie/chromie.m2` (4218359), the look of every Chromie display now
+       (24877, 10008, 96559...): two textures, 54 animation files, geosets 0, 401, 2201, 3301.
+     - Voices (sound kits): Sylvanas NPCSounds 1349 (greeting 95141, farewell 95140, annoyed
+       95142; 28213's own, 175, is the old greetings), sounds 2898 (exertions 16319 and 101101,
+       injuries 16317 and 16318, death 16320, alert 123438, battle shout 123437) and 8759 (aggro
+       248024, injury 248025, idle 248026 to 248029); Alleria NPCSounds 3666 (327366, 327367,
+       290382), sounds 8858 (injury 258823, battle shout 258825, idle 258822, 258824, 258826,
+       258827); Chromie NPCSounds 1897 (139316 to 139318), sounds 4735 (exertions 43853 and
+       43854, injuries 43856 and 43857, death 43855).
+     - To do: `tools/models.py` for several models (each batch with its own texture: Eternus's
+       draws everything with her one skin; Sylvanas's skeleton merged into her model); the sound
+       kits' files fetched as WAVs (as `tools/voices.py` does) with SoundEntries, NPCSounds and
+       CreatureSoundData rows in patch-Y; new CreatureModelData and CreatureDisplayInfo rows
+       (`ClientPatch.cpp`) and the looks on the future pair (`RemixModels.cpp`), the package
+       fetching it all; a future Chromie in her retail look who brings them at Wyrmrest (Strangers
+       Out of Time) and takes them home in Back to Your Own Time, the game's own Chromie keeping
+       hers. To ask: whether the hooded "Cloaked Ranger" versions away from the Bazaar keep their
+       hoods (the story's disguise) or take the new looks too.
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
      set (Tier 10, the user's choice), never a helmet, live on the creation screen, no restart, no
