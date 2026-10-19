@@ -27,7 +27,8 @@ for(const b of m.batches){
   const mat=new (q.get('unlit')?THREE.MeshBasicMaterial:THREE.MeshLambertMaterial)({map,side:THREE.DoubleSide,transparent:add||alpha,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:!(add||alpha),alphaTest:add?0:(alpha?0.02:0.5)});
   root.add(new THREE.Mesh(gg,mat));
 }
-const cam=new THREE.PerspectiveCamera(+q.get('fov')||30,W/H,0.01,100);
+const OH=+q.get('ortho')||0;
+const cam=OH?new THREE.OrthographicCamera(-OH/2*W/H,OH/2*W/H,OH/2,-OH/2,0.01,100):new THREE.PerspectiveCamera(+q.get('fov')||30,W/H,0.01,100);
 const [cx,cy,cz,tx,ty,tz]=q.get('cam').split(',').map(Number);
 cam.position.set(cx,cy,cz); cam.lookAt(tx,ty,tz);
 const box=new THREE.Box3().setFromObject(root); console.log('bbox',JSON.stringify(box));
