@@ -8,8 +8,10 @@
 -- It sits at the bottom of the customization panel's arrow buttons, halfway between the name box and
 -- that panel (measured from the screen as it is laid out; by the race and class lists if it can't be).
 -- SkyborneGearData.lua (tools/build_gear.py) has the items and icons. The preview is dressed
--- through the model's own calls (Undress and TryOn); where the screen's model has none, the button
--- says so in its tooltip and changes nothing, and lists the frames it looked at. It is put after
+-- through the model's own calls (Undress and TryOn); where the screen's model has none, as 3.3.5's
+-- hasn't (its preview is a ModelFFX, dressed by the game itself from CharStartOutfit), the button
+-- isn't shown at all. Its tooltip is the creation screen's own (GlueTooltip_SetOwner and
+-- GlueTooltip_SetText: functions in 3.3.5's GlueXML, not methods). It is put after
 -- the screen's race and class lists and buttons are made (the patch adds it to GlueXML.toc after
 -- SkyborneCreate.lua), and dresses the preview again whenever a race, class or sex is picked.
 
@@ -107,19 +109,16 @@ local function Gear(which)
 	return nil;
 end
 
--- The model the preview is drawn in, found by what it can do: the frames looked at are kept for the tooltip.
-local looked = {};
+-- The model the preview is drawn in, found by what it can do.
 local function Dressable(frame)
 	return type(frame) == "table" and type(frame.TryOn) == "function" and type(frame.Undress) == "function";
 end
 
 local function FindModel()
-	looked = {};
 	local tried = {};
 	local function try(name, frame)
 		if ( type(frame) == "table" and not tried[frame] ) then
 			tried[frame] = true;
-			looked[#looked + 1] = name;
 			if ( Dressable(frame) ) then
 				return frame;
 			end
@@ -156,6 +155,40 @@ local function Dress(items)
 end
 
 local button = SkyborneGearButton;
+
+-- Shown only where it can do something: a screen whose preview can be dressed.
+local function ShowIfDressable()
+	if ( not button ) then
+		return false;
+	end
+	if ( FindModel() ) then
+		button:Show();
+		return true;
+	end
+	button:Hide();
+	return false;
+end
+
+-- The creation screen's tooltip, as its race, class and sex buttons show theirs.
+local function Tooltip()
+	return CharacterCreateTooltip or GlueTooltip;
+end
+
+local function ShowTooltip(text)
+	local tip = Tooltip();
+	if ( not tip or type(GlueTooltip_SetOwner) ~= "function" or type(GlueTooltip_SetText) ~= "function" ) then
+		return;
+	end
+	pcall(GlueTooltip_SetOwner, button, tip, -3, -5);
+	pcall(GlueTooltip_SetText, text, tip);
+end
+
+local function HideTooltip()
+	local tip = Tooltip();
+	if ( tip and type(tip.Hide) == "function" ) then
+		tip:Hide();
+	end
+end
 
 -- Placement ----------------------------------------------------------------------------------
 -- The screen's frames in pixels (their scales undone), or nil while they aren't laid out.
@@ -305,8 +338,10 @@ timer:SetScript("OnUpdate", function(self, elapsed)
 		waits[i] = waits[i] - elapsed;
 		if ( waits[i] <= 0 ) then
 			table.remove(waits, i);
-			Place();
-			Apply();
+			if ( ShowIfDressable() ) then
+				Place();
+				Apply();
+			end
 		end
 	end
 end);
@@ -345,18 +380,8 @@ if ( button ) then
 		end
 	end);
 	button.tooltip = function()
-		if ( not GlueTooltip ) then
-			return;
-		end
 		local _, _, extra = Gear(MODES[mode]);
-		GlueTooltip:SetOwner(button, "ANCHOR_RIGHT");
-		GlueTooltip:SetText(NAMES[MODES[mode]]..(extra and (": "..extra) or ""), 1, 1, 1);
-		GlueTooltip:AddLine("Click to change what the preview wears.", 0.8, 0.8, 0.8, 1);
-		GlueTooltip:AddLine("Placed "..placed..".", 0.6, 0.6, 0.6, 1);
-		if ( not FindModel() ) then
-			GlueTooltip:AddLine("This screen's model can't be dressed here (looked at: "..table.concat(looked, ", ")..").", 1, 0.3, 0.3, 1);
-		end
-		GlueTooltip:Show();
+		ShowTooltip(NAMES[MODES[mode]]..(extra and (": "..extra) or "").."\nClick to change what the preview wears.\nPlaced "..placed..".");
 	end;
 	button:SetScript("OnEnter", function()
 		button.tooltip();
@@ -364,11 +389,8 @@ if ( button ) then
 	button:SetScript("OnShow", function()
 		waits = { 0.05, 0.4, 1.2 };
 	end);
-	button:SetScript("OnLeave", function()
-		if ( GlueTooltip ) then
-			GlueTooltip:Hide();
-		end
-	end);
+	button:SetScript("OnLeave", HideTooltip);
 	Refresh();
+	ShowIfDressable();
 	waits = { 0.05, 0.4, 1.2 };
 end
