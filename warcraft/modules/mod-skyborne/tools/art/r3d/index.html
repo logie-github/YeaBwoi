@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#2b2b33}</style></head><body>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const q=new URLSearchParams(location.search);
+const W=+q.get('w')||800,H=+q.get('h')||1000,GN=+q.get('gain')||1;
+const r=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+r.setSize(W,H); r.setClearColor(0x2b2b33); r.outputColorSpace=THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
+const scene=new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xffffff,0x554444,1.6*GN));
+const key=new THREE.DirectionalLight(0xffffff,1.6*GN); key.position.set(3,1.5,3); scene.add(key);
+const fill=new THREE.DirectionalLight(0xffeedd,0.6*GN); fill.position.set(2,-2,1); scene.add(fill);
+if(q.get('front')){const hl=new THREE.DirectionalLight(0xffffff,1.6*(+q.get('front'))*GN); hl.position.set(...q.get('cam').split(',').slice(0,3).map(Number)); scene.add(hl);}
+const tl=new THREE.TextureLoader();
+const tex=n=>{const t=tl.load(n); t.flipY=false; t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=8; return t;};
+const T={1:tex(q.get('skin')),6:tex('hair.png'),8:tex(q.get('extra')),0:tex('glow.png')};
+const m=await (await fetch(q.get('model')||'model.json')).json();
+const g=new THREE.BufferGeometry();
+g.setAttribute('position',new THREE.Float32BufferAttribute(m.pos,3));
+g.setAttribute('normal',new THREE.Float32BufferAttribute(m.nor,3));
+g.setAttribute('uv',new THREE.Float32BufferAttribute(m.uv,2));
+const root=new THREE.Group(); root.rotation.x=-Math.PI/2; root.rotation.z=Math.PI/2; scene.add(root); // M2: z up, facing +x
+for(const b of m.batches){
+  const gg=g.clone(); gg.setIndex(b.ind);
+  const add=b.blend>=3, alpha=b.blend==2;
+  const map=b.tex?tex(b.tex):T[b.texType];
+  const mat=new (q.get('unlit')?THREE.MeshBasicMaterial:THREE.MeshLambertMaterial)({map,side:THREE.DoubleSide,transparent:add||alpha,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:!(add||alpha),alphaTest:add?0:(alpha?0.02:0.5)});
+  root.add(new THREE.Mesh(gg,mat));
+}
+const OH=+q.get('ortho')||0;
+const cam=OH?new THREE.OrthographicCamera(-OH/2*W/H,OH/2*W/H,OH/2,-OH/2,0.01,100):new THREE.PerspectiveCamera(+q.get('fov')||30,W/H,0.01,100);
+const [cx,cy,cz,tx,ty,tz]=q.get('cam').split(',').map(Number);
+cam.position.set(cx,cy,cz); cam.lookAt(tx,ty,tz);
+const box=new THREE.Box3().setFromObject(root); console.log('bbox',JSON.stringify(box));
+await new Promise(res=>setTimeout(res,1500));
+r.render(scene,cam); document.title='done';
+</script></body></html>

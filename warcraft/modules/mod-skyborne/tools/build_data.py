@@ -87,7 +87,7 @@ ID_SEQUENCE = {ALLIANCE: 9001, HORDE: 9002}
 ID_CAMERA = {ALLIANCE: 9001, HORDE: 9002}
 ID_SOUND = 900001
 SPELLS = {"walk": 98701, "skysight": 98702, "leyline": 98703, "wind": 98704, "insight": 98705,
-          "blessing": 98706, "energized": 98707}
+          "blessing": 98706, "energized": 98707, "goggles": 98708}
 
 
 class Dbc:
@@ -587,10 +587,19 @@ def main():
         spell(20557, SPELLS["insight"], "Elemental Insight", "Racial Passive",
               "Damage dealt to Elementals increased by 5%.", "",
               SpellIconID=2017, EffectMiscValue_1=1 << (4 - 1)),
+        spell(130, SPELLS["goggles"], "X-ray Goggles", "",
+              "All female characters in the world show no worn gear for $d.", "All female characters show no worn gear.",
+              SpellIconID=2590, EffectAura_1=4, EffectBasePoints_1=0, EffectDieSides_1=1, SpellVisualID_1=0,
+              Effect_2=0, EffectAura_2=0, EffectBasePoints_2=0, EffectDieSides_2=0, ImplicitTargetA_2=0, **aura),
     ]
     sql.comment("Their racials: Walk on Air, Skysight (Windshapers, with Elemental Blessing), Read Ley Line (High Order,\n"
                 "with Energized), Wind Blessed, Elemental Insight.")
     sql.replace("spell_dbc", COLUMNS["spell_dbc"], spt, spell_rows)
+    client.put("ItemDisplayInfo", "issssssiiiiiiiissssssssii",
+               [SPELLS["goggles"], "Helm_Goggles_B_01.mdx", "", "Helm_Goggles_B_01Xray", "", "INV_Misc_Goggles_Xray", "", 0, 0, 0, 0, 0, 7, 0, 0]
+               + [""] * 8 + [0, 0])
+    textures.append("goggles\t0\tItem\\ObjectComponents\\Head\\Helm_Goggles_B_01GreenBlack.blp\tItem\\ObjectComponents\\Head\\Helm_Goggles_B_01Xray.blp")
+    textures.append("goggles\t0\tInterface\\Icons\\INV_Helmet_47.blp\tInterface\\Icons\\INV_Misc_Goggles_Xray.blp")
 
     # The world database: starts, skills, stats, forms, quests, standing --------------------------------
     sql.comment("Where they start (their start race's place), for every class.")

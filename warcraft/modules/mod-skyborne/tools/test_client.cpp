@@ -128,9 +128,9 @@ int main(int argc, char** argv)
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
     int racials = 0;
     for (size_t i = 0; i < spells.records.size(); ++i)
-        if (spells.Get(i, 0) >= 98701 && spells.Get(i, 0) <= 98707)
+        if (spells.Get(i, 0) >= 98701 && spells.Get(i, 0) <= 98708)
             ++racials;
-    Check(racials == 7, "the racials (" + std::to_string(racials) + ")");
+    Check(racials == 8, "the racials and the goggles (" + std::to_string(racials) + ")");
 
     Bytes toc;
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneCreate.lua") != std::string::npos,
