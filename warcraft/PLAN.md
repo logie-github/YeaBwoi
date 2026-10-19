@@ -1344,7 +1344,11 @@ for the game on the phone itself ("that's the whole point").
     now takes CreatureDisplayInfo, CreatureDisplayInfoExtra and CreatureModelData from the client
     (with this patch in) rather than the server's dbc folder, so its patch-Y carries the races' looks
     and models on that realm (and an HD look's creature tables, which it used to put the stock ones
-    over).
+    over). The user's first try (1.0.148): the races didn't show at all. Found: the patch was made
+    at the startup hook, after Remix's (the custom tables' load) and the Skyborne's (the startup,
+    registered first), so on a first start patch-Y and patch-Z, read after it, carried ChrRaces,
+    GlueXML.toc and the display tables without the races; the next start would have had them.
+    Now made at the configuration's load, before both (the realm test checks the order).
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

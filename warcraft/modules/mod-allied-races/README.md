@@ -113,11 +113,13 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     writes BLP2 (palette, DXT1/3/5). `tools/names.py` names them for both the textures and the
     tables.
   - the voices as MP3s (ffmpeg).
-- As the world server starts (`src/AlliedRaces.cpp`), `src/AlliedRacesPatch.cpp` makes the game's
-  `Data/patch-V.MPQ` (read after the HD looks' patches, whose character tables it builds on, and
-  before Wrath Remix's `patch-Y` and the Skyborne's `patch-Z`, which read the client with it in
-  and so carry its rows: Remix's patch takes the looks' and models' tables from the client for
-  that) from the module's `data/client` and the package's `data/files`: the tables with the rows
+- As the world server starts, as soon as its configuration is read (`src/AlliedRaces.cpp`),
+  `src/AlliedRacesPatch.cpp` makes the game's `Data/patch-V.MPQ` (read after the HD looks'
+  patches, whose character tables it builds on, and before Wrath Remix's `patch-Y` and the
+  Skyborne's `patch-Z`, which are made later in the start from the client with it in and so carry
+  its rows: Remix's patch takes the looks' and models' tables from the client for that; made at
+  the startup like theirs, it came after them on a first start and the game didn't know the races
+  until the next) from the module's `data/client` and the package's `data/files`: the tables with the rows
   changed, the models, textures and voices, the character screen's files, the race icons with
   their portraits, the narrations. Made again only when the client, the module or the files
   change (the stamp in `patch-V.MPQ.alliedraces`); a `patch-V.MPQ` that isn't the module's is
@@ -138,8 +140,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   it). Built and run here against the server's tables and a local package.
 - `tools/check_m2.py` on every converted model (run here: all four pass; the HD look's blood elf,
   read the same way, passes but for what the HD look itself leaves out).
-- CI's server test: the world server makes the patch (19 tables), the races are playable in the
-  world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne
+- CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
+  Remix's, the races are playable in the world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne
   warrior in Deathknell, each with their racials.
 - Not tested: the game itself (the models drawn, the looks, the voices, the intros, the screen on
   a phone): nothing here runs the 3.3.5 client.

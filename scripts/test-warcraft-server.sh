@@ -297,6 +297,13 @@ EOF
 	grep -E "Allied races: The races' patch is in the game: 19 tables, [0-9]+ files" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the races' patch"
 	[ -s "$FILES/client/Data/patch-V.MPQ" ] && [ -s "$FILES/client/Data/patch-V.MPQ.alliedraces" ] || fail "the races' patch isn't in the game"
+	# Made before Wrath Remix's and the Skyborne's patches, which the game reads after it: they carry
+	# its rows on only when it's there as they're made.
+	allied=$(grep -n -m1 "Allied races: The races' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1)
+	for later in "Skyborne: The Skyborne's patch is in the game" "Wrath Remix: the game's patch written"; do
+		at=$(grep -n -m1 "$later" "$FILES/logs/world.out" | cut -d: -f1)
+		[ -z "$at" ] || [ "$allied" -lt "$at" ] || fail "the races' patch was made after the one read over it ($later)"
+	done
 	for race in 15 16; do
 		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
 	done

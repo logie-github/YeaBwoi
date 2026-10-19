@@ -152,7 +152,7 @@ Blizzard's allied races of today are playable on both realms, in their own model
 - **Quests**: the start race's own start quests are cloned for the new race, their givers taking in who the player is before sending them down the same road (a void elf washed up with the Exodar's survivors; a nightborne sent to learn the Forsaken's ways in Deathknell); the originals are untouched, and every other quest of the start race is open to the new race.
 - **The intro** is the start race's flight over its land, with each race's own narration.
 
-The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-V.MPQ`, from the module's tables and the races' models, textures and voices the server package brings: about 230 MB, made again only when the client or the package changes). It is read after an HD look's patches and before Wrath Remix's and the Skyborne's, which carry its rows on. A `patch-V.MPQ` of your own is left alone, and the game then won't know them. Not yet seen in the game: nothing here runs the 3.3.5 client.
+The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-V.MPQ`, from the module's tables and the races' models, textures and voices the server package brings: about 230 MB, made again only when the client or the package changes). It is read after an HD look's patches and before Wrath Remix's and the Skyborne's, which carry its rows on (it is made first, as the realm reads its settings; version 1.0.148 made it last, and the game didn't know the races until the realm's next start). A `patch-V.MPQ` of your own is left alone, and the game then won't know them. Not yet seen in the game: nothing here runs the 3.3.5 client.
 
 ## Modules
 
