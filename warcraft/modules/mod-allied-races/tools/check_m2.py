@@ -178,6 +178,8 @@ def check(path, verbose=False):
         first = istart + level * 65536
         if first + icount > ixn:
             say("section %d (geoset %d): indices beyond the skin's" % (i, sec[0]))
+        if level or istart + icount > 65535:
+            say("section %d (geoset %d): triangles start at %d: the game reads 16-bit starts, every section within 65535 indices" % (i, sec[0], first))
         if bcount > 64:
             say("section %d (geoset %d): %d bones" % (i, sec[0], bcount))
         if bcombo + bcount > n_bone_lookup:

@@ -1410,6 +1410,17 @@ for the game on the phone itself ("that's the whole point").
     mouth, eyes, eyebrows, toes, torso and forearms in groups 20-34, which 3.3.5 doesn't know
     (its defaults go up to group 18; the HD look's blood elf keeps its whole body in geoset 0).
     Those are now folded into geoset 0; the renderer shows only what 3.3.5 shows.
+  - Third try (1.0.174): bodies whole, but the hair, wrists, thighs and eye glow in pieces. Found:
+    3.3.5 reads a mesh section's triangle start as 16 bits (the modern format's `level` high word
+    is lost on it), so every section past the first 65535 indices drew from the wrong triangles:
+    exactly the sections the screenshots broke (the nightborne male's body, hair, hands and boots
+    came before the limit and were right; sleeves, eye glow, thighs after it and weren't). The HD
+    look's blood elf has 64,521 indices with 20 hair styles; ours had 95,000 to 140,000, and
+    Blizzard's own LOD3 only takes a quarter off. `tools/decimate.py` cuts the meshes to the
+    budget (quadric-error half-edge collapses; gear first, then features and hair, body last);
+    the void tentacles moved from duplicated hair styles to the feature slider (a third of the
+    void elves' triangles). The renderer now reads starts as 16 bits too, and `check_m2.py`
+    refuses a section past the limit.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

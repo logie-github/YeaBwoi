@@ -12599,6 +12599,72 @@
      },
      {
       "geosets": [
+       0,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Transience)",
+      "variation": 1
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Agony)",
+      "variation": 2
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Sorrow)",
+      "variation": 3
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Suffusion)",
+      "variation": 4
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Widowmaker)",
+      "variation": 5
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Flayer)",
+      "variation": 6
+     },
+     {
+      "geosets": [
        2,
        0,
        0,
@@ -12606,7 +12672,73 @@
        2
       ],
       "name": "Petite",
-      "variation": 1
+      "variation": 7
+     },
+     {
+      "geosets": [
+       2,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Petite, Tentacles (Transience)",
+      "variation": 8
+     },
+     {
+      "geosets": [
+       2,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Petite, Tentacles (Agony)",
+      "variation": 9
+     },
+     {
+      "geosets": [
+       2,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Petite, Tentacles (Sorrow)",
+      "variation": 10
+     },
+     {
+      "geosets": [
+       2,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Petite, Tentacles (Suffusion)",
+      "variation": 11
+     },
+     {
+      "geosets": [
+       2,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Petite, Tentacles (Widowmaker)",
+      "variation": 12
+     },
+     {
+      "geosets": [
+       2,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Petite, Tentacles (Flayer)",
+      "variation": 13
      },
      {
       "geosets": [
@@ -12617,7 +12749,73 @@
        2
       ],
       "name": "Sparrow",
-      "variation": 2
+      "variation": 14
+     },
+     {
+      "geosets": [
+       3,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Sparrow, Tentacles (Transience)",
+      "variation": 15
+     },
+     {
+      "geosets": [
+       3,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Sparrow, Tentacles (Agony)",
+      "variation": 16
+     },
+     {
+      "geosets": [
+       3,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Sparrow, Tentacles (Sorrow)",
+      "variation": 17
+     },
+     {
+      "geosets": [
+       3,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Sparrow, Tentacles (Suffusion)",
+      "variation": 18
+     },
+     {
+      "geosets": [
+       3,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Sparrow, Tentacles (Widowmaker)",
+      "variation": 19
+     },
+     {
+      "geosets": [
+       3,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Sparrow, Tentacles (Flayer)",
+      "variation": 20
      },
      {
       "geosets": [
@@ -12628,7 +12826,73 @@
        2
       ],
       "name": "Beaded",
-      "variation": 3
+      "variation": 21
+     },
+     {
+      "geosets": [
+       4,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Beaded, Tentacles (Transience)",
+      "variation": 22
+     },
+     {
+      "geosets": [
+       4,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Beaded, Tentacles (Agony)",
+      "variation": 23
+     },
+     {
+      "geosets": [
+       4,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Beaded, Tentacles (Sorrow)",
+      "variation": 24
+     },
+     {
+      "geosets": [
+       4,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Beaded, Tentacles (Suffusion)",
+      "variation": 25
+     },
+     {
+      "geosets": [
+       4,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Beaded, Tentacles (Widowmaker)",
+      "variation": 26
+     },
+     {
+      "geosets": [
+       4,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Beaded, Tentacles (Flayer)",
+      "variation": 27
      },
      {
       "geosets": [
@@ -12639,7 +12903,73 @@
        2
       ],
       "name": "Classic",
-      "variation": 4
+      "variation": 28
+     },
+     {
+      "geosets": [
+       5,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Classic, Tentacles (Transience)",
+      "variation": 29
+     },
+     {
+      "geosets": [
+       5,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Classic, Tentacles (Agony)",
+      "variation": 30
+     },
+     {
+      "geosets": [
+       5,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Classic, Tentacles (Sorrow)",
+      "variation": 31
+     },
+     {
+      "geosets": [
+       5,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Classic, Tentacles (Suffusion)",
+      "variation": 32
+     },
+     {
+      "geosets": [
+       5,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Classic, Tentacles (Widowmaker)",
+      "variation": 33
+     },
+     {
+      "geosets": [
+       5,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Classic, Tentacles (Flayer)",
+      "variation": 34
      },
      {
       "geosets": [
@@ -12650,7 +12980,73 @@
        2
       ],
       "name": "Pointed",
-      "variation": 5
+      "variation": 35
+     },
+     {
+      "geosets": [
+       6,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Pointed, Tentacles (Transience)",
+      "variation": 36
+     },
+     {
+      "geosets": [
+       6,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Pointed, Tentacles (Agony)",
+      "variation": 37
+     },
+     {
+      "geosets": [
+       6,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Pointed, Tentacles (Sorrow)",
+      "variation": 38
+     },
+     {
+      "geosets": [
+       6,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Pointed, Tentacles (Suffusion)",
+      "variation": 39
+     },
+     {
+      "geosets": [
+       6,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Pointed, Tentacles (Widowmaker)",
+      "variation": 40
+     },
+     {
+      "geosets": [
+       6,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Pointed, Tentacles (Flayer)",
+      "variation": 41
      },
      {
       "geosets": [
@@ -12661,7 +13057,73 @@
        2
       ],
       "name": "Full",
-      "variation": 6
+      "variation": 42
+     },
+     {
+      "geosets": [
+       7,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Full, Tentacles (Transience)",
+      "variation": 43
+     },
+     {
+      "geosets": [
+       7,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Full, Tentacles (Agony)",
+      "variation": 44
+     },
+     {
+      "geosets": [
+       7,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Full, Tentacles (Sorrow)",
+      "variation": 45
+     },
+     {
+      "geosets": [
+       7,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Full, Tentacles (Suffusion)",
+      "variation": 46
+     },
+     {
+      "geosets": [
+       7,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Full, Tentacles (Widowmaker)",
+      "variation": 47
+     },
+     {
+      "geosets": [
+       7,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Full, Tentacles (Flayer)",
+      "variation": 48
      },
      {
       "geosets": [
@@ -12672,7 +13134,73 @@
        2
       ],
       "name": "Anchor",
-      "variation": 7
+      "variation": 49
+     },
+     {
+      "geosets": [
+       8,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "Anchor, Tentacles (Transience)",
+      "variation": 50
+     },
+     {
+      "geosets": [
+       8,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "Anchor, Tentacles (Agony)",
+      "variation": 51
+     },
+     {
+      "geosets": [
+       8,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "Anchor, Tentacles (Sorrow)",
+      "variation": 52
+     },
+     {
+      "geosets": [
+       8,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "Anchor, Tentacles (Suffusion)",
+      "variation": 53
+     },
+     {
+      "geosets": [
+       8,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "Anchor, Tentacles (Widowmaker)",
+      "variation": 54
+     },
+     {
+      "geosets": [
+       8,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "Anchor, Tentacles (Flayer)",
+      "variation": 55
      }
     ],
     "folder": "Character\\VoidElf\\Male",
@@ -12705,15 +13233,13 @@
       108
      ],
      "11": [
-      11,
-      25
+      11
      ],
      "12": [
       12
      ],
      "13": [
-      13,
-      26
+      13
      ],
      "1701": [
       1702,
@@ -12723,22 +13249,22 @@
       2
      ],
      "201": [
-      21
+      201
      ],
      "202": [
-      22
+      202
      ],
      "203": [
-      23
+      203
      ],
      "204": [
-      24
+      204
      ],
      "205": [
-      25
+      205
      ],
      "206": [
-      26
+      206
      ],
      "3": [
       3
@@ -12753,8 +13279,7 @@
       0
      ],
      "4": [
-      4,
-      21
+      4
      ],
      "5": [
       5
@@ -12763,19 +13288,16 @@
       6
      ],
      "7": [
-      7,
-      22
+      7
      ],
      "702": [
       702
      ],
      "8": [
-      8,
-      23
+      8
      ],
      "9": [
-      9,
-      24
+      9
      ]
     },
     "hair": [
@@ -12856,48 +13378,6 @@
       "geoset": 0,
       "name": "Barren",
       "variation": 12
-     },
-     {
-      "choice": "2842",
-      "geoset": 21,
-      "name": "Transience, tentacles",
-      "tentacles": true,
-      "variation": 13
-     },
-     {
-      "choice": "2845",
-      "geoset": 22,
-      "name": "Agony, tentacles",
-      "tentacles": true,
-      "variation": 14
-     },
-     {
-      "choice": "2846",
-      "geoset": 23,
-      "name": "Sorrow, tentacles",
-      "tentacles": true,
-      "variation": 15
-     },
-     {
-      "choice": "2847",
-      "geoset": 24,
-      "name": "Suffusion, tentacles",
-      "tentacles": true,
-      "variation": 16
-     },
-     {
-      "choice": "2849",
-      "geoset": 25,
-      "name": "Widowmaker, tentacles",
-      "tentacles": true,
-      "variation": 17
-     },
-     {
-      "choice": "2851",
-      "geoset": 26,
-      "name": "Flayer, tentacles",
-      "tentacles": true,
-      "variation": 18
      }
     ],
     "hair_colors": [
@@ -14801,13 +15281,145 @@
      {
       "geosets": [
        0,
+       0,
+       1,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Elegance)",
+      "variation": 1
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       2,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Consuming)",
+      "variation": 2
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       3,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Awoken)",
+      "variation": 3
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       4,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Controlled)",
+      "variation": 4
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       5,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Wicked)",
+      "variation": 5
+     },
+     {
+      "geosets": [
+       0,
+       0,
+       6,
+       0,
+       2
+      ],
+      "name": "None, Tentacles (Pensive)",
+      "variation": 6
+     },
+     {
+      "geosets": [
+       0,
        1,
        0,
        0,
        2
       ],
       "name": "Spike",
-      "variation": 1
+      "variation": 7
+     },
+     {
+      "geosets": [
+       0,
+       1,
+       1,
+       0,
+       2
+      ],
+      "name": "Spike, Tentacles (Elegance)",
+      "variation": 8
+     },
+     {
+      "geosets": [
+       0,
+       1,
+       2,
+       0,
+       2
+      ],
+      "name": "Spike, Tentacles (Consuming)",
+      "variation": 9
+     },
+     {
+      "geosets": [
+       0,
+       1,
+       3,
+       0,
+       2
+      ],
+      "name": "Spike, Tentacles (Awoken)",
+      "variation": 10
+     },
+     {
+      "geosets": [
+       0,
+       1,
+       4,
+       0,
+       2
+      ],
+      "name": "Spike, Tentacles (Controlled)",
+      "variation": 11
+     },
+     {
+      "geosets": [
+       0,
+       1,
+       5,
+       0,
+       2
+      ],
+      "name": "Spike, Tentacles (Wicked)",
+      "variation": 12
+     },
+     {
+      "geosets": [
+       0,
+       1,
+       6,
+       0,
+       2
+      ],
+      "name": "Spike, Tentacles (Pensive)",
+      "variation": 13
      },
      {
       "geosets": [
@@ -14818,7 +15430,73 @@
        2
       ],
       "name": "Hook",
-      "variation": 2
+      "variation": 14
+     },
+     {
+      "geosets": [
+       0,
+       2,
+       1,
+       0,
+       2
+      ],
+      "name": "Hook, Tentacles (Elegance)",
+      "variation": 15
+     },
+     {
+      "geosets": [
+       0,
+       2,
+       2,
+       0,
+       2
+      ],
+      "name": "Hook, Tentacles (Consuming)",
+      "variation": 16
+     },
+     {
+      "geosets": [
+       0,
+       2,
+       3,
+       0,
+       2
+      ],
+      "name": "Hook, Tentacles (Awoken)",
+      "variation": 17
+     },
+     {
+      "geosets": [
+       0,
+       2,
+       4,
+       0,
+       2
+      ],
+      "name": "Hook, Tentacles (Controlled)",
+      "variation": 18
+     },
+     {
+      "geosets": [
+       0,
+       2,
+       5,
+       0,
+       2
+      ],
+      "name": "Hook, Tentacles (Wicked)",
+      "variation": 19
+     },
+     {
+      "geosets": [
+       0,
+       2,
+       6,
+       0,
+       2
+      ],
+      "name": "Hook, Tentacles (Pensive)",
+      "variation": 20
      },
      {
       "geosets": [
@@ -14829,7 +15507,73 @@
        2
       ],
       "name": "Stud",
-      "variation": 3
+      "variation": 21
+     },
+     {
+      "geosets": [
+       0,
+       3,
+       1,
+       0,
+       2
+      ],
+      "name": "Stud, Tentacles (Elegance)",
+      "variation": 22
+     },
+     {
+      "geosets": [
+       0,
+       3,
+       2,
+       0,
+       2
+      ],
+      "name": "Stud, Tentacles (Consuming)",
+      "variation": 23
+     },
+     {
+      "geosets": [
+       0,
+       3,
+       3,
+       0,
+       2
+      ],
+      "name": "Stud, Tentacles (Awoken)",
+      "variation": 24
+     },
+     {
+      "geosets": [
+       0,
+       3,
+       4,
+       0,
+       2
+      ],
+      "name": "Stud, Tentacles (Controlled)",
+      "variation": 25
+     },
+     {
+      "geosets": [
+       0,
+       3,
+       5,
+       0,
+       2
+      ],
+      "name": "Stud, Tentacles (Wicked)",
+      "variation": 26
+     },
+     {
+      "geosets": [
+       0,
+       3,
+       6,
+       0,
+       2
+      ],
+      "name": "Stud, Tentacles (Pensive)",
+      "variation": 27
      },
      {
       "geosets": [
@@ -14840,7 +15584,73 @@
        2
       ],
       "name": "Rune",
-      "variation": 4
+      "variation": 28
+     },
+     {
+      "geosets": [
+       0,
+       4,
+       1,
+       0,
+       2
+      ],
+      "name": "Rune, Tentacles (Elegance)",
+      "variation": 29
+     },
+     {
+      "geosets": [
+       0,
+       4,
+       2,
+       0,
+       2
+      ],
+      "name": "Rune, Tentacles (Consuming)",
+      "variation": 30
+     },
+     {
+      "geosets": [
+       0,
+       4,
+       3,
+       0,
+       2
+      ],
+      "name": "Rune, Tentacles (Awoken)",
+      "variation": 31
+     },
+     {
+      "geosets": [
+       0,
+       4,
+       4,
+       0,
+       2
+      ],
+      "name": "Rune, Tentacles (Controlled)",
+      "variation": 32
+     },
+     {
+      "geosets": [
+       0,
+       4,
+       5,
+       0,
+       2
+      ],
+      "name": "Rune, Tentacles (Wicked)",
+      "variation": 33
+     },
+     {
+      "geosets": [
+       0,
+       4,
+       6,
+       0,
+       2
+      ],
+      "name": "Rune, Tentacles (Pensive)",
+      "variation": 34
      }
     ],
     "folder": "Character\\VoidElf\\Female",
@@ -14849,8 +15659,7 @@
       0
      ],
      "10": [
-      10,
-      26
+      10
      ],
      "11": [
       11
@@ -14860,30 +15669,28 @@
       1703
      ],
      "2": [
-      2,
-      21
+      2
      ],
      "201": [
-      21
+      201
      ],
      "202": [
-      22
+      202
      ],
      "203": [
-      23
+      203
      ],
      "204": [
-      24
+      204
      ],
      "205": [
-      25
+      205
      ],
      "206": [
-      26
+      206
      ],
      "3": [
-      3,
-      22
+      3
      ],
      "3201": [
       0
@@ -14907,12 +15714,10 @@
       304
      ],
      "4": [
-      4,
-      23
+      4
      ],
      "5": [
-      5,
-      24
+      5
      ],
      "6": [
       6
@@ -14924,8 +15729,7 @@
       702
      ],
      "8": [
-      8,
-      25
+      8
      ],
      "9": [
       9
@@ -14997,48 +15801,6 @@
       "geoset": 0,
       "name": "Glabrous",
       "variation": 10
-     },
-     {
-      "choice": "2886",
-      "geoset": 21,
-      "name": "Elegance, tentacles",
-      "tentacles": true,
-      "variation": 11
-     },
-     {
-      "choice": "2887",
-      "geoset": 22,
-      "name": "Consuming, tentacles",
-      "tentacles": true,
-      "variation": 12
-     },
-     {
-      "choice": "2888",
-      "geoset": 23,
-      "name": "Awoken, tentacles",
-      "tentacles": true,
-      "variation": 13
-     },
-     {
-      "choice": "2889",
-      "geoset": 24,
-      "name": "Controlled, tentacles",
-      "tentacles": true,
-      "variation": 14
-     },
-     {
-      "choice": "2892",
-      "geoset": 25,
-      "name": "Wicked, tentacles",
-      "tentacles": true,
-      "variation": 15
-     },
-     {
-      "choice": "2894",
-      "geoset": 26,
-      "name": "Pensive, tentacles",
-      "tentacles": true,
-      "variation": 16
      }
     ],
     "hair_colors": [
