@@ -1323,7 +1323,12 @@ for the game on the phone itself ("that's the whole point").
      methods; its preview is a ModelFFX with no `Undress` or `TryOn`, so no interface code can dress
      it. Fixed: the creation screen's tooltip through those functions, no frame round the icon,
      and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
-     shows only if a change to the executable ever makes it dressable). Checked here: test_gear.py
+     shows only if a change to the executable ever makes it dressable). Later the user: "Also the button
+     with no gear, gear, and champion gear is it showing ANYWHERE. but it between the sex buttons."
+     Done: shown always, between the sex buttons (moved apart for it, each under its race column);
+     in 3.3.5 it cycles its choice and icon and its tooltip says the preview can't be dressed yet
+     (the executable route below is still what would dress it). Checked here: test_gear.py (54
+     checks). Not checked: the game. Earlier checks: test_gear.py
      (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
      so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
      patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model
