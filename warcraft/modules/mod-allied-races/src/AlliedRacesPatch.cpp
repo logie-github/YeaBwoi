@@ -37,7 +37,7 @@ namespace AlliedRaces
         constexpr char const* PATCH = "patch-V.MPQ";
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-1";
+        constexpr char const* VERSION = "allied-races-2";   // 2: the models' bone combos name the vertices' bones
 
         Bytes ReadFile(fs::path const& path)
         {
