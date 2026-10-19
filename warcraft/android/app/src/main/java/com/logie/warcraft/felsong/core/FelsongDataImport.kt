@@ -73,7 +73,8 @@ object FelsongDataImport {
         return when (folder) {
             "dbc" -> when {
                 !file.endsWith(".db2", ignoreCase = true) -> Problem.NOT_DATA
-                // WDC1 (7.3's DB2 format), WDB6 or WDC2 are what the client has.
+                // WDC1 (7.3's DB2 format), WDB6 or WDC2 are what the client has; WDBC is 3.3.5's DBC.
+                head.startsWith("WDBC".toByteArray()) -> Problem.FOREIGN
                 !(head.startsWith("WDC".toByteArray()) || head.startsWith("WDB".toByteArray())) -> Problem.FOREIGN
                 else -> null
             }
