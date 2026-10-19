@@ -1380,6 +1380,13 @@ for the game on the phone itself ("that's the whole point").
     registered first), so on a first start patch-Y and patch-Z, read after it, carried ChrRaces,
     GlueXML.toc and the display tables without the races; the next start would have had them.
     Now made at the configuration's load, before both (the realm test checks the order).
+    Second try (the user's screenshots): the races on the screen, the models drawn in pieces
+    (legs whole, the rest spikes). Found: `m2.py` built each section's bone combo from the retail
+    skin's bone *slots* (relative to the retail section's combo) instead of the vertices' bone
+    indices, so the game, skinning through the combo, put every vertex on another bone. The HD
+    look's blood elf and the retail file agree on the rule (combo[slot] is the vertex's own bone);
+    `check_m2.py` now checks it (the old models fail, 85 sections). Patch version 2, so phones
+    remake patch-V (the files' sizes, which the stamp holds, don't change).
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).
