@@ -18,6 +18,8 @@
  */
 
 #include "WrathRemix.h"
+#include "Battlefield.h"
+#include "BattlefieldMgr.h"
 #include "Chat.h"
 #include "Creature.h"
 #include "CreatureAI.h"
@@ -34,6 +36,8 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
+#include "Spell.h"
+#include "SpellInfo.h"
 #include "TemporarySummon.h"
 #include "WorldPacket.h"
 #include "WorldSession.h"
@@ -211,12 +215,18 @@ namespace WrathRemix
             {
                 ChatHandler::BuildChatPacket(data, CHAT_MSG_MONSTER_SAY, LANG_UNIVERSAL, her, player, words);
                 player->SendDirectMessage(&data);
+                if (uint32 sound = MoratariVoiceFor(text))
+                    her->PlayDirectSound(sound, player);
                 return;
             }
         CreatureTemplate const* who = sObjectMgr->GetCreatureTemplate(speaker);
         std::string name = who ? who->Name : std::string("Moratari");
         ChatHandler::BuildChatPacket(data, CHAT_MSG_MONSTER_WHISPER, LANG_UNIVERSAL, ObjectGuid::Empty, player->GetGUID(), words, 0, name, player->GetName());
         player->SendDirectMessage(&data);
+        // (her own voice where the words are hers in the game, remix_voice)
+        if (speaker == NPC_MORATARI)
+            if (uint32 sound = MoratariVoiceFor(text))
+                player->PlayDirectSound(sound, player);
     }
 
     void LoadMoratari()
@@ -361,8 +371,14 @@ namespace
     {
         if (!Active() || IsBot(player) || !player->IsAlive() || player->IsInFlight() || player->GetTransport() || InIntro(player))
             return false;
-        // (on an outing, she is in its scene)
-        if (player->GetMap()->IsBattlegroundOrArena() || Rewarded(player, QUEST_FLAG_ALONE) || OnOuting(player))
+        // (on an outing, she is in its scene; on a flying mount or a vehicle, she waits until they're
+        // down: summoned beside them she'd be in the air, and left behind every few seconds)
+        if (Rewarded(player, QUEST_FLAG_ALONE) || OnOuting(player) || player->CanFly() || player->IsFlying() || player->GetVehicle())
+            return false;
+        // (a dungeon, a raid, a battleground, Wintergrasp while it's fought: none of hers)
+        if (player->GetMap()->Instanceable())
+            return false;
+        if (Battlefield* battle = sBattlefieldMgr->GetBattlefieldToZoneId(player->GetZoneId()); battle && battle->IsWarTime())
             return false;
         return CompanionRuleApplies(player);
     }
@@ -487,6 +503,7 @@ namespace
 
         ObjectGuid owner;
         uint32 boltTimer = 1500, healTimer = 3000, stepTimer = 0;
+        time_t lastWord = 0;               // (her word after a fight, now and then)
 
         Player* Owner() const { return owner ? ObjectAccessor::GetPlayer(*me, owner) : nullptr; }
 
@@ -515,6 +532,13 @@ namespace
             {
                 me->GetMotionMaster()->Clear();
                 Follow(player);
+                // Now and then, a fight over: her own voice (not more than every ten minutes)
+                time_t now = GameTime::GetGameTime().count();
+                if (player->IsAlive() && now - lastWord >= 600 && roll_chance_i(25))
+                {
+                    lastWord = now;
+                    MoratariVoice(player, "after_fight", -1, me);
+                }
             }
         }
 
@@ -537,15 +561,20 @@ namespace
             }
         }
 
-        // What the Timerunner is fighting, or what is fighting them.
+        // What the Timerunner is fighting, or what is fighting them: never one they've put out of the
+        // fight for a while (a sheep, a sap, a fear, roots), which her bolt would wake.
         Unit* TheirFoe(Player* player) const
         {
             if (!player->IsInCombat())
                 return nullptr;
-            if (Unit* victim = player->GetVictim(); victim && me->IsValidAttackTarget(victim) && victim->IsWithinDist(player, 40.0f))
+            auto fair = [this, player](Unit* foe)
+            {
+                return foe && me->IsValidAttackTarget(foe) && foe->IsWithinDist(player, 40.0f) && !foe->HasBreakableByDamageCrowdControlAura();
+            };
+            if (Unit* victim = player->GetVictim(); fair(victim))
                 return victim;
             for (Unit* attacker : player->getAttackers())
-                if (me->IsValidAttackTarget(attacker) && attacker->IsWithinDist(player, 40.0f))
+                if (fair(attacker))
                     return attacker;
             return nullptr;
         }
@@ -583,12 +612,20 @@ namespace
             }
             else
                 healTimer -= diff;
+            // (her foe put out of the fight since: a bolt on its way to it stops, and the next goes to
+            // another of theirs, or nowhere while it lasts)
+            if (Spell* bolt = me->GetCurrentSpell(CURRENT_GENERIC_SPELL); bolt && bolt->GetSpellInfo()->Id == SPELL_ARCANE_BOLT)
+                if (Unit* target = bolt->m_targets.GetUnitTarget(); target && target->HasBreakableByDamageCrowdControlAura())
+                    me->InterruptSpell(CURRENT_GENERIC_SPELL);
             if (boltTimer <= diff)
             {
-                if (!me->HasUnitState(UNIT_STATE_CASTING))
+                Unit* target = me->GetVictim();
+                if (target && target->HasBreakableByDamageCrowdControlAura())
+                    target = TheirFoe(player);
+                if (target && !me->HasUnitState(UNIT_STATE_CASTING))
                 {
                     int32 damage = int32(6 + me->GetLevel() * 3);
-                    me->CastCustomSpell(me->GetVictim(), SPELL_ARCANE_BOLT, &damage, nullptr, nullptr, false);
+                    me->CastCustomSpell(target, SPELL_ARCANE_BOLT, &damage, nullptr, nullptr, false);
                 }
                 boltTimer = urand(2600, 3600);
             }
@@ -630,6 +667,9 @@ namespace
         if (t.action == TALK_COMPANION_COME && !Rewarded(player, QUEST_FLAG_ALONE))
             return false;
         if (t.action == TALK_TIME_JUMPER && !(creature && AtTheCampfire(player, creature)))
+            return false;
+        // (no date from a dungeon, a raid or a battleground: nowhere to come back to)
+        if (t.action == TALK_OUTING && player->GetMap()->Instanceable())
             return false;
         return true;
     }
@@ -842,6 +882,15 @@ public:
 
     void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
     {
+        // (where the story has her begin to walk with them, her tent's "everywhere" too, a wait they
+        // asked of her before is over)
+        if (Active() && !IsBot(player) && Rewarded(player, QUEST_FLAG_ALONE))
+            for (CompanionRule const& r : companionRules)
+                if (r.from == quest->GetQuestId() && OnSide(player, r.side))
+                {
+                    player->RemoveRewardedQuest(QUEST_FLAG_ALONE);
+                    break;
+                }
         MoratariOnQuest(player, quest->GetQuestId(), MOMENT_TURNED_IN);
     }
 };

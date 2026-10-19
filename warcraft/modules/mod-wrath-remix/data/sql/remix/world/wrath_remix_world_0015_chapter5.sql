@@ -1,7 +1,7 @@
 -- Chapter V, The Lifewarden's Warning (STORY.md): Sholazar Basin, and Moratari's chapter. Moratari's
 -- transitions as the earlier chapters' are made (wrath_remix_world_0006_bridges.sql), and between
 -- them Eternus's agents at the Maker's Overlook, siphoning the Makers' pillar to build something
--- that can hold an hour still; as that is undone, Eternus comes for Moratari himself (its scene in
+-- that can hold an hour still; as that is undone, Eternus comes for Moratari herself (its scene in
 -- wrath_remix_world_0014_scenes.sql).
 --
 --   WRM-501  after A Kingdom Gone (77421) or Welcome to Sholazar Basin (12489), Moratari by Hemet
@@ -31,7 +31,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77502, 2, 57, 52, 3711, 5, 0, 0, 0,
  'Stolen Hours',
  'Slay 6 Infinite Siphoners and destroy the Siphon of Hours at the Maker''s Overlook, then speak with Moratari there.',
- 'Stop. Before you touch that switch, look at the pillar.$B$BSee how the light bends around it, as if it were a little later there than here? That is a siphon of hours. Eternus''s agents are drinking the Makers'' power out of this place, one stolen hour at a time.$B$BI built the first of those, $n. A long time ago, for him, for something I believed in. I know what that much power is for, and I do not like it.$B$BKill them. Break it. Then we will talk about what he is building.',
+ 'Stop. Before you touch that switch, look at the pillar.$B$BSee how the light bends around it, as if it were a little later there than here? That is a siphon of hours. Eternus''s agents are drinking the Makers'' power out of this place, one stolen hour at a time.$B$BI built the first of those, $n. A long time ago, for her, for something I believed in. I know what that much power is for, and I do not like it.$B$BKill them. Break it. Then we will talk about what she is building.',
  'Speak with Moratari at the Maker''s Overlook.', @SIPHONER, 6, @SIPHON, 1, 'Infinite Siphoner slain', 'Siphon of Hours destroyed', 0),
 -- WRM-521: to the Storm Peaks.
 (77521, 2, 60, 52, 3711, 5, 0, 0, 0,

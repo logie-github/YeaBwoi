@@ -15,6 +15,9 @@ data class AnomalyReport(val title: String, val body: String) {
     /** The report with a last line about the app that sent it. */
     fun signed(line: String) = copy(body = body.trimEnd() + "\n\n---\n" + line + "\n")
 
+    /** The report with [marker] ([Companion.marker]) at its start, unseen on GitHub: how its issue is known again. */
+    fun marked(marker: String) = copy(body = "<!-- $marker -->\n" + body)
+
     /**
      * The report cut to [limit] as [measure] counts it: the oldest steps of its way here go first
      * (a line says how many), then, if that's not enough, the end of the body.
@@ -100,6 +103,28 @@ data class AnomalyReport(val title: String, val body: String) {
             val json = JSONObject(answer)
             json.getInt("number") to json.getString("html_url")
         }.getOrNull()
+
+        /**
+         * What marks the issue of the report a file holds ([marked]): the file's name and a hash of
+         * what's in it, the same at every try.
+         */
+        fun marker(name: String, text: String) =
+            "time anomaly report $name ${text.hashCode().toUInt().toString(16).padStart(8, '0')}"
+
+        /** The issue in GitHub's list of issues ([answer]) that has [marker] in it: its number and page. */
+        fun markedIssue(answer: String, marker: String): Pair<Int, String>? = runCatching {
+            val issues = JSONArray(answer)
+            (0 until issues.length()).map { issues.getJSONObject(it) }
+                .firstOrNull { it.optString("body").contains("<!-- $marker -->") }
+                ?.let { it.getInt("number") to it.getString("html_url") }
+        }.getOrNull()
+
+        /**
+         * GitHub didn't take a report for now, not for good: it's busy (5xx), or the token sent too
+         * many requests (a rate limit). It goes again later, with the same token.
+         */
+        fun busy(code: Int, reason: String?): Boolean =
+            code >= 500 || code == 408 || code == 429 || reason?.contains("rate limit", ignoreCase = true) == true
 
         private fun encode(text: String) = URLEncoder.encode(text, "UTF-8").replace("+", "%20")
     }

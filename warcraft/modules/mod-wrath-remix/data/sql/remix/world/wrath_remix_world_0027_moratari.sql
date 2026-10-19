@@ -123,7 +123,7 @@ INSERT INTO `remix_quest_whisper` (`quest`, `moment`, `side`, `seq`, `speaker`, 
 (77041, 1, 1, 1, 770001, 3000, 0, 0, 0, 'Scouts, $N. Not visions, not dreams, and certainly not ''a dragon told me''.'),
 (77041, 2, 1, 1, 770001, 3000, 0, 0, 0, 'Did you see him look at his counselor before he answered you? Every day he looks a little sooner.'),
 (11727, 1, 1, 1, 770001, 3000, 0, 0, 0, 'The keep does not fall, as it happens. It only comes close, three times. Let us make it two.'),
-(11727, 3, 1, 1, 770001, 3000, 0, 0, 0, 'Wasn''t him, he says. He lies worse than you do, $N.'),
+(11727, 3, 1, 1, 770001, 3000, 0, 0, 0, 'Wasn''t her, she says. She lies worse than you do, $N.'),
 (11797, 1, 1, 1, 770001, 3000, 0, 0, 0, 'Crypt crawlers. They were nerubians once, citizens of Azjol-Nerub, until the Lich King took their kingdom and kept its dead. Be quick with them. It is the only mercy anyone can give them now.'),
 (11797, 3, 1, 1, 770001, 3000, 0, 0, 0, 'Twenty years, and he has never seen a day like it. He will call it luck. Soldiers always do.'),
 (11889, 1, 1, 1, 770001, 3000, 0, 0, 0, 'Fishing nets, against flying nerubians. It should not work. It does, and I have never understood why.'),
@@ -192,7 +192,7 @@ INSERT INTO `remix_quest_whisper` (`quest`, `moment`, `side`, `seq`, `speaker`, 
 (12200, 1, 2, 1, 770001, 3000, 0, 0, 0, 'Middleton has never watched a dragon die. I have. Take the tears, and do not make a joke of it.'),
 (12218, 1, 2, 1, 770001, 3000, 0, 0, 0, 'The dead you will be testing it on came out of Wintergarde''s mausoleum. Somebody in that keep buried every one of them.'),
 (77235, 1, 2, 1, 770001, 3000, 0, 0, 0, 'Molder is across the yard, by the alchemists. Lawrence is the one with the ledger, among the braziers near Middleton.'),
-(12221, 3, 2, 1, 770001, 4000, 0, 0, 0, 'So Eternus has his vial. Whatever he learns from it, you and I already know what it does. We saw the Wrathgate after.'),
+(12221, 3, 2, 1, 770001, 4000, 0, 0, 0, 'So Eternus has her vial. Whatever she learns from it, you and I already know what it does. We saw the Wrathgate after.'),
 (12470, 1, 0, 1, 770001, 3000, 0, 0, 0, 'The storm keeps her out as well as me. Something in common at last. I will wait at its edge, $N.'),
 (12470, 2, 0, 1, 770001, 3000, 0, 0, 0, 'The hourglass answered her question, $N. It will be years before she believes the answer. It took me longer.'),
 (12470, 3, 0, 1, 770001, 16000, 0, 0, 0, 'The Lord of Time was shown his own ending, long ago, and he has spent ages refusing it. If he may refuse one, Eternus says, so may we.'),
@@ -367,7 +367,7 @@ INSERT INTO `remix_outing` (`id`, `map`, `x`, `y`, `z`, `o`, `scene`, `private`,
 (3, 571, 5806.00, 444.00, 658.80, 4.450, 903, 0, 0, 1, 0, 0, 0, 'Dinner at Krasus'' Landing, Dalaran'),
 (4, 571, 3528.00, 268.00, 342.80, 2.400, 904, 0, 0, 1, 0, 0, 0, 'Atop Wyrmrest Temple, at night'),
 (5, 571, 5816.00, 447.00, 658.80, 4.450, 905, 0, 0, 1, 310, 252, 25833, 'On her back, from Dalaran to Wyrmrest Temple'),
-(6, 571, 5719.00, 999.00, 174.60, 5.712, 906, 1, 1, 1, 0, 0, 0, 'Moratari''s tent, the Bazaar'),
+(6, 571, 6413.00, 1853.00, 508.70, 5.712, 906, 1, 1, 1, 0, 0, 0, 'Moratari''s tent, the Bazaar'),
 (7, 571, 5551.80, 5850.30, -74.60, 2.000, 907, 1, 0, 1, 0, 0, 0, 'An afternoon by the river, Sholazar Basin'),
 (8, 571, 6410.00, 470.00, 511.40, 2.400, 908, 1, 0, 1, 0, 0, 0, 'The edge of the camp, Crusaders'' Pinnacle');
 INSERT INTO `remix_outing_line` (`outing`, `at_ms`, `text`) VALUES
@@ -681,6 +681,8 @@ DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceId` BE
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 (30, 0, 770550, 7704330, 0, 47, 0, 77043, 74, 0, 0, 0, 0, '', 'Wrath Remix: William Allerton, alive, Farshire Mine'),
 (30, 0, 770550, 7704330, 0, 8, 0, 77048, 0, 0, 1, 0, 0, '', 'Wrath Remix: William Allerton, alive, Farshire Mine'),
+(30, 0, 770550, 7704330, 1, 47, 0, 77043, 74, 0, 0, 0, 0, '', 'Wrath Remix: William Allerton, alive, Farshire Mine'),
+(30, 0, 770550, 7704330, 1, 47, 0, 11599, 10, 0, 0, 0, 0, '', 'Wrath Remix: William Allerton, alive, Farshire Mine'),
 (30, 0, 770551, 7704331, 0, 47, 0, 77043, 8, 0, 0, 0, 0, '', 'Wrath Remix: the cult''s assassin over Allerton'),
 (30, 0, 770552, 7704332, 0, 47, 0, 77045, 8, 0, 0, 0, 0, '', 'Wrath Remix: Private Harker, captive, En''kilah'),
 (30, 0, 770553, 7704333, 0, 47, 0, 77045, 8, 0, 0, 0, 0, '', 'Wrath Remix: Private Dunn, captive, En''kilah'),
@@ -751,16 +753,16 @@ INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `IconNa
 (770104, 5, 6038, 'Lantern', '', '', '', 1.0, '', '', 0),
 (770105, 5, 194, 'Brazier', '', '', '', 1.0, '', '', 0);
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `ScriptName`, `VerifiedBuild`, `Comment`) VALUES
-(7705300, 770100, 571, 0, 0, 1, 32769, 5719.00, 999.00, 174.50, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: Moratari''s tent, the Bazaar'),
-(7705301, 770101, 571, 0, 0, 1, 32769, 5719.42, 998.73, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s rug'),
-(7705302, 770102, 571, 0, 0, 1, 32769, 5721.32, 996.32, 174.52, 2.8703, 0, 0, 0.990811, 0.135253, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
-(7705303, 770102, 571, 0, 0, 1, 32769, 5722.57, 997.89, 174.52, 2.1703, 0, 0, 0.884363, 0.466800, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
-(7705304, 770102, 571, 0, 0, 1, 32769, 5722.59, 999.78, 174.52, 3.7703, 0, 0, 0.951003, -0.309181, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
-(7705305, 770103, 571, 0, 0, 1, 32769, 5721.24, 994.71, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
-(7705306, 770103, 571, 0, 0, 1, 32769, 5723.89, 998.47, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
-(7705307, 770103, 571, 0, 0, 1, 32769, 5719.00, 1002.33, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
-(7705308, 770105, 571, 0, 0, 1, 32769, 5716.98, 996.97, 174.52, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s brazier'),
-(7705309, 770104, 571, 0, 0, 1, 32769, 5714.31, 1003.91, 174.50, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: the lamp by her tent''s door');
+(7705300, 770100, 571, 0, 0, 1, 32769, 6413.00, 1853.00, 508.60, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: Moratari''s tent, the Bazaar'),
+(7705301, 770101, 571, 0, 0, 1, 32769, 6413.42, 1852.73, 508.62, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s rug'),
+(7705302, 770102, 571, 0, 0, 1, 32769, 6415.32, 1850.32, 508.62, 2.8703, 0, 0, 0.990811, 0.135253, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
+(7705303, 770102, 571, 0, 0, 1, 32769, 6416.57, 1851.89, 508.62, 2.1703, 0, 0, 0.884363, 0.466800, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
+(7705304, 770102, 571, 0, 0, 1, 32769, 6416.59, 1853.78, 508.62, 3.7703, 0, 0, 0.951003, -0.309181, 300, 100, 1, '', 0, 'Wrath Remix: cushions in her tent'),
+(7705305, 770103, 571, 0, 0, 1, 32769, 6415.24, 1848.71, 508.62, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
+(7705306, 770103, 571, 0, 0, 1, 32769, 6417.89, 1852.47, 508.62, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
+(7705307, 770103, 571, 0, 0, 1, 32769, 6413.00, 1856.33, 508.62, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: a candle in her tent'),
+(7705308, 770105, 571, 0, 0, 1, 32769, 6410.98, 1850.97, 508.62, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: her tent''s brazier'),
+(7705309, 770104, 571, 0, 0, 1, 32769, 6408.31, 1857.91, 508.60, 2.5703, 0, 0, 0.959473, 0.281799, 300, 100, 1, '', 0, 'Wrath Remix: the lamp by her tent''s door');
 
 DELETE FROM `quest_template` WHERE `ID` IN (77041, 77042, 77043, 77044, 77045, 77046, 77047, 77050, 77051, 77054, 77056, 77223, 77236, 77234, 77235, 77048, 77049, 77230, 77901, 77902, 77903, 77904, 77905, 77906, 77907, 77908, 77909);
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77041, 77042, 77043, 77044, 77045, 77046, 77047, 77050, 77051, 77054, 77056, 77223, 77236, 77234, 77235, 77048, 77049, 77230, 77901, 77902, 77903, 77904, 77905, 77906, 77907, 77908, 77909);
@@ -791,13 +793,13 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77049, 2, -1, 20, 3537, 5, 0, 0, 1101, 0, 'Forged Orders', 'Give Corporal Venn at Death''s Stand the orders that send Unit S''s survivors and Hammerhill''s volunteers home.', 'History lost Unit S on the beach where they landed, and never went looking. If four of them walk back into Valiance Keep with the counselor''s name on their lips, the questions the Expedition asks next are ones history never asked.$B$BThey are not going to die for that. I will not allow it. But they can go home, quietly: I have written orders sending them to Stormwind''s harbor, with Hammerhill''s volunteers to see them aboard. They carry the general''s seal. The counselor kept a copy in his desk, and he will not be needing it.$B$BTake them to Corporal Venn. He will understand more than you think.', 'Return to Moratari.', 770601, 1, 0, 0, 0, 0, 0, 0, 'Corporal Venn given the orders', '', '', '', 0, 0, 0),
 (77230, 2, -1, 20, 3537, 5, 0, 0, 690, 0, 'The Record Keeps Warsong', 'Tell Gorge, on the Coast of Echoes, that the Warchief is calling every soldier who can walk back to Orgrimmar. Moratari will take you there and back.', 'Orgrimmar is under martial law, and the Warchief is calling every soldier who can walk back to the city. In the record, the coast at Garrosh''s Landing is condemned again by the end of the week: no garrison, no spare tanks, no one on the beach but Gorge, a goblin and the mist.$B$BThere is a garrison there now, because of us. If it stays while the rest of the Horde goes home, someone will ask why, and I would rather nobody did, $N.$B$BGo and tell Gorge. He will take it badly. He takes everything badly.', 'Return to Moratari.', 770602, 1, 0, 0, 0, 0, 0, 0, 'Gorge told of the recall', '', '', '', 0, 0, 0),
 (77901, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'A Cup of Something Hot', 'Sit with Moratari, and share her tea.', 'I have been taking notes on you since the landing, $N: how you fight, what you eat, which way you turn when something growls. It occurs to me that you have none on me.$B$BYou ask me where the Scourge will be, and when, and how many. Sensible questions. Nobody ever asks a dragon anything else.$B$BSit with me a while. I have tea. Every dragon who keeps time keeps tea; it is the one thing that tastes the same in every century.', 'Return to Moratari.', 770700, 1, 0, 0, 0, 0, 0, 0, 'Tea shared with Moratari', '', '', '', 0, 0, 0),
-(77902, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'Shore Leave', 'Have a drink with Moratari at an inn in Dalaran.', 'Eternus says we are ahead of the record. Two days, perhaps three. He says it as if it were a problem.$B$BI say it is shore leave. There is an inn in Dalaran (in this year the city has only just arrived, and the floors are still settling) where nobody knows either of us, and the cider is better than it has any right to be.$B$BOne drink, $N. As friends. Mostly as friends.', 'Return to Moratari.', 770701, 1, 0, 0, 0, 0, 0, 0, 'A drink with Moratari', '', '', '', 0, 0, 0),
+(77902, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'Shore Leave', 'Have a drink with Moratari at an inn in Dalaran.', 'Eternus says we are ahead of the record. Two days, perhaps three. She says it as if it were a problem.$B$BI say it is shore leave. There is an inn in Dalaran (in this year the city has only just arrived, and the floors are still settling) where nobody knows either of us, and the cider is better than it has any right to be.$B$BOne drink, $N. As friends. Mostly as friends.', 'Return to Moratari.', 770701, 1, 0, 0, 0, 0, 0, 0, 'A drink with Moratari', '', '', '', 0, 0, 0),
 (77903, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'Dinner at Krasus'' Landing', 'Have dinner with Moratari at Krasus'' Landing in Dalaran.', 'I have a confession. I bought a dress.$B$BIn the Bazaar you can buy anything from any year. I tried on eleven. I have chosen between whole centuries with less fuss.$B$BThere is a landing on the edge of Dalaran named for Krasus, a dragon who sat on the Kirin Tor''s council for years in an elf''s shape, and hardly anyone knew. I have always thought he would understand me.$B$BHave dinner with me there, $N. Properly. Not as friends.', 'Return to Moratari.', 770702, 1, 0, 0, 0, 0, 0, 0, 'Dinner at Krasus'' Landing', '', '', '', 0, 0, 0),
 (77904, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'The View from Wyrmrest', 'Go with Moratari to the top of Wyrmrest Temple at night.', 'You were on Wyrmrest today, among the Accord''s dragons, and I kept my distance. Dragons always know another dragon, whatever shape she wears, and Chromie has met enough of the Infinite this week.$B$BBut there is something I want to show you there, $N, from the top of the temple, at night, when the Accord is asleep. Come with me.', 'Return to Moratari.', 770703, 1, 0, 0, 0, 0, 0, 0, 'The view from Wyrmrest', '', '', '', 0, 0, 0),
-(77905, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'What Eternus Left Out', 'Stay with Moratari a while.', 'I need to sit down.$B$B...He knew, $N. Eternus knew the war had to happen as it did, and he sent us to change it anyway, and he let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of time who spent a month vandalizing it.$B$BSit with me a while. Please. You do not have to say anything.', 'Return to Moratari.', 770704, 1, 0, 0, 0, 0, 0, 0, 'Moratari comforted', '', '', '', 0, 0, 0),
+(77905, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'What Eternus Left Out', 'Stay with Moratari a while.', 'I need to sit down.$B$B...She knew, $N. Eternus knew the war had to happen as it did, and she sent us to change it anyway, and she let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of time who spent a month vandalizing it.$B$BSit with me a while. Please. You do not have to say anything.', 'Return to Moratari.', 770704, 1, 0, 0, 0, 0, 0, 0, 'Moratari comforted', '', '', '', 0, 0, 0),
 (77906, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'On Bronze Wings', 'Fly with Moratari from Dalaran to Wyrmrest Temple, on her back.', 'You have flown on gryphons, and wyverns, and the Accord''s drakes, and every one of them was carrying you somewhere for the war.$B$BI am offering something else, $N: my back, the sky over Dalaran, and the long way down to Wyrmrest, with nowhere we have to be when we land.$B$BI have never carried anyone before. I find I would like to.', 'Return to Moratari.', 770705, 1, 0, 0, 0, 0, 0, 0, 'A flight on Moratari''s back', '', '', '', 0, 0, 0),
 (77907, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'An Adventure of Our Own', 'Spend an afternoon with Moratari by a river in Sholazar Basin.', 'I have followed you through a great many other people''s stories. Today I would like one of our own.$B$BThere is a river below Nesingwary''s camp, warm and slow, with one good bank in the sun. There are also crocolisks, who believe that bank is theirs. I have brought a blanket and a basket. Shall we discuss it with them?', 'Return to Moratari.', 770706, 1, 0, 0, 0, 0, 0, 0, 'An afternoon by the river', '', '', '', 0, 0, 0),
-(77908, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'The Lamp That Is Always Lit', 'Spend the night in Moratari''s tent at the Bazaar.', 'I have a tent at the Bazaar. You have walked past it a hundred times: the one with the lamp that is always lit.$B$BNo one goes in. Not Eternus, when he was there; not the porters who sweep the paths. It is the only place in any year that is only mine.$B$BI would like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.', 'Return to Moratari.', 770707, 1, 0, 0, 0, 0, 0, 0, 'A night in Moratari''s tent', '', '', '', 0, 0, 0),
+(77908, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'The Lamp That Is Always Lit', 'Spend the night in Moratari''s tent at the Bazaar.', 'I have a tent at the Bazaar. You have walked past it a hundred times: the one with the lamp that is always lit.$B$BNo one goes in. Not Eternus, when she was there; not the porters who sweep the paths. It is the only place in any year that is only mine.$B$BI would like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.', 'Return to Moratari.', 770707, 1, 0, 0, 0, 0, 0, 0, 'A night in Moratari''s tent', '', '', '', 0, 0, 0),
 (77909, 2, -1, 10, 0, 5, 0, 0, 0, 0, 'Whatever Comes After', 'Walk with Moratari to the edge of the camp, and hear her promise.', 'Icecrown. The end of the war is up that glacier, and after the end you go home, to your own year. I cannot follow you there, $N. One of my kind who walks out of her own time does not come back, and someone has to stay behind and send you home.$B$BI am not sad. I am... a little sad.$B$BWalk with me to the edge of the camp. I want to make you a promise, and I would rather not make it in front of Tirion.', 'Return to Moratari.', 770708, 1, 0, 0, 0, 0, 0, 0, 'Moratari''s promise', '', '', '', 0, 0, 0);
 INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `NextQuestID`, `ExclusiveGroup`) VALUES
 (77041, 11672, 0, 0),
@@ -886,9 +888,9 @@ INSERT INTO `remix_departure` (`quest`, `map`, `x`, `y`, `z`, `o`) VALUES
 (77230, 571, 2822.50, 6708.50, 10.80, 2.700);
 INSERT INTO `remix_bridge` (`quest`, `next_quest`, `chapter`, `map`, `x`, `y`, `z`, `o`, `skipped`) VALUES
 (77046, 0, 0, 571, 3292.80, 3679.60, 32.55, 0.600, ''),
-(77048, 0, 0, 571, 5700.00, 1012.00, 174.60, 1.570, ''),
-(77049, 0, 0, 571, 5700.00, 1012.00, 174.60, 1.570, ''),
-(77230, 0, 0, 571, 5700.00, 1012.00, 174.60, 1.570, '');
+(77048, 0, 0, 571, 6394.00, 1866.00, 508.70, 1.570, ''),
+(77049, 0, 0, 571, 6394.00, 1866.00, 508.70, 1.570, ''),
+(77230, 0, 0, 571, 6394.00, 1866.00, 508.70, 1.570, '');
 INSERT INTO `remix_quest_reward` (`quest`, `bronze`) VALUES (77041, 800), (77042, 800), (77043, 800), (77044, 800), (77045, 800), (77046, 800), (77047, 1500), (77050, 800), (77051, 800), (77054, 800), (77056, 1500), (77223, 800), (77236, 800), (77234, 800), (77235, 800), (77048, 1000), (77049, 1000), (77230, 1000), (77901, 300), (77902, 300), (77903, 500), (77904, 300), (77905, 300), (77906, 500), (77907, 300), (77908, 500), (77909, 1000);
 
 DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` IN (11596, 11599, 11606, 11727, 11956, 12036, 12189, 12221, 12251, 77006, 77017, 77018, 77048, 77049, 77050, 77056, 77121, 77122, 77221, 77222, 77230, 77901, 77902, 77903, 77904, 77905, 77906, 77907, 77908, 77909);
@@ -916,9 +918,18 @@ INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry
 (19, 0, 77056, 0, 0, 8, 0, 77054, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77056 in the story'),
 (19, 0, 77121, 0, 0, 8, 0, 77047, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77121 in the story'),
 (19, 0, 77122, 0, 0, 8, 0, 77056, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77122 in the story'),
-(19, 0, 77221, 0, 0, 8, 0, 77048, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
-(19, 0, 77221, 0, 0, 8, 0, 77049, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
-(19, 0, 77222, 0, 0, 8, 0, 77230, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77222 in the story'),
+(19, 0, 77221, 0, 0, 8, 0, 77207, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 1, 8, 0, 77048, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 1, 8, 0, 77049, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 2, 8, 0, 77048, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 2, 8, 0, 77045, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 3, 8, 0, 77043, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 3, 8, 0, 77049, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 4, 8, 0, 77043, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77221, 0, 4, 8, 0, 77045, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77221 in the story'),
+(19, 0, 77222, 0, 0, 8, 0, 77207, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77222 in the story'),
+(19, 0, 77222, 0, 1, 8, 0, 77230, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77222 in the story'),
+(19, 0, 77222, 0, 2, 8, 0, 77054, 0, 0, 1, 0, 0, '', 'Wrath Remix: quest 77222 in the story'),
 (19, 0, 77230, 0, 0, 8, 0, 77207, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77230 in the story'),
 (19, 0, 77230, 0, 0, 8, 0, 13242, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77230 in the story'),
 (19, 0, 77230, 0, 0, 8, 0, 77054, 0, 0, 0, 0, 0, '', 'Wrath Remix: quest 77230 in the story'),

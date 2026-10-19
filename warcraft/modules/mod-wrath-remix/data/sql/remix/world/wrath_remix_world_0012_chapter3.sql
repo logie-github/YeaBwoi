@@ -9,9 +9,10 @@
 --   WRM-302  both      after Voices From the Dust (12068)         at Drak'Tharon's door, before Cleansing Drak'Tharon
 --   WRM-321  both      after Cleansing Drak'Tharon (12238): to Light's Breach in Zul'Drak, Chapter IV
 --
--- Cleansing Drak'Tharon is turned in to an Image of Drakuru the dungeon summons at its top, where
--- nobody can stand beside it: WRM-321's Moratari is the one at the door, by the Image of Drakuru
--- outside.
+-- Voices From the Dust is turned in to the Image of Drakuru at Drakil'jin Ruins, Cleansing
+-- Drak'Tharon to the one the dungeon summons at its top, where nobody can stand beside it: WRM-302's
+-- and WRM-321's Moratari stands at the keep's door in the Grizzly Hills instead
+-- (wrath_remix_world_0004_spawns.sql), where the Timerunner goes in and the keep puts them out again.
 
 SET @MORATARI := 770001;
 
@@ -108,12 +109,12 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77303, 2, 40, 32, 394, 5, 0, 0, 1101,
  'The Hollow Crown',
  'Break 3 Temporal Anchors around Ursoc''s Den, then speak with Alleria Windrunner there.',
- 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.',
+ 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.$B$BFor the world''s sake. Do not flatter yourself.',
  'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0),
 (77313, 2, 40, 32, 394, 5, 0, 0, 690,
  'The Hollow Crown',
  'Break 3 Temporal Anchors around Ursoc''s Den, then speak with Alleria Windrunner there.',
- 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.',
+ 'You felt it too, didn''t you? No. You wouldn''t have. Not yet.$B$BEternus''s agents have set Temporal Anchors around Ursoc''s Den. Stand with me a moment, $n, and I will tell you why that frightens me.$B$BFor the world''s sake. Do not flatter yourself.',
  'Speak with Alleria Windrunner at Ursoc''s Den.', @ANCHOR, 3, 'Temporal Anchor broken', 0);
 
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77303, 77313);
@@ -123,8 +124,8 @@ INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77303, 0), (773
 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77303, 77313);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
-(77303, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BHierophant Thayreen is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0),
-(77313, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$BWindseer Grayhorn is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0);
+(77303, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$B<She looks you over for wounds, finds none worth mentioning, and mentions one anyway.>$B$BClean that before it festers. I am not asking.$B$BHierophant Thayreen is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0),
+(77313, 1, 'That''s the last of them. Feel that? No, of course you don''t. The hills just went quiet again, the way a room goes quiet when something in it stops pretending to sleep.$B$B<She looks you over for wounds, finds none worth mentioning, and mentions one anyway.>$B$BClean that before it festers. I am not asking.$B$BWindseer Grayhorn is waiting for you. Do what you came here to do, and do it kindly. Ursoc did not choose what happened to him.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77303, 77313);
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (@ALLERIA_ABROAD, 77303), (@ALLERIA_ABROAD, 77313);

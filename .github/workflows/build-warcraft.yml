@@ -441,6 +441,8 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/lua"
           "$RUNNER_TEMP/lua/bin/pip" install --quiet lupa
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_screen.py
+          "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_gear.py
+          "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_zoom.py
 
       # The checksums the app checks a Turtle WoW client and its DBC files against come from the
       # pinned Tortoise-WoW; they must be the ones at that commit.

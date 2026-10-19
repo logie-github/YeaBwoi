@@ -37,7 +37,6 @@
 #include "WorldSession.h"
 #include <chrono>
 #include <cstdlib>
-#include <functional>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -136,6 +135,26 @@ namespace WrathRemix
             std::ofstream(dir + "/failed/" + stem + ".why") << why << "\n";
         }
 
+        // Everyone at the Bazaar, once the Timerunner is there (the journey takes a loading screen):
+        // a look a second, [tries] times. (Given the player, not their guid: on the way between
+        // maps they're in no world, and the game doesn't find them by it.)
+        void WelcomeWhenThere(Player* player, uint32 tries)
+        {
+            if (!tries)
+                return;
+            ObjectGuid guid = player->GetGUID();
+            player->m_Events.AddEventAtOffset([guid, tries]()
+            {
+                Player* p = ObjectAccessor::FindPlayer(guid);
+                if (!p)
+                    return;
+                if (!p->IsBeingTeleported() && p->GetMapId() == MAP_NORTHREND && p->GetExactDist2d(BAZAAR_X, BAZAAR_Y) < 40.0f)
+                    PlayScene(p, SCENE_RETURN);
+                else
+                    WelcomeWhenThere(p, tries - 1);
+            }, tries == 30 ? 2500ms : 1000ms);
+        }
+
         void BringBack(ObjectGuid guid)
         {
             {
@@ -150,6 +169,12 @@ namespace WrathRemix
             if (!bazaar)
                 return;
             Record(player, "return", NPC_THE_LICH_KING, 0);
+            // (one who fell in the citadel comes back alive, not as a ghost far from their body)
+            if (!player->IsAlive())
+            {
+                player->ResurrectPlayer(1.0f);
+                player->SpawnCorpseBones();
+            }
             player->TeleportTo(bazaar->map, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
 
             // Eternus's letter, from the river's edge.
@@ -160,20 +185,7 @@ namespace WrathRemix
                 CharacterDatabase.CommitTransaction(trans);
             }
 
-            // Everyone at the Bazaar, once they're there (the journey takes a loading screen).
-            std::shared_ptr<uint32> tries = std::make_shared<uint32>(30);
-            std::shared_ptr<std::function<void()>> wait = std::make_shared<std::function<void()>>();
-            *wait = [guid, tries, wait]()
-            {
-                Player* p = ObjectAccessor::FindPlayer(guid);
-                if (!p || !(*tries)--)
-                    return;
-                if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == MAP_NORTHREND && p->GetExactDist2d(BAZAAR_X, BAZAAR_Y) < 40.0f)
-                    PlayScene(p, SCENE_RETURN);
-                else
-                    p->m_Events.AddEventAtOffset([wait]() { (*wait)(); }, 1s);
-            };
-            player->m_Events.AddEventAtOffset([wait]() { (*wait)(); }, 2500ms);
+            WelcomeWhenThere(player, 30);
         }
 
         void BringBackSoon(Player* player, Milliseconds after)
@@ -331,6 +343,11 @@ namespace WrathRemix
             player->DestroyItemCount(ITEM_BRONZE, bronze, true, false);
         if (uint32 hourglasses = player->GetItemCount(ITEM_HOURGLASS, true))
             player->DestroyItemCount(ITEM_HOURGLASS, hourglasses, true, false);
+        // So does the Unrisen's plate, worn or not (items 77010 to 77020, wrath_remix_world_0031:
+        // ChromieCraft's world has no such items).
+        for (uint32 item = 77010; item <= 77020; ++item)
+            if (uint32 count = player->GetItemCount(item, true))
+                player->DestroyItemCount(item, count, true, false);
 
         // Saved first, the way the game saves (asynchronously: some of a character's statements
         // are only prepared for that), and the dump written once the save is in, since it reads
@@ -577,6 +594,36 @@ public:
     }
 };
 
+// One who saw the Lich King fall and was gone before they were brought back (a logout, a lost
+// connection, the realm stopped: the wait goes with them) is brought back as they log in; the
+// journal says so after a restart (his fall, and no return since). Any wait left from before is
+// forgotten, so no later cinematic takes anyone to the Bazaar.
+class WrathRemixEndingPlayer : public PlayerScript
+{
+public:
+    WrathRemixEndingPlayer() : PlayerScript("WrathRemixEndingPlayer", { PLAYERHOOK_ON_LOGIN }) { }
+
+    void OnPlayerLogin(Player* player) override
+    {
+        if (!Active() || IsBot(player))
+            return;
+        bool waiting;
+        {
+            std::lock_guard<std::mutex> lock(returningLock);
+            waiting = returning.erase(player->GetGUID()) != 0;
+        }
+        if (player->GetQuestStatus(QUEST_LAST_NECESSARY_BATTLE) != QUEST_STATUS_COMPLETE)
+            return;
+        if (!waiting)
+            if (QueryResult last = CharacterDatabase.Query("SELECT `what` FROM `remix_log` WHERE `guid` = {} AND `what` IN ('lich king', 'return') ORDER BY `id` DESC LIMIT 1",
+                    player->GetGUID().GetCounter()))
+                waiting = last->Fetch()[0].Get<std::string>() == "lich king";
+        // (once they're in the world: after the realm's own first moments at login)
+        if (waiting)
+            ReturnToBazaarSoon(player, 5s);
+    }
+};
+
 // ChromieCraft takes in the Timerunners who came home, as its world server starts; Wrath Remix lets
 // them go at its own next start, once ChromieCraft has them.
 class WrathRemixHomecoming : public WorldScript
@@ -597,5 +644,6 @@ void AddRemixEndingScripts()
 {
     new WrathRemixEnding();
     new WrathRemixEndingPackets();
+    new WrathRemixEndingPlayer();
     new WrathRemixHomecoming();
 }

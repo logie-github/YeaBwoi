@@ -35,7 +35,7 @@
 #      (remix_check.py patch) and ChromieCraft's world server takes it out; the realm's bots
 #      leave where characters are made for their chapters. The campaign from Chapter II to the end is
 #      played on each side (warcraft/server/remix_campaign_*.steps): the story's quests and scenes,
-#      Eternus's agents and his last hour, the return to the Bazaar and the goodbyes; both
+#      Eternus's agents and her last hour, the return to the Bazaar and the goodbyes; both
 #      Timerunners go home, and ChromieCraft's world server takes them in, in their capitals.
 #   7. The auth server starts again the way the app starts it, and the account logs in.
 #   8. With strace, no server program made a system call Android's seccomp policy forbids apps.
@@ -404,7 +404,8 @@ EOF
 	export WORLD_PORT=8086
 	python3 "$ROOT/warcraft/server/auth_check.py" world 127.0.0.1 tester secret123 Timerunner | tee "$FILES/logs/remix-client.out" ||
 		fail "a character couldn't get into the Remix world"
-	grep -q "level 10, map 571" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 at the Infinite Bazaar"
+	# (made in the Gilded Rose, in their chair, where the opening begins)
+	grep -q "level 10, map 0, zone" "$FILES/logs/remix-client.out" || fail "the Timerunner isn't a level 10 in Stormwind's tavern"
 	python3 "$ROOT/warcraft/server/auth_check.py" characters 127.0.0.1 tester secret123 | tee "$FILES/logs/remix-characters.out"
 	if grep -q "^Testhero" "$FILES/logs/remix-characters.out"; then fail "ChromieCraft's character is on Wrath Remix"; fi
 
@@ -492,7 +493,7 @@ EOF
 	sent=$(grep -c "sent from the Infinite Bazaar" "$world_log" || true)
 	echo "bots sent from the Infinite Bazaar to their chapters: $sent"
 	[ "$sent" -gt 0 ] || fail "no bot was sent from the Infinite Bazaar"
-	left=$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.zone <> 0 AND c.totaltime >= 30 AND c.map = 571 AND c.position_x BETWEEN 5580 AND 5820 AND c.position_y BETWEEN 890 AND 1130" | CTL sql acore_characters_remix)
+	left=$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE a.username LIKE 'RNDBOT%' AND c.zone <> 0 AND c.totaltime >= 30 AND c.map = 571 AND c.position_x BETWEEN 6274 AND 6514 AND c.position_y BETWEEN 1746 AND 1986" | CTL sql acore_characters_remix)
 	[ "$left" = 0 ] || fail "$left of the realm's bots stayed at the Infinite Bazaar"
 
 	echo "== ChromieCraft takes Wrath Remix's patch out of the game, and its Timerunners in"
@@ -501,9 +502,14 @@ EOF
 	grep -q "Wrath Remix: its patch is out of the game" "$world_log" || fail "ChromieCraft's world server didn't take Wrath Remix's patch out"
 	[ ! -e "$FILES/client/Data/patch-Y.MPQ" ] || fail "Wrath Remix's patch is still in the game on ChromieCraft"
 	# home in their side's capital: Stormwind (map 0, zone 1519) and Orgrimmar (map 1, zone 1637)
+	# (the world server queues their writes as it starts: they can land a moment after it's ready)
 	for expected in "Wintergarde	0	1519" "Agmarshammer	1	1637"; do
 		name=${expected%%	*}
-		row=$(echo "SELECT name, map, zone FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		for _ in $(seq 30); do
+			row=$(echo "SELECT name, map, zone FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+			[ "$row" != "$expected" ] || break
+			sleep 1
+		done
 		echo "came home: $row"
 		[ "$row" = "$expected" ] || fail "$name didn't come home to ChromieCraft in their capital ($row)"
 	done

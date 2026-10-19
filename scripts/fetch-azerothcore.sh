@@ -44,22 +44,30 @@ echo "$MODULES" | while read -r name repo commit; do
 	git -C "$dir" clean -qfdx
 	# Some modules bring their libraries as submodules.
 	[ ! -f "$dir/.gitmodules" ] || git -C "$dir" submodule update -q --init --recursive --depth 1
-	# The core changes a module ships for itself (patches/azerothcore-*.patch, e.g. hooks it calls
-	# and the stock core lacks): applied to the core when they apply cleanly. When they don't, the
-	# module is left as it is and fails its own check, which the module build leaves it out for.
-	for hooks in "$dir"/patches/azerothcore-*.patch; do
-		[ -f "$hooks" ] || continue
-		if git -C "$SRC" apply --ignore-space-change --check "$hooks" 2> /dev/null; then
-			git -C "$SRC" apply --ignore-space-change "$hooks"
-			echo "$name: applied its core patch $(basename "$hooks")"
+	# The core changes a module needs and ships for itself (warcraft/module-core-patches.txt: module,
+	# then its patch's path in the module): applied to the core when they apply cleanly. A module
+	# is listed once its patch is known to be the one for the pinned module (some modules keep old
+	# patches in patches/ that mustn't be applied). When it doesn't apply, the module is left as it
+	# is and fails its own check, which the module build leaves it out for.
+	while read -r mod patch; do
+		[ "$mod" = "$name" ] && [ -f "$dir/$patch" ] || continue
+		if git -C "$SRC" apply --ignore-space-change --check "$dir/$patch" 2> /dev/null; then
+			git -C "$SRC" apply --ignore-space-change "$dir/$patch"
+			echo "$name: applied its core patch $patch"
 		else
-			echo "$name: its core patch $(basename "$hooks") doesn't apply to this core" >&2
+			echo "$name: its core patch $patch doesn't apply to this core" >&2
 		fi
-	done
+	done < "$ROOT/warcraft/module-core-patches.txt"
 	# The app's own changes to the module (warcraft/patches/<module>/).
 	set -- "$ROOT"/warcraft/patches/"$name"/*.patch
 	if [ -f "$1" ]; then
-		git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@"
+		# A module whose files have CRLF line endings looks modified after the checkout, which
+		# git am refuses: the patches are applied as they are then.
+		git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am -q "$@" ||
+			{
+				git -C "$dir" -c user.name="World of Warcraft" -c user.email="warcraft@users.noreply.github.com" am --abort
+				git -C "$dir" apply "$@"
+			}
 	fi
 done
 # The app's own modules, kept in this repository (warcraft/modules/), copied in as they are.

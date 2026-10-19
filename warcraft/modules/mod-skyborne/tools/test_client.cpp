@@ -12,6 +12,9 @@
 #include "SkybornePatch.h"
 #include <cstdio>
 #include <iostream>
+#include <map>
+#include <set>
+#include <tuple>
 
 using namespace Skyborne;
 
@@ -97,6 +100,29 @@ int main(int argc, char** argv)
     Check(leftover == 0, "no Naga or Broken looks left on races 13 and 14");
     Check(darkRanger == 2, "the blood elf's Dark Ranger skin, both sexes");
     Check(overlays > 0 && worn == 0, "section 4 rows carry no textures (" + std::to_string(overlays) + " rows)");
+    // An NPC's skin (flag 1 off) has a face row for every face its race and sex have (a look the game
+    // puts together itself with such a skin, Wrath Remix's Moratari in her dress, fails without one).
+    {
+        std::map<std::pair<uint32_t, uint32_t>, std::set<uint32_t>> faces;
+        std::map<std::tuple<uint32_t, uint32_t, uint32_t>, std::set<uint32_t>> facesOf;
+        std::set<std::tuple<uint32_t, uint32_t, uint32_t>> npcSkins;
+        for (size_t i = 0; i < sections.records.size(); ++i)
+        {
+            uint32_t race = sections.Get(i, 1), sex = sections.Get(i, 2), base = sections.Get(i, 3), color = sections.Get(i, 9);
+            if (base == 0 && !(sections.Get(i, 7) & 1))
+                npcSkins.insert({ race, sex, color });
+            if (base == 1)
+            {
+                faces[{ race, sex }].insert(sections.Get(i, 8));
+                facesOf[{ race, sex, color }].insert(sections.Get(i, 8));
+            }
+        }
+        int faceless = 0;
+        for (auto const& skin : npcSkins)
+            if (facesOf[skin].size() < faces[{ std::get<0>(skin), std::get<1>(skin) }].size())
+                ++faceless;
+        Check(!npcSkins.empty() && faceless == 0, "every NPC skin has its faces (" + std::to_string(npcSkins.size()) + " skins)");
+    }
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
@@ -109,6 +135,13 @@ int main(int argc, char** argv)
     Bytes toc;
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneCreate.lua") != std::string::npos,
           "the character screen loads theirs");
+    Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneGear.lua") != std::string::npos
+              && patch->Read("Interface\\GlueXML\\SkyborneGearData.lua", bytes) && bytes.size() > 1000
+              && patch->Read("Interface\\GlueXML\\SkyborneGear.xml", bytes) && patch->Read("Interface\\GlueXML\\SkyborneGear.lua", bytes),
+          "the character screen has the gear button");
+    Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneZoom.lua") != std::string::npos
+              && patch->Read("Interface\\GlueXML\\SkyborneZoom.lua", bytes) && bytes.size() > 500,
+          "the character screen zooms");
     Check(patch->Read("Sound\\CinematicVoices\\SkyborneNarration.mp3", bytes) && bytes.size() > 100000, "the narration");
 
     Bytes icons;

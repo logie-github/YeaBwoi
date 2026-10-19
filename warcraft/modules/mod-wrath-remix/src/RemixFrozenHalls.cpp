@@ -8,7 +8,8 @@
  * of it is needed: the dungeon and its quests go on as they always do.
  *
  * Only on Wrath Remix's world database is her creature template given this script
- * (wrath_remix_world_0020_frozen_halls.sql); ChromieCraft keeps the game's.
+ * (wrath_remix_world_0020_frozen_halls.sql); ChromieCraft keeps the game's. An Alliance group's is
+ * Jaina, the same creature made Jaina by the instance as it's created: she keeps the game's script.
  */
 
 #include "WrathRemix.h"
@@ -16,7 +17,9 @@
 #include "CreatureAI.h"
 #include "CreatureAIImpl.h"
 #include "GossipDef.h"
+#include "InstanceScript.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
@@ -144,6 +147,14 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
+        // An Alliance group's Sylvanas becomes Jaina just after her AI is chosen (the instance's
+        // OnCreatureCreate, which keeps the AI), and Jaina's gossip is the game's, asking the AI
+        // for her briefing: so she has the game's AI too, chosen by the instance's side, known
+        // from the moment it's made.
+        if (InstanceScript* instance = creature->GetInstanceScript())
+            if (instance->GetTeamIdInInstance() == TEAM_ALLIANCE)
+                if (CreatureScript* game = ScriptRegistry<CreatureScript>::GetScriptById(sObjectMgr->GetScriptId("npc_fos_leader")))
+                    return game->GetAI(creature);
         return GetInstanceAI<npc_remix_fos_sylvanasAI>(creature, "instance_forge_of_souls");
     }
 };

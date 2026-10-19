@@ -19,7 +19,9 @@
 #include <cctype>
 #include <cmath>
 #include <chrono>
+#include <map>
 #include <set>
+#include <tuple>
 #include <cstdio>
 #include <sstream>
 
@@ -27,7 +29,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-9";
+        constexpr char const* VERSION = "skyborne-10";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -300,6 +302,72 @@ namespace Skyborne
                         dbc.Set(row, field, dbc.String(""));
         }
 
+        // A skin the game gives only its NPCs (the face painted into it) has no face or overlay rows:
+        // the game always draws such an NPC from a texture baked beforehand. A look the game puts
+        // together itself (Wrath Remix's Moratari in her dress and in her tent: her own skin, no baked
+        // texture) asks for those rows, and the game fails without them. Every NPC skin gets a face
+        // row for each face its race and sex have, and an overlay row, with no textures (as the
+        // overlays' are): the skin's own face shows.
+        void CompleteSkins(Dbc& dbc)
+        {
+            if (dbc.fields < 10 || dbc.size != dbc.fields * 4)
+                return;
+            using Who = std::pair<uint32_t, uint32_t>;                      // race, sex
+            using Colour = std::tuple<uint32_t, uint32_t, uint32_t>;        // race, sex, skin colour
+            std::map<Who, std::set<uint32_t>> faces;
+            std::set<Who> overlays;
+            std::map<Colour, std::set<uint32_t>> facesOf;
+            std::set<Colour> overlaid;
+            std::map<Colour, uint32_t> skins;                               // a skin colour: its row's flags
+            uint32_t next = 0;
+            for (size_t row = 0; row < dbc.records.size(); ++row)
+            {
+                uint32_t race = dbc.Get(row, 1), sex = dbc.Get(row, 2), section = dbc.Get(row, 3);
+                uint32_t variation = dbc.Get(row, 8), colour = dbc.Get(row, 9);
+                next = std::max(next, dbc.Get(row, 0) + 1);
+                if (section == 0)
+                    skins[{ race, sex, colour }] = dbc.Get(row, 7);
+                else if (section == 1)
+                {
+                    faces[{ race, sex }].insert(variation);
+                    facesOf[{ race, sex, colour }].insert(variation);
+                }
+                else if (section == 4)
+                {
+                    overlays.insert({ race, sex });
+                    overlaid.insert({ race, sex, colour });
+                }
+            }
+            uint32_t none = dbc.String("");
+            auto add = [&](uint32_t race, uint32_t sex, uint32_t section, uint32_t flags, uint32_t variation, uint32_t colour)
+            {
+                dbc.records.emplace_back(dbc.size, 0);
+                size_t row = dbc.records.size() - 1;
+                for (uint32_t field : { 4u, 5u, 6u })
+                    dbc.Set(row, field, none);
+                dbc.Set(row, 0, next++);
+                dbc.Set(row, 1, race);
+                dbc.Set(row, 2, sex);
+                dbc.Set(row, 3, section);
+                dbc.Set(row, 7, flags);
+                dbc.Set(row, 8, variation);
+                dbc.Set(row, 9, colour);
+            };
+            for (auto const& [skin, flags] : skins)
+            {
+                // (only the NPCs': a skin a player can choose, flag 1, keeps the faces it has)
+                if (flags & 1)
+                    continue;
+                auto [race, sex, colour] = skin;
+                std::set<uint32_t> const& has = facesOf[skin];
+                for (uint32_t face : faces[{ race, sex }])
+                    if (!has.count(face))
+                        add(race, sex, 1, flags, face, colour);
+                if (overlays.count({ race, sex }) && !overlaid.count(skin))
+                    add(race, sex, 4, flags, 0, colour);
+            }
+        }
+
         // HD looks (blood elves' among them) give a skin a second texture, <skin>_Extra.blp, with the
         // ears, jaw and eyes: CharSections' second texture of the skin's row. The rows put here come
         // from the server's tables, which haven't it: a skin row without one gets its _Extra where the
@@ -445,6 +513,8 @@ namespace Skyborne
             if (Lower(name) == "charsections")
                 EmptyOverlayRows(dbc);
             if (Lower(name) == "charsections")
+                CompleteSkins(dbc);
+            if (Lower(name) == "charsections")
                 textures += RetouchAll(dbc, game, shading, body, made, writer);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
@@ -470,8 +540,23 @@ namespace Skyborne
                     text += "\r\n";
                 text += "SkyborneCreate.xml\r\nSkyborneCreate.lua\r\n";
             }
+            // The gear button, after the race and class buttons it sits by: its data, the button, its code.
+            if (text.find("SkyborneGear.xml") == std::string::npos)
+            {
+                if (!text.empty() && text.back() != '\n')
+                    text += "\r\n";
+                text += "SkyborneGearData.lua\r\nSkyborneGear.xml\r\nSkyborneGear.lua\r\n";
+            }
+            // The preview's zoom (the mouse wheel: the app's pinch).
+            if (text.find("SkyborneZoom.lua") == std::string::npos)
+            {
+                if (!text.empty() && text.back() != '\n')
+                    text += "\r\n";
+                text += "SkyborneZoom.lua\r\n";
+            }
             writer.Add("Interface\\GlueXML\\GlueXML.toc", Bytes(text.begin(), text.end()));
-            for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua" })
+            for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua", "SkyborneGearData.lua", "SkyborneGear.xml", "SkyborneGear.lua",
+                                      "SkyborneZoom.lua" })
                 writer.Add(std::string("Interface\\GlueXML\\") + name, ReadFile(moduleData / "Interface" / "GlueXML" / name));
         }
         else

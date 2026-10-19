@@ -13,9 +13,12 @@
 --            it goes to the doors of Icecrown Citadel): Eternus's last hour
 --   WRM-800  after The Last Hour, Moratari at the Citadel's doors: the Lich King; turned in to
 --            Moratari at the Bazaar, where the Timerunner is brought once the ending cinematic is
---            over (WrathRemix.cpp)
+--            over, or at their next login if they were gone before it (RemixEnding.cpp)
 --
 -- Spawns 7704280 to 7704299.
+--
+-- WRM-702 and WRM-701/711, both from the same Moratari, can be in the log together: each scene's
+-- credit, the scenes' one, goes to its own quest alone (RemixScenes.cpp).
 
 SET @MORATARI := 770001, @SYLVANAS := 770011, @SCENE_CREDIT := 770035, @LAST_HOUR_CREDIT := 770036, @LICH_KING := 36597;
 
@@ -27,7 +30,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77702, 2, 78, 70, 210, 5, 0, 0, 0,
  'What He Was Offered',
  'Hear Eternus out at Crusaders'' Pinnacle, then speak with Moratari.',
- 'Bridenbrad is at peace. The naaru came for him, and he went with them.$B$BSomeone else came for him first, $n. I can feel where Eternus stood in the snow beside him. He is still close. I think he wants to talk to you.$B$BStay with me a moment.',
+ 'Bridenbrad is at peace. The naaru came for him, and he went with them.$B$BSomeone else came for him first, $n. I can feel where Eternus stood in the snow beside him. She is still close. I think she wants to talk to you.$B$BStay with me a moment.',
  'Speak with Moratari at Crusaders'' Pinnacle.', @SCENE_CREDIT, 1, 'Eternus heard out', 0),
 -- WRM-701 / 711 (VII-A): the rest of Icecrown's war, and Sylvanas before the Frozen Halls.
 (77701, 2, 78, 70, 210, 5, 0, 0, 1101,
@@ -44,7 +47,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77721, 2, 80, 70, 210, 5, 0, 0, 0,
  'The Last Hour',
  'Face Eternus at the doors of Icecrown Citadel, then speak with Moratari there.',
- 'You came out. The record is whole.$B$BWe have reached the end of the road, $n. The Citadel. Bolvar''s last hour, and Arthas''s.$B$BAnd Eternus is at its doors. Every Infinite still loyal to him is with him. He means to hold the last hour open, and I do not think he will let anyone talk him out of it this time.$B$BSylvanas and Alleria are already there, and I will be beside you. Come.',
+ 'You came out. The record is whole.$B$BWe have reached the end of the road, $n. The Citadel. Bolvar''s last hour, and Arthas''s.$B$BAnd Eternus is at its doors. Every Infinite still loyal to her is with her. She means to hold the last hour open, and I do not think she will let anyone talk her out of it this time.$B$BSylvanas and Alleria are already there, and I will be beside you. Come.',
  'Speak with Moratari at the doors of Icecrown Citadel.', @LAST_HOUR_CREDIT, 1, 'Eternus driven off', 0),
 -- WRM-800: the Lich King (a raid's quest: its credit counts in a raid group).
 (77800, 2, 80, 70, 210, 5, 0, 64, 0,
@@ -58,10 +61,10 @@ INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77702, 13083), 
 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77701, 77702, 77711, 77721, 77800);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
-(77702, 1, 'He never asked any of them. I think he is only now realizing it.$B$BIt may be the most important thing that has happened to him in this whole war, and no one but you and I will ever know.', 0),
+(77702, 1, 'She never asked any of them. I think she is only now realizing it.$B$BIt may be the most important thing that has happened to her in this whole war, and no one but you and I will ever know.', 0),
 (77701, 1, 'Go. Apprentice Nelphi is waiting for you in Dalaran; she knows the way into the Frozen Halls. I will not be going with you.', 0),
 (77711, 1, 'Go. Dark Ranger Vorel is waiting for you in Dalaran. She serves me, in this year. Be kind to her.', 0),
-(77721, 1, 'Catch your breath, $n. He will not be back tonight.$B$BEverything we came here for is behind those doors.', 0),
+(77721, 1, 'Catch your breath, $n. She will not be back tonight.$B$BEverything we came here for is behind those doors.', 0),
 (77800, 1, 'You are back.$B$BSit down a moment. You have earned that, at least.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77701, 77702, 77711, 77721, 77800);
@@ -75,8 +78,8 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 -- west); to the doors of Icecrown Citadel, where its raid lets people out.
 DELETE FROM `remix_departure` WHERE `quest` IN (77701, 77711, 77721);
 INSERT INTO `remix_departure` (`quest`, `map`, `x`, `y`, `z`, `o`) VALUES
-(77701, 571, 5700.4, 1019.2, 174.6, 0.46),
-(77711, 571, 5700.4, 1019.2, 174.6, 0.46),
+(77701, 571, 6394.4, 1873.2, 508.7, 0.46),
+(77711, 571, 6394.4, 1873.2, 508.7, 0.46),
 (77721, 571, 5790.0, 2071.5, 636.1, 0.40);
 
 -- Turning in VII-A goes to Dalaran, before the Frozen Halls' first quest giver of each side.

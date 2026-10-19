@@ -231,7 +231,7 @@ WORDS = [
                                          "buried every one of them."),
     (CAREFUL_INVENTORY, TAKEN, HORDE, "Molder is across the yard, by the alchemists. Lawrence is the one with the ledger, among the braziers "
                                       "near Middleton."),
-    (THE_FORSAKEN_BLIGHT, TURNED_IN, HORDE, "So Eternus has his vial. Whatever he learns from it, you and I already know what it does. We saw "
+    (THE_FORSAKEN_BLIGHT, TURNED_IN, HORDE, "So Eternus has her vial. Whatever she learns from it, you and I already know what it does. We saw "
                                             "the Wrathgate after.", dict(delay=4000)),
     # The bronze
     (MYSTERY_OF_THE_INFINITE, TAKEN, BOTH, "The storm keeps her out as well as me. Something in common at last. I will wait at its edge, "

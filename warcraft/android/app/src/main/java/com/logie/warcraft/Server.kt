@@ -80,7 +80,7 @@ object Server {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Mutex()
-    private var job: Job? = null
+    @Volatile private var job: Job? = null
 
     private var db: Process? = null
     private var auth: Process? = null
@@ -99,6 +99,7 @@ object Server {
      */
     fun start(context: Context, realm: Realms.Realm? = null) {
         val app = context.applicationContext
+        checkRealm(app)
         if (_status.value.phase == Phase.STARTING || _status.value.phase == Phase.RUNNING) return
         val chosen = realm ?: Realms.current(app)
         // Starting already, so the service doesn't see the server stopped and end itself.
@@ -108,8 +109,14 @@ object Server {
             RealmLink.start(app, chosen)
             return
         }
-        ContextCompat.startForegroundService(app, Intent(app, ServerService::class.java))
-        job = scope.launch { lock.withLock { run(app, chosen) } }
+        job = scope.launch {
+            lock.withLock {
+                // (the service started once a stop before this is done: the service ends itself as
+                // it sees that stop's end, unless a start comes after it)
+                runCatching { ContextCompat.startForegroundService(app, Intent(app, ServerService::class.java)) }
+                run(app, chosen)
+            }
+        }
     }
 
     /** Stops the server. [then] runs once it's down (on a background thread). */
@@ -182,6 +189,26 @@ object Server {
             startAsked = 0L
         }
         _status.value = status
+    }
+
+    /**
+     * The app's process: Android can end the realm's process, and the server's programs with it,
+     * without a word to the app, and doesn't start it again. A realm said to be up whose process
+     * isn't there is down (its last status said otherwise): start makes it anew.
+     */
+    internal fun checkRealm(context: Context) {
+        if (RealmLink.inRealm) return
+        val status = _status.value
+        if (status.phase == Phase.STOPPED || status.phase == Phase.FAILED) return
+        val asked = startAsked
+        if (asked != 0L && SystemClock.elapsedRealtime() - asked < START_TAKEN_MS) return
+        if (RealmLink.realmRunning(context) != false) return
+        startAsked = 0L
+        _status.value = if (status.phase == Phase.STOPPING) {
+            Status(lanAddress = status.lanAddress, realm = status.realm)
+        } else {
+            Status(phase = Phase.FAILED, lanAddress = status.lanAddress, realm = status.realm)
+        }
     }
 
     /** The app's process: until the realm's process says the server is down (a few minutes at most). */

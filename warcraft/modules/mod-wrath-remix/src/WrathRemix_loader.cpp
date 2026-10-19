@@ -20,6 +20,12 @@ void AddRemixLessonScripts();
 void AddRemixMoratariScripts();
 void AddRemixOutingScripts();
 void AddRemixCampfireScripts();
+void AddRemixQuestFixupScripts();
+void AddRemixVoiceScripts();
+void AddRemixModelScripts();
+void AddRemixCastScripts();
+void AddRemixVileHoldSetScripts();
+void AddRemixMalykrissScripts();
 
 void Addmod_wrath_remixScripts()
 {
@@ -40,4 +46,10 @@ void Addmod_wrath_remixScripts()
     AddRemixMoratariScripts();
     AddRemixOutingScripts();
     AddRemixCampfireScripts();
+    AddRemixQuestFixupScripts();
+    AddRemixVoiceScripts();
+    AddRemixModelScripts();
+    AddRemixCastScripts();
+    AddRemixVileHoldSetScripts();
+    AddRemixMalykrissScripts();
 }

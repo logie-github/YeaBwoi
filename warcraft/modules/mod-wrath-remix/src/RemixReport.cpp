@@ -7,7 +7,7 @@
  * deaths, beside Moratari's transitions. The app's add-on (WowTouch, client/TouchAddon.kt) puts
  * Report Time Anomaly in the game's menu, and asks the realm for a report in an add-on message to
  * the player itself: "WowRemix<tab>report <what the player wrote>" (a long one in pieces, each one
- * but the last "report+ <its words>"; up to 2000 characters in all). The report says where the
+ * but the last "report+ <its words>"; up to 1000 letters in all). The report says where the
  * Timerunner is, the quest they're on and who they've spoken to since they took it, the rest of
  * their quest log, and the way they came (the journal's latest steps). It goes, in Markdown with
  * the title on its first line, into the folder WOW_REPORTS_DIR names (ctl.sh: files/run/reports),
@@ -45,8 +45,8 @@ namespace WrathRemix
         constexpr std::string_view ADDON_PREFIX = "WowRemix\t";
         constexpr uint32 JOURNAL_STEPS = 300;   // the report's way here: the journal's latest steps
         constexpr time_t TALK_AGAIN = 60;       // the same creature spoken to again within a minute: one line
-        constexpr time_t REPORT_AGAIN = 30;     // a report a moment after the last: a second tap
-        constexpr size_t REPORT_LENGTH = 2000;  // what a report's own words can run to (the add-on's box holds 1000)
+        constexpr time_t REPORT_AGAIN = 30;     // the same report a moment after the last: a second tap
+        constexpr size_t REPORT_LENGTH = 4000;  // what a report's own words can run to, in bytes (the add-on's box holds 1000 letters)
 
         // What the journal last noted for each Timerunner, so it doesn't repeat itself.
         struct Noted
@@ -55,6 +55,7 @@ namespace WrathRemix
             time_t talkTime = 0;
             uint32 zone = 0;
             time_t report = 0;
+            std::string reported;   // that report's words
             std::string draft;      // a long report's words so far ("report+" messages, ahead of its last)
         };
         std::mutex notedLock;
@@ -182,6 +183,17 @@ namespace WrathRemix
                     c = ' ';
             text.erase(0, text.find_first_not_of(' '));
             text.erase(text.find_last_not_of(' ') + 1);
+            return text;
+        }
+
+        // [text] cut to at most [bytes], not inside a letter (UTF-8).
+        std::string Cut(std::string text, size_t bytes)
+        {
+            if (text.size() <= bytes)
+                return text;
+            while (bytes > 0 && (uint8(text[bytes]) & 0xC0) == 0x80)
+                --bytes;
+            text.resize(bytes);
             return text;
         }
 
@@ -418,7 +430,11 @@ namespace WrathRemix
                 return "";
             std::error_code error;
             std::filesystem::create_directories(dir, error);
-            std::string name = Acore::StringFormat("anomaly-{}-{}.md", When(std::time(nullptr), "%Y%m%d-%H%M%S"), player->GetGUID().GetCounter());
+            std::string stem = Acore::StringFormat("anomaly-{}-{}", When(std::time(nullptr), "%Y%m%d-%H%M%S"), player->GetGUID().GetCounter());
+            std::string name = stem + ".md";
+            // (another within the same second: a name of its own)
+            for (uint32 i = 2; i < 100 && std::filesystem::exists(std::string(dir) + "/" + name, error); ++i)
+                name = Acore::StringFormat("{}-{}.md", stem, i);
             std::string path = std::string(dir) + "/" + name;
             std::string tmp = path + ".tmp";
             FILE* file = std::fopen(tmp.c_str(), "w");
@@ -440,36 +456,56 @@ namespace WrathRemix
         {
             std::lock_guard<std::mutex> lock(notedLock);
             std::string& draft = noted[player->GetGUID().GetCounter()].draft;
+            // (cut to its length, between letters, as the last one comes)
             if (draft.size() < REPORT_LENGTH)
-                draft += part.substr(0, REPORT_LENGTH - draft.size());
+                draft += part;
+        }
+
+        // A report that wasn't written: the same words again aren't taken for a second tap.
+        void NotReported(ObjectGuid::LowType guid)
+        {
+            std::lock_guard<std::mutex> lock(notedLock);
+            auto it = noted.find(guid);
+            if (it != noted.end())
+                it->second.report = 0;
         }
 
         void Report(Player* player, std::string said)
         {
             ChatHandler handler(player->GetSession());
             time_t now = std::time(nullptr);
+            ObjectGuid::LowType guid = player->GetGUID().GetCounter();
             {
                 std::lock_guard<std::mutex> lock(notedLock);
-                Noted& n = noted[player->GetGUID().GetCounter()];
-                said = (n.draft + said).substr(0, REPORT_LENGTH);
+                Noted& n = noted[guid];
+                said = Cut(n.draft + said, REPORT_LENGTH);
                 n.draft.clear();
-                if (now - n.report < REPORT_AGAIN)
+                // (other words are another report: written too)
+                if (now - n.report < REPORT_AGAIN && said == n.reported)
                 {
-                    handler.SendSysMessage("|cff8fd3ffTime anomaly:|r you reported one a moment ago. It's on its way.");
+                    handler.SendSysMessage("|cff8fd3ffTime anomaly:|r you reported that a moment ago. It's on its way.");
                     return;
                 }
                 n.report = now;
+                n.reported = said;
             }
             // (the journal's lines are written in order on the characters database's one worker
             // thread: what was noted just now is there when this reads it)
             WorldSession* session = player->GetSession();
             session->GetQueryProcessor().AddCallback(CharacterDatabase.AsyncQuery(Acore::StringFormat(
                 "SELECT `what`, `entry`, `amount`, `area`, UNIX_TIMESTAMP(`time`) FROM `remix_log` WHERE `guid` = {} ORDER BY `id` DESC LIMIT {}",
-                player->GetGUID().GetCounter(), JOURNAL_STEPS)).WithCallback([session, said = Plain(said)](QueryResult result)
+                guid, JOURNAL_STEPS)).WithCallback([session, guid, said = Plain(said)](QueryResult result)
             {
                 Player* player = session->GetPlayer();
-                if (!player || !player->IsInWorld())
+                if (!player || player->GetGUID().GetCounter() != guid)
                     return;
+                if (!player->IsInWorld())
+                {
+                    // (on the way between places, a loading screen)
+                    NotReported(guid);
+                    ChatHandler(session).SendSysMessage("|cff8fd3ffTime anomaly:|r the report couldn't be written on your way between places. Report it again.");
+                    return;
+                }
                 std::vector<Step> steps;
                 if (result)
                     do
@@ -483,6 +519,7 @@ namespace WrathRemix
                 ChatHandler handler(session);
                 if (name.empty())
                 {
+                    NotReported(guid);
                     LOG_ERROR("module", "Wrath Remix: a time anomaly report from {} couldn't be written (WOW_REPORTS_DIR)", player->GetName());
                     handler.SendSysMessage("|cff8fd3ffTime anomaly:|r the report couldn't be written on this realm.");
                     return;

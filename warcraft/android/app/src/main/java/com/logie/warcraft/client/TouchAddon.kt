@@ -52,7 +52,7 @@ object TouchAddon {
             ## Title: WowTouch
             ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix.
             ## Author: World of Warcraft app
-            ## Version: 5
+            ## Version: 6
             $FOLDER.lua
         """.trimIndent() + "\n",
         "$FOLDER.lua" to """
@@ -315,6 +315,10 @@ object TouchAddon {
                 box:SetFontObject(ChatFontNormal)
                 box:SetWidth(410)
                 box:SetHeight(150)
+                -- (the game's scrolling reads where the cursor is as the text changes, which can come
+                -- before the cursor's first move)
+                box.cursorOffset = 0
+                box.cursorHeight = 0
                 box:SetScript("OnEscapePressed", function() frame:Hide() end)
                 box:SetScript("OnTextChanged", function(self)
                     if ScrollingEdit_OnTextChanged then ScrollingEdit_OnTextChanged(self, scroll) end

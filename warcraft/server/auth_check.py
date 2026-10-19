@@ -493,6 +493,14 @@ def run_script(session, player_guid, steps):
         session.pump(0.5, packets)
         say(session, ".npc follow")
         session.pump(arrival(yards), packets)
+        # (one still out of reach, as one that chased a foe off in the fight before and walked home
+        # first: called again, and waited for)
+        for _ in range(3):
+            _, yards = creature_guid(entry, near=True)
+            if yards <= 5:
+                break
+            say(session, ".npc follow")
+            session.pump(arrival(yards), packets)
         return guid, True
 
     def arrival(yards):
@@ -685,17 +693,20 @@ def run_script(session, player_guid, steps):
             session.pump(2.0, packets)
             heard.append(f"bought {item}" if any(o == SMSG_BUY_ITEM for o, _ in packets) else "not bought")
         elif word == "accept":
+            # (one called over is let go first, beside the character: a quest that takes the
+            # character somewhere as it's taken or turned in, a portal to Dalaran say, would have it
+            # follow them there, away from where it belongs)
             entry, quest = (int(v) for v in rest.split())
             guid, called = within_reach(entry)
+            let_go(called)
             session.send(CMSG_QUESTGIVER_ACCEPT_QUEST, struct.pack("<QII", guid, quest, 0))
             session.pump(2.0, packets)
-            let_go(called)
         elif word == "reward":
             entry, quest = (int(v) for v in rest.split())
             guid, called = within_reach(entry)
+            let_go(called)
             session.send(CMSG_QUESTGIVER_CHOOSE_REWARD, struct.pack("<QII", guid, quest, 0))
             session.pump(3.0, packets)
-            let_go(called)
         elif word == "wait":
             session.pump(float(rest), packets)
         elif word == "clear-backpack":
