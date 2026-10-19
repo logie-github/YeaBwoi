@@ -81,6 +81,7 @@ namespace WrathRemix
         AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue was until build 64
         AREA_MALYKRISS    = 4520,       // Malykriss: The Vile Hold, the Bazaar's home (Crystalsong Forest until build 117)
         AREA_WYRMREST_TEMPLE = 4161,
+        ZONE_GRIZZLY_HILLS = 394,
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
         ITEM_HOURGLASS    = 77002,      // Moratari's Hourglass: to the Bazaar and back (RemixHourglass.cpp)
@@ -143,6 +144,10 @@ namespace WrathRemix
         TEXT_ALLERIA_WYRMREST  = 7702092,
         TEXT_ALLERIA           = 7702093,
         TEXT_ALLERIA_GATE      = 7702094,
+        TEXT_ALLERIA_LATER     = 7702095,   // Alleria at the Bazaar from Chapter V, from Chapter VII, and
+        TEXT_ALLERIA_LAST      = 7702096,   // once the war is over; in the Grizzly Hills (Chapter III)
+        TEXT_ALLERIA_AFTER     = 7702097,
+        TEXT_ALLERIA_HILLS     = 7702098,
         TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
         TEXT_INSTRUCTOR_LESSON = 7702501,   // an instructor with a lesson to give, to see through or to finish
     };

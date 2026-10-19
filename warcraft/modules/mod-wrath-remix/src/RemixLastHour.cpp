@@ -216,6 +216,8 @@ public:
                         std::string line = "Stay behind me, " + player->GetName() + ". Like old times. ...Like old times for one of us, at least.";
                         sylvanas->m_Events.AddEventAtOffset([sylvanas, line]() { sylvanas->Say(line, LANG_UNIVERSAL); }, 6s);
                     }
+                if (Creature* alleria = Speaker(3))
+                    alleria->m_Events.AddEventAtOffset([alleria]() { alleria->Say("Between the two of us, then. Where we can both see you.", LANG_UNIVERSAL); }, 12s);
             }
             if (!wave40 && me->HealthBelowPctDamaged(40, damage))
             {
@@ -331,7 +333,7 @@ public:
                         char const* last[] = {
                             "She's gone. Not dead. Eternus has never been any good at dying.",
                             "The doors are open, Timerunner. Go and end it.",
-                            "We will be waiting at the Bazaar. All of us. Come back to us.",
+                            "We will be waiting at the Bazaar. All of us. Come back to us. I will not say it twice.",
                         };
                         for (uint8 i = 0; i < 3; ++i)
                             if (Creature* ally = ObjectAccessor::GetCreature(*me, allies[i]))

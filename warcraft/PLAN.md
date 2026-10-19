@@ -1244,6 +1244,21 @@ for the game on the phone itself ("that's the whole point").
     here to crash. Checked here: the patch made from the server's tables (CI's stand-in game) has
     them (her skin's face 2 and overlay rows; 74 NPC skins, none missing a face), and the players'
     skins and the death knights' faces as they were.
+  - Then: "Make alleria when you talk to her sort of tsundre. Like keep her lore friendly but also
+    she hints that she cares deeply for the player but never outright says it. She tries to keep
+    her distance but she knows that you are very verit intimate with her platonically like a brother
+    or sister. She eventually reveals this and says she'll see you in the future." Done: where she
+    comes from the Timerunner is family (Argus, the Void's roads since); here she keeps them at arm's
+    length, crossly, and gives herself away (they haven't been sleeping, should eat, went in ahead of
+    her again; every kindness with an excuse; slips into the future tense and takes it back). Her
+    words at the Bazaar warm as the war goes on (after the turn, from Chapter V, from Chapter VII,
+    after the war: npc_remix_windrunner), and she has her own in the Grizzly Hills (she showed the
+    Wrathgate's there before). Before the Citadel: "Ask me after." After the war, a ninth topic
+    ("Why do you keep looking out for me?"), and her goodbye says it: family, her brother or sister
+    in every way that counts; Turalyon says she treats them as she treated Lirath; "I will see you
+    in the future, $n. Try not to be late. You always are." Moratari's scene echoes it before the
+    memories go. Also in her quest texts, the Hollow Crown and Ursoc scenes, Thorim's, the Frozen
+    Halls', the last hour and the return; Sylvanas's "someone I trust" stays hers. STORY.md tells it.
 - Open (the user's):
   1. Character creation (on hold, the user's choice): a button, bottom-aligned with the character
      options, that cycles the preview between no gear, starter gear and the class's Icecrown tier

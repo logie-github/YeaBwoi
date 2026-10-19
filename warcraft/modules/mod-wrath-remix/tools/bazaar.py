@@ -407,7 +407,8 @@ LINES = {
                "It already has, in a hundred places. You just cannot hear it.", TALK),
               ("This year smells of plague and ice. I had forgotten. I had made myself forget.", 0, 0, "", 0)],
     7704014: [("When the bronze came for me, the Void was at the gates of Quel'Thalas. I hope they are still holding.", TALK,
-               7704013, "They will hold. Our people always hold, until the moment they do not.", 0)],
+               7704013, "They will hold. Our people always hold, until the moment they do not.", 0),
+              ("If the Timerunner asks, I was watching the hourglass. Not the door.", TALK, 7704013, "Of course you were, sister.", 0)],
     7704300: [("The record is quieter today.", TALK, 7704301, "Quieter is not the same as whole, Andormu.", TALK)],
     # The traders, Legion Remix's Bazaar cast (their own words where the game has them; a line that
     # begins with %s is an emote).
