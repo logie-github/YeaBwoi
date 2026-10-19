@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The user's icon (the orc portrait in its frame); layers made by warcrafts/branding/make-art.py. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_rts_background" />
+    <foreground android:drawable="@mipmap/ic_rts_foreground" />
+    <monochrome android:drawable="@mipmap/ic_rts_monochrome" />
+</adaptive-icon>

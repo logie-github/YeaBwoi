@@ -300,6 +300,8 @@ EOF
 	# Made before Wrath Remix's and the Skyborne's patches, which the game reads after it: they carry
 	# its rows on only when it's there as they're made.
 	allied=$(grep -n -m1 "Allied races: The races' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	# (a patch not made in this run, Wrath Remix's on ChromieCraft's realm, is no failure: under
+	# set -e a grep that finds nothing would end the test here, silently)
 	for later in "Skyborne: The Skyborne's patch is in the game" "Wrath Remix: the game's patch written"; do
 		at=$(grep -n -m1 "$later" "$FILES/logs/world.out" | cut -d: -f1 || true)
 		echo "world.out: the races' patch at line ${allied:-?}, '$later' at line ${at:-none}"

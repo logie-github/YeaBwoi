@@ -175,7 +175,9 @@ namespace WrathRemix
                 player->ResurrectPlayer(1.0f);
                 player->SpawnCorpseBones();
             }
-            player->TeleportTo(bazaar->map, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O);
+            JourneyFromTheDark(player, PlaceName(bazaar->map, BAZAAR_X, BAZAAR_Y, BAZAAR_Z), bazaar->map, BAZAAR_X, BAZAAR_Y, 500, 2000);
+            if (!player->TeleportTo(bazaar->map, BAZAAR_X, BAZAAR_Y, BAZAAR_Z, BAZAAR_O))
+                LiftTheCurtain(player);
 
             // Eternus's letter, from the river's edge.
             if (!letterBody.empty())

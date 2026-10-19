@@ -94,6 +94,16 @@ WrathRemix.SaveSeconds = 30
 WrathRemix.Intro = 1
 
 #
+#    WrathRemix.Intro.SettleSeconds
+#        Description: How long the opening waits behind its curtain, at most, for the game to say
+#                     that the place it was just put in has finished loading (the app's add-on,
+#                     once its frames run smoothly again) before an act begins. A phone loads a
+#                     city choppily for a while; the curtain keeps that out of sight.
+#        Default:     25
+
+WrathRemix.Intro.SettleSeconds = 25
+
+#
 #    WrathRemix.HomeCharacterDatabase
 #        Description: ChromieCraft's characters database (on the same MariaDB), which a Timerunner
 #                     going home must have room in (ten characters an account) before they go.

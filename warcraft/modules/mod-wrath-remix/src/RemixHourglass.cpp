@@ -62,8 +62,13 @@ namespace
             if (t.backMap < 0)
                 return Tell(player, "You are at the Bazaar, and have come here from nowhere yet that it could take you back to.");
             player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
+            // (from the dark, briefly: the place's name while the game loads it)
+            JourneyFromTheDark(player, PlaceName(uint32(t.backMap), t.backX, t.backY, t.backZ), uint32(t.backMap), t.backX, t.backY, 0, 1500);
             if (!player->TeleportTo(uint32(t.backMap), t.backX, t.backY, t.backZ, t.backO))
+            {
+                LiftTheCurtain(player);
                 Tell(player, "The way back is closed for now. Try again in a moment.");
+            }
             // Back to Dalaran: Moratari's word on it, once a while (her own voice)
             else if (sMapMgr->GetZoneId(PHASEMASK_NORMAL, uint32(t.backMap), t.backX, t.backY, t.backZ) == ZONE_DALARAN &&
                      backToDalaran.insert(player->GetGUID().GetCounter()).second)
@@ -76,7 +81,9 @@ namespace
         if (!bazaar)
             return;
         player->CastSpell(player, SPELL_TELEPORT_VISUAL, true);
-        player->TeleportTo(bazaar->map, bazaar->x, bazaar->y, bazaar->z, bazaar->o);
+        JourneyFromTheDark(player, PlaceName(bazaar->map, bazaar->x, bazaar->y, bazaar->z), bazaar->map, bazaar->x, bazaar->y, 0, 1500);
+        if (!player->TeleportTo(bazaar->map, bazaar->x, bazaar->y, bazaar->z, bazaar->o))
+            LiftTheCurtain(player);
     }
 
     // The door out of a dungeon or a raid: its area trigger to the map its entrance is on. (The

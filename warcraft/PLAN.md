@@ -1259,6 +1259,22 @@ for the game on the phone itself ("that's the whole point").
     in the future, $n. Try not to be late. You always are." Moratari's scene echoes it before the
     memories go. Also in her quest texts, the Hollow Crown and Ursoc scenes, Thorim's, the Frozen
     Halls', the last hour and the return; Sylvanas's "someone I trust" stays hers. STORY.md tells it.
+- Then: "whatever is left in this wrath remix, finish it. And then polish ... First and foremost
+  change how the initial new player happens. Because you spawn in and the world loads around you
+  but it's very choppy and laggy. Don't stop until it's done make a list of things you aren't sure
+  about and we'll do them later." (The gear button is another session's.)
+  - The opening opens from the dark. Found: the choppiness is the game loading Stormwind or
+    Orgrimmar (and each act's place after) the moment its loading screen ends, while the tavern
+    scene already ran; nothing server-side makes a phone draw a city faster. Done: the app's add-on
+    holds a curtain (black at once, with where and when the act is on it: "The Gilded Rose,
+    Stormwind / Some months after the fall of the Lich King") from the realm's word at login
+    (before the first loading screen ends) or before each act's teleport, watches its frames and
+    tells the realm "settled" once they have run smoothly for a second and a half (two seconds in
+    at least); the realm lifts the curtain over 2.5 s and the act begins (`WrathRemix.Intro.
+    SettleSeconds`, 25, the longest wait; never under 1.5 s so the act's people are in place). The
+    tavern's talk starts once the room is up. The Bazaar at the end the same, Moratari's welcome
+    after the lift. CI's test client answers a curtain at once (it has no frames).
+  - See "Not sure" below for what the phone will show.
 - Open (the user's):
   0. **The next fix** (the user: "Put this on the next fix"): the future Sylvanas, Alleria and
      Chromie in their retail looks and voices. The user's links: Lady Sylvanas Windrunner (10181),

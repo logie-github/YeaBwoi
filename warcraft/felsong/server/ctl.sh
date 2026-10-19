@@ -17,6 +17,9 @@
 #                                   commands on its standard input and stops when it ends)
 #   ctl.sh maps|vmaps|mmaps CLIENT  make the server's data from a 7.3.5 (26972) client folder
 #   ctl.sh data-done                put the data made (data.work) in place of data
+#   ctl.sh patch-client EXE         patch the client's Wow-64.exe for this realm (Wow-64_Patched.exe
+#                                   beside it) and write the certificate bundle it trusts under
+#                                   $FILES/.wine (the app copies it into the game's Windows)
 #
 # FILES is the Felsong folder; the programs are built to run from $FILES/server.
 set -eu
@@ -220,6 +223,18 @@ mmaps)
 	musl_programs
 	exec "$SERVER/bin/mmaps_generator"
 	;;
+patch-client)
+	# LegionCore's connection_patcher: the portal takes a plain host, the Battle.net signing key and
+	# the certificate fingerprint are this realm's (bnetserver's own certificate), the versions
+	# check is cut. It writes <name>_Patched.exe beside the program and the certificate bundle under
+	# $HOME/.wine/drive_c/users/Public/Application Data/Blizzard Entertainment/Battle.net/Cache/,
+	# and HOME is $FILES here: nothing lands outside Felsong's folder.
+	[ -f "$1" ] || { echo "No client program at $1" >&2; exit 1; }
+	mkdir -p "$RUN/tmp"
+	cd "$RUN"
+	musl_programs
+	exec "$SERVER/bin/connection_patcher" "$1" < /dev/null
+	;;
 data-done)
 	# What was made replaces what was there, in one rename; the old data goes after.
 	[ -d "$DATA.work/dbc" ] && [ -d "$DATA.work/maps" ] || { echo "No dbc and maps in $DATA.work" >&2; exit 1; }
@@ -229,7 +244,7 @@ data-done)
 	rm -rf "$DATA.old"
 	;;
 *)
-	sed -n '2,20p' "$0" >&2
+	sed -n '2,23p' "$0" >&2
 	exit 2
 	;;
 esac
