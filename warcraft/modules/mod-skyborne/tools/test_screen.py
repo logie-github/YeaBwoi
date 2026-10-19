@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The Skyborne's character screen code (data/client/Interface/GlueXML/SkyborneCreate.lua) run in
 Lua 5.1 against stand-ins for the game's screen: the extra buttons get the screen's names, each
-side's races go down its column, the backgrounds and icons are theirs. Needs lupa (pip)."""
+side's races in two columns, two to a row (by the game's side for each, or the race's where the game
+gives none), the backgrounds and icons are theirs. Needs lupa (pip)."""
 import os, sys
 from lupa import lua51
 
@@ -25,7 +26,7 @@ MAX_RACES = NATIVE
 RACE_ICON_TCOORDS = {}
 CharacterCreate = {}
 RACES = {}
-function GetFactionForRace(i) return RACES[i][1], RACES[i][2] end
+function GetFactionForRace(i) if NO_SIDES then return RACES[i][1] end return RACES[i][1], RACES[i][2] end
 function CharacterCreateEnumerateRaces(...) CharacterCreate.numRaces = select("#", ...) / 3 end
 BACKGROUND = nil
 function SetBackgroundModel(model, name) BACKGROUND = name end
@@ -36,14 +37,17 @@ def check(ok, what):
     print(("ok   " if ok else "FAIL ") + what)
     failures += 0 if ok else 1
 
-for native, races in [
+for native, races, no_sides in [
     (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A SkyborneA",
-          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H SkyborneH"]),
+          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H SkyborneH"], False),
     (12, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A Worgen", "A SkyborneA",
-          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Goblin", "H SkyborneH"]),
+          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Goblin", "H SkyborneH"], False),
+    (10, ["A Human", "A Orc", "A Dwarf", "A Scourge", "A NightElf", "A Tauren", "A Gnome", "A Troll",
+          "A BloodElf", "A Draenei", "A SkyborneA", "A SkyborneH"], True),
 ]:
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
     lua.execute(f"NATIVE = {native}")
+    lua.execute(f"NO_SIDES = {'true' if no_sides else 'false'}")
     lua.execute(STUBS)
     for i, r in enumerate(races, 1):
         side, name = r.split()
@@ -53,15 +57,20 @@ for native, races in [
     check(g.MAX_RACES >= len(races), f"{native} buttons in the game's screen: MAX_RACES {g.MAX_RACES} for {len(races)} races")
     check(all(g["CharacterCreateRaceButton%d" % i] is not None for i in range(1, len(races) + 1)), "a button for every race")
     check(g.CharacterCreateRaceButton13.GetParent(g.CharacterCreateRaceButton13).name == "CharacterCreateConfigurationFrame", "the extra buttons sit with the game's")
-    args = ", ".join(['"x", "y", 1'] * len(races))
+    args = ", ".join(f'"{r.split()[1]}", "{r.split()[1]}", 1' for r in races)
     lua.execute(f"CharacterCreateEnumerateRaces({args})")
-    tops = []
+    # the real sides (by the race's name, where the game gives none)
+    alliance = {"Human", "Dwarf", "NightElf", "Gnome", "Draenei", "Worgen", "SkyborneA"}
+    placed = {"A": [], "H": []}
     for i, r in enumerate(races, 1):
         pts = list(g["CharacterCreateRaceButton%d" % i].points.values())
-        p = list(pts[0].values())
-        if p[0] == "TOP":
-            tops.append((r.split()[0], p[3]))
-    check(sorted(tops) == [("A", -50), ("H", 50)], f"one column a side, the Alliance's left: {tops}")
+        p = list(pts[-1].values())
+        side = "A" if r.split()[1] in alliance else "H"
+        placed[side].append((p[0], p[1]["name"] == "CharacterCreateConfigurationFrame", p[2], p[3], p[4]))
+    label = "with no sides from the game" if no_sides else f"{native} buttons"
+    for side, xs in (("A", (-90, -46)), ("H", (46, 90))):
+        want = [("TOP", True, "TOP", xs[n % 2], -50 - 50 * (n // 2)) for n in range(len(placed[side]))]
+        check(placed[side] == want, f"{label}: the {'Alliance' if side == 'A' else 'Horde'}'s races two to a row, {xs} ({placed[side]})")
     lua.execute('SetBackgroundModel(nil, "SkyborneA")')
     check(g.BACKGROUND == "Human", "the High Order's background is the Humans'")
     lua.execute('SetBackgroundModel(nil, "SKYBORNEH")')

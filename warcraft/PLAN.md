@@ -1325,10 +1325,19 @@ for the game on the phone itself ("that's the whole point").
      and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
      shows only if a change to the executable ever makes it dressable). Later the user: "Also the button
      with no gear, gear, and champion gear is it showing ANYWHERE. but it between the sex buttons."
-     Done: shown always, between the sex buttons (moved apart for it, each under its race column);
+     Done: shown always, between the sex buttons (moved apart for it);
      in 3.3.5 it cycles its choice and icon and its tooltip says the preview can't be dressed yet
      (the executable route below is still what would dress it). Checked here: test_gear.py (54
-     checks). Not checked: the game. Earlier checks: test_gear.py
+     checks). Not checked: the game. Then: "The god damn gear button isn't showing and the race portrait are
+     still 1 column. It's supposed to be 2 columns and the gear button is the most important thing."
+     Checked: release 182's APK carries the new SkyborneGear.lua in its server package; the realm
+     remakes patch-Z.MPQ as it starts when the module's files change, before the game starts. Done:
+     each side's races in two columns, two to a row (both SkyborneCreate.lua and
+     AlliedRacesCreate.lua, the side from the race where the game gives none); the gear button takes
+     the sex buttons' parent, is drawn over them and always has an icon. Checked here: the patch made
+     for a stand-in client with a GlueXML.toc, its creation screen files read back out of it and run
+     in its order in one Lua 5.1 runtime (all load; the button shown with its icon between the sex
+     buttons; each side two to a row); test_gear.py, both test_screen.py. Not checked: the game. Earlier checks: test_gear.py
      (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
      so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
      patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model

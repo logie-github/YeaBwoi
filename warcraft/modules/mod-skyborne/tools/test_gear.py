@@ -37,6 +37,8 @@ local function Frame(name)
   function f:SetPoint(...) self.points[#self.points + 1] = { ... } end
   function f:GetPoint(i) local p = self.points[i or 1]; if p then return unpack(p) end end
   function f:GetParent() return self.parent end
+  function f:GetFrameLevel() return self.level or 1 end
+  function f:SetFrameLevel(l) self.level = l end
   function f:SetNormalTexture(t) self.texture = t end
   function f:Show() self.shown = true end
   function f:Hide() self.shown = false end
@@ -47,6 +49,8 @@ CharacterCreateConfigurationFrame = Frame("CharacterCreateConfigurationFrame")
 -- the sex buttons as 3.3.5's XML puts them: TOP of the panel, 20 either side of its middle
 CharacterCreateGenderButtonMale = Frame("CharacterCreateGenderButtonMale")
 CharacterCreateGenderButtonMale.points = { { "TOP", CharacterCreateConfigurationFrame, "TOP", -20, -392 } }
+CharacterCreateGenderButtonMale.parent = CharacterCreateConfigurationFrame
+CharacterCreateGenderButtonMale.level = 4
 CharacterCreateGenderButtonFemale = Frame("CharacterCreateGenderButtonFemale")
 CharacterCreateGenderButtonFemale.points = { { "TOP", CharacterCreateConfigurationFrame, "TOP", 20, -392 } }
 SkyborneGearButton = Frame("SkyborneGearButton")
@@ -200,15 +204,25 @@ check(male == ["RIGHT", "SkyborneGearButton", "LEFT", -12, 0], "male to its left
 check(female == ["LEFT", "SkyborneGearButton", "RIGHT", 12, 0], "female to its right, 12 apart (centre 50 right of the middle) (%s)" % female)
 half = 19                                          # the buttons are 38 wide (the XML's and 3.3.5's)
 check(gear[3] - half + male[3] - half == -50 and gear[3] + half + female[3] + half == 50,
-      "so each sex button's centre is under its race column (SkyborneCreate.lua's, 50 either side)")
+      "so each sex button's centre is 50 either side of the middle")
 lua3.execute("SkyborneGearButton.scripts.OnEnter()")
 tips = [str(v) for v in lua3.globals().CharacterCreateTooltip.lines.values()]
 check(lua3.eval("CharacterCreateTooltip.owner == SkyborneGearButton"), "the creation screen's tooltip, owned by the button")
 check(any("Click to change what the preview wears." in t for t in tips) and not any("can't be dressed" in t for t in tips),
       "where the model can be dressed the tooltip says the click dresses it (%s)" % tips)
 check(lua3.eval("SkyborneGearButton.shown"), "the button shows where the model can be dressed")
+check(lua3.eval("SkyborneGearButton.parent == CharacterCreateConfigurationFrame"), "it sits with the sex buttons (their parent)")
+check(lua3.eval("SkyborneGearButton.level") == 5, "drawn over them (frame level %s)" % lua3.eval("SkyborneGearButton.level"))
 settle(lua3)
 check(point(lua3, "SkyborneGearButton") == gear and len(lua3.eval("SkyborneGearButton.points")) == 1, "settling doesn't move it")
+
+# without its data it still has an icon (a button with no texture isn't seen)
+lua6 = lua51.LuaRuntime(unpack_returned_tuples=True)
+lua6.execute(STUBS)
+lua6.execute("MODEL = MakeModel(false); CharacterCreate = {}")
+lua6.execute(LUA)
+check(str(lua6.globals().SkyborneGearButton.texture).endswith("INV_Misc_Leaf_01") and lua6.eval("SkyborneGearButton.shown"),
+      "with no SkyborneGearData.lua the button is still drawn, with the leaf")
 
 # without the sex buttons it stands where they would be
 lua4 = lua51.LuaRuntime(unpack_returned_tuples=True)

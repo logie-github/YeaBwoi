@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """The races' character screen code (data/client/Interface/GlueXML/AlliedRacesCreate.lua) run in
 Lua 5.1 against stand-ins for the game's screen: the extra buttons get the screen's names, each
-side's races go down its column, the backgrounds and icons are theirs; and with the Skyborne's
-screen code loaded after it (as in a client with both patches), both sides' races still line up.
+side's races in two columns, two to a row, the backgrounds and icons are theirs; and with the
+Skyborne's screen code loaded after it (as in a client with both patches), both sides' races still
+line up.
 Needs lupa (pip)."""
 import os
 import sys
@@ -65,17 +66,17 @@ for native, races, with_skyborne in [
     check(g.MAX_RACES >= len(races), f"{label}: MAX_RACES {g.MAX_RACES} for {len(races)} races")
     check(all(g["CharacterCreateRaceButton%d" % i] is not None for i in range(1, len(races) + 1)), "a button for every race")
     check(g.CharacterCreateRaceButton12.GetParent(g.CharacterCreateRaceButton12).name == "CharacterCreateConfigurationFrame", "the extra buttons sit with the game's")
-    args = ", ".join(['"x", "y", 1'] * len(races))
+    args = ", ".join(f'"{r.split()[1]}", "{r.split()[1]}", 1' for r in races)
     lua.execute(f"CharacterCreateEnumerateRaces({args})")
-    columns = {"Alliance": [], "Horde": []}
+    placed = {"Alliance": [], "Horde": []}
     for i, r in enumerate(races, 1):
         side = "Alliance" if r.startswith("A") else "Horde"
         pts = list(g["CharacterCreateRaceButton%d" % i].points.values())
-        columns[side].append(pts)
-    for side, pts in columns.items():
-        first, rest = pts[0], pts[1:]
-        check(first and first[0][1] == "TOP" and (first[0][4] < 0) == (side == "Alliance"), f"{side}'s first race at the top of its column")
-        check(all(p and p[0][1] == "TOPLEFT" and p[0][3] == "BOTTOMLEFT" for p in rest), f"{side}'s races follow down the column")
+        p = list(pts[-1].values())
+        placed[side].append((p[0], p[1]["name"] == "CharacterCreateConfigurationFrame", p[2], p[3], p[4]))
+    for side, xs in (("Alliance", (-90, -46)), ("Horde", (46, 90))):
+        want = [("TOP", True, "TOP", xs[n % 2], -50 - 50 * (n // 2)) for n in range(len(placed[side]))]
+        check(placed[side] == want, f"{side}'s races in two columns, two to a row ({placed[side]})")
     tc = g.RACE_ICON_TCOORDS
     check(tc["VOIDELF_MALE"][1] == 0.875 and tc["VOIDELF_MALE"][4] == 0.25 and tc["NIGHTBORNE_FEMALE"][3] == 0.75, "the icons in the last column, by side and sex")
     lua.execute('SetBackgroundModel("m", "VoidElf")')
