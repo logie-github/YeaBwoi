@@ -64,8 +64,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   road; the originals stay the start race's alone. Void elves: the seventeen Draenei-only quests
   of Ammen Vale, Azuremyst and Bloodmyst (You Survived!, Replenishing the Healing Crystals, Rescue
   the Survivors!, Medicinal Purpose, An Alternative Alternative, The Prophecy of Velen, A Hearty
-  Thanks!, the hippogryph and the prophecy chains); nightborne: Rude Awakening, Welcome!, and the
-  ride to the Undercity. Every other quest, item and condition of the start race (and of the
+  Thanks!, the hippogryph and the prophecy chains); nightborne: Rude Awakening and the ride to the
+  Undercity. Every other quest, item and condition of the start race (and of the
   classes' template races) is open to the new race as it is. Scripted events bound to an
   original quest's id don't fire for its clone.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's

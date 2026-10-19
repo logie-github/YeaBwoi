@@ -1337,7 +1337,7 @@ for the game on the phone itself ("that's the whole point").
   - The racials as today's where 3.3.5 allows (Spatial Rift as a two-step spell script; Entropic
     Embrace a 10% proc with a 30 s rest; Ethereal Connection has no transmogrification to act on).
   - The quests: the Draenei's seventeen own quests of Ammen Vale, Azuremyst and Bloodmyst and the
-    Forsaken's six of Deathknell and the ride to the Undercity cloned (ids +950000) for the new race
+    Forsaken's five of Deathknell and the ride to the Undercity cloned (ids +950000) for the new race
     with the givers' acknowledgments (`tools/quests.py`); the rest opened by race bit. Scripted
     events bound to an original's id don't fire for its clone.
   - The patch is `patch-V.MPQ` (W is the alternative HD look's water); Wrath Remix's `ClientPatch`

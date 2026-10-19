@@ -31,7 +31,7 @@ CLONED = {
     "voidelf": [9279, 9280, 9283, 9463, 9473, 9505, 9612,            # Ammen Vale and Azuremyst Isle
                 9603, 9604, 9605, 9606,                              # Bloodmyst: the hippogryph
                 9753, 9756, 9759, 9760, 9761, 9762],                 # Bloodmyst: the prophecy
-    "nightborne": [363, 5847,                                        # Deathknell
+    "nightborne": [363,                                              # Deathknell (Welcome!, the Collector's Edition voucher, isn't cloned)
                    6321, 6323, 6322, 6324],                          # Silverpine: the ride to the Undercity
 }
 
