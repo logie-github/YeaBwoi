@@ -368,6 +368,14 @@ namespace WrathRemix
     bool OnOuting(Player* player);
     bool AtTheCampfire(Player* player, Creature* her);      // she walked over to sit with them at the Bazaar's campfire, and is there still (RemixCampfire.cpp)
     void ScreenFade(Player* player, uint32 milliseconds, std::string const& text);  // dark for a while, words on it
+    void TellAddon(Player* player, std::string const& message);                     // a word to the player's own add-on (WowRemix: the app's TouchAddon.kt)
+    void ClientSettled(Player* player);                                               // the add-on's word that its frames run smoothly again (RemixIntro.cpp)
+    // A journey from the dark (RemixIntro.cpp): the screen dark at once with [caption] on it (" | " a
+    // new line), until the game has settled where they're going (map, x, y; or SettleSeconds are
+    // up), then lifted over [liftMs]; never under [leastMs]. The caller makes the journey itself.
+    void JourneyFromTheDark(Player* player, std::string const& caption, uint32 map, float x, float y, uint32 leastMs = 1500, uint32 liftMs = 2500);
+    void LiftTheCurtain(Player* player);                                               // a journey that couldn't be made after all
+    std::string PlaceName(uint32 map, float x, float y, float z);                      // the curtain's name for a place ("Wyrmrest Temple | Dragonblight")
     uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
     bool IsLesson(uint32 quest);
     bool TeachesClassOf(Creature* instructor, Player* player);  // the instructor is their class's

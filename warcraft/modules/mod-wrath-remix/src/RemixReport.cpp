@@ -622,7 +622,9 @@ public:
         if (language != LANG_ADDON || type != CHAT_MSG_WHISPER || receiver != player || msg.rfind(ADDON_PREFIX, 0) != 0)
             return true;
         std::string_view request = std::string_view(msg).substr(ADDON_PREFIX.size());
-        if (Journaling(player) && request.rfind("report+", 0) == 0)
+        if (request.rfind("settled", 0) == 0)
+            ClientSettled(player);
+        else if (Journaling(player) && request.rfind("report+", 0) == 0)
             ReportPart(player, std::string(request.substr(std::min<size_t>(request.size(), 8))));
         else if (Journaling(player) && request.rfind("report", 0) == 0)
             Report(player, std::string(request.substr(std::min<size_t>(request.size(), 7))));

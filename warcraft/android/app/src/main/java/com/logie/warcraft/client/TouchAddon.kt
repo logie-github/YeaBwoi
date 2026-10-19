@@ -38,6 +38,15 @@ package com.logie.warcraft.client
  * Moratari's tent): the realm's add-on message to the player "fade <milliseconds> <words>" (prefix
  * `WowRemix`, mod-wrath-remix's RemixOutings.cpp). The dark comes up in a second or so, the words in
  * the middle of it, and it goes again as the time is up.
+ *
+ * The opening's curtain (mod-wrath-remix's RemixIntro.cpp): "curtain <milliseconds> <words>" makes
+ * the screen dark at once (the words on it: where and when the next act is; " | " a new line) and
+ * keeps it so until "lift <milliseconds>" fades it out over that long, or the time runs out. Behind
+ * it the game loads the place the realm has just put the player in, which is choppy on a phone; the
+ * add-on watches the frames and tells the realm "settled <milliseconds>" once they have run smoothly
+ * for a while (no frame over a fifth of a second for a second and a half, two seconds in at least),
+ * counted from the curtain or from entering the world, whichever came last. The realm lifts the
+ * curtain then, and the act begins on a world that has finished appearing.
  */
 object TouchAddon {
     const val FOLDER = "WowTouch"
@@ -52,7 +61,7 @@ object TouchAddon {
             ## Title: WowTouch
             ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix.
             ## Author: World of Warcraft app
-            ## Version: 6
+            ## Version: 7
             $FOLDER.lua
         """.trimIndent() + "\n",
         "$FOLDER.lua" to """
@@ -223,9 +232,37 @@ object TouchAddon {
                 end
             end
 
+            -- The frames since the realm's curtain or the world's loading screen: once they have run
+            -- smoothly for a while (SETTLE_SMOOTH seconds with none over SETTLE_HITCH, SETTLE_LEAST in
+            -- at least), the realm is told so, once.
+            local SETTLE_HITCH, SETTLE_SMOOTH, SETTLE_LEAST, SETTLE_MOST = 0.2, 1.5, 2.0, 60
+            local settle
+
+            local function watchSettling()
+                if GetRealmName() ~= "$REMIX_REALM" then return end
+                settle = { at = 0, smooth = 0 }
+            end
+
+            local function settling(elapsed)
+                if not settle then return end
+                settle.at = settle.at + elapsed
+                if elapsed > SETTLE_HITCH then
+                    settle.smooth = 0
+                else
+                    settle.smooth = settle.smooth + elapsed
+                end
+                if settle.at >= SETTLE_LEAST and settle.smooth >= SETTLE_SMOOTH then
+                    SendAddonMessage("$REMIX_PREFIX", "settled " .. math.floor(settle.at * 1000), "WHISPER", UnitName("player"))
+                    settle = nil
+                elseif settle.at >= SETTLE_MOST then
+                    settle = nil
+                end
+            end
+
             local watcher = CreateFrame("Frame")
             local wait = 0
             watcher:SetScript("OnUpdate", function(self, elapsed)
+                settling(elapsed)
                 wait = wait - elapsed
                 if wait > 0 then return end
                 wait = 0.1
@@ -402,8 +439,10 @@ object TouchAddon {
 
             -- A moment of the story with the screen dark (a scene's fade to black), its words in the
             -- middle: the realm's add-on message "fade <milliseconds> <words>". The dark comes up and
-            -- goes again in a second or so; the words stay while it lasts.
-            local FADE_IN, FADE_OUT = 1.2, 1.5
+            -- goes again in a second or so; the words stay while it lasts. The opening's curtain
+            -- ("curtain <milliseconds> <words>") is dark at once and stays until the realm lifts it
+            -- ("lift <milliseconds>": gone over that long) or its time runs out.
+            local FADE_IN, FADE_OUT, LIFT = 1.2, 1.5, 2.5
             local fadeFrame
 
             local function fadeWindow()
@@ -426,20 +465,43 @@ object TouchAddon {
                         self:Hide()
                         return
                     end
-                    self:SetAlpha(math.min(1, self.at / FADE_IN, (self.lasts - self.at) / FADE_OUT))
+                    local up = self.fadeIn > 0 and self.at / self.fadeIn or 1
+                    self:SetAlpha(math.min(1, up, (self.lasts - self.at) / self.fadeOut))
                 end)
                 frame:Hide()
                 fadeFrame = frame
                 return frame
             end
 
+            local function words(text)
+                return string.gsub(text or "", " | ", "\n")
+            end
+
             local function fade(seconds, text)
                 local frame = fadeWindow()
-                frame.at = 0
+                frame.at, frame.fadeIn, frame.fadeOut = 0, FADE_IN, FADE_OUT
                 frame.lasts = math.max(seconds, FADE_IN + FADE_OUT)
-                frame.words:SetText(text or "")
+                frame.words:SetText(words(text))
                 frame:SetAlpha(0)
                 frame:Show()
+            end
+
+            local function curtain(seconds, text)
+                local frame = fadeWindow()
+                frame.at, frame.fadeIn, frame.fadeOut = 0, 0, LIFT
+                frame.lasts = math.max(seconds, LIFT)
+                frame.words:SetText(words(text))
+                frame:SetAlpha(1)
+                frame:Show()
+                watchSettling()
+            end
+
+            local function lift(seconds)
+                local frame = fadeFrame
+                if not frame or not frame:IsShown() then return end
+                seconds = math.max(seconds, 0.1)
+                frame.fadeOut = seconds
+                frame.lasts = frame.at + seconds
             end
 
             watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -451,8 +513,12 @@ object TouchAddon {
                 if event == "CHAT_MSG_ADDON" then
                     -- (the realm's, to the player itself)
                     if name == "$REMIX_PREFIX" and sender == UnitName("player") then
-                        local ms, words = string.match(message or "", "^fade (%d+) ?(.*)")
-                        if ms then fade(tonumber(ms) / 1000, words) end
+                        local ms, text = string.match(message or "", "^fade (%d+) ?(.*)")
+                        if ms then fade(tonumber(ms) / 1000, text) end
+                        ms, text = string.match(message or "", "^curtain (%d+) ?(.*)")
+                        if ms then curtain(tonumber(ms) / 1000, text) end
+                        ms = string.match(message or "", "^lift (%d+)")
+                        if ms then lift(tonumber(ms) / 1000) end
                     end
                     return
                 end
@@ -470,6 +536,9 @@ object TouchAddon {
                 if inWorld then
                     readyBars()
                     readyTalents()
+                    watchSettling()
+                else
+                    settle = nil
                 end
                 if inWorld and GetRealmName() == "$REMIX_REALM" then
                     addReportButton()

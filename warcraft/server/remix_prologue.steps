@@ -10,7 +10,9 @@ expect chapter 0 (the prologue)
 
 # The opening (RemixIntro.cpp): drinking with friends in the Gilded Rose, until the room stops and
 # Moratari walks in; the Broken Front in Icecrown, beside Tirion against the Scourge, until the Lich
-# King comes and time stops; the Wrathgate, Wintergarde and Icecrown's fields; then the Bazaar.
+# King comes and time stops; the Wrathgate, Wintergarde and Icecrown's fields; then the Bazaar. Each
+# act opens from the dark once the game has settled behind the realm's curtain (this client answers
+# a curtain at once; the realm holds it a second and a half at least), so its moments are waited for.
 wait 8
 cmd .gps
 expect Stormwind City
@@ -18,25 +20,22 @@ expect Stormwind City
 wait 14
 cmd .remix intro status
 expect seated
-wait 56
-expect I'm sorry, hero. I need you.
+until I'm sorry, hero. I need you. 100
 wait 14
 cmd .gps
 expect Icecrown
-wait 66
-expect Frostmourne hungers
+until Frostmourne hungers 110
 wait 14
 cmd .gps
 expect Dragonblight
-wait 43
-expect Farmers and miners
+until Farmers and miners 70
 cmd .gps
 expect Dragonblight
-wait 43
+until Arise minions 80
 cmd .gps
 expect Icecrown
-wait 48
-expect We can stop all of this
+until We can stop all of this 90
+wait 5
 cmd .gps
 expect Malykriss: The Vile Hold
 
