@@ -2,7 +2,7 @@
 -- (the guide's bridges II-A, II-B and II-C) as Chapter I's are made
 -- (wrath_remix_world_0006_bridges.sql), and between them the story: Wyrmrest Temple, where
 -- Chromie has brought Sylvanas and Alleria Windrunner back from the future; Eternus's answer;
--- right before the Wrathgate's chain, his real plan, and the turn at the Bazaar; then a fight on
+-- right before the Wrathgate's chain, her real plan, and the turn at the Bazaar; then a fight on
 -- the cliffs above the gate, so that it happens as it did. Never the Wrathgate itself, nor the
 -- Battle for the Undercity: II-B only follows the Wrathgate, and II-C the battle.
 --
@@ -27,7 +27,8 @@
 --
 -- Who is seen where (conditions of type 30, object visibility; rechecked as the story's quests
 -- move, WrathRemix.cpp): Sylvanas and Alleria atop Wyrmrest from WRM-204 until WRM-205; at the
--- Bazaar once WRM-207 is done, when Eternus is gone from it; the Bazaar's own Moratari hidden
+-- Bazaar once WRM-207 is done, when Eternus is gone from it (or, for one who never saw the turn,
+-- from Chapter VII's quests: below); the Bazaar's own Moratari hidden
 -- while WRM-207's scene plays (its own Moratari acts); Alleria and the loyalists on the cliffs
 -- during WRM-208. Ids and chains from the Remix world database (data/campaign_manifest.csv).
 
@@ -60,14 +61,14 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
  'Speak with Sylvanas Windrunner.', 0, 0, '', 0),
 -- WRM-205 / 215: Sylvanas. Ask Eternus yourself (Chromie sends the Timerunner to the Bazaar).
 (77205, 2, 25, 20, 65, 5, 0, 0, 1101,
- 'Ask Him Yourself',
+ 'Ask Her Yourself',
  'Speak with Eternus at the Infinite Bazaar.',
- 'You do not believe me. Good. Belief is cheap.$B$BThen ask him yourself: what he means to do at the gate, and who will take up the Helm. Watch his face while he answers, and notice which question he does not.$B$BChromie will send you to him.',
+ 'You do not believe me. Good. Belief is cheap.$B$BThen ask her yourself: what she means to do at the gate, and who will take up the Helm. Watch her face while she answers, and notice which question she does not.$B$BChromie will send you to her.',
  'Speak with Eternus.', 0, 0, '', 0),
 (77215, 2, 25, 20, 65, 5, 0, 0, 690,
- 'Ask Him Yourself',
+ 'Ask Her Yourself',
  'Speak with Eternus at the Infinite Bazaar.',
- 'You do not believe me. Good. Belief is cheap.$B$BThen ask him yourself: what he means to do at the gate, and who will take up the Helm. Watch his face while he answers, and notice which question he does not.$B$BChromie will send you to him.',
+ 'You do not believe me. Good. Belief is cheap.$B$BThen ask her yourself: what she means to do at the gate, and who will take up the Helm. Watch her face while she answers, and notice which question she does not.$B$BChromie will send you to her.',
  'Speak with Eternus.', 0, 0, '', 0),
 -- II-A, Alliance: Wintergarde's errands between Durkon's rescue and the push into hostile
 -- territory (the crypt, the tome and the sermon; the mine, the demo-gnome and the war machine).
@@ -87,12 +88,12 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77206, 2, 28, 20, 65, 5, 0, 0, 1101,
  'A Warning, Unwritten',
  'Speak with Eternus at the Infinite Bazaar.',
- 'The Highlord is about to send you to the Dragonqueen. After that comes Angrathar, and the gate, and the day Eternus brought you here to change.$B$BHe has asked for you, $n. He says it is time you knew the whole of it, and he is waiting.',
+ 'The Highlord is about to send you to the Dragonqueen. After that comes Angrathar, and the gate, and the day Eternus brought you here to change.$B$BShe has asked for you, $n. She says it is time you knew the whole of it, and she is waiting.',
  'Speak with Eternus.', 0, 0, '', 0),
 (77216, 2, 28, 20, 65, 5, 0, 0, 690,
  'A Warning, Unwritten',
  'Speak with Eternus at the Infinite Bazaar.',
- 'Saurfang''s son is about to send you to the Dragonqueen. After that comes Angrathar, and the gate, and the day Eternus brought you here to change.$B$BHe has asked for you, $n. He says it is time you knew the whole of it, and he is waiting.',
+ 'Saurfang''s son is about to send you to the Dragonqueen. After that comes Angrathar, and the gate, and the day Eternus brought you here to change.$B$BShe has asked for you, $n. She says it is time you knew the whole of it, and she is waiting.',
  'Speak with Eternus.', 0, 0, '', 0),
 -- WRM-207: Eternus. The turn: its scene plays as it's taken (RemixNpcs.cpp), and gives its credit.
 (77207, 2, 28, 20, 65, 5, 0, 0, 0,
@@ -148,16 +149,16 @@ DELETE FROM `quest_offer_reward` WHERE `ID` IN (77201, 77202, 77203, 77204, 7720
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77203, 1, 'Hold on. Wyrmrest Temple is very tall, and Chromie is very punctual.', 0),
 (77213, 1, 'Hold on. Wyrmrest Temple is very tall, and Chromie is very punctual.', 0),
-(77204, 1, 'So you are his. You do not know what you have been doing, do you?$B$B<The ranger in the black hood looks at you a moment longer than she needs to.>$B$B...$n.$B$B<She stops herself.>$B$BNo. You do not know me. Not yet. Where I come from, you and I have stood together through more than I will ever tell you, and if I told you any of it now, you would go looking for it, and you would not find it the way you did. So I will not.$B$BChromie says you were taken from a tavern, after the war. You were toasting it.$B$B<Something crosses her face and is gone.>$B$BOf course you were.$B$B<She lowers her voice.>$B$BI am Sylvanas Windrunner. To everyone else on this temple I am a ranger passing through, and that is how it stays: the woman who wears my name in this year must never learn that I am here. I did not come here for your forgiveness.$B$BWhatever Eternus has promised you, Timerunner, the war against the Lich King must happen as it did. Every battle. Every grave. I know what it cost. I know better than anyone here what it cost me.$B$BStop helping him.', 0),
+(77204, 1, 'So you are hers. You do not know what you have been doing, do you?$B$B<The ranger in the black hood looks at you a moment longer than she needs to.>$B$B...$n.$B$B<She stops herself.>$B$BNo. You do not know me. Not yet. Where I come from, you and I have stood together through more than I will ever tell you, and if I told you any of it now, you would go looking for it, and you would not find it the way you did. So I will not.$B$BChromie says you were taken from a tavern, after the war. You were toasting it.$B$B<Something crosses her face and is gone.>$B$BOf course you were.$B$B<She lowers her voice.>$B$BI am Sylvanas Windrunner. To everyone else on this temple I am a ranger passing through, and that is how it stays: the woman who wears my name in this year must never learn that I am here. I did not come here for your forgiveness.$B$BWhatever Eternus has promised you, Timerunner, the war against the Lich King must happen as it did. Every battle. Every grave. I know what it cost. I know better than anyone here what it cost me.$B$BStop helping her.', 0),
 (77205, 1, 'Sylvanas Windrunner. The bronze sends the woman who will one day set a world tree burning with its people inside it, to lecture you on what must not change.$B$BI will not pretend the war I want is safe. I want it kinder. That is all I have ever wanted.$B$BKeep going, champion. Moratari will see you back to the front.', 0),
 (77215, 1, 'Sylvanas Windrunner. The bronze sends the woman who will one day set a world tree burning with its people inside it, to lecture you on what must not change.$B$BI will not pretend the war I want is safe. I want it kinder. That is all I have ever wanted.$B$BKeep going, champion. Moratari will see you back to the front.', 0),
 (77201, 1, 'Hold on to something. The High Commander does not like to be kept waiting.', 0),
 (77211, 1, 'Hold on. Saurfang the Younger is a good man to stand beside. Remember that.', 0),
 (77206, 1, 'Here is the whole of it, champion. At the Wrathgate, the Forsaken''s Royal Apothecary Society will turn on everyone there: Alliance, Horde and Scourge alike. Dranosh Saurfang will fall to the Lich King''s own blade before the gate, and then their plague will take Bolvar Fordragon, and thousands with him.$B$BMy loyalists are already on the cliffs above the gate, where Putress''s men will stand. Before the plague is loosed, they strike, and one of mine will be at Saurfang''s side when the gate opens. Bolvar walks home. Saurfang''s son walks home.$B$BAnd you will lead them.', 0),
 (77216, 1, 'Here is the whole of it, champion. At the Wrathgate, the Forsaken''s Royal Apothecary Society will turn on everyone there: Horde, Alliance and Scourge alike. Dranosh Saurfang will fall to the Lich King''s own blade before the gate, and then their plague will take Bolvar Fordragon, and thousands with him.$B$BMy loyalists are already on the cliffs above the gate, where Putress''s men will stand. Before the plague is loosed, they strike, and one of mine will be at Saurfang''s side when the gate opens. Saurfang''s son walks home to his father. Bolvar walks home.$B$BAnd you will lead them.', 0),
-(77207, 1, 'I kept Eternus''s records for longer than you have been alive, $n. I believed every word of them.$B$BI have seen it now with my own eyes: the road where Bolvar lives ends at a throne no one holds. Eternus knew. He knew, and he brought you here anyway.$B$BSo. We were on the wrong side, you and I. Now we are not. Sylvanas and Alleria will stay at the Bazaar with me. Eternus will not stop. Neither will we.', 0),
-(77208, 1, 'That is the last of them, for today. Eternus will be back; he is too stubborn not to be.$B$BGo to the Highlord now. He will send you to the Dragonqueen, and then to the gate, and it will happen as it did.$B$BI am sorry, $n. That is the hard part of all this: we fought to make sure it happens.', 0),
-(77218, 1, 'That is the last of them, for today. Eternus will be back; he is too stubborn not to be.$B$BGo to Saurfang''s son now. He will send you to the Dragonqueen, and then to the gate, and it will happen as it did.$B$BI am sorry, $n. That is the hard part of all this: we fought to make sure it happens.', 0),
+(77207, 1, 'I kept Eternus''s records for longer than you have been alive, $n. I believed every word of them.$B$BI have seen it now with my own eyes: the road where Bolvar lives ends at a throne no one holds. Eternus knew. She knew, and she brought you here anyway.$B$BSo. We were on the wrong side, you and I. Now we are not. Sylvanas and Alleria will stay at the Bazaar with me. Eternus will not stop. Neither will we.', 0),
+(77208, 1, 'That is the last of them, for today. Eternus will be back; she is too stubborn not to be.$B$B<She lowers her bow, and for a moment she looks at you instead of the cliffs.>$B$BYou went in ahead of me. Do that again and I will shoot you myself, and save Eternus the trouble.$B$BGo to the Highlord now. He will send you to the Dragonqueen, and then to the gate, and it will happen as it did.$B$BI am sorry, $n. That is the hard part of all this: we fought to make sure it happens.', 0),
+(77218, 1, 'That is the last of them, for today. Eternus will be back; she is too stubborn not to be.$B$B<She lowers her bow, and for a moment she looks at you instead of the cliffs.>$B$BYou went in ahead of me. Do that again and I will shoot you myself, and save Eternus the trouble.$B$BGo to Saurfang''s son now. He will send you to the Dragonqueen, and then to the gate, and it will happen as it did.$B$BI am sorry, $n. That is the hard part of all this: we fought to make sure it happens.', 0),
 (77202, 1, 'Go on. The Life-Binder is waiting, and Stormwind will not wait much longer.', 0),
 (77212, 1, 'Go on. The Life-Binder is waiting, and so is a father at Warsong Hold.', 0),
 (77221, 1, 'Hold on. The Grizzly Hills are kinder than the Dragonblight, which is not saying much.', 0),
@@ -192,10 +193,10 @@ CREATE TABLE IF NOT EXISTS `remix_departure` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 DELETE FROM `remix_departure` WHERE `quest` IN (77205, 77215, 77206, 77216, 77208, 77218);
 INSERT INTO `remix_departure` (`quest`, `map`, `x`, `y`, `z`, `o`) VALUES
-(77205, 571, 5700.0, 1018.5, 174.6, 1.57),
-(77215, 571, 5700.0, 1018.5, 174.6, 1.57),
-(77206, 571, 5700.0, 1018.5, 174.6, 1.57),
-(77216, 571, 5700.0, 1018.5, 174.6, 1.57),
+(77205, 571, 6394.0, 1872.5, 508.7, 1.57),
+(77215, 571, 6394.0, 1872.5, 508.7, 1.57),
+(77206, 571, 6394.0, 1872.5, 508.7, 1.57),
+(77216, 571, 6394.0, 1872.5, 508.7, 1.57),
 (77208, 571, 4970.5, 1381.5, 282.0, 0.30),
 (77218, 571, 4970.5, 1381.5, 282.0, 0.30);
 
@@ -266,18 +267,35 @@ DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND (`SourceEntry`
 INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`,
   `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
 -- The Bazaar: Eternus until the turn is done; its own Moratari but while the turn's scene plays;
--- Sylvanas and Alleria once it's done.
+-- Sylvanas and Alleria once it's done. One who never saw the turn (a death knight, who starts at
+-- Chapter V; one the Chronologist sent past it) has it so all the same for Chapter VII and the end,
+-- from the first of The Armies Are in Place (WRM-701/711), The Last Hour (WRM-721) or The Last
+-- Necessary Battle (WRM-800) taken, done or turned in: Eternus gone (the Keepers in her place,
+-- wrath_remix_world_0018_ending.sql), Sylvanas and Alleria there; never the three of them at
+-- once. (Until then Chapter II is still there for them to play, Eternus's part in it with it.)
 (30, 0, @ETERNUS, 7704011, 0, 47, 0, 77207, 66, 0, 1, 0, 0, '', 'Wrath Remix: Eternus gone from the Bazaar after The Weight of Time'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77701, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77711, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77721, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @ETERNUS, 7704011, 0, 47, 0, 77800, 74, 0, 1, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
 (30, 0, @MORATARI, 7704012, 0, 47, 0, 77207, 8, 0, 1, 0, 0, '', 'Wrath Remix: the Bazaar''s Moratari away while The Weight of Time plays'),
 (30, 0, @SYLVANAS, 7704013, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at the Bazaar after The Weight of Time'),
+(30, 0, @SYLVANAS, 7704013, 1, 47, 0, 77701, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @SYLVANAS, 7704013, 2, 47, 0, 77711, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @SYLVANAS, 7704013, 3, 47, 0, 77721, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @SYLVANAS, 7704013, 4, 47, 0, 77800, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
 (30, 0, @ALLERIA, 7704014, 0, 47, 0, 77207, 66, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at the Bazaar after The Weight of Time'),
--- Atop Wyrmrest Temple: from Strangers Out of Time until Ask Him Yourself is turned in.
+(30, 0, @ALLERIA, 7704014, 1, 47, 0, 77701, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Armies Are in Place (Alliance)'),
+(30, 0, @ALLERIA, 7704014, 2, 47, 0, 77711, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or the Horde''s'),
+(30, 0, @ALLERIA, 7704014, 3, 47, 0, 77721, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Hour'),
+(30, 0, @ALLERIA, 7704014, 4, 47, 0, 77800, 74, 0, 0, 0, 0, '', 'Wrath Remix: ... or from The Last Necessary Battle'),
+-- Atop Wyrmrest Temple: from Strangers Out of Time until Ask Her Yourself is turned in.
 (30, 0, @SYLVANAS_ABROAD, 7704033, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Sylvanas at Wyrmrest from Strangers Out of Time'),
-(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
-(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Her Yourself (Alliance)'),
+(30, 0, @SYLVANAS_ABROAD, 7704033, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Her Yourself (Horde)'),
 (30, 0, @ALLERIA_ABROAD, 7704034, 0, 47, 0, 77204, 74, 0, 0, 0, 0, '', 'Wrath Remix: Alleria at Wyrmrest from Strangers Out of Time'),
-(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Alliance)'),
-(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Him Yourself (Horde)'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77205, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Her Yourself (Alliance)'),
+(30, 0, @ALLERIA_ABROAD, 7704034, 0, 8, 0, 77215, 0, 0, 1, 0, 0, '', 'Wrath Remix: ... until Ask Her Yourself (Horde)'),
 -- The Wrathgate's cliffs: Alleria during The Hour of the Gate, the loyalists while it's being done.
 (30, 0, @ALLERIA_ABROAD, 7704035, 0, 47, 0, 77208, 10, 0, 0, 0, 0, '', 'Wrath Remix: Alleria on the cliffs during The Hour of the Gate'),
 (30, 0, @ALLERIA_ABROAD, 7704035, 1, 47, 0, 77218, 10, 0, 0, 0, 0, '', 'Wrath Remix: ... the Horde''s'),

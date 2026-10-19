@@ -1,8 +1,10 @@
 -- Northrend at Wrath Remix's chapter levels: Timerunners start at 10, so Borean Tundra and Howling
 -- Fjord are 10 to 20, Dragonblight 20 to 32, and so on to Icecrown at 70 to 80, with the dungeons at
 -- their chapter's levels (normal difficulty; heroic stays at 80). The module sets each creature's
--- level from this table as it appears (and scales its spells to match); here the quests get the
--- same levels, their rewards' level and stats follow, and the dungeons open at the new levels.
+-- level as it appears (and scales its spells to match): near a Timerunner, theirs, as Legion
+-- Remix has it (WrathRemix.LevelBands.FollowPlayer), and otherwise from this table, which also
+-- says where Remix's levels are at all. Here the quests get the chapters' levels, their rewards'
+-- level and stats follow, and the dungeons open at the new levels.
 --
 -- Made again whenever this file changes: the original values are kept once, in remix_original_*,
 -- and every change is worked out from them.
@@ -20,6 +22,13 @@ INSERT INTO `remix_level_band` (`map`, `zone`, `quest_sort`, `original_min`, `or
 (571, 67, 67, 77, 80, 60, 70, 6, 'The Storm Peaks'),
 (571, 210, 210, 77, 80, 70, 80, 7, 'Icecrown'),
 (571, 2817, 2817, 74, 76, 60, 70, 0, 'Crystalsong Forest'),
+-- The sea between them (the North Fleet off the Howling Fjord's coast, the Kvaldir; and where a
+-- ship's crew is made before it's put aboard), Hrothgar's Landing, and Wintergrasp (outside its
+-- battle: the module leaves it to the game while the battle is on). Their quests stay the game's
+-- (a quest_sort no quest has: the zone's, negative).
+(571, 3979, -3979, 68, 72, 10, 20, 1, 'The Frozen Sea'),
+(571, 4742, -4742, 77, 80, 70, 80, 7, 'Hrothgar''s Landing'),
+(571, 4197, -4197, 77, 80, 70, 80, 7, 'Wintergrasp (outside its battle)'),
 -- The Battle for the Undercity (Chapter II's end).
 (0, 1497, 1497, 70, 80, 28, 34, 2, 'Undercity'),
 -- The dungeons, normal difficulty.
@@ -58,8 +67,9 @@ INSERT IGNORE INTO `remix_original_quest` (`ID`, `QuestLevel`, `MinLevel`, `Rewa
 SELECT `ID`, `QuestLevel`, `MinLevel`, `RewardMoney`, 65 FROM `quest_template`
 WHERE `ID` IN (13347, 13369, 13370, 13371, 13377, 13242, 13257, 13266, 13267);
 
--- A level in a band: unchanged far below the zone's levels, else on the straight line from the
--- original range to the chapter's, at most 3 above the chapter's top.
+-- A quest's level in a band: unchanged far below the zone's levels (a city's own quests: the
+-- Undercity's), else on the straight line from the original range to the chapter's, at most 3
+-- above the chapter's top. (A creature's, in the module, is unchanged only at or below the band.)
 -- (Written out in each statement: MariaDB has no inline functions in plain SQL files.)
 UPDATE `quest_template` q
 JOIN `remix_original_quest` o ON o.`ID` = q.`ID`

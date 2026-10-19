@@ -33,6 +33,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include <cmath>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -100,8 +101,25 @@ namespace WrathRemix
             bool over = false;  // (ended early: the Timerunner left its place)
         };
 
+        // Timerunners with a scene playing (one at a time), and the scene: its events, on the
+        // Timerunner, are its only owners, so it goes with them at a logout (cleared then; one
+        // gone without its end is no longer playing either way).
         std::mutex runningLock;
-        std::set<ObjectGuid> running;  // Timerunners with a scene playing (one at a time)
+        std::map<ObjectGuid, std::weak_ptr<SceneRun>> running;
+
+        // While a scene's credit is given: the credit, and the scene's quest, the only one in the
+        // log that gets it (the scenes share one; RemixScenesPlayer holds the others back). Per
+        // thread: each map updates in a thread of its own.
+        thread_local uint32 creditGiven = 0, creditQuest = 0;
+
+        // The credit [credit] for the Timerunner's quest [quest] alone (0: every quest that asks).
+        void SceneCredit(Player* player, uint32 quest, uint32 credit)
+        {
+            creditGiven = credit;
+            creditQuest = quest;
+            player->KilledMonsterCredit(credit);
+            creditGiven = creditQuest = 0;
+        }
 
         Position At(SceneRun const& run, Player* player, float forward, float left, float up, float facing)
         {
@@ -140,15 +158,34 @@ namespace WrathRemix
             WorldPacket data;
             ChatHandler::BuildChatPacket(data, type, LANG_UNIVERSAL, speaker, player, Personal(player, text));
             player->SendDirectMessage(&data);
+            // Moratari's lines that are hers in the game's own words: her voice with them (remix_voice)
+            if (Creature const* creature = speaker->ToCreature(); creature &&
+                (creature->GetEntry() == NPC_MORATARI || creature->GetEntry() == NPC_MORATARI_SCENE))
+                if (uint32 sound = MoratariVoiceFor(text))
+                    speaker->PlayDirectSound(sound, player);
         }
 
-        void EndScene(Player* player, SceneRun& run)
+        void Unsummon(Player* player, SceneRun& run)
         {
             for (uint8 actor : run.summoned)
                 if (Creature* creature = ActorOf(player, run, actor))
                     creature->DespawnOrUnsummon();
             run.summoned.clear();
+        }
+
+        void EndScene(Player* player, SceneRun& run)
+        {
+            Unsummon(player, run);
             player->UpdateObjectVisibility();
+        }
+
+        // The Timerunner free for another scene (only this one's: a later one is left playing).
+        void Release(SceneRun const& run)
+        {
+            std::lock_guard<std::mutex> lock(runningLock);
+            auto it = running.find(run.player);
+            if (it != running.end() && it->second.lock().get() == &run)
+                running.erase(it);
         }
 
         // Over early: its people gone, and the Timerunner free for another.
@@ -156,8 +193,26 @@ namespace WrathRemix
         {
             run.over = true;
             EndScene(player, run);
-            std::lock_guard<std::mutex> lock(runningLock);
-            running.erase(run.player);
+            Release(run);
+        }
+
+        // The nearest creature of [entry] the Timerunner can see: in their phase, shown to them by
+        // the story's visibility conditions, and not someone else's (seen by its summoner alone).
+        Creature* NearestSeen(Player* player, uint32 entry, float range)
+        {
+            std::list<Creature*> near;
+            player->GetCreatureListWithEntryInGrid(near, entry, range);
+            Creature* best = nullptr;
+            for (Creature* c : near)
+            {
+                if (!c->IsAlive() || !player->CanSeeOrDetect(c))
+                    continue;
+                if (TempSummon const* summon = c->ToTempSummon(); summon && summon->IsVisibleBySummonerOnly() && summon->GetSummonerGUID() != player->GetGUID())
+                    continue;
+                if (!best || player->GetDistance(c) < player->GetDistance(best))
+                    best = c;
+            }
+            return best;
         }
 
         void Play(Player* player, SceneRun& run, SceneStep const& step, uint32 duration)
@@ -178,7 +233,7 @@ namespace WrathRemix
                     break;
                 }
                 case ACT_BIND:
-                    if (Creature* found = player->FindNearestCreature(step.entry, 80.0f))
+                    if (Creature* found = NearestSeen(player, step.entry, 80.0f))
                         run.actors[step.actor] = found->GetGUID();
                     break;
                 case ACT_MOVE:
@@ -329,7 +384,8 @@ namespace WrathRemix
     bool SceneRunning(Player* player)
     {
         std::lock_guard<std::mutex> lock(runningLock);
-        return running.count(player->GetGUID()) != 0;
+        auto it = running.find(player->GetGUID());
+        return it != running.end() && !it->second.expired();
     }
 
     bool PlayScene(Player* player, uint32 sceneId)
@@ -338,16 +394,18 @@ namespace WrathRemix
         if (found == scenes.end() || found->second.steps.empty() || !player->IsInWorld())
             return false;
         Scene const& scene = found->second;
-        {
-            std::lock_guard<std::mutex> lock(runningLock);
-            if (!running.insert(player->GetGUID()).second)
-                return false;
-        }
         auto run = std::make_shared<SceneRun>();
         run->player = player->GetGUID();
+        {
+            std::lock_guard<std::mutex> lock(runningLock);
+            auto [it, added] = running.emplace(run->player, run);
+            if (!added && !it->second.expired())
+                return false;
+            it->second = run;
+        }
         run->scene = scene.id;
         run->map = player->GetMapId();
-        Creature* anchor = scene.anchor ? player->FindNearestCreature(scene.anchor, 80.0f) : nullptr;
+        Creature* anchor = scene.anchor ? NearestSeen(player, scene.anchor, 80.0f) : nullptr;
         run->anchor = anchor ? anchor->GetPosition() : player->GetPosition();
         uint32 duration = scene.steps.back().at;
         Record(player, "scene", scene.id, 0);
@@ -370,20 +428,19 @@ namespace WrathRemix
                 Play(p, *run, step, duration);
             }, Milliseconds(step.at));
         }
-        uint32 credit = scene.credit;
-        player->m_Events.AddEventAtOffset([run, credit]()
+        uint32 credit = scene.credit, quest = scene.quest;
+        player->m_Events.AddEventAtOffset([run, credit, quest]()
         {
             if (run->over)
                 return;
             if (Player* p = ObjectAccessor::FindPlayer(run->player); p && p->IsInWorld())
             {
                 EndScene(p, *run);
-                // the credit only for one who stayed to the end
+                // the credit only for one who stayed to the end, and only for the scene's quest
                 if (credit && p->GetMapId() == run->map && p->GetExactDist2d(run->anchor) <= 120.0f)
-                    p->KilledMonsterCredit(credit);
+                    SceneCredit(p, quest, credit);
             }
-            std::lock_guard<std::mutex> lock(runningLock);
-            running.erase(run->player);
+            Release(*run);
         }, Milliseconds(duration + 1500));
         return true;
     }
@@ -488,7 +545,44 @@ public:
     }
 };
 
+// A scene cut short by a logout: its events go with the Timerunner unplayed, so the scene's people
+// go now (for one lost between maps, on their own a little later), and the Timerunner is free for
+// the next one (the one they missed plays again at its anchor, as they speak to them). And a
+// scene's credit goes to its own quest alone.
+class RemixScenesPlayer : public PlayerScript
+{
+public:
+    RemixScenesPlayer() : PlayerScript("RemixScenesPlayer", { PLAYERHOOK_ON_LOGOUT, PLAYERHOOK_PASSED_QUEST_KILLED_MONSTER_CREDIT }) { }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (!Active())
+            return;
+        std::shared_ptr<SceneRun> run;
+        {
+            std::lock_guard<std::mutex> lock(runningLock);
+            auto it = running.find(player->GetGUID());
+            if (it == running.end())
+                return;
+            run = it->second.lock();
+            running.erase(it);
+        }
+        if (run)
+        {
+            run->over = true;
+            if (player->IsInWorld())
+                Unsummon(player, *run);
+        }
+    }
+
+    bool OnPlayerPassedQuestKilledMonsterCredit(Player* /*player*/, Quest const* quest, uint32 entry, uint32 /*realEntry*/, ObjectGuid /*guid*/) override
+    {
+        return !creditQuest || entry != creditGiven || quest->GetQuestId() == creditQuest;
+    }
+};
+
 void AddRemixSceneScripts()
 {
     new npc_remix_story_foe();
+    new RemixScenesPlayer();
 }

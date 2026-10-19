@@ -38,17 +38,17 @@ every battle raised to fight for the Scourge. Eternus believes a kinder history 
 that heroes who know how the story goes can steer it there. The bronze dragonflight would call
 this a crime. Eternus answers that the bronze also let Stratholme burn.
 
-He is not lying to you about what he wants. He is wrong about what it costs.
+She is not lying to you about what she wants. She is wrong about what it costs.
 
 In Wrath itself the Infinite Dragonflight is already the enemy of history: they try to stop the
 Culling of Stratholme, and Chromie hunts their agents at Wyrmrest Temple. Eternus is one of them
-who believes he is better than the rest.
+who believes she is better than the rest.
 
 ## The people
 
-- **Eternus** (Infinite Dragonflight): the Bazaar's master. Grand, patient, sincerely grieving for
-  the people the war will kill. He never admits he is wrong; after the turn he keeps trying to
-  save the war's dead, and his agents fight you for it.
+- **Eternus** (Infinite Dragonflight): the Bazaar's mistress. Grand, patient, sincerely grieving for
+  the people the war will kill. She never admits she is wrong; after the turn she keeps trying to
+  save the war's dead, and her agents fight you for it.
 - **Moratari** (Infinite Dragonflight): Eternus's lieutenant and your guide. A scholar of what
   she calls variables, dry and curious. She believes in Eternus until Sylvanas gives her a reason
   to look, and then she looks.
@@ -63,30 +63,46 @@ who believes he is better than the rest.
   gates: her sister, a ranger touched by the Void, who can feel when the world's shape is wrong.
   Wry where Sylvanas is cold; she came because Sylvanas asked, which Sylvanas does not do. To a
   Timerunner from before her return she is a name from the end of the Second War's histories, and
-  she shows them her face once, at Wyrmrest, before she hides it again. (The 3.3.5 game has no Alleria; she wears the look of the living
+  she shows them her face once, at Wyrmrest, before she hides it again. Where she comes from, the
+  Timerunner is family to her, a brother or sister in all but blood (Argus, and every road the Void
+  has walked since), and she keeps them at arm's length here for it: prickly, proud, insisting she
+  is only here for the timeline, and giving herself away in small ways. She finally says it as they
+  say goodbye. (The 3.3.5 game has no Alleria; she wears the look of the living
   Ranger-General, which is what she looked like before the Void.)
 - **Chromie** (bronze dragonflight), at Wyrmrest Temple, as the game has her: she is already
   fighting the Infinite there (Mystery of the Infinite). She brought Sylvanas and Alleria.
 - **Andormu and Nozari** (Keepers of Time): arrive at the Bazaar after the turn, with the bronze.
-- At the Bazaar throughout: Alurmi (Bronze trader, sells to anyone), the Bronze vendors, Zephyr's
-  roads, Sa'at's dungeons, the Chronologist, Momentus (Infinite Power), the class instructors.
+- At the Bazaar throughout: Alurmi (Bronze trader, sells to anyone), the Bronze vendors (Legion
+  Remix's Bazaar cast, Horos to Erus), Pageturner Metros, Nedward the barber, Zephyr's roads, Sa'at's
+  dungeons, the Chronologist, Momentus (the weaponmaster), the class instructors.
 
 ## The Infinite Bazaar
 
-The home of the whole story, in Crystalsong Forest beneath Dalaran, west of the Violet Stand. Every
-new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers it. Until the turn
+The home of the whole story, in Malykriss: The Vile Hold, the necropolis the Lich King began in Icecrown
+to replace Acherus and never finished (in Crystalsong Forest until build 117). When the Bazaar's dragons
+started cleaning up the timeline, the Scourge infestation here was one of the first things they took
+care of: the Ebon Blade's fight for it (Vereth's riders, Orbaz Bloodbane) never happens, and Malykriss
+is entirely theirs, the infinite dragonflight's, the Knights of the Ebon Blade's who keep its gates,
+and the last free nerubians of Azjol-Nerub's, who were building in saronite before the Scourge stole
+the craft from them (`tools/malykriss.py`). Moratari says so as the Timerunner wakes: they may
+remember it otherwise. Every new Timerunner wakes here (no more Caverns of Time). Your hearthstone remembers it. Until the turn
 it is Eternus's camp; after it, Eternus is gone from it and Sylvanas and Alleria are there, with
 Moratari and the Keepers of Time.
 
 It is a camp, not a ring of people (`tools/bazaar.py`): the heart, under a great hourglass, where
 you wake, with Eternus, Moratari and the echoes; the market lane down the west side, a stall for
-each Bronze trader with Alurmi's at its head; the training yard to the south-east, the instructors
-at work among dummies and targets; the waystation to the north-east, Zephyr by a door in time and
-his drake resting, Sa'at at his map table; the chronicle corner to the north, the Chronologist's
-shelves and Momentus's orb; and the campfire to the south, where other Timerunners from your own
-hour sit, eat the cook's stew and talk about home. Porters and wardens make their rounds, whelps
-get underfoot, and while you are near, people talk: to the air, or to each other. While they are
-here, the Bronze dragons and the Infinite wear mortal shapes: elves, orcs, humans, gnomes.
+each Bronze trader with Alurmi's at its head; the north row, the heroic raids' pavilions and the
+apparel stalls, with Nedward's barber's chair at its end; the training yard to the south-east, the
+instructors at work among dummies and targets, Grandmaster Jakkus and Momentus the weaponmaster at
+its edge; the waystation to the north-east, Zephyr by a door in time and her drake resting, Sa'at at
+his map table, Hemet Nesingwary with his mounts; the chronicle corner to the north, the
+Chronologist's shelves, Lidamorrutu's gems and Lindormi's emblems; and the campfire to the south,
+where other Timerunners from your own hour sit, eat the cook's stew and talk about home, and Nostwin
+sells snacks beside Erus's scrap. Pageturner Metros keeps a desk at the heart and knows where
+everyone is. Porters and wardens make their rounds, whelps get underfoot, and while you are near,
+people talk: to the air, or to each other. While they are here, the Bronze dragons and the Infinite
+wear mortal shapes (elves, orcs, humans, gnomes, a pandaren), or come as Legion Remix has its
+traders: the infinite dragonflight's dragonspawn and drakonid, and a whelp.
 
 ## The opening
 
@@ -126,8 +142,8 @@ One thing at a time, each quest given where the last one ended:
 
 1. **WRM-010 Out of Time** (Moratari → Eternus). Where and when you are: the Bazaar, outside time,
    in the year the war began; none of what she showed you has happened yet; your friends are still
-   at that table. Eternus sent her; he will tell you why.
-2. **WRM-011 The Plan** (Eternus → Eternus). Ask him three things. What he wants: fewer graves; a
+   at that table. Eternus sent her; she will tell you why.
+2. **WRM-011 The Plan** (Eternus → Eternus). Ask her three things. What she wants: fewer graves; a
    war is made of a thousand small moments, and changing enough of them changes the large ones. How
    it is done: quietly; you fight the war again from its first day, and wherever you know more than
    you should, you use it, but no one of this year may ever learn what you are. Why you: because you
@@ -167,11 +183,11 @@ One route for everyone: the Borean Tundra. Howling Fjord stays in the world for 
 
 The game's own chains, with a step added wherever the game leaves you to find the next quest giver
 yourself: a short quest from the last quest's giver to the next one ("Report to..."). Moratari's
-transitions skip the afternoons of errands, as before, but now they are Eternus's: he is
+transitions skip the afternoons of errands, as before, but now they are Eternus's: she is
 shortening the war, and you are helping.
 
 - **Alliance:** Enlistment Day, A Time for Heroes, The Siege, Death From Above, Plug the Sinkholes;
-  Leryssa's search for Thassarian (WRM-006 *A Useful Omission*, Eternus's: he skips the road to
+  Leryssa's search for Thassarian (WRM-006 *A Useful Omission*, Eternus's: she skips the road to
   Thassarian), Thassarian, the Death Knight, Finding the Phylactery, Buying Some Time, Words of
   Power, Last Rites.
 - **Horde:** Hellscream's Vigil, The Defense of Warsong Hold, Taking Back Mightstone Quarry, Cutting
@@ -182,7 +198,7 @@ shortening the war, and you are helping.
   sit in both chains: see "Moratari in the war".
 - **WRM-017 / WRM-018 A Kindness Out of Time** (mid-chapter, by Sergeant Hammerhill after Plug the
   Sinkholes, or by Overlord Razgor after Cutting Off the Source): Eternus's first "improvement".
-  Moratari brings his request: a squad history lost (the 7th Legion's on Valiance Keep's beach, a
+  Moratari brings Eternus's request: a squad history lost (the 7th Legion's on Valiance Keep's beach, a
   Warsong patrol in Mightstone Quarry's tunnels); clear the crypt crawlers or the Nerub'ar before
   they go in, and they come home. You do. It feels like heroism. (Sylvanas will later ask what
   became of the ones who would have taken their places.) The chain's next quest opens after it.
@@ -209,32 +225,32 @@ scene in `RemixNpcs.cpp`. Alliance and Horde quests have their own ids where the
    been bringing heroes from the future into this war, and Chromie went and fetched two people who
    are unhappy about it. Sylvanas and Alleria appear beside her as you take it, hooded. Sylvanas
    (who hears you were taken from a tavern after the war, toasting it, and says only "Of course
-   you were"): stop helping him; the war must happen as it did. Alleria, spoken to, lowers her hood for
+   you were"): stop helping her; the war must happen as it did. Alleria, spoken to, lowers her hood for
    you alone: the ranger every history of the Second War ends with, who in your year has still
    never come home.
-5. **WRM-205 / 215 Ask Him Yourself** (Sylvanas → Eternus; Chromie sends you to the Bazaar as you
-   take it): ask your master what he means to do at the Wrathgate, and who will wear the Helm.
+5. **WRM-205 / 215 Ask Her Yourself** (Sylvanas → Eternus; Chromie sends you to the Bazaar as you
+   take it): ask your mistress what she means to do at the Wrathgate, and who will wear the Helm.
    Eternus answers that the woman lecturing you will one day set a world tree burning with its
-   people inside it; he wants the war kinder, that is all. Moratari takes you back to the front.
+   people inside it; she wants the war kinder, that is all. Moratari takes you back to the front.
 6. **WRM-201 / 211 The Road to Angrathar** (II-A, Moratari, by Durkon or Sintar): the camp's
    errands skipped, as before, at Eternus's asking.
 7. The chain to the Wrathgate's door: To Fordragon Hold! (Bolvar) or The Kor'kron Vanguard!
    (Saurfang's son).
 8. **WRM-206 / 216 A Warning, Unwritten** (Moratari, by Bolvar or Saurfang's son → Eternus at the
    Bazaar; taking it goes there): Eternus's whole plan. The Forsaken's apothecaries will turn on
-   everyone at the gate; his loyalists are on the cliffs above it, where Putress's men will stand,
+   everyone at the gate; her loyalists are on the cliffs above it, where Putress's men will stand,
    to strike first, so that Bolvar and Saurfang's son walk home. You are to lead them.
 9. **WRM-207 The Weight of Time** (Eternus → Moratari), the turn, a scene at the Bazaar as you take
    it: Eternus says something has followed you from Wyrmrest; Sylvanas and Alleria walk in.
    Eternus throws Teldrassil at Sylvanas; she answers that it is why the bronze sent her, and
    tells Moratari what Eternus left out: if Bolvar does not burn, no one takes up the Helm when
    Arthas falls, the Scourge goes masterless, and every soul the Helm has bound is lost; she has
-   spent years freeing souls like those. Alleria feels where Eternus's road ends. Moratari says he
+   spent years freeing souls like those. Alleria feels where Eternus's road ends. Moratari says Eternus
    told her it was mercy, casts a spell and vanishes; ten seconds later a time rift opens and she
    steps out of it: the road where Bolvar lives ends at a throne no one holds. It has to happen as
-   it did. Eternus: "I know. I have always known. I will not watch it again." He leaves. From then
+   it did. Eternus: "I know. I have always known. I will not watch it again." She leaves. From then
    on the Bazaar is Moratari's, Sylvanas's and Alleria's: Eternus is gone from it (for those past
-   the turn; a new Timerunner still meets him in the prologue).
+   the turn; a new Timerunner still meets her in the prologue).
 10. **WRM-208 / 218 The Hour of the Gate** (Sylvanas → Alleria, on the cliffs above the Wrathgate;
     taking it goes there): Eternus's loyalists (Infinite Interlopers) wait where the Forsaken's
     catapults will stand. Slay six; leave the Forsaken be. Sylvanas will not come: she cannot be
@@ -286,15 +302,32 @@ on my left", "you never did listen to me about trolls"), and catches herself; sh
 will not say more, because knowing it would change how it happens. Asked outright ("You talk to me
 like you know me"), she says so. Alleria notices how careful her sister is with the Timerunner.
 
+Alleria knows them too, and is worse at hiding it, and hides it harder. She looks after the
+Timerunner the way an eldest sister does, crossly: they have not been sleeping, they should eat,
+that scratch wants cleaning, they went in ahead of her again ("do that again and I will shoot you
+myself"). Every kindness comes with its excuse: it is for the timeline, for her sister's sake, as a
+matter of policy, "it is not as if I would miss you". She slips into the future tense ("you always
+do that", "you will hear it again at the bottom of Ulduar"), and takes it back. Her words at the
+Bazaar warm as the war goes on (`npc_remix_windrunner`: after the turn, from Chapter V, from
+Chapter VII, and once the war is over), until, before the Citadel, she tells them there is
+something she would say if things were otherwise: "Ask me after." After the war, asked why she
+keeps looking out for them, she denies it, then admits it ("Sylvanas is careful with you. I am
+not careful. I am cross with you, constantly, which in our family is very much worse"), and tells
+them to ask again when they say goodbye. Her goodbye says it: where she comes from, the
+Timerunner is family; Turalyon says she treats them the way she treated Lirath, her little brother,
+before the war took him, and he is right; she kept her distance so they could find their own way
+to it; she will see them in the future. It is platonic, a sibling's love; Sylvanas's "someone I
+trust" is a soldier's.
+
 ## Before the turn: Eternus's small changes
 
-Until the turn, Eternus is folding the war his way, quietly, and the Timerunner can see it. Nine
+Until the turn, Eternus is folding the war her way, quietly, and the Timerunner can see it. Nine
 original quests on each side's path through the Borean Tundra and the Dragonblight turn in a little
 differently than history has them: the one who takes the quest back notices something small that
 went better than it should have (a transport that came in, a wall braced in the night, a fog over
-the plains, a vial gone missing), and a moment later Eternus whispers that it was him. The people
-in his are history's unnamed. (Moratari's go further: a named man lives, see "Moratari in the war".)
-Their texts and his whispers are in `wrath_remix_world_0019_eternus_kindnesses.sql`; the whispers
+the plains, a vial gone missing), and a moment later Eternus whispers that it was her. The people
+in hers are history's unnamed. (Moratari's go further: a named man lives, see "Moratari in the war".)
+Their texts and her whispers are in `wrath_remix_world_0019_eternus_kindnesses.sql`; the whispers
 stop at the turn.
 
 - Alliance: Enlistment Day, A Time for Heroes, The Siege, Death From Above, Plug the Sinkholes,
@@ -438,14 +471,14 @@ they're a time jumper; then her quests open one after another without waiting fo
 
 ## After the turn
 
-From Chapter III on, Eternus is no longer the one guiding you. He keeps trying to save the war's
-dead, and each time he picks a quieter grave than the last, hoping history will not miss it. Each
-chapter has one of these attempts at its heart: his agents (the Infinite still loyal to him) at the
-place where he means to change things, and you stopping them. Then the history he tried to change
+From Chapter III on, Eternus is no longer the one guiding you. She keeps trying to save the war's
+dead, and each time she picks a quieter grave than the last, hoping history will not miss it. Each
+chapter has one of these attempts at its heart: her agents (the Infinite still loyal to her) at the
+place where she means to change things, and you stopping them. Then the history she tried to change
 goes on as it did.
 
 Moratari's other transitions stay what they were (skipping an afternoon of errands), but they are
-hers now, not his. Every original quest is always still there to play.
+hers now, not Eternus's. Every original quest is always still there to play.
 
 Each chapter belongs a little more to one of the people beside you:
 
@@ -453,8 +486,8 @@ Each chapter belongs a little more to one of the people beside you:
   cousins.
 - **Chapter IV, Sylvanas.** A troll who sells his people to a king of ice, and a woman who once did
   worse.
-- **Chapter V, Moratari.** Eternus comes for her himself, and tells her what he is building.
-- **Chapter VI, Eternus.** He offers a grieving god his wife back, and is told the truth about
+- **Chapter V, Moratari.** Eternus herself comes for her, and tells her what she is building.
+- **Chapter VI, Eternus.** She offers a grieving god his wife back, and is told the truth about
   kindness.
 - **Chapter VII, all of them.** The Frozen Halls, the last of Eternus's hours, and the throne.
 
@@ -468,7 +501,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    Windseer Grayhorn (Vordrassil's Fall... The Bear God's Offspring).
 2. **WRM-303 / 313 The Hollow Crown** (Alleria, beside Thayreen or Grayhorn once Vordrassil's
    Sapling or The Bear God's Offspring is done; she is there from then until it is turned in).
-   A scene as it is taken. Eternus's agents have set three Temporal Anchors around Ursoc's Den: he
+   A scene as it is taken. Eternus's agents have set three Temporal Anchors around Ursoc's Den: she
    means to turn the Bear God back to the years before Vordrassil's roots reached what lies
    beneath, and give the furbolgs their god whole. Break the anchors (their Infinite Rewinders stand
    guard), then speak with Alleria at the den, by Tur Ragepaw.
@@ -476,14 +509,16 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Alleria:** There is something under these hills, Timerunner. I felt it the moment the bronze
    > set me down. It has a voice, and the voice is very patient.
    >
-   > **Alleria:** Eternus has felt something too, but not the same thing. He sees a god driven mad
-   > and he thinks: a wound. Wind it back, and the bear is whole again.
+   > **Alleria:** Eternus has felt something too, but not the same thing. She sees a god driven mad
+   > and she thinks: a wound. Wind it back, and the bear is whole again.
    >
    > **Alleria:** The madness is not a wound. It is a whisper, and whispers do not care what year
    > it is. Turn Ursoc back, and it only finds another ear. A druid's. A child's. Yours.
    >
    > **Alleria:** I know that voice. Not this one: a cousin of it. I have had it in my own head.
-   > Go and break his anchors. I will meet you at the den.
+   >
+   > **Alleria:** Go and break her anchors. I will meet you at the den. If you are late, I will
+   > come looking, and you will not enjoy being found.
 
    Ursoc, the Bear God (12249 / 12236) waits for it. As the Bear God's quest is turned in, Alleria
    speaks once more, beside the one who gave it:
@@ -491,8 +526,10 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Alleria:** He is at peace now. The voice is not. It reaches far deeper than that tree, and it
    > is not alone down there.
    >
-   > **Alleria:** When you climb into the storm giants' mountains, remember what you felt here. That
-   > is where it lives.
+   > **Alleria:** You will hear it again at the bottom of Ulduar. ...You may. I cannot know that.
+   > When you reach the Storm Peaks, listen for it, and send me word.
+   >
+   > **Alleria:** I want to know where it is. That is all. Do not read anything into it.
 
 3. **WRM-301 / 311 A Shorter Path Through the Woods** (Moratari, as before): Amberpine Lodge's or
    Conquest Hold's other wars, left to whoever wants them; to Samir, by Drakuru's cages.
@@ -588,9 +625,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Eternus:** Then I will remember them for both of us.
    >
-   > *(He is gone.)*
+   > *(She is gone.)*
    >
-   > **Moratari:** He was kind to me, $n, when no one else in my flight was. I hope you never have to
+   > **Moratari:** She was kind to me, $n, when no one else in my flight was. I hope you never have to
    > choose between a kindness and the truth. I hope you never have to do it twice.
 
 5. The Waygate: Powering the Waygate (the Maker's Perch, the Maker's Overlook), The Etymidian, The
@@ -611,7 +648,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
 4. **WRM-602 A Gift of Grief** (Moratari, by Thorim on the Terrace of the Makers, after The Terrace
    of the Makers). Eternus's agents are weaving an echo of Sif out of the hours before she died, to
    stand before her husband. Slay four Infinite Weavers, then speak with Moratari. Loken's Lackeys
-   and The Earthen Oath wait for it. As it is turned in, Eternus stands before Thorim himself:
+   and The Earthen Oath wait for it. As it is turned in, Eternus stands before Thorim herself:
 
    > **Eternus:** Stormlord. I have watched you grieve for longer than these mountains have had
    > names. Let me give her back to you. Not a memory: her, as she was, before your brother's hand.
@@ -632,10 +669,13 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Eternus:** ...Keep your grief, Stormlord. I will keep mine.
    >
-   > *(He is gone.)*
+   > *(She is gone.)*
    >
-   > **Thorim:** Whoever that was, he loved someone once. It is written all over him. Now: Loken. My
+   > **Thorim:** Whoever that was, she loved someone once. It is written all over her. Now: Loken. My
    > brother has much to answer for.
+   >
+   > **Alleria:** That was meant for you as much as for him. Whatever you were toasting when the
+   > bronze found you, do not let anyone sell it back to you. ...As a matter of policy. Go on.
 
 5. Loken's Lackeys, The Earthen Oath, The Reckoning; Loken waits in the Halls of Lightning.
 6. **WRM-621 Storm's End** (Moratari, by King Jokkum, after The Reckoning): to the Argent Vanguard
@@ -691,7 +731,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Sylvanas:** Uther waits in those halls, Timerunner. What is left of him. He will tell you what
    > the Lich King is for. Believe him. It will cost you nothing. It cost me everything to learn it.
    >
-   > **Alleria:** We will be here when you come out. Both of us. Go.
+   > **Alleria:** She means be careful. So do I. A little. Go, before I say something foolish.
 
    Moratari's way then goes to Dalaran, before Apprentice Nelphi or Dark Ranger Vorel, and Inside
    the Frozen Citadel.
@@ -700,7 +740,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    and Wrath of the Lich King (the Halls of Reflection, and the escape).
 5. **WRM-721 The Last Hour** (Moratari, outside the Frozen Halls once Wrath of the Lich King is
    done; taking it goes to the doors of Icecrown Citadel). Eternus is there with every Infinite
-   still loyal to him, and so are Moratari, Sylvanas and Alleria, beside you. He speaks first:
+   still loyal to her, and so are Moratari, Sylvanas and Alleria, beside you. She speaks first:
 
    > **Eternus:** So. You came the long way round, as I knew you would.
    >
@@ -716,7 +756,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > toasting a war they won, and one chair empty. Hold this door with me, and no one ever has to
    > sit beside it.
    >
-   > **Sylvanas:** Do not answer him. Not about that chair.
+   > **Sylvanas:** Do not answer her. Not about that chair.
    >
    > **Moratari:** And the arch comes down on all of them, Eternus. On everyone who lives because
    > this war ended the way it did.
@@ -728,10 +768,10 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Eternus:** Then you will have to take it from me.
 
-   The fight: Eternus and his loyalists, wave after wave, with Moratari, Sylvanas and Alleria
+   The fight: Eternus and her loyalists, wave after wave, with Moratari, Sylvanas and Alleria
    fighting beside you. As it turns:
 
-   > **Eternus** *(half his strength gone)*: Do you know how many died on the beaches of
+   > **Eternus** *(half her strength gone)*: Do you know how many died on the beaches of
    > the Borean Tundra? I do. I counted them. I counted every one.
    >
    > **Eternus** *(a third left)*: Windrunner! I would have given you Quel'Thalas! Not a ruin. Not a
@@ -739,20 +779,21 @@ the people in them are summoned where they stand and heard only by that Timerunn
    >
    > **Sylvanas:** I know. That is why I came.
 
-   He is not killed. With a tenth of his strength left, he stops:
+   She is not killed. With a tenth of her strength left, she stops:
 
    > **Eternus:** ...Enough.
    >
    > **Eternus:** Not today, then. The river is long, Timerunner, and I am very patient. One day I
    > will find a grave that history does not need.
    >
-   > *(He steps into a rift, and is gone.)*
+   > *(She steps into a rift, and is gone.)*
    >
-   > **Moratari:** He's gone. Not dead. Eternus has never been any good at dying.
+   > **Moratari:** She's gone. Not dead. Eternus has never been any good at dying.
    >
    > **Sylvanas:** The doors are open, Timerunner. Go and end it.
    >
-   > **Alleria:** We will be waiting at the Bazaar. All of us. Come back to us.
+   > **Alleria:** We will be waiting at the Bazaar. All of us. Come back to us. I will not say it
+   > twice.
 
 6. **WRM-800 The Last Necessary Battle** (Moratari, at the Citadel's doors, after The Last Hour):
    Icecrown Citadel and the Lich King, as the game has them: the encounter, Tirion, Terenas, and the
@@ -771,7 +812,7 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > **Sylvanas:** He is gone. I have imagined saying those words for a very long time. They are
    > quieter than I thought they would be.
    >
-   > **Alleria:** Welcome back, Timerunner.
+   > **Alleria:** Welcome back, Timerunner. You took your time. Not that anyone was counting.
    >
    > **Moratari:** Come and see me when you are ready. There is one more thing we have to talk about.
 
@@ -857,7 +898,22 @@ the people in them are summoned where they stand and heard only by that Timerunn
      the Void like a door left open in winter.
    - *Who she is fighting, in her own time*: Xal'atath, the Harbinger of the Void, who wears her
      fears; Khaz Algar first, then Quel'Thalas, the Sunwell, home; why she will keep fighting.
-   - *Sylvanas*: she asked Alleria to come. She has never asked her for anything.
+   - *Sylvanas*: she asked Alleria to come. She has never asked her for anything. And she is careful
+     with the Timerunner; she is not the only one, Alleria supposes, and then: "We were talking about
+     Sylvanas."
+   - *Why she keeps looking out for you*: she does not; you are imagining it; you are not. Ask her
+     again when you say goodbye.
+
+   Her stories carry her guard too: you would hate Argus, and go anyway; the Void is hers to carry
+   and she does not need anyone worrying over her, you least of all; someone once told her going
+   first is the only leading worth the name, and she will not say who; family is sometimes only the
+   people who keep turning up ("That is a general observation").
+
+   Her goodbye is the reveal: where she comes from, you are family, her brother or sister in every
+   way that counts; Turalyon says she treats you as she treated Lirath, and he is right; she kept her
+   distance so you could find your own way to it. She embraces you, briefly, and lets go before you
+   can return it: "Go home, Timerunner. Hug someone for me. You don't have to tell them why. I will
+   see you in the future, $n. Try not to be late. You always are."
 
 4. **WRM-802 Back to Your Own Time** (Moratari, after See You Later). As it is taken:
 
@@ -876,6 +932,9 @@ the people in them are summoned where they stand and heard only by that Timerunn
    > you the long way.
    >
    > **Alleria:** And if you see my son... no. Don't tell him anything. He'll know.
+   >
+   > **Alleria:** And you, $n. You heard me the first time. I will see you in the future. Do not be
+   > late.
    >
    > *(Moratari's spell takes them.)*
    >

@@ -841,7 +841,7 @@ for the game on the phone itself ("that's the whole point").
   bronze dragonflight brings her and Alleria (her stake: a changed Lich King story loses the souls
   she's atoning for); the 3.3.5 Sylvanas is alive in the Undercity (two Sylvanases: the future one
   keeps out of her own sight); the argument lands hardest at the Wrathgate (Bolvar must burn there
-  to take the Helm after Arthas and hold the Scourge); Eternus's motive: he believes a kinder
+  to take the Helm after Arthas and hold the Scourge); Eternus's motive: she believes a kinder
   timeline is possible and won't let it go. Her motive as read back and confirmed: she'd gain the
   most if Arthas's story changed (he killed her and made her a banshee), which is why her
   insisting it stay is what convinces.
@@ -858,7 +858,7 @@ for the game on the phone itself ("that's the whole point").
     and when you are and why you're weaker; Eternus shows three of the war's dead (echoes with the
     real people's looks: a Valiance Keep footman, Saurfang the Younger, Bolvar, all at the Bazaar
     in plain sight; the old prologue's third echo was most likely its big dark Icecrown model at
-    half transparency, in a dim cave) and makes his offer; Alurmi and the class instructor (a
+    half transparency, in a dim cave) and makes her offer; Alurmi and the class instructor (a
     credit any instructor gives as they're spoken to; they have the gossip flag now, so the game
     asks them for it before their lessons) and the hearthstone; the anomalies; and the front,
     Valiance Keep or Warsong Hold, before the officer who enlists (no choice of coast). The first
@@ -990,8 +990,8 @@ for the game on the phone itself ("that's the whole point").
     Argus, Xal'atath's title, Sylvanas at the top of the citadel).
   - Scenes (`RemixScenes.cpp`, `remix_scene`, `tools/scenes.py`): 13 of them, 170 steps, their
     people summoned for the one Timerunner, walking, casting and speaking (reading time per line).
-    The Last Hour is a fight of its own (`RemixLastHour.cpp`): Eternus, his loyalists in waves,
-    Moratari, Sylvanas and Alleria beside the player; he retreats at a tenth.
+    The Last Hour is a fight of its own (`RemixLastHour.cpp`): Eternus, her loyalists in waves,
+    Moratari, Sylvanas and Alleria beside the player; she retreats at a tenth.
   - Home (`RemixEnding.cpp`, `Homecomings.kt`): WRM-802 writes the character as a player dump and
     takes it out of Remix; the app sees the dump, closes the game and starts ChromieCraft, whose
     world server loads it into its capital. Bronze stays behind; every other item is Wrath's own.
@@ -1116,6 +1116,202 @@ for the game on the phone itself ("that's the whole point").
   Blessing and Energized last 15 minutes (SpellDuration 347). Not checked: ALE compiled with the
   playerbots core (CI), a Lua module run on it.
 
+- Then (builds 106 to 111): "finish Wrath Remix", "remove all bugs", every branch's work in one
+  build (the tavern opening included: 106, 109 and 110 have it, for characters made from then on;
+  the user: no replay for older characters), and Moratari's own voice. Done:
+  - The bug hunt in five parts (scenes and the ending; the last hour, the Frozen Halls and the
+    hourglass; the companion, outings and the romance; the intro, guide, lessons and Bazaar; the
+    app's anomaly reports and homecomings), each fix in the module's README.
+  - Creatures at the Timerunner's level, as in Legion Remix (`WrathRemix.LevelBands.FollowPlayer`):
+    the nearest real player's out in the banded zones, the highest's in Wrath's dungeons, bosses up
+    to 2 or 3 above, never above their own; re-levelled out of combat every 1.5 s within 100 yards.
+    Kill Bronze to whoever the game rewards (a companion's kills too); dailies a fifth, repeatables
+    a tenth; the heal hooks' units put right (the core passes a cast heal's swapped).
+  - Moratari's voice (the user's answers: greetings yes, whispered when she isn't near, the lines
+    that could fit used once each, the farewell as judged best, size no object): 41 of her Legion
+    Remix lines (`tools/voices.py`, `remix_voice`), fetched by file id from wago.tools and made WAVs
+    as the server is packaged (never in the repository), put in patch-Y with SoundEntries 77001+.
+    Eternus's answer to "How is this to be done?" now says the experiment can't last (her line 32
+    refers to it).
+  - Checked here: compiled; the realm starts, 41 of 41 lines voiced; the patch holds the WAVs and
+    the 41 SoundEntries rows; the unit tests (209). The prologue and the Alliance campaign were
+    under way locally against this build, passing so far, when it was pushed (the user's time);
+    CI's server test runs them all. Not checked: her voice in the game itself, the new levels in a
+    real fight on a phone.
+- Then (build 116): "do them, prioritizing the character creation".
+  - Eternus and Zephyr are women (the user's decision): every he/him for them to she/her in
+    STORY.md, the SQL texts, scenes, code, READMEs and the tests' comments (285 words in 29 files;
+    WRM-205/215 is now *Ask Her Yourself*; "master" became "mistress" where it named Eternus).
+    Zephyr's look, 19282, was a blood elf woman already; Moratari's voiced lines already said "her".
+  - Eternus in her own shape (the user: "must remain in dragon form", "no troll anywhere"):
+    `tools/models.py` makes the newer games' model (display 106055) one 3.3.5 draws, the package
+    fetches it (`data/models`, never in the repository), `ClientPatch.cpp` and `RemixModels.cpp` put
+    it in the game's patch and on her (0.4 at the Bazaar and in her scenes, 0.5 at the last hour,
+    no staff), `0029_eternus_shape` the realm's rows. Found while converting and fixed: eleven
+    animations with ids newer than 3.3.5's AnimationData (aliases: given ids no creature plays),
+    the animation lookup a hash in the newer format (made a table by id, which reads the same
+    either way), a texture animation lookup naming one that isn't there. Checked here: a structural
+    check of the converted model (every array in bounds, 105 sequences and 14,220 animation blocks
+    against the model and its .anim files, every skin section within 64 bones and every vertex's
+    bones matching its palette, batches, materials (blend modes 0 to 6), lookups), the textures
+    (DXT1/DXT5 with all mip levels), the patch with her rows read back, the realm starting with her
+    look. Not checked: the game drawing her (no client here); her size and place at the Bazaar are
+    judged from the game's own dragon of her size.
+  - The server test: a creature called over that's still out of reach (as the Cloaked Ranger at
+    the Wrathgate's cliffs in build 109's run, back from chasing an interloper) is called again and
+    waited for.
+- Then (build 116, the user's play of 111): "the tavern scene needs to have us at a table, and so
+  that I can't move"; "it spawns me in Crystalsong then immediately loads another area", "it lags
+  when loading: preload everything, just have me spawn in the tavern"; "Moratari still uses the
+  default lines for blood elf". Done:
+  - A new Timerunner is made in their side's tavern, in their chair (playercreateinfo set as the
+    realm starts, as for the Bazaar before; at the Bazaar still when the opening is off): one
+    loading screen, the tavern's. Seated at the table with their three friends, their movement
+    taken from them (the game's control of them) until Moratari takes them from it; everyone up
+    for the two toasts and sitting again; no gestures from those sitting (one would bring them to
+    their feet). The Gilded Rose's own table, its four chairs set out again in the opening's phase
+    (the game's are in everyone's, not seen in it); the Broken Tusk has no table in the open: an
+    orc table and four log chairs before the innkeeper. A skip before it begins (CI's) goes to the
+    Bazaar, the hearthstone with it.
+  - Everywhere the opening goes and the Bazaar loaded as the realm starts (the core keeps a grid it
+    has loaded): about half a second here.
+  - Moratari's look has no stock voice (0026: NPCSounds 0), so clicking her is her own greeting.
+  - Found in build 111's CI: wago.tools turns away Python's own user agent (403 for all 41 lines:
+    the APK had none of her voice); both fetches now name the build. The prologue's squish check
+    counted a bot's pet (79% for 75%): pets, guardians and player-controlled ones left out.
+  - Checked here: compiled; the realm starting with all of it (Eternus's look in the game's patch,
+    her rows and twelve files read back from it the same, her parts in it; 62 starts in the
+    taverns; the places loaded in 0.2 to 0.5 s; 41 of 41 of Moratari's lines fetched with the new
+    user agent); the prologue for an Alliance Timerunner made in the Gilded Rose (seated there, then
+    everything to Valiance Keep); a Horde one's opening (seated at the Broken Tusk's set-out table,
+    then the Front, then a skip to the Bazaar). Not checked: the game drawing any of it (the seats,
+    the table, her dragon), and the Horde campaign's goodbyes: in a local run of 111, Sylvanas
+    wasn't at the Bazaar for WRM-801 (not traced yet; CI's run will say whether it's this build's).
+- Then (build 117): "the infinite bazaar doesn't feel magical... have the same NPCs from the legion
+  remix" (the user's answers: working roles, Wrath versions; keep all of Wrath's); then "move it into
+  an icecrown area... Let's use the unfinished area malykriss. So rewrite the quests or whatever and
+  the hourglass. ... alive and magical but also scourge themed and include death knights"; "a custom
+  set of death knight armor found in a location. It's never mentioned but displayed in a chest. ...
+  a short and easy questline ... like an heirloom that scales ... even if they aren't a death knight";
+  "living Nerubians ... an independent faction who has aligned with the cause ... a very personal
+  reason to hate Arthas". Decided here (no questions asked):
+  - The site: Malykriss's crater floor (area 4520), level at 508.6 under the unfinished necropolis's
+    bare ribs (Icecrown_Necropolis_Deathstar01). Seen by rendering the server's own collision data
+    (terrain, WMOs, M2s) and the navmesh, as no client here draws it; the old camp fitted onto it
+    whole by a search over shifts and turns (x + 694, y + 854, no turn: every one of its 144 spots on
+    level floor with 6 yards clear), then the realm's `.remix ground` survey: all 508.6.
+  - Malykriss's Scourge garrison taken out of Remix's world, and the Shadow Vault's twelve quests
+    that need it off (`disables`); the Nerubians as a faction in name (their subname), friendly to
+    all, not a reputation (that would need the client's Faction tables).
+  - Done (`tools/malykriss.py`, `0030_malykriss`, `src/RemixMalykriss.cpp`): the Ebon Blade's gate,
+    quarter, Runeworks and walkways; the nerubians' hall by the Blood Forge, their wardens and
+    skyguards; the time-magic at the hourglass (sands, beams, rift, frost spheres); the camp's props
+    rethemed (Ebon Blade banners, Scourge braziers, a rune circle and light at the hourglass, a
+    working runeforge). The start, homebind, hourglass, travel hub, scenes' spots, the romance's
+    tent, the prologue's text and the tests all moved with the camp.
+  - The rest of Legion Remix's cast, Wrath versions (looks from the game's infinite dragonflight,
+    each with their wares, a stall and their lines from the wiki): a north row of apparel sellers
+    (Pythagorus, Sacerdormu, Agos, Unicus, Larah, Freddie), Nedward and his barber's chair, Hemet
+    XVII's mounts at the waystation, Jakkus and Momentus (Weaponmaster now) at the training yard,
+    Nostwin and Erus by the campfire, Metros at the heart, Lidamorrutu and Lindormi in the
+    chronicle corner. The instructors' spawns had stayed in Crystalsong: moved.
+  - Checked here: compiled; the realm started with all of it; every Malykriss resident where it
+    should be (`.remix guid`, the skyguards and frost spheres moving); the prologue played through
+    for an Alliance Timerunner (65 checks: woken in Malykriss, the hourglass there and back, Hemet's
+    mounts, Pythagorus's tier set). Not checked: the game drawing any of it (no client here: the
+    props' sizes, the beams, the barber's window away from a barbershop).
+  - CI's run 120 (before the move) played both campaigns through for the first time since build 108
+    and failed only at ChromieCraft taking the Timerunners in: the test asked before its queued
+    writes landed (now it waits).
+  - The hidden death knight set (`0031_vile_hold_set`): nine heirloom pieces any class wears, in a Scourge
+    coffer on the south terrace, WRM-061 to 063. Checked here on the realm: the coffer offers WRM-061, the
+    three runes each give its credit, the three quests follow at the coffer, and a mage ends with Plate of
+    the Unrisen (all nine pieces in it); the floor there reads 525.2 as placed. Not checked: the stats on
+    a character (the agent's table is from the DBCs, as the core computes them), the tooltips, the look.
+    Kept out of the guide (never pointed to: it's to be found). Found while adding it: 0002 and 0010,
+    re-applied, cleared other files' NPC texts and creature templates; each now clears only its own.
+  - Then: "Just have moratari mention that the hero may remember this area but when they started
+    cleaning up the timeline they took care of the scourge infestation here. What this means is that
+    the quests never even become available and it's entirely ours." Done: in Out of Time's text as
+    the Timerunner wakes, and a line of hers now and then at the Bazaar; the hidden plate's tally and
+    STORY.md say the same.
+  - Then: "one of the moratari romance quests crashed the game. The one where she teleports you to
+    the inn after she reveals her new dress" (Dinner at Krasus' Landing). Found: her dress look (and
+    her tent's) has no baked texture, so the game puts it together from CharSections, and her skin
+    (blood elf woman's 15, an NPC's: face painted in) has no face or overlay rows there; the game
+    always bakes such NPCs. Fixed in the Skyborne's patch (patch-Z, the one with CharSections): every
+    NPC skin gets empty face and overlay rows (skyborne-7). The likeliest cause, not proven: no game
+    here to crash. Checked here: the patch made from the server's tables (CI's stand-in game) has
+    them (her skin's face 2 and overlay rows; 74 NPC skins, none missing a face), and the players'
+    skins and the death knights' faces as they were.
+  - Then: "Make alleria when you talk to her sort of tsundre. Like keep her lore friendly but also
+    she hints that she cares deeply for the player but never outright says it. She tries to keep
+    her distance but she knows that you are very verit intimate with her platonically like a brother
+    or sister. She eventually reveals this and says she'll see you in the future." Done: where she
+    comes from the Timerunner is family (Argus, the Void's roads since); here she keeps them at arm's
+    length, crossly, and gives herself away (they haven't been sleeping, should eat, went in ahead of
+    her again; every kindness with an excuse; slips into the future tense and takes it back). Her
+    words at the Bazaar warm as the war goes on (after the turn, from Chapter V, from Chapter VII,
+    after the war: npc_remix_windrunner), and she has her own in the Grizzly Hills (she showed the
+    Wrathgate's there before). Before the Citadel: "Ask me after." After the war, a ninth topic
+    ("Why do you keep looking out for me?"), and her goodbye says it: family, her brother or sister
+    in every way that counts; Turalyon says she treats them as she treated Lirath; "I will see you
+    in the future, $n. Try not to be late. You always are." Moratari's scene echoes it before the
+    memories go. Also in her quest texts, the Hollow Crown and Ursoc scenes, Thorim's, the Frozen
+    Halls', the last hour and the return; Sylvanas's "someone I trust" stays hers. STORY.md tells it.
+- Open (the user's):
+  0. **The next fix** (the user: "Put this on the next fix"): the future Sylvanas, Alleria and
+     Chromie in their retail looks and voices. The user's links: Lady Sylvanas Windrunner (10181),
+     Alleria Windrunner (223944), Chromie (167032); "Chromie brings them back in time"; "use their
+     voice lines at least for greeting and idle stuff and attacks". Found (wago.tools; nothing
+     converted or wired in yet):
+     - Sylvanas: 10181's display 28213 is now `creature/sylvanas/sylvanas.m2` (1245874); its bones,
+       sequences and attachments are in a separate skeleton (.skel 3476709, with its own AFID);
+       skin 1246126, four textures (1246113 to 1246116), geoset 0 only.
+     - Alleria: 223944's display 118072 (scale 1.3) is model 5395590: nine textures, 54 animations
+       in their own files (AFID), BFID and PFDC chunks (left out), geoset 0 only.
+     - Chromie: `creature/chromie/chromie.m2` (4218359), the look of every Chromie display now
+       (24877, 10008, 96559...): two textures, 54 animation files, geosets 0, 401, 2201, 3301.
+     - Voices (sound kits): Sylvanas NPCSounds 1349 (greeting 95141, farewell 95140, annoyed
+       95142; 28213's own, 175, is the old greetings), sounds 2898 (exertions 16319 and 101101,
+       injuries 16317 and 16318, death 16320, alert 123438, battle shout 123437) and 8759 (aggro
+       248024, injury 248025, idle 248026 to 248029); Alleria NPCSounds 3666 (327366, 327367,
+       290382), sounds 8858 (injury 258823, battle shout 258825, idle 258822, 258824, 258826,
+       258827); Chromie NPCSounds 1897 (139316 to 139318), sounds 4735 (exertions 43853 and
+       43854, injuries 43856 and 43857, death 43855).
+     - To do: `tools/models.py` for several models (each batch with its own texture: Eternus's
+       draws everything with her one skin; Sylvanas's skeleton merged into her model); the sound
+       kits' files fetched as WAVs (as `tools/voices.py` does) with SoundEntries, NPCSounds and
+       CreatureSoundData rows in patch-Y; new CreatureModelData and CreatureDisplayInfo rows
+       (`ClientPatch.cpp`) and the looks on the future pair (`RemixModels.cpp`), the package
+       fetching it all; a future Chromie in her retail look who brings them at Wyrmrest (Strangers
+       Out of Time) and takes them home in Back to Your Own Time, the game's own Chromie keeping
+       hers. To ask: whether the hooded "Cloaked Ranger" versions away from the Bazaar keep their
+       hoods (the story's disguise) or take the new looks too.
+  1. Character creation (on hold, the user's choice). The gear button another session added (PR
+     #17) showed in the user's game (build 132) as a square frame round an icon, doing nothing, and
+     its tooltip failed ("SkyborneGear.lua:352: attempt to call method 'SetOwner' (a nil value)",
+     with any race). Found: 3.3.5's tooltips on that screen are set by GlueXML's functions
+     (`GlueTooltip_SetOwner(owner, tooltip, x, y)`, `GlueTooltip_SetText(text, tooltip)`), not
+     methods; its preview is a ModelFFX with no `Undress` or `TryOn`, so no interface code can dress
+     it. Fixed: the creation screen's tooltip through those functions, no frame round the icon,
+     and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
+     shows only if a change to the executable ever makes it dressable). Checked here: test_gear.py
+     (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
+     so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
+     patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model
+     frame grown around the character, up to 2.5 times, back to the whole screen; the panels kept
+     where they are). Checked here: test_zoom.py (10 checks). Not checked: the game (that the
+     ModelFFX draws its scene to its larger rectangle, as model frames do). What follows is the
+     executable route, still on hold: a button, bottom-aligned with the character
+     options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
+     set (Tier 10, the user's choice), never a helmet, live on the creation screen, no restart, no
+     crash risk (the user). Found: 3.3.5's creation screen dresses its model from CharStartOutfit,
+     read once as the game starts, and its Lua has no function to dress it again; the data ways
+     (classes or races standing in for outfits) break class selection or are known to crash the
+     client. The live way is a change to the game's executable (a function the button calls),
+     which needs the user's Wow.exe (12340) to find the code, and can only be tested on the phone;
+     checked byte by byte before it's applied, as the 4 GB patch is, with an Off switch.
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.

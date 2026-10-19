@@ -1,6 +1,6 @@
 -- Chapter I, The Northrend Invasion (STORY.md): the Borean Tundra for both sides, Howling Fjord for
--- whoever goes there. Until the turn in Chapter II, Moratari's transitions are Eternus's: he has
--- read the war, and folds the road to where he means to change it. Each is a new quest from
+-- whoever goes there. Until the turn in Chapter II, Moratari's transitions are Eternus's: she has
+-- read the war, and folds the road to where she means to change it. Each is a new quest from
 -- Moratari standing by the giver of the original quest it follows (wrath_remix_world_0004_spawns.sql),
 -- standing for a block of original quests: the next original quest opens with either the
 -- transition or the block's own last quest, so nothing is ever marked done that wasn't, and a
@@ -43,22 +43,22 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77121, 2, 20, 18, 3537, 5, 0, 0, 1101,
  'Into the Dragonblight',
  'Speak with Moratari again to travel to Wintergarde Keep.',
- 'The landing holds. Eternus is pleased with you, and so, I find, am I.$B$BHe wants you inland, where the war turns: Wintergarde Keep, in the Dragonblight. Naxxramas floats over it, and High Commander Wyrmbane is about to learn exactly what that means. There is a great deal there Eternus would like to change. Let us not keep him waiting.',
+ 'The landing holds. Eternus is pleased with you, and so, I find, am I.$B$BShe wants you inland, where the war turns: Wintergarde Keep, in the Dragonblight. Naxxramas floats over it, and High Commander Wyrmbane is about to learn exactly what that means. There is a great deal there Eternus would like to change. Let us not keep her waiting.',
  'Speak with Moratari.', 0),
 (77122, 2, 20, 18, 3537, 5, 0, 0, 690,
  'Into the Dragonblight',
  'Speak with Moratari again to travel to Agmar''s Hammer.',
- 'The landing holds. Eternus is pleased with you, and so, I find, am I.$B$BHe wants you inland, where the war turns: Agmar''s Hammer, in the Dragonblight. The Horde is pushing toward the gate of Icecrown, and Overlord Agmar believes victory is near. Eternus believes he can make it so. Let us not keep him waiting.',
+ 'The landing holds. Eternus is pleased with you, and so, I find, am I.$B$BShe wants you inland, where the war turns: Agmar''s Hammer, in the Dragonblight. The Horde is pushing toward the gate of Icecrown, and Overlord Agmar believes victory is near. Eternus believes she can make it so. Let us not keep her waiting.',
  'Speak with Moratari.', 0),
 (77123, 2, 20, 18, 495, 5, 0, 0, 1101,
  'Into the Dragonblight',
  'Speak with Moratari again to travel to Wintergarde Keep.',
- 'Skorn is taken. The fjord is not where the war will be decided, though, and Eternus wants you where it is.$B$BWintergarde Keep, in the Dragonblight. Naxxramas floats over it, and High Commander Wyrmbane is about to learn exactly what that means. Let us not keep him waiting.',
+ 'Skorn is taken. The fjord is not where the war will be decided, though, and Eternus wants you where it is.$B$BWintergarde Keep, in the Dragonblight. Naxxramas floats over it, and High Commander Wyrmbane is about to learn exactly what that means. Let us not keep her waiting.',
  'Speak with Moratari.', 0),
 (77124, 2, 20, 18, 495, 5, 0, 0, 690,
  'Into the Dragonblight',
  'Speak with Moratari again to travel to Agmar''s Hammer.',
- 'The apothecaries'' work here is finished, and I would rather not think about what it is for. Eternus, I suspect, thinks about little else.$B$BAgmar''s Hammer, in the Dragonblight. The Horde is pushing toward the gate of Icecrown, and Eternus wants you there. Let us not keep him waiting.',
+ 'The apothecaries'' work here is finished, and I would rather not think about what it is for. Eternus, I suspect, thinks about little else.$B$BAgmar''s Hammer, in the Dragonblight. The Horde is pushing toward the gate of Icecrown, and Eternus wants you there. Let us not keep her waiting.',
  'Speak with Moratari.', 0);
 
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77006, 77016, 77026, 77121, 77122, 77123, 77124);
@@ -120,13 +120,13 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77017, 2, 16, 10, 3537, 5, 0, 0, 1101,
  'A Kindness Out of Time',
  'Slay 8 Crypt Crawlers on the beach below Valiance Keep, then return to Moratari.',
- 'Eternus has his first kindness for you, $n.$B$BThe beach below the keep is quieter now, thanks to you. It does not stay quiet. Tonight a squad of the keep''s footmen goes down to the shore to clear the last of the crypt crawlers, and in the record I have, none of them come back up. Within the week they are wearing Scourge colors.$B$BClear the crawlers before the squad goes down, and they will not need to. It is a small change. Eternus believes small changes are where history is kindest.',
+ 'Eternus has her first kindness for you, $n.$B$BThe beach below the keep is quieter now, thanks to you. It does not stay quiet. Tonight a squad of the keep''s footmen goes down to the shore to clear the last of the crypt crawlers, and in the record I have, none of them come back up. Within the week they are wearing Scourge colors.$B$BClear the crawlers before the squad goes down, and they will not need to. It is a small change. Eternus believes small changes are where history is kindest.',
  'Return to Moratari.',
  25227, 8, '', 0),
 (77018, 2, 16, 10, 3537, 5, 0, 0, 690,
  'A Kindness Out of Time',
  'Slay 8 Nerub''ar at Mightstone Quarry, then return to Moratari.',
- 'Eternus has his first kindness for you, $n.$B$BMightstone Quarry is the Horde''s again, but the nerubians beneath it are not finished. Tomorrow a Warsong patrol goes into the tunnels after them, and in the record I have, the patrol''s names end up on the walls of Warsong Hold with a line through them. Some of them come back. Not as orcs.$B$BThin the Nerub''ar before the patrol goes in, and the patrol comes home. It is a small change. Eternus believes small changes are where history is kindest.',
+ 'Eternus has her first kindness for you, $n.$B$BMightstone Quarry is the Horde''s again, but the nerubians beneath it are not finished. Tomorrow a Warsong patrol goes into the tunnels after them, and in the record I have, the patrol''s names end up on the walls of Warsong Hold with a line through them. Some of them come back. Not as orcs.$B$BThin the Nerub''ar before the patrol goes in, and the patrol comes home. It is a small change. Eternus believes small changes are where history is kindest.',
  'Return to Moratari.',
  25382, 8, 'Nerub''ar slain', 0),
 (77019, 2, 16, 10, 3537, 3, 0, 0, 1101,

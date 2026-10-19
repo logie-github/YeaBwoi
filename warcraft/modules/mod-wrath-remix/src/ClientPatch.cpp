@@ -284,6 +284,70 @@ namespace WrathRemix
             return {};
         }
 
+        // [base] (a DBC file of [fields] fields) with [texts] added to its strings, their offsets in
+        // [at]: for rows of its with text, put in after with WithRows. Empty when [base] isn't such a file.
+        Bytes WithStrings(Bytes const& base, uint32 fields, std::vector<std::string> const& texts, std::vector<int32>& at)
+        {
+            if (base.size() < 20 || std::memcmp(base.data(), "WDBC", 4) != 0)
+                return {};
+            uint32 count = Get32(base, 4), size = Get32(base, 12), strings = Get32(base, 16);
+            size_t stringsAt = 20 + size_t(count) * size;
+            if (Get32(base, 8) != fields || size != fields * 4 || base.size() < stringsAt + strings)
+                return {};
+            Bytes grown(base.begin(), base.begin() + stringsAt + strings);
+            for (std::string const& text : texts)
+            {
+                at.push_back(int32(grown.size() - stringsAt));
+                grown.insert(grown.end(), text.begin(), text.end());
+                grown.push_back(0);
+            }
+            Put32(grown, 16, uint32(grown.size() - stringsAt));
+            return grown;
+        }
+
+        // A sound: a SoundEntries row of one file in a folder (the game's own spoken lines' kind).
+        struct Sound { uint32 id; std::string name, file, folder; };
+
+        // [base], SoundEntries.dbc (30 fields; the name, the ten files and the folder are strings),
+        // with [sounds] in (a row with an id already there in its place), their strings added to
+        // the file's. Empty when [base] isn't that file.
+        Bytes WithSounds(Bytes const& base, std::vector<Sound> const& sounds)
+        {
+            constexpr uint32 FIELDS = 30;
+            if (base.size() < 20 || std::memcmp(base.data(), "WDBC", 4) != 0)
+                return {};
+            uint32 count = Get32(base, 4), size = Get32(base, 12), strings = Get32(base, 16);
+            size_t stringsAt = 20 + size_t(count) * size;
+            if (Get32(base, 8) != FIELDS || size != FIELDS * 4 || base.size() < stringsAt + strings)
+                return {};
+            Bytes grown(base.begin(), base.begin() + stringsAt + strings);
+            auto add = [&grown, stringsAt](std::string const& text)
+            {
+                int32 at = int32(grown.size() - stringsAt);
+                grown.insert(grown.end(), text.begin(), text.end());
+                grown.push_back(0);
+                return at;
+            };
+            std::vector<std::vector<int32>> rows;
+            for (Sound const& sound : sounds)
+            {
+                std::vector<int32> row(FIELDS, 0);
+                float const volume = 1.0f, near = 15.0f, far = 60.0f;
+                row[0] = int32(sound.id);
+                row[1] = 10;                                // a scripted line, as Tirion's at the Lich King
+                row[2] = add(sound.name);
+                row[3] = add(sound.file);                   // the first of ten files; its frequency:
+                row[13] = 1;
+                row[23] = add(sound.folder);
+                std::memcpy(&row[24], &volume, 4);
+                std::memcpy(&row[26], &near, 4);
+                std::memcpy(&row[27], &far, 4);
+                rows.push_back(std::move(row));
+            }
+            Put32(grown, 16, uint32(grown.size() - stringsAt));
+            return WithRows(grown, FIELDS, rows);
+        }
+
         std::vector<std::vector<int32>> Rows(std::string const& sql, uint32 fields)
         {
             std::vector<std::vector<int32>> rows;
@@ -345,9 +409,10 @@ namespace WrathRemix
         return {};
     }
 
-    // Writes (or, with no rows, takes out) the clothes of Remix's new looks; false when there's no
-    // language folder to put them in.
-    static bool UpdateLooksPatch(fs::path const& data, Bytes const* extras)
+    // Writes (or, with no tables, takes out) the tables the Skyborne's patch must take in with the
+    // game's (it's made from the patches before it but patch-Y): the clothes of Remix's new looks and
+    // Moratari's voice's sounds; false when there's no language folder to put them in.
+    static bool UpdateLooksPatch(fs::path const& data, std::vector<std::pair<std::string, Bytes>> const& tables)
     {
         fs::path locale = LocaleFolder(data);
         if (locale.empty())
@@ -361,7 +426,7 @@ namespace WrathRemix
             LOG_WARN("module", "Wrath Remix: {} isn't Wrath Remix's; left alone, so Remix's new looks have no clothes", looks.string());
             return true;
         }
-        if (!extras)
+        if (tables.empty())
         {
             if (ours)
             {
@@ -370,13 +435,16 @@ namespace WrathRemix
             }
             return true;
         }
-        std::string const name = "DBFilesClient\\CreatureDisplayInfoExtra.dbc";
-        std::string const list = name + "\r\n";
-        std::string const note = "Wrath Remix's new looks' clothes for the game: its world server writes this as it starts; it stays for "
-            "ChromieCraft's realm too (rows only Remix's people wear).\n";
+        std::vector<std::pair<std::string, Bytes>> files = tables;
+        std::string list;
+        for (auto const& [name, table] : tables)
+            list += name + "\r\n";
+        files.emplace_back("(listfile)", Bytes(list.begin(), list.end()));
+        std::string const note = "Wrath Remix's new looks' clothes and Moratari's voice's sounds for the game: its world server writes this as it "
+            "starts; it stays for ChromieCraft's realm too (rows only Remix's people use).\n";
         WriteIfChanged(mark, Bytes(note.begin(), note.end()));
-        if (WriteIfChanged(looks, Archive({ { name, *extras }, { "(listfile)", Bytes(list.begin(), list.end()) } })))
-            LOG_INFO("module", "Wrath Remix: its looks' clothes written ({})", looks.string());
+        if (WriteIfChanged(looks, Archive(files)))
+            LOG_INFO("module", "Wrath Remix: its looks' clothes and voice's sounds written ({})", looks.string());
         return true;
     }
 
@@ -475,11 +543,75 @@ namespace WrathRemix
                 lookExtras.push_back(std::move(extra));
             } while (result->NextRow());
         }
-        if (lookExtras.empty())
-            UpdateLooksPatch(data, nullptr);
-        if (!voices.empty() || !looks.empty())
+        // Eternus's own shape (RemixModels.cpp, tools/models.py): her model's files from the module's
+        // data/models; a CreatureModelData row (28 fields, the model's name the third) copied from
+        // the game's dragon's (Creature\Dragon\Dragon.mdx, her size), with her model and its bounds;
+        // and her look's CreatureDisplayInfo row (copied from that dragon's look), her skin both of
+        // its textures, at scale 1 (each of her parts has its own).
+        std::vector<std::string> const& shape = EternusShapeFiles();
+        Bytes modelData;
+        std::vector<int32> dragonLook;
+        std::vector<std::pair<std::string, Bytes>> shapeFiles;
+        if (!shape.empty())
+        {
+            constexpr uint32 GAME_DRAGON_MODEL = 2723, GAME_DRAGON_LOOK = 23746;
+            constexpr float BOUNDS[6] = { -19.34f, -9.86f, -0.55f, 10.24f, 9.66f, 13.43f };   // her model's, standing (the newer games')
+            Bytes const modelBase = Read(dbc / "CreatureModelData.dbc");
+            std::vector<int32> model = RowOf(modelBase, 28, GAME_DRAGON_MODEL), at;
+            dragonLook = RowOf(displayBase, 16, GAME_DRAGON_LOOK);
+            Bytes grown = model.empty() ? Bytes() : WithStrings(modelBase, 28, { "Creature\\Eternus\\Eternus.mdx" }, at);
+            if (!grown.empty() && !dragonLook.empty())
+            {
+                model[0] = int32(MODEL_ETERNUS_DRAGON);
+                model[2] = at[0];
+                std::memcpy(&model[17], BOUNDS, sizeof(BOUNDS));
+                modelData = WithRows(grown, 28, { model });
+            }
+            for (std::string const& file : shape)
+            {
+                Bytes data = Read(fs::path(ModelsFolder()) / file);
+                std::string name = file;
+                std::replace(name.begin(), name.end(), '/', '\\');
+                if (data.empty())
+                {
+                    modelData.clear();
+                    break;
+                }
+                shapeFiles.emplace_back(name, std::move(data));
+            }
+            if (modelData.empty())
+            {
+                LOG_ERROR("module", "Wrath Remix: {} or her files aren't what it expects; Eternus keeps the dragonspawn's shape",
+                    (dbc / "CreatureModelData.dbc").string());
+                dragonLook.clear();
+            }
+        }
+        // (the tables the Skyborne's patch takes in: in their own patch, read after it makes its copy;
+        // in patch-Y if the game has no language folder)
+        std::vector<std::pair<std::string, Bytes>> localeTables;
+        bool dragon = false;
+        if (!voices.empty() || !looks.empty() || !dragonLook.empty())
         {
             Bytes patched = voices.empty() ? displayBase : WithValues(displayBase, 16, 12, voices);
+            if (!patched.empty() && !dragonLook.empty())
+            {
+                std::vector<int32> at;
+                patched = WithStrings(patched, 16, { "EternusSkin" }, at);
+                if (!patched.empty())
+                {
+                    float const scale = 1.0f;
+                    dragonLook[0] = int32(DISPLAY_ETERNUS_DRAGON);
+                    dragonLook[1] = int32(MODEL_ETERNUS_DRAGON);
+                    dragonLook[3] = 0;                          // no extra: a creature's look
+                    std::memcpy(&dragonLook[4], &scale, 4);
+                    dragonLook[5] = 255;
+                    dragonLook[6] = dragonLook[7] = at[0];
+                    dragonLook[8] = dragonLook[9] = 0;
+                    dragonLook[12] = dragonLook[13] = dragonLook[14] = dragonLook[15] = 0;
+                    looks.push_back(dragonLook);
+                    dragon = true;
+                }
+            }
             if (!patched.empty() && !looks.empty())
                 patched = WithRows(patched, 16, looks);
             if (patched.empty())
@@ -490,23 +622,71 @@ namespace WrathRemix
                 std::string name = "DBFilesClient\\CreatureDisplayInfo.dbc";
                 files.emplace_back(name, std::move(patched));
                 list += name + "\r\n";
+                if (dragon)
+                {
+                    files.emplace_back("DBFilesClient\\CreatureModelData.dbc", std::move(modelData));
+                    list += "DBFilesClient\\CreatureModelData.dbc\r\n";
+                    for (auto& [path, file] : shapeFiles)
+                    {
+                        list += path + "\r\n";
+                        files.emplace_back(path, std::move(file));
+                    }
+                    EternusShapeInPatch();
+                    LOG_INFO("module", "Wrath Remix: Eternus's own shape in the game's patch ({} files)", shapeFiles.size());
+                }
                 if (!lookExtras.empty())
                 {
                     Bytes extras = WithRows(extraBase, 21, lookExtras);
                     if (extras.empty())
                         LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Remix's new looks have no clothes",
                             (dbc / "CreatureDisplayInfoExtra.dbc").string());
-                    // (in their own patch, read after the Skyborne's makes its copy; in patch-Y if the
-                    // game has no language folder)
-                    else if (!UpdateLooksPatch(data, &extras))
-                    {
-                        std::string extraName = "DBFilesClient\\CreatureDisplayInfoExtra.dbc";
-                        files.emplace_back(extraName, std::move(extras));
-                        list += extraName + "\r\n";
-                    }
+                    else
+                        localeTables.emplace_back("DBFilesClient\\CreatureDisplayInfoExtra.dbc", std::move(extras));
                 }
             }
         }
+        // Moratari's own voice (remix_voice, tools/voices.py): each line a SoundEntries row and its
+        // WAV, from the module's data/voices, where the server package fetches them (the game's
+        // files are never in the repository). Without them, she speaks in text alone.
+        std::vector<Sound> sounds;
+        std::vector<std::pair<std::string, Bytes>> wavs;
+        fs::path const voiceFolder = VoicesFolder();
+        std::string const soundFolder = "Sound\\Creature\\Moratari";
+        if (QueryResult result = WorldDatabase.Query("SELECT `sound`, `number`, `file` FROM `remix_voice` ORDER BY `sound`"))
+        {
+            do
+            {
+                Field* f = result->Fetch();
+                std::string const file = f[2].Get<std::string>();
+                Bytes wav = Read(voiceFolder / file);
+                if (wav.size() <= 44)
+                    continue;
+                sounds.push_back({ f[0].Get<uint32>(), Acore::StringFormat("RemixMoratari{:02}", f[1].Get<uint32>()), file, soundFolder });
+                wavs.emplace_back(soundFolder + "\\" + file, std::move(wav));
+            } while (result->NextRow());
+        }
+        if (!sounds.empty())
+        {
+            Bytes patched = WithSounds(Read(dbc / "SoundEntries.dbc"), sounds);
+            if (patched.empty())
+                LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Moratari speaks without her voice",
+                    (dbc / "SoundEntries.dbc").string());
+            else
+            {
+                localeTables.emplace_back("DBFilesClient\\SoundEntries.dbc", std::move(patched));
+                for (auto& [path, wav] : wavs)
+                {
+                    list += path + "\r\n";
+                    files.emplace_back(path, std::move(wav));
+                }
+            }
+        }
+        if (!UpdateLooksPatch(data, localeTables))
+            for (auto& [name, table] : localeTables)
+            {
+                list += name + "\r\n";
+                files.emplace_back(name, std::move(table));
+            }
         files.emplace_back("(listfile)", Bytes(list.begin(), list.end()));
 
         std::string const note = "Wrath Remix's patch for the game (Bronze and its prices, its people's voices and looks): its world server writes " +

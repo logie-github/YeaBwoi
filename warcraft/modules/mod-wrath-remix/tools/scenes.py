@@ -25,6 +25,9 @@ ACT_MORATARI = 770013
 ACT_SYLVANAS, ACT_ALLERIA, ACT_ETERNUS, ACT_THORIM, ACT_SIF = 770051, 770052, 770053, 770054, 770055
 THORIM_TERRACE = 30295
 HIEROPHANT_THAYREEN, WINDSEER_GRAYHORN = 27295, 27262
+# A scene's credit, given at its end to the scene's own quest alone (RemixScenes.cpp: another quest
+# in the log asking for it doesn't get it), and the reason one cut short plays again at its anchor.
+# Back to Your Own Time's is given by the way home too (RemixEnding.cpp).
 SCENE_CREDIT = 770035
 PLAYER = 255
 
@@ -42,6 +45,13 @@ def say(actor, text):
     return ("say", actor, text)
 
 
+def voiced(actor, text, seconds):
+    """A line said in the game's own recording of it (tools/voices.py): the scene gives it as long as
+    the recording runs, if that's longer than the time to read it."""
+    extra = int(seconds * 1000) + 400 - max(4000, int(len(text) * 1000 / 15))   # (reading_time's, below)
+    return [say(actor, text)] + ([("wait", extra)] if extra > 0 else [])
+
+
 def scene(id, name, quest, trigger, anchor, steps, credit=0):
     return dict(id=id, name=name, quest=quest, trigger=trigger, anchor=anchor, credit=credit, steps=steps)
 
@@ -54,9 +64,10 @@ SCENES = [
         ("bind", 1, ALLERIA_ABROAD),
         ("face", 1, PLAYER),
         say(1, "There is something under these hills, Timerunner. I felt it the moment the bronze set me down: a voice, so low you could take it for the wind."),
-        say(1, "Eternus sees only the bear: a god driven mad, and to him that is a wound. Wind it back far enough, and the bear is whole again."),
+        say(1, "Eternus sees only the bear: a god driven mad, and to her that is a wound. Wind it back far enough, and the bear is whole again."),
         say(1, "But the madness is not a wound. It is a whisper, and whispers do not care what year it is. Turn Ursoc back, and it finds another ear. A druid's. A child's. Yours."),
-        say(1, "I know this voice, or one of its cousins. I have had one in my own head for years, and it is poor company. Go and break his anchors. I will meet you at the den."),
+        say(1, "I know this voice, or one of its cousins. I have had one in my own head for years, and it is poor company."),
+        say(1, "Go and break her anchors. I will meet you at the den. If you are late, I will come looking, and you will not enjoy being found."),
     ]) for sid, quest in ((301, 77303), (302, 77313))],
     *[scene(sid, "Ursoc at peace: Alleria beside the Bear God's quest giver", quest, REWARD, giver, [
         ("summon", 1, ACT_ALLERIA, 2.0, -3.0, 0.0),
@@ -64,7 +75,8 @@ SCENES = [
         ("wait", 1500),
         ("face", 1, PLAYER),
         say(1, "He is at peace now. The voice is not. It runs far deeper than that tree's roots ever reached."),
-        say(1, "You have heard it before, I think, at the bottom of Ulduar. When you reach the Storm Peaks, listen for it. It will be louder there."),
+        say(1, "You will hear it again at the bottom of Ulduar. ...You may. I cannot know that. When you reach the Storm Peaks, listen for it, and send me word."),
+        say(1, "I want to know where it is. That is all. Do not read anything into it."),
         ("cast", 1, SPELL_TELEPORT_VISUAL, 0),
         ("wait", 1000),
         ("despawn", 1),
@@ -100,7 +112,7 @@ SCENES = [
         ("face", 1, 2),
         say(1, "You should not be here."),
         say(2, "Neither should you. And yet here we both are, in a garden the titans built so that nothing living in it would ever be lost. They wanted what I want, Moratari. They simply had more time."),
-        say(1, "Your siphons were drinking the Makers' pillar dry. No one needs that many hours unless he means to hold one still."),
+        say(1, "Your siphons were drinking the Makers' pillar dry. No one needs that many hours unless she means to hold one still."),
         say(2, "One hour. Only one. The hour the Lich King falls."),
         say(1, "Why that one?"),
         say(2, "Because it is the keystone. Until it is set, every hour of this war is still sand, and sand can be shaped. Once it is set, every grave in Northrend is stone."),
@@ -116,7 +128,7 @@ SCENES = [
         ("despawn", 2),
         ("wait", 2500),
         ("face", 1, PLAYER),
-        say(1, "He was kind to me, $n, when no one else in my flight was. I hope you never have to choose between a kindness and the truth. I have now done it twice."),
+        say(1, "She was kind to me, $n, when no one else in my flight was. I hope you never have to choose between a kindness and the truth. I have now done it twice."),
     ]),
     # ---- Chapter VI: Eternus's grief ------------------------------------------------------------------
     scene(601, "A Gift of Grief: Eternus before Thorim", 77602, REWARD, MORATARI, [
@@ -152,7 +164,10 @@ SCENES = [
         ("despawn", 3),
         ("wait", 2000),
         ("face", 2, PLAYER),
-        say(2, "Whoever that was, he carries a grief like mine. I know the look of it. Come, little friend. My brother has much to answer for."),
+        say(2, "Whoever that was, she carries a grief like mine. I know the look of it. Come, little friend. My brother has much to answer for."),
+        ("face", 5, PLAYER),
+        say(5, "That was meant for you as much as for him. Whatever you were toasting when the bronze found you, do not let anyone sell it back to you."),
+        say(5, "...As a matter of policy. Go on."),
         ("cast", 5, SPELL_TELEPORT_VISUAL, 0),
         ("wait", 1000),
         ("despawn", 5),
@@ -191,7 +206,8 @@ SCENES = [
         say(1, "Uther waits in those halls, or what is left of him. He will tell you what the Lich King is for. Believe him. It will cost you nothing. It cost me everything to learn it."),
         say(1, "Go, $n. And do not let Arthas talk to you for long. He is very good at it."),
         ("face", 2, PLAYER),
-        say(2, "She means be careful. So do I."),
+        say(2, "She means be careful."),
+        say(2, "So do I. A little. Go, before I say something foolish."),
     ], credit=SCENE_CREDIT) for sid, quest, mid in (
         (7011, 77701, [
             say(1, "Jaina Proudmoore will lead you in. On the Horde's side of that day, it was me. We went in for different reasons, she and I. She hoped there was something left of him to save. I wanted there to be nothing left of him at all. We both came out running."),
@@ -217,7 +233,7 @@ SCENES = [
         ("face", 4, PLAYER),
         say(4, "He is gone. I have imagined saying those words since the day he killed me. They are quieter than I thought they would be."),
         ("face", 5, PLAYER),
-        say(5, "Welcome back, Timerunner."),
+        say(5, "Welcome back, Timerunner. You took your time. Not that anyone was counting."),
         ("face", 1, PLAYER),
         say(1, "Come and see me when you are ready. There is one more thing we have to talk about."),
     ]),
@@ -238,6 +254,7 @@ SCENES = [
         say(2, "And when we meet, the way we are meant to, do not tell me any of this. Let me find you the long way."),
         ("face", 3, PLAYER),
         say(3, "And if you meet my son... no. Tell him nothing. He will find us on his own."),
+        say(3, "And you, $n. You heard me the first time. I will see you in the future. Do not be late."),
         ("cast", 1, SPELL_TIME_RIFT_CHANNEL, 2),
         ("wait", 2500),
         ("cast", 1, SPELL_TIME_RIFT_CHANNEL, 3),
@@ -253,11 +270,17 @@ SCENES = [
         ("cast", 1, SPELL_TIME_RIFT_CHANNEL, PLAYER),
         ("wait", 4000),
         say(1, "There. You go home knowing no more of what is coming than anyone else at that table. It is the only fair way to go."),
+        # (her farewell in her own voice: Legion Remix's, tools/voices.py)
+        *voiced(1, "This has been quite the experiment, hasn't it? Now the sands of time slip through the hourglass, waiting to be turned over again.", 8.74),
+        *voiced(1, "The strange thing about traveling through time is that goodbyes and hellos tend to blur together. It can be hard to tell them apart.", 8.06),
+        *voiced(1, "And yet, they are, in their own way, so distinct from one another. I wonder why that is. Perhaps they deserve their own experiment.", 8.33),
+        *voiced(1, "Well, if I ever decide to pursue it, I'd be thrilled to have you as an assistant. Then this goodbye would blur into a hello as well.", 8.75),
         say(1, "But I will remember. Goodbye, Timerunner. Go home."),
+        *voiced(1, "I will create a portal for you now.", 1.78),
         ("cast", 1, SPELL_TELEPORT_VISUAL, PLAYER),
         ("wait", 2500),
         ("home",),
-    ]),
+    ], credit=SCENE_CREDIT),
 ]
 
 

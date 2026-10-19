@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * Eternus's last hour (STORY.md, Chapter VII, WRM-721): at the doors of Icecrown Citadel, Eternus
- * and the Infinite still loyal to him, and beside the Timerunner Moratari, Sylvanas and Alleria.
+ * and the Infinite still loyal to her, and beside the Timerunner Moratari, Sylvanas and Alleria.
  *
- * He speaks first, and they answer; then the fight: his loyalists in waves (as it begins, at 70% of
- * his strength and at 40%), his own blows and his time magic. He is not killed: with a tenth of his
- * strength left he stops, says his last, and steps into a rift, and the quest's credit is given to
+ * She speaks first, and they answer; then the fight: her loyalists in waves (as it begins, at 70% of
+ * her strength and at 40%), her own blows and her time magic. She is not killed: with a tenth of her
+ * strength left she stops, says her last, and steps into a rift, and the quest's credit is given to
  * every Timerunner there who is on it. Then the three say theirs and go, and the Moratari of the
  * doors is there with The Last Necessary Battle.
  *
  * Begun as WRM-721 brings the Timerunner to the doors; the Moratari outside the Frozen Halls takes
- * them back to begin again if they died, or went, before it was over.
+ * them back to begin again if they died, went or logged out before it was over. Theirs is on while
+ * their Eternus is there and alive: one the grid took away with it, unwatched, never holds it up.
  */
 
 #include "WrathRemix.h"
@@ -23,11 +24,9 @@
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "TemporarySummon.h"
-#include <functional>
 #include <iterator>
-#include <memory>
 #include <mutex>
-#include <set>
+#include <unordered_map>
 
 using namespace WrathRemix;
 
@@ -78,9 +77,9 @@ namespace
         { 3000,  0, "So. You came the long way round, as I knew you would." },
         { 8000,  0, "Behind those doors is the last hour of this war. A king on a throne of ice, and a paladin who will burn in his place. You know how it ends. So do I. I have watched it end more times than you have drawn breath." },
         { 20000, 0, "I am not here to stop the Lich King from falling. I am here to keep the hour from closing behind him. Hold this door with me, and every grave in this war stays open long enough for me to reach into it." },
-        // (the Timerunner was taken from a tavern, after the war, toasting a friend who died in it; he knows it, and so does she)
+        // (the Timerunner was taken from a tavern, after the war, toasting a friend who died in it; she knows it, and so does Sylvanas)
         { 33000, 0, "And yours, Timerunner. I know the hour I took you from: a table of friends toasting a war they won, and one chair empty. Hold this door with me, and no one ever has to sit beside it." },
-        { 47000, 2, "Do not answer him. Not about that chair." },
+        { 47000, 2, "Do not answer her. Not about that chair." },
         { 52000, 1, "And the arch comes down on all of them, Eternus. On everyone who lives because this war ended the way it did." },
         { 60000, 2, "On me. On my people. On the souls I freed and the ones I failed. You do not get to decide that they were worth less than the ones you mourn." },
         { 70000, 3, "I can feel the hour you have built, dragon. It isn't open. It's hungry." },
@@ -89,17 +88,27 @@ namespace
     constexpr uint32 FIGHT_AT = 80000;
 
     std::mutex runningLock;
-    std::set<ObjectGuid> running;  // Timerunners whose last hour is on
+    std::unordered_map<ObjectGuid, ObjectGuid> running;  // Timerunners whose last hour is on, and their Eternus
 
     bool OnTheLastHour(Player* player)
     {
         return player && player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE;
     }
 
-    void Finished(ObjectGuid player)
+    // Whether [eternus] is still [player]'s (a logout ends theirs, and a new one replaces one gone).
+    bool Theirs(ObjectGuid player, ObjectGuid eternus)
     {
         std::lock_guard<std::mutex> lock(runningLock);
-        running.erase(player);
+        auto it = running.find(player);
+        return it != running.end() && it->second == eternus;
+    }
+
+    void Finished(ObjectGuid player, ObjectGuid eternus)
+    {
+        std::lock_guard<std::mutex> lock(runningLock);
+        auto it = running.find(player);
+        if (it != running.end() && it->second == eternus)
+            running.erase(it);
     }
 }
 
@@ -143,7 +152,7 @@ public:
         {
             if (!begun)
             {
-                // until he has said his piece
+                // until she has said her piece
                 me->SetReactState(REACT_PASSIVE);
                 me->SetImmuneToAll(true);
                 events.ScheduleEvent(EVENT_INTRO, Milliseconds(INTRO[0].at));
@@ -183,7 +192,7 @@ public:
                 damage = 0;
                 return;
             }
-            // He is not killed: a tenth of his strength left, and he goes.
+            // She is not killed: a tenth of her strength left, and she goes.
             if (me->HealthBelowPctDamaged(10, damage))
             {
                 damage = me->GetHealth() > me->CountPctFromMaxHealth(10) ? me->GetHealth() - me->CountPctFromMaxHealth(10) : 0;
@@ -207,6 +216,8 @@ public:
                         std::string line = "Stay behind me, " + player->GetName() + ". Like old times. ...Like old times for one of us, at least.";
                         sylvanas->m_Events.AddEventAtOffset([sylvanas, line]() { sylvanas->Say(line, LANG_UNIVERSAL); }, 6s);
                     }
+                if (Creature* alleria = Speaker(3))
+                    alleria->m_Events.AddEventAtOffset([alleria]() { alleria->Say("Between the two of us, then. Where we can both see you.", LANG_UNIVERSAL); }, 12s);
             }
             if (!wave40 && me->HealthBelowPctDamaged(40, damage))
             {
@@ -233,7 +244,7 @@ public:
             me->CombatStop(true);
             me->GetMotionMaster()->Clear();
             me->GetMotionMaster()->MoveIdle();
-            // his loyalists go with him
+            // her loyalists go with her
             for (ObjectGuid const& guid : loyalists)
                 if (Creature* loyalist = ObjectAccessor::GetCreature(*me, guid))
                 {
@@ -320,9 +331,9 @@ public:
                         me->CastSpell(me, SPELL_TELEPORT_VISUAL, true);
                         // the three say theirs, and go
                         char const* last[] = {
-                            "He's gone. Not dead. Eternus has never been any good at dying.",
+                            "She's gone. Not dead. Eternus has never been any good at dying.",
                             "The doors are open, Timerunner. Go and end it.",
-                            "We will be waiting at the Bazaar. All of us. Come back to us.",
+                            "We will be waiting at the Bazaar. All of us. Come back to us. I will not say it twice.",
                         };
                         for (uint8 i = 0; i < 3; ++i)
                             if (Creature* ally = ObjectAccessor::GetCreature(*me, allies[i]))
@@ -344,15 +355,16 @@ public:
                                     p->UpdateObjectVisibility();
                             }, 25s);
                         }
-                        Finished(timerunner);
+                        Finished(timerunner, me->GetGUID());
                         me->DespawnOrUnsummon(1200ms);
                         break;
                     }
                     case EVENT_WATCH:
                     {
-                        // The Timerunner died, or went: it's over, to be begun again.
+                        // The Timerunner died, went or logged out: it's over, to be begun again.
                         Player* player = Timerunner();
-                        if (!player || !player->IsInWorld() || !player->IsAlive() || player->GetDistance(me) > 100.0f || !OnTheLastHour(player))
+                        if (!player || !player->IsInWorld() || !player->IsAlive() || player->GetDistance(me) > 100.0f || !OnTheLastHour(player)
+                            || !Theirs(timerunner, me->GetGUID()))
                         {
                             for (ObjectGuid const& guid : loyalists)
                                 if (Creature* loyalist = ObjectAccessor::GetCreature(*me, guid))
@@ -360,7 +372,7 @@ public:
                             for (ObjectGuid const& guid : allies)
                                 if (Creature* ally = ObjectAccessor::GetCreature(*me, guid))
                                     ally->DespawnOrUnsummon();
-                            Finished(timerunner);
+                            Finished(timerunner, me->GetGUID());
                             me->DespawnOrUnsummon();
                             return;
                         }
@@ -376,7 +388,7 @@ public:
 
         void EnterEvadeMode(EvadeReason why) override
         {
-            // (he doesn't go home to his spawn: he has none; the watch ends it if the Timerunner is gone)
+            // (she doesn't go home to her spawn: she has none; the watch ends it if the Timerunner is gone)
             if (retreating)
                 return;
             ScriptedAI::EnterEvadeMode(why);
@@ -458,9 +470,17 @@ namespace WrathRemix
         if (!Active() || !OnTheLastHour(player) || IsBot(player))
             return false;
         {
+            // (theirs is on while their Eternus is here and alive, as her watch has it; one gone with
+            // her grid, dead or left far off is over, and her watch, finding she isn't theirs, ends it)
             std::lock_guard<std::mutex> lock(runningLock);
-            if (!running.insert(player->GetGUID()).second)
-                return false;
+            auto it = running.find(player->GetGUID());
+            if (it != running.end())
+            {
+                Creature* eternus = ObjectAccessor::GetCreature(*player, it->second);
+                if (eternus && eternus->IsInWorld() && eternus->IsAlive() && eternus->GetDistance(player) <= 100.0f)
+                    return false;
+                running.erase(it);
+            }
         }
         Record(player, "last hour", NPC_LAST_ETERNUS, 0);
         // Eternus a dozen yards before the Timerunner, facing them; the three at their side.
@@ -469,9 +489,10 @@ namespace WrathRemix
         Creature* eternus = player->SummonCreature(NPC_LAST_ETERNUS, at.GetPositionX(), at.GetPositionY(), at.GetPositionZ(),
             Position::NormalizeOrientation(o + float(M_PI)), TEMPSUMMON_MANUAL_DESPAWN);
         if (!eternus)
-        {
-            Finished(player->GetGUID());
             return false;
+        {
+            std::lock_guard<std::mutex> lock(runningLock);
+            running[player->GetGUID()] = eternus->GetGUID();
         }
         eternus->CastSpell(eternus, 51347, true);
         eternus->AI()->SetGUID(player->GetGUID(), 0);
@@ -492,6 +513,29 @@ namespace WrathRemix
     }
 }
 
+namespace
+{
+    // The last hour once the Timerunner is at the doors (a far journey can keep them on a loading
+    // screen for a while: out of the world, their own events waiting), a check a second, [tries]
+    // times.
+    void BeginWhenThere(Player* player, uint32 map, float x, float y, uint32 tries)
+    {
+        if (!tries)
+            return;
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid, map, x, y, tries]()
+        {
+            Player* p = ObjectAccessor::FindPlayer(guid);
+            if (!p)
+                return;
+            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetMapId() == map && p->GetExactDist2d(x, y) < 40.0f)
+                BeginLastHour(p);
+            else
+                BeginWhenThere(p, map, x, y, tries - 1);
+        }, tries == 30 ? 2500ms : 1000ms);
+    }
+}
+
 namespace WrathRemix
 {
     // Back to the doors, to begin it again (the Moratari outside the Frozen Halls).
@@ -503,26 +547,29 @@ namespace WrathRemix
         if (!doors)
             return;
         player->TeleportTo(doors->map, doors->x, doors->y, doors->z, doors->o);
-        ObjectGuid guid = player->GetGUID();
-        float x = doors->x, y = doors->y;
-        auto tries = std::make_shared<uint32>(30);
-        auto wait = std::make_shared<std::function<void()>>();
-        *wait = [guid, x, y, tries, wait]()
-        {
-            Player* p = ObjectAccessor::FindPlayer(guid);
-            if (!p || !(*tries)--)
-                return;
-            if (p->IsInWorld() && !p->IsBeingTeleported() && p->GetExactDist2d(x, y) < 40.0f)
-                BeginLastHour(p);
-            else
-                p->m_Events.AddEventAtOffset([wait]() { (*wait)(); }, 1s);
-        };
-        player->m_Events.AddEventAtOffset([wait]() { (*wait)(); }, 2500ms);
+        BeginWhenThere(player, doors->map, doors->x, doors->y, 30);
     }
 }
+
+// A Timerunner's last hour ends as they log out (their Eternus, if her grid keeps her till they're
+// back, sees it at her next look and goes), to be begun again as if they had died.
+class RemixLastHourPlayer : public PlayerScript
+{
+public:
+    RemixLastHourPlayer() : PlayerScript("RemixLastHourPlayer", { PLAYERHOOK_ON_LOGOUT }) { }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (!Active())
+            return;
+        std::lock_guard<std::mutex> lock(runningLock);
+        running.erase(player->GetGUID());
+    }
+};
 
 void AddRemixLastHourScripts()
 {
     new npc_remix_eternus_last_hour();
     new npc_remix_last_hour_ally();
+    new RemixLastHourPlayer();
 }

@@ -96,8 +96,8 @@ COMPANION = [
 # The tent stands on the level ground south-east of the heart (data/bazaar_ground.tsv: flat for eight yards
 # round, eighteen yards clear of everything else), its door towards her post; what is in it is seen in the
 # world's phase and the private outing's (1 | 32768), so it is there inside and out.
-TENT_X, TENT_Y, TENT_Z = 5719.0, 999.0, 174.5
-TENT_O = math.atan2(1017.0 - TENT_Y, 5691.0 - TENT_X)    # facing her post
+TENT_X, TENT_Y, TENT_Z = 6413.0, 1853.0, 508.6
+TENT_O = math.atan2(1871.0 - TENT_Y, 6385.0 - TENT_X)    # facing her post
 INWARD = TENT_O + math.pi                                 # from the door towards the back
 PHASE_BOTH = 1 | 32768
 
@@ -189,7 +189,7 @@ QUESTS = [
     dict(COMMON, id=SHORE_LEAVE, title="Shore Leave", prev=TEA,
          gates=[[rewarded(NOT_YET_LATE)], [rewarded(THE_CONDEMNED_COAST)]],
          log="Have a drink with Moratari at an inn in Dalaran.",
-         desc="Eternus says we are ahead of the record. Two days, perhaps three. He says it as if it were a problem.$B$BI say it is "
+         desc="Eternus says we are ahead of the record. Two days, perhaps three. She says it as if it were a problem.$B$BI say it is "
               "shore leave. There is an inn in Dalaran (in this year the city has only just arrived, and the floors are still settling) "
               "where nobody knows either of us, and the cider is better than it has any right to be.$B$BOne drink, $N. As friends. "
               "Mostly as friends.",
@@ -224,8 +224,8 @@ QUESTS = [
     dict(COMMON, id=WHAT_HE_LEFT_OUT, title="What Eternus Left Out", prev=WYRMREST_VIEW,
          gates=[[rewarded(WEIGHT_OF_TIME)]],
          log="Stay with Moratari a while.",
-         desc="I need to sit down.$B$B...He knew, $N. Eternus knew the war had to happen as it did, and he sent us to change it "
-              "anyway, and he let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of "
+         desc="I need to sit down.$B$B...She knew, $N. Eternus knew the war had to happen as it did, and she sent us to change it "
+              "anyway, and she let me believe that every life we saved was a life kept.$B$BI do not know what I am anymore. A keeper of "
               "time who spent a month vandalizing it.$B$BSit with me a while. Please. You do not have to say anything.",
          done="Return to Moratari.",
          objectives=[(C_LOVE, 1, "Moratari comforted")],
@@ -257,7 +257,7 @@ QUESTS = [
          gates=[[rewarded(VERY_LONG_ROAD)]],
          log="Spend the night in Moratari's tent at the Bazaar.",
          desc="I have a tent at the Bazaar. You have walked past it a hundred times: the one with the lamp that is always lit.$B$BNo one "
-              "goes in. Not Eternus, when he was there; not the porters who sweep the paths. It is the only place in any year that is "
+              "goes in. Not Eternus, when she was there; not the porters who sweep the paths. It is the only place in any year that is "
               "only mine.$B$BI would like it to be ours, tonight. Leave your armor at the door, $N. Nothing in there will need a sword.",
          done="Return to Moratari.",
          objectives=[(C_TENT, 1, "A night in Moratari's tent")],
@@ -518,6 +518,10 @@ SCENES = [
         ("emote", 1, EMOTE_KISS),
         ("emote", PLAYER, EMOTE_KISS),
         ("text_emote", 1, "kisses you as the wind comes down off the glacier, and for a moment it is not cold at all."),
+        ("wait", 2500),
+        # (in her own voice: Legion Remix's, tools/voices.py)
+        ("say", 1, "Well, then we'll simply have to make the most of the time we have, won't we?"),
+        ("wait", 800),
     ]),
     # Whenever they like, after their dinner: the Moratari nearest them (beside them, or at her post).
     dict(id=SCENE_KISS, name="A kiss", quest=0, trigger=0, anchor=0, steps=[

@@ -35,7 +35,10 @@ class TouchAddonTest {
             function frame:SetScript(script, fn) self.scripts[script] = fn end
             function frame:HookScript(script, fn) table.insert(self.hooks, fn) end
             function frame:RegisterEvent(event) self.events[event] = true end
-            function frame:SetText(text) self.text = text end
+            function frame:SetText(text)
+                self.text = text
+                if self.scripts.OnTextChanged then self.scripts.OnTextChanged(self) end
+            end
             function frame:GetText() return self.text end
             function frame:SetHeight(height) self.height = height end
             function frame:GetHeight() return self.height end
@@ -72,6 +75,24 @@ class TouchAddonTest {
         function HideUIPanel(frame) frame:Hide() end
         function PlaySound(sound) end
         UISpecialFrames = {}
+        -- The game's scrolling text box (FrameXML's UIPanelTemplates.lua), as far as it reads the box:
+        -- where its cursor is, as the text changes.
+        function ScrollingEdit_OnTextChanged(self, scrollFrame)
+            self.handleCursorChange = true
+            ScrollingEdit_OnUpdate(self, 0, scrollFrame)
+        end
+        function ScrollingEdit_OnCursorChanged(self, x, y, w, h)
+            self.cursorOffset = y
+            self.cursorHeight = h
+            self.handleCursorChange = true
+        end
+        function ScrollingEdit_OnUpdate(self, elapsed, scrollFrame)
+            if self.handleCursorChange then
+                local cursorOffset = -self.cursorOffset
+                self.scrolledTo = cursorOffset - self.cursorHeight
+                self.handleCursorChange = false
+            end
+        end
         -- The toolbar's Help button, as the game makes it.
         helped = 0
         HelpMicroButton = CreateFrame("Button", "HelpMicroButton")
@@ -212,6 +233,21 @@ class TouchAddonTest {
         cancel.get("scripts").get("OnClick").call(cancel)
         assertEquals(before, sent().size)
         assertTrue(!window.get("shown").toboolean())
+    }
+
+    @Test
+    fun theReportBoxScrollsBeforeItsCursorHasMoved() {
+        lua.set("realm", LuaValue.valueOf("Wrath Remix"))
+        event("PLAYER_ENTERING_WORLD")
+        val button = lua.get("GameMenuButtonWowTouchReport")
+        // The window's first showing empties the box: its text changes before its cursor has moved.
+        button.get("scripts").get("OnClick").call(button)
+        val box = lua.get("WowTouchReportBox")
+        assertEquals(0, box.get("scrolledTo").toint())
+        // Written in: the cursor moves, then the text changes.
+        box.get("scripts").get("OnCursorChanged").invoke(LuaValue.varargsOf(arrayOf(box, LuaValue.valueOf(0), LuaValue.valueOf(-28), LuaValue.valueOf(2), LuaValue.valueOf(14))))
+        box.get("scripts").get("OnTextChanged").call(box)
+        assertEquals(14, box.get("scrolledTo").toint())
     }
 
     @Test

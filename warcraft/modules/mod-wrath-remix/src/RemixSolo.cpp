@@ -80,6 +80,8 @@ namespace
     {
         return SoloActive() && map && map->GetId() == MAP_REMIX_ICC && GroupShare(map) < FEW;
     }
+
+    thread_local HealTick healTick;     // (this script's: see HealUnits)
 }
 
 std::string WrathRemix::SoloReport(Player* player)
@@ -116,9 +118,11 @@ public:
             ScaleForGroup(damage, target, attacker);
     }
 
-    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage, SpellInfo const* /*spellInfo*/) override
+    // (a heal over time's tick comes this way first: the heal hook's, once)
+    void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage, SpellInfo const* spellInfo) override
     {
-        ScaleForGroup(damage, target, attacker);
+        if (!MarkHealTick(healTick, target, attacker, damage, spellInfo))
+            ScaleForGroup(damage, target, attacker);
     }
 
     void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage) override
@@ -129,6 +133,7 @@ public:
     // a player's heal on one of the instance's own (friendly) people, as far as their blows go
     void ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* /*spellInfo*/) override
     {
+        HealUnits(healTick, target, healer, heal);
         if (!SoloActive() || !heal || !target || !healer || !healer->IsControlledByPlayer() || target->IsControlledByPlayer() || !target->IsCreature())
             return;
         float share = GroupShare(target->GetMap());

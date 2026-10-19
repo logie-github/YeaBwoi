@@ -1,7 +1,7 @@
 -- Chapter VI, The Secrets of Ulduar (STORY.md): the Storm Peaks, and Eternus's grief. Moratari's
 -- transitions as the earlier chapters' are made (wrath_remix_world_0006_bridges.sql), and on the
 -- Terrace of the Makers Eternus's agents weaving an echo of Sif out of the hours before she died,
--- to give a grieving god his wife back; as that is undone, Eternus stands before Thorim himself
+-- to give a grieving god his wife back; as that is undone, Eternus stands before Thorim herself
 -- (its scene in wrath_remix_world_0014_scenes.sql).
 --
 --   WRM-601  after Taking on All Challengers (12971), Moratari by Lok'lira the Crone: the bear, the
@@ -29,13 +29,13 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (77602, 2, 68, 60, 67, 5, 0, 0, 0,
  'A Gift of Grief',
  'Slay 4 Infinite Weavers on the Terrace of the Makers, then speak with Moratari.',
- 'Do you see them, at the edge of the terrace? Weavers. Eternus has sent them to make something delicate, and I have just understood what it is.$B$BThey are weaving an echo of Sif out of the hours before she died. Thorim''s wife. Eternus means to stand her in front of her husband and give her back to him.$B$BIt is the kindest thing he has ever tried, and it would ruin him. A storm giant who gets his wife back from a stranger does not go to war with his brother. He does not go anywhere at all. And everything Loken has done in these mountains goes on being done.$B$BStop the weaving, $n.',
+ 'Do you see them, at the edge of the terrace? Weavers. Eternus has sent them to make something delicate, and I have just understood what it is.$B$BThey are weaving an echo of Sif out of the hours before she died. Thorim''s wife. Eternus means to stand her in front of her husband and give her back to him.$B$BIt is the kindest thing she has ever tried, and it would ruin him. A storm giant who gets his wife back from a stranger does not go to war with his brother. He does not go anywhere at all. And everything Loken has done in these mountains goes on being done.$B$BStop the weaving, $n.',
  'Speak with Moratari on the Terrace of the Makers.', @WEAVER, 4, 'Infinite Weaver slain', 0),
 -- WRM-621: to Icecrown.
 (77621, 2, 70, 60, 67, 5, 0, 0, 0,
  'Storm''s End',
  'Speak with Moratari again to travel to the Argent Vanguard in Icecrown.',
- 'Loken''s hold on these mountains is broken, and Thorim remembers who he is. Loken himself waits in the Halls of Lightning, deep in the mountain; Sa''at can send you there, when you are ready to finish what Thorim started.$B$BAnd beyond these peaks, the last of it. Icecrown. The Argent Crusade has carved a foothold out of the ice, and Highlord Tirion Fordring is gathering everyone who will come to stand at the Lich King''s door.$B$BEternus will be there. He has nowhere else left to be. Chapter VII begins at the Argent Vanguard.',
+ 'Loken''s hold on these mountains is broken, and Thorim remembers who he is. Loken himself waits in the Halls of Lightning, deep in the mountain; Sa''at can send you there, when you are ready to finish what Thorim started.$B$BAnd beyond these peaks, the last of it. Icecrown. The Argent Crusade has carved a foothold out of the ice, and Highlord Tirion Fordring is gathering everyone who will come to stand at the Lich King''s door.$B$BEternus will be there. She has nowhere else left to be. Chapter VII begins at the Argent Vanguard.',
  'Speak with Moratari.', 0, 0, '', 0);
 
 DELETE FROM `quest_template_addon` WHERE `ID` IN (77601, 77602, 77621);
@@ -44,7 +44,7 @@ INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (77601, 12971), 
 DELETE FROM `quest_offer_reward` WHERE `ID` IN (77601, 77602, 77621);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`, `VerifiedBuild`) VALUES
 (77601, 1, 'There. You were magnificent in the pit. I have it in writing.', 0),
-(77602, 1, 'That''s the last of them. The echo is still there, half-made; I can''t unweave it in time.$B$BHe is coming. Stand with Thorim, $n. Whatever happens, let him answer.', 0),
+(77602, 1, 'That''s the last of them. The echo is still there, half-made; I can''t unweave it in time.$B$BShe is coming. Stand with Thorim, $n. Whatever happens, let him answer.', 0),
 (77621, 1, 'Hold on. This is the last road. Let''s not be late for it.', 0);
 
 DELETE FROM `creature_queststarter` WHERE `quest` IN (77601, 77602, 77621);

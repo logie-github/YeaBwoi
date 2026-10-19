@@ -303,7 +303,7 @@ namespace
             Quest const* quest = id ? sObjectMgr->GetQuestTemplate(id) : nullptr;
             if (!quest)
                 continue;
-            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id) && !IsRomance(id))
+            if (!story && id >= 77000 && id <= 77999 && !IsLesson(id) && !IsRomance(id) && !IsUnrisen(id))
                 story = quest;
             if (!ready && player->GetQuestStatus(id) == QUEST_STATUS_COMPLETE)
                 ready = quest;
@@ -313,11 +313,22 @@ namespace
         return story ? story : ready ? ready : first;
     }
 
+    // Who takes it back from this Timerunner. The Bazaar's instructors all take back Old Habits, but
+    // each only from their own class (src/RemixNpcs.cpp): the Timerunner's own.
+    std::vector<uint32> EndersFor(Player* player, std::vector<uint32> const& enders)
+    {
+        std::vector<uint32> theirs;
+        for (uint32 entry : enders)
+            if (entry < NPC_INSTRUCTOR_FIRST || entry > NPC_INSTRUCTOR_LAST || TeachesClassOf(entry, player))
+                theirs.push_back(entry);
+        return theirs;
+    }
+
     Target TurnIn(Player* player, Quest const* quest)
     {
         auto enders = questEnders.find(quest->GetQuestId());
         if (enders != questEnders.end())
-            if (Spawn const* spawn = Nearest(player, creatureSpawns, enders->second))
+            if (Spawn const* spawn = Nearest(player, creatureSpawns, EndersFor(player, enders->second)))
                 return At(spawn, CreatureName(spawn->entry),
                     Acore::StringFormat("{}: take it back to {}.", quest->GetTitle(), CreatureName(spawn->entry)));
         return FromPoi(player, quest, true, Acore::StringFormat("{}: turn it in where your map shows.", quest->GetTitle()));
@@ -398,8 +409,9 @@ namespace
             Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
             if (!quest || quest->IsRepeatable() || quest->IsSeasonal())
                 continue;
-            // (Moratari's own story is the Timerunner's to start, or not: never pointed to)
-            if (IsRomance(questId))
+            // (Moratari's own story is the Timerunner's to start, or not, and the hidden plate theirs to
+            // find: never pointed to)
+            if (IsRomance(questId) || IsUnrisen(questId))
                 continue;
             // (a class lesson is offered as the yard's instructors' other quests would be: when near)
             bool story = questId >= 77000 && questId <= 77999 && !IsLesson(questId);

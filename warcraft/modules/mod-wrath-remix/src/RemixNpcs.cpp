@@ -23,9 +23,11 @@
 #include "WorldSession.h"
 #include <cmath>
 #include <functional>
+#include <initializer_list>
+#include <list>
+#include <map>
 #include <memory>
 #include <mutex>
-#include <set>
 
 using namespace WrathRemix;
 
@@ -38,6 +40,8 @@ namespace
         SENDER_TRAVEL,
         SENDER_CHAPTER,
         SENDER_NONE,
+        SENDER_MOUNTS,      // Grandmaster Jakkus's class mounts
+        SENDER_WEAPONS,     // Momentus's weapons
     };
 
     enum MoratariActions : uint32
@@ -96,6 +100,18 @@ namespace
         }
     }
 
+    // One of the Timerunner's anomalies still about: their three are under way (another three
+    // let through now would be on them at once). Each goes when it loses them (80 yards).
+    bool AnomaliesAbout(Player* player)
+    {
+        std::list<Creature*> anomalies;
+        player->GetCreatureListWithEntryInGrid(anomalies, NPC_ANOMALY, 100.0f);
+        for (Creature* anomaly : anomalies)
+            if (anomaly->IsAlive() && anomaly->AI() && anomaly->AI()->GetGUID() == player->GetGUID())
+                return true;
+        return false;
+    }
+
     // A "talk to" objective of Remix's quests (WRM-011's echoes, WRM-012's Alurmi).
     void SpokenTo(Player* player, Creature* creature)
     {
@@ -110,10 +126,16 @@ namespace
     }
 
     // The chapter to go back to when the record is tangled: the furthest reached, or the one
-    // the Timerunner's level belongs to.
+    // the Timerunner's level belongs to. One who hasn't reached the war yet (To the Front not
+    // taken back) is in the prologue (0: the Bazaar), however their level reads (Chapter I's
+    // begins at 10, where they wake); a death knight, whose prologue is Acherus's, at their level's.
     uint8 StableChapter(Player* player)
     {
-        return std::max(Get(player).chapter, ChapterForLevel(player->GetLevel()));
+        uint8 chapter = Get(player).chapter;
+        if (!chapter && player->getClass() != CLASS_DEATH_KNIGHT && !player->GetQuestRewardStatus(QUEST_TO_THE_FRONT_A) &&
+            !player->GetQuestRewardStatus(QUEST_TO_THE_FRONT_H))
+            return 0;
+        return std::max(chapter, ChapterForLevel(player->GetLevel()));
     }
 
     void ToChapter(Player* player, Chapter const& c)
@@ -143,7 +165,7 @@ namespace
     };
 
     // The spots, as wrath_remix_world_0004_spawns.sql has the Bazaar's own people.
-    constexpr float HX = 5700.0f, HY = 1015.0f, HZ = 174.6f;
+    constexpr float HX = 6394.0f, HY = 1869.0f, HZ = 508.7f;
     Position const MORATARI_SPOT(HX - 9.0f, HY + 2.0f, HZ, 5.78f);   // clear of Eternus, who is large
     Position const SYLVANAS_SPOT(HX + 4.0f, HY + 6.0f, HZ, 3.60f);
     Position const ALLERIA_SPOT(HX + 6.5f, HY + 3.5f, HZ, 3.40f);
@@ -156,7 +178,7 @@ namespace
     };
 
     std::mutex scenesLock;
-    std::set<ObjectGuid> scenes;  // the Timerunners whose scene is playing
+    std::map<ObjectGuid, std::shared_ptr<TurnScene>> scenes;  // the Timerunners whose scene is playing
 
     Creature* Actor(Player* player, ObjectGuid guid)
     {
@@ -193,12 +215,12 @@ namespace
 
     void PlayTurnScene(Player* player, Creature* eternus)
     {
+        auto scene = std::make_shared<TurnScene>();
         {
             std::lock_guard<std::mutex> lock(scenesLock);
-            if (!scenes.insert(player->GetGUID()).second)
+            if (!scenes.emplace(player->GetGUID(), scene).second)
                 return;
         }
-        auto scene = std::make_shared<TurnScene>();
         scene->player = player->GetGUID();
         scene->eternus = eternus->GetGUID();
         scene->moratari = Summon(player, NPC_MORATARI_SCENE, MORATARI_SPOT);
@@ -220,9 +242,9 @@ namespace
                 if (Creature* sylvanas = Actor(p, s.sylvanas))
                     if (Creature* moratari = Actor(p, s.moratari))
                         sylvanas->SetFacingToObject(moratari);
-                Speak(p, s.sylvanas, "Listen to me, Moratari. If Bolvar Fordragon does not burn at the Wrathgate, no one takes up the Helm when Arthas falls. The Scourge goes masterless, and every soul the Helm has bound is lost with it. I have spent years freeing souls like those. I will not watch them thrown away for his kindness."); } },
-            { 38000, [](Player* p, TurnScene& s) { Speak(p, s.alleria, "She speaks the truth. I can feel the shape of the road your master wants. It ends in the dark."); } },
-            { 44000, [](Player* p, TurnScene& s) { Speak(p, s.moratari, "He told me it was mercy. Give me a moment. I will see it for myself."); } },
+                Speak(p, s.sylvanas, "Listen to me, Moratari. If Bolvar Fordragon does not burn at the Wrathgate, no one takes up the Helm when Arthas falls. The Scourge goes masterless, and every soul the Helm has bound is lost with it. I have spent years freeing souls like those. I will not watch them thrown away for her kindness."); } },
+            { 38000, [](Player* p, TurnScene& s) { Speak(p, s.alleria, "She speaks the truth. I can feel the shape of the road your mistress wants. It ends in the dark."); } },
+            { 44000, [](Player* p, TurnScene& s) { Speak(p, s.moratari, "She told me it was mercy. Give me a moment. I will see it for myself."); } },
             { 47000, [](Player* p, TurnScene& s) {
                 if (Creature* moratari = Actor(p, s.moratari))
                     moratari->CastSpell(moratari, SPELL_TIME_RIFT_CHANNEL, true); } },
@@ -270,8 +292,26 @@ namespace
             if (Player* p = ObjectAccessor::FindPlayer(scene->player); p && p->IsInWorld())
                 EndTurnScene(p, *scene);
             std::lock_guard<std::mutex> lock(scenesLock);
-            scenes.erase(scene->player);
+            if (auto it = scenes.find(scene->player); it != scenes.end() && it->second == scene)
+                scenes.erase(it);
         }, 88s);
+    }
+
+    // A Timerunner's scene, gone with its steps (theirs, which a logout ends): its people taken
+    // away, and the scene free to play again when the quest is taken again.
+    void ForgetTurnScene(Player* player)
+    {
+        std::shared_ptr<TurnScene> scene;
+        {
+            std::lock_guard<std::mutex> lock(scenesLock);
+            auto it = scenes.find(player->GetGUID());
+            if (it == scenes.end())
+                return;
+            scene = it->second;
+            scenes.erase(it);
+        }
+        if (player->IsInWorld())
+            EndTurnScene(player, *scene);
     }
 }
 
@@ -294,7 +334,7 @@ public:
         bool waking = !player->GetQuestRewardStatus(QUEST_OUT_OF_TIME) && player->getClass() != CLASS_DEATH_KNIGHT;
         // (a scene the Timerunner left before its end plays again)
         ReplaySceneAt(player, creature);
-        if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE)
+        if (player->GetQuestStatus(QUEST_DEMONSTRATION) == QUEST_STATUS_INCOMPLETE && !AnomaliesAbout(player))
             AddGossipItemFor(player, GOSSIP_ICON_BATTLE, "I'm ready. Let the anomalies through.", SENDER_MAIN, ACTION_ANOMALIES);
         // (the last hour, begun again if the Timerunner died or went before it was over)
         if (player->GetQuestStatus(QUEST_LAST_HOUR) == QUEST_STATUS_INCOMPLETE)
@@ -329,6 +369,8 @@ public:
             case ACTION_ANOMALIES:
             {
                 CloseGossipMenuFor(player);
+                if (player->GetQuestStatus(QUEST_DEMONSTRATION) != QUEST_STATUS_INCOMPLETE || AnomaliesAbout(player))
+                    return true;
                 creature->Say("There, through the seams. One at a time. Mind the teeth.", LANG_UNIVERSAL, player);
                 LetAnomalyThrough(creature, player, 1);
                 return true;
@@ -391,7 +433,7 @@ public:
         return true;
     }
 
-    // WRM-011: what the Timerunner asks him, while it's under way.
+    // WRM-011: what the Timerunner asks her, while it's under way.
     static void AddPlanQuestions(Player* player)
     {
         if (player->GetQuestStatus(QUEST_THE_PLAN) != QUEST_STATUS_INCOMPLETE)
@@ -421,7 +463,7 @@ public:
         }
         if (player->GetQuestStatus(QUEST_THE_PLAN) == QUEST_STATUS_INCOMPLETE)
             player->KilledMonsterCredit(credit);
-        // (his answer, and the questions still to ask, and the quest to turn in once all are asked)
+        // (her answer, and the questions still to ask, and the quest to turn in once all are asked)
         if (creature->IsQuestGiver())
             player->PrepareQuestMenu(creature->GetGUID());
         AddPlanQuestions(player);
@@ -460,7 +502,7 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
         ReplaySceneAt(player, creature);
         AddEndingGossip(player, creature);
-        SendGossipMenuFor(player, Words(creature), creature);
+        SendGossipMenuFor(player, Words(player, creature), creature);
         return true;
     }
 
@@ -468,19 +510,43 @@ public:
     {
         if (!Active())
             return false;
-        if (!EndingGossipSelect(player, creature, sender, action, Words(creature)))
+        if (!EndingGossipSelect(player, creature, sender, action, Words(player, creature)))
             CloseGossipMenuFor(player);
         return true;
     }
 
-    // What they say where they stand.
-    static uint32 Words(Creature* creature)
+    // Whether [player] has come as far as any of [quests] (taken, done or handed in).
+    static bool Reached(Player* player, std::initializer_list<uint32> quests)
+    {
+        for (uint32 quest : quests)
+            if (player->GetQuestStatus(quest) != QUEST_STATUS_NONE || player->GetQuestRewardStatus(quest))
+                return true;
+        return false;
+    }
+
+    // What they say where they stand. Alleria at the Bazaar keeps the Timerunner at arm's length
+    // less and less as the war goes on (STORY.md): from Chapter V, from Chapter VII, and once the
+    // Lich King has fallen.
+    static uint32 Words(Player* player, Creature* creature)
     {
         bool sylvanas = creature->GetEntry() == NPC_SYLVANAS || creature->GetEntry() == NPC_SYLVANAS_ABROAD;
-        if (creature->GetZoneId() == ZONE_CRYSTALSONG)
-            return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA;
+        if (creature->GetAreaId() == AREA_MALYKRISS)
+        {
+            if (sylvanas)
+                return TEXT_SYLVANAS;
+            if (player->GetQuestRewardStatus(QUEST_LAST_NECESSARY_BATTLE) ||
+                player->GetQuestStatus(QUEST_LAST_NECESSARY_BATTLE) == QUEST_STATUS_COMPLETE)
+                return TEXT_ALLERIA_AFTER;
+            if (Reached(player, { 77701, 77711, 77702, QUEST_LAST_HOUR }))
+                return TEXT_ALLERIA_LAST;
+            if (Reached(player, { 77501, 77502, 77521, 77601, 77602, 77621 }))
+                return TEXT_ALLERIA_LATER;
+            return TEXT_ALLERIA;
+        }
         if (creature->GetAreaId() == AREA_WYRMREST_TEMPLE)
             return sylvanas ? TEXT_SYLVANAS_WYRMREST : TEXT_ALLERIA_WYRMREST;
+        if (!sylvanas && creature->GetZoneId() == ZONE_GRIZZLY_HILLS)
+            return TEXT_ALLERIA_HILLS;
         return sylvanas ? TEXT_SYLVANAS : TEXT_ALLERIA_GATE;
     }
 };
@@ -515,8 +581,40 @@ public:
     }
 };
 
-// The Bazaar's Bronze vendors (Alurmi, Horos, Domelius, Arturos, Aeonicus, Durus): each opens
-// its lists (remix_vendor_list) as vendor windows, priced in Bronze.
+// The Bazaar's Bronze vendors (Alurmi, and Legion Remix's cast from Horos to Erus, 770201 to
+// 770217): each opens its lists (remix_vendor_list) as vendor windows, priced in Bronze.
+// Grandmaster Jakkus's class mounts (Legion Remix's class mounts, Wrath's own): a paladin's
+// warhorse and charger, a warlock's felsteed and dreadsteed, a death knight's deathcharger, taught
+// at any level for Bronze (all riding is known from the first login). The ones still to learn.
+static std::vector<uint32> ClassMountsToLearn(Player* player)
+{
+    std::vector<uint32> spells;
+    switch (player->getClass())
+    {
+        case CLASS_PALADIN:
+            if (player->getRace() == RACE_BLOODELF)
+                spells = { 34769, 34767 };      // Thalassian Warhorse, Thalassian Charger
+            else
+                spells = { 13819, 23214 };      // Warhorse, Charger
+            break;
+        case CLASS_WARLOCK:
+            spells = { 5784, 23161 };           // Felsteed, Dreadsteed
+            break;
+        case CLASS_DEATH_KNIGHT:
+            spells = { 48778 };                 // Acherus Deathcharger
+            break;
+        default:
+            break;
+    }
+    std::vector<uint32> missing;
+    for (uint32 spell : spells)
+        if (!player->HasSpell(spell))
+            missing.push_back(spell);
+    return missing;
+}
+
+constexpr uint32 CLASS_MOUNTS_PRICE = 10000;
+
 static void BronzeVendorMenu(Player* player, Creature* creature)
 {
     ClearGossipMenuFor(player);
@@ -527,12 +625,32 @@ static void BronzeVendorMenu(Player* player, Creature* creature)
     for (VendorList const& list : VendorLists())
         if (list.vendor == creature->GetEntry() && OnSide(player, list.side))
             AddGossipItemFor(player, GOSSIP_ICON_VENDOR, list.label, SENDER_LIST, list.list);
+    if (creature->GetEntry() == NPC_JAKKUS && !ClassMountsToLearn(player).empty())
+        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Teach me my class's mounts (" + Number(CLASS_MOUNTS_PRICE) + " Bronze).", SENDER_MOUNTS, 0);
     uint32 text = creature->GetEntry() == NPC_ALURMI ? uint32(TEXT_ALURMI) : uint32(TEXT_HOROS) + (creature->GetEntry() - NPC_HOROS);
     SendGossipMenuFor(player, text, creature);
 }
 
 static bool BronzeVendorSelect(Player* player, Creature* creature, uint32 sender, uint32 action)
 {
+    if (sender == SENDER_MOUNTS && creature->GetEntry() == NPC_JAKKUS)
+    {
+        CloseGossipMenuFor(player);
+        std::vector<uint32> spells = ClassMountsToLearn(player);
+        if (spells.empty())
+            return true;
+        if (Bronze(player) < CLASS_MOUNTS_PRICE)
+        {
+            creature->Whisper(Words(player, "Come back with " + Number(CLASS_MOUNTS_PRICE) + " Bronze, $n. A legend's steed is not cheap, even in the past."), LANG_UNIVERSAL, player);
+            return true;
+        }
+        player->DestroyItemCount(ITEM_BRONZE, CLASS_MOUNTS_PRICE, true, false);
+        for (uint32 spell : spells)
+            player->learnSpell(spell);
+        creature->Say(Words(player, "There. Ride it like you mean it, $n."), LANG_UNIVERSAL, player);
+        creature->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
+        return true;
+    }
     if (sender == SENDER_LIST)
     {
         for (VendorList const& list : VendorLists())
@@ -693,7 +811,10 @@ public:
             return false;
         Chapter const* c = sender == SENDER_CHAPTER ? ChapterFor(uint8(action)) : nullptr;
         if (c && player->GetLevel() + 2 >= c->levelMin)
+        {
             ToChapter(player, *c);
+            MoratariVoice(player, "jump_forward");   // (Moratari's own voice, from wherever she is)
+        }
         else
             CloseGossipMenuFor(player);
         return true;
@@ -707,12 +828,47 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override { return BazaarLifeAI(creature); }
 
+    // Legion Remix's weaponmaster: every weapon the Timerunner's class can wield, taught at once
+    // and at their level's skill.
+    static std::vector<uint32> WeaponsToLearn(Player* player)
+    {
+        // one- and two-handed axes, maces and swords, polearms, staves, bows, guns, daggers,
+        // thrown, crossbows, fist weapons, wands
+        static uint32 const weapons[] = { 196, 197, 198, 199, 200, 201, 202, 227, 264, 266, 1180, 2567, 5011, 15590, 5009 };
+        std::vector<uint32> missing;
+        for (uint32 spell : weapons)
+            if (!player->HasSpell(spell) && player->IsSpellFitByClassAndRace(spell))
+                missing.push_back(spell);
+        return missing;
+    }
+
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!Active())
             return false;
         ClearGossipMenuFor(player);
+        if (!WeaponsToLearn(player).empty())
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Teach me every weapon I can wield.", SENDER_WEAPONS, 0);
         SendGossipMenuFor(player, TEXT_MOMENTUS, creature);
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
+    {
+        if (!Active())
+            return false;
+        CloseGossipMenuFor(player);
+        if (sender != SENDER_WEAPONS)
+            return true;
+        std::vector<uint32> spells = WeaponsToLearn(player);
+        for (uint32 spell : spells)
+            player->learnSpell(spell);
+        player->UpdateSkillsToMaxSkillsForLevel();
+        if (!spells.empty())
+        {
+            creature->Say(Words(player, "Every one of them, $n, as if you'd trained for years. In a way, you will have."), LANG_UNIVERSAL, player);
+            creature->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
+        }
         return true;
     }
 };
@@ -751,6 +907,7 @@ public:
         uint32 checkIn = 2000;
 
         void SetGUID(ObjectGuid const& guid, int32 /*id*/) override { timerunner = guid; }
+        ObjectGuid GetGUID(int32 /*id*/) const override { return timerunner; }
         void SetData(uint32 type, uint32 value) override
         {
             if (type == DATA_WAVE)
@@ -856,8 +1013,29 @@ public:
     }
 };
 
+// WRM-207's scene, cut short by a logout: over (the login gives its credit, WrathRemix.cpp), and
+// played again if the quest is dropped and taken again.
+class RemixTurnScenePlayer : public PlayerScript
+{
+public:
+    RemixTurnScenePlayer() : PlayerScript("RemixTurnScenePlayer", { PLAYERHOOK_ON_LOGIN, PLAYERHOOK_ON_LOGOUT }) { }
+
+    void OnPlayerLogin(Player* player) override
+    {
+        if (Active())
+            ForgetTurnScene(player);
+    }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        if (Active())
+            ForgetTurnScene(player);
+    }
+};
+
 void AddRemixNpcScripts()
 {
+    new RemixTurnScenePlayer();
     new npc_remix_instructor();
     new npc_remix_moratari();
     new npc_remix_eternus();

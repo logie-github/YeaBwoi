@@ -18,6 +18,7 @@ class Creature;
 class CreatureAI;
 class Player;
 class Quest;
+class SpellInfo;
 class Unit;
 struct CreatureTemplate;
 
@@ -59,10 +60,28 @@ namespace WrathRemix
         NPC_ARTUROS       = 770203,
         NPC_AEONICUS      = 770204,
         NPC_DURUS         = 770205,
+        // Legion Remix's Bazaar cast, the rest of it (wrath_remix_world_0009_bronze.sql): vendors 770206
+        // to 770217, Grandmaster Jakkus's class mounts besides his wares, Pageturner Metros who
+        // knows where everyone is, Nedward by the barber's chair. (Gossip texts: 7702201 + n.)
+        NPC_PYTHAGORUS    = 770206,
+        NPC_SACERDORMU    = 770207,
+        NPC_AGOS          = 770208,     // Agos the Silent (he only nods)
+        NPC_LARAH         = 770209,     // Larah Treebender
+        NPC_FREDDIE       = 770210,     // Freddie Threads
+        NPC_JAKKUS        = 770211,
+        NPC_HEMET         = 770212,     // Hemet Nesingwary XVII
+        NPC_NOSTWIN       = 770213,
+        NPC_UNICUS        = 770214,
+        NPC_LIDAMORRUTU   = 770215,
+        NPC_LINDORMI      = 770216,
+        NPC_ERUS          = 770217,
+        NPC_METROS        = 770218,
+        NPC_NEDWARD       = 770219,
 
         AREA_CAVERNS_OF_TIME = 2300,    // the Caverns of Time in Tanaris, where the prologue was until build 64
-        ZONE_CRYSTALSONG  = 2817,       // the Bazaar's zone
+        AREA_MALYKRISS    = 4520,       // Malykriss: The Vile Hold, the Bazaar's home (Crystalsong Forest until build 117)
         AREA_WYRMREST_TEMPLE = 4161,
+        ZONE_GRIZZLY_HILLS = 394,
 
         ITEM_BRONZE       = 77001,      // Bronze: a currency token, like the emblems
         ITEM_HOURGLASS    = 77002,      // Moratari's Hourglass: to the Bazaar and back (RemixHourglass.cpp)
@@ -83,9 +102,9 @@ namespace WrathRemix
         QUEST_SEE_YOU_LATER    = 77801,     // the end (STORY.md)
         QUEST_BACK_TO_YOUR_OWN_TIME = 77802,
 
-        NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene
+        NPC_SCENE_CREDIT  = 770035,     // a scene's credit, for quests that are a scene (each scene's to its own quest alone)
         NPC_LAST_HOUR_CREDIT = 770036,  // WRM-721's, as Eternus retreats
-        NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, his loyalists, and the three beside you
+        NPC_LAST_ETERNUS  = 770061,     // Eternus at the last hour, her loyalists, and the three beside you
         NPC_LAST_CHRONOMANCER = 770062,
         NPC_LAST_EXECUTIONER = 770063,
         NPC_ALLY_MORATARI = 770064,
@@ -109,7 +128,7 @@ namespace WrathRemix
         TEXT_MORATARI_HISTORY  = 7702003,
         TEXT_ETERNUS           = 7702010,
         TEXT_ETERNUS_LATER     = 7702011,
-        TEXT_ETERNUS_WHAT      = 7702012,   // his answers to WRM-011's questions
+        TEXT_ETERNUS_WHAT      = 7702012,   // her answers to WRM-011's questions
         TEXT_ETERNUS_HOW       = 7702013,
         TEXT_ETERNUS_WHY       = 7702014,
         TEXT_ANDORMU           = 7702020,
@@ -125,6 +144,10 @@ namespace WrathRemix
         TEXT_ALLERIA_WYRMREST  = 7702092,
         TEXT_ALLERIA           = 7702093,
         TEXT_ALLERIA_GATE      = 7702094,
+        TEXT_ALLERIA_LATER     = 7702095,   // Alleria at the Bazaar from Chapter V, from Chapter VII, and
+        TEXT_ALLERIA_LAST      = 7702096,   // once the war is over; in the Grizzly Hills (Chapter III)
+        TEXT_ALLERIA_AFTER     = 7702097,
+        TEXT_ALLERIA_HILLS     = 7702098,
         TEXT_HOROS             = 7702201,   // then Domelius, Arturos, Aeonicus, Durus: 7702201 + n
         TEXT_INSTRUCTOR_LESSON = 7702501,   // an instructor with a lesson to give, to see through or to finish
     };
@@ -136,7 +159,7 @@ namespace WrathRemix
     };
 
     // The Infinite Bazaar's middle, where new Timerunners wake (playercreateinfo).
-    constexpr float BAZAAR_X = 5700.0f, BAZAAR_Y = 1012.0f, BAZAAR_Z = 174.6f, BAZAAR_O = 1.57f;
+    constexpr float BAZAAR_X = 6394.0f, BAZAAR_Y = 1866.0f, BAZAAR_Z = 508.7f, BAZAAR_O = 1.57f;
 
     struct LevelBand
     {
@@ -236,8 +259,8 @@ namespace WrathRemix
     std::vector<VendorList> const& VendorLists();
     uint32 QuestBronze(uint32 quest);
 
-    // A level in a band: unchanged far below the zone's own levels, else on the straight line
-    // from the original range to the band's, at most 3 above its top.
+    // A level in a band: unchanged at or below the band's top (critters, the odd visitor), else
+    // on the straight line from the original range to the band's, within 3 of its ends.
     int32 BandedLevel(LevelBand const& band, int32 level);
 
     // The chapter a level belongs to (1 to 7), or 0 below the first.
@@ -309,6 +332,20 @@ namespace WrathRemix
     void LoadMoratari();
     std::string Words(Player* player, std::string text);                    // $N, $R, $C, $G... as a quest's text has them
     void MoratariSays(Player* player, uint32 speaker, std::string const& text);
+    // Her own voice (RemixVoices.cpp, remix_voice): a line of a moment's said to [player] (by
+    // [moratari] when she's near, else whispered), with her voice when the game has it.
+    std::string VoicesFolder();
+    void LoadVoices();
+    bool MoratariVoice(Player* player, std::string const& moment, int32 index = -1, Creature* moratari = nullptr);
+    uint32 MoratariVoiceFor(std::string const& words);                      // the sound of words she has voiced (0: none)
+    // Eternus in her own shape (RemixModels.cpp, tools/models.py): her dragon's files (relative to
+    // ModelsFolder) when the server package has every one of them, else none. ClientPatch.cpp puts
+    // them in the game's patch with the rows of her look and says so (EternusShapeInPatch); only
+    // then does she take that look.
+    constexpr uint32 DISPLAY_ETERNUS_DRAGON = 32900, MODEL_ETERNUS_DRAGON = 3500;
+    std::string ModelsFolder();
+    std::vector<std::string> const& EternusShapeFiles();
+    void EternusShapeInPatch();
     void MoratariOnQuest(Player* player, uint32 quest, uint8 moment);
     bool IsCompanionSummon();                                               // (while the companion is being summoned)
     uint8 CompanionLevel();
@@ -320,6 +357,7 @@ namespace WrathRemix
     uint32 TalkCreditNpc(uint32 credit);                    // whom a remix_talk credit is said to (0: none)
     bool PlaceOf(uint32 quest, uint32 credit, uint32& map, float& x, float& y);  // a remix_place's
     inline bool IsRomance(uint32 quest) { return quest >= 77900 && quest <= 77999; }   // Moratari's own story (optional)
+    inline bool IsUnrisen(uint32 quest) { return quest >= 77061 && quest <= 77063; }   // the hidden plate's (RemixVileHoldSet.cpp): never pointed to
     constexpr uint32 QUEST_ROMANCE_FIRST = 77901, QUEST_ROMANCE_LAST = 77909;   // its nine (tools/romance.py)
     constexpr uint32 QUEST_ROMANCE_TIME_JUMPER = 77910;  // "turned in": they told her they're a time jumper (her story without the war's checkpoints)
 
@@ -333,6 +371,7 @@ namespace WrathRemix
     uint32 LessonQuest(Player* player);                         // their class's lesson, or 0
     bool IsLesson(uint32 quest);
     bool TeachesClassOf(Creature* instructor, Player* player);  // the instructor is their class's
+    bool TeachesClassOf(uint32 instructor, Player* player);     // (by the instructor's entry)
 
     // The Bazaar's people talking while a Timerunner is about (RemixBazaar.cpp): the AI the camp's
     // own scripts give them.
@@ -352,6 +391,21 @@ namespace WrathRemix
     float SoloMaxBoost();
     // What the scaling makes of the instance the player is in (.remix solo).
     std::string SoloReport(Player* player);
+
+    // The heal hook's two units (UnitScript::ModifyHealReceived), put right: the core passes them
+    // the wrong way round for a heal that's cast (Unit::HealBySpell, the healer first) and the
+    // right way for a heal over time's tick, which comes through the periodic damage hook first,
+    // with the same amount. A script with both hooks keeps a thread_local HealTick of its own:
+    // MarkHealTick in the periodic hook (true: a heal's tick, to scale in the heal hook only),
+    // HealUnits first thing in the heal hook.
+    struct HealTick
+    {
+        Unit const* target = nullptr;
+        Unit const* caster = nullptr;
+        uint32 const* amount = nullptr;
+    };
+    bool MarkHealTick(HealTick& tick, Unit* target, Unit* caster, uint32 const& amount, SpellInfo const* spell);
+    void HealUnits(HealTick& tick, Unit*& target, Unit*& healer, uint32 const& amount);
 
     // Bronze amounts (WrathRemix.Bronze.*): enough over the story to buy everything the Bazaar sells
     // a class, once or twice over.
