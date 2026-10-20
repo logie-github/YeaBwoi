@@ -461,6 +461,12 @@ jobs:
           python3 -m venv "$RUNNER_TEMP/allied"
           "$RUNNER_TEMP/allied/bin/pip" install --quiet numpy pillow
           "$RUNNER_TEMP/allied/bin/python" warcraft/modules/mod-allied-races/tools/test_tools.py
+          "$RUNNER_TEMP/allied/bin/python" warcraft/modules/mod-allied-races/tools/test_safety.py
+          g++ -std=c++17 -O2 -Iwarcraft/modules/mod-allied-races/src -Iwarcraft/modules/mod-skyborne/src \
+            warcraft/modules/mod-allied-races/tools/test_intro.cpp \
+            warcraft/modules/mod-allied-races/src/AlliedRacesPatch.cpp \
+            warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-allied-intro"
+          "$RUNNER_TEMP/test-allied-intro" warcraft/modules/mod-allied-races/data/client
 
       # The checksums the app checks a Turtle WoW client and its DBC files against come from the
       # pinned Tortoise-WoW; they must be the ones at that commit.

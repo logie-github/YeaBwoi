@@ -22,6 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import m2                                      # noqa: E402
 import textures                                # noqa: E402
+import check_m2                                # noqa: E402
 
 MODULE = os.path.dirname(HERE)
 RACES = os.path.join(MODULE, "data", "retail", "races.json")
@@ -119,6 +120,11 @@ def voice_files(race, read, out_dir, log):
 
 
 def build(read, out_dir, log=print):
+    # Never leave an old complete manifest beside a failed rebuild's partial models.
+    os.makedirs(out_dir, exist_ok=True)
+    manifest = os.path.join(out_dir, MANIFEST)
+    if os.path.exists(manifest):
+        os.remove(manifest)
     with open(RACES) as f:
         races = json.load(f)
     written = []
@@ -126,6 +132,10 @@ def build(read, out_dir, log=print):
         for sex, model in race["models"].items():
             policy = dict(model, geosets=None)
             written += m2.convert(read, policy, out_dir, log)
+            model_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2")
+            problems = check_m2.check(model_path)
+            if problems:
+                raise ValueError(model["name"] + ": " + "; ".join(problems))
             layout_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".layout.json")
             with open(layout_path) as f:
                 layout = json.load(f)
