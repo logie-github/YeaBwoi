@@ -52,7 +52,7 @@ STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # their kin's
 MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # whose model rows theirs are copied from
 PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb"}
 NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne"}
-NARRATION = {VOIDELF: "VoidElfNarration.mp3", NIGHTBORNE: "NightborneNarration.mp3"}
+NARRATION = {VOIDELF: "ve.mp3", NIGHTBORNE: "nb.mp3"}
 FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL")}
 # The quests of the start race alone that are cloned for the new race (tools/quests.py): those
 # keep their race, the clone is the new race's; every other quest of the start race opens to it.

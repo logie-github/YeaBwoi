@@ -273,8 +273,8 @@ namespace AlliedRaces
         else
             problems.push_back("GlueXML.toc isn't in the game: the character screen won't show them");
         // The intros' narration (the user's, data/client/*_intro.mp3), where the game's sound table has it.
-        writer.Add("Sound\\CinematicVoices\\VoidElfNarration.mp3", ReadFile(moduleData / "voidelf_intro.mp3"));
-        writer.Add("Sound\\CinematicVoices\\NightborneNarration.mp3", ReadFile(moduleData / "nightborne_intro.mp3"));
+        writer.Add("Sound\\CinematicVoices\\ve.mp3", ReadFile(moduleData / "ve.mp3"));
+        writer.Add("Sound\\CinematicVoices\\nb.mp3", ReadFile(moduleData / "nb.mp3"));
 
         if (!writer.Finish())
         {

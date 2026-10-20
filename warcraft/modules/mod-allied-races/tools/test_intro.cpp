@@ -60,7 +60,7 @@ int main(int argc, char** argv)
             fs::copy_file(source / "dbc" / (std::string(spec.first) + ".txt"), module / "dbc" / (std::string(spec.first) + ".txt"));
         }
         Require(base.Finish(), "finish base archive");
-        for (char const* name : { "voidelf_intro.mp3", "nightborne_intro.mp3" })
+        for (char const* name : { "ve.mp3", "nb.mp3" })
             fs::copy_file(source / name, module / name);
         { std::ofstream manifest(files / "alliedraces.files"); manifest << "fixture.bin\n"; }
         { std::ofstream fixture(files / "fixture.bin"); fixture << "fixture"; }
@@ -86,7 +86,7 @@ int main(int argc, char** argv)
             std::string path = String(sounds, sound, 23) + "\\" + String(sounds, sound, 3);
             Bytes narration;
             Require(patch->Read(path, narration), "narration missing at " + path);
-            Require(narration.size() > 1000 && narration == Read(source / (race == 15 ? "voidelf_intro.mp3" : "nightborne_intro.mp3")), "narration bytes differ");
+            Require(narration.size() > 1000 && narration == Read(source / (race == 15 ? "ve.mp3" : "nb.mp3")), "narration bytes differ");
             Require(sounds.Get(sound, 13) == 1, "narration has no playback weight");
             for (uint32_t i = 1; i < 10; ++i)
                 Require(sounds.Get(sound, 13 + i) == 0 && String(sounds, sound, 3 + i).empty(), "empty narration alternative has weight");
