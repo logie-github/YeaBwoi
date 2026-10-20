@@ -288,8 +288,8 @@ class AnimationFiles:
         split = "AFSA" in parts or "AFSB" in parts
         part = parts.get(stream) if split else parts.get("AFM2")
         if part is None or offset < 0 or offset + count * size > part[1]:
-            raise ValueError("animation %d %s: %d x %d bytes at %d outside its stream" %
-                             (fid, stream, count, size, offset))
+            raise ValueError("animation %d %s: %d x %d bytes at %d outside its stream; parts=%r" %
+                             (fid, stream, count, size, offset, parts))
         return ("ext", count, part[0] + offset)
 
 
@@ -399,8 +399,16 @@ class Merged:
             value = t.values[i] if t.values is not None else b""
             if hasattr(self, "animations"):
                 fid = self.anim_file(j)
-                timestamp = self.animations.relocate(fid, timestamp, 4, stream)
-                value = self.animations.relocate(fid, value, getattr(t, "value_size", 1), stream)
+                try:
+                    timestamp = self.animations.relocate(fid, timestamp, 4, stream)
+                    value = self.animations.relocate(fid, value, getattr(t, "value_size", 1), stream)
+                except ValueError as error:
+                    source = self.skeleton(which)
+                    flags = struct.unpack_from("<I", self.seq(j), 12)[0]
+                    alias = struct.unpack_from("<H", self.seq(j), 62)[0]
+                    raise ValueError("sequence %d key=%r source=%s index=%d flags=%#x alias=%d: %s" %
+                                     (j, source.key(self.sources[j][1]), "child" if which else "parent",
+                                      self.sources[j][1], flags, alias, error)) from error
             ts.append(timestamp)
             vs.append(value)
         return Track(interp, gseq, ts, vs if has_values else None)
