@@ -100,7 +100,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   - **`tools/m2.py`**: today's model (format 274) made 3.3.5's (264): the child's bones with the
     parent skeleton's sequences (the child's own over them), every track with an entry a
     sequence, the sequence lookup a hash table as the game reads it, external animations kept
-    in `.anim` files; the body's texture coordinates stretched across (today's body texture is
+    in `.anim` files (the newer files' AFM2 event, AFSA attachment and AFSB bone streams combined
+    with each track's offsets relocated; global-loop tracks stay in the model); the body's texture coordinates stretched across (today's body texture is
     twice as wide as tall, the head in its right half; 3.3.5 composes a square), the head's into
     the face region, the eyes' (a texture of their own today) into the FaceUpper strip; the
     geosets 3.3.5's tables choose from kept whole (hair, features, armour); the body parts today's
@@ -123,7 +124,9 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     (the eyes, 256 x 64), underwear (256 x 128), hair (as it is, DXT). `tools/blp.py` reads and
     writes BLP2 (palette, DXT1/3/5). `tools/names.py` names them for both the textures and the
     tables.
-  - the voices as MP3s (ffmpeg).
+  - the voices as MP3s (ffmpeg). Every converted model is checked, including all external
+    animation offsets, before the complete package manifest is written. A failed rebuild clears
+    the old manifest so partial files cannot be mistaken for a complete package.
 - As the world server starts, as soon as its configuration is read (`src/AlliedRaces.cpp`),
   `src/AlliedRacesPatch.cpp` makes the game's `Data/patch-V.MPQ` (read after the HD looks'
   patches, whose character tables it builds on, and before Wrath Remix's `patch-Y` and the
@@ -146,6 +149,13 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   the textures the way they're made. CI runs it.
 - `tools/test_screen.py`: `AlliedRacesCreate.lua` in Lua 5.1 against stand-ins for the game's
   screen, alone and with the Skyborne's screen code after it. CI runs it.
+- `tools/test_safety.py`: split and unsplit animation streams, relocated bone tracks, local
+  global-loop tracks, truncated external animation files for both races and sexes, and narration
+  rows selecting only their own MP3. CI runs it. The old global-track reader and external-file
+  validator fail these regressions.
+- `tools/test_intro.cpp`: builds a small client fixture with the real generated intro tables and
+  MP3s, then follows each race's cinematic links through the resulting MPQ and compares its audio
+  bytes with the source. Also checks that a second start reuses the patch. CI runs it.
 - `tools/test_patch.cpp`: the patch made for a stand-in game from the package's files and read
   back (races, looks and their textures, models, voices, spells, the screen, a second start keeping
   it). Built and run here against the server's tables and a local package.
@@ -161,5 +171,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
   Remix's, the races are playable in the world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne
   warrior in Deathknell, each with their racials.
-- Not tested: the game itself (the models drawn, the looks, the voices, the intros, the screen on
-  a phone): nothing here runs the 3.3.5 client.
+- Not tested: the game itself (the models drawn, the looks, audible playback of voices and intros,
+  the screen on a phone): nothing here runs the 3.3.5 client. In particular, the reported freeze
+  and return to the launcher when a new Nightborne speaks to Undertaker Mordo has not been
+  reproduced here. These fixes remove verified unsafe animation data paths; a client run is
+  still needed to confirm that specific crash is resolved.

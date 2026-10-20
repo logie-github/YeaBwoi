@@ -7,12 +7,13 @@ the skin's vertices, every sequence kept outside the file having its file.
     python3 tools/check_m2.py DIR/Character/Race/Sex/Name.m2 [--verbose]
 """
 import os
+from pathlib import Path
 import struct
 import sys
 
 
 def check(path, verbose=False):
-    m = open(path, "rb").read()
+    m = Path(path).read_bytes()
     problems = []
     say = problems.append
     if m[:4] != b"MD20" or struct.unpack_from("<I", m, 4)[0] != 264:
@@ -58,6 +59,15 @@ def check(path, verbose=False):
     name = m[name_at:name_at + name_n - 1].decode("latin1")
     seqs = [struct.unpack_from("<HHIfIHHIIIfffffffHH", m, seqs_at + i * 64) for i in range(n_seqs)]
     in_file = [bool(s[4] & 0x20) for s in seqs]
+    folder = os.path.dirname(path)
+    external_data = {}
+    for i, sq in enumerate(seqs):
+        if not in_file[i]:
+            anim = os.path.join(folder, "%s%04d-%02d.anim" % (name, sq[0], sq[1]))
+            if os.path.exists(anim):
+                external_data[i] = Path(anim).read_bytes()
+            else:
+                say("sequence %d has no .anim file (%s)" % (i, anim))
     lookup = struct.unpack_from("<%dh" % n_lookup, m, lookup_at)
     for idx in lookup:
         if idx >= n_seqs:
@@ -97,14 +107,15 @@ def check(path, verbose=False):
         for k, (count, offset) in enumerate(entries):
             seq = k if gseq < 0 else None
             external = seq is not None and seq < n_seqs and not in_file[seq]
-            if count and not external and offset + count * 4 > len(m):
-                say("%s: sequence %d's timestamps outside the file" % (what, k))
+            data = external_data.get(seq, b"") if external else m
+            if count and offset + count * 4 > len(data):
+                say("%s: sequence %d's timestamps outside the %s file" % (what, k, ".anim" if external else "model"))
             if k < len(ventries):
                 vcount, voffset = ventries[k]
                 if vcount != count:
                     say("%s: sequence %d has %d timestamps and %d values" % (what, k, count, vcount))
-                if vcount and not external and voffset + vcount * value_size > len(m):
-                    say("%s: sequence %d's values outside the file" % (what, k))
+                if vcount and voffset + vcount * value_size > len(data):
+                    say("%s: sequence %d's values outside the %s file" % (what, k, ".anim" if external else "model"))
 
     for b in range(n_bones):
         at = bones_at + b * 88
@@ -160,7 +171,7 @@ def check(path, verbose=False):
     if not os.path.exists(skin_path):
         say("no skin " + skin_path)
         return problems
-    s = open(skin_path, "rb").read()
+    s = Path(skin_path).read_bytes()
     vn, vo, ixn, ixo, pn, po, sn, so, bn, bo, max_bones = struct.unpack_from("<11I", s, 4)
     if max_bones > 64:
         say("skin: %d bones a section" % max_bones)
@@ -218,17 +229,6 @@ def check(path, verbose=False):
             say("batch %d: transparency %d of %d" % (i, b[11], n_transp))
         if b[12] >= n_tf_lookup:
             say("batch %d: texture transform %d of %d" % (i, b[12], n_tf_lookup))
-    # External animations: their files.
-    missing = 0
-    for sid, var, *_ in seqs:
-        pass
-    for i, sq in enumerate(seqs):
-        if not in_file[i]:
-            anim = os.path.join(folder, "%s%04d-%02d.anim" % (name, sq[0], sq[1]))
-            if not os.path.exists(anim):
-                missing += 1
-    if missing:
-        say("%d sequences kept outside the file have no .anim file" % missing)
     if verbose:
         import collections
         print("%s: %d sequences, %d bones, %d vertices (%d in the skin), %d sections, %d batches, %d textures, %d events, %d cameras" % (

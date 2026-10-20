@@ -181,6 +181,16 @@ def dbc_row_values(dbc, row, types):
     return out
 
 
+def narration_sound(template, race):
+    """One narration, with no weighted empty alternatives inherited from the template."""
+    sound = list(template)
+    sound[0], sound[2] = ID_NARRATION[race], f"{RACES[KEY[race]]['name']}FlyByNarration"
+    sound[3:13] = [NARRATION[race]] + [""] * 9
+    sound[13:23] = [1] + [0] * 9
+    sound[23] = "Sound\\CinematicVoices"
+    return sound
+
+
 def main():
     if len(sys.argv) != 3:
         sys.exit(__doc__)
@@ -468,8 +478,7 @@ def main():
     cam_rows = {r[0]: r for r in cams.rows}
     narration_rows, cam_sql, seq_sql = [], [], []
     for race in (VOIDELF, NIGHTBORNE):
-        sound = dbc_row_values(sounds, snd_rows[3840], TYPES["soundentries_dbc"])  # HumanFlyByNarration
-        sound[0], sound[2], sound[3] = ID_NARRATION[race], f"{RACES[KEY[race]]['name']}FlyByNarration", NARRATION[race]
+        sound = narration_sound(dbc_row_values(sounds, snd_rows[3840], snt), race)  # HumanFlyByNarration
         client.put("SoundEntries", snt, sound)
         narration_rows.append(sound)
         seq = seq_rows[race_rows[START[race]][12]]
