@@ -18,6 +18,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   `character/nightborne/...`: the models, their skeletons with the parent skeletons, their
   animations), made models the 3.3.5 game draws by `tools/m2.py` (below). Not the blood elf's or
   the night elf's body.
+- **Size**: both sexes use a 0.9 display scale (10% smaller) in character creation and in the
+  world. The client patch and server tables use the same value; existing worlds receive the update.
 - **Looks**, from today's customization tables, on 3.3.5's five sliders:
   - *Skin colour*: every skin colour a player picks today (void elves 30, among them the high elf
     skins; nightborne 10, each with each of the seven body tattoos: 70).
