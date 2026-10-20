@@ -50,12 +50,20 @@ int main(int argc, char** argv)
         fs::create_directories(data);
         MpqWriter base(data / "common.MPQ");
         for (auto const& spec : { std::make_pair("ChrRaces", 69u), { "CinematicSequences", 10u },
-                                  { "CinematicCamera", 7u }, { "SoundEntries", 30u } })
+                                  { "CinematicCamera", 7u }, { "SoundEntries", 30u },
+                                  { "CreatureDisplayInfo", 16u } })
         {
             Dbc table;
             table.fields = spec.second;
             table.size = table.fields * 4;
             table.strings = { 0 };
+            if (std::string(spec.first) == "CreatureDisplayInfo")
+                for (uint32_t id : { 55u, 56u, 15475u, 15476u })
+                {
+                    table.records.emplace_back(table.size, 0);
+                    table.Set(table.records.size() - 1, 0, id);
+                    table.Set(table.records.size() - 1, 4, 0x3f800000); // 1.0f
+                }
             Require(base.Add(std::string("DBFilesClient\\") + spec.first + ".dbc", table.Write()), "write base table");
             fs::copy_file(source / "dbc" / (std::string(spec.first) + ".txt"), module / "dbc" / (std::string(spec.first) + ".txt"));
         }
@@ -78,6 +86,12 @@ int main(int argc, char** argv)
             return result;
         };
         Dbc races = table("ChrRaces"), sequences = table("CinematicSequences"), cameras = table("CinematicCamera"), sounds = table("SoundEntries");
+        Dbc displays = table("CreatureDisplayInfo");
+        for (uint32_t id : { 33001u, 33002u, 33003u, 33004u })
+            Require(displays.Get(Row(displays, id), 4) == 0x3f666666, "allied display must use 0.9f");
+        for (uint32_t id : { 55u, 56u, 15475u, 15476u })
+            Require(displays.Get(Row(displays, id), 4) == 0x3f800000, "standard elf display changed");
+        std::cout << "ok all four allied displays: 0.9 scale; standard elf displays preserved\n";
         for (uint32_t race : { 15u, 16u })
         {
             auto sequence = Row(sequences, races.Get(Row(races, race), 12));
