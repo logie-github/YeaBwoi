@@ -60,6 +60,7 @@ def tier_of(geoset):
 LAST_ANIMATION = 505                 # 3.3.5's AnimationData ends here
 KEY_BONES = 27                       # 3.3.5 knows key bones 0 to 26
 M2_FLAGS = 0x2080                    # what the known HD conversions keep of the newer flags
+RESIDENT_SEQUENCE_FLAGS = 0x130      # any of these marks data stored in the model/skeleton
 HEADER = 304
 BONE, SEQ, ATTACH, EVENT, CAMERA_IN, CAMERA_OUT, VERTEX, SECTION, BATCH = 88, 64, 40, 36, 116, 100, 48, 48, 24
 TRACK, TRACK_BASE = 20, 12
@@ -132,7 +133,7 @@ class Skeleton:
         gl, glo, sc, so, lc, lo = struct.unpack_from("<6I", sks)
         self.loops = list(struct.unpack_from("<%dI" % gl, sks, glo))
         self.seqs = [bytearray(sks[so + i * SEQ:so + (i + 1) * SEQ]) for i in range(sc)]
-        self.in_file = [bool(struct.unpack_from("<I", s, 12)[0] & 0x20) for s in self.seqs]
+        self.in_file = [bool(struct.unpack_from("<I", s, 12)[0] & RESIDENT_SEQUENCE_FLAGS) for s in self.seqs]
         skb = c["SKB1"]
         bc, bo, kc, ko = struct.unpack_from("<4I", skb)
         self.key_bones = list(struct.unpack_from("<%dh" % kc, skb, ko))
@@ -176,7 +177,7 @@ class Model:
         sc, so = arr(m, 28)
         if sc:
             self.keys = [struct.unpack_from("<HH", m, so + i * SEQ) for i in range(sc)]
-            self.in_file = [bool(struct.unpack_from("<I", m, so + i * SEQ + 12)[0] & 0x20) for i in range(sc)]
+            self.in_file = [bool(struct.unpack_from("<I", m, so + i * SEQ + 12)[0] & RESIDENT_SEQUENCE_FLAGS) for i in range(sc)]
         else:
             self.keys = [skeleton.key(i) for i in range(len(skeleton.seqs))]
             self.in_file = list(skeleton.in_file)
@@ -299,6 +300,7 @@ class Merged:
 
     def __init__(self, child, parent):
         self.child, self.parent = child, parent
+        self.repairs = []
         self.sources = []                 # (which, index): which 0 = parent, 1 = child
         self.child_index = {}             # child sequence index -> merged index
         self.parent_index = {}
@@ -406,9 +408,13 @@ class Merged:
                     source = self.skeleton(which)
                     flags = struct.unpack_from("<I", self.seq(j), 12)[0]
                     alias = struct.unpack_from("<H", self.seq(j), 62)[0]
-                    raise ValueError("sequence %d key=%r source=%s index=%d flags=%#x alias=%d: %s" %
-                                     (j, source.key(self.sources[j][1]), "child" if which else "parent",
-                                      self.sources[j][1], flags, alias, error)) from error
+                    self.repairs.append("sequence %d key=%r source=%s index=%d flags=%#x alias=%d: %s" %
+                                        (j, source.key(self.sources[j][1]), "child" if which else "parent",
+                                         self.sources[j][1], flags, alias, error))
+                    # Some inherited retail channels point past the animation payload.
+                    # An empty track uses the bone's rest transform; never retain a bad read
+                    # or pair valid timestamps with missing/partial values.
+                    timestamp, value = b"", b""
             ts.append(timestamp)
             vs.append(value)
         return Track(interp, gseq, ts, vs if has_values else None)
@@ -601,6 +607,8 @@ def convert(files, policy, out_dir, log=print):
         s = bytearray(merged.seq(j))
         sid, var, dur = struct.unpack_from("<HHI", s, 0)
         flags = struct.unpack_from("<I", s, 12)[0] & 0xFF
+        if merged.in_file(j):
+            flags |= 0x20                            # normalize retail's resident flags for 3.3.5
         blend_in, blend_out = struct.unpack_from("<HH", s, 28)
         struct.pack_into("<I", s, 12, flags)
         struct.pack_into("<I", s, 28, max(blend_in, blend_out))
@@ -894,6 +902,11 @@ def convert(files, policy, out_dir, log=print):
         head += struct.pack("<II", count, offset)
     head += struct.pack("<I", MAX_BONES)
     skin_out = bytes(head) + bytes(body)
+
+    if merged.repairs:
+        log("%s: %d malformed animation channels use their rest transforms" % (name, len(merged.repairs)))
+        for problem in merged.repairs[:10]:
+            log("  " + problem)
 
     # Files.
     written = {}
