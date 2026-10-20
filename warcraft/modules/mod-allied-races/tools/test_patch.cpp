@@ -99,7 +99,7 @@ int main(int argc, char** argv)
                               "Character\\VoidElf\\Male\\VoidElfMale.m2", "Character\\Nightborne\\Female\\NightborneFemale.m2",
                               "Character\\Nightborne\\Male\\NightborneMale.m2", "Character\\Nightborne\\Male\\NightborneMale00.skin",
                               "Interface\\GlueXML\\AlliedRacesCreate.lua", "Interface\\GlueXML\\AlliedRacesCreate.xml",
-                              "Sound\\CinematicVoices\\VoidElfNarration.mp3", "Sound\\CinematicVoices\\NightborneNarration.mp3" })
+                              "Sound\\CinematicVoices\\ve.mp3", "Sound\\CinematicVoices\\nb.mp3" })
         Check(patch->Read(name, bytes) && bytes.size() > 1000, std::string(name) + " is in it");
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", bytes) && std::string(bytes.begin(), bytes.end()).find("AlliedRacesCreate.lua") != std::string::npos,
           "GlueXML.toc lists the character screen's files");

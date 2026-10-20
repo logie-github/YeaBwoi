@@ -70,7 +70,7 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   classes' template races) is open to the new race as it is. Scripted events bound to an
   original quest's id don't fire for its clone.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's
-  MP3s, `data/client/voidelf_intro.mp3` and `nightborne_intro.mp3`).
+  MP3s, `data/client/ve.mp3` and `nb.mp3`).
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the last
   column of the race icons; each side's races in two columns, two to a row from the top
   (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after, the same way);
