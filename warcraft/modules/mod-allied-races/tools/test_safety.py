@@ -17,6 +17,22 @@ def chunk(name, data):
 
 
 class AnimationSafety(unittest.TestCase):
+    def test_resident_skeleton_flags_do_not_read_model_data_from_an_anim_file(self):
+        for flags in (0x10, 0x20, 0x100, 0x120):
+            sequence = bytearray(64)
+            struct.pack_into("<I", sequence, 12, flags)
+            sks = struct.pack("<6I", 0, 0, 1, 24, 0, 0) + sequence
+            skeleton = m2.Skeleton(chunk("SKS1", sks) + chunk("SKB1", bytes(16)) + chunk("SKA1", bytes(16)))
+            self.assertTrue(skeleton.in_file[0], hex(flags))
+            data = bytearray(64)
+            struct.pack_into("<hhIIII", data, 0, 1, -1, 1, 20, 1, 28)
+            struct.pack_into("<II", data, 20, 1, 36)
+            struct.pack_into("<II", data, 28, 1, 40)
+            struct.pack_into("<I3f", data, 36, 7, 1, 2, 3)
+            track = m2.Track.read(data, 0, 12, lambda i: skeleton.in_file[i])
+            self.assertEqual(track.timestamps, [struct.pack("<I", 7)])
+            self.assertEqual(track.values, [struct.pack("<3f", 1, 2, 3)])
+
     def test_split_animation_keeps_and_relocates_every_stream(self):
         source = chunk("AFM2", b"event") + chunk("AFSA", b"attachment") + chunk("AFSB", bytes(range(32)))
         animations = m2.AnimationFiles(lambda fid: source)
@@ -52,6 +68,24 @@ class AnimationSafety(unittest.TestCase):
         animations = m2.AnimationFiles(lambda fid: chunk("AFM2", bytes(64)) + chunk("AFSA", bytes(64)))
         with self.assertRaises(ValueError):
             animations.relocate(1, ("ext", 1, 0), 12, "AFSB")
+
+    def test_inherited_truncated_rotation_channel_uses_rest_transform(self):
+        sequence = bytearray(64)
+        struct.pack_into("<HH", sequence, 0, 223, 0)
+        parent = SimpleNamespace(seqs=[sequence], loops=[], in_file=[False],
+                                 anim_files={(223, 0): 974386}, key=lambda i: (223, 0))
+        child = SimpleNamespace(seqs=[], loops=[])
+        merged = m2.Merged(child, parent)
+        # Exact offset/count/payload size caught in the real parent model by CI.
+        merged.animations = m2.AnimationFiles(lambda fid: bytes(34384))
+        rotation = m2.with_value_size(m2.Track(1, -1,
+            [("ext", 41, 0)], [("ext", 41, 34320)]), 8)
+        result = merged.merge_tracks(None, rotation, stream="AFSB")
+        self.assertEqual(result.timestamps, [b""])
+        self.assertEqual(result.values, [b""])
+        self.assertEqual(len(merged.repairs), 1)
+        self.assertIn("974386", merged.repairs[0])
+        self.assertIn("34320", merged.repairs[0])
 
     def test_global_track_is_local_even_when_first_animation_is_external(self):
         blob = bytearray(64)
