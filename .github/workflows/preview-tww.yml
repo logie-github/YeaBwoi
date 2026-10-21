@@ -100,7 +100,7 @@ jobs:
           PY
       - name: Render actual Compose launcher
         working-directory: warcraft/android
-        run: ./gradlew --no-daemon --max-workers=2 --init-script ../../scripts/maven-mirror.init.gradle :app:testDebugUnitTest --tests '*TwwPreviewTest' -PwowVersionName=1.0.207
+        run: ./gradlew --no-daemon --max-workers=2 --init-script ../../scripts/maven-mirror.init.gradle :app:testDebugUnitTest --tests '*TwwPreviewTest' -PwowVersionName=1.0.209
       - name: Export screenshots
         env:
           GH_TOKEN: ${{ github.token }}
@@ -110,6 +110,6 @@ jobs:
           for p in sorted(pathlib.Path(".").glob("tww-preview-*.png")):
               print("TWW_SCREENSHOT",p.name,base64.b64encode(p.read_bytes()).decode(),flush=True)
           PY
-          if gh release view wow-build-207 >/dev/null 2>&1; then
-            gh release upload wow-build-207 tww-preview-*.png --clobber
+          if gh release view wow-build-209 >/dev/null 2>&1; then
+            gh release upload wow-build-209 tww-preview-*.png --clobber
           fi
