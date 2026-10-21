@@ -14,7 +14,7 @@ cd "$WORK_DIR/7zip-$SEVENZIP_COMMIT/CPP/7zip/Bundles/Alone2"
 make -f makefile.gcc -j2 \
   CC="$LLVM_DIR/aarch64-linux-android28-clang" CXX="$LLVM_DIR/aarch64-linux-android28-clang++" \
   CFLAGS_WARN_WALL= CXXFLAGS_EXTRA=-DZ7_AFFINITY_DISABLE CFLAGS_BASE2=-DZ7_AFFINITY_DISABLE \
-  LDFLAGS_STATIC_3=-static-libstdc++
+  LIB2=-ldl LDFLAGS_STATIC_3=-static-libstdc++
 DEST_DIR="$ROOT_DIR/warcraft/android/app/src/main/jniLibs/arm64-v8a"
 mkdir -p "$DEST_DIR"
 cp _o/7zz "$DEST_DIR/libtww7zip.so"

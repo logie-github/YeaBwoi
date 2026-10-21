@@ -30,7 +30,7 @@ archive uses BCJ2 and a 192 MiB dictionary; Commons Compress cannot decode BCJ2.
 packaged as an executable native library, validates archive paths before extraction, verifies
 7-Zip’s exit/checksum results and file sizes, and supports cancellation and staged cleanup.
 
-Launcher artwork uses Blizzard’s published Clash wallpaper and Firestorm’s TWW emblem. It
+Launcher artwork uses Blizzard’s published Clash wallpaper and official TWW press-kit logo. It
 follows the existing realm hero, music/game chips, action panel and menu tile layout.
 
 The [original uploader's repack instructions](https://www.emucoach.com/threads/warlords-of-draenor-6-2-3-6-2-4-legion-7-3-5-battle-for-azeroth-8-3-7-shadowlands-9-2-7-dragonflight-10-2-7-the-war-within-11-2-7-midnight-12.18115/)
@@ -39,16 +39,17 @@ contain both supplied Drive IDs and identify 11.2.5.63704. The publisher instruc
 the client's portal to `127.0.0.1`, and extract MMAPS at the repack root without a nested
 `mmaps/mmaps` directory. These are publisher instructions, not a verified archive manifest.
 
-The Drive sharing/preview/download pages could not be read with the verification web tool.
-That does not establish that the links are broken. Current filenames, archive formats, lengths,
-hashes, exact startup arguments, and database contents were not independently verified there.
+The server and map Drive previews could not be read with the verification web tool.
+That does not establish that the links are broken. Their current archive contents, lengths,
+hashes, exact startup arguments and database contents were not independently verified. The
+mini-client was separately downloaded and inspected in the source-check workflow as above.
 The application resolves the links at download time and reports actual errors; imported files
 are inspected before activation. No trusted publisher file manifest or checksum was supplied.
 
 ## Implementation
 
 `tww/core/TwwDownload.kt` manages HTTP acquisition and validated resume in a separate download
-directory. `TwwArchive` extracts ZIP/7z into staging with CRC/size/path checks. `TwwInstall`
+directory. `TwwArchive` extracts ZIP/7z/RAR into staging with CRC/size/path checks. `TwwInstall`
 discovers client/core/database/maps and startup requirements from the actual installation.
 `TwwJobs` and `TwwService` follow the app's existing foreground import pattern, with real
 progress, cancellation, receipts and transactional placement. `tww/ui/TwwHome.kt` uses the

@@ -181,7 +181,7 @@ object TwwJobs {
                 try {
                     TwwArchive.extract(archive, work, { cancelled }, nativeExtractor = File(context.applicationInfo.nativeLibraryDir, "libtww7zip.so")) { bytes, name ->
                         checkSpace(work, 0)
-                        working(kind, "Extracting ${size(context, bytes)} · $name")
+                        working(kind, if (bytes > 0) "Extracting ${size(context, bytes)} · $name" else "Extracting archive…")
                     }
                 } catch (e: TwwArchive.ArchiveException) {
                     if (!cancelled && corruptArchive(e)) {
@@ -205,7 +205,7 @@ object TwwJobs {
                     val source = fs.check(File(layout.downloads, "picked.archive"))
                     copyPickedArchive(context, selected, source, kind)
                     working(kind, "Extracting imported archive")
-                    TwwArchive.extract(source, work, { cancelled }, nativeExtractor = File(context.applicationInfo.nativeLibraryDir, "libtww7zip.so")) { bytes, name -> working(kind, "Extracting ${size(context, bytes)} · $name") }
+                    TwwArchive.extract(source, work, { cancelled }, nativeExtractor = File(context.applicationInfo.nativeLibraryDir, "libtww7zip.so")) { bytes, name -> working(kind, if (bytes > 0) "Extracting ${size(context, bytes)} · $name" else "Extracting archive…") }
                     fs.delete(source)
                 }
                 "User-selected ${if (folder) "folder" else "archive"}"
