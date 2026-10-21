@@ -50,8 +50,8 @@ TEMPLATE = {
 }
 STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # their kin's starting stats
 MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # whose model rows theirs are copied from
-# Apply the same 10% visual reduction to both sexes in the client and server tables.
-DISPLAY_SCALE = 0.9
+# Void elves retain their native Blood Elf-sized body; keep the Nightborne reduction.
+DISPLAY_SCALE = {VOIDELF: 1.0, NIGHTBORNE: 0.9}
 PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb"}
 NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne"}
 NARRATION = {VOIDELF: "ve.mp3", NIGHTBORNE: "nb.mp3"}
@@ -71,7 +71,7 @@ ID_VOCAL = 9100
 ID_EMOTESOUND = 91000
 ID_SEQUENCE = {VOIDELF: 9011, NIGHTBORNE: 9012}
 ID_CAMERA = {VOIDELF: 9011, NIGHTBORNE: 9012}
-ID_NARRATION = {VOIDELF: 910001, NIGHTBORNE: 910002}
+ID_NARRATION = {VOIDELF: 60001, NIGHTBORNE: 60002}  # unused legacy-range sound IDs
 ID_VOICE = 910100
 ID_DISPLAY = {VOIDELF: (33001, 33002), NIGHTBORNE: (33003, 33004)}  # male, female looks
 ID_MODEL = {VOIDELF: (3601, 3602), NIGHTBORNE: (3603, 3604)}
@@ -237,7 +237,7 @@ def main():
             d[1] = ID_MODEL[race][sex]
             d[2] = 0                                        # no creature sound set
             d[3] = 0                                        # no extra: a player's look
-            d[4] = DISPLAY_SCALE
+            d[4] = DISPLAY_SCALE[race]
             d[12] = 0
             client.put("CreatureDisplayInfo", dt, d)
             display_sql.append(d)

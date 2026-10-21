@@ -125,6 +125,17 @@ def entry_count(entry):
     return len(entry) // 4 if entry else 0
 
 
+def validate_bone_values(data):
+    """Reject malformed local bone vectors before a client multiplies them into its pose.
+
+    These are character-local translations/scales, not world coordinates. The generous
+    10,000-unit bound catches corrupt float payloads while preserving normal motion.
+    """
+    if len(data) % 12 or any(not math.isfinite(value) or abs(value) > 10000
+                             for (value,) in struct.iter_unpack("<f", data)):
+        raise ValueError("non-finite or implausible character bone vector")
+
+
 class Skeleton:
     def __init__(self, data):
         c = chunks_of(data)
@@ -404,6 +415,12 @@ class Merged:
                 try:
                     timestamp = self.animations.relocate(fid, timestamp, 4, stream)
                     value = self.animations.relocate(fid, value, getattr(t, "value_size", 1), stream)
+                    if stream == "AFSB" and getattr(t, "value_size", 0) == 12:
+                        payload = value
+                        if isinstance(value, tuple):
+                            _, count, offset = value
+                            payload = self.animations.get(fid)[0][offset:offset + count * 12] if count else b""
+                        validate_bone_values(payload)
                 except ValueError as error:
                     source = self.skeleton(which)
                     flags = struct.unpack_from("<I", self.seq(j), 12)[0]
@@ -454,21 +471,33 @@ def complete_policy(policy, geosets):
     return out
 
 
+def legacy_sequence_ids(ids):
+    """Keep track/alias indices stable; give retail-only backing sequences unused legacy IDs.
+
+    Backing sequences are deliberately absent from the public lookup so a missing player
+    animation still uses the game's fallback, rather than an unrelated retail animation.
+    """
+    public = {sid for sid in ids if sid <= LAST_ANIMATION}
+    spare = [sid for sid in range(LAST_ANIMATION, -1, -1) if sid not in public]
+    modern = sorted({sid for sid in ids if sid > LAST_ANIMATION})
+    if len(modern) > len(spare):
+        raise ValueError("not enough legacy animation IDs for retail alias backing sequences")
+    renamed = dict(zip(modern, spare))
+    return [renamed.get(sid, sid) for sid in ids]
+
+
 def sequence_lookup(ids, variations):
-    """The sequence lookup as the game reads it: a hash table (an id's first slot is id % size,
-    the next ones after it until an empty slot), each id's first variation in it, with room so
-    every probe ends at an empty slot."""
-    first = {}
+    """Public 3.3.5 IDs at their own slots, with explicit holes and no probe collisions.
+
+    This layout is safe for indexed and hashed readers. Retail-only sequences remain
+    available through alias indices, but are not exposed as playable legacy animations.
+    """
+    table = [-1] * (LAST_ANIMATION + 2)
     for j, (sid, var) in enumerate(zip(ids, variations)):
-        if sid not in first or (var == 0 and variations[first[sid]] != 0):
-            first[sid] = j
-    size = max(64, 2 * len(first))
-    table = [-1] * size
-    for sid, j in sorted(first.items()):
-        i = sid % size
-        while table[i] >= 0:
-            i = (i + 1) % size
-        table[i] = j
+        if sid > LAST_ANIMATION:
+            continue
+        if table[sid] < 0 or (var == 0 and variations[table[sid]] != 0):
+            table[sid] = j
     return table
 
 
@@ -600,12 +629,16 @@ def convert(files, policy, out_dir, log=print):
     seqs = bytearray()
     ids = []
     external = []                                     # (merged index, (id, var), file id)
+    source_ids = [struct.unpack_from("<H", merged.seq(j))[0] for j in range(merged.n)]
+    legacy_ids = legacy_sequence_ids(source_ids)
     no_file = set()                                   # external sequences with no file: empty
     merged.no_file = no_file
     for j in range(merged.n):
         which, i = merged.sources[j]
         s = bytearray(merged.seq(j))
         sid, var, dur = struct.unpack_from("<HHI", s, 0)
+        sid = legacy_ids[j]
+        struct.pack_into("<H", s, 0, sid)
         flags = struct.unpack_from("<I", s, 12)[0] & 0xFF
         if merged.in_file(j):
             flags |= 0x20                            # normalize retail's resident flags for 3.3.5
@@ -623,7 +656,7 @@ def convert(files, policy, out_dir, log=print):
                 struct.pack_into("<I", s, 12, flags | 0x20)
                 no_file.add(j)
         seqs += s
-        ids.append(sid)
+        ids.append(source_ids[j])
     blob.array(28, merged.n, bytes(seqs))
     table = sequence_lookup(ids, [struct.unpack_from("<H", merged.seq(j), 2)[0] for j in range(merged.n)])
     blob.array(36, len(table), struct.pack("<%dh" % len(table), *table))

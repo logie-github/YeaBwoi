@@ -149,7 +149,7 @@ Blizzard's allied races of today are playable on both realms, in their own model
 - **Void elves** (Alliance) start in Ammen Vale with the Draenei: their quests, their standing with the Exodar. Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock.
 - **Nightborne** (Horde) start in Deathknell with the Forsaken: their quests, their standing with Undercity. The same classes.
 - **Models and looks**: today's player models, skeletons and animations, made 3.3.5's; every skin colour a player picks today (the nightborne's with each body tattoo), every face with every eye colour (face 1 eye 1, face 1 eye 2...; void elves 28 faces x 9 eye colours, nightborne 12 x 6), every hair style and colour; the feature slider carries the men's facial hair or the women's earrings, each with or without void tentacles (void elves), or every chin decoration, mustache and jaw jewellery, or jaw jewellery, earrings and necklace (nightborne). Ears, eyebrows, eye style, face tattoos and jewellery stay at their first choice.
-- **Size**: both sexes of the two new races use a 10% smaller display in character creation and gameplay.
+- **Size**: Void Elves use their native 1.0 display scale again; Nightborne keep the 0.9 scale. This applies to both sexes, character creation and gameplay.
 - **Voices and names**: today's.
 - **Racials**: Spatial Rift (a rift up to 15 yards ahead; use it again within 6 sec to teleport through it; 3 min cooldown), Entropic Embrace (a chance to empower you: +5% damage and healing for 12 sec), Chill of Night, Preternatural Calm and Cantrips (a mailbox for 10 min) for the void elves; Arcane Pulse (Arcane damage around you and a 50% slow, 3 min cooldown), Arcane Resistance, Magical Affinity and Ancient History (Inscription +15) for the nightborne. Ethereal Connection (transmogrification) has nothing to act on here.
 - **Quests**: the start race's own start quests are cloned for the new race, their givers taking in who the player is before sending them down the same road (a void elf washed up with the Exodar's survivors; a nightborne sent to learn the Forsaken's ways in Deathknell); the originals are untouched, and every other quest of the start race is open to the new race.
@@ -162,9 +162,13 @@ are repaired on login. The custom-race patches preserve the installed HD client'
 when moving the old creature races out of the player slots.
 
 The allied-race animation converter now preserves the separate bone and attachment streams and
-checks external animation offsets before packaging. Intro sound rows select only each race's own
-MP3. The patch is rebuilt automatically after updating. These changes pass data and archive tests;
-the reported Nightborne freeze at the first quest giver still needs confirmation in the game.
+checks external animation offsets and bone values before packaging. Missing legacy animations
+keep their normal fallback; unsupported retail sequences remain private alias targets. Character
+selection maps each new race to a valid ambience track. Intro sound rows use legacy-range IDs
+and select only each race's own MP3 (`ve.mp3` / `nb.mp3`). The patch is rebuilt automatically
+after updating. These changes pass data and archive tests;
+the reported freezes at the first quest giver and when switching races, plus audible intro
+playback, still need confirmation in the game.
 
 ## Modules
 

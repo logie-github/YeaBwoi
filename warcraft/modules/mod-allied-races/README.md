@@ -19,8 +19,8 @@ rows and texture paths, including Alternative HD's, rather than overwriting them
   `character/nightborne/...`: the models, their skeletons with the parent skeletons, their
   animations), made models the 3.3.5 game draws by `tools/m2.py` (below). Not the blood elf's or
   the night elf's body.
-- **Size**: both sexes use a 0.9 display scale (10% smaller) in character creation and in the
-  world. The client patch and server tables use the same value; existing worlds receive the update.
+- **Size**: Void Elves use their native 1.0 display scale; Nightborne use 0.9. Both sexes use
+  the same setting in character creation and in the world. Existing worlds receive the update.
 - **Looks**, from today's customization tables, on 3.3.5's five sliders:
   - *Skin colour*: every skin colour a player picks today (void elves 30, among them the high elf
     skins; nightborne 10, each with each of the seven body tattoos: 70).
@@ -104,9 +104,11 @@ rows and texture paths, including Alternative HD's, rather than overwriting them
   the game's patch, with `alliedraces.files` listing it:
   - **`tools/m2.py`**: today's model (format 274) made 3.3.5's (264): the child's bones with the
     parent skeleton's sequences (the child's own over them), every track with an entry a
-    sequence, the sequence lookup a hash table as the game reads it, external animations kept
+    sequence, the public lookup indexed by legacy ID with missing animations left absent; retail-only
+    sequences get private legacy IDs while alias/variation indices stay unchanged; external animations kept
     in `.anim` files (the newer files' AFM2 event, AFSA attachment and AFSB bone streams combined
-    with each track's offsets relocated; global-loop tracks stay in the model); the body's texture coordinates stretched across (today's body texture is
+    with each track's offsets relocated; global-loop tracks stay in the model; malformed local bone
+    vectors use the rest transform instead of non-finite/implausible values); the body's texture coordinates stretched across (today's body texture is
     twice as wide as tall, the head in its right half; 3.3.5 composes a square), the head's into
     the face region, the eyes' (a texture of their own today) into the FaceUpper strip; the
     geosets 3.3.5's tables choose from kept whole (hair, features, armour); the body parts today's
@@ -153,9 +155,11 @@ rows and texture paths, including Alternative HD's, rather than overwriting them
   lookup, the geoset policy, the coordinate remapping), races.json's shape, the tables naming
   the textures the way they're made. CI runs it.
 - `tools/test_screen.py`: `AlliedRacesCreate.lua` in Lua 5.1 against stand-ins for the game's
-  screen, alone and with the Skyborne's screen code after it. CI runs it.
+  screen, alone and with the Skyborne's screen code after it; repeated race transitions preserve
+  the stock character-selection ambience lookup. CI runs it.
 - `tools/test_safety.py`: split and unsplit animation streams, relocated bone tracks, local
-  global-loop tracks, truncated external animation files for both races and sexes, and narration
+  global-loop tracks, corrupt/non-finite bone vectors, missing-animation fallbacks, truncated external
+  animation files for both races and sexes, and narration
   rows selecting only their own MP3, plus faction-language setup after earlier race modules. CI runs it. The old global-track reader and external-file
   validator fail these regressions.
 - `../mod-skyborne/tools/test_table_moves.cpp`: both race modules preserve HD NPCs when row IDs
@@ -183,3 +187,6 @@ rows and texture paths, including Alternative HD's, rather than overwriting them
   and return to the launcher when a new Nightborne speaks to Undertaker Mordo has not been
   reproduced here. These fixes remove verified unsafe animation data paths; a client run is
   still needed to confirm that specific crash is resolved.
+
+Narration records now use IDs 60001/60002, unused in the pinned 3.3.5 tables, rather than
+910001/910002. This is a compatibility correction; audible client playback remains unverified.

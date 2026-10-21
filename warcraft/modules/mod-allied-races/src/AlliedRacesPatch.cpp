@@ -37,7 +37,7 @@ namespace AlliedRaces
         constexpr char const* PATCH = "patch-V.MPQ";
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-5";   // 5: complete split animations, global tracks and single-file narrations
+        constexpr char const* VERSION = "allied-races-6";   // 6: legacy animation IDs and collision-free animation lookup
 
         Bytes ReadFile(fs::path const& path)
         {

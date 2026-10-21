@@ -9,8 +9,8 @@ REPLACE INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `
 (3603, 2052, 'Character\\Nightborne\\Male\\NightborneMale.mdx', 1, 1.0, 1, 1, 12.0, 10.0, 1.0, 0.0, 0, 0, 55, 0.7778000235557556, 2.437999963760376, 1.300953984260559, -0.700577974319458, -0.6165549755096436, -0.004441999830305576, 0.3030639886856079, 0.6370189785957336, 2.5948851108551025, 1.0, 1.0, 0.0, 0.0, 0.0),
 (3604, 2052, 'Character\\Nightborne\\Female\\NightborneFemale.mdx', 1, 1.0, 1, 1, 12.0, 10.0, 1.0, 0.0, 0, 0, 56, 0.5555999875068665, 2.25, 1.334736943244934, -0.6518539786338806, -0.3882269859313965, 0.001303000026382506, 0.34288400411605835, 0.5901989936828613, 2.2700119018554688, 1.0, 1.0, 0.0, 0.0, 0.0);
 REPLACE INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
-(33001, 3601, 0, 0, 0.9, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
-(33002, 3602, 0, 0, 0.9, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
+(33001, 3601, 0, 0, 1.0, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
+(33002, 3602, 0, 0, 1.0, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
 (33003, 3603, 0, 0, 0.9, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
 (33004, 3604, 0, 0, 0.9, 255, '', '', '', '', 1, 0, 0, 0, 0, 0);
 
@@ -27543,11 +27543,11 @@ REPLACE INTO `faction_dbc` (`ID`, `ReputationIndex`, `ReputationRaceMask_1`, `Re
 
 -- The intros: the start race's flight over its home, with each race's own narration.
 REPLACE INTO `soundentries_dbc` (`ID`, `SoundType`, `Name`, `File_1`, `File_2`, `File_3`, `File_4`, `File_5`, `File_6`, `File_7`, `File_8`, `File_9`, `File_10`, `Freq_1`, `Freq_2`, `Freq_3`, `Freq_4`, `Freq_5`, `Freq_6`, `Freq_7`, `Freq_8`, `Freq_9`, `Freq_10`, `DirectoryBase`, `Volumefloat`, `Flags`, `MinDistance`, `DistanceCutoff`, `EAXDef`, `SoundEntriesAdvancedID`) VALUES
-(910001, 31, 'VoidElfFlyByNarration', 've.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
-(910002, 31, 'NightborneFlyByNarration', 'nb.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
+(60001, 31, 'VoidElfFlyByNarration', 've.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
+(60002, 31, 'NightborneFlyByNarration', 'nb.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
 REPLACE INTO `cinematiccamera_dbc` (`ID`, `model`, `soundEntry`, `locationX`, `locationY`, `locationZ`, `rotation`) VALUES
-(9011, 'Cameras\\FlybyDraenei.mdx', 910001, -3963.27001953125, -13938.7001953125, 99.68879699707031, 5.201079845428467),
-(9012, 'Cameras\\FlybyUndead.mdx', 910002, 1658.5799560546875, 1662.9100341796875, 141.23399353027344, 3.141590118408203);
+(9011, 'Cameras\\FlybyDraenei.mdx', 60001, -3963.27001953125, -13938.7001953125, 99.68879699707031, 5.201079845428467),
+(9012, 'Cameras\\FlybyUndead.mdx', 60002, 1658.5799560546875, 1662.9100341796875, 141.23399353027344, 3.141590118408203);
 REPLACE INTO `cinematicsequences_dbc` (`ID`, `SoundID`, `Camera_1`, `Camera_2`, `Camera_3`, `Camera_4`, `Camera_5`, `Camera_6`, `Camera_7`, `Camera_8`) VALUES
 (9011, 0, 9011, 0, 0, 0, 0, 0, 0, 0),
 (9012, 0, 9012, 0, 0, 0, 0, 0, 0, 0);

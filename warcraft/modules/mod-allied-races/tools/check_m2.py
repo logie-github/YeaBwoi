@@ -7,6 +7,7 @@ the skin's vertices, every sequence kept outside the file having its file.
     python3 tools/check_m2.py DIR/Character/Race/Sex/Name.m2 [--verbose]
 """
 import os
+import math
 from pathlib import Path
 import struct
 import sys
@@ -72,17 +73,15 @@ def check(path, verbose=False):
     for idx in lookup:
         if idx >= n_seqs:
             say("sequence lookup names sequence %d of %d" % (idx, n_seqs))
-    # the lookup as the game reads it: a hash table probed from id % size to an empty slot
-    for sid in sorted(set(s[0] for s in seqs)):
-        i = sid % n_lookup
-        steps = 0
-        while lookup[i] >= 0 and seqs[lookup[i]][0] != sid and steps < n_lookup:
-            i = (i + 1) % n_lookup
-            steps += 1
-        if lookup[i] < 0 or steps >= n_lookup:
-            say("sequence id %d isn't found through the lookup" % sid)
+    # A missing animation must stay absent; aliased backing sequences need not be public.
+    for sid, idx in enumerate(lookup):
+        if 0 <= idx < n_seqs and seqs[idx][0] != sid:
+            say("sequence lookup slot %d selects unrelated animation %d" % (sid, seqs[idx][0]))
+    for i, s in enumerate(seqs):
+        if s[0] > 505:
+            say("sequence %d uses animation ID %d outside 3.3.5 AnimationData" % (i, s[0]))
     if -1 not in lookup:
-        say("the sequence lookup has no empty slot: a probe for a missing id never ends")
+        say("the sequence lookup has no empty slot")
     for i, s in enumerate(seqs):
         for field in (s[-2], s[-1]):
             if field != 0xFFFF and field >= n_seqs:
@@ -116,6 +115,10 @@ def check(path, verbose=False):
                     say("%s: sequence %d has %d timestamps and %d values" % (what, k, count, vcount))
                 if vcount and voffset + vcount * value_size > len(data):
                     say("%s: sequence %d's values outside the %s file" % (what, k, ".anim" if external else "model"))
+                elif vcount and value_size == 12 and what.startswith("bone "):
+                    values = struct.unpack_from("<%df" % (vcount * 3), data, voffset)
+                    if any(not math.isfinite(v) or abs(v) > 10000 for v in values):
+                        say("%s: sequence %d has non-finite or implausible bone values" % (what, k))
 
     for b in range(n_bones):
         at = bones_at + b * 88

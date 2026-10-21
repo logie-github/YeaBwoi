@@ -18,6 +18,14 @@
 --  * Their text.
 
 local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "NightElf" };
+-- CharacterSelect_OnShow looks up the original race token directly.
+-- Mapping only SetBackgroundModel leaves that separate ambience call with nil.
+if ( type(GlueAmbienceTracks) == "table" ) then
+	for race, background in pairs(ALLIED) do
+		GlueAmbienceTracks[race] = GlueAmbienceTracks[strupper(background)]
+			or GlueAmbienceTracks.CHARACTERSELECT or "GlueScreenIntro";
+	end
+end
 
 RACE_ICON_TCOORDS["VOIDELF_MALE"]      = { 0.875, 1.0, 0, 0.25 };
 RACE_ICON_TCOORDS["NIGHTBORNE_MALE"]   = { 0.875, 1.0, 0.25, 0.5 };
