@@ -31,6 +31,7 @@ on:
       - "scripts/module-files.py"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
+      - "scripts/build-tww-7zip.sh"
       - "scripts/prepare-winlator.sh"
       - "scripts/winlator-rewrite.py"
       - "scripts/fetch-tortoise.sh"
@@ -546,6 +547,9 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;36.0.0" \
             "ndk;24.0.8215888" "cmake;3.22.1" > /dev/null
+
+      - name: Build TWW archive extractor
+        run: scripts/build-tww-7zip.sh
 
       - name: Choose signing key
         env:

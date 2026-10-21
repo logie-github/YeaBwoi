@@ -47,7 +47,7 @@ class TwwService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:tww-import")
             .apply { acquire(12 * 60 * 60 * 1000L) }
-        if (kind == TwwJobs.Kind.DOWNLOAD_SERVER || kind == TwwJobs.Kind.DOWNLOAD_MAPS) {
+        if (kind in setOf(TwwJobs.Kind.INSTALL, TwwJobs.Kind.DOWNLOAD_CLIENT, TwwJobs.Kind.DOWNLOAD_SERVER, TwwJobs.Kind.DOWNLOAD_MAPS)) {
             @Suppress("DEPRECATION")
             wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
                 .createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "warcraft:tww-download")

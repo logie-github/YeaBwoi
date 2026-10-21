@@ -63,6 +63,7 @@ object TwwInstall {
         val detected: DetectedServer?,
         val blockers: List<String>,
         val localConnectionConfigured: Boolean = false,
+        val streamingClient: Boolean = false,
     ) {
         /** May start the database to ask build_info; no other unknown requirements are waived. */
         val canBootstrap: Boolean get() = detected?.let { server ->
@@ -99,10 +100,15 @@ object TwwInstall {
         val dataFiles = clientFiles.filter { file -> dataRoots.any { root ->
             file.relativeToOrNull(root)?.path?.replace('\\', '/')?.startsWith("Data/data/", ignoreCase = true) == true
         } }
+        // The publisher supplies a streaming client with no initial CASC files. Only the
+        // inspected executable digest plus its CDN bootstrap files qualify for this mode.
+        val streaming = executable != null && build != null && expected(build) &&
+            listOf("cdns", "versions").all { name -> File(clientRoot, name).let { it.isFile && it.length() > 0 } } &&
+            sha256(executable) == TwwRealm.STREAMING_EXE_SHA256
         val missingClient = mutableListOf<String>()
         if (executable == null) missingClient += "A single Wow.exe or Wow-64.exe"
-        if (dataFiles.none { it.extension.equals("idx", true) && it.length() > 0 }) missingClient += "Data/data/*.idx"
-        if (dataFiles.none { it.name.startsWith("data.", true) && it.length() > 0 }) missingClient += "Data/data/data.NNN"
+        if (!streaming && dataFiles.none { it.extension.equals("idx", true) && it.length() > 0 }) missingClient += "Data/data/*.idx"
+        if (!streaming && dataFiles.none { it.name.startsWith("data.", true) && it.length() > 0 }) missingClient += "Data/data/data.NNN"
         val infoFiles = dataRoots.mapNotNull { root -> root.listFiles()?.firstOrNull { it.name.equals(".build.info", true) } }.distinct()
         val recordedVersions = infoFiles.mapNotNull { versionFromBuildInfo(readText(it)) }
         val mismatched = build != null && !expected(build) || recordedVersions.any { !expected(it) }
@@ -112,7 +118,8 @@ object TwwInstall {
             clientFiles.filter { it.extension.equals("wtf", true) || it.name.equals(".build.info", true) }
                 .any { readText(it).contains("firestorm", true) }
         if (firestorm) clientProblems += "Firestorm files or connection settings were detected; local-server compatibility requires verification"
-        if (executable != null && missingClient.isEmpty()) clientProblems += "Executable version and CASC file presence checked; no trusted complete-client checksum manifest was supplied"
+        if (streaming) clientProblems += "Streaming client installed; game assets download as you play. Internet is required and full offline asset coverage has not been verified."
+        if (!streaming && executable != null && missingClient.isEmpty()) clientProblems += "Executable version and CASC file presence checked; no trusted complete-client checksum manifest was supplied"
         val clientStatus = when {
             clientFiles.isEmpty() -> Status.MISSING
             mismatched -> Status.INCOMPATIBLE
@@ -196,7 +203,7 @@ object TwwInstall {
             if (!localPortal) add("Local connection is not configured: set the imported client's portal to 127.0.0.1 after reviewing its Firestorm modifications. No executable has been modified.")
         }
         return Report(Component(clientStatus, missingClient, clientProblems), Component(coreStatus, missingCore, detected?.issues ?: emptyList()), db,
-            mapsComponent, executable, build, firestorm, detected, blockers, localPortal)
+            mapsComponent, executable, build, firestorm, detected, blockers, localPortal, streaming)
     }
 
     /** Keeps the CASC Data folder and .build.info beside _retail_ when that is their layout. */

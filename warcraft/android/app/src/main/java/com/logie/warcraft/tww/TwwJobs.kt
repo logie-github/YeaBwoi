@@ -30,7 +30,7 @@ import java.util.zip.ZipException
 
 /** Real installation jobs, run by the existing app's foreground-service pattern. */
 object TwwJobs {
-    enum class Kind { DOWNLOAD_SERVER, DOWNLOAD_MAPS, IMPORT_CLIENT, IMPORT_SERVER, IMPORT_MAPS, VERIFY, CLEAN_DOWNLOADS }
+    enum class Kind { INSTALL, DOWNLOAD_CLIENT, DOWNLOAD_SERVER, DOWNLOAD_MAPS, IMPORT_CLIENT, IMPORT_SERVER, IMPORT_MAPS, VERIFY, CLEAN_DOWNLOADS }
 
     sealed interface State {
         data object Idle : State
@@ -43,6 +43,7 @@ object TwwJobs {
     val state: StateFlow<State> = mutableState
     val busy: Boolean get() = state.value is State.Working
     @Volatile private var cancelled = false
+    @Volatile private var installing = false
     @Volatile private var activeDownload: TwwDownload? = null
     private const val RECEIPT = ".tww-integrity.tsv"
     private val HEX = Regex("[0-9a-f]{64}")
@@ -69,10 +70,12 @@ object TwwJobs {
     }
 
     private fun working(kind: Kind, detail: String, progress: Float? = null) {
-        mutableState.value = State.Working(kind, progress?.coerceIn(0f, 1f), detail)
+        val component = when (kind) { Kind.DOWNLOAD_CLIENT -> "Game Client"; Kind.DOWNLOAD_SERVER -> "Server"; Kind.DOWNLOAD_MAPS -> "Map Files"; else -> null }
+        mutableState.value = State.Working(if (installing) Kind.INSTALL else kind, progress?.coerceIn(0f, 1f), if (component == null) detail else "$component · $detail")
     }
 
     internal fun run(context: Context, kind: Kind, uri: Uri?, folder: Boolean) {
+        installing = kind == Kind.INSTALL
         try {
             val layout = TwwFiles.layout(context)
             val fs = TwwFiles.fs(context)
@@ -107,134 +110,37 @@ object TwwJobs {
                 return
             }
 
-            // Only our staging area is removed after interrupted jobs. Downloads stay resumable.
-            fs.delete(layout.staging)
-            fs.mkdirs(layout.staging)
-            val work = File(layout.staging, "install")
-            val importedFrom = when (kind) {
-                Kind.DOWNLOAD_SERVER, Kind.DOWNLOAD_MAPS -> {
-                    val server = kind == Kind.DOWNLOAD_SERVER
-                    val url = if (server) TwwRealm.SERVER_URL else TwwRealm.MMAPS_URL
-                    val key = if (server) "server" else "mmaps"
-                    val download = TwwDownload(url, layout.downloads, key)
-                    activeDownload = download
-                    val archive = try {
-                        download.run(cancelled = { cancelled }) { p ->
-                            val total = p.total
-                            val amount = size(context, p.bytes) + if (total != null && total > 0) " / ${size(context, total)}" else ""
-                            val speed = if (p.bytesPerSecond > 0) " · ${size(context, p.bytesPerSecond.toLong())}/s" else ""
-                            val eta = p.etaSeconds?.let { " · ${it / 60}m ${it % 60}s remaining" }.orEmpty()
-                            working(kind, (if (p.reused) "Reusing validated download · " else "Downloading · ") + amount + speed + eta,
-                                total?.takeIf { it > 0 }?.let { p.bytes.toFloat() / it })
-                        }
-                    } finally { activeDownload = null }
-                    checkCancelled()
-                    working(kind, "Extracting ${archive.name}")
-                    try {
-                        TwwArchive.extract(archive, work, { cancelled }) { bytes, name ->
-                            checkSpace(work, 0)
-                            working(kind, "Extracting ${size(context, bytes)} · $name")
-                        }
-                    } catch (e: TwwArchive.ArchiveException) {
-                        if (!cancelled && corruptArchive(e)) {
-                            // A computed transport hash can faithfully describe a truncated
-                            // unknown-length response. Do not reuse that known-bad cache forever.
-                            listOf("$key.archive", "$key.part", "$key.properties").forEach { fs.delete(File(layout.downloads, it)) }
-                            throw IOException("The downloaded archive is incomplete or damaged. Its cached copy was removed; Retry will download a fresh copy. ${e.message}", e)
-                        }
-                        throw e
-                    }
-                    url
+            if (kind == Kind.INSTALL) {
+                val before = TwwFiles.report(context)
+                if (before.client.status != TwwInstall.Status.INSTALLED) {
+                    installComponent(context, Kind.DOWNLOAD_CLIENT, null, false)
                 }
-                else -> {
-                    val selected = uri ?: throw IOException("No source folder or archive was selected.")
-                    if (folder) {
-                        fs.mkdirs(work)
-                        copyFolder(context, selected, work, kind)
-                    }
-                    else {
-                        fs.mkdirs(layout.downloads)
-                        val source = fs.check(File(layout.downloads, "picked.archive"))
-                        copyPickedArchive(context, selected, source, kind)
-                        working(kind, "Extracting imported archive")
-                        TwwArchive.extract(source, work, { cancelled }) { bytes, name -> working(kind, "Extracting ${size(context, bytes)} · $name") }
-                        fs.delete(source)
-                    }
-                    "User-selected ${if (folder) "folder" else "archive"}"
+                checkCancelled()
+                val current = TwwFiles.report(context)
+                if (current.detected == null) {
+                    installComponent(context, Kind.DOWNLOAD_SERVER, null, false)
+                } else if (current.database.status != TwwInstall.Status.INSTALLED || current.core.missing.isNotEmpty()) {
+                    throw IOException("The existing server needs repair. Open Game Files to review missing files. Your database has been preserved; reinstall the server only after backing it up.")
                 }
-            }
-            checkCancelled()
-
-            val component = when (kind) {
-                Kind.IMPORT_CLIENT -> "client"
-                Kind.DOWNLOAD_SERVER, Kind.IMPORT_SERVER -> "server"
-                Kind.DOWNLOAD_MAPS, Kind.IMPORT_MAPS -> "maps"
-                else -> throw IOException("Unsupported installation job")
-            }
-            if (component == "server") {
-                // Build proof is generated only by this installation's live database check.
-                // A repack or picked folder cannot attest to its own compatibility.
-                work.walkTopDown().filter { it.isFile && it.name.equals(".tww-build-proof.properties", ignoreCase = true) }
-                    .toList().forEach { fs.delete(it) }
-            }
-            val candidate = when (component) {
-                "client" -> TwwInstall.findClientRoot(work) ?: throw IOException("No The War Within client was found. Import the folder containing the game executable and its Data folder.")
-                "server" -> TwwInstall.findServerRoot(work) ?: throw IOException("No server executable and configuration were found in this source.")
-                else -> normalizeMaps(work, fs)
-            }
-            working(kind, "Validating $component files")
-            val report = TwwInstall.inspect(if (component == "client") candidate else layout.client,
-                if (component == "server") candidate else layout.server,
-                if (component == "maps") candidate else layout.maps)
-            when (component) {
-                "client" -> if (report.client.status != TwwInstall.Status.INSTALLED) {
-                    throw IOException((report.client.details + report.client.missing).joinToString("\n").ifBlank { "Client validation failed: expected 11.2.5 build 63704." })
+                checkCancelled()
+                if (TwwFiles.report(context).maps.status != TwwInstall.Status.INSTALLED) {
+                    installComponent(context, Kind.DOWNLOAD_MAPS, null, false)
                 }
-                "server" -> if (report.detected == null || report.core.status == TwwInstall.Status.MISSING) {
-                    throw IOException((report.core.details + report.core.missing).joinToString("\n").ifBlank { "No recognizable Draconic server programs were found." })
-                }
-                "maps" -> if (!candidate.walkTopDown().any { it.isFile && it.length() > 0 && (it.extension.equals("mmap", true) || it.extension.equals("mmtile", true)) }) {
-                    throw IOException("No non-empty MMAPS .mmap or .mmtile files were found. Import the additional map archive or its mmaps folder.")
-                }
+                checkCancelled()
+                working(kind, "Configuring local connection")
+                TwwServer.configureInstallation(context)
+                TwwGame.configureInstallation(context)
+                val report = TwwFiles.report(context)
+                if (!report.canStartServer) throw IOException((report.blockers + report.client.missing + report.core.missing + report.database.missing + report.maps.missing).distinct().joinToString("\n").ifBlank { "Installation needs attention. Open Game Files to review it." })
+                mutableState.value = State.Done(kind, "Installation complete. Start the local server to verify its database build and launch the game.")
+            } else {
+                installComponent(context, kind, uri, folder)
             }
-            // Additional MMAPS become usable at this explicit installation action. Starting
-            // the server never silently changes its map files or its executables.
-            val changes = mutableListOf<Pair<File, File>>()
-            if (component == "server" && File(layout.maps, "mmaps").isDirectory) {
-                report.detected?.dataDirectory?.let { data ->
-                    val serverGuard = SafeFs(candidate)
-                    serverGuard.check(data, allowScope = true)
-                    val destination = File(data, "mmaps")
-                    serverGuard.delete(destination)
-                    copyLocalTree(File(layout.maps, "mmaps"), destination, kind)
-                }
-            }
-            writeReceipt(candidate, component, kind, importedFrom)
-            checkCancelled()
-            val target = when (component) { "client" -> layout.client; "server" -> layout.server; else -> layout.maps }
-            // If an identical complete component is already installed, preserve its files in place.
-            val same = File(target, RECEIPT).isFile && File(target, RECEIPT).readText() == File(candidate, RECEIPT).readText() && receiptMatches(target)
-            if (!same) changes += candidate to target
-            if (component == "maps") {
-                val serverData = report.detected?.dataDirectory
-                if (serverData != null) {
-                    SafeFs(layout.server).check(serverData, allowScope = true)
-                    val deployed = File(layout.staging, "maps-deployment")
-                    copyLocalTree(File(candidate, "mmaps"), deployed, kind)
-                    changes += deployed to File(serverData, "mmaps")
-                }
-            }
-            checkCancelled()
-            if (changes.isNotEmpty()) TwwPlacement.replace(layout.root, changes)
-            val after = TwwFiles.report(context)
-            val componentStatus = when (component) { "client" -> after.client; "server" -> after.core; else -> after.maps }
-            val notes = (componentStatus.missing + componentStatus.details + after.blockers).distinct()
-            mutableState.value = State.Done(kind, "${if (same) "Reused existing" else "Imported and validated"} $component files.\n" +
-                notes.joinToString("\n").ifBlank { "Verify Installation shows the remaining setup requirements." })
         } catch (e: Exception) {
             mutableState.value = State.Failed(kind, if (cancelled) "Installation cancelled. Partial downloads are kept for Resume; the previous installation is preserved."
                 else e.message ?: e.javaClass.simpleName)
         } finally {
+            installing = false
             activeDownload = null
             runCatching {
                 val layout = TwwFiles.layout(context)
@@ -244,6 +150,137 @@ object TwwJobs {
             }
         }
     }
+
+    private fun installComponent(context: Context, kind: Kind, uri: Uri?, folder: Boolean) {
+        val layout = TwwFiles.layout(context)
+        val fs = TwwFiles.fs(context)
+        // Only our staging area is removed after interrupted jobs. Downloads stay resumable.
+        fs.delete(layout.staging)
+        fs.mkdirs(layout.staging)
+        val work = File(layout.staging, "install")
+        val importedFrom = when (kind) {
+            Kind.DOWNLOAD_CLIENT, Kind.DOWNLOAD_SERVER, Kind.DOWNLOAD_MAPS -> {
+                val url = when (kind) { Kind.DOWNLOAD_CLIENT -> TwwRealm.CLIENT_ARCHIVE_URL; Kind.DOWNLOAD_SERVER -> TwwRealm.SERVER_URL; else -> TwwRealm.MMAPS_URL }
+                val key = when (kind) { Kind.DOWNLOAD_CLIENT -> "client"; Kind.DOWNLOAD_SERVER -> "server"; else -> "mmaps" }
+                val download = TwwDownload(url, layout.downloads, key,
+                    expectedSize = if (kind == Kind.DOWNLOAD_CLIENT) TwwRealm.CLIENT_ARCHIVE_SIZE else null,
+                    expectedSha256 = if (kind == Kind.DOWNLOAD_CLIENT) TwwRealm.CLIENT_ARCHIVE_SHA256 else null)
+                activeDownload = download
+                val archive = try {
+                    download.run(cancelled = { cancelled }) { p ->
+                        val total = p.total
+                        val amount = size(context, p.bytes) + if (total != null && total > 0) " / ${size(context, total)}" else ""
+                        val speed = if (p.bytesPerSecond > 0) " · ${size(context, p.bytesPerSecond.toLong())}/s" else ""
+                        val eta = p.etaSeconds?.let { " · ${it / 60}m ${it % 60}s remaining" }.orEmpty()
+                        working(kind, (if (p.reused) "Reusing validated download · " else "Downloading · ") + amount + speed + eta,
+                            total?.takeIf { it > 0 }?.let { p.bytes.toFloat() / it })
+                    }
+                } finally { activeDownload = null }
+                checkCancelled()
+                working(kind, "Extracting ${archive.name}")
+                try {
+                    TwwArchive.extract(archive, work, { cancelled }, nativeExtractor = File(context.applicationInfo.nativeLibraryDir, "libtww7zip.so")) { bytes, name ->
+                        checkSpace(work, 0)
+                        working(kind, "Extracting ${size(context, bytes)} · $name")
+                    }
+                } catch (e: TwwArchive.ArchiveException) {
+                    if (!cancelled && corruptArchive(e)) {
+                        // A computed transport hash can faithfully describe a truncated
+                        // unknown-length response. Do not reuse that known-bad cache forever.
+                        listOf("$key.archive", "$key.part", "$key.properties").forEach { fs.delete(File(layout.downloads, it)) }
+                        throw IOException("The downloaded archive is incomplete or damaged. Its cached copy was removed; Retry will download a fresh copy. ${e.message}", e)
+                    }
+                    throw e
+                }
+                url
+            }
+            else -> {
+                val selected = uri ?: throw IOException("No source folder or archive was selected.")
+                if (folder) {
+                    fs.mkdirs(work)
+                    copyFolder(context, selected, work, kind)
+                }
+                else {
+                    fs.mkdirs(layout.downloads)
+                    val source = fs.check(File(layout.downloads, "picked.archive"))
+                    copyPickedArchive(context, selected, source, kind)
+                    working(kind, "Extracting imported archive")
+                    TwwArchive.extract(source, work, { cancelled }, nativeExtractor = File(context.applicationInfo.nativeLibraryDir, "libtww7zip.so")) { bytes, name -> working(kind, "Extracting ${size(context, bytes)} · $name") }
+                    fs.delete(source)
+                }
+                "User-selected ${if (folder) "folder" else "archive"}"
+            }
+        }
+        checkCancelled()
+
+        val component = when (kind) {
+            Kind.DOWNLOAD_CLIENT, Kind.IMPORT_CLIENT -> "client"
+            Kind.DOWNLOAD_SERVER, Kind.IMPORT_SERVER -> "server"
+            Kind.DOWNLOAD_MAPS, Kind.IMPORT_MAPS -> "maps"
+            else -> throw IOException("Unsupported installation job")
+        }
+        if (component == "server") {
+            // Build proof is generated only by this installation's live database check.
+            // A repack or picked folder cannot attest to its own compatibility.
+            work.walkTopDown().filter { it.isFile && it.name.equals(".tww-build-proof.properties", ignoreCase = true) }
+                .toList().forEach { fs.delete(it) }
+        }
+        val candidate = when (component) {
+            "client" -> TwwInstall.findClientRoot(work) ?: throw IOException("No The War Within client was found. Import the folder containing the game executable and its Data folder.")
+            "server" -> TwwInstall.findServerRoot(work) ?: throw IOException("No server executable and configuration were found in this source.")
+            else -> normalizeMaps(work, fs)
+        }
+        working(kind, "Validating $component files")
+        val report = TwwInstall.inspect(if (component == "client") candidate else layout.client,
+            if (component == "server") candidate else layout.server,
+            if (component == "maps") candidate else layout.maps)
+        when (component) {
+            "client" -> if (report.client.status != TwwInstall.Status.INSTALLED) {
+                throw IOException((report.client.details + report.client.missing).joinToString("\n").ifBlank { "Client validation failed: expected 11.2.5 build 63704." })
+            }
+            "server" -> if (report.detected == null || report.core.status == TwwInstall.Status.MISSING) {
+                throw IOException((report.core.details + report.core.missing).joinToString("\n").ifBlank { "No recognizable Draconic server programs were found." })
+            }
+            "maps" -> if (!candidate.walkTopDown().any { it.isFile && it.length() > 0 && (it.extension.equals("mmap", true) || it.extension.equals("mmtile", true)) }) {
+                throw IOException("No non-empty MMAPS .mmap or .mmtile files were found. Import the additional map archive or its mmaps folder.")
+            }
+        }
+        // Additional MMAPS become usable at this explicit installation action. Starting
+        // the server never silently changes its map files or its executables.
+        val changes = mutableListOf<Pair<File, File>>()
+        if (component == "server" && File(layout.maps, "mmaps").isDirectory) {
+            report.detected?.dataDirectory?.let { data ->
+                val serverGuard = SafeFs(candidate)
+                serverGuard.check(data, allowScope = true)
+                val destination = File(data, "mmaps")
+                serverGuard.delete(destination)
+                copyLocalTree(File(layout.maps, "mmaps"), destination, kind)
+            }
+        }
+        writeReceipt(candidate, component, kind, importedFrom)
+        checkCancelled()
+        val target = when (component) { "client" -> layout.client; "server" -> layout.server; else -> layout.maps }
+        // If an identical complete component is already installed, preserve its files in place.
+        val same = File(target, RECEIPT).isFile && File(target, RECEIPT).readText() == File(candidate, RECEIPT).readText() && receiptMatches(target)
+        if (!same) changes += candidate to target
+        if (component == "maps") {
+            val serverData = report.detected?.dataDirectory
+            if (serverData != null) {
+                SafeFs(layout.server).check(serverData, allowScope = true)
+                val deployed = File(layout.staging, "maps-deployment")
+                copyLocalTree(File(candidate, "mmaps"), deployed, kind)
+                changes += deployed to File(serverData, "mmaps")
+            }
+        }
+        checkCancelled()
+        if (changes.isNotEmpty()) TwwPlacement.replace(layout.root, changes)
+        val after = TwwFiles.report(context)
+        val componentStatus = when (component) { "client" -> after.client; "server" -> after.core; else -> after.maps }
+        val notes = (componentStatus.missing + componentStatus.details + after.blockers).distinct()
+        if (!installing) mutableState.value = State.Done(kind, "${if (same) "Reused existing" else "Imported and validated"} $component files.\n" +
+            notes.joinToString("\n").ifBlank { "Verify Installation shows the remaining setup requirements." })
+    }
+
 
     private data class Picked(val uri: Uri, val path: String, val size: Long)
 

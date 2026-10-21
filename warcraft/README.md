@@ -24,68 +24,42 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the la
 
 ### The War Within — 11.2.5
 
-Choose **Games → The War Within — 11.2.5** in the existing launcher. This expansion uses
-**Draconic WoW 11.2.5**, expected client **11.2.5.63704**, and **127.0.0.1**. Its imported files,
-database and Windows container are separate from ChromieCraft, Wrath Remix, Turtle and Felsong.
-No Draconic binaries, client files, databases or map archives are bundled with the app.
+Choose **Games → The War Within — 11.2.5**. Its home screen follows the other realms:
+illustrated header, music switch, **Press Start**, and tiles for Server, Game Files, Graphics,
+App Icon, Updates and Games. Files and saves stay separate from the other expansions.
 
-1. Choose internal or external **Installation directory** before installing. These are Android's
-   app-private directories, which the application can read reliably. Existing installations are
-   not silently moved when the storage setting changes. Importing copies files from a selected
-   folder into this directory; the selected source is not modified.
-2. **Download and install game client…** explains Firestorm's external launcher workflow and
-   opens [its download page](https://firestorm-servers.com/en/play). On a supported computer,
-   select The War Within 11.2.5 if the launcher still offers it, finish the download, then use
-   **Import client folder** or **Import client archive**. An existing compatible client works too.
-   This page is not a direct, version-pinned client archive; the app rejects a different executable
-   build even if its launcher metadata claims to match. Firestorm's launcher may change the
-   available builds. The app does not run or bundle the Firestorm launcher.
-3. **Download and install server repack** gets
-   [the supplied Draconic archive](https://drive.google.com/file/d/1CQN9_AmAL7yr7_sAfn6GDyjgHMUwwdQ0/view).
-   **Download and install additional map files** gets
-   [the supplied MMAPS archive](https://drive.google.com/file/d/1ydvfZ2tayNiDCf17dfansvRrLX_eSwkU/view).
-   Google Drive redirects, cookies and download confirmations are handled in the downloader;
-   sign-in requirements, access denial, quota errors and missing files are reported. If a source
-   requires browser access, download it yourself and import its folder or archive. ZIP and 7z
-   archives extract automatically; extract other formats first and import the folder.
-4. Watch actual bytes, transfer speed and estimated time. **Cancel** keeps a partial transfer;
-   **Retry** resumes only when the server's byte ranges and file validators agree. Complete
-   cached downloads are reused after their recorded size and SHA-256 are checked. Temporary
-   downloads and extraction folders are separate from installed files; **Clear temporary
-   downloads** removes those without deleting installed components. No publisher checksum was
-   supplied for these sources: locally recorded checksums detect changes after import, and do
-   not establish the authenticity or completeness of an unverified source.
-5. **Verify installation and missing files** reports **Game Client**, **Server Core**,
-   **Server Database** and **Map Files** separately. It checks the client's PE version and CASC
-   data presence, discovers the repack's actual programs/configuration/startup commands, checks
-   initialized database folders and map headers, and compares immutable files with their import
-   receipts. SQL dumps alone do not count as an initialized database. A matching client build and
-   a few map files cannot prove complete client/map coverage: startup diagnostics remain
-   necessary. Ambiguous or unsupported layouts are reported instead of marked ready.
-   If build documentation is missing but the remaining startup requirements are complete,
-   startup may run only the database to check its authentication `build_info` table for build
-   63704. It performs this query before changing `realmlist` or starting authentication/world.
-   A successful check records proof tied to both unchanged core executable hashes; proof files
-   supplied in an imported archive are discarded.
-6. Review **Configure localhost connection**. Configuration files are backed up; executable
-   files are never patched or replaced by this action. Firestorm-specific files/settings are
-   detected and reported. Firestorm may impose connection restrictions that this app cannot
-   remove; changing `portal` alone does not prove a modified client can authenticate locally.
-7. Once required files and configuration pass validation, **Start Server**, **Stop Server**
-   and **Launch Game** operate through the existing Wine/Box64 runtime in a dedicated container.
-   Database, authentication and world status is shown separately. Stop this Windows session
-   before launching another expansion, because the underlying Winlator runtime has one guest
-   session at a time. Phone compatibility of the imported Draconic programs and client must be
-   confirmed with the actual files; file validation does not claim successful gameplay.
+Tap **Download & Install**. The app downloads and extracts the publisher’s Firestorm streaming
+mini-client, Draconic server repack and additional maps, then configures **127.0.0.1**. No browser,
+computer or manual import is required. The client archive is about 63 MB; the game downloads its
+remaining assets during play, so internet access and additional storage are required. This is
+not a complete offline client. Its inspected Windows executable is **11.2.5.63704**; the app pins
+the archive’s size and SHA-256 and checks the executable’s version and digest.
 
-Installing a replacement component replaces that expansion's imported files, including its
-executables. Back up an existing Draconic database before replacing the server repack. Failed
-or cancelled imports keep the previous installation through staging and rollback; an interrupted
-placement is recovered on the next installation or verification job.
+Real progress, transfer speed and estimated time appear during downloads. **Pause installation**
+keeps supported partial downloads; **Resume / Retry** continues after an interruption. Completed
+components are reused. Downloaded files stay separate from installed files, and replacement files
+are staged and validated before placement. ZIP, 7z (including BCJ2) and RAR extract automatically.
+Drive permission, quota, unavailable links, damaged archives and disk-space errors are reported.
+No game downloads are bundled in the APK or repository.
 
-Source verification and runtime constraints are recorded in [`TWW.md`](TWW.md). This integration
-does not advertise Blizzard's Legion Remix event as playable: the repack must actually implement
-any game content it exposes.
+Once installed, **Press Start** starts the database, authentication and world server, checks the
+authentication database for build 63704, and launches the game when the local realm is ready.
+**Server** shows each component’s actual status and separate Start, Stop and Launch controls.
+Startup fails with details if the downloaded repack or phone runtime is incompatible.
+
+**Game Files** shows Game Client, Server Core, Server Database and Map Files separately.
+**Verify Installation** reports missing or changed recorded files. **Advanced / Storage** lets
+you choose internal or external app storage before installing, clear temporary downloads,
+re-download individual components, view sources or optionally import existing files. A normal
+install preserves an existing server/database; explicitly reinstalling the server replaces it,
+so back up characters and accounts first. Local setup backs up text configurations and never
+patches executables. Installing a client/repack uses the executables supplied by that download.
+
+The Windows server and game share the existing Wine/Box64 runtime in a dedicated container.
+The repack and client have not been run on a real phone here. Streamed asset availability and
+Firestorm-specific authentication compatibility still depend on the supplied client and services.
+[`TWW.md`](TWW.md) records source verification and runtime constraints. This integration does not
+claim that Blizzard’s Legion Remix event is implemented by the repack.
 
 ### Wrath of the Lich King
 
