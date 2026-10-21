@@ -15,12 +15,14 @@ import kotlinx.coroutines.flow.StateFlow
  *   `files/turtle` (com.logie.warcraft.turtle).
  * - [Environment.FELSONG]: Felsong (Legion 7.3.5), com.logie.warcraft.felsong: its look and a page
  *   that says where it stands; its realm (LegionCore) isn't on the phone yet (FELSONG.md).
+ * - [Environment.TWW]: The War Within — 11.2.5, a downloaded/imported Draconic server and build
+ *   63704 client, managed in its own `tww` directory and Windows runtime container.
  *
  * Which one the launcher shows, and themes itself for, is remembered here; choosing one changes
  * nothing of the other's.
  */
 object Environments {
-    enum class Environment(val key: String) { WRATH("wrath"), TURTLE("turtle"), FELSONG("felsong") }
+    enum class Environment(val key: String) { WRATH("wrath"), TURTLE("turtle"), FELSONG("felsong"), TWW("tww") }
 
     private const val PREFS = "environments"
     private const val KEY = "selected"
