@@ -156,6 +156,10 @@ Blizzard's allied races of today are playable on both realms, in their own model
 
 The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-V.MPQ`, from the module's tables and the races' models, textures and voices the server package brings: about 230 MB, made again only when the client or the package changes). It is read after an HD look's patches and before Wrath Remix's and the Skyborne's, which carry its rows on (it is made first, as the realm reads its settings; version 1.0.148 made it last, and the game didn't know the races until the realm's next start). A `patch-V.MPQ` of your own is left alone, and the game then won't know them. Not yet seen in the game: nothing here runs the 3.3.5 client.
 
+Void Elves learn Common and Nightborne learn Orcish; existing characters missing those languages
+are repaired on login. The custom-race patches preserve the installed HD client's NPC texture rows
+when moving the old creature races out of the player slots.
+
 The allied-race animation converter now preserves the separate bone and attachment streams and
 checks external animation offsets before packaging. Intro sound rows select only each race's own
 MP3. The patch is rebuilt automatically after updating. These changes pass data and archive tests;

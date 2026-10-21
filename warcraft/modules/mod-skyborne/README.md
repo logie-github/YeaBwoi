@@ -129,3 +129,8 @@ move to 22 and 23.
 - CI's server test: the world server makes the patch from the server's tables (no textures there),
   and a High Order warrior starts in Northshire and a Windshaper shaman at Camp Narache, each with
   their racials.
+
+NPC compatibility: race-slot moves use the installed client's race values and preserve its texture
+rows and display IDs. They do not replace rows at IDs taken from the vanilla server tables, which
+can refer to different NPCs in Alternative HD. `tools/test_table_moves.cpp` checks both custom-race
+modules against differing HD row IDs and texture data.

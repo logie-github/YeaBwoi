@@ -27649,13 +27649,18 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 (16, 9, 1, 687, 0);
 
 -- Their skills: their side's weapons and armour; Common or Orcish; no other race's racials.
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 36 AND `classMask` = 4 AND `skill` = 46;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 650 AND `classMask` = 4 AND `skill` = 45;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 32768 WHERE `raceMask` = 690 AND `classMask` = 0 AND `skill` = 109;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 735 AND `classMask` = 1293 AND `skill` = 173;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE `raceMask` = 1024 AND `classMask` = 4 AND `skill` = 226;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 1061 AND `classMask` = 3 AND `skill` = 160;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE `raceMask` = 1101 AND `classMask` = 0 AND `skill` = 98;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 36) = 36 AND `classMask` = 4 AND `skill` = 46;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 650) = 650 AND `classMask` = 4 AND `skill` = 45;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 32768 WHERE (`raceMask` & 690) = 690 AND `classMask` = 0 AND `skill` = 109;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 735) = 735 AND `classMask` = 1293 AND `skill` = 173;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE (`raceMask` & 1024) = 1024 AND `classMask` = 4 AND `skill` = 226;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 1061) = 1061 AND `classMask` = 3 AND `skill` = 160;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE (`raceMask` & 1101) = 1101 AND `classMask` = 0 AND `skill` = 98;
+
+-- Faction languages are explicitly learned even after another race module changed the masks.
+INSERT IGNORE INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES
+(16384, 0, 668, 'Void Elf - Common'),
+(32768, 0, 669, 'Nightborne - Orcish');
 
 -- Their racials, learned at creation.
 DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98711 AND 98722;

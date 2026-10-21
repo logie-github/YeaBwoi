@@ -18,6 +18,7 @@
 #include "AlliedRacesPatch.h"
 #include "Config.h"
 #include "Log.h"
+#include "Player.h"
 #include "ScriptMgr.h"
 #include <cstdlib>
 #include <filesystem>
@@ -56,7 +57,30 @@ public:
     }
 };
 
+// Default-skill SQL only affects newly created characters. Repair earlier characters on login.
+class AlliedRacesLanguages : public PlayerScript
+{
+public:
+    AlliedRacesLanguages() : PlayerScript("AlliedRacesLanguages", { PLAYERHOOK_ON_LOGIN }) { }
+
+    void OnPlayerLogin(Player* player) override
+    {
+        uint32 skill = 0, spell = 0;
+        if (player->getRace() == 15)
+            skill = 98, spell = 668;             // Common
+        else if (player->getRace() == 16)
+            skill = 109, spell = 669;            // Orcish
+        else
+            return;
+        if (!player->HasSpell(spell))
+            player->learnSpell(spell, false);
+        if (player->GetPureSkillValue(skill) < 300 || player->GetPureMaxSkillValue(skill) < 300)
+            player->SetSkill(skill, 0, 300, 300);
+    }
+};
+
 void AddAlliedRacesScripts()
 {
     new AlliedRacesWorld();
+    new AlliedRacesLanguages();
 }

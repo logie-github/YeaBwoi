@@ -1,5 +1,7 @@
 # CharSections: the Skyborne's changes (tools/build_data.py)
 types	iiiisssiii
+remapfield	1	13	22
+remapfield	1	14	23
 put	900000	10	0	0	Character\\BloodElf\\Male\\BloodElfMaleSkin00_19.blp			17	0	19
 put	900001	10	0	4				17	0	19
 put	900002	10	0	1	Character\\BloodElf\\Male\\BloodElfMaleFaceLower00_19.blp	Character\\BloodElf\\Male\\BloodElfMaleFaceUpper00_19.blp		1	0	19
@@ -2762,91 +2764,3 @@ put	902758	14	1	3	Character\\Skyborne\\Hair00_21.blp	Character\\Skyborne\\ScalpL
 put	902759	14	1	3	Character\\Skyborne\\Hair00_21.blp	Character\\Skyborne\\ScalpLowerHair00_21.blp	Character\\Skyborne\\ScalpUpperHair00_21.blp	17	11	21
 put	902760	14	1	3	Character\\Skyborne\\Hair00_21.blp	Character\\Skyborne\\ScalpLowerHair00_21.blp	Character\\Skyborne\\ScalpUpperHair00_21.blp	17	12	21
 put	902761	14	1	3	Character\\Skyborne\\Hair00_21.blp	Character\\Skyborne\\ScalpLowerHair00_21.blp	Character\\Skyborne\\ScalpUpperHair00_21.blp	17	13	21
-put	6223	22	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_00.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_00_Extra.blp		1	0	0
-put	6233	22	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_01.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_01_Extra.blp		1	0	1
-put	6234	22	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_02.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_02_Extra.blp		1	0	2
-put	6235	22	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_03.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_03_Extra.blp		1	0	3
-put	6236	22	0	0	Character\\Naga_\\Male\\Naga_MaleSkin00_04.blp	Character\\Naga_\\Male\\Naga_MaleSkin00_04_Extra.blp		1	0	4
-put	6224	22	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_00.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_00.blp		1	0	0
-put	6241	22	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_01.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_01.blp		1	0	1
-put	6242	22	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_02.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_02.blp		1	0	2
-put	6243	22	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_03.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_03.blp		1	0	3
-put	6244	22	0	1	Character\\Naga_\\Male\\Naga_MaleFaceLower00_04.blp	Character\\Naga_\\Male\\Naga_MaleFaceUpper00_04.blp		1	0	4
-put	6225	22	0	2				1	0	0
-put	6600	22	0	3	Character\\Naga_\\Hair00_00.blp	Character\\Naga_\\ScalpLowerHair00_00.blp	Character\\Naga_\\ScalpUpperHair00_00.blp	1	0	0
-put	6601	22	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_00.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_00.blp		1	0	0
-put	6612	22	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_01.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_01.blp		1	0	1
-put	6613	22	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_02.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_02.blp		1	0	2
-put	6614	22	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_03.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_03.blp		1	0	3
-put	6615	22	0	4	Character\\Naga_\\Male\\Naga_MaleNakedPelvisSkin00_04.blp	Character\\Naga_\\Male\\Naga_MaleNakedTorsoSkin00_04.blp		1	0	4
-put	6228	22	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_00.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_00_Extra.blp		1	0	0
-put	6237	22	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_01.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_01_Extra.blp		1	0	1
-put	6238	22	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_02.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_02_Extra.blp		1	0	2
-put	6239	22	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_03.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_03_Extra.blp		1	0	3
-put	6240	22	1	0	Character\\Naga_\\Female\\Naga_FemaleSkin00_04.blp	Character\\Naga_\\Female\\Naga_FemaleSkin00_04_Extra.blp		1	0	4
-put	6229	22	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_00.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_00.blp		1	0	0
-put	6245	22	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_01.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_01.blp		1	0	1
-put	6246	22	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_02.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_02.blp		1	0	2
-put	6247	22	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_03.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_03.blp		1	0	3
-put	6248	22	1	1	Character\\Naga_\\Female\\Naga_FemaleFaceLower00_04.blp	Character\\Naga_\\Female\\Naga_FemaleFaceUpper00_04.blp		1	0	4
-put	6597	22	1	2	Character\\Naga_\\FacialLowerHair00_00.blp	Character\\Naga_\\FacialUpperHair00_00.blp		1	0	0
-put	6598	22	1	3	Character\\Naga_\\Hair00_00.blp	Character\\Naga_\\ScalpLowerHair00_00.blp	Character\\Naga_\\ScalpUpperHair00_00.blp	1	0	0
-put	6599	22	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_00.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_00.blp		1	0	0
-put	6616	22	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_01.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_01.blp		1	0	1
-put	6617	22	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_02.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_02.blp		1	0	2
-put	6618	22	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_03.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_03.blp		1	0	3
-put	6619	22	1	4	Character\\Naga_\\Female\\Naga_FemaleNakedPelvisSkin00_04.blp	Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_04.blp		1	0	4
-put	6249	23	0	0	Character\\Broken\\Male\\BrokenMaleSkin00_00.blp			1	0	0
-put	6269	23	0	0	Character\\Broken\\Male\\BrokenMaleSkin00_01.blp			1	0	1
-put	6270	23	0	0	Character\\Broken\\Male\\BrokenMaleSkin00_02.blp			1	0	2
-put	6271	23	0	0	Character\\Broken\\Male\\BrokenMaleSkin00_03.blp			1	0	3
-put	6272	23	0	0	Character\\Broken\\Male\\BrokenMaleSkin00_04.blp			1	0	4
-put	6273	23	0	0	Character\\Broken\\Male\\BrokenMaleSkin00_05.blp			1	0	5
-put	6250	23	0	1	Character\\Broken\\Male\\BrokenMaleFaceLower00_00.blp	Character\\Broken\\Male\\BrokenMaleFaceUpper00_00.blp		1	0	0
-put	6274	23	0	1	Character\\Broken\\Male\\BrokenMaleFaceLower00_01.blp	Character\\Broken\\Male\\BrokenMaleFaceUpper00_01.blp		1	0	1
-put	6275	23	0	1	Character\\Broken\\Male\\BrokenMaleFaceLower00_02.blp	Character\\Broken\\Male\\BrokenMaleFaceUpper00_02.blp		1	0	2
-put	6276	23	0	1	Character\\Broken\\Male\\BrokenMaleFaceLower00_03.blp	Character\\Broken\\Male\\BrokenMaleFaceUpper00_03.blp		1	0	3
-put	6277	23	0	1	Character\\Broken\\Male\\BrokenMaleFaceLower00_04.blp	Character\\Broken\\Male\\BrokenMaleFaceUpper00_04.blp		1	0	4
-put	6278	23	0	1	Character\\Broken\\Male\\BrokenMaleFaceLower00_05.blp	Character\\Broken\\Male\\BrokenMaleFaceUpper00_05.blp		1	0	5
-put	6251	23	0	2				1	0	0
-put	6431	23	0	3	Character\\Broken\\Hair00_00.blp	Character\\Broken\\ScalpLowerHair00_00.blp	Character\\Broken\\ScalpUpperHair00_00.blp	1	0	0
-put	6432	23	0	3	Character\\Broken\\Hair00_01.blp	Character\\Broken\\ScalpLowerHair00_01.blp	Character\\Broken\\ScalpUpperHair00_01.blp	1	0	1
-put	6433	23	0	3	Character\\Broken\\Hair00_02.blp	Character\\Broken\\ScalpLowerHair00_02.blp	Character\\Broken\\ScalpUpperHair00_02.blp	1	0	2
-put	6434	23	0	3	Character\\Broken\\Hair00_03.blp	Character\\Broken\\ScalpLowerHair00_03.blp	Character\\Broken\\ScalpUpperHair00_03.blp	1	0	3
-put	6435	23	0	3	Character\\Broken\\Hair00_04.blp	Character\\Broken\\ScalpLowerHair00_04.blp	Character\\Broken\\ScalpUpperHair00_04.blp	1	0	4
-put	6436	23	0	3	Character\\Broken\\Hair00_05.blp	Character\\Broken\\ScalpLowerHair00_05.blp	Character\\Broken\\ScalpUpperHair00_05.blp	1	0	5
-put	6437	23	0	3	Character\\Broken\\Hair00_06.blp	Character\\Broken\\ScalpLowerHair00_06.blp	Character\\Broken\\ScalpUpperHair00_06.blp	1	0	6
-put	6438	23	0	3	Character\\Broken\\Hair00_07.blp	Character\\Broken\\ScalpLowerHair00_07.blp	Character\\Broken\\ScalpUpperHair00_07.blp	1	0	7
-put	6439	23	0	3	Character\\Broken\\Hair00_08.blp	Character\\Broken\\ScalpLowerHair00_08.blp	Character\\Broken\\ScalpUpperHair00_08.blp	1	0	8
-put	6440	23	0	3	Character\\Broken\\Hair00_09.blp	Character\\Broken\\ScalpLowerHair00_09.blp	Character\\Broken\\ScalpUpperHair00_09.blp	1	0	9
-put	6441	23	0	3	Character\\Broken\\Hair00_00.blp	Character\\Broken\\ScalpLowerHair00_00.blp	Character\\Broken\\ScalpUpperHair00_00.blp	1	1	0
-put	6442	23	0	3	Character\\Broken\\Hair00_01.blp	Character\\Broken\\ScalpLowerHair00_01.blp	Character\\Broken\\ScalpUpperHair00_01.blp	1	1	1
-put	6443	23	0	3	Character\\Broken\\Hair00_02.blp	Character\\Broken\\ScalpLowerHair00_02.blp	Character\\Broken\\ScalpUpperHair00_02.blp	1	1	2
-put	6444	23	0	3	Character\\Broken\\Hair00_03.blp	Character\\Broken\\ScalpLowerHair00_03.blp	Character\\Broken\\ScalpUpperHair00_03.blp	1	1	3
-put	6445	23	0	3	Character\\Broken\\Hair00_04.blp	Character\\Broken\\ScalpLowerHair00_04.blp	Character\\Broken\\ScalpUpperHair00_04.blp	1	1	4
-put	6446	23	0	3	Character\\Broken\\Hair00_05.blp	Character\\Broken\\ScalpLowerHair00_05.blp	Character\\Broken\\ScalpUpperHair00_05.blp	1	1	5
-put	6447	23	0	3	Character\\Broken\\Hair00_06.blp	Character\\Broken\\ScalpLowerHair00_06.blp	Character\\Broken\\ScalpUpperHair00_06.blp	1	1	6
-put	6448	23	0	3	Character\\Broken\\Hair00_07.blp	Character\\Broken\\ScalpLowerHair00_07.blp	Character\\Broken\\ScalpUpperHair00_07.blp	1	1	7
-put	6449	23	0	3	Character\\Broken\\Hair00_08.blp	Character\\Broken\\ScalpLowerHair00_08.blp	Character\\Broken\\ScalpUpperHair00_08.blp	1	1	8
-put	6450	23	0	3	Character\\Broken\\Hair00_09.blp	Character\\Broken\\ScalpLowerHair00_09.blp	Character\\Broken\\ScalpUpperHair00_09.blp	1	1	9
-put	6451	23	0	3	Character\\Broken\\Hair00_00.blp	Character\\Broken\\ScalpLowerHair00_00.blp	Character\\Broken\\ScalpUpperHair00_00.blp	1	2	0
-put	6452	23	0	3	Character\\Broken\\Hair00_01.blp	Character\\Broken\\ScalpLowerHair00_01.blp	Character\\Broken\\ScalpUpperHair00_01.blp	1	2	1
-put	6453	23	0	3	Character\\Broken\\Hair00_02.blp	Character\\Broken\\ScalpLowerHair00_02.blp	Character\\Broken\\ScalpUpperHair00_02.blp	1	2	2
-put	6454	23	0	3	Character\\Broken\\Hair00_03.blp	Character\\Broken\\ScalpLowerHair00_03.blp	Character\\Broken\\ScalpUpperHair00_03.blp	1	2	3
-put	6455	23	0	3	Character\\Broken\\Hair00_04.blp	Character\\Broken\\ScalpLowerHair00_04.blp	Character\\Broken\\ScalpUpperHair00_04.blp	1	2	4
-put	6456	23	0	3	Character\\Broken\\Hair00_05.blp	Character\\Broken\\ScalpLowerHair00_05.blp	Character\\Broken\\ScalpUpperHair00_05.blp	1	2	5
-put	6457	23	0	3	Character\\Broken\\Hair00_06.blp	Character\\Broken\\ScalpLowerHair00_06.blp	Character\\Broken\\ScalpUpperHair00_06.blp	1	2	6
-put	6458	23	0	3	Character\\Broken\\Hair00_07.blp	Character\\Broken\\ScalpLowerHair00_07.blp	Character\\Broken\\ScalpUpperHair00_07.blp	1	2	7
-put	6459	23	0	3	Character\\Broken\\Hair00_08.blp	Character\\Broken\\ScalpLowerHair00_08.blp	Character\\Broken\\ScalpUpperHair00_08.blp	1	2	8
-put	6460	23	0	3	Character\\Broken\\Hair00_09.blp	Character\\Broken\\ScalpLowerHair00_09.blp	Character\\Broken\\ScalpUpperHair00_09.blp	1	2	9
-put	6253	23	0	4	Character\\Broken\\Male\\BrokenMaleNakedPelvisSkin00_00.blp	Character\\Broken\\Male\\BrokenMaleNakedTorsoSkin00_00.blp		1	0	0
-put	6640	23	0	4	Character\\Broken\\Male\\BrokenMaleNakedPelvisSkin00_01.blp	Character\\Broken\\Male\\BrokenMaleNakedTorsoSkin00_01.blp		1	0	1
-put	6641	23	0	4	Character\\Broken\\Male\\BrokenMaleNakedPelvisSkin00_02.blp	Character\\Broken\\Male\\BrokenMaleNakedTorsoSkin00_02.blp		1	0	2
-put	6642	23	0	4	Character\\Broken\\Male\\BrokenMaleNakedPelvisSkin00_03.blp	Character\\Broken\\Male\\BrokenMaleNakedTorsoSkin00_03.blp		1	0	3
-put	6643	23	0	4	Character\\Broken\\Male\\BrokenMaleNakedPelvisSkin00_04.blp	Character\\Broken\\Male\\BrokenMaleNakedTorsoSkin00_04.blp		1	0	4
-put	6644	23	0	4	Character\\Broken\\Male\\BrokenMaleNakedPelvisSkin00_05.blp	Character\\Broken\\Male\\BrokenMaleNakedTorsoSkin00_05.blp		1	0	5
-put	6254	23	1	0	Character\\Broken\\Female\\BrokenFemaleSkin00_00.blp			1	0	0
-put	6255	23	1	1	Character\\Broken\\Female\\BrokenFemaleFaceLower00_00.blp			1	0	0
-put	6256	23	1	2				1	0	0
-put	6257	23	1	3	Character\\Broken\\Hair00_00.blp			1	0	0
-put	6258	23	1	4	Character\\Broken\\Female\\BrokenFemaleSkin00_00.blp			1	0	0
