@@ -57,4 +57,11 @@ Successful evidence is recorded against SHA-256 hashes of both core executables 
 by an executable change. Imported proof files are discarded. The realm row follows the positive
 `RealmID` in the actual world configuration; missing or ambiguous values block configuration.
 
+Uniform Server's [controller source](https://github.com/iamola/uniserver/blob/master/UniController/us_common_functions.pas)
+discovers `mysqld_*.exe`, normally `mysqld_z.exe`. Discovery supports that actual naming convention,
+selects the database installation's normal `my.ini` over `my_skip_grant.ini`, and reads an explicit
+port from `my.ini` or the imported controller's `us_user.ini`. Managed localhost setup writes the
+discovered database and temporary directories into the backed-up normal configuration. This
+does not establish which Uniform Server files the inaccessible Draconic archive currently contains.
+
 No client, repack, database or map content is committed or packaged by this integration.

@@ -161,23 +161,39 @@ object TwwServer {
         val world = detected.worldConfig ?: throw IOException("The world server configuration is missing.")
         val auth = detected.authenticationConfig ?: throw IOException("The authentication server configuration is missing.")
         val database = detected.databaseConfig ?: throw IOException("The database configuration is missing.")
-        val databasePort = iniValue(database.readText(), "mysqld", "port")?.toIntOrNull()
-            ?: throw IOException("The repack's database [mysqld] port is unverified.")
         val mysql = detected.databaseExecutable ?: throw IOException("The database executable is missing.")
         val basedir = mysql.parentFile.takeIf { it.name.equals("bin", true) }?.parentFile
             ?: throw IOException("The database's installation directory could not be established from ${mysql.name}.")
+        val controllerRoot = basedir.parentFile?.parentFile?.takeIf { directory ->
+            directory.listFiles()?.any { it.isFile && it.name.equals("UniController.exe", true) } == true
+        }
+        val controllerUser = controllerRoot?.let { File(it, "home/us_config/us_user.ini") }?.takeIf { it.isFile }
+        val configuredPort = iniValue(database.readText(), "mysqld", "port")
+            ?: controllerUser?.let { iniValue(it.readText(), "USER", "MYSQL_TCP_PORT") }
+        val databasePort = configuredPort?.toIntOrNull()?.takeIf { it in 1..65535 }
+            ?: throw IOException("The repack's database port is unverified in my.ini or UniController's us_user.ini.")
         val dataCandidates = detected.root.walkTopDown().filter { directory ->
             directory.isDirectory && !java.nio.file.Files.isSymbolicLink(directory.toPath()) &&
-                directory.listFiles()?.any { it.isDirectory && it.name.equals("mysql", true) } == true &&
+                (directory.listFiles()?.any { it.isDirectory && it.name.equals("mysql", true) } == true || File(directory, "mysql.ibd").isFile) &&
                 (File(directory, "ibdata1").isFile || File(directory, "aria_log_control").isFile || File(directory, "auto.cnf").isFile)
         }.toList()
         val datadir = dataCandidates.singleOrNull()
             ?: throw IOException("The repack must contain one initialized database data directory; found ${dataCandidates.size}.")
-        val replacement = mapOf(
+        val replacement = mutableMapOf(
+            "port" to databasePort.toString(),
             "bind-address" to TwwRealm.ADDRESS,
             "basedir" to TwwSession.windows(basedir, detected.root, 'S').replace('\\', '/'),
             "datadir" to TwwSession.windows(datadir, detected.root, 'S').replace('\\', '/'),
         )
+        // UniController normally supplies these directory overrides on the command line.
+        // Keep them explicit in the managed configuration when starting its actual daemon.
+        if (controllerRoot != null) {
+            val temporary = TwwFiles.fs(context).mkdirs(File(controllerRoot, "tmp"))
+            replacement["tmpdir"] = TwwSession.windows(temporary, detected.root, 'S').replace('\\', '/')
+            for (key in listOf("innodb_data_home_dir", "innodb_log_group_home_dir")) {
+                if (iniValue(database.readText(), "mysqld", key) != null) replacement[key] = replacement.getValue("datadir")
+            }
+        }
         var dbText = database.readText()
         for ((key, value) in replacement) dbText = setIni(dbText, "mysqld", key, value)
         replaceConfig(database, dbText)
