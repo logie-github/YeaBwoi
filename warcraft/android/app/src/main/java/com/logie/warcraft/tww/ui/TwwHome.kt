@@ -110,9 +110,11 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
     val installed = report?.let { listOf(it.client, it.core, it.database, it.maps).count { c -> c.status == TwwInstall.Status.INSTALLED } } ?: 0
     WowTheme {
         BoxWithConstraints(Modifier.fillMaxSize().background(TwwColors.Night)) {
-            val columns = if (maxWidth >= 600.dp) 3 else 2
+            val screenWidth = maxWidth
+            val screenHeight = maxHeight
+            val columns = if (screenWidth >= 600.dp) 3 else 2
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                TwwHeader(maxWidth, maxHeight) { dialog = "games" }
+                TwwHeader(screenWidth, screenHeight) { dialog = "games" }
                 Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     TwwWindow(Modifier.fillMaxWidth()) {
                         Text(TwwRealm.DISPLAY_NAME, style = MaterialTheme.typography.headlineSmall, color = TwwColors.Gold)
