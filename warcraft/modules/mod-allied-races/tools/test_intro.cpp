@@ -88,14 +88,15 @@ int main(int argc, char** argv)
         Dbc races = table("ChrRaces"), sequences = table("CinematicSequences"), cameras = table("CinematicCamera"), sounds = table("SoundEntries");
         Dbc displays = table("CreatureDisplayInfo");
         for (uint32_t id : { 33001u, 33002u, 33003u, 33004u })
-            Require(displays.Get(Row(displays, id), 4) == 0x3f666666, "allied display must use 0.9f");
+            Require(displays.Get(Row(displays, id), 4) == (id <= 33002 ? 0x3f800000u : 0x3f666666u), "allied display scale differs from its race's setting");
         for (uint32_t id : { 55u, 56u, 15475u, 15476u })
             Require(displays.Get(Row(displays, id), 4) == 0x3f800000, "standard elf display changed");
-        std::cout << "ok all four allied displays: 0.9 scale; standard elf displays preserved\n";
+        std::cout << "ok Void Elf scale 1.0, Nightborne scale 0.9; standard elf displays preserved\n";
         for (uint32_t race : { 15u, 16u })
         {
             auto sequence = Row(sequences, races.Get(Row(races, race), 12));
             auto camera = Row(cameras, sequences.Get(sequence, 2));
+            Require(cameras.Get(camera, 2) == (race == 15 ? 60001u : 60002u), "unexpected narration sound ID");
             auto sound = Row(sounds, cameras.Get(camera, 2));
             std::string path = String(sounds, sound, 23) + "\\" + String(sounds, sound, 3);
             Bytes narration;

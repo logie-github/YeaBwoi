@@ -34,6 +34,16 @@ CharacterCreate = {}
 RACES = {}
 function GetFactionForRace(i) return RACES[i][1], RACES[i][2] end
 function CharacterCreateEnumerateRaces(...) CharacterCreate.numRaces = select("#", ...) / 3 end
+GlueAmbienceTracks = { DRAENEI = "draenei", NIGHTELF = "nightelf", HUMAN = "human", TAUREN = "tauren", ORC = "orc", CHARACTERSELECT = "select" }
+function PlayGlueAmbience(sound, fade)
+  assert(type(sound) == "string" and sound ~= "", "missing ambience")
+  AMBIENCE = sound
+end
+function ShowCharacter(race)
+  SetBackgroundModel("m", race)
+  -- Stock CharacterSelect_OnShow retains the original race token.
+  PlayGlueAmbience(GlueAmbienceTracks[strupper(race)], 4.0)
+end
 BACKGROUND = nil
 function SetBackgroundModel(model, name) BACKGROUND = name end
 """
@@ -85,6 +95,15 @@ for native, races, with_skyborne in [
     check(g.BACKGROUND == "NightElf", "the nightborne's background is the Night Elves' (framed for their height)")
     lua.execute('SetBackgroundModel("m", "Orc")')
     check(g.BACKGROUND == "Orc", "the game's own backgrounds stay")
+    for _ in range(20):
+        for race, track in [("Nightborne", "nightelf"), ("Orc", "orc"), ("VoidElf", "draenei")]:
+            g.ShowCharacter(race)
+            assert g.AMBIENCE == track, f"{race}: missing selection ambience"
+    check(True, "60 custom/native race transitions retain valid selection ambience")
+    if with_skyborne:
+        for race, track in [("SkyborneA", "human"), ("SkyborneH", "tauren")]:
+            g.ShowCharacter(race)
+            check(g.AMBIENCE == track, f"{race}: selection ambience")
     check(g.RACE_INFO_VOIDELF and g.ABILITY_INFO_NIGHTBORNE4 and g.VOIDELF_DISABLED, "the races' texts")
 
 print("PASSED" if not failures else f"FAILED ({failures})")

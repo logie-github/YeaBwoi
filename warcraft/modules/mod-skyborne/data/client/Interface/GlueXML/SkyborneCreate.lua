@@ -14,6 +14,14 @@
 --  * Their text.
 
 local SKYBORNE = { SKYBORNEA = "Human", SKYBORNEH = "Tauren" };
+-- CharacterSelect_OnShow looks up the original race token directly.
+-- Mapping only SetBackgroundModel leaves that separate ambience call with nil.
+if ( type(GlueAmbienceTracks) == "table" ) then
+	for race, background in pairs(SKYBORNE) do
+		GlueAmbienceTracks[race] = GlueAmbienceTracks[strupper(background)]
+			or GlueAmbienceTracks.CHARACTERSELECT or "GlueScreenIntro";
+	end
+end
 
 RACE_ICON_TCOORDS["SKYBORNEA_MALE"]   = { 0.75, 0.875, 0, 0.25 };
 RACE_ICON_TCOORDS["SKYBORNEH_MALE"]   = { 0.75, 0.875, 0.25, 0.5 };

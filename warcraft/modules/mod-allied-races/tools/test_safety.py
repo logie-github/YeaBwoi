@@ -18,6 +18,39 @@ def chunk(name, data):
 
 
 class AnimationSafety(unittest.TestCase):
+    def test_missing_animation_stays_missing_when_ids_would_collide(self):
+        ids = [0, 1, 64, 64, 808]
+        lookup = m2.sequence_lookup(ids, [0, 0, 1, 0, 0])
+        self.assertEqual(lookup[2], -1, "missing IDs must not select an unrelated animation")
+        self.assertEqual(lookup[64], 3, "select the base variation at the animation ID")
+        self.assertGreater(len(lookup), m2.LAST_ANIMATION)
+
+    def test_retail_only_sequences_keep_indices_but_use_private_legacy_ids(self):
+        ids = [0, 56, 1128, 1128, 505, 808]
+        converted = m2.legacy_sequence_ids(ids)
+        self.assertEqual(converted[:2], ids[:2])
+        self.assertEqual(converted[4], 505)
+        self.assertEqual(converted[2], converted[3])
+        self.assertNotEqual(converted[2], converted[5])
+        self.assertTrue(all(0 <= sid <= 505 for sid in converted))
+        lookup = m2.sequence_lookup(ids, [0, 0, 0, 1, 0, 0])
+        self.assertEqual(lookup[56], 1)
+        self.assertEqual(lookup[converted[2]], -1, "alias backing sequences must not replace a missing player animation")
+
+    def test_corrupt_float_channel_uses_rest_transform(self):
+        for value in (float("nan"), float("inf"), 1e30, -1e30):
+            sequence = bytearray(64)
+            skel = SimpleNamespace(seqs=[sequence], loops=[], in_file=[False],
+                                   anim_files={(0, 0): 123}, key=lambda i: (0, 0))
+            merged = m2.Merged(skel, None)
+            merged.animations = m2.AnimationFiles(lambda fid:
+                struct.pack("<I3f", 7, value, 1, 1))
+            track = m2.with_value_size(m2.Track(1, -1, [("ext", 1, 0)], [("ext", 1, 4)]), 12)
+            result = merged.merge_tracks(track, None, stream="AFSB")
+            self.assertEqual(result.timestamps, [b""])
+            self.assertEqual(result.values, [b""])
+            self.assertEqual(len(merged.repairs), 1)
+
     def test_resident_skeleton_flags_do_not_read_model_data_from_an_anim_file(self):
         for flags in (0x10, 0x20, 0x100, 0x120):
             sequence = bytearray(64)
@@ -129,6 +162,8 @@ class AnimationSafety(unittest.TestCase):
                 anim = Path(folder) / (name + "0000-00.anim")
                 anim.write_bytes(struct.pack("<I3f", 7, 1, 2, 3))
                 self.assertEqual(check_m2.check(path), [])
+                anim.write_bytes(struct.pack("<I3f", 7, float("nan"), 1, 1))
+                self.assertTrue(any("non-finite" in p for p in check_m2.check(path)))
                 # The old validator accepted this existing but truncated animation.
                 anim.write_bytes(b"x")
                 self.assertTrue(any("outside the .anim file" in p for p in check_m2.check(path)))
@@ -177,6 +212,8 @@ class IntroSafety(unittest.TestCase):
             sequence = sequences[int(races[race][12])]
             camera = cameras[int(sequence[2])]
             sound = sounds[int(camera[2])]
+            self.assertEqual(int(sound[0]), build_data.ID_NARRATION[race])
+            self.assertLessEqual(int(sound[0]), 65535)
             self.assertEqual(sound[3], build_data.NARRATION[race])
             self.assertEqual(sound[13:23], ["1"] + ["0"] * 9)
             self.assertEqual(sound[4:13], [""] * 9)
