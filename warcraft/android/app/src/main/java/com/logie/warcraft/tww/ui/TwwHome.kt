@@ -3,6 +3,9 @@ package com.logie.warcraft.tww.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
+import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
@@ -46,9 +49,14 @@ import com.logie.warcraft.ui.WowChoiceRow
 import com.logie.warcraft.ui.WowDisplayStyle
 import com.logie.warcraft.ui.WowProgressLine
 import com.logie.warcraft.ui.WowTheme
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 
 /** Hero, one next action and menu tiles, following the app's existing realm home screens. */
 @Composable
@@ -96,11 +104,15 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
         val result = job as? TwwJobs.State.Done
         if (result?.kind == TwwJobs.Kind.VERIFY || result?.kind == TwwJobs.Kind.CLEAN_DOWNLOADS) message = result?.message
     }
-    LaunchedEffect(job, refresh, server.phase) {
-        if (job !is TwwJobs.State.Working) {
-            runCatching { withContext(Dispatchers.IO) { TwwFiles.report(context) } }.onSuccess { report = it }.onFailure { message = it.message }
-        }
-    }
+    TwwReportEffect(
+        busy = job is TwwJobs.State.Working,
+        version = if (job is TwwJobs.State.Working) null else job,
+        refresh = refresh,
+        phase = server.phase,
+        read = { withContext(Dispatchers.IO) { TwwFiles.report(context) } },
+        onReport = { report = it },
+        onError = { message = it.message ?: it.javaClass.simpleName },
+    )
     LaunchedEffect(server.phase) {
         if (playAfterStart && server.phase == TwwServer.Phase.RUNNING) { playAfterStart = false; TwwGame.play(context) }
         if (server.phase == TwwServer.Phase.FAILED) playAfterStart = false
@@ -193,6 +205,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                 TwwButton("Launch Game", enabled = !busy && server.phase == TwwServer.Phase.RUNNING) { TwwGame.play(context) }
                 if (server.phase == TwwServer.Phase.FAILED && TwwServer.isBusy) TwwButton("Force Stop", primary = false) { dialog = "force-stop" }
                 TwwButton("Local connection settings", primary = false, enabled = editable) { dialog = "connection" }
+                TwwButton("Background activity", primary = false) { dialog = "background" }
             }
             "files" -> TwwDialog("Game Files", { dialog = null }) {
                 report?.let { checked ->
@@ -243,6 +256,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                 TwwButton("Cancel", primary = false) { dialog = null }
                 TwwButton("Force Stop") { dialog = null; playAfterStart = false; TwwServer.forceStop(context) }
             }) { Text(stringResource(R.string.tww_force_stop_warning)) }
+            "background" -> TwwBackgroundDialog({ dialog = null }, { message = it })
             "graphics" -> {
                 var current by remember { mutableStateOf(GameSettings.resolution(context)) }
                 TwwDialog("Graphics", { dialog = null; refresh++ }) {
@@ -302,5 +316,49 @@ private fun ComponentLine(label: String, component: TwwInstall.Component) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         TwwStatus(label, component.status.name.lowercase().replaceFirstChar { it.uppercase() }, component.status == TwwInstall.Status.INSTALLED)
         (component.missing + component.details).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted) }
+    }
+}
+
+/** A superseded or disposed screen cancels a scan normally; cancellation is never a file error. */
+@Composable
+internal fun TwwReportEffect(
+    busy: Boolean, version: Any?, refresh: Int, phase: TwwServer.Phase,
+    read: suspend () -> TwwInstall.Report,
+    onReport: (TwwInstall.Report) -> Unit,
+    onError: (Exception) -> Unit,
+) {
+    LaunchedEffect(busy, version, refresh, phase) {
+        if (!busy) {
+            try { onReport(read()) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                currentCoroutineContext().ensureActive()
+                onError(error)
+            }
+        }
+    }
+}
+
+@SuppressLint("BatteryLife")
+@Composable
+private fun TwwBackgroundDialog(onDismiss: () -> Unit, onError: (String) -> Unit) {
+    val context = LocalContext.current
+    val power = remember { context.getSystemService(PowerManager::class.java) }
+    var unrestricted by remember { mutableStateOf(power.isIgnoringBatteryOptimizations(context.packageName)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { unrestricted = power.isIgnoringBatteryOptimizations(context.packageName) }
+    TwwDialog("Background Activity", onDismiss) {
+        Text("Active downloads and the local realm continue when you switch apps or lock the screen. Their notification lets you return to the app.")
+        TwwStatus("Battery access", if (unrestricted) "Unrestricted" else "Optimized", unrestricted)
+        if (!unrestricted) {
+            Text("Allow unrestricted battery access if your phone stops background work.", style = MaterialTheme.typography.bodySmall)
+            TwwButton("Allow background activity") {
+                try { context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}"))) }
+                catch (error: Exception) {
+                    runCatching { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))) }
+                        .onFailure { onError(it.message ?: error.message ?: "Battery settings could not be opened.") }
+                }
+            }
+        }
+        Text("Pause, Stop Server and Exit still stop the selected work. Android Force Stop closes the app and its background work.", style = MaterialTheme.typography.bodySmall)
     }
 }

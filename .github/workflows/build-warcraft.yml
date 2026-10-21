@@ -563,6 +563,10 @@ jobs:
             echo "::notice::Signed with the shared CI key in ci/. Add DOLPHINXD_KEYSTORE_* secrets to use your own (see README)."
           fi
 
+      - name: Android background and cancellation regression tests
+        working-directory: warcraft/android
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
+
       - name: Build release APK
         working-directory: warcraft/android
         env:

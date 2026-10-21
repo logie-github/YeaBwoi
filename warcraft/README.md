@@ -45,6 +45,13 @@ No game downloads are bundled in the APK or repository.
 Once installed, **Press Start** starts the database, authentication and world server, checks the
 authentication database for build 63704, and launches the game when the local realm is ready.
 **Server** shows each component’s actual status and separate Start, Stop and Launch controls.
+
+Active downloads and Windows game/server sessions continue when you press Home, switch apps or
+lock the screen. Their foreground notifications remain available while work is active. Downloads
+keep their original restart intent so Android can resume interrupted work using validated cached
+files. **Server → Background activity → Allow background activity** opens Android’s battery
+setting if your phone restricts background work. Explicit Pause, Stop Server and Exit still work;
+Android Force Stop ends background work. A cancelled screen refresh is not an installation error.
 Startup fails with details if the downloaded repack or phone runtime is incompatible.
 
 **Game Files** shows Game Client, Server Core, Server Database and Map Files separately.

@@ -41,12 +41,13 @@ class TwwService : Service() {
             return START_NOT_STICKY
         }
         val kind = intent?.getStringExtra(KIND)?.let { runCatching { TwwJobs.Kind.valueOf(it) }.getOrNull() }
-        if (kind == null || worker?.isAlive == true) return START_NOT_STICKY
+        if (worker?.isAlive == true) return START_REDELIVER_INTENT
+        if (kind == null) { stopSelf(startId); return START_NOT_STICKY }
         if (!TwwJobs.busy && !TwwJobs.begin(kind)) return START_NOT_STICKY
         startForeground(NOTIFICATION_ID, notification())
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:tww-import")
-            .apply { acquire(12 * 60 * 60 * 1000L) }
+            .apply { setReferenceCounted(false); acquire() }
         if (kind in setOf(TwwJobs.Kind.INSTALL, TwwJobs.Kind.DOWNLOAD_CLIENT, TwwJobs.Kind.DOWNLOAD_SERVER, TwwJobs.Kind.DOWNLOAD_MAPS)) {
             @Suppress("DEPRECATION")
             wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
@@ -64,6 +65,7 @@ class TwwService : Service() {
         }
         val picked = intent.getStringExtra(URI)?.let { Uri.parse(it) }
         val folder = intent.getBooleanExtra(FOLDER, false)
+        lastRequest = Request(kind, picked, folder)
         worker = Thread({
             TwwJobs.run(applicationContext, kind, picked, folder)
             val outcome = TwwJobs.state.value
@@ -73,7 +75,14 @@ class TwwService : Service() {
             // service so its locks cannot remain held after that request.
             stopSelf()
         }, "tww-installation").apply { start() }
-        return START_NOT_STICKY
+        // Android can restart an interrupted foreground job with its original source.
+        // The installer validates/reuses completed files and resumes its partial download.
+        return START_REDELIVER_INTENT
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // The service owns this job; removing the launcher task is not cancellation.
+        super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
@@ -141,6 +150,9 @@ class TwwService : Service() {
         fun job(context: Context, kind: TwwJobs.Kind, uri: Uri? = null, folder: Boolean = false) {
             if (!TwwJobs.begin(kind)) return
             lastRequest = Request(kind, uri, folder)
+            if (uri != null) runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
             val intent = Intent(context, TwwService::class.java).putExtra(KIND, kind.name).putExtra(FOLDER, folder)
             uri?.let { intent.putExtra(URI, it.toString()) }
             try { ContextCompat.startForegroundService(context, intent) }

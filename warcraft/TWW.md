@@ -77,3 +77,19 @@ discovered database and temporary directories into the backed-up normal configur
 does not establish which Uniform Server files the inaccessible Draconic archive currently contains.
 
 No client, repack, database or map content is committed or packaged by this integration.
+
+## Background lifecycle
+
+Winlator’s foreground session protection is always enabled in this app, including installs with
+its old hidden preferences disabled. Leaving the game pauses rendering and keeps Wine/Box64,
+the database and realm processes running. The existing foreground service holds a CPU wake lock
+while the session is behind another app or the lock screen, releases it on session exit, and does
+not kill the entire app when the launcher task is removed. Removing a game activity still tears
+down its Windows runtime; Force Stop and Android process termination cannot preserve live Wine
+memory. The app does not claim that a foreground service makes it immune to those events.
+
+TWW installation runs independently of the launcher with a foreground notification, CPU/Wi-Fi
+locks and redelivery of the original job intent after a system service restart. Supported picked
+folders retain their read permission. Completed components and partial downloads are checked on
+resume. The Compose report effect rethrows cancellation instead of displaying it as a file error;
+only an active screen’s actual read failures are shown.
