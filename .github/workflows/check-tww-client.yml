@@ -45,9 +45,10 @@ jobs:
           listing=subprocess.run(["7z","l","-slt",str(p)],capture_output=True,text=True,check=True).stdout
           print(listing[:40000],flush=True)
           dest=pathlib.Path("/tmp/client-exe");dest.mkdir()
-          subprocess.run(["7z","e","-y","-o"+str(dest),str(p),"WoW.exe","Wow.exe","Wow-64.exe","*WoW.exe","*Wow.exe","*.build.info","*.wtf","*.build.db","*.idx","*.config","*.txt","*.json","*.bat","*.url","*.mfil","*.tact"],check=True)
+          subprocess.run(["7z","e","-y","-o"+str(dest),str(p),"-r","WoW.exe","Wow.exe","Wow-64.exe","*WoW.exe","*Wow.exe","*.build.info","*.wtf","*.build.db","*.idx","*.config","*.txt","*.json","*.bat","*.url","*.mfil","*.tact"],check=True)
           for f in dest.iterdir():
               if f.suffix.lower()==".exe":
+                  print("CLIENT_EXE_SHA256",f.name,hashlib.sha256(f.read_bytes()).hexdigest(),flush=True)
                   pe=pefile.PE(str(f),fast_load=True);pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]])
                   for fi in getattr(pe,"VS_FIXEDFILEINFO",[]):
                       print("CLIENT_VERSION",f.name,fi.FileVersionMS>>16,fi.FileVersionMS&65535,fi.FileVersionLS>>16,fi.FileVersionLS&65535,flush=True)
