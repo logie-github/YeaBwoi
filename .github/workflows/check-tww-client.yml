@@ -8,32 +8,49 @@ permissions:
 jobs:
   inspect:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
-      - name: Install inspection tools
-        run: pip install gdown pefile
-      - name: Inspect pinned client archive and executable
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - name: Exercise the actual downloader and importer on the pinned client
         run: |
           python - <<'PY'
-          import subprocess, pathlib, hashlib
-          import gdown, pefile
-          archive=gdown.download(id="1GXgO7jDJrdLsN7LDjkdBCW8i1fKSUPc1",output="/tmp/tww-client",quiet=False)
-          if not archive: raise RuntimeError("Client source unavailable")
-          p=pathlib.Path(archive)
-          print("CLIENT_ARCHIVE",p.stat().st_size,hashlib.sha256(p.read_bytes()).hexdigest(),p.read_bytes()[:16].hex(),flush=True)
-          assert p.stat().st_size == 63298635, "Client archive size changed"
-          assert hashlib.sha256(p.read_bytes()).hexdigest() == "36f6f3e7ab5e2edc0aaa7b4400b8c9918a5a7263956cbf89c1a9a7bc2fa6d878", "Client archive changed"
-          listing=subprocess.run(["7z","l","-slt",str(p)],capture_output=True,text=True,check=True).stdout
-          print(listing[:40000],flush=True)
-          dest=pathlib.Path("/tmp/client-exe");dest.mkdir()
-          subprocess.run(["7z","e","-y","-o"+str(dest),str(p),"-r","WoW.exe","Wow.exe","Wow-64.exe","*WoW.exe","*Wow.exe","*.build.info","*.wtf","*.build.db","*.idx","*.config","*.txt","*.json","*.bat","*.url","*.mfil","*.tact","cdns","versions"],check=True)
-          for f in dest.iterdir():
-              if f.suffix.lower()==".exe":
-                  assert hashlib.sha256(f.read_bytes()).hexdigest() == "01ee0d23abb6f1da8a5670b858fd1f5ce899bef97e8434452c7e48e2491da3d5", "Client executable changed"
-                  print("CLIENT_EXE_SHA256",f.name,hashlib.sha256(f.read_bytes()).hexdigest(),flush=True)
-                  pe=pefile.PE(str(f),fast_load=True);pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]])
-                  for fi in getattr(pe,"VS_FIXEDFILEINFO",[]):
-                      print("CLIENT_VERSION",f.name,fi.FileVersionMS>>16,fi.FileVersionMS&65535,fi.FileVersionLS>>16,fi.FileVersionLS&65535,flush=True)
-              elif f.stat().st_size < 20000:
-                  print("CLIENT_TEXT",f.name,f.read_text(errors="replace")[:8000],flush=True)
+          from pathlib import Path
+          p=Path("warcraft/unit-tests/src/test/kotlin/com/logie/warcraft/tww/core/TwwLiveSourceTest.kt")
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text('''package com.logie.warcraft.tww.core
+          import java.io.File
+          import java.nio.file.Files
+          import kotlin.test.*
+          class TwwLiveSourceTest {
+              @Test fun actualDriveDownloadBcj2ExtractionAndClientRecognition() {
+                  val root=Files.createTempDirectory("tww-live-").toFile()
+                  try {
+                      val download=TwwDownload(TwwRealm.CLIENT_ARCHIVE_URL,File(root,"downloads"),"client",TwwRealm.CLIENT_ARCHIVE_SIZE,TwwRealm.CLIENT_ARCHIVE_SHA256)
+                      var observed=0L
+                      val archive=download.run { progress -> observed=progress.bytes }
+                      assertEquals(TwwRealm.CLIENT_ARCHIVE_SIZE,observed)
+                      val extracted=File(root,"staging")
+                      TwwArchive.extract(archive,extracted,nativeExtractor=File("/usr/bin/7z"))
+                      val client=assertNotNull(TwwInstall.findClientRoot(extracted))
+                      val report=TwwInstall.inspect(client,File(root,"server"))
+                      assertEquals(TwwInstall.Status.INSTALLED,report.client.status,report.client.toString())
+                      assertTrue(report.streamingClient,report.client.toString())
+                      assertEquals(TwwRealm.CLIENT_BUILD,report.clientBuild?.build)
+                      assertTrue(report.localConnectionConfigured)
+                      var reused=false
+                      download.run { progress -> reused=progress.reused }
+                      assertTrue(reused,"The second attempt must reuse the validated archive")
+                      println("LIVE_TWW_VERIFIED: actual Google Drive transfer, pinned checksum, BCJ2 extraction, build 63704, streaming detection and download reuse")
+                  } finally { root.deleteRecursively() }
+              }
+          }
+          ''')
           PY
+          gradle --no-daemon -p warcraft/unit-tests test --tests '*TwwLiveSourceTest' --info
