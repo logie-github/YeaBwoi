@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import struct
 import tempfile
+import sqlite3
 import unittest
 from types import SimpleNamespace
 
@@ -131,6 +132,26 @@ class AnimationSafety(unittest.TestCase):
                 # The old validator accepted this existing but truncated animation.
                 anim.write_bytes(b"x")
                 self.assertTrue(any("outside the .anim file" in p for p in check_m2.check(path)))
+
+
+class LanguageSafety(unittest.TestCase):
+    def test_starting_languages_survive_an_earlier_race_module_and_reapplication(self):
+        sql = (Path(build_data.MODULE) / "data/sql/db-world/allied_races_world.sql").read_text()
+        updates = "\n".join(line for line in sql.splitlines()
+                            if line.startswith("UPDATE `playercreateinfo_skills`"))
+        for earlier_module in (False, True):
+            with self.subTest(earlier_module=earlier_module), sqlite3.connect(":memory:") as db:
+                db.execute("CREATE TABLE playercreateinfo_skills (raceMask INTEGER, classMask INTEGER, skill INTEGER)")
+                db.executemany("INSERT INTO playercreateinfo_skills VALUES (?, 0, ?)",
+                    [(1101 | (4096 if earlier_module else 0), 98),
+                     (690 | (8192 if earlier_module else 0), 109)])
+                for _ in range(2):
+                    db.executescript(updates)
+                    masks = dict(db.execute("SELECT skill, raceMask FROM playercreateinfo_skills"))
+                    self.assertTrue(masks[98] & (1 << 14), "Void Elves must learn Common")
+                    self.assertTrue(masks[109] & (1 << 15), "Nightborne must learn Orcish")
+                    self.assertFalse(masks[98] & (1 << 15))
+                    self.assertFalse(masks[109] & (1 << 14))
 
 
 class IntroSafety(unittest.TestCase):

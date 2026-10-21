@@ -976,6 +976,38 @@ namespace Skyborne
                     else if (whole.insert(record).second)
                         dbc.records.push_back(record);
                 }
+                else if (op == "copyrow")
+                {
+                    if (f.size() != 3 || !hasIds)
+                        return "a row copy the table can't take" + where;
+                    uint32_t from = uint32_t(std::stoul(f[1])), to = uint32_t(std::stoul(f[2]));
+                    auto it = byId.find(from);
+                    if (it != byId.end() && !byId.count(to))
+                    {
+                        Bytes record = dbc.records[it->second];
+                        Put32(record.data(), to);
+                        place(record);
+                    }
+                }
+                else if (op == "remapfield")
+                {
+                    if (f.size() != 4)
+                        return "a field remap of the wrong size" + where;
+                    uint32_t field = uint32_t(std::stoul(f[1])), from = uint32_t(std::stoul(f[2])), to = uint32_t(std::stoul(f[3]));
+                    if (field >= dbc.size / 4)
+                        return "no such field" + where;
+                    for (size_t row = 0; row < dbc.records.size(); ++row)
+                        if (dbc.Get(row, field) == from)
+                            dbc.Set(row, field, to);
+                    // appendraw tables have no unique row IDs; deduplicate against their new bytes.
+                    whole = std::set<Bytes>(dbc.records.begin(), dbc.records.end());
+                    if (field == 0)
+                    {
+                        byId.clear();
+                        for (size_t row = 0; row < dbc.records.size(); ++row)
+                            byId.emplace(dbc.Get(row, 0), row);
+                    }
+                }
                 else if (op == "or" || op == "set")
                 {
                     if (f.size() != 4 || !hasIds)

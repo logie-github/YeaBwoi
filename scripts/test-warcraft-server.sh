@@ -331,7 +331,22 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	echo "The void elves and the nightborne start with the Draenei and the Forsaken, with their racials."
+	# Both new and previously saved characters must understand their faction's NPC speech.
+	for who in Voidtester:15:98:668 Nighttester:16:109:669; do
+		IFS=: read -r name race skill spell <<EOF
+$who
+EOF
+		for pass in fresh repaired; do
+			known=$(echo "SELECT CONCAT(s.value, '/', s.max) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $skill" | CTL sql acore_characters)
+			[ "$known" = 300/300 ] || fail "$name has no usable faction language on $pass login ($known)"
+			[ "$pass" = fresh ] || continue
+			# Reproduce an older character created before the race-mask fix.
+			echo "DELETE s FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $skill; DELETE s FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell = $spell;" | CTL sql acore_characters
+			python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" 1 "$FILES/run/skyborne.steps" |
+				tee "$FILES/logs/allied-$name-language.out" || fail "$name could not relog for language repair"
+		done
+	done
+	echo "The void elves and the nightborne start with their racials and faction languages; missing languages are repaired on login."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

@@ -10,7 +10,8 @@ Turtle WoW is another game and untouched), in their own models, looks and voices
 
 (The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 and 16 were
 the game's Skeleton and Vrykul, which only creatures use; in the game's tables they move to 24 and
-25, as the Skyborne moved 13 and 14 to 22 and 23.
+25, as the Skyborne moved 13 and 14 to 22 and 23. These moves preserve the installed client's
+rows and texture paths, including Alternative HD's, rather than overwriting them by vanilla row ID.
 
 ## What they have
 
@@ -43,6 +44,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - **Voices**: today's (VocalUISounds: the words at the UI's moments; EmotesTextSound: the
   emotes 3.3.5 has), as MP3s.
 - **Names**: today's name generator's.
+- **Languages**: Void Elves learn Common and Nightborne learn Orcish. Missing faction languages on
+  existing characters are restored when they log in; creating a replacement character is unnecessary.
 - **Racials** (learned at creation from `playercreateinfo_spell_custom`), as today's where 3.3.5
   allows:
   - Void elves: **Spatial Rift** (tear a rift up to 15 yards ahead; use again within 6 sec to
@@ -153,8 +156,10 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   screen, alone and with the Skyborne's screen code after it. CI runs it.
 - `tools/test_safety.py`: split and unsplit animation streams, relocated bone tracks, local
   global-loop tracks, truncated external animation files for both races and sexes, and narration
-  rows selecting only their own MP3. CI runs it. The old global-track reader and external-file
+  rows selecting only their own MP3, plus faction-language setup after earlier race modules. CI runs it. The old global-track reader and external-file
   validator fail these regressions.
+- `../mod-skyborne/tools/test_table_moves.cpp`: both race modules preserve HD NPCs when row IDs
+  differ from the vanilla tables, move the installed textures with their race, and keep HD displays.
 - `tools/test_intro.cpp`: builds a small client fixture with the real generated intro tables and
   MP3s, then follows each race's cinematic links through the resulting MPQ and compares its audio
   bytes with the source. Also checks that a second start reuses the patch. CI runs it.
