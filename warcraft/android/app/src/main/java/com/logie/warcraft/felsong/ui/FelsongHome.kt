@@ -126,6 +126,7 @@ fun FelsongGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment)
     ) {
         FelsongChoiceRow(stringResource(R.string.wrath_name), stringResource(R.string.wrath_name_summary)) { onPick(Environments.Environment.WRATH) }
         FelsongChoiceRow(stringResource(R.string.turtle_tile_name), stringResource(R.string.turtle_tile_name_summary)) { onPick(Environments.Environment.TURTLE) }
+        FelsongChoiceRow(stringResource(R.string.tww_name), stringResource(R.string.tww_summary)) { onPick(Environments.Environment.TWW) }
     }
 }
 

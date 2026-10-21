@@ -130,6 +130,7 @@ fun WowHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     when (environment) {
         Environments.Environment.TURTLE -> TurtleLauncher(checkUpdateOnOpen)
         Environments.Environment.FELSONG -> FelsongLauncher(checkUpdateOnOpen)
+        Environments.Environment.TWW -> com.logie.warcraft.tww.ui.TwwLauncher(checkUpdateOnOpen)
         else -> WrathHomeRoute(activity, checkUpdateOnOpen)
     }
 }
