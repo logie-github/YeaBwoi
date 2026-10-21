@@ -166,8 +166,12 @@ object TwwServer {
      * Configures only the imported repack. Values come from its actual configurations and
      * initialized database folders. Original text files are kept as .before-local backups.
      */
-    fun configureLocal(context: Context) {
-        if (isBusy || TwwJobs.busy) throw IOException("Stop this realm and wait for its installation job before changing configuration.")
+    fun configureLocal(context: Context) = configureLocal(context, false)
+
+    internal fun configureInstallation(context: Context) = configureLocal(context, true)
+
+    private fun configureLocal(context: Context, installing: Boolean) {
+        if (isBusy || TwwJobs.busy && !installing) throw IOException("Stop this realm and wait for its installation job before changing configuration.")
         val detected = TwwFiles.report(context).detected ?: throw IOException("Import the Draconic server repack first.")
         val world = detected.worldConfig ?: throw IOException("The world server configuration is missing.")
         val auth = detected.authenticationConfig ?: throw IOException("The authentication server configuration is missing.")

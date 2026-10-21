@@ -23,6 +23,7 @@ object TwwArchive {
         archive: File,
         staging: File,
         cancelled: () -> Boolean = { false },
+        nativeExtractor: File? = null,
         progress: (Long, String) -> Unit = { _, _ -> },
     ) {
         if (!archive.isFile || archive.length() == 0L) throw ArchiveException("Archive is missing or empty: ${archive.name}")
@@ -78,6 +79,12 @@ object TwwArchive {
 
         try {
             val magic = archive.inputStream().use { input -> ByteArray(6).let { bytes -> input.read(bytes); bytes } }
+            val sevenZip = magic.contentEquals(byteArrayOf(0x37, 0x7a, 0xbc.toByte(), 0xaf.toByte(), 0x27, 0x1c))
+            val rar = magic.take(4) == listOf(0x52.toByte(), 0x61.toByte(), 0x72.toByte(), 0x21.toByte())
+            if (nativeExtractor != null && (sevenZip || rar)) {
+                TwwNativeArchive.extract(nativeExtractor, archive, staging, cancelled, progress)
+                return
+            }
             when {
                 magic[0] == 0x50.toByte() && magic[1] == 0x4b.toByte() -> {
                     ZipFile.builder().setFile(archive).get().use { zip ->

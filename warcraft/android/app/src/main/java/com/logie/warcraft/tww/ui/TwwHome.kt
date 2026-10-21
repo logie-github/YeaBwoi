@@ -1,68 +1,55 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-
 package com.logie.warcraft.tww.ui
 
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.logie.warcraft.Environments
-import com.logie.warcraft.R
-import com.logie.warcraft.TitleMusic
-import com.logie.warcraft.WowUpdateActivity
-import com.logie.warcraft.WowUpdater
-import com.logie.warcraft.tww.TwwFiles
-import com.logie.warcraft.tww.TwwGame
-import com.logie.warcraft.tww.TwwJobs
-import com.logie.warcraft.tww.TwwServer
-import com.logie.warcraft.tww.TwwService
+import androidx.compose.ui.unit.sp
+import com.logie.warcraft.*
+import com.logie.warcraft.game.GameSettings
+import com.logie.warcraft.tww.*
 import com.logie.warcraft.tww.core.TwwInstall
 import com.logie.warcraft.tww.core.TwwRealm
-import com.logie.warcraft.ui.WowButton
+import com.logie.warcraft.ui.AppIconDialog
 import com.logie.warcraft.ui.WowChoiceRow
-import com.logie.warcraft.ui.WowColors
-import com.logie.warcraft.ui.WowDialog
+import com.logie.warcraft.ui.WowDisplayStyle
 import com.logie.warcraft.ui.WowProgressLine
-import com.logie.warcraft.ui.WowStatusLine
 import com.logie.warcraft.ui.WowTheme
-import com.logie.warcraft.ui.WowTitle
-import com.logie.warcraft.ui.WowWindow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Another expansion within the existing launcher; all long work stays in its foreground job. */
+/** Hero, one next action and menu tiles, following the app's existing realm home screens. */
 @Composable
 fun TwwLauncher(checkUpdateOnOpen: Boolean) {
     val context = LocalContext.current
@@ -75,30 +62,28 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
     var configuring by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<String?>(null) }
     var pendingImport by rememberSaveable { mutableStateOf(TwwJobs.Kind.IMPORT_CLIENT.name) }
-    var lastJob by rememberSaveable { mutableStateOf<String?>(null) }
-    var lastUri by rememberSaveable { mutableStateOf<String?>(null) }
-    var lastFolder by rememberSaveable { mutableStateOf(false) }
     var checkUpdate by rememberSaveable { mutableStateOf(checkUpdateOnOpen) }
+    var playAfterStart by rememberSaveable { mutableStateOf(false) }
     val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { checkUpdate = false }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) {
-            lastJob = pendingImport; lastUri = uri.toString(); lastFolder = true
-            TwwService.start(context, TwwJobs.Kind.valueOf(pendingImport), uri, true)
-        }
+        if (uri != null) TwwService.start(context, TwwJobs.Kind.valueOf(pendingImport), uri, true)
     }
     val archivePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            lastJob = pendingImport; lastUri = uri.toString(); lastFolder = false
-            TwwService.start(context, TwwJobs.Kind.valueOf(pendingImport), uri, false)
-        }
+        if (uri != null) TwwService.start(context, TwwJobs.Kind.valueOf(pendingImport), uri)
     }
-    fun run(kind: TwwJobs.Kind) {
-        lastJob = kind.name; lastUri = null; lastFolder = false
-        TwwService.start(context, kind)
-    }
+    fun run(kind: TwwJobs.Kind) { TwwService.start(context, kind) }
     fun open(url: String) {
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-            .onFailure { message = it.message ?: "No browser is available to open the download source." }
+        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.onFailure { message = it.message }
+    }
+    fun configure() {
+        dialog = null; configuring = true
+        scope.launch {
+            message = withContext(Dispatchers.IO) {
+                runCatching { TwwServer.configureLocal(context); TwwGame.configureLocal(context, true); context.getString(R.string.tww_configured) }
+                    .getOrElse { it.message ?: it.javaClass.simpleName }
+            }
+            configuring = false; refresh++
+        }
     }
     LaunchedEffect(checkUpdate) {
         if (checkUpdate) {
@@ -106,149 +91,176 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
             if (update != null) updateOffer.launch(WowUpdateActivity.intent(context, update)) else checkUpdate = false
         }
     }
+    LaunchedEffect(job) {
+        val result = job as? TwwJobs.State.Done
+        if (result?.kind == TwwJobs.Kind.VERIFY || result?.kind == TwwJobs.Kind.CLEAN_DOWNLOADS) message = result?.message
+    }
     LaunchedEffect(job, refresh, server.phase) {
         if (job !is TwwJobs.State.Working) {
-            runCatching { withContext(Dispatchers.IO) { TwwFiles.report(context) } }
-                .onSuccess { report = it }.onFailure { message = it.message }
+            runCatching { withContext(Dispatchers.IO) { TwwFiles.report(context) } }.onSuccess { report = it }.onFailure { message = it.message }
         }
+    }
+    LaunchedEffect(server.phase) {
+        if (playAfterStart && server.phase == TwwServer.Phase.RUNNING) { playAfterStart = false; TwwGame.play(context) }
+        if (server.phase == TwwServer.Phase.FAILED) playAfterStart = false
     }
     val busy = job is TwwJobs.State.Working
     val editable = !busy && !TwwServer.isBusy && !configuring
+    val installed = report?.let { listOf(it.client, it.core, it.database, it.maps).count { c -> c.status == TwwInstall.Status.INSTALLED } } ?: 0
     WowTheme {
-        Column(
-            Modifier.fillMaxSize().background(WowColors.Abyss).verticalScroll(rememberScrollState())
-                .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 20.dp, bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(TwwRealm.DISPLAY_NAME, style = MaterialTheme.typography.headlineMedium)
-                Text(stringResource(R.string.tww_metadata), style = MaterialTheme.typography.bodyMedium)
-                WowButton(stringResource(R.string.games_tile), primary = false) { dialog = "games" }
-                WowWindow(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        WowTitle(stringResource(R.string.tww_installation))
-                        Text(stringResource(R.string.tww_replace_note), style = MaterialTheme.typography.bodySmall)
-                        val checked = report
-                        if (checked == null) Text(stringResource(R.string.tww_no_report)) else {
-                            ComponentLine(R.string.tww_client, checked.client)
-                            ComponentLine(R.string.tww_core, checked.core)
-                            ComponentLine(R.string.tww_database, checked.database)
-                            ComponentLine(R.string.tww_maps, checked.maps)
-                            if (checked.firestormModified) Text(stringResource(R.string.tww_firestorm), style = MaterialTheme.typography.bodySmall)
-                        }
-                        WowButton(stringResource(R.string.tww_get_client), enabled = editable) { dialog = "client" }
-                        WowButton(stringResource(R.string.tww_download_server), enabled = editable) { run(TwwJobs.Kind.DOWNLOAD_SERVER) }
-                        WowButton(stringResource(R.string.tww_download_maps), enabled = editable) { run(TwwJobs.Kind.DOWNLOAD_MAPS) }
-                        WowButton(stringResource(R.string.tww_import), primary = false, enabled = editable) { dialog = "import" }
-                        WowButton(stringResource(R.string.tww_verify), primary = false, enabled = editable) { run(TwwJobs.Kind.VERIFY) }
-                        Text(stringResource(R.string.tww_download_note), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                when (val state = job) {
-                    is TwwJobs.State.Working -> WowWindow(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(state.detail)
-                            state.progress?.let { WowProgressLine(it) }
-                            WowButton(stringResource(R.string.tww_cancel), primary = false) { TwwService.cancel(context) }
-                        }
-                    }
-                    is TwwJobs.State.Done -> ResultPanel(stringResource(R.string.tww_job_done), state.message) { TwwJobs.clearResult() }
-                    is TwwJobs.State.Failed -> WowWindow(Modifier.fillMaxWidth()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            WowTitle(stringResource(R.string.tww_job_failed))
-                            Text(state.message)
-                            if (lastJob != null) WowButton(stringResource(R.string.tww_retry)) {
-                                TwwService.start(context, TwwJobs.Kind.valueOf(lastJob!!), lastUri?.let(Uri::parse), lastFolder)
+        BoxWithConstraints(Modifier.fillMaxSize().background(TwwColors.Night)) {
+            val columns = if (maxWidth >= 600.dp) 3 else 2
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                TwwHeader(maxWidth, maxHeight) { dialog = "games" }
+                Column(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TwwWindow(Modifier.fillMaxWidth()) {
+                        Text(TwwRealm.DISPLAY_NAME, style = MaterialTheme.typography.headlineSmall, color = TwwColors.Gold)
+                        Text("Draconic WoW · Local realm", style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted)
+                        when (val state = job) {
+                            is TwwJobs.State.Working -> {
+                                Text(state.detail, style = MaterialTheme.typography.bodyMedium)
+                                state.progress?.let { WowProgressLine(it) }
+                                TwwButton("Pause installation", primary = false) { TwwService.cancel(context) }
                             }
-                            WowButton(stringResource(R.string.tww_close), primary = false) { TwwJobs.clearResult() }
+                            is TwwJobs.State.Failed -> {
+                                Text("Installation needs attention", color = TwwColors.Error)
+                                Text(state.message, style = MaterialTheme.typography.bodySmall, maxLines = 3)
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    TwwButton("Resume / Retry", Modifier.weight(1f)) { TwwService.retry(context) }
+                                    TwwButton("Details", primary = false) { message = state.message }
+                                }
+                            }
+                            else -> {
+                                val ready = report?.canStartServer == true
+                                Text(when {
+                                    server.phase == TwwServer.Phase.RUNNING -> "Your local realm is running."
+                                    TwwServer.isBusy -> server.detail ?: "Starting local realm…"
+                                    ready -> "Your files are ready. Start your local realm and play."
+                                    report == null -> "Checking game files…"
+                                    else -> "Download the game client, server and maps directly to the app."
+                                }, style = MaterialTheme.typography.bodyMedium)
+                                server.error?.let { Text(it, color = TwwColors.Error, maxLines = 3) }
+                                TwwButton(when {
+                                    server.phase == TwwServer.Phase.RUNNING -> "Launch Game"
+                                    TwwServer.isBusy -> "Starting…"
+                                    configuring -> "Configuring…"
+                                    ready -> "Press Start"
+                                    else -> "Download & Install"
+                                }, Modifier.fillMaxWidth(), enabled = report != null && !configuring && (!TwwServer.isBusy || server.phase == TwwServer.Phase.RUNNING)) {
+                                    when {
+                                        server.phase == TwwServer.Phase.RUNNING -> TwwGame.play(context)
+                                        ready -> { playAfterStart = true; TwwServer.start(context) }
+                                        else -> run(TwwJobs.Kind.INSTALL)
+                                    }
+                                }
+                                if (!ready && !TwwServer.isBusy) Text(stringResource(R.string.tww_one_tap_note), style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted)
+                            }
                         }
                     }
-                    else -> {}
-                }
-                WowWindow(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        WowTitle(stringResource(R.string.tww_controls))
-                        WowStatusLine(stringResource(R.string.tww_database_process), server.database.name)
-                        WowStatusLine(stringResource(R.string.tww_authentication), server.authentication.name)
-                        WowStatusLine(stringResource(R.string.tww_world), server.world.name)
-                        server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                        server.error?.let { Text(it, color = WowColors.Blood) }
-                        report?.blockers?.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
-                        WowButton(stringResource(R.string.tww_connection), primary = false, enabled = editable) { dialog = "connection" }
-                        WowButton(stringResource(R.string.tww_start), enabled = editable && report?.canStartServer == true) { TwwServer.start(context) }
-                        WowButton(stringResource(R.string.tww_stop), primary = false, enabled = !busy && TwwServer.isBusy) { TwwServer.stop(context) }
-                        if (server.phase == TwwServer.Phase.FAILED && TwwServer.isBusy) {
-                            WowButton(stringResource(R.string.tww_force_stop), primary = false) { dialog = "force-stop" }
+                    val tiles = listOf(
+                        Tile(Icons.Default.Dns, "Server", server.phase.name.lowercase().replaceFirstChar { it.uppercase() }) { dialog = "server" },
+                        Tile(Icons.Default.FolderOpen, "Game Files", "$installed of 4 components installed") { dialog = "files" },
+                        Tile(Icons.Default.Tune, "Graphics", stringResource(GameSettings.resolution(context).label)) { dialog = "graphics" },
+                        Tile(Icons.Default.Palette, "App Icon", stringResource(AppIcons.current(context).label)) { dialog = "icon" },
+                        Tile(Icons.Default.SystemUpdate, "Updates", "Version ${BuildConfig.VERSION_NAME}") { WowUpdateActivity.launch(context) },
+                        Tile(Icons.Default.SwapHoriz, "Games", "Choose another expansion") { dialog = "games" },
+                    )
+                    tiles.chunked(columns).forEach { row ->
+                        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            row.forEach { tile -> TwwWindow(Modifier.weight(1f).fillMaxHeight(), onClick = tile.onClick) {
+                                Icon(tile.icon, null, tint = TwwColors.Gold, modifier = Modifier.size(26.dp))
+                                Text(tile.title, style = WowDisplayStyle.copy(fontSize = 14.sp, color = TwwColors.Text))
+                                Text(tile.subtitle, style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted)
+                            } }
                         }
-                        WowButton(stringResource(R.string.tww_launch), enabled = !busy && !configuring && report?.ready == true) { TwwGame.play(context) }
-                        Text(stringResource(R.string.tww_runtime_note), style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                WowWindow(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        WowTitle(stringResource(R.string.tww_storage))
-                        Text(runCatching { TwwFiles.layout(context).root.path }.getOrDefault("Storage unavailable"), style = MaterialTheme.typography.bodySmall)
-                        Text(stringResource(R.string.tww_storage_note), style = MaterialTheme.typography.bodySmall)
-                        WowButton(stringResource(if (TwwFiles.storageExternal(context)) R.string.tww_internal else R.string.tww_external), primary = false, enabled = editable) {
-                            if (!TwwFiles.setExternal(context, !TwwFiles.storageExternal(context))) message = context.getString(R.string.tww_storage_error)
-                            refresh++
-                        }
-                        WowButton(stringResource(R.string.tww_clean), primary = false, enabled = editable) { run(TwwJobs.Kind.CLEAN_DOWNLOADS) }
-                    }
-                }
-                WowButton(stringResource(R.string.tww_sources), primary = false) { dialog = "sources" }
             }
         }
-        message?.let { text -> WowDialog(stringResource(R.string.tww_name), { message = null }) { Text(text) } }
+        message?.let { text -> TwwDialog("The War Within", { message = null }) { Text(text) } }
         when (dialog) {
-            "client" -> WowDialog(stringResource(R.string.tww_get_client), { dialog = null }, buttons = {
-                WowButton(stringResource(R.string.tww_close), primary = false) { dialog = null }
-                WowButton(stringResource(R.string.tww_open_firestorm)) { open(TwwRealm.CLIENT_URL) }
-            }) { Text(stringResource(R.string.tww_client_workflow)) }
-            "import" -> WowDialog(stringResource(R.string.tww_import), { dialog = null }) {
-                Text(stringResource(R.string.tww_archive_support))
-                listOf(TwwJobs.Kind.IMPORT_CLIENT to (R.string.tww_import_client_folder to R.string.tww_import_client_archive),
-                    TwwJobs.Kind.IMPORT_SERVER to (R.string.tww_import_server_folder to R.string.tww_import_server_archive),
-                    TwwJobs.Kind.IMPORT_MAPS to (R.string.tww_import_maps_folder to R.string.tww_import_maps_archive)).forEach { (kind, labels) ->
-                    WowButton(stringResource(labels.first), primary = false) { pendingImport = kind.name; dialog = null; folderPicker.launch(null) }
-                    WowButton(stringResource(labels.second), primary = false) { pendingImport = kind.name; dialog = null; archivePicker.launch(arrayOf("*/*")) }
-                }
+            "server" -> TwwDialog("Local Server", { dialog = null }) {
+                TwwStatus("Database", server.database.name.lowercase(), server.database == TwwServer.ComponentStatus.RUNNING)
+                TwwStatus("Authentication", server.authentication.name.lowercase(), server.authentication == TwwServer.ComponentStatus.RUNNING)
+                TwwStatus("World server", server.world.name.lowercase(), server.world == TwwServer.ComponentStatus.RUNNING)
+                server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                server.error?.let { Text(it, color = TwwColors.Error) }
+                TwwButton("Start Server", enabled = editable && report?.canStartServer == true) { TwwServer.start(context) }
+                TwwButton("Stop Server", primary = false, enabled = !busy && TwwServer.isBusy) { playAfterStart = false; TwwServer.stop(context) }
+                TwwButton("Launch Game", enabled = !busy && server.phase == TwwServer.Phase.RUNNING) { TwwGame.play(context) }
+                if (server.phase == TwwServer.Phase.FAILED && TwwServer.isBusy) TwwButton("Force Stop", primary = false) { dialog = "force-stop" }
+                TwwButton("Local connection settings", primary = false, enabled = editable) { dialog = "connection" }
             }
-            "connection" -> WowDialog(stringResource(R.string.tww_connection), { dialog = null }, buttons = {
-                WowButton(stringResource(R.string.tww_close), primary = false) { dialog = null }
-                WowButton(stringResource(R.string.tww_configure)) {
-                    dialog = null
-                    configuring = true
-                    scope.launch {
-                        message = withContext(Dispatchers.IO) {
-                            runCatching {
-                                TwwServer.configureLocal(context)
-                                TwwGame.configureLocal(context, acknowledgeFirestorm = true)
-                                context.getString(R.string.tww_configured)
-                            }
-                                .getOrElse { it.message ?: it.javaClass.simpleName }
-                        }
-                        configuring = false
-                        refresh++
+            "files" -> TwwDialog("Game Files", { dialog = null }) {
+                report?.let { checked ->
+                    ComponentLine("Game Client", checked.client)
+                    ComponentLine("Server Core", checked.core)
+                    ComponentLine("Server Database", checked.database)
+                    ComponentLine("Map Files", checked.maps)
+                    checked.blockers.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
+                TwwButton("Download & Install", Modifier.fillMaxWidth(), enabled = editable) { dialog = null; run(TwwJobs.Kind.INSTALL) }
+                TwwButton("Verify Installation", primary = false, enabled = editable) { dialog = null; run(TwwJobs.Kind.VERIFY) }
+                (job as? TwwJobs.State.Done)?.let { Text(it.message, style = MaterialTheme.typography.bodySmall) }
+                TwwButton("Advanced / Storage", primary = false) { dialog = "advanced" }
+            }
+            "advanced" -> TwwDialog("Installation Options", { dialog = null }) {
+                Text(TwwFiles.layout(context).root.path, style = MaterialTheme.typography.bodySmall)
+                TwwButton(stringResource(if (TwwFiles.storageExternal(context)) R.string.tww_internal else R.string.tww_external), primary = false, enabled = editable) {
+                    if (!TwwFiles.setExternal(context, !TwwFiles.storageExternal(context))) message = context.getString(R.string.tww_storage_error)
+                    refresh++
+                }
+                Text(stringResource(R.string.tww_replace_note), style = MaterialTheme.typography.bodySmall)
+                listOf("Download client" to TwwJobs.Kind.DOWNLOAD_CLIENT, "Reinstall server" to TwwJobs.Kind.DOWNLOAD_SERVER, "Download map files" to TwwJobs.Kind.DOWNLOAD_MAPS).forEach { (label, kind) ->
+                    TwwButton(label, primary = false, enabled = editable) {
+                        if (kind == TwwJobs.Kind.DOWNLOAD_SERVER && report?.detected != null) dialog = "replace-server"
+                        else { dialog = null; run(kind) }
                     }
                 }
+                TwwButton("Import existing files (optional)", primary = false, enabled = editable) { dialog = "import" }
+                TwwButton("Clear temporary downloads", primary = false, enabled = editable) { dialog = null; run(TwwJobs.Kind.CLEAN_DOWNLOADS) }
+                TwwButton("Download sources", primary = false) { dialog = "sources" }
+            }
+            "replace-server" -> TwwDialog("Replace server?", { dialog = null }, buttons = {
+                TwwButton("Cancel", primary = false) { dialog = null }
+                TwwButton("Replace Server") { dialog = null; run(TwwJobs.Kind.DOWNLOAD_SERVER) }
+            }) { Text("This replaces the existing Draconic server and database. Back up your accounts and characters first.") }
+            "import" -> TwwDialog("Import Existing Files", { dialog = null }) {
+                Text(stringResource(R.string.tww_archive_support), style = MaterialTheme.typography.bodySmall)
+                listOf(TwwJobs.Kind.IMPORT_CLIENT to "client", TwwJobs.Kind.IMPORT_SERVER to "server", TwwJobs.Kind.IMPORT_MAPS to "map files").forEach { (kind, name) ->
+                    TwwButton("Import $name folder", primary = false, enabled = editable) { pendingImport = kind.name; dialog = null; folderPicker.launch(null) }
+                    TwwButton("Import $name archive", primary = false, enabled = editable) { pendingImport = kind.name; dialog = null; archivePicker.launch(arrayOf("*/*")) }
+                }
+            }
+            "connection" -> TwwDialog("Local Connection", { dialog = null }, buttons = {
+                TwwButton("Close", primary = false) { dialog = null }
+                TwwButton("Configure", enabled = editable) { configure() }
             }) { Text(stringResource(R.string.tww_connection_note)) }
-            "force-stop" -> WowDialog(stringResource(R.string.tww_force_stop), { dialog = null }, buttons = {
-                WowButton(stringResource(R.string.tww_close), primary = false) { dialog = null }
-                WowButton(stringResource(R.string.tww_force_stop)) { dialog = null; TwwServer.forceStop(context) }
+            "force-stop" -> TwwDialog("Force Stop", { dialog = null }, buttons = {
+                TwwButton("Cancel", primary = false) { dialog = null }
+                TwwButton("Force Stop") { dialog = null; playAfterStart = false; TwwServer.forceStop(context) }
             }) { Text(stringResource(R.string.tww_force_stop_warning)) }
-            "sources" -> WowDialog(stringResource(R.string.tww_sources), { dialog = null }) {
-                WowButton(stringResource(R.string.tww_open_firestorm)) { open(TwwRealm.CLIENT_URL) }
-                WowButton(stringResource(R.string.tww_source_server)) { open(TwwRealm.SERVER_URL) }
-                WowButton(stringResource(R.string.tww_source_maps)) { open(TwwRealm.MMAPS_URL) }
-            }
-            "games" -> WowDialog(stringResource(R.string.games_title), { dialog = null }) {
-                listOf(Environments.Environment.WRATH to R.string.wrath_name, Environments.Environment.TURTLE to R.string.turtle_tile_name, Environments.Environment.FELSONG to R.string.felsong_name).forEach { (environment, label) ->
-                    WowChoiceRow(stringResource(label), null, false) {
-                        Environments.select(context, environment)
-                        TitleMusic.onGameChanged(context)
-                        dialog = null
+            "graphics" -> {
+                var current by remember { mutableStateOf(GameSettings.resolution(context)) }
+                TwwDialog("Graphics", { dialog = null; refresh++ }) {
+                    Text("Game resolution. Restart the local realm to apply changes.", style = MaterialTheme.typography.bodySmall)
+                    GameSettings.Resolution.entries.forEach { resolution ->
+                        val (width, height) = GameSettings.gameSize(context, resolution)
+                        WowChoiceRow(stringResource(resolution.label), "$width × $height", resolution == current) { GameSettings.setResolution(context, resolution); current = resolution }
                     }
+                }
+            }
+            "icon" -> AppIconDialog { dialog = null; refresh++ }
+            "sources" -> TwwDialog("Download Sources", { dialog = null }) {
+                Text("Streaming client: Draconic publisher’s Firestorm mini-client, 11.2.5.63704. Game assets stream during play.", style = MaterialTheme.typography.bodySmall)
+                TwwButton("Client archive", primary = false) { open(TwwRealm.CLIENT_ARCHIVE_URL) }
+                TwwButton("Firestorm", primary = false) { open(TwwRealm.CLIENT_URL) }
+                TwwButton("Server repack", primary = false) { open(TwwRealm.SERVER_URL) }
+                TwwButton("Map files", primary = false) { open(TwwRealm.MMAPS_URL) }
+            }
+            "games" -> TwwDialog(stringResource(R.string.games_title), { dialog = null }) {
+                listOf(Environments.Environment.WRATH to R.string.wrath_name, Environments.Environment.TURTLE to R.string.turtle_tile_name, Environments.Environment.FELSONG to R.string.felsong_name).forEach { (environment, label) ->
+                    WowChoiceRow(stringResource(label), null, false) { Environments.select(context, environment); TitleMusic.onGameChanged(context); dialog = null }
                 }
             }
         }
@@ -256,21 +268,35 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
 }
 
 @Composable
-private fun ComponentLine(label: Int, component: TwwInstall.Component) {
-    Column {
-        WowStatusLine(stringResource(label), component.status.name.lowercase().replace('_', ' '), good = component.status == TwwInstall.Status.INSTALLED)
-        if (component.missing.isNotEmpty()) Text(component.missing.joinToString("\n"), style = MaterialTheme.typography.bodySmall)
-        if (component.details.isNotEmpty()) Text(component.details.joinToString("\n"), style = MaterialTheme.typography.bodySmall)
+private fun TwwHeader(width: Dp, height: Dp, onSwitch: () -> Unit) {
+    val headerHeight = minOf((width * .62f).coerceIn(240.dp, 440.dp), height * .55f)
+    val emblem = minOf(width * .36f, 170.dp)
+    val motion = rememberInfiniteTransition(label = "tww-header")
+    val drift by motion.animateFloat(1f, 1.06f, infiniteRepeatable(tween(32000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
+    val music by TitleMusic.on.collectAsState()
+    val context = LocalContext.current
+    Box(Modifier.fillMaxWidth().padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()).height(headerHeight + emblem * .45f)) {
+        Box(Modifier.fillMaxWidth().height(headerHeight).clipToBounds()) {
+            Image(painterResource(R.drawable.tww_header), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = drift; scaleY = drift })
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.35f to Color.Transparent, 1f to TwwColors.Night)))
+        }
+        Image(painterResource(R.drawable.tww_logo), null, modifier = Modifier.align(Alignment.TopCenter).offset(y = headerHeight - emblem * .58f).size(emblem))
+        Row(Modifier.align(Alignment.TopStart).padding(10.dp).clip(CircleShape).background(TwwColors.Night.copy(alpha = .7f)).clickable(onClick = onSwitch).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.SwapHoriz, null, tint = TwwColors.Gold, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.games_chip), style = WowDisplayStyle.copy(fontSize = 13.sp))
+        }
+        Box(Modifier.align(Alignment.TopEnd).padding(10.dp).size(44.dp).clip(CircleShape).background(TwwColors.Night.copy(alpha = .7f)).clickable { TitleMusic.setOn(context, !music) }, contentAlignment = Alignment.Center) {
+            Icon(if (music) Icons.Default.MusicNote else Icons.Default.MusicOff, stringResource(if (music) R.string.wow_music_turn_off else R.string.wow_music_turn_on), tint = TwwColors.Gold)
+        }
     }
 }
 
+private class Tile(val icon: ImageVector, val title: String, val subtitle: String, val onClick: () -> Unit)
+
 @Composable
-private fun ResultPanel(title: String, message: String, onClose: () -> Unit) {
-    WowWindow(Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            WowTitle(title)
-            Text(message)
-            WowButton(stringResource(R.string.tww_close), primary = false, onClick = onClose)
-        }
+private fun ComponentLine(label: String, component: TwwInstall.Component) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        TwwStatus(label, component.status.name.lowercase().replaceFirstChar { it.uppercase() }, component.status == TwwInstall.Status.INSTALLED)
+        (component.missing + component.details).forEach { Text(it, style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted) }
     }
 }

@@ -16,11 +16,22 @@ from a different client protocol and database.
 
 ## Sources checked
 
-The supplied [Firestorm page](https://firestorm-servers.com/en/play) is an acquisition/launcher
-page. Its launcher link is `https://firestorm-servers.com/download/launcher`, an executable,
-not a pinned client archive. [Firestorm's official update instructions](https://firestorm-servers.com/en/news/dev/562)
-describe selecting a The War Within 11.2.5 client, but do not establish numeric build 63704.
-The launcher may update its offerings, so the imported executable must be checked.
+The supplied [Firestorm page](https://firestorm-servers.com/en/play) remains a launcher page.
+The Draconic publisher additionally links a [streaming mini-client](https://drive.google.com/file/d/1GXgO7jDJrdLsN7LDjkdBCW8i1fKSUPc1/view).
+On 2026-10-21 the source inspection workflow downloaded it without executing any game files:
+7z, 63,298,635 bytes, SHA-256 `36f6f3e7ab5e2edc0aaa7b4400b8c9918a5a7263956cbf89c1a9a7bc2fa6d878`.
+`WoW.exe` has PE version **11.2.5.63704**, SHA-256
+`01ee0d23abb6f1da8a5670b858fd1f5ce899bef97e8434452c7e48e2491da3d5`.
+It includes `cdns`, `versions` and `WTF/Config.wtf` (already using portal 127.0.0.1), but no initial
+CASC data. Only that known executable plus bootstrap files qualify for streaming installation;
+ordinary client imports still require CASC indexes/data. Streamed assets are not reported as
+fully downloaded/offline. A pinned 7-Zip 25.01 executable is built for Android arm64 because the
+archive uses BCJ2 and a 192 MiB dictionary; Commons Compress cannot decode BCJ2. The helper is
+packaged as an executable native library, validates archive paths before extraction, verifies
+7-Zip’s exit/checksum results and file sizes, and supports cancellation and staged cleanup.
+
+Launcher artwork uses Blizzard’s published Clash wallpaper and Firestorm’s TWW emblem. It
+follows the existing realm hero, music/game chips, action panel and menu tile layout.
 
 The [original uploader's repack instructions](https://www.emucoach.com/threads/warlords-of-draenor-6-2-3-6-2-4-legion-7-3-5-battle-for-azeroth-8-3-7-shadowlands-9-2-7-dragonflight-10-2-7-the-war-within-11-2-7-midnight-12.18115/)
 contain both supplied Drive IDs and identify 11.2.5.63704. The publisher instructs users to open

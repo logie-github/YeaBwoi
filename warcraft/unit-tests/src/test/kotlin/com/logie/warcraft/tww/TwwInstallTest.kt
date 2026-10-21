@@ -69,6 +69,17 @@ class TwwInstallTest {
         File(server, ".tww-build-proof.properties").outputStream().use { properties.store(it, "Test runtime build_info result") }
     }
 
+    @Test fun arbitraryMiniClientCannotBypassCascValidation() = temporary { root ->
+        val client = File(root, "client")
+        exe(client, "Wow.exe")
+        file(client, "cdns", "bootstrap")
+        file(client, "versions", "11.2.5.63704")
+        val report = TwwInstall.inspect(client, File(root, "server"))
+        assertFalse(report.streamingClient)
+        assertEquals(TwwInstall.Status.INCOMPLETE, report.client.status)
+        assertTrue(report.client.missing.any { "Data/data" in it })
+    }
+
     @Test fun metadataUsesExactExpansionFirstName() {
         assertEquals("The War Within — 11.2.5", TwwRealm.DISPLAY_NAME)
         assertEquals(63704, TwwRealm.CLIENT_BUILD)

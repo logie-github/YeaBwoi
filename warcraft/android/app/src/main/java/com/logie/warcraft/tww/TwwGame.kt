@@ -32,8 +32,12 @@ object TwwGame {
      * publisher documents portal=127.0.0.1; that alone cannot remove Firestorm's authentication
      * modifications. The explicit acknowledgement is bound to the executable's digest.
      */
-    fun configureLocal(context: Context, acknowledgeFirestorm: Boolean = false) {
-        if (TwwJobs.busy || TwwServer.isBusy) throw IOException("Wait for installation and stop this realm before changing the client configuration.")
+    fun configureLocal(context: Context, acknowledgeFirestorm: Boolean = false) = configureLocal(context, acknowledgeFirestorm, false)
+
+    internal fun configureInstallation(context: Context) = configureLocal(context, true, true)
+
+    private fun configureLocal(context: Context, acknowledgeFirestorm: Boolean, installing: Boolean) {
+        if (TwwJobs.busy && !installing || TwwServer.isBusy) throw IOException("Wait for installation and stop this realm before changing the client configuration.")
         val report = TwwFiles.report(context)
         val executable = report.clientExecutable ?: throw IOException("Import the 11.2.5 client first.")
         val version = executable.inputStream().use(ClientBuild::read)
