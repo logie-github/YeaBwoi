@@ -50,7 +50,7 @@ object TwwServer {
     private val mutableStatus = MutableStateFlow(Status())
     val status: StateFlow<Status> = mutableStatus
     val isBusy: Boolean get() = mutableStatus.value.let {
-        it.phase in setOf(Phase.STARTING, Phase.RUNNING, Phase.STOPPING) ||
+        ownsSession || it.phase in setOf(Phase.STARTING, Phase.RUNNING, Phase.STOPPING) ||
             listOf(it.database, it.authentication, it.world).any { component -> component == ComponentStatus.RUNNING }
     }
 
@@ -60,6 +60,9 @@ object TwwServer {
     @Volatile private var activity = WeakReference<XServerDisplayActivity>(null)
     @Volatile private var otherActivity = WeakReference<XServerDisplayActivity>(null)
     @Volatile private var stopping = false
+    // A database can still be initializing after its startup timeout without listening yet.
+    // Keep installation writes locked for the lifetime of the actual Windows session.
+    @Volatile private var ownsSession = false
     @Volatile private var profile: Profile? = null
     private val started = mutableSetOf<String>()
 
@@ -78,7 +81,10 @@ object TwwServer {
 
     /** Called from the tiny lifecycle patch to the pinned Winlator Activity. */
     @JvmStatic fun runtimeAttached(runtime: XServerDisplayActivity) {
-        if (runtime.intent.getBooleanExtra(TwwGame.SESSION_EXTRA, false)) activity = WeakReference(runtime)
+        if (runtime.intent.getBooleanExtra(TwwGame.SESSION_EXTRA, false)) {
+            activity = WeakReference(runtime)
+            ownsSession = true
+        }
         else otherActivity = WeakReference(runtime)
     }
 
@@ -98,7 +104,12 @@ object TwwServer {
         if (!stopping && isBusy) {
             mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
                 error = "The Windows session ended. Checking whether any server ports remain open…")
-            scope.launch { delay(1000); refreshObserved() }
+            scope.launch {
+                delay(1000)
+                val p = profile
+                if (runtime.isDestroyed && (p == null || p.ports.none { open(it) })) ownsSession = false
+                refreshObserved()
+            }
         }
     }
 
@@ -387,6 +398,12 @@ object TwwServer {
 
     private suspend fun stopNow(context: Context) {
         val p = profile
+        if (activity.get() == null && ownsSession) {
+            mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
+                error = "The Windows session has not confirmed shutdown. Installed files remain locked, even if its database has not opened a port yet.")
+            refreshObserved()
+            return
+        }
         if (p != null && activity.get() == null && p.ports.any { open(it) }) {
             mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
                 error = "A server port remains open after its Windows session ended. Stop the remaining process before replacing installation files.")
@@ -449,9 +466,18 @@ object TwwServer {
     }
 
     private suspend fun closeSession() {
-        val current = activity.get() ?: return
+        val current = activity.get() ?: run {
+            if (ownsSession) throw IOException("The Windows session has not confirmed shutdown; installation files remain locked.")
+            return
+        }
         withContext(Dispatchers.Main) { current.finish() }
+        val deadline = System.currentTimeMillis() + 15_000
+        while (!current.isDestroyed) {
+            if (System.currentTimeMillis() >= deadline) throw IOException("The Windows session did not finish closing; installation files remain locked.")
+            delay(100)
+        }
         activity.clear()
+        ownsSession = false
     }
 
     private fun execute(name: String) {
