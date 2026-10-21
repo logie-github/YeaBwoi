@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.logie.warcraft.tww.TwwServer
+import com.logie.warcraft.tww.TwwJobs
 import com.logie.warcraft.tww.core.TwwInstall
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.*
@@ -42,8 +43,8 @@ class TwwReportEffectTest {
     }
 
     @Test fun startingAJobCancelsTheOldScanAndCompletionReadsFreshFiles() {
-        val busy = mutableStateOf(false)
-        val version = mutableStateOf(0)
+        // Production derives both keys from one atomic StateFlow value.
+        val job = mutableStateOf<TwwJobs.State>(TwwJobs.State.Idle)
         val firstRead = CompletableDeferred<TwwInstall.Report>()
         val errors = mutableListOf<Exception>()
         val reports = mutableListOf<TwwInstall.Report>()
@@ -52,17 +53,19 @@ class TwwReportEffectTest {
         try {
             val fresh = TwwInstall.inspect(File(root, "client"), File(root, "server"))
             compose.setContent {
-                TwwReportEffect(busy.value, version.value, 0, TwwServer.Phase.STOPPED,
+                val current = job.value
+                val busy = current is TwwJobs.State.Working
+                TwwReportEffect(busy, if (busy) null else current, 0, TwwServer.Phase.STOPPED,
                     read = { count++; if (count == 1) firstRead.await() else fresh },
                     onReport = reports::add, onError = errors::add)
             }
             compose.waitUntil { count == 1 }
-            compose.runOnIdle { busy.value = true }
+            compose.runOnIdle { job.value = TwwJobs.State.Working(TwwJobs.Kind.VERIFY) }
             compose.waitForIdle()
             assertTrue(errors.isEmpty())
             assertTrue(reports.isEmpty())
-            compose.runOnIdle { busy.value = false; version.value++ }
-            compose.waitUntil { reports.size == 1 }
+            compose.runOnIdle { job.value = TwwJobs.State.Done(TwwJobs.Kind.VERIFY, "Checked") }
+            compose.waitUntil(timeoutMillis = 5000) { reports.isNotEmpty() }
             assertSame(fresh, reports.single())
             assertEquals(2, count)
             assertTrue(errors.isEmpty())
