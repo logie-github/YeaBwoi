@@ -42,7 +42,10 @@ rows and texture paths, including Alternative HD's, rather than overwriting them
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5
     hasn't).
 - **Voices**: today's (VocalUISounds: the words at the UI's moments; EmotesTextSound: the
-  emotes 3.3.5 has), as MP3s.
+  emotes 3.3.5 has), as MP3s. Vocal UI rows use IDs 9200–9301, separate from
+  Skyborne's 9000–9107, so both patches retain their spoken errors, including inventory full.
+  The two legacy drinking/invalid-target aliases are included for 3.3.5. Voice conversion
+  failures stop packaging instead of silently omitting clips.
 - **Names**: today's name generator's.
 - **Languages**: Void Elves learn Common and Nightborne learn Orcish. Missing faction languages on
   existing characters are restored when they log in; creating a replacement character is unnecessary.
@@ -164,6 +167,10 @@ rows and texture paths, including Alternative HD's, rather than overwriting them
   validator fail these regressions.
 - `../mod-skyborne/tools/test_table_moves.cpp`: both race modules preserve HD NPCs when row IDs
   differ from the vanilla tables, move the installed textures with their race, and keep HD displays.
+- `tools/test_voice_tables.cpp`: applies the real allied and Skyborne voice-table changes in
+  runtime order and checks every race/sex vocal mapping, including inventory full, after merging.
+- `tools/test_voices.py`: decodes generated MP3 audio and checks that failed conversions and
+  corrupt cached clips cannot produce a supposedly complete voice package.
 - `tools/test_intro.cpp`: builds a small client fixture with the real generated intro tables and
   MP3s, then follows each race's cinematic links through the resulting MPQ and compares its audio
   bytes with the source. Also checks that a second start reuses the patch. CI runs it.

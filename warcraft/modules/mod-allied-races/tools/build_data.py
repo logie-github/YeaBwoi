@@ -67,12 +67,14 @@ ID_SECTIONS_END = 969999
 ID_OUTFIT = 9100
 ID_HAIRGEO = 9100
 ID_NAMEGEN = 91000
-ID_VOCAL = 9100
+ID_VOCAL = 9200                 # Skyborne uses 9000..9107 in this shared client table
 ID_EMOTESOUND = 91000
 ID_SEQUENCE = {VOIDELF: 9011, NIGHTBORNE: 9012}
 ID_CAMERA = {VOIDELF: 9011, NIGHTBORNE: 9012}
 ID_NARRATION = {VOIDELF: 60001, NIGHTBORNE: 60002}  # unused legacy-range sound IDs
 ID_VOICE = 910100
+# 3.3.5 retains duplicate drinking/invalid-target events that retail no longer lists.
+VOCAL_ALIASES = {6: 47, 66: 11}
 ID_DISPLAY = {VOIDELF: (33001, 33002), NIGHTBORNE: (33003, 33004)}  # male, female looks
 ID_MODEL = {VOIDELF: (3601, 3602), NIGHTBORNE: (3603, 3604)}
 SPELLS = {"rift": 98711, "rift_open": 98712, "entropic": 98713, "entropic_buff": 98714, "chill": 98715, "calm": 98716,
@@ -362,7 +364,11 @@ def main():
             sid += 1
             return kit_sound[kit["id"]]
 
-        for v in RACES[KEY[race]]["voices"]["vocal"]:
+        vocal = list(RACES[KEY[race]]["voices"]["vocal"])
+        by_enum = {v["enum"]: v for v in vocal}
+        vocal += [dict(by_enum[target], enum=legacy) for legacy, target in VOCAL_ALIASES.items()
+                  if legacy not in by_enum and target in by_enum]
+        for v in vocal:
             ids = [sound_for(k, vocal_template, "Vocal") for k in v["kits"]]
             client.put("VocalUISounds", "iiiiiii", [vid, v["enum"], race, ids[0], ids[1], 0, 0])
             vid += 1
