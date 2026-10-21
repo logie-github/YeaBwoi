@@ -249,7 +249,10 @@ object TwwInstall {
 
     private fun detect(root: File, files: List<File>): DetectedServer? {
         val exes = files.filter { it.extension.equals("exe", true) }
-        val dbs = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("mysqld", "mariadbd") }
+        // UniController discovers its database as mysqld_<name>.exe (normally mysqld_z.exe).
+        // Match actual PE files and still reject multiple candidates.
+        val dbs = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("mysqld", "mariadbd") ||
+            Regex("(?i)mysqld_[a-z0-9_]+\\.exe").matches(it.name) }
         val auths = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("bnetserver", "authserver", "realmd", "loginserver") }
         val worlds = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("worldserver", "mangosd", "arcemu-world") }
         if (dbs.isEmpty() && auths.isEmpty() && worlds.isEmpty()) return null
@@ -268,7 +271,15 @@ object TwwInstall {
         val worldConf = one(configs.filter { readText(it).contains(Regex("(?im)^\\s*WorldDatabaseInfo\\s*=")) }, "world configuration")
         val authConf = one(configs.filter { file -> file != worldConf &&
             (file.nameWithoutExtension.equals(auth?.nameWithoutExtension, true) || readText(file).contains(Regex("(?im)^\\s*(BattlenetPort|RealmServerPort)\\s*="))) }, "authentication configuration")
-        val dbConf = one(configs.filter { file -> file.extension.lowercase(Locale.ROOT) in setOf("ini", "cnf") && readText(file).contains(Regex("(?im)^\\s*\\[mysqld\\]")) }, "database configuration")
+        val databaseConfigs = configs.filter { file -> file.extension.lowercase(Locale.ROOT) in setOf("ini", "cnf") && readText(file).contains(Regex("(?im)^\\s*\\[mysqld\\]")) }
+        val databaseHome = db?.parentFile?.let { if (it.name.equals("bin", true)) it.parentFile else it }
+        val primaryConfigs = databaseConfigs.filter { file ->
+            file.name.lowercase(Locale.ROOT) in setOf("my.ini", "my.cnf") &&
+                (file.parentFile.canonicalFile == databaseHome?.canonicalFile || file.parentFile.canonicalFile == db?.parentFile?.canonicalFile)
+        }
+        // Uniform Server also ships my_skip_grant.ini. It is a recovery configuration and
+        // must not displace the normal my.ini alongside the discovered database installation.
+        val dbConf = one(primaryConfigs.ifEmpty { databaseConfigs }, "database configuration")
         val scripts = files.filter { it.extension.lowercase(Locale.ROOT) in setOf("bat", "cmd", "sh") && it.length() < MAX_TEXT }
         val executables = mapOf(Role.DATABASE to db, Role.AUTHENTICATION to auth, Role.WORLD to world)
         val commands = mutableMapOf<Role, StartupCommand>()

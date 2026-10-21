@@ -131,6 +131,18 @@ class TwwInstallTest {
         assertTrue(detected.issues.any { "Ambiguous world executable" in it })
     }
 
+    @Test fun uniformServerRenamedDaemonUsesNormalConfigurationAlongsideRecoveryFiles() = temporary { root ->
+        val server = File(root, "server"); completeServer(server)
+        val original = File(server, "MySQL/bin/mysqld.exe")
+        assertTrue(original.renameTo(File(original.parentFile, "mysqld_z.exe")))
+        file(server, "MySQL/my_skip_grant.ini", "[mysqld]\nskip-grant-tables\n")
+        val detected = assertNotNull(TwwInstall.inspect(File(root, "client"), server).detected)
+        assertEquals("mysqld_z.exe", detected.databaseExecutable?.name)
+        assertEquals("my.ini", detected.databaseConfig?.name)
+        assertTrue(detected.commands[TwwInstall.Role.DATABASE]?.arguments?.single()?.endsWith("my.ini") == true)
+        assertTrue(detected.issues.none { "Ambiguous database" in it })
+    }
+
     @Test fun scriptWorkingDirectoryArgumentsAndWindowsCaseArePreserved() = temporary { root ->
         exe(root, "Core/Worldserver.exe")
         file(root, "Core/worldserver.conf", "WorldDatabaseInfo = \"127.0.0.1;3306;user;password;world\"\nDataDir=\".\"\n")
