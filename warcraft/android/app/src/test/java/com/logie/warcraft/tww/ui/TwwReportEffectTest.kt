@@ -6,6 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import com.logie.warcraft.tww.TwwServer
@@ -30,6 +31,7 @@ class TwwReportEffectTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     private fun frame() {
+        compose.runOnUiThread { Snapshot.sendApplyNotifications() }
         compose.mainClock.advanceTimeBy(100)
         compose.waitForIdle()
     }
@@ -54,7 +56,7 @@ class TwwReportEffectTest {
         }
         frame()
         compose.waitUntil { entered.isCompleted }
-        compose.runOnIdle { visible.value = false }
+        compose.runOnUiThread { Snapshot.withMutableSnapshot { visible.value = false } }
         frame()
         compose.onNodeWithText("Away").assertExists()
         compose.waitUntil { stopped.isCompleted }
@@ -89,13 +91,13 @@ class TwwReportEffectTest {
             }
             frame()
             compose.waitUntil { count.get() == 1 }
-            compose.runOnIdle { job.value = TwwJobs.State.Working(TwwJobs.Kind.VERIFY) }
+            compose.runOnUiThread { Snapshot.withMutableSnapshot { job.value = TwwJobs.State.Working(TwwJobs.Kind.VERIFY) } }
             frame()
             compose.onNodeWithText("Working").assertExists()
             compose.waitUntil { stopped.isCompleted }
             assertTrue(errors.isEmpty())
             assertTrue(reports.isEmpty())
-            compose.runOnIdle { job.value = TwwJobs.State.Done(TwwJobs.Kind.VERIFY, "Checked") }
+            compose.runOnUiThread { Snapshot.withMutableSnapshot { job.value = TwwJobs.State.Done(TwwJobs.Kind.VERIFY, "Checked") } }
             frame()
             compose.onNodeWithText("Done").assertExists()
             assertEquals("reads=${count.get()}, errors=$errors", 1, reports.size)

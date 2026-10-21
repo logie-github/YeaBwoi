@@ -548,9 +548,6 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;36.0.0" \
             "ndk;24.0.8215888" "cmake;3.22.1" > /dev/null
 
-      - name: Build TWW archive extractor
-        run: scripts/build-tww-7zip.sh
-
       - name: Choose signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.DOLPHINXD_KEYSTORE_BASE64 }}
@@ -567,6 +564,9 @@ jobs:
       - name: Android background and cancellation regression tests
         working-directory: warcraft/android
         run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
+
+      - name: Build TWW archive extractor
+        run: scripts/build-tww-7zip.sh
 
       - name: Build release APK
         working-directory: warcraft/android

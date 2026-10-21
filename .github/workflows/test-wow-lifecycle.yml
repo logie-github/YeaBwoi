@@ -1,0 +1,29 @@
+name: Check WoW Android lifecycle
+on:
+  push:
+    paths:
+      - '.github/workflows/test-wow-lifecycle.yml'
+      - 'warcraft/android/app/src/test/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore runtime sources for Android tests
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/winlator
+          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+          fail-on-cache-miss: true
+      - name: Run Android lifecycle regression tests
+        working-directory: warcraft/android
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
