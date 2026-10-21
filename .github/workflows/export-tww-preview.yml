@@ -51,10 +51,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           for attempt in $(seq 1 35); do
-            if gh release view wow-build-209 --repo "$GH_REPO" >/dev/null 2>&1; then break; fi
+            if gh release download wow-build-209 --repo "$GH_REPO" --pattern '*.apk' --dir /tmp/tww-apk --clobber; then break; fi
             sleep 15
           done
-          gh release download wow-build-209 --repo "$GH_REPO" --pattern '*.apk' --dir /tmp/tww-apk
           python - <<'PY'
           import pathlib,zipfile,hashlib
           apk=next(pathlib.Path("/tmp/tww-apk").glob("*.apk"))
