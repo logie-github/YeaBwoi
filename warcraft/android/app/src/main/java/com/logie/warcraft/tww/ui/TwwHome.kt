@@ -270,17 +270,18 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
 @Composable
 private fun TwwHeader(width: Dp, height: Dp, onSwitch: () -> Unit) {
     val headerHeight = minOf((width * .62f).coerceIn(240.dp, 440.dp), height * .55f)
-    val emblem = minOf(width * .36f, 170.dp)
+    val logoWidth = minOf(width * .76f, headerHeight * 1.15f, 360.dp)
+    val logoHeight = logoWidth * (721f / 900f)
     val motion = rememberInfiniteTransition(label = "tww-header")
     val drift by motion.animateFloat(1f, 1.06f, infiniteRepeatable(tween(32000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
     val music by TitleMusic.on.collectAsState()
     val context = LocalContext.current
-    Box(Modifier.fillMaxWidth().padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()).height(headerHeight + emblem * .45f)) {
+    Box(Modifier.fillMaxWidth().padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()).height(headerHeight + logoHeight * .44f)) {
         Box(Modifier.fillMaxWidth().height(headerHeight).clipToBounds()) {
             Image(painterResource(R.drawable.tww_header), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = drift; scaleY = drift })
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(.35f to Color.Transparent, 1f to TwwColors.Night)))
         }
-        Image(painterResource(R.drawable.tww_logo), null, modifier = Modifier.align(Alignment.TopCenter).offset(y = headerHeight - emblem * .58f).size(emblem))
+        Image(painterResource(R.drawable.tww_logo), null, modifier = Modifier.align(Alignment.TopCenter).offset(y = headerHeight - logoHeight * .58f).width(logoWidth).height(logoHeight))
         Row(Modifier.align(Alignment.TopStart).padding(10.dp).clip(CircleShape).background(TwwColors.Night.copy(alpha = .7f)).clickable(onClick = onSwitch).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.SwapHoriz, null, tint = TwwColors.Gold, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.games_chip), style = WowDisplayStyle.copy(fontSize = 13.sp))
