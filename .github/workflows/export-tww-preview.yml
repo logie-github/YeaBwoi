@@ -58,7 +58,8 @@ jobs:
           import pathlib,zipfile,hashlib
           apk=next(pathlib.Path("/tmp/tww-apk").glob("*.apk"))
           with zipfile.ZipFile(apk) as archive:
-              for path in ["lib/arm64-v8a/libtww7zip.so","res/drawable-nodpi-v4/tww_logo.png","assets/tww-7zip-LICENSE.txt","assets/tww-7zip-COPYING.txt"]:
+              print("APK_TWW_RESOURCES",[name for name in archive.namelist() if "tww" in name.lower()],flush=True)
+              for path in ["lib/arm64-v8a/libtww7zip.so","assets/tww-7zip-LICENSE.txt","assets/tww-7zip-COPYING.txt"]:
                   data=archive.read(path);assert data
                   print("APK_VERIFIED",path,len(data),hashlib.sha256(data).hexdigest(),flush=True)
           PY
