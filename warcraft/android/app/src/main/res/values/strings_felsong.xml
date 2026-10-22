@@ -4,8 +4,8 @@
     <string name="games_title">Games</string>
     <string name="games_chip">Games</string>
     <string name="games_tile">Other games</string>
-    <string name="games_tile_wrath_summary">Turtle WoW and Felsong, each a game of its own</string>
-    <string name="games_tile_turtle_summary">Wrath of the Lich King and Felsong</string>
+    <string name="games_tile_wrath_summary">Turtle WoW, Legion and The War Within</string>
+    <string name="games_tile_turtle_summary">Wrath of the Lich King, Legion and The War Within</string>
     <string name="wrath_name">Wrath of the Lich King</string>
     <string name="wrath_name_summary">The 3.3.5a game and its ChromieCraft realm</string>
     <string name="felsong_name">Legion — 7.3.5</string>
