@@ -34,6 +34,7 @@ object WindowsRealmGame {
                 .putExtra("exec_path", cmd.path)
                 .putExtra("exec_args", "/d /k title " + name)
                 .putExtra(sessionExtra, true)
+                .putExtra("local_server_session", true)
                 .putExtra("gestures", gesturesEnvironment != null)
                 .putExtra(com.logie.warcraft.game.GestureView.EXTRA_ENVIRONMENT, gesturesEnvironment))
         }

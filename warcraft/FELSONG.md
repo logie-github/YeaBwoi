@@ -1,5 +1,9 @@
 # Felsong — Legion 7.3.5: the brief
 
+**Superseded on 2026-10-22:** the user replaced this plan with Single Player Project
+AshamaneCore. The existing launcher slot now uses the integrated [SPP implementation](SPP.md).
+The research below and old Felsong installation files are retained for reference.
+
 The app's third game: Felsong (World of Warcraft: Legion 7.3.5) against its own local realm, kept
 completely apart from the 3.3.5a game (ChromieCraft) and Turtle WoW, as Turtle is (`TURTLE.md`).
 **Status: research done; Felsong's launcher is in the app with its look and music, and says it

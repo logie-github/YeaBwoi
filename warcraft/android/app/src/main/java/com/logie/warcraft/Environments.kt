@@ -13,8 +13,8 @@ import kotlinx.coroutines.flow.StateFlow
  *   as the app has always been: `files/server`, `files/client`, `files/mysql`...
  * - [Environment.TURTLE]: Turtle WoW (1.18.1, "Vanilla+") with its Tortoise-WoW realm, all of it in
  *   `files/turtle` (com.logie.warcraft.turtle).
- * - [Environment.FELSONG]: Felsong (Legion 7.3.5), com.logie.warcraft.felsong: its look and a page
- *   that says where it stands; its realm (LegionCore) isn't on the phone yet (FELSONG.md).
+ * - [Environment.FELSONG]: Legion 7.3.5, Single Player Project AshamaneCore. The legacy selection
+ *   key is retained while its integrated installer and realm use files/spp-legion (SPP.md).
  * - [Environment.TWW]: The War Within — 11.2.5, a downloaded/imported Draconic server and build
  *   63704 client, managed in its own `tww` directory and Windows runtime container.
  *
