@@ -67,59 +67,10 @@ object TwwGame {
     /** A launch request is queued in the existing Windows session, after real server readiness. */
     fun play(context: Context) = TwwServer.launchGame(context)
 
-    /** Called by TwwServer; callers must already have validated a local startup profile. */
-    internal suspend fun openSession(context: Context) {
-        val app = context.applicationContext
-        val installed = withContext(Dispatchers.IO) { RootFSInstaller.installIfNeeded(app) { } }
-        if (!installed) throw IOException("The Windows runtime could not be installed.")
-        val container = container(app)
-        val cmd = File(container.rootDir, ".wine/drive_c/windows/system32/cmd.exe")
-        if (!cmd.isFile) throw IOException("The realm's Windows container has no cmd.exe; repair the Windows runtime.")
-        withContext(Dispatchers.Main) {
-            app.startActivity(Intent(app, XServerDisplayActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .putExtra("container_id", container.id)
-                .putExtra("exec_path", cmd.path)
-                .putExtra("exec_args", "/d /k title The War Within 11.2.5 local server")
-                .putExtra(SESSION_EXTRA, true))
-        }
-    }
+    internal suspend fun openSession(context: Context) = com.logie.warcraft.local.WindowsRealmGame.openSession(
+        context, CONTAINER_NAME, SESSION_EXTRA, com.logie.warcraft.local.LocalInstallation(TwwFiles.layout(context).root))
 
-    internal fun showSession(context: Context) {
-        TitleMusic.stopForGame()
-        context.startActivity(Intent(context, XServerDisplayActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            .putExtra(SESSION_EXTRA, true))
-    }
-
-    private suspend fun container(context: Context): Container {
-        val manager = ContainerManager(context)
-        val layout = TwwFiles.layout(context)
-        val drives = "D:${layout.client.path}S:${layout.server.path}R:${layout.root.path}M:${layout.maps.path}"
-        val size = GameSettings.gameSize(context).let { "${it.first}x${it.second}" }
-        val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
-        if (existing != null) {
-            existing.setScreenSize(size)
-            existing.setDrives(drives)
-            withContext(Dispatchers.IO) { existing.saveData() }
-            return existing
-        }
-        val defaults = Container(0)
-        val data = JSONObject()
-            .put("name", CONTAINER_NAME).put("screenSize", size).put("drives", drives)
-            .put("envVars", defaults.getEnvVars()).put("graphicsDriver", defaults.getGraphicsDriver())
-            .put("dxwrapper", defaults.getDXWrapper()).put("audioDriver", defaults.getAudioDriver())
-            .put("wincomponents", defaults.getWinComponents()).put("hudMode", defaults.getHUDMode().toInt())
-            .put("startupSelection", defaults.getStartupSelection().toInt()).put("box64Preset", defaults.getBox64Preset())
-            .put("desktopTheme", defaults.getDesktopTheme())
-        return withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine<Container?> { continuation ->
-                manager.createContainerAsync(data) { created ->
-                    if (continuation.isActive) continuation.resume(created)
-                }
-            }
-        } ?: throw IOException("The realm's Windows container could not be created.")
-    }
+    internal fun showSession(context: Context) = com.logie.warcraft.local.WindowsRealmGame.showSession(context, SESSION_EXTRA)
 
     internal fun backup(file: File) {
         if (file.isFile) {

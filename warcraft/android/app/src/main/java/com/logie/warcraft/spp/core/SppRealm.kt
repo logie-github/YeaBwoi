@@ -26,6 +26,8 @@ object SppRealm {
         streamingExecutableHashes = setOf(STREAMING_EXE_SHA256, CLIENT_EXE_SHA256),
         executableNames = setOf(CLIENT_EXE.lowercase()),
         db2Prefixes = listOf("WDB", "WDC"),
+        authenticationSha256 = "8bb9eea52f8f7421b75f9fd92311bea74ef3f6d001a1986dd0cfee96449675c3",
+        worldSha256 = "d54437a169b9bc00d56e809ace78629e78cbf2fdb7008c5feca9374df25b7cf5",
         serverLayout = LocalServerLayout(
             authenticationExecutable = "Server/bin64/bnetserver.exe",
             worldExecutable = "Server/bin64/worldserver.exe",

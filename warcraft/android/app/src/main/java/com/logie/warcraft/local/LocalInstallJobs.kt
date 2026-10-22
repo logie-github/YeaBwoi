@@ -132,7 +132,7 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
                 realm.configureClient(context)
                 val report = realm.report(context)
                 if (!report.canStartServer) throw IOException((report.blockers + report.client.missing + report.core.missing + report.database.missing + report.maps.missing).distinct().joinToString("\n").ifBlank { "Installation needs attention. Open Game Files to review it." })
-                mutableState.value = State.Done(kind, "Installation complete. Start the local server to verify its database build and launch the game.")
+                mutableState.value = State.Done(kind, "Installation complete. Start the local server to check its startup and launch the game.")
             } else {
                 installComponent(context, kind, uri, folder)
             }

@@ -3,6 +3,7 @@
 package com.logie.warcraft.tww.core
 
 import com.logie.warcraft.client.ClientBuild
+import com.logie.warcraft.config.ConfFile
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -66,6 +67,7 @@ object TwwInstall {
         val blockers: List<String>,
         val localConnectionConfigured: Boolean = false,
         val streamingClient: Boolean = false,
+        val localServerConfigured: Boolean = false,
     ) {
         /** May start the database to ask build_info; no other unknown requirements are waived. */
         val canBootstrap: Boolean get() = detected?.let { server ->
@@ -76,7 +78,7 @@ object TwwInstall {
                     server.documentedBuild == null && server.issues == listOf(server.pendingBuildCheck))
         } == true
 
-        val canStartServer: Boolean get() = canBootstrap && client.status == Status.INSTALLED && localConnectionConfigured
+        val canStartServer: Boolean get() = canBootstrap && client.status == Status.INSTALLED && localConnectionConfigured && localServerConfigured
 
         val ready: Boolean get() = blockers.isEmpty() &&
             listOf(client, core, database, maps).all { it.status == Status.INSTALLED }
@@ -207,15 +209,23 @@ object TwwInstall {
         val localPortal = clientFiles.filter { it.name.equals("Config.wtf", true) }.any {
             Regex("(?im)^\\s*SET\\s+portal\\s+\"127\\.0\\.0\\.1(?::\\d+)?\"\\s*$").containsMatchIn(readText(it))
         }
+        val localDatabasePort = detected?.databaseProfile?.port
+        val localConfigs = listOfNotNull(detected?.worldConfig, detected?.authenticationConfig).map { ConfFile(readText(it)) }
+        val serverLocal = localDatabasePort != null && localConfigs.size == 2 &&
+            TwwDatabase.ini(detected?.databaseConfig, "mysqld", "bind-address") == TwwRealm.ADDRESS &&
+            localConfigs.all { config -> config["BindIP"] == TwwRealm.ADDRESS &&
+                listOf("LoginDatabaseInfo", "WorldDatabaseInfo", "CharacterDatabaseInfo", "HotfixDatabaseInfo").mapNotNull { config[it] }
+                    .all { connection -> connection.split(';').let { it.size == 5 && it[0] == TwwRealm.ADDRESS && it[1].toIntOrNull() == localDatabasePort } } }
         val blockers = buildList {
             if (clientStatus != Status.INSTALLED) add("Game Client: ${if (missingClient.isNotEmpty()) missingClient.joinToString() else clientProblems.joinToString()}")
             if (coreStatus != Status.INSTALLED) add("Server Core: ${(missingCore + (detected?.issues ?: emptyList())).joinToString().ifEmpty { "Expected server build is unverified" }}")
             if (db.status != Status.INSTALLED) add("Server Database: ${missingDb.joinToString()}")
             if (mapsComponent.status != Status.INSTALLED) add("Map Files: ${(missingMaps + mapsComponent.details).joinToString()}")
             if (!localPortal) add("Local connection is not configured: set the imported client's portal to 127.0.0.1 after reviewing its Firestorm modifications. No executable has been modified.")
+            if (detected != null && !serverLocal) add("Server localhost configuration is incomplete. Finish setup before starting the realm.")
         }
         return Report(Component(clientStatus, missingClient, clientProblems), Component(coreStatus, missingCore, detected?.issues ?: emptyList()), db,
-            mapsComponent, executable, build, firestorm, detected, blockers, localPortal, streaming)
+            mapsComponent, executable, build, firestorm, detected, blockers, localPortal, streaming, serverLocal)
     }
 
     /** Keeps the CASC Data folder and .build.info beside _retail_ when that is their layout. */
@@ -335,7 +345,10 @@ object TwwInstall {
         if (evidence.size > 1) issues += "The repack documents conflicting client builds: ${evidence.sorted().joinToString()}"
         val proof = evidence.none { it != spec.build } &&
             auth != null && world != null && runtimeProof(root, auth, world, spec)
-        val build = documentedBuild ?: spec.build.takeIf { proof }
+        val pinned = spec.hasPinnedCore && auth != null && world != null &&
+            sha256(auth) == spec.authenticationSha256 && sha256(world) == spec.worldSha256
+        if (spec.hasPinnedCore && !pinned) issues += "Server executable checksums differ from the inspected build ${spec.build} release. Install the supported repack; no compatibility is assumed for a different core."
+        val build = documentedBuild ?: spec.build.takeIf { proof || pinned }
         if (build == null) issues += spec.pendingBuildCheck
         if (build != null && build != spec.build) issues += "Repack documents client build $build; expected ${spec.build}"
         val dataPath = worldConf?.let { conf -> Regex("(?im)^\\s*DataDir\\s*=\\s*(\"[^\"]*\"|[^\\r\\n#]+)").find(readText(conf))?.groupValues?.get(1)?.trim()?.removeSurrounding("\"") }
@@ -349,7 +362,7 @@ object TwwInstall {
         val proof = File(root, spec.proofFile)
         if (!proof.isFile || proof.length() > 4096) return@runCatching false
         val properties = Properties().apply { proof.inputStream().use { load(it) } }
-        properties.getProperty("source") == "authentication-database-build_info" &&
+        properties.getProperty("source") == spec.proofSource &&
             properties.getProperty("build") == spec.build.toString() &&
             properties.getProperty("authenticationSha256") == sha256(auth) &&
             properties.getProperty("worldSha256") == sha256(world)
