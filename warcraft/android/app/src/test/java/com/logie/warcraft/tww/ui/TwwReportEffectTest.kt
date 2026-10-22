@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package com.logie.warcraft.tww.ui
 
+import com.logie.warcraft.local.LocalInstallJobs
+
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
@@ -68,7 +70,7 @@ class TwwReportEffectTest {
 
     @Test fun startingAJobCancelsTheOldScanAndCompletionReadsFreshFiles() {
         compose.mainClock.autoAdvance = false
-        val job = mutableStateOf<TwwJobs.State>(TwwJobs.State.Idle)
+        val job = mutableStateOf<LocalInstallJobs.State>(LocalInstallJobs.State.Idle)
         val firstRead = CompletableDeferred<TwwInstall.Report>()
         val stopped = CompletableDeferred<Unit>()
         val errors = ConcurrentLinkedQueue<Exception>()
@@ -79,7 +81,7 @@ class TwwReportEffectTest {
             val fresh = TwwInstall.inspect(File(root, "client"), File(root, "server"))
             compose.setContent {
                 val current = job.value
-                val busy = current is TwwJobs.State.Working
+                val busy = current is LocalInstallJobs.State.Working
                 Column {
                     Text(current.javaClass.simpleName)
                     TwwReportEffect(busy, if (busy) null else current, 0, WindowsRealmServer.Phase.STOPPED,
@@ -92,13 +94,13 @@ class TwwReportEffectTest {
             }
             frame()
             compose.waitUntil { count.get() == 1 }
-            compose.runOnUiThread { Snapshot.withMutableSnapshot { job.value = TwwJobs.State.Working(TwwJobs.Kind.VERIFY) } }
+            compose.runOnUiThread { Snapshot.withMutableSnapshot { job.value = LocalInstallJobs.State.Working(LocalInstallJobs.Kind.VERIFY) } }
             frame()
             compose.onNodeWithText("Working").assertExists()
             compose.waitUntil { stopped.isCompleted }
             assertTrue(errors.isEmpty())
             assertTrue(reports.isEmpty())
-            compose.runOnUiThread { Snapshot.withMutableSnapshot { job.value = TwwJobs.State.Done(TwwJobs.Kind.VERIFY, "Checked") } }
+            compose.runOnUiThread { Snapshot.withMutableSnapshot { job.value = LocalInstallJobs.State.Done(LocalInstallJobs.Kind.VERIFY, "Checked") } }
             frame()
             compose.onNodeWithText("Done").assertExists()
             assertEquals("reads=${count.get()}, errors=$errors", 1, reports.size)

@@ -92,20 +92,27 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
         ready(db, 3312, db_log)
         emit("DATABASE_READY", True)
         tables = sql("SHOW TABLES;").splitlines()
-        for table in ("account", "battlenet_accounts", "account_access", "build_info", "realmlist"):
+        emit("AUTH_TABLES", tables)
+        for table in ("account", "battlenet_accounts", "account_access", "build_info", "battlenet_components", "realmlist"):
             if table in tables:
                 emit("SCHEMA", {"table": table, "columns": sql("SHOW COLUMNS FROM `" + table + "`;").splitlines()})
-        builds = sql("SELECT build FROM build_info ORDER BY build;")
-        emit("SUPPORTED_BUILDS", builds.splitlines())
-        if "26972" not in builds.splitlines():
-            raise RuntimeError("The actual authentication database does not support build 26972")
-        sql("UPDATE realmlist SET address='127.0.0.1',localAddress='127.0.0.1',port=8095,gamebuild=26972 WHERE id=1;")
         for executable in ("bnetserver.exe", "worldserver.exe"):
             result = subprocess.run([str(bin_dir / executable), "--help"], cwd=realm, env=environment,
                                     capture_output=True, text=True, timeout=30)
             emit("CLI", {"executable": executable, "code": result.returncode, "help": result.stdout[-4000:], "error": result.stderr[-1500:]})
             if result.returncode:
                 raise RuntimeError("The repack executable cannot run: " + executable)
+        if "build_info" in tables:
+            builds = sql("SELECT build FROM build_info ORDER BY build;")
+        elif "battlenet_components" in tables:
+            emit("BATTLENET_COMPONENTS", sql("SELECT * FROM battlenet_components;").splitlines())
+            builds = sql("SELECT Build FROM battlenet_components WHERE Program='WoW' ORDER BY Build;")
+        else:
+            raise RuntimeError("No supported-build source was found in the authentication database")
+        emit("SUPPORTED_BUILDS", builds.splitlines())
+        if "26972" not in builds.splitlines():
+            raise RuntimeError("The actual authentication database does not support build 26972")
+        sql("UPDATE realmlist SET address='127.0.0.1',localAddress='127.0.0.1',port=8095,gamebuild=26972 WHERE id=1;")
         login_config = config(realm / "Settings/login.conf")
         world_config = config(realm / "Settings/world.conf", True)
         login, login_log = launch(bin_dir / "bnetserver.exe", ["-c", str(login_config)], realm, "authentication")
