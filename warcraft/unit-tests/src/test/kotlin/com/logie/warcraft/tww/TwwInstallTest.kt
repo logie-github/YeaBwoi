@@ -4,6 +4,7 @@ package com.logie.warcraft.tww
 
 import com.logie.warcraft.tww.core.TwwInstall
 import com.logie.warcraft.tww.core.TwwRealm
+import com.logie.warcraft.tww.core.LocalRealmSpec
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -83,6 +84,28 @@ class TwwInstallTest {
     @Test fun metadataUsesExactExpansionFirstName() {
         assertEquals("The War Within — 11.2.5", TwwRealm.DISPLAY_NAME)
         assertEquals(63704, TwwRealm.CLIENT_BUILD)
+    }
+
+    @Test fun localRealmVersionAndLegacyDb2PolicyDoNotChangeWarWithinValidation() = temporary { root ->
+        val client = File(root, "client"); client(client, 26972)
+        val executable = File(client, "_retail_/Wow.exe")
+        val bytes = executable.readBytes()
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(136, (7 shl 16) or 3)
+        executable.writeBytes(bytes)
+        file(client, ".build.info", "Active!DEC:1|Version!STRING:0\n1|7.3.5.26972\n")
+        val server = File(root, "server"); completeServer(server)
+        file(server, "Data/dbc/Spell.db2", "WDB5data")
+        val before = TwwInstall.inspect(client, server)
+        assertEquals(TwwInstall.Status.INCOMPATIBLE, before.client.status)
+        assertEquals(TwwInstall.Status.INCOMPLETE, before.maps.status)
+        val spec = LocalRealmSpec(7, 3, 5, 26972, db2Prefixes = listOf("WDB", "WDC"))
+        val legion = TwwInstall.inspect(client, server, spec = spec)
+        assertEquals(TwwInstall.Status.INSTALLED, legion.client.status)
+        assertEquals(TwwInstall.Status.INSTALLED, legion.maps.status)
+        assertEquals(listOf(spec.pendingBuildCheck), legion.detected?.issues)
+        assertTrue(legion.canBootstrap)
+        assertFalse(legion.ready)
+        assertEquals(before.client.status, TwwInstall.inspect(client, server).client.status)
     }
 
     @Test fun executableMismatchCannotBeHiddenByLauncherRecord() = temporary { root ->

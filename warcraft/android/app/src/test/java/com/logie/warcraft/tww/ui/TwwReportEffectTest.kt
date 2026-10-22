@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import com.logie.warcraft.local.WindowsRealmServer
 import com.logie.warcraft.tww.TwwServer
 import com.logie.warcraft.tww.TwwJobs
 import com.logie.warcraft.tww.core.TwwInstall
@@ -47,7 +48,7 @@ class TwwReportEffectTest {
         compose.setContent {
             Column {
                 Text(if (visible.value) "Visible" else "Away")
-                if (visible.value) TwwReportEffect(false, 0, 0, TwwServer.Phase.STOPPED,
+                if (visible.value) TwwReportEffect(false, 0, 0, WindowsRealmServer.Phase.STOPPED,
                     read = {
                         entered.complete(Unit)
                         try { read.await() } finally { stopped.complete(Unit) }
@@ -81,7 +82,7 @@ class TwwReportEffectTest {
                 val busy = current is TwwJobs.State.Working
                 Column {
                     Text(current.javaClass.simpleName)
-                    TwwReportEffect(busy, if (busy) null else current, 0, TwwServer.Phase.STOPPED,
+                    TwwReportEffect(busy, if (busy) null else current, 0, WindowsRealmServer.Phase.STOPPED,
                         read = {
                             if (count.incrementAndGet() == 1) {
                                 try { firstRead.await() } finally { stopped.complete(Unit) }
@@ -111,7 +112,7 @@ class TwwReportEffectTest {
         val errors = ConcurrentLinkedQueue<Exception>()
         val failure = IOException("Selected storage is unavailable")
         compose.setContent {
-            TwwReportEffect(false, 0, 0, TwwServer.Phase.STOPPED,
+            TwwReportEffect(false, 0, 0, WindowsRealmServer.Phase.STOPPED,
                 read = { throw failure }, onReport = { fail("A failed read must not publish a report") }, onError = { errors.add(it) })
         }
         compose.waitUntil { errors.isNotEmpty() }

@@ -63,6 +63,11 @@ discovers client/core/database/maps and startup requirements from the actual ins
 progress, cancellation, receipts and transactional placement. `tww/ui/TwwHome.kt` uses the
 existing Compose windows, buttons, dialogs and typography.
 
+Downloaded Windows realms share `local/WindowsRealmServer` for process management and
+`WindowsRealmRegistry` for exclusive ownership of Winlator's shared active Wine home.
+The Draconic adapter retains its own metadata, installation storage, job state and container.
+Version/format policies in `LocalRealmSpec` keep Legion and The War Within validation separate.
+
 The existing native server controls run Linux ARM64 musl builds. Downloaded Windows x64 Draconic
 programs cannot be launched through those native `ctl.sh` scripts. The TWW runtime adapter uses
 the already embedded Wine/Box64 runtime and a dedicated container; the Winlator patch is scoped
