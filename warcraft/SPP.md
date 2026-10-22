@@ -26,16 +26,30 @@ The publisher's port 3310 will be isolated from ChromieCraft by using SPP port 3
 The server's maps and DB2 files are included in `Server/Data`, relative to the realm's working
 directory. The archive also includes solo-scaling settings and its patched client executable.
 
-The [streaming client](https://drive.google.com/file/d/1tCP3mJUqsDK1H4zug4bQZOUrAzAX30ud/view)
-was inspected separately: 1,124,676,989 bytes, SHA-256
-`c6f13b5696c90c0e5055acaa35db286cb339f7fc4733e74b41bea30ab7d0859f`;
-1,462,712,292 bytes expanded. It contains a partial CASC store, `cdns` and `versions` for 26972.
-Its `Wow-64.exe` reports 7.3.5.26972, SHA-256
-`7f86d310c9db965110c09d322322b6b4593c7dc250afa07278af7fdc0e1eb59a`.
-The repack's `Addons/Patched_Exe_26972/SPP_Wow-64.exe` also reports 7.3.5.26972, SHA-256
+The [publisher's full client](http://ashamanecore.com/dicpics/LegionClient.zip) was inspected
+using validated HTTP byte ranges on 2026-10-22: **42,288,827,614 bytes**, 1,371 ZIP entries,
+42,925,693,337 bytes expanded, including 42,659,087,855 bytes of CASC files. The ZIP contains
+`Wow.exe` (7.3.5.26972), SHA-256
+`edb91d59e530644b76c7ad1a665203506d0b4b58415baa6a9fe67c38a3ebf33d`.
+Its `.build.info` declares 7.3.5.26972, Build Complete 1 and both Windows architectures;
+SHA-256 `978c542c90467db98335a8263a04c209e3b5881d37df6c2c5906a2fec2c68d5a`.
+The central directory, build metadata and executable were read, and those members' ZIP CRCs
+were validated. No full archive digest was supplied by the publisher; the downloader enforces
+its inspected length, calculates a transport SHA-256, and extraction checks all ZIP CRCs.
+These checks detect incomplete/damaged transfers, not publisher authenticity. The publisher
+serves HTTP only; Android permits cleartext for this specific download host.
+
+The previously listed 1.1 GB mini-client was also downloaded and inspected. Its
+`data-eu.hijosdeltiempo.com` and `data-us.hijosdeltiempo.com` CDN hosts no longer resolve;
+Blizzard no longer supplies that old build configuration at the tested endpoint either.
+It is therefore not offered by setup. SPP requires at least 40,000,000,000 bytes of CASC chunks,
+in addition to version/index checks, to reject the retired partial client. This size threshold
+is not a claim of complete asset coverage for arbitrary imports.
+
+The repack's `Addons/Patched_Exe_26972/SPP_Wow-64.exe` reports 7.3.5.26972, SHA-256
 `be484c9a3bd8e5de173e9a8e185a9b6636406d69a9122987f6f2c1d512b2bec5`.
-Older 26654 executables at the outer archive root are unsuitable and must never be selected.
-Streaming requires internet access; partial CASC presence does not establish an offline client.
+Setup installs that 64-bit local-play executable beside the full archive's 32-bit `Wow.exe`;
+the original remains untouched. Older 26654 executables at the outer repack root are unsuitable.
 
 No game, database or server binary is committed or included in the APK. Inspection and native
 runtime checks use disposable CI storage. Android Wine/Box64 client compatibility still requires
@@ -45,8 +59,8 @@ testing on the phone, independently from Windows server validation.
 
 The legacy `felsong` environment preference selects the new SPP launcher. All new files are
 under `files/spp-legion` (or the selected external app directory); existing `files/felsong`,
-Wrath, Turtle and TWW files are preserved. The normal Download & Install action uses pinned
-archive sizes and digests, validated resume, automatic extraction, staging and transactional
+Wrath, Turtle and TWW files are preserved. The normal Download & Install action uses inspected
+archive sizes and the repack digest, validated resume, automatic extraction, staging and transactional
 placement from `local/LocalInstallJobs`, shared with Draconic. SPP's server data is included;
 there is no separate map download. Optional folder/archive import follows the same verifier.
 
@@ -66,12 +80,12 @@ realm can own Winlator's active Wine home. Each realm has separate installation/
 downloads and active sessions retain the app's background protections. Startup returns the
 launcher to the foreground while Windows processes load, so server progress stays visible.
 
-The SPP client preparation copies the inspected `SPP_Wow-64.exe` beside `Wow-64.exe`, preserving
+The SPP client preparation copies the inspected `SPP_Wow-64.exe` beside the original client executable, preserving
 the latter and backing up an existing modified local-play copy. This is explained before setup.
 The managed-session window listener ignores server consoles before activating game login and
 touch controls. Client configuration keeps the portal on 127.0.0.1 and applies the app's existing
-graphics/touch conventions. Initial CASC chunks are mutable streaming storage; pinned archive
-validation checks their download, while receipts do not report ordinary CASC growth as damage.
+graphics/touch conventions. CASC chunks are mutable storage; length and ZIP CRC checks validate their initial transfer,
+while receipts do not report ordinary CASC changes as damage.
 
 Accounts use the real `realmd.battlenet_accounts` and `account` tables. Battle.net password hashing
 matches the publisher source's `BattlenetAccountMgr::CalculateShaPassHash`; a game account named

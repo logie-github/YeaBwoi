@@ -15,6 +15,7 @@ data class LocalRealmSpec(
     val buildTable: String = "build_info",
     val authenticationSha256: String? = null,
     val worldSha256: String? = null,
+    val minimumCascBytes: Long = 0,
 ) {
     val version: String get() = "$major.$minor.$patch"
     val hasPinnedCore: Boolean get() = authenticationSha256 != null && worldSha256 != null

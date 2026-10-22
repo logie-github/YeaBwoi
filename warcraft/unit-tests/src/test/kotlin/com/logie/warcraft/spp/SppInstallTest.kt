@@ -7,6 +7,7 @@ import com.logie.warcraft.tww.core.LocalGameWindow
 import com.logie.warcraft.tww.core.TwwInstall
 import com.logie.warcraft.tww.core.TwwSession
 import java.io.File
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Files
@@ -79,6 +80,7 @@ class SppInstallTest {
         val folder = File(root, "wow 26972")
         exe(folder, "Wow-64.exe"); exe(folder, "Wow.exe"); exe(folder, "WoW TEST-Fstorm Download.exe")
         text(folder, "Data/data/000.idx"); text(folder, "Data/data/data.000")
+        RandomAccessFile(File(folder, "Data/data/data.000"), "rw").use { it.setLength(SppRealm.SPEC.minimumCascBytes) }
         assertEquals(folder, SppInstall.clientRoot(root))
         val report = SppInstall.inspect(folder, File(root, "server"))
         assertEquals(TwwInstall.Status.INSTALLED, report.client.status)
@@ -89,9 +91,20 @@ class SppInstallTest {
     @Test fun unknownMiniClientCannotClaimThatStreamingOrOfflineAssetsAreInstalled() = temporary { root ->
         exe(root, "Wow-64.exe")
         text(root, "cdns"); text(root, "versions")
+        text(root, "Data/data/000.idx"); text(root, "Data/data/data.000")
         val report = SppInstall.inspect(root, File(root, "server"))
         assertEquals(TwwInstall.Status.INCOMPLETE, report.client.status)
         assertFalse(report.streamingClient)
+    }
+    @Test fun publisherFullClientCanBePreparedWithTheRepack64BitExecutable() = temporary { root ->
+        val folder = File(root, "full-client")
+        exe(folder, "Wow.exe")
+        text(folder, "Data/data/000.idx"); text(folder, "Data/data/data.000")
+        RandomAccessFile(File(folder, "Data/data/data.000"), "rw").use { it.setLength(SppRealm.SPEC.minimumCascBytes) }
+        assertEquals(folder, SppInstall.clientRoot(root))
+        assertEquals(TwwInstall.Status.INSTALLED, SppInstall.inspect(folder, File(root, "server")).client.status)
+        exe(folder, SppRealm.CLIENT_EXE)
+        assertEquals(SppRealm.CLIENT_EXE, SppInstall.inspect(folder, File(root, "server")).clientExecutable?.name)
     }
     @Test fun gameAutomationRejectsServerAndRuntimeConsoles() {
         for (name in listOf("cmd.exe", "ConsoleWindowClass", "worldserver.exe", "bnetserver.exe", "explorer.exe"))

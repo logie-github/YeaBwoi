@@ -29,10 +29,10 @@ AshamaneCore release for client build 26972. Its Illidan header, fel theme, musi
 realm tiles follow the existing app. Old Felsong files stay untouched; SPP has its own storage,
 database, accounts and Windows container. See [`SPP.md`](SPP.md) for the inspected release.
 
-Tap **Download & Install**. Setup downloads the 1.1 GB streaming client and 5.4 GB repack,
+Tap **Download & Install**. Setup downloads the 42.3 GB full client and 5.4 GB repack,
 extracts the server, initialized database and maps, and configures localhost automatically.
-Allow about 35 GB free for extraction, plus room for the runtime and streamed game assets.
-SPP's supplied local-play executable is installed beside the original `Wow-64.exe`; text
+Allow about 120 GB free during installation, including temporary archives and extraction.
+SPP's supplied local-play executable is installed beside the original client executable; text
 configuration and any existing local-play executable are backed up before changes.
 
 **Press Start** starts the database, authentication and world processes. **Accounts** creates
@@ -46,8 +46,7 @@ the shared application installer. Normal setup preserves an existing database.
 **Legion's Android client is experimental.** Box64 has an open
 [Legion/modern WoW startup issue](https://github.com/ptitSeb/box64/issues/3061).
 Changing the server distribution does not establish that its client works on the phone.
-Startup failures are reported and phone gameplay has not been verified. The streaming client
-needs internet; it is not a complete offline client.
+Startup failures are reported and phone gameplay has not been verified. The retired streaming mini-client is rejected because its CDN hosts are unavailable.
 
 ### The War Within — 11.2.5
 

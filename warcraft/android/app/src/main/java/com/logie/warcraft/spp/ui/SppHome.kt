@@ -147,7 +147,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                                 }
                             }
                             if (!ready && !SppServer.isBusy) Text(
-                                "Setup uses SPP’s supplied local-play executable beside your original client. Allow about 35 GB free for extraction. This streaming client needs internet during play.",
+                                "Setup uses SPP’s supplied local-play executable beside your original client. The full client is a 42.3 GB download; allow about 120 GB free during installation.",
                                 style = MaterialTheme.typography.bodySmall)
                             if (!SppServer.isBusy) Text("Legion client support on Android is experimental; the runtime may fail before the login screen.",
                                 style = MaterialTheme.typography.bodySmall, color = FelsongColors.Ember)
@@ -228,7 +228,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
             FelsongButton("Installation Options", primary = false, enabled = editable) { dialog = "advanced" }
         }
         "advanced" -> FelsongDialog("Installation Options", { dialog = null }) {
-            Text("Client: 1.1 GB streaming download. SPP repack: 5.4 GB, including its database and server maps. Files stay separate from the other realms.")
+            Text("Client: 42.3 GB full download. SPP repack: 5.4 GB, including its database and server maps. Files stay separate from the other realms.")
             StatusRow("Storage", if (SppFiles.external(context)) "External app storage" else "Internal app storage", true)
             FelsongButton("Use ${if (SppFiles.external(context)) "internal" else "external"} storage", primary = false, enabled = editable) {
                 if (!SppFiles.setExternal(context, !SppFiles.external(context))) message = "Choose storage before installing. Existing files were kept in their current directory."
