@@ -19,7 +19,8 @@ class SppInstallTest {
         val bytes = ByteArray(256)
         bytes[0] = 0x4d; bytes[1] = 0x5a
         ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).apply {
-            putInt(0x3c, 64); putInt(64, 0x00004550); putShort(68, 0x8664.toShort())
+            putInt(0x3c, 64); putInt(64, 0x00004550)
+            putShort(68, (if (path.substringAfterLast('/').equals("Wow.exe", true)) 0x14c else 0x8664).toShort())
             putInt(128, 0xfeef04bd.toInt()); putInt(132, 0x10000)
             putInt(136, (7 shl 16) or 3); putInt(140, (5 shl 16) or build)
         }
