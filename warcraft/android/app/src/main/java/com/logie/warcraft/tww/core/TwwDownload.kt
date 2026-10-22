@@ -26,6 +26,7 @@ class TwwDownload(
     private val key: String,
     private val expectedSize: Long? = null,
     private val expectedSha256: String? = null,
+    private val parallelConnections: Int = 1,
 ) {
     data class Progress(
         val bytes: Long,
@@ -33,6 +34,7 @@ class TwwDownload(
         val bytesPerSecond: Long,
         val etaSeconds: Long?,
         val reused: Boolean = false,
+        val connections: Int = 1,
     ) {
         val fraction: Float? get() = total?.takeIf { it > 0 }?.let { (bytes.toDouble() / it).toFloat().coerceIn(0f, 1f) }
     }
@@ -42,12 +44,15 @@ class TwwDownload(
 
     @Volatile private var stopped = false
     @Volatile private var active: HttpURLConnection? = null
+    @Volatile private var ranges: TwwRangeDownload? = null
+    private var parallelAllowed = true
     private val cookies = CookieManager(null, CookiePolicy.ACCEPT_ORIGINAL_SERVER)
     private val part get() = File(directory, "$key.part")
     private val target get() = File(directory, "$key.archive")
     private val metadata get() = File(directory, "$key.properties")
 
     init {
+        require(parallelConnections in 1..4) { "Use one to four download connections" }
         require(key.matches(Regex("[a-zA-Z0-9_-]+"))) { "Invalid download identifier" }
         require(expectedSize == null || expectedSize > 0) { "Invalid expected download size" }
         require(expectedSha256 == null || expectedSha256.matches(Regex("[a-fA-F0-9]{64}"))) { "Invalid SHA-256" }
@@ -58,6 +63,7 @@ class TwwDownload(
     fun cancel() {
         stopped = true
         active?.disconnect()
+        ranges?.cancel()
     }
 
     fun run(cancelled: () -> Boolean = { false }, onProgress: (Progress) -> Unit = {}): File {
@@ -80,6 +86,7 @@ class TwwDownload(
                 (expectedSize == null || expectedSize == length) &&
                 savedHash.equals(hash(target, ::check), true) &&
                 (expectedSha256 == null || savedHash.equals(expectedSha256, true))) {
+                TwwRangeDownload.clear(directory, key)
                 onProgress(Progress(length, length, 0, 0, reused = true))
                 return target
             }
@@ -131,6 +138,24 @@ class TwwDownload(
                         ?.let { setProperty("lastModified", it) }
                 }
                 writeMetadata(saved)
+                val strongTag = saved.getProperty("etag")?.takeIf { it.length >= 2 && it.startsWith('"') && it.endsWith('"') && !it.startsWith("W/") }
+                if (parallelAllowed && parallelConnections > 1 && total != null && total - from >= 4L * 1024 * 1024 &&
+                    strongTag != null && !isGoogle(connection.url.host)) {
+                    val resolved = connection.url
+                    connection.disconnect()
+                    active = null
+                    val worker = TwwRangeDownload(resolved, directory, key, total, strongTag, parallelConnections)
+                    ranges = worker
+                    try {
+                        worker.run(::check, onProgress)
+                    } catch (_: TwwRangeDownload.Unsupported) {
+                        // The prefix stays contiguous, including progress from earlier app versions.
+                        parallelAllowed = false
+                        TwwRangeDownload.clear(directory, key)
+                        return run(cancelled, onProgress)
+                    } finally { ranges = null }
+                    return finish(saved, ::check, onProgress)
+                }
                 var done = from
                 val start = System.nanoTime()
                 var lastReport = 0L
@@ -200,6 +225,7 @@ class TwwDownload(
         // Save completion proof first. A crash before rename still leaves a resumable .part.
         writeMetadata(saved)
         if (!part.renameTo(target)) throw DownloadException("Cannot finalize temporary download: ${target.path}")
+        TwwRangeDownload.clear(directory, key)
         progress(Progress(size, size, 0, 0))
         return target
     }

@@ -164,15 +164,16 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
                 val url = source.url
                 val key = when (kind) { Kind.DOWNLOAD_CLIENT -> "client"; Kind.DOWNLOAD_SERVER -> "server"; else -> "mmaps" }
                 val download = TwwDownload(url, layout.downloads, key,
-                    expectedSize = source.size, expectedSha256 = source.sha256)
+                    expectedSize = source.size, expectedSha256 = source.sha256, parallelConnections = source.connections)
                 activeDownload = download
                 val archive = try {
                     download.run(cancelled = { cancelled }) { p ->
                         val total = p.total
                         val amount = size(context, p.bytes) + if (total != null && total > 0) " / ${size(context, total)}" else ""
                         val speed = if (p.bytesPerSecond > 0) " · ${size(context, p.bytesPerSecond.toLong())}/s" else ""
+                        val parallel = if (p.connections > 1) " · ${p.connections} connections" else ""
                         val eta = p.etaSeconds?.let { " · ${it / 60}m ${it % 60}s remaining" }.orEmpty()
-                        working(kind, (if (p.reused) "Reusing validated download · " else "Downloading · ") + amount + speed + eta,
+                        working(kind, (if (p.reused) "Reusing validated download · " else "Downloading · ") + amount + speed + parallel + eta,
                             total?.takeIf { it > 0 }?.let { p.bytes.toFloat() / it })
                     }
                 } finally { activeDownload = null }

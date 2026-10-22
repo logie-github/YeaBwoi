@@ -32,6 +32,11 @@ database, accounts and Windows container. See [`SPP.md`](SPP.md) for the inspect
 Tap **Download & Install**. Setup downloads the 42.3 GB full client and 5.4 GB repack,
 extracts the server, initialized database and maps, and configures localhost automatically.
 Allow about 120 GB free during installation, including temporary archives and extraction.
+The Legion client uses up to four validated connections to improve throughput where the host
+and connection allow it. Pause/Resume keeps the existing download, including downloads started
+before the speed update. The progress display shows connection count, actual speed and ETA.
+It falls back to a single connection if the host rejects parallel ranges; connection or host
+bandwidth can still limit speed.
 SPP's supplied local-play executable is installed beside the original client executable; text
 configuration and any existing local-play executable are backed up before changes.
 
