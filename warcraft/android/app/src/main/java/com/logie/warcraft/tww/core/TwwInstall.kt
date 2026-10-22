@@ -50,6 +50,7 @@ object TwwInstall {
         val documentedBuild: Int?,
         /** A completed runtime build_info query, bound to the two unchanged core executables. */
         val buildProof: Boolean = false,
+        val databaseProfile: TwwDatabase.Profile? = null,
     )
 
     data class Report(
@@ -144,14 +145,18 @@ object TwwInstall {
         }
         val databaseNames = listOfNotNull(detected?.worldConfig, detected?.authenticationConfig)
             .flatMap { databaseNames(readText(it)) }.distinct()
-        val dbDirectories = serverFiles.filter { it.extension.lowercase(Locale.ROOT) in setOf("ibd", "frm", "myd", "myi", "mai", "mad") }
+        val databaseFiles = detected?.databaseProfile?.dataDirectory?.let { data ->
+            serverFiles.filter { it.toPath().startsWith(data.toPath()) }
+        } ?: emptyList()
+        val dbDirectories = databaseFiles.filter { it.length() > 0 && it.extension.lowercase(Locale.ROOT) in setOf("ibd", "frm", "myd", "myi", "mai", "mad") }
             .groupBy { it.parentFile.name.lowercase(Locale.ROOT) }
         val missingDb = buildList {
             if (detected?.databaseExecutable == null) add("Database server executable")
             if (detected?.databaseConfig == null) add("Database configuration (my.ini or my.cnf)")
             // MariaDB/MySQL 5 use a mysql schema directory; MySQL 8 stores its system
             // dictionary in mysql.ibd at the data directory's top level.
-            if ("mysql" !in dbDirectories && serverFiles.none { it.name.equals("mysql.ibd", true) && it.length() > 0 }) add("Initialized mysql system database")
+            if (detected?.databaseProfile?.dataDirectory == null) add("Database data directory from its active configuration")
+            if ("mysql" !in dbDirectories && databaseFiles.none { it.name.equals("mysql.ibd", true) && it.length() > 0 }) add("Initialized mysql system database")
             if (databaseNames.isEmpty()) add("Database names from the server's connection configurations")
             databaseNames.filter { it.lowercase(Locale.ROOT) !in dbDirectories }.forEach { add("Initialized database: $it") }
         }
@@ -163,7 +168,12 @@ object TwwInstall {
                 else -> Status.INSTALLED
             },
             missingDb,
-            buildList { if (sqlDumps > 0) add("Found $sqlDumps SQL seed file(s); a SQL dump alone is not an initialized database") },
+            buildList {
+                detected?.databaseProfile?.let { database ->
+                    if (database.executable != null && database.configuration != null) add("Using ${database.executable.relativeTo(server).path} with ${database.configuration.relativeTo(server).path}")
+                }
+                if (sqlDumps > 0 && missingDb.isNotEmpty()) add("Found $sqlDumps SQL seed file(s); a SQL dump alone is not an initialized database")
+            },
         )
         val missingMaps = buildList {
             if (mapFiles.none { under(it, "maps") && it.extension.equals("map", true) && it.length() > 8 }) add("maps/*.map")
@@ -256,19 +266,16 @@ object TwwInstall {
 
     private fun detect(root: File, files: List<File>): DetectedServer? {
         val exes = files.filter { it.extension.equals("exe", true) }
-        // UniController discovers its database as mysqld_<name>.exe (normally mysqld_z.exe).
-        // Match actual PE files and still reject multiple candidates.
-        val dbs = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("mysqld", "mariadbd") ||
-            Regex("(?i)mysqld_[a-z0-9_]+\\.exe").matches(it.name) }
+        val database = TwwDatabase.discover(root, files)
         val auths = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("bnetserver", "authserver", "realmd", "loginserver") }
         val worlds = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("worldserver", "mangosd", "arcemu-world") }
-        if (dbs.isEmpty() && auths.isEmpty() && worlds.isEmpty()) return null
-        val issues = mutableListOf<String>()
+        if (database.executable == null && database.issues.isEmpty() && auths.isEmpty() && worlds.isEmpty()) return null
+        val issues = database.issues.toMutableList()
         fun one(candidates: List<File>, role: String): File? {
             if (candidates.size > 1) issues += "Ambiguous $role: ${candidates.joinToString { it.relativeTo(root).path }}"
             return candidates.singleOrNull()
         }
-        val db = one(dbs, "database executable")
+        val db = database.executable
         val auth = one(auths, "authentication executable")
         val world = one(worlds, "world executable")
         listOfNotNull(db, auth, world).forEach { executable ->
@@ -278,15 +285,7 @@ object TwwInstall {
         val worldConf = one(configs.filter { readText(it).contains(Regex("(?im)^\\s*WorldDatabaseInfo\\s*=")) }, "world configuration")
         val authConf = one(configs.filter { file -> file != worldConf &&
             (file.nameWithoutExtension.equals(auth?.nameWithoutExtension, true) || readText(file).contains(Regex("(?im)^\\s*(BattlenetPort|RealmServerPort)\\s*="))) }, "authentication configuration")
-        val databaseConfigs = configs.filter { file -> file.extension.lowercase(Locale.ROOT) in setOf("ini", "cnf") && readText(file).contains(Regex("(?im)^\\s*\\[mysqld\\]")) }
-        val databaseHome = db?.parentFile?.let { if (it.name.equals("bin", true)) it.parentFile else it }
-        val primaryConfigs = databaseConfigs.filter { file ->
-            file.name.lowercase(Locale.ROOT) in setOf("my.ini", "my.cnf") &&
-                (file.parentFile.canonicalFile == databaseHome?.canonicalFile || file.parentFile.canonicalFile == db?.parentFile?.canonicalFile)
-        }
-        // Uniform Server also ships my_skip_grant.ini. It is a recovery configuration and
-        // must not displace the normal my.ini alongside the discovered database installation.
-        val dbConf = one(primaryConfigs.ifEmpty { databaseConfigs }, "database configuration")
+        val dbConf = database.configuration
         val scripts = files.filter { it.extension.lowercase(Locale.ROOT) in setOf("bat", "cmd", "sh") && it.length() < MAX_TEXT }
         val executables = mapOf(Role.DATABASE to db, Role.AUTHENTICATION to auth, Role.WORLD to world)
         val commands = mutableMapOf<Role, StartupCommand>()
@@ -327,7 +326,7 @@ object TwwInstall {
         val dataDirectory = dataPath?.let { resolve(commands[Role.WORLD]?.workingDirectory ?: world?.parentFile ?: root, it) }
             ?.takeIf { it.toPath().startsWith(root.canonicalFile.toPath()) }
         if (dataPath != null && dataDirectory == null) issues += "World DataDir points outside the imported repack or uses an unresolved Windows path"
-        return DetectedServer(root, db, auth, world, authConf, worldConf, dbConf, dataDirectory, scripts, commands, issues, build, proof)
+        return DetectedServer(root, db, auth, world, authConf, worldConf, dbConf, dataDirectory, scripts, commands, issues, build, proof, database)
     }
 
     private fun runtimeProof(root: File, auth: File, world: File): Boolean = runCatching {
@@ -386,7 +385,7 @@ object TwwInstall {
         return result
     }
 
-    private fun resolve(base: File, path: String): File? {
+    internal fun resolve(base: File, path: String): File? {
         val normalized = path.replace('\\', '/')
         if (':' in normalized) return null
         var current = if (normalized.startsWith('/')) File("/") else base
@@ -448,7 +447,7 @@ object TwwInstall {
     }
 
     private const val MAX_TEXT = 2_000_000L
-    const val UNKNOWN_BUILD_ISSUE = "The repack does not identify one verifiable client build in its configuration or documentation"
+    const val UNKNOWN_BUILD_ISSUE = "Client build 63704 will be verified from the authentication database when the local server starts"
     private val WOW_EXE = Regex("(?i)wow(?:-64)?\\.exe")
     private val VERSION = Regex("(\\d+)\\.(\\d+)\\.(\\d+)\\.(\\d+)")
     private val BUILD = Regex("(?i)(?:client[ _.-]*build|expected[ _.-]*build|build[ _.-]*(?:number)?)[ \":=]+(\\d{5,6})\\b")

@@ -179,21 +179,14 @@ object TwwServer {
         val mysql = detected.databaseExecutable ?: throw IOException("The database executable is missing.")
         val basedir = mysql.parentFile.takeIf { it.name.equals("bin", true) }?.parentFile
             ?: throw IOException("The database's installation directory could not be established from ${mysql.name}.")
-        val controllerRoot = basedir.parentFile?.parentFile?.takeIf { directory ->
-            directory.listFiles()?.any { it.isFile && it.name.equals("UniController.exe", true) } == true
-        }
-        val controllerUser = controllerRoot?.let { File(it, "home/us_config/us_user.ini") }?.takeIf { it.isFile }
-        val configuredPort = iniValue(database.readText(), "mysqld", "port")
-            ?: controllerUser?.let { iniValue(it.readText(), "USER", "MYSQL_TCP_PORT") }
-        val databasePort = configuredPort?.toIntOrNull()?.takeIf { it in 1..65535 }
+        val databaseProfile = detected.databaseProfile ?: throw IOException("The database installation could not be resolved.")
+        val controllerRoot = databaseProfile.controller?.parentFile
+        val databasePort = databaseProfile.port
             ?: throw IOException("The repack's database port is unverified in my.ini or UniController's us_user.ini.")
-        val dataCandidates = detected.root.walkTopDown().filter { directory ->
-            directory.isDirectory && !java.nio.file.Files.isSymbolicLink(directory.toPath()) &&
-                (directory.listFiles()?.any { it.isDirectory && it.name.equals("mysql", true) } == true || File(directory, "mysql.ibd").isFile) &&
-                (File(directory, "ibdata1").isFile || File(directory, "aria_log_control").isFile || File(directory, "auto.cnf").isFile)
-        }.toList()
-        val datadir = dataCandidates.singleOrNull()
-            ?: throw IOException("The repack must contain one initialized database data directory; found ${dataCandidates.size}.")
+        val datadir = databaseProfile.dataDirectory?.takeIf { it.isDirectory }
+            ?: throw IOException("The active database's configured data directory is missing or unresolved.")
+        val report = TwwFiles.report(context)
+        if (report.database.status != TwwInstall.Status.INSTALLED) throw IOException(report.database.missing.joinToString("\n"))
         val replacement = mutableMapOf(
             "port" to databasePort.toString(),
             "bind-address" to TwwRealm.ADDRESS,
@@ -343,11 +336,10 @@ object TwwServer {
         if (login.size != 5 || login[0] != TwwRealm.ADDRESS || login[1].toIntOrNull() != dbPort || !login[4].matches(Regex("[A-Za-z0-9_]+"))) {
             throw IOException("The authentication database connection is not verified for localhost and this database port.")
         }
-        val tools = detected.root.walkTopDown().filter { it.isFile && it.extension.equals("exe", true) }.toList()
-        val mysql = tools.filter { it.nameWithoutExtension.lowercase() in setOf("mysql", "mariadb") }.singleOrNull()
-            ?: throw IOException("The repack must contain one mysql.exe or mariadb.exe client to configure its realmlist.")
-        val admin = tools.filter { it.nameWithoutExtension.lowercase() in setOf("mysqladmin", "mariadb-admin") }.singleOrNull()
-            ?: throw IOException("The repack must contain mysqladmin.exe or mariadb-admin.exe for safe database shutdown.")
+        val mysql = detected.databaseProfile?.client
+            ?: throw IOException("The active database's bin folder must contain one mysql.exe or mariadb.exe client to configure its realmlist.")
+        val admin = detected.databaseProfile?.admin
+            ?: throw IOException("The active database's bin folder must contain mysqladmin.exe or mariadb-admin.exe for safe database shutdown.")
         return Profile(detected, dbPort, listOfNotNull(authPort, rest).distinct(), worldPort, realmId, mysql, admin, login)
     }
 
