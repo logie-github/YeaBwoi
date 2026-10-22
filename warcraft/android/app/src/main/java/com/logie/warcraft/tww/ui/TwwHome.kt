@@ -114,8 +114,8 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
         onError = { message = it.message ?: it.javaClass.simpleName },
     )
     LaunchedEffect(server.phase) {
-        if (playAfterStart && server.phase == TwwServer.Phase.RUNNING) { playAfterStart = false; TwwGame.play(context) }
-        if (server.phase == TwwServer.Phase.FAILED) playAfterStart = false
+        if (playAfterStart && server.phase == WindowsRealmServer.Phase.RUNNING) { playAfterStart = false; TwwGame.play(context) }
+        if (server.phase == WindowsRealmServer.Phase.FAILED) playAfterStart = false
     }
     val busy = job is TwwJobs.State.Working
     val editable = !busy && !TwwServer.isBusy && !configuring
@@ -148,7 +148,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                             else -> {
                                 val ready = report?.canStartServer == true
                                 Text(when {
-                                    server.phase == TwwServer.Phase.RUNNING -> "Your local realm is running."
+                                    server.phase == WindowsRealmServer.Phase.RUNNING -> "Your local realm is running."
                                     TwwServer.isBusy -> server.detail ?: "Starting local realm…"
                                     ready -> "Your files are ready. Start your local realm and play."
                                     report == null -> "Checking game files…"
@@ -156,14 +156,14 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                                 }, style = MaterialTheme.typography.bodyMedium)
                                 server.error?.let { Text(it, color = TwwColors.Error, maxLines = 3) }
                                 TwwButton(when {
-                                    server.phase == TwwServer.Phase.RUNNING -> "Launch Game"
+                                    server.phase == WindowsRealmServer.Phase.RUNNING -> "Launch Game"
                                     TwwServer.isBusy -> "Starting…"
                                     configuring -> "Configuring…"
                                     ready -> "Press Start"
                                     else -> "Download & Install"
-                                }, Modifier.fillMaxWidth(), enabled = report != null && !configuring && (!TwwServer.isBusy || server.phase == TwwServer.Phase.RUNNING)) {
+                                }, Modifier.fillMaxWidth(), enabled = report != null && !configuring && (!TwwServer.isBusy || server.phase == WindowsRealmServer.Phase.RUNNING)) {
                                     when {
-                                        server.phase == TwwServer.Phase.RUNNING -> TwwGame.play(context)
+                                        server.phase == WindowsRealmServer.Phase.RUNNING -> TwwGame.play(context)
                                         ready -> { playAfterStart = true; TwwServer.start(context) }
                                         else -> run(TwwJobs.Kind.INSTALL)
                                     }
@@ -195,15 +195,15 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
         message?.let { text -> TwwDialog("The War Within", { message = null }) { Text(text) } }
         when (dialog) {
             "server" -> TwwDialog("Local Server", { dialog = null }) {
-                TwwStatus("Database", server.database.name.lowercase(), server.database == TwwServer.ComponentStatus.RUNNING)
-                TwwStatus("Authentication", server.authentication.name.lowercase(), server.authentication == TwwServer.ComponentStatus.RUNNING)
-                TwwStatus("World server", server.world.name.lowercase(), server.world == TwwServer.ComponentStatus.RUNNING)
+                TwwStatus("Database", server.database.name.lowercase(), server.database == WindowsRealmServer.ComponentStatus.RUNNING)
+                TwwStatus("Authentication", server.authentication.name.lowercase(), server.authentication == WindowsRealmServer.ComponentStatus.RUNNING)
+                TwwStatus("World server", server.world.name.lowercase(), server.world == WindowsRealmServer.ComponentStatus.RUNNING)
                 server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 server.error?.let { Text(it, color = TwwColors.Error) }
                 TwwButton("Start Server", enabled = editable && report?.canStartServer == true) { TwwServer.start(context) }
                 TwwButton("Stop Server", primary = false, enabled = !busy && TwwServer.isBusy) { playAfterStart = false; TwwServer.stop(context) }
-                TwwButton("Launch Game", enabled = !busy && server.phase == TwwServer.Phase.RUNNING) { TwwGame.play(context) }
-                if (server.phase == TwwServer.Phase.FAILED && TwwServer.isBusy) TwwButton("Force Stop", primary = false) { dialog = "force-stop" }
+                TwwButton("Launch Game", enabled = !busy && server.phase == WindowsRealmServer.Phase.RUNNING) { TwwGame.play(context) }
+                if (server.phase == WindowsRealmServer.Phase.FAILED && TwwServer.isBusy) TwwButton("Force Stop", primary = false) { dialog = "force-stop" }
                 TwwButton("Local connection settings", primary = false, enabled = editable) { dialog = "connection" }
                 TwwButton("Background activity", primary = false) { dialog = "background" }
             }
@@ -322,7 +322,7 @@ private fun ComponentLine(label: String, component: TwwInstall.Component) {
 /** A superseded or disposed screen cancels a scan normally; cancellation is never a file error. */
 @Composable
 internal fun TwwReportEffect(
-    busy: Boolean, version: Any?, refresh: Int, phase: TwwServer.Phase,
+    busy: Boolean, version: Any?, refresh: Int, phase: WindowsRealmServer.Phase,
     read: suspend () -> TwwInstall.Report,
     onReport: (TwwInstall.Report) -> Unit,
     onError: (Exception) -> Unit,

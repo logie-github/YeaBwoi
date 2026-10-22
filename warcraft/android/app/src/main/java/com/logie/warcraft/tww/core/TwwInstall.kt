@@ -51,6 +51,7 @@ object TwwInstall {
         /** A completed runtime build_info query, bound to the two unchanged core executables. */
         val buildProof: Boolean = false,
         val databaseProfile: TwwDatabase.Profile? = null,
+        val pendingBuildCheck: String = UNKNOWN_BUILD_ISSUE,
     )
 
     data class Report(
@@ -72,7 +73,7 @@ object TwwInstall {
                 core.missing.isEmpty() && server.dataDirectory != null &&
                 server.commands.keys == Role.entries.toSet() &&
                 (core.status == Status.INSTALLED || core.status == Status.UNVERIFIED &&
-                    server.documentedBuild == null && server.issues == listOf(UNKNOWN_BUILD_ISSUE))
+                    server.documentedBuild == null && server.issues == listOf(server.pendingBuildCheck))
         } == true
 
         val canStartServer: Boolean get() = canBootstrap && client.status == Status.INSTALLED && localConnectionConfigured
@@ -81,12 +82,12 @@ object TwwInstall {
             listOf(client, core, database, maps).all { it.status == Status.INSTALLED }
     }
 
-    fun inspect(client: File, server: File, maps: File = server): Report {
+    fun inspect(client: File, server: File, maps: File = server, spec: LocalRealmSpec = LocalRealmSpec.WAR_WITHIN): Report {
         val clientFiles = files(client)
         val serverFiles = files(server)
         val mapFiles = (if (maps == server) serverFiles else files(maps) + serverFiles).distinctBy { it.absolutePath }
         val clientProblems = mutableListOf<String>()
-        val candidates = clientFiles.filter { WOW_EXE.matches(it.name) }
+        val candidates = clientFiles.filter { it.name.lowercase(Locale.ROOT) in spec.executableNames }
         val executable = when {
             candidates.size == 1 -> candidates.single()
             candidates.size > 1 -> {
@@ -103,18 +104,18 @@ object TwwInstall {
         } }
         // The publisher supplies a streaming client with no initial CASC files. Only the
         // inspected executable digest plus its CDN bootstrap files qualify for this mode.
-        val streaming = executable != null && build != null && expected(build) &&
+        val streaming = executable != null && build != null && expected(build, spec) &&
             listOf("cdns", "versions").all { name -> File(clientRoot, name).let { it.isFile && it.length() > 0 } } &&
-            sha256(executable) == TwwRealm.STREAMING_EXE_SHA256
+            sha256(executable) in spec.streamingExecutableHashes
         val missingClient = mutableListOf<String>()
-        if (executable == null) missingClient += "A single Wow.exe or Wow-64.exe"
+        if (executable == null) missingClient += "A single game executable: ${spec.executableNames.sorted().joinToString()}"
         if (!streaming && dataFiles.none { it.extension.equals("idx", true) && it.length() > 0 }) missingClient += "Data/data/*.idx"
         if (!streaming && dataFiles.none { it.name.startsWith("data.", true) && it.length() > 0 }) missingClient += "Data/data/data.NNN"
         val infoFiles = dataRoots.mapNotNull { root -> root.listFiles()?.firstOrNull { it.name.equals(".build.info", true) } }.distinct()
         val recordedVersions = infoFiles.mapNotNull { versionFromBuildInfo(readText(it)) }
-        val mismatched = build != null && !expected(build) || recordedVersions.any { !expected(it) }
+        val mismatched = build != null && !expected(build, spec) || recordedVersions.any { !expected(it, spec) }
         if (build == null && executable != null) clientProblems += "The executable's Windows version resource could not be verified"
-        if (mismatched) clientProblems += "Expected 11.2.5.${TwwRealm.CLIENT_BUILD}; found executable ${build ?: "unknown"}, launcher ${recordedVersions.joinToString().ifEmpty { "unknown" }}"
+        if (mismatched) clientProblems += "Expected ${spec.version}.${spec.build}; found executable ${build ?: "unknown"}, launcher ${recordedVersions.joinToString().ifEmpty { "unknown" }}"
         val firestorm = clientFiles.any { it.name.contains("firestorm", true) } || executable?.let { binaryContains(it, "firestorm") } == true ||
             clientFiles.filter { it.extension.equals("wtf", true) || it.name.equals(".build.info", true) }
                 .any { readText(it).contains("firestorm", true) }
@@ -129,7 +130,7 @@ object TwwInstall {
             else -> Status.INSTALLED
         }
 
-        val detected = detect(server, serverFiles)
+        val detected = detect(server, serverFiles, spec)
         val missingCore = buildList {
             if (detected?.authenticationExecutable == null) add("Authentication server executable")
             if (detected?.worldExecutable == null) add("World server executable")
@@ -138,7 +139,7 @@ object TwwInstall {
         }
         val coreStatus = when {
             detected == null -> Status.MISSING
-            detected.documentedBuild != null && detected.documentedBuild != TwwRealm.CLIENT_BUILD -> Status.INCOMPATIBLE
+            detected.documentedBuild != null && detected.documentedBuild != spec.build -> Status.INCOMPATIBLE
             missingCore.isNotEmpty() -> Status.INCOMPLETE
             detected.documentedBuild == null || detected.issues.isNotEmpty() -> Status.UNVERIFIED
             else -> Status.INSTALLED
@@ -187,7 +188,8 @@ object TwwInstall {
             val prefix = mapPrefix(file)
             if (prefix == null) file.length() < 28 else file.inputStream().use { input ->
                 val head = ByteArray(prefix.length)
-                input.read(head) != head.size || !head.contentEquals(prefix.toByteArray())
+                input.read(head) != head.size || if (prefix == "WDC") spec.db2Prefixes.none { head.contentEquals(it.toByteArray()) }
+                    else !head.contentEquals(prefix.toByteArray())
             }
         }.take(10).toList()
         val mapsComponent = Component(
@@ -262,11 +264,12 @@ object TwwInstall {
         return versions.singleOrNull()
     }
 
-    private fun expected(build: ClientBuild) = build.major == 11 && build.minor == 2 && build.patch == 5 && build.build == TwwRealm.CLIENT_BUILD
+    private fun expected(build: ClientBuild, spec: LocalRealmSpec) = build.major == spec.major && build.minor == spec.minor && build.patch == spec.patch && build.build == spec.build
 
-    private fun detect(root: File, files: List<File>): DetectedServer? {
+    private fun detect(root: File, files: List<File>, spec: LocalRealmSpec = LocalRealmSpec.WAR_WITHIN): DetectedServer? {
         val exes = files.filter { it.extension.equals("exe", true) }
-        val database = TwwDatabase.discover(root, files)
+        val layout = spec.serverLayout
+        val database = TwwDatabase.discover(root, files, layout)
         val auths = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("bnetserver", "authserver", "realmd", "loginserver") }
         val worlds = exes.filter { it.nameWithoutExtension.lowercase(Locale.ROOT) in setOf("worldserver", "mangosd", "arcemu-world") }
         if (database.executable == null && database.issues.isEmpty() && auths.isEmpty() && worlds.isEmpty()) return null
@@ -276,14 +279,15 @@ object TwwInstall {
             return candidates.singleOrNull()
         }
         val db = database.executable
-        val auth = one(auths, "authentication executable")
-        val world = one(worlds, "world executable")
+        fun member(path: String) = resolve(root, path)?.takeIf { it.isFile && it.toPath().startsWith(root.canonicalFile.toPath()) }
+        val auth = if (layout != null) member(layout.authenticationExecutable) else one(auths, "authentication executable")
+        val world = if (layout != null) member(layout.worldExecutable) else one(worlds, "world executable")
         listOfNotNull(db, auth, world).forEach { executable ->
             if (peMachine(executable) !in setOf(0x8664, 0x14c)) issues += "Not a readable Windows PE executable: ${executable.relativeTo(root).path}"
         }
         val configs = files.filter { it.extension.lowercase(Locale.ROOT) in setOf("conf", "ini", "cnf") && it.length() < MAX_TEXT }
-        val worldConf = one(configs.filter { readText(it).contains(Regex("(?im)^\\s*WorldDatabaseInfo\\s*=")) }, "world configuration")
-        val authConf = one(configs.filter { file -> file != worldConf &&
+        val worldConf = if (layout != null) member(layout.worldConfig) else one(configs.filter { readText(it).contains(Regex("(?im)^\\s*WorldDatabaseInfo\\s*=")) }, "world configuration")
+        val authConf = if (layout != null) member(layout.authenticationConfig) else one(configs.filter { file -> file != worldConf &&
             (file.nameWithoutExtension.equals(auth?.nameWithoutExtension, true) || readText(file).contains(Regex("(?im)^\\s*(BattlenetPort|RealmServerPort)\\s*="))) }, "authentication configuration")
         val dbConf = database.configuration
         val scripts = files.filter { it.extension.lowercase(Locale.ROOT) in setOf("bat", "cmd", "sh") && it.length() < MAX_TEXT }
@@ -291,6 +295,17 @@ object TwwInstall {
         val commands = mutableMapOf<Role, StartupCommand>()
         executables.forEach { (role, exe) ->
             if (exe != null) {
+                if (layout != null) {
+                    val config = when (role) { Role.DATABASE -> dbConf; Role.AUTHENTICATION -> authConf; Role.WORLD -> worldConf }
+                    val launcher = member(layout.launcher)
+                    val directory = if (role == Role.DATABASE) root.canonicalFile else resolve(root, layout.workingDirectory)
+                    if (config != null && launcher != null && directory?.isDirectory == true && directory.toPath().startsWith(root.canonicalFile.toPath())) {
+                        val arguments = if (role == Role.DATABASE) listOf("--defaults-file=${config.path}", "--console", "--standalone")
+                            else listOf("-c", config.path)
+                        commands[role] = StartupCommand(exe, arguments, directory, launcher)
+                    } else issues += "The verified startup layout for ${exe.name} is incomplete"
+                    return@forEach
+                }
                 val found = scripts.flatMap { commandsIn(it, root) }.filter { it.executable.canonicalFile == exe.canonicalFile }
                     .distinctBy { Triple(it.executable.canonicalPath, it.arguments, it.workingDirectory.canonicalPath) }
                 if (found.size == 1) commands[role] = found.single()
@@ -313,28 +328,28 @@ object TwwInstall {
             .flatMap { file ->
                 val text = readText(file)
                 BUILD.findAll(text).map { it.groupValues[1].toInt() }.toList() +
-                    Regex("11\\.2\\.5[. \\(]+(\\d{5,6})\\b").findAll(text).map { it.groupValues[1].toInt() }.toList()
+                    Regex("${Regex.escape(spec.version)}[. \\(]+(\\d{5,6})\\b").findAll(text).map { it.groupValues[1].toInt() }.toList()
             }.distinct()
         val documentedBuild = evidence.singleOrNull()
         if (evidence.size > 1) issues += "The repack documents conflicting client builds: ${evidence.sorted().joinToString()}"
-        val proof = evidence.none { it != TwwRealm.CLIENT_BUILD } &&
-            auth != null && world != null && runtimeProof(root, auth, world)
-        val build = documentedBuild ?: TwwRealm.CLIENT_BUILD.takeIf { proof }
-        if (build == null) issues += UNKNOWN_BUILD_ISSUE
-        if (build != null && build != TwwRealm.CLIENT_BUILD) issues += "Repack documents client build $build; expected ${TwwRealm.CLIENT_BUILD}"
+        val proof = evidence.none { it != spec.build } &&
+            auth != null && world != null && runtimeProof(root, auth, world, spec)
+        val build = documentedBuild ?: spec.build.takeIf { proof }
+        if (build == null) issues += spec.pendingBuildCheck
+        if (build != null && build != spec.build) issues += "Repack documents client build $build; expected ${spec.build}"
         val dataPath = worldConf?.let { conf -> Regex("(?im)^\\s*DataDir\\s*=\\s*(\"[^\"]*\"|[^\\r\\n#]+)").find(readText(conf))?.groupValues?.get(1)?.trim()?.removeSurrounding("\"") }
         val dataDirectory = dataPath?.let { resolve(commands[Role.WORLD]?.workingDirectory ?: world?.parentFile ?: root, it) }
             ?.takeIf { it.toPath().startsWith(root.canonicalFile.toPath()) }
         if (dataPath != null && dataDirectory == null) issues += "World DataDir points outside the imported repack or uses an unresolved Windows path"
-        return DetectedServer(root, db, auth, world, authConf, worldConf, dbConf, dataDirectory, scripts, commands, issues, build, proof, database)
+        return DetectedServer(root, db, auth, world, authConf, worldConf, dbConf, dataDirectory, scripts, commands, issues, build, proof, database, spec.pendingBuildCheck)
     }
 
-    private fun runtimeProof(root: File, auth: File, world: File): Boolean = runCatching {
-        val proof = File(root, ".tww-build-proof.properties")
+    private fun runtimeProof(root: File, auth: File, world: File, spec: LocalRealmSpec): Boolean = runCatching {
+        val proof = File(root, spec.proofFile)
         if (!proof.isFile || proof.length() > 4096) return@runCatching false
         val properties = Properties().apply { proof.inputStream().use { load(it) } }
         properties.getProperty("source") == "authentication-database-build_info" &&
-            properties.getProperty("build") == TwwRealm.CLIENT_BUILD.toString() &&
+            properties.getProperty("build") == spec.build.toString() &&
             properties.getProperty("authenticationSha256") == sha256(auth) &&
             properties.getProperty("worldSha256") == sha256(world)
     }.getOrDefault(false)

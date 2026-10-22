@@ -17,7 +17,16 @@ object TwwDatabase {
         val issues: List<String>,
     )
 
-    internal fun discover(root: File, files: List<File>): Profile {
+    internal fun discover(root: File, files: List<File>, layout: LocalServerLayout? = null): Profile {
+        if (layout != null) {
+            fun member(path: String) = TwwInstall.resolve(root, path)?.takeIf { it.toPath().startsWith(root.canonicalFile.toPath()) }
+            val executable = member(layout.databaseExecutable)?.takeIf { it.isFile }
+            val configuration = member(layout.databaseConfig)?.takeIf { it.isFile && hasServerSection(it) }
+            val data = member(layout.databaseData)
+            fun tool(name: String) = executable?.parentFile?.let { TwwInstall.resolve(it, name) }?.takeIf { it.isFile }
+            return Profile(executable, configuration, data, null, ini(configuration, "mysqld", "port")?.toIntOrNull()?.takeIf { it in 1..65535 },
+                tool("mysql.exe"), tool("mysqladmin.exe"), emptyList())
+        }
         val daemons = files.filter { DAEMON.matches(it.name) }
         val controllers = files.filter { it.name.equals("UniController.exe", true) &&
             TwwInstall.resolve(it.parentFile, "core/mysql/bin")?.isDirectory == true }
