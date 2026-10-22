@@ -44,11 +44,15 @@ The World of Warcraft app's second game, Turtle WoW (1.18.1) with its own Tortoi
 completely apart from the 3.3.5a game: `warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its
 realm), `com.logie.warcraft.turtle` (its code, every file operation through `turtle/core/SafeFs`).
 
-## Felsong
+## Legion — Single Player Project
 
-The World of Warcraft app's third game, Felsong (Legion 7.3.5) on LegionCore, kept apart like
-Turtle: `warcraft/FELSONG.md` (the brief, what was found, the plan; the client on a phone is the
-open question). Its launcher is in the releases (from build 77), saying it isn't playable; the game isn't yet.
+The former Felsong selection now opens the original SPP AshamaneCore Legion 7.3.5 (26972)
+integration, at the user's request. `warcraft/SPP.md` documents its inspected repack/full-client
+sources and `warcraft/README.md` describes setup. The UI retains the Illidan/fel theme; the
+legacy `felsong` preference key remains for compatibility. New files use `files/spp-legion`;
+old Felsong files and all other realms are preserved. `local/` provides the shared Windows
+realm manager and staged installer for SPP and Draconic. Legion phone gameplay is unverified
+because Box64's startup issue remains open; do not claim it works without a phone test.
 
 ## Warcraft
 
