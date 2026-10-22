@@ -168,10 +168,16 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
         world, world_log = launch(bin_dir / "worldserver.exe", ["-c", str(world_config.relative_to(realm))], realm, "world")
         ready(world, 8095, world_log, 1200)
         emit("WORLD_READY", True)
+        emit("SPP_STARTUP_AND_LOGIN_VERIFIED", True)
         world.stdin.write(b"server shutdown 1\n")
         world.stdin.flush()
         world.wait(timeout=90)
-        emit("WORLD_GRACEFUL_STOP", world.returncode)
+        emit("WORLD_EXIT_CODE", world.returncode)
+        if world.returncode:
+            emit("WORLD_SHUTDOWN_LOG", world_log.read_text(errors="replace")[-12000:])
+            if world.returncode != 0xC0000005:
+                raise RuntimeError("Unexpected SPP world shutdown failure")
+            print("::warning::The pinned publisher worldserver exits with access violation 0xC0000005 on shutdown. Clean world shutdown is not verified.", flush=True)
         login.terminate()
         login.wait(timeout=30)
         result = subprocess.run([str(database / "bin/mysqladmin.exe"),
@@ -181,7 +187,9 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
             raise RuntimeError(result.stderr)
         db.wait(timeout=90)
         emit("DATABASE_GRACEFUL_STOP", db.returncode)
-        emit("SPP_RUNTIME_VERIFIED", True)
+        if db.returncode:
+            raise RuntimeError("The database did not stop cleanly")
+        emit("SPP_CLEAN_SHUTDOWN_VERIFIED", world.returncode == 0)
     finally:
         for process in reversed(processes):
             if process.poll() is None:

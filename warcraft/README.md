@@ -47,6 +47,9 @@ the shared application installer. Normal setup preserves an existing database.
 [Legion/modern WoW startup issue](https://github.com/ptitSeb/box64/issues/3061).
 Changing the server distribution does not establish that its client works on the phone.
 Startup failures are reported and phone gameplay has not been verified. The retired streaming mini-client is rejected because its CDN hosts are unavailable.
+Native validation confirmed database, account login and world startup, but the old publisher
+world server returned an access violation on shutdown. The app reports abnormal shutdowns;
+clean world shutdown and Android gameplay are not claimed.
 
 ### The War Within — 11.2.5
 

@@ -621,7 +621,7 @@ jobs:
 
           **Turtle WoW — Vanilla+** (a second game, switched to from the launcher): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), installed from the Turtle WoW launcher in one tap, with your own Turtle WoW 1.18.1 (7272) client. Nothing of the 3.3.5a game changes.
 
-          **Legion — 7.3.5 (Single Player Project)** replaces the Felsong section. Download & Install acquires the inspected AshamaneCore repack, database, server maps and build 26972 full client inside the app (42.3 GB client plus 5.4 GB server; allow 120 GB free during setup), with separate local-server and account controls. Legion client support on Android remains experimental because of an open Box64 startup issue; phone gameplay has not been verified. The original client executable is preserved.
+          **Legion — 7.3.5 (Single Player Project)** replaces the Felsong section. Download & Install acquires the inspected AshamaneCore repack, database, server maps and build 26972 full client inside the app (42.3 GB client plus 5.4 GB server; allow 120 GB free during setup), with separate local-server and account controls. Legion client support on Android remains experimental because of an open Box64 startup issue; phone gameplay has not been verified. The original client executable is preserved. Native database, account login and world startup checks passed; the old publisher world server returned an access violation on shutdown, so clean world shutdown is not claimed.
 
           **The War Within — 11.2.5** keeps its separate Draconic installation and active Uniform Server database. Active downloads and Windows sessions continue in the background.
 
