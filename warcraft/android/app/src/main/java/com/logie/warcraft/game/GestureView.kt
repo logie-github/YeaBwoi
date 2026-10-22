@@ -91,9 +91,11 @@ class GestureView(
     private val turtle = activity.intent.getStringExtra(EXTRA_ENVIRONMENT) == ENVIRONMENT_TURTLE
     /** Felsong's game: the same, with Felsong's folder, saved login and accounts. */
     private val felsong = activity.intent.getStringExtra(EXTRA_ENVIRONMENT) == ENVIRONMENT_FELSONG
+    private val spp = activity.intent.getStringExtra(EXTRA_ENVIRONMENT) == ENVIRONMENT_SPP
     private val runFolder: java.io.File = when {
         turtle -> com.logie.warcraft.turtle.TurtleFiles.layout(activity).run
         felsong -> com.logie.warcraft.felsong.FelsongFiles.layout(activity).run
+        spp -> java.io.File(com.logie.warcraft.spp.SppFiles.layout(activity).root, "runtime")
         else -> com.logie.warcraft.WowFiles.run(activity)
     }
     private val selectionFile = java.io.File(runFolder, "selection")
@@ -125,7 +127,8 @@ class GestureView(
     private var loginShown = false
     private val newAccount = activity.intent.getBooleanExtra(EXTRA_NEW_ACCOUNT, false)
     /** The account in the game's login box (Config.wtf), if the launcher knows which. */
-    private val account: String? = activity.intent.getStringExtra(EXTRA_ACCOUNT)
+    private val account: String? get() = if (spp) com.logie.warcraft.spp.SppLogin.selectedName(activity)
+        else activity.intent.getStringExtra(EXTRA_ACCOUNT)
     /** Key presses still to send for text from the prompt, a few milliseconds apart. */
     private val typing = ArrayDeque<() -> Unit>()
     private var typingRuns = false
@@ -255,6 +258,7 @@ class GestureView(
         val saved = when {
             turtle -> com.logie.warcraft.turtle.TurtleLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
             felsong -> com.logie.warcraft.felsong.FelsongLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
+            spp -> com.logie.warcraft.spp.SppLogin.get(activity)?.let { SavedLogin.Login(it.name, it.password) }
             else -> SavedLogin.get(activity)
         }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
@@ -625,6 +629,12 @@ class GestureView(
                     val names = if (named != null) listOf(named) else accounts.list(app).map { it.name }
                     names.firstOrNull { accounts.isPassword(app, it, password) }
                         ?.let { com.logie.warcraft.felsong.FelsongLogin.save(app, it, password) }
+                } else if (spp) {
+                    val name = named ?: com.logie.warcraft.spp.SppLogin.selectedName(app)
+                    if (name != null) kotlinx.coroutines.runBlocking {
+                        if (com.logie.warcraft.spp.SppAccounts.isPassword(app, name, password))
+                            com.logie.warcraft.spp.SppLogin.save(app, name, password)
+                    }
                 } else {
                     val names = if (named != null) listOf(named) else Accounts.list(app).map { it.name }
                     names.firstOrNull { Accounts.isPassword(app, it, password) }?.let { SavedLogin.save(app, it, password) }
@@ -699,6 +709,7 @@ class GestureView(
         const val EXTRA_ENVIRONMENT = "environment"
         const val ENVIRONMENT_TURTLE = "turtle"
         const val ENVIRONMENT_FELSONG = "felsong"
+        const val ENVIRONMENT_SPP = "spp"
 
         private const val CLICK_MS = 30L
         private const val KEY_MS = 60L

@@ -5,7 +5,9 @@ This replaces the Felsong launcher section at the user's request. The requested 
 the original Legion distribution for build **26972**. Existing Felsong data is preserved;
 SPP's downloaded files use a separate installation directory. Other expansions keep their files.
 
-Implementation is in progress. No completed phone play test is claimed.
+The installer, realm controls and linked-account management are integrated into the existing
+application. No completed phone play test is claimed; Box64's
+[Legion startup issue](https://github.com/ptitSeb/box64/issues/3061) remains open.
 
 ## Inspected external sources
 
@@ -38,3 +40,41 @@ Streaming requires internet access; partial CASC presence does not establish an 
 No game, database or server binary is committed or included in the APK. Inspection and native
 runtime checks use disposable CI storage. Android Wine/Box64 client compatibility still requires
 testing on the phone, independently from Windows server validation.
+
+## Installation and isolation
+
+The legacy `felsong` environment preference selects the new SPP launcher. All new files are
+under `files/spp-legion` (or the selected external app directory); existing `files/felsong`,
+Wrath, Turtle and TWW files are preserved. The normal Download & Install action uses pinned
+archive sizes and digests, validated resume, automatic extraction, staging and transactional
+placement from `local/LocalInstallJobs`, shared with Draconic. SPP's server data is included;
+there is no separate map download. Optional folder/archive import follows the same verifier.
+
+`SppIntegration` selects the actual 64-bit SPP binaries and realm 1 settings rather than its
+32-bit alternative, other realm templates or BestCore. The native executables report
+`SingleCore_Legion rev. 404d478c1cc2 2018-12-30 (AshamaneCore-dmca branch)`.
+The old authentication database has no `build_info` or `battlenet_components` table. Its known
+fixed-build release is therefore bound to the inspected core executable SHA-256 values:
+`bnetserver.exe`: `8bb9eea52f8f7421b75f9fd92311bea74ef3f6d001a1986dd0cfee96449675c3`;
+`worldserver.exe`: `d54437a169b9bc00d56e809ace78629e78cbf2fdb7008c5feca9374df25b7cf5`.
+A different core does not inherit that compatibility claim. Draconic retains its separate live
+`build_info` check, and changing a realmlist routing row never establishes build compatibility.
+
+`local/WindowsRealmServer` owns actual database/authentication/world processes and status,
+safe shutdown attempts, retained-session failures and an explicit Force Stop. Only one Windows
+realm can own Winlator's active Wine home. Each realm has separate installation/service state;
+downloads and active sessions retain the app's background protections. Startup returns the
+launcher to the foreground while Windows processes load, so server progress stays visible.
+
+The SPP client preparation copies the inspected `SPP_Wow-64.exe` beside `Wow-64.exe`, preserving
+the latter and backing up an existing modified local-play copy. This is explained before setup.
+The managed-session window listener ignores server consoles before activating game login and
+touch controls. Client configuration keeps the portal on 127.0.0.1 and applies the app's existing
+graphics/touch conventions. Initial CASC chunks are mutable streaming storage; pinned archive
+validation checks their download, while receipts do not report ordinary CASC growth as damage.
+
+Accounts use the real `realmd.battlenet_accounts` and `account` tables. Battle.net password hashing
+matches the publisher source's `BattlenetAccountMgr::CalculateShaPassHash`; a game account named
+`<bnet id>#1` is linked with `battlenet_account`/`battlenet_index` and the SHA-1 game-account hash.
+SQL credentials are encoded as hex literals, requests are serialized and temporary query files
+are removed. Solocraft and rate settings edit the imported world configuration while stopped.

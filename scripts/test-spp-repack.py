@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
         sql("UPDATE realmlist SET address='127.0.0.1',localAddress='127.0.0.1',port=8095,gamebuild=26972 WHERE id=1;")
         login_config = config(realm / "Settings/login.conf")
         world_config = config(realm / "Settings/world.conf", True)
-        login, login_log = launch(bin_dir / "bnetserver.exe", ["-c", str(login_config)], realm, "authentication")
+        login, login_log = launch(bin_dir / "bnetserver.exe", ["-c", str(login_config.relative_to(realm))], realm, "authentication")
         ready(login, 1119, login_log)
         ready(login, 8081, login_log)
         emit("AUTHENTICATION_READY", True)
@@ -157,7 +157,7 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
         emit("ACCOUNT_LOGIN", {"state": state, "ticket_received": bool(ticket), "keys": list(login_result)})
         if str(state).upper() != "DONE" or not ticket:
             raise RuntimeError("The newly created account did not authenticate through SPP's real login service")
-        world, world_log = launch(bin_dir / "worldserver.exe", ["-c", str(world_config)], realm, "world")
+        world, world_log = launch(bin_dir / "worldserver.exe", ["-c", str(world_config.relative_to(realm))], realm, "world")
         ready(world, 8095, world_log, 1200)
         emit("WORLD_READY", True)
         world.stdin.write(b"server shutdown 1\n")
