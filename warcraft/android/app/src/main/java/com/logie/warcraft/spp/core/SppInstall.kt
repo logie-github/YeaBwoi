@@ -11,7 +11,8 @@ object SppInstall {
         val spec = when {
             local -> SppRealm.SPEC
             member(client, "Wow-64.exe")?.isFile == true -> SppRealm.SPEC.copy(executableNames = setOf("wow-64.exe"))
-            else -> SppRealm.SPEC.copy(executableNames = setOf("wow.exe"))
+            // The publisher full archive supplies x86 Wow.exe; setup adds its pinned x64 program.
+            else -> SppRealm.SPEC.copy(executableNames = setOf("wow.exe"), clientMachines = setOf(0x14c))
         }
         return TwwInstall.inspect(client, server, maps, spec)
     }

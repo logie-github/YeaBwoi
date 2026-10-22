@@ -98,7 +98,7 @@ object TwwInstall {
             }
             else -> null
         }
-        val build = executable?.let { readBuild(it) }
+        val build = executable?.let { readBuild(it, spec.clientMachines) }
         val clientRoot = executable?.parentFile ?: client
         val dataRoots = listOf(clientRoot, clientRoot.parentFile ?: clientRoot, client).distinct()
         val dataFiles = clientFiles.filter { file -> dataRoots.any { root ->
@@ -242,8 +242,8 @@ object TwwInstall {
     fun findServerRoot(folder: File): File? = folder.takeIf { detect(it, files(it)) != null }
 
     /** Reads the executable itself; a launcher record never overrides a different executable build. */
-    fun readBuild(executable: File): ClientBuild? = runCatching {
-        if (peMachine(executable) != 0x8664) return null
+    fun readBuild(executable: File, machines: Set<Int> = setOf(0x8664)): ClientBuild? = runCatching {
+        if (peMachine(executable) !in machines) return null
         executable.inputStream().buffered().use { ClientBuild.read(it) }
     }.getOrNull()
 
