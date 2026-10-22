@@ -92,3 +92,14 @@ matches the publisher source's `BattlenetAccountMgr::CalculateShaPassHash`; a ga
 `<bnet id>#1` is linked with `battlenet_account`/`battlenet_index` and the SHA-1 game-account hash.
 SQL credentials are encoded as hex literals, requests are serialized and temporary query files
 are removed. Solocraft and rate settings edit the imported world configuration while stopped.
+
+## Native runtime verification (2026-10-22)
+
+The original pinned repack was extracted in disposable Windows CI. Its MariaDB and bnetserver
+started, a newly created linked account authenticated over the actual HTTPS login service and
+received a login ticket, and the world server opened port 8095 with the supplied data.
+The database shut down with exit code 0. **The old publisher worldserver exited with access
+violation 0xC0000005 after `server shutdown 1`. Clean world shutdown is not verified.**
+The app checks component exit markers and reports abnormal shutdowns; closed ports alone
+never establish a clean save. This integration does not silently replace the publisher core.
+Android/Wine shutdown behavior and gameplay still need a real phone test.

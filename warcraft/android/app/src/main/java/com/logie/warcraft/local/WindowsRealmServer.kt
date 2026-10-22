@@ -478,15 +478,28 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     delay(500)
                 }
             }
+            val outcome = shutdownResult(context)
             closeSession()
             File(layout(context).root, "runtime/login.cnf").delete()
             profile = null
             started.clear()
-            mutableStatus.value = Status()
+            mutableStatus.value = outcome
         } catch (error: Exception) {
             mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED, detail = null, error = error.message ?: error.javaClass.simpleName)
             refreshObserved()
         }
+    }
+
+    /** Closed ports establish that a process stopped, not that it saved and exited cleanly. */
+    internal fun shutdownResult(context: Context): Status {
+        val failures = listOf("world", "authentication", "database").mapNotNull { name ->
+            val exit = exitFile(context, name)
+            if (!exit.isFile) return@mapNotNull null
+            val code = exit.readText().trim()
+            if (code == "0") null else "$name exited with code $code during shutdown. Check runtime/$name.log before restarting; a clean save has not been verified."
+        }
+        return Status(detail = if (failures.isEmpty()) null else "Server processes stopped with errors.",
+            error = failures.takeIf { it.isNotEmpty() }?.joinToString("\n"))
     }
 
     private suspend fun closeSession() {
