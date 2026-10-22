@@ -103,6 +103,11 @@
             android:exported="false"
             android:stopWithTask="false" />
 
+        <service
+            android:name=".spp.SppService"
+            android:exported="false"
+            android:stopWithTask="false" />
+
         <!-- The game: Winlator's screen (its X server with Wine and Box64 behind it), its controls
              editor, and the service that keeps the game alive in the background. Its own main
              screen stays, unlisted, for the code that refers to it. -->

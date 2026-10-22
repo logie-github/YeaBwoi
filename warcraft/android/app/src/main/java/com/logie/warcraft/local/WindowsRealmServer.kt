@@ -55,6 +55,8 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Mutex()
+    private val queryLock = Mutex()
+    private var querySequence = 0L
     private var job: Job? = null
     @Volatile private var activity = WeakReference<XServerDisplayActivity>(null)
     @Volatile private var stopping = false
@@ -62,6 +64,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     // Keep installation writes locked for the lifetime of the actual Windows session.
     @Volatile private var ownsSession = false
     @Volatile private var profile: Profile? = null
+    val authenticationDatabase: String? get() = profile?.login?.getOrNull(4)
     private val started = mutableSetOf<String>()
 
     private data class Profile(
@@ -219,8 +222,10 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 if (!realm.localClientConfigured(app)) throw IOException("Configure the local client connection and review the Firestorm warning first.")
                 val report = realm.report(app)
                 val executable = report.clientExecutable ?: throw IOException("The client executable is missing.")
-                if (report.clientBuild?.build != realm.spec.build) throw IOException("The installed client does not match build ${realm.spec.build}.")
+                if (report.client.status != TwwInstall.Status.INSTALLED || report.clientBuild?.build != realm.spec.build)
+                    throw IOException("The installed client is incomplete or does not match build ${realm.spec.build}.")
                 val layout = layout(app)
+                realm.prepareClientLaunch(app)
                 val command = TwwSession.argument(TwwSession.windows(executable, layout.client, 'D'))
                 writeScript(app, "client", TwwSession.script(TwwSession.windows(executable.parentFile, layout.client, 'D'), command, "client"))
                 execute("client")
@@ -229,6 +234,33 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             } catch (error: Exception) {
                 mutableStatus.value = mutableStatus.value.copy(error = error.message ?: error.javaClass.simpleName)
             }
+        }
+    }
+
+    /** Real SQL through this realm's running database client; each request has private temporary files. */
+    suspend fun query(context: Context, database: String, sql: String): String = queryLock.withLock {
+        val p = profile ?: throw IOException("Start the local server before managing accounts.")
+        if (mutableStatus.value.phase != Phase.RUNNING || !open(p.databasePort))
+            throw IOException("Wait for the local server to finish starting before managing accounts.")
+        if (!database.matches(Regex("[A-Za-z0-9_]+"))) throw IOException("Invalid database name.")
+        val configured = listOfNotNull(p.detected.authenticationConfig, p.detected.worldConfig).flatMap { file ->
+            val conf = ConfFile(file.readText())
+            listOf("LoginDatabaseInfo", "WorldDatabaseInfo", "CharacterDatabaseInfo", "HotfixDatabaseInfo")
+                .mapNotNull { conf[it]?.split(';')?.takeIf { fields -> fields.size == 5 }?.last() }
+        }.toSet()
+        if (database !in configured) throw IOException("This database does not belong to the local realm.")
+        val name = "query-${++querySequence}"
+        val runtime = runtimeFolder(context)
+        try {
+            LocalConfig.atomicWrite(File(runtime, "$name.sql"), sql)
+            val command = TwwSession.argument(TwwSession.windows(p.mysql, p.detected.root, 'S')) +
+                " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names $database <\"R:\\runtime\\$name.sql\""
+            writeScript(context, name, TwwSession.script("S:\\", command, name))
+            execute(name)
+            waitExit(context, name, 60)
+            File(runtime, "$name.log").readText()
+        } finally {
+            for (suffix in listOf("sql", "cmd", "log", "exit")) File(runtime, "$name.$suffix").delete()
         }
     }
 
@@ -260,11 +292,15 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 if (System.currentTimeMillis() >= deadline) throw IOException("The Windows session did not start. Check the Winlator runtime installation.")
                 delay(250)
             }
+            withContext(Dispatchers.Main) {
+                context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            }
             mutableStatus.value = mutableStatus.value.copy(database = ComponentStatus.STARTING, detail = "Starting ${p.detected.databaseExecutable?.name}…")
             startComponent("database")
             waitReady(context, "database", listOf(p.databasePort), 180)
             mutableStatus.value = mutableStatus.value.copy(database = ComponentStatus.RUNNING,
-                detail = "Verifying build ${realm.spec.build} in the imported authentication database…")
+                detail = if (realm.spec.hasPinnedCore) "Checking the installed server release for build ${realm.spec.build}…"
+                    else "Verifying build ${realm.spec.build} in the imported authentication database…")
             verifyServerBuild(context, p)
             setRealm(context, p)
             mutableStatus.value = mutableStatus.value.copy(authentication = ComponentStatus.STARTING, detail = "Starting ${p.detected.authenticationExecutable?.name}…")
@@ -357,10 +393,16 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     /** A realmlist row is routing configuration, so changing its gamebuild cannot prove compatibility. */
     private suspend fun verifyServerBuild(context: Context, p: Profile) {
+        if (realm.spec.hasPinnedCore) {
+            if (p.detected.authenticationExecutable?.let { LocalConfig.sha256(it) } != realm.spec.authenticationSha256 ||
+                p.detected.worldExecutable?.let { LocalConfig.sha256(it) } != realm.spec.worldSha256)
+                throw IOException("The server executables no longer match the inspected build ${realm.spec.build} release.")
+            return
+        }
         val runtime = runtimeFolder(context)
         val proof = fs(context).check(File(p.detected.root, realm.spec.proofFile))
         if (proof.exists() && !proof.delete()) throw IOException("The previous build verification record could not be invalidated.")
-        LocalConfig.atomicWrite(File(runtime, "build-check.sql"), "SELECT COUNT(*) FROM build_info WHERE build=${realm.spec.build};\n")
+        LocalConfig.atomicWrite(File(runtime, "build-check.sql"), realm.spec.buildQuery())
         val command = TwwSession.argument(TwwSession.windows(p.mysql, p.detected.root, 'S')) +
             " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names ${p.login[4]} <\"R:\\runtime\\build-check.sql\""
         writeScript(context, "build-check", TwwSession.script("S:\\", command, "build-check"))
@@ -375,7 +417,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         LocalConfig.atomicWrite(proof, "build=${realm.spec.build}\n" +
             "authenticationSha256=${LocalConfig.sha256(authentication)}\n" +
             "worldSha256=${LocalConfig.sha256(world)}\n" +
-            "source=authentication-database-build_info\n")
+            "source=${realm.spec.proofSource}\n")
     }
 
     private suspend fun stopNow(context: Context) {

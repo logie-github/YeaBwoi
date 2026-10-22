@@ -18,6 +18,7 @@ interface ManagedWindowsRealm {
     fun localClientConfigured(context: Context): Boolean
     suspend fun openSession(context: Context)
     fun showSession(context: Context)
+    fun prepareClientLaunch(context: Context) {}
 }
 
 data class LocalInstallation(val root: File) {

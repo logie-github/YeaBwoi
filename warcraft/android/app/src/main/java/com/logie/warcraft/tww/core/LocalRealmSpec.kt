@@ -12,9 +12,20 @@ data class LocalRealmSpec(
     val db2Prefixes: List<String> = listOf("WDC"),
     val proofFile: String = ".local-build-proof.properties",
     val serverLayout: LocalServerLayout? = null,
+    val buildTable: String = "build_info",
+    val authenticationSha256: String? = null,
+    val worldSha256: String? = null,
 ) {
     val version: String get() = "$major.$minor.$patch"
-    val pendingBuildCheck: String get() = "Client build $build will be verified from the authentication database when the local server starts"
+    val hasPinnedCore: Boolean get() = authenticationSha256 != null && worldSha256 != null
+    val pendingBuildCheck: String get() = if (hasPinnedCore) "Server executables must match the inspected build $build release"
+        else "Client build $build will be verified from the authentication database when the local server starts"
+    val proofSource: String get() = if (hasPinnedCore) "inspected-server-release" else "authentication-database-$buildTable"
+    fun buildQuery(): String = when (buildTable) {
+        "build_info" -> "SELECT COUNT(*) FROM build_info WHERE build=$build;\n"
+        "battlenet_components" -> "SELECT COUNT(*) FROM battlenet_components WHERE Program='WoW' AND Build=$build;\n"
+        else -> error("Unsupported server build evidence table")
+    }
 
     companion object {
         val WAR_WITHIN = LocalRealmSpec(11, 2, 5, TwwRealm.CLIENT_BUILD,

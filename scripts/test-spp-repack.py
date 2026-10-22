@@ -102,13 +102,24 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
             emit("CLI", {"executable": executable, "code": result.returncode, "help": result.stdout[-4000:], "error": result.stderr[-1500:]})
             if result.returncode:
                 raise RuntimeError("The repack executable cannot run: " + executable)
+            version = subprocess.run([str(bin_dir / executable), "--version"], cwd=realm, env=environment,
+                                     capture_output=True, text=True, timeout=30)
+            emit("CORE_VERSION", {"executable": executable, "text": version.stdout, "error": version.stderr})
         if "build_info" in tables:
             builds = sql("SELECT build FROM build_info ORDER BY build;")
         elif "battlenet_components" in tables:
             emit("BATTLENET_COMPONENTS", sql("SELECT * FROM battlenet_components;").splitlines())
             builds = sql("SELECT Build FROM battlenet_components WHERE Program='WoW' ORDER BY Build;")
         else:
-            raise RuntimeError("No supported-build source was found in the authentication database")
+            # This old fixed-build SPP release has no build metadata table. Bind it to the
+            # publisher's documented 26972 release by its inspected executable digests.
+            pins = {"bnetserver.exe": "8bb9eea52f8f7421b75f9fd92311bea74ef3f6d001a1986dd0cfee96449675c3",
+                    "worldserver.exe": "d54437a169b9bc00d56e809ace78629e78cbf2fdb7008c5feca9374df25b7cf5"}
+            for executable, expected in pins.items():
+                if hashlib.sha256((bin_dir / executable).read_bytes()).hexdigest() != expected:
+                    raise RuntimeError("The fixed-build SPP executable changed: " + executable)
+            emit("FIXED_BUILD_RELEASE", {"build": 26972, "executable_sha256": pins})
+            builds = "26972"
         emit("SUPPORTED_BUILDS", builds.splitlines())
         if "26972" not in builds.splitlines():
             raise RuntimeError("The actual authentication database does not support build 26972")
@@ -120,7 +131,32 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
         ready(login, 8081, login_log)
         emit("AUTHENTICATION_READY", True)
         with urllib.request.urlopen("http://127.0.0.1:8081/bnetserver/login/", timeout=10) as response:
-            emit("LOGIN_FORM", {"status": response.status, "body": response.read(16384).decode(errors="replace")})
+            form = json.loads(response.read(16384).decode())
+            emit("LOGIN_FORM", {"status": response.status, "body": form})
+        email = "PROBE" + str(int(time.time())) + "@LOCAL.INVALID"
+        password = "SppProbe-4829"
+        email_hash = hashlib.sha256(email.encode()).hexdigest().upper()
+        password_hash = hashlib.sha256((email_hash + ":" + password.upper()).encode()).digest()[::-1].hex().upper()
+        sql("START TRANSACTION; INSERT INTO battlenet_accounts(email,sha_pass_hash) VALUES('" + email + "','" + password_hash + "'); "
+            "SET @b=LAST_INSERT_ID(); SET @n=CONCAT(@b,'#1'); "
+            "INSERT INTO account(username,sha_pass_hash,email,reg_mail,expansion,battlenet_account,battlenet_index) "
+            "VALUES(@n,UPPER(SHA1(CONCAT(@n,':','" + password.upper() + "'))),'" + email + "','" + email + "',6,@b,1); "
+            "SET @g=LAST_INSERT_ID(); INSERT INTO realmcharacters(realmid,acctid,numchars) SELECT id,@g,0 FROM realmlist; COMMIT;")
+        for item in form.get("inputs", []):
+            identifier = item.get("input_id", item.get("id"))
+            if identifier == "account_name":
+                item["value"] = email
+            elif identifier == "password":
+                item["value"] = password
+        request = urllib.request.Request("http://127.0.0.1:8081/bnetserver/login/", data=json.dumps(form).encode(),
+                                         headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(request, timeout=15) as response:
+            login_result = json.loads(response.read(16384).decode())
+        state = login_result.get("authentication_state", login_result.get("authenticationState"))
+        ticket = login_result.get("login_ticket", login_result.get("loginTicket"))
+        emit("ACCOUNT_LOGIN", {"state": state, "ticket_received": bool(ticket), "keys": list(login_result)})
+        if str(state).upper() != "DONE" or not ticket:
+            raise RuntimeError("The newly created account did not authenticate through SPP's real login service")
         world, world_log = launch(bin_dir / "worldserver.exe", ["-c", str(world_config)], realm, "world")
         ready(world, 8095, world_log, 1200)
         emit("WORLD_READY", True)
