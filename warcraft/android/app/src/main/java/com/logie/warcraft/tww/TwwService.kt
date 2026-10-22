@@ -2,6 +2,8 @@
 
 package com.logie.warcraft.tww
 
+import com.logie.warcraft.local.LocalInstallJobs
+
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -40,7 +42,7 @@ class TwwService : Service() {
             if (worker?.isAlive != true) stopSelf()
             return START_NOT_STICKY
         }
-        val kind = intent?.getStringExtra(KIND)?.let { runCatching { TwwJobs.Kind.valueOf(it) }.getOrNull() }
+        val kind = intent?.getStringExtra(KIND)?.let { runCatching { LocalInstallJobs.Kind.valueOf(it) }.getOrNull() }
         if (worker?.isAlive == true) return START_REDELIVER_INTENT
         if (kind == null) { stopSelf(startId); return START_NOT_STICKY }
         if (!TwwJobs.busy && !TwwJobs.begin(kind)) return START_NOT_STICKY
@@ -48,7 +50,7 @@ class TwwService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:tww-import")
             .apply { setReferenceCounted(false); acquire() }
-        if (kind in setOf(TwwJobs.Kind.INSTALL, TwwJobs.Kind.DOWNLOAD_CLIENT, TwwJobs.Kind.DOWNLOAD_SERVER, TwwJobs.Kind.DOWNLOAD_MAPS)) {
+        if (kind in setOf(LocalInstallJobs.Kind.INSTALL, LocalInstallJobs.Kind.DOWNLOAD_CLIENT, LocalInstallJobs.Kind.DOWNLOAD_SERVER, LocalInstallJobs.Kind.DOWNLOAD_MAPS)) {
             @Suppress("DEPRECATION")
             wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
                 .createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "warcraft:tww-download")
@@ -57,7 +59,7 @@ class TwwService : Service() {
         scope.launch {
             TwwJobs.state.collect {
                 val now = System.currentTimeMillis()
-                if (it is TwwJobs.State.Working && now - notifiedAt >= 500) {
+                if (it is LocalInstallJobs.State.Working && now - notifiedAt >= 500) {
                     notifiedAt = now
                     getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification())
                 }
@@ -104,7 +106,7 @@ class TwwService : Service() {
     }
 
     private fun notification(): Notification {
-        val current = TwwJobs.state.value as? TwwJobs.State.Working
+        val current = TwwJobs.state.value as? LocalInstallJobs.State.Working
         val cancel = PendingIntent.getService(this, 61, Intent(this, TwwService::class.java).setAction(CANCEL),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return NotificationCompat.Builder(this, channel())
@@ -120,10 +122,10 @@ class TwwService : Service() {
             .build()
     }
 
-    private fun notifyResult(state: TwwJobs.State) {
+    private fun notifyResult(state: LocalInstallJobs.State) {
         val message = when (state) {
-            is TwwJobs.State.Done -> state.message
-            is TwwJobs.State.Failed -> state.message
+            is LocalInstallJobs.State.Done -> state.message
+            is LocalInstallJobs.State.Failed -> state.message
             else -> return
         }
         getSystemService(NotificationManager::class.java).notify(RESULT_ID,
@@ -143,11 +145,11 @@ class TwwService : Service() {
         private const val URI = "uri"
         private const val FOLDER = "folder"
         private const val CANCEL = "com.logie.warcraft.tww.CANCEL_IMPORT"
-        private data class Request(val kind: TwwJobs.Kind, val uri: Uri?, val folder: Boolean)
+        private data class Request(val kind: LocalInstallJobs.Kind, val uri: Uri?, val folder: Boolean)
         @Volatile private var lastRequest: Request? = null
 
         /** Reserve the job before starting the service, preventing double taps from racing. */
-        fun job(context: Context, kind: TwwJobs.Kind, uri: Uri? = null, folder: Boolean = false) {
+        fun job(context: Context, kind: LocalInstallJobs.Kind, uri: Uri? = null, folder: Boolean = false) {
             if (!TwwJobs.begin(kind)) return
             lastRequest = Request(kind, uri, folder)
             if (uri != null) runCatching {
@@ -159,7 +161,7 @@ class TwwService : Service() {
             catch (e: Exception) { TwwJobs.failed(kind, "Cannot start installation service: ${e.message ?: e.javaClass.simpleName}") }
         }
 
-        fun start(context: Context, kind: TwwJobs.Kind, uri: Uri? = null, folder: Boolean = false) = job(context, kind, uri, folder)
+        fun start(context: Context, kind: LocalInstallJobs.Kind, uri: Uri? = null, folder: Boolean = false) = job(context, kind, uri, folder)
 
         /** Uses the same source; downloads automatically retain and validate their partial file. */
         fun retry(context: Context) {

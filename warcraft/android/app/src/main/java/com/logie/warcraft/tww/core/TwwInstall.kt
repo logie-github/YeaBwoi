@@ -324,7 +324,8 @@ object TwwInstall {
                 } else issues += "Multiple startup commands for ${exe.name}; startup requirements need review"
             }
         }
-        val evidence = files.filter { file -> file.extension.lowercase(Locale.ROOT) in setOf("md", "txt", "conf", "ini") && file.length() < MAX_TEXT }
+        val evidenceFiles = if (layout == null) files else listOfNotNull(worldConf, authConf)
+        val evidence = evidenceFiles.filter { file -> file.extension.lowercase(Locale.ROOT) in setOf("md", "txt", "conf", "ini") && file.length() < MAX_TEXT }
             .flatMap { file ->
                 val text = readText(file)
                 BUILD.findAll(text).map { it.groupValues[1].toInt() }.toList() +

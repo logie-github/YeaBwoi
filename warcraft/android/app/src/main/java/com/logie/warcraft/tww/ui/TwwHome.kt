@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package com.logie.warcraft.tww.ui
 
+import com.logie.warcraft.local.LocalInstallJobs
+
 import com.logie.warcraft.local.WindowsRealmServer
 
 import android.content.Intent
@@ -72,17 +74,17 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
     var message by remember { mutableStateOf<String?>(null) }
     var configuring by remember { mutableStateOf(false) }
     var dialog by remember { mutableStateOf<String?>(null) }
-    var pendingImport by rememberSaveable { mutableStateOf(TwwJobs.Kind.IMPORT_CLIENT.name) }
+    var pendingImport by rememberSaveable { mutableStateOf(LocalInstallJobs.Kind.IMPORT_CLIENT.name) }
     var checkUpdate by rememberSaveable { mutableStateOf(checkUpdateOnOpen) }
     var playAfterStart by rememberSaveable { mutableStateOf(false) }
     val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { checkUpdate = false }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
-        if (uri != null) TwwService.start(context, TwwJobs.Kind.valueOf(pendingImport), uri, true)
+        if (uri != null) TwwService.start(context, LocalInstallJobs.Kind.valueOf(pendingImport), uri, true)
     }
     val archivePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) TwwService.start(context, TwwJobs.Kind.valueOf(pendingImport), uri)
+        if (uri != null) TwwService.start(context, LocalInstallJobs.Kind.valueOf(pendingImport), uri)
     }
-    fun run(kind: TwwJobs.Kind) { TwwService.start(context, kind) }
+    fun run(kind: LocalInstallJobs.Kind) { TwwService.start(context, kind) }
     fun open(url: String) {
         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }.onFailure { message = it.message }
     }
@@ -103,12 +105,12 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
         }
     }
     LaunchedEffect(job) {
-        val result = job as? TwwJobs.State.Done
-        if (result?.kind == TwwJobs.Kind.VERIFY || result?.kind == TwwJobs.Kind.CLEAN_DOWNLOADS) message = result?.message
+        val result = job as? LocalInstallJobs.State.Done
+        if (result?.kind == LocalInstallJobs.Kind.VERIFY || result?.kind == LocalInstallJobs.Kind.CLEAN_DOWNLOADS) message = result?.message
     }
     TwwReportEffect(
-        busy = job is TwwJobs.State.Working,
-        version = if (job is TwwJobs.State.Working) null else job,
+        busy = job is LocalInstallJobs.State.Working,
+        version = if (job is LocalInstallJobs.State.Working) null else job,
         refresh = refresh,
         phase = server.phase,
         read = { withContext(Dispatchers.IO) { TwwFiles.report(context) } },
@@ -119,7 +121,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
         if (playAfterStart && server.phase == WindowsRealmServer.Phase.RUNNING) { playAfterStart = false; TwwGame.play(context) }
         if (server.phase == WindowsRealmServer.Phase.FAILED) playAfterStart = false
     }
-    val busy = job is TwwJobs.State.Working
+    val busy = job is LocalInstallJobs.State.Working
     val editable = !busy && !TwwServer.isBusy && !configuring
     val installed = report?.let { listOf(it.client, it.core, it.database, it.maps).count { c -> c.status == TwwInstall.Status.INSTALLED } } ?: 0
     WowTheme {
@@ -134,12 +136,12 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                         Text(TwwRealm.DISPLAY_NAME, style = MaterialTheme.typography.headlineSmall, color = TwwColors.Gold)
                         Text("Draconic WoW · Local realm", style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted)
                         when (val state = job) {
-                            is TwwJobs.State.Working -> {
+                            is LocalInstallJobs.State.Working -> {
                                 Text(state.detail, style = MaterialTheme.typography.bodyMedium)
                                 state.progress?.let { WowProgressLine(it) }
                                 TwwButton("Pause installation", primary = false) { TwwService.cancel(context) }
                             }
-                            is TwwJobs.State.Failed -> {
+                            is LocalInstallJobs.State.Failed -> {
                                 Text("Installation needs attention", color = TwwColors.Error)
                                 Text(state.message, style = MaterialTheme.typography.bodySmall, maxLines = 3)
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -167,7 +169,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                                     when {
                                         server.phase == WindowsRealmServer.Phase.RUNNING -> TwwGame.play(context)
                                         ready -> { playAfterStart = true; TwwServer.start(context) }
-                                        else -> run(TwwJobs.Kind.INSTALL)
+                                        else -> run(LocalInstallJobs.Kind.INSTALL)
                                     }
                                 }
                                 if (!ready && !TwwServer.isBusy) Text(stringResource(R.string.tww_one_tap_note), style = MaterialTheme.typography.bodySmall, color = TwwColors.Muted)
@@ -217,9 +219,9 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                     ComponentLine("Map Files", checked.maps)
                     checked.blockers.forEach { Text(it, style = MaterialTheme.typography.bodySmall) }
                 }
-                TwwButton("Download & Install", Modifier.fillMaxWidth(), enabled = editable) { dialog = null; run(TwwJobs.Kind.INSTALL) }
-                TwwButton("Verify Installation", primary = false, enabled = editable) { dialog = null; run(TwwJobs.Kind.VERIFY) }
-                (job as? TwwJobs.State.Done)?.let { Text(it.message, style = MaterialTheme.typography.bodySmall) }
+                TwwButton("Download & Install", Modifier.fillMaxWidth(), enabled = editable) { dialog = null; run(LocalInstallJobs.Kind.INSTALL) }
+                TwwButton("Verify Installation", primary = false, enabled = editable) { dialog = null; run(LocalInstallJobs.Kind.VERIFY) }
+                (job as? LocalInstallJobs.State.Done)?.let { Text(it.message, style = MaterialTheme.typography.bodySmall) }
                 TwwButton("Advanced / Storage", primary = false) { dialog = "advanced" }
             }
             "advanced" -> TwwDialog("Installation Options", { dialog = null }) {
@@ -229,23 +231,23 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                     refresh++
                 }
                 Text(stringResource(R.string.tww_replace_note), style = MaterialTheme.typography.bodySmall)
-                listOf("Download client" to TwwJobs.Kind.DOWNLOAD_CLIENT, "Reinstall server" to TwwJobs.Kind.DOWNLOAD_SERVER, "Download map files" to TwwJobs.Kind.DOWNLOAD_MAPS).forEach { (label, kind) ->
+                listOf("Download client" to LocalInstallJobs.Kind.DOWNLOAD_CLIENT, "Reinstall server" to LocalInstallJobs.Kind.DOWNLOAD_SERVER, "Download map files" to LocalInstallJobs.Kind.DOWNLOAD_MAPS).forEach { (label, kind) ->
                     TwwButton(label, primary = false, enabled = editable) {
-                        if (kind == TwwJobs.Kind.DOWNLOAD_SERVER && report?.detected != null) dialog = "replace-server"
+                        if (kind == LocalInstallJobs.Kind.DOWNLOAD_SERVER && report?.detected != null) dialog = "replace-server"
                         else { dialog = null; run(kind) }
                     }
                 }
                 TwwButton("Import existing files (optional)", primary = false, enabled = editable) { dialog = "import" }
-                TwwButton("Clear temporary downloads", primary = false, enabled = editable) { dialog = null; run(TwwJobs.Kind.CLEAN_DOWNLOADS) }
+                TwwButton("Clear temporary downloads", primary = false, enabled = editable) { dialog = null; run(LocalInstallJobs.Kind.CLEAN_DOWNLOADS) }
                 TwwButton("Download sources", primary = false) { dialog = "sources" }
             }
             "replace-server" -> TwwDialog("Replace server?", { dialog = null }, buttons = {
                 TwwButton("Cancel", primary = false) { dialog = null }
-                TwwButton("Replace Server") { dialog = null; run(TwwJobs.Kind.DOWNLOAD_SERVER) }
+                TwwButton("Replace Server") { dialog = null; run(LocalInstallJobs.Kind.DOWNLOAD_SERVER) }
             }) { Text("This replaces the existing Draconic server and database. Back up your accounts and characters first.") }
             "import" -> TwwDialog("Import Existing Files", { dialog = null }) {
                 Text(stringResource(R.string.tww_archive_support), style = MaterialTheme.typography.bodySmall)
-                listOf(TwwJobs.Kind.IMPORT_CLIENT to "client", TwwJobs.Kind.IMPORT_SERVER to "server", TwwJobs.Kind.IMPORT_MAPS to "map files").forEach { (kind, name) ->
+                listOf(LocalInstallJobs.Kind.IMPORT_CLIENT to "client", LocalInstallJobs.Kind.IMPORT_SERVER to "server", LocalInstallJobs.Kind.IMPORT_MAPS to "map files").forEach { (kind, name) ->
                     TwwButton("Import $name folder", primary = false, enabled = editable) { pendingImport = kind.name; dialog = null; folderPicker.launch(null) }
                     TwwButton("Import $name archive", primary = false, enabled = editable) { pendingImport = kind.name; dialog = null; archivePicker.launch(arrayOf("*/*")) }
                 }
