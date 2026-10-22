@@ -80,7 +80,9 @@ namespace Skyborne
 
     // The changes in a table's file (data/client/dbc/<Table>.txt, tools/build_data.py): "put" a row
     // (in place of the one with its id, or added), "putraw"/"appendraw" a record as bytes, "or" or
-    // "set" a field of the row with an id. Says what went wrong, or nothing.
+    // "set" a field of the row with an id. "copyrow" copies an installed row to a free ID;
+    // "remapfield" replaces matching field values without assuming vanilla row IDs or textures.
+    // Says what went wrong, or nothing.
     std::string ApplyChanges(Dbc& dbc, std::string const& changes);
 
     // How a texture's colours change (data/client/textures.txt): a skin's (a blue), a face's eyes,

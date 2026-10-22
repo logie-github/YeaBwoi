@@ -11,8 +11,8 @@ REPLACE INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `
 REPLACE INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
 (33001, 3601, 0, 0, 1.0, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
 (33002, 3602, 0, 0, 1.0, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
-(33003, 3603, 0, 0, 1.0, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
-(33004, 3604, 0, 0, 1.0, 255, '', '', '', '', 1, 0, 0, 0, 0, 0);
+(33003, 3603, 0, 0, 0.9, 255, '', '', '', '', 1, 0, 0, 0, 0, 0),
+(33004, 3604, 0, 0, 0.9, 255, '', '', '', '', 1, 0, 0, 0, 0, 0);
 
 -- The two races: the start race's faction, language and side; their own models, names and intros.
 REPLACE INTO `chrraces_dbc` (`ID`, `Flags`, `FactionID`, `ExplorationSoundID`, `MaleDisplayId`, `FemaleDisplayId`, `ClientPrefix`, `BaseLanguage`, `CreatureType`, `ResSicknessSpellID`, `SplashSoundID`, `ClientFilestring`, `CinematicSequenceID`, `Alliance`, `Name_Lang_enUS`, `Name_Lang_enGB`, `Name_Lang_koKR`, `Name_Lang_frFR`, `Name_Lang_deDE`, `Name_Lang_enCN`, `Name_Lang_zhCN`, `Name_Lang_enTW`, `Name_Lang_zhTW`, `Name_Lang_esES`, `Name_Lang_esMX`, `Name_Lang_ruRU`, `Name_Lang_ptPT`, `Name_Lang_ptBR`, `Name_Lang_itIT`, `Name_Lang_Unk`, `Name_Lang_Mask`, `Name_Female_Lang_enUS`, `Name_Female_Lang_enGB`, `Name_Female_Lang_koKR`, `Name_Female_Lang_frFR`, `Name_Female_Lang_deDE`, `Name_Female_Lang_enCN`, `Name_Female_Lang_zhCN`, `Name_Female_Lang_enTW`, `Name_Female_Lang_zhTW`, `Name_Female_Lang_esES`, `Name_Female_Lang_esMX`, `Name_Female_Lang_ruRU`, `Name_Female_Lang_ptPT`, `Name_Female_Lang_ptBR`, `Name_Female_Lang_itIT`, `Name_Female_Lang_Unk`, `Name_Female_Lang_Mask`, `Name_Male_Lang_enUS`, `Name_Male_Lang_enGB`, `Name_Male_Lang_koKR`, `Name_Male_Lang_frFR`, `Name_Male_Lang_deDE`, `Name_Male_Lang_enCN`, `Name_Male_Lang_zhCN`, `Name_Male_Lang_enTW`, `Name_Male_Lang_zhTW`, `Name_Male_Lang_esES`, `Name_Male_Lang_esMX`, `Name_Male_Lang_ruRU`, `Name_Male_Lang_ptPT`, `Name_Male_Lang_ptBR`, `Name_Male_Lang_itIT`, `Name_Male_Lang_Unk`, `Name_Male_Lang_Mask`, `FacialHairCustomization_1`, `FacialHairCustomization_2`, `HairCustomization`, `Required_Expansion`) VALUES
@@ -27543,11 +27543,11 @@ REPLACE INTO `faction_dbc` (`ID`, `ReputationIndex`, `ReputationRaceMask_1`, `Re
 
 -- The intros: the start race's flight over its home, with each race's own narration.
 REPLACE INTO `soundentries_dbc` (`ID`, `SoundType`, `Name`, `File_1`, `File_2`, `File_3`, `File_4`, `File_5`, `File_6`, `File_7`, `File_8`, `File_9`, `File_10`, `Freq_1`, `Freq_2`, `Freq_3`, `Freq_4`, `Freq_5`, `Freq_6`, `Freq_7`, `Freq_8`, `Freq_9`, `Freq_10`, `DirectoryBase`, `Volumefloat`, `Flags`, `MinDistance`, `DistanceCutoff`, `EAXDef`, `SoundEntriesAdvancedID`) VALUES
-(910001, 31, 'VoidElfFlyByNarration', 'VoidElfNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
-(910002, 31, 'NightborneFlyByNarration', 'NightborneNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
+(60001, 31, 'VoidElfFlyByNarration', 've.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
+(60002, 31, 'NightborneFlyByNarration', 'nb.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
 REPLACE INTO `cinematiccamera_dbc` (`ID`, `model`, `soundEntry`, `locationX`, `locationY`, `locationZ`, `rotation`) VALUES
-(9011, 'Cameras\\FlybyDraenei.mdx', 910001, -3963.27001953125, -13938.7001953125, 99.68879699707031, 5.201079845428467),
-(9012, 'Cameras\\FlybyUndead.mdx', 910002, 1658.5799560546875, 1662.9100341796875, 141.23399353027344, 3.141590118408203);
+(9011, 'Cameras\\FlybyDraenei.mdx', 60001, -3963.27001953125, -13938.7001953125, 99.68879699707031, 5.201079845428467),
+(9012, 'Cameras\\FlybyUndead.mdx', 60002, 1658.5799560546875, 1662.9100341796875, 141.23399353027344, 3.141590118408203);
 REPLACE INTO `cinematicsequences_dbc` (`ID`, `SoundID`, `Camera_1`, `Camera_2`, `Camera_3`, `Camera_4`, `Camera_5`, `Camera_6`, `Camera_7`, `Camera_8`) VALUES
 (9011, 0, 9011, 0, 0, 0, 0, 0, 0, 0),
 (9012, 0, 9012, 0, 0, 0, 0, 0, 0, 0);
@@ -27649,13 +27649,18 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 (16, 9, 1, 687, 0);
 
 -- Their skills: their side's weapons and armour; Common or Orcish; no other race's racials.
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 36 AND `classMask` = 4 AND `skill` = 46;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 650 AND `classMask` = 4 AND `skill` = 45;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 32768 WHERE `raceMask` = 690 AND `classMask` = 0 AND `skill` = 109;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 735 AND `classMask` = 1293 AND `skill` = 173;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE `raceMask` = 1024 AND `classMask` = 4 AND `skill` = 226;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE `raceMask` = 1061 AND `classMask` = 3 AND `skill` = 160;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE `raceMask` = 1101 AND `classMask` = 0 AND `skill` = 98;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 36) = 36 AND `classMask` = 4 AND `skill` = 46;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 650) = 650 AND `classMask` = 4 AND `skill` = 45;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 32768 WHERE (`raceMask` & 690) = 690 AND `classMask` = 0 AND `skill` = 109;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 735) = 735 AND `classMask` = 1293 AND `skill` = 173;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE (`raceMask` & 1024) = 1024 AND `classMask` = 4 AND `skill` = 226;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 49152 WHERE (`raceMask` & 1061) = 1061 AND `classMask` = 3 AND `skill` = 160;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 16384 WHERE (`raceMask` & 1101) = 1101 AND `classMask` = 0 AND `skill` = 98;
+
+-- Faction languages are explicitly learned even after another race module changed the masks.
+INSERT IGNORE INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES
+(16384, 0, 668, 'Void Elf - Common'),
+(32768, 0, 669, 'Nightborne - Orcish');
 
 -- Their racials, learned at creation.
 DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98711 AND 98722;

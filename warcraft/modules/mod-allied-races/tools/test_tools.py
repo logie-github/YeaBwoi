@@ -52,17 +52,13 @@ dxt5 = blp.write_dxt(alpha, alpha=True)
 back_5 = blp.read(dxt5)
 check(abs(int(back_5[0, 0, 3]) - 40) <= 8 and int(back_5[0, 31, 3]) == 255, "a DXT5 BLP keeps its alpha")
 
-# The sequence lookup is a hash table the game's way.
+# Public animations are indexed by legacy ID; unsupported retail IDs stay private.
 ids = [0, 1, 4, 4, 808, 60, 1000]
 variations = [0, 0, 0, 1, 0, 0, 0]
 table = m2.sequence_lookup(ids, variations)
-ok = True
-for sid in set(ids):
-    i = sid % len(table)
-    while table[i] >= 0 and ids[table[i]] != sid:
-        i = (i + 1) % len(table)
-    ok = ok and table[i] >= 0 and variations[table[i]] == 0
-check(ok and -1 in table, "the sequence lookup finds every id (its first variation) and has empty slots")
+ok = all(table[sid] >= 0 and ids[table[sid]] == sid and variations[table[sid]] == 0
+         for sid in set(ids) if sid <= m2.LAST_ANIMATION)
+check(ok and table[2] == -1 and table[505] == -1, "the lookup preserves legacy animation IDs and missing-animation fallbacks")
 
 # The geoset policy: named groups keep what's named, the tables' groups everything, others their lowest.
 policy = {"geoset_policy": {"2": [2, 21], "201": [21], "3501": [301], "1701": [1702, 1703], "3301": [0], "0": [0]}, "drop_groups": [51]}

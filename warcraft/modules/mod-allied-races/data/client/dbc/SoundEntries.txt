@@ -279,5 +279,5 @@ put	910375	29	Nightborne Emote 96396	Nightborne_96396_1.mp3	Nightborne_96396_2.m
 put	910376	29	Nightborne Emote 96395	Nightborne_96395_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
 put	910377	29	Nightborne Emote 96394	Nightborne_96394_1.mp3	Nightborne_96394_2.mp3	Nightborne_96394_3.mp3								1	1	1	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
 put	910378	29	Nightborne Emote 96393	Nightborne_96393_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\Nightborne	0.8999999761581421	0	8.0	45.0	0	0
-put	910001	31	VoidElfFlyByNarration	VoidElfNarration.mp3										1	1	1	1	1	1	1	1	1	1	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
-put	910002	31	NightborneFlyByNarration	NightborneNarration.mp3										1	1	1	1	1	1	1	1	1	1	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	60001	31	VoidElfFlyByNarration	ve.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	60002	31	NightborneFlyByNarration	nb.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0

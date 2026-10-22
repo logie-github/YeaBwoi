@@ -60,6 +60,7 @@ def tier_of(geoset):
 LAST_ANIMATION = 505                 # 3.3.5's AnimationData ends here
 KEY_BONES = 27                       # 3.3.5 knows key bones 0 to 26
 M2_FLAGS = 0x2080                    # what the known HD conversions keep of the newer flags
+RESIDENT_SEQUENCE_FLAGS = 0x130      # any of these marks data stored in the model/skeleton
 HEADER = 304
 BONE, SEQ, ATTACH, EVENT, CAMERA_IN, CAMERA_OUT, VERTEX, SECTION, BATCH = 88, 64, 40, 36, 116, 100, 48, 48, 24
 TRACK, TRACK_BASE = 20, 12
@@ -97,13 +98,13 @@ class Track:
         for i in range(max(tc, vc)):
             t = struct.unpack_from("<II", blob, to + i * 8) if i < tc else (0, 0)
             v = struct.unpack_from("<II", blob, vo + i * 8) if i < vc else (0, 0)
-            if in_file(i):
+            if gseq >= 0 or in_file(i):
                 ts.append(blob[t[1]:t[1] + t[0] * 4] if t[0] else b"")
                 vs.append(blob[v[1]:v[1] + v[0] * value_size] if v[0] else b"")
             else:
                 ts.append(("ext",) + tuple(t))
                 vs.append(("ext",) + tuple(v))
-        return Track(interp, gseq, ts, vs)
+        return with_value_size(Track(interp, gseq, ts, vs), value_size)
 
     @staticmethod
     def read_base(blob, at, in_file):
@@ -111,7 +112,7 @@ class Track:
         ts = []
         for i in range(tc):
             t = struct.unpack_from("<II", blob, to + i * 8)
-            ts.append(blob[t[1]:t[1] + t[0] * 4] if in_file(i) else ("ext",) + tuple(t))
+            ts.append(blob[t[1]:t[1] + t[0] * 4] if gseq >= 0 or in_file(i) else ("ext",) + tuple(t))
         return Track(interp, gseq, ts, None)
 
     def has_data(self):
@@ -124,6 +125,17 @@ def entry_count(entry):
     return len(entry) // 4 if entry else 0
 
 
+def validate_bone_values(data):
+    """Reject malformed local bone vectors before a client multiplies them into its pose.
+
+    These are character-local translations/scales, not world coordinates. The generous
+    10,000-unit bound catches corrupt float payloads while preserving normal motion.
+    """
+    if len(data) % 12 or any(not math.isfinite(value) or abs(value) > 10000
+                             for (value,) in struct.iter_unpack("<f", data)):
+        raise ValueError("non-finite or implausible character bone vector")
+
+
 class Skeleton:
     def __init__(self, data):
         c = chunks_of(data)
@@ -132,7 +144,7 @@ class Skeleton:
         gl, glo, sc, so, lc, lo = struct.unpack_from("<6I", sks)
         self.loops = list(struct.unpack_from("<%dI" % gl, sks, glo))
         self.seqs = [bytearray(sks[so + i * SEQ:so + (i + 1) * SEQ]) for i in range(sc)]
-        self.in_file = [bool(struct.unpack_from("<I", s, 12)[0] & 0x20) for s in self.seqs]
+        self.in_file = [bool(struct.unpack_from("<I", s, 12)[0] & RESIDENT_SEQUENCE_FLAGS) for s in self.seqs]
         skb = c["SKB1"]
         bc, bo, kc, ko = struct.unpack_from("<4I", skb)
         self.key_bones = list(struct.unpack_from("<%dh" % kc, skb, ko))
@@ -176,7 +188,7 @@ class Model:
         sc, so = arr(m, 28)
         if sc:
             self.keys = [struct.unpack_from("<HH", m, so + i * SEQ) for i in range(sc)]
-            self.in_file = [bool(struct.unpack_from("<I", m, so + i * SEQ + 12)[0] & 0x20) for i in range(sc)]
+            self.in_file = [bool(struct.unpack_from("<I", m, so + i * SEQ + 12)[0] & RESIDENT_SEQUENCE_FLAGS) for i in range(sc)]
         else:
             self.keys = [skeleton.key(i) for i in range(len(skeleton.seqs))]
             self.in_file = list(skeleton.in_file)
@@ -247,12 +259,59 @@ class Skin:
 
 # The merged skeleton ------------------------------------------------------------------------------
 
+class AnimationFiles:
+    """Flatten retail .anim streams and relocate each track into the right stream.
+
+    Split files keep model/event data in AFM2, attachments in AFSA and bones in AFSB.
+    Their offsets are relative to those chunks, not to AFM2 or the chunked file.
+    """
+
+    def __init__(self, read):
+        self.read = read
+        self.cache = {}
+
+    def get(self, fid):
+        if fid not in self.cache:
+            data = self.read(fid)
+            if data[:4] in (b"AFM2", b"AFSA", b"AFSB"):
+                chunks = chunks_of(data)
+                payload = bytearray()
+                parts = {}
+                for name in ("AFM2", "AFSA", "AFSB"):
+                    if name in chunks:
+                        while len(payload) % 16:
+                            payload.append(0)
+                        parts[name] = (len(payload), len(chunks[name]))
+                        payload.extend(chunks[name])
+                data = bytes(payload)
+            else:
+                parts = {"AFM2": (0, len(data))}
+            self.cache[fid] = data, parts
+        return self.cache[fid]
+
+    def relocate(self, fid, entry, size, stream):
+        if not isinstance(entry, tuple):
+            return entry
+        _, count, offset = entry
+        if not count:
+            return ("ext", 0, 0)
+        _, parts = self.get(fid)
+        # Unsplit .anim files put every kind of track in AFM2.
+        split = "AFSA" in parts or "AFSB" in parts
+        part = parts.get(stream) if split else parts.get("AFM2")
+        if part is None or offset < 0 or offset + count * size > part[1]:
+            raise ValueError("animation %d %s: %d x %d bytes at %d outside its stream; parts=%r" %
+                             (fid, stream, count, size, offset, parts))
+        return ("ext", count, part[0] + offset)
+
+
 class Merged:
     """The parent's sequences with the child's over and after them: for each merged sequence,
     where it comes from (skeleton, index)."""
 
     def __init__(self, child, parent):
         self.child, self.parent = child, parent
+        self.repairs = []
         self.sources = []                 # (which, index): which 0 = parent, 1 = child
         self.child_index = {}             # child sequence index -> merged index
         self.parent_index = {}
@@ -313,7 +372,7 @@ class Merged:
         table = self.child_index if which else self.parent_index
         return table.get(index, 0xFFFF)
 
-    def merge_tracks(self, child_track, parent_track, parent_map=None):
+    def merge_tracks(self, child_track, parent_track, parent_map=None, stream="AFM2"):
         """One track with an entry a merged sequence: the child's for its sequences, the parent's
         for the parent's. [parent_track] None: the parent's sequences get no data. [parent_map]:
         the parent skeleton's sequence index -> the index into [parent_track]'s entries (when
@@ -329,6 +388,11 @@ class Merged:
             gseq = self.child_loop(child_track.gseq)
         elif parent_track and parent_track.gseq >= 0:
             gseq = parent_track.gseq
+        if gseq >= 0:
+            # Global tracks belong to their own file's global loop, regardless of which
+            # source supplies merged sequence zero. They never use an external .anim.
+            t = child_track if child_track and child_track.gseq >= 0 else parent_track
+            return Track(t.interp, gseq, t.timestamps[:1], t.values[:1] if t.values is not None else None)
         ts, vs = [], []
         has_values = (child_track and child_track.values is not None) or (parent_track and parent_track.values is not None)
         for j in range(self.n):
@@ -344,12 +408,32 @@ class Merged:
                 ts.append(b"")
                 vs.append(b"")
                 continue
-            ts.append(t.timestamps[i])
-            vs.append(t.values[i] if t.values is not None else b"")
-        if gseq >= 0:
-            # a global sequence's data is in its first entry alone
-            first = next((k for k in range(self.n) if entry_count(ts[k])), 0)
-            ts, vs = [ts[first]], [vs[first]]
+            timestamp = t.timestamps[i]
+            value = t.values[i] if t.values is not None else b""
+            if hasattr(self, "animations"):
+                fid = self.anim_file(j)
+                try:
+                    timestamp = self.animations.relocate(fid, timestamp, 4, stream)
+                    value = self.animations.relocate(fid, value, getattr(t, "value_size", 1), stream)
+                    if stream == "AFSB" and getattr(t, "value_size", 0) == 12:
+                        payload = value
+                        if isinstance(value, tuple):
+                            _, count, offset = value
+                            payload = self.animations.get(fid)[0][offset:offset + count * 12] if count else b""
+                        validate_bone_values(payload)
+                except ValueError as error:
+                    source = self.skeleton(which)
+                    flags = struct.unpack_from("<I", self.seq(j), 12)[0]
+                    alias = struct.unpack_from("<H", self.seq(j), 62)[0]
+                    self.repairs.append("sequence %d key=%r source=%s index=%d flags=%#x alias=%d: %s" %
+                                        (j, source.key(self.sources[j][1]), "child" if which else "parent",
+                                         self.sources[j][1], flags, alias, error))
+                    # Some inherited retail channels point past the animation payload.
+                    # An empty track uses the bone's rest transform; never retain a bad read
+                    # or pair valid timestamps with missing/partial values.
+                    timestamp, value = b"", b""
+            ts.append(timestamp)
+            vs.append(value)
         return Track(interp, gseq, ts, vs if has_values else None)
 
 
@@ -387,21 +471,33 @@ def complete_policy(policy, geosets):
     return out
 
 
+def legacy_sequence_ids(ids):
+    """Keep track/alias indices stable; give retail-only backing sequences unused legacy IDs.
+
+    Backing sequences are deliberately absent from the public lookup so a missing player
+    animation still uses the game's fallback, rather than an unrelated retail animation.
+    """
+    public = {sid for sid in ids if sid <= LAST_ANIMATION}
+    spare = [sid for sid in range(LAST_ANIMATION, -1, -1) if sid not in public]
+    modern = sorted({sid for sid in ids if sid > LAST_ANIMATION})
+    if len(modern) > len(spare):
+        raise ValueError("not enough legacy animation IDs for retail alias backing sequences")
+    renamed = dict(zip(modern, spare))
+    return [renamed.get(sid, sid) for sid in ids]
+
+
 def sequence_lookup(ids, variations):
-    """The sequence lookup as the game reads it: a hash table (an id's first slot is id % size,
-    the next ones after it until an empty slot), each id's first variation in it, with room so
-    every probe ends at an empty slot."""
-    first = {}
+    """Public 3.3.5 IDs at their own slots, with explicit holes and no probe collisions.
+
+    This layout is safe for indexed and hashed readers. Retail-only sequences remain
+    available through alias indices, but are not exposed as playable legacy animations.
+    """
+    table = [-1] * (LAST_ANIMATION + 2)
     for j, (sid, var) in enumerate(zip(ids, variations)):
-        if sid not in first or (var == 0 and variations[first[sid]] != 0):
-            first[sid] = j
-    size = max(64, 2 * len(first))
-    table = [-1] * size
-    for sid, j in sorted(first.items()):
-        i = sid % size
-        while table[i] >= 0:
-            i = (i + 1) % size
-        table[i] = j
+        if sid > LAST_ANIMATION:
+            continue
+        if table[sid] < 0 or (var == 0 and variations[table[sid]] != 0):
+            table[sid] = j
     return table
 
 
@@ -516,6 +612,7 @@ def convert(files, policy, out_dir, log=print):
     child = Skeleton(files(struct.unpack_from("<I", chunks["SKID"])[0]))
     parent = Skeleton(files(child.parent)) if child.parent else None
     merged = Merged(child, parent)
+    merged.animations = AnimationFiles(files)
     model = Model(m2_data, child)
     parent_model = Model(files(policy["parent_model"]), parent) if parent and policy.get("parent_model") else None
     parent_map = {i: parent_model.index_of.get(parent.key(i), -1) for i in range(len(parent.seqs))} if parent_model else None
@@ -532,13 +629,19 @@ def convert(files, policy, out_dir, log=print):
     seqs = bytearray()
     ids = []
     external = []                                     # (merged index, (id, var), file id)
+    source_ids = [struct.unpack_from("<H", merged.seq(j))[0] for j in range(merged.n)]
+    legacy_ids = legacy_sequence_ids(source_ids)
     no_file = set()                                   # external sequences with no file: empty
     merged.no_file = no_file
     for j in range(merged.n):
         which, i = merged.sources[j]
         s = bytearray(merged.seq(j))
         sid, var, dur = struct.unpack_from("<HHI", s, 0)
+        sid = legacy_ids[j]
+        struct.pack_into("<H", s, 0, sid)
         flags = struct.unpack_from("<I", s, 12)[0] & 0xFF
+        if merged.in_file(j):
+            flags |= 0x20                            # normalize retail's resident flags for 3.3.5
         blend_in, blend_out = struct.unpack_from("<HH", s, 28)
         struct.pack_into("<I", s, 12, flags)
         struct.pack_into("<I", s, 28, max(blend_in, blend_out))
@@ -553,7 +656,7 @@ def convert(files, policy, out_dir, log=print):
                 struct.pack_into("<I", s, 12, flags | 0x20)
                 no_file.add(j)
         seqs += s
-        ids.append(sid)
+        ids.append(source_ids[j])
     blob.array(28, merged.n, bytes(seqs))
     table = sequence_lookup(ids, [struct.unpack_from("<H", merged.seq(j), 2)[0] for j in range(merged.n)])
     blob.array(36, len(table), struct.pack("<%dh" % len(table), *table))
@@ -567,7 +670,7 @@ def convert(files, policy, out_dir, log=print):
         bones += struct.pack("<iIhHI", key_bone, flags, parent_bone, submesh, crc)
         for k, size in enumerate((12, 8, 12)):
             ptrack = parent.bones[b][1][k] if parent and b < len(parent.bones) else None
-            bones += write_track(blob, with_value_size(merged.merge_tracks(tracks[k], ptrack), size))
+            bones += write_track(blob, with_value_size(merged.merge_tracks(tracks[k], ptrack, stream="AFSB"), size))
         bones += pivot
     blob.array(44, len(child.bones), bytes(bones))
     key_bones = (child.key_bones + [-1] * KEY_BONES)[:KEY_BONES]
@@ -628,7 +731,7 @@ def convert(files, policy, out_dir, log=print):
     # Attachments: the child's.
     attachments = b""
     for head, track in child.attachments:
-        attachments += head + write_track(blob, with_value_size(merged.merge_tracks(track, None), 1))
+        attachments += head + write_track(blob, with_value_size(merged.merge_tracks(track, None, stream="AFSA"), 1))
     blob.array(240, len(child.attachments), attachments)
     blob.array(248, len(child.attachment_lookup), struct.pack("<%dh" % len(child.attachment_lookup), *child.attachment_lookup))
 
@@ -833,6 +936,11 @@ def convert(files, policy, out_dir, log=print):
     head += struct.pack("<I", MAX_BONES)
     skin_out = bytes(head) + bytes(body)
 
+    if merged.repairs:
+        log("%s: %d malformed animation channels use their rest transforms" % (name, len(merged.repairs)))
+        for problem in merged.repairs[:10]:
+            log("  " + problem)
+
     # Files.
     written = {}
     written["%s\\%s.m2" % (folder, name)] = bytes(blob.data)
@@ -840,9 +948,7 @@ def convert(files, policy, out_dir, log=print):
     for j, (sid, var), fid in external:
         path = "%s\\%s%04d-%02d.anim" % (folder, name, sid, var)
         if path not in written:
-            data = files(fid)
-            c = chunks_of(data)
-            written[path] = c["AFM2"] if "AFM2" in c else data
+            written[path] = merged.animations.get(fid)[0]
     for fid, path in texture_names.items():
         written[path] = files(fid)
     for path, data in written.items():

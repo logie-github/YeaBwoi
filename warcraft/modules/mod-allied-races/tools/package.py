@@ -22,6 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import m2                                      # noqa: E402
 import textures                                # noqa: E402
+import check_m2                                # noqa: E402
 
 MODULE = os.path.dirname(HERE)
 RACES = os.path.join(MODULE, "data", "retail", "races.json")
@@ -103,22 +104,35 @@ def voice_files(race, read, out_dir, log):
         for n, fid in enumerate(files):
             name = "%s_%d_%d.mp3" % (race["name"], kit, n + 1)
             path = os.path.join(folder, name)
-            if not os.path.exists(path):
+            src, part = path + ".src", path + ".part"
+            # The source game files are already cached by file ID. Rebuild the short
+            # voice clips from those sources: merely finding an old MP3 does not prove
+            # it is complete, and a truncated MP3 can still contain decodable frames.
+            try:
                 data = read(fid)
-                src = path + ".src"
                 with open(src, "wb") as f:
                     f.write(data)
-                result = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", src, "-ac", "1", "-ar", "22050",
-                                         "-codec:a", "libmp3lame", "-b:a", "48k", path], capture_output=True)
-                os.remove(src)
-                if result.returncode:
-                    log("voice %d (kit %d) couldn't be converted: %s" % (fid, kit, result.stderr.decode(errors="replace").strip()))
-                    continue
+                result = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-xerror", "-y", "-i", src,
+                                         "-map", "0:a:0", "-ac", "1", "-ar", "22050", "-codec:a", "libmp3lame",
+                                         "-b:a", "48k", "-f", "mp3", part], capture_output=True)
+                if result.returncode or not os.path.exists(part) or not os.path.getsize(part):
+                    raise RuntimeError("voice %d (kit %d) couldn't be converted: %s" %
+                                       (fid, kit, result.stderr.decode(errors="replace").strip()))
+                os.replace(part, path)
+            finally:
+                for temporary in (src, part):
+                    if os.path.exists(temporary):
+                        os.remove(temporary)
             written.append("Sound\\Character\\%s\\%s" % (race["name"], name))
     return written
 
 
 def build(read, out_dir, log=print):
+    # Never leave an old complete manifest beside a failed rebuild's partial models.
+    os.makedirs(out_dir, exist_ok=True)
+    manifest = os.path.join(out_dir, MANIFEST)
+    if os.path.exists(manifest):
+        os.remove(manifest)
     with open(RACES) as f:
         races = json.load(f)
     written = []
@@ -126,6 +140,10 @@ def build(read, out_dir, log=print):
         for sex, model in race["models"].items():
             policy = dict(model, geosets=None)
             written += m2.convert(read, policy, out_dir, log)
+            model_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2")
+            problems = check_m2.check(model_path)
+            if problems:
+                raise ValueError(model["name"] + ": " + "; ".join(problems))
             layout_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".layout.json")
             with open(layout_path) as f:
                 layout = json.load(f)

@@ -37,7 +37,7 @@ namespace AlliedRaces
         constexpr char const* PATCH = "patch-V.MPQ";
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-4";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider
+        constexpr char const* VERSION = "allied-races-6";   // 6: legacy animation IDs and collision-free animation lookup
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -273,8 +273,8 @@ namespace AlliedRaces
         else
             problems.push_back("GlueXML.toc isn't in the game: the character screen won't show them");
         // The intros' narration (the user's, data/client/*_intro.mp3), where the game's sound table has it.
-        writer.Add("Sound\\CinematicVoices\\VoidElfNarration.mp3", ReadFile(moduleData / "voidelf_intro.mp3"));
-        writer.Add("Sound\\CinematicVoices\\NightborneNarration.mp3", ReadFile(moduleData / "nightborne_intro.mp3"));
+        writer.Add("Sound\\CinematicVoices\\ve.mp3", ReadFile(moduleData / "ve.mp3"));
+        writer.Add("Sound\\CinematicVoices\\nb.mp3", ReadFile(moduleData / "nb.mp3"));
 
         if (!writer.Finish())
         {

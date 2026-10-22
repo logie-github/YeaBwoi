@@ -10,7 +10,8 @@ Turtle WoW is another game and untouched), in their own models, looks and voices
 
 (The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 and 16 were
 the game's Skeleton and Vrykul, which only creatures use; in the game's tables they move to 24 and
-25, as the Skyborne moved 13 and 14 to 22 and 23.
+25, as the Skyborne moved 13 and 14 to 22 and 23. These moves preserve the installed client's
+rows and texture paths, including Alternative HD's, rather than overwriting them by vanilla row ID.
 
 ## What they have
 
@@ -18,6 +19,8 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   `character/nightborne/...`: the models, their skeletons with the parent skeletons, their
   animations), made models the 3.3.5 game draws by `tools/m2.py` (below). Not the blood elf's or
   the night elf's body.
+- **Size**: Void Elves use their native 1.0 display scale; Nightborne use 0.9. Both sexes use
+  the same setting in character creation and in the world. Existing worlds receive the update.
 - **Looks**, from today's customization tables, on 3.3.5's five sliders:
   - *Skin colour*: every skin colour a player picks today (void elves 30, among them the high elf
     skins; nightborne 10, each with each of the seven body tattoos: 70).
@@ -39,8 +42,13 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5
     hasn't).
 - **Voices**: today's (VocalUISounds: the words at the UI's moments; EmotesTextSound: the
-  emotes 3.3.5 has), as MP3s.
+  emotes 3.3.5 has), as MP3s. Vocal UI rows use IDs 9200–9301, separate from
+  Skyborne's 9000–9107, so both patches retain their spoken errors, including inventory full.
+  The two legacy drinking/invalid-target aliases are included for 3.3.5. Voice conversion
+  failures stop packaging instead of silently omitting clips.
 - **Names**: today's name generator's.
+- **Languages**: Void Elves learn Common and Nightborne learn Orcish. Missing faction languages on
+  existing characters are restored when they log in; creating a replacement character is unnecessary.
 - **Racials** (learned at creation from `playercreateinfo_spell_custom`), as today's where 3.3.5
   allows:
   - Void elves: **Spatial Rift** (tear a rift up to 15 yards ahead; use again within 6 sec to
@@ -70,7 +78,7 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   classes' template races) is open to the new race as it is. Scripted events bound to an
   original quest's id don't fire for its clone.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's
-  MP3s, `data/client/voidelf_intro.mp3` and `nightborne_intro.mp3`).
+  MP3s, `data/client/ve.mp3` and `nb.mp3`).
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the last
   column of the race icons; each side's races in two columns, two to a row from the top
   (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after, the same way);
@@ -99,8 +107,11 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   the game's patch, with `alliedraces.files` listing it:
   - **`tools/m2.py`**: today's model (format 274) made 3.3.5's (264): the child's bones with the
     parent skeleton's sequences (the child's own over them), every track with an entry a
-    sequence, the sequence lookup a hash table as the game reads it, external animations kept
-    in `.anim` files; the body's texture coordinates stretched across (today's body texture is
+    sequence, the public lookup indexed by legacy ID with missing animations left absent; retail-only
+    sequences get private legacy IDs while alias/variation indices stay unchanged; external animations kept
+    in `.anim` files (the newer files' AFM2 event, AFSA attachment and AFSB bone streams combined
+    with each track's offsets relocated; global-loop tracks stay in the model; malformed local bone
+    vectors use the rest transform instead of non-finite/implausible values); the body's texture coordinates stretched across (today's body texture is
     twice as wide as tall, the head in its right half; 3.3.5 composes a square), the head's into
     the face region, the eyes' (a texture of their own today) into the FaceUpper strip; the
     geosets 3.3.5's tables choose from kept whole (hair, features, armour); the body parts today's
@@ -123,7 +134,9 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     (the eyes, 256 x 64), underwear (256 x 128), hair (as it is, DXT). `tools/blp.py` reads and
     writes BLP2 (palette, DXT1/3/5). `tools/names.py` names them for both the textures and the
     tables.
-  - the voices as MP3s (ffmpeg).
+  - the voices as MP3s (ffmpeg). Every converted model is checked, including all external
+    animation offsets, before the complete package manifest is written. A failed rebuild clears
+    the old manifest so partial files cannot be mistaken for a complete package.
 - As the world server starts, as soon as its configuration is read (`src/AlliedRaces.cpp`),
   `src/AlliedRacesPatch.cpp` makes the game's `Data/patch-V.MPQ` (read after the HD looks'
   patches, whose character tables it builds on, and before Wrath Remix's `patch-Y` and the
@@ -145,7 +158,22 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   lookup, the geoset policy, the coordinate remapping), races.json's shape, the tables naming
   the textures the way they're made. CI runs it.
 - `tools/test_screen.py`: `AlliedRacesCreate.lua` in Lua 5.1 against stand-ins for the game's
-  screen, alone and with the Skyborne's screen code after it. CI runs it.
+  screen, alone and with the Skyborne's screen code after it; repeated race transitions preserve
+  the stock character-selection ambience lookup. CI runs it.
+- `tools/test_safety.py`: split and unsplit animation streams, relocated bone tracks, local
+  global-loop tracks, corrupt/non-finite bone vectors, missing-animation fallbacks, truncated external
+  animation files for both races and sexes, and narration
+  rows selecting only their own MP3, plus faction-language setup after earlier race modules. CI runs it. The old global-track reader and external-file
+  validator fail these regressions.
+- `../mod-skyborne/tools/test_table_moves.cpp`: both race modules preserve HD NPCs when row IDs
+  differ from the vanilla tables, move the installed textures with their race, and keep HD displays.
+- `tools/test_voice_tables.cpp`: applies the real allied and Skyborne voice-table changes in
+  runtime order and checks every race/sex vocal mapping, including inventory full, after merging.
+- `tools/test_voices.py`: decodes generated MP3 audio and checks that failed conversions and
+  corrupt cached clips cannot produce a supposedly complete voice package.
+- `tools/test_intro.cpp`: builds a small client fixture with the real generated intro tables and
+  MP3s, then follows each race's cinematic links through the resulting MPQ and compares its audio
+  bytes with the source. Also checks that a second start reuses the patch. CI runs it.
 - `tools/test_patch.cpp`: the patch made for a stand-in game from the package's files and read
   back (races, looks and their textures, models, voices, spells, the screen, a second start keeping
   it). Built and run here against the server's tables and a local package.
@@ -161,5 +189,11 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
 - CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
   Remix's, the races are playable in the world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne
   warrior in Deathknell, each with their racials.
-- Not tested: the game itself (the models drawn, the looks, the voices, the intros, the screen on
-  a phone): nothing here runs the 3.3.5 client.
+- Not tested: the game itself (the models drawn, the looks, audible playback of voices and intros,
+  the screen on a phone): nothing here runs the 3.3.5 client. In particular, the reported freeze
+  and return to the launcher when a new Nightborne speaks to Undertaker Mordo has not been
+  reproduced here. These fixes remove verified unsafe animation data paths; a client run is
+  still needed to confirm that specific crash is resolved.
+
+Narration records now use IDs 60001/60002, unused in the pinned 3.3.5 tables, rather than
+910001/910002. This is a compatibility correction; audible client playback remains unverified.
