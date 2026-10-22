@@ -1,0 +1,14 @@
+name: Check SPP client delivery
+on:
+  push:
+    paths: ['scripts/check-spp-cdn.py', '.github/workflows/check-spp-cdn.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/check-spp-cdn.py
