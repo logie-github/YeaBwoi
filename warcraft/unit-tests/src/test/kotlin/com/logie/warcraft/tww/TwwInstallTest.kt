@@ -154,6 +154,118 @@ class TwwInstallTest {
         assertTrue(detected.issues.none { "Ambiguous database" in it })
     }
 
+    /** Paths and configuration values inspected in the supplied 3,338,656,068-byte archive. */
+    private fun draconic(root: File): File {
+        val server = File(root, "server")
+        exe(server, "DraconicServer/bnetserver.exe")
+        exe(server, "DraconicServer/worldserver.exe")
+        file(server, "DraconicServer/bnetserver.conf", "LoginDatabaseInfo=\"127.0.0.1;3306;root;test;twwauth\"\nBattlenetPort=1119\nLoginREST.Port=8081\n")
+        file(server, "DraconicServer/worldserver.conf", "RealmID=1\nDataDir=\".\"\nWorldServerPort=8085\nLoginDatabaseInfo=\"127.0.0.1;3306;root;test;twwauth\"\nWorldDatabaseInfo=\"127.0.0.1;3306;root;test;twwworld\"\nCharacterDatabaseInfo=\"127.0.0.1;3306;root;test;twwcharacters\"\nHotfixDatabaseInfo=\"127.0.0.1;3306;root;test;twwhotfixes\"\n")
+        val uniform = "DraconicServer/UniServerZ"
+        exe(server, "$uniform/UniController.exe")
+        file(server, "$uniform/home/us_config/us_config.ini", "[MYSQL]\n")
+        file(server, "$uniform/home/us_config/us_user.ini", "[USER]\nMYSQL_TCP_PORT=3306\n")
+        for (name in listOf("mysql", "old")) {
+            for (tool in listOf("mysqld_z", "mysql", "mysqladmin")) exe(server, "$uniform/core/$name/bin/$tool.exe")
+            file(server, "$uniform/core/$name/my.ini", "[mysqld]\nbind-address=::\n")
+            file(server, "$uniform/core/$name/data/auto.cnf", "[auto]\nserver-uuid=test\n")
+            file(server, "$uniform/core/$name/data/ibdata1")
+            file(server, "$uniform/core/$name/data/mysql.ibd")
+            for (schema in listOf("twwauth", "twwworld", "twwcharacters", "twwhotfixes"))
+                file(server, "$uniform/core/$name/data/$schema/table.ibd")
+        }
+        exe(server, "$uniform/core/mysql/bin/mysqld.exe")
+        file(server, "DraconicServer/maps/0000_00_00.map", "MAPSformat-version")
+        file(server, "DraconicServer/vmaps/0000.vmtree", "VMAP_4.9contents")
+        file(server, "DraconicServer/mmaps/0000.mmap", "x".repeat(28))
+        file(server, "DraconicServer/mmaps/00000000.mmtile", "PAMM" + "x".repeat(32))
+        file(server, "DraconicServer/dbc/Spell.db2", "WDC5data")
+        return server
+    }
+
+    @Test fun draconicControllerSelectsActiveDaemonConfigurationDataAndToolsTogether() = temporary { root ->
+        val server = draconic(root)
+        val report = TwwInstall.inspect(File(root, "client"), server)
+        val detected = assertNotNull(report.detected)
+        val active = File(server, "DraconicServer/UniServerZ/core/mysql")
+        assertEquals(File(active, "bin/mysqld_z.exe"), detected.databaseExecutable)
+        assertEquals(File(active, "my.ini"), detected.databaseConfig)
+        val database = assertNotNull(detected.databaseProfile)
+        assertEquals(File(active, "data").canonicalFile, database.dataDirectory)
+        assertEquals(File(active, "bin/mysql.exe"), database.client)
+        assertEquals(File(active, "bin/mysqladmin.exe"), database.admin)
+        assertEquals(3306, database.port)
+        assertEquals(TwwInstall.Status.INSTALLED, report.database.status)
+        assertEquals(listOf(TwwInstall.UNKNOWN_BUILD_ISSUE), detected.issues)
+        assertEquals(TwwInstall.Role.entries.toSet(), detected.commands.keys)
+        assertTrue(detected.commands.getValue(TwwInstall.Role.DATABASE).arguments.single().endsWith("core/mysql/my.ini"))
+        assertTrue(report.canBootstrap)
+        assertFalse(report.ready, "Database discovery must not waive the runtime build check")
+    }
+
+    @Test fun oldDatabaseCannotHideMissingTablesInTheActiveInstallation() = temporary { root ->
+        val server = draconic(root)
+        File(server, "DraconicServer/UniServerZ/core/mysql/data/twwworld").deleteRecursively()
+        val report = TwwInstall.inspect(File(root, "client"), server)
+        assertEquals(TwwInstall.Status.INCOMPLETE, report.database.status)
+        assertTrue(report.database.missing.contains("Initialized database: twwworld"))
+        assertFalse(report.canBootstrap)
+    }
+
+    @Test fun multipleRenamedActiveDaemonsRemainAmbiguous() = temporary { root ->
+        val server = draconic(root)
+        exe(server, "DraconicServer/UniServerZ/core/mysql/bin/mysqld_other.exe")
+        val report = TwwInstall.inspect(File(root, "client"), server)
+        assertNull(report.detected?.databaseExecutable)
+        assertTrue(report.detected?.issues?.any { "Ambiguous database executable" in it } == true)
+        assertFalse(report.canBootstrap)
+    }
+
+    @Test fun multipleControllersAndUnrelatedDatabasesCannotBeSilentlySelected() = temporary { root ->
+        val server = draconic(root)
+        exe(server, "Other/UniController.exe")
+        exe(server, "Other/core/mysql/bin/mysqld_z.exe")
+        var report = TwwInstall.inspect(File(root, "client"), server)
+        assertTrue(report.detected?.issues?.any { "Ambiguous database controller" in it } == true)
+        assertFalse(report.canBootstrap)
+        File(server, "Other/UniController.exe").delete()
+        report = TwwInstall.inspect(File(root, "client"), server)
+        assertTrue(report.detected?.issues?.any { "Ambiguous database executable" in it } == true)
+        assertFalse(report.canBootstrap)
+    }
+
+    @Test fun duplicateDaemonsWithoutAControllerAreNotResolvedByFilenamePreference() = temporary { root ->
+        val server = File(root, "server"); completeServer(server)
+        exe(server, "MySQL/bin/mysqld_z.exe")
+        val report = TwwInstall.inspect(File(root, "client"), server)
+        assertNull(report.detected?.databaseExecutable)
+        assertFalse(report.canBootstrap)
+    }
+
+    @Test fun controllerOverridesRelocateOnlyPathsInsideItsInstallation() = temporary { root ->
+        val server = draconic(root)
+        val uniform = File(server, "DraconicServer/UniServerZ")
+        val settings = File(uniform, "home/us_config/us_config.ini")
+        settings.writeText("[MYSQL]\ndefaults-file=C:\\Publisher\\UniServerZ\\core\\mysql\\my.ini\ndatadir=C:\\Publisher\\UniServerZ\\core\\mysql\\data\n")
+        val detected = assertNotNull(TwwInstall.inspect(File(root, "client"), server).detected)
+        assertEquals(File(uniform, "core/mysql/my.ini").canonicalFile, detected.databaseConfig)
+        assertEquals(File(uniform, "core/mysql/data").canonicalFile, detected.databaseProfile?.dataDirectory)
+        settings.writeText("[MYSQL]\ndefaults-file=C:\\Unrelated\\my.ini\ndatadir=../../../../outside\n")
+        val invalid = TwwInstall.inspect(File(root, "client"), server)
+        assertNull(invalid.detected?.databaseConfig)
+        assertNull(invalid.detected?.databaseProfile?.dataDirectory)
+        assertFalse(invalid.canBootstrap)
+    }
+
+    @Test fun managedDatabasePathsStillResolveAfterLocalhostConfiguration() = temporary { root ->
+        val server = File(root, "server"); completeServer(server)
+        file(server, "MySQL/my.ini", "[mysqld]\ndatadir=S:/MySQL/data\nport=3306\nbind-address=127.0.0.1\n")
+        val report = TwwInstall.inspect(File(root, "client"), server)
+        assertEquals(File(server, "MySQL/data").canonicalFile, report.detected?.databaseProfile?.dataDirectory)
+        assertEquals(TwwInstall.Status.INSTALLED, report.database.status)
+        assertTrue(report.canBootstrap)
+    }
+
     @Test fun scriptWorkingDirectoryArgumentsAndWindowsCaseArePreserved() = temporary { root ->
         exe(root, "Core/Worldserver.exe")
         file(root, "Core/worldserver.conf", "WorldDatabaseInfo = \"127.0.0.1;3306;user;password;world\"\nDataDir=\".\"\n")

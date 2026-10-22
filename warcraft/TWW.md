@@ -39,10 +39,18 @@ contain both supplied Drive IDs and identify 11.2.5.63704. The publisher instruc
 the client's portal to `127.0.0.1`, and extract MMAPS at the repack root without a nested
 `mmaps/mmaps` directory. These are publisher instructions, not a verified archive manifest.
 
-The server and map Drive previews could not be read with the verification web tool.
-That does not establish that the links are broken. Their current archive contents, lengths,
-hashes, exact startup arguments and database contents were not independently verified. The
-mini-client was separately downloaded and inspected in the source-check workflow as above.
+On 2026-10-22 the repack inspection workflow downloaded the supplied server archive:
+3,338,656,068 bytes, SHA-256 `3e3c4a9fa60a7e65b9d5f50e13d574a923d03ef03ce7a7c78436df038471887e`.
+It contains `DraconicServer/bnetserver.exe`, `worldserver.exe`, their default-named configurations,
+and `UniServerZ/UniController.exe`. The active `core/mysql/bin` contains both `mysqld.exe` and
+`mysqld_z.exe`; `core/old` contains a second daemon, configuration, tools and initialized data.
+The controller's active daemon is `core/mysql/bin/mysqld_z.exe`, with `core/mysql/my.ini` and
+`core/mysql/data`. Its `us_user.ini` sets port 3306; the core configurations refer to `twwauth`,
+`twwworld`, `twwcharacters` and `twwhotfixes`, all present in the active data directory.
+The world uses `RealmID=1`, `DataDir="."` and port 8085; Battle.net uses 1119 and REST 8081.
+Inspection extracts configuration and lists database files without running any downloaded code.
+The initialized database's build_info is still checked at runtime before starting the core.
+The separate MMAPS archive's full contents have not been independently inspected.
 The application resolves the links at download time and reports actual errors; imported files
 are inspected before activation. No trusted publisher file manifest or checksum was supplied.
 
@@ -69,12 +77,14 @@ Successful evidence is recorded against SHA-256 hashes of both core executables 
 by an executable change. Imported proof files are discarded. The realm row follows the positive
 `RealmID` in the actual world configuration; missing or ambiguous values block configuration.
 
-Uniform Server's [controller source](https://github.com/iamola/uniserver/blob/master/UniController/us_common_functions.pas)
-discovers `mysqld_*.exe`, normally `mysqld_z.exe`. Discovery supports that actual naming convention,
-selects the database installation's normal `my.ini` over `my_skip_grant.ini`, and reads an explicit
-port from `my.ini` or the imported controller's `us_user.ini`. Managed localhost setup writes the
-discovered database and temporary directories into the backed-up normal configuration. This
-does not establish which Uniform Server files the inaccessible Draconic archive currently contains.
+Uniform Server's [controller source](https://github.com/iamola/uniserver/blob/1704fa1d6bbc15ad835cb8bcb749f5d7d4897e69/UniController/us_common_functions.pas)
+discovers `mysqld_*.exe` only in `core/mysql/bin`. Discovery follows that layout, respects its
+`[MYSQL]` configuration overrides, and reads the port from `my.ini` or `us_user.ini`.
+The client/shutdown tools and schema validation use the same active installation; backup tables
+cannot conceal a missing active schema. Multiple controllers or multiple active renamed daemons
+remain errors. Managed localhost setup backs up text configuration and preserves every executable.
+Existing installations can use Download & Install again to finish configuration without replacing
+their database or redownloading installed components.
 
 No client, repack, database or map content is committed or packaged by this integration.
 
