@@ -152,12 +152,10 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
             "INSERT INTO account(username,sha_pass_hash,email,reg_mail,expansion,battlenet_account,battlenet_index) "
             "VALUES(@n,UPPER(SHA1(CONCAT(@n,':','" + password.upper() + "'))),'" + email + "','" + email + "',6,@b,1); "
             "SET @g=LAST_INSERT_ID(); INSERT INTO realmcharacters(realmid,acctid,numchars) SELECT id,@g,0 FROM realmlist; COMMIT;")
-        for item in form.get("inputs", []):
-            identifier = item.get("input_id", item.get("id"))
-            if identifier == "account_name":
-                item["value"] = email
-            elif identifier == "password":
-                item["value"] = password
+        # GET describes a form; POST is a different protobuf with three required fields.
+        form = {"platform_id": "Win", "program_id": "WoW", "version": "7.3.5.26972",
+                "inputs": [{"input_id": "account_name", "value": email},
+                           {"input_id": "password", "value": password}]}
         request = urllib.request.Request(endpoint, data=json.dumps(form).encode(),
                                          headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(request, timeout=15, context=context) as response:

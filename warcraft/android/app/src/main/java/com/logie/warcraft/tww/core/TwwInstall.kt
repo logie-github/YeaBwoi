@@ -113,6 +113,8 @@ object TwwInstall {
         if (executable == null) missingClient += "A single game executable: ${spec.executableNames.sorted().joinToString()}"
         if (!streaming && dataFiles.none { it.extension.equals("idx", true) && it.length() > 0 }) missingClient += "Data/data/*.idx"
         if (!streaming && dataFiles.none { it.name.startsWith("data.", true) && it.length() > 0 }) missingClient += "Data/data/data.NNN"
+        if (!streaming && dataFiles.filter { it.name.startsWith("data.", true) }.sumOf { it.length() } < spec.minimumCascBytes)
+            missingClient += "Complete client CASC assets (at least ${spec.minimumCascBytes} bytes); the retired streaming mini-client cannot download its missing files"
         val infoFiles = dataRoots.mapNotNull { root -> root.listFiles()?.firstOrNull { it.name.equals(".build.info", true) } }.distinct()
         val recordedVersions = infoFiles.mapNotNull { versionFromBuildInfo(readText(it)) }
         val mismatched = build != null && !expected(build, spec) || recordedVersions.any { !expected(it, spec) }

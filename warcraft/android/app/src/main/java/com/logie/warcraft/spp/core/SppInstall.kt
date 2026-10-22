@@ -8,7 +8,11 @@ import java.nio.file.Files
 object SppInstall {
     fun inspect(client: File, server: File, maps: File = server): TwwInstall.Report {
         val local = member(client, SppRealm.CLIENT_EXE)?.isFile == true
-        val spec = if (local) SppRealm.SPEC else SppRealm.SPEC.copy(executableNames = setOf("wow-64.exe"))
+        val spec = when {
+            local -> SppRealm.SPEC
+            member(client, "Wow-64.exe")?.isFile == true -> SppRealm.SPEC.copy(executableNames = setOf("wow-64.exe"))
+            else -> SppRealm.SPEC.copy(executableNames = setOf("wow.exe"))
+        }
         return TwwInstall.inspect(client, server, maps, spec)
     }
 
@@ -18,7 +22,7 @@ object SppInstall {
 
     fun clientRoot(root: File): File? {
         val candidates = root.walkTopDown().maxDepth(10).onEnter { !Files.isSymbolicLink(it.toPath()) }
-            .filter { it.isFile && (it.name.equals("Wow-64.exe", true) || it.name.equals(SppRealm.CLIENT_EXE, true)) }
+            .filter { it.isFile && (it.name.equals("Wow-64.exe", true) || it.name.equals("Wow.exe", true) || it.name.equals(SppRealm.CLIENT_EXE, true)) }
             .map { it.parentFile }.distinct().toList()
         return candidates.singleOrNull()
     }
