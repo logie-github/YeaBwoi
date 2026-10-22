@@ -4,6 +4,9 @@ on:
     paths:
       - '.github/workflows/test-wow-lifecycle.yml'
       - 'warcraft/android/app/src/test/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/local/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/tww/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/spp/**'
   workflow_dispatch:
 permissions:
   contents: read

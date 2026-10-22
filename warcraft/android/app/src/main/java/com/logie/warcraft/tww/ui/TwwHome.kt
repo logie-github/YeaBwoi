@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package com.logie.warcraft.tww.ui
 
+import com.logie.warcraft.local.WindowsRealmServer
+
 import android.content.Intent
 import android.net.Uri
 import android.os.PowerManager
