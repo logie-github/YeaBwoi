@@ -22,7 +22,7 @@ object SppIntegration : LocalRealmInstallation {
     override val server get() = SppServer
     override val jobs get() = SppJobs
     override val sources = mapOf(
-        LocalInstallJobs.Kind.DOWNLOAD_CLIENT to LocalDownloadSource(SppRealm.CLIENT_URL, SppRealm.CLIENT_SIZE, SppRealm.CLIENT_SHA256),
+        LocalInstallJobs.Kind.DOWNLOAD_CLIENT to LocalDownloadSource(SppRealm.CLIENT_URL, SppRealm.CLIENT_SIZE, SppRealm.CLIENT_SHA256, connections = 4),
         LocalInstallJobs.Kind.DOWNLOAD_SERVER to LocalDownloadSource(SppRealm.SERVER_URL, SppRealm.SERVER_SIZE, SppRealm.SERVER_SHA256),
     )
     override fun root(context: Context) = SppFiles.layout(context).root

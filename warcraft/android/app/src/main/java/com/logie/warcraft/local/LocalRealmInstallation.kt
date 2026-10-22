@@ -5,7 +5,7 @@ import android.content.Context
 import com.logie.warcraft.tww.core.TwwInstall
 import java.io.File
 
-data class LocalDownloadSource(val url: String, val size: Long? = null, val sha256: String? = null)
+data class LocalDownloadSource(val url: String, val size: Long? = null, val sha256: String? = null, val connections: Int = 1)
 
 /** Sources and normalization policy plugged into the application's existing staged installer. */
 interface LocalRealmInstallation : ManagedWindowsRealm {

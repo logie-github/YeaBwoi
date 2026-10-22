@@ -110,3 +110,20 @@ Google Drive's download quota, not a new core failure. No alternate original-rel
 was verified. The app detects quota pages, reports the error and retains resumable progress;
 Retry may need to wait for the external host's quota reset. Do not claim that downloads are
 currently unrestricted or that the later blocked run completed native validation.
+
+## Download throughput
+
+The client source opts into four HTTP range connections; other sources keep their existing
+single-connection/Google Drive handling. The source must supply a strong ETag and a known
+length. Every chunk must return the exact requested range, total length and same ETag, without
+content encoding. Unsupported ranges or connection-limit responses fall back to serial mode.
+
+The old `client.part` stays a contiguous prefix. Up to four 32 MiB chunk files retain partial
+network transfers, and a validator-bound sidecar prevents reusing chunks from a changed source.
+Completed chunks are appended in order and removed, so assembly needs at most 128 MiB extra,
+not another complete client copy. Pause, process death and upgrades preserve resumable data.
+Final length/SHA-256 validation and ZIP CRC extraction remain in place.
+
+A bounded 16 MiB comparison on 2026-10-22 measured 23.7 and 27.5 MB/s with one connection,
+and 35.7 MB/s with four, from the build runner. All three downloads had identical SHA-256.
+This is evidence the host supports concurrent requests, not a phone-speed guarantee.
