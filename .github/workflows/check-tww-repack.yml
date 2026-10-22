@@ -1,0 +1,16 @@
+name: Inspect Draconic repack
+on:
+  push:
+    paths: ['.github/workflows/check-tww-repack.yml', 'scripts/inspect-tww-repack.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m pip install gdown
+      - name: Download and inspect the supplied repack without executing it
+        run: python scripts/inspect-tww-repack.py
