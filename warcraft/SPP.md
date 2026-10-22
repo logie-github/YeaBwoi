@@ -22,7 +22,7 @@ SPP uses `Server/bin64/bnetserver.exe` and `worldserver.exe`, with the actual re
 Its initialized MariaDB 10.1.30 is `Server/Database/bin/mysqld.exe`; `start.bat` selects
 `Server/Database/my-large.ini` with `--console --standalone`. The data directory is
 `Server/Database/data`; schemas include `realmd`, `characters`, `world`, `hotfixes`, `mysql`.
-The publisher's port 3310 will be isolated from ChromieCraft by using SPP port 3312.
+The publisher's port 3310 is changed to SPP port 3312, keeping it separate from ChromieCraft.
 The server's maps and DB2 files are included in `Server/Data`, relative to the realm's working
 directory. The archive also includes solo-scaling settings and its patched client executable.
 
@@ -51,7 +51,7 @@ The repack's `Addons/Patched_Exe_26972/SPP_Wow-64.exe` reports 7.3.5.26972, SHA-
 Setup installs that 64-bit local-play executable beside the full archive's 32-bit `Wow.exe`;
 the original remains untouched. Older 26654 executables at the outer repack root are unsuitable.
 
-No game, database or server binary is committed or included in the APK. Inspection and native
+No SPP game client, database or server binary is committed or included in the APK. Inspection and native
 runtime checks use disposable CI storage. Android Wine/Box64 client compatibility still requires
 testing on the phone, independently from Windows server validation.
 
@@ -103,3 +103,10 @@ violation 0xC0000005 after `server shutdown 1`. Clean world shutdown is not veri
 The app checks component exit markers and reports abnormal shutdowns; closed ports alone
 never establish a clean save. This integration does not silently replace the publisher core.
 Android/Wine shutdown behavior and gameplay still need a real phone test.
+
+The [native startup/account run](https://github.com/logie-github/YeaBwoi/actions/runs/39783461057)
+provides that runtime evidence. A repeat on 2026-10-22 was blocked before extraction by
+Google Drive's download quota, not a new core failure. No alternate original-release mirror
+was verified. The app detects quota pages, reports the error and retains resumable progress;
+Retry may need to wait for the external host's quota reset. Do not claim that downloads are
+currently unrestricted or that the later blocked run completed native validation.
