@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import re
 import socket
+import ssl
 import subprocess
 import tempfile
 import time
@@ -130,7 +131,16 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
         ready(login, 1119, login_log)
         ready(login, 8081, login_log)
         emit("AUTHENTICATION_READY", True)
-        with urllib.request.urlopen("http://127.0.0.1:8081/bnetserver/login/", timeout=10) as response:
+        certificate_setting = re.search(r'(?m)^\s*CertificatesFile\s*=\s*"?([^"\r\n]+)', login_config.read_text())
+        certificate = realm / (certificate_setting[1].strip() if certificate_setting else "bnetserver.cert.pem")
+        context = ssl.create_default_context(cafile=str(certificate))
+        # The publisher's private-server certificate is explicitly trusted. It does not have
+        # an IP SAN for 127.0.0.1, so hostname matching is replaced by this pinned local trust.
+        context.check_hostname = False
+        context.verify_flags &= ~ssl.VERIFY_X509_STRICT
+        emit("LOGIN_CERTIFICATE", {"sha256": hashlib.sha256(ssl.PEM_cert_to_DER_cert(certificate.read_text())).hexdigest()})
+        endpoint = "https://127.0.0.1:8081/bnetserver/login/"
+        with urllib.request.urlopen(endpoint, timeout=10, context=context) as response:
             form = json.loads(response.read(16384).decode())
             emit("LOGIN_FORM", {"status": response.status, "body": form})
         email = "PROBE" + str(int(time.time())) + "@LOCAL.INVALID"
@@ -148,9 +158,9 @@ with tempfile.TemporaryDirectory(prefix="spp-runtime-") as work:
                 item["value"] = email
             elif identifier == "password":
                 item["value"] = password
-        request = urllib.request.Request("http://127.0.0.1:8081/bnetserver/login/", data=json.dumps(form).encode(),
+        request = urllib.request.Request(endpoint, data=json.dumps(form).encode(),
                                          headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(request, timeout=15) as response:
+        with urllib.request.urlopen(request, timeout=15, context=context) as response:
             login_result = json.loads(response.read(16384).decode())
         state = login_result.get("authentication_state", login_result.get("authenticationState"))
         ticket = login_result.get("login_ticket", login_result.get("loginTicket"))
