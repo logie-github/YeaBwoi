@@ -31489,9 +31489,7 @@ INSERT INTO `skillraceclassinfo_dbc` (`ID`, `SkillID`, `RaceMask`, `ClassMask`, 
 (884, 55, 164352, 2, 128, 0, 0, 0),
 (59, 96, 247807, 1024, 1168, 0, 0, 0),
 (40, 98, 83021, 1535, 128, 0, 0, 0),
-(41, 98, 82594, 1503, 160, 0, 21, 0),
 (48, 109, 164530, 1535, 128, 0, 0, 0),
-(49, 109, 164941, 1503, 160, 0, 21, 0),
 (131, 118, 262143, 8, 146, 1, 0, 0),
 (132, 118, 262143, 5, 146, 20, 0, 0),
 (883, 118, 262143, 64, 402, 0, 0, 0),
@@ -31605,6 +31603,7 @@ INSERT INTO `skillraceclassinfo_dbc` (`ID`, `SkillID`, `RaceMask`, `ClassMask`, 
 (866, 755, 247807, 1535, 160, 0, 41, 0),
 (892, 769, 262143, 1535, 1040, 0, 0, 0)
 ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);
+UPDATE `skillraceclassinfo_dbc` SET `RaceMask` = `RaceMask` & ~245760 WHERE `ID` IN (41, 49) AND `RaceMask` > 0;
 INSERT INTO `skilllineability_dbc` (`ID`, `SkillLine`, `Spell`, `RaceMask`, `ClassMask`, `ExcludeRace`, `ExcludeClass`, `MinSkillLineRank`, `SupercededBySpell`, `AcquireMethod`, `TrivialSkillLineRankHigh`, `TrivialSkillLineRankLow`, `CharacterPoints_1`, `CharacterPoints_2`) VALUES
 (590, 98, 668, 83021, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0),
 (592, 109, 669, 164530, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0),
@@ -31960,7 +31959,7 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 -- Their skills: their side's weapons and armour; Common or Orcish; no other race's racials. The rows are
 -- found by their stock races (the low eleven bits): the Skyborne's SQL, applied first, adds its races' bits
 -- to the same rows, and an exact match found none of them, which left these races without Common, Orcish
--- and some weapons until 1.0.231.
+-- and some weapons until 1.0.233.
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 245760 WHERE (`raceMask` & 2047) = 36 AND `classMask` = 4 AND `skill` = 46;
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 245760 WHERE (`raceMask` & 2047) = 650 AND `classMask` = 4 AND `skill` = 45;
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 163840 WHERE (`raceMask` & 2047) = 690 AND `classMask` = 0 AND `skill` = 109;

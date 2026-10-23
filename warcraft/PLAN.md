@@ -1460,6 +1460,14 @@ for the game on the phone itself ("that's the whole point").
       didn't import (an unquoted apostrophe in Light's Judgment's note): fixed in 1e755c4. The SQL
       is now checked here on MariaDB over the core's stock tables (the Skyborne's first, then this
       module's, then this module's again).
+    - Still no Common in build 233: both modules' generators also put their races in the other
+      side's language row of SkillRaceClassInfo (the Horde's Common row, the Alliance's Orcish:
+      tiered rows for learning the other side's language, rank 0 at creation). The core keeps a
+      skill's rows in an unordered multimap, where the later row comes first, so these races got
+      that row and learned nothing; the Skyborne had the same. Each side's language now goes on its
+      own row only, the bits earlier releases left on the other row are cleared, and a Skyborne
+      character made before learns its start skills at login (as the allied races' do). The realm
+      test checks the language for all six.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

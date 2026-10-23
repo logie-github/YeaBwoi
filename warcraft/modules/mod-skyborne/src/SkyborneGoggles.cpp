@@ -20,6 +20,7 @@
 namespace
 {
     constexpr uint32 GOGGLES = 98708;       // the item, and its spell
+    constexpr uint8 SKYBORNE_HIGH_ORDER = 13, SKYBORNE_WINDSHAPER = 14;
     uint32 running = 0;                     // the goggles' auras in the world
 
     bool Female(Player* player)
@@ -88,6 +89,11 @@ public:
 
     void OnPlayerLogin(Player* player) override
     {
+        // (and not the goggles': releases up to 1.0.233 put the Skyborne in the other side's language
+        // row, which taught them neither language; a character made then learns its start skills)
+        uint8 race = player->getRace(true);
+        if (race == SKYBORNE_HIGH_ORDER || race == SKYBORNE_WINDSHAPER)
+            player->LearnDefaultSkills();
         if (running && Female(player))
             Clear(player);
         if (!RandomBot(player) && !player->HasItemCount(GOGGLES, 1, true))
