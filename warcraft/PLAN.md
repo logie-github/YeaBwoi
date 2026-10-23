@@ -1474,6 +1474,10 @@ for the game on the phone itself ("that's the whole point").
       Common or Orcish, Swords or Two-Handed Swords for the Skyborne since the allied races came.
       The Skyborne's updates find the rows by the stock bits now too. Checked here in that order,
       fresh and applied twice: all six races in their side's rows.
+    - Build 237: all six know their language; Preternatural Calm's aura is in the world (type
+      149, 100). Spatial Rift did nothing, for the test's way of casting it: a GM's `.cast X
+      triggered` casts with every trigger flag, TRIGGERED_IGNORE_EFFECTS among them, so no effect
+      of the spell runs. The steps cast the racials with a plain `.cast` now.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).
