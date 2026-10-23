@@ -1443,6 +1443,79 @@ for the game on the phone itself ("that's the whole point").
     the void tentacles moved from duplicated hair styles to the feature slider (a third of the
     void elves' triangles). The renderer now reads starts as 16 bits too, and `check_m2.py`
     refuses a section past the limit.
+  - The Lightforged Draenei (race 17, Alliance, Ammen Vale) and the Zandalari Trolls (race 18,
+    Horde, Camp Narache in Mulgore), the same way: ChrModels 59/60 and 61/62; the Lightforged on
+    the HD draenei's parent skeleton (1005887, 1022598), the Zandalari with their own; each
+    within 65535 indices (Lightforged gear at about 46%, Zandalari hair 91% and 100%), whole in
+    the renderer. Tuskarr and Forest Troll (17, 18) moved to 26 and 27. Racials: Light's
+    Judgment (an unseen creature of the player's faction and level strikes after 3 s), Forge of
+    Light, Light's Reckoning (the same on death: `OnPlayerJustDied`), Holy Resistance, Demonbane
+    (`OnPlayerGiveXP`); Regeneratin' (a periodic heal ended by damage), Embrace of Pa'ku (a proc
+    like Entropic Embrace), Pterrordax Swoop (Slow Fall renamed), City of Gold
+    (`OnPlayerBeforeLootMoney`). Not here: Bwonsamdi's Reach, the Zandalari's flight, Ethereal
+    Connection. The Lightforged's skins have no underwear of their own: the first jewelry
+    colour's pelvis and torso stand in. Quests: the Lightforged take the void elves' seventeen,
+    the Zandalari The Hunt Begins, the Cleansing chain, Journey to the Crossroads and the ride to
+    Thunder Bluff, each with a greeting of its own. **A bug of the first two races found on the
+    way**: quests that need a cloned quest done first (the Draenei's class training, the
+    Tauren's Hunt Continues...) stayed locked for the clone's race, which can't complete the
+    original; `quests.py` now clones them too, chained to the clones. Character creation: two
+    races to a row per side (both modules' layout code and tests), the new icons in column 5.
+    Checked here: the converter, the checker and the renderer on all eight models,
+    `test_patch.cpp` on a stand-in game (19 tables, 5,215 files, 0 failures), the tools' and
+    screens' tests; the server compile and realm test are CI's (the new spell scripts and player
+    hooks compile there first).
+  - A review of all four (the user: the intro MP3 never played under the earlier attempt; look for
+    bugs in the questing, the models' size and presentation; make sure the racials work):
+    - The narrations: the tables match the game's own (CinematicCamera's SoundID, a SoundEntries
+      row of type 31 under `Sound\CinematicVoices`); the files didn't: the user's MP3s were
+      variable bit rate with ID3v2.4 tags and Xing headers, the game's are constant bit rate
+      (128-160 kbit/s, 44.1 kHz) with neither. All five (the Skyborne's too) re-encoded to constant
+      160 kbit/s 44.1 kHz with no tags or VBR header; the voices `package.py` makes likewise
+      (mono, 64 kbit/s, 44.1 kHz; they were 22 kHz MPEG-2). Whether that was what stopped them is
+      the phone's to show.
+    - Quests: scripts and conditions bound to the originals' ids did nothing for the clones (the
+      Ending Their World escort and its credit, Legoso's run, gossip conditions): `quests.py`'s
+      bindings copy smart_scripts rows on accepting or handing in a quest and the credit they
+      give, and add each condition's clone (an OR group for "is on it" or "has done it", the same
+      group for "hasn't"). Rescue the Survivors! needs Gift of the Naaru, which void elves and
+      Lightforged don't have: lent while the clone is in the log (`AlliedRacesSpells.cpp`).
+    - Racials: Preternatural Calm had the health regeneration aura (88): now REDUCE_PUSHBACK (149).
+      Light's Judgment and Light's Reckoning were cast by unseen creatures, so their kills gave no
+      loot, experience or credit: now the player's own casts (the strike a destination spell, the
+      burst a triggered cast the core allows the dead).
+    - Models: display scales 1.0, as retail's. The nightborne were cut off at the head on the
+      creation screen, framed by the Forsaken's scene's camera: they take the night elves' scene.
+    - New in the realm test: each race in the world (`warcraft/server/allied_*.steps`): Calm's
+      aura, Spatial Rift through the rift, Arcane Pulse's, Reckoning's and Judgment's damage as the
+      character's, Regeneratin' and the swoop's aura, the race's own first quest offered and the
+      start race's not, Rescue the Survivors! credited with the lent gift, handed in, and the gift taken back.
+      Not tested: Entropic Embrace's and Pa'ku's procs, Demonbane's and City of Gold's amounts.
+    - Found by that test (build 231): a void elf's chat commands went unanswered (no language).
+      Both modules add their races' bits to the same playercreateinfo_skills rows and found them by
+      the stock masks exactly, so whichever ran second changed nothing; both find them by the stock
+      bits now. A character made earlier learns its start skills at its next login (the core does that at
+      every login). And build 229's world SQL
+      didn't import (an unquoted apostrophe in Light's Judgment's note): fixed in 1e755c4. The SQL
+      is now checked here on MariaDB over the core's stock tables (both modules' in the realm's
+      order, then again).
+    - Still no Common in build 233: both modules' generators also put their races in the other
+      side's language row of SkillRaceClassInfo (the Horde's Common row, the Alliance's Orcish:
+      tiered rows for learning the other side's language, rank 0 at creation). The core keeps a
+      skill's rows in an unordered multimap, where the later row comes first, so these races got
+      that row and learned nothing; the Skyborne had the same. Each side's language now goes on its
+      own row only, the bits earlier releases left on the other row are cleared, and the realm
+      test checks the language for all six.
+    - Build 234: the Skyborne still had none. The test's report (the realm's rows, the character's
+      skills beside a human's) showed why: the realm applies this module's SQL before the
+      Skyborne's (by the folders' names), and the Skyborne's exact matches then found nothing: no
+      Common or Orcish, Swords or Two-Handed Swords for the Skyborne since the allied races came.
+      The Skyborne's updates find the rows by the stock bits now too. Checked here in that order,
+      fresh and applied twice: all six races in their side's rows.
+    - Build 237: all six know their language; Preternatural Calm's aura is in the world (type
+      149, 100). Spatial Rift did nothing, for the test's way of casting it: a GM's `.cast X
+      triggered` casts with every trigger flag, TRIGGERED_IGNORE_EFFECTS among them, so no effect
+      of the spell runs. The steps cast the racials with a plain `.cast` now.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).
