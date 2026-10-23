@@ -21,6 +21,15 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   `character/nightborne/...`: the models, their skeletons with the parent skeletons, their
   animations), made models the 3.3.5 game draws by `tools/m2.py` (below). Not the blood elf's or
   the night elf's body.
+- **Their size: their kin's** (the user: "Trolls to trolls. Draenei to draenei. Elves to elves."):
+  each model measured as the game poses it (where its head's bone is in Stand, the feet at 0: ears,
+  hair and how the body stoops don't move it) and made its kin's height all through by
+  `tools/scale.py`, the heights the old races have in both HD looks the app offers (the same in
+  each): void elves the blood elves' (1.868 men, 1.717 women), the nightborne the night elves'
+  (2.212, 2.017), the Lightforged the Draenei's (2.251, 2.108), the Zandalari the trolls' (2.072,
+  2.136). Today's void elves and Lightforged measure their kin's already and stay as they are; the
+  nightborne are made 0.985 (men) and 1.009 (women), the Zandalari 0.817 and 0.874 (today's stand
+  upright, their heads 0.3 to 0.5 yards above the stooped trolls').
 - **Looks**, from today's customization tables, on 3.3.5's five sliders:
   - *Skin colour*: every skin colour a player picks today (void elves 30, among them the high elf
     skins; nightborne 10, each with each of the seven body tattoos: 70; Lightforged Draenei 7 with
@@ -124,9 +133,10 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   columns of the race icons (the void elves' and nightborne's in the last, the Lightforged's and
   Zandalari's in the one before the Skyborne's); each side's races in two columns, two to a row
   from the top (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after,
-  the same way); the Draenei's background for the void elves and Lightforged, the Tauren's for the
-  Zandalari, the Night Elves' for the nightborne (each scene's camera is framed for its race's
-  height: the Forsaken's, which they had first, cut off the nightborne's heads); their texts.
+  the same way); their kin's backgrounds: the Blood Elves' for the void elves, the Night Elves' for
+  the nightborne, the Draenei's for the Lightforged, the Trolls' for the Zandalari (each scene's
+  camera is framed for its own race's height, and theirs is their kin's: the Draenei's, which the
+  void elves had, showed them small; the Forsaken's cut off the nightborne's heads); their texts.
 
 ## ChromieCraft's alone
 
@@ -167,7 +177,16 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   - **`tools/m2.py`**: today's model (format 274) made 3.3.5's (264): the child's bones with the
     parent skeleton's sequences (the child's own over them), every track with an entry a
     sequence, the sequence lookup a hash table as the game reads it, external animations kept
-    in `.anim` files; the body's texture coordinates stretched across (today's body texture is
+    in `.anim` files (one block, as 3.3.5's: today's keep the bones', the attachments' and the
+    model's data in chunks of their own, the tracks pointing into theirs; earlier builds wrote only
+    the model's few bytes, and the game read every such animation's bones past the end of the
+    file). A few of today's skeletons list files laid out for another: a sequence's bone
+    data is used only where its file is that skeleton's (every track's times rising within the
+    sequence); the nightborne's parents list their older night elf models' files, whose own bones
+    then give those sequences (bones matched by their names' hashes); where nothing fits (32 of the void
+    elf women's, their emotes, sits and two dances among them; the Lightforged women's Cry, the
+    Zandalari women's Shy), the sequence is drawn as the animation's first variation or Stand. A translation or scale that
+    isn't real floats within 100 yards is left out; the body's texture coordinates stretched across (today's body texture is
     twice as wide as tall, the head in its right half; 3.3.5 composes a square), the head's into
     the face region, the eyes' (a texture of their own today) into the FaceUpper strip; the
     geosets 3.3.5's tables choose from kept whole (hair, features, armour); the body parts today's
@@ -184,6 +203,10 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     carry (the game draws with the combo); cameras in 3.3.5's layout. `<Name>.layout.json` tells the
     texture tool where the head went. **`tools/check_m2.py`** checks a model the way the game
     would trip over it.
+  - **`tools/scale.py`**: each model made its kin's height (above), measured on the converted
+    model as `tools/render_m2.py` poses it (its head's bone in Stand); the vertices, the bones' pivots and every translation
+    (the model's and its `.anim` files'), attachments, events, cameras, bounds, collision and the
+    skin's section centres scaled about the feet, so every pose is the old one scaled.
   - **`tools/textures.py`**: the skins (512 x 512 palettized, as the HD looks': 3.3.5's compositing
     needs palettized textures; the body half of today's), FaceLower (the head's used part, turned
     if that fits better, 256 x 128; nightborne with the eye colour's glow painted in), FaceUpper
@@ -209,8 +232,16 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
 ## Tests
 
 - `tools/test_tools.py`: the texture codec round-trips, the converter's pieces (the sequence
-  lookup, the geoset policy, the coordinate remapping), races.json's shape, the tables naming
+  lookup, the geoset policy, the coordinate remapping, a sequence's file made one block, a
+  track's entry checked against its file), the size (a one-bone model's head measured, then scaled
+  with its own file's animation, pivot, attachment and section), races.json's shape, the tables naming
   the textures the way they're made. CI runs it.
+- **`tools/check_looks.py DBC_DIR`**: the creation screen's tables out of a client's whole patch
+  chain checked for every look it can step to (each player skin with the faces of its race and
+  sex's others, a death knight's with the other death knights', hair colours for every style and
+  its geoset row, the features 0 to n-1, the looks' display and model rows): the rule crash report
+  #34 broke. Run here on the Alternative HD Patch's tables with this module's and the Skyborne's
+  patches in: 53 races and sexes, no problem; on the rows before that fix it finds 926.
 - `tools/test_screen.py`: `AlliedRacesCreate.lua` in Lua 5.1 against stand-ins for the game's
   screen, alone and with the Skyborne's screen code after it. CI runs it.
 - `tools/test_patch.cpp`: the patch made for a stand-in game from the package's files and read

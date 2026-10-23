@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fetches the two races' files from Blizzard's game (wago.tools, by their file ids: the models,
 skeletons, animations, textures and voices data/retail/races.json names) and makes from them what
-the 3.3.5 game draws and plays: the models (tools/m2.py), the textures (tools/textures.py) and the
+the 3.3.5 game draws and plays: the models (tools/m2.py, at their kin's height: tools/scale.py), the textures (tools/textures.py) and the
 voices as MP3 files, into a folder laid out as the game's patch (the world server puts it in the
 game as the realm starts: src/AlliedRacesPatch.cpp). The files are the game's, so they are never in
 this repository: the server package runs this (scripts/package-azerothcore.sh).
@@ -21,6 +21,7 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import m2                                      # noqa: E402
+import scale                                   # noqa: E402
 import textures                                # noqa: E402
 
 MODULE = os.path.dirname(HERE)
@@ -130,6 +131,8 @@ def build(read, out_dir, log=print):
         for sex, model in race["models"].items():
             policy = dict(model, geosets=None)
             written += m2.convert(read, policy, out_dir, log)
+            # at its kin's height (tools/scale.py): blood elves', night elves', Draenei's, trolls'
+            scale.to_kin(os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2"), log)
             layout_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".layout.json")
             with open(layout_path) as f:
                 layout = json.load(f)
