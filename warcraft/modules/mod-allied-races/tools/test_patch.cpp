@@ -55,24 +55,24 @@ int main(int argc, char** argv)
     for (size_t i = 0; i < races.records.size(); ++i)
     {
         uint32_t id = races.Get(i, 0), flags = races.Get(i, 1);
-        if ((id == 15 || id == 16) && !(flags & 1))
+        if (id >= 15 && id <= 18 && !(flags & 1))
             ++playable;
-        if (id == 24 || id == 25)
+        if (id >= 24 && id <= 27)
             ++moved;
     }
-    Check(playable == 2, "the void elves and the nightborne are playable");
-    Check(moved == 2, "the Skeleton and the Vrykul moved to 24 and 25");
+    Check(playable == 4, "the void elves, the nightborne, the Lightforged Draenei and the Zandalari Trolls are playable");
+    Check(moved == 4, "the Skeleton, the Vrykul, the Tuskarr and the Forest Trolls moved to 24 to 27");
 
     Dbc sections;
     Check(patch->Read("DBFilesClient\\CharSections.dbc", bytes) && sections.Parse(bytes), "CharSections.dbc is in it");
-    std::set<uint32_t> faces[2], skins[2], hair[2];
+    std::set<uint32_t> faces[4], skins[4], hair[4];
     size_t missing = 0, checked = 0;
     for (size_t i = 0; i < sections.records.size(); ++i)
     {
         uint32_t race = sections.Get(i, 1), sex = sections.Get(i, 2), kind = sections.Get(i, 3);
-        if (race != 15 && race != 16)
+        if (race < 15 || race > 18)
             continue;
-        int r = race == 15 ? 0 : 1;
+        int r = int(race) - 15;
         if (kind == 0)
             skins[r].insert(sections.Get(i, 9));
         if (kind == 1)
@@ -90,12 +90,18 @@ int main(int argc, char** argv)
                     ++missing;
             }
     }
-    Check(skins[0].size() == 30 && skins[1].size() == 70, "the skins: 30 void elf, 70 nightborne (" + std::to_string(skins[0].size()) + ", " + std::to_string(skins[1].size()) + ")");
-    Check(faces[0].size() == 252 && faces[1].size() == 72, "the faces: 252 void elf (28 x 9 eyes), 72 nightborne (12 x 6) (" + std::to_string(faces[0].size()) + ", " + std::to_string(faces[1].size()) + ")");
-    Check(hair[0].size() >= 10 && hair[1].size() == 16, "the hair styles");
+    Check(skins[0].size() == 30 && skins[1].size() == 70 && skins[2].size() == 28 && skins[3].size() == 24,
+          "the skins: 30 void elf, 70 nightborne, 28 Lightforged, 24 Zandalari (" + std::to_string(skins[0].size()) + ", " + std::to_string(skins[1].size()) + ", "
+          + std::to_string(skins[2].size()) + ", " + std::to_string(skins[3].size()) + ")");
+    Check(faces[0].size() == 252 && faces[1].size() == 72 && faces[2].size() == 20 && faces[3].size() == 30,
+          "the faces: 252 void elf (28 x 9 eyes), 72 nightborne (12 x 6), 20 Lightforged (10 x 2), 30 Zandalari (6 x 5) (" + std::to_string(faces[0].size()) + ", "
+          + std::to_string(faces[1].size()) + ", " + std::to_string(faces[2].size()) + ", " + std::to_string(faces[3].size()) + ")");
+    Check(hair[0].size() >= 10 && hair[1].size() == 16 && hair[2].size() >= 10 && hair[3].size() >= 10, "the hair styles");
     Check(missing == 0, "every texture the looks name is in the patch (" + std::to_string(missing) + " missing of " + std::to_string((checked + 96) / 97) + " looked at)");
 
-    for (char const* name : { "Character\\VoidElf\\Female\\VoidElfFemale.m2", "Character\\VoidElf\\Female\\VoidElfFemale00.skin",
+    for (char const* name : { "Character\\LightforgedDraenei\\Female\\LightforgedDraeneiFemale.m2", "Character\\ZandalariTroll\\Male\\ZandalariTrollMale00.skin",
+                              "Sound\\CinematicVoices\\LightforgedDraeneiNarration.mp3", "Sound\\CinematicVoices\\ZandalariTrollNarration.mp3",
+                              "Character\\VoidElf\\Female\\VoidElfFemale.m2", "Character\\VoidElf\\Female\\VoidElfFemale00.skin",
                               "Character\\VoidElf\\Male\\VoidElfMale.m2", "Character\\Nightborne\\Female\\NightborneFemale.m2",
                               "Character\\Nightborne\\Male\\NightborneMale.m2", "Character\\Nightborne\\Male\\NightborneMale00.skin",
                               "Interface\\GlueXML\\AlliedRacesCreate.lua", "Interface\\GlueXML\\AlliedRacesCreate.xml",
@@ -108,21 +114,21 @@ int main(int argc, char** argv)
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
     int racials = 0;
     for (size_t i = 0; i < spells.records.size(); ++i)
-        if (spells.Get(i, 0) >= 98711 && spells.Get(i, 0) <= 98722)
+        if (spells.Get(i, 0) >= 98711 && spells.Get(i, 0) <= 98734)
             ++racials;
-    Check(racials == 12, "the twelve racial spells are in it (" + std::to_string(racials) + ")");
+    Check(racials == 24, "the twenty-four racial spells are in it (" + std::to_string(racials) + ")");
 
     Dbc displays, models, sounds, vocal, emotes, names;
     Check(patch->Read("DBFilesClient\\CreatureDisplayInfo.dbc", bytes) && displays.Parse(bytes), "CreatureDisplayInfo.dbc is in it");
     Check(patch->Read("DBFilesClient\\CreatureModelData.dbc", bytes) && models.Parse(bytes), "CreatureModelData.dbc is in it");
     int looks = 0, modelRows = 0;
     for (size_t i = 0; i < displays.records.size(); ++i)
-        if (displays.Get(i, 0) >= 33001 && displays.Get(i, 0) <= 33004)
+        if (displays.Get(i, 0) >= 33001 && displays.Get(i, 0) <= 33008)
             ++looks;
     for (size_t i = 0; i < models.records.size(); ++i)
-        if (models.Get(i, 0) >= 3601 && models.Get(i, 0) <= 3604)
+        if (models.Get(i, 0) >= 3601 && models.Get(i, 0) <= 3608)
             ++modelRows;
-    Check(looks == 4 && modelRows == 4, "the four looks and models");
+    Check(looks == 8 && modelRows == 8, "the eight looks and models");
     Check(patch->Read("DBFilesClient\\SoundEntries.dbc", bytes) && sounds.Parse(bytes), "SoundEntries.dbc is in it");
     size_t voices = 0, wavs = 0;
     for (size_t i = 0; i < sounds.records.size(); ++i)

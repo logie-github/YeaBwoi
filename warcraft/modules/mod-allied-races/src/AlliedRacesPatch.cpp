@@ -37,7 +37,7 @@ namespace AlliedRaces
         constexpr char const* PATCH = "patch-V.MPQ";
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-4";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider
+        constexpr char const* VERSION = "allied-races-5";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -108,16 +108,20 @@ namespace AlliedRaces
                 }
         }
 
-        // The races' portraits painted into the last column of the game's icon sheet: void elves
-        // in the Alliance's rows (0: men, 2: women), nightborne in the Horde's (1, 3).
+        // The races' portraits painted into the icon sheet's free columns (the game's ten races have
+        // columns 0 to 4; the Skyborne's have 6): void elves and nightborne in the last (7), the
+        // Lightforged Draenei and Zandalari Trolls in 5, the Alliance's in rows 0 (men) and 2 (women),
+        // the Horde's in 1 and 3.
         bool AlliedIcons(Bytes& blp, fs::path const& icons, std::vector<std::string>& problems)
         {
             Image sheet;
             if (!Skyborne::Decode(blp, sheet) || sheet.width < 64 || sheet.height < 32 || sheet.width != sheet.height * 2)
                 return false;
-            struct Portrait { char const* file; uint32_t row; };
-            for (Portrait const& p : { Portrait{ "voidelf_male.blp", 0 }, Portrait{ "nightborne_male.blp", 1 },
-                                       Portrait{ "voidelf_female.blp", 2 }, Portrait{ "nightborne_female.blp", 3 } })
+            struct Portrait { char const* file; uint32_t column, row; };
+            for (Portrait const& p : { Portrait{ "voidelf_male.blp", 7, 0 }, Portrait{ "nightborne_male.blp", 7, 1 },
+                                       Portrait{ "voidelf_female.blp", 7, 2 }, Portrait{ "nightborne_female.blp", 7, 3 },
+                                       Portrait{ "lightforged_male.blp", 5, 0 }, Portrait{ "zandalari_male.blp", 5, 1 },
+                                       Portrait{ "lightforged_female.blp", 5, 2 }, Portrait{ "zandalari_female.blp", 5, 3 } })
             {
                 Image icon;
                 if (!Skyborne::Decode(ReadFile(icons / p.file), icon))
@@ -125,7 +129,7 @@ namespace AlliedRaces
                     problems.push_back(std::string("the portrait ") + p.file + " couldn't be read");
                     continue;
                 }
-                Paint(sheet, icon, 7, p.row);
+                Paint(sheet, icon, p.column, p.row);
             }
             blp = Skyborne::EncodeDxt5(sheet);
             return true;
@@ -275,6 +279,8 @@ namespace AlliedRaces
         // The intros' narration (the user's, data/client/*_intro.mp3), where the game's sound table has it.
         writer.Add("Sound\\CinematicVoices\\VoidElfNarration.mp3", ReadFile(moduleData / "voidelf_intro.mp3"));
         writer.Add("Sound\\CinematicVoices\\NightborneNarration.mp3", ReadFile(moduleData / "nightborne_intro.mp3"));
+        writer.Add("Sound\\CinematicVoices\\LightforgedDraeneiNarration.mp3", ReadFile(moduleData / "lightforged_intro.mp3"));
+        writer.Add("Sound\\CinematicVoices\\ZandalariTrollNarration.mp3", ReadFile(moduleData / "zandalari_intro.mp3"));
 
         if (!writer.Finish())
         {

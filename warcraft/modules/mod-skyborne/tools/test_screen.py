@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The Skyborne's character screen code (data/client/Interface/GlueXML/SkyborneCreate.lua) run in
 Lua 5.1 against stand-ins for the game's screen: the extra buttons get the screen's names, each
-side's races go down its column, the backgrounds and icons are theirs. Needs lupa (pip)."""
+side's races two to a row down its column, the backgrounds and icons are theirs. Needs lupa (pip)."""
 import os, sys
 from lupa import lua51
 
@@ -55,13 +55,20 @@ for native, races in [
     check(g.CharacterCreateRaceButton13.GetParent(g.CharacterCreateRaceButton13).name == "CharacterCreateConfigurationFrame", "the extra buttons sit with the game's")
     args = ", ".join(['"x", "y", 1'] * len(races))
     lua.execute(f"CharacterCreateEnumerateRaces({args})")
-    tops = []
+    placed = {"A": [], "H": []}
     for i, r in enumerate(races, 1):
         pts = list(g["CharacterCreateRaceButton%d" % i].points.values())
         p = list(pts[0].values())
         if p[0] == "TOP":
-            tops.append((r.split()[0], p[3]))
-    check(sorted(tops) == [("A", -50), ("H", 50)], f"one column a side, the Alliance's left: {tops}")
+            placed[r.split()[0]].append((p[3], p[4]))        # x and y from the screen's top
+    for side, centre in (("A", -50), ("H", 50)):
+        mine = placed[side]
+        check(len(mine) == sum(1 for r in races if r.startswith(side)), f"every {side} race is placed from the top")
+        # more than five races a side: two to a row, centred on the side's old column, rows going down
+        rows = [mine[i:i + 2] for i in range(0, len(mine), 2)]
+        check(all(abs((a[0] + b[0]) / 2 - centre) < 1e-6 and a[1] == b[1] and a[0] < b[0] for a, b in (r for r in rows if len(r) == 2)),
+              f"{side}: two races a row around {centre}: {mine}")
+        check(all(rows[i][0][1] > rows[i + 1][0][1] for i in range(len(rows) - 1)), f"{side}: the rows go down")
     lua.execute('SetBackgroundModel(nil, "SkyborneA")')
     check(g.BACKGROUND == "Human", "the High Order's background is the Humans'")
     lua.execute('SetBackgroundModel(nil, "SKYBORNEH")')

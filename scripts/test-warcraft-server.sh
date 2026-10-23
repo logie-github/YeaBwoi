@@ -293,7 +293,7 @@ EOF
 	done
 	echo "The Skyborne start where their side's start races do, with their racials."
 
-	echo "== the void elves and the nightborne (mod-allied-races)"
+	echo "== the void elves, the nightborne, the Lightforged Draenei and the Zandalari Trolls (mod-allied-races)"
 	grep -E "Allied races: The races' patch is in the game: 19 tables, [0-9]+ files" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the races' patch"
 	[ -s "$FILES/client/Data/patch-V.MPQ" ] && [ -s "$FILES/client/Data/patch-V.MPQ.alliedraces" ] || fail "the races' patch isn't in the game"
@@ -307,17 +307,31 @@ EOF
 		echo "world.out: the races' patch at line ${allied:-?}, '$later' at line ${at:-none}"
 		[ -z "$at" ] || [ "$allied" -lt "$at" ] || fail "the races' patch was made after the one read over it ($later)"
 	done
-	for race in 15 16; do
+	for race in 15 16 17 18; do
 		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
 	done
-	looks=$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (15, 16)" | CTL sql acore_world)
-	[ "$looks" -gt 20000 ] || fail "the races' looks aren't in the world database ($looks rows)"
-	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, each with their racials.
+	looks=$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (15, 16, 17, 18)" | CTL sql acore_world)
+	[ "$looks" -gt 28000 ] || fail "the races' looks aren't in the world database ($looks rows)"
+	# The start quests cloned for them, the originals still closed to them; the quests that need a
+	# cloned one first cloned too (the class training), and chained to the clones.
+	clones=$(echo "SELECT COUNT(*) FROM quest_template WHERE AllowableRaces = 65536" | CTL sql acore_world)
+	[ "$clones" -ge 20 ] || fail "the Lightforged Draenei's start quests aren't cloned ($clones)"
+	clones=$(echo "SELECT COUNT(*) FROM quest_template WHERE AllowableRaces = 131072" | CTL sql acore_world)
+	[ "$clones" -ge 15 ] || fail "the Zandalari's start quests aren't cloned ($clones)"
+	[ "$(echo "SELECT AllowableRaces & 131072 FROM quest_template WHERE ID = 747" | CTL sql acore_world)" = 0 ] || fail "The Hunt Begins is open to the Zandalari: only its clone should be"
+	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 960750" | CTL sql acore_world)" = 960747 ] || fail "the clone of The Hunt Continues doesn't follow the clone of The Hunt Begins"
+	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 959288" | CTL sql acore_world)" = 959280 ] || fail "a void elf's Hunter Training doesn't follow the clone of the quest before it"
+	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, a Lightforged Draenei
+	# warrior in Ammen Vale, a Zandalari warrior at Camp Narache, each with their racials.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Voidtester 15 1 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/allied-voidelf.out" || fail "the void elf warrior didn't get into the world"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nighttester 16 1 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/allied-nightborne.out" || fail "the nightborne warrior didn't get into the world"
-	for who in Voidtester:11:1:"Ammen Vale" Nighttester:5:1:Deathknell; do
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Lightester 17 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/allied-lightforged.out" || fail "the Lightforged Draenei warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Zandtester 18 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/allied-zandalari.out" || fail "the Zandalari warrior didn't get into the world"
+	for who in Voidtester:11:1:"Ammen Vale" Nighttester:5:1:Deathknell Lightester:11:1:"Ammen Vale" Zandtester:6:1:"Camp Narache"; do
 		IFS=: read -r name race class place <<EOF
 $who
 EOF
@@ -326,12 +340,12 @@ EOF
 		echo "$name at $at, $place's start $start"
 		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
 	done
-	for who in Voidtester:98711,98713,98715,98716,98717:5 Nighttester:98718,98720,98721,98722:4; do
+	for who in Voidtester:98711,98713,98715,98716,98717:5 Nighttester:98718,98720,98721,98722:4 Lightester:98723,98725,98726,98728,98729:5 Zandtester:98730,98731,98733,98734:4; do
 		name=${who%%:*} rest=${who#*:} spells=${rest%%:*} count=${rest#*:}
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	echo "The void elves and the nightborne start with the Draenei and the Forsaken, with their racials."
+	echo "The void elves and the Lightforged Draenei start with the Draenei, the nightborne with the Forsaken, the Zandalari with the Tauren, each with their racials."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

@@ -1405,6 +1405,28 @@ for the game on the phone itself ("that's the whole point").
     the void tentacles moved from duplicated hair styles to the feature slider (a third of the
     void elves' triangles). The renderer now reads starts as 16 bits too, and `check_m2.py`
     refuses a section past the limit.
+  - The Lightforged Draenei (race 17, Alliance, Ammen Vale) and the Zandalari Trolls (race 18,
+    Horde, Camp Narache in Mulgore), the same way: ChrModels 59/60 and 61/62; the Lightforged on
+    the HD draenei's parent skeleton (1005887, 1022598), the Zandalari with their own; each
+    within 65535 indices (Lightforged gear at about 46%, Zandalari hair 91% and 100%), whole in
+    the renderer. Tuskarr and Forest Troll (17, 18) moved to 26 and 27. Racials: Light's
+    Judgment (an unseen creature of the player's faction and level strikes after 3 s), Forge of
+    Light, Light's Reckoning (the same on death: `OnPlayerJustDied`), Holy Resistance, Demonbane
+    (`OnPlayerGiveXP`); Regeneratin' (a periodic heal ended by damage), Embrace of Pa'ku (a proc
+    like Entropic Embrace), Pterrordax Swoop (Slow Fall renamed), City of Gold
+    (`OnPlayerBeforeLootMoney`). Not here: Bwonsamdi's Reach, the Zandalari's flight, Ethereal
+    Connection. The Lightforged's skins have no underwear of their own: the first jewelry
+    colour's pelvis and torso stand in. Quests: the Lightforged take the void elves' seventeen,
+    the Zandalari The Hunt Begins, the Cleansing chain, Journey to the Crossroads and the ride to
+    Thunder Bluff, each with a greeting of its own. **A bug of the first two races found on the
+    way**: quests that need a cloned quest done first (the Draenei's class training, the
+    Tauren's Hunt Continues...) stayed locked for the clone's race, which can't complete the
+    original; `quests.py` now clones them too, chained to the clones. Character creation: two
+    races to a row per side (both modules' layout code and tests), the new icons in column 5.
+    Checked here: the converter, the checker and the renderer on all eight models,
+    `test_patch.cpp` on a stand-in game (19 tables, 5,215 files, 0 failures), the tools' and
+    screens' tests; the server compile and realm test are CI's (the new spell scripts and player
+    hooks compile there first).
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

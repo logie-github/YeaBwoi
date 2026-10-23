@@ -55,21 +55,23 @@ local function LayOut()
 		column[#column + 1] = _G["CharacterCreateRaceButton"..i];
 	end
 	local most = math.max(#columns.Alliance, #columns.Horde);
+	-- Two races to a row once a side has more than five (a side's banner is two icons wide);
+	-- the game's five fill 230 points with gaps of 10, more rows fill what's free above the sex buttons.
+	local perRow = ( most > 5 ) and 2 or 1;
+	local rows = math.ceil(most / perRow);
 	local gap = 10;
-	if ( most > 5 ) then
-		-- The game's five fill 230 points with gaps of 10; more fill what's free above the sex buttons.
-		gap = math.max(2, math.floor((326 - 38 * most) / (most - 1)));
+	if ( rows > 5 ) then
+		gap = math.max(2, math.floor((326 - 38 * rows) / (rows - 1)));
 	end
 	for side, x in pairs({ Alliance = -50, Horde = 50 }) do
-		local previous;
-		for _, button in ipairs(columns[side]) do
-			button:ClearAllPoints();
-			if ( previous ) then
-				button:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -gap);
-			else
-				button:SetPoint("TOP", parent, "TOP", x, -50);
+		for index, button in ipairs(columns[side]) do
+			local row = math.floor((index - 1) / perRow);
+			local across = 0;
+			if ( perRow == 2 ) then
+				across = ( (index - 1) % 2 == 0 ) and -21 or 21;
 			end
-			previous = button;
+			button:ClearAllPoints();
+			button:SetPoint("TOP", parent, "TOP", x + across, -50 - row * (38 + gap));
 		end
 	end
 end
