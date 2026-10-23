@@ -1529,6 +1529,17 @@ for the game on the phone itself ("that's the whole point").
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
 
+- The character creation screen crashed (the user's crash report, issue #34: ERROR #132, an access
+  violation at 0x004EA77F reading 0x00000010, from the screen's Lua; on ChromieCraft it wouldn't
+  open, on Wrath Remix it died as the race or sex changed). The blood elf's Dark Ranger skin had the
+  player faces of its skin but not the death knights' (flag 4), half the faces of every other skin
+  of its race and sex; a look with it and one of the missing faces had no row, and the game reads
+  through a missing row. The Dark Ranger skin now has all its skin's faces.
+  Found by rebuilding the user's tables here: the server's, the Alternative HD Patch's
+  character and creature tables (its `patch-enUS-A` and `-F`, fetched from its archive), then the
+  allied races' and the Skyborne's patches; `tools/test_client.cpp` now checks that every player
+  skin has the same faces as the others of its race and sex (it fails on the old rows).
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
