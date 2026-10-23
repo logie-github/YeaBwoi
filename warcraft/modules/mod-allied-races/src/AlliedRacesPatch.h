@@ -19,6 +19,11 @@ namespace AlliedRaces
                      std::function<void(std::string const&)> const& log);
     // Takes the patch out, if it's this module's.
     void RemovePatch(fs::path const& clientData, std::function<void(std::string const&)> const& log);
+
+    // Takes the patch out of the game but keeps it, beside it (patch-V.MPQ.aside): for a realm without
+    // the races (Wrath Remix's), so that going back to one with them needn't make it again.
+    // UpdatePatch puts it back first.
+    void SetPatchAside(fs::path const& clientData, std::function<void(std::string const&)> const& log);
 }
 
 #endif

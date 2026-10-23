@@ -164,6 +164,16 @@ configure_realm() {
 			setkey "$remix_conf" WrathRemix.Enable 0
 		fi
 	fi
+	# The allied races (mod-allied-races) are ChromieCraft's alone: off on Wrath Remix's realm, where
+	# the module takes its patch out of the game (and realm_sql keeps its SQL out of the databases).
+	allied_conf="$R_ETC/modules/mod_allied_races.conf"
+	if [ -f "$allied_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$allied_conf" AlliedRaces.Enable 0
+		else
+			setkey "$allied_conf" AlliedRaces.Enable 1
+		fi
+	fi
 	if [ "$REALM" = remix ]; then
 		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||
 			setall "$R_ETC/modules/progression_system.conf" ProgressionSystem.Bracket_ 0
@@ -234,18 +244,28 @@ rebuild_world() {
 # dbimport for the realm (realm() first): the auth database and the realm's own two.
 run_dbimport() {
 	(cd "$RUN" && musl_programs && WOW_MODULES_CONF_DIR="$R_ETC/modules" "$SERVER/bin/dbimport" -c "$R_ETC/dbimport.conf")
-	[ "$REALM" != remix ] || remix_sql
+	realm_sql
 }
 
-# Wrath Remix's own SQL (its NPCs, quests, hub and the changes to the world it makes) is in the
-# module's data/sql/remix, where the servers don't look on their own: the Remix databases' update
-# lists name it, so it goes into them and never into the main realm's. Run after dbimport (which
-# makes the lists); the world server applies it as it starts.
-remix_sql() {
-	for part in world characters; do
-		db=acore_${part}_remix
-		dir="\$/modules/mod-wrath-remix/data/sql/remix/$part"
-		[ -d "$SERVER/src/modules/mod-wrath-remix/data/sql/remix/$part" ] || continue
+# SQL for one realm alone, in module folders the servers don't look in on their own: the realm's
+# databases' update lists name them, so it goes into that realm's and never the other's. Run after
+# dbimport (which makes the lists); the world server applies it as it starts.
+# - Wrath Remix's own (its NPCs, quests, hub and the changes to the world it makes): mod-wrath-remix's
+#   data/sql/remix, into the Remix databases.
+# - The allied races' (mod-allied-races, ChromieCraft's alone): data/sql/chromiecraft, into
+#   ChromieCraft's world database; and data/sql/remix, which takes earlier releases' rows of theirs
+#   out of Remix's.
+realm_sql() {
+	if [ "$REALM" = remix ]; then
+		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
+			"mod-allied-races/data/sql/remix/world acore_world_remix"
+	else
+		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world"
+	fi
+	for entry in "$@"; do
+		folder=${entry% *} db=${entry##* }
+		[ -d "$SERVER/src/modules/$folder" ] || continue
+		dir="\$/modules/$folder"
 		printf "DELETE FROM updates_include WHERE path = '%s';\nINSERT INTO updates_include (path, state) VALUES ('%s', 'CUSTOM');\n" \
 			"$dir" "$dir" | db_client "$db"
 	done
@@ -282,9 +302,11 @@ races() {
 	echo "Custom races taken out"
 }
 
-# The modules in the realm package with SQL for the world database, a name a line.
+# The modules in the realm package with SQL for the world database, a name a line: in the folders
+# the servers read, and in the realm's own (realm_sql: data/sql/chromiecraft or data/sql/remix).
 world_modules_now() {
-	for dir in "$SERVER"/src/modules/*/data/sql/db-world*; do
+	if [ "${REALM:-main}" = remix ]; then own=remix; else own=chromiecraft; fi
+	for dir in "$SERVER"/src/modules/*/data/sql/db-world* "$SERVER"/src/modules/*/data/sql/$own/world; do
 		[ -d "$dir" ] || continue
 		dir=${dir#"$SERVER/src/modules/"}
 		echo "${dir%%/*}"
@@ -442,7 +464,7 @@ auth)
 	;;
 world)
 	realm "${1:-main}"
-	[ "$REALM" != remix ] || remix_sql
+	realm_sql
 	mkdir -p "$R_LOGS"
 	cd "$RUN"
 	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.

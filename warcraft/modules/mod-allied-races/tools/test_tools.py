@@ -124,8 +124,8 @@ sections = open(os.path.join(MODULE, "data", "client", "dbc", "CharSections.txt"
 model = races["voidelf"]["models"]["1"]
 check(names.skin(model, 0).replace("\\", "\\\\") in sections and names.face_upper(model, model["eyes"][0]).replace("\\", "\\\\") in sections,
       "CharSections names the textures the way they're made")
-check(os.path.exists(os.path.join(MODULE, "data", "sql", "db-world", "allied_races_world.sql")) and
-      os.path.exists(os.path.join(MODULE, "data", "sql", "db-world", "allied_races_quests.sql")), "the world SQL is there")
+check(os.path.exists(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_world.sql")) and
+      os.path.exists(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_quests.sql")), "the world SQL is there")
 
 print("PASSED" if not failures else "FAILED (%d)" % failures)
 sys.exit(1 if failures else 0)

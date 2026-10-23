@@ -1549,11 +1549,22 @@ a realm with modules), then stage 3.
   player faces of their skin but not the death knights' (flag 4), so a design had half the faces of
   every other skin of its race and sex (Human women 15 of 30), and the Dark Ranger skin the same; a
   look with a design and one of the missing faces had no row, and the game read through it. Every
-  design (and the Dark Ranger skin) now has all its skin's faces (28,488 Features rows, ids 970000 to
-  998487). Found by rebuilding the user's tables here: the server's, the Alternative HD Patch's
+  design (and the Dark Ranger skin) now has all its skin's faces (28,608 Features rows, ids 970000 to
+  998607). Found by rebuilding the user's tables here: the server's, the Alternative HD Patch's
   character and creature tables (its `patch-enUS-A` and `-F`, fetched from its archive), then the
   allied races' and the Skyborne's patches; `tools/test_client.cpp` now checks that every player
   skin has the same faces as the others of its race and sex (it fails on the old rows).
+- The user: "Only chromie needs new races, wrath just needs bug fixes." The allied races are
+  ChromieCraft's alone: their SQL moved to `data/sql/chromiecraft/world`, which `ctl.sh` (`realm_sql`)
+  puts in ChromieCraft's world database only, with `data/sql/remix/world` taking earlier releases'
+  rows out of Remix's (their starts, stats, action bars, racials, race and look rows); their patch is
+  set aside on Remix (`AlliedRaces.Enable 0`, `patch-V.MPQ.aside`) and back on ChromieCraft without
+  being made again; `world_modules_now` counts the realms' own folders, so the move doesn't make
+  either world database again. Wrath Remix's language folder's patch (`patch-<locale>-Y.MPQ`) stayed
+  for ChromieCraft and hid newer tables there (its `SoundEntries.dbc` was the server's own: the
+  allied races' voices and narrations, the HD looks' spell sounds); ChromieCraft's world server takes
+  it out now, it's made onto the game's own `SoundEntries.dbc`, and the allied races' patch isn't made
+  from it. The Skyborne stay on both realms until the user says otherwise.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
