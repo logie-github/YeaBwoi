@@ -33,3 +33,7 @@ cmd .cast 98723
 target 0
 wait 3
 expect damage 98724 by player
+# Out of the fight, so the character can log out (the realm keeps one in combat).
+go 530 -3961.6 -13931.2 100.7
+cmd .combatstop
+wait 2
