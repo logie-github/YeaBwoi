@@ -48,6 +48,8 @@ class GestureView(
     private val density = resources.displayMetrics.density
     private val gestures = RtsGestures(this, density)
     private val title = Title.of(activity.intent.getStringExtra(EXTRA_TITLE)) ?: Title.TFT
+    /** Blizzard's installer, not the game: every tap is a plain (left) click, as on a desktop. */
+    private val installer = activity.intent.getBooleanExtra(EXTRA_INSTALLER, false)
     private val vibrate = GameSettings.vibration(activity)
 
     /** From the view's pixels to the game screen's. */
@@ -184,7 +186,7 @@ class GestureView(
     }
 
     override fun click(button: Button) {
-        val pressed = if (button == Button.RIGHT && onInterface()) Button.LEFT else button
+        val pressed = if (button == Button.RIGHT && (installer || onInterface())) Button.LEFT else button
         xServer.injectPointerButtonPress(pressed.x)
         postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS)
     }
@@ -280,6 +282,7 @@ class GestureView(
     companion object {
         /** The game the launcher started ([Title.key]): the loading screen's and menus' look. */
         const val EXTRA_TITLE = "com.logie.warcrafts.TITLE"
+        const val EXTRA_INSTALLER = "com.logie.warcrafts.INSTALLER"
 
         private const val CLICK_MS = 40L
         /** Warcraft III's bottom panel starts about three quarters down; its top bar ends 5% down. */

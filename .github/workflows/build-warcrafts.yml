@@ -174,13 +174,13 @@ jobs:
         run: |
           source warcrafts/winlator-version.env
           source warcrafts/stratagus-version.env
-          notes="$APP_NAME for Android, offline: Warcraft I and II (GOG) native, played by Stratagus ${STRATAGUS_COMMIT::7} with War1gus ${WAR1GUS_COMMIT::7} and Wargus ${WARGUS_COMMIT::7}; Warcraft III 1.30 on Wine and Box64 inside the app (Blizzard's servers blocked unless you turn Private off). Touch gestures throughout. Built from commit ${GITHUB_SHA::7}.
+          notes="$APP_NAME for Android, offline: Warcraft I and II (GOG) native, played by Stratagus ${STRATAGUS_COMMIT::7} with War1gus ${WAR1GUS_COMMIT::7} and Wargus ${WARGUS_COMMIT::7}; Warcraft III 1.27 on Wine and Box64 inside the app (Blizzard's servers blocked unless you turn Private off). Touch gestures throughout. Built from commit ${GITHUB_SHA::7}.
 
-          Download **$APK_FILE** below on your phone and open it to install. Then, for each game, **Game files** brings its files into the app (**Pick GOG installer** for Warcraft I and II, **Pick folder** or **Pick zip**), and **Press start** plays it. Warcraft III's CD keys: paste yours in **Game files → CD keys**; the four-finger menu types them.
+          Download **$APK_FILE** below on your phone and open it to install. Then, for each game, **Game files** brings its files into the app (**Pick GOG installer** for Warcraft I and II, **Pick folder** or **Pick zip**), and **Press start** plays it. Warcraft III: **Game files → Download from Blizzard**, then its two install buttons.
 
           - **Warcraft: Orcs & Humans** (GOG): its offline installer as GOG gives it (setup_warcraft_….exe and every .bin file that came with it: Game files → Pick GOG installer), or its installed folder (WAR.EXE, DATA), or a zip of it; the app unpacks and converts it for the phone.
           - **Warcraft II: Battle.net Edition** (GOG): its offline installer (setup_warcraft_ii_….exe and its .bin files), or its installed folder (Install.mpq, Support/TOMES), or a zip of it; the app unpacks and converts it for the phone.
-          - **Warcraft III** (Reign of Chaos and The Frozen Throne): the installed 1.27 folder from a Windows PC (Blizzard's classic installers, your CD keys entered there) with *Warcraft III.exe*, *War3.mpq*, *War3x.mpq*, *War3Patch.mpq* and *Maps*, or a zip of it."
+          - **Warcraft III** (Reign of Chaos and The Frozen Throne): set up on the phone: Game files → Download from Blizzard (Blizzard's classic 1.27 installers, about 1.4 GB), then install Reign of Chaos and The Frozen Throne in the app with your CD keys."
           # The tag first, on its own (see build-warcraft.yml: GitHub refuses some tokens a tag made by
           # gh release create --target).
           if ! git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" > /dev/null; then

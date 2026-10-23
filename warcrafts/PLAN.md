@@ -167,6 +167,17 @@ The user's requirements, what was decided, what's open, and where it stands. The
   OpenGL is the default; Wine's Light visual style is on; windowed fullscreen at the screen's 4:3
   size; no name server while Private. Untested: whether `Frozen Throne.exe` in 1.27 starts the
   expansion directly under Wine, and how 1.27 runs on the Fold.
+- **Warcraft III set up on the phone** (after build 13 the user: "This all needs to be done in the
+  app. No pc. Pull the mpq from the installation"). Blizzard's legacy downloaders carry a torrent
+  description ("disable p2p"; direct download `http://rogue.blizzard.com.edgesuite.net/applications/
+  Warcraft3/1.27a2/{ROC,TFT}/enUS`; files `Installer.exe`, `Installer Tome.mpq` 752 MB / 581 MB,
+  DirectX; SHA-1 per 256 KB piece). `library/BlizzardDownload` reads it (tested on the real
+  downloaders); `Wc3Setup` downloads with resume and checks every piece, then Blizzard's
+  `Installer.exe` runs in the games' Windows (drive G:, taps as plain clicks) where the player types
+  their key; the installed folder (`C:\Program Files (x86)\Warcraft III`) is moved into the app's
+  Warcraft III folder. Unverified: the CDN answered this build machine 403 for both address forms
+  (cloud IPs are often refused; from a phone, unknown), the exact address form, and the installer
+  under Wine/Box64.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry; the CD keys box takes the keys the user has.
