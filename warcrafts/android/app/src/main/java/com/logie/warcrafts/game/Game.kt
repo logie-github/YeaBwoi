@@ -8,6 +8,7 @@ import com.logie.warcrafts.MainActivity
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.library.Engine
+import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Offline
 import com.logie.warcrafts.library.Title
@@ -117,7 +118,12 @@ object Game {
             if (MainActivity.visible) context.startActivity(intent) else pending = intent
             return
         }
-        val program = withContext(Dispatchers.IO) { RtsFiles.program(context, install) }
+        // The Frozen Throne starts from its own program (1.27: Frozen Throne.exe), Reign of Chaos from
+        // Warcraft III.exe.
+        val program = withContext(Dispatchers.IO) {
+            val main = RtsFiles.program(context, install)
+            if (title == Title.TFT) GameLayout.expansionProgram(RtsFiles.programs(context, install)) ?: main else main
+        }
             ?: throw GameFailed(context.getString(R.string.rts_game_error_no_game, context.getString(com.logie.warcrafts.ImportService.installName(install))))
 
         _state.value = State.Preparing(Step.RUNTIME, 0f)
@@ -202,6 +208,13 @@ object Game {
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)
             registry.setDwordValue(video, "windowmode", 1)
+            // Windows' own dialogs (the game's messages) in Wine's Light style, which comes with the
+            // runtime but is off: without it they're drawn like Windows 95.
+            val theme = "Software\\Microsoft\\Windows\\CurrentVersion\\ThemeManager"
+            registry.setStringValue(theme, "ThemeActive", "1")
+            registry.setStringValue(theme, "DllName", "C:\\windows\\resources\\themes\\light\\light.msstyles")
+            registry.setStringValue(theme, "ColorName", "NormalColor")
+            registry.setStringValue(theme, "SizeName", "NormalSize")
             val launcher = "Software\\Blizzard Entertainment\\Classic Launcher\\w3"
             if (registry.getStringValue(launcher, "Locale", "").isEmpty()) registry.setStringValue(launcher, "Locale", "enUS")
         }
