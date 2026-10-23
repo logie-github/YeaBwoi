@@ -22,7 +22,7 @@
  *
  *  Rescue the Survivors! (the void elves' and Lightforged Draenei's clones of it): the survivors'
  *  script answers Gift of the Naaru, a Draenei racial these races don't have, so they hold it
- *  (temporarily, never saved) while the quest is in their log and not yet complete.
+ *  (temporarily, never saved) while the quest is in their log, until it's handed in or abandoned.
  */
 
 #include "Creature.h"
@@ -201,6 +201,7 @@ public:
             LendGiftOfTheNaaru(player);
     }
 
+    // (the core calls this as the quest is handed in)
     void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
     {
         if (IsRescueTheSurvivors(quest->GetQuestId()))

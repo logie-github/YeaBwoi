@@ -1451,7 +1451,7 @@ for the game on the phone itself ("that's the whole point").
     - New in the realm test: each race in the world (`warcraft/server/allied_*.steps`): Calm's
       aura, Spatial Rift through the rift, Arcane Pulse's, Reckoning's and Judgment's damage as the
       character's, Regeneratin' and the swoop's aura, the race's own first quest offered and the
-      start race's not, Rescue the Survivors! credited with the lent gift and the gift taken back.
+      start race's not, Rescue the Survivors! credited with the lent gift, handed in, and the gift taken back.
       Not tested: Entropic Embrace's and Pa'ku's procs, Demonbane's and City of Gold's amounts.
     - Found by that test (build 231): a void elf's chat commands went unanswered (no language).
       Both modules add their races' bits to the same playercreateinfo_skills rows and found them by

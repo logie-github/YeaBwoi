@@ -112,7 +112,7 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   the conditions on their gossip and texts (an "is on the quest" or "has done it" for the
   original also holds for the clone, a "hasn't done it" for both). Rescue the Survivors!'s
   survivors stand up for Gift of the Naaru, a Draenei racial: a void elf or Lightforged holds it
-  while their clone of the quest is in the log, and loses it when it's complete or abandoned.
+  while their clone of the quest is in the log, and loses it when it's handed in or abandoned.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's
   MP3s, `data/client/voidelf_intro.mp3`, `nightborne_intro.mp3`, `lightforged_intro.mp3` and
   `zandalari_intro.mp3`), played through the cinematic's voice entry as the game's own
@@ -213,7 +213,7 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   Preternatural Calm's aura, Spatial Rift through the rift, Arcane Pulse's, Light's Reckoning's
   and Light's Judgment's damage as the character's own, Regeneratin' and Pterrordax Swoop on the
   character, the race's own first quest offered and the start race's not, Rescue the Survivors!
-  credited with the lent Gift of the Naaru and the gift taken back. Not tested: Entropic
+  credited with the lent Gift of the Naaru, handed in to Zalduun, and the gift taken back. Not tested: Entropic
   Embrace's and Embrace of Pa'ku's procs, Demonbane's and City of Gold's amounts.
 - Not tested: the game itself (the models drawn, the looks, the voices, the intros, the screen on
   a phone): nothing here runs the 3.3.5 client.

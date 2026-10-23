@@ -382,7 +382,7 @@ EOF
 	# In the world: their racials at work (Preternatural Calm's aura, Spatial Rift through the rift,
 	# Arcane Pulse's damage, Light's Reckoning's and Judgment's the character's own, Regeneratin',
 	# Pterrordax Swoop), their own first quests offered and the start race's not, and Rescue the
-	# Survivors! done with a lent Gift of the Naaru, taken back after.
+	# Survivors! done with a lent Gift of the Naaru, taken back as it's handed in.
 	for who in Voidtester:15:voidelf Nighttester:16:nightborne Lightester:17:lightforged Zandtester:18:zandalari; do
 		IFS=: read -r name race file <<EOF
 $who

@@ -17,7 +17,7 @@ talk 16475
 has quest 959279:
 expect-not quest 9279:
 # Rescue the Survivors!: Gift of the Naaru (a Draenei racial) lent while it's in the log, a
-# survivor healed with it standing up for the clone, the gift taken back once it's done.
+# survivor healed with it standing up for the clone, the gift taken back as it's handed in.
 cmd .quest add 959283
 expect learned 28880
 go 530 -4147.6 -13883.1 79.4
@@ -25,5 +25,8 @@ target 16483
 cmd .cast 28880
 target 0
 wait 7
-has credit 959283 16483
+expect credit 959283 16483
+go 530 -4118.5 -13760.5 74.1
+reward 16502 959283
+has rewarded 959283
 expect removed 28880
