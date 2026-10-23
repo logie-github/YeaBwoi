@@ -218,7 +218,7 @@ public:
     void OnPlayerLogin(Player* player) override
     {
         // Their start skills (Common or Orcish, some weapons and armour) never reached the races
-        // before 1.0.231 (allied_races_world.sql): a character made then learns what it lacks.
+        // up to 1.0.231 (allied_races_world.sql): a character made then learns what it lacks.
         uint8 race = player->getRace(true);
         if (race >= FIRST_ALLIED_RACE && race <= LAST_ALLIED_RACE)
             player->LearnDefaultSkills();
