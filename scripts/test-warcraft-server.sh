@@ -88,6 +88,29 @@ cleanup() {
 	wait 2> /dev/null || true
 }
 trap cleanup EXIT
+# A character's side's language (Common 98, Orcish 109) in its skills; when it isn't there, what the
+# realm holds about it is shown before the test fails.
+knows_language() {
+	local name=$1 language=$2 known
+	known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
+	[ "$known" = 1 ] && return 0
+	{
+		echo "--- $name's skills; Testhero's (a human's) languages"
+		echo "SELECT c.name, c.race, c.class, s.skill, s.value, s.max FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name IN ('$name', 'Testhero') ORDER BY c.name, s.skill" | CTL sql acore_characters
+		echo "--- the world's language rows"
+		echo "SELECT * FROM skillraceclassinfo_dbc WHERE SkillID IN (98, 109)" | CTL sql acore_world
+		echo "SELECT * FROM playercreateinfo_skills WHERE skill IN (98, 109)" | CTL sql acore_world
+		echo "--- the realm's words on skills"
+		grep -ihE "skill|race/class" "$FILES/logs/world.out" "$FILES/logs/Server.log" "$FILES/logs/Errors.log" 2>/dev/null | grep -v "ListSpellsAction" | head -20 || true
+		echo "--- a GM command from $name (needs the language)"
+		printf 'cmd .gps\n' > "$FILES/run/language.steps"
+		# (said in the language it should know: the race given only picks it, the character is there)
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$([ "$language" = 109 ] && echo 2 || echo 1)" 1 \
+			"$FILES/run/language.steps" || true
+	} >&2
+	return 1
+}
+
 fail() {
 	echo "FAILED: $*" >&2
 	for log in "$FILES"/logs/*; do
@@ -294,9 +317,7 @@ EOF
 	# Their side's language (until 1.0.233 they were in the other side's tiered language row too, which
 	# the core may pick first, and learned none).
 	for who in Skyhighorder:98 Skywindshape:109; do
-		name=${who%%:*} language=${who#*:}
-		known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
-		[ "$known" = 1 ] || fail "$name doesn't know its side's language (skill $language)"
+		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
 	done
 	echo "The Skyborne start where their side's start races do, with their racials and their side's language."
 
@@ -355,9 +376,7 @@ EOF
 	# Their side's language: no /say and no chat command without it. Until 1.0.233 they had none (the
 	# skill rows missed for the Skyborne's bits, and their place in the other side's tiered row).
 	for who in Voidtester:98 Nighttester:109 Lightester:98 Zandtester:109; do
-		name=${who%%:*} language=${who#*:}
-		known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
-		[ "$known" = 1 ] || fail "$name doesn't know its side's language (skill $language)"
+		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
 	done
 	echo "The void elves and the Lightforged Draenei start with the Draenei, the nightborne with the Forsaken, the Zandalari with the Tauren, each with their racials and their side's language."
 	# In the world: their racials at work (Preternatural Calm's aura, Spatial Rift through the rift,
