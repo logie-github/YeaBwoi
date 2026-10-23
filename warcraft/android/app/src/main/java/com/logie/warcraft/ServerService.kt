@@ -100,6 +100,7 @@ class ServerService : Service() {
         if (reports == null) {
             reports = scope.launch {
                 while (isActive) {
+                    runCatching { GameCrashReports.collect(this@ServerService) }
                     runCatching { AnomalyReports.sendWaiting(this@ServerService) }
                     runCatching { Homecomings.check(this@ServerService) }
                     delay(REPORTS_EVERY_MS)

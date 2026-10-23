@@ -14,6 +14,7 @@ import android.util.Log
 import android.widget.Toast
 import com.logie.warcraft.modules.GitHubApi
 import com.logie.warcraft.reports.AnomalyReport
+import com.logie.warcraft.reports.GameCrash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
@@ -35,6 +36,9 @@ import java.time.temporal.ChronoUnit
  * a network, or while GitHub was busy, waits and goes later; one sent before whose answer never came
  * is looked for on GitHub first, by its mark ([AnomalyReport.marked]), so it isn't opened twice.
  * Sent ones are kept in `sent/`, the ones opened in the browser in `opened/`.
+ *
+ * The game's own crash reports go the same way ([GameCrashReports] puts them in the folder, their
+ * names starting [GameCrash.PREFIX]), labelled [GameCrash.LABEL].
  */
 object AnomalyReports {
     private const val TAG = "AnomalyReports"
@@ -93,7 +97,7 @@ object AnomalyReports {
             when (val outcome = withContext(Dispatchers.IO) { send(context, repo, file) }) {
                 is Outcome.Sent -> {
                     waiting.remove(file.name)
-                    toast(context, context.getString(R.string.wow_report_sent, outcome.number))
+                    toast(context, context.getString(if (crash(file)) R.string.wow_crash_sent else R.string.wow_report_sent, outcome.number))
                 }
                 is Outcome.ForBrowser -> {
                     waiting.remove(file.name)
@@ -101,7 +105,7 @@ object AnomalyReports {
                     open(context, file, outcome.link)
                 }
                 Outcome.Offline -> {
-                    if (file.name !in waiting) toast(context, context.getString(R.string.wow_report_waiting))
+                    if (file.name !in waiting) toast(context, context.getString(if (crash(file)) R.string.wow_crash_waiting else R.string.wow_report_waiting))
                     waiting[file.name] = now + RETRY_MS
                 }
                 Outcome.Busy -> waiting[file.name] = now + RETRY_MS
@@ -127,12 +131,16 @@ object AnomalyReports {
         } else {
             waiting[file.name] = System.currentTimeMillis() + RETRY_MS
         }
-        toast(context, context.getString(if (opened) R.string.wow_report_opened else R.string.wow_report_no_browser))
+        toast(context, context.getString(when {
+            crash(file) -> if (opened) R.string.wow_crash_opened else R.string.wow_crash_no_browser
+            else -> if (opened) R.string.wow_report_opened else R.string.wow_report_no_browser
+        }))
     }
 
     private fun send(context: Context, repo: String, file: File): Outcome {
         val text = runCatching { file.readText() }.getOrDefault("")
-        val report = AnomalyReport.parse(text)?.signed(signature())
+        val report = AnomalyReport.parse(text)?.signed(signature(crash(file)))
+        val label = if (crash(file)) GameCrash.LABEL else AnomalyReport.LABEL
         if (report == null) {
             // (half written, or not a report: out of the way)
             if (System.currentTimeMillis() - file.lastModified() > RETRY_MS) moveTo(file, "broken")
@@ -158,7 +166,7 @@ object AnomalyReports {
                     }
                 }
                 runCatching { posted.writeText("${System.currentTimeMillis()}\n") }
-                val answer = github.postForAnswer("https://${GitHubApi.API_HOST}/repos/$repo/issues", report.marked(marker).issueJson())
+                val answer = github.postForAnswer("https://${GitHubApi.API_HOST}/repos/$repo/issues", report.marked(marker).issueJson(label))
                 val (number, page) = AnomalyReport.openedIssue(answer) ?: (0 to "")
                 moveTo(file, "sent")
                 Log.i(TAG, "${file.name}: issue #$number, $page")
@@ -172,12 +180,14 @@ object AnomalyReports {
                 return Outcome.Offline
             }
         }
-        return if (online(context)) Outcome.ForBrowser(report.newIssueLink(repo)) else Outcome.Offline
+        return if (online(context)) Outcome.ForBrowser(report.newIssueLink(repo, label)) else Outcome.Offline
     }
 
-    private fun signature() =
+    private fun signature(crash: Boolean) =
         "Sent by the World of Warcraft app ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE}) on Android ${Build.VERSION.RELEASE}, " +
-            "from the realm's report."
+            if (crash) "from the game's crash report." else "from the realm's report."
+
+    private fun crash(file: File) = file.name.startsWith(GameCrash.PREFIX)
 
     /** One of the app's screens is in front (the launcher's, the game's): its process, not this one. */
     private fun appInFront(context: Context): Boolean = runCatching {
