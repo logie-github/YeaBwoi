@@ -46,10 +46,10 @@ def check(ok, what):
 
 
 for native, races, with_skyborne in [
-    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf",
-          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne"], False),
-    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf", "A SkyborneA",
-          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne", "H SkyborneH"], True),
+    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf", "A LightforgedDraenei",
+          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne", "H ZandalariTroll"], False),
+    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf", "A LightforgedDraenei", "A SkyborneA",
+          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne", "H ZandalariTroll", "H SkyborneH"], True),
 ]:
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
     lua.execute(f"NATIVE = {native}")
@@ -73,18 +73,29 @@ for native, races, with_skyborne in [
         pts = list(g["CharacterCreateRaceButton%d" % i].points.values())
         columns[side].append(pts)
     for side, pts in columns.items():
-        first, rest = pts[0], pts[1:]
-        check(first and first[0][1] == "TOP" and (first[0][4] < 0) == (side == "Alliance"), f"{side}'s first race at the top of its column")
-        check(all(p and p[0][1] == "TOPLEFT" and p[0][3] == "BOTTOMLEFT" for p in rest), f"{side}'s races follow down the column")
+        points = [p[0] for p in pts]
+        check(all(pt[1] == "TOP" for pt in points), f"{side}'s races are placed from the top of the screen")
+        check(all((pt[4] < 0) == (side == "Alliance") for pt in points), f"{side}'s races stay on its side")
+        two = len(points) > 5
+        rows = [points[i:i + (2 if two else 1)] for i in range(0, len(points), 2 if two else 1)]
+        check(all(len({pt[5] for pt in row}) == 1 for row in rows), f"{side}'s {'two races to a row' if two else 'one race to a row'} share the row's height")
+        check(all(rows[i][0][5] > rows[i + 1][0][5] for i in range(len(rows) - 1)), f"{side}'s rows go down the screen")
+        check(not two or all(len(row) < 2 or row[0][4] < row[1][4] for row in rows), f"{side}'s rows read left to right")
     tc = g.RACE_ICON_TCOORDS
     check(tc["VOIDELF_MALE"][1] == 0.875 and tc["VOIDELF_MALE"][4] == 0.25 and tc["NIGHTBORNE_FEMALE"][3] == 0.75, "the icons in the last column, by side and sex")
+    check(tc["LIGHTFORGEDDRAENEI_MALE"][1] == 0.625 and tc["LIGHTFORGEDDRAENEI_MALE"][2] == 0.75 and tc["ZANDALARITROLL_FEMALE"][3] == 0.75, "the Lightforged's and Zandalari's icons in the next column")
     lua.execute('SetBackgroundModel("m", "VoidElf")')
     check(g.BACKGROUND == "Draenei", "the void elves' background is the Draenei's")
     lua.execute('SetBackgroundModel("m", "Nightborne")')
     check(g.BACKGROUND == "Scourge", "the nightborne's background is the Forsaken's")
+    lua.execute('SetBackgroundModel("m", "LightforgedDraenei")')
+    check(g.BACKGROUND == "Draenei", "the Lightforged Draenei's background is the Draenei's")
+    lua.execute('SetBackgroundModel("m", "ZandalariTroll")')
+    check(g.BACKGROUND == "Tauren", "the Zandalari's background is the Tauren's")
     lua.execute('SetBackgroundModel("m", "Orc")')
     check(g.BACKGROUND == "Orc", "the game's own backgrounds stay")
     check(g.RACE_INFO_VOIDELF and g.ABILITY_INFO_NIGHTBORNE4 and g.VOIDELF_DISABLED, "the races' texts")
+    check(g.RACE_INFO_LIGHTFORGEDDRAENEI and g.ABILITY_INFO_ZANDALARITROLL4 and g.ZANDALARITROLL_DISABLED, "the Lightforged's and Zandalari's texts")
 
 print("PASSED" if not failures else f"FAILED ({failures})")
 sys.exit(1 if failures else 0)

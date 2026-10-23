@@ -109,7 +109,7 @@ check(abs(u) < 1e-6 and abs(v - 1.0) < 1e-6, "a turned head's corner lands where
 
 # The data: both races, both sexes, the faces within 3.3.5's room, every name the tables use made.
 races = json.load(open(os.path.join(MODULE, "data", "retail", "races.json")))
-check(set(races) == {"voidelf", "nightborne"} and all(set(r["models"]) == {"0", "1"} for r in races.values()), "two races, both sexes")
+check(set(races) == {"voidelf", "nightborne", "lightforged", "zandalari"} and all(set(r["models"]) == {"0", "1"} for r in races.values()), "four races, both sexes")
 for key, race in races.items():
     for sex, model in race["models"].items():
         check(len(model["faces"]) * len(model["eyes"]) <= 255, "%s: %d faces x %d eyes fit a byte" % (model["name"], len(model["faces"]), len(model["eyes"])))

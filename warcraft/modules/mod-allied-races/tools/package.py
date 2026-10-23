@@ -65,7 +65,8 @@ def needed_files(races):
     for race in races.values():
         for model in race["models"].values():
             ids.add(model["model"])
-            ids.add(model["parent_model"])
+            if model["parent_model"]:
+                ids.add(model["parent_model"])
             ids.update(model["hardcoded_files"].values())
             for h in model["hair_colors"]:
                 ids.add(h["file"])

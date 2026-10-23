@@ -33,27 +33,41 @@ TYPES = json.load(open(os.path.join(HERE, "dbc_types.json")))
 RACES = json.load(open(os.path.join(MODULE, "data", "retail", "races.json")))
 
 HUMAN, ORC, DWARF, NIGHTELF, UNDEAD, TAUREN, GNOME, TROLL, BLOODELF, DRAENEI = 1, 2, 3, 4, 5, 6, 7, 8, 10, 11
-VOIDELF, NIGHTBORNE = 15, 16
-MOVED = {15: 24, 16: 25}                       # Skeleton, Vrykul: the creatures' races, moved
-KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne"}
-BIT = {VOIDELF: 1 << 14, NIGHTBORNE: 1 << 15}
+VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI = 15, 16, 17, 18
+RACE_IDS = (VOIDELF, NIGHTBORNE, LIGHTFORGED, ZANDALARI)
+ALLIANCE_RACES, HORDE_RACES = (VOIDELF, LIGHTFORGED), (NIGHTBORNE, ZANDALARI)
+MOVED = {15: 24, 16: 25, 17: 26, 18: 27}       # Skeleton, Vrykul, Tuskarr, Forest Troll: the creatures' races, moved
+KEY = {VOIDELF: "voidelf", NIGHTBORNE: "nightborne", LIGHTFORGED: "lightforged", ZANDALARI: "zandalari"}
+BIT = {r: 1 << (r - 1) for r in RACE_IDS}
 ALLIANCE_MASK = sum(1 << (r - 1) for r in (HUMAN, DWARF, NIGHTELF, GNOME, DRAENEI))
 HORDE_MASK = sum(1 << (r - 1) for r in (ORC, UNDEAD, TAUREN, TROLL, BLOODELF))
+ALLIANCE_BITS = sum(BIT[r] for r in ALLIANCE_RACES)
+HORDE_BITS = sum(BIT[r] for r in HORDE_RACES)
 WARRIOR, PALADIN, HUNTER, ROGUE, PRIEST, DK, SHAMAN, MAGE, WARLOCK, DRUID = 1, 2, 3, 4, 5, 6, 7, 8, 9, 11
-CLASSES = (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK)       # both races' classes of today that 3.3.5 has
-START = {VOIDELF: DRAENEI, NIGHTBORNE: UNDEAD}                      # where they begin, whose quests and standing they share
+# Each race's classes of today that 3.3.5 has.
+CLASSES_OF = {
+    VOIDELF: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK),
+    NIGHTBORNE: (WARRIOR, HUNTER, ROGUE, PRIEST, DK, MAGE, WARLOCK),
+    LIGHTFORGED: (WARRIOR, PALADIN, HUNTER, PRIEST, DK, MAGE),
+    ZANDALARI: (WARRIOR, PALADIN, HUNTER, ROGUE, PRIEST, DK, SHAMAN, MAGE, DRUID),
+}
+START = {VOIDELF: DRAENEI, NIGHTBORNE: UNDEAD, LIGHTFORGED: DRAENEI, ZANDALARI: TAUREN}   # where they begin, whose quests and standing they share
 # Whose start each class takes (gear, action bars): the start race's where it has the class, the
 # nearest of its side where it doesn't.
 TEMPLATE = {
     VOIDELF: {WARRIOR: DRAENEI, HUNTER: DRAENEI, ROGUE: HUMAN, PRIEST: DRAENEI, DK: DRAENEI, MAGE: DRAENEI, WARLOCK: HUMAN},
     NIGHTBORNE: {WARRIOR: UNDEAD, HUNTER: BLOODELF, ROGUE: UNDEAD, PRIEST: UNDEAD, DK: UNDEAD, MAGE: UNDEAD, WARLOCK: UNDEAD},
+    LIGHTFORGED: {WARRIOR: DRAENEI, PALADIN: DRAENEI, HUNTER: DRAENEI, PRIEST: DRAENEI, DK: DRAENEI, MAGE: DRAENEI},
+    ZANDALARI: {WARRIOR: TAUREN, PALADIN: BLOODELF, HUNTER: TAUREN, ROGUE: TROLL, PRIEST: TROLL, DK: TAUREN, SHAMAN: TAUREN, MAGE: TROLL, DRUID: TAUREN},
 }
-STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # their kin's starting stats
-MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF}             # whose model rows theirs are copied from
-PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb"}
-NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne"}
-NARRATION = {VOIDELF: "VoidElfNarration.mp3", NIGHTBORNE: "NightborneNarration.mp3"}
-FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL")}
+STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL}   # their kin's starting stats
+MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL}   # whose model rows theirs are copied from
+PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb", LIGHTFORGED: "Ld", ZANDALARI: "Za"}
+NAME = {VOIDELF: "Void Elf", NIGHTBORNE: "Nightborne", LIGHTFORGED: "Lightforged Draenei", ZANDALARI: "Zandalari Troll"}
+NARRATION = {VOIDELF: "VoidElfNarration.mp3", NIGHTBORNE: "NightborneNarration.mp3",
+             LIGHTFORGED: "LightforgedDraeneiNarration.mp3", ZANDALARI: "ZandalariTrollNarration.mp3"}
+FEATURE_LABELS = {VOIDELF: ("FEATURES", "FEATURES", "NORMAL"), NIGHTBORNE: ("FEATURES", "FEATURES", "NORMAL"),
+                  LIGHTFORGED: ("FEATURES", "HORNS", "NORMAL"), ZANDALARI: ("TUSKS", "TUSKS", "NORMAL")}
 # The quests of the start race alone that are cloned for the new race (tools/quests.py): those
 # keep their race, the clone is the new race's; every other quest of the start race opens to it.
 CLONED = json.load(open(os.path.join(MODULE, "data", "retail", "cloned_quests.json"))) if os.path.exists(
@@ -61,21 +75,26 @@ CLONED = json.load(open(os.path.join(MODULE, "data", "retail", "cloned_quests.js
 
 # New rows' ids, clear of the game's, the Skyborne's (900000s, 9000s) and Wrath Remix's.
 ID_SECTIONS = 920000
-ID_SECTIONS_END = 969999
+ID_SECTIONS_END = 999999
 ID_OUTFIT = 9100
 ID_HAIRGEO = 9100
 ID_NAMEGEN = 91000
 ID_VOCAL = 9100
 ID_EMOTESOUND = 91000
-ID_SEQUENCE = {VOIDELF: 9011, NIGHTBORNE: 9012}
-ID_CAMERA = {VOIDELF: 9011, NIGHTBORNE: 9012}
-ID_NARRATION = {VOIDELF: 910001, NIGHTBORNE: 910002}
+ID_SEQUENCE = {VOIDELF: 9011, NIGHTBORNE: 9012, LIGHTFORGED: 9013, ZANDALARI: 9014}
+ID_CAMERA = {VOIDELF: 9011, NIGHTBORNE: 9012, LIGHTFORGED: 9013, ZANDALARI: 9014}
+ID_NARRATION = {VOIDELF: 910001, NIGHTBORNE: 910002, LIGHTFORGED: 910003, ZANDALARI: 910004}
 ID_VOICE = 910100
-ID_DISPLAY = {VOIDELF: (33001, 33002), NIGHTBORNE: (33003, 33004)}  # male, female looks
-ID_MODEL = {VOIDELF: (3601, 3602), NIGHTBORNE: (3603, 3604)}
+ID_DISPLAY = {VOIDELF: (33001, 33002), NIGHTBORNE: (33003, 33004), LIGHTFORGED: (33005, 33006), ZANDALARI: (33007, 33008)}  # male, female looks
+ID_MODEL = {VOIDELF: (3601, 3602), NIGHTBORNE: (3603, 3604), LIGHTFORGED: (3605, 3606), ZANDALARI: (3607, 3608)}
 SPELLS = {"rift": 98711, "rift_open": 98712, "entropic": 98713, "entropic_buff": 98714, "chill": 98715, "calm": 98716,
-          "cantrips": 98717, "pulse": 98718, "pulse_slow": 98719, "arcane_res": 98720, "affinity": 98721, "history": 98722}
+          "cantrips": 98717, "pulse": 98718, "pulse_slow": 98719, "arcane_res": 98720, "affinity": 98721, "history": 98722,
+          "judgment": 98723, "judgment_strike": 98724, "forge": 98725, "reckoning": 98726, "reckoning_burst": 98727,
+          "holy_res": 98728, "demonbane": 98729, "regeneratin": 98730, "paku": 98731, "paku_buff": 98732, "swoop": 98733,
+          "city_of_gold": 98734}
 NPC_RIFT = 900101
+NPC_JUDGMENT, NPC_RECKONING = 900102, 900103   # where Light's Judgment strikes; where a Lightforged fell
+DISPLAY_UNSEEN = 11686                         # an invisible stalker's
 DISPLAY_RIFT = 9510                            # Creature\Spells\Creature_SpellPortal
 
 
@@ -190,7 +209,7 @@ def main():
     sql.raw("-- The void elves and the nightborne (mod-allied-races): generated by tools/build_data.py from the\n"
             "-- game's own tables and data/retail/races.json; edit those, not this. Safe to run again: every row is\n"
             "-- replaced, every mask OR'd.")
-    models = {race: {int(sex): m for sex, m in RACES[KEY[race]]["models"].items()} for race in (VOIDELF, NIGHTBORNE)}
+    models = {race: {int(sex): m for sex, m in RACES[KEY[race]]["models"].items()} for race in RACE_IDS}
 
     # Models and looks: a CreatureModelData row and a CreatureDisplayInfo row a model, copied from
     # the kin's (the blood elves' for the void elves, the night elves' for the nightborne).
@@ -204,7 +223,7 @@ def main():
     mt = "iisifiiffffiiifff" + "ffffff" + "fffff"
     sql.comment("Their models (CreatureModelData) and looks (CreatureDisplayInfo), from their kin's rows.")
     display_sql, model_sql = [], []
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         kin = race_rows[MODEL_FROM[race]]
         for sex in (0, 1):
             kin_display = display_rows[kin[4 + sex]]
@@ -233,9 +252,9 @@ def main():
                 "NPCSoundID", "ParticleColorID", "CreatureGeosetData", "ObjectEffectPackageID"], dt, display_sql)
 
     # Races ----------------------------------------------------------------------------------------
-    sql.comment("The two races: the start race's faction, language and side; their own models, names and intros.")
+    sql.comment("The races: the start race's faction, language and side; their own models, names and intros.")
     server_races = []
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         start = race_rows[START[race]]
         v = dbc_row_values(races, start, rt)
         v[0] = race
@@ -274,7 +293,7 @@ def main():
         new_sections.append(v)
 
     SKIN_FLAGS, FACE_FLAGS = 17, 1
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         for sex in (0, 1):
             m = models[race][sex]
             for s in m["skins"]:
@@ -297,7 +316,7 @@ def main():
             v[1] = MOVED[r[1]]
             client.put("CharSections", st, v)
             new_sections.append(v)
-    sql.comment("Their looks: skins, faces (a face an eye colour), hair, underwear; the creatures' races 15 and 16 moved to 24 and 25.")
+    sql.comment("Their looks: skins, faces (a face an eye colour), hair, underwear; the creatures' races 15 to 18 moved to 24 to 27.")
     sql.raw(f"DELETE FROM `charsections_dbc` WHERE `ID` BETWEEN {ID_SECTIONS} AND {ID_SECTIONS_END};\n")
     assert next_id[0] <= ID_SECTIONS_END, next_id[0]
     sql.replace("charsections_dbc", COLUMNS["charsections_dbc"], st, new_sections)
@@ -305,7 +324,7 @@ def main():
     # Hair shapes, features, names, voices (the game's tables only, but for the emotes' sounds).
     geo = D("CharHairGeosets")
     gid = ID_HAIRGEO
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         for sex in (0, 1):
             for h in models[race][sex]["hair"]:
                 client.put("CharHairGeosets", "iiiiii", [gid, race, sex, h["variation"], h["geoset"], 0])
@@ -313,12 +332,12 @@ def main():
     for r in geo.rows:
         if r[1] in MOVED:
             client.setfield("CharHairGeosets", r[0], 1, MOVED[r[1]])
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         for sex in (0, 1):
             for f in models[race][sex]["features"]:
                 client.append_raw("CharacterFacialHairStyles", struct.pack("<8I", race, sex, f["variation"], *f["geosets"]))
     nid = ID_NAMEGEN
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         for n in RACES[KEY[race]]["names"]:
             client.put("NameGen", "isii", [nid, n["name"], race, n["sex"]])
             nid += 1
@@ -333,7 +352,7 @@ def main():
     vid, eid, sid = ID_VOCAL, ID_EMOTESOUND, ID_VOICE
     vocal_template = dbc_row_values(sounds, snd_rows[9549], snt)      # BloodElfMale_InventoryFull
     emote_template = dbc_row_values(sounds, snd_rows[10025], snt)     # TextEmote BeF Bored
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         name = RACES[KEY[race]]["name"]
         kit_sound = {}
 
@@ -376,15 +395,15 @@ def main():
     sql.replace("emotestextsound_dbc", COLUMNS["emotestextsound_dbc"], "iiiii", emote_rows)
 
     # Classes and starting gear.
-    for race in (VOIDELF, NIGHTBORNE):
-        for cls in CLASSES:
+    for race in RACE_IDS:
+        for cls in CLASSES_OF[race]:
             client.append_raw("CharBaseInfo", bytes([race, cls]))
     outfits = D("CharStartOutfit")
     oid, outfit_rows = ID_OUTFIT, []
     for raw in outfits.raw:
         orace, cls, sex, outfit = raw[4], raw[5], raw[6], raw[7]
-        for new in (VOIDELF, NIGHTBORNE):
-            if cls in CLASSES and TEMPLATE[new][cls] == orace:
+        for new in RACE_IDS:
+            if cls in TEMPLATE[new] and TEMPLATE[new][cls] == orace:
                 data = struct.pack("<I", oid) + bytes([new, cls, sex, outfit]) + raw[8:]
                 client.put_raw("CharStartOutfit", data)
                 ints = struct.unpack(f"<{len(raw[8:]) // 4}I", raw[8:])
@@ -408,16 +427,16 @@ def main():
         add = 0
         if line in languages:
             if line == COMMON:
-                add |= BIT[VOIDELF]
+                add |= ALLIANCE_BITS
             if line == ORCISH:
-                add |= BIT[NIGHTBORNE]
+                add |= HORDE_BITS
             return add
         if line in racial_lines:
             return 0
         if mask & ALLIANCE_MASK:
-            add |= BIT[VOIDELF]
+            add |= ALLIANCE_BITS
         if mask & HORDE_MASK:
-            add |= BIT[NIGHTBORNE]
+            add |= HORDE_BITS
         return add
 
     def ors(table, dbc, field_mask, field_line, sql_table):
@@ -452,7 +471,7 @@ def main():
             mask = r[2 + slot]
             if mask & 0x7FFFFFFF == 0x7FFFFFFF:
                 continue
-            for race in (VOIDELF, NIGHTBORNE):
+            for race in RACE_IDS:
                 if mask & (1 << (START[race] - 1)):
                     v[2 + slot] |= BIT[race]
         if v != list(r):
@@ -467,7 +486,7 @@ def main():
     seq_rows = {r[0]: r for r in seqs.rows}
     cam_rows = {r[0]: r for r in cams.rows}
     narration_rows, cam_sql, seq_sql = [], [], []
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         sound = dbc_row_values(sounds, snd_rows[3840], TYPES["soundentries_dbc"])  # HumanFlyByNarration
         sound[0], sound[2], sound[3] = ID_NARRATION[race], f"{RACES[KEY[race]]['name']}FlyByNarration", NARRATION[race]
         client.put("SoundEntries", snt, sound)
@@ -513,7 +532,7 @@ def main():
                    SpellClassMask_2=0, SpellClassMask_3=0, BaseLevel=1, SpellLevel=1, RangeIndex=1,
                    ImplicitTargetA_1=1, CastingTimeIndex=1, StartRecoveryCategory=133, StartRecoveryTime=1500,
                    SchoolMask=32, Attributes=0x10, AttributesEx=0, AttributesEx6=0, InterruptFlags=0, DispelType=0)
-    ALL_SCHOOLS, MAGIC_SCHOOLS, SHADOW, ARCANE = 127, 126, 32, 64
+    ALL_SCHOOLS, MAGIC_SCHOOLS, SHADOW, ARCANE, HOLY = 127, 126, 32, 64, 2
     spell_rows = [
         spell(130, SPELLS["rift"], "Spatial Rift", "Racial",
               "Tear a rift in space up to 15 yards ahead. Use this ability again within 6 sec to teleport through the rift. 3 min cooldown once the rift closes.", "",
@@ -563,34 +582,95 @@ def main():
         spell(20557, SPELLS["history"], "Ancient History", "Racial Passive",
               "Inscription skill increased by 15.", "",
               SpellIconID=3267, EffectAura_1=98, EffectBasePoints_1=14, EffectDieSides_1=1, EffectMiscValue_1=773),
+        # Lightforged Draenei
+        spell(130, SPELLS["judgment"], "Light's Judgment", "Racial",
+              "Call down a strike of Holy energy where you stand (on your target, if you have one), dealing Holy damage to enemies within 5 yards after 3 sec. 3 min cooldown.", "",
+              SpellIconID=156, Effect_1=3, EffectAura_1=0, EffectBasePoints_1=0, EffectDieSides_1=0, SpellVisualID_1=0, DurationIndex=0,
+              RecoveryTime=180000, **dict(no_cost, SchoolMask=HOLY)),
+        spell(20549, SPELLS["judgment_strike"], "Light's Judgment", "",
+              "Holy damage to enemies within 5 yards.", "",
+              SpellIconID=156, Effect_1=2, EffectAura_1=0, EffectBasePoints_1=39, EffectDieSides_1=1, EffectRealPointsPerLevel_1=6.0,
+              ImplicitTargetA_1=22, ImplicitTargetB_1=15, EffectRadiusIndex_1=8, EffectMechanic_1=0, Mechanic=0,
+              Effect_2=0, EffectAura_2=0, EffectBasePoints_2=0, EffectDieSides_2=0, EffectTriggerSpell_2=0, ImplicitTargetA_2=0,
+              RecoveryTime=0, DurationIndex=0, SchoolMask=HOLY, DispelType=0, CastingTimeIndex=1, StartRecoveryCategory=0,
+              StartRecoveryTime=0, Attributes=0x10),
+        spell(20557, SPELLS["forge"], "Forge of Light", "Racial Passive",
+              "Blacksmithing skill increased by 10.", "",
+              SpellIconID=335, EffectAura_1=98, EffectBasePoints_1=9, EffectDieSides_1=1, EffectMiscValue_1=164),
+        spell(20557, SPELLS["reckoning"], "Light's Reckoning", "Racial Passive",
+              "When you die, Holy energy bursts from you, dealing Holy damage to enemies and healing allies within 8 yards.", "",
+              SpellIconID=121, EffectAura_1=4, EffectBasePoints_1=0, EffectDieSides_1=1, EffectMiscValue_1=0),
+        spell(20549, SPELLS["reckoning_burst"], "Light's Reckoning", "",
+              "Holy damage to enemies, healing to allies, within 8 yards.", "",
+              SpellIconID=121, Effect_1=2, EffectAura_1=0, EffectBasePoints_1=59, EffectDieSides_1=1, EffectRealPointsPerLevel_1=8.0,
+              ImplicitTargetA_1=22, ImplicitTargetB_1=15, EffectRadiusIndex_1=14, EffectMechanic_1=0, Mechanic=0,
+              Effect_2=10, EffectAura_2=0, EffectBasePoints_2=59, EffectDieSides_2=1, EffectRealPointsPerLevel_2=8.0, EffectTriggerSpell_2=0,
+              ImplicitTargetA_2=22, ImplicitTargetB_2=30, EffectRadiusIndex_2=14,
+              RecoveryTime=0, DurationIndex=0, SchoolMask=HOLY, DispelType=0, CastingTimeIndex=1, StartRecoveryCategory=0,
+              StartRecoveryTime=0, Attributes=0x10),
+        spell(20557, SPELLS["holy_res"], "Holy Resistance", "Racial Passive",
+              "Reduces Holy damage taken by 1%.", "",
+              SpellIconID=329, EffectAura_1=87, EffectBasePoints_1=-2, EffectDieSides_1=1, EffectMiscValue_1=HOLY),
+        spell(20557, SPELLS["demonbane"], "Demonbane", "Racial Passive",
+              "Experience gained from killing Demons increased by 20%.", "",
+              SpellIconID=545, EffectAura_1=4, EffectBasePoints_1=0, EffectDieSides_1=1, EffectMiscValue_1=0),
+        # Zandalari Trolls
+        spell(20550, SPELLS["regeneratin"], "Regeneratin'", "Racial",
+              "Regenerate 100% of your maximum health over 6 sec. Taking damage interrupts it. 2.5 min cooldown.", "Regeneratin' health.",
+              SpellIconID=123, Effect_1=6, EffectAura_1=20, EffectBasePoints_1=16, EffectDieSides_1=1, EffectAuraPeriod_1=1000,
+              ImplicitTargetA_1=1, ImplicitTargetB_1=0, DurationIndex=32, RecoveryTime=150000, Attributes=0x10,
+              InterruptFlags=0, AuraInterruptFlags=0x2, SchoolMask=1, CastingTimeIndex=1, StartRecoveryCategory=133, StartRecoveryTime=1500,
+              BaseLevel=1, SpellLevel=1, RangeIndex=1),
+        spell(20550, SPELLS["paku"], "Embrace of Pa'ku", "Racial Passive",
+              "Your attacks and abilities have a chance to grant you 4% critical strike for 12 sec.", "",
+              SpellIconID=1661, EffectAura_1=42, EffectBasePoints_1=0, EffectDieSides_1=0, EffectTriggerSpell_1=SPELLS["paku_buff"],
+              ProcTypeMask=0x55554, ProcChance=10, SchoolMask=1),
+        spell(20550, SPELLS["paku_buff"], "Embrace of Pa'ku", "",
+              "Critical strike chance increased by 4%.", "Critical strike chance increased by 4%.",
+              SpellIconID=1661, EffectAura_1=57, EffectBasePoints_1=3, EffectDieSides_1=1, EffectMiscValue_1=0,
+              Effect_2=6, EffectAura_2=52, EffectBasePoints_2=3, EffectDieSides_2=1, ImplicitTargetA_2=1,
+              DurationIndex=29, Attributes=0, SchoolMask=1),
+        spell(130, SPELLS["swoop"], "Pterrordax Swoop", "Racial",
+              "Reduces your falling speed for 2 min. 15 min cooldown.", "Falling slowly.",
+              SpellIconID=505, DurationIndex=4, RecoveryTime=900000, **dict(no_cost, SchoolMask=1, Attributes=0x10)),
+        spell(20557, SPELLS["city_of_gold"], "City of Gold", "Racial Passive",
+              "Gold looted from creatures increased by 2%.", "",
+              SpellIconID=2801, EffectAura_1=4, EffectBasePoints_1=0, EffectDieSides_1=1, EffectMiscValue_1=0),
     ]
     sql.comment("Their racials: Spatial Rift (with its open-rift mark), Entropic Embrace (with its buff), Chill of Night,\n"
-                "Preternatural Calm, Cantrips; Arcane Pulse (with its slow), Arcane Resistance, Magical Affinity, Ancient History.")
+                "Preternatural Calm, Cantrips; Arcane Pulse (with its slow), Arcane Resistance, Magical Affinity, Ancient History;\n"
+                "Light's Judgment (with its strike), Forge of Light, Light's Reckoning (with its burst), Holy Resistance, Demonbane;\n"
+                "Regeneratin', Embrace of Pa'ku (with its buff), Pterrordax Swoop, City of Gold.")
     sql.replace("spell_dbc", COLUMNS["spell_dbc"], spt, spell_rows)
-    sql.raw(f"DELETE FROM `spell_proc` WHERE `SpellId` = {SPELLS['entropic']};\n"
+    sql.raw(f"DELETE FROM `spell_proc` WHERE `SpellId` IN ({SPELLS['entropic']}, {SPELLS['paku']});\n"
             f"INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, "
             f"`ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES\n"
-            f"({SPELLS['entropic']}, 0, 0, 0, 0, 0, 0x55554, 0, 2, 0, 0, 0, 0, 10, 30000, 0);")
-    sql.raw(f"DELETE FROM `spell_script_names` WHERE `spell_id` IN ({SPELLS['rift']}, {SPELLS['rift_open']});\n"
+            f"({SPELLS['entropic']}, 0, 0, 0, 0, 0, 0x55554, 0, 2, 0, 0, 0, 0, 10, 30000, 0),\n"
+            f"({SPELLS['paku']}, 0, 0, 0, 0, 0, 0x55554, 0, 2, 0, 0, 0, 0, 10, 30000, 0);")
+    sql.raw(f"DELETE FROM `spell_script_names` WHERE `spell_id` IN ({SPELLS['rift']}, {SPELLS['rift_open']}, {SPELLS['judgment']});\n"
             f"INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES ({SPELLS['rift']}, 'spell_allied_spatial_rift'), "
-            f"({SPELLS['rift_open']}, 'spell_allied_spatial_rift_open');")
-    sql.comment("Spatial Rift's rift: a creature that stands where the rift is torn (AlliedRacesSpells.cpp).")
-    sql.raw(f"DELETE FROM `creature_template` WHERE `entry` = {NPC_RIFT};\n"
+            f"({SPELLS['rift_open']}, 'spell_allied_spatial_rift_open'), ({SPELLS['judgment']}, 'spell_allied_lights_judgment');")
+    sql.comment("Spatial Rift's rift: a creature that stands where the rift is torn; Light's Judgment's strike and Light's\n"
+                "Reckoning's burst: unseen creatures that cast them (AlliedRacesSpells.cpp).")
+    sql.raw(f"DELETE FROM `creature_template` WHERE `entry` IN ({NPC_RIFT}, {NPC_JUDGMENT}, {NPC_RECKONING});\n"
             f"INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `unit_flags`, `type`, `type_flags`, "
             f"`MovementType`, `flags_extra`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES\n"
-            f"({NPC_RIFT}, 'Spatial Rift', '', 1, 1, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340);\n"
-            f"DELETE FROM `creature_template_model` WHERE `CreatureID` = {NPC_RIFT};\n"
+            f"({NPC_RIFT}, 'Spatial Rift', '', 1, 1, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340),\n"
+            f"({NPC_JUDGMENT}, 'Light''s Judgment', '', 1, 80, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340),\n"
+            f"({NPC_RECKONING}, 'Light''s Reckoning', '', 1, 80, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340);\n"
+            f"DELETE FROM `creature_template_model` WHERE `CreatureID` IN ({NPC_RIFT}, {NPC_JUDGMENT}, {NPC_RECKONING});\n"
             f"INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES\n"
-            f"({NPC_RIFT}, 0, {DISPLAY_RIFT}, 1, 1, 12340);")
+            f"({NPC_RIFT}, 0, {DISPLAY_RIFT}, 1, 1, 12340), ({NPC_JUDGMENT}, 0, {DISPLAY_UNSEEN}, 1, 1, 12340), "
+            f"({NPC_RECKONING}, 0, {DISPLAY_UNSEEN}, 1, 1, 12340);")
 
     # The world database: starts, skills, stats, quests, standing ----------------------------------
     sql.comment("Where they start (their start race's place), for every class (the death knights' at Ebon Hold).")
     cols, pci = sqlrows.table(os.path.join(world, "playercreateinfo.sql"))
     place = {(int(r["race"]), int(r["class"])): r for r in pci}
     out = []
-    for race in (VOIDELF, NIGHTBORNE):
-        for cls in CLASSES:
-            p = place.get((START[race], cls)) or place.get((TEMPLATE[race][cls], cls)) or place[(START[race], WARRIOR)]
+    for race in RACE_IDS:
+        for cls in CLASSES_OF[race]:
+            p = place.get((START[race], cls)) or place[(START[race], WARRIOR)]
             out.append([race, cls, p["map"], p["zone"], p["position_x"], p["position_y"], p["position_z"], p["orientation"]])
     sql.raw("REPLACE INTO `playercreateinfo` (`race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES\n"
             + ",\n".join("(" + ", ".join(str(x) for x in r) + ")" for r in out) + ";")
@@ -602,12 +682,12 @@ def main():
     sql.comment("Their action bars: the class's start race's, without that race's racials.")
     cols, acts = sqlrows.table(os.path.join(world, "playercreateinfo_action.sql"))
     out = []
-    for race in (VOIDELF, NIGHTBORNE):
-        for cls in CLASSES:
+    for race in RACE_IDS:
+        for cls in CLASSES_OF[race]:
             for r in acts:
                 if int(r["race"]) == TEMPLATE[race][cls] and int(r["class"]) == cls and not (int(r["type"]) == 0 and int(r["action"]) in racial_spells):
                     out.append([race, cls, r["button"], r["action"], r["type"]])
-    sql.raw(f"DELETE FROM `playercreateinfo_action` WHERE `race` IN ({VOIDELF}, {NIGHTBORNE});")
+    sql.raw(f"DELETE FROM `playercreateinfo_action` WHERE `race` IN ({', '.join(str(r) for r in RACE_IDS)});")
     sql.raw("INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `type`) VALUES\n"
             + ",\n".join("(" + ", ".join(str(x) for x in r) + ")" for r in out) + ";")
 
@@ -627,7 +707,12 @@ def main():
               (BIT[VOIDELF], SPELLS["chill"], "Void Elf - Chill of Night"), (BIT[VOIDELF], SPELLS["calm"], "Void Elf - Preternatural Calm"),
               (BIT[VOIDELF], SPELLS["cantrips"], "Void Elf - Cantrips"),
               (BIT[NIGHTBORNE], SPELLS["pulse"], "Nightborne - Arcane Pulse"), (BIT[NIGHTBORNE], SPELLS["arcane_res"], "Nightborne - Arcane Resistance"),
-              (BIT[NIGHTBORNE], SPELLS["affinity"], "Nightborne - Magical Affinity"), (BIT[NIGHTBORNE], SPELLS["history"], "Nightborne - Ancient History")]
+              (BIT[NIGHTBORNE], SPELLS["affinity"], "Nightborne - Magical Affinity"), (BIT[NIGHTBORNE], SPELLS["history"], "Nightborne - Ancient History"),
+              (BIT[LIGHTFORGED], SPELLS["judgment"], "Lightforged Draenei - Light's Judgment"), (BIT[LIGHTFORGED], SPELLS["forge"], "Lightforged Draenei - Forge of Light"),
+              (BIT[LIGHTFORGED], SPELLS["reckoning"], "Lightforged Draenei - Light's Reckoning"), (BIT[LIGHTFORGED], SPELLS["holy_res"], "Lightforged Draenei - Holy Resistance"),
+              (BIT[LIGHTFORGED], SPELLS["demonbane"], "Lightforged Draenei - Demonbane"),
+              (BIT[ZANDALARI], SPELLS["regeneratin"], "Zandalari Troll - Regeneratin"), (BIT[ZANDALARI], SPELLS["paku"], "Zandalari Troll - Embrace of Paku"),
+              (BIT[ZANDALARI], SPELLS["swoop"], "Zandalari Troll - Pterrordax Swoop"), (BIT[ZANDALARI], SPELLS["city_of_gold"], "Zandalari Troll - City of Gold")]
     sql.raw("INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES\n"
             + ",\n".join(f"({m}, 0, {s}, '{n}')" for m, s, n in custom) + ";")
 
@@ -636,13 +721,13 @@ def main():
     by_race = {int(r["Race"]): r for r in stats}
     sql.raw("REPLACE INTO `player_race_stats` (`Race`, `Strength`, `Agility`, `Stamina`, `Intellect`, `Spirit`) VALUES\n"
             + ",\n".join(f"({race}, " + ", ".join(by_race[STATS_FROM[race]][k] for k in ("Strength", "Agility", "Stamina", "Intellect", "Spirit")) + ")"
-                         for race in (VOIDELF, NIGHTBORNE)) + ";")
+                         for race in RACE_IDS) + ";")
 
     sql.comment("Quests, items and conditions for their start race are theirs too (the Draenei's for the void elves, the\n"
                 "Forsaken's for the nightborne), but for the start quests cloned for them (tools/quests.py), which stay the\n"
                 "start race's alone; and those of the race their classes' starts come from where the start race hasn't the\n"
                 "class (the Humans' rogues' and warlocks', the Blood Elves' hunters').")
-    for race in (VOIDELF, NIGHTBORNE):
+    for race in RACE_IDS:
         b = BIT[race]
         s = 0
         for r in {START[race]} | set(TEMPLATE[race].values()):

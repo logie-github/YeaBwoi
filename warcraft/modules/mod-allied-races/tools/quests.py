@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""The start quests the Draenei and the Forsaken alone have, cloned for the void elves and the
-nightborne: the same quests from the same people, for the new race alone (the originals stay
+"""The start quests the Draenei, the Forsaken and the Tauren alone have, cloned for the void elves, the
+nightborne, the Lightforged and the Zandalari: the same quests from the same people, for the new race alone (the originals stay
 their race's, untouched), with the quest-givers' words taking in who the player is before
 sending them down the same road.
 
@@ -10,7 +10,7 @@ Writes data/sql/db-world/allied_races_quests.sql (the clones: quest_template, it
 map points, starters and enders) and data/retail/cloned_quests.json (which quests were cloned:
 tools/build_data.py opens every other quest of the start race to the new race, these it leaves).
 
-A clone's id is the original's plus 950000. Where a chain's next quest is cloned too, the clone
+A clone's id is the original's plus 950000 (void elves, nightborne) or 960000 (Lightforged, Zandalari). Where a chain's next quest is cloned too, the clone
 leads to the clone; where it isn't, to the original (open to the race by then).
 """
 import json
@@ -22,8 +22,8 @@ sys.path.insert(0, HERE)
 import sqlrows  # noqa: E402
 
 MODULE = os.path.dirname(HERE)
-OFFSET = 950000
-BIT = {"voidelf": 1 << 14, "nightborne": 1 << 15}
+OFFSET = {"voidelf": 950000, "nightborne": 950000, "lightforged": 960000, "zandalari": 960000}
+BIT = {"voidelf": 1 << 14, "nightborne": 1 << 15, "lightforged": 1 << 16, "zandalari": 1 << 17}
 
 # The quests cloned: the start race's own in its first zones (quests any Alliance or Horde
 # character takes aren't here: those open to the race as they are).
@@ -33,6 +33,13 @@ CLONED = {
                 9753, 9756, 9759, 9760, 9761, 9762],                 # Bloodmyst: the prophecy
     "nightborne": [363,                                              # Deathknell (Welcome!, the Collector's Edition voucher, isn't cloned)
                    6321, 6323, 6322, 6324],                          # Silverpine: the ride to the Undercity
+    "lightforged": [9279, 9280, 9283, 9463, 9473, 9505, 9612,        # the Draenei's, as the void elves'
+                    9603, 9604, 9605, 9606,
+                    9753, 9756, 9759, 9760, 9761, 9762],
+    "zandalari": [747,                                               # Red Cloud Mesa: The Hunt Begins (the Horde's; the clone greets a Zandalari)
+                  754, 758, 760,                                     # Mulgore: the Cleansing chain, the Tauren's alone
+                  854,                                               # Journey to the Crossroads
+                  6361, 6362, 6363, 6364],                           # the ride to Thunder Bluff
 }
 
 # What the quest-givers say to the new race before the quest's own words. $n: the player's name,
@@ -50,18 +57,53 @@ GREETING = {
         "Don't mind the stares, $n. The living are rare here, and your kind rarer. You wear the Horde's colors; that is all Deathknell asks.$B$B",
         "Suramar's magisters sent us their finest, they said. We'll see. Here, $r, the work speaks louder than the lineage.$B$B",
     ],
+    "lightforged": [
+        "You shine, $n, even in this gloom. Lightforged: so the Army of the Light's kin call themselves, and the Prophet said they would come to us one day. I did not think it would be out of the surf, among our own wounded.$B$B",
+        "A Lightforged among us. The Exodar carried us here; the Light carried you, by the look of it. The need on this shore is the same for both.$B$B",
+        "The Vindicaar's children, here. Your people fought the Legion for a thousand years; this will be a small thing to you, but it is not small to us.$B$B",
+        "Your light does not fail, $r, even here. Lend it to us.$B$B",
+    ],
+    "zandalari": [
+        "A Zandalari on Mulgore's grass, far from your golden city. The Earth Mother does not ask where a child was born, $n, only how it walks. Walk with us a while.$B$B",
+        "Zandalari. Your people stood with the Horde against the Alliance's fleets; the shu'halo remember debts. This one is paid in work, not words.$B$B",
+        "Your kind keeps loa; ours keeps the Earth Mother. Both ask the same of us this morning, $r: that the land be cared for.$B$B",
+        "The elders said a troll of Zandalar would come down the mesa in the Horde's colors. You are taller than I pictured. Come, the work doesn't wait.$B$B",
+    ],
 }
 # A quest whose own first words don't fit the new race gets these in their place.
 REWRITTEN = {
-    9279: "You... you are awake. And you are not one of ours. A ren'dorei, by the look of you: one of the void elves the Exodar's letters spoke of, washed up with the rest of us when the ship broke apart.$B$BWhatever brought you to this shore, $n, you are alive, and we have need of every pair of hands. Will you help us?",
-    363: "About time you woke up. We were about to toss you into the fire with the others before someone noticed you were still breathing. A shal'dorei, they tell me: one of Suramar's nightborne, sent to learn how the Forsaken do things.$B$BWell. This is how. I am Mordo, the caretaker of the crypt of Deathknell, and you are nobody's slave here.$B$BSpeak with Shadow Priest Sarvis in the chapel at the base of the hill; he will tell you more of what you must know.$B$BTo get out of this crypt, take the steps up to the surface. Follow the road down to the chapel to find Sarvis.",
+    ("lightforged", 9279): "You... you are awake. And you shine, even through the wreck. A Lightforged: one of the Army of the Light's own, by your markings, washed up on this shore with the rest of us when the ship broke apart.$B$BWhatever the Light meant by bringing you here, $n, we have need of every pair of hands. Will you help us?",
+    ("zandalari", 747): "A Zandalari, come down from the golden city to hunt with the shu'halo. You have a promising air about you, troll, and you will prove yourself to the tribe. Perhaps someday soon you will be welcomed into the great city of Thunder Bluff; before that can happen you must prove yourself to my father, Chief Hawkwind.$B$BUp here on Red Cloud Mesa we pride ourselves on keen hunting skills. Our supply of meats has run low and we require fresh plainstrider meat. Hunt the plainstriders of Red Cloud Mesa and return to me with their meat.",
+    ("voidelf", 9279): "You... you are awake. And you are not one of ours. A ren'dorei, by the look of you: one of the void elves the Exodar's letters spoke of, washed up with the rest of us when the ship broke apart.$B$BWhatever brought you to this shore, $n, you are alive, and we have need of every pair of hands. Will you help us?",
+    ("nightborne", 363): "About time you woke up. We were about to toss you into the fire with the others before someone noticed you were still breathing. A shal'dorei, they tell me: one of Suramar's nightborne, sent to learn how the Forsaken do things.$B$BWell. This is how. I am Mordo, the caretaker of the crypt of Deathknell, and you are nobody's slave here.$B$BSpeak with Shadow Priest Sarvis in the chapel at the base of the hill; he will tell you more of what you must know.$B$BTo get out of this crypt, take the steps up to the surface. Follow the road down to the chapel to find Sarvis.",
 }
 TEXT_FIXES = {
     "voidelf": [("fellow draenei", "friend of the draenei"), ("my fellow draenei", "my friend"), ("You are a draenei", "You stand with the draenei"),
                 ("as a draenei", "as one who stands with the draenei")],
     "nightborne": [("fellow Forsaken", "friend of the Forsaken"), ("my fellow Forsaken", "my friend"), ("You are Forsaken", "You stand with the Forsaken"),
                    ("as a Forsaken", "as one who stands with the Forsaken"), ("undead such as yourself", "one who stands with us")],
+    "lightforged": [("fellow draenei", "kin of the draenei"), ("my fellow draenei", "my kin"), ("You are a draenei", "You are of the draenei"),
+                    ("as a draenei", "as one of the draenei's kin")],
+    "zandalari": [("fellow tauren", "friend of the tauren"), ("my fellow tauren", "my friend"), ("You are a tauren", "You stand with the tauren"),
+                  ("as a tauren", "as one who stands with the tauren"), ("young tauren", "young troll"), ("tauren such as yourself", "one who stands with us")],
 }
+
+
+def dependents(addons, roots):
+    """The quests that need one of [roots] done first, and those that need those: with the
+    original closed to the new race, the clone is the only way to open them."""
+    ids = list(roots)
+    seen = set(ids)
+    grew = True
+    while grew:
+        grew = False
+        for a in addons:
+            q = int(a["ID"])
+            if q not in seen and abs(int(a.get("PrevQuestID") or 0)) in seen:
+                ids.append(q)
+                seen.add(q)
+                grew = True
+    return ids
 
 
 def main(world):
@@ -81,8 +123,11 @@ def main(world):
     cqe_cols, cqe = T("creature_questender")
     gqs_cols, gqs = T("gameobject_queststarter")
     gqe_cols, gqe = T("gameobject_questender")
-    all_cloned = set(q for qs in CLONED.values() for q in qs)
-    clone_id = lambda q: q + OFFSET if q in all_cloned else q
+    roots = {race: list(ids) for race, ids in CLONED.items()}
+    for race in CLONED:
+        CLONED[race] = dependents(addons, roots[race])
+    def clone_id(race, q):
+        return q + OFFSET[race] if q in CLONED[race] else q
 
     def insert(table, cols, rows):
         if not rows:
@@ -91,24 +136,25 @@ def main(world):
                    ",\n".join("(" + ", ".join(sqlrows.quote(r[c]) for c in cols) + ")" for r in rows)))
 
     for race, ids in CLONED.items():
-        out.append("\n-- %s\nDELETE FROM `quest_template` WHERE `ID` IN (%s);" % (race, ", ".join(str(q + OFFSET) for q in ids)))
+        offset = OFFSET[race]
+        out.append("\n-- %s\nDELETE FROM `quest_template` WHERE `ID` IN (%s);" % (race, ", ".join(str(q + offset) for q in ids)))
         for table in ("quest_template_addon", "quest_offer_reward", "quest_request_items", "quest_details", "quest_poi", "quest_poi_points"):
             out.append("DELETE FROM `%s` WHERE `%s` IN (%s);" % (table, "ID" if table.startswith("quest_template") or table in ("quest_offer_reward", "quest_request_items", "quest_details") else "QuestID",
-                                                                 ", ".join(str(q + OFFSET) for q in ids)))
+                                                                 ", ".join(str(q + offset) for q in ids)))
         for table in ("creature_queststarter", "creature_questender", "gameobject_queststarter", "gameobject_questender"):
-            out.append("DELETE FROM `%s` WHERE `quest` IN (%s);" % (table, ", ".join(str(q + OFFSET) for q in ids)))
+            out.append("DELETE FROM `%s` WHERE `quest` IN (%s);" % (table, ", ".join(str(q + offset) for q in ids)))
         rows = []
         for n, qid in enumerate(ids):
             q = dict(by_id[qid])
-            q["ID"] = qid + OFFSET
+            q["ID"] = qid + offset
             q["AllowableRaces"] = BIT[race]
-            q["RewardNextQuest"] = clone_id(int(q["RewardNextQuest"] or 0))
+            q["RewardNextQuest"] = clone_id(race, int(q["RewardNextQuest"] or 0))
             text = q["QuestDescription"] or ""
             for a, b in TEXT_FIXES[race]:
                 text = text.replace(a, b)
-            if qid in REWRITTEN:
-                text = REWRITTEN[qid]
-            else:
+            if (race, qid) in REWRITTEN:
+                text = REWRITTEN[(race, qid)]
+            elif qid in roots[race]:
                 text = GREETING[race][n % len(GREETING[race])] + text
             q["QuestDescription"] = text
             for key in ("LogDescription", "QuestCompletionLog", "AreaDescription"):
@@ -121,12 +167,12 @@ def main(world):
         rows = []
         for qid in ids:
             a = dict(addon_by_id.get(qid) or {c: 0 for c in addon_cols})
-            a["ID"] = qid + OFFSET
+            a["ID"] = qid + offset
             for key in ("PrevQuestID", "NextQuestID", "BreadcrumbForQuestId"):
                 v = int(a.get(key) or 0)
-                a[key] = (-1 if v < 0 else 1) * clone_id(abs(v)) if v else 0
+                a[key] = (-1 if v < 0 else 1) * clone_id(race, abs(v)) if v else 0
             v = int(a.get("ExclusiveGroup") or 0)
-            a["ExclusiveGroup"] = (-1 if v < 0 else 1) * clone_id(abs(v)) if v else 0
+            a["ExclusiveGroup"] = (-1 if v < 0 else 1) * clone_id(race, abs(v)) if v else 0
             rows.append(a)
         insert("quest_template_addon", addon_cols, rows)
         for table, cols, source, key in (("quest_offer_reward", offer_cols, offers, "ID"), ("quest_request_items", request_cols, requests, "ID"),
@@ -136,7 +182,7 @@ def main(world):
             for r in source:
                 if int(r[key]) in ids:
                     c = dict(r)
-                    c[key] = int(r[key]) + OFFSET
+                    c[key] = int(r[key]) + offset
                     if "RewardText" in c and c["RewardText"]:
                         for a, b in TEXT_FIXES[race]:
                             c["RewardText"] = c["RewardText"].replace(a, b)
@@ -151,7 +197,7 @@ def main(world):
             for r in source:
                 if int(r["quest"]) in ids:
                     c = dict(r)
-                    c["quest"] = int(r["quest"]) + OFFSET
+                    c["quest"] = int(r["quest"]) + offset
                     rows.append(c)
             insert(table, cols, rows)
     os.makedirs(os.path.join(MODULE, "data", "sql", "db-world"), exist_ok=True)
@@ -160,7 +206,8 @@ def main(world):
     with open(os.path.join(MODULE, "data", "retail", "cloned_quests.json"), "w") as f:
         json.dump(CLONED, f, indent=1)
     for race, ids in CLONED.items():
-        print("%s: %d quests cloned: %s" % (race, len(ids), ", ".join(by_id[q]["LogTitle"] for q in ids)))
+        print("%s: %d quests cloned (%d of them because they need one cloned first): %s" % (
+            race, len(ids), len(ids) - len(roots[race]), ", ".join(by_id[q]["LogTitle"] for q in ids)))
 
 
 if __name__ == "__main__":
