@@ -16,6 +16,11 @@ was downloaded on 2026-10-22 without running its binaries: 5,444,369,208 bytes, 
 `c161a7289b907ba86471374253f7b7844a6f49377722ca706da3b40f90d077e0`.
 It expands to 23,506,837,301 bytes across 127,483 files. It includes SPP Legion and a separate
 SPP BestCore, so installation selects `SingleCore_Legion/spp-legion` explicitly.
+One of its folders, `SingleCore_Legion/spp-bestcore/.git`, is marked hidden: 7-Zip lists its
+attributes as `HD`, not `D`. Builds up to 2026-10-23 read only a leading `D` as a folder and
+stopped with "Missing archive entry: …/spp-bestcore/.git"; the listing reader now finds `D`
+anywhere among the Windows letters (checked against the archive's full 7-Zip listing: all 4,151
+folders and 123,332 files classified correctly).
 
 SPP uses `Server/bin64/bnetserver.exe` and `worldserver.exe`, with the actual realm settings
 `Realms/1/Settings/login.conf` and `world.conf`, working from `Realms/1`.
