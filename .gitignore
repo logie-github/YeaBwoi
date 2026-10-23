@@ -34,3 +34,6 @@ __pycache__/
 /warcrafts/unit-tests/.kotlin/
 /warcrafts/android/local.properties
 /warcrafts/android/stratagus/
+
+# Native archive utility built from pinned 7-Zip sources
+/warcraft/android/app/src/main/jniLibs/arm64-v8a/libtww7zip.so

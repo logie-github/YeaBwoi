@@ -138,6 +138,15 @@ android {
 		noCompress += ['xz', 'tzst']
 	}
 
+    testOptions.unitTests.includeAndroidResources = true
+    testOptions.unitTests.all {
+        outputs.dir(project.layout.buildDirectory.dir('reports/spp-previews'))
+        systemProperty 'robolectric.graphicsMode', 'NATIVE'
+        systemProperty 'robolectric.dependency.repo.url', 'https://maven-central.storage-download.googleapis.com/maven2'
+        maxHeapSize = '3g'
+        testLogging { events 'passed', 'failed'; exceptionFormat 'full' }
+    }
+
 	lint {
 		abortOnError = false
 		checkReleaseBuilds = false
@@ -162,6 +171,11 @@ dependencies {
 	implementation 'org.jsoup:jsoup:1.18.3'
 	// jsoup's null annotations, for the compiler only.
 	compileOnly 'org.jspecify:jspecify:1.0.0'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.16'
+    testImplementation 'androidx.compose.ui:ui-test-junit4'
+    testImplementation 'androidx.test:core:1.6.1'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
 	// Winlator's.
 	implementation 'androidx.preference:preference:1.2.1'
 	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'

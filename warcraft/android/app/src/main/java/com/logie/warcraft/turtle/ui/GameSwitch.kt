@@ -41,6 +41,7 @@ object GameSwitch {
         Environments.Environment.TURTLE -> Server.status.value.phase.let { it == Server.Phase.STARTING || it == Server.Phase.RUNNING || it == Server.Phase.STOPPING }
         Environments.Environment.WRATH -> TurtleServer.isBusy
         Environments.Environment.FELSONG -> false
+        Environments.Environment.TWW -> false
     }
 
     fun switch(context: Context, target: Environments.Environment, stopOther: Boolean) {
@@ -49,6 +50,7 @@ object GameSwitch {
                 Environments.Environment.TURTLE -> Server.stop(context)
                 Environments.Environment.WRATH -> TurtleServer.stop(context)
                 Environments.Environment.FELSONG -> {}
+                Environments.Environment.TWW -> {}
             }
         }
         Environments.select(context, target)
@@ -107,6 +109,7 @@ fun WrathGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment) -
     ) {
         WowChoiceRow(stringResource(R.string.turtle_tile_name), stringResource(R.string.turtle_tile_name_summary), selected = false) { onPick(Environments.Environment.TURTLE) }
         WowChoiceRow(stringResource(R.string.felsong_name), stringResource(R.string.felsong_name_summary), selected = false) { onPick(Environments.Environment.FELSONG) }
+        WowChoiceRow(stringResource(R.string.tww_name), stringResource(R.string.tww_summary), selected = false) { onPick(Environments.Environment.TWW) }
     }
 }
 
@@ -120,6 +123,7 @@ fun TurtleGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment) 
     ) {
         TurtleChoiceRow(stringResource(R.string.wrath_name), stringResource(R.string.wrath_name_summary), selected = false) { onPick(Environments.Environment.WRATH) }
         TurtleChoiceRow(stringResource(R.string.felsong_name), stringResource(R.string.felsong_name_summary), selected = false) { onPick(Environments.Environment.FELSONG) }
+        TurtleChoiceRow(stringResource(R.string.tww_name), stringResource(R.string.tww_summary), selected = false) { onPick(Environments.Environment.TWW) }
     }
 }
 

@@ -5,35 +5,37 @@
 --   starter   the starting outfit of the race and class selected, its chest's icon
 --   champion  the class's top raid set (Tier 10), its chest piece's icon
 --
--- It sits at the bottom of the customization panel's arrow buttons, halfway between the name box and
--- that panel (measured from the screen as it is laid out; by the race and class lists if it can't be).
--- SkyborneGearData.lua (tools/build_gear.py) has the items and icons. The preview is dressed
--- through the model's own calls (Undress and TryOn); where the screen's model has none, as 3.3.5's
--- hasn't (its preview is a ModelFFX, dressed by the game itself from CharStartOutfit), the button
--- isn't shown at all. Its tooltip is the creation screen's own (GlueTooltip_SetOwner and
--- GlueTooltip_SetText: functions in 3.3.5's GlueXML, not methods). It is put after
--- the screen's race and class lists and buttons are made (the patch adds it to GlueXML.toc after
--- SkyborneCreate.lua), and dresses the preview again whenever a race, class or sex is picked.
+-- It sits between the sex buttons, which move apart to make room for it. SkyborneGearData.lua (tools/build_gear.py) has the items and icons. The preview is
+-- dressed through the model's own calls (Undress and TryOn); 3.3.5's preview has none (it is a
+-- ModelFFX, dressed by the game itself from CharStartOutfit), so there the button shows and cycles
+-- but the preview stays as the game dresses it, and its tooltip says so. Its tooltip is the creation
+-- screen's own (GlueTooltip_SetOwner and GlueTooltip_SetText: functions in 3.3.5's GlueXML, not
+-- methods). It is put after the screen's race and class lists and buttons are made (the patch adds
+-- it to GlueXML.toc after SkyborneCreate.lua), and dresses the preview again whenever a race, class
+-- or sex is picked.
 
 local MODES = { "nude", "starter", "champion" };
 local NAMES = { nude = "No gear", starter = "Starting gear", champion = "Champion gear" };
 local mode = 1;
 
--- Race and class by the file names the screen gives (its lists' second values), where it gives no id.
+-- Race and class by the file names the screen gives (its lists' second values).
 local RACE_IDS = { HUMAN = 1, ORC = 2, DWARF = 3, NIGHTELF = 4, SCOURGE = 5, TAUREN = 6, GNOME = 7, TROLL = 8,
-	BLOODELF = 10, DRAENEI = 11, SKYBORNEA = 13, SKYBORNEH = 14 };
+	BLOODELF = 10, DRAENEI = 11, SKYBORNEA = 13, SKYBORNEH = 14, VOIDELF = 15, NIGHTBORNE = 16 };
 local CLASS_IDS = { WARRIOR = 1, PALADIN = 2, HUNTER = 3, ROGUE = 4, PRIEST = 5, DEATHKNIGHT = 6, SHAMAN = 7,
 	MAGE = 8, WARLOCK = 9, DRUID = 11 };
 
--- The screen's lists, by position: the races and classes it enumerates (name, file, id) three at a time.
+-- The screen's lists, by position: the races and classes it enumerates three at a time (name, file,
+-- enabled in 3.3.5, whose third value is whether it can be picked, 1 or 0, not an id): each is its
+-- file's.
 local raceList, classList = {}, {};
 
 local function Capture(list, ids, ...)
 	for i = 1, select("#", ...), 3 do
-		local name, file, id = select(i, ...);
+		local _, file, third = select(i, ...);
 		local n = (i - 1) / 3 + 1;
-		if ( type(id) ~= "number" and type(file) == "string" ) then
-			id = ids[strupper(file)];
+		local id = type(file) == "string" and ids[strupper(file)] or nil;
+		if ( not id and type(third) == "number" and third > 1 ) then
+			id = third;
 		end
 		list[n] = id;
 	end
@@ -51,21 +53,21 @@ end
 Wrap("CharacterCreateEnumerateRaces", raceList, RACE_IDS);
 Wrap("CharacterCreateEnumerateClasses", classList, CLASS_IDS);
 
--- The selected race or class id: the screen's getter may give the position in its list, or the
--- name, file and id.
+-- The selected race or class id: by the file the screen's getter gives (GetSelectedClass: name, file
+-- and position in its list), else by the position (GetSelectedRace: the position alone).
 local function Selected(getter, list, ids)
 	if ( type(getter) ~= "function" ) then
 		return nil;
 	end
 	local a, b, c = getter();
+	if ( type(b) == "string" and ids[strupper(b)] ) then
+		return ids[strupper(b)];
+	end
 	if ( type(a) == "number" and list[a] ) then
 		return list[a];
 	end
-	if ( type(c) == "number" ) then
-		return c;
-	end
-	if ( type(b) == "string" and ids[strupper(b)] ) then
-		return ids[strupper(b)];
+	if ( type(c) == "number" and list[c] ) then
+		return list[c];
 	end
 	return nil;
 end
@@ -156,19 +158,6 @@ end
 
 local button = SkyborneGearButton;
 
--- Shown only where it can do something: a screen whose preview can be dressed.
-local function ShowIfDressable()
-	if ( not button ) then
-		return false;
-	end
-	if ( FindModel() ) then
-		button:Show();
-		return true;
-	end
-	button:Hide();
-	return false;
-end
-
 -- The creation screen's tooltip, as its race, class and sex buttons show theirs.
 local function Tooltip()
 	return CharacterCreateTooltip or GlueTooltip;
@@ -191,130 +180,49 @@ local function HideTooltip()
 end
 
 -- Placement ----------------------------------------------------------------------------------
--- The screen's frames in pixels (their scales undone), or nil while they aren't laid out.
-local function Pixels(frame)
-	if ( type(frame) ~= "table" or type(frame.GetLeft) ~= "function" ) then
-		return nil;
-	end
-	local ok, l, r, b, t = pcall(function() return frame:GetLeft(), frame:GetRight(), frame:GetBottom(), frame:GetTop(); end);
-	if ( not ok or not (l and r and b and t) ) then
-		return nil;
-	end
-	local scale = (type(frame.GetEffectiveScale) == "function" and frame:GetEffectiveScale()) or 1;
-	return l * scale, r * scale, b * scale, t * scale;
-end
-
-local function Visible(frame)
-	return type(frame) == "table" and (type(frame.IsVisible) ~= "function" or frame:IsVisible());
-end
-
-local function Descendants(root, depth, out)
-	out = out or {};
-	if ( type(root) ~= "table" or type(root.GetChildren) ~= "function" or depth < 1 ) then
-		return out;
-	end
-	for _, child in ipairs({ root:GetChildren() }) do
-		if ( type(child) == "table" and #out < 400 ) then
-			out[#out + 1] = child;
-			Descendants(child, depth - 1, out);
-		end
-	end
-	return out;
-end
-
-local function TypeOf(frame)
-	return type(frame.GetObjectType) == "function" and frame:GetObjectType() or "";
-end
-
-local function NameOf(frame)
-	return (type(frame) == "table" and type(frame.GetName) == "function" and frame:GetName()) or "?";
-end
-
--- Where the button was put (or why not), for the tooltip.
-local placed = "by the sex buttons";
+-- The middle of where the sex buttons stand (the screen's: 20 either side of the middle), and they
+-- move out to 50 either side, the button between.
+local GAP = 12;
 
 local function Place()
-	local origin = GlueParent or UIParent;
-	local root = CharacterCreate;
-	if ( not button or type(origin) ~= "table" or type(root) ~= "table" or type(root.GetChildren) ~= "function" ) then
-		return false;
-	end
-	local all = Descendants(root, 6);
-	-- The name box: the screen's, or the first edit box showing.
-	local nameBox = CharacterCreateNameEdit;
-	if ( not (Visible(nameBox) and Pixels(nameBox)) ) then
-		nameBox = nil;
-		for _, f in ipairs(all) do
-			if ( TypeOf(f) == "EditBox" and Visible(f) and Pixels(f) ) then
-				nameBox = f;
-				break;
-			end
-		end
-	end
-	if ( not nameBox ) then
-		placed = "by the sex buttons (no name box found)";
-		return false;
-	end
-	local nl, nr = Pixels(nameBox);
-	local nameCenter = (nl + nr) / 2;
-	-- The customize panel: the screen's, or the frame right of the name box that holds the most buttons.
-	local panel;
-	for _, name in ipairs({ "CharacterCustomizationFrame", "CharacterCreateCustomizationFrame" }) do
-		local f = _G[name];
-		if ( Visible(f) and Pixels(f) ) then
-			panel = f;
-			break;
-		end
-	end
-	if ( not panel ) then
-		local most = 3;
-		for _, f in ipairs(all) do
-			local l = Pixels(f);
-			if ( Visible(f) and l and l > nameCenter and f ~= nameBox ) then
-				local buttons = 0;
-				for _, d in ipairs(Descendants(f, 4)) do
-					if ( TypeOf(d) == "Button" and Visible(d) ) then
-						buttons = buttons + 1;
-					end
-				end
-				if ( buttons > most ) then
-					most, panel = buttons, f;
-				end
-			end
-		end
-	end
-	if ( not panel ) then
-		placed = "by the sex buttons (no customize panel found)";
-		return false;
-	end
-	local pl, _, pb = Pixels(panel);
-	-- The bottom of the arrow buttons (the panel's buttons): the lowest of them, else the panel's.
-	local bottom, lowest, lowestName = pb, nil, nil;
-	for _, d in ipairs(Descendants(panel, 4)) do
-		if ( TypeOf(d) == "Button" and Visible(d) ) then
-			local _, _, b = Pixels(d);
-			if ( b and (not lowest or b < lowest) ) then
-				lowest = b;
-				lowestName = NameOf(d);
-			end
-		end
-	end
-	bottom = lowest or bottom;
-	local scale = (type(button.GetEffectiveScale) == "function" and button:GetEffectiveScale()) or 1;
-	local width = ((type(button.GetWidth) == "function" and button:GetWidth()) or 38) * scale;
-	local x = (nr + pl) / 2 - width / 2;
-	button:SetParent(root);
+	local male, female = CharacterCreateGenderButtonMale, CharacterCreateGenderButtonFemale;
 	button:ClearAllPoints();
-	button:SetPoint("BOTTOMLEFT", origin, "BOTTOMLEFT", x / scale, bottom / scale);
-	placed = "between "..NameOf(nameBox).." and "..NameOf(panel)..", level with "..(lowest and lowestName or "its bottom");
+	if ( not (male and female and type(male.GetPoint) == "function" and type(female.GetPoint) == "function") ) then
+		if ( CharacterCreateConfigurationFrame ) then
+			button:SetPoint("TOP", CharacterCreateConfigurationFrame, "TOP", 0, -392);
+		end
+		return false;
+	end
+	local ok, point, relativeTo, relativePoint, x, y = pcall(male.GetPoint, male, 1);
+	local ok2, _, _, _, x2 = pcall(female.GetPoint, female, 1);
+	-- (once only: after it, the sex buttons are anchored to the button)
+	if ( not (ok and ok2 and point and type(x) == "number" and type(x2) == "number") or relativeTo == button ) then
+		point, relativeTo, relativePoint, x, y, x2 = "TOP", CharacterCreateConfigurationFrame, "TOP", -20, -392, 20;
+	end
+	-- with the sex buttons, over them
+	local parent = type(male.GetParent) == "function" and male:GetParent();
+	if ( parent ) then
+		button:SetParent(parent);
+	end
+	if ( type(male.GetFrameLevel) == "function" and type(button.SetFrameLevel) == "function" ) then
+		button:SetFrameLevel(male:GetFrameLevel() + 1);
+	end
+	button:SetPoint(point, relativeTo, relativePoint, (x + x2) / 2, y);
+	male:ClearAllPoints();
+	male:SetPoint("RIGHT", button, "LEFT", -GAP, 0);
+	female:ClearAllPoints();
+	female:SetPoint("LEFT", button, "RIGHT", GAP, 0);
 	return true;
 end
 
+-- The mode's icon; the leaf until there is one (a button with no texture isn't seen).
+local iconSet = false;
 
 local function Refresh()
 	local items, icon = Gear(MODES[mode]);
-	if ( icon ) then
-		button:SetNormalTexture("Interface\\Icons\\"..icon);
+	if ( icon or not iconSet ) then
+		button:SetNormalTexture("Interface\\Icons\\"..(icon or "INV_Misc_Leaf_01"));
+		iconSet = true;
 	end
 	return items;
 end
@@ -338,10 +246,8 @@ timer:SetScript("OnUpdate", function(self, elapsed)
 		waits[i] = waits[i] - elapsed;
 		if ( waits[i] <= 0 ) then
 			table.remove(waits, i);
-			if ( ShowIfDressable() ) then
-				Place();
-				Apply();
-			end
+			button:Show();
+			Apply();
 		end
 	end
 end);
@@ -365,13 +271,7 @@ for _, name in ipairs({ "CharacterCreateRaceButton_OnClick", "CharacterCreateCla
 end
 
 if ( button ) then
-	local frame = CharacterCreateGenderButtonFemale;
-	button:ClearAllPoints();
-	if ( frame ) then
-		button:SetPoint("LEFT", frame, "RIGHT", 12, 0);
-	elseif ( CharacterCreateConfigurationFrame ) then
-		button:SetPoint("BOTTOM", CharacterCreateConfigurationFrame, "BOTTOM", 0, 12);
-	end
+	Place();
 	button:SetScript("OnClick", function()
 		mode = mode % #MODES + 1;
 		Apply();
@@ -381,7 +281,9 @@ if ( button ) then
 	end);
 	button.tooltip = function()
 		local _, _, extra = Gear(MODES[mode]);
-		ShowTooltip(NAMES[MODES[mode]]..(extra and (": "..extra) or "").."\nClick to change what the preview wears.\nPlaced "..placed..".");
+		local what = (FindModel() and "Click to change what the preview wears.")
+			or "Click to change it. This game's preview can't be dressed yet: it keeps the gear the game gives it.";
+		ShowTooltip(NAMES[MODES[mode]]..(extra and (": "..extra) or "").."\n"..what);
 	end;
 	button:SetScript("OnEnter", function()
 		button.tooltip();
@@ -391,6 +293,6 @@ if ( button ) then
 	end);
 	button:SetScript("OnLeave", HideTooltip);
 	Refresh();
-	ShowIfDressable();
+	button:Show();
 	waits = { 0.05, 0.4, 1.2 };
 end

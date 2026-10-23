@@ -1,0 +1,14 @@
+name: Check SPP download speed
+on:
+  push:
+    paths: ['scripts/check-spp-speed.py', '.github/workflows/check-spp-speed.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  speed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/check-spp-speed.py

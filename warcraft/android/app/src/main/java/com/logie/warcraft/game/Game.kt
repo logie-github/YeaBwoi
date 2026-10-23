@@ -75,6 +75,10 @@ object Game {
     /** Gets the game ready and starts it. */
     fun play(context: Context) {
         if (_state.value is State.Preparing) return
+        if (com.logie.warcraft.tww.TwwServer.isBusy) {
+            _state.value = State.Failed(context.getString(R.string.tww_stop_other))
+            return
+        }
         val app = context.applicationContext
         val resolution = gameResolution(context)
         _state.value = State.Preparing(Step.RUNTIME)

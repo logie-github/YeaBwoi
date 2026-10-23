@@ -31,6 +31,7 @@ on:
       - "scripts/module-files.py"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
+      - "scripts/build-tww-7zip.sh"
       - "scripts/prepare-winlator.sh"
       - "scripts/winlator-rewrite.py"
       - "scripts/fetch-tortoise.sh"
@@ -559,6 +560,13 @@ jobs:
             echo "::notice::Signed with the shared CI key in ci/. Add DOLPHINXD_KEYSTORE_* secrets to use your own (see README)."
           fi
 
+      - name: Android background and cancellation regression tests
+        working-directory: warcraft/android
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
+
+      - name: Build TWW archive extractor
+        run: scripts/build-tww-7zip.sh
+
       - name: Build release APK
         working-directory: warcraft/android
         env:
@@ -591,6 +599,7 @@ jobs:
         run: |
           mkdir -p dist
           cp warcraft/android/app/build/outputs/apk/release/app-release.apk "dist/$APK_FILE"
+          cp warcraft/android/app/build/reports/spp-previews/*.jpg dist/
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "dist/$APK_FILE" | head -3
           unzip -l "dist/$APK_FILE" | grep -E "assets/(server|rootfs|container_pattern)|lib/arm64-v8a/libwinlator"
           tar -xJOf warcraft/android/server/server.tar.xz server/VERSION | tee dist/server-version.txt
@@ -611,6 +620,10 @@ jobs:
           **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), the data CI tests this build's server on (the test runs alongside the release, not before it: its result is on the build's run). **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
 
           **Turtle WoW — Vanilla+** (a second game, switched to from the launcher): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), installed from the Turtle WoW launcher in one tap, with your own Turtle WoW 1.18.1 (7272) client. Nothing of the 3.3.5a game changes.
+
+          **Legion — 7.3.5 (Single Player Project)** replaces the Felsong section. Download & Install acquires the inspected AshamaneCore repack, database, server maps and build 26972 full client inside the app (42.3 GB client plus 5.4 GB server; allow 120 GB free during setup), with separate local-server and account controls. Legion client support on Android remains experimental because of an open Box64 startup issue; phone gameplay has not been verified. The original client executable is preserved. Native database, account login and world startup checks passed; the old publisher world server returned an access violation on shutdown, so clean world shutdown is not claimed.
+
+          **The War Within — 11.2.5** keeps its separate Draconic installation and active Uniform Server database. Active downloads and Windows sessions continue in the background.
 
           Server package:
           \`\`\`
@@ -633,7 +646,7 @@ jobs:
               exit 1
             fi
           fi
-          gh release create "$RELEASE_TAG" "dist/$APK_FILE" dist/WarcraftServerData-windows.zip \
+          gh release create "$RELEASE_TAG" "dist/$APK_FILE" dist/WarcraftServerData-windows.zip dist/spp-*.jpg \
             --verify-tag \
             --title "$APP_NAME $WOW_VERSION_NAME" \
             --notes "$notes"

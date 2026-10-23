@@ -156,7 +156,7 @@ def login(host, user, password, port=3724):
 CMSG_CHAR_CREATE, CMSG_CHAR_ENUM, CMSG_PLAYER_LOGIN = 0x036, 0x037, 0x03D
 SMSG_CHAR_CREATE, SMSG_CHAR_ENUM = 0x03A, 0x03B
 CMSG_LOGOUT_REQUEST, SMSG_LOGOUT_RESPONSE, SMSG_LOGOUT_COMPLETE = 0x04B, 0x04C, 0x04D
-CMSG_MESSAGECHAT, SMSG_MESSAGECHAT = 0x095, 0x096
+CMSG_MESSAGECHAT, SMSG_MESSAGECHAT, SMSG_GM_MESSAGECHAT = 0x095, 0x096, 0x3B3
 SMSG_AUTH_CHALLENGE, CMSG_AUTH_SESSION, SMSG_AUTH_RESPONSE = 0x1EC, 0x1ED, 0x1EE
 SMSG_LOGIN_VERIFY_WORLD = 0x236
 SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
@@ -245,9 +245,11 @@ class WorldSession:
             self.send(CMSG_TIME_SYNC_RESP, body[:4] + struct.pack("<I", int(time.monotonic() * 1000) & 0xFFFFFFFF))
         elif opcode == SMSG_NEW_WORLD:
             self.send(MSG_MOVE_WORLDPORT_ACK)
-        elif opcode == SMSG_MESSAGECHAT and body[0] == CHAT_MSG_WHISPER and b"WowRemix\tcurtain" in body:
+        elif opcode in (SMSG_MESSAGECHAT, SMSG_GM_MESSAGECHAT) and body[0] == CHAT_MSG_WHISPER and b"WowRemix\tcurtain" in body:
             # The realm's curtain over the opening's next act (RemixIntro.cpp): the app's add-on says
             # "settled" once the game's frames run smoothly again; this client has no frames, so at once.
+            # (A game master's own words come back as SMSG_GM_MESSAGECHAT, the realm's whispers to
+            # the player itself among them.)
             self.send(CMSG_MESSAGECHAT, struct.pack("<II", CHAT_MSG_WHISPER, LANG_ADDON) + self.character.encode() + b"\0"
                       + b"WowRemix\tsettled 0\0")
         elif opcode == MSG_MOVE_TELEPORT_ACK:
@@ -497,17 +499,22 @@ def run_script(session, player_guid, steps):
     windows = {}
     transcript = []
 
-    def creature_guid(entry, near=False):
-        """The nearest creature of [entry], as the realm names it ([near]: and how far it is)."""
-        say(session, f".remix guid {entry}")
-        packets = []
-        session.pump(1.5, packets)
-        note(packets)
-        for line in system_messages(packets):
-            words = line.split()
-            if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
-                return (int(words[4]), float(words[6])) if near else int(words[4])
-        raise RuntimeError(f"no creature {entry} near the character")
+    def creature_guid(entry, near=False, patience=10.0):
+        """The nearest creature of [entry], as the realm names it ([near]: and how far it is). One
+        not there yet is asked for again, [patience] seconds at most: Moratari as the companion
+        comes on the realm's next second after the character arrives, later when the realm is slow."""
+        end = time.time() + patience
+        while True:
+            say(session, f".remix guid {entry}")
+            packets = []
+            session.pump(1.5, packets)
+            note(packets)
+            for line in system_messages(packets):
+                words = line.split()
+                if line.startswith("Wrath Remix guid:") and len(words) > 4 and words[3] == str(entry) and words[4].isdigit():
+                    return (int(words[4]), float(words[6])) if near else int(words[4])
+            if time.time() >= end:
+                raise RuntimeError(f"no creature {entry} near the character")
 
     def within_reach(entry):
         """The nearest creature of [entry], called over if it's beyond talking distance (where a
@@ -683,7 +690,7 @@ def run_script(session, player_guid, steps):
             # would, rather than waited for)
             for attempt in range(6):
                 try:
-                    target, yards = creature_guid(int(rest), near=True)
+                    target, yards = creature_guid(int(rest), near=True, patience=0)
                     break
                 except RuntimeError:
                     if attempt == 5:

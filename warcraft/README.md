@@ -22,6 +22,102 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the la
 
 ## First launch
 
+### Legion — 7.3.5 (Single Player Project)
+
+The Legion header follows Wrath's layout: a tall illustration, a large centered title over
+the lower fade, and the realm controls underneath. Scroll down to installation and settings
+on shorter screens. The background fades to dark green while the controls retain fel accents.
+
+Setup checks that the server download is accessible before starting a missing client download.
+If Google Drive reports a download quota, the repack is temporarily unavailable at its host.
+Repeated retries cannot lift that restriction. Completed client files and partial downloads are
+kept; **Resume / Retry** continues the missing steps when access returns. A fully downloaded,
+validated server archive can be reused even while its host is unavailable. No mirror of a
+different repack is silently substituted.
+
+The former Felsong section is now **Games → Legion — 7.3.5**, using the original SPP
+AshamaneCore release for client build 26972. Its Illidan header, fel theme, music switch and
+realm tiles follow the existing app. Old Felsong files stay untouched; SPP has its own storage,
+database, accounts and Windows container. See [`SPP.md`](SPP.md) for the inspected release.
+
+Tap **Download & Install**. Setup downloads the 42.3 GB full client and 5.4 GB repack,
+extracts the server, initialized database and maps, and configures localhost automatically.
+Allow about 120 GB free during installation, including temporary archives and extraction.
+The Legion client uses up to four validated connections to improve throughput where the host
+and connection allow it. Pause/Resume keeps the existing download, including downloads started
+before the speed update. The progress display shows connection count, actual speed and ETA.
+It falls back to a single connection if the host rejects parallel ranges; connection or host
+bandwidth can still limit speed.
+SPP's supplied local-play executable is installed beside the original client executable; text
+configuration and any existing local-play executable are backed up before changes.
+
+**Press Start** starts the database, authentication and world processes. **Accounts** creates
+or selects a linked Battle.net/game account, changes its password and optionally remembers it
+on this device. **Solo & Rates** controls Solocraft and experience rates while stopped.
+**Server** provides Start, Stop, Launch Game, actual component status, logs and background
+battery settings. **Game Files** separately reports client, core, database and map status;
+verification, resumable downloads, storage selection and optional existing-file imports use
+the shared application installer. Normal setup preserves an existing database.
+
+**Legion's Android client is experimental.** Box64 has an open
+[Legion/modern WoW startup issue](https://github.com/ptitSeb/box64/issues/3061).
+Changing the server distribution does not establish that its client works on the phone.
+Startup failures are reported and phone gameplay has not been verified. The retired streaming mini-client is rejected because its CDN hosts are unavailable.
+Native validation confirmed database, account login and world startup, but the old publisher
+world server returned an access violation on shutdown. The app reports abnormal shutdowns;
+clean world shutdown and Android gameplay are not claimed.
+
+### The War Within — 11.2.5
+
+Choose **Games → The War Within — 11.2.5**. Its home screen follows the other realms:
+illustrated header, music switch, **Press Start**, and tiles for Server, Game Files, Graphics,
+App Icon, Updates and Games. Files and saves stay separate from the other expansions.
+
+Tap **Download & Install**. The app downloads and extracts the publisher’s Firestorm streaming
+mini-client, Draconic server repack and additional maps, then configures **127.0.0.1**. No browser,
+computer or manual import is required. The client archive is about 63 MB; the game downloads its
+remaining assets during play, so internet access and additional storage are required. This is
+not a complete offline client. Its inspected Windows executable is **11.2.5.63704**; the app pins
+the archive’s size and SHA-256 and checks the executable’s version and digest.
+
+Real progress, transfer speed and estimated time appear during downloads. **Pause installation**
+keeps supported partial downloads; **Resume / Retry** continues after an interruption. Completed
+components are reused. Downloaded files stay separate from installed files, and replacement files
+are staged and validated before placement. ZIP, 7z (including BCJ2) and RAR extract automatically.
+Drive permission, quota, unavailable links, damaged archives and disk-space errors are reported.
+No game downloads are bundled in the APK or repository.
+
+Once installed, **Press Start** starts the database, authentication and world server, checks the
+authentication database for build 63704, and launches the game when the local realm is ready.
+**Server** shows each component’s actual status and separate Start, Stop and Launch controls.
+Draconic’s bundled `core/old` database is kept as a backup; setup uses Uniform Server’s active
+`core/mysql` daemon, tools and data. If an older app reported ambiguous database files, tap
+**Download & Install** again after updating to finish setup using your existing files.
+
+Active downloads and Windows game/server sessions continue when you press Home, switch apps or
+lock the screen. Their foreground notifications remain available while work is active. Downloads
+keep their original restart intent so Android can resume interrupted work using validated cached
+files. **Server → Background activity → Allow background activity** opens Android’s battery
+setting if your phone restricts background work. Explicit Pause, Stop Server and Exit still work;
+Android Force Stop ends background work. A cancelled screen refresh is not an installation error.
+Startup fails with details if the downloaded repack or phone runtime is incompatible.
+
+**Game Files** shows Game Client, Server Core, Server Database and Map Files separately.
+**Verify Installation** reports missing or changed recorded files. **Advanced / Storage** lets
+you choose internal or external app storage before installing, clear temporary downloads,
+re-download individual components, view sources or optionally import existing files. A normal
+install preserves an existing server/database; explicitly reinstalling the server replaces it,
+so back up characters and accounts first. Local setup backs up text configurations and never
+patches executables. Installing a client/repack uses the executables supplied by that download.
+
+The Windows server and game share the existing Wine/Box64 runtime in a dedicated container.
+The repack and client have not been run on a real phone here. Streamed asset availability and
+Firestorm-specific authentication compatibility still depend on the supplied client and services.
+[`TWW.md`](TWW.md) records source verification and runtime constraints. This integration does not
+claim that Blizzard’s Legion Remix event is implemented by the repack.
+
+### Wrath of the Lich King
+
 1. Install the APK from the release page on the phone.
 2. Open the app. The first **Press start** unpacks the server and creates its databases (a few minutes, once), then starts the login server. The world server waits for the server's data.
 3. Get the server's data, once (**Game files**). One of:
@@ -137,7 +233,7 @@ WoW: Forever's elves of the wind are playable on both realms, on the blood elf's
 - **Stats**: Strength -1, Agility +1, Stamina -1, Intellect +1, as WoW: Forever's starting stats have them.
 - **The intro** is their start race's flight over its land, with the Skyborne's own narration.
 - **Blood elves** get a new skin colour: Dark Ranger (grey, red eyes), after their others.
-- **Gear button** on the character creation screen (both realms; Turtle WoW is not touched): one button that cycles the preview between no gear, the race and class's starting gear (its starting chest's icon) and champion gear (the class's top raid set, Tier 10; its chest piece's icon). It sits between the name box and the customize panel, level with the bottom of the arrow buttons. It dresses the preview through the creation screen's model, and is shown only where that model can be dressed. The 3.3.5 game's can't be (its preview is dressed by the game itself), so in this game the button is hidden: dressing the preview needs a change to the game's executable, on hold.
+- **Gear button** on the character creation screen (both realms; Turtle WoW is not touched): one button that cycles the preview between no gear, the race and class's starting gear (its starting chest's icon) and champion gear (the class's top raid set, Tier 10; its chest piece's icon). It sits between the sex buttons (they move apart for it). Each side's races are in two columns, two to a row (the Alliance's left, the Horde's right). It dresses the preview through the creation screen's model where that model can be dressed. The 3.3.5 game's can't be (its preview is dressed by the game itself), so in this game the button shows and cycles its choice and icon, but the preview keeps the gear the game gives it, and the button's tooltip says so: dressing the preview needs a change to the game's executable, on hold.
 
 The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-Z.MPQ`, from your client's own files: the blood elf's textures recoloured; it takes a little longer to start the first time, and again only when the client changes). The game then starts with its patched executable. A `patch-Z.MPQ` of your own is left alone, and the game then won't know them. An HD look's character files are used as the Skyborne's base, whichever look is in.
 

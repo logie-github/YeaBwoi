@@ -1,0 +1,47 @@
+name: Check WoW Android lifecycle
+on:
+  push:
+    paths:
+      - '.github/workflows/test-wow-lifecycle.yml'
+      - 'warcraft/android/app/src/test/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/local/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/tww/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/spp/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lifecycle:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Restore runtime sources for Android tests
+        id: runtime
+        uses: actions/cache/restore@v4
+        with:
+          path: warcraft/android/winlator
+          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+      - name: Prepare changed runtime sources
+        if: steps.runtime.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard > /dev/null
+          scripts/prepare-winlator.sh
+      - name: Run Android lifecycle regression tests
+        working-directory: warcraft/android
+        run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
+      - name: Read rendered Legion launcher previews
+        run: |
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+          for path in sorted(Path('warcraft/android/app/build/reports/spp-previews').glob('*.jpg')):
+              data=base64.b64encode(path.read_bytes()).decode()
+              for index,start in enumerate(range(0,len(data),24000)):
+                  print('SPP_PREVIEW_B64='+path.name+':'+str(index)+':'+data[start:start+24000])
+          PY

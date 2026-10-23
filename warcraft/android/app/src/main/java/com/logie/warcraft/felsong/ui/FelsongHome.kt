@@ -61,6 +61,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -82,10 +84,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * The launcher in Felsong's look: Illidan over the Broken Isles, its logo, and where Felsong stands.
- * It has no Play, no realm and no install yet: nothing here can start the game (FELSONG.md), so
- * nothing pretends to. The app's update check on opening (as the other launchers do), and the way
- * to the other games.
+ * Legion Single Player Project in the existing Illidan/fel theme, replacing the Felsong section.
+ * The shared installer and managed server controls are supplied by SppHomeRoute.
  */
 @Composable
 fun FelsongLauncher(checkUpdateOnOpen: Boolean) {
@@ -126,57 +126,23 @@ fun FelsongGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment)
     ) {
         FelsongChoiceRow(stringResource(R.string.wrath_name), stringResource(R.string.wrath_name_summary)) { onPick(Environments.Environment.WRATH) }
         FelsongChoiceRow(stringResource(R.string.turtle_tile_name), stringResource(R.string.turtle_tile_name_summary)) { onPick(Environments.Environment.TURTLE) }
+        FelsongChoiceRow(stringResource(R.string.tww_name), stringResource(R.string.tww_summary)) { onPick(Environments.Environment.TWW) }
     }
 }
 
 @Composable
 internal fun FelsongHomeScreen(onSwitchGame: () -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val screenWidth = maxWidth
-        val screenHeight = maxHeight
-        FelsongBackdrop()
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            FelsongHeader(screenWidth, screenHeight, onSwitchGame)
-            Column(
-                Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                FelsongWindow(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FelsongTitle(stringResource(R.string.felsong_status_title))
-                        Text(stringResource(R.string.felsong_status_body), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                FelsongWindow(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FelsongTitle(stringResource(R.string.felsong_realm_title), style = MaterialTheme.typography.titleLarge)
-                        Text(stringResource(R.string.felsong_realm_body), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                FelsongWindow(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        FelsongTitle(stringResource(R.string.felsong_client_title), style = MaterialTheme.typography.titleLarge)
-                        Text(stringResource(R.string.felsong_client_body), style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                FelsongButton(stringResource(R.string.games_tile), Modifier.align(Alignment.CenterHorizontally), onClick = onSwitchGame)
-            }
-        }
-    }
+    com.logie.warcraft.spp.ui.SppHomeRoute(onSwitchGame)
 }
 
 /** Illidan over the Broken Isles, drifting slowly, fel motes rising, the logo half over its foot. */
 @Composable
-private fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit) {
-    val headerHeight = min((screenWidth * 0.56f).coerceIn(240.dp, 460.dp), screenHeight * 0.6f)
-    val logoWidth = min(min(screenWidth * 0.8f, headerHeight * 1.5f), 460.dp)
-    val logoHeight = logoWidth * (326f / 733f)
+internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit) {
+    // Use Wrath's hero proportions in every orientation, rather than compressing the
+    // illustration and wordmark into a small banner above the installation panel.
+    val headerHeight = min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.62f)
+    val logoWidth = min(min(screenWidth * 0.78f, headerHeight * 1.25f), 460.dp)
+    val logoHeight = logoWidth * 0.5f
     val motion = rememberInfiniteTransition(label = "header")
     val drift by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(32_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
     val breathe by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(3_800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
@@ -186,7 +152,7 @@ private fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Uni
         reveal.animateTo(1f, tween(1_400, easing = FastOutSlowInEasing))
     }
     val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.62f)) {
+    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.55f + 24.dp)) {
         Box(Modifier.fillMaxWidth().height(headerHeight).clipToBounds()) {
             Image(
                 painter = painterResource(R.drawable.felsong_header),
@@ -203,16 +169,13 @@ private fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Uni
                 },
             )
             FelsongMotes(alpha = reveal.value)
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to FelsongColors.Olive)))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to FelsongColors.Olive)))
         }
-        Image(
-            painter = painterResource(R.drawable.felsong_logo),
-            contentDescription = stringResource(R.string.felsong_name),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = headerHeight - logoHeight * 0.55f)
-                .width(logoWidth)
-                .height(logoHeight)
+        Column(
+            modifier = Modifier.align(Alignment.TopCenter)
+                .offset(y = headerHeight - logoHeight * 0.45f)
+                .width(logoWidth).height(logoHeight)
+                .semantics { contentDescription = "World of Warcraft: Legion" }
                 .graphicsLayer {
                     val value = reveal.value
                     alpha = ((value - 0.2f) / 0.8f).coerceIn(0f, 1f)
@@ -220,7 +183,13 @@ private fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Uni
                     scaleX = scale
                     scaleY = scale
                 },
-        )
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text("WORLD OF WARCRAFT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.055f).sp), color = FelsongColors.Bone)
+            Text("LEGION", style = FelsongGradientText.copy(fontSize = (logoWidth.value * 0.20f).sp, shadow = FelsongGlow))
+            Text("SINGLE PLAYER PROJECT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.04f).sp), color = FelsongColors.Pale)
+        }
         Row(
             Modifier
                 .align(Alignment.TopStart)

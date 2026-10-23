@@ -1,0 +1,66 @@
+name: Export TWW launcher previews
+on:
+  push:
+    paths: ['.github/workflows/export-tww-preview.yml']
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Install image export tools
+        run: pip install pillow requests
+      - name: Collect rendered screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import requests,os,re,base64,pathlib,io
+          from PIL import Image,ImageOps,ImageDraw
+          api="https://api.github.com/repos/"+os.environ["GH_REPO"]
+          session=requests.Session();session.headers["Authorization"]="Bearer "+os.environ["GH_TOKEN"]
+          runs=session.get(api+"/actions/workflows/preview-tww.yml/runs",params={"status":"success","per_page":1},timeout=30).json()["workflow_runs"]
+          jobs=session.get(runs[0]["jobs_url"],timeout=30).json()["jobs"]
+          response=session.get(api+"/actions/jobs/"+str(jobs[0]["id"])+"/logs",timeout=90);response.raise_for_status()
+          shots={}
+          for name,data in re.findall(r"TWW_SCREENSHOT (tww-preview-[^ ]+\.png) ([A-Za-z0-9+/=]+)",response.text):
+              path=pathlib.Path(name);path.write_bytes(base64.b64decode(data));shots[name]=Image.open(path).convert("RGB")
+          assert len(shots)==4, "Expected four screenshots from the actual Compose tests"
+          panels=[]
+          for key,label in [("phone","Phone"),("unfolded","Unfolded")]:
+              picture=shots["tww-preview-"+key+".png"]
+              assert len(picture.getcolors(picture.width*picture.height))>50, "Blank screenshot"
+              picture.thumbnail((1000,900))
+              panel=Image.new("RGB",(picture.width,930),"#09080b")
+              panel.paste(picture,(0,30));ImageDraw.Draw(panel).text((12,8),label,fill="#e6ba73")
+              panels.append(panel)
+          montage=Image.new("RGB",(sum(p.width for p in panels)+12,930),"#09080b")
+          left=0
+          for p in panels: montage.paste(p,(left,0));left+=p.width+12
+          montage.save("tww-launcher-preview.jpg",quality=78)
+          print("TWW_RENDER "+base64.b64encode(pathlib.Path("tww-launcher-preview.jpg").read_bytes()).decode(),flush=True)
+          print("RENDER_SOURCE",runs[0]["head_sha"],flush=True)
+          PY
+      - name: Check the published APK and attach previews
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for attempt in $(seq 1 35); do
+            if gh release download wow-build-209 --repo "$GH_REPO" --pattern '*.apk' --dir /tmp/tww-apk --clobber; then break; fi
+            sleep 15
+          done
+          python - <<'PY'
+          import pathlib,zipfile,hashlib
+          apk=next(pathlib.Path("/tmp/tww-apk").glob("*.apk"))
+          with zipfile.ZipFile(apk) as archive:
+              print("APK_TWW_RESOURCES",[name for name in archive.namelist() if "tww" in name.lower()],flush=True)
+              for path in ["lib/arm64-v8a/libtww7zip.so","assets/tww-7zip-LICENSE.txt","assets/tww-7zip-COPYING.txt"]:
+                  data=archive.read(path);assert data
+                  print("APK_VERIFIED",path,len(data),hashlib.sha256(data).hexdigest(),flush=True)
+          PY
+          gh release upload wow-build-209 --repo "$GH_REPO" tww-preview-*.png tww-launcher-preview.jpg --clobber
