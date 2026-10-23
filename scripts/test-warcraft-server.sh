@@ -88,6 +88,29 @@ cleanup() {
 	wait 2> /dev/null || true
 }
 trap cleanup EXIT
+# A character's side's language (Common 98, Orcish 109) in its skills; when it isn't there, what the
+# realm holds about it is shown before the test fails.
+knows_language() {
+	local name=$1 language=$2 known
+	known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
+	[ "$known" = 1 ] && return 0
+	{
+		echo "--- $name's skills; Testhero's (a human's) languages"
+		echo "SELECT c.name, c.race, c.class, s.skill, s.value, s.max FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name IN ('$name', 'Testhero') ORDER BY c.name, s.skill" | CTL sql acore_characters
+		echo "--- the world's language rows"
+		echo "SELECT * FROM skillraceclassinfo_dbc WHERE SkillID IN (98, 109)" | CTL sql acore_world
+		echo "SELECT * FROM playercreateinfo_skills WHERE skill IN (98, 109)" | CTL sql acore_world
+		echo "--- the realm's words on skills"
+		grep -ihE "skill|race/class" "$FILES/logs/world.out" "$FILES/logs/Server.log" "$FILES/logs/Errors.log" 2>/dev/null | grep -v "ListSpellsAction" | head -20 || true
+		echo "--- a GM command from $name (needs the language)"
+		printf 'cmd .gps\n' > "$FILES/run/language.steps"
+		# (said in the language it should know: the race given only picks it, the character is there)
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$([ "$language" = 109 ] && echo 2 || echo 1)" 1 \
+			"$FILES/run/language.steps" || true
+	} >&2
+	return 1
+}
+
 fail() {
 	echo "FAILED: $*" >&2
 	for log in "$FILES"/logs/*; do
@@ -291,9 +314,14 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = 4 ] || fail "$name has $learned of its 4 racials"
 	done
-	echo "The Skyborne start where their side's start races do, with their racials."
+	# Their side's language (up to 1.0.236 they had none: the allied races' SQL, applied before theirs,
+	# changed the skill rows they looked for, and they were in the other side's tiered language row).
+	for who in Skyhighorder:98 Skywindshape:109; do
+		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
+	done
+	echo "The Skyborne start where their side's start races do, with their racials and their side's language."
 
-	echo "== the void elves and the nightborne (mod-allied-races)"
+	echo "== the void elves, the nightborne, the Lightforged Draenei and the Zandalari Trolls (mod-allied-races)"
 	grep -E "Allied races: The races' patch is in the game: 19 tables, [0-9]+ files" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the races' patch"
 	[ -s "$FILES/client/Data/patch-V.MPQ" ] && [ -s "$FILES/client/Data/patch-V.MPQ.alliedraces" ] || fail "the races' patch isn't in the game"
@@ -307,17 +335,31 @@ EOF
 		echo "world.out: the races' patch at line ${allied:-?}, '$later' at line ${at:-none}"
 		[ -z "$at" ] || [ "$allied" -lt "$at" ] || fail "the races' patch was made after the one read over it ($later)"
 	done
-	for race in 15 16; do
+	for race in 15 16 17 18; do
 		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
 	done
-	looks=$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (15, 16)" | CTL sql acore_world)
-	[ "$looks" -gt 20000 ] || fail "the races' looks aren't in the world database ($looks rows)"
-	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, each with their racials.
+	looks=$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (15, 16, 17, 18)" | CTL sql acore_world)
+	[ "$looks" -gt 28000 ] || fail "the races' looks aren't in the world database ($looks rows)"
+	# The start quests cloned for them, the originals still closed to them; the quests that need a
+	# cloned one first cloned too (the class training), and chained to the clones.
+	clones=$(echo "SELECT COUNT(*) FROM quest_template WHERE AllowableRaces = 65536" | CTL sql acore_world)
+	[ "$clones" -ge 20 ] || fail "the Lightforged Draenei's start quests aren't cloned ($clones)"
+	clones=$(echo "SELECT COUNT(*) FROM quest_template WHERE AllowableRaces = 131072" | CTL sql acore_world)
+	[ "$clones" -ge 15 ] || fail "the Zandalari's start quests aren't cloned ($clones)"
+	[ "$(echo "SELECT AllowableRaces & 131072 FROM quest_template WHERE ID = 747" | CTL sql acore_world)" = 0 ] || fail "The Hunt Begins is open to the Zandalari: only its clone should be"
+	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 960750" | CTL sql acore_world)" = 960747 ] || fail "the clone of The Hunt Continues doesn't follow the clone of The Hunt Begins"
+	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 959288" | CTL sql acore_world)" = 959280 ] || fail "a void elf's Hunter Training doesn't follow the clone of the quest before it"
+	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, a Lightforged Draenei
+	# warrior in Ammen Vale, a Zandalari warrior at Camp Narache, each with their racials.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Voidtester 15 1 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/allied-voidelf.out" || fail "the void elf warrior didn't get into the world"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nighttester 16 1 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/allied-nightborne.out" || fail "the nightborne warrior didn't get into the world"
-	for who in Voidtester:11:1:"Ammen Vale" Nighttester:5:1:Deathknell; do
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Lightester 17 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/allied-lightforged.out" || fail "the Lightforged Draenei warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Zandtester 18 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/allied-zandalari.out" || fail "the Zandalari warrior didn't get into the world"
+	for who in Voidtester:11:1:"Ammen Vale" Nighttester:5:1:Deathknell Lightester:11:1:"Ammen Vale" Zandtester:6:1:"Camp Narache"; do
 		IFS=: read -r name race class place <<EOF
 $who
 EOF
@@ -326,12 +368,30 @@ EOF
 		echo "$name at $at, $place's start $start"
 		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
 	done
-	for who in Voidtester:98711,98713,98715,98716,98717:5 Nighttester:98718,98720,98721,98722:4; do
+	for who in Voidtester:98711,98713,98715,98716,98717:5 Nighttester:98718,98720,98721,98722:4 Lightester:98723,98725,98726,98728,98729:5 Zandtester:98730,98731,98733,98734:4; do
 		name=${who%%:*} rest=${who#*:} spells=${rest%%:*} count=${rest#*:}
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	echo "The void elves and the nightborne start with the Draenei and the Forsaken, with their racials."
+	# Their side's language: no /say and no chat command without it. Up to 1.0.236 they had none
+	# (their place in the other side's tiered language row).
+	for who in Voidtester:98 Nighttester:109 Lightester:98 Zandtester:109; do
+		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
+	done
+	echo "The void elves and the Lightforged Draenei start with the Draenei, the nightborne with the Forsaken, the Zandalari with the Tauren, each with their racials and their side's language."
+	# In the world: their racials at work (Preternatural Calm's aura, Spatial Rift through the rift,
+	# Arcane Pulse's damage, Light's Reckoning's and Judgment's the character's own, Regeneratin',
+	# Pterrordax Swoop), their own first quests offered and the start race's not, and Rescue the
+	# Survivors! done with a lent Gift of the Naaru, taken back as it's handed in.
+	for who in Voidtester:15:voidelf Nighttester:16:nightborne Lightester:17:lightforged Zandtester:18:zandalari; do
+		IFS=: read -r name race file <<EOF
+$who
+EOF
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" 1 \
+			"$ROOT/warcraft/server/allied_$file.steps" | tee "$FILES/logs/allied-$file-world.out" ||
+			fail "$name's racials and quests didn't work in the world (logs/allied-$file-world.out)"
+	done
+	echo "Their racials work in the world, their first quests are their own, and Rescue the Survivors! can be done."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

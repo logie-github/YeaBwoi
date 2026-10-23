@@ -47,10 +47,10 @@ def check(ok, what):
 
 
 for native, races, with_skyborne in [
-    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf",
-          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne"], False),
-    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf", "A SkyborneA",
-          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne", "H SkyborneH"], True),
+    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf", "A LightforgedDraenei",
+          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne", "H ZandalariTroll"], False),
+    (10, ["A Human", "A Dwarf", "A NightElf", "A Gnome", "A Draenei", "A VoidElf", "A LightforgedDraenei", "A SkyborneA",
+          "H Orc", "H Scourge", "H Tauren", "H Troll", "H BloodElf", "H Nightborne", "H ZandalariTroll", "H SkyborneH"], True),
 ]:
     lua = lua51.LuaRuntime(unpack_returned_tuples=True)
     lua.execute(f"NATIVE = {native}")
@@ -79,13 +79,19 @@ for native, races, with_skyborne in [
         check(placed[side] == want, f"{side}'s races in two columns, two to a row ({placed[side]})")
     tc = g.RACE_ICON_TCOORDS
     check(tc["VOIDELF_MALE"][1] == 0.875 and tc["VOIDELF_MALE"][4] == 0.25 and tc["NIGHTBORNE_FEMALE"][3] == 0.75, "the icons in the last column, by side and sex")
+    check(tc["LIGHTFORGEDDRAENEI_MALE"][1] == 0.625 and tc["LIGHTFORGEDDRAENEI_MALE"][2] == 0.75 and tc["ZANDALARITROLL_FEMALE"][3] == 0.75, "the Lightforged's and Zandalari's icons in the next column")
     lua.execute('SetBackgroundModel("m", "VoidElf")')
     check(g.BACKGROUND == "Draenei", "the void elves' background is the Draenei's")
     lua.execute('SetBackgroundModel("m", "Nightborne")')
     check(g.BACKGROUND == "NightElf", "the nightborne's background is the Night Elves' (framed for their height)")
+    lua.execute('SetBackgroundModel("m", "LightforgedDraenei")')
+    check(g.BACKGROUND == "Draenei", "the Lightforged Draenei's background is the Draenei's")
+    lua.execute('SetBackgroundModel("m", "ZandalariTroll")')
+    check(g.BACKGROUND == "Tauren", "the Zandalari's background is the Tauren's")
     lua.execute('SetBackgroundModel("m", "Orc")')
     check(g.BACKGROUND == "Orc", "the game's own backgrounds stay")
     check(g.RACE_INFO_VOIDELF and g.ABILITY_INFO_NIGHTBORNE4 and g.VOIDELF_DISABLED, "the races' texts")
+    check(g.RACE_INFO_LIGHTFORGEDDRAENEI and g.ABILITY_INFO_ZANDALARITROLL4 and g.ZANDALARITROLL_DISABLED, "the Lightforged's and Zandalari's texts")
 
 print("PASSED" if not failures else f"FAILED ({failures})")
 sys.exit(1 if failures else 0)

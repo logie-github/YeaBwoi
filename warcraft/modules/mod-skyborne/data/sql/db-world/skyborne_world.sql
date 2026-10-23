@@ -3032,9 +3032,7 @@ INSERT INTO `skillraceclassinfo_dbc` (`ID`, `SkillID`, `RaceMask`, `ClassMask`, 
 (884, 55, 8704, 2, 128, 0, 0, 0),
 (59, 96, 14335, 1024, 1168, 0, 0, 0),
 (40, 98, 5197, 1535, 128, 0, 0, 0),
-(41, 98, 4770, 1503, 160, 0, 21, 0),
 (48, 109, 8882, 1535, 128, 0, 0, 0),
-(49, 109, 9293, 1503, 160, 0, 21, 0),
 (105, 120, 14335, 256, 1170, 0, 0, 0),
 (54, 130, 14335, 128, 1168, 4, 0, 0),
 (865, 142, 14335, 1535, 0, 0, 0, 0),
@@ -3134,6 +3132,7 @@ INSERT INTO `skillraceclassinfo_dbc` (`ID`, `SkillID`, `RaceMask`, `ClassMask`, 
 (781, 713, 12543, 1535, 1170, 0, 181, 0),
 (866, 755, 14335, 1535, 160, 0, 41, 0)
 ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);
+UPDATE `skillraceclassinfo_dbc` SET `RaceMask` = `RaceMask` & ~12288 WHERE `ID` IN (41, 49) AND `RaceMask` > 0;
 INSERT INTO `skilllineability_dbc` (`ID`, `SkillLine`, `Spell`, `RaceMask`, `ClassMask`, `ExcludeRace`, `ExcludeClass`, `MinSkillLineRank`, `SupercededBySpell`, `AcquireMethod`, `TrivialSkillLineRankHigh`, `TrivialSkillLineRankLow`, `CharacterPoints_1`, `CharacterPoints_2`) VALUES
 (590, 98, 668, 5197, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0),
 (592, 109, 669, 8882, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0),
@@ -3356,13 +3355,13 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 (14, 11, 96, 6603, 0);
 
 -- Their skills: their side's weapons and armour; Common or Orcish; no other race's racials.
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 36 AND `classMask` = 4 AND `skill` = 46;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 650 AND `classMask` = 4 AND `skill` = 45;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 8192 WHERE `raceMask` = 690 AND `classMask` = 0 AND `skill` = 109;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 735 AND `classMask` = 1293 AND `skill` = 173;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE `raceMask` = 1024 AND `classMask` = 4 AND `skill` = 226;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 1061 AND `classMask` = 3 AND `skill` = 160;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE `raceMask` = 1101 AND `classMask` = 0 AND `skill` = 98;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 36 AND `classMask` = 4 AND `skill` = 46;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 650 AND `classMask` = 4 AND `skill` = 45;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 8192 WHERE (`raceMask` & 2047) = 690 AND `classMask` = 0 AND `skill` = 109;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 735 AND `classMask` = 1293 AND `skill` = 173;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE (`raceMask` & 2047) = 1024 AND `classMask` = 4 AND `skill` = 226;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 1061 AND `classMask` = 3 AND `skill` = 160;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE (`raceMask` & 2047) = 1101 AND `classMask` = 0 AND `skill` = 98;
 
 -- Their racials, learned at creation.
 DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98701 AND 98707;

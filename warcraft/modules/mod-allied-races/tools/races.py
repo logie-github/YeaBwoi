@@ -43,11 +43,28 @@ RACES = {
                 "eye_colours": 9},
     "nightborne": {"race": 27, "name": "Nightborne", "models": {0: 53, 1: 54}, "parent_models": {0: 974343, 1: 921844},
                    "eye_colours": 0},
+    "lightforged": {"race": 30, "name": "LightforgedDraenei", "models": {0: 59, 1: 60}, "parent_models": {0: 1005887, 1: 1022598},
+                    "eye_colours": 0},
+    "zandalari": {"race": 31, "name": "ZandalariTroll", "models": {0: 61, 1: 62}, "parent_models": {0: 0, 1: 0},
+                  "eye_colours": 0},
 }
+# The feature slider: which of today's options go on it (the first changes slowest), and which of
+# today's geoset groups stand in for 3.3.5's feature groups 1, 3 and 2 (16 is 3.3.5's own too).
+FEATURES = {
+    ("voidelf", 0): (["Facial Hair"], {}),
+    ("voidelf", 1): (["Earrings"], {35: 3}),
+    ("nightborne", 0): (["Chin Decoration", "Mustache", "Jaw Jewelry"], {35: 3, 36: 2}),
+    ("nightborne", 1): (["Jaw Jewelry", "Earrings", "Necklace"], {35: 3, 36: 2}),
+    ("lightforged", 0): (["Facial Hair", "Tendrils"], {}),
+    ("lightforged", 1): (["Horns", "Tendrils"], {24: 3}),
+    ("zandalari", 0): (["Tusks", "Piercings"], {40: 3, 35: 1}),
+    ("zandalari", 1): (["Tusks", "Earrings", "Piercings", "Necklace"], {40: 3, 35: 1, 36: 2}),
+}
+EARS_OPTIONS = ("Ears", "Ear Gauge")
 AVAILABLE = "3"                 # ChrCustomizationReq.ReqType of a choice any player picks
 TARGET_BODY, TARGET_FACE, TARGET_HAIR, TARGET_TENTACLES, TARGET_PELVIS, TARGET_TORSO, TARGET_TATTOO, TARGET_EYES, TARGET_EYE_FACE, TARGET_JEWELRY = \
     "1", "5", "10", "11", "13", "14", "16", "25", "36", "38"
-BODY_TATTOO = "Body Tattoo"
+BODY_TATTOOS = ("Body Tattoo", "Tattoo")    # a skin overlay with colours of its own (nightborne; lightforged and zandalari)
 # Today's geoset groups the 3.3.5 game picks from its tables, so every variant stays:
 TABLE_GROUPS = {0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 15, 18}
 GLOW_GROUP, EARS_GROUP = 17, 7
@@ -203,8 +220,21 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
             hair_colors.append({"index": len(hair_colors), "file": files[0]})
 
     # Skins: body, underwear; nightborne with each body tattoo.
+    # A skin without underwear of its own (the Lightforged's) takes the first jewelry colour's
+    # pelvis and torso pieces, which today's models wear in its place.
+    jewelry_first = tables.option_choices(model_id, "Jewelry Color", only_available=False)
+    jewelry_pelvis = jewelry_torso = 0
+    if jewelry_first:
+        fs = [f for _, files in tables.choice_materials(jewelry_first[0], TARGET_PELVIS) for f in files]
+        jewelry_pelvis = fs[0] if fs else 0
+        fs = [f for _, files in tables.choice_materials(jewelry_first[0], TARGET_TORSO) for f in files]
+        jewelry_torso = fs[0] if fs else 0
     skin_choices = tables.option_choices(model_id, "Skin Color")
-    tattoos = tables.option_choices(model_id, BODY_TATTOO, only_available=False)
+    tattoos = []
+    for oname in BODY_TATTOOS:
+        tattoos = tables.option_choices(model_id, oname, only_available=False)
+        if tattoos:
+            break
     tattoo_files = [[]]
     tattoo_names = ["None"]
     for t in tattoos[1:]:
@@ -220,7 +250,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         torso = [f for _, fs in tables.choice_materials(c, TARGET_TORSO) for f in fs]
         if not body:
             continue
-        base_skins.append({"choice": c["ID"], "order": int(c["OrderIndex"]), "body": body[0], "pelvis": pelvis[0] if pelvis else 0, "torso": torso[0] if torso else 0})
+        base_skins.append({"choice": c["ID"], "order": int(c["OrderIndex"]), "body": body[0], "pelvis": pelvis[0] if pelvis else jewelry_pelvis, "torso": torso[0] if torso else jewelry_torso})
     for t, (files, tname) in enumerate(zip(tattoo_files, tattoo_names)):
         for b in base_skins:
             skins.append(dict(b, index=len(skins), base=base_skins.index(b), tattoo=files, tattoo_name=tname))
@@ -294,13 +324,9 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         limit = min(limit, 255 // max(1, len(faces)))
     eyes = eyes[:limit]
 
-    # The feature slider: which options, in what order (the first option changes slowest).
-    if race_key == "voidelf":
-        feature_options = ["Facial Hair"] if sex == 0 else ["Earrings"]
-    else:
-        feature_options = ["Chin Decoration", "Mustache", "Jaw Jewelry"] if sex == 0 else ["Jaw Jewelry", "Earrings", "Necklace"]
-    # today's group -> 3.3.5's feature group (1, 3, 2) for groups 3.3.5 hasn't
-    regroup = {35: 3, 36: 2}
+    # The feature slider: which options, in what order (the first option changes slowest), and
+    # today's group -> 3.3.5's feature group for groups 3.3.5 hasn't (FEATURES).
+    feature_options, regroup = FEATURES[(race_key, sex)]
     per_option = []
     for oname in feature_options:
         cs = tables.option_choices(model_id, oname, only_available=False)
@@ -308,14 +334,16 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
         for c in cs:
             gs = tables.choice_geosets(c)
             kept = []
+            sources = set()
             for g in gs:
                 group, variant = g // 100, g % 100
+                sources.add(group)
                 if group in regroup:
                     group = regroup[group]
-                if group in (1, 2, 3) and variant:
+                if group in (1, 2, 3, 16) and variant:
                     kept.append((group, variant))
                     geoset_policy[g].append(group * 100 + variant)
-            variants.append({"name": c["Name_lang"], "geosets": kept})
+            variants.append({"name": c["Name_lang"], "geosets": kept, "sources": sorted(sources)})
         per_option.append(variants)
     if tentacle_variants:
         per_option.append([{"name": "", "geosets": []}] + tentacle_variants)
@@ -323,13 +351,13 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
 
     def combos(level, chosen):
         if level == len(per_option):
-            geo = {1: 0, 2: 0, 3: 0}
+            geo = {1: 0, 2: 0, 3: 0, 16: 0}
             names = []
             for v in chosen:
                 for group, variant in v["geosets"]:
                     geo[group] = variant
                 names.append(v["name"])
-            features.append({"variation": len(features), "geosets": [geo[1], geo[3], geo[2], 0, 2], "name": ", ".join(n for n in names if n)})
+            features.append({"variation": len(features), "geosets": [geo[1], geo[3], geo[2], geo[16], 2], "name": ", ".join(n for n in names if n)})
             return
         for v in per_option[level]:
             combos(level + 1, chosen + [v])
@@ -343,6 +371,7 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
     for variants in per_option:
         for v in variants:
             feature_groups.update(group for group, _ in v["geosets"])
+            feature_groups.update(v.get("sources", ()))
     for o in tables.options.values():
         if o["ChrModelID"] != str(model_id) or o["Name_lang"] in feature_options:
             continue
@@ -352,10 +381,13 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
             groups |= tables.choice_groups(c)
         if cs and groups and not tables.choice_geosets(cs[0]):
             drop_groups.update(g for g in groups if g not in TABLE_GROUPS and g not in feature_groups)
-    for c in tables.option_choices(model_id, "Ears", only_available=False)[:1]:
-        for g in tables.choice_geosets(c):
-            if g // 100 == EARS_GROUP:
-                geoset_policy[g].append(702)
+    for oname in EARS_OPTIONS:
+        ears = tables.option_choices(model_id, oname, only_available=False)
+        if ears:
+            for g in tables.choice_geosets(ears[0]):
+                if g // 100 == EARS_GROUP:
+                    geoset_policy[g].append(702)
+            break
     glow = glow_geosets.get(eyes[0]["choice"]) if eyes else None
     geoset_policy[glow or GLOW_GROUP * 100 + 1].extend([1702, 1703])
     # The body parts today's models keep in groups 3.3.5 doesn't know (the head and mouth in 32,

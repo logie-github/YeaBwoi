@@ -1,5 +1,5 @@
 -- SPDX-License-Identifier: GPL-3.0-or-later
--- The void elves and the nightborne (mod-allied-races) on the character creation and selection
+-- The void elves, nightborne, Lightforged Draenei and Zandalari Trolls (mod-allied-races) on the character creation and selection
 -- screens. Loaded after the game's own screens (the patch adds it to GlueXML.toc), before
 -- mod-skyborne's SkyborneCreate.lua when that patch is in (it reads this one's archive):
 --
@@ -9,20 +9,24 @@
 --  * Where they go: after the screen lays out its races, each side's in two columns (the
 --    Alliance's left, the Horde's right), two to a row from the top (the Skyborne's screen lays
 --    them out the same way, after this).
---  * Their icons: their portraits in the last column of the race icons (the patch paints them
+--  * Their icons: their portraits in the free columns of the race icons (the patch paints them
 --    there: data/client/icons).
---  * Their backgrounds: the void elves' is the Draenei's (they start in Ammen Vale), the
---    nightborne's the Night Elves'. Each scene's camera is framed for its own race's height: the
---    Forsaken's, for the shorter, stooped undead, cut off the nightborne's head (a night elf's
---    height); the Night Elves' fits them.
+--  * Their backgrounds: the void elves' and the Lightforged's are the Draenei's (they start in Ammen
+--    Vale), the Zandalari's the Tauren's (Camp Narache), the nightborne's the Night Elves'. Each
+--    scene's camera is framed for its own race's height: the Forsaken's, for the shorter, stooped
+--    undead, cut off the nightborne's head (a night elf's height); the Night Elves' fits them.
 --  * Their text.
 
-local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "NightElf" };
+local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Tauren" };
 
 RACE_ICON_TCOORDS["VOIDELF_MALE"]      = { 0.875, 1.0, 0, 0.25 };
 RACE_ICON_TCOORDS["NIGHTBORNE_MALE"]   = { 0.875, 1.0, 0.25, 0.5 };
 RACE_ICON_TCOORDS["VOIDELF_FEMALE"]    = { 0.875, 1.0, 0.5, 0.75 };
 RACE_ICON_TCOORDS["NIGHTBORNE_FEMALE"] = { 0.875, 1.0, 0.75, 1.0 };
+RACE_ICON_TCOORDS["LIGHTFORGEDDRAENEI_MALE"]   = { 0.625, 0.75, 0, 0.25 };
+RACE_ICON_TCOORDS["ZANDALARITROLL_MALE"]       = { 0.625, 0.75, 0.25, 0.5 };
+RACE_ICON_TCOORDS["LIGHTFORGEDDRAENEI_FEMALE"] = { 0.625, 0.75, 0.5, 0.75 };
+RACE_ICON_TCOORDS["ZANDALARITROLL_FEMALE"]     = { 0.625, 0.75, 0.75, 1.0 };
 
 local highest = 0;
 for i = 1, 16 do
@@ -50,9 +54,9 @@ end
 -- a row from the top in the screen's order. The side is the game's (GetFactionForRace), or the
 -- race's own where the game gives none.
 local SIDES = { HUMAN = "Alliance", DWARF = "Alliance", NIGHTELF = "Alliance", GNOME = "Alliance", DRAENEI = "Alliance",
-	WORGEN = "Alliance", SKYBORNEA = "Alliance", VOIDELF = "Alliance", LIGHTFORGED = "Alliance",
+	WORGEN = "Alliance", SKYBORNEA = "Alliance", VOIDELF = "Alliance", LIGHTFORGEDDRAENEI = "Alliance",
 	ORC = "Horde", SCOURGE = "Horde", TAUREN = "Horde", TROLL = "Horde", BLOODELF = "Horde", GOBLIN = "Horde",
-	SKYBORNEH = "Horde", NIGHTBORNE = "Horde", ZANDALARI = "Horde" };
+	SKYBORNEH = "Horde", NIGHTBORNE = "Horde", ZANDALARITROLL = "Horde" };
 local COLUMNS = { Alliance = { -90, -46 }, Horde = { 46, 90 } };
 
 local function LayOut(...)
@@ -111,5 +115,19 @@ ABILITY_INFO_NIGHTBORNE2 = "- Arcane Resistance: Reduces Arcane damage taken by 
 ABILITY_INFO_NIGHTBORNE3 = "- Magical Affinity: Increases magical damage dealt by 1%.";
 ABILITY_INFO_NIGHTBORNE4 = "- Ancient History: Inscription skill increased by 15.";
 
+RACE_INFO_LIGHTFORGEDDRAENEI = "When the Army of the Light fell upon the Legion's ships above Argus, the draenei who were forged anew in its radiance became the Lightforged: warriors bound to the Holy Light, who fight the demons that once corrupted their people. The Lightforged who arrive on Azuremyst Isle are welcomed among the exiles of the Exodar as kin.";
+RACE_INFO_ZANDALARITROLL = "The Zandalari are the oldest and proudest of the troll tribes, keepers of the loa and of Zuldazar's golden city. Their kings have stood beside the Horde in its wars, and their emissaries now cross the sea to Mulgore, where the tauren teach them the earth's ways before they find their own place among the Horde.";
+
+ABILITY_INFO_LIGHTFORGEDDRAENEI1 = "- Light's Judgment: Calls down a strike of Holy energy on your target, damaging nearby enemies.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI2 = "- Forge of Light: Blacksmithing skill increased by 10.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI3 = "- Light's Reckoning: When you die, Holy energy bursts from you, harming enemies and healing allies.";
+ABILITY_INFO_LIGHTFORGEDDRAENEI4 = "- Holy Resistance: Reduces Holy damage taken by 1%. Demonbane: more experience from demons.";
+ABILITY_INFO_ZANDALARITROLL1 = "- Regeneratin': Regenerates your health over 6 sec, until you take damage.";
+ABILITY_INFO_ZANDALARITROLL2 = "- Embrace of Pa'ku: Your attacks have a chance to increase your critical strike chance.";
+ABILITY_INFO_ZANDALARITROLL3 = "- Pterrordax Swoop: Slows your fall for 2 min.";
+ABILITY_INFO_ZANDALARITROLL4 = "- City of Gold: 2% more money looted from creatures.";
+
+LIGHTFORGEDDRAENEI_DISABLED = "Lightforged Draenei can't be made on this realm.";
+ZANDALARITROLL_DISABLED = "Zandalari Trolls can't be made on this realm.";
 VOIDELF_DISABLED = "Void elves can't be made on this realm.";
 NIGHTBORNE_DISABLED = "Nightborne can't be made on this realm.";

@@ -1,4 +1,4 @@
-# mod-allied-races: the void elves and the nightborne
+# mod-allied-races: the void elves, the nightborne, the Lightforged Draenei and the Zandalari Trolls
 
 Blizzard's allied races of today, playable in the app's 3.3.5 realms (ChromieCraft and Wrath Remix;
 Turtle WoW is another game and untouched), in their own models, looks and voices:
@@ -7,10 +7,12 @@ Turtle WoW is another game and untouched), in their own models, looks and voices
 | --- | --- | --- | --- | --- |
 | Void Elf | 15 | Alliance | Ammen Vale (the Draenei's start, quests and standing: the Exodar) | Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock |
 | Nightborne | 16 | Horde | Deathknell (the Forsaken's start, quests and standing: Undercity) | Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock |
+| Lightforged Draenei | 17 | Alliance | Ammen Vale (the Draenei's start, quests and standing: the Exodar) | Warrior, Paladin, Hunter, Priest, Death Knight, Mage |
+| Zandalari Troll | 18 | Horde | Camp Narache in Mulgore (the Tauren's start, quests and standing: Thunder Bluff) | Warrior, Paladin, Hunter, Rogue, Priest, Death Knight, Shaman, Mage, Druid |
 
-(The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 and 16 were
-the game's Skeleton and Vrykul, which only creatures use; in the game's tables they move to 24 and
-25, as the Skyborne moved 13 and 14 to 22 and 23.
+(The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 to 18 were
+the game's Skeleton, Vrykul, Tuskarr and Forest Troll, which only creatures use; in the game's
+tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
 
 ## What they have
 
@@ -20,26 +22,33 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   the night elf's body.
 - **Looks**, from today's customization tables, on 3.3.5's five sliders:
   - *Skin colour*: every skin colour a player picks today (void elves 30, among them the high elf
-    skins; nightborne 10, each with each of the seven body tattoos: 70).
+    skins; nightborne 10, each with each of the seven body tattoos: 70; Lightforged Draenei 7 with
+    each of the four tattoos: 28; Zandalari 6 with each of the four: 24).
   - *Face*: every face with every eye colour, cycling face 1 eye 1, face 1 eye 2... (void elves
-    28 faces x 9 eye colours = 252; nightborne 12 x 6 = 72). The void elves' nine eye colours are
+    28 faces x 9 eye colours = 252; nightborne 12 x 6 = 72; Lightforged 10 x 2 = 20; Zandalari
+    6 x 5 = 30). The void elves' nine eye colours are
     the ones a player picks without a demon hunter's blindfold (3.3.5 holds at most 255 faces). A
     face today has textures for the skins of its kind (the eight void faces for the void skins,
     the twenty high elf faces for the high elf skins): on a skin of the other kind, a face number
     shows that kind's face of the same rank, so every face draws on every skin.
   - *Hair style*: every style.
-  - *Hair colour*: every colour a player picks today (16 each).
+  - *Hair colour*: every colour a player picks today (void elves, nightborne and Zandalari 16,
+    Lightforged 10).
   - *Feature*: void elf men their facial hair x void tentacles (8 x 7: today's Tentacles switch
     gives each hair style its own tentacle shape; here the shapes are variants named for the
     style they were made for, and any goes with any style), void elf women their earrings x
     tentacles (5 x 7); nightborne men every chin decoration x mustache x jaw jewellery (160),
-    nightborne women every jaw jewellery x earrings x necklace (160).
+    nightborne women every jaw jewellery x earrings x necklace (160); Lightforged men their
+    facial hair x tendrils (12 x 7), Lightforged women their horns x tendrils (13 x 2: the horns'
+    slider is the second row's "Horns"); Zandalari men their tusks x piercings (7 x 6), Zandalari
+    women their tusks x earrings x piercings x necklace (7 x 2 x 4 x 2).
   - Left at their first choice (3.3.5 has no slider for them): ears, eyebrows, eye style and
     eyesight, face tattoos, face jewellery, headdresses, hair decorations, luminous hands. Faces
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5
     hasn't).
 - **Voices**: today's (VocalUISounds: the words at the UI's moments; EmotesTextSound: the
-  emotes 3.3.5 has), as MP3s.
+  emotes 3.3.5 has), as MP3s encoded the way the game's own are (44.1 kHz, constant bit rate, no
+  tags or VBR header).
 - **Names**: today's name generator's.
 - **Racials** (learned at creation from `playercreateinfo_spell_custom`), as today's where 3.3.5
   allows:
@@ -53,11 +62,34 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   - Nightborne: **Arcane Pulse** (Arcane damage to enemies within 8 yards, scaling with level, and
     a 50% slow for 12 sec; 3 min cooldown), **Arcane Resistance** (Arcane damage taken -1%),
     **Magical Affinity** (magical damage +1%), **Ancient History** (Inscription +15).
+  - Lightforged Draenei: **Light's Judgment** (a strike of Holy damage on the target, or the
+    player, three seconds after the cast, to enemies within 5 yards; 3 min cooldown),
+    **Forge of Light** (Blacksmithing +10), **Light's Reckoning** (on death, a burst of Holy
+    damage to enemies and healing to allies within 8 yards), **Holy Resistance** (Holy damage
+    taken -1%), **Demonbane** (+20% experience from demons). Light's Judgment's strike and Light's
+    Reckoning's burst are the player's own casts (`src/AlliedRacesSpells.cpp`), so what they kill
+    is the player's kill: loot, experience, quest credit (the first release with them cast them
+    from unseen creatures, whose kills nobody got).
+  - Zandalari Trolls: **Regeneratin'** (heals 17% of maximum health a second for 6 sec, ended
+    by damage; 2.5 min cooldown), **Embrace of Pa'ku** (attacks and abilities have a 10% chance,
+    at most every 30 sec, for +4% critical strike for 12 sec), **Pterrordax Swoop** (Slow Fall
+    for 2 min, 15 min cooldown: today's is a glide, with no 3.3.5 equivalent), **City of Gold**
+    (+2% money looted). Today's Zandalari also have Bwonsamdi's Reach (a free resurrection) and
+    Pterrordax's flight; those aren't here.
 - **Stats**: their kin's (the blood elves' for the void elves, the night elves' for the
-  nightborne).
-- **Starts**: the Draenei's and the Forsaken's places for every class (death knights at Ebon
-  Hold); the start race's starting gear and action bars (the Humans' for void elf rogues and
-  warlocks, the Blood Elves' for nightborne hunters, which the start race hasn't).
+  nightborne, the Draenei's for the Lightforged, the Trolls' for the Zandalari).
+- **Starts**: the Draenei's, the Forsaken's and the Tauren's places for every class (death
+  knights at Ebon Hold); the start race's starting gear and action bars (the Humans' for void elf
+  rogues and warlocks, the Blood Elves' for nightborne hunters and Zandalari paladins, the Trolls'
+  for Zandalari rogues, priests and mages, which the start race hasn't). A class the start race
+  hasn't starts where the start race's warriors do. Their skills: their side's weapons and armour,
+  and Common (void elves, Lightforged) or Orcish (nightborne, Zandalari). Releases up to 1.0.236
+  gave them no language: they were also put in the other side's language row (a tiered one, for
+  learning it), which the server may read first and then teach nothing. The skill rows are found
+  by their stock races, so the Skyborne's module, whose SQL changes the same rows, finds them
+  whichever goes first (this module's goes first: its folder's name comes first). A character made
+  then learns what it lacks at its next login (the core teaches a character's missing start skills
+  at every login).
 - **Quests**: the start race's own quests in its first zones are **cloned** for the new race
   (`tools/quests.py`, `data/sql/db-world/allied_races_quests.sql`): the same quests from the same
   people, with the quest-givers taking in who the player is (a void elf among the Exodar's
@@ -66,17 +98,34 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   of Ammen Vale, Azuremyst and Bloodmyst (You Survived!, Replenishing the Healing Crystals, Rescue
   the Survivors!, Medicinal Purpose, An Alternative Alternative, The Prophecy of Velen, A Hearty
   Thanks!, the hippogryph and the prophecy chains); nightborne: Rude Awakening and the ride to the
-  Undercity. Every other quest, item and condition of the start race (and of the
-  classes' template races) is open to the new race as it is. Scripted events bound to an
-  original quest's id don't fire for its clone.
+  Undercity. The Lightforged take the same seventeen as the void elves, with their own words
+  (an Army of the Light soldier washed up among the exiles). The Zandalari: The Hunt Begins on
+  Red Cloud Mesa, the Cleansing chain, Journey to the Crossroads and the ride to Thunder Bluff
+  (the Tauren's alone) with a troll of Zandalar's welcome from each giver. A quest that needs a
+  cloned quest done first (the Draenei's class training; Mulgore's Hunt Continues, totems,
+  Battleboars and class notes) is cloned too, chained to the clones, since the original is
+  closed to the new race and would never unlock: `tools/quests.py` finds them. Every other
+  quest, item and condition of the start race (and of the classes' template races) is open to
+  the new race as it is. What the world does on an original quest's id is done on its clone's
+  too (`tools/quests.py`'s bindings): the people's scripts on accepting or handing in a quest
+  (the Ending Their World escort at Blood Watch, Legoso's run), the quest credit they give, and
+  the conditions on their gossip and texts (an "is on the quest" or "has done it" for the
+  original also holds for the clone, a "hasn't done it" for both). Rescue the Survivors!'s
+  survivors stand up for Gift of the Naaru, a Draenei racial: a void elf or Lightforged holds it
+  while their clone of the quest is in the log, and loses it when it's handed in or abandoned.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's
-  MP3s, `data/client/voidelf_intro.mp3` and `nightborne_intro.mp3`).
-- **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the last
-  column of the race icons; each side's races in two columns, two to a row from the top
-  (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after, the same way);
-  the Draenei's background for the void elves and the Night Elves' for the nightborne (each
-  scene's camera is framed for its race's height: the Forsaken's, which they had first, cut off the
-  nightborne's heads); their texts.
+  MP3s, `data/client/voidelf_intro.mp3`, `nightborne_intro.mp3`, `lightforged_intro.mp3` and
+  `zandalari_intro.mp3`), played through the cinematic's voice entry as the game's own
+  narrations are. They're kept in the game's own narrations' format: MPEG-1 Layer III, 44.1 kHz,
+  constant 160 kbit/s, no ID3 tags and no Xing/VBR header (the user's files were variable bit
+  rate with ID3v2.4 tags, which 3.3.5's player may not start).
+- **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the free
+  columns of the race icons (the void elves' and nightborne's in the last, the Lightforged's and
+  Zandalari's in the one before the Skyborne's); each side's races in two columns, two to a row
+  from the top (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after,
+  the same way); the Draenei's background for the void elves and Lightforged, the Tauren's for the
+  Zandalari, the Night Elves' for the nightborne (each scene's camera is framed for its race's
+  height: the Forsaken's, which they had first, cut off the nightborne's heads); their texts.
 
 ## How it's made
 
@@ -123,7 +172,7 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
     (the eyes, 256 x 64), underwear (256 x 128), hair (as it is, DXT). `tools/blp.py` reads and
     writes BLP2 (palette, DXT1/3/5). `tools/names.py` names them for both the textures and the
     tables.
-  - the voices as MP3s (ffmpeg).
+  - the voices as MP3s (ffmpeg: mono, 44.1 kHz, constant 64 kbit/s, no tags or VBR header).
 - As the world server starts, as soon as its configuration is read (`src/AlliedRaces.cpp`),
   `src/AlliedRacesPatch.cpp` makes the game's `Data/patch-V.MPQ` (read after the HD looks'
   patches, whose character tables it builds on, and before Wrath Remix's `patch-Y` and the
@@ -159,7 +208,12 @@ the game's Skeleton and Vrykul, which only creatures use; in the game's tables t
   in pieces; run here: all four pass; the HD look's blood elf,
   read the same way, passes but for what the HD look itself leaves out).
 - CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
-  Remix's, the races are playable in the world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne
-  warrior in Deathknell, each with their racials.
+  Remix's, the races are playable in the world database with their looks, a warrior of each starts
+  in its place with its racials; then each in the world (`warcraft/server/allied_*.steps`):
+  Preternatural Calm's aura, Spatial Rift through the rift, Arcane Pulse's, Light's Reckoning's
+  and Light's Judgment's damage as the character's own, Regeneratin' and Pterrordax Swoop on the
+  character, the race's own first quest offered and the start race's not, Rescue the Survivors!
+  credited with the lent Gift of the Naaru, handed in to Zalduun, and the gift taken back. Not tested: Entropic
+  Embrace's and Embrace of Pa'ku's procs, Demonbane's and City of Gold's amounts.
 - Not tested: the game itself (the models drawn, the looks, the voices, the intros, the screen on
   a phone): nothing here runs the 3.3.5 client.
