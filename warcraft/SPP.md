@@ -132,3 +132,21 @@ Final length/SHA-256 validation and ZIP CRC extraction remain in place.
 A bounded 16 MiB comparison on 2026-10-22 measured 23.7 and 27.5 MB/s with one connection,
 and 35.7 MB/s with four, from the build runner. All three downloads had identical SHA-256.
 This is evidence the host supports concurrent requests, not a phone-speed guarantee.
+
+## The database under the app's own Wine (2026-10-23)
+
+On a phone, Start stopped with "The Windows session ended while starting database." The pinned
+repack's `spp-legion` server was then run here the way the app runs it, with the app's own Wine
+10.10 (from its runtime, natively on x86_64, so without Box64): a prefix from the runtime, `S:` the
+server, `R:` the realm's folder, `explorer /desktop=nogui` holding `winhandler.exe` → `cmd /d /k`,
+then `R:\runtime\database.cmd` exactly as `TwwSession.launch` writes it, with `my-large.ini` as
+`configureLocal` leaves it (port 3312, bind 127.0.0.1, `S:/` paths). MariaDB 10.1.30 was ready
+for connections on 3312 in 2 seconds, and the session stayed up. So the database start and the
+session's command flow are sound under Wine; what ended the phone's session is Android- or
+Box64-specific, and unknown.
+
+From this change, a realm's Windows session writes `runtime/session.log` (Winlator patch 0008):
+what Wine and Box64 print, and the runtime's exit status (137 is a SIGKILL, usually Android
+reclaiming memory). When a session ends while a component starts, the error shows the tail of that
+component's log and of `session.log`.
+
