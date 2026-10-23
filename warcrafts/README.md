@@ -74,18 +74,16 @@ skirmish of the original games; saves and preferences stay in the app.
 engine's output (`stderr.txt`, `stdout.txt` in its folder, with a crash's signal and stack) and
 Android's log for the game's process. **Copy** puts it on the clipboard to send.
 
-**Getting Warcraft III (1.27) onto the phone** (once, on a Windows PC):
-1. Download Blizzard's classic installers: Reign of Chaos,
-   `https://us.battle.net/download/getLegacy?product=WAR3&locale=enUS&os=WIN`, and The Frozen
-   Throne, the same link with `product=W3XP`. They are small downloaders that fetch the game; if
-   one says "Network Error", try again or in another browser.
-2. Run the Reign of Chaos one, then The Frozen Throne one, and type your CD keys when they ask.
-3. If the folder has no `War3Patch.mpq`, or the game's main menu shows a version below 1.27, install
-   the 1.27b patch (PC Gaming Wiki's community files, linked from Blizzard's forum thread "Classic
-   Warcraft III Official Installers & Official Patches").
-4. Copy the installed `Warcraft III` folder (usually `C:\Program Files (x86)\Warcraft III`) to the
-   phone's Downloads, or zip it first, then **Games → Warcraft III → Game files → Pick folder**
-   (or **Pick zip**).
+**Setting up Warcraft III (1.27), on the phone**: **Games → Warcraft III → Game files**:
+1. **Download from Blizzard**: the app fetches Blizzard's own classic installers (what Blizzard's
+   legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP` fetch, from the
+   address inside them on Blizzard's CDN), about 1.4 GB, and checks every piece against Blizzard's
+   checksums. A stopped download goes on where it stopped.
+2. **Install Reign of Chaos**: Blizzard's installer opens inside the app. Taps are plain clicks
+   there; three fingers open the keyboard for your CD key.
+3. **Install The Frozen Throne** the same way, with its key.
+4. Back in the launcher, the installed game moves into the app and the installers are deleted.
+A Warcraft III 1.27 folder installed on a PC works too (**Pick folder** or **Pick zip**).
 
 **Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.

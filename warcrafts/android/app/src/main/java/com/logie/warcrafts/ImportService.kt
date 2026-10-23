@@ -15,6 +15,7 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.IntentCompat
 import androidx.core.content.ContextCompat
+import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.Install
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,13 +44,18 @@ class ImportService : Service() {
         val uri = intent?.data
         val installer = intent?.let { IntentCompat.getParcelableArrayListExtra(it, EXTRA_INSTALLER, Uri::class.java) }
         val convertOnly = intent?.getBooleanExtra(EXTRA_CONVERT_ONLY, false) == true
-        if (install == null || (uri == null && installer.isNullOrEmpty() && !convertOnly) || Imports.state.value is Imports.State.Working) {
+        val wc3Setup = intent?.getBooleanExtra(EXTRA_WC3_SETUP, false) == true
+        if (install == null || (uri == null && installer.isNullOrEmpty() && !convertOnly && !wc3Setup) || Imports.state.value is Imports.State.Working) {
             return START_NOT_STICKY
         }
         val folder = intent.getBooleanExtra(EXTRA_FOLDER, false)
 
         Imports.cancelled = false
-        Imports.set(Imports.State.Working(install, phase = if (convertOnly) Imports.Phase.CONVERT else Imports.Phase.COPY))
+        Imports.set(Imports.State.Working(install, phase = when {
+            convertOnly -> Imports.Phase.CONVERT
+            wc3Setup -> Imports.Phase.DOWNLOAD
+            else -> Imports.Phase.COPY
+        }))
         startForeground(NOTIFICATION_ID, notification(install, Imports.Phase.COPY, null))
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcrafts:import")
@@ -63,6 +69,10 @@ class ImportService : Service() {
                 }
                 when {
                     convertOnly -> Unit
+                    // Warcraft III from Blizzard: both installers downloaded; installing is the player's step.
+                    wc3Setup -> for (product in BlizzardDownload.Product.entries) {
+                        if (Wc3Setup.installer(this@ImportService, product) == null) Wc3Setup.download(this@ImportService, product, report)
+                    }
                     !installer.isNullOrEmpty() -> Imports.importInstaller(this@ImportService, install, installer, report)
                     folder -> Imports.importFolder(this@ImportService, install, uri!!, report)
                     else -> Imports.importZip(this@ImportService, install, uri!!, report)
@@ -163,6 +173,7 @@ class ImportService : Service() {
         private const val EXTRA_FOLDER = "folder"
         private const val EXTRA_CONVERT_ONLY = "convert"
         private const val EXTRA_INSTALLER = "installer"
+        private const val EXTRA_WC3_SETUP = "wc3setup"
         private const val ACTION_CANCEL = "com.logie.warcrafts.CANCEL_IMPORT"
 
         fun start(context: Context, install: Install, uri: Uri, isFolder: Boolean) = ContextCompat.startForegroundService(
@@ -177,6 +188,12 @@ class ImportService : Service() {
             Intent(context, ImportService::class.java)
                 .putExtra(EXTRA_INSTALL, install.key)
                 .putParcelableArrayListExtra(EXTRA_INSTALLER, ArrayList(uris)),
+        )
+
+        /** Downloads Warcraft III's classic installers from Blizzard ([Wc3Setup]). */
+        fun downloadWc3(context: Context) = ContextCompat.startForegroundService(
+            context,
+            Intent(context, ImportService::class.java).putExtra(EXTRA_INSTALL, Install.WC3.key).putExtra(EXTRA_WC3_SETUP, true),
         )
 
         /** Makes Stratagus's data again from the files already in the app (Warcraft I and II). */
@@ -194,6 +211,7 @@ class ImportService : Service() {
             Imports.Phase.COPY -> R.string.rts_import_title
             Imports.Phase.UNPACK -> R.string.rts_unpack_title
             Imports.Phase.CONVERT -> R.string.rts_convert_title
+            Imports.Phase.DOWNLOAD -> R.string.rts_setup_download_title
         }
 
         /** A game's name, for what's being imported. */

@@ -7,6 +7,8 @@ import android.content.Intent
 import com.logie.warcrafts.MainActivity
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
+import com.logie.warcrafts.Wc3Setup
+import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.Engine
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
@@ -125,7 +127,46 @@ object Game {
             if (title == Title.TFT) GameLayout.expansionProgram(RtsFiles.programs(context, install)) ?: main else main
         }
             ?: throw GameFailed(context.getString(R.string.rts_game_error_no_game, context.getString(com.logie.warcrafts.ImportService.installName(install))))
+        val arguments = GameSettings.arguments(context, install)
+        val execPath = File(RtsFiles.folder(context, install), program).path + if (arguments.isNotEmpty()) " $arguments" else ""
+        startWindows(context, title, resolution, execPath, installer = false)
+    }
 
+    /**
+     * Blizzard's installer of [product], downloaded by [Wc3Setup], run in the games' Windows: the
+     * player types their CD key there and installs; the launcher then takes the game ([adoptWarcraft3]).
+     */
+    fun install(context: Context, product: BlizzardDownload.Product) {
+        if (_state.value is State.Preparing) return
+        val app = context.applicationContext
+        val resolution = GameSettings.gameSize(context)
+        _state.value = State.Preparing(Step.RUNTIME)
+        scope.launch {
+            try {
+                val installer = withContext(Dispatchers.IO) { Wc3Setup.installer(app, product) }
+                    ?: throw GameFailed(app.getString(R.string.rts_setup_not_downloaded))
+                val title = if (product == BlizzardDownload.Product.TFT) Title.TFT else Title.ROC
+                startWindows(app, title, resolution, installer.path, installer = true)
+                _state.value = State.Idle
+            } catch (e: GameFailed) {
+                _state.value = State.Failed(e.message ?: "")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                _state.value = State.Idle
+                throw e
+            } catch (e: Exception) {
+                _state.value = State.Failed(app.getString(R.string.rts_game_error, e.message ?: e.javaClass.simpleName))
+            }
+        }
+    }
+
+    /** Warcraft III installed by Blizzard's installers in the games' Windows: moved into the app's folder ([Wc3Setup.adopt]). */
+    fun adoptWarcraft3(context: Context): Boolean {
+        val container = ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME } ?: return false
+        return Wc3Setup.adopt(context, File(container.rootDir, ".wine"))
+    }
+
+    private suspend fun startWindows(context: Context, title: Title, resolution: Pair<Int, Int>, execPath: String, installer: Boolean) {
+        val install = title.install
         _state.value = State.Preparing(Step.RUNTIME, 0f)
         val installed = withContext(Dispatchers.IO) {
             RootFSInstaller.installIfNeeded(context) { percent ->
@@ -141,9 +182,6 @@ object Game {
         if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, width, height) }
 
         _state.value = State.Preparing(Step.STARTING)
-        val folder = RtsFiles.folder(context, install)
-        val arguments = GameSettings.arguments(context, install)
-        val execPath = File(folder, program).path + if (arguments.isNotEmpty()) " $arguments" else ""
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
@@ -151,6 +189,7 @@ object Game {
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_TITLE, title.key)
+            .putExtra(GestureView.EXTRA_INSTALLER, installer)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 
@@ -165,7 +204,10 @@ object Game {
     /** The games' Windows: made the first time, its screen and drives set every time. */
     private suspend fun container(context: Context, width: Int, height: Int): Container {
         val manager = ContainerManager(context)
-        val drives = Install.entries.filter { it.engine == Engine.WINE }.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path }
+        // Warcraft III on F:, Blizzard's installers on G: while they're on the phone ([Wc3Setup]).
+        val drives = Install.entries.filter { it.engine == Engine.WINE }.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path } +
+            "G:" + Wc3Setup.dir(context).path
+        Wc3Setup.dir(context).mkdirs()
         val screenSize = "${width}x$height"
         val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
         if (existing != null) {

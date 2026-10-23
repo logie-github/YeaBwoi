@@ -37,7 +37,7 @@
     <!-- What's needed -->
     <string name="rts_needs_title">What\'s needed</string>
     <string name="rts_needs_title_ready">Everything is in</string>
-    <string name="rts_needs_where_wc3">Warcraft III 1.27, installed on a Windows PC with Blizzard\'s own installers (Reign of Chaos, then The Frozen Throne; your CD keys go in there, once). Copy the installed Warcraft III folder (usually C:\\Program Files (x86)\\Warcraft III) to the phone\'s Downloads, or zip it first, then Game files → Pick folder or Pick zip. These must be in it:</string>
+    <string name="rts_needs_where_wc3">Set up on the phone: Game files → Download from Blizzard, then install Reign of Chaos and The Frozen Throne with your CD keys (Blizzard\'s own installers, in the app). Or bring a Warcraft III 1.27 folder installed on a PC (Pick folder or Pick zip). These must be in it:</string>
     <string name="rts_needs_where_wc1">From GOG: the offline installer of Warcraft: Orcs &amp; Humans (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_….exe, and every setup_warcraft_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_needs_where_wc2">From GOG: the offline installer of Warcraft II: Battle.net Edition (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_ii_….exe, and every setup_warcraft_ii_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_need_war_data">The game\'s data</string>
@@ -67,7 +67,20 @@
     <string name="rts_stopped_title_app">The app stopped</string>
     <string name="rts_stopped_text">It ended by itself. This is what it said last (and Android\'s log for it): copy it and send it, so it can be fixed.</string>
     <string name="rts_stopped_copy">Copy</string>
-    <string name="rts_convert_title">Converting %1$s for the phone</string>
+    <string name="rts_setup_title">Set up from Blizzard</string>
+    <string name="rts_setup_steps">1. Download: the app fetches Blizzard\'s own Warcraft III installers (1.27, about 1.4 GB; Wi-Fi recommended).\n2. Install Reign of Chaos: Blizzard\'s installer opens. Tap through it and type your Reign of Chaos CD key when it asks (three fingers open the keyboard).\n3. Install The Frozen Throne the same way, with its key.\nWhen both are installed, Warcraft III is ready: come back here or press start.</string>
+    <string name="rts_setup_download">Download from Blizzard</string>
+    <string name="rts_setup_install_roc">Install Reign of Chaos</string>
+    <string name="rts_setup_install_tft">Install The Frozen Throne</string>
+    <string name="rts_setup_or_files">Already installed on a PC? Pick folder or Pick zip below takes that Warcraft III folder instead.</string>
+    <string name="rts_setup_download_title">Downloading %1$s from Blizzard</string>
+    <string name="rts_setup_downloader">Asking Blizzard for the installer…</string>
+    <string name="rts_setup_checking">Checking every piece against Blizzard\'s checksums…</string>
+    <string name="rts_setup_bad_downloader">Blizzard\'s downloader didn\'t say where the installer is. Try again later.</string>
+    <string name="rts_setup_damaged">The download was damaged and has been removed. Try again (Wi-Fi recommended).</string>
+    <string name="rts_setup_refused">Blizzard\'s server refused the download (HTTP %1$d). Try again later or on another network.</string>
+    <string name="rts_setup_not_downloaded">Download the installers first (Game files → Download from Blizzard).</string>
+Converting %1$s for the phone</string>
     <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
     <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>
     <string name="rts_installer_missing_parts">The installer\'s .bin file wasn\'t picked: pick the setup .exe and every .bin file that came with it together (touch and hold the first, then tap the others).</string>
