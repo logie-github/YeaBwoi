@@ -3032,9 +3032,7 @@ INSERT INTO `skillraceclassinfo_dbc` (`ID`, `SkillID`, `RaceMask`, `ClassMask`, 
 (884, 55, 8704, 2, 128, 0, 0, 0),
 (59, 96, 14335, 1024, 1168, 0, 0, 0),
 (40, 98, 5197, 1535, 128, 0, 0, 0),
-(41, 98, 4770, 1503, 160, 0, 21, 0),
 (48, 109, 8882, 1535, 128, 0, 0, 0),
-(49, 109, 9293, 1503, 160, 0, 21, 0),
 (105, 120, 14335, 256, 1170, 0, 0, 0),
 (54, 130, 14335, 128, 1168, 4, 0, 0),
 (865, 142, 14335, 1535, 0, 0, 0, 0),
@@ -3134,6 +3132,7 @@ INSERT INTO `skillraceclassinfo_dbc` (`ID`, `SkillID`, `RaceMask`, `ClassMask`, 
 (781, 713, 12543, 1535, 1170, 0, 181, 0),
 (866, 755, 14335, 1535, 160, 0, 41, 0)
 ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);
+UPDATE `skillraceclassinfo_dbc` SET `RaceMask` = `RaceMask` & ~12288 WHERE `ID` IN (41, 49) AND `RaceMask` > 0;
 INSERT INTO `skilllineability_dbc` (`ID`, `SkillLine`, `Spell`, `RaceMask`, `ClassMask`, `ExcludeRace`, `ExcludeClass`, `MinSkillLineRank`, `SupercededBySpell`, `AcquireMethod`, `TrivialSkillLineRankHigh`, `TrivialSkillLineRankLow`, `CharacterPoints_1`, `CharacterPoints_2`) VALUES
 (590, 98, 668, 5197, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0),
 (592, 109, 669, 8882, 0, 0, 0, 1, 0, 2, 0, 0, 0, 0),

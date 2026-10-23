@@ -449,9 +449,12 @@ def main():
     def faction_bits(mask, line):
         add = 0
         if line in languages:
-            if line == COMMON:
+            # Only the side's own rows: the Horde's Common row (and the Alliance's Orcish one) is a
+            # tiered one for learning it, and a race in it may be given that row (rank 0: nothing)
+            # in place of its own.
+            if line == COMMON and mask & ALLIANCE_MASK:
                 add |= BIT[ALLIANCE]
-            if line == ORCISH:
+            if line == ORCISH and mask & HORDE_MASK:
                 add |= BIT[HORDE]
             return add
         if line in racial_lines:
@@ -463,11 +466,13 @@ def main():
         return add
 
     def ors(table, dbc, types, field_mask, field_line, sql_table):
-        rows = []
+        rows, wrong = [], []
         for r in dbc.rows:
             mask = r[field_mask]
             if mask == 0 or mask & 0x7FFFFFFF == 0x7FFFFFFF:
                 continue
+            if r[field_line] in (COMMON, ORCISH) and not faction_bits(mask, r[field_line]):
+                wrong.append(r[0])
             add = faction_bits(mask, r[field_line])
             if add and (mask | add) != mask:
                 client.orfield(table, r[0], field_mask, add)
@@ -479,6 +484,10 @@ def main():
             body = ",\n".join("(" + ", ".join(str(i32(x)) for x in v) + ")" for v in rows)
             sql.raw(f"INSERT INTO `{sql_table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body}\n"
                     f"ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);")
+        if wrong:
+            # (earlier releases put these races in the other side's language rows too)
+            sql.raw(f"UPDATE `{sql_table}` SET `RaceMask` = `RaceMask` & ~{BIT[ALLIANCE] | BIT[HORDE]} "
+                    f"WHERE `ID` IN ({', '.join(str(i) for i in wrong)}) AND `RaceMask` > 0;")
 
     sql.comment("Skills and abilities open to either side's races are open to theirs (the racials and languages aside).")
     ors("SkillRaceClassInfo", D("SkillRaceClassInfo"), TYPES["skillraceclassinfo_dbc"], 2, 1, "skillraceclassinfo_dbc")

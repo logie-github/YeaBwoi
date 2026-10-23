@@ -291,7 +291,14 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = 4 ] || fail "$name has $learned of its 4 racials"
 	done
-	echo "The Skyborne start where their side's start races do, with their racials."
+	# Their side's language (until 1.0.233 they were in the other side's tiered language row too, which
+	# the core may pick first, and learned none).
+	for who in Skyhighorder:98 Skywindshape:109; do
+		name=${who%%:*} language=${who#*:}
+		known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
+		[ "$known" = 1 ] || fail "$name doesn't know its side's language (skill $language)"
+	done
+	echo "The Skyborne start where their side's start races do, with their racials and their side's language."
 
 	echo "== the void elves, the nightborne, the Lightforged Draenei and the Zandalari Trolls (mod-allied-races)"
 	grep -E "Allied races: The races' patch is in the game: 19 tables, [0-9]+ files" "$FILES/logs/world.out" ||
@@ -345,8 +352,8 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	# Their side's language (until 1.0.231 the Skyborne's SQL, applied first, kept them from it: no
-	# /say, no chat command).
+	# Their side's language: no /say and no chat command without it. Until 1.0.233 they had none (the
+	# skill rows missed for the Skyborne's bits, and their place in the other side's tiered row).
 	for who in Voidtester:98 Nighttester:109 Lightester:98 Zandtester:109; do
 		name=${who%%:*} language=${who#*:}
 		known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
