@@ -63,19 +63,19 @@ data class AnomalyReport(val title: String, val body: String) {
         return copy(body = text.take(low) + CUT)
     }
 
-    /** What GitHub's API takes to open the issue ([LABEL] on it). */
-    fun issueJson(): String = JSONObject()
+    /** What GitHub's API takes to open the issue ([label] on it: [LABEL], or a game crash's). */
+    fun issueJson(label: String = LABEL): String = JSONObject()
         .put("title", title)
         .put("body", fitted(API_LIMIT).body)
-        .put("labels", JSONArray().put(LABEL))
+        .put("labels", JSONArray().put(label))
         .toString()
 
     /**
      * github.com's page for a new issue in [repo], filled in with the report: for the player to
      * send themselves when the app can't. Links that long are cut short ([LINK_LIMIT]).
      */
-    fun newIssueLink(repo: String): String {
-        val start = "https://github.com/$repo/issues/new?labels=${encode(LABEL)}&title=${encode(title)}&body="
+    fun newIssueLink(repo: String, label: String = LABEL): String {
+        val start = "https://github.com/$repo/issues/new?labels=${encode(label)}&title=${encode(title)}&body="
         return start + encode(fitted(LINK_LIMIT - start.length) { encode(it).length }.body)
     }
 
