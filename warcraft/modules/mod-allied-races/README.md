@@ -83,7 +83,7 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   rogues and warlocks, the Blood Elves' for nightborne hunters and Zandalari paladins, the Trolls'
   for Zandalari rogues, priests and mages, which the start race hasn't). A class the start race
   hasn't starts where the start race's warriors do. Their skills: their side's weapons and armour,
-  and Common (void elves, Lightforged) or Orcish (nightborne, Zandalari). Releases before 1.0.231
+  and Common (void elves, Lightforged) or Orcish (nightborne, Zandalari). Releases up to 1.0.231
   gave them neither the language nor some of the weapons (the Skyborne's SQL, applied first,
   changed the rows this module looked for); a character made then learns what it lacks at its
   next login.
