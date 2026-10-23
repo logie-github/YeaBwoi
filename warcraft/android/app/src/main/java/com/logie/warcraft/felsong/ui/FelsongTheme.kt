@@ -50,7 +50,7 @@ import kotlin.math.sin
 object FelsongColors {
     val Soot = Color(0xFF0E0A07)
     val Night = Color(0xFF14170F)
-    val Olive = Color(0xFF1E2117)
+    val Olive = Color(0xFF080D08)
     val Moss = Color(0xFF2A3020)
 
     val Fel = Color(0xFF9CCB2D)
@@ -221,7 +221,7 @@ fun FelsongMotes(modifier: Modifier = Modifier, count: Int = 52, alpha: Float = 
     }
 }
 
-/** The page under everything: the site's olive, fel light falling from above. */
+/** Near-black green under the hero, with a little fel light falling from above. */
 @Composable
 fun FelsongBackdrop() {
     Canvas(Modifier.fillMaxSize()) {

@@ -66,6 +66,42 @@ class TwwDownload(
         ranges?.cancel()
     }
 
+    /** Check the real acquisition response before another large component is downloaded.
+     * A validated complete cache works even while its remote host is unavailable.
+     * This does not mark an installation complete or write any download files.
+     */
+    fun checkAvailable(cancelled: () -> Boolean = { false }) {
+        fun check() { if (stopped || cancelled()) throw Cancelled() }
+        check()
+        if (listOf(directory, target, metadata).any { java.nio.file.Files.isSymbolicLink(it.toPath()) }) {
+            throw DownloadException("The temporary download folder and files must not be symbolic links")
+        }
+        val saved = readMetadata()
+        val savedSize = saved.getProperty("completeSize")?.toLongOrNull()
+        val savedHash = saved.getProperty("sha256")
+        if (saved.getProperty("source") == source && target.isFile && savedSize != null && savedSize > 0 &&
+            target.length() == savedSize && savedHash != null &&
+            (expectedSize == null || expectedSize == savedSize) &&
+            (expectedSha256 == null || savedHash.equals(expectedSha256, true)) &&
+            savedHash.equals(hash(target, ::check), true)) return
+        try {
+            val connection = resolve(normalize(URL(source)), 0, null, ::check)
+            val total = if (connection.responseCode == 206) {
+                val range = parseRange(connection.getHeaderField("Content-Range"))
+                if (range == null || range.first != 0L) throw DownloadException("The download server returned an invalid byte range")
+                range.third
+            } else connection.contentLengthLong.takeIf { it >= 0 }
+            if (total != null && total <= 0) throw DownloadException("The download is empty")
+            if (expectedSize != null && total != null && total != expectedSize) {
+                throw DownloadException("The source now has $total bytes; expected $expectedSize. The download was not installed")
+            }
+            check()
+        } finally {
+            active?.disconnect()
+            active = null
+        }
+    }
+
     fun run(cancelled: () -> Boolean = { false }, onProgress: (Progress) -> Unit = {}): File {
         fun check() { if (stopped || cancelled()) throw Cancelled() }
         check()
@@ -330,7 +366,7 @@ class TwwDownload(
     private fun htmlError(html: String): DownloadException {
         val text = Jsoup.parse(html).text().lowercase()
         return DownloadException(when {
-            text.contains("quota") || text.contains("too many users") || text.contains("download limit") -> "Google Drive's download quota has been exceeded. Retry later or import a downloaded folder"
+            text.contains("quota") || text.contains("too many users") || text.contains("download limit") -> "Google Drive has temporarily blocked this file because its download quota was reached. Retry after Google Drive restores access; repeated retries cannot reset the quota."
             text.contains("request access") || text.contains("access denied") || text.contains("permission") -> "Google Drive requires access permission. Open the source in a browser or import a downloaded folder"
             text.contains("sign in") || text.contains("sign-in") -> "The source requires sign-in. Open it in a browser or import an already downloaded folder"
             text.contains("does not exist") || text.contains("not found") || text.contains("trashed") -> "The download file is unavailable or was removed"

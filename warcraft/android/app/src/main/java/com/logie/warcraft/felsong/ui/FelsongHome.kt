@@ -61,6 +61,8 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
@@ -136,10 +138,11 @@ internal fun FelsongHomeScreen(onSwitchGame: () -> Unit) {
 /** Illidan over the Broken Isles, drifting slowly, fel motes rising, the logo half over its foot. */
 @Composable
 internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit) {
-    val landscape = screenWidth > screenHeight
-    val headerHeight = min((screenWidth * 0.56f).coerceIn(220.dp, 340.dp), screenHeight * if (landscape) 0.26f else 0.34f)
-    val logoWidth = min(min(screenWidth * 0.8f, headerHeight * 1.5f), 460.dp)
-    val logoHeight = if (landscape) 92.dp else 132.dp
+    // Use Wrath's hero proportions in every orientation, rather than compressing the
+    // illustration and wordmark into a small banner above the installation panel.
+    val headerHeight = min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.62f)
+    val logoWidth = min(min(screenWidth * 0.78f, headerHeight * 1.25f), 460.dp)
+    val logoHeight = logoWidth * 0.5f
     val motion = rememberInfiniteTransition(label = "header")
     val drift by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(32_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
     val breathe by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(3_800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
@@ -149,7 +152,7 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
         reveal.animateTo(1f, tween(1_400, easing = FastOutSlowInEasing))
     }
     val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.62f)) {
+    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.55f + 24.dp)) {
         Box(Modifier.fillMaxWidth().height(headerHeight).clipToBounds()) {
             Image(
                 painter = painterResource(R.drawable.felsong_header),
@@ -166,16 +169,26 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
                 },
             )
             FelsongMotes(alpha = reveal.value)
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to FelsongColors.Olive)))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to FelsongColors.Olive)))
         }
         Column(
-            Modifier.align(Alignment.TopCenter).offset(y = headerHeight - logoHeight * 0.48f)
-                .width(logoWidth).height(logoHeight), horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.align(Alignment.TopCenter)
+                .offset(y = headerHeight - logoHeight * 0.45f)
+                .width(logoWidth).height(logoHeight)
+                .semantics { contentDescription = "World of Warcraft: Legion" }
+                .graphicsLayer {
+                    val value = reveal.value
+                    alpha = ((value - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                    val scale = (0.95f + 0.05f * value) * (1f + 0.008f * breathe)
+                    scaleX = scale
+                    scaleY = scale
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("WORLD OF WARCRAFT", style = FelsongDisplayStyle.copy(fontSize = if (landscape) 12.sp else 17.sp), color = FelsongColors.Bone)
-            Text("LEGION", style = FelsongGradientText.copy(fontSize = if (landscape) 40.sp else 54.sp, shadow = FelsongGlow))
-            Text("SINGLE PLAYER PROJECT", style = FelsongDisplayStyle.copy(fontSize = if (landscape) 10.sp else 13.sp), color = FelsongColors.Pale)
+            Text("WORLD OF WARCRAFT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.055f).sp), color = FelsongColors.Bone)
+            Text("LEGION", style = FelsongGradientText.copy(fontSize = (logoWidth.value * 0.20f).sp, shadow = FelsongGlow))
+            Text("SINGLE PLAYER PROJECT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.04f).sp), color = FelsongColors.Pale)
         }
         Row(
             Modifier

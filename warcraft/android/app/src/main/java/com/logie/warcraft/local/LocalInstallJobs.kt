@@ -43,6 +43,7 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
     val busy: Boolean get() = state.value is State.Working
     @Volatile private var cancelled = false
     @Volatile private var installing = false
+    private var currentComponent: Kind? = null
     @Volatile private var activeDownload: TwwDownload? = null
     private val RECEIPT = ".tww-integrity.tsv"
     private val HEX = Regex("[0-9a-f]{64}")
@@ -76,6 +77,7 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
 
     internal fun run(context: Context, kind: Kind, uri: Uri?, folder: Boolean) {
         installing = kind == Kind.INSTALL
+        currentComponent = null
         try {
             val layout = layout(context)
             val fs = fs(context)
@@ -113,6 +115,16 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
             if (kind == Kind.INSTALL) {
                 val before = realm.report(context)
                 if (before.client.status != TwwInstall.Status.INSTALLED) {
+                    // Report a restricted/quota-limited repack before spending hours on
+                    // the client. A complete, verified server archive is usable offline.
+                    if (before.detected == null) realm.sources[Kind.DOWNLOAD_SERVER]?.let { source ->
+                        currentComponent = Kind.DOWNLOAD_SERVER
+                        working(Kind.DOWNLOAD_SERVER, "Checking download availability")
+                        val download = TwwDownload(source.url, layout.downloads, "server", source.size, source.sha256)
+                        activeDownload = download
+                        try { download.checkAvailable { cancelled } }
+                        finally { activeDownload = null }
+                    }
                     installComponent(context, Kind.DOWNLOAD_CLIENT, null, false)
                 }
                 checkCancelled()
@@ -127,6 +139,7 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
                     installComponent(context, Kind.DOWNLOAD_MAPS, null, false)
                 }
                 checkCancelled()
+                currentComponent = null
                 working(kind, "Configuring local connection")
                 realm.configureServer(context)
                 realm.configureClient(context)
@@ -138,9 +151,19 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
             }
         } catch (e: Exception) {
             mutableState.value = State.Failed(kind, if (cancelled) "Installation cancelled. Partial downloads are kept for Resume; the previous installation is preserved."
-                else e.message ?: e.javaClass.simpleName)
+                else {
+                    val component = when (currentComponent) {
+                        Kind.DOWNLOAD_CLIENT, Kind.IMPORT_CLIENT -> "Game Client"
+                        Kind.DOWNLOAD_SERVER, Kind.IMPORT_SERVER -> "Server Core / Database"
+                        Kind.DOWNLOAD_MAPS, Kind.IMPORT_MAPS -> "Map Files"
+                        else -> null
+                    }
+                    val detail = e.message ?: e.javaClass.simpleName
+                    if (component == null) detail else "$component: $detail\nCompleted installation steps are kept. Retry continues with the missing components."
+                })
         } finally {
             installing = false
+            currentComponent = null
             activeDownload = null
             runCatching {
                 val layout = layout(context)
@@ -152,6 +175,7 @@ open class LocalInstallJobs(private val realm: LocalRealmInstallation) {
     }
 
     private fun installComponent(context: Context, kind: Kind, uri: Uri?, folder: Boolean) {
+        currentComponent = kind
         val layout = layout(context)
         val fs = fs(context)
         // Only our staging area is removed after interrupted jobs. Downloads stay resumable.

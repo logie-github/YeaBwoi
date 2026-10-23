@@ -61,10 +61,11 @@ class SppHomeTest {
             SppJobs.clearResult()
         }
     }
-    @Test @Config(qualifiers = "w891dp-h411dp-xxhdpi") fun landscapeKeepsThePrimaryActionInView() {
+    @Test @Config(qualifiers = "w891dp-h411dp-xxhdpi") fun landscapeShowsTheHeroAndCanScrollToThePrimaryAction() {
         home()
-        compose.onNodeWithText("DOWNLOAD & INSTALL").assertIsDisplayed()
+        compose.onNodeWithContentDescription("World of Warcraft: Legion").assertIsDisplayed()
         screenshot("landscape")
+        compose.onNodeWithText("DOWNLOAD & INSTALL").performScrollTo().assertIsDisplayed()
     }
     @Test @Config(qualifiers = "w840dp-h900dp-xhdpi") fun unfoldedShowsTheNormalRealmTilesAndSeparateComponents() {
         home()

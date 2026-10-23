@@ -101,7 +101,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
             .padding(bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally) {
             FelsongHeader(width, height, onSwitchGame)
-            Column(Modifier.widthIn(max = 920.dp).fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.widthIn(max = 860.dp).fillMaxWidth().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 FelsongWindow(Modifier.fillMaxWidth()) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         FelsongTitle(SppRealm.DISPLAY_NAME)
@@ -127,10 +127,11 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                                 SppServer.isBusy -> server.detail ?: "Starting the local realm…"
                                 ready -> "Your files are ready. Start the realm and play."
                                 report == null -> "Checking installed files…"
+                                job is LocalInstallJobs.State.Failed -> "Completed installation steps are kept. Retry continues with the missing components."
                                 else -> "Download the game client, SPP server, database and maps directly to the app."
                             })
                             server.error?.let { Text(it, color = FelsongColors.Blood, maxLines = 3) }
-                            FelsongButton(when {
+                            if (job !is LocalInstallJobs.State.Failed || ready || server.phase == WindowsRealmServer.Phase.RUNNING) FelsongButton(when {
                                 server.phase == WindowsRealmServer.Phase.RUNNING -> "Launch Game"
                                 SppServer.isBusy -> "Server status"
                                 ready -> "Press Start"
