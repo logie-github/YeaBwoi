@@ -101,6 +101,11 @@ object GameLayout {
         return candidates(programs).firstOrNull()
     }
 
+    /** Warcraft III's expansion program (`Frozen Throne.exe`), the shallowest, if it's there. */
+    fun expansionProgram(programs: List<Program>): String? =
+        programs.filter { it.path.substringAfterLast('/').equals("Frozen Throne.exe", ignoreCase = true) }
+            .minByOrNull { depth(it.path) }?.path
+
     /** The programs that could start a game, the likeliest first. */
     fun candidates(programs: List<Program>): List<Program> =
         programs

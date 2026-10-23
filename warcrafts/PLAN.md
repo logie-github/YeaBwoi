@@ -156,6 +156,17 @@ The user's requirements, what was decided, what's open, and where it stands. The
   is built with `-U_FORTIFY_SOURCE` on Android (deps patch). (The report's function names come
   from `dladdr`, the nearest exported symbol, so static functions show their neighbour's name; the
   addresses are exact.)
+- **Warcraft III 1.27 on Wine** (build 9; after build 7 the user said "Wine may be the best ... you
+  tell me", then "Use the 1.27", "assume I'm not tech savvy ... no preferences except 4:3"). The
+  research (OpenRealm, OpenWar3, Warsmash, CASC conversion) found no open-source engine that plays
+  the full campaigns today; the real game under Wine does. 1.27 from Blizzard's own classic
+  installers (`us.battle.net/download/getLegacy?product=WAR3|W3XP`, small downloaders, run on a PC)
+  is MPQ-based, has no start-up key screen (keys go in the installer), and is the version Lutris's
+  maintained Wine setups use, with `-opengl`. The checklist wants `Warcraft III.exe`, `War3.mpq`,
+  `War3x.mpq`, `War3xLocal.mpq`, `War3Patch.mpq`; The Frozen Throne starts `Frozen Throne.exe`;
+  OpenGL is the default; Wine's Light visual style is on; windowed fullscreen at the screen's 4:3
+  size; no name server while Private. Untested: whether `Frozen Throne.exe` in 1.27 starts the
+  expansion directly under Wine, and how 1.27 runs on the Fold.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry; the CD keys box takes the keys the user has.

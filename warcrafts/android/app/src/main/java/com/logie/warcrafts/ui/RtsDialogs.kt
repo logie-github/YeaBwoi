@@ -79,7 +79,6 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     var program by remember { mutableStateOf<String?>(null) }
     var arguments by remember(refresh) { mutableStateOf(RtsFiles.arguments(context, install)) }
     var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
-    var pastedKeys by remember { mutableStateOf(RtsFiles.pastedKeys(context)) }
     var confirmDelete by remember { mutableStateOf(false) }
     var filesIn by remember { mutableStateOf(false) }
     LaunchedEffect(refresh, imports) {
@@ -178,25 +177,6 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(stringResource(R.string.rts_files_arguments_note, install.defaultArguments.ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
-        }
-
-        // Warcraft III's CD keys, pasted here: the four-finger menu types them into the game's key box.
-        if (install.engine == com.logie.warcrafts.library.Engine.WINE) {
-            RtsTitle(stringResource(R.string.rts_files_keys_title), style = MaterialTheme.typography.titleLarge)
-            OutlinedTextField(
-                value = pastedKeys,
-                onValueChange = {
-                    pastedKeys = it
-                    RtsFiles.setPastedKeys(context, it)
-                },
-                label = { Text(stringResource(R.string.rts_files_keys_label)) },
-                minLines = 2,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                colors = fieldColors(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            val recognised = remember(pastedKeys) { com.logie.warcrafts.library.CdKeys.findPasted(pastedKeys).size }
-            Text(stringResource(R.string.rts_files_keys_note, recognised), style = MaterialTheme.typography.bodySmall)
         }
 
         RtsTitle(stringResource(R.string.rts_files_private_title), style = MaterialTheme.typography.titleLarge)

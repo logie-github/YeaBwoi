@@ -112,7 +112,7 @@ object RtsFiles {
             }
             return true
         }
-        return Needs.check(install, program, cdKeys(context, install).isNotEmpty(), isConverted(context, install), ::exists)
+        return Needs.check(install, program, isConverted(context, install), ::exists)
     }
 
     /** How much room a game takes. */
