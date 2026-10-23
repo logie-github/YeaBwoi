@@ -16,6 +16,11 @@ was downloaded on 2026-10-22 without running its binaries: 5,444,369,208 bytes, 
 `c161a7289b907ba86471374253f7b7844a6f49377722ca706da3b40f90d077e0`.
 It expands to 23,506,837,301 bytes across 127,483 files. It includes SPP Legion and a separate
 SPP BestCore, so installation selects `SingleCore_Legion/spp-legion` explicitly.
+One of its folders, `SingleCore_Legion/spp-bestcore/.git`, is marked hidden: 7-Zip lists its
+attributes as `HD`, not `D`. Builds up to 2026-10-23 read only a leading `D` as a folder and
+stopped with "Missing archive entry: …/spp-bestcore/.git"; the listing reader now finds `D`
+anywhere among the Windows letters (checked against the archive's full 7-Zip listing: all 4,151
+folders and 123,332 files classified correctly).
 
 SPP uses `Server/bin64/bnetserver.exe` and `worldserver.exe`, with the actual realm settings
 `Realms/1/Settings/login.conf` and `world.conf`, working from `Realms/1`.
@@ -127,3 +132,32 @@ Final length/SHA-256 validation and ZIP CRC extraction remain in place.
 A bounded 16 MiB comparison on 2026-10-22 measured 23.7 and 27.5 MB/s with one connection,
 and 35.7 MB/s with four, from the build runner. All three downloads had identical SHA-256.
 This is evidence the host supports concurrent requests, not a phone-speed guarantee.
+
+## The database under the app's own Wine (2026-10-23)
+
+On a phone, Start stopped with "The Windows session ended while starting database." The pinned
+repack's `spp-legion` server was then run here the way the app runs it, with the app's own Wine
+10.10 (from its runtime, natively on x86_64, so without Box64): a prefix from the runtime, `S:` the
+server, `R:` the realm's folder, `explorer /desktop=nogui` holding `winhandler.exe` → `cmd /d /k`,
+then `R:\runtime\database.cmd` exactly as `TwwSession.launch` writes it, with `my-large.ini` as
+`configureLocal` leaves it (port 3312, bind 127.0.0.1, `S:/` paths). MariaDB 10.1.30 was ready
+for connections on 3312 in 2 seconds, and the session stayed up. So the database start and the
+session's command flow are sound under Wine; what ended the phone's session is Android- or
+Box64-specific, and unknown.
+
+From this change, a realm's Windows session writes `runtime/session.log` (Winlator patch 0008):
+what Wine and Box64 print, and the runtime's exit status (137 is a SIGKILL, usually Android
+reclaiming memory). When a session ends while a component starts, the error shows the tail of that
+component's log and of `session.log`.
+
+### Under Box64: Winlator's TMPDIR stopped the database
+
+The same run with the app's own Box64 0.4.4 (aarch64, under qemu-user here) as Winlator starts it
+(`TMPDIR=/data/data/com.logie.warcraft/rootfs/tmp` among its variables) failed where the native run
+had not: `InnoDB: Error: unable to create temporary file; errno: 2`, then `Plugin 'InnoDB' init
+function returned error` and exit 1. MariaDB takes its temporary folder from `TMPDIR` before
+Windows' `TEMP`, and Windows programs inherit Winlator's Unix `TMPDIR` as is: Wine looked for
+`S:\data\data\com.logie.warcraft\rootfs\tmp` (a `+file` trace showed it). Every realm script now
+clears `TMPDIR` first (`TwwSession.script`); with that, the database was ready on 3312 under Box64
+in 16 seconds (qemu's emulation included).
+

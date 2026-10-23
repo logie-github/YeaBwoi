@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package com.logie.warcraft.tww.core
 
+import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import java.io.File
 import java.nio.file.Files
 import java.util.zip.ZipEntry
@@ -25,6 +26,47 @@ class TwwNativeArchiveTest {
         val stage = File(root, "stage")
         TwwArchive.extract(archive, stage, nativeExtractor = extractor)
         assertContentEquals(payload.readBytes(), File(stage, "toy.exe").readBytes())
+    }
+
+    @Test fun hiddenFoldersAreFolders() {
+        // 7-Zip lists a 7z entry's Windows letters, then any Unix mode; a hidden folder is `HD`.
+        assertTrue(TwwNativeArchive.isDirectory(mapOf("Attributes" to "HD")))
+        assertTrue(TwwNativeArchive.isDirectory(mapOf("Attributes" to "D")))
+        assertTrue(TwwNativeArchive.isDirectory(mapOf("Attributes" to "D_ drwxr-xr-x")))
+        assertTrue(TwwNativeArchive.isDirectory(mapOf("Folder" to "+")))
+        assertFalse(TwwNativeArchive.isDirectory(mapOf("Attributes" to "RA")))
+        assertFalse(TwwNativeArchive.isDirectory(mapOf("Attributes" to "A -rw-r--r--")))
+        assertFalse(TwwNativeArchive.isDirectory(mapOf("Folder" to "-", "Attributes" to "A")))
+    }
+
+    /** As in SPP Legion's repack: a hidden `.git` folder (attributes 0x12) with a read-only file in it. */
+    @Test fun nativeBackendExtractsHiddenFolders() = temporary { root ->
+        assertTrue(extractor.canExecute(), "CI must provide 7-Zip for archive integration tests")
+        val archive = File(root, "hidden.7z")
+        SevenZOutputFile(archive).use { out ->
+            fun folder(name: String, attributes: Int) {
+                out.putArchiveEntry(out.createArchiveEntry(root, name).apply { isDirectory = true; hasWindowsAttributes = true; windowsAttributes = attributes })
+                out.closeArchiveEntry()
+            }
+            fun file(name: String, attributes: Int, text: String) {
+                val bytes = text.toByteArray()
+                out.putArchiveEntry(out.createArchiveEntry(root, name).apply { isDirectory = false; setHasStream(true); size = bytes.size.toLong(); hasWindowsAttributes = true; windowsAttributes = attributes })
+                out.write(bytes)
+                out.closeArchiveEntry()
+            }
+            folder("core", 0x10)
+            folder("core/.git", 0x12)
+            file("core/.git/HEAD", 0x20, "ref: refs/heads/master\n")
+            folder("core/.git/objects", 0x10)
+            file("core/.git/objects/pack.idx", 0x21, "idx")
+            file("core/readme.txt", 0x20, "hi")
+        }
+        val stage = File(root, "stage")
+        TwwArchive.extract(archive, stage, nativeExtractor = extractor)
+        assertTrue(File(stage, "core/.git").isDirectory)
+        assertEquals("ref: refs/heads/master\n", File(stage, "core/.git/HEAD").readText())
+        assertEquals("idx", File(stage, "core/.git/objects/pack.idx").readText())
+        assertEquals("hi", File(stage, "core/readme.txt").readText())
     }
 
     @Test fun nativeBackendRejectsTraversalBeforeExtraction() = temporary { root ->
