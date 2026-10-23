@@ -165,6 +165,7 @@ CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C
 CMSG_SET_SELECTION = 0x13D
 SMSG_LEARNED_SPELL, SMSG_REMOVED_SPELL, SMSG_CAST_FAILED = 0x12B, 0x203, 0x130
 SMSG_SPELLNONMELEEDAMAGELOG, SMSG_SPELLHEALLOG = 0x250, 0x150
+SMSG_NOTIFICATION = 0x1CB
 CMSG_GAMEOBJ_USE = 0x0B1
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
@@ -480,7 +481,8 @@ def run_script(session, player_guid, steps):
                                       (heard as well: "damage SPELL by player|other: N" and "heal
                                       SPELL by ...: N" for spells' damage and healing, "learned
                                       SPELL", "removed SPELL", "cast failed SPELL REASON",
-                                      "teleported" for a move within the map)
+                                      "teleported" for a move within the map,
+                                      "notification: TEXT" for the realm's word on the screen)
         wait SECONDS                  read what comes
         addon PREFIX TEXT             an add-on message whispered to the character itself, as
                                       the app's add-on (client/TouchAddon) talks to the realm
@@ -624,6 +626,11 @@ def run_script(session, player_guid, steps):
                 _, spell, reason = struct.unpack_from("<BIB", body, 0)
                 print(f"script:   cast of {spell} failed ({reason})")
                 heard.append(f"cast failed {spell} {reason}")
+            elif opcode == SMSG_NOTIFICATION:
+                # The realm's word on the screen ("You don't know that language", say).
+                text = body.split(b"\0", 1)[0].decode(errors="replace")
+                print(f"script:   notification: {text}")
+                heard.append(f"notification: {text}")
             elif opcode == MSG_MOVE_TELEPORT_ACK:
                 print("script:   teleported")
                 heard.append("teleported")
