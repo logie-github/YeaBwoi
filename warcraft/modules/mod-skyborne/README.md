@@ -99,7 +99,8 @@ move to 22 and 23.
   game's own row template, the arrows of the face's and the hair's), for a female's body-hair design:
   twelve besides none (Sparse, Light, Medium, Full, Strip, Heart, Moon, Crescent, Star, Swords, Skull,
   Patchy), on the bodies of Human, Orc, Dwarf, Night Elf, Undead, Gnome, Troll, Blood Elf (the
-  Skyborne's too) and Draenei. Tauren have shading only (no hair art was made for them) and the goblin
+  Skyborne's too) and Draenei. A design's skins have every face their skin has, the death knights'
+  too (a design that didn't crashed the character creation screen, up to 1.0.245). Tauren have shading only (no hair art was made for them) and the goblin
   isn't a player's race, so they have none; a male has none, and the void elves and the nightborne
   (mod-allied-races) have none. The row is shown for a female of a race that has designs and hidden
   for anyone else; the race is the one its file name says (3.3.5's race list gives each race's name,

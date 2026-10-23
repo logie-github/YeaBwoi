@@ -316,10 +316,10 @@ def main():
         # Section 4: no textures (the patch empties every race's: SkybornePatch.cpp, EmptyOverlayRows).
         if base_overlay:
             section(BLOODELF, sex, 4, ["", "", ""], base_overlay[7], 0, dr)
-        for v in range(FACES):
-            f = faces.get((v, 0))
-            if not f:
-                continue
+        # (every face of the first skin, the death knights' too: a death knight's are the skin's all, and
+        # a skin with fewer than the others crashed the character creation screen, releases up to 1.0.245)
+        for f in sorted((r for r in be if r[2] == sex and r[3] == 1 and r[9] == 0 and r[7] & 1), key=lambda r: r[8]):
+            v = f[8]
             t = tex(f)
             section(BLOODELF, sex, 1, [dark_ranger_path(x) if x else "" for x in t], f[7], v, dr)
             for x in t:
@@ -402,7 +402,11 @@ def main():
             looks = [(r[3], tex(r), r[7], r[8], r[9]) for r in sections.rows if r[1] == race and r[2] == 1]
             looks += [(v[3], [v[4], v[5], v[6]], v[7], v[8], v[9]) for v in new_sections if v[1] == race and v[2] == 1 and v[0] < ID_FEATURES]
             skins = {c: (t, f) for b, t, f, var, c in looks if b == 0 and f & 1 and not f & 4}
-            faces = {(var, c): (t, f) for b, t, f, var, c in looks if b == 1 and f & 1 and not f & 4}
+            # Every face of the skin, the death knights' (flag 4) too: a death knight may wear any
+            # skin, and her faces are the skin's all; a design with fewer faces than its skin had no
+            # row for one of them, and the game read through a missing face's row and crashed on the
+            # character creation screen (releases up to 1.0.245).
+            faces = {(var, c): (t, f) for b, t, f, var, c in looks if b == 1 and f & 1}
             if not skins:
                 continue
             colors = sorted(skins)

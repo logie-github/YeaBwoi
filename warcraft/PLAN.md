@@ -1543,6 +1543,17 @@ a realm with modules), then stage 3.
   256 by 128 and painted; the patch's one other failure there is the race icons, which that folder
   doesn't have, as before). The user told me not to look at the art: its pixels were checked by
   count only.
+- The character creation screen crashed (the user's crash report, issue #34: ERROR #132, an access
+  violation at 0x004EA77F reading 0x00000010, from the screen's Lua; on ChromieCraft it wouldn't
+  open, on Wrath Remix it died as the race or sex changed). The Features' design skins had the
+  player faces of their skin but not the death knights' (flag 4), so a design had half the faces of
+  every other skin of its race and sex (Human women 15 of 30), and the Dark Ranger skin the same; a
+  look with a design and one of the missing faces had no row, and the game read through it. Every
+  design (and the Dark Ranger skin) now has all its skin's faces (28,488 Features rows, ids 970000 to
+  998487). Found by rebuilding the user's tables here: the server's, the Alternative HD Patch's
+  character and creature tables (its `patch-enUS-A` and `-F`, fetched from its archive), then the
+  allied races' and the Skyborne's patches; `tools/test_client.cpp` now checks that every player
+  skin has the same faces as the others of its race and sex (it fails on the old rows).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
