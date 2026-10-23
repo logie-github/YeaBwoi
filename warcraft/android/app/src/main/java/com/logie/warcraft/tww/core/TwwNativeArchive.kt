@@ -11,6 +11,14 @@ internal object TwwNativeArchive {
     private const val MAX_FILES = 2_000_000
     private const val MAX_BYTES = 2_000_000_000_000L
 
+    /**
+     * Whether a `7zz l -slt` entry is a folder. 7z archives have no `Folder` line, only
+     * `Attributes`: its Windows letters come first (`D` for a folder, among `R`, `H`, `S`, `A`...),
+     * then a space and any Unix mode. A hidden folder reads `HD`, so `D` can be anywhere in them.
+     */
+    internal fun isDirectory(block: Map<String, String>): Boolean =
+        block["Folder"] == "+" || 'D' in block["Attributes"].orEmpty().substringBefore(' ')
+
     fun extract(executable: File, archive: File, staging: File, cancelled: () -> Boolean, progress: (Long, String) -> Unit) {
         if (!executable.isFile || !executable.canExecute()) throw TwwArchive.ArchiveException("The archive extractor is missing. Update or reinstall the app; your downloaded files will be retained.")
         val log = File.createTempFile("tww-extract-", ".log", staging.parentFile)
@@ -54,7 +62,7 @@ internal object TwwNativeArchive {
                 if (block.any { (key, value) -> key in setOf("Symbolic Link", "Hard Link", "Alternate Stream", "Reparse Point") && value.isNotEmpty() } ||
                     block["Encrypted"] == "+" || block["Attributes"].orEmpty().split(' ').any { it.startsWith('l') } ||
                     block["Anti"] == "+") throw TwwArchive.ArchiveException("Archive links, encrypted or special entries are unsupported: $name")
-                val directory = block["Folder"] == "+" || block["Attributes"].orEmpty().startsWith("D")
+                val directory = isDirectory(block)
                 val path = TwwArchive.safeName(name, directory)
                 path.split('/').runningReduce { a, b -> "$a/$b" }.forEach { prefix ->
                     val previous = spellings.putIfAbsent(prefix.lowercase(Locale.ROOT), prefix)

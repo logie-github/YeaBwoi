@@ -131,7 +131,8 @@ class GameLoading(private val activity: Activity) {
         val created = dialog ?: fullScreenDialog(activity, dim = false) {
             when (environment) {
                 GestureView.ENVIRONMENT_TURTLE -> TurtleTheme { TurtleLoading(text.value) }
-                GestureView.ENVIRONMENT_FELSONG -> FelsongTheme { FelsongLoading(text.value) }
+                // SPP Legion's realm session and game (GestureView.ENVIRONMENT_SPP) in Legion's look.
+                GestureView.ENVIRONMENT_FELSONG, GestureView.ENVIRONMENT_SPP -> FelsongTheme { FelsongLoading(text.value) }
                 else -> Loading(text.value)
             }
         }.also {

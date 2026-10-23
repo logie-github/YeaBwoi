@@ -52,7 +52,10 @@ object TwwSession {
     fun script(directory: String, command: String, name: String): String {
         require(name.matches(Regex("[a-z0-9-]+")))
         safe(directory)
-        return "@echo off\r\nchcp 65001 >nul\r\nsetlocal DisableDelayedExpansion\r\ncd /d ${argument(directory)}\r\n" +
+        // Winlator's TMPDIR is a Unix path (the runtime's /tmp) that Windows programs inherit as
+        // is: MariaDB takes its temporary folder from TMPDIR first, finds no such folder, and
+        // InnoDB stops ("unable to create temporary file"). Without it they use Windows' TEMP.
+        return "@echo off\r\nchcp 65001 >nul\r\nsetlocal DisableDelayedExpansion\r\nset \"TMPDIR=\"\r\ncd /d ${argument(directory)}\r\n" +
             "$command >\"R:\\runtime\\$name.log\" 2>&1\r\n" +
             "echo %ERRORLEVEL% >\"R:\\runtime\\$name.exit\"\r\n"
     }
