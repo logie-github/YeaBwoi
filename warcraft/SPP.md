@@ -150,3 +150,14 @@ what Wine and Box64 print, and the runtime's exit status (137 is a SIGKILL, usua
 reclaiming memory). When a session ends while a component starts, the error shows the tail of that
 component's log and of `session.log`.
 
+### Under Box64: Winlator's TMPDIR stopped the database
+
+The same run with the app's own Box64 0.4.4 (aarch64, under qemu-user here) as Winlator starts it
+(`TMPDIR=/data/data/com.logie.warcraft/rootfs/tmp` among its variables) failed where the native run
+had not: `InnoDB: Error: unable to create temporary file; errno: 2`, then `Plugin 'InnoDB' init
+function returned error` and exit 1. MariaDB takes its temporary folder from `TMPDIR` before
+Windows' `TEMP`, and Windows programs inherit Winlator's Unix `TMPDIR` as is: Wine looked for
+`S:\data\data\com.logie.warcraft\rootfs\tmp` (a `+file` trace showed it). Every realm script now
+clears `TMPDIR` first (`TwwSession.script`); with that, the database was ready on 3312 under Box64
+in 16 seconds (qemu's emulation included).
+
