@@ -106,6 +106,116 @@ def dependents(addons, roots):
     return ids
 
 
+# SmartAI events (accepted, rewarded) and actions (quest credit) that name a quest by id.
+SMART_QUEST_EVENTS = {19, 20}
+SMART_QUEST_ACTIONS = {15, 26}
+# Conditions on a quest's state: rewarded, taken, complete; and none (neither taken nor rewarded).
+CONDITION_QUEST_STATES = {8, 9, 28}
+CONDITION_QUEST_NONE = 14
+SMART_ID_GAP = 1000             # the clones' script rows: their entry's highest id plus this, and on
+
+
+def bindings(T, cloned, offset):
+    """What the world database binds to an original quest's id, made the clones' too: a
+    creature's script that starts on the quest's acceptance or reward (Demolitionist Legoso's
+    escort on Ending Their World) gets a row for each clone; one that credits the quest (the
+    escort's end) credits each clone as well, in the same chain of linked rows; a condition on
+    the quest's state (a gossip shown while it's taken, or once it's done) holds for a clone the
+    same way: a condition that it is (rewarded, taken, complete) is met by either, one that it
+    isn't needs both. The originals' rows stay as they are but for a link to the new rows."""
+    clones_of = {}
+    for race, ids in cloned.items():
+        for q in ids:
+            clones_of.setdefault(q, []).append(q + offset[race])
+    out = ["\n-- The scripts and conditions bound to the originals, for their clones too (tools/quests.py, bindings)."]
+    cols, rows = T("smart_scripts")
+    by_entry = {}
+    for r in rows:
+        by_entry.setdefault((r["entryorguid"], r["source_type"]), []).append(r)
+    new_rows, links = [], []
+    for key in sorted(by_entry, key=lambda k: (int(k[0]), int(k[1]))):
+        entry_rows = sorted(by_entry[key], key=lambda r: int(r["id"]))
+        next_id = [max(int(r["id"]) for r in entry_rows) + SMART_ID_GAP]
+        base = next_id[0]
+
+        def alloc():
+            next_id[0] += 1
+            return next_id[0] - 1
+
+        for r in entry_rows:
+            event_q = int(r["event_param1"]) if int(r["event_type"]) in SMART_QUEST_EVENTS else 0
+            action_q = int(r["action_param1"]) if int(r["action_type"]) in SMART_QUEST_ACTIONS else 0
+            q = event_q if event_q in clones_of else (action_q if action_q in clones_of else 0)
+            if not q:
+                continue
+            made = []
+            for clone in clones_of[q]:
+                c = dict(r)
+                c["id"] = alloc()
+                if event_q in clones_of:
+                    c["event_param1"] = event_q + (clone - q)
+                if action_q in clones_of:
+                    c["action_param1"] = action_q + (clone - q)
+                c["comment"] = (r["comment"] or "") + " (allied races: the clone %d)" % clone
+                made.append(c)
+            if int(r["event_type"]) == 61:
+                # a linked row: the clones' rows go into the chain after it
+                for a, b in zip(made, made[1:]):
+                    a["link"] = b["id"]
+                made[-1]["link"] = r["link"]
+                links.append((key, r["id"], made[0]["id"]))
+            elif not event_q in clones_of:
+                for c in made:
+                    c["link"] = 0                          # its own event: a link would run the original's chain twice
+            new_rows.extend(made)
+        if any(int(c["id"]) >= base for c in new_rows if (c["entryorguid"], c["source_type"]) == key):
+            out.append("DELETE FROM `smart_scripts` WHERE `entryorguid` = %s AND `source_type` = %s AND `id` >= %d;" % (key[0], key[1], base))
+    if new_rows:
+        out.append("INSERT INTO `smart_scripts` (%s) VALUES\n%s;" % (", ".join("`%s`" % c for c in cols),
+                   ",\n".join("(" + ", ".join(sqlrows.quote(r[c]) for c in cols) + ")" for r in new_rows)))
+    for (entry, source), row_id, first in links:
+        out.append("UPDATE `smart_scripts` SET `link` = %d WHERE `entryorguid` = %s AND `source_type` = %s AND `id` = %s;" % (first, entry, source, row_id))
+
+    cols, rows = T("conditions")
+    groups = {}
+    for r in rows:
+        key = (r["SourceTypeOrReferenceId"], r["SourceGroup"], r["SourceEntry"], r["SourceId"])
+        groups.setdefault(key, []).append(r)
+    added = []
+    for key in sorted(groups, key=lambda k: tuple(int(x) for x in k)):
+        members = groups[key]
+        next_else = max(int(r["ElseGroup"]) for r in members) + 1
+        for else_group in sorted({int(r["ElseGroup"]) for r in members}):
+            group = [r for r in members if int(r["ElseGroup"]) == else_group]
+            bound = [r for r in group if int(r["ConditionValue1"]) in clones_of and
+                     int(r["ConditionTypeOrReference"]) in CONDITION_QUEST_STATES | {CONDITION_QUEST_NONE}]
+            if not bound:
+                continue
+            for r in bound:
+                q = int(r["ConditionValue1"])
+                positive = int(r["ConditionTypeOrReference"]) in CONDITION_QUEST_STATES and not int(r["NegativeCondition"])
+                for clone in clones_of[q]:
+                    if positive:
+                        # "it is done": either the original or the clone, a group of its own
+                        for g in group:
+                            c = dict(g)
+                            c["ElseGroup"] = next_else
+                            if g is r:
+                                c["ConditionValue1"] = clone
+                            added.append(c)
+                        next_else += 1
+                    else:
+                        # "it isn't": neither, in the same group
+                        c = dict(r)
+                        c["ConditionValue1"] = clone
+                        added.append(c)
+    if added:
+        out.append("INSERT IGNORE INTO `conditions` (%s) VALUES\n%s;" % (", ".join("`%s`" % c for c in cols),
+                   ",\n".join("(" + ", ".join(sqlrows.quote(r[c]) for c in cols) + ")" for r in added)))
+    print("bindings: %d script rows, %d links, %d condition rows for the clones" % (len(new_rows), len(links), len(added)))
+    return out
+
+
 def main(world):
     T = lambda name: sqlrows.table(os.path.join(world, name + ".sql"))
     out = ["-- The start quests of the Draenei and the Forsaken, cloned for the void elves and the nightborne\n"
@@ -200,6 +310,7 @@ def main(world):
                     c["quest"] = int(r["quest"]) + offset
                     rows.append(c)
             insert(table, cols, rows)
+    out.extend(bindings(T, CLONED, OFFSET))
     os.makedirs(os.path.join(MODULE, "data", "sql", "db-world"), exist_ok=True)
     with open(os.path.join(MODULE, "data", "sql", "db-world", "allied_races_quests.sql"), "w", newline="\n") as f:
         f.write("\n".join(out) + "\n")

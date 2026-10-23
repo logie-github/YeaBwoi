@@ -11,12 +11,18 @@
  *  Regeneratin' are plain spells: a proc with its rate in spell_proc, an area spell with its slow,
  *  a periodic heal; Pterrordax Swoop is Slow Fall with another name and cooldown.
  *
- *  Light's Judgment (Lightforged Draenei): an unseen creature stands on the target (or the
- *  player) and, three seconds later, strikes the enemies around it with Holy damage.
+ *  Light's Judgment (Lightforged Draenei): three seconds after it's used, the player's strike
+ *  falls where the target (or the player) stood, Holy damage to the enemies around it; the player
+ *  casts it, so the kills, the loot and the experience are the player's.
  *
- *  Light's Reckoning (Lightforged Draenei): when the player dies, an unseen creature at the body
- *  bursts: Holy damage to enemies, healing to allies. Demonbane (+20% experience from demons)
- *  and City of Gold (+2% money looted) are the player script's.
+ *  Light's Reckoning (Lightforged Draenei): when the player dies, Holy energy bursts from the
+ *  body (the player's own triggered cast, which the core allows the dead): Holy damage to enemies,
+ *  healing to allies. Demonbane (+20% experience from demons) and City of Gold (+2% money looted)
+ *  are the player script's.
+ *
+ *  Rescue the Survivors! (the void elves' and Lightforged Draenei's clones of it): the survivors'
+ *  script answers Gift of the Naaru, a Draenei racial these races don't have, so they hold it
+ *  (temporarily, never saved) while the quest is in their log and not yet complete.
  */
 
 #include "Creature.h"
@@ -29,6 +35,7 @@
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellScript.h"
+#include "QuestDef.h"
 #include "TemporarySummon.h"
 #include <unordered_map>
 
@@ -46,10 +53,31 @@ namespace
     constexpr uint32 SPELL_LIGHTS_RECKONING_BURST = 98727;
     constexpr uint32 SPELL_DEMONBANE = 98729;
     constexpr uint32 SPELL_CITY_OF_GOLD = 98734;
-    constexpr uint32 NPC_LIGHTS_JUDGMENT = 900102;
-    constexpr uint32 NPC_LIGHTS_RECKONING = 900103;
     constexpr float JUDGMENT_REACH = 40.0f;
     constexpr uint32 JUDGMENT_DELAY = 3000;
+
+    constexpr uint32 SPELL_GIFT_OF_THE_NAARU = 28880;
+    constexpr uint32 QUEST_RESCUE_THE_SURVIVORS[] = { 959283, 969283 };   // tools/quests.py's clones of 9283
+
+    bool IsRescueTheSurvivors(uint32 questId)
+    {
+        for (uint32 id : QUEST_RESCUE_THE_SURVIVORS)
+            if (id == questId)
+                return true;
+        return false;
+    }
+
+    void LendGiftOfTheNaaru(Player* player)
+    {
+        if (!player->HasSpell(SPELL_GIFT_OF_THE_NAARU))
+            player->learnSpell(SPELL_GIFT_OF_THE_NAARU, true);
+    }
+
+    void TakeBackGiftOfTheNaaru(Player* player)
+    {
+        if (player->getRace() != RACE_DRAENEI)
+            player->removeSpell(SPELL_GIFT_OF_THE_NAARU, SPEC_MASK_ALL, true);
+    }
 
     struct Rift
     {
@@ -137,17 +165,13 @@ class spell_allied_lights_judgment : public SpellScript
         if (Unit* target = ObjectAccessor::GetUnit(*player, player->GetTarget()))
             if (target->IsAlive() && player->IsWithinDist(target, JUDGMENT_REACH) && player->IsHostileTo(target))
                 at = target;
-        TempSummon* stalker = player->SummonCreature(NPC_LIGHTS_JUDGMENT, at->GetPositionX(), at->GetPositionY(), at->GetPositionZ(), at->GetOrientation(),
-            TEMPSUMMON_TIMED_DESPAWN, JUDGMENT_DELAY + 2000);
-        if (!stalker)
-            return;
-        stalker->SetFaction(player->GetFaction());
-        stalker->SetLevel(player->GetLevel());
-        ObjectGuid guid = stalker->GetGUID();
-        player->m_Events.AddEventAtOffset([player, guid]()
+        float x = at->GetPositionX(), y = at->GetPositionY(), z = at->GetPositionZ();
+        uint32 mapId = player->GetMapId();
+        // The player's events go with the player, so this never runs for one who has logged out.
+        player->m_Events.AddEventAtOffset([player, x, y, z, mapId]()
         {
-            if (Creature* strike = ObjectAccessor::GetCreature(*player, guid))
-                strike->CastSpell(strike, SPELL_LIGHTS_JUDGMENT_STRIKE, true);
+            if (player->IsInWorld() && player->GetMapId() == mapId)
+                player->CastSpell(x, y, z, SPELL_LIGHTS_JUDGMENT_STRIKE, true);
         }, Milliseconds(JUDGMENT_DELAY));
     }
 
@@ -160,20 +184,40 @@ class spell_allied_lights_judgment : public SpellScript
 class AlliedRacesPlayer : public PlayerScript
 {
 public:
-    AlliedRacesPlayer() : PlayerScript("AlliedRacesPlayer", { PLAYERHOOK_ON_PLAYER_JUST_DIED, PLAYERHOOK_ON_GIVE_EXP, PLAYERHOOK_ON_BEFORE_LOOT_MONEY }) { }
+    AlliedRacesPlayer() : PlayerScript("AlliedRacesPlayer", { PLAYERHOOK_ON_PLAYER_JUST_DIED, PLAYERHOOK_ON_GIVE_EXP, PLAYERHOOK_ON_BEFORE_LOOT_MONEY,
+        PLAYERHOOK_ON_PLAYER_QUEST_ACCEPT, PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST, PLAYERHOOK_ON_QUEST_ABANDON, PLAYERHOOK_ON_LOGIN }) { }
 
     // Light's Reckoning: the burst where a Lightforged Draenei fell.
     void OnPlayerJustDied(Player* player) override
     {
-        if (!player->HasSpell(SPELL_LIGHTS_RECKONING))
-            return;
-        if (TempSummon* stalker = player->SummonCreature(NPC_LIGHTS_RECKONING, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(),
-            player->GetOrientation(), TEMPSUMMON_TIMED_DESPAWN, 3000))
-        {
-            stalker->SetFaction(player->GetFaction());
-            stalker->SetLevel(player->GetLevel());
-            stalker->CastSpell(stalker, SPELL_LIGHTS_RECKONING_BURST, true);
-        }
+        if (player->HasSpell(SPELL_LIGHTS_RECKONING))
+            player->CastSpell(player, SPELL_LIGHTS_RECKONING_BURST, true);
+    }
+
+    // Gift of the Naaru, lent for Rescue the Survivors!.
+    void OnPlayerQuestAccept(Player* player, Quest const* quest) override
+    {
+        if (IsRescueTheSurvivors(quest->GetQuestId()))
+            LendGiftOfTheNaaru(player);
+    }
+
+    void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
+    {
+        if (IsRescueTheSurvivors(quest->GetQuestId()))
+            TakeBackGiftOfTheNaaru(player);
+    }
+
+    void OnPlayerQuestAbandon(Player* player, uint32 questId) override
+    {
+        if (IsRescueTheSurvivors(questId))
+            TakeBackGiftOfTheNaaru(player);
+    }
+
+    void OnPlayerLogin(Player* player) override
+    {
+        for (uint32 id : QUEST_RESCUE_THE_SURVIVORS)
+            if (player->GetQuestStatus(id) == QUEST_STATUS_INCOMPLETE)
+                LendGiftOfTheNaaru(player);
     }
 
     // Demonbane: 20% more experience from demons.

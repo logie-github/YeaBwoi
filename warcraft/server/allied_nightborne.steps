@@ -1,0 +1,11 @@
+# A nightborne warrior in Deathknell (mod-allied-races), after its start was checked.
+#
+# Undertaker Mordo offers the nightborne's Rude Awakening, never the Forsaken's.
+talk 1568
+has quest 950363:
+expect-not quest 363:
+# Arcane Pulse: Arcane damage, the character's own, to the enemies around it.
+go 0 1963.5 1609.5 84.0
+cast 98718 1501
+wait 1
+expect damage 98718 by player

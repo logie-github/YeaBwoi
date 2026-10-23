@@ -15,7 +15,7 @@
 --    Vale), the nightborne's the Forsaken's (Deathknell), the Zandalari's the Tauren's (Camp Narache).
 --  * Their text.
 
-local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "Scourge", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Tauren" };
+local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Tauren" };
 
 RACE_ICON_TCOORDS["VOIDELF_MALE"]      = { 0.875, 1.0, 0, 0.25 };
 RACE_ICON_TCOORDS["NIGHTBORNE_MALE"]   = { 0.875, 1.0, 0.25, 0.5 };

@@ -109,8 +109,11 @@ def voice_files(race, read, out_dir, log):
                 src = path + ".src"
                 with open(src, "wb") as f:
                     f.write(data)
-                result = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", src, "-ac", "1", "-ar", "22050",
-                                         "-codec:a", "libmp3lame", "-b:a", "48k", path], capture_output=True)
+                # Encoded as the game's own MP3s are: MPEG-1 (44.1 kHz), constant bitrate, no ID3
+                # tag and no VBR (Xing) header, which the 2008 client's decoder may not take.
+                result = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", src, "-ac", "1", "-ar", "44100",
+                                         "-codec:a", "libmp3lame", "-b:a", "64k", "-write_xing", "0", "-id3v2_version", "0",
+                                         "-write_id3v1", "0", path], capture_output=True)
                 os.remove(src)
                 if result.returncode:
                     log("voice %d (kit %d) couldn't be converted: %s" % (fid, kit, result.stderr.decode(errors="replace").strip()))

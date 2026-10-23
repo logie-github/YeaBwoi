@@ -47,7 +47,8 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5
     hasn't).
 - **Voices**: today's (VocalUISounds: the words at the UI's moments; EmotesTextSound: the
-  emotes 3.3.5 has), as MP3s.
+  emotes 3.3.5 has), as MP3s encoded the way the game's own are (44.1 kHz, constant bit rate, no
+  tags or VBR header).
 - **Names**: today's name generator's.
 - **Racials** (learned at creation from `playercreateinfo_spell_custom`), as today's where 3.3.5
   allows:
@@ -65,8 +66,10 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     player, three seconds after the cast, to enemies within 5 yards; 3 min cooldown),
     **Forge of Light** (Blacksmithing +10), **Light's Reckoning** (on death, a burst of Holy
     damage to enemies and healing to allies within 8 yards), **Holy Resistance** (Holy damage
-    taken -1%), **Demonbane** (+20% experience from demons). The Light's Judgment and Reckoning
-    strikes are unseen creatures with the player's faction and level (`src/AlliedRacesSpells.cpp`).
+    taken -1%), **Demonbane** (+20% experience from demons). Light's Judgment's strike and Light's
+    Reckoning's burst are the player's own casts (`src/AlliedRacesSpells.cpp`), so what they kill
+    is the player's kill: loot, experience, quest credit (the first release with them cast them
+    from unseen creatures, whose kills nobody got).
   - Zandalari Trolls: **Regeneratin'** (heals 17% of maximum health a second for 6 sec, ended
     by damage; 2.5 min cooldown), **Embrace of Pa'ku** (attacks and abilities have a 10% chance,
     at most every 30 sec, for +4% critical strike for 12 sec), **Pterrordax Swoop** (Slow Fall
@@ -96,17 +99,26 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   Battleboars and class notes) is cloned too, chained to the clones, since the original is
   closed to the new race and would never unlock: `tools/quests.py` finds them. Every other
   quest, item and condition of the start race (and of the classes' template races) is open to
-  the new race as it is. Scripted events bound to an original quest's id don't fire for its
-  clone.
+  the new race as it is. What the world does on an original quest's id is done on its clone's
+  too (`tools/quests.py`'s bindings): the people's scripts on accepting or handing in a quest
+  (the Ending Their World escort at Blood Watch, Legoso's run), the quest credit they give, and
+  the conditions on their gossip and texts (an "is on the quest" or "has done it" for the
+  original also holds for the clone, a "hasn't done it" for both). Rescue the Survivors!'s
+  survivors stand up for Gift of the Naaru, a Draenei racial: a void elf or Lightforged holds it
+  while their clone of the quest is in the log, and loses it when it's complete or abandoned.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's
   MP3s, `data/client/voidelf_intro.mp3`, `nightborne_intro.mp3`, `lightforged_intro.mp3` and
-  `zandalari_intro.mp3`).
+  `zandalari_intro.mp3`), played through the cinematic's voice entry as the game's own
+  narrations are. They're kept in the game's own narrations' format: MPEG-1 Layer III, 44.1 kHz,
+  constant 160 kbit/s, no ID3 tags and no Xing/VBR header (the user's files were variable bit
+  rate with ID3v2.4 tags, which 3.3.5's player may not start).
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the free
   columns of the race icons (the void elves' and nightborne's in the last, the Lightforged's and
   Zandalari's in the one before the Skyborne's); with more than five races a side, **two races to
   a row** down each side's banner (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays
-  out again after, the same way); the Draenei's, the Forsaken's and the Tauren's backgrounds;
-  their texts.
+  out again after, the same way); the Draenei's background for the void elves and Lightforged,
+  the night elves' for the nightborne (the Forsaken's scene's camera is framed for the Forsaken's
+  stoop and cut the nightborne's heads off), the Tauren's for the Zandalari; their texts.
 
 ## How it's made
 
@@ -153,7 +165,7 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     (the eyes, 256 x 64), underwear (256 x 128), hair (as it is, DXT). `tools/blp.py` reads and
     writes BLP2 (palette, DXT1/3/5). `tools/names.py` names them for both the textures and the
     tables.
-  - the voices as MP3s (ffmpeg).
+  - the voices as MP3s (ffmpeg: mono, 44.1 kHz, constant 64 kbit/s, no tags or VBR header).
 - As the world server starts, as soon as its configuration is read (`src/AlliedRaces.cpp`),
   `src/AlliedRacesPatch.cpp` makes the game's `Data/patch-V.MPQ` (read after the HD looks'
   patches, whose character tables it builds on, and before Wrath Remix's `patch-Y` and the
@@ -189,7 +201,12 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   in pieces; run here: all four pass; the HD look's blood elf,
   read the same way, passes but for what the HD look itself leaves out).
 - CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
-  Remix's, the races are playable in the world database with their looks, a void elf warrior starts in Ammen Vale and a nightborne
-  warrior in Deathknell, each with their racials.
+  Remix's, the races are playable in the world database with their looks, a warrior of each starts
+  in its place with its racials; then each in the world (`warcraft/server/allied_*.steps`):
+  Preternatural Calm's aura, Spatial Rift through the rift, Arcane Pulse's, Light's Reckoning's
+  and Light's Judgment's damage as the character's own, Regeneratin' and Pterrordax Swoop on the
+  character, the race's own first quest offered and the start race's not, Rescue the Survivors!
+  credited with the lent Gift of the Naaru and the gift taken back. Not tested: Entropic
+  Embrace's and Embrace of Pa'ku's procs, Demonbane's and City of Gold's amounts.
 - Not tested: the game itself (the models drawn, the looks, the voices, the intros, the screen on
   a phone): nothing here runs the 3.3.5 client.
