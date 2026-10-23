@@ -1,0 +1,20 @@
+# the Features: per race, the pelvis texture it was made for and its designs (races/features_export.py)
+designs 1 2 3 4 5 6 7 8 9 10 11 18
+[BloodElf]
+pelvis 256 128
+[Human]
+pelvis 256 128
+[Dwarf]
+pelvis 256 128
+[NightElf]
+pelvis 256 128
+[Gnome]
+pelvis 256 128
+[Draenei]
+pelvis 256 128
+[Orc]
+pelvis 256 128
+[Scourge]
+pelvis 256 128
+[Troll]
+pelvis 256 128

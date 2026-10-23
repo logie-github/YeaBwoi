@@ -370,6 +370,7 @@ namespace WrathRemix
     void ScreenFade(Player* player, uint32 milliseconds, std::string const& text);  // dark for a while, words on it
     void TellAddon(Player* player, std::string const& message);                     // a word to the player's own add-on (WowRemix: the app's TouchAddon.kt)
     void ClientSettled(Player* player);                                               // the add-on's word that its frames run smoothly again (RemixIntro.cpp)
+    std::string CurtainStatus(Player* player);                                       // "curtain 2 (3.1 s ago), settled 1 (2.9 s ago)", for `.remix intro status`
     // A journey from the dark (RemixIntro.cpp): the screen dark at once with [caption] on it (" | " a
     // new line), until the game has settled where they're going (map, x, y; or SettleSeconds are
     // up), then lifted over [liftMs]; never under [leastMs]. The caller makes the journey itself.

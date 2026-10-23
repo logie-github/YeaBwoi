@@ -23,13 +23,15 @@
 #include <set>
 #include <tuple>
 #include <cstdio>
+#include <cstring>
 #include <sstream>
+#include <zlib.h>
 
 namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-10";
+        constexpr char const* VERSION = "skyborne-11";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -291,15 +293,144 @@ namespace Skyborne
             return count;
         }
 
-        // CharSections' section 4 rows stay, with no textures, as the game's own rows for race 20 have.
-        void EmptyOverlayRows(Dbc& dbc)
+        std::string StringAt(Dbc const& dbc, size_t row, uint32_t field)
+        {
+            uint32_t at = dbc.Get(row, field);
+            return at < dbc.strings.size() ? reinterpret_cast<char const*>(&dbc.strings[at]) : "";
+        }
+
+        // CharSections' section 4 rows stay, with no textures, as the game's own rows for race 20 have;
+        // but for the Features' (the first texture is a design's, where MakeFeatures made it: a race
+        // whose body files aren't the ones the designs were made for has its design rows empty too).
+        void EmptyOverlayRows(Dbc& dbc, std::set<std::string> const& made)
         {
             if (dbc.fields < 10)
                 return;
             for (size_t row = 0; row < dbc.records.size(); ++row)
-                if (dbc.Get(row, 3) == 4)
-                    for (uint32_t field : { 4u, 5u, 6u })
-                        dbc.Set(row, field, dbc.String(""));
+            {
+                if (dbc.Get(row, 3) != 4)
+                    continue;
+                std::string first = Lower(StringAt(dbc, row, 4));
+                if (first.find("femalefeature") != std::string::npos && made.count(first))
+                    continue;
+                for (uint32_t field : { 4u, 5u, 6u })
+                    dbc.Set(row, field, dbc.String(""));
+            }
+        }
+
+        // The Features' textures (data/client/features, tools/art/races/features_export.py): each race's
+        // body-hair designs as the pelvis texture the game puts under the legs' armour (the first
+        // texture of a CharSections section 4 row: tools/build_data.py gives the rows of a design
+        // Character\<Race>\Female\<Race>FemaleFeature<NN>.blp, NN its place in the race's file). A race
+        // whose model or body texture isn't the one the designs were made for gets none.
+        size_t MakeFeatures(fs::path const& dir, Game const& game, BodyShade const& body, std::set<std::string>& made,
+                            MpqWriter& writer, std::vector<std::string>& problems)
+        {
+            std::istringstream lines(Text(dir / "features.txt"));
+            std::vector<std::tuple<std::string, uint32_t, uint32_t>> races;       // name, pelvis width and height
+            std::string line, name;
+            while (std::getline(lines, line))
+            {
+                if (!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                if (line.empty() || line[0] == '#')
+                    continue;
+                if (line[0] == '[')
+                {
+                    name = line.substr(1, line.find(']') - 1);
+                    continue;
+                }
+                std::istringstream fields(line);
+                std::string key;
+                uint32_t w = 0, h = 0;
+                fields >> key >> w >> h;
+                if (key == "pelvis" && !name.empty() && w && h)
+                    races.emplace_back(name, w, h);
+            }
+            size_t count = 0;
+            for (auto const& [race, pw, ph] : races)
+            {
+                if (!body.Has(race))
+                {
+                    problems.push_back("Features: the " + race + "'s model isn't the one its designs were made for");
+                    continue;
+                }
+                Bytes skin;
+                Image skinImage;
+                if (!game.Read("Character\\" + race + "\\Female\\" + race + "FemaleSkin00_00.blp", skin) || !Decode(skin, skinImage)
+                    || skinImage.width != pw * 2 || skinImage.height != ph * 4)
+                {
+                    problems.push_back("Features: the " + race + "'s body texture isn't the size its designs were made for");
+                    continue;
+                }
+                Bytes data = ReadFile(dir / (race + ".bin"));
+                auto get = [&data](size_t at) -> uint32_t
+                {
+                    return at + 4 <= data.size() ? uint32_t(data[at]) | uint32_t(data[at + 1]) << 8 | uint32_t(data[at + 2]) << 16 | uint32_t(data[at + 3]) << 24 : 0;
+                };
+                if (data.size() < 36 || std::memcmp(data.data(), "FEAT", 4) != 0 || get(4) != 1 || get(8) != pw || get(12) != ph)
+                {
+                    problems.push_back("Features: " + race + ".bin isn't the designs of a " + std::to_string(pw) + " by " + std::to_string(ph) + " pelvis");
+                    continue;
+                }
+                uint32_t x0 = get(16), y0 = get(20), w = get(24), h = get(28), n = get(32);
+                if (uint64_t(x0) + w > pw || uint64_t(y0) + h > ph)
+                {
+                    problems.push_back("Features: " + race + ".bin's box is outside the pelvis");
+                    continue;
+                }
+                size_t at = 36;
+                for (uint32_t d = 0; d < n && at + 8 <= data.size(); ++d)
+                {
+                    uint32_t size = get(at + 4);
+                    at += 8;
+                    if (at + size > data.size())
+                        break;
+                    std::vector<uint8_t> raw(size_t(w) * h * 4);
+                    uLongf got = uLongf(raw.size());
+                    bool good = uncompress(raw.data(), &got, &data[at], uLong(size)) == Z_OK && got == raw.size();
+                    at += size;
+                    if (!good)
+                    {
+                        problems.push_back("Features: a design of " + race + ".bin is cut short");
+                        continue;
+                    }
+                    // Transparent texels take the design's average colour, so the smaller copies of the texture
+                    // don't darken its edges.
+                    size_t cells = size_t(w) * h;
+                    double sum[3] = { 0, 0, 0 }, weight = 0;
+                    for (size_t i = 0; i < cells; ++i)
+                        for (int c = 0; c < 3; ++c)
+                            sum[c] += double(raw[cells + i * 3 + c]) * raw[i];
+                    for (size_t i = 0; i < cells; ++i)
+                        weight += raw[i];
+                    Image out;
+                    out.width = pw;
+                    out.height = ph;
+                    out.rgba.assign(size_t(pw) * ph * 4, 0);
+                    for (size_t i = 0; i < size_t(pw) * ph; ++i)
+                        for (int c = 0; c < 3; ++c)
+                            out.rgba[i * 4 + c] = weight > 0 ? uint8_t(std::lround(sum[c] / weight)) : 40;
+                    for (uint32_t y = 0; y < h; ++y)
+                        for (uint32_t x = 0; x < w; ++x)
+                        {
+                            size_t from = size_t(y) * w + x, to = (size_t(y0 + y) * pw + x0 + x) * 4;
+                            if (raw[from])
+                            {
+                                for (int c = 0; c < 3; ++c)
+                                    out.rgba[to + c] = raw[cells + from * 3 + c];
+                                out.rgba[to + 3] = raw[from];
+                            }
+                        }
+                    char number[8];
+                    std::snprintf(number, sizeof(number), "%02u", d + 1);
+                    std::string path = "Character\\" + race + "\\Female\\" + race + "FemaleFeature" + number + ".blp";
+                    writer.Add(path, EncodeBlp(out, true));
+                    made.insert(Lower(path));
+                    ++count;
+                }
+            }
+            return count;
         }
 
         // A skin the game gives only its NPCs (the face painted into it) has no face or overlay rows:
@@ -491,6 +622,9 @@ namespace Skyborne
             }
         }
 
+        // The Features' pelvis textures (the tables' section 4 rows name them).
+        textures += MakeFeatures(moduleData / "features", game, body, made, writer, problems);
+
         // Tables.
         for (auto it = fs::directory_iterator(moduleData / "dbc", error); !error && it != fs::directory_iterator(); it.increment(error))
         {
@@ -511,7 +645,7 @@ namespace Skyborne
             if (Lower(name) == "charsections")
                 AddExtraSkins(dbc, game, made);
             if (Lower(name) == "charsections")
-                EmptyOverlayRows(dbc);
+                EmptyOverlayRows(dbc, made);
             if (Lower(name) == "charsections")
                 CompleteSkins(dbc);
             if (Lower(name) == "charsections")
@@ -554,9 +688,16 @@ namespace Skyborne
                     text += "\r\n";
                 text += "SkyborneZoom.lua\r\n";
             }
+            // The Features row (the body-hair designs): how many skins a race has, the row, its code.
+            if (text.find("SkyborneFeatures.xml") == std::string::npos)
+            {
+                if (!text.empty() && text.back() != '\n')
+                    text += "\r\n";
+                text += "SkyborneFeaturesData.lua\r\nSkyborneFeatures.xml\r\nSkyborneFeatures.lua\r\n";
+            }
             writer.Add("Interface\\GlueXML\\GlueXML.toc", Bytes(text.begin(), text.end()));
             for (char const* name : { "SkyborneCreate.xml", "SkyborneCreate.lua", "SkyborneGearData.lua", "SkyborneGear.xml", "SkyborneGear.lua",
-                                      "SkyborneZoom.lua" })
+                                      "SkyborneZoom.lua", "SkyborneFeaturesData.lua", "SkyborneFeatures.xml", "SkyborneFeatures.lua" })
                 writer.Add(std::string("Interface\\GlueXML\\") + name, ReadFile(moduleData / "Interface" / "GlueXML" / name));
         }
         else

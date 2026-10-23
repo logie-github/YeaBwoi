@@ -4,8 +4,9 @@ against stand-ins for the game's character creation screen: the button cycles no
 and champion gear, its icon is the mode's, the preview is dressed through the model's Undress and
 TryOn with the race and class's items, dressed again when a race or class is picked, its tooltip
 through the creation screen's own (GlueTooltip_SetOwner and GlueTooltip_SetText, functions in 3.3.5:
-the tooltip frame has no SetOwner method here, as in the game), and on a screen whose model can't be
-dressed (3.3.5's) the button is hidden and nothing breaks. Needs lupa (pip)."""
+the tooltip frame has no SetOwner method here, as in the game), it sits between the sex buttons (moved
+apart for it), and on a screen whose model can't be dressed (3.3.5's) it still shows and cycles, its
+tooltip says the preview can't be dressed, and nothing breaks. Needs lupa (pip)."""
 import os, sys
 from lupa import lua51
 
@@ -34,6 +35,10 @@ local function Frame(name)
   function f:SetScript(k, fn) self.scripts[k] = fn end
   function f:ClearAllPoints() self.points = {} end
   function f:SetPoint(...) self.points[#self.points + 1] = { ... } end
+  function f:GetPoint(i) local p = self.points[i or 1]; if p then return unpack(p) end end
+  function f:GetParent() return self.parent end
+  function f:GetFrameLevel() return self.level or 1 end
+  function f:SetFrameLevel(l) self.level = l end
   function f:SetNormalTexture(t) self.texture = t end
   function f:Show() self.shown = true end
   function f:Hide() self.shown = false end
@@ -41,7 +46,13 @@ local function Frame(name)
 end
 function CreateFrame() LAST_FRAME = Frame("timer"); return LAST_FRAME end
 CharacterCreateConfigurationFrame = Frame("CharacterCreateConfigurationFrame")
+-- the sex buttons as 3.3.5's XML puts them: TOP of the panel, 20 either side of its middle
+CharacterCreateGenderButtonMale = Frame("CharacterCreateGenderButtonMale")
+CharacterCreateGenderButtonMale.points = { { "TOP", CharacterCreateConfigurationFrame, "TOP", -20, -392 } }
+CharacterCreateGenderButtonMale.parent = CharacterCreateConfigurationFrame
+CharacterCreateGenderButtonMale.level = 4
 CharacterCreateGenderButtonFemale = Frame("CharacterCreateGenderButtonFemale")
+CharacterCreateGenderButtonFemale.points = { { "TOP", CharacterCreateConfigurationFrame, "TOP", 20, -392 } }
 SkyborneGearButton = Frame("SkyborneGearButton")
 GlueParent = Frame("GlueParent")
 MakeFrame = Frame
@@ -58,17 +69,19 @@ end
 local RACES = { {"Human","Human",1}, {"Dwarf","Dwarf",3}, {"Night Elf","NightElf",4}, {"Gnome","Gnome",7},
   {"Draenei","Draenei",11}, {"SkyborneA","SkyborneA",13}, {"Orc","Orc",2}, {"Undead","Scourge",5},
   {"Tauren","Tauren",6}, {"Troll","Troll",8}, {"Blood Elf","BloodElf",10}, {"SkyborneH","SkyborneH",14} }
-local CLASSES = { {"Warrior","WARRIOR",1}, {"Paladin","PALADIN",2}, {"Hunter","HUNTER",3}, {"Rogue","ROGUE",4},
+CLASSES = { {"Warrior","WARRIOR",1}, {"Paladin","PALADIN",2}, {"Hunter","HUNTER",3}, {"Rogue","ROGUE",4},
   {"Priest","PRIEST",5}, {"Death Knight","DEATHKNIGHT",6}, {"Shaman","SHAMAN",7}, {"Mage","MAGE",8},
   {"Warlock","WARLOCK",9}, {"Druid","DRUID",11} }
 SELECTED = { race = 1, class = 1, sex = 2 }
 SEX_FEMALE = 3
+-- (as 3.3.5's: the race by its position; the class's name, file and position)
 function GetSelectedRace() return SELECTED.race end
-function GetSelectedClass() return SELECTED.class end
+function GetSelectedClass() local c = CLASSES[SELECTED.class]; return c[1], c[2], SELECTED.class end
 function GetSelectedSex() return SELECTED.sex end
 local function flat(list)
   local out = {}
-  for _, e in ipairs(list) do out[#out + 1] = e[1]; out[#out + 1] = e[2]; out[#out + 1] = e[3] end
+  -- (3.3.5's lists: name, file and whether it can be picked, 1, never the id)
+  for _, e in ipairs(list) do out[#out + 1] = e[1]; out[#out + 1] = e[2]; out[#out + 1] = 1 end
   return unpack(out)
 end
 function CharacterCreateEnumerateRaces() end
@@ -129,7 +142,6 @@ check(data.start[13][1] is not None and data.start[14][11] is not None, "the Sky
 
 # ---- cycling --------------------------------------------------------------------------------
 check("Interface\\Icons\\INV_Misc_Leaf_01" == str(g.SkyborneGearButton.texture), "it starts on no gear (the fig leaf)")
-check(len(g.SkyborneGearButton.points) == 1, "the button is placed")
 
 click(lua)
 human_warrior = [38, 39, 40, 49778]
@@ -168,70 +180,61 @@ lua2 = start(dressable=False)
 g2 = lua2.globals()
 click(lua2)
 check(worn(lua2) == [], "a model that can't be dressed is left alone")
-check(not g2.SkyborneGearButton.shown, "the button is hidden on a screen whose model can't be dressed (3.3.5's)")
+check(g2.SkyborneGearButton.shown, "the button shows on a screen whose model can't be dressed (3.3.5's)")
 settle(lua2)
-check(not g2.SkyborneGearButton.shown, "and stays hidden as the screen settles")
-lua2.execute("SkyborneGearButton.scripts.OnEnter(); SkyborneGearButton.scripts.OnLeave()")
-check(True, "its tooltip calls don't fail there either")
+check(g2.SkyborneGearButton.shown, "and stays shown as the screen settles")
+check(str(g2.SkyborneGearButton.texture) == "Interface\\Icons\\" + str(data.start[1][1][1]), "it still cycles there (starting gear's icon)")
+lua2.execute("SkyborneGearButton.scripts.OnEnter()")
+tips = [str(v) for v in lua2.globals().CharacterCreateTooltip.lines.values()]
+check(tips[0] == "Starting gear" and any("can't be dressed" in t for t in tips), "its tooltip names the mode and says the preview can't be dressed (%s)" % tips)
+lua2.execute("SkyborneGearButton.scripts.OnLeave()")
+check(not lua2.globals().CharacterCreateTooltip.shown, "and hides again")
 
 # ---- placement -------------------------------------------------------------------------------
-LAYOUT = r"""
-local function Box(kind, name, l, r, b, t, parent)
-  local f = MakeFrame(name); f.kind = kind; f.rect = { l, r, b, t }
-  if parent then parent.kids[#parent.kids + 1] = f end
-  return f
-end
-SCREEN = MakeFrame("CharacterCreate"); SCREEN.rect = { 0, 1920, 0, 1080 }
-CharacterCreate = SCREEN
-CharacterCreateModel = MODEL                                                      -- (a preview that can be dressed)
-local config = Box("Frame", "ConfigPanel", 20, 300, 100, 900, SCREEN)           -- left: the races, classes, sexes
-for i = 1, 12 do Box("Button", "RaceButton"..i, 30, 70, 900 - 45 * i, 940 - 45 * i, config) end
-Box("EditBox", "NameBox", 700, 1000, 30, 60, SCREEN)                              -- the name box
-local custom = Box("Frame", "CustomizePanel", 1400, 1700, 120, 700, SCREEN)       -- right: the customize panel
-LOWEST = nil
-for row = 1, 5 do
-  local bottom = 640 - 100 * row
-  Box("Button", "Left"..row, 1410, 1440, bottom, bottom + 30, custom)
-  Box("Button", "Right"..row, 1660, 1690, bottom, bottom + 30, custom)
-end
-Box("Button", "Randomize", 1450, 1650, 125, 150, SCREEN)                          -- not in the panel
-"""
+def point(lua, frame):
+    pt = lua.eval("%s.points[#%s.points]" % (frame, frame))
+    return [getattr(pt[i], "name", None) if i in (2,) else pt[i] for i in range(1, 6)]
 
-def placed(scale=1.0):
-    lua = start()
-    lua.execute(LAYOUT)
-    lua.execute("SkyborneGearButton.scale = %s" % scale)
-    lua.execute("for i = 1, 20 do LAST_FRAME.scripts.OnUpdate(LAST_FRAME, 0.1) end")
-    return lua
-
-lua3 = placed()
-pt = lua3.eval("SkyborneGearButton.points[#SkyborneGearButton.points]")
-vals = [str(pt[i]) if i != 2 else getattr(pt[i], "name", "?") for i in range(1, 6)]
-# between the name box (right edge 1000) and the customize panel (left edge 1400), minus half the button's width
-check(vals[0] == "BOTTOMLEFT" and vals[1] == "GlueParent" and float(vals[3]) == 1200 - 19,
-      "halfway between the name box and the customize panel (x %s)" % vals[3])
-# level with the lowest arrow button (row 5: 640 - 500 = 140), not the panel's bottom (120) or the randomize button's (125)
-check(float(vals[4]) == 140, "its bottom level with the lowest arrow button (y %s)" % vals[4])
-check(lua3.eval("SkyborneGearButton.parent == CharacterCreate"), "it is on the creation screen")
+lua3 = start()
+gear = point(lua3, "SkyborneGearButton")
+check(gear == ["TOP", "CharacterCreateConfigurationFrame", "TOP", 0, -392],
+      "the button stands where the middle of the sex buttons was (%s)" % gear)
+check(len(lua3.eval("SkyborneGearButton.points")) == 1, "anchored once")
+male = point(lua3, "CharacterCreateGenderButtonMale")
+female = point(lua3, "CharacterCreateGenderButtonFemale")
+check(male == ["RIGHT", "SkyborneGearButton", "LEFT", -12, 0], "male to its left, 12 apart (centre 50 left of the middle) (%s)" % male)
+check(female == ["LEFT", "SkyborneGearButton", "RIGHT", 12, 0], "female to its right, 12 apart (centre 50 right of the middle) (%s)" % female)
+half = 19                                          # the buttons are 38 wide (the XML's and 3.3.5's)
+check(gear[3] - half + male[3] - half == -50 and gear[3] + half + female[3] + half == 50,
+      "so each sex button's centre is 50 either side of the middle")
 lua3.execute("SkyborneGearButton.scripts.OnEnter()")
 tips = [str(v) for v in lua3.globals().CharacterCreateTooltip.lines.values()]
-check(any("Placed between NameBox and CustomizePanel" in t for t in tips), "its tooltip says what it was placed by (%s)" % [t for t in tips if "Placed" in t])
 check(lua3.eval("CharacterCreateTooltip.owner == SkyborneGearButton"), "the creation screen's tooltip, owned by the button")
+check(any("Click to change what the preview wears." in t for t in tips) and not any("can't be dressed" in t for t in tips),
+      "where the model can be dressed the tooltip says the click dresses it (%s)" % tips)
 check(lua3.eval("SkyborneGearButton.shown"), "the button shows where the model can be dressed")
+check(lua3.eval("SkyborneGearButton.parent == CharacterCreateConfigurationFrame"), "it sits with the sex buttons (their parent)")
+check(lua3.eval("SkyborneGearButton.level") == 5, "drawn over them (frame level %s)" % lua3.eval("SkyborneGearButton.level"))
+settle(lua3)
+check(point(lua3, "SkyborneGearButton") == gear and len(lua3.eval("SkyborneGearButton.points")) == 1, "settling doesn't move it")
 
-lua4 = placed(scale=0.5)
-pt = lua4.eval("SkyborneGearButton.points[#SkyborneGearButton.points]")
-check(float(pt[4]) == (1200 - 19 / 2) / 0.5, "a scaled button's x is in its own units too (x %s)" % pt[4])
-check(float(pt[5]) == 140 / 0.5, "a scaled button's offsets are in its own units (y %s)" % pt[5])
+# without its data it still has an icon (a button with no texture isn't seen)
+lua6 = lua51.LuaRuntime(unpack_returned_tuples=True)
+lua6.execute(STUBS)
+lua6.execute("MODEL = MakeModel(false); CharacterCreate = {}")
+lua6.execute(LUA)
+check(str(lua6.globals().SkyborneGearButton.texture).endswith("INV_Misc_Leaf_01") and lua6.eval("SkyborneGearButton.shown"),
+      "with no SkyborneGearData.lua the button is still drawn, with the leaf")
 
-# without a name box or a panel the button stays where it was
-lua5 = start()
-before = len(lua5.eval("SkyborneGearButton.points"))
-lua5.execute("for i = 1, 20 do LAST_FRAME.scripts.OnUpdate(LAST_FRAME, 0.1) end")
-check(len(lua5.eval("SkyborneGearButton.points")) == before, "with no name box found it keeps its first place")
-lua5.execute("SkyborneGearButton.scripts.OnEnter()")
-tips = [str(v) for v in lua5.globals().CharacterCreateTooltip.lines.values()]
-check(any("no name box found" in t for t in tips), "and says so")
+# without the sex buttons it stands where they would be
+lua4 = lua51.LuaRuntime(unpack_returned_tuples=True)
+lua4.execute(STUBS)
+lua4.execute("CharacterCreateGenderButtonMale = nil; CharacterCreateGenderButtonFemale = nil")
+lua4.execute("MODEL = MakeModel(false); CharacterCreate = {}")
+lua4.execute(DATA)
+lua4.execute(LUA)
+check(point(lua4, "SkyborneGearButton") == ["TOP", "CharacterCreateConfigurationFrame", "TOP", 0, -392],
+      "with no sex buttons it takes their place on the panel")
 
 # ---- the button's XML -----------------------------------------------------------------------
 check('name="SkyborneGearButton"' in XML and 'parent="CharacterCreateConfigurationFrame"' in XML, "the XML makes the button on the creation screen")

@@ -1,0 +1,56 @@
+name: Check TWW download sources
+on:
+  push:
+    paths: ['.github/workflows/check-tww-client.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - name: Exercise the actual downloader and importer on the pinned client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path("warcraft/unit-tests/src/test/kotlin/com/logie/warcraft/tww/core/TwwLiveSourceTest.kt")
+          p.parent.mkdir(parents=True,exist_ok=True)
+          p.write_text('''package com.logie.warcraft.tww.core
+          import java.io.File
+          import java.nio.file.Files
+          import kotlin.test.*
+          class TwwLiveSourceTest {
+              @Test fun actualDriveDownloadBcj2ExtractionAndClientRecognition() {
+                  val root=Files.createTempDirectory("tww-live-").toFile()
+                  try {
+                      val download=TwwDownload(TwwRealm.CLIENT_ARCHIVE_URL,File(root,"downloads"),"client",TwwRealm.CLIENT_ARCHIVE_SIZE,TwwRealm.CLIENT_ARCHIVE_SHA256)
+                      var observed=0L
+                      val archive=download.run { progress -> observed=progress.bytes }
+                      assertEquals(TwwRealm.CLIENT_ARCHIVE_SIZE,observed)
+                      val extracted=File(root,"staging")
+                      TwwArchive.extract(archive,extracted,nativeExtractor=File("/usr/bin/7z"))
+                      val client=assertNotNull(TwwInstall.findClientRoot(extracted))
+                      val report=TwwInstall.inspect(client,File(root,"server"))
+                      assertEquals(TwwInstall.Status.INSTALLED,report.client.status,report.client.toString())
+                      assertTrue(report.streamingClient,report.client.toString())
+                      assertEquals(TwwRealm.CLIENT_BUILD,report.clientBuild?.build)
+                      assertTrue(report.localConnectionConfigured)
+                      var reused=false
+                      download.run { progress -> reused=progress.reused }
+                      assertTrue(reused,"The second attempt must reuse the validated archive")
+                      println("LIVE_TWW_VERIFIED: actual Google Drive transfer, pinned checksum, BCJ2 extraction, build 63704, streaming detection and download reuse")
+                  } finally { root.deleteRecursively() }
+              }
+          }
+          ''')
+          PY
+          gradle --no-daemon -p warcraft/unit-tests test --tests '*TwwLiveSourceTest' --info

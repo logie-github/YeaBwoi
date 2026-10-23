@@ -77,12 +77,13 @@ fun FelsongWindow(
  * in a fel frame; the others plain sage lettering in a faint one.
  */
 @Composable
-fun FelsongButton(text: String, modifier: Modifier = Modifier, primary: Boolean = true, onClick: () -> Unit) {
+fun FelsongButton(text: String, modifier: Modifier = Modifier, primary: Boolean = true, enabled: Boolean = true, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 900f), label = "press")
     Box(
         modifier
+            .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
             .heightIn(min = 44.dp)
             .drawBehind {
                 if (primary) {
@@ -94,7 +95,7 @@ fun FelsongButton(text: String, modifier: Modifier = Modifier, primary: Boolean 
                     drawRect(FelsongColors.Sage.copy(alpha = 0.5f), style = Stroke(1.dp.toPx()))
                 }
             }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {

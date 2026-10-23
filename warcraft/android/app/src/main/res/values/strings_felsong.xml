@@ -4,12 +4,12 @@
     <string name="games_title">Games</string>
     <string name="games_chip">Games</string>
     <string name="games_tile">Other games</string>
-    <string name="games_tile_wrath_summary">Turtle WoW and Felsong, each a game of its own</string>
-    <string name="games_tile_turtle_summary">Wrath of the Lich King and Felsong</string>
+    <string name="games_tile_wrath_summary">Turtle WoW, Legion and The War Within</string>
+    <string name="games_tile_turtle_summary">Wrath of the Lich King, Legion and The War Within</string>
     <string name="wrath_name">Wrath of the Lich King</string>
     <string name="wrath_name_summary">The 3.3.5a game and its ChromieCraft realm</string>
-    <string name="felsong_name">Felsong — Legion 7.3.5</string>
-    <string name="felsong_name_summary">Not playable yet: its look, and its realm on the way</string>
+    <string name="felsong_name">Legion — 7.3.5</string>
+    <string name="felsong_name_summary">Single Player Project · AshamaneCore · Local realm</string>
     <string name="felsong_status_title">Not playable yet</string>
     <string name="felsong_status_body">Felsong has its look here and nothing more yet. There\'s no Play: nothing here can start the game yet, and nothing of the other games changes.</string>
     <string name="felsong_realm_title">The realm</string>

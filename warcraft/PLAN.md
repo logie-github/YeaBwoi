@@ -1274,6 +1274,17 @@ for the game on the phone itself ("that's the whole point").
     SettleSeconds`, 25, the longest wait; never under 1.5 s so the act's people are in place). The
     tavern's talk starts once the room is up. The Bazaar at the end the same, Moratari's welcome
     after the lift. CI's test client answers a curtain at once (it has no frames).
+  - Tested locally (the realm built, a new Timerunner logged in by the test client): at first every
+    act waited the whole 25 s. Found: the core's chat packet builder marks a game master's own words
+    as GM chat (`SMSG_GM_MESSAGECHAT`), the realm's whispers to the player themself among them, and
+    the test account is a game master, so its client never saw a curtain and never answered. Fixed
+    both ways: the realm builds the add-on's whispers by guid (plain chat, whoever the player is;
+    the app can make the phone's account a game master too), and the test client reads both
+    packets. Verified: three curtains at a new login (the login's, the way to the tavern's, the
+    arrival's), each answered; the curtain lifts 4.3 s after the login and the talk starts 2.5 s
+    later; `.remix intro status` now counts curtains and settles ("curtain 3 (1.6 s ago), settled 3
+    (1.6 s ago)") so a phone that seems to wait the whole SettleSeconds can be read. The prologue
+    script's seated check moved to 30 s (the toast has them standing from +9 to +16 s).
   - See "Not sure" below for what the phone will show.
 - Open (the user's):
   0. **The next fix** (the user: "Put this on the next fix"): the future Sylvanas, Alleria and
@@ -1312,7 +1323,34 @@ for the game on the phone itself ("that's the whole point").
      methods; its preview is a ModelFFX with no `Undress` or `TryOn`, so no interface code can dress
      it. Fixed: the creation screen's tooltip through those functions, no frame round the icon,
      and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
-     shows only if a change to the executable ever makes it dressable). Checked here: test_gear.py
+     shows only if a change to the executable ever makes it dressable). Later the user: "Also the button
+     with no gear, gear, and champion gear is it showing ANYWHERE. but it between the sex buttons."
+     Done: shown always, between the sex buttons (moved apart for it);
+     in 3.3.5 it cycles its choice and icon and its tooltip says the preview can't be dressed yet
+     (the executable route below is still what would dress it). Checked here: test_gear.py (54
+     checks). Not checked: the game. Then: "The god damn gear button isn't showing and the race portrait are
+     still 1 column. It's supposed to be 2 columns and the gear button is the most important thing."
+     Checked: release 182's APK carries the new SkyborneGear.lua in its server package; the realm
+     remakes patch-Z.MPQ as it starts when the module's files change, before the game starts. Done:
+     each side's races in two columns, two to a row (both SkyborneCreate.lua and
+     AlliedRacesCreate.lua, the side from the race where the game gives none); the gear button takes
+     the sex buttons' parent, is drawn over them and always has an icon. Checked here: the patch made
+     for a stand-in client with a GlueXML.toc, its creation screen files read back out of it and run
+     in its order in one Lua 5.1 runtime (all load; the button shown with its icon between the sex
+     buttons; each side two to a row); test_gear.py, both test_screen.py. Not checked: the game. Then the user's
+     screenshots (build 182): the button shown, its tooltip saying the preview can't be dressed ("it
+     gives a message saying it doesn't work"); "The size of these models is off" (the nightborne
+     filled the screen, heads cut off); and the Features row over the second row of class icons for
+     void elf and nightborne women. Found and fixed: 3.3.5's race and class lists give each one's
+     name, file and whether it can be picked (1), never an id, and GetSelectedClass gives the name,
+     file and position: the Features row and the gear button took the 1 for Human (so the row showed
+     for every woman, stepping skins by the Humans' 10) and the position for the class; both now go
+     by the file name. The sex and class block sits 48 higher, so the Features row has room. The
+     nightborne take the Night Elves' scene (each race's scene has a camera framed for that race's
+     height: the Forsaken's, for the stooped undead, cut off the night-elf-sized nightborne; their
+     meshes measure as the night elves', 2.55 and 2.36). Still open: dressing the preview needs code
+     in the game itself (a DLL, the community's 3.3.5a extension route: WotLK-Extensions has the
+     glue Lua hook and CharStartOutfit's table at 0xAD3350); not started, the user to decide. Earlier checks: test_gear.py
      (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
      so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
      patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model
@@ -1492,6 +1530,59 @@ for the game on the phone itself ("that's the whole point").
 
 **Next:** the user's test on the phone (the first Wine start, graphics, sound, the gestures' feel,
 a realm with modules), then stage 3.
+
+- The Features row: "Make sure the new features for the races are added into the game ... just be sure
+  they're wired in. In the skyborne module." Done in mod-skyborne: `tools/art/races/features_export.py`
+  makes `data/client/features` (twelve designs for the nine bodies), `tools/build_data.py` makes the
+  Features' skin, face and pelvis rows (19,452 CharSections rows, ids 970000 to 989451, colours above
+  every colour the race and sex have; a first version started right after the selectable skins and
+  collided with the game's NPC-only skins, which the patch test found) and the Lua data, the patch
+  (`SkybornePatch.cpp`) makes the pelvis textures, and `SkyborneFeatures.xml/.lua` is the row. Tested:
+  `tools/test_features.py` (the row on stand-in screens, the data against each other) and
+  `tools/test_client.cpp` against the server's tables and the HD archive (all 108 textures made at
+  256 by 128 and painted; the patch's one other failure there is the race icons, which that folder
+  doesn't have, as before). The user told me not to look at the art: its pixels were checked by
+  count only.
+
+## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
+
+Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
+without it. Each is small on its own.
+
+- **The curtain on the phone.** The add-on calls the frames settled after 1.5 s without a frame
+  over 0.2 s (2 s in at least, 60 s at most); the realm waits 25 s at most (`WrathRemix.Intro.
+  SettleSeconds`). On the Fold the right numbers may differ: a city that never runs smoothly
+  means every act waits the whole 25 s; too lax and the room is still loading as it's revealed.
+  `.remix intro status` says how many curtains were drawn and answered and when.
+- **The caption's look.** White text on black, two lines ("The Gilded Rose, Stormwind / Some months
+  after the fall of the Lich King"), the add-on's fade frame's font and size: not seen on a screen.
+- **Game masters' add-on messages.** Until this build the realm's whispers to a game master's own
+  character went out as GM chat; the app can make the phone's account a game master, and whether
+  the game's add-on still heard them wasn't verified (the test client didn't). They're plain chat
+  now, whoever the player is.
+- **The bots at a first login.** Fifty bots load with the realm; their CPU time on the phone in the
+  opening's first minute, and whether it keeps the frames from settling, is unmeasured.
+- **The pinch zoom on the creation screen.** The model frame is grown around the character (the
+  screen's middle, a little above its centre); whether 3.3.5's ModelFFX draws its scene to the
+  frame's rectangle as assumed, and where the character actually stands on the Fold, isn't seen.
+- **Eternus's dragon model, Malykriss's look, the barber chair, the heirloom set's stats, the
+  gendered words ($G) in lines:** all built from the data and the formats, none watched in the
+  game yet (the earlier entries above say what each is).
+- **The Bazaar's name.** Malykriss keeps its own area name in the game (patch-Y is ChromieCraft's
+  too, so the area isn't renamed); the Bazaar is named in its captions and its people's words.
+- **The hooded Cloaked Ranger and the new looks.** The Bazaar's people got new looks from the data;
+  how the hooded ranger reads beside them is a matter of taste for the screen.
+- **Felsong's texts.** The 103 strings the Felsong code needed were written here in Turtle WoW's
+  words said of Felsong, so the app builds; the Felsong session may word them its own way.
+- **The Features row (mod-skyborne).** Built from the user's art, not seen in the game. Assumed: that
+  the game's skin colour list wraps around (the arrows step it by the race's skin count, so the last
+  design must wrap to none), that a design's pelvis texture (the underwear's first) is drawn with its
+  alpha under the legs, that a new look may start with a design (the game's random look picks any skin
+  colour), and that the decals' hair colour (the race's first hair colour) suits the skin. Tauren have
+  shading only (no hair art settings) and the goblin isn't a player's race: neither has the row. The
+  body shading stays automatic for every female skin. The user is adding loincloths over the designs.
+- **CI's triggers.** The push of the Felsong texts started no run on either branch (every push
+  before did); the run was started by hand (157). Whether GitHub skipped it or was late is unknown.
 
 ## Still open
 

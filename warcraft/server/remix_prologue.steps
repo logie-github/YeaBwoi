@@ -16,16 +16,25 @@ expect chapter 0 (the prologue)
 wait 8
 cmd .gps
 expect Stormwind City
-# (in their chair at the table with their friends, between the toasts)
-wait 14
+# (in their chair at the table with their friends, between the toasts: the curtain lifts about 4 s
+# after the login and the talk starts 2.5 s later; they stand for the toast at +9 s and sit again
+# at +16 s, until the next toast at +44 s)
+wait 21
 cmd .remix intro status
 expect seated
+# (the curtain was drawn three times, the login's, the way to the tavern's and the arrival's, and
+# this client answered each: the realm heard "settled" three times)
+cmd .remix intro status
+expect settled 3
 until I'm sorry, hero. I need you. 100
 wait 14
 cmd .gps
 expect Icecrown
 until Frostmourne hungers 110
-wait 14
+# (the journey to the Wrathgate: its curtain is drawn as the Lich King finishes, and lifts once the
+# game has settled there)
+until Angrathar 60
+wait 8
 cmd .gps
 expect Dragonblight
 until Farmers and miners 70
@@ -35,7 +44,9 @@ until Arise minions 80
 cmd .gps
 expect Icecrown
 until We can stop all of this 90
-wait 5
+# (the journey to the Bazaar, thirteen seconds on: its curtain is drawn as it starts)
+until Malykriss | Years earlier 60
+wait 8
 cmd .gps
 expect Malykriss: The Vile Hold
 

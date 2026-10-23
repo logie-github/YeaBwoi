@@ -121,11 +121,11 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   rate with ID3v2.4 tags, which 3.3.5's player may not start).
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the free
   columns of the race icons (the void elves' and nightborne's in the last, the Lightforged's and
-  Zandalari's in the one before the Skyborne's); with more than five races a side, **two races to
-  a row** down each side's banner (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays
-  out again after, the same way); the Draenei's background for the void elves and Lightforged,
-  the night elves' for the nightborne (the Forsaken's scene's camera is framed for the Forsaken's
-  stoop and cut the nightborne's heads off), the Tauren's for the Zandalari; their texts.
+  Zandalari's in the one before the Skyborne's); each side's races in two columns, two to a row
+  from the top (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after,
+  the same way); the Draenei's background for the void elves and Lightforged, the Tauren's for the
+  Zandalari, the Night Elves' for the nightborne (each scene's camera is framed for its race's
+  height: the Forsaken's, which they had first, cut off the nightborne's heads); their texts.
 
 ## How it's made
 

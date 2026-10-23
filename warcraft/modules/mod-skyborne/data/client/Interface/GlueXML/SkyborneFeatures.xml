@@ -1,0 +1,10 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<!-- The Features row on the character creation screen (mod-skyborne): the game's own customization row
+	     (its template: the label's frame and the two arrows) as a sixth, above the skin colour's, in the
+	     chain the other five hang in. What its arrows do, and when it shows, is SkyborneFeatures.lua's. -->
+	<Frame name="SkyborneFeatures" parent="CharacterCreateConfigurationFrame" inherits="CharacterCustomizationFrameTemplate" id="6" hidden="true">
+		<Anchors>
+			<Anchor point="BOTTOM" relativeTo="CharacterCustomizationButtonFrame1" relativePoint="TOP" x="0" y="0"/>
+		</Anchors>
+	</Frame>
+</Ui>

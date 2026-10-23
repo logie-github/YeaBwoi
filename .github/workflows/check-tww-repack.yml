@@ -1,0 +1,23 @@
+name: Inspect Draconic repack
+on:
+  push:
+    paths: ['.github/workflows/check-tww-repack.yml', 'scripts/inspect-tww-repack.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.14.3"
+      - run: python -m pip install gdown
+      - name: Download and inspect the supplied repack without executing it
+        run: python scripts/inspect-tww-repack.py

@@ -95,6 +95,7 @@ object TitleMusic {
         Environments.Environment.TURTLE -> Track.TURTLE
         Environments.Environment.FELSONG -> Track.FELSONG
         Environments.Environment.WRATH -> Track.WRATH
+        Environments.Environment.TWW -> Track.WRATH
     }
 
     /** The game is starting: the music fades out and stops for as long as the app runs. */
