@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Builds the two races' data from the game's own tables and data/retail/races.json (tools/
-races.py): the world database's SQL (data/sql/db-world/allied_races_world.sql) and the changes
+races.py): the world database's SQL (data/sql/chromiecraft/world/allied_races_world.sql) and the changes
 the module makes to the game's tables as the realm starts (data/client/dbc/*.txt;
 AlliedRacesPatch.cpp applies them, the way mod-skyborne's are). Run it again when something here
 or in races.json changes; its output is committed.
@@ -748,7 +748,7 @@ def main():
         sql.raw(f"UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | {b} WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & {s};")
 
     # Write -----------------------------------------------------------------------------------------
-    with open(os.path.join(MODULE, "data", "sql", "db-world", "allied_races_world.sql"), "w", newline="\n") as f:
+    with open(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_world.sql"), "w", newline="\n") as f:
         f.write("\n".join(sql.parts) + "\n")
     client.write(os.path.join(MODULE, "data", "client", "dbc"))
     print(f"{len(new_sections)} looks, {len(client.files)} tables, {len(spell_rows)} spells, {len(sound_sql)} voice sounds, {len(emote_rows)} emotes")

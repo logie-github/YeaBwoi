@@ -490,6 +490,20 @@ EOF
 	wait_world_ready
 	grep -q "Wrath Remix: on (realm 2)" "$world_log" || fail "Wrath Remix didn't turn on in its realm"
 	grep -q "Wrath Remix: the game's patch written" "$world_log" || fail "Wrath Remix didn't write the game's patch"
+	# The allied races are ChromieCraft's alone: their patch set aside (not in the game, kept for
+	# ChromieCraft), none of their SQL in Remix's world, its races 15 to 18 the game's own.
+	grep -q "^AlliedRaces.Enable = 0" "$FILES/etc-remix/modules/mod_allied_races.conf" || fail "the allied races aren't off in Wrath Remix's config"
+	grep -q "^AlliedRaces.Enable = 1" "$FILES/etc/modules/mod_allied_races.conf" || fail "the allied races aren't on in ChromieCraft's config"
+	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
+		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
+	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "the allied races can be made on Wrath Remix"
+	[ "$(echo "SELECT COUNT(*) FROM chrraces_dbc WHERE ID IN (15, 16, 17, 18, 24, 25, 26, 27)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has the allied races' race rows"
+	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID BETWEEN 950000 AND 979999" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has the allied races' quests"
+	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world)" -gt 0 ] ||
+		fail "ChromieCraft lost the allied races"
 	# Against the DBC files its world server read (the modules' over the game's, when there are).
 	remix_data=$(sed -n 's/^DataDir = "\(.*\)"$/\1/p' "$FILES/etc-remix/worldserver.conf")
 	python3 "$ROOT/warcraft/server/remix_check.py" patch "$FILES/client/Data/patch-Y.MPQ" "$remix_data/dbc" ||
@@ -601,6 +615,12 @@ EOF
 	wait_world_ready
 	grep -q "Wrath Remix: its patch is out of the game" "$world_log" || fail "ChromieCraft's world server didn't take Wrath Remix's patch out"
 	[ ! -e "$FILES/client/Data/patch-Y.MPQ" ] || fail "Wrath Remix's patch is still in the game on ChromieCraft"
+	# (its language folder's too, which hid the allied races' sounds there; and theirs is back)
+	for looks in "$FILES"/client/Data/*/patch-*-Y.MPQ; do
+		[ ! -e "$looks" ] || fail "Wrath Remix's $looks is still in the game on ChromieCraft"
+	done
+	[ -e "$FILES/client/Data/patch-V.MPQ" ] && [ ! -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
+		fail "the allied races' patch didn't come back on ChromieCraft"
 	# home in their side's capital: Stormwind (map 0, zone 1519) and Orgrimmar (map 1, zone 1637)
 	# (the world server queues their writes as it starts: they can land a moment after it's ready)
 	for expected in "Wintergarde	0	1519" "Agmarshammer	1	1637"; do

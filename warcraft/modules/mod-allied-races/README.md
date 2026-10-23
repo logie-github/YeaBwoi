@@ -1,7 +1,8 @@
 # mod-allied-races: the void elves, the nightborne, the Lightforged Draenei and the Zandalari Trolls
 
-Blizzard's allied races of today, playable in the app's 3.3.5 realms (ChromieCraft and Wrath Remix;
-Turtle WoW is another game and untouched), in their own models, looks and voices:
+Blizzard's allied races of today, playable in the app's 3.3.5 ChromieCraft realm (not on Wrath
+Remix's, the user's call: "Only chromie needs new races"; Turtle WoW is another game and untouched),
+in their own models, looks and voices:
 
 | Race | Id | Side | Starts | Classes |
 | --- | --- | --- | --- | --- |
@@ -91,7 +92,7 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   then learns what it lacks at its next login (the core teaches a character's missing start skills
   at every login).
 - **Quests**: the start race's own quests in its first zones are **cloned** for the new race
-  (`tools/quests.py`, `data/sql/db-world/allied_races_quests.sql`): the same quests from the same
+  (`tools/quests.py`, `data/sql/chromiecraft/world/allied_races_quests.sql`): the same quests from the same
   people, with the quest-givers taking in who the player is (a void elf among the Exodar's
   survivors, a nightborne sent to learn the Forsaken's ways) before sending them down the same
   road; the originals stay the start race's alone. Void elves: the seventeen Draenei-only quests
@@ -127,6 +128,23 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   Zandalari, the Night Elves' for the nightborne (each scene's camera is framed for its race's
   height: the Forsaken's, which they had first, cut off the nightborne's heads); their texts.
 
+## ChromieCraft's alone
+
+- **The SQL**: in `data/sql/chromiecraft/world`, which the servers don't read on their own; the app's
+  `ctl.sh` (`realm_sql`) puts it in ChromieCraft's world database's update list, so it goes in there
+  as the world server starts and never into Wrath Remix's. `data/sql/remix/world/allied_races_off_remix.sql`,
+  on Remix's list, takes out what earlier releases put in Remix's world database: their starts (no
+  character or bot of theirs is made there), stats, action bars and racials, and their race and look
+  rows (races 15 to 18 the game's own creatures' again). A character of theirs made there before stays
+  in its characters database, out of the character list (the core lists only the race and class pairs
+  it has a start for).
+- **The game's patch**: `AlliedRaces.Enable` (`mod_allied_races.conf`), which `ctl.sh` sets to 1 for
+  ChromieCraft and 0 for Remix as each starts. Off, the module sets `patch-V.MPQ` aside
+  (`patch-V.MPQ.aside`, out of the game) as the configuration is read, before the Skyborne's patch is
+  made from the game's tables; on, it puts it back, and makes it again only if what it's made from
+  changed. Its tables are made without Wrath Remix's patches (`patch-Y` and the language folder's
+  `patch-<locale>-Y`), which are Remix's realm's alone.
+
 ## How it's made
 
 - **`tools/races.py CSV_DIR`** reads Blizzard's tables of today (wago.tools' CSVs: ChrRaces,
@@ -136,7 +154,7 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   policy, skins, faces, eyes, hair, features, voices and names, by file id. The other tools work
   from it alone.
 - **`tools/build_data.py DBC_DIR WORLD_SQL_DIR`** reads the game's tables (the server's dbc
-  folder) and the core's world SQL and writes `data/sql/db-world/allied_races_world.sql` (the
+  folder) and the core's world SQL and writes `data/sql/chromiecraft/world/allied_races_world.sql` (the
   `*_dbc` tables the core reads over its DBC files, starts, skills, racials, standing, the quests
   opened) and `data/client/dbc/*.txt` (the rows to change in the game's tables, applied the
   Skyborne's way). Committed.
