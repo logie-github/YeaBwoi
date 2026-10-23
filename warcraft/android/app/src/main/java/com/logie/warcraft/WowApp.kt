@@ -4,10 +4,14 @@ package com.logie.warcraft
 
 import android.app.Application
 
-/** The app: in its own process (not the realm's, [RealmLink]), it hears the realm's server from the start. */
+/**
+ * The app: in its own process (not the realm's, [RealmLink]), it hears the realm's server from the
+ * start; in both, its failures go to GitHub ([FailureReports]).
+ */
 class WowApp : Application() {
     override fun onCreate() {
         super.onCreate()
         RealmLink.attach(this)
+        FailureReports.watch(this)
     }
 }
