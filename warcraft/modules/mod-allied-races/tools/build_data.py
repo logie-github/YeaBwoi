@@ -711,7 +711,7 @@ def main():
               (BIT[ZANDALARI], SPELLS["regeneratin"], "Zandalari Troll - Regeneratin"), (BIT[ZANDALARI], SPELLS["paku"], "Zandalari Troll - Embrace of Paku"),
               (BIT[ZANDALARI], SPELLS["swoop"], "Zandalari Troll - Pterrordax Swoop"), (BIT[ZANDALARI], SPELLS["city_of_gold"], "Zandalari Troll - City of Gold")]
     sql.raw("INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES\n"
-            + ",\n".join(f"({m}, 0, {s}, '{n}')" for m, s, n in custom) + ";")
+            + ",\n".join(f"({m}, 0, {s}, {sqlrows.quote(n)})" for m, s, n in custom) + ";")
 
     sql.comment("Their stats: their kin's (the blood elves' for the void elves, the night elves' for the nightborne).")
     cols, stats = sqlrows.table(os.path.join(world, "player_race_stats.sql"))
