@@ -1453,6 +1453,13 @@ for the game on the phone itself ("that's the whole point").
       character's, Regeneratin' and the swoop's aura, the race's own first quest offered and the
       start race's not, Rescue the Survivors! credited with the lent gift and the gift taken back.
       Not tested: Entropic Embrace's and Pa'ku's procs, Demonbane's and City of Gold's amounts.
+    - Found by that test (build 231): the races had no Common or Orcish (and missed some weapon
+      skills): the Skyborne's SQL, applied first, adds its bits to the same playercreateinfo_skills
+      rows, and this module's updates matched the stock masks exactly. Matched by the stock bits
+      now; a character made earlier learns its default skills at login. And build 229's world SQL
+      didn't import (an unquoted apostrophe in Light's Judgment's note): fixed in 1e755c4. The SQL
+      is now checked here on MariaDB over the core's stock tables (the Skyborne's first, then this
+      module's, then this module's again).
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

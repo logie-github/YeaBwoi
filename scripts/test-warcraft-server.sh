@@ -345,7 +345,14 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	echo "The void elves and the Lightforged Draenei start with the Draenei, the nightborne with the Forsaken, the Zandalari with the Tauren, each with their racials."
+	# Their side's language (until 1.0.231 the Skyborne's SQL, applied first, kept them from it: no
+	# /say, no chat command).
+	for who in Voidtester:98 Nighttester:109 Lightester:98 Zandtester:109; do
+		name=${who%%:*} language=${who#*:}
+		known=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $language" | CTL sql acore_characters)
+		[ "$known" = 1 ] || fail "$name doesn't know its side's language (skill $language)"
+	done
+	echo "The void elves and the Lightforged Draenei start with the Draenei, the nightborne with the Forsaken, the Zandalari with the Tauren, each with their racials and their side's language."
 	# In the world: their racials at work (Preternatural Calm's aura, Spatial Rift through the rift,
 	# Arcane Pulse's damage, Light's Reckoning's and Judgment's the character's own, Regeneratin',
 	# Pterrordax Swoop), their own first quests offered and the start race's not, and Rescue the

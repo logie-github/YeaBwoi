@@ -688,7 +688,10 @@ def main():
     sql.raw("INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `type`) VALUES\n"
             + ",\n".join("(" + ", ".join(str(x) for x in r) + ")" for r in out) + ";")
 
-    sql.comment("Their skills: their side's weapons and armour; Common or Orcish; no other race's racials.")
+    sql.comment("Their skills: their side's weapons and armour; Common or Orcish; no other race's racials. The rows are\n"
+                "found by their stock races (the low eleven bits): the Skyborne's SQL, applied first, adds its races' bits\n"
+                "to the same rows, and an exact match found none of them, which left these races without Common, Orcish\n"
+                "and some weapons until 1.0.231.")
     cols, skills = sqlrows.table(os.path.join(world, "playercreateinfo_skills.sql"))
     for r in skills:
         mask, skill = int(r["raceMask"]), int(r["skill"])
@@ -696,7 +699,7 @@ def main():
             continue
         add = faction_bits(mask, skill)
         if add:
-            sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {add} WHERE `raceMask` = {mask} AND `classMask` = {r['classMask']} AND `skill` = {skill};")
+            sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {add} WHERE (`raceMask` & 2047) = {mask & 2047} AND `classMask` = {r['classMask']} AND `skill` = {skill};")
 
     sql.comment("Their racials, learned at creation.")
     sql.raw(f"DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN {min(SPELLS.values())} AND {max(SPELLS.values())};")
