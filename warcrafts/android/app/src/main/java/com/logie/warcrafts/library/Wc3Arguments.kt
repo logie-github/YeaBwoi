@@ -3,18 +3,21 @@
 package com.logie.warcrafts.library
 
 /**
- * What Warcraft III is started with, beside the user's own arguments (Game files): fullscreen at
- * the screen's size, and OpenGL when chosen in Graphics. Each in 1.30's words and in the ones patch
+ * What Warcraft III is started with, beside the user's own arguments (Game files): the whole
+ * screen, and OpenGL when chosen in Graphics. Each in 1.30's words and in the ones patch
  * 1.31 replaced them with (the game passes over the ones it doesn't know). Plain Kotlin,
  * unit-tested.
  */
 object Wc3Arguments {
     /**
-     * Fullscreen: 1.30's `-nativefullscr`, 1.31's `-windowmode fullscreen`. (Windowed fullscreen,
-     * if wanted instead, is `-fullscreen` in 1.30, `-windowmode windowedfullscreen` in 1.31: typed
-     * in Game files, it takes this one's place.)
+     * The whole screen, edge to edge, no border: windowed fullscreen, 1.30's `-fullscreen` (its
+     * default, "fake fullscreen") and 1.31's `-windowmode windowedfullscreen`. Wine's desktop is
+     * the screen's size, so it fills it. Native fullscreen (`-nativefullscr`, `-windowmode
+     * fullscreen`) asks Wine for a display mode of its own instead: build 5 started with it, and
+     * build 7 stopped with "Warcraft III was unable to initialize. Error 4."; typed in Game files,
+     * it takes this one's place.
      */
-    const val FULLSCREEN = "-windowmode fullscreen -nativefullscr"
+    const val FULLSCREEN = "-windowmode windowedfullscreen -fullscreen"
 
     /** OpenGL in place of Direct3D: 1.30's `-opengl`, 1.31's `-graphicsapi OpenGL`. */
     const val OPENGL = "-opengl -graphicsapi OpenGL"
