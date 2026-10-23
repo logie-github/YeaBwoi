@@ -536,7 +536,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     private suspend fun waitReady(context: Context, name: String, ports: List<Int>, seconds: Int) {
         val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(seconds.toLong())
         while (true) {
-            if (activity.get() == null) throw IOException("The Windows session ended while starting $name.")
+            if (activity.get() == null) throw IOException("The Windows session ended while starting $name.\n" + sessionEnd(context, name))
             if (exitFile(context, name).isFile) throw IOException("$name exited with code ${exitFile(context, name).readText().trim()}. ${logTail(context, name)}")
             if (ports.all { open(it) }) return
             if (System.currentTimeMillis() >= deadline) throw IOException("$name did not open its configured local ports before the timeout. ${logTail(context, name)}")
@@ -574,6 +574,20 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     private fun logTail(context: Context, name: String): String = runCatching {
         File(layout(context).root, "runtime/$name.log").readLines().takeLast(12).joinToString("\n").takeLast(3000)
     }.getOrDefault("No component log was produced.")
+
+    /**
+     * Why a Windows session ended: the component's own log, then the runtime's (Wine and Box64's
+     * output and its exit status, runtime/session.log), so a failure on a phone explains itself.
+     */
+    internal fun sessionEnd(context: Context, name: String): String {
+        val component = runCatching { File(layout(context).root, "runtime/$name.log").readLines().filter { it.isNotBlank() }.takeLast(8) }.getOrDefault(emptyList())
+        val session = runCatching { File(layout(context).root, "runtime/session.log").readLines().filter { it.isNotBlank() }.takeLast(14) }.getOrDefault(emptyList())
+        return buildString {
+            append(if (component.isEmpty()) "$name.log: nothing written." else "$name.log:\n" + component.joinToString("\n"))
+            append("\n")
+            append(if (session.isEmpty()) "session.log: nothing written." else "session.log:\n" + session.joinToString("\n"))
+        }.takeLast(4000)
+    }
 
     private fun roleName(role: TwwInstall.Role) = when (role) {
         TwwInstall.Role.DATABASE -> "database"
