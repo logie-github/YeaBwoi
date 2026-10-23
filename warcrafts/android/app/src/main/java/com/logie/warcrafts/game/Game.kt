@@ -148,12 +148,12 @@ object Game {
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 
-    /** The runtime's hosts file: Blizzard's names nowhere while Private is on ([Offline]). */
+    /** The runtime's name lookups: none but this phone's while Private is on, offline ([Offline]). */
     private fun keepOffline(context: Context) {
         val etc = File(RootFS.find(context).rootDir, "etc")
         etc.mkdirs()
-        File(etc, "hosts").writeText(Offline.hosts(RtsFiles.isPrivate(context)))
-        File(etc, "nsswitch.conf").writeText(Offline.nsswitch())
+        File(etc, "hosts").writeText(Offline.hosts())
+        File(etc, "nsswitch.conf").writeText(Offline.nsswitch(RtsFiles.isPrivate(context)))
     }
 
     /** The games' Windows: made the first time, its screen and drives set every time. */
@@ -189,10 +189,10 @@ object Game {
     }
 
     /**
-     * Warcraft III's settings in the games' Windows registry: the screen's size, fullscreen
-     * (`windowmode` 2; 1 is windowed fullscreen, 0 windowed; the start's arguments say it too,
-     * [com.logie.warcrafts.library.Wc3Arguments]), and English unless a language was chosen (the
-     * repack's "Classic Launcher" key).
+     * Warcraft III's settings in the games' Windows registry: the screen's size, the whole screen
+     * (`windowmode` 1, windowed fullscreen; 0 is windowed, 2 native fullscreen; the start's
+     * arguments say it too, [com.logie.warcrafts.library.Wc3Arguments]), and English unless a
+     * language was chosen (the repack's "Classic Launcher" key).
      */
     private fun configureWarcraft3(container: Container, width: Int, height: Int) {
         val userReg = File(container.rootDir, ".wine/user.reg")
@@ -201,7 +201,7 @@ object Game {
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)
-            registry.setDwordValue(video, "windowmode", 2)
+            registry.setDwordValue(video, "windowmode", 1)
             val launcher = "Software\\Blizzard Entertainment\\Classic Launcher\\w3"
             if (registry.getStringValue(launcher, "Locale", "").isEmpty()) registry.setStringValue(launcher, "Locale", "enUS")
         }
