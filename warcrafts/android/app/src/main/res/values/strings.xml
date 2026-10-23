@@ -80,7 +80,7 @@
     <string name="rts_setup_damaged">The download was damaged and has been removed. Try again (Wi-Fi recommended).</string>
     <string name="rts_setup_refused">Blizzard\'s server refused the download (HTTP %1$d). Try again later or on another network.</string>
     <string name="rts_setup_not_downloaded">Download the installers first (Game files → Download from Blizzard).</string>
-Converting %1$s for the phone</string>
+    <string name="rts_convert_title">Converting %1$s for the phone</string>
     <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
     <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>
     <string name="rts_installer_missing_parts">The installer\'s .bin file wasn\'t picked: pick the setup .exe and every .bin file that came with it together (touch and hold the first, then tap the others).</string>
