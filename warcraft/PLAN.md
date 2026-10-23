@@ -1453,21 +1453,27 @@ for the game on the phone itself ("that's the whole point").
       character's, Regeneratin' and the swoop's aura, the race's own first quest offered and the
       start race's not, Rescue the Survivors! credited with the lent gift and the gift taken back.
       Not tested: Entropic Embrace's and Pa'ku's procs, Demonbane's and City of Gold's amounts.
-    - Found by that test (build 231): the races had no Common or Orcish (and missed some weapon
-      skills): the Skyborne's SQL, applied first, adds its bits to the same playercreateinfo_skills
-      rows, and this module's updates matched the stock masks exactly. Matched by the stock bits
-      now; a character made earlier learns its default skills at login. And build 229's world SQL
+    - Found by that test (build 231): a void elf's chat commands went unanswered (no language).
+      Both modules add their races' bits to the same playercreateinfo_skills rows and found them by
+      the stock masks exactly, so whichever ran second changed nothing; both find them by the stock
+      bits now. A character made earlier learns its start skills at its next login (the core does that at
+      every login). And build 229's world SQL
       didn't import (an unquoted apostrophe in Light's Judgment's note): fixed in 1e755c4. The SQL
-      is now checked here on MariaDB over the core's stock tables (the Skyborne's first, then this
-      module's, then this module's again).
+      is now checked here on MariaDB over the core's stock tables (both modules' in the realm's
+      order, then again).
     - Still no Common in build 233: both modules' generators also put their races in the other
       side's language row of SkillRaceClassInfo (the Horde's Common row, the Alliance's Orcish:
       tiered rows for learning the other side's language, rank 0 at creation). The core keeps a
       skill's rows in an unordered multimap, where the later row comes first, so these races got
       that row and learned nothing; the Skyborne had the same. Each side's language now goes on its
-      own row only, the bits earlier releases left on the other row are cleared, and a Skyborne
-      character made before learns its start skills at login (as the allied races' do). The realm
+      own row only, the bits earlier releases left on the other row are cleared, and the realm
       test checks the language for all six.
+    - Build 234: the Skyborne still had none. The test's report (the realm's rows, the character's
+      skills beside a human's) showed why: the realm applies this module's SQL before the
+      Skyborne's (by the folders' names), and the Skyborne's exact matches then found nothing: no
+      Common or Orcish, Swords or Two-Handed Swords for the Skyborne since the allied races came.
+      The Skyborne's updates find the rows by the stock bits now too. Checked here in that order,
+      fresh and applied twice: all six races in their side's rows.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

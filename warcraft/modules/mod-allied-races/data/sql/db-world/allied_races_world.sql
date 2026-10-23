@@ -31957,9 +31957,9 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 (18, 11, 96, 6603, 0);
 
 -- Their skills: their side's weapons and armour; Common or Orcish; no other race's racials. The rows are
--- found by their stock races (the low eleven bits): the Skyborne's SQL, applied first, adds its races' bits
--- to the same rows, and an exact match found none of them, which left these races without Common, Orcish
--- and some weapons until 1.0.233.
+-- found by their stock races (the low eleven bits), as the Skyborne's SQL finds them: each adds its races'
+-- bits to the same rows, and an exact match finds nothing once the other has run (the Skyborne had no
+-- language, Swords or Two-Handed Swords up to 1.0.236 for that).
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 245760 WHERE (`raceMask` & 2047) = 36 AND `classMask` = 4 AND `skill` = 46;
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 245760 WHERE (`raceMask` & 2047) = 650 AND `classMask` = 4 AND `skill` = 45;
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 163840 WHERE (`raceMask` & 2047) = 690 AND `classMask` = 0 AND `skill` = 109;
