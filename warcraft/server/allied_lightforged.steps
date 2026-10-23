@@ -8,7 +8,9 @@ expect-not quest 9279:
 cmd .quest add 969283
 expect learned 28880
 go 530 -4060.3 -13669.5 72.1
-cast 28880 16483
+target 16483
+cmd .cast 28880
+target 0
 wait 7
 has credit 969283 16483
 expect removed 28880
@@ -23,6 +25,8 @@ cmd .revive
 target 0
 # Light's Judgment: three seconds after it's used on a Vale Moth, the character's strike there.
 go 530 -4318.1 -13349.1 47.6
-cast 98723 16520
+target 16520
+cmd .cast 98723
+target 0
 wait 3
 expect damage 98724 by player

@@ -6,6 +6,8 @@ has quest 950363:
 expect-not quest 363:
 # Arcane Pulse: Arcane damage, the character's own, to the enemies around it.
 go 0 1963.5 1609.5 84.0
-cast 98718 1501
+target 1501
+cmd .cast 98718
+target 0
 wait 1
 expect damage 98718 by player
