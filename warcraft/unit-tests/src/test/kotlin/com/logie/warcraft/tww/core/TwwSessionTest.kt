@@ -7,6 +7,7 @@ import java.io.IOException
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertContains
+import kotlin.test.assertTrue
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
@@ -31,6 +32,8 @@ class TwwSessionTest {
         assertContains(script, "cd /d \"S:\\database\"")
         assertContains(script, "\"S:\\database\\bin\\mysqld.exe\" \"--defaults-file=S:\\database\\my.ini\" \"--console\"")
         assertContains(script, "echo %ERRORLEVEL% >\"R:\\runtime\\database.exit\"")
+        // Winlator's Unix TMPDIR must not reach MariaDB (InnoDB stops on it under Box64).
+        assertTrue(script.indexOf("set \"TMPDIR=\"") in 0 until script.indexOf("mysqld.exe"))
     }
 
     @Test fun `paths in a sibling folder cannot enter the Wine session`() = withFolder { root ->
