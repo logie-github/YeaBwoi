@@ -646,7 +646,17 @@ jobs:
               exit 1
             fi
           fi
+          # Only the default branch's builds are offered to the app as updates (it skips
+          # prereleases): a build from another branch, missing the default branch's newer fixes,
+          # must never replace them on the phone. Its APK stays downloadable here.
+          prerelease=()
+          if [ "$GITHUB_REF_NAME" != "${{ github.event.repository.default_branch }}" ]; then
+            prerelease=(--prerelease)
+            notes="**Test build from the branch \`$GITHUB_REF_NAME\`**, not offered to the app as an update: the app takes the default branch's builds only.
+
+          $notes"
+          fi
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" dist/WarcraftServerData-windows.zip dist/spp-*.jpg \
-            --verify-tag \
+            --verify-tag "${prerelease[@]}" \
             --title "$APP_NAME $WOW_VERSION_NAME" \
             --notes "$notes"
