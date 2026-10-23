@@ -1550,6 +1550,39 @@ a realm with modules), then stage 3.
   allied races' voices and narrations, the HD looks' spell sounds); ChromieCraft's world server takes
   it out now, it's made onto the game's own `SoundEntries.dbc`, and the allied races' patch isn't made
   from it. The Skyborne stay on both realms until the user says otherwise.
+- The user: "These races are not scaled correctly. Load the old race models and new ones in 3d then
+  scale them according to the old race size. Trolls to trolls. Draenei to draenei. Elves to elves."
+  Measured here as the game poses them (where the head's bone is in Stand's first moment, the feet
+  at 0; the mesh's top was tried first, but the nightborne's ears are in their body's mesh and the
+  night elves' aren't, and the troll's top is his stoop), the old races in both HD looks (the
+  Alternative HD Patch's `patch-A`, fetched from its archive, and ChromieCraft's `Patch-H`: the same
+  heights) against the converted models: void elves 1.868 / 1.717 (men / women) as the blood elves
+  exactly, Lightforged 2.251 / 2.108 as the Draenei exactly, nightborne 2.245 / 2.000 against the
+  night elves' 2.212 / 2.017, Zandalari 2.537 / 2.443 against the trolls' 2.072 / 2.136 (today's
+  stand upright). `tools/scale.py` makes each its kin's height all through as the package is made
+  (nightborne 0.985 / 1.009, Zandalari 0.817 / 0.874; the rest stay); every pose checked here to be
+  the old one times the factor (to 3e-5 yards over Stand, Walk, Run and a dozen animations of
+  each), and the models drawn side by side with their kin's. On the creation screen the void elves
+  were in the Draenei's scene, framed for a race half a yard taller, and the Zandalari in the
+  Tauren's: each is in its kin's now (Blood Elves', Trolls').
+  Found on the way: the converter wrote each animation kept in a file of its own as the file's
+  model chunk alone (AFM2, 16 to 192 bytes), while the bones' data is in its AFSB chunk: every such
+  animation (emotes, sits, most besides Stand, Walk and Run) had the game reading its bones from
+  past the end of a 64-byte file. The files are whole now (the bones', the attachments' and the
+  model's chunks in one block, the tracks pointing into theirs). Some of today's skeletons list
+  files laid out for another skeleton (their times don't rise): the nightborne's parent skeletons
+  list their older night elf models' files, whose own bones fit them exactly (12,486 tracks), so
+  those sequences take their bones from there, matched by the bones' names' hashes; where nothing
+  fits (32 of the void elf women's, 22 of their skeleton's 54 files fit it; the Lightforged women's
+  Cry; the Zandalari women's Shy), the animation is drawn as its first variation or Stand. After
+  that, no vertex of any of the 1,012 animations 3.3.5 knows (first variations) goes beyond 4.6
+  yards. Not checked: the game itself.
+- The user: "Be sure the char creator never crashes." `tools/check_looks.py` checks the creation
+  screen's tables out of the whole patch chain for every look it can step to (the rule crash #34
+  broke: each player skin with its race and sex's faces, a death knight's with the death knights';
+  hair colours and geoset rows for every style; features 0 to n-1; the looks' display and model
+  rows). On the Alternative HD Patch's tables (the user's only setup: "I'll never use" the others)
+  with both patches in: 53 races and sexes, no problem; on the rows before 1.0.249's fix: 926.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

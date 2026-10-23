@@ -10,8 +10,10 @@ What changes:
   * The skeleton: the child's bones with the parent's sequences (the child's own over them where
     they share an id and variation, the rest added), every bone, attachment and event track with
     one entry a sequence; the sequence lookup a table by id for the ids 3.3.5 knows; sequences
-    kept in their own files stay so (3.3.5 reads <Name>NNNN-VV.anim files too); the blend times
-    and flags written 3.3.5's way.
+    kept in their own files stay so (3.3.5 reads <Name>NNNN-VV.anim files too: one block, where
+    today's has the bones', the attachments' and the model's data in chunks of their own, so the
+    three go one after the other and the tracks point into theirs); the blend times and flags
+    written 3.3.5's way.
   * The body texture layout: today's body texture is twice as wide as tall (the body in its left
     half, the head in its right); 3.3.5 composes a square one (the body as classic's, the face in
     the lower left quarter from the FaceLower and FaceUpper textures). The body's coordinates are
@@ -506,6 +508,102 @@ def remap_uv(u, v, kind, layout):
     return u, v
 
 
+ANIM_CHUNKS = (b"AFM2", b"AFSA", b"AFSB")
+
+
+def anim_block(data):
+    """A sequence's file of today as 3.3.5's, and where its parts start in it. Today's .anim has the
+    skeleton's bone data (AFSB), its attachments' (AFSA) and the model's own (AFM2) in chunks, each
+    track's offsets into its own chunk; 3.3.5's is one block. The three go one after the other, the
+    bones' first (their offsets stay); the attachments' and the model's tracks move by where theirs
+    start. An older file is one block already."""
+    if data[:4] not in ANIM_CHUNKS:
+        return bytes(data), {"bone": 0, "attach": 0, "model": 0}
+    c = chunks_of(data)
+    out = bytearray(c.get("AFSB", b""))
+    base = {"bone": 0}
+    for kind, cid in (("attach", "AFSA"), ("model", "AFM2")):
+        while len(out) % 16:
+            out.append(0)
+        base[kind] = len(out)
+        out += c.get(cid, b"")
+    return bytes(out), base
+
+
+def entry_ok(t, v, size, data, duration):
+    """Whether a track's entry for a sequence kept in its own file ([data]) is that file's: within
+    it, its times rising and within the sequence ([duration] ms)."""
+    if not (isinstance(t, tuple) and t[1]):
+        return True
+    if t[2] + t[1] * 4 > len(data) or (isinstance(v, tuple) and v[1] and v[2] + v[1] * size > len(data)):
+        return False
+    times = np.frombuffer(data, dtype="<u4", count=t[1], offset=t[2]).astype(np.int64)
+    return bool((np.diff(times) >= 0).all() and times[-1] <= duration + 1)
+
+
+def bones_match(skeleton, i, data, duration):
+    """Whether the skeleton's sequence i's bone data is in [data]: all but a fiftieth of its
+    tracks' entries are that file's (a few of today's skeletons list files whose data is laid out
+    for another skeleton: the nightborne's and the void elf women's parents' list their older
+    models' files)."""
+    good = bad = 0
+    for head, tracks, pivot in skeleton.bones:
+        for track, size in zip(tracks, (12, 8, 12)):
+            if track.gseq >= 0 or i >= len(track.timestamps):
+                continue
+            t, v = track.timestamps[i], track.values[i]
+            if isinstance(t, tuple) and t[1]:
+                if entry_ok(t, v, size, data, duration):
+                    good += 1
+                else:
+                    bad += 1
+    return bad <= (good + bad) / 50
+
+
+class OwnSkeleton:
+    """An older model's own bones, sequences and files (a model without a .skel), read as a
+    Skeleton is: where the files a newer skeleton lists were made for it."""
+
+    def __init__(self, data):
+        c = chunks_of(data)
+        m = c["MD21"]
+        sc, so = arr(m, 28)
+        self.seqs = [bytearray(m[so + i * SEQ:so + (i + 1) * SEQ]) for i in range(sc)]
+        self.in_file = [bool(struct.unpack_from("<I", s, 12)[0] & 0x20) for s in self.seqs]
+        in_file = lambda s: self.in_file[s] if s < len(self.in_file) else True
+        bc, bo = arr(m, 44)
+        self.bones = []
+        for i in range(bc):
+            at = bo + i * BONE
+            self.bones.append((m[at:at + 16], [Track.read(m, at + 16 + k * TRACK, size, in_file)
+                                                for k, size in enumerate((12, 8, 12))], m[at + 76:at + 88]))
+        self.anim_files = {}
+        raw = c.get("AFID", b"")
+        for i in range(0, len(raw), 8):
+            anim, var, fid = struct.unpack_from("<HHI", raw, i)
+            if fid:
+                self.anim_files[(anim, var)] = fid
+
+    def key(self, i):
+        return struct.unpack_from("<HH", self.seqs[i], 0)
+
+
+def bone_sources(files, policy, child, parent):
+    """The other skeletons whose files a sequence's data may be in: the parent model's own bones
+    (an older model) or its skeleton, where that isn't the one the child's names."""
+    out = []
+    if policy.get("parent_model"):
+        data = files(policy["parent_model"])
+        c = chunks_of(data)
+        if "SKID" in c:
+            sid = struct.unpack_from("<I", c["SKID"])[0]
+            if sid != child.parent:
+                out.append(Skeleton(files(sid)))
+        elif "MD21" in c and arr(c["MD21"], 44)[0]:
+            out.append(OwnSkeleton(data))
+    return out
+
+
 def convert(files, policy, out_dir, log=print):
     """[files]: file id -> bytes (a function). [policy]: the model's description (see the module's
     tools/races.py for how one is made). Writes the model into [out_dir] and returns the list of
@@ -534,6 +632,40 @@ def convert(files, policy, out_dir, log=print):
     external = []                                     # (merged index, (id, var), file id)
     no_file = set()                                   # external sequences with no file: empty
     merged.no_file = no_file
+    anim_out, anim_base = {}, {}                      # an external sequence's file as 3.3.5's, where each part starts
+    durations = {}                                    # an external sequence's length, as its file has it
+    bones_from = {}                                   # an external sequence whose bone data is another skeleton's: (it, its index)
+    unusable = set()
+    others = None
+    for j in range(merged.n):
+        which, i = merged.sources[j]
+        fid = merged.anim_file(j) if not merged.in_file(j) else 0
+        if not fid:
+            continue
+        skel = merged.skeleton(which)
+        key, duration = skel.key(i), struct.unpack_from("<I", skel.seqs[i], 4)[0]
+        block = anim_block(files(fid))
+        if not bones_match(skel, i, block[0], duration):
+            # the file is laid out for another skeleton: the one it fits gives this sequence's bones
+            if others is None:
+                others = bone_sources(files, policy, child, parent)
+            for other in others:
+                if key not in other.anim_files:
+                    continue
+                k = next(n for n in range(len(other.seqs)) if other.key(n) == key)
+                other_duration = struct.unpack_from("<I", other.seqs[k], 4)[0]
+                other_block = anim_block(files(other.anim_files[key]))
+                if bones_match(other, k, other_block[0], max(duration, other_duration)):
+                    bones_from[j] = (other, k)
+                    block, duration = other_block, max(duration, other_duration)
+                    break
+            else:
+                unusable.add(j)
+                continue
+        anim_out[j], anim_base[j] = block
+        durations[j] = duration
+    keys = [struct.unpack_from("<HH", merged.seq(j), 0) for j in range(merged.n)]
+    stand = keys.index((0, 0)) if (0, 0) in keys else 0
     for j in range(merged.n):
         which, i = merged.sources[j]
         s = bytearray(merged.seq(j))
@@ -544,8 +676,20 @@ def convert(files, policy, out_dir, log=print):
         struct.pack_into("<I", s, 28, max(blend_in, blend_out))
         vnext, anext = struct.unpack_from("<HH", s, 60)
         struct.pack_into("<HH", s, 60, merged.remap_index(which, vnext), merged.remap_index(which, anext))
-        if not merged.in_file(j):
+        if j in unusable:
+            # drawn as another: the animation's first variation, else Stand (an alias, its own tracks empty)
+            first = keys.index((sid, 0)) if (sid, 0) in keys else stand
+            target = first if first != j and first not in unusable else stand
+            log("%s: sequence %d-%d's file fits none of its skeletons: drawn as %d-%d" % (name, sid, var, *keys[target]))
+            struct.pack_into("<I", s, 12, flags | 0x20 | 0x40)
+            struct.pack_into("<H", s, 62, target)
+            no_file.add(j)
+        elif not merged.in_file(j):
             fid = merged.anim_file(j)
+            if j in bones_from:
+                other, k = bones_from[j]
+                fid = other.anim_files[other.key(k)]
+                log("%s: sequence %d-%d's bones from the skeleton its file is laid out for" % (name, sid, var))
             if fid:
                 external.append((j, (sid, var), fid))
             else:
@@ -555,8 +699,59 @@ def convert(files, policy, out_dir, log=print):
         seqs += s
         ids.append(sid)
     blob.array(28, merged.n, bytes(seqs))
+
+    def rebased(track, kind, size=None):
+        """[track] with its entries in the sequences' own files moved to where their chunk now is
+        ([size]: a value's bytes); an entry that isn't its file's (past its end, or times that
+        don't rise within the sequence) is left empty, so the game never reads what isn't it."""
+        if track.gseq >= 0:
+            return track
+        size = size or getattr(track, "value_size", None)
+        for j in range(len(track.timestamps)):
+            t = track.timestamps[j]
+            v = track.values[j] if track.values is not None else None
+            if not isinstance(t, tuple) or j not in anim_base:
+                continue
+            at = anim_base[j][kind]
+            t = (t[0], t[1], t[2] + at) if t[1] else t
+            if isinstance(v, tuple):
+                v = (v[0], v[1], v[2] + at) if v[1] else v
+            if not entry_ok(t, v, size or 0, anim_out[j], durations[j]):
+                t, v = b"", b"" if v is not None else None
+            track.timestamps[j] = t
+            if track.values is not None:
+                track.values[j] = v
+        return track
+
+    def real_floats(track, size):
+        """[track] (translations or scales, three floats a value) without the entries whose values
+        aren't (a file laid out for another skeleton), which the game would read as positions
+        thousands of yards off and throw their vertices across the screen."""
+        for j in range(len(track.values)):
+            v = track.values[j]
+            if isinstance(v, tuple):
+                if not v[1] or j not in anim_out:
+                    continue
+                raw = anim_out[j][v[2]:v[2] + v[1] * size]
+            else:
+                raw = v
+            if not raw:
+                continue
+            x = np.frombuffer(raw, dtype="<f4", count=len(raw) // 4)
+            if not np.isfinite(x).all() or np.abs(x).max() > 100.0:
+                track.timestamps[j], track.values[j] = b"", b""
+        return track
+
     table = sequence_lookup(ids, [struct.unpack_from("<H", merged.seq(j), 2)[0] for j in range(merged.n)])
     blob.array(36, len(table), struct.pack("<%dh" % len(table), *table))
+
+    by_crc = {}
+
+    def other_bone(other, crc):
+        """The other skeleton's bone of the same name (its name's hash)."""
+        if id(other) not in by_crc:
+            by_crc[id(other)] = {struct.unpack_from("<I", h, 12)[0]: (h, t, p) for h, t, p in other.bones}
+        return by_crc[id(other)].get(crc)
 
     # Bones: the child's, their tracks merged.
     bones = bytearray()
@@ -567,7 +762,20 @@ def convert(files, policy, out_dir, log=print):
         bones += struct.pack("<iIhHI", key_bone, flags, parent_bone, submesh, crc)
         for k, size in enumerate((12, 8, 12)):
             ptrack = parent.bones[b][1][k] if parent and b < len(parent.bones) else None
-            bones += write_track(blob, with_value_size(merged.merge_tracks(tracks[k], ptrack), size))
+            track = merged.merge_tracks(tracks[k], ptrack)
+            if track.gseq < 0:
+                for j, (other, n) in bones_from.items():
+                    o = other_bone(other, crc)
+                    ot = o[1][k] if o else None
+                    if ot and ot.gseq < 0 and n < len(ot.timestamps):
+                        track.timestamps[j], track.values[j] = ot.timestamps[n], ot.values[n]
+                        track.interp = track.interp or ot.interp
+                    else:
+                        track.timestamps[j], track.values[j] = b"", b""
+            track = rebased(track, "bone", size)
+            if k != 1 and track.gseq < 0:
+                track = real_floats(track, size)
+            bones += write_track(blob, with_value_size(track, size))
         bones += pivot
     blob.array(44, len(child.bones), bytes(bones))
     key_bones = (child.key_bones + [-1] * KEY_BONES)[:KEY_BONES]
@@ -605,13 +813,13 @@ def convert(files, policy, out_dir, log=print):
     blob.array(136, 1, struct.pack("<hh", 0, 0))
 
     # Texture weights and transforms (as the model has them: static, or on a global sequence).
-    weights = b"".join(write_track(blob, with_value_size(merged.merge_tracks(t, None), 2)) for t in model.weights)
+    weights = b"".join(write_track(blob, with_value_size(rebased(merged.merge_tracks(t, None), "model", 2), 2)) for t in model.weights)
     blob.array(88, len(model.weights), weights)
     blob.array(144, len(model.transparency_lookup), struct.pack("<%dh" % len(model.transparency_lookup), *model.transparency_lookup))
     transforms = b""
     for tracks in model.transforms:
         for k, size in enumerate((12, 16, 12)):
-            transforms += write_track(blob, with_value_size(merged.merge_tracks(tracks[k], None), size))
+            transforms += write_track(blob, with_value_size(rebased(merged.merge_tracks(tracks[k], None), "model", size), size))
     blob.array(96, len(model.transforms), transforms)
     lookup = [t if 0 <= t < len(model.transforms) else -1 for t in model.transform_lookup]
     blob.array(152, len(lookup), struct.pack("<%dh" % len(lookup), *lookup))
@@ -628,7 +836,7 @@ def convert(files, policy, out_dir, log=print):
     # Attachments: the child's.
     attachments = b""
     for head, track in child.attachments:
-        attachments += head + write_track(blob, with_value_size(merged.merge_tracks(track, None), 1))
+        attachments += head + write_track(blob, with_value_size(rebased(merged.merge_tracks(track, None), "attach", 1), 1))
     blob.array(240, len(child.attachments), attachments)
     blob.array(248, len(child.attachment_lookup), struct.pack("<%dh" % len(child.attachment_lookup), *child.attachment_lookup))
 
@@ -639,7 +847,7 @@ def convert(files, policy, out_dir, log=print):
             parent_events[head[:4]] = track
     events = b""
     for head, track in model.events:
-        events += head + write_track(blob, merged.merge_tracks(track, parent_events.get(head[:4]), parent_map))
+        events += head + write_track(blob, rebased(merged.merge_tracks(track, parent_events.get(head[:4]), parent_map), "model"))
     blob.array(256, len(model.events), events)
     blob.array(264, 0, b"")
 
@@ -654,9 +862,9 @@ def convert(files, policy, out_dir, log=print):
                     value = v
                 break
         cameras += struct.pack("<Ifff", kind, value, far, near)
-        cameras += write_track(blob, with_value_size(merged.merge_tracks(pos, None), 36)) + pos_base
-        cameras += write_track(blob, with_value_size(merged.merge_tracks(target, None), 36)) + target_base
-        cameras += write_track(blob, with_value_size(merged.merge_tracks(roll, None), 12))
+        cameras += write_track(blob, with_value_size(rebased(merged.merge_tracks(pos, None), "model", 36), 36)) + pos_base
+        cameras += write_track(blob, with_value_size(rebased(merged.merge_tracks(target, None), "model", 36), 36)) + target_base
+        cameras += write_track(blob, with_value_size(rebased(merged.merge_tracks(roll, None), "model", 12), 12))
     blob.array(272, len(model.cameras), cameras)
     blob.array(280, len(model.camera_lookup), struct.pack("<%dh" % len(model.camera_lookup), *model.camera_lookup))
     blob.array(288, 0, b"")
@@ -840,9 +1048,7 @@ def convert(files, policy, out_dir, log=print):
     for j, (sid, var), fid in external:
         path = "%s\\%s%04d-%02d.anim" % (folder, name, sid, var)
         if path not in written:
-            data = files(fid)
-            c = chunks_of(data)
-            written[path] = c["AFM2"] if "AFM2" in c else data
+            written[path] = anim_out[j]
     for fid, path in texture_names.items():
         written[path] = files(fid)
     for path, data in written.items():

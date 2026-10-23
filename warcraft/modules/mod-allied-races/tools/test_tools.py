@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The races' tools checked without the game's files: the texture codec round-trips, the model
-converter's pieces (the sequence lookup, the geoset policy, the coordinate remapping) and the
+converter's pieces (the sequence lookup, the geoset policy, the coordinate remapping, the
+animations' own files), the size (tools/scale.py, on a one-bone model) and the
 data (races.json's shape, the faces within 3.3.5's room, the tables' changes naming textures the
 package makes). Needs numpy and Pillow.
 
@@ -8,7 +9,9 @@ package makes). Needs numpy and Pillow.
 """
 import json
 import os
+import struct
 import sys
+import tempfile
 
 import numpy as np
 
@@ -17,6 +20,7 @@ sys.path.insert(0, HERE)
 import blp      # noqa: E402
 import m2       # noqa: E402
 import names    # noqa: E402
+import scale    # noqa: E402
 
 MODULE = os.path.dirname(HERE)
 failures = 0
@@ -106,6 +110,58 @@ check(abs(u - 0.25) < 1e-6 and abs(v - 0.75) < 1e-6, "eye coordinates go to the 
 rotated = {"box": [0.5, 0.0, 1.0, 1.0], "rotate": True}
 u, v = m2.remap_uv(0.5, 0.0, "head", rotated)
 check(abs(u) < 1e-6 and abs(v - 1.0) < 1e-6, "a turned head's corner lands where the texture's does")
+
+# A sequence's file of today: the bones' chunk first (its offsets stay), the attachments' and the
+# model's after it; tracks whose times don't rise within the sequence aren't the file's.
+afm2, afsb = b"M" * 20, b"B" * 40
+block, base = m2.anim_block(b"AFM2" + struct.pack("<I", len(afm2)) + afm2 + b"AFSB" + struct.pack("<I", len(afsb)) + afsb)
+check(block[:40] == afsb and base["bone"] == 0 and block[base["model"]:base["model"] + 20] == afm2 and base["model"] % 16 == 0,
+      "a sequence's file: the bones' data first, the model's after it")
+times = struct.pack("<3I", 0, 500, 1000) + struct.pack("<3I", 0, 900, 400)
+check(m2.entry_ok(("ext", 3, 0), None, 12, times, 1000) and not m2.entry_ok(("ext", 3, 12), None, 12, times, 1000) and
+      not m2.entry_ok(("ext", 3, 0), None, 12, times, 900) and not m2.entry_ok(("ext", 4, 16), None, 12, times, 1000),
+      "a track's entry is its file's when its times rise within the sequence and it lies within the file")
+
+# The size (scale.py): a model of one bone (its head, its pivot 0.5 up) and one triangle, its Stand
+# in a file of its own lifting the bone 1: the head at 1.5; made 0.8 its size all through.
+with tempfile.TemporaryDirectory() as folder:
+    b = m2.Blob()
+    b.data[0:4] = b"MD20"
+    seq = bytearray(64)
+    struct.pack_into("<HHI", seq, 0, 0, 0, 1000)                      # Stand, in its own file
+    b.array(28, 1, bytes(seq))
+    track = struct.pack("<hhIIII", 1, -1, 1, b.append(struct.pack("<II", 1, 0)), 1, b.append(struct.pack("<II", 1, 16)))
+    empty = struct.pack("<hhIIII", 0, -1, 0, 0, 0, 0)
+    b.array(44, 1, struct.pack("<iIhHI", -1, 0, -1, 0, 0) + track + empty + empty + struct.pack("<3f", 0, 0, 0.5))
+    vertex = lambda x, z: struct.pack("<3f4B4B3f2f2f", x, 0, z, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0)
+    b.array(60, 3, vertex(0, 0) + vertex(0, 1) + vertex(0.2, 1.5))
+    b.array(52, 7, struct.pack("<7h", -1, -1, -1, -1, -1, -1, 0))   # key bone 6, the head: bone 0
+    b.array(120, 1, struct.pack("<H", 0))
+    b.array(240, 1, struct.pack("<IHH3f", 0, 0, 0, 0, 0, 1.0) + empty)
+    with open(os.path.join(folder, "Test.m2"), "wb") as f:
+        f.write(bytes(b.data))
+    with open(os.path.join(folder, "Test0000-00.anim"), "wb") as f:
+        f.write(struct.pack("<I12x3f", 0, 0, 0, 1.0))
+    skin = bytearray(b"SKIN" + bytes(44))
+    for k, payload in enumerate((struct.pack("<3H", 0, 1, 2), struct.pack("<3H", 0, 1, 2), bytes(12),
+                                 struct.pack("<10H7f", 0, 0, 0, 3, 0, 3, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1), b"")):
+        struct.pack_into("<II", skin, 4 + k * 8, len(payload) // (2, 2, 4, 48, 24)[k], len(skin) if payload else 0)
+        skin += payload
+    with open(os.path.join(folder, "Test00.skin"), "wb") as f:
+        f.write(bytes(skin))
+    path = os.path.join(folder, "Test.m2")
+    check(abs(scale.height(path) - 1.5) < 1e-5, "a model's height: its head bone's as Stand poses it (1.5)")
+    scale.scale(path, 0.8, log=lambda s: None)
+    check(abs(scale.height(path) - 1.2) < 1e-5, "...and 1.2 made 0.8 its size, its own file's animation too")
+    m = open(path, "rb").read()
+    bones_at = struct.unpack_from("<I", m, 48)[0]
+    attach_at = struct.unpack_from("<I", m, 244)[0]
+    skin_after = open(os.path.join(folder, "Test00.skin"), "rb").read()
+    check(abs(struct.unpack_from("<f", m, bones_at + 84)[0] - 0.4) < 1e-6 and abs(struct.unpack_from("<f", m, attach_at + 16)[0] - 0.8) < 1e-6 and
+          abs(struct.unpack_from("<f", skin_after, struct.unpack_from("<I", skin_after, 32)[0] + 28)[0] - 0.8) < 1e-6,
+          "...its bone's pivot, its attachment and its section's centre with it")
+check(scale.target_height("ZandalariTrollMale") == scale.KIN_HEIGHTS["Troll"][0] and scale.target_height("VoidElfFemale") == scale.KIN_HEIGHTS["BloodElf"][1] and
+      scale.target_height("NightElfMale") is None, "each race is made its kin's height: trolls', blood elves'...")
 
 # The data: both races, both sexes, the faces within 3.3.5's room, every name the tables use made.
 races = json.load(open(os.path.join(MODULE, "data", "retail", "races.json")))
