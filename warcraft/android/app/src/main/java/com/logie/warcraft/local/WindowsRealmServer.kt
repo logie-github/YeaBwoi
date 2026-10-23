@@ -589,6 +589,15 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         }.takeLast(4000)
     }
 
+    /** The realm's name, as the app shows it. */
+    val displayName: String get() = realm.displayName
+
+    /** The ends of the realm's Windows logs (its servers', then the session's), for a failure's report. */
+    fun runtimeLogs(context: Context): String = listOf("database", "authentication", "world", "session").joinToString("\n\n") { name ->
+        val lines = runCatching { File(layout(context).root, "runtime/$name.log").readLines().filter { it.isNotBlank() }.takeLast(60) }.getOrDefault(emptyList())
+        if (lines.isEmpty()) "$name.log: nothing written." else "$name.log:\n" + lines.joinToString("\n")
+    }
+
     private fun roleName(role: TwwInstall.Role) = when (role) {
         TwwInstall.Role.DATABASE -> "database"
         TwwInstall.Role.AUTHENTICATION -> "authentication"

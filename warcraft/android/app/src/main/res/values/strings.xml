@@ -464,6 +464,10 @@
     <string name="wow_crash_sent">The game\'s crash report went to GitHub: issue #%1$d.</string>
     <string name="wow_crash_opened">The game\'s crash report is open on GitHub: send it from there.</string>
     <string name="wow_crash_no_browser">The game\'s crash report couldn\'t open: no browser on this phone.</string>
+    <string name="wow_failure_sent">The app reported a failure on GitHub: issue #%1$d.</string>
+    <string name="wow_failure_opened">The app\'s failure report is open on GitHub: send it from there.</string>
+    <string name="wow_failure_no_browser">The app\'s failure report couldn\'t open: no browser on this phone.</string>
+    <string name="wow_failure_waiting">The app\'s failure report will go to GitHub once the phone is online.</string>
     <string name="wow_crash_waiting">The game\'s crash report will go to GitHub once the phone is online.</string>
     <string name="wow_modules_token_label">Token</string>
     <string name="wow_modules_token_save">Check and keep</string>
