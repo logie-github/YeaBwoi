@@ -16,7 +16,7 @@ object WindowsRealmRegistry {
     }?.value
 
     @Synchronized fun allow(runtime: XServerDisplayActivity): Boolean {
-        val current = active.get()?.takeUnless { it.isDestroyed }
+        val current = active.get()?.takeUnless { it.isDestroyed || it.isFinishing }
         if (current != null && current !== runtime) return false
         val target = owner(runtime)
         if (realms.values.any { it !== target && it.isBusy }) return false
@@ -25,7 +25,7 @@ object WindowsRealmRegistry {
     }
 
     @Synchronized internal fun canOpen(server: WindowsRealmServer): Boolean {
-        val current = active.get()?.takeUnless { it.isDestroyed }
+        val current = active.get()?.takeUnless { it.isDestroyed || it.isFinishing }
         return (current == null || owner(current) === server) && realms.values.none { it !== server && it.isBusy }
     }
 
