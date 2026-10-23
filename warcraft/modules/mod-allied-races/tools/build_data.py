@@ -461,7 +461,7 @@ def main():
             sql.raw(f"INSERT INTO `{sql_table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body}\n"
                     f"ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);")
         if wrong:
-            # (releases up to 1.0.233 put these races in the other side's language rows too)
+            # (releases up to 1.0.236 put these races in the other side's language rows too)
             sql.raw(f"UPDATE `{sql_table}` SET `RaceMask` = `RaceMask` & ~{ALLIANCE_BITS | HORDE_BITS} "
                     f"WHERE `ID` IN ({', '.join(str(i) for i in wrong)}) AND `RaceMask` > 0;")
 
@@ -698,9 +698,9 @@ def main():
             + ",\n".join("(" + ", ".join(str(x) for x in r) + ")" for r in out) + ";")
 
     sql.comment("Their skills: their side's weapons and armour; Common or Orcish; no other race's racials. The rows are\n"
-                "found by their stock races (the low eleven bits): the Skyborne's SQL, applied first, adds its races' bits\n"
-                "to the same rows, and an exact match found none of them, which left these races without Common, Orcish\n"
-                "and some weapons until 1.0.233.")
+                "found by their stock races (the low eleven bits), as the Skyborne's SQL finds them: each adds its races'\n"
+                "bits to the same rows, and an exact match finds nothing once the other has run (the Skyborne had no\n"
+                "language, Swords or Two-Handed Swords up to 1.0.236 for that).")
     cols, skills = sqlrows.table(os.path.join(world, "playercreateinfo_skills.sql"))
     for r in skills:
         mask, skill = int(r["raceMask"]), int(r["skill"])

@@ -56,8 +56,6 @@ namespace
     constexpr float JUDGMENT_REACH = 40.0f;
     constexpr uint32 JUDGMENT_DELAY = 3000;
 
-    constexpr uint8 FIRST_ALLIED_RACE = 15, LAST_ALLIED_RACE = 18;   // void elf, nightborne, Lightforged Draenei, Zandalari Troll
-
     constexpr uint32 SPELL_GIFT_OF_THE_NAARU = 28880;
     constexpr uint32 QUEST_RESCUE_THE_SURVIVORS[] = { 959283, 969283 };   // tools/quests.py's clones of 9283
 
@@ -217,11 +215,6 @@ public:
 
     void OnPlayerLogin(Player* player) override
     {
-        // Their start skills (Common or Orcish, some weapons and armour) never reached the races
-        // up to 1.0.233 (allied_races_world.sql): a character made then learns what it lacks.
-        uint8 race = player->getRace(true);
-        if (race >= FIRST_ALLIED_RACE && race <= LAST_ALLIED_RACE)
-            player->LearnDefaultSkills();
         for (uint32 id : QUEST_RESCUE_THE_SURVIVORS)
             if (player->GetQuestStatus(id) == QUEST_STATUS_INCOMPLETE)
                 LendGiftOfTheNaaru(player);

@@ -3355,13 +3355,13 @@ INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `typ
 (14, 11, 96, 6603, 0);
 
 -- Their skills: their side's weapons and armour; Common or Orcish; no other race's racials.
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 36 AND `classMask` = 4 AND `skill` = 46;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 650 AND `classMask` = 4 AND `skill` = 45;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 8192 WHERE `raceMask` = 690 AND `classMask` = 0 AND `skill` = 109;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 735 AND `classMask` = 1293 AND `skill` = 173;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE `raceMask` = 1024 AND `classMask` = 4 AND `skill` = 226;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE `raceMask` = 1061 AND `classMask` = 3 AND `skill` = 160;
-UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE `raceMask` = 1101 AND `classMask` = 0 AND `skill` = 98;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 36 AND `classMask` = 4 AND `skill` = 46;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 650 AND `classMask` = 4 AND `skill` = 45;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 8192 WHERE (`raceMask` & 2047) = 690 AND `classMask` = 0 AND `skill` = 109;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 735 AND `classMask` = 1293 AND `skill` = 173;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE (`raceMask` & 2047) = 1024 AND `classMask` = 4 AND `skill` = 226;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 12288 WHERE (`raceMask` & 2047) = 1061 AND `classMask` = 3 AND `skill` = 160;
+UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 4096 WHERE (`raceMask` & 2047) = 1101 AND `classMask` = 0 AND `skill` = 98;
 
 -- Their racials, learned at creation.
 DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98701 AND 98707;

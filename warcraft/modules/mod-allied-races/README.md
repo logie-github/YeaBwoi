@@ -83,11 +83,13 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   rogues and warlocks, the Blood Elves' for nightborne hunters and Zandalari paladins, the Trolls'
   for Zandalari rogues, priests and mages, which the start race hasn't). A class the start race
   hasn't starts where the start race's warriors do. Their skills: their side's weapons and armour,
-  and Common (void elves, Lightforged) or Orcish (nightborne, Zandalari). Releases up to 1.0.233
-  gave them no language and missed some of the weapons: the Skyborne's SQL, applied first,
-  changed the skill rows this module looked for, and the races were also put in the other side's
-  language row (a tiered one, for learning it), which the server may read first and then teach
-  nothing. A character made then learns what it lacks at its next login.
+  and Common (void elves, Lightforged) or Orcish (nightborne, Zandalari). Releases up to 1.0.236
+  gave them no language: they were also put in the other side's language row (a tiered one, for
+  learning it), which the server may read first and then teach nothing. The skill rows are found
+  by their stock races, so the Skyborne's module, whose SQL changes the same rows, finds them
+  whichever goes first (this module's goes first: its folder's name comes first). A character made
+  then learns what it lacks at its next login (the core teaches a character's missing start skills
+  at every login).
 - **Quests**: the start race's own quests in its first zones are **cloned** for the new race
   (`tools/quests.py`, `data/sql/db-world/allied_races_quests.sql`): the same quests from the same
   people, with the quest-givers taking in who the player is (a void elf among the Exodar's

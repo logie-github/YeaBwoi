@@ -127,8 +127,11 @@ move to 22 and 23.
   with the game's ten race buttons and with mod-worgoblin's twelve.
 - CI's server test: the world server makes the patch from the server's tables (no textures there),
   and a High Order warrior starts in Northshire and a Windshaper shaman at Camp Narache, each with
-  their racials and their side's language (Common, Orcish). Releases up to 1.0.233 put the
-  Skyborne in the other side's language row of SkillRaceClassInfo too (a tiered row for learning
-  it), which the server could read first and then teach no language at all: each side's language
-  is on its own row now, and a Skyborne character made earlier learns its start skills at its next
-  login (`src/SkyborneGoggles.cpp`, the module's player script).
+  their racials and their side's language (Common, Orcish). Releases up to 1.0.236 gave the
+  Skyborne no language and no Swords or Two-Handed Swords: the allied races' SQL, which the realm
+  applies first, changes the same skill rows, and this module's updates looked for them exactly as
+  they come (they're found by their stock races now); and the Skyborne were in the other side's
+  language row of SkillRaceClassInfo too (a tiered row for learning it), which the server could
+  read first and then teach nothing (each side's language is on its own row now). A character made
+  then learns what it lacks at its next login (the core teaches missing start skills at every
+  login).

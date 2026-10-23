@@ -314,8 +314,8 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = 4 ] || fail "$name has $learned of its 4 racials"
 	done
-	# Their side's language (until 1.0.233 they were in the other side's tiered language row too, which
-	# the core may pick first, and learned none).
+	# Their side's language (up to 1.0.236 they had none: the allied races' SQL, applied before theirs,
+	# changed the skill rows they looked for, and they were in the other side's tiered language row).
 	for who in Skyhighorder:98 Skywindshape:109; do
 		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
 	done
@@ -373,8 +373,8 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	# Their side's language: no /say and no chat command without it. Until 1.0.233 they had none (the
-	# skill rows missed for the Skyborne's bits, and their place in the other side's tiered row).
+	# Their side's language: no /say and no chat command without it. Up to 1.0.236 they had none
+	# (their place in the other side's tiered language row).
 	for who in Voidtester:98 Nighttester:109 Lightester:98 Zandtester:109; do
 		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
 	done

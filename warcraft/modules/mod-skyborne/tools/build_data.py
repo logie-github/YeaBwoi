@@ -485,7 +485,7 @@ def main():
             sql.raw(f"INSERT INTO `{sql_table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body}\n"
                     f"ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);")
         if wrong:
-            # (earlier releases put these races in the other side's language rows too)
+            # (releases up to 1.0.236 put these races in the other side's language rows too)
             sql.raw(f"UPDATE `{sql_table}` SET `RaceMask` = `RaceMask` & ~{BIT[ALLIANCE] | BIT[HORDE]} "
                     f"WHERE `ID` IN ({', '.join(str(i) for i in wrong)}) AND `RaceMask` > 0;")
 
@@ -647,7 +647,7 @@ def main():
             continue
         add = faction_bits(mask, skill)
         if add:
-            sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {add} WHERE `raceMask` = {mask} AND `classMask` = {r[1]} AND `skill` = {skill};")
+            sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {add} WHERE (`raceMask` & 2047) = {mask & 2047} AND `classMask` = {r[1]} AND `skill` = {skill};")
 
     sql.comment("Their racials, learned at creation.")
     sql.raw(f"DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN {min(SPELLS.values())} AND {max(SPELLS.values())};")
