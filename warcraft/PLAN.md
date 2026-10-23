@@ -1427,6 +1427,32 @@ for the game on the phone itself ("that's the whole point").
     `test_patch.cpp` on a stand-in game (19 tables, 5,215 files, 0 failures), the tools' and
     screens' tests; the server compile and realm test are CI's (the new spell scripts and player
     hooks compile there first).
+  - A review of all four (the user: the intro MP3 never played under the earlier attempt; look for
+    bugs in the questing, the models' size and presentation; make sure the racials work):
+    - The narrations: the tables match the game's own (CinematicCamera's SoundID, a SoundEntries
+      row of type 31 under `Sound\CinematicVoices`); the files didn't: the user's MP3s were
+      variable bit rate with ID3v2.4 tags and Xing headers, the game's are constant bit rate
+      (128-160 kbit/s, 44.1 kHz) with neither. All five (the Skyborne's too) re-encoded to constant
+      160 kbit/s 44.1 kHz with no tags or VBR header; the voices `package.py` makes likewise
+      (mono, 64 kbit/s, 44.1 kHz; they were 22 kHz MPEG-2). Whether that was what stopped them is
+      the phone's to show.
+    - Quests: scripts and conditions bound to the originals' ids did nothing for the clones (the
+      Ending Their World escort and its credit, Legoso's run, gossip conditions): `quests.py`'s
+      bindings copy smart_scripts rows on accepting or handing in a quest and the credit they
+      give, and add each condition's clone (an OR group for "is on it" or "has done it", the same
+      group for "hasn't"). Rescue the Survivors! needs Gift of the Naaru, which void elves and
+      Lightforged don't have: lent while the clone is in the log (`AlliedRacesSpells.cpp`).
+    - Racials: Preternatural Calm had the health regeneration aura (88): now REDUCE_PUSHBACK (149).
+      Light's Judgment and Light's Reckoning were cast by unseen creatures, so their kills gave no
+      loot, experience or credit: now the player's own casts (the strike a destination spell, the
+      burst a triggered cast the core allows the dead).
+    - Models: display scales 1.0, as retail's. The nightborne were cut off at the head on the
+      creation screen, framed by the Forsaken's scene's camera: they take the night elves' scene.
+    - New in the realm test: each race in the world (`warcraft/server/allied_*.steps`): Calm's
+      aura, Spatial Rift through the rift, Arcane Pulse's, Reckoning's and Judgment's damage as the
+      character's, Regeneratin' and the swoop's aura, the race's own first quest offered and the
+      start race's not, Rescue the Survivors! credited with the lent gift and the gift taken back.
+      Not tested: Entropic Embrace's and Pa'ku's procs, Demonbane's and City of Gold's amounts.
   - The package: `scripts/package-azerothcore.sh` fetches the game's files (about 600 MB) from
     wago.tools into `build/allied-races-cache` (CI caches it by races.json) and converts them (two
     minutes here); the server package grows by about 300 MB (voices as MP3).

@@ -163,6 +163,8 @@ SMSG_TIME_SYNC_REQ, CMSG_TIME_SYNC_RESP = 0x390, 0x391
 SMSG_NEW_WORLD, MSG_MOVE_TELEPORT_ACK, MSG_MOVE_WORLDPORT_ACK = 0x03E, 0x0C7, 0x0DC
 CMSG_GOSSIP_HELLO, CMSG_GOSSIP_SELECT_OPTION, SMSG_GOSSIP_MESSAGE = 0x17B, 0x17C, 0x17D
 CMSG_SET_SELECTION = 0x13D
+SMSG_LEARNED_SPELL, SMSG_REMOVED_SPELL, SMSG_CAST_FAILED = 0x12B, 0x203, 0x130
+SMSG_SPELLNONMELEEDAMAGELOG, SMSG_SPELLHEALLOG = 0x250, 0x150
 CMSG_GAMEOBJ_USE = 0x0B1
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
@@ -284,6 +286,17 @@ class WorldSession:
             seen.append((opcode, body))
             if TRACE:
                 print(f"trace: {opcode:#05x} {len(body)} bytes {body[:28].hex()}", file=sys.stderr)
+
+
+def packed_guid(body, at):
+    """A packed guid at [at] in [body] (a mask, then the bytes it names), and where it ends."""
+    mask, at = body[at], at + 1
+    guid = 0
+    for i in range(8):
+        if mask & (1 << i):
+            guid |= body[at] << (8 * i)
+            at += 1
+    return guid, at
 
 
 def system_messages(packets):
@@ -440,8 +453,9 @@ def run_script(session, player_guid, steps):
 
         cmd TEXT                      a GM command (or anything said)
         go MAP X Y Z [FACING]         a GM teleport there
-        target ENTRY                  select the nearest creature of that entry (0: nothing), for
-                                      the GM commands after it (.npc info, .gps)
+        target ENTRY                  select the nearest creature of that entry (0: nothing; self:
+                                      the character itself), for the GM commands after it (.npc
+                                      info, .gps, .die)
         use ENTRY                     click the nearest game object of that entry, as the game does
                                       (its guid from mod-wrath-remix's `.remix goguid ENTRY`)
         clear-backpack                throws away what's in the backpack (but the hearthstone)
@@ -461,6 +475,12 @@ def run_script(session, player_guid, steps):
         expect TEXT                   something since the last expect had TEXT in it (system
                                       messages, gossip options and quests, quest updates)
         expect-not TEXT               nothing since the last expect had TEXT
+        has TEXT                      as expect, but what was heard is kept for the next (for
+                                      several things heard in one step)
+                                      (heard as well: "damage SPELL by player|other: N" and "heal
+                                      SPELL by ...: N" for spells' damage and healing, "learned
+                                      SPELL", "removed SPELL", "cast failed SPELL REASON",
+                                      "teleported" for a move within the map)
         wait SECONDS                  read what comes
         addon PREFIX TEXT             an add-on message whispered to the character itself, as
                                       the app's add-on (client/TouchAddon) talks to the realm
@@ -586,6 +606,27 @@ def run_script(session, player_guid, steps):
                 _, item, reason = struct.unpack_from("<QIB", body, 0)
                 print(f"script:   buying {item} failed ({reason})")
                 heard.append(f"buy failed {reason}")
+            elif opcode in (SMSG_SPELLNONMELEEDAMAGELOG, SMSG_SPELLHEALLOG):
+                # The target's and the caster's packed guids, then the spell and the amount.
+                _, at = packed_guid(body, 0)
+                caster, at = packed_guid(body, at)
+                spell, amount = struct.unpack_from("<II", body, at)
+                kind = "damage" if opcode == SMSG_SPELLNONMELEEDAMAGELOG else "heal"
+                who = "player" if caster == player_guid else "other"
+                print(f"script:   {kind} {spell} by {who}: {amount}")
+                heard.append(f"{kind} {spell} by {who}: {amount}")
+            elif opcode in (SMSG_LEARNED_SPELL, SMSG_REMOVED_SPELL):
+                spell = struct.unpack_from("<I", body, 0)[0]
+                kind = "learned" if opcode == SMSG_LEARNED_SPELL else "removed"
+                print(f"script:   {kind} spell {spell}")
+                heard.append(f"{kind} {spell}")
+            elif opcode == SMSG_CAST_FAILED:
+                _, spell, reason = struct.unpack_from("<BIB", body, 0)
+                print(f"script:   cast of {spell} failed ({reason})")
+                heard.append(f"cast failed {spell} {reason}")
+            elif opcode == MSG_MOVE_TELEPORT_ACK:
+                print("script:   teleported")
+                heard.append("teleported")
             elif opcode == SMSG_NEW_WORLD:
                 map_id, x, y, z = struct.unpack_from("<Iffff", body, 0)[:4]
                 print(f"script:   arrived on map {map_id} at {x:.1f} {y:.1f} {z:.1f}")
@@ -665,8 +706,11 @@ def run_script(session, player_guid, steps):
             session.send(CMSG_GAMEOBJ_USE, struct.pack("<Q", guid))
             session.pump(2.0, packets)
         elif word == "target":
-            entry = int(rest)
-            session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(entry) if entry else 0))
+            if rest == "self":
+                session.send(CMSG_SET_SELECTION, struct.pack("<Q", player_guid))
+            else:
+                entry = int(rest)
+                session.send(CMSG_SET_SELECTION, struct.pack("<Q", creature_guid(entry) if entry else 0))
             session.pump(0.5, packets)
         elif word == "cast":
             # A spell of the character's, cast on the nearest creature of an entry (a game master's
@@ -771,11 +815,12 @@ def run_script(session, player_guid, steps):
                 raise RuntimeError(f"the realm didn't let the character go in {rest} s; heard: {heard}")
             print("script: the realm let the character go")
             return transcript
-        elif word in ("expect", "expect-not"):
+        elif word in ("expect", "expect-not", "has"):
             found = any(rest.lower() in h.lower() for h in heard)
-            if found != (word == "expect"):
+            if found != (word != "expect-not"):
                 raise RuntimeError(f"{word} \"{rest}\" failed; heard: {heard}")
-            heard.clear()
+            if word != "has":
+                heard.clear()
             continue
         else:
             raise RuntimeError(f"unknown step: {line}")

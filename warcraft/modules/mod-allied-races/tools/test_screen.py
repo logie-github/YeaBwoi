@@ -87,7 +87,7 @@ for native, races, with_skyborne in [
     lua.execute('SetBackgroundModel("m", "VoidElf")')
     check(g.BACKGROUND == "Draenei", "the void elves' background is the Draenei's")
     lua.execute('SetBackgroundModel("m", "Nightborne")')
-    check(g.BACKGROUND == "Scourge", "the nightborne's background is the Forsaken's")
+    check(g.BACKGROUND == "NightElf", "the nightborne's background is the night elves' (its camera frames their height)")
     lua.execute('SetBackgroundModel("m", "LightforgedDraenei")')
     check(g.BACKGROUND == "Draenei", "the Lightforged Draenei's background is the Draenei's")
     lua.execute('SetBackgroundModel("m", "ZandalariTroll")')

@@ -346,6 +346,19 @@ EOF
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
 	echo "The void elves and the Lightforged Draenei start with the Draenei, the nightborne with the Forsaken, the Zandalari with the Tauren, each with their racials."
+	# In the world: their racials at work (Preternatural Calm's aura, Spatial Rift through the rift,
+	# Arcane Pulse's damage, Light's Reckoning's and Judgment's the character's own, Regeneratin',
+	# Pterrordax Swoop), their own first quests offered and the start race's not, and Rescue the
+	# Survivors! done with a lent Gift of the Naaru, taken back after.
+	for who in Voidtester:15:voidelf Nighttester:16:nightborne Lightester:17:lightforged Zandtester:18:zandalari; do
+		IFS=: read -r name race file <<EOF
+$who
+EOF
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" 1 \
+			"$ROOT/warcraft/server/allied_$file.steps" | tee "$FILES/logs/allied-$file-world.out" ||
+			fail "$name's racials and quests didn't work in the world (logs/allied-$file-world.out)"
+	done
+	echo "Their racials work in the world, their first quests are their own, and Rescue the Survivors! can be done."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

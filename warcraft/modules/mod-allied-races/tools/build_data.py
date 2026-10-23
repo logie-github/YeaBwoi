@@ -93,8 +93,7 @@ SPELLS = {"rift": 98711, "rift_open": 98712, "entropic": 98713, "entropic_buff":
           "holy_res": 98728, "demonbane": 98729, "regeneratin": 98730, "paku": 98731, "paku_buff": 98732, "swoop": 98733,
           "city_of_gold": 98734}
 NPC_RIFT = 900101
-NPC_JUDGMENT, NPC_RECKONING = 900102, 900103   # where Light's Judgment strikes; where a Lightforged fell
-DISPLAY_UNSEEN = 11686                         # an invisible stalker's
+NPC_JUDGMENT, NPC_RECKONING = 900102, 900103   # earlier releases' stalkers for Light's Judgment and Reckoning (deleted)
 DISPLAY_RIFT = 9510                            # Creature\Spells\Creature_SpellPortal
 
 
@@ -556,7 +555,7 @@ def main():
               SpellIconID=207, EffectAura_1=87, EffectBasePoints_1=-2, EffectDieSides_1=1, EffectMiscValue_1=SHADOW),
         spell(20557, SPELLS["calm"], "Preternatural Calm", "Racial Passive",
               "Your spell casts are not delayed by taking damage.", "",
-              SpellIconID=2014, EffectAura_1=88, EffectBasePoints_1=99, EffectDieSides_1=1, EffectMiscValue_1=ALL_SCHOOLS),
+              SpellIconID=2014, EffectAura_1=149, EffectBasePoints_1=99, EffectDieSides_1=1, EffectMiscValue_1=0),
         spell(54710, SPELLS["cantrips"], "Cantrips", "Racial",
               "Conjure up an Eldritch Grimoire, allowing you mail access for 10 min.", "",
               SpellIconID=2030, RecoveryTime=600000, CastingTimeIndex=5, ManaCost=0, ManaCostPct=0, Reagent_1=0, ReagentCount_1=0,
@@ -590,7 +589,7 @@ def main():
         spell(20549, SPELLS["judgment_strike"], "Light's Judgment", "",
               "Holy damage to enemies within 5 yards.", "",
               SpellIconID=156, Effect_1=2, EffectAura_1=0, EffectBasePoints_1=39, EffectDieSides_1=1, EffectRealPointsPerLevel_1=6.0,
-              ImplicitTargetA_1=22, ImplicitTargetB_1=15, EffectRadiusIndex_1=8, EffectMechanic_1=0, Mechanic=0,
+              ImplicitTargetA_1=87, ImplicitTargetB_1=16, EffectRadiusIndex_1=8, EffectMechanic_1=0, Mechanic=0, RangeIndex=13,
               Effect_2=0, EffectAura_2=0, EffectBasePoints_2=0, EffectDieSides_2=0, EffectTriggerSpell_2=0, ImplicitTargetA_2=0,
               RecoveryTime=0, DurationIndex=0, SchoolMask=HOLY, DispelType=0, CastingTimeIndex=1, StartRecoveryCategory=0,
               StartRecoveryTime=0, Attributes=0x10),
@@ -650,18 +649,16 @@ def main():
     sql.raw(f"DELETE FROM `spell_script_names` WHERE `spell_id` IN ({SPELLS['rift']}, {SPELLS['rift_open']}, {SPELLS['judgment']});\n"
             f"INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES ({SPELLS['rift']}, 'spell_allied_spatial_rift'), "
             f"({SPELLS['rift_open']}, 'spell_allied_spatial_rift_open'), ({SPELLS['judgment']}, 'spell_allied_lights_judgment');")
-    sql.comment("Spatial Rift's rift: a creature that stands where the rift is torn; Light's Judgment's strike and Light's\n"
-                "Reckoning's burst: unseen creatures that cast them (AlliedRacesSpells.cpp).")
+    sql.comment("Spatial Rift's rift: a creature that stands where the rift is torn (AlliedRacesSpells.cpp). Light's Judgment's\n"
+                "strike and Light's Reckoning's burst are the player's own casts; the unseen creatures earlier releases cast them\n"
+                "with are deleted.")
     sql.raw(f"DELETE FROM `creature_template` WHERE `entry` IN ({NPC_RIFT}, {NPC_JUDGMENT}, {NPC_RECKONING});\n"
             f"INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `unit_flags`, `type`, `type_flags`, "
             f"`MovementType`, `flags_extra`, `AIName`, `ScriptName`, `VerifiedBuild`) VALUES\n"
-            f"({NPC_RIFT}, 'Spatial Rift', '', 1, 1, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340),\n"
-            f"({NPC_JUDGMENT}, 'Light''s Judgment', '', 1, 80, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340),\n"
-            f"({NPC_RECKONING}, 'Light''s Reckoning', '', 1, 80, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340);\n"
+            f"({NPC_RIFT}, 'Spatial Rift', '', 1, 1, 35, 0, 33554434, 10, 0, 0, 130, '', '', 12340);\n"
             f"DELETE FROM `creature_template_model` WHERE `CreatureID` IN ({NPC_RIFT}, {NPC_JUDGMENT}, {NPC_RECKONING});\n"
             f"INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES\n"
-            f"({NPC_RIFT}, 0, {DISPLAY_RIFT}, 1, 1, 12340), ({NPC_JUDGMENT}, 0, {DISPLAY_UNSEEN}, 1, 1, 12340), "
-            f"({NPC_RECKONING}, 0, {DISPLAY_UNSEEN}, 1, 1, 12340);")
+            f"({NPC_RIFT}, 0, {DISPLAY_RIFT}, 1, 1, 12340);")
 
     # The world database: starts, skills, stats, quests, standing ----------------------------------
     sql.comment("Where they start (their start race's place), for every class (the death knights' at Ebon Hold).")

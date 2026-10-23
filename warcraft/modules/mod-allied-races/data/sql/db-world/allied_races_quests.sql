@@ -1113,3 +1113,36 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 ('3483', 966364),
 ('3615', 966361),
 ('8359', 966362);
+
+-- The scripts and conditions bound to the originals, for their clones too (tools/quests.py, bindings).
+DELETE FROM `smart_scripts` WHERE `entryorguid` = 17214 AND `source_type` = 0 AND `id` >= 1001;
+DELETE FROM `smart_scripts` WHERE `entryorguid` = 17215 AND `source_type` = 0 AND `id` >= 1004;
+DELETE FROM `smart_scripts` WHERE `entryorguid` = 17658 AND `source_type` = 0 AND `id` >= 1003;
+DELETE FROM `smart_scripts` WHERE `entryorguid` = 17982 AND `source_type` = 0 AND `id` >= 1102;
+INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES
+('17214', '0', 1001, '0', '20', '0', '100', '512', 959463, '0', '0', '0', '0', '0', '80', '1721400', '2', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', 'Anchorite Fateema - On Quest Reward - Medicinal Purposes - Run Script (allied races: the clone 959463)'),
+('17214', '0', 1002, '0', '20', '0', '100', '512', 969463, '0', '0', '0', '0', '0', '80', '1721400', '2', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', 'Anchorite Fateema - On Quest Reward - Medicinal Purposes - Run Script (allied races: the clone 969463)'),
+('17215', '0', 1004, '0', '20', '0', '100', '512', 959473, '0', '0', '0', '0', '0', '80', '1721500', '2', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', 'Daedal - On Quest Reward - An Alternative Alternative - Run Script (allied races: the clone 959473)'),
+('17215', '0', 1005, '0', '20', '0', '100', '512', 969473, '0', '0', '0', '0', '0', '80', '1721500', '2', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', 'Daedal - On Quest Reward - An Alternative Alternative - Run Script (allied races: the clone 969473)'),
+('17658', '0', 1003, '1', '20', '0', '100', '1', 959759, '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '7', '0', '0', '0', '0', '0', '0', '0', '0', 'Exarch Admetius - On Quest Ending Their World Finished - Say Line 0 (No Repeat) (allied races: the clone 959759)'),
+('17658', '0', 1004, '1', '20', '0', '100', '1', 969759, '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '7', '0', '0', '0', '0', '0', '0', '0', '0', 'Exarch Admetius - On Quest Ending Their World Finished - Say Line 0 (No Repeat) (allied races: the clone 969759)'),
+('17982', '0', 1102, '0', '19', '0', '100', '512', 959759, '0', '0', '0', '0', '0', '53', '2', '17982', '0', '0', '0', '2', '7', '0', '0', '0', '0', '0', '0', '0', '0', 'Demolitionist Legoso - On Quest \'Ending Their World\' Taken - Start Waypoint (allied races: the clone 959759)'),
+('17982', '0', 1103, '0', '19', '0', '100', '512', 969759, '0', '0', '0', '0', '0', '53', '2', '17982', '0', '0', '0', '2', '7', '0', '0', '0', '0', '0', '0', '0', '0', 'Demolitionist Legoso - On Quest \'Ending Their World\' Taken - Start Waypoint (allied races: the clone 969759)'),
+('17982', '0', 1104, '0', '19', '0', '100', '0', 959759, '0', '0', '0', '0', '0', '1', '0', '1500', '0', '0', '0', '0', '7', '0', '0', '0', '0', '0', '0', '0', '0', 'Demolitionist Legoso - On Quest \'Ending Their World\' Taken - Say Line 0 (allied races: the clone 959759)'),
+('17982', '0', 1105, '0', '19', '0', '100', '0', 969759, '0', '0', '0', '0', '0', '1', '0', '1500', '0', '0', '0', '0', '7', '0', '0', '0', '0', '0', '0', '0', '0', 'Demolitionist Legoso - On Quest \'Ending Their World\' Taken - Say Line 0 (allied races: the clone 969759)'),
+('17982', '0', 1106, 1107, '61', '0', '100', '512', '0', '0', '0', '0', '0', '0', '26', 959759, '0', '0', '0', '0', '0', '18', '45', '0', '0', '0', '0', '0', '0', '0', 'Demolitionist Legoso - On Text 19 Over - Quest Credit \'Ending Their World\' (allied races: the clone 959759)'),
+('17982', '0', 1107, '0', '61', '0', '100', '512', '0', '0', '0', '0', '0', '0', '26', 969759, '0', '0', '0', '0', '0', '18', '45', '0', '0', '0', '0', '0', '0', '0', 'Demolitionist Legoso - On Text 19 Over - Quest Credit \'Ending Their World\' (allied races: the clone 969759)');
+UPDATE `smart_scripts` SET `link` = 1106 WHERE `entryorguid` = 17982 AND `source_type` = 0 AND `id` = 66;
+INSERT IGNORE INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
+('14', '7305', '8667', '0', '0', '8', '0', 959280, '0', '0', '1', '0', '0', '', 'Proenitus - Show Gossip Text only if Replenishing the Healing Crystals not rewarded - and'),
+('14', '7305', '8667', '0', '0', '8', '0', 969280, '0', '0', '1', '0', '0', '', 'Proenitus - Show Gossip Text only if Replenishing the Healing Crystals not rewarded - and'),
+('14', '7305', '8669', '0', 2, '8', '0', 959280, '0', '0', '0', '0', '0', '', 'Proenitus - Show Gossip Text only if Replenishing the Healing Crystals rewarded - or'),
+('14', '7305', '8669', '0', 3, '8', '0', 969280, '0', '0', '0', '0', '0', '', 'Proenitus - Show Gossip Text only if Replenishing the Healing Crystals rewarded - or'),
+('14', '7531', '9136', '0', 1, '9', '0', 959756, '0', '0', '0', '0', '0', '', 'Gossip Option - Show text if Quest 9756 is taken'),
+('14', '7531', '9136', '0', 2, '9', '0', 969756, '0', '0', '0', '0', '0', '', 'Gossip Option - Show text if Quest 9756 is taken'),
+('15', '7531', '0', '0', 2, '9', '0', 959756, '0', '0', '0', '0', '0', '', 'Gossip Option - Show Option if Quest 9756 is taken'),
+('15', '7531', '0', '0', 3, '9', '0', 969756, '0', '0', '0', '0', '0', '', 'Gossip Option - Show Option if Quest 9756 is taken'),
+('15', '9832', '2', '0', 1, '2', '0', '24344', '1', '1', '1', '0', '0', '', 'Only show gossip if player doesn\'t have Tabard of the Hand'),
+('15', '9832', '2', '0', 1, '8', '0', 959762, '0', '0', '0', '0', '0', '', 'Only show gossip if player already finished quest The Unwritten Prophecy'),
+('15', '9832', '2', '0', 2, '2', '0', '24344', '1', '1', '1', '0', '0', '', 'Only show gossip if player doesn\'t have Tabard of the Hand'),
+('15', '9832', '2', '0', 2, '8', '0', 969762, '0', '0', '0', '0', '0', '', 'Only show gossip if player already finished quest The Unwritten Prophecy');
