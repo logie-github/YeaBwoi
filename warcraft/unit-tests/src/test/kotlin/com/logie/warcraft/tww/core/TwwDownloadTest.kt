@@ -57,6 +57,57 @@ class TwwDownloadTest {
         return from
     }
 
+    @Test fun `availability catches quota pages without changing saved partials`() = fixture { server, directory, base ->
+        val source = "$base/quota"
+        savedPartial(directory, source)
+        val original = directory.listFiles()!!.associate { it.name to it.readBytes().toList() }
+        server.createContext("/quota") { exchange ->
+            val bytes = "<html>Download quota exceeded. Too many users have downloaded this file.</html>".toByteArray()
+            exchange.responseHeaders.add("Content-Type", "text/html")
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        val error = assertFailsWith<TwwDownload.DownloadException> {
+            TwwDownload(source, directory, "repack").checkAvailable()
+        }
+        assertTrue(error.message!!.contains("quota"))
+        assertEquals(original, directory.listFiles()!!.associate { it.name to it.readBytes().toList() })
+    }
+
+    @Test fun `availability does not download or mark an archive complete`() = fixture { server, directory, base ->
+        server.createContext("/archive") { it.body(archive) }
+        TwwDownload("$base/archive", directory, "repack", expectedSize = archive.size.toLong()).checkAvailable()
+        assertTrue(directory.listFiles()!!.isEmpty())
+        assertFailsWith<TwwDownload.DownloadException> {
+            TwwDownload("$base/archive", directory, "repack", expectedSize = archive.size + 1L).checkAvailable()
+        }
+    }
+
+    @Test fun `availability reuses only a verified complete cache when the host goes down`() = fixture { server, directory, base ->
+        var requests = 0
+        server.createContext("/archive") { exchange -> requests++; exchange.body(archive) }
+        val downloader = TwwDownload("$base/archive", directory, "repack", expectedSize = archive.size.toLong())
+        val cached = downloader.run()
+        server.removeContext("/archive")
+        downloader.checkAvailable()
+        assertEquals(1, requests)
+        cached.writeBytes(ByteArray(archive.size))
+        assertFailsWith<TwwDownload.DownloadException> { downloader.checkAvailable() }
+    }
+
+    @Test fun `cancelled availability and unsafe caches do not issue network requests`() = fixture { server, directory, base ->
+        var requests = 0
+        server.createContext("/archive") { exchange -> requests++; exchange.body(archive) }
+        val downloader = TwwDownload("$base/archive", directory, "repack")
+        assertFailsWith<TwwDownload.Cancelled> { downloader.checkAvailable { true } }
+        val outside = Files.createTempFile("availability-outside", ".properties").toFile()
+        try {
+            Files.createSymbolicLink(File(directory, "repack.properties").toPath(), outside.toPath())
+            assertFailsWith<TwwDownload.DownloadException> { downloader.checkAvailable() }
+            assertEquals(0, requests)
+        } finally { outside.delete() }
+    }
+
     @Test fun `downloads real bytes and reuses only validated completed files`() = fixture { server, directory, base ->
         var requests = 0
         server.createContext("/archive") { exchange -> requests++; exchange.body(archive) }

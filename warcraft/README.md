@@ -24,6 +24,17 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the la
 
 ### Legion — 7.3.5 (Single Player Project)
 
+The Legion header follows Wrath's layout: a tall illustration, a large centered title over
+the lower fade, and the realm controls underneath. Scroll down to installation and settings
+on shorter screens. The background fades to dark green while the controls retain fel accents.
+
+Setup checks that the server download is accessible before starting a missing client download.
+If Google Drive reports a download quota, the repack is temporarily unavailable at its host.
+Repeated retries cannot lift that restriction. Completed client files and partial downloads are
+kept; **Resume / Retry** continues the missing steps when access returns. A fully downloaded,
+validated server archive can be reused even while its host is unavailable. No mirror of a
+different repack is silently substituted.
+
 The former Felsong section is now **Games → Legion — 7.3.5**, using the original SPP
 AshamaneCore release for client build 26972. Its Illidan header, fel theme, music switch and
 realm tiles follow the existing app. Old Felsong files stay untouched; SPP has its own storage,
