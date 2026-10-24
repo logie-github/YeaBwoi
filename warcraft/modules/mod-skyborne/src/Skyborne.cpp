@@ -18,9 +18,12 @@ namespace fs = std::filesystem;
 class SkyborneWorld : public WorldScript
 {
 public:
-    SkyborneWorld() : WorldScript("SkyborneWorld", { WORLDHOOK_ON_STARTUP }) { }
+    SkyborneWorld() : WorldScript("SkyborneWorld", { WORLDHOOK_ON_BEFORE_WORLD_INITIALIZED }) { }
 
-    void OnStartup() override
+    // Before the world server says it's ready (the app starts the game on that line), and after
+    // Wrath Remix's patch-Y (made as the custom tables load), whose rows this one carries: a patch
+    // made after "ready" could still be being made, or the other realm's, as the game read it.
+    void OnBeforeWorldInitialized() override
     {
         char const* client = std::getenv("WOW_CLIENT_DIR");
         if (!client || !*client)
