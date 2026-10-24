@@ -78,6 +78,16 @@ namespace Skyborne
         void Set(size_t row, uint32_t field, uint32_t value);
     };
 
+    // A character table's rows in the order the game reads them: CharSections by race, sex, section,
+    // variation and colour; CharHairGeosets and CharacterFacialHairStyles by race, sex and variation.
+    // The game builds its look-up from runs of rows (CharSections: each race, sex and section's run
+    // sizes its variations, each variation's run its colours), so a group split across the table (rows
+    // added at its end) left the earlier runs' rows outside the arrays, and the character creation
+    // screen read a missing row and crashed (crash reports #34, #44, #45, #47, #54: ERROR #132 at
+    // 0x004EA77F, the underwear row of the preview's skin). Equal keys keep their order. Other tables
+    // are left as they are.
+    void SortCharacterTable(Dbc& dbc, std::string const& name);
+
     // The changes in a table's file (data/client/dbc/<Table>.txt, tools/build_data.py): "put" a row
     // (in place of the one with its id, or added), "putraw"/"appendraw" a record as bytes, "or" or
     // "set" a field of the row with an id. Says what went wrong, or nothing.

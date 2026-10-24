@@ -15,6 +15,8 @@ colours between are the NPCs'):
   * every player skin colour that isn't a death knight's has the same faces as the others, and
     every death knight's skin the same as the other death knights';
   * every player skin colour has its underwear where the race has any;
+  * the table is in the game's order: each race, sex, section and variation one run of rows (the
+    game builds its look-up from the runs: crash reports #34 to #54);
   * no skin colour below the highest has no row at all (an NPC's will do, as the game's own are):
     the screen reads a colour's row by its number as the race changes (crash reports #44, #45, #47);
   * every hair style has the same hair colours, and its row in CharHairGeosets;
@@ -63,6 +65,15 @@ def check(folder):
     for r in sections:
         if r[3] == 0:
             all_colours[(r[1], r[2])].add(r[9])
+    # the game's order: each race, sex, section and variation one run of rows (the game sizes its
+    # look-up arrays from the runs; a group split across the table crashed the creation screen)
+    seen, previous = set(), None
+    for r in sections:
+        key = (r[1], r[2], r[3], r[8])
+        if key != previous and key in seen:
+            problems.append("race %d sex %d: section %d variation %d is split across the table (the game reads only its last run)" % key)
+        seen.add(key)
+        previous = key
     rows = collections.defaultdict(list)            # (race, sex) -> (section, variation, colour, flags)
     for r in sections:
         if r[7] & PLAYER:

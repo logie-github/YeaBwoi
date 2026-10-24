@@ -31,7 +31,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-12";
+        constexpr char const* VERSION = "skyborne-13";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -698,6 +698,7 @@ namespace Skyborne
                 CompleteSkins(dbc);
             if (Lower(name) == "charsections")
                 textures += RetouchAll(dbc, game, shading, body, made, writer);
+            SortCharacterTable(dbc, name);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
         }

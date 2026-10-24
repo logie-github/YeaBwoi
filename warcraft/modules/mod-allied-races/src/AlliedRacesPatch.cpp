@@ -38,7 +38,7 @@ namespace AlliedRaces
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* ASIDE = "patch-V.MPQ.aside";          // the patch kept out of the game (SetPatchAside)
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-7";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
+        constexpr char const* VERSION = "allied-races-8";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 8: the character tables in the order the game reads them; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -267,6 +267,7 @@ namespace AlliedRaces
                 problems.push_back(name + ".dbc: " + problem);
                 continue;
             }
+            SortCharacterTable(dbc, name);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
         }

@@ -194,6 +194,22 @@ int main(int argc, char** argv)
                     first = " (first: race " + std::to_string(who.first) + " sex " + std::to_string(who.second) + " colour " + std::to_string(c) + ")";
         Check(holes == 0, "no skin colour without its row below the highest" + first);
     }
+    // CharSections in the game's order: each race, sex and section's rows one run, and each variation's
+    // in it (the game sizes its look-up arrays from the runs: a group split across the table crashed
+    // the character creation screen, crash reports #34 to #54).
+    {
+        std::set<std::tuple<uint32_t, uint32_t, uint32_t, uint32_t>> seen;
+        std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> previous{ ~0u, ~0u, ~0u, ~0u };
+        int split = 0;
+        for (size_t i = 0; i < sections.records.size(); ++i)
+        {
+            std::tuple<uint32_t, uint32_t, uint32_t, uint32_t> key{ sections.Get(i, 1), sections.Get(i, 2), sections.Get(i, 3), sections.Get(i, 8) };
+            if (key != previous && !seen.insert(key).second)
+                ++split;
+            previous = key;
+        }
+        Check(split == 0, "CharSections in the game's order: no race, sex, section and variation split (" + std::to_string(split) + ")");
+    }
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");
