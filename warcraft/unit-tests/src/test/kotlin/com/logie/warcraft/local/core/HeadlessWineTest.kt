@@ -87,13 +87,18 @@ class HeadlessWineTest {
     }
 
     /**
-     * The realm's database and its tools under real Wine with no display, as the app runs them: set
-     * HEADLESS_WINE_TESTBED to a test bed (see warcraft/SPP.md: R/runtime's scripts, the prefix, the
-     * runtime's Wine) to run it; skipped otherwise.
+     * The realm's database and its tools under real Wine with no display (x86-64 Wine, no Box64 and
+     * no esync here; Box64 was tried apart, warcraft/SPP.md): HEADLESS_WINE_TESTBED is a folder with
+     * the realm's `prefix` (its drives R: and S: mapped) and `R/runtime` holding the app's
+     * database.cmd, shutdown-db.cmd and login.cnf (database on port 3312); HEADLESS_WINE_ROOTFS the
+     * runtime whose opt/wine runs on the PC. Skipped without them.
      */
     @Test fun realmDatabaseUnderWineWithNoDisplay() {
-        val bed = System.getenv("HEADLESS_WINE_TESTBED")?.let(::File) ?: return
-        val rootfs = File(System.getenv("HEADLESS_WINE_ROOTFS") ?: return)
+        val bedPath = System.getenv("HEADLESS_WINE_TESTBED")
+        val rootfsPath = System.getenv("HEADLESS_WINE_ROOTFS")
+        org.junit.jupiter.api.Assumptions.assumeTrue(bedPath != null && rootfsPath != null, "no Wine test bed (HEADLESS_WINE_TESTBED, HEADLESS_WINE_ROOTFS)")
+        val bed = File(bedPath!!)
+        val rootfs = File(rootfsPath!!)
         val bin = File(rootfs, "opt/wine/bin")
         val marker = "testbed-${System.nanoTime()}"
         val environment = mapOf(
@@ -129,9 +134,11 @@ class HeadlessWineTest {
         } finally {
             wine.stopServer()
             waitFor(30) { wine.processes().isEmpty() }
+            val left = wine.processes()
             wine.killAll()
             File(runtime, "probe.cmd").delete()
+            // (wineserver -k itself ends them all: none left for the forced end)
+            assertEquals(emptyList(), left)
         }
-        assertEquals(emptyList(), wine.processes())
     }
 }

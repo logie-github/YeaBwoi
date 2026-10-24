@@ -64,8 +64,10 @@ object WindowsRealmRegistry {
         owner(runtime)?.onSessionAttached(runtime)
     }
 
-    @Synchronized fun rejected(runtime: XServerDisplayActivity) {
-        owner(runtime)?.onSessionRejected()
+    /** [runtime] was refused ([allow]): what its screen says (null: Winlator's own words). */
+    @Synchronized fun rejected(runtime: XServerDisplayActivity): String? {
+        val other = liveDisplay()?.let { it !== runtime } == true
+        return owner(runtime)?.onSessionRejected(other)
     }
 
     /**
