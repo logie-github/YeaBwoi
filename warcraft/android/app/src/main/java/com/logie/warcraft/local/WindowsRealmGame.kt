@@ -71,19 +71,31 @@ object WindowsRealmGame {
         } else pending = intent
     }
 
-    /** The launcher came on screen: opens the game's session asked for while the app was in the background. */
+    /**
+     * The launcher came on screen: opens the game's session asked for while the app was in the
+     * background, if its realm still runs (its Stop, or a failure, drops it: [cancelPending]).
+     */
     fun onLauncherShown(context: Context) {
         val intent = pending ?: return
         pending = null
+        if (WindowsRealmRegistry.servers().none { it.allowsSession() }) return
         context.startActivity(intent)
     }
 
-    /** The game's running session in front (from the launcher, on screen). */
+    /** A game's session waiting for the launcher isn't wanted any more (its realm stopped or failed). */
+    fun cancelPending() { pending = null }
+
+    /**
+     * The game's running session in front (from the launcher, on screen): its task brought forward,
+     * never a new session's screen (one without its container would be made if the old were closing).
+     */
+    @Suppress("UNUSED_PARAMETER")
     fun showSession(context: Context, sessionExtra: String) {
+        val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks.orEmpty()
+        val task = tasks.firstOrNull { runCatching { it.taskInfo.baseIntent.component?.className == RealmSessionActivity::class.java.name }.getOrDefault(false) }
+            ?: return
         TitleMusic.stopForGame()
-        context.startActivity(Intent(context, RealmSessionActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            .putExtra(sessionExtra, true))
+        task.moveToFront()
     }
 
     private suspend fun container(context: Context, name: String, layout: LocalInstallation, graphicsDriver: String?): Container {

@@ -52,7 +52,7 @@ class WindowsRealmHost(private val name: String) {
         if (WinePrefixSetup.needsPrefixUpdate(container)) {
             // (after a runtime update: as Winlator does before a session, wineboot -u first)
             WinePrefixSetup.prefixUpdateStarting(app)
-            val status = host.run(listOf("$bin/wine", "wineboot", "-u"), 600)
+            val status = host.run(listOf("$bin/wine", "wineboot", "-u"), 600, mapOf("WINEDLLOVERRIDES" to "mscoree,mshtml=d"))
             WinePrefixSetup.prefixUpdateEnded(app, container, status)
             if (status != 0) throw IOException("The realm's Windows prefix could not be updated (wineboot exited with $status).")
             // (what the update reset: made again before the server starts)
