@@ -22,6 +22,42 @@ object SppRealm {
     const val DATABASE_PORT = 3312
     const val WORLD_PORT = 8095
 
+    /** The allied races 7.3.5 has: Nightborne, Highmountain Tauren, Void Elf, Lightforged Draenei. */
+    val ALLIED_RACES = listOf(27, 28, 29, 30)
+
+    /**
+     * Every race and class from the start, at the user's choice, set in world.conf at every start:
+     * Demon Hunters without first having a level-70 character (and up to 16, the most there is), and
+     * nothing that would stop or move a new character (all off in the repack).
+     */
+    val WORLD_SETTINGS = mapOf(
+        "CharacterCreating.MinLevelForDemonHunter" to "0",
+        "DemonHuntersPerRealm" to "16",
+        "CharacterCreating.Disabled" to "0",
+        "CharacterCreating.Disabled.RaceMask" to "0",
+        "CharacterCreating.Disabled.ClassMask" to "0",
+        "Force.Starting.Level" to "0",
+        "Force.Teleport" to "0",
+    )
+
+    /**
+     * The allied races' rows as character creation wants them (no achievement asked first), at every
+     * start before the world server loads them: as the repack has them, so it only guards against an
+     * install that doesn't. Their expansion (Battle for Azeroth) the accounts have ([LOGIN_STARTUP_SQL]).
+     */
+    val WORLD_STARTUP_SQL =
+        "INSERT IGNORE INTO race_unlock_requirement (raceID, expansion, achievementId) VALUES " +
+            ALLIED_RACES.joinToString(",") { "($it,${SppAccountRules.ACCOUNT_EXPANSION},0)" } + ";\n" +
+            "UPDATE race_unlock_requirement SET achievementId = 0 WHERE raceID IN (${ALLIED_RACES.joinToString(",")}) AND achievementId <> 0;\n"
+
+    /**
+     * Every account with the allied races: SPP's core lets an account create them only with Battle for
+     * Azeroth's expansion ([SppAccountRules.ACCOUNT_EXPANSION]); accounts the app made before had Legion's.
+     * On the authentication database at every start.
+     */
+    val LOGIN_STARTUP_SQL =
+        "UPDATE account SET expansion = ${SppAccountRules.ACCOUNT_EXPANSION} WHERE expansion < ${SppAccountRules.ACCOUNT_EXPANSION};\n"
+
     val SPEC = LocalRealmSpec(7, 3, 5, BUILD,
         minimumCascBytes = 40_000_000_000L,
         executableNames = setOf(CLIENT_EXE.lowercase()),
