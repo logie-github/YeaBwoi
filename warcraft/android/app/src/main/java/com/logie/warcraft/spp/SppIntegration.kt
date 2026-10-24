@@ -25,6 +25,9 @@ object SppIntegration : LocalRealmInstallation {
         LocalInstallJobs.Kind.DOWNLOAD_CLIENT to LocalDownloadSource(SppRealm.CLIENT_URL, SppRealm.CLIENT_SIZE, SppRealm.CLIENT_SHA256, connections = 4),
         LocalInstallJobs.Kind.DOWNLOAD_SERVER to LocalDownloadSource(SppRealm.SERVER_URL, SppRealm.SERVER_SIZE, SppRealm.SERVER_SHA256),
     )
+    override val worldSettings get() = SppRealm.WORLD_SETTINGS
+    override val worldStartupSql get() = SppRealm.WORLD_STARTUP_SQL
+    override val loginStartupSql get() = SppRealm.LOGIN_STARTUP_SQL
     override fun root(context: Context) = SppFiles.layout(context).root
     override fun report(context: Context) = SppFiles.report(context)
     override fun inspect(client: File, server: File, maps: File) = SppInstall.inspect(client, server, maps)
