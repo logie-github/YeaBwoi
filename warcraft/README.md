@@ -53,15 +53,32 @@ configuration and any existing local-play executable are backed up before change
 
 **Press Start** starts the database, authentication and world processes. **Accounts** creates
 or selects a linked Battle.net/game account, changes its password and optionally remembers it
-on this device. **Solo & Rates** controls Solocraft and experience rates while stopped.
+on this device. **Realm & Graphics** controls Solocraft and experience rates while stopped, and
+the graphics driver the game uses: **Vortek** (the phone's own driver, as the other games use) or,
+on an Adreno GPU, **Turnip** (Mesa's); try the other one if the game shows nothing or stops.
+
+**Every race and class from the start.** The allied races (Nightborne, Highmountain Tauren, Void
+Elf, Lightforged Draenei) and Demon Hunters can be created on any account, without Battle for
+Azeroth or a level-70 character first, and up to 16 Demon Hunters. Allied races start at level 20
+in their home (the Nighthold, Thunder Totem, Telogrus Rift, the Vindicaar), with their quest to
+their faction's capital, as in 7.3.5. The app sets this at every start: its accounts have Battle
+for Azeroth's expansion (SPP's core asks an account for it before it shows the allied races; the
+world stays Legion), and world.conf has no level-70 rule for Demon Hunters. The repack's second
+realm, which this single core doesn't run, isn't in the client's realm list.
 **Server** provides Start, Stop, Launch Game, actual component status, logs and background
 battery settings. **Game Files** separately reports client, core, database and map status;
 verification, resumable downloads, storage selection and optional existing-file imports use
 the shared application installer. Normal setup preserves an existing database.
 
 **Legion's Android client is experimental.** Box64 has an open
-[Legion/modern WoW startup issue](https://github.com/ptitSeb/box64/issues/3061).
-Changing the server distribution does not establish that its client works on the phone.
+[Legion/modern WoW startup issue](https://github.com/ptitSeb/box64/issues/3061). Its cause,
+for this client: the client's start-up protection single-steps itself, and Box64 0.4.4 gives
+each step's exception the flags from before the last instruction, so the protection takes a
+wrong turn and stops. Box64's fix for that (upstream #4348, after 0.4.4) is in the Box64 the
+app builds for local realms (0.4.4-legion); with it the client gets through the protection to
+its first window under Box64 (tested on a PC, through qemu, without the game's data). The games'
+own sessions keep Winlator's Box64. Whether the client then renders and plays on the phone is
+still untested.
 Startup failures are reported and phone gameplay has not been verified. The retired streaming mini-client is rejected because its CDN hosts are unavailable.
 Native validation confirmed database, account login and world startup, but the old publisher
 world server returned an access violation on shutdown. The app reports abnormal shutdowns;

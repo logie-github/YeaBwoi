@@ -8,7 +8,9 @@
 # - its code using the app's R class (one module), and without the resources the app has its own of;
 # - its runtime's install path, which its programs have compiled in, rewritten for this app in
 #   every archive in its assets (scripts/winlator-rewrite.py): /data/data/com.winlator/files/rootfs
-#   becomes /data/data/com.logie.warcraft/rootfs, the same length, where the app puts it.
+#   becomes /data/data/com.logie.warcraft/rootfs, the same length, where the app puts it;
+# - local realms' Box64 beside Winlator's (scripts/build-box64.sh: it needs an arm64 cross compiler,
+#   cmake, patchelf and zstd).
 #
 # WINLATOR_SRC is where to keep the checkout (default build/winlator-app).
 set -eu
@@ -68,6 +70,9 @@ for path in glob.glob(res + "/values*/strings.xml"):
         open(path, "w", encoding="utf-8").write(new)
 EOF
 rm -f "$OUT/res/xml/file_paths.xml"
+
+# Local realms' Box64 (scripts/build-box64.sh), beside Winlator's: its path rewritten with the rest.
+"$ROOT/scripts/build-box64.sh" "$OUT/assets/box64"
 
 # The runtime, for this app's path.
 find "$OUT/assets" -name '*.tzst' | sort > "$OUT/.archives"
