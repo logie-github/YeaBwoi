@@ -1598,6 +1598,15 @@ a realm with modules), then stage 3.
   hair colours and geoset rows for every style; features 0 to n-1; the looks' display and model
   rows). On the Alternative HD Patch's tables (the user's only setup: "I'll never use" the others)
   with both patches in: 53 races and sexes, no problem; on the rows before 1.0.249's fix: 926.
+- Found by the realm test of 1.0.252 ("Wrath Remix lets go of its Timerunners who went home"
+  failed: the two were still there as it looked): with the allied races' patch set aside on Remix,
+  the Skyborne's patch is made again at each change of realm (rightly: it carries the patches'
+  rows before it), and it was made in the world server's startup scripts, after its "ready" line,
+  which is when the app starts the game. So on a change of realm the game could start on the other
+  realm's `patch-Z` (on Remix, one with the allied races' rows and none of their files). The
+  Skyborne's patch is made before the world says it's ready now (`OnBeforeWorldInitialized`: after
+  Wrath Remix's `patch-Y`, made as the tables load, as before); the test waits for Remix's queued
+  deletions as it does for ChromieCraft's homecomings.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

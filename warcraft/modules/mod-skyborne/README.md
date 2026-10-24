@@ -140,7 +140,8 @@ move to 22 and 23.
   the pelvis texture's texels through the shading's fields (`data/client/shade`), into
   `data/client/features`. Its output is committed; `tools/build_data.py` also writes the Features'
   CharSections rows and `SkyborneFeaturesData.lua` from it.
-- As the world server starts (`src/Skyborne.cpp`), `src/SkybornePatch.cpp` makes the game's
+- As the world server starts, before it says it's ready (`src/Skyborne.cpp`: the app starts the
+  game on that line, and the patch is made again when the realm changes), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
   size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's and the Features row's three, the Features' pelvis textures (from `data/client/features`), and the narration. It's

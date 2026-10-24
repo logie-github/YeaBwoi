@@ -640,7 +640,12 @@ EOF
 	echo "== Wrath Remix lets go of its Timerunners who went home"
 	start_world world-remix-again.out remix
 	wait_world_ready
-	gone=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Wintergarde', 'Agmarshammer')" | CTL sql acore_characters_remix)
+	# (as the world server starts, after its ready line: the deletions are queued writes too)
+	for _ in $(seq 30); do
+		gone=$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Wintergarde', 'Agmarshammer')" | CTL sql acore_characters_remix)
+		[ "$gone" != 0 ] || break
+		sleep 1
+	done
 	[ "$gone" = 0 ] || fail "$gone of the Timerunners who went home are still on Wrath Remix"
 	stop_world
 else
