@@ -26,13 +26,13 @@ wait 2
 expect damage 98727 by player
 cmd .revive
 target 0
-# Light's Judgment: three seconds after it's used on a Vale Moth, the character's strike there.
+# Light's Judgment: three seconds after it's used on a Vale Moth, the character's strike there
+# (heard within ten: a wait of exactly three raced the strike's own three seconds).
 go 530 -4318.1 -13349.1 47.6
 target 16520
 cmd .cast 98723
 target 0
-wait 3
-expect damage 98724 by player
+until damage 98724 by player 10
 # Out of the fight, so the character can log out (the realm keeps one in combat).
 go 530 -3961.6 -13931.2 100.7
 cmd .combatstop
