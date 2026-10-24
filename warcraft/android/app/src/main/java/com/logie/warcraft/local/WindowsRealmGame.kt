@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.game.GameSettings
-import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
 import com.winlator.container.ContainerManager
 import com.winlator.xenvironment.RootFSInstaller
@@ -28,7 +27,7 @@ object WindowsRealmGame {
         val cmd = File(container.rootDir, ".wine/drive_c/windows/system32/cmd.exe")
         if (!cmd.isFile) throw IOException("The realm's Windows container has no cmd.exe; repair the Windows runtime.")
         withContext(Dispatchers.Main) {
-            app.startActivity(Intent(app, XServerDisplayActivity::class.java)
+            app.startActivity(Intent(app, RealmSessionActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 .putExtra("container_id", container.id)
                 .putExtra("exec_path", cmd.path)
@@ -44,7 +43,7 @@ object WindowsRealmGame {
 
     fun showSession(context: Context, sessionExtra: String) {
         TitleMusic.stopForGame()
-        context.startActivity(Intent(context, XServerDisplayActivity::class.java)
+        context.startActivity(Intent(context, RealmSessionActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             .putExtra(sessionExtra, true))
     }
