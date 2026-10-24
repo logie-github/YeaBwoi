@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 package com.logie.warcraft.spp.ui
 
+import com.logie.warcraft.spp.core.SppGraphics
+
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
@@ -400,6 +402,17 @@ private data class MenuTile(val icon: ImageVector, val title: String, val subtit
             if (SppSettings.turnipAvailable(context)) WowChoiceRow("Turnip", "Mesa's driver for Adreno: try it if the game shows nothing or stops", current.graphics == SppSettings.TURNIP) {
                 if (editable) values = current.copy(graphics = SppSettings.TURNIP)
             }
+            Text("Graphics API")
+            WowChoiceRow("Direct3D 9", "As the phone's 3.3.5a game draws: the likeliest to start", current.api == SppGraphics.D3D9) {
+                if (editable) values = current.copy(api = SppGraphics.D3D9)
+            }
+            WowChoiceRow("Direct3D 11", "Legion's own: more effects, more asked of the driver", current.api == SppGraphics.D3D11) {
+                if (editable) values = current.copy(api = SppGraphics.D3D11)
+            }
+            WowChoiceRow("OpenGL", "A last try, through the OpenGL driver", current.api == SppGraphics.OPENGL) {
+                if (editable) values = current.copy(api = SppGraphics.OPENGL)
+            }
+            Text("A start the graphics fail (\"Game Initialization Failed!\") moves on to the next by itself.", style = MaterialTheme.typography.bodySmall)
         }
         failure?.let { Text(it, color = FelsongColors.Blood) }
         if (values == null && failure == null || saving) LinearProgressIndicator(Modifier.fillMaxWidth())

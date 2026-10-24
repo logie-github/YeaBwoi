@@ -64,14 +64,17 @@ it: the app in the background, the screen off, swiping the game away in Recents,
 the game. **Launch Game** opens the game, which joins the running realm, in a screen of its own
 (its own card in Recents while it runs); while it runs the button says **Return to Game** and
 brings you back to it (the game isn't started twice). **Leave the game** in the game's menu (four
-fingers) closes the game and brings the launcher back; so does the game exiting, or its card swiped
-away. The realm keeps running, so **Launch Game** is quick the next time. **Stop Server**
+fingers) closes the game and brings the launcher back; so does the game exiting (with its code said
+on the launcher if it isn't 0). Swiping the game's card away closes the game too, leaving you where
+Android puts you. The realm keeps running either way, so **Launch Game** is quick the next time.
+**Stop Server**
 stops the world and authentication servers (the world server saves characters when they log out
 and every few minutes, so log out first) and then shuts the database down cleanly. A server that
 crashes is reported at once (its crash report under `Server/bin64/Crashes`), not after the
-start's hour. Dark mode, power saving or a font change while you play don't end the game. If the
-game's screen doesn't open (Android opens none for an app in the background: tapping **Launch
-Game** with the app on screen does), the launcher says so and the realm carries on.
+start's hour. Dark mode, power saving or a font change while you play don't end the game. Android
+opens no screen for an app in the background, so a game the realm was to open while the app was
+behind (Press start, then another app) opens when you come back to the app; one that doesn't open
+within a minute with the app on screen is said on the launcher, the realm carrying on.
 The game logs in by itself once its login screen is up (it loads its data first, minutes under
 Box64), or asks for the password then. Its first start uses Legion's lowest graphics preset, no
 anti-aliasing and 30 frames a second (5 behind other apps); what you choose in its options

@@ -7,6 +7,7 @@ import com.logie.warcraft.felsong.core.FelsongClientSetup
 import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.local.LocalConfig
 import com.logie.warcraft.local.WindowsRealmGame
+import com.logie.warcraft.spp.core.SppGraphics
 import com.logie.warcraft.spp.core.SppInstall
 import com.logie.warcraft.spp.core.SppRealm
 import java.io.File
@@ -52,7 +53,42 @@ object SppGame {
         // (what's chosen in the game's options stays).
         val unset = SppRealm.CLIENT_GRAPHICS.filterKeys { key -> !Regex("(?im)^\\s*SET\\s+${Regex.escape(key)}\\s").containsMatchIn(text) }
         LocalConfig.atomicWrite(config, ClientConfig.updateConfig(text,
-            unset + FelsongClientSetup.values(size.first, size.second, SppLogin.selectedName(context))))
+            unset + FelsongClientSetup.values(size.first, size.second, SppLogin.selectedName(context)) +
+                // (the graphics API chosen, or the one a failed start moved on to: SppGraphics)
+                ("gxApi" to SppSettings.api(context))))
+    }
+
+    /**
+     * The game ended [seconds] after its launch at [launchedAt]: when its own log of its graphics'
+     * start (Logs/gx.log) says they didn't start, the next API is chosen for the next launch and said
+     * (null: nothing to say of it).
+     */
+    internal fun clientEnded(context: Context, launchedAt: Long, seconds: Long): String? {
+        if (seconds >= SppGraphics.START_SECONDS) return null
+        val log = File(SppFiles.layout(context).client, "Logs/gx.log")
+        if (!log.isFile || log.lastModified() < launchedAt - 5_000) return null
+        val failure = SppGraphics.failure(runCatching { log.readText() }.getOrDefault("")) ?: return null
+        val tried = SppSettings.api(context)
+        val next = SppGraphics.next(tried)
+        return if (next != null) {
+            SppSettings.setApi(context, next)
+            "The game couldn't start its graphics with ${SppGraphics.name(tried)} (\"$failure\"). It uses ${SppGraphics.name(next)} from the next launch: tap Launch Game."
+        } else {
+            SppSettings.setApi(context, SppGraphics.ORDER.first())
+            "The game couldn't start its graphics with any of its APIs (the last: \"$failure\"). Try the other graphics driver in Realm & Graphics, then Launch Game."
+        }
+    }
+
+    /** The game's own logs for a report: its graphics' start (Logs/gx.log) and its newest error report. */
+    internal fun clientLogs(context: Context): String {
+        val client = SppFiles.layout(context).client
+        val gx = runCatching { File(client, "Logs/gx.log").readLines().filter { it.isNotBlank() }.takeLast(40) }.getOrDefault(emptyList())
+        val error = File(client, "Errors").listFiles { file -> file.name.endsWith(".txt", true) }?.maxByOrNull { it.lastModified() }
+        val errorLines = error?.let { runCatching { it.readLines().take(40) }.getOrNull() }.orEmpty()
+        return buildString {
+            append(if (gx.isEmpty()) "gx.log (the game's graphics): nothing written." else "gx.log (the game's graphics):\n" + gx.joinToString("\n"))
+            if (error != null) append("\n\nErrors/${error.name}:\n" + errorLines.joinToString("\n"))
+        }
     }
 
     /**
