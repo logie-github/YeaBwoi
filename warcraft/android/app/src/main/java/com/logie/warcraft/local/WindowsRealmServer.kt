@@ -66,7 +66,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     private val host = WindowsRealmHost(realm.sessionExtra)
     /** The game's session (its screen), only while it's open: never the realm's processes'. */
     @Volatile private var session = WeakReference<XServerDisplayActivity>(null)
-    private val sessionAlive get() = session.get()?.let { !it.isDestroyed } == true
+    private val sessionAlive get() = session.get()?.let { !it.isDestroyed && !it.isFinishing } == true
     /** The realm's Wine is running for this realm (a game's session for it joins it). */
     internal val hostRunning get() = host.running
     @Volatile private var stopping = false
@@ -99,9 +99,13 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     init { WindowsRealmRegistry.register(this, realm.sessionExtra) }
 
-    /** Leave (the game's menu) in the game's session: the game ends with its session; the realm runs on. */
+    /**
+     * Leave (the game's menu) in the game's session: the game ends with its session (its programs by
+     * their marker, as the session ends; not through Winlator's helper, which the session's end stops
+     * while it may still be sending); the realm runs on.
+     */
+    @Suppress("UNUSED_PARAMETER")
     internal fun leaveClient(runtime: XServerDisplayActivity) {
-        clientProcess?.takeIf { clientLaunched }?.let { runCatching { runtime.winHandler?.killProcess(it) } }
         clientLaunched = false
         mutableStatus.value = mutableStatus.value.copy(clientRunning = false)
     }
@@ -109,7 +113,9 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     /** The game's session for this realm opens (it joins the realm's Wine; nothing of the realm depends on it). */
     internal fun onSessionAttached(runtime: XServerDisplayActivity) {
         session = WeakReference(runtime)
-        mutableStatus.value = mutableStatus.value.copy(clientError = null)
+        // (a realm's session is its game: one that opened after Launch Game gave up waiting is it all the same)
+        clientLaunched = true
+        mutableStatus.value = mutableStatus.value.copy(clientRunning = true, clientError = null)
     }
 
     /** The game's session ended (Leave, the game exiting, Android closing its screen): the game only. */
@@ -122,6 +128,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     /** The game's session wasn't allowed to open (another Windows session is open). */
     internal fun onSessionRejected() {
+        WindowsRealmGame.cancelPending()
         clientLaunched = false
         mutableStatus.value = mutableStatus.value.copy(clientRunning = false,
             clientError = "The game's screen didn't open: another Windows session is open. Close it, then Launch Game again.")
@@ -167,7 +174,13 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     val deadline = System.currentTimeMillis() + 15_000
                     while (p.ports.any { open(it) } && System.currentTimeMillis() < deadline) delay(250)
                 }
-                withContext(Dispatchers.IO) { host.stop() }
+                WindowsRealmGame.cancelPending()
+                if (!withContext(Dispatchers.IO) { host.stop() }) {
+                    mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
+                        error = "Forced termination was requested, but some of the realm's Windows processes did not end. Installation files remain locked.")
+                    refreshObserved()
+                    return@withLock
+                }
                 if (p != null && p.ports.any { open(it) }) {
                     mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
                         error = "Forced termination was requested, but a server port is still open. Installation files remain locked; inspect the component logs.")
@@ -459,6 +472,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             // claim a failed startup shut down a database that may still be saving data. A start that
             // failed before its Wine ran leaves nothing to stop: the runtime is free again.
             if (!host.running) WindowsRealmRegistry.release(this)
+            WindowsRealmGame.cancelPending()
             refreshObserved()
         }
     }
@@ -560,6 +574,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     private suspend fun stopNow(context: Context) {
         val p = profile
+        WindowsRealmGame.cancelPending()
         // (the game first: its session ends; the realm's processes are apart from it)
         closeDisplaySession()
         if (p == null || !host.running) {
@@ -593,14 +608,14 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 writeScript(context, name, TwwSession.script("S:\\", command, name))
                 execute(name)
                 val deadline = System.currentTimeMillis() + 30_000
-                while (ports.any { open(it) } || (component in started && !exitFile(context, component).isFile)) {
+                while (ports.any { open(it) } || (component in started && !exitFile(context, component).isFile && host.exitStatus(component) == null)) {
                     if (System.currentTimeMillis() >= deadline) throw IOException("${exe.name} did not stop. Its session is retained; use Force Stop.")
                     delay(500)
                 }
             }
             if ("database" in started && !exitFile(context, "database").isFile) {
                 val readyDeadline = System.currentTimeMillis() + 90_000
-                while (!open(p.databasePort) && !exitFile(context, "database").isFile) {
+                while (!open(p.databasePort) && !exitFile(context, "database").isFile && host.exitStatus("database") == null) {
                     if (System.currentTimeMillis() >= readyDeadline) throw IOException("The database is still initializing and cannot yet accept a safe shutdown request. Its Windows session was retained.")
                     delay(500)
                 }
@@ -611,7 +626,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 execute("shutdown-db")
                 waitExit(context, "shutdown-db", 90)
                 val deadline = System.currentTimeMillis() + 90_000
-                while (open(p.databasePort) || !exitFile(context, "database").isFile) {
+                while (open(p.databasePort) || (!exitFile(context, "database").isFile && host.exitStatus("database") == null)) {
                     if (System.currentTimeMillis() >= deadline) throw IOException("The database is still running after its shutdown request. Its session was retained; inspect runtime/shutdown-db.log.")
                     delay(500)
                 }

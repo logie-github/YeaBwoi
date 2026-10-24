@@ -54,9 +54,9 @@ class HeadlessWine(
     /** Ends the Wine server and every program of its prefix (`wineserver -k`). */
     fun stopServer(): Int = run(listOf(wineserver, "-k"), 60)
 
-    /** Waits up to [seconds] for [arguments] to end; its exit status (-1: still running, then killed). */
-    fun run(arguments: List<String>, seconds: Long): Int {
-        val process = spawn(arguments)
+    /** Waits up to [seconds] for [arguments] (with [extra] variables) to end; its exit status (-1: still running, then killed). */
+    fun run(arguments: List<String>, seconds: Long, extra: Map<String, String> = emptyMap()): Int {
+        val process = spawn(arguments, extra)
         if (!process.waitFor(seconds, java.util.concurrent.TimeUnit.SECONDS)) {
             process.destroyForcibly()
             return -1
@@ -77,7 +77,7 @@ class HeadlessWine(
     @Synchronized
     fun forgetEnded() { launched.entries.removeAll { !it.value.isAlive } }
 
-    private fun spawn(arguments: List<String>): Process {
+    private fun spawn(arguments: List<String>, extra: Map<String, String> = emptyMap()): Process {
         log.parentFile?.mkdirs()
         val builder = ProcessBuilder(launcher + arguments)
             .directory(workingDirectory)
@@ -87,6 +87,7 @@ class HeadlessWine(
         val env = builder.environment()
         UNSHARED.forEach { env.remove(it) }
         env.putAll(environment)
+        env.putAll(extra)
         return builder.start()
     }
 

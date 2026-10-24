@@ -16,12 +16,12 @@ active-container link is replaced in one step, and left when it's
 already that container.
 ---
  .../java/com/winlator/WinePrefixSetup.java    | 433 ++++++++++++++++++
- .../com/winlator/XServerDisplayActivity.java  | 296 ++----------
+ .../com/winlator/XServerDisplayActivity.java  | 305 ++----------
  .../winlator/container/ContainerManager.java  |  17 +-
  .../java/com/winlator/core/ProcessHelper.java |  44 ++
  .../GuestProgramLauncherComponent.java        |  27 +-
  .../components/SysVSharedMemoryComponent.java |   2 +-
- 6 files changed, 543 insertions(+), 276 deletions(-)
+ 6 files changed, 552 insertions(+), 276 deletions(-)
  create mode 100644 app/src/main/java/com/winlator/WinePrefixSetup.java
 
 diff --git a/app/src/main/java/com/winlator/WinePrefixSetup.java b/app/src/main/java/com/winlator/WinePrefixSetup.java
@@ -464,7 +464,7 @@ index 0000000..dbbd1a3
 +    }
 +}
 diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
-index 26d80a6..b46c8d8 100644
+index 26d80a6..9f6d0a5 100644
 --- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
 +++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
 @@ -128,6 +128,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
@@ -493,8 +493,19 @@ index 26d80a6..b46c8d8 100644
          AppUtils.hideSystemUI(this);
          AppUtils.keepScreenOn(this);
          setContentView(R.layout.xserver_display_activity);
-@@ -182,7 +190,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -180,9 +188,18 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         if (!isGenerateWineprefix()) {
+             ContainerManager containerManager = new ContainerManager(this);
              container = containerManager.getContainerById(getIntent().getIntExtra("container_id", 0));
++            // World of Warcraft app: a screen asked for with no container (a stale notification's or
++            // Recents' intent for a session that has ended) ends at once, as a refused one.
++            if (container == null) {
++                ForegroundService.stopSession(this);
++                closeSessionLog();
++                rejectedRuntimeSession = true;
++                finish();
++                return;
++            }
              containerManager.activateContainer(container);
  
 -            boolean wineprefixNeedsUpdate = container.getExtra("wineprefixNeedsUpdate").equals("t");
@@ -502,7 +513,7 @@ index 26d80a6..b46c8d8 100644
              if (wineprefixNeedsUpdate) {
                  preloaderDialog.show(R.string.wow_game_loading_update);
                  WineUtils.updateWineprefix(this, (status) -> {
-@@ -248,7 +256,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -248,7 +265,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          xServer = new XServer(this, screenInfo);
          xServer.setWinHandler(winHandler);
          final boolean[] flags = {false, shortcut != null || getIntent().hasExtra("exec_path")};
@@ -510,7 +521,7 @@ index 26d80a6..b46c8d8 100644
          xServer.windowManager.addOnWindowModificationListener(new WindowManager.OnWindowModificationListener() {
              @Override
              public void onUpdateWindowContent(Window window) {
-@@ -286,9 +293,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -286,9 +302,10 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
  
          Executors.newSingleThreadExecutor().execute(() -> {
              if (!isGenerateWineprefix()) {
@@ -523,7 +534,7 @@ index 26d80a6..b46c8d8 100644
              }
              setupXEnvironment();
          });
-@@ -366,7 +374,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -366,7 +383,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          com.logie.warcraft.tww.TwwServer.runtimeDetached(this);
          winHandler.stop();
          if (environment != null) environment.stopEnvironmentComponents();
@@ -532,7 +543,7 @@ index 26d80a6..b46c8d8 100644
          ForegroundService.stopSession(this);
          closeSessionLog();
          super.onDestroy();
-@@ -489,93 +497,35 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -489,93 +506,35 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          return preferences;
      }
  
@@ -605,11 +616,7 @@ index 26d80a6..b46c8d8 100644
 -            extractWinComponentFiles();
 -            container.putExtra("wincomponents", wincomponents);
 -            containerDataChanged = true;
-+        if (getIntent().getBooleanExtra("local_server_session", false)) {
-+            // (a local realm's session is a task of its own: gone from Recents with it, the launcher in front)
-+            startActivity(new Intent(this, com.logie.warcraft.MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
-+            finishAndRemoveTask();
-         }
+-        }
 -
 -        String desktopTheme = container.getDesktopTheme();
 -        if (!(desktopTheme+","+xServer.screenInfo).equals(container.getExtra("desktopTheme"))) {
@@ -626,7 +633,11 @@ index 26d80a6..b46c8d8 100644
 -            WineUtils.changeServicesStatus(container, container.getStartupSelection());
 -            container.putExtra("startupSelection", startupSelection);
 -            containerDataChanged = true;
--        }
++        if (getIntent().getBooleanExtra("local_server_session", false)) {
++            // (a local realm's session is a task of its own: gone from Recents with it, the launcher in front)
++            startActivity(new Intent(this, com.logie.warcraft.MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT));
++            finishAndRemoveTask();
+         }
 -
 -        boolean openAndroidBrowserFromWine = preferences.getBoolean("open_android_browser_from_wine", true);
 -        String openAndroidBrowserFromWineStr = openAndroidBrowserFromWine ? "t" : "f";
@@ -641,7 +652,7 @@ index 26d80a6..b46c8d8 100644
      }
  
      private void setupXEnvironment() {
-@@ -589,7 +539,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -589,7 +548,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          String wineDebugChannels = preferences.getString("wine_debug_channels", SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
          envVars.put("WINEDEBUG", enableWineDebug && !wineDebugChannels.isEmpty() ? "+"+wineDebugChannels.replace(",", ",+") : "-all");
  
@@ -654,7 +665,7 @@ index 26d80a6..b46c8d8 100644
  
          GuestProgramLauncherComponent guestProgramLauncherComponent = new GuestProgramLauncherComponent();
  
-@@ -603,6 +557,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -603,6 +566,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
              envVars.putAll(container.getEnvVars());
              if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
              if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
@@ -664,7 +675,7 @@ index 26d80a6..b46c8d8 100644
  
              guestProgramLauncherComponent.setBox64Preset(shortcut != null ? shortcut.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
              // World of Warcraft app: a session may ask for its own Box64 (local realms' modern clients).
-@@ -904,145 +861,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -904,145 +870,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          return inputControlsView;
      }
  
@@ -810,7 +821,7 @@ index 26d80a6..b46c8d8 100644
      private boolean isGenerateWineprefix() {
          return getIntent().getBooleanExtra("generate_wineprefix", false);
      }
-@@ -1157,34 +975,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -1157,34 +984,6 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          this.screenEffectProfile = screenEffectProfile;
      }
  
@@ -845,7 +856,7 @@ index 26d80a6..b46c8d8 100644
      public void changeFrameRatingVisibility(Window window, boolean visible) {
          if (frameRating == null) return;
          if (visible) {
-@@ -1215,18 +1005,4 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -1215,18 +1014,4 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          }
      }
  
