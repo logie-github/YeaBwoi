@@ -153,6 +153,14 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   `FlybyNightborne`, `FlybyLightforgedDraenei`, `FlybyZandalariTroll`): the same flight, faster
   (1.5 to 1.9 times; the Zandalari's 1.25). A flyby the game hasn't, or one that doesn't read as a
   3.3.5 camera, stays the stock one at its own length (the server's log says so).
+- **Add-ons**: Questie's 3.3.5 port knows a race by its own table of the game's races
+  (`QuestieCompat.ChrRaces`, by the race's file name) and stopped at login with "playerRaceId (a
+  nil value)" (QuestiePlayer.lua) on a void elf. The patch adds `Interface/FrameXML/
+  AlliedRacesAddons.lua` (in the game's FrameXML.toc, after its own files), which gives that table
+  each race as its start race as the add-on loads: the Draenei for the void elves and the
+  Lightforged, the Forsaken for the nightborne, the Tauren for the Zandalari, whose quests are
+  theirs here. Entries Questie has itself are left as they are. (The Skyborne aren't in it: on
+  Wrath Remix's realm this patch is out of the game.)
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the free
   columns of the race icons (the void elves' and nightborne's in the last, the Lightforged's and
   Zandalari's in the one before the Skyborne's); each side's races in two columns, two to a row

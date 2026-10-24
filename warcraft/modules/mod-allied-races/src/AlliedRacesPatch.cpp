@@ -38,7 +38,7 @@ namespace AlliedRaces
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* ASIDE = "patch-V.MPQ.aside";          // the patch kept out of the game (SetPatchAside)
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-9";   // 9: the intros' cameras their narrations' length; 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 8: the character tables in the order the game reads them; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
+        constexpr char const* VERSION = "allied-races-9";   // 9: the intros' cameras their narrations' length, the races for Questie; 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 8: the character tables in the order the game reads them; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -472,6 +472,22 @@ namespace AlliedRaces
         }
         else
             problems.push_back("GlueXML.toc isn't in the game: the character screen won't show them");
+        // The in-game interface: the races for add-ons with tables of the races of their own (Questie's).
+        Bytes frameToc;
+        if (game.Read("Interface\\FrameXML\\FrameXML.toc", frameToc))
+        {
+            std::string text(frameToc.begin(), frameToc.end());
+            if (text.find("AlliedRacesAddons.lua") == std::string::npos)
+            {
+                if (!text.empty() && text.back() != '\n')
+                    text += "\r\n";
+                text += "AlliedRacesAddons.lua\r\n";
+            }
+            writer.Add("Interface\\FrameXML\\FrameXML.toc", Bytes(text.begin(), text.end()));
+            writer.Add("Interface\\FrameXML\\AlliedRacesAddons.lua", ReadFile(moduleData / "Interface" / "FrameXML" / "AlliedRacesAddons.lua"));
+        }
+        else
+            problems.push_back("FrameXML.toc isn't in the game: add-ons such as Questie won't know the races");
         // The intros' narration (the user's, data/client/*_intro.mp3), where the game's sound table has it.
         writer.Add("Sound\\CinematicVoices\\VoidElfNarration.mp3", ReadFile(moduleData / "voidelf_intro.mp3"));
         writer.Add("Sound\\CinematicVoices\\NightborneNarration.mp3", ReadFile(moduleData / "nightborne_intro.mp3"));

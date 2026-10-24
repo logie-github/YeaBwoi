@@ -93,5 +93,28 @@ for native, races, with_skyborne in [
     check(g.RACE_INFO_VOIDELF and g.ABILITY_INFO_NIGHTBORNE4 and g.VOIDELF_DISABLED, "the races' texts")
     check(g.RACE_INFO_LIGHTFORGEDDRAENEI and g.ABILITY_INFO_ZANDALARITROLL4 and g.ZANDALARITROLL_DISABLED, "the Lightforged's and Zandalari's texts")
 
+# The in-game script for add-ons: Questie's 3.3.5 port's race table gets the races as their start
+# races, as that add-on loads (its own entries left as they are).
+ADDONS = open(os.path.join(HERE, "..", "data", "client", "Interface", "FrameXML", "AlliedRacesAddons.lua")).read()
+lua = lua51.LuaRuntime(unpack_returned_tuples=True)
+lua.execute(r"""
+FRAMES = {}
+function CreateFrame() local f = { events = {} }
+  function f:RegisterEvent(e) self.events[e] = true end
+  function f:SetScript(k, fn) self[k] = fn end
+  FRAMES[#FRAMES + 1] = f; return f end
+function Fire(e, ...) for _, f in ipairs(FRAMES) do if f.events[e] and f.OnEvent then f.OnEvent(f, e, ...) end end end
+""")
+lua.execute(ADDONS)
+lua.execute('Fire("ADDON_LOADED", "Blizzard_AuctionUI")')
+lua.execute('QuestieCompat = { ChrRaces = { Human = 1, Draenei = 11, Scourge = 5 } }; Fire("ADDON_LOADED", "Questie-335")')
+g = lua.globals()
+r = g.QuestieCompat.ChrRaces
+check(r.VoidElf == 11 and r.LightforgedDraenei == 11 and r.Nightborne == 5 and r.ZandalariTroll == 6,
+      "Questie's race table: the void elves and Lightforged the Draenei, the nightborne the Forsaken, the Zandalari the Tauren")
+check(r.Human == 1 and r.Scourge == 5, "...the game's races as Questie has them")
+lua.execute('QuestieCompat.ChrRaces.VoidElf = 15; Fire("ADDON_LOADED", "Other")')
+check(r.VoidElf == 15, "...and a race Questie knows itself stays its")
+
 print("PASSED" if not failures else f"FAILED ({failures})")
 sys.exit(1 if failures else 0)

@@ -178,6 +178,22 @@ int main(int argc, char** argv)
                               "Interface\\GlueXML\\AlliedRacesCreate.lua", "Interface\\GlueXML\\AlliedRacesCreate.xml",
                               "Sound\\CinematicVoices\\VoidElfNarration.mp3", "Sound\\CinematicVoices\\NightborneNarration.mp3" })
         Check(patch->Read(name, bytes) && bytes.size() > 1000, std::string(name) + " is in it");
+    // The in-game script for add-ons (Questie), where the game has its interface's file list.
+    {
+        Game game(data, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq" });
+        Bytes toc;
+        if (!game.Read("Interface\\FrameXML\\FrameXML.toc", toc))
+            std::cout << "  (no FrameXML.toc in this game: the add-ons' script isn't added)\n";
+        else
+        {
+            std::string theirs(toc.begin(), toc.end());
+            Check(patch->Read("Interface\\FrameXML\\FrameXML.toc", bytes) && std::string(bytes.begin(), bytes.end()).rfind(theirs, 0) == 0 &&
+                  std::string(bytes.begin(), bytes.end()).find("AlliedRacesAddons.lua") != std::string::npos,
+                  "FrameXML.toc is the game's with AlliedRacesAddons.lua after it");
+            Check(patch->Read("Interface\\FrameXML\\AlliedRacesAddons.lua", bytes) && bytes.size() > 500, "AlliedRacesAddons.lua is in it");
+        }
+    }
+
     // The intros' cameras, where the game has the flybys they're made from.
     {
         Dbc cinematics;

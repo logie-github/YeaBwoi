@@ -1578,6 +1578,10 @@ a realm with modules), then stage 3.
   server with the patch (`RetimeCamera`). Tested on stand-in 3.3.5 cameras made to the format (no
   3.3.5 client's base archives here): the real flybys' layout is assumed (type, field of view, clip
   planes, three tracks); one that doesn't fit is left stock, not changed.
+- The user's screenshot: Questie's "playerRaceId (a nil value)" on a void elf. The races' patch adds
+  an in-game script that gives Questie's race table (`QuestieCompat.ChrRaces`, Questie-335) each race
+  as its start race (`AlliedRacesAddons.lua`). Checked in Lua 5.1 against stand-ins (`test_screen.py`),
+  not with Questie in the game. The Skyborne have the same gap; not done.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
