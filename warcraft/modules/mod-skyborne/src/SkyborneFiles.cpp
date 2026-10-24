@@ -991,6 +991,40 @@ namespace Skyborne
                     else if (whole.insert(record).second)
                         dbc.records.push_back(record);
                 }
+                else if (op == "copyrow")
+                {
+                    // the client's own row [from] as a new row [to], where the table has none by that id
+                    if (f.size() != 3 || !hasIds)
+                        return "a row copy the table can't take" + where;
+                    uint32_t from = uint32_t(std::stoll(f[1])), to = uint32_t(std::stoll(f[2]));
+                    auto it = byId.find(from);
+                    if (it != byId.end() && !byId.count(to))
+                    {
+                        Bytes record = dbc.records[it->second];
+                        Put32(record.data(), to);
+                        place(record);
+                    }
+                }
+                else if (op == "remapfield")
+                {
+                    // every row whose [field] is [from] given [to] there, whatever its id: the client's
+                    // own rows, laid out as its tables have them (an HD look's too)
+                    if (f.size() != 4)
+                        return "a field remap of the wrong size" + where;
+                    uint32_t field = uint32_t(std::stoul(f[1])), from = uint32_t(std::stoll(f[2])), to = uint32_t(std::stoll(f[3]));
+                    if (field >= dbc.size / 4)
+                        return "no such field" + where;
+                    for (size_t row = 0; row < dbc.records.size(); ++row)
+                        if (dbc.Get(row, field) == from)
+                            dbc.Set(row, field, to);
+                    whole = std::set<Bytes>(dbc.records.begin(), dbc.records.end());
+                    if (field == 0 && hasIds)
+                    {
+                        byId.clear();
+                        for (size_t row = 0; row < dbc.records.size(); ++row)
+                            byId.emplace(dbc.Get(row, 0), row);
+                    }
+                }
                 else if (op == "or" || op == "set")
                 {
                     if (f.size() != 4 || !hasIds)

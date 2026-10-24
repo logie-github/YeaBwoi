@@ -93,13 +93,15 @@ class Track:
 
     @staticmethod
     def read(blob, at, value_size, in_file):
-        """[in_file(i)] says whether sequence i's data is in [blob] (else in its .anim file)."""
+        """[in_file(i)] says whether sequence i's data is in [blob] (else in its .anim file). A
+        track of a global sequence has its data in [blob] whatever the sequences' files: it's
+        never in a sequence's own file."""
         interp, gseq, tc, to, vc, vo = struct.unpack_from("<hhIIII", blob, at)
         ts, vs = [], []
         for i in range(max(tc, vc)):
             t = struct.unpack_from("<II", blob, to + i * 8) if i < tc else (0, 0)
             v = struct.unpack_from("<II", blob, vo + i * 8) if i < vc else (0, 0)
-            if in_file(i):
+            if gseq >= 0 or in_file(i):
                 ts.append(blob[t[1]:t[1] + t[0] * 4] if t[0] else b"")
                 vs.append(blob[v[1]:v[1] + v[0] * value_size] if v[0] else b"")
             else:
@@ -113,7 +115,7 @@ class Track:
         ts = []
         for i in range(tc):
             t = struct.unpack_from("<II", blob, to + i * 8)
-            ts.append(blob[t[1]:t[1] + t[0] * 4] if in_file(i) else ("ext",) + tuple(t))
+            ts.append(blob[t[1]:t[1] + t[0] * 4] if gseq >= 0 or in_file(i) else ("ext",) + tuple(t))
         return Track(interp, gseq, ts, None)
 
     def has_data(self):
@@ -331,6 +333,14 @@ class Merged:
             gseq = self.child_loop(child_track.gseq)
         elif parent_track and parent_track.gseq >= 0:
             gseq = parent_track.gseq
+        if gseq >= 0:
+            # a global sequence's data is in its first entry alone, the entry of the track whose
+            # loop it is (not the first merged sequence's, which may be the other skeleton's)
+            t = child_track if child_track and child_track.gseq >= 0 else parent_track
+            first = next((k for k in range(len(t.timestamps)) if entry_count(t.timestamps[k])), 0)
+            ts = t.timestamps[first:first + 1] or [b""]
+            vs = (t.values[first:first + 1] or [b""]) if t.values is not None else None
+            return Track(interp, gseq, ts, vs)
         ts, vs = [], []
         has_values = (child_track and child_track.values is not None) or (parent_track and parent_track.values is not None)
         for j in range(self.n):
@@ -348,10 +358,6 @@ class Merged:
                 continue
             ts.append(t.timestamps[i])
             vs.append(t.values[i] if t.values is not None else b"")
-        if gseq >= 0:
-            # a global sequence's data is in its first entry alone
-            first = next((k for k in range(self.n) if entry_count(ts[k])), 0)
-            ts, vs = [ts[first]], [vs[first]]
         return Track(interp, gseq, ts, vs if has_values else None)
 
 

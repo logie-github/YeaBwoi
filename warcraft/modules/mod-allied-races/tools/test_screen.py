@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The races' character screen code (data/client/Interface/GlueXML/AlliedRacesCreate.lua) run in
 Lua 5.1 against stand-ins for the game's screen: the extra buttons get the screen's names, each
-side's races in two columns, two to a row, the backgrounds and icons are theirs; and with the
+side's races in two columns, two to a row, the backgrounds, icons and selection screen music are
+theirs; and with the
 Skyborne's screen code loaded after it (as in a client with both patches), both sides' races still
 line up.
 Needs lupa (pip)."""
@@ -36,6 +37,15 @@ function GetFactionForRace(i) return RACES[i][1], RACES[i][2] end
 function CharacterCreateEnumerateRaces(...) CharacterCreate.numRaces = select("#", ...) / 3 end
 BACKGROUND = nil
 function SetBackgroundModel(model, name) BACKGROUND = name end
+-- the game's table of the scenes' music (GlueParent.lua, its enUS patch's: Troll and Gnome added)
+GlueAmbienceTracks = { HUMAN = "GlueScreenHuman", ORC = "GlueScreenOrcTroll", TROLL = "GlueScreenOrcTroll",
+  DWARF = "GlueScreenDwarfGnome", GNOME = "GlueScreenDwarfGnome", TAUREN = "GlueScreenTauren", SCOURGE = "GlueScreenUndead",
+  NIGHTELF = "GlueScreenNightElf", DRAENEI = "GlueScreenDraenei", BLOODELF = "GlueScreenBloodElf",
+  DARKPORTAL = "GlueScreenIntro", DEATHKNIGHT = "GlueScreenIntro", CHARACTERSELECT = "GlueScreenIntro" }
+AMBIENCE = nil
+function PlayGlueAmbience(track, fade) AMBIENCE = track end
+-- as CharacterSelect_OnShow plays it: by the selected character's own race (GetSelectBackgroundModel's)
+function ShowSelection(race) AMBIENCE = nil; PlayGlueAmbience(GlueAmbienceTracks[strupper(race)], 4.0) end
 """
 failures = 0
 
@@ -90,6 +100,15 @@ for native, races, with_skyborne in [
     check(g.BACKGROUND == "Troll", "the Zandalari's background is the Trolls' (their kin's height)")
     lua.execute('SetBackgroundModel("m", "Orc")')
     check(g.BACKGROUND == "Orc", "the game's own backgrounds stay")
+    music = [("VoidElf", "GlueScreenBloodElf"), ("Nightborne", "GlueScreenNightElf"), ("LightforgedDraenei", "GlueScreenDraenei"),
+             ("ZandalariTroll", "GlueScreenOrcTroll"), ("Orc", "GlueScreenOrcTroll"), ("Human", "GlueScreenHuman")]
+    if with_skyborne:
+        music += [("SkyborneA", "GlueScreenHuman"), ("SkyborneH", "GlueScreenTauren")]
+    heard = []
+    for race, track in music:
+        g.ShowSelection(race)
+        heard.append((race, g.AMBIENCE))
+    check(heard == music, f"the selection screen's music by the selected character's race: their kin's, the game's own kept ({heard})")
     check(g.RACE_INFO_VOIDELF and g.ABILITY_INFO_NIGHTBORNE4 and g.VOIDELF_DISABLED, "the races' texts")
     check(g.RACE_INFO_LIGHTFORGEDDRAENEI and g.ABILITY_INFO_ZANDALARITROLL4 and g.ZANDALARITROLL_DISABLED, "the Lightforged's and Zandalari's texts")
 

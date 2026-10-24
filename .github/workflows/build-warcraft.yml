@@ -455,13 +455,31 @@ jobs:
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_zoom.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-allied-races/tools/test_screen.py
 
-      # The void elves' and the nightborne's tools: the model converter's pieces, the textures'
-      # codec, the tables' data (mod-allied-races).
+      # The allied races' tools: the model converter's pieces, the textures' codec, the tables'
+      # data, the voices (with ffmpeg), the intros' narrations through a patch, both race patches'
+      # voice tables and the creatures' races moved in a client's own rows (mod-allied-races,
+      # mod-skyborne).
       - name: The allied races' tools
         run: |
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends ffmpeg
+          fi
           python3 -m venv "$RUNNER_TEMP/allied"
           "$RUNNER_TEMP/allied/bin/pip" install --quiet numpy pillow
           "$RUNNER_TEMP/allied/bin/python" warcraft/modules/mod-allied-races/tools/test_tools.py
+          "$RUNNER_TEMP/allied/bin/python" warcraft/modules/mod-allied-races/tools/test_safety.py
+          "$RUNNER_TEMP/allied/bin/python" warcraft/modules/mod-allied-races/tools/test_voices.py
+          g++ -std=c++17 -O2 -Iwarcraft/modules/mod-allied-races/src -Iwarcraft/modules/mod-skyborne/src \
+            warcraft/modules/mod-allied-races/tools/test_intro.cpp warcraft/modules/mod-allied-races/src/AlliedRacesPatch.cpp \
+            warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-allied-intro"
+          "$RUNNER_TEMP/test-allied-intro" warcraft/modules/mod-allied-races/data/client
+          g++ -std=c++17 -O2 -Iwarcraft/modules/mod-skyborne/src warcraft/modules/mod-allied-races/tools/test_voice_tables.cpp \
+            warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-voice-tables"
+          "$RUNNER_TEMP/test-voice-tables" warcraft/modules/mod-allied-races/data/client warcraft/modules/mod-skyborne/data/client
+          g++ -std=c++17 -O2 -Iwarcraft/modules/mod-skyborne/src warcraft/modules/mod-skyborne/tools/test_table_moves.cpp \
+            warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-table-moves"
+          "$RUNNER_TEMP/test-table-moves" warcraft/modules/mod-skyborne/data/client warcraft/modules/mod-allied-races/data/client
 
       # The checksums the app checks a Turtle WoW client and its DBC files against come from the
       # pinned Tortoise-WoW; they must be the ones at that commit.

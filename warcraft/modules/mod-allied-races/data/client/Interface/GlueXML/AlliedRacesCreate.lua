@@ -15,7 +15,7 @@
 --    Blood Elves' for the void elves, the Night Elves' for the nightborne, the Draenei's for the
 --    Lightforged, the Trolls' for the Zandalari. Each scene's camera is framed for its own race's
 --    height, so each looks as its kin does there (the Draenei's showed the void elves small, the
---    Forsaken's cut off the nightborne's heads).
+--    Forsaken's cut off the nightborne's heads). On the selection screen, their kin's music too.
 --  * Their text.
 
 local ALLIED = { VOIDELF = "BloodElf", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Troll" };
@@ -102,6 +102,15 @@ end
 local setBackgroundModel = SetBackgroundModel;
 function SetBackgroundModel(model, name)
 	return setBackgroundModel(model, ALLIED[strupper(name or "")] or name);
+end
+
+-- Their scenes' music on the character selection screen: the screen plays it again as it's shown, by
+-- the selected character's own race (CharacterSelect_OnShow: GlueAmbienceTracks[strupper(race)]),
+-- which the game's table hasn't for them, so theirs is their kin's (or the selection screen's own).
+if ( type(GlueAmbienceTracks) == "table" ) then
+	for race, background in pairs(ALLIED) do
+		GlueAmbienceTracks[race] = GlueAmbienceTracks[strupper(background)] or GlueAmbienceTracks["CHARACTERSELECT"] or "GlueScreenIntro";
+	end
 end
 
 RACE_INFO_VOIDELF = "Years ago, a group of blood elves led by Magister Umbric sought to harness the power of the Void. Cast out of Silvermoon, they were transformed by the very force they studied, and now, as the ren'dorei, they fight for the Alliance. Those who wash up on the shores of Azuremyst Isle find a welcome among the draenei, who know what it is to be exiles.";

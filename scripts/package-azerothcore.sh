@@ -118,7 +118,7 @@ if [ -d "$DIST/modules/mod-allied-races" ]; then
 	apk add -q --no-progress ffmpeg py3-numpy py3-pillow
 	python3 /repo/warcraft/modules/mod-allied-races/tools/package.py fetch /repo/build/allied-races-cache \
 		"$pkg/src/modules/mod-allied-races/data/files" ||
-		echo "The void elves' and the nightborne's files weren't all made: the races aren't in the game" >&2
+		echo "The allied races' files weren't all made (tools/package.py says which): the races aren't in the game" >&2
 fi
 
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
