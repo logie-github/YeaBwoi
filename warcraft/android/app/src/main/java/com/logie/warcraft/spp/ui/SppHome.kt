@@ -58,12 +58,9 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var choosingImport by rememberSaveable { mutableStateOf(LocalInstallJobs.Kind.IMPORT_CLIENT.name) }
     var playAfterStart by rememberSaveable { mutableStateOf(false) }
-    // (a start asked for while another of the phone's realms runs: whether it plays once up)
-    var askOther by remember { mutableStateOf<Boolean?>(null) }
     var askRestricted by remember { mutableStateOf<Boolean?>(null) }
     fun startRealm(play: Boolean, restrictedAsked: Boolean = false) {
         if (!restrictedAsked && com.logie.warcraft.local.OtherRealms.backgroundRestricted(context)) { askRestricted = play; return }
-        if (com.logie.warcraft.local.OtherRealms.running().isNotEmpty()) { askOther = play; return }
         if (play) playAfterStart = true
         SppServer.start(context)
     }
@@ -204,19 +201,6 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
             FelsongButton("Open settings") { askRestricted = null; com.logie.warcraft.local.OtherRealms.openAppSettings(context) }
         }) {
             Text("The app's battery use is Restricted: Android ends the realm as soon as you leave the app (its servers run in the app). In the app's settings, Battery: Unrestricted (on Samsung, also keep it out of Sleeping apps).")
-        }
-    }
-    askOther?.let { play ->
-        FelsongDialog("Another realm is running", { askOther = null }, buttons = {
-            FelsongButton("Cancel", primary = false) { askOther = null }
-            FelsongButton("Start anyway", primary = false) { askOther = null; if (play) playAfterStart = true; SppServer.start(context) }
-            FelsongButton("Stop it and start") {
-                askOther = null
-                if (play) playAfterStart = true
-                com.logie.warcraft.local.OtherRealms.stop(context) { SppServer.start(context) }
-            }
-        }) {
-            Text(com.logie.warcraft.local.OtherRealms.running().joinToString(" and ") + " is running. Legion's realm and its game under the phone's CPU emulation need its memory: stop it first?")
         }
     }
     when (dialog) {
@@ -443,7 +427,7 @@ private data class MenuTile(val icon: ImageVector, val title: String, val subtit
             WowChoiceRow("OpenGL", "A last try, through the OpenGL driver", current.api == SppGraphics.OPENGL) {
                 if (editable) values = current.copy(api = SppGraphics.OPENGL)
             }
-            Text("A start the graphics fail (\"Game Initialization Failed!\") moves on to the next by itself.", style = MaterialTheme.typography.bodySmall)
+            Text("A start whose graphics fail moves on to the next by itself. The driver and API apply at the next Launch Game.", style = MaterialTheme.typography.bodySmall)
         }
         failure?.let { Text(it, color = FelsongColors.Blood) }
         if (values == null && failure == null || saving) LinearProgressIndicator(Modifier.fillMaxWidth())

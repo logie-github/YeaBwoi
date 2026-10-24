@@ -137,9 +137,11 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     }
 
     /** The game exited (its exit file written): a code other than 0 said, and reported. */
+    @Synchronized
     private fun clientExited(context: Context) {
         val exit = exitFile(context, "client")
-        if (!exit.isFile) return
+        // (once per game: the session's end and the check both see it)
+        if (!exit.isFile || !clientLaunched) return
         clientLaunched = false
         val code = exit.readText().trim()
         val seconds = (System.currentTimeMillis() - clientLaunchedAt) / 1000
@@ -409,6 +411,8 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 GameSettings.gameSize(app).let { (w, h) -> container.setScreenSize("${w}x$h"); withContext(Dispatchers.IO) { container.saveData() } }
                 // (the last game's session log kept: the new session's starts anew)
                 File(layout(app).root, "runtime/session.log").takeIf { it.isFile }?.renameTo(File(layout(app).root, "runtime/session.previous.log"))
+                // (the graphics driver as chosen now: the realm's Wine uses none, the game's session does)
+                realm.clientGraphicsDriver(app)?.let { driver -> container.setGraphicsDriver(driver); withContext(Dispatchers.IO) { container.saveData() } }
                 withContext(Dispatchers.Main) { realm.openClientSession(context, container) }
                 // (opened with the launcher on screen, but no screen in a minute: said; one waiting for the
                 // launcher to be shown isn't waited on)
@@ -528,7 +532,11 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     knownCrashes = knownCrashes + report
                     throw IOException("A server crashed (its report: $report).\n" + sessionEnd(context, "world"))
                 }
-                if (clientLaunched && exitFile(context, "client").isFile) clientExited(context)
+                if (clientLaunched && exitFile(context, "client").isFile) {
+                    clientExited(context)
+                    // (its session ends with it: Winlator's helper and an empty desktop would stay)
+                    session.get()?.let { s -> withContext(Dispatchers.Main) { s.endFromRealm() } }
+                }
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error

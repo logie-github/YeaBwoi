@@ -1,30 +1,104 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Sat, 24 Oct 2026 19:30:07 +0000
-Subject: [PATCH] Box64 put in place verified, in one step; which one ran, in
- the session's log
+Subject: [PATCH] Local realm sessions: Box64 verified, the game's end ends its
+ session, crashes end
 
 Box64's version was extracted over the runtime's binary in place, the
 result ignored and the version recorded anyway: with a Box64 still
-running, the write fails (ETXTBSY) and the other version stays while
-this one is recorded, and nothing extracts it again. Local realms'
-modern clients fail their start-up protection on the stock Box64
-("Game Initialization Failed!"). The version's binary is now extracted
-beside the runtime (once per app build), compared with the installed
-one at every start, and put in place by a rename; the version is
-recorded only once the installed binary is it. A local realm's session
-writes which Box64 it runs (version and SHA-256) in its log.
+running the write fails (ETXTBSY) and the other version stays while
+this one is recorded. Local realms' modern clients fail their start-up
+protection on the stock Box64 ("Game Initialization Failed!"). The
+version's binary is now staged (once per app build), compared with the
+installed one at every start and put in place by a rename; the version
+is recorded only once it's installed. A local realm's session logs which
+Box64 it runs, its game's windows, and Box64's word on a fault
+(BOX64_SHOWSEGV); the realm can end it when its game has ended
+(endFromRealm). A local realm's prefix has Wine's crash dialog off, so a
+crash ends the program with its code instead of hanging unseen.
 ---
- .../com/winlator/XServerDisplayActivity.java  |  2 +
+ .../java/com/winlator/WinePrefixSetup.java    |  5 ++
+ .../com/winlator/XServerDisplayActivity.java  | 29 +++++++++-
  .../com/winlator/core/GeneralComponents.java  | 15 +++++
  .../GuestProgramLauncherComponent.java        | 55 ++++++++++++++++++-
- 3 files changed, 69 insertions(+), 3 deletions(-)
+ 4 files changed, 98 insertions(+), 6 deletions(-)
 
+diff --git a/app/src/main/java/com/winlator/WinePrefixSetup.java b/app/src/main/java/com/winlator/WinePrefixSetup.java
+index dbbd1a3..6c11bd7 100644
+--- a/app/src/main/java/com/winlator/WinePrefixSetup.java
++++ b/app/src/main/java/com/winlator/WinePrefixSetup.java
+@@ -345,6 +345,11 @@ public class WinePrefixSetup {
+         WinePrefixSetup setup = forContainer(context, container, new EnvVars());
+         setup.setupWineSystemFiles(false);
+         setup.changeWineAudioDriver(false);
++        // (a crash ends the program, its code written, instead of Wine's crash dialog holding it
++        // behind a screen no one sees: the realm's servers and its game alike)
++        try (WineRegistryEditor editor = new WineRegistryEditor(new File(RootFS.find(context).getRootDir(), RootFS.WINEPREFIX+"/user.reg"))) {
++            editor.setDwordValue("Software\\Wine\\WineDbg", "ShowCrashDialog", 0);
++        }
+         GuestProgramLauncherComponent.prepareBox64(context, box64Version);
+         RootFS rootFS = RootFS.find(context);
+         File shm = new File(rootFS.getRootDir(), "/tmp/shm");
 diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
-index 74d9b3b..32fb817 100644
+index 74d9b3b..34f80a1 100644
 --- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
 +++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
-@@ -636,6 +636,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+@@ -277,6 +277,9 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+ 
+             @Override
+             public void onMapWindow(Window window) {
++                // World of Warcraft app: a local realm's game's windows in its log (an "ERROR" box says which).
++                if (getIntent().getBooleanExtra("local_server_session", false) && window.isRenderable() && !window.getClassName().isEmpty())
++                    writeSessionLog("[app] window \""+window.getName()+"\" ("+window.getClassName()+")");
+                 if (!flags[0] && window.isRenderable() && !window.getClassName().isEmpty()) {
+                     if (getIntent().getBooleanExtra("local_server_session", false)
+                             && !com.logie.warcraft.tww.core.LocalGameWindow.isClient(window.getClassName()))
+@@ -511,6 +514,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         return preferences;
+     }
+ 
++    // World of Warcraft app: a local realm's game ended (its exit file written): its session ends too
++    // (Winlator's helper and the empty desktop would stay otherwise), the launcher back in front.
++    public void endFromRealm() {
++        runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) exit(); });
++    }
++
+     // World of Warcraft app: Leave in a local realm's session closes its game and the session (the
+     // realm runs on without a screen; Stop Server ends it); in a game's, it ends the session.
+     private void leaveGame() {
+@@ -558,8 +567,16 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         // World of Warcraft app: not while a local realm's Wine runs: its server's socket and shared
+         // memory are there (rootfs/tmp/.wine-<uid>, rootfs/tmp/shm), and without them a second Wine
+         // server would start for the same prefix, unable to see the realm's programs.
+-        if (!sharedRuntime) FileUtils.clear(rootFS.getTmpDir());
+-        else new File(rootFS.getTmpDir(), "shm").mkdirs();
++        // World of Warcraft app: the runtime's tmp is cleared but for Wine's server folders and esync
++        // memory, which a local realm's Wine running beside this screen uses (a stale server folder is
++        // taken over by Wine, a stale esync file unlinked by its next server).
++        File[] tmpEntries = rootFS.getTmpDir().listFiles();
++        if (!sharedRuntime && tmpEntries != null) {
++            for (File entry : tmpEntries) {
++                if (!entry.getName().startsWith(".wine-") && !entry.getName().equals("shm")) FileUtils.delete(entry);
++            }
++        }
++        new File(rootFS.getTmpDir(), "shm").mkdirs();
+ 
+         GuestProgramLauncherComponent guestProgramLauncherComponent = new GuestProgramLauncherComponent();
+ 
+@@ -575,7 +592,11 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+             if (!envVars.has("WINEESYNC")) envVars.put("WINEESYNC", "1");
+             // World of Warcraft app: every program of this session carries it (Wine passes it on to
+             // the programs it starts), so its end can end them and nothing of a realm's.
+-            if (getIntent().getBooleanExtra("local_server_session", false)) envVars.put("WINLATOR_SESSION", sessionToken);
++            if (getIntent().getBooleanExtra("local_server_session", false)) {
++                envVars.put("WINLATOR_SESSION", sessionToken);
++                // (Box64's own word when a game's program faults, in the session's log)
++                envVars.put("BOX64_SHOWSEGV", "1");
++            }
+ 
+             guestProgramLauncherComponent.setBox64Preset(shortcut != null ? shortcut.getExtra("box64Preset", container.getBox64Preset()) : container.getBox64Preset());
+             // World of Warcraft app: a session may ask for its own Box64 (local realms' modern clients).
+@@ -636,6 +657,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
          synchronized (sessionLock) {
              if (sessionEnded) return;
              environment.startEnvironmentComponents();

@@ -24,6 +24,8 @@ interface ManagedWindowsRealm {
     fun prepareClientLaunch(context: Context) {}
     /** The game ended [seconds] after its launch at [launchedAt] with exit [code]: what to say of it (null: nothing of the realm's own). */
     fun clientEnded(context: Context, launchedAt: Long, seconds: Long, code: String): String? = null
+    /** Winlator's graphics driver for the game's session, as chosen at its launch (null: the container's). */
+    fun clientGraphicsDriver(context: Context): String? = null
     /** The client's command-line arguments after its program (each a plain word: no quotes or spaces). */
     fun clientArguments(context: Context): List<String> = emptyList()
     /** The game's own logs, for a report of its failure (null: none). */

@@ -89,7 +89,7 @@ object SppGame {
             "The game couldn't start its graphics with ${SppGraphics.name(tried)} (\"$failure\"). It uses ${SppGraphics.name(next)} from the next launch: tap Launch Game."
         } else {
             SppSettings.setApi(context, SppGraphics.ORDER.first())
-            "The game couldn't start its graphics with any of its APIs (the last: \"$failure\"). Try the other graphics driver in Realm & Graphics, then Launch Game."
+            "The game couldn't start its graphics with any of its APIs (the last: \"$failure\"). Try the other graphics driver in Realm & Graphics (Stop Server first), then Launch Game."
         }
     }
 

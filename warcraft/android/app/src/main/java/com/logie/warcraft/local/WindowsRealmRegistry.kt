@@ -33,14 +33,18 @@ object WindowsRealmRegistry {
         val current = liveDisplay()
         if (current != null && current !== runtime) return false
         val target = owner(runtime)
-        val allowed = if (target != null) holder === target && target.allowsSession() && isGame(runtime)
-            else holder == null && realms.values.none { it.isBusy }
+        // (another game's screen opens whether a realm runs or not: the realm's Wine has no screen, its
+        // own prefix and real paths, and a screen leaves its server's files in the runtime alone)
+        val allowed = if (target != null) holder === target && target.allowsSession() && isGame(runtime) else true
         if (allowed) display = WeakReference(runtime)
         return allowed
     }
 
-    /** A local realm (SPP Legion, The War Within) is running or holds the Windows runtime. */
-    @Synchronized fun anyBusy(): Boolean = holder != null || realms.values.any { it.isBusy }
+    /**
+     * A Windows game's screen is open (a local realm's game, or another game's): one at a time. A
+     * local realm running with no screen doesn't count: the other games start beside it.
+     */
+    @Synchronized fun anyBusy(): Boolean = liveDisplay() != null
 
     /** [server]'s Wine may start: no game's screen open, no other realm holding or running. */
     @Synchronized internal fun reserve(server: WindowsRealmServer): Boolean {

@@ -55,7 +55,19 @@ configuration and any existing local-play executable are backed up before change
 or selects a linked Battle.net/game account, changes its password and optionally remembers it
 on this device. **Realm & Graphics** controls Solocraft and experience rates while stopped, and
 the graphics driver the game uses: **Vortek** (the phone's own driver, as the other games use) or,
-on an Adreno GPU, **Turnip** (Mesa's); try the other one if the game shows nothing or stops.
+on an Adreno GPU, **Turnip** (Mesa's); try the other one if the game shows nothing or stops. Its
+**Graphics API** is the client's renderer: **Direct3D 9** (the default, as the phone's 3.3.5a game
+draws), **Direct3D 11** or **OpenGL**; a launch whose graphics fail to start (the client's own
+`Logs/gx.log` says so) moves on to the next by itself, said on the launcher. Both apply at the next
+**Launch Game**. The client's language is English (US), the language of its data.
+
+**Apart from the other games.** A local realm (Legion, The War Within) runs on its own: the 3.3.5a
+game, Turtle WoW and their realms start and stop whether it runs or not, and it starts whatever they
+do (only one Windows game screen is open at a time). Both realms together use a lot of a phone's
+memory. **Before a start** the app warns when Android restricts the app's battery use: then Android ends the realm as soon as you leave
+the app (Settings → Apps → World of Warcraft → Battery: **Unrestricted**; on Samsung, keep it out of
+the sleeping apps). If Android does end the app while the realm runs (for memory, say), the next
+start reports why, from Android's own record.
 
 **Playing, leaving, coming back.** The realm runs on its own, with no screen: its servers are
 Windows programs the app runs itself, in the background, with a notification (**Local realm

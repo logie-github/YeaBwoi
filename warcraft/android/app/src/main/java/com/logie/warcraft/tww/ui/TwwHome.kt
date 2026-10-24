@@ -77,12 +77,9 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
     var pendingImport by rememberSaveable { mutableStateOf(LocalInstallJobs.Kind.IMPORT_CLIENT.name) }
     var checkUpdate by rememberSaveable { mutableStateOf(checkUpdateOnOpen) }
     var playAfterStart by rememberSaveable { mutableStateOf(false) }
-    // (a start asked for while another of the phone's realms runs: whether it plays once up)
-    var askOther by remember { mutableStateOf<Boolean?>(null) }
     var askRestricted by remember { mutableStateOf<Boolean?>(null) }
     fun startRealm(play: Boolean, restrictedAsked: Boolean = false) {
         if (!restrictedAsked && com.logie.warcraft.local.OtherRealms.backgroundRestricted(context)) { askRestricted = play; return }
-        if (com.logie.warcraft.local.OtherRealms.running().isNotEmpty()) { askOther = play; return }
         if (play) playAfterStart = true
         TwwServer.start(context)
     }
@@ -214,19 +211,6 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                 TwwButton("Open settings") { askRestricted = null; com.logie.warcraft.local.OtherRealms.openAppSettings(context) }
             }) {
                 Text("The app's battery use is Restricted: Android ends the realm as soon as you leave the app (its servers run in the app). In the app's settings, Battery: Unrestricted (on Samsung, also keep it out of Sleeping apps).")
-            }
-        }
-        askOther?.let { play ->
-            TwwDialog("Another realm is running", { askOther = null }, buttons = {
-                TwwButton("Cancel", primary = false) { askOther = null }
-                TwwButton("Start anyway", primary = false) { askOther = null; if (play) playAfterStart = true; TwwServer.start(context) }
-                TwwButton("Stop it and start") {
-                    askOther = null
-                    if (play) playAfterStart = true
-                    com.logie.warcraft.local.OtherRealms.stop(context) { TwwServer.start(context) }
-                }
-            }) {
-                Text(com.logie.warcraft.local.OtherRealms.running().joinToString(" and ") + " is running. This realm and its game under the phone's CPU emulation need its memory: stop it first?")
             }
         }
         when (dialog) {

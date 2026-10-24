@@ -2,6 +2,7 @@
 package com.logie.warcraft.spp.core
 
 /**
+ * (Not "Game Initialization Failed!": that is the client's start-up protection, before any graphics.)
  * The graphics API the 7.3.5 client draws with: it has Direct3D 9, Direct3D 11 and OpenGL renderers
  * (its table of APIs; GLL, Metal and the null device aren't supported on Windows), which on a phone run
  * through Winlator's DXVK (Direct3D) or its OpenGL driver. Direct3D 9 comes first: the phone's 3.3.5a
