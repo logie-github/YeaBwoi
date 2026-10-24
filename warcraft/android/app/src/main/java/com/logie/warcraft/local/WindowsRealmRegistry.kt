@@ -24,6 +24,9 @@ object WindowsRealmRegistry {
         return true
     }
 
+    /** A local realm (SPP Legion, The War Within) is running or holds the Windows runtime. */
+    @Synchronized fun anyBusy(): Boolean = realms.values.any { it.isBusy }
+
     @Synchronized internal fun canOpen(server: WindowsRealmServer): Boolean {
         val current = active.get()?.takeUnless { it.isDestroyed || it.isFinishing }
         return (current == null || owner(current) === server) && realms.values.none { it !== server && it.isBusy }
@@ -32,6 +35,16 @@ object WindowsRealmRegistry {
     @Synchronized fun attached(runtime: XServerDisplayActivity) {
         active = WeakReference(runtime)
         owner(runtime)?.onRuntimeAttached(runtime)
+    }
+
+    /**
+     * "Leave the game" in a local realm's session: its client closed and the launcher in front, the
+     * realm left running (Stop Server ends it). False for a session that isn't a local realm's.
+     */
+    @Synchronized fun leave(runtime: XServerDisplayActivity): Boolean {
+        val server = owner(runtime) ?: return false
+        server.leaveClient(runtime)
+        return true
     }
 
     @Synchronized fun detached(runtime: XServerDisplayActivity) {

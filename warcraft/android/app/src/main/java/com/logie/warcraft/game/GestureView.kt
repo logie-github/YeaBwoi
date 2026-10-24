@@ -262,8 +262,17 @@ class GestureView(
             else -> SavedLogin.get(activity)
         }
         val login = saved?.takeIf { account != null && it.name.equals(account, ignoreCase = true) }
+        // A Legion client shows its window well before its login screen (it loads its data behind
+        // it): its own cursor (gxCursor), not the window's first, says the login screen is up.
+        val legion = felsong || spp
+        val wait = if (legion) LEGION_LOGIN_WAIT_MS else LOGIN_WAIT_MS
         if (login != null) {
-            logInWhenReady(login.password, SystemClock.uptimeMillis(), seen = 0)
+            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) {
+                type(login.password, enter = true)
+                if (newAccount) postDelayed({ ask(GamePrompt.Kind.NAME) }, NAME_PROMPT_DELAY_MS)
+            }
+        } else if (legion) {
+            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) { ask(GamePrompt.Kind.PASSWORD) }
         } else {
             postDelayed({ ask(GamePrompt.Kind.PASSWORD) }, LOGIN_KEYBOARD_DELAY_MS)
         }
@@ -557,20 +566,26 @@ class GestureView(
     // Text -------------------------------------------------------------------------------------
 
     /**
-     * Logs in by itself with the saved password (SavedLogin): once the login screen is up (the
-     * game has shown its cursor a few times running, then a moment more for its boxes), or after
-     * [LOGIN_WAIT_MS] in any case. The account's name is in the box already (Config.wtf).
+     * [then] once the login screen is up (the game has shown its cursor a few times running; for a
+     * [legion] client, one other than the first it showed, the window's before the game had its
+     * own: its [baseline]), then a moment more for its boxes, or after [wait] in any case: logging
+     * in by itself with the saved password (SavedLogin), or asking for it. The account's name is in
+     * the box already (Config.wtf).
      */
-    private fun logInWhenReady(password: String, since: Long, seen: Int) {
-        val now = if (cursorHere() != null) seen + 1 else 0
-        if (now >= LOGIN_CURSOR_SEEN || SystemClock.uptimeMillis() - since >= LOGIN_WAIT_MS) {
-            postDelayed({
-                type(password, enter = true)
-                if (newAccount) postDelayed({ ask(GamePrompt.Kind.NAME) }, NAME_PROMPT_DELAY_MS)
-            }, LOGIN_SETTLE_MS)
+    private fun whenLoginScreen(since: Long, seen: Int, legion: Boolean, baseline: Long?, wait: Long, then: () -> Unit) {
+        val cursor = cursorHere()
+        val base = if (legion && baseline == null) cursor else baseline
+        val now = if (cursor != null && (!legion || cursor != base)) seen + 1 else 0
+        if (now >= LOGIN_CURSOR_SEEN || SystemClock.uptimeMillis() - since >= wait) {
+            postDelayed(then, LOGIN_SETTLE_MS)
             return
         }
-        postDelayed({ logInWhenReady(password, since, now) }, LOGIN_POLL_MS)
+        postDelayed({ whenLoginScreen(since, now, legion, base, wait, then) }, LOGIN_POLL_MS)
+    }
+
+    /** The game started again in the same session (a local realm's, which outlives it): its login comes again. */
+    fun onClientLaunched() {
+        loginShown = false
     }
 
     private fun ask(kind: GamePrompt.Kind) {
@@ -721,6 +736,8 @@ class GestureView(
         private const val LOGIN_POLL_MS = 250L
         private const val LOGIN_CURSOR_SEEN = 3
         private const val LOGIN_WAIT_MS = 15000L
+        /** A Legion client loads its 40 GB of data before its login screen: under Box64, minutes. */
+        private const val LEGION_LOGIN_WAIT_MS = 180_000L
         private const val LOGIN_SETTLE_MS = 1500L
         /** How long the game takes to show its cursor for where the pointer went (a frame or two at a phone's rate). */
         private const val CURSOR_SETTLE_MS = 90L
