@@ -8,7 +8,7 @@ import com.logie.warcrafts.library.BlizzardDownload.Product
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import java.io.File
-import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -65,59 +65,68 @@ object Wc3Setup {
         return true
     }
 
-    /** Downloads [product]'s installer from Blizzard and checks it; nothing is installed yet. */
+    /**
+     * Downloads [product]'s installer from Blizzard, piece by piece, each checked against Blizzard's
+     * SHA-1 before it's written; nothing is installed yet. A stopped download goes on from the last
+     * piece written (`<installer>.pieces` holds how many).
+     */
     fun download(context: Context, product: Product, report: Imports.Report) {
         report(Imports.Phase.DOWNLOAD, null, context.getString(R.string.rts_setup_downloader))
-        val downloader = fetch(BlizzardDownload.downloaderUrl(product))
+        val downloader = fetch(BlizzardDownload.downloaderUrl(product), null)
         val pkg = BlizzardDownload.parse(downloader)
             ?: throw Imports.ImportException(context.getString(R.string.rts_setup_bad_downloader))
-        val wanted = BlizzardDownload.wanted(pkg)
-        val root = File(dir(context), pkg.name)
-        val total = wanted.sumOf { it.length }
-        val have = wanted.sumOf { file -> File(root, file.path).let { if (it.isFile) minOf(it.length(), file.length) else 0L } }
-        // The download, and the game it installs (about as big) beside it.
-        Imports.checkSpace(context, (total - have) + total)
-
-        var done = have
-        for (file in wanted) {
-            if (!GameLayout.isSafe(file.path)) throw Imports.ImportException("Unsafe path in Blizzard's list: ${file.path}")
-            val target = File(root, file.path)
-            target.parentFile?.mkdirs()
-            if (target.isFile && target.length() == file.length) continue
-            if (target.isFile && target.length() > file.length) target.delete()
-            val start = if (target.isFile) target.length() else 0L
-            download(context, BlizzardDownload.urls(pkg, file), target, start, file.length) { read ->
-                done += read
-                report(Imports.Phase.DOWNLOAD, done.toFloat() / total, file.path.substringAfterLast('/'))
-            }
-        }
-
-        report(Imports.Phase.DOWNLOAD, null, context.getString(R.string.rts_setup_checking))
-        val pieces = BlizzardDownload.Pieces(pkg)
-        val buffer = ByteArray(1 shl 16)
         for (file in pkg.files) {
-            if (file !in wanted) {
-                pieces.skip(file.length)
-                continue
-            }
-            File(root, file.path).inputStream().use { input ->
-                while (true) {
-                    if (Imports.cancelled) throw Imports.ImportException("Stopped")
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    pieces.feed(buffer, 0, count)
+            if (!GameLayout.isSafe(file.path)) throw Imports.ImportException("Unsafe path in Blizzard's list: ${file.path}")
+        }
+        val root = File(dir(context), pkg.name)
+        val progress = File(dir(context), "${pkg.name}.pieces")
+        var next = progress.takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: 0
+        if (next == 0) root.deleteRecursively()
+        // The download, and the game it installs (about as big) beside it.
+        val left = pkg.totalLength - next.toLong() * pkg.pieceLength
+        Imports.checkSpace(context, left + pkg.totalLength)
+
+        val files = pkg.files.map { File(root, it.path).apply { parentFile?.mkdirs() } }
+        val buffer = ByteArray(pkg.pieceLength)
+        val count = pkg.pieces.size
+        while (next < count) {
+            if (Imports.cancelled) throw Imports.ImportException("Stopped")
+            val size = BlizzardDownload.pieceSize(pkg, next)
+            var good = false
+            var lastError: IOException? = null
+            for (attempt in 1..3) {
+                try {
+                    val got = fetchInto(BlizzardDownload.pieceUrl(pkg, next), pkg.token, buffer, context)
+                    if (got == size && BlizzardDownload.sha1(buffer, size).contentEquals(pkg.pieces[next])) {
+                        good = true
+                        break
+                    }
+                } catch (e: Imports.ImportException) {
+                    throw e
+                } catch (e: IOException) {
+                    lastError = e
                 }
             }
+            if (!good) {
+                throw lastError?.let { Imports.ImportException(it.message ?: it.javaClass.simpleName) }
+                    ?: Imports.ImportException(context.getString(R.string.rts_setup_damaged))
+            }
+            for (segment in BlizzardDownload.segments(pkg, next)) {
+                RandomAccessFile(files[segment.file], "rw").use { out ->
+                    out.seek(segment.fileOffset)
+                    out.write(buffer, segment.pieceOffset, segment.length)
+                }
+            }
+            next++
+            progress.writeText(next.toString())
+            report(Imports.Phase.DOWNLOAD, next.toFloat() / count, pkg.files[BlizzardDownload.segments(pkg, next - 1).last().file].path.substringAfterLast('/'))
         }
-        if (!pieces.finish()) {
-            root.deleteRecursively()
-            throw Imports.ImportException(context.getString(R.string.rts_setup_damaged))
-        }
+        progress.delete()
         marker(context, product).writeText(pkg.name)
     }
 
-    private fun fetch(url: String): ByteArray {
-        val connection = open(url, 0)
+    private fun fetch(url: String, cookie: String?): ByteArray {
+        val connection = open(url, cookie)
         try {
             if (connection.responseCode !in 200..299) throw IOException("HTTP ${connection.responseCode} for $url")
             return connection.inputStream.use { it.readBytes() }
@@ -126,45 +135,37 @@ object Wc3Setup {
         }
     }
 
-    /** [target] from the first of [urls] Blizzard serves, from byte [start] on (a stopped download goes on). */
-    private fun download(context: Context, urls: List<String>, target: File, start: Long, length: Long, onRead: (Int) -> Unit) {
-        var lastCode = 0
-        for (url in urls) {
-            val connection = open(url, start)
-            try {
-                lastCode = connection.responseCode
-                if (lastCode != 200 && lastCode != 206) continue
-                // A server that ignores the range sends the whole file: start it again.
-                val append = lastCode == 206 && start > 0
-                FileOutputStream(target, append).use { output ->
-                    connection.inputStream.use { input ->
-                        val buffer = ByteArray(1 shl 16)
-                        while (true) {
-                            if (Imports.cancelled) throw Imports.ImportException("Stopped")
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            output.write(buffer, 0, count)
-                            onRead(count)
-                        }
-                    }
+    /** One piece into [buffer]: how many bytes came. */
+    private fun fetchInto(url: String, cookie: String?, buffer: ByteArray, context: Context): Int {
+        val connection = open(url, cookie)
+        try {
+            val code = connection.responseCode
+            if (code == 403 || code == 404) throw Imports.ImportException(context.getString(R.string.rts_setup_refused, code))
+            if (code !in 200..299) throw IOException("HTTP $code for $url")
+            var total = 0
+            connection.inputStream.use { input ->
+                while (total < buffer.size) {
+                    val n = input.read(buffer, total, buffer.size - total)
+                    if (n < 0) break
+                    total += n
                 }
-                if (target.length() != length) throw IOException("${target.name}: ${target.length()} of $length bytes")
-                return
-            } finally {
-                connection.disconnect()
             }
+            // The stream read to its end and closed: the connection stays open for the next piece.
+            return total
+        } catch (e: IOException) {
+            connection.disconnect()
+            throw e
         }
-        throw Imports.ImportException(context.getString(R.string.rts_setup_refused, lastCode))
     }
 
-    private fun open(url: String, start: Long): HttpURLConnection {
+    private fun open(url: String, cookie: String?): HttpURLConnection {
         var current = URL(url)
         repeat(5) {
             val connection = current.openConnection() as HttpURLConnection
             connection.connectTimeout = 30_000
             connection.readTimeout = 60_000
             connection.instanceFollowRedirects = false
-            if (start > 0) connection.setRequestProperty("Range", "bytes=$start-")
+            if (cookie != null) connection.setRequestProperty("Cookie", cookie)
             val code = connection.responseCode
             if (code in 300..399) {
                 val location = connection.getHeaderField("Location") ?: return connection
