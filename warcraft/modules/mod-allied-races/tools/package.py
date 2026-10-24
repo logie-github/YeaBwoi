@@ -23,6 +23,7 @@ sys.path.insert(0, HERE)
 import check_m2                                # noqa: E402
 import m2                                      # noqa: E402
 import scale                                   # noqa: E402
+import sheaths                                 # noqa: E402
 import textures                                # noqa: E402
 
 MODULE = os.path.dirname(HERE)
@@ -147,6 +148,8 @@ def build(read, out_dir, log=print):
             # at its kin's height (tools/scale.py): blood elves', night elves', Draenei's, trolls'
             model_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2")
             scale.to_kin(model_path, log)
+            # its weapons on its back as its kin wear them (tools/sheaths.py)
+            sheaths.turn(model_path, log)
             # checked the way the game would trip over it (tools/check_m2.py: the sequences' own files too)
             problems = check_m2.check(model_path)
             if problems:

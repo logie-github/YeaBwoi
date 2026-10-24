@@ -60,6 +60,10 @@ TEMPLATE = {
     LIGHTFORGED: {WARRIOR: DRAENEI, PALADIN: DRAENEI, HUNTER: DRAENEI, PRIEST: DRAENEI, DK: DRAENEI, MAGE: DRAENEI},
     ZANDALARI: {WARRIOR: TAUREN, PALADIN: BLOODELF, HUNTER: TAUREN, ROGUE: TROLL, PRIEST: TROLL, DK: TAUREN, SHAMAN: TAUREN, MAGE: TROLL, DRUID: TAUREN},
 }
+# Classes the old races are given (the user: "Also let undead be paladins"), each with the race whose
+# start gear and action bar it takes; they begin where the race's warriors do.
+EXTRA_CLASSES = {UNDEAD: {PALADIN: BLOODELF}}
+PALADIN_LINES = (184, 267, 594)                 # Retribution, Protection, Holy
 STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL}   # their kin's starting stats
 MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL}   # whose model rows theirs are copied from
 PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb", LIGHTFORGED: "Ld", ZANDALARI: "Za"}
@@ -417,12 +421,22 @@ def main():
     for race in RACE_IDS:
         for cls in CLASSES_OF[race]:
             client.append_raw("CharBaseInfo", bytes([race, cls]))
+    for race, classes in EXTRA_CLASSES.items():
+        for cls in classes:
+            client.append_raw("CharBaseInfo", bytes([race, cls]))
     outfits = D("CharStartOutfit")
     oid, outfit_rows = ID_OUTFIT, []
     for raw in outfits.raw:
         orace, cls, sex, outfit = raw[4], raw[5], raw[6], raw[7]
         for new in RACE_IDS:
             if cls in TEMPLATE[new] and TEMPLATE[new][cls] == orace:
+                data = struct.pack("<I", oid) + bytes([new, cls, sex, outfit]) + raw[8:]
+                client.put_raw("CharStartOutfit", data)
+                ints = struct.unpack(f"<{len(raw[8:]) // 4}I", raw[8:])
+                outfit_rows.append([oid, new, cls, sex, outfit] + list(ints))
+                oid += 1
+        for new, classes in EXTRA_CLASSES.items():
+            if classes.get(cls) == orace:
                 data = struct.pack("<I", oid) + bytes([new, cls, sex, outfit]) + raw[8:]
                 client.put_raw("CharStartOutfit", data)
                 ints = struct.unpack(f"<{len(raw[8:]) // 4}I", raw[8:])
@@ -488,6 +502,29 @@ def main():
     sql.comment("Skills and abilities open to either side's races are open to theirs (the racials and languages aside).")
     ors("SkillRaceClassInfo", D("SkillRaceClassInfo"), 2, 1, "skillraceclassinfo_dbc")
     ors("SkillLineAbility", D("SkillLineAbility"), 3, 1, "skilllineability_dbc")
+
+    sql.comment("Undead paladins: the paladin skills and abilities the Horde's paladins (blood elves) have, theirs too.")
+    for table, dbc, f_mask, f_class, f_line, sql_table in (
+            ("SkillRaceClassInfo", D("SkillRaceClassInfo"), 2, 3, 1, "skillraceclassinfo_dbc"),
+            ("SkillLineAbility", D("SkillLineAbility"), 3, 4, 1, "skilllineability_dbc")):
+        rows = []
+        for race, classes in EXTRA_CLASSES.items():
+            for cls, like in classes.items():
+                bit, like_bit = 1 << (race - 1), 1 << (like - 1)
+                for r in dbc.rows:
+                    mask, cmask = r[f_mask], r[f_class]
+                    ours = (cmask & (1 << (cls - 1))) or (cmask == 0 and r[f_line] in PALADIN_LINES)
+                    if not ours or not mask & like_bit or mask & bit or r[f_line] in racial_lines:
+                        continue
+                    client.orfield(table, r[0], f_mask, bit)
+                    v = list(r)
+                    v[f_mask] = mask | bit
+                    rows.append(v)
+        if rows:
+            cols = COLUMNS[sql_table]
+            body = ",\n".join("(" + ", ".join(str(i32(x)) for x in v) + ")" for v in rows)
+            sql.raw(f"INSERT INTO `{sql_table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body}\n"
+                    f"ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);")
 
     sql.comment("Standing: the start race's (the Exodar's for the void elves, Undercity's for the nightborne).")
     factions = D("Faction")
@@ -697,6 +734,10 @@ def main():
         for cls in CLASSES_OF[race]:
             p = place.get((START[race], cls)) or place[(START[race], WARRIOR)]
             out.append([race, cls, p["map"], p["zone"], p["position_x"], p["position_y"], p["position_z"], p["orientation"]])
+    for race, classes in EXTRA_CLASSES.items():
+        for cls in classes:
+            p = place[(race, WARRIOR)]
+            out.append([race, cls, p["map"], p["zone"], p["position_x"], p["position_y"], p["position_z"], p["orientation"]])
     sql.raw("REPLACE INTO `playercreateinfo` (`race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES\n"
             + ",\n".join("(" + ", ".join(str(x) for x in r) + ")" for r in out) + ";")
 
@@ -712,6 +753,13 @@ def main():
             for r in acts:
                 if int(r["race"]) == TEMPLATE[race][cls] and int(r["class"]) == cls and not (int(r["type"]) == 0 and int(r["action"]) in racial_spells):
                     out.append([race, cls, r["button"], r["action"], r["type"]])
+    like_racials = {r[2] for r in D("SkillLineAbility").rows if r[1] in racial_lines}
+    for race, classes in EXTRA_CLASSES.items():
+        for cls, like in classes.items():
+            for r in acts:
+                if int(r["race"]) == like and int(r["class"]) == cls and not (int(r["type"]) == 0 and int(r["action"]) in like_racials):
+                    out.append([race, cls, r["button"], r["action"], r["type"]])
+            sql.raw(f"DELETE FROM `playercreateinfo_action` WHERE `race` = {race} AND `class` = {cls};")
     sql.raw(f"DELETE FROM `playercreateinfo_action` WHERE `race` IN ({', '.join(str(r) for r in RACE_IDS)});")
     sql.raw("INSERT INTO `playercreateinfo_action` (`race`, `class`, `button`, `action`, `type`) VALUES\n"
             + ",\n".join("(" + ", ".join(str(x) for x in r) + ")" for r in out) + ";")

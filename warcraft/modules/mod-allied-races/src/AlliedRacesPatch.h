@@ -2,9 +2,11 @@
 #ifndef MOD_ALLIED_RACES_PATCH_H
 #define MOD_ALLIED_RACES_PATCH_H
 
+#include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace AlliedRaces
 {
@@ -19,6 +21,15 @@ namespace AlliedRaces
                      std::function<void(std::string const&)> const& log);
     // Takes the patch out, if it's this module's.
     void RemovePatch(fs::path const& clientData, std::function<void(std::string const&)> const& log);
+
+    // An MP3's length (its frames' samples over their rate) in milliseconds; 0 when it isn't one.
+    uint32_t Mp3Milliseconds(std::vector<uint8_t> const& mp3);
+
+    // A 3.3.5 camera model (an intro's flyby, Cameras\Flyby*.m2) made [ms] long: its sequences and
+    // every key of its cameras' and bones' tracks at the same place in the new length (a key's
+    // spline tangents are per segment, so the path is the same, faster or slower). False, [m2] as it
+    // was, when it isn't one this reads.
+    bool RetimeCamera(std::vector<uint8_t>& m2, uint32_t ms);
 
     // Takes the patch out of the game but keeps it, beside it (patch-V.MPQ.aside): for a realm without
     // the races (Wrath Remix's), so that going back to one with them needn't make it again.
