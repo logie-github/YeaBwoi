@@ -259,7 +259,7 @@ Found by reading the code against the repack and Wine 10.10, and checked here wh
   ("Shutdown complete", `database.exit` 0). Only the database's exit counts in the result.
 - **Leave** (the game's menu) ended the whole session, the realm with it: in a local realm's
   session it now closes the game and brings the launcher back (Winlator patch 0010).
-- **Coming back.** The session is out of recents and the notification opened Winlator's other
+- **Coming back.** The session was out of Recents and the notification opened Winlator's other
   screen: Launch Game started a second client. It returns to the running one now (Return to
   Game), the notification opens the session's own screen, and a game started again in the
   session gets its login again.
@@ -279,3 +279,16 @@ Found by reading the code against the repack and Wine 10.10, and checked here wh
   SHA-256 of its PKCS#1 form `B1241D83…`) is put in the session's ProgramData before it starts.
 - **Space.** The 42 GB client archive and the 5.4 GB repack stayed in `downloads/` after a
   successful installation; they're removed once everything is installed and checked.
+
+### On the phone, 1.0.268: the session's task trimmed from Recents
+
+The next report from the phone (issue #48) got much further: the database ready, the
+authentication server up, and the world server loading fast (its DB2 stores in 16 s). Then every
+Windows program lost the X server at once ("X connection to :0 broken" six times) and Wine was
+killed (137): the session's screen, where Winlator's X server lives, was gone. Its task was kept
+out of Recents (`excludeFromRecents`), and Android keeps such a task only while it's the most
+recent (`RecentTasks.isInVisibleRange`); once another is (the launcher brought back, Recents
+opened), it's trimmed, and `ActivityTaskSupervisor.onRecentTaskRemoved(wasTrimmed = true)` removes
+the task outright ("recent-task-trimmed"), its screen ended with it. The session's task is now
+in Recents like any other (its own card, a way back to the game too); swiping that card away
+ends the session, as for any game.

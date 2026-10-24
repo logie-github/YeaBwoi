@@ -57,7 +57,9 @@ on this device. **Realm & Graphics** controls Solocraft and experience rates whi
 the graphics driver the game uses: **Vortek** (the phone's own driver, as the other games use) or,
 on an Adreno GPU, **Turnip** (Mesa's); try the other one if the game shows nothing or stops.
 
-**Playing, leaving, coming back.** **Launch Game** starts the game in the realm's Windows session;
+**Playing, leaving, coming back.** The realm's Windows session has its own card in Recents (a way
+back to the game too); swiping that card away ends the session, and the realm with it: use **Stop
+Server** to stop it. **Launch Game** starts the game in the realm's Windows session;
 while it runs the button says **Return to Game** and brings you back to it (the game isn't started
 twice). **Leave the game** in the game's menu (four fingers) closes the game and brings the
 launcher back; the realm keeps running, so **Launch Game** is quick the next time. **Stop Server**
