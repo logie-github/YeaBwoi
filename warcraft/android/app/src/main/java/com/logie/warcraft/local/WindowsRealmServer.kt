@@ -44,6 +44,8 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         val world: ComponentStatus = ComponentStatus.STOPPED,
         val detail: String? = null,
         val error: String? = null,
+        /** The game's client was started in the session and hasn't exited ([launchGame] returns to it). */
+        val clientRunning: Boolean = false,
     )
 
     private val mutableStatus = MutableStateFlow(Status())
@@ -64,6 +66,13 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     // Keep installation writes locked for the lifetime of the actual Windows session.
     @Volatile private var ownsSession = false
     @Volatile private var profile: Profile? = null
+    /** One client launch at a time; [clientLaunched]: the client was started in this session. */
+    private val clientLock = Mutex()
+    @Volatile private var clientLaunched = false
+    /** The client's program, as Windows names its process (for Leave). */
+    @Volatile private var clientProcess: String? = null
+    /** The crash reports there were before this start's servers began ([crashReports]). */
+    @Volatile private var knownCrashes: Set<String> = emptySet()
     val authenticationDatabase: String? get() = profile?.login?.getOrNull(4)
     private val started = mutableSetOf<String>()
 
@@ -72,33 +81,57 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         val databasePort: Int,
         val loginPorts: List<Int>,
         val worldPort: Int,
+        /** The world server's second port (TrinityCore's InstanceServerPort), when it has one. */
+        val instancePort: Int?,
         val realmId: Int,
         val mysql: File,
         val mysqlAdmin: File,
         val login: List<String>,
     ) {
-        val ports get() = listOf(databasePort) + loginPorts + worldPort
+        val worldPorts get() = listOfNotNull(worldPort, instancePort)
+        val ports get() = listOf(databasePort) + loginPorts + worldPorts
     }
 
     init { WindowsRealmRegistry.register(this, realm.sessionExtra) }
 
+    /** Leave (the game's menu) in this realm's session: the client closed, the launcher in front; the realm runs on. */
+    internal fun leaveClient(runtime: XServerDisplayActivity) {
+        clientProcess?.takeIf { clientLaunched }?.let { runtime.winHandler?.killProcess(it) }
+        clientLaunched = false
+        mutableStatus.value = mutableStatus.value.copy(clientRunning = false)
+        runtime.startActivity(Intent(runtime, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+    }
+
     internal fun onRuntimeAttached(runtime: XServerDisplayActivity) {
         activity = WeakReference(runtime)
         ownsSession = true
+        clientLaunched = false
     }
 
     internal fun onRuntimeDetached(runtime: XServerDisplayActivity) {
         if (activity.get() !== runtime) return
         activity.clear()
+        clientLaunched = false
+        mutableStatus.value = mutableStatus.value.copy(clientRunning = false)
         if (!stopping && isBusy) {
             mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
                 error = "The Windows session ended. Checking whether any server ports remain open…")
-            scope.launch {
+        }
+        // The installation is released once nothing of the session answers (during a stop too):
+        // its ports can take a few seconds to close after it ends.
+        scope.launch {
+            repeat(10) {
                 delay(1000)
                 val p = profile
-                if (runtime.isDestroyed && (p == null || p.ports.none { open(it) })) ownsSession = false
-                refreshObserved()
+                // (a new session attached since owns it: not this one's to release)
+                if (activity.get() != null) return@launch
+                if (runtime.isDestroyed && (p == null || p.ports.none { open(it) })) {
+                    ownsSession = false
+                    refreshObserved()
+                    return@launch
+                }
             }
+            refreshObserved()
         }
     }
 
@@ -128,6 +161,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         scope.launch {
             job?.cancel()
             lock.withLock {
+              try {
                 val p = profile
                 if (p != null) {
                     for (file in listOfNotNull(p.detected.worldExecutable, p.detected.authenticationExecutable, p.detected.databaseExecutable)) {
@@ -136,7 +170,12 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     val deadline = System.currentTimeMillis() + 15_000
                     while (p.ports.any { open(it) } && System.currentTimeMillis() < deadline) delay(250)
                 }
-                closeSession()
+                // (the session gone already: nothing left to ask to close; it's released once its ports are)
+                if (activity.get() == null) {
+                    if (p == null || p.ports.none { open(it) }) ownsSession = false
+                } else {
+                    closeSession()
+                }
                 if (p != null && p.ports.any { open(it) }) {
                     mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
                         error = "Forced termination was requested, but a server port is still open. Installation files remain locked; close the Windows session and inspect the component logs.")
@@ -147,6 +186,13 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 started.clear()
                 File(layout(context).root, "runtime/login.cnf").delete()
                 mutableStatus.value = Status(detail = "Windows processes were forcibly stopped. Verify the database before starting again.")
+              } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+              } catch (error: Exception) {
+                // (never out of the coroutine: uncaught, it would end the app)
+                mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED, detail = null, error = error.message ?: error.javaClass.simpleName)
+                refreshObserved()
+              }
             }
         }
     }
@@ -262,24 +308,38 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     fun launchGame(context: Context) {
         val app = context.applicationContext
         scope.launch {
+          clientLock.withLock {
             try {
+                // The client already running in the session: back to it, not a second one.
+                if (clientLaunched && activity.get() != null && !exitFile(app, "client").isFile) {
+                    withContext(Dispatchers.Main) { realm.showSession(app) }
+                    return@withLock
+                }
                 if (realm.installationBusy) throw IOException("Wait for the current installation job before launching the client.")
                 if (mutableStatus.value.phase != Phase.RUNNING) throw IOException("Start the local server and wait for every component to be ready first.")
+                // (its settings written first: the client rewrites its Config.wtf itself, and one that
+                // stopped early can leave it without the realm's address)
+                realm.prepareClientLaunch(app)
                 if (!realm.localClientConfigured(app)) throw IOException("Configure the local client connection and review the Firestorm warning first.")
                 val report = realm.report(app)
                 val executable = report.clientExecutable ?: throw IOException("The client executable is missing.")
                 if (report.client.status != TwwInstall.Status.INSTALLED || report.clientBuild?.build != realm.spec.build)
                     throw IOException("The installed client is incomplete or does not match build ${realm.spec.build}.")
                 val layout = layout(app)
-                realm.prepareClientLaunch(app)
                 val command = TwwSession.argument(TwwSession.windows(executable, layout.client, 'D'))
                 writeScript(app, "client", TwwSession.script(TwwSession.windows(executable.parentFile, layout.client, 'D'), command, "client"))
+                // (the session outlives the game: a game started again in it gets its login again)
+                activity.get()?.onRealmClientLaunched()
                 execute("client")
+                clientLaunched = true
+                clientProcess = executable.name
                 withContext(Dispatchers.Main) { realm.showSession(app) }
-                mutableStatus.value = mutableStatus.value.copy(detail = "Client launch requested. Connection compatibility is confirmed only after the client logs in; see runtime/client.log if it exits.", error = null)
+                mutableStatus.value = mutableStatus.value.copy(clientRunning = true,
+                    detail = "Client launch requested. Connection compatibility is confirmed only after the client logs in; see runtime/client.log if it exits.", error = null)
             } catch (error: Exception) {
                 mutableStatus.value = mutableStatus.value.copy(error = error.message ?: error.javaClass.simpleName)
             }
+          }
         }
     }
 
@@ -318,9 +378,12 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 .filter { it.second.status != TwwInstall.Status.INSTALLED }
             if (!report.canBootstrap) throw IOException(missing.joinToString("\n") { (name, value) -> "$name: ${(value.missing + value.details).joinToString()}" }
                 .ifBlank { "The server's startup requirements could not be verified." })
+            // (the realm's settings first: they can change the ports the profile reads)
+            report.detected?.worldConfig?.let { headlessWorld(it) }
             val p = readProfile(context)
             profile = p
             started.clear()
+            knownCrashes = crashReports(p)
             for (port in p.ports) if (open(port)) throw IOException("Local port $port is already in use. Stop the server using it before starting this realm.")
             val runtime = runtimeFolder(context)
             for (name in listOf("database", "authentication", "world", "realm", "shutdown-db", "shutdown-world", "shutdown-auth")) {
@@ -331,7 +394,6 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 writeScript(context, name, TwwSession.launch(command, p.detected.root, name))
             }
             writeCredentials(context, p)
-            p.detected.worldConfig?.let { headlessWorld(it) }
             mutableStatus.value = mutableStatus.value.copy(detail = "Opening this realm's Windows runtime…")
             realm.openSession(context)
             val deadline = System.currentTimeMillis() + 120_000
@@ -353,10 +415,10 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             prepareDatabases(context, p)
             mutableStatus.value = mutableStatus.value.copy(authentication = ComponentStatus.STARTING, detail = "Starting ${p.detected.authenticationExecutable?.name}…")
             startComponent("authentication")
-            waitReady(context, "authentication", p.loginPorts, 120)
+            waitReady(context, "authentication", p.loginPorts, 120, p)
             mutableStatus.value = mutableStatus.value.copy(authentication = ComponentStatus.RUNNING, world = ComponentStatus.STARTING, detail = "Starting ${p.detected.worldExecutable?.name}; initial database updates and map loading may take time…")
             startComponent("world")
-            waitReady(context, "world", listOf(p.worldPort), 3600)
+            waitReady(context, "world", p.worldPorts, 3600, p)
             mutableStatus.value = mutableStatus.value.copy(phase = Phase.RUNNING, world = ComponentStatus.RUNNING,
                 detail = "Database, authentication and world ports are accepting local connections. Client login has not yet been verified.", error = null)
             withContext(Dispatchers.Main) {
@@ -364,9 +426,20 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             }
             while (scope.isActive && !stopping) {
                 delay(2000)
-                val lost = listOf("database" to listOf(p.databasePort), "authentication" to p.loginPorts, "world" to listOf(p.worldPort))
+                val lost = listOf("database" to listOf(p.databasePort), "authentication" to p.loginPorts, "world" to p.worldPorts)
                     .firstOrNull { (name, ports) -> exitFile(context, name).exists() || ports.any { !open(it) } }
                 if (lost != null) throw IOException("The ${lost.first} component stopped responding. ${logTail(context, lost.first)}")
+                // (a server that crashes keeps its port: its crash report hangs, so the report is what tells)
+                (crashReports(p) - knownCrashes).firstOrNull()?.let { report ->
+                    knownCrashes = knownCrashes + report
+                    throw IOException("A server crashed (its report: $report).\n" + sessionEnd(context, "world"))
+                }
+                if (clientLaunched && exitFile(context, "client").isFile) {
+                    clientLaunched = false
+                    val code = exitFile(context, "client").readText().trim()
+                    mutableStatus.value = mutableStatus.value.copy(clientRunning = false,
+                        error = if (code == "0") null else "The game exited with code $code. ${logTail(context, "client")}")
+                }
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
@@ -396,6 +469,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         val authPort = port(auth["BattlenetPort"] ?: auth["BnetServerPort"] ?: auth["RealmServerPort"], "authentication")
         val rest = (auth["LoginREST.Port"] ?: auth["REST.Port"])?.let { port(it, "REST authentication") }
         val worldPort = port(world["WorldServerPort"], "world")
+        val instancePort = world["InstanceServerPort"]?.let { port(it, "instance") }
         val realmId = TwwSession.realmId(worldText)
         if (auth["BindIP"] != realm.address || world["BindIP"] != realm.address || iniValue(dbConfig.readText(), "mysqld", "bind-address") != realm.address) {
             throw IOException("Configure the server for localhost before starting it; original configurations will be backed up.")
@@ -410,7 +484,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             ?: throw IOException("The active database's bin folder must contain one mysql.exe or mariadb.exe client to configure its realmlist.")
         val admin = detected.databaseProfile?.admin
             ?: throw IOException("The active database's bin folder must contain mysqladmin.exe or mariadb-admin.exe for safe database shutdown.")
-        return Profile(detected, dbPort, listOfNotNull(authPort, rest).distinct(), worldPort, realmId, mysql, admin, login)
+        return Profile(detected, dbPort, listOfNotNull(authPort, rest).distinct(), worldPort, instancePort, realmId, mysql, admin, login)
     }
 
     private fun writeCredentials(context: Context, p: Profile) {
@@ -494,21 +568,25 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             mutableStatus.value = Status()
             return
         }
-        mutableStatus.value = mutableStatus.value.copy(phase = Phase.STOPPING, detail = "Requesting world shutdown, then authentication and database shutdown…", error = null)
+        mutableStatus.value = mutableStatus.value.copy(phase = Phase.STOPPING, detail = "Stopping the world and authentication servers, then shutting the database down…", error = null)
         try {
+            // The world and authentication servers are console programs without a window, which
+            // Wine's taskkill can only end with /F ("Could not find process" without it). The world
+            // server saves characters at logout and every few minutes; the database, which holds
+            // everything, is shut down cleanly after them (mysqladmin).
             for ((name, executable, ports) in listOf(
-                Triple("shutdown-world", p.detected.worldExecutable, listOf(p.worldPort)),
+                Triple("shutdown-world", p.detected.worldExecutable, p.worldPorts),
                 Triple("shutdown-auth", p.detected.authenticationExecutable, p.loginPorts),
             )) {
                 val component = name.removePrefix("shutdown-").let { if (it == "auth") "authentication" else it }
                 if (component !in started && ports.none { open(it) }) continue
                 val exe = executable ?: continue
-                val command = "taskkill /IM ${TwwSession.argument(exe.name)}"
+                val command = "taskkill /F /IM ${TwwSession.argument(exe.name)}"
                 writeScript(context, name, TwwSession.script("S:\\", command, name))
                 execute(name)
                 val deadline = System.currentTimeMillis() + 30_000
-                while (ports.any { open(it) } || !exitFile(context, component).isFile) {
-                    if (System.currentTimeMillis() >= deadline) throw IOException("${exe.name} did not close after the normal Windows shutdown request. Its session is retained. Use Force Stop only if you accept possible unsaved data.")
+                while (ports.any { open(it) } || (component in started && !exitFile(context, component).isFile)) {
+                    if (System.currentTimeMillis() >= deadline) throw IOException("${exe.name} did not stop. Its session is retained; use Force Stop.")
                     delay(500)
                 }
             }
@@ -542,13 +620,18 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         }
     }
 
-    /** Closed ports establish that a process stopped, not that it saved and exited cleanly. */
+    /**
+     * Closed ports establish that a process stopped, not that it saved and exited cleanly. The
+     * world and authentication servers are stopped by force (taskkill /F: their exit code is 1);
+     * any other code (an access violation on the way out) is reported.
+     */
     internal fun shutdownResult(context: Context): Status {
         val failures = listOf("world", "authentication", "database").mapNotNull { name ->
             val exit = exitFile(context, name)
             if (!exit.isFile) return@mapNotNull null
             val code = exit.readText().trim()
-            if (code == "0") null else "$name exited with code $code during shutdown. Check runtime/$name.log before restarting; a clean save has not been verified."
+            val expected = if (name == "database") setOf("0") else setOf("0", "1")
+            if (code in expected) null else "$name exited with code $code during shutdown. Check runtime/$name.log before restarting; a clean save has not been verified."
         }
         return Status(detail = if (failures.isEmpty()) null else "Server processes stopped with errors.",
             error = failures.takeIf { it.isNotEmpty() }?.joinToString("\n"))
@@ -585,11 +668,15 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         LocalConfig.atomicWrite(File(runtime, "$name.cmd"), script)
     }
 
-    private suspend fun waitReady(context: Context, name: String, ports: List<Int>, seconds: Int) {
+    private suspend fun waitReady(context: Context, name: String, ports: List<Int>, seconds: Int, profile: Profile? = null) {
         val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(seconds.toLong())
         while (true) {
             if (activity.get() == null) throw IOException("The Windows session ended while starting $name.\n" + sessionEnd(context, name))
             if (exitFile(context, name).isFile) throw IOException("$name exited with code ${exitFile(context, name).readText().trim()}. ${logTail(context, name)}")
+            if (profile != null) (crashReports(profile) - knownCrashes).firstOrNull()?.let { report ->
+                knownCrashes = knownCrashes + report
+                throw IOException("$name crashed while starting (its report: $report).\n" + sessionEnd(context, name))
+            }
             if (ports.all { open(it) }) return
             if (System.currentTimeMillis() >= deadline) throw IOException("$name did not open its configured local ports before the timeout. ${logTail(context, name)}")
             delay(1000)
@@ -609,7 +696,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     private fun refreshObserved() {
         val p = profile ?: return
         fun observed(ports: List<Int>) = if (ports.all { open(it) }) ComponentStatus.RUNNING else ComponentStatus.FAILED
-        mutableStatus.value = mutableStatus.value.copy(database = observed(listOf(p.databasePort)), authentication = observed(p.loginPorts), world = observed(listOf(p.worldPort)))
+        mutableStatus.value = mutableStatus.value.copy(database = observed(listOf(p.databasePort)), authentication = observed(p.loginPorts), world = observed(p.worldPorts))
     }
 
     private fun layout(context: Context) = LocalInstallation(realm.root(context))
@@ -621,6 +708,16 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         fs.mkdirs(folder)
         return folder
     }
+
+    /**
+     * The crash reports the servers have written (TrinityCore's, in a Crashes folder beside its
+     * programs): a server that crashes under Wine hangs writing its report and never exits, so a
+     * new report is how its crash shows.
+     */
+    private fun crashReports(p: Profile): Set<String> =
+        listOfNotNull(p.detected.worldExecutable, p.detected.authenticationExecutable).mapNotNull { it.parentFile }.distinct()
+            .flatMap { dir -> File(dir, "Crashes").list()?.filter { it.endsWith(".txt", true) }?.map { "${dir.name}/Crashes/$it" }.orEmpty() }
+            .toSet()
 
     private fun exitFile(context: Context, name: String) = fs(context).check(File(runtimeFolder(context), "$name.exit"))
     private fun logTail(context: Context, name: String): String = runCatching {

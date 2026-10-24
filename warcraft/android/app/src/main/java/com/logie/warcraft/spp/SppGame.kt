@@ -47,9 +47,28 @@ object SppGame {
         val config = SppFiles.fs(context).check(File(client, "WTF/Config.wtf"))
         LocalConfig.backup(config)
         val size = GameSettings.gameSize(context)
-        LocalConfig.atomicWrite(config, ClientConfig.updateConfig(if (config.isFile) config.readText() else "",
-            FelsongClientSetup.values(size.first, size.second, SppLogin.selectedName(context))))
+        val text = if (config.isFile) config.readText() else ""
+        // A phone's start for the graphics, only where the game has no setting of its own yet
+        // (what's chosen in the game's options stays).
+        val unset = SppRealm.CLIENT_GRAPHICS.filterKeys { key -> !Regex("(?im)^\\s*SET\\s+${Regex.escape(key)}\\s").containsMatchIn(text) }
+        LocalConfig.atomicWrite(config, ClientConfig.updateConfig(text,
+            unset + FelsongClientSetup.values(size.first, size.second, SppLogin.selectedName(context))))
     }
+
+    /**
+     * The certificate bundle the client trusts its Battle.net server by (TrinityCore's, which the
+     * repack's patched program fetches from trinity6.github.io at every start and keeps in
+     * ProgramData), put there before it starts: it logs in without the internet, or that site.
+     */
+    internal fun installCertificateBundle(context: Context, driveC: File) {
+        val bundle = context.assets.open(CERT_BUNDLE_ASSET).use { it.readBytes() }
+        for (path in FelsongClientSetup.CERT_BUNDLE_IN_PREFIX) {
+            val target = File(driveC, path)
+            target.parentFile?.mkdirs()
+            if (!target.isFile || !target.readBytes().contentEquals(bundle)) target.writeBytes(bundle)
+        }
+    }
+    private const val CERT_BUNDLE_ASSET = "spp/web_cert_bundle"
 
     fun localConfigured(context: Context): Boolean = runCatching {
         val layout = SppFiles.layout(context)
@@ -62,7 +81,9 @@ object SppGame {
     }.getOrDefault(false)
 
     internal suspend fun openSession(context: Context) = WindowsRealmGame.openSession(
-        context, CONTAINER, SESSION_EXTRA, SppFiles.layout(context), "spp", SppSettings.graphicsDriver(context))
+        context, CONTAINER, SESSION_EXTRA, SppFiles.layout(context), "spp", SppSettings.graphicsDriver(context)) { driveC ->
+        installCertificateBundle(context, driveC)
+    }
     fun showSession(context: Context) = WindowsRealmGame.showSession(context, SESSION_EXTRA)
     fun play(context: Context) = SppServer.launchGame(context)
 }

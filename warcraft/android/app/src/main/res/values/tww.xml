@@ -51,7 +51,7 @@
     <string name="tww_job_done">Completed</string>
     <string name="tww_job_failed">Action failed</string>
     <string name="tww_firestorm">Firestorm-specific files or settings were detected. Review local connection configuration before launching.</string>
-    <string name="tww_stop_other">Stop The War Within session before starting another game. Its Windows runtime is shared.</string>
+    <string name="tww_stop_other">Stop the local realm that is running (Legion or The War Within) before starting another game. They share the Windows runtime.</string>
     <string name="tww_sources">Download sources</string>
     <string name="tww_source_server">Open server source</string>
     <string name="tww_source_maps">Open map files source</string>
