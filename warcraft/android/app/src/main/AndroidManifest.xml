@@ -109,6 +109,13 @@
             android:exported="false"
             android:stopWithTask="false" />
 
+        <!-- A local realm (SPP Legion, The War Within) running: its Wine has no screen and is the
+             app's own processes, so the app stays a foreground service while it runs. -->
+        <service
+            android:name=".local.LocalRealmService"
+            android:exported="false"
+            android:stopWithTask="false" />
+
         <!-- The game: Winlator's screen (its X server with Wine and Box64 behind it), its controls
              editor, and the service that keeps the game alive in the background. Its own main
              screen stays, unlisted, for the code that refers to it. -->
@@ -120,16 +127,16 @@
             android:launchMode="singleTask"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode|fontScale|locale|layoutDirection|colorMode|touchscreen"
             android:screenOrientation="sensorLandscape" />
-        <!-- A local realm's Windows session (SPP Legion, The War Within): Winlator's screen in a task
-             of its own, so the launcher (singleTask) coming back in front doesn't end it. In Recents
-             like any task: Android removes a task kept out of Recents (excludeFromRecents) as soon as
-             another is the most recent one ("trimmed"), and with it the session's screen, which ends
-             the session (a phone's report, 1.0.268: X connection broken, Wine killed). Neither
-             session's screen is made again for a change of theme, font size or language (dark mode
-             at sunset, power saving): made again, the session would end, and the game with it. -->
+        <!-- A local realm's game (SPP Legion, The War Within): Winlator's screen joining the realm's
+             Wine, which runs with no screen (WindowsRealmHost), in a task of its own, so the launcher
+             (singleTask) coming back in front doesn't end it. Its end (Leave, the game exiting,
+             swiping it from Recents, Android closing it) ends the game only; the realm runs on. Gone
+             from Recents when it ends. Not made again for a change of theme, font size or language
+             (dark mode at sunset, power saving): made again, the game would end. -->
         <activity
             android:name="com.logie.warcraft.local.RealmSessionActivity"
             android:exported="false"
+            android:autoRemoveFromRecents="true"
             android:theme="@style/AppThemeFullscreenDark"
             android:supportsPictureInPicture="true"
             android:launchMode="singleTask"

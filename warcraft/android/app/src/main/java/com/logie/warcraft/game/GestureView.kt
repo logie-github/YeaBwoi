@@ -583,11 +583,6 @@ class GestureView(
         postDelayed({ whenLoginScreen(since, now, legion, base, wait, then) }, LOGIN_POLL_MS)
     }
 
-    /** The game started again in the same session (a local realm's, which outlives it): its login comes again. */
-    fun onClientLaunched() {
-        loginShown = false
-    }
-
     private fun ask(kind: GamePrompt.Kind) {
         if (prompt?.isShowing == true) return
         prompt = GamePrompt.show(

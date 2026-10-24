@@ -292,3 +292,44 @@ opened), it's trimmed, and `ActivityTaskSupervisor.onRecentTaskRemoved(wasTrimme
 the task outright ("recent-task-trimmed"), its screen ended with it. The session's task is now
 in Recents like any other (its own card, a way back to the game too); swiping that card away
 ends the session, as for any game.
+
+### On the phone, 1.0.275: the session's screen never opened; the realm without a screen
+
+The next report (issue #53) said "The Windows session did not start" after the 120 s wait for the
+session's screen, and every log in it (database, authentication, world, session) was #48's, byte
+for byte, from an hour before: the screen never got as far as writing its log, so it never opened.
+The app asked for it from the background of a long start (the repack and client checked twice,
+the runtime and container prepared); Android opens no screen for an app that isn't on screen
+(`BackgroundActivityStartController`, every target SDK since Android 10), and drops the request
+without a word. Four failures in a row (#40, #41, #48, #53) had one cause: the realm's servers lived
+in a screen, which Android can refuse, close, trim or recreate.
+
+So the realm has no screen now. `WindowsRealmHost` runs its Wine itself (`local/core/HeadlessWine`):
+the container's prefix made ready as a session's screen makes it (`WinePrefixSetup`, Winlator
+patch 0011: system files, DLLs, registry, drives, Box64 0.4.4-legion, Wine's shared memory folder
+and network files), `wineserver -p`, then each script (`cmd.exe /d /c R:\runtime\<name>.cmd`) as a
+process of the app's, with the session's environment minus its display, shared memory and sound,
+and `WINLATOR_REALM=<realm>` in it, which Wine passes on to every program it starts, so the realm's
+processes are found and ended as a whole (Force Stop; `wineserver -k` at Stop). A probe (`ver`) runs
+first; what Wine prints goes to `runtime/host.log`. `LocalRealmService`, a foreground service with
+the realm's notification and a partial wake lock, keeps the app alive while a realm runs (Wine's
+processes are the app's children). Each start keeps the last run's logs as `*.previous.log`, so a
+report has this start's only.
+
+The game joins it: Launch Game opens `RealmSessionActivity` from the launcher on screen (or as soon
+as it's shown) with `cmd.exe /d /c R:\runtime\client.cmd`. Patch 0011 makes such a session join the
+running Wine: it leaves the runtime's `tmp` (the Wine server's socket and esync shared memory there;
+cleared, the next program starts a second Wine server for the same prefix, which can't see the
+realm's processes: shown on a PC), the registry (Wine keeps it in its server and writes it back) and
+the drives as the realm's start made them, makes the active-container link atomically (and leaves
+it when it's already that container), and gives its programs `WINLATOR_SESSION=<token>`, so its end
+(Leave, the game exiting, its card swiped, Android closing it) kills those only. The session's task
+leaves Recents with it (`autoRemoveFromRecents`, `finishAndRemoveTask`).
+
+Tested on a PC: the realm's database started and stopped by `HeadlessWine` under Wine 10.10 with no
+display (`HeadlessWineTest.realmDatabaseUnderWineWithNoDisplay`, with `HEADLESS_WINE_TESTBED` and
+`HEADLESS_WINE_ROOTFS`); a display session (Xvfb, `explorer /desktop`) on the realm's Wine server:
+its programs (start.exe, explorer, cmd, conhost, the program) carried the session's marker and the
+realm's (services, winedevice, plugplay, svchost, rpcss started later, cmd, mysqld) the realm's,
+none both; the session's killed with its X server, the database stayed up and shut down cleanly
+(exit 0), and `wineserver -k` left nothing. Untested: all of it on a phone.

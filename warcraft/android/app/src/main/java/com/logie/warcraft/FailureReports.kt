@@ -117,6 +117,10 @@ object FailureReports {
         follow(app, "$name installation", jobs.state) {
             (it as? LocalInstallJobs.State.Failed)?.let { f -> failure("${f.kind}: ${f.message}", null) }
         }
+        // (the game's session not opening or the game exiting with an error: the realm runs on)
+        follow(app, "$name game", server.status) {
+            it.clientError?.let { message -> failure(message, null)?.let { f -> Failure(f.message) { server.runtimeLogs(app) } } }
+        }
     }
 
     /**

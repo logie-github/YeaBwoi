@@ -18,10 +18,13 @@ import kotlin.coroutines.resume
 
 /** One isolated container per realm, using the application's existing Wine/Box64 runtime. */
 object WindowsRealmGame {
-    /** Called by TwwServer; callers must already have validated a local startup profile. */
-    /** [graphicsDriver]: Winlator's graphics driver setting for the realm's container, when the realm chooses one. */
-    suspend fun openSession(context: Context, name: String, sessionExtra: String, layout: LocalInstallation, gesturesEnvironment: String? = null,
-                            graphicsDriver: String? = null, prepareDriveC: ((File) -> Unit)? = null) {
+    /**
+     * The realm's container ready for its Wine with no screen: the runtime installed, the container
+     * made (its drives: D: the client, S: the server, R: the realm's root, M: the maps) with
+     * [graphicsDriver] for the game's session, [prepareDriveC] done in its drive C:.
+     */
+    suspend fun prepareRuntime(context: Context, name: String, layout: LocalInstallation,
+                               graphicsDriver: String? = null, prepareDriveC: ((File) -> Unit)? = null): Container {
         val app = context.applicationContext
         val installed = withContext(Dispatchers.IO) { RootFSInstaller.installIfNeeded(app) { } }
         if (!installed) throw IOException("The Windows runtime could not be installed.")
@@ -29,25 +32,53 @@ object WindowsRealmGame {
         val cmd = File(container.rootDir, ".wine/drive_c/windows/system32/cmd.exe")
         if (!cmd.isFile) throw IOException("The realm's Windows container has no cmd.exe; repair the Windows runtime.")
         prepareDriveC?.let { prepare -> withContext(Dispatchers.IO) { prepare(File(container.rootDir, ".wine/drive_c")) } }
-        withContext(Dispatchers.Main) {
-            app.startActivity(Intent(app, RealmSessionActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .putExtra("container_id", container.id)
-                .putExtra("exec_path", cmd.path)
-                .putExtra("exec_args", "/d /k title " + name)
-                .putExtra(sessionExtra, true)
-                .putExtra("local_server_session", true)
-                // What Wine and Box64 print, and how the session ended (Winlator patch 0008).
-                .putExtra("session_log", File(layout.root, "runtime/session.log").path)
-                // Box64 with the flags of a signal's context right (Winlator patch 0009, scripts/build-box64.sh):
-                // modern WoW clients' start-up protection single-steps itself and, on Box64 0.4.4, takes the
-                // wrong branch and stops on a deliberate trap (seen with SPP's 7.3.5 client).
-                .putExtra("box64_version", com.winlator.core.DefaultVersion.BOX64_LEGION)
-                .putExtra("gestures", gesturesEnvironment != null)
-                .putExtra(com.logie.warcraft.game.GestureView.EXTRA_ENVIRONMENT, gesturesEnvironment))
-        }
+        return container
     }
 
+    /** The game's session, waiting for the launcher to be on screen (Android opens no screen for an app in the background). */
+    @Volatile private var pending: Intent? = null
+
+    /** A game's session is waiting for the launcher to be on screen. */
+    val launchPending: Boolean get() = pending != null
+
+    /**
+     * The game's session for a realm whose Wine runs ([container]): its program R:\runtime\client.cmd
+     * (the client, its exit code written when it ends), the session joining the realm's Wine server.
+     */
+    fun openClientSession(context: Context, container: Container, sessionExtra: String, layout: LocalInstallation, gesturesEnvironment: String? = null) {
+        TitleMusic.stopForGame()
+        val cmd = File(container.rootDir, ".wine/drive_c/windows/system32/cmd.exe")
+        val intent = Intent(context, RealmSessionActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra("container_id", container.id)
+            .putExtra("exec_path", cmd.path)
+            // (no quotes: Winlator passes the arguments on as they are)
+            .putExtra("exec_args", "/d /c R:\\runtime\\client.cmd")
+            .putExtra(sessionExtra, true)
+            .putExtra("local_server_session", true)
+            // What Wine and Box64 print in the session, and how it ended (Winlator patch 0008).
+            .putExtra("session_log", File(layout.root, "runtime/session.log").path)
+            // Box64 with the flags of a signal's context right (Winlator patch 0009, scripts/build-box64.sh):
+            // modern WoW clients' start-up protection single-steps itself and, on Box64 0.4.4, takes the
+            // wrong branch and stops on a deliberate trap (seen with SPP's 7.3.5 client). The realm's
+            // Wine runs the same one (WindowsRealmHost).
+            .putExtra("box64_version", com.winlator.core.DefaultVersion.BOX64_LEGION)
+            .putExtra("gestures", gesturesEnvironment != null)
+            .putExtra(com.logie.warcraft.game.GestureView.EXTRA_ENVIRONMENT, gesturesEnvironment)
+        if (com.logie.warcraft.MainActivity.visible) {
+            pending = null
+            context.startActivity(intent)
+        } else pending = intent
+    }
+
+    /** The launcher came on screen: opens the game's session asked for while the app was in the background. */
+    fun onLauncherShown(context: Context) {
+        val intent = pending ?: return
+        pending = null
+        context.startActivity(intent)
+    }
+
+    /** The game's running session in front (from the launcher, on screen). */
     fun showSession(context: Context, sessionExtra: String) {
         TitleMusic.stopForGame()
         context.startActivity(Intent(context, RealmSessionActivity::class.java)
