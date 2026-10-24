@@ -31,7 +31,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-11";
+        constexpr char const* VERSION = "skyborne-12";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -439,6 +439,52 @@ namespace Skyborne
         // texture) asks for those rows, and the game fails without them. Every NPC skin gets a face
         // row for each face its race and sex have, and an overlay row, with no textures (as the
         // overlays' are): the skin's own face shows.
+        // The designs' skin colours (tools/build_data.py) come after the highest colour of the server's
+        // tables, whose NPC and death knight skins some HD looks' tables haven't: there, colours below
+        // the designs had no row at all (Night Elf women's 12, Undead's 6 to 9, Gnome's 10 and 11, the
+        // Skyborne's 10 to 15), and the character creation screen, as the race changed, read a missing
+        // row's texture and crashed (crash reports #44, #45, #47). Every colour below a race and sex's
+        // highest gets a row: an NPC's skin (flag 8, as the game's own colours between), its first
+        // player skin's textures; CompleteSkins gives it its faces and overlay.
+        void FillSkinHoles(Dbc& dbc)
+        {
+            if (dbc.fields < 10 || dbc.size != dbc.fields * 4)
+                return;
+            using Who = std::pair<uint32_t, uint32_t>;                      // race, sex
+            std::map<Who, std::set<uint32_t>> colours;
+            std::map<Who, std::pair<uint32_t, size_t>> first;               // its lowest player skin: colour, row
+            uint32_t next = 0;
+            for (size_t row = 0; row < dbc.records.size(); ++row)
+            {
+                next = std::max(next, dbc.Get(row, 0) + 1);
+                if (dbc.Get(row, 3) != 0)
+                    continue;
+                Who who{ dbc.Get(row, 1), dbc.Get(row, 2) };
+                uint32_t colour = dbc.Get(row, 9), flags = dbc.Get(row, 7);
+                colours[who].insert(colour);
+                if ((flags & 1) && !(flags & 4) && (!first.count(who) || colour < first[who].first))
+                    first[who] = { colour, row };
+            }
+            for (auto const& [who, has] : colours)
+            {
+                auto source = first.find(who);
+                if (source == first.end() || has.empty())
+                    continue;
+                for (uint32_t colour = 0; colour < *has.rbegin(); ++colour)
+                {
+                    if (has.count(colour))
+                        continue;
+                    Bytes record = dbc.records[source->second.second];
+                    dbc.records.push_back(record);
+                    size_t row = dbc.records.size() - 1;
+                    dbc.Set(row, 0, next++);
+                    dbc.Set(row, 7, 8);
+                    dbc.Set(row, 8, 0);
+                    dbc.Set(row, 9, colour);
+                }
+            }
+        }
+
         void CompleteSkins(Dbc& dbc)
         {
             if (dbc.fields < 10 || dbc.size != dbc.fields * 4)
@@ -646,6 +692,8 @@ namespace Skyborne
                 AddExtraSkins(dbc, game, made);
             if (Lower(name) == "charsections")
                 EmptyOverlayRows(dbc, made);
+            if (Lower(name) == "charsections")
+                FillSkinHoles(dbc);
             if (Lower(name) == "charsections")
                 CompleteSkins(dbc);
             if (Lower(name) == "charsections")
