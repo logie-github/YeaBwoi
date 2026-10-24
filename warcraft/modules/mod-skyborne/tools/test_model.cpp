@@ -2,17 +2,19 @@
 // Bottom Features' model and texture changes on their own. With no arguments: a made-up model, skin and
 // texture changed and checked (no game files, so CI runs it). With a folder of the game's female models
 // (GAME: <GAME>/Character/<Race>/Female/<Race>Female.m2, 00.skin, Skin00_00_Extra.blp, as the HD looks
-// have them): each race's model changed with a small mesh of its own (the body's triangles in a box of
-// the body texture, Human's) and its tall extra texture with a test detail and without, written to OUT
-// in the same folders, to check with mod-allied-races/tools/check_m2.py and draw with render_m2.py.
+// have them): each race's model changed with a small mesh (the body's triangles in a box of its texture,
+// or RACE's from the mesh file MESH) and its tall extra texture with a test detail and without, written
+// to OUT in the same folders, to check with mod-allied-races/tools/check_m2.py and draw with render_m2.py.
 //
 //   g++ -std=c++17 -O2 -I../src test_model.cpp ../src/SkyborneFiles.cpp ../src/SkyborneModel.cpp -lz
-//   ./a.out [GAME OUT [RACE]]
+//   ./a.out [GAME OUT [RACE [MESH]]]
 
 #include "SkyborneModel.h"
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -34,9 +36,7 @@ static void Check(bool ok, std::string const& what)
 static uint32_t Get32(uint8_t const* p) { return uint32_t(p[0]) | uint32_t(p[1]) << 8 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 24; }
 static uint16_t Get16(uint8_t const* p) { return uint16_t(p[0] | p[1] << 8); }
 static void Put32(uint8_t* p, uint32_t v) { for (int i = 0; i < 4; ++i) p[i] = uint8_t(v >> (8 * i)); }
-static void Put16(uint8_t* p, uint16_t v) { p[0] = uint8_t(v); p[1] = uint8_t(v >> 8); }
 static float GetF(uint8_t const* p) { float f; std::memcpy(&f, p, 4); return f; }
-static void PutF(uint8_t* p, float f) { std::memcpy(p, &f, 4); }
 static void Add16(Bytes& b, uint16_t v) { b.push_back(uint8_t(v)); b.push_back(uint8_t(v >> 8)); }
 static void Add32(Bytes& b, uint32_t v) { for (int i = 0; i < 4; ++i) b.push_back(uint8_t(v >> (8 * i))); }
 static void AddF(Bytes& b, float f) { uint32_t v; std::memcpy(&v, &f, 4); Add32(b, v); }
@@ -281,7 +281,12 @@ static void TestModel()
     Check(!AddBodyDetail(m3, s3, MakeMesh(m2, skin)).empty(), "a model changed already isn't changed again");
 
     // What it refuses, leaving the files as they were.
-    Check(Fails(m0, s0, MakeMesh(MakeModel(), MakeSkin(30, 9, 1301, 6)).replace(8, 8, "00000000"), "another model"), "a mesh made for another model");
+    std::string other = MakeMesh(m0, s0);
+    size_t crc = other.find("model ") + 6;
+    other.replace(crc, 8, other.compare(crc, 8, "00000000") ? "00000000" : "00000001");
+    Check(Fails(m0, s0, other, "another model"), "a mesh made for another model");
+    std::string empty = MakeMesh(m0, s0);
+    Check(Fails(m0, s0, empty.substr(0, empty.find(" 7 9\n")) + " 0 0\nlift 0.002\n", "empty"), "a mesh without triangles");
     Bytes shared = MakeSkin(30, 8);
     Check(Fails(m0, shared, MakeMesh(m0, shared), "shared"), "a vertex of the face's that the body has too");
     Check(Fails(m0, s0, MakeMesh(m0, s0, "", "tri 2 4 5 6\ntri 0 0 2 1\ntri 0 1 2 4\n"), "another section"), "a triangle with a vertex of another section");
@@ -354,6 +359,10 @@ static Image MakeDetail()
             {
                 p[0] = 40; p[1] = 40; p[2] = 200; p[3] = 128;
             }
+            else if (y >= 440 && y < 480)
+            {
+                p[0] = uint8_t(x / 2); p[1] = 255; p[2] = uint8_t(255 - x / 2); p[3] = 255;   // more colours than it has room for
+            }
         }
     return d;
 }
@@ -391,7 +400,7 @@ static void TestTextures()
     Check(made, "a tall texture with a detail (" + std::to_string(int(ms)) + " ms)");
     if (!made)
         return;
-    Check(std::memcmp(tall.data(), "BLP2", 4) == 0 && tall[8] == 1 && tall[9] == 8 && Get32(&tall[12]) == 512 && Get32(&tall[16]) == 1024,
+    Check(std::memcmp(tall.data(), "BLP2", 4) == 0 && tall[8] == 1 && tall[9] == 8 && tall[10] == 8 && Get32(&tall[12]) == 512 && Get32(&tall[16]) == 1024,
           "a palette texture with 8 bits of alpha, 512 by 1024");
     bool levels = Get32(&tall[20 + 11 * 4]) == 0;
     for (int k = 0; k <= 10; ++k)
@@ -404,7 +413,16 @@ static void TestTextures()
     for (int i = 0; i < 256; ++i)
         if (std::memcmp(&tall[148 + i * 4], &extra[148 + i * 4], 3) != 0)
             changed.insert(i);
-    Check(!changed.empty() && changed.size() <= 32 && changed.count(250) && changed.count(255), "at most 32 colours given to the detail, the least used among them");
+    std::vector<size_t> uses(256, 0);
+    for (size_t i = 0; i < 512 * 512; ++i)
+        ++uses[Level(extra, 0)[i]];
+    size_t most = 0, least = SIZE_MAX;
+    for (int i = 0; i < 256; ++i)
+        if (changed.count(i))
+            most = std::max(most, uses[i]);
+        else
+            least = std::min(least, uses[i]);
+    Check(changed.size() == 32 && changed.count(250) && changed.count(255) && most <= least, "32 colours given to the detail, the least used");
     bool top = true, opaque = true;
     size_t moved = 0;
     for (int k = 0; k < 10; ++k)
@@ -441,6 +459,13 @@ static void TestTextures()
     };
     Check(near(256, 300, 200, 40, 40, 255) && near(300, 330, 200, 40, 40, 255), "the detail in the lower half");
     Check(near(256, 185, 40, 40, 200, 128) && near(141, 300, 40, 40, 200, 128), "...its colours and alpha");
+    int worst = 0;
+    for (uint32_t x = 0; x < 512; ++x)
+    {
+        uint8_t const* p = &image.rgba[((512 + 460) * 512 + x) * 4];
+        worst = std::max({ worst, std::abs(p[0] - int(x / 2)), std::abs(p[1] - 255), std::abs(p[2] - (255 - int(x / 2))) });
+    }
+    Check(worst <= 24 && image.rgba[((512 + 460) * 512 + 100) * 4 + 3] == 255, "...many colours near enough (" + std::to_string(worst) + " at most off)");
     Check(image.rgba[((512 + 600 - 512) * 512 + 10) * 4 + 3] == 0 && image.rgba[((512 + 5) * 512 + 256) * 4 + 3] == 0, "...transparent around it and in the gutter");
 
     Bytes plain;
@@ -491,20 +516,20 @@ static void WriteFile(fs::path const& path, Bytes const& data)
     std::ofstream(path, std::ios::binary).write(reinterpret_cast<char const*>(data.data()), std::streamsize(data.size()));
 }
 
-// The mesh for a model: the triangles of the sections of geoset 0 drawn with the body texture whose
-// body coordinates touch Human's box (the body texture's pixels 254 to 320 by 223 to 261), mapped
-// on to the tall texture's lower half.
-static std::string BoxMesh(Bytes const& m2, Bytes const& skin, size_t& tris)
+// A test mesh for a model: the triangles of the sections of geosets 0, 1301 and 1801 drawn with the
+// body texture whose coordinates touch [box] (pixels of the 512 by 512 body texture: x0, y0, x1, y1),
+// mapped on to the tall texture's lower half.
+static std::string BoxMesh(Bytes const& m2, Bytes const& skin, std::array<int, 4> const& box, size_t& tris)
 {
-    double const x0 = 254 / 512.0, x1 = 320 / 512.0, y0 = 223 / 512.0, y1 = 261 / 512.0, top = 0.5 + DETAIL_GUTTER / 1024.0;
+    double const x0 = box[0] / 512.0, y0 = box[1] / 512.0, x1 = box[2] / 512.0, y1 = box[3] / 512.0, top = 0.5 + DETAIL_GUTTER / 1024.0;
     SkinView s(skin);
     uint32_t textures = Get32(&m2[84]), lookups = Get32(&m2[132]);
     std::set<uint32_t> body;
     for (size_t i = 0; i < s.Count(4); ++i)
     {
         uint8_t const* b = s.Batch(i);
-        uint32_t texture = Get16(&m2[lookups + Get16(b + 16) * 2]);
-        if (Get32(&m2[textures + texture * 16]) == 1 && Get16(s.Section(Get16(b + 4))) == 0)
+        uint32_t texture = Get16(&m2[lookups + Get16(b + 16) * 2]), geoset = Get16(s.Section(Get16(b + 4)));
+        if (Get32(&m2[textures + texture * 16]) == 1 && (geoset == 0 || geoset == 1301 || geoset == 1801))
             body.insert(Get16(b + 4));
     }
     std::map<uint32_t, size_t> lines;
@@ -569,9 +594,14 @@ static Image TestDetail()
     return d;
 }
 
-static void TestGame(fs::path const& game, fs::path const& out, std::string const& only)
+static void TestGame(fs::path const& game, fs::path const& out, std::string const& only, fs::path const& meshFile)
 {
-    for (std::string race : { "Human", "Orc", "Dwarf", "NightElf", "Scourge", "Gnome", "Troll", "BloodElf", "Draenei" })
+    // Each race's box, a little wider than its art's.
+    std::map<std::string, std::array<int, 4>> const boxes = {
+        { "Human", { 254, 223, 318, 261 } }, { "Orc", { 252, 224, 315, 261 } }, { "Dwarf", { 254, 220, 302, 260 } },
+        { "NightElf", { 254, 220, 324, 254 } }, { "Scourge", { 252, 210, 339, 256 } }, { "Gnome", { 254, 220, 320, 247 } },
+        { "Troll", { 252, 226, 313, 256 } }, { "BloodElf", { 254, 220, 320, 255 } }, { "Draenei", { 254, 222, 329, 258 } } };
+    for (auto const& [race, box] : boxes)
     {
         if (!only.empty() && race != only)
             continue;
@@ -583,7 +613,15 @@ static void TestGame(fs::path const& game, fs::path const& out, std::string cons
         ModelPrint(m2, skin, crcVertices, crcSkin);
         std::cout << race << ": model " << Hex(crcVertices) << " " << Hex(crcSkin) << "\n";
         size_t tris = 0;
-        std::string mesh = BoxMesh(m2, skin, tris);
+        std::string mesh = BoxMesh(m2, skin, box, tris);
+        if (!meshFile.empty())
+        {
+            std::ifstream in(meshFile);
+            mesh.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+            tris = 0;
+            for (size_t at = 0; (at = mesh.find("\ntri ", at)) != std::string::npos; ++at)
+                ++tris;
+        }
         Bytes before = skin;
         SkinView o(before);
         uint32_t lastBefore = 0;
@@ -611,6 +649,23 @@ static void TestGame(fs::path const& game, fs::path const& out, std::string cons
         for (size_t k = 0; k < s.Count(0); ++k)
             inside = inside && s.Lookup(k) < Get32(&m2[60]);
         Check(inside && Get32(&m2[60]) > vertices, race + ": " + std::to_string(Get32(&m2[60]) - vertices) + " vertices added, the skin's within them");
+        // The extra texture's coordinates (the batches of texture type 8) in the top half, the copies' in the lower.
+        uint32_t textures = Get32(&m2[84]), lookups = Get32(&m2[132]);
+        float faceMax = 0, detailMin = 1;
+        for (size_t i = 0; i < s.Count(4); ++i)
+        {
+            uint8_t const* b = s.Batch(i);
+            uint8_t const* sec = s.Section(Get16(b + 4));
+            if (Get32(&m2[textures + Get16(&m2[lookups + Get16(b + 16) * 2]) * 16]) != 8)
+                continue;
+            for (uint32_t k = Get16(sec + 4); k < uint32_t(Get16(sec + 4)) + Get16(sec + 6); ++k)
+                if (Get16(sec) == 1101)
+                    detailMin = std::min(detailMin, GetF(Vertex(m2, s.Lookup(k)) + 36));
+                else
+                    faceMax = std::max(faceMax, GetF(Vertex(m2, s.Lookup(k)) + 36));
+        }
+        Check(faceMax <= 0.5f && detailMin >= 0.5f + DETAIL_GUTTER / 1024.0f, race + ": the face's V up to " + std::to_string(faceMax)
+              + ", the detail's from " + std::to_string(detailMin));
         WriteFile(out / folder / (race + "Female.m2"), m2);
         WriteFile(out / folder / (race + "Female00.skin"), skin);
         std::ofstream(out / folder / (race + "Female.mesh")) << mesh;
@@ -628,11 +683,22 @@ static void TestGame(fs::path const& game, fs::path const& out, std::string cons
               + std::to_string(tall.size() / 1024) + " KB, " + std::to_string(packed / 1024) + " KB packed)");
         if (!made)
             continue;
-        Image top, original;
+        Image top, original, styled;
         Decode(plain, top);
         Decode(extra, original);
+        Decode(tall, styled);
         bool same = top.width == 512 && top.height == 1024 && std::equal(original.rgba.begin(), original.rgba.end(), top.rgba.begin());
         Check(same, race + ": the face as it was in the top half");
+        size_t moved = 0;
+        int worst = 0;
+        for (size_t i = 0; i < original.rgba.size(); i += 4)
+        {
+            int d = std::max({ std::abs(original.rgba[i] - styled.rgba[i]), std::abs(original.rgba[i + 1] - styled.rgba[i + 1]),
+                               std::abs(original.rgba[i + 2] - styled.rgba[i + 2]) });
+            moved += d != 0;
+            worst = std::max(worst, d);
+        }
+        std::cout << "       (" << race << ": with the detail, " << moved << " of the face's 262144 pixels another colour, " << worst << " at most off)\n";
         WriteFile(out / folder / (race + "FemaleSkin00_00_Extra_D01.blp"), tall);
         WriteFile(out / folder / (race + "FemaleSkin00_00_Extra_D00.blp"), plain);
     }
@@ -645,11 +711,11 @@ int main(int argc, char** argv)
         TestModel();
         TestTextures();
     }
-    else if (argc >= 3)
-        TestGame(argv[1], argv[2], argc > 3 ? argv[3] : "");
+    else if (argc >= 3 && argc <= 5)
+        TestGame(argv[1], argv[2], argc > 3 ? argv[3] : "", argc > 4 ? argv[4] : "");
     else
     {
-        std::cerr << "test_model [GAME OUT [RACE]]\n";
+        std::cerr << "test_model [GAME OUT [RACE [MESH]]]\n";
         return 2;
     }
     std::cout << (failures ? std::to_string(failures) + " failed\n" : "all passed\n");

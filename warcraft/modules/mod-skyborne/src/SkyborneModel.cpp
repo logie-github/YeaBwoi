@@ -204,6 +204,8 @@ namespace Skyborne
             }
             if (!model || !lift)
                 return "the mesh has no model or lift line";
+            if (mesh.tris.empty())
+                return "the mesh has no triangles";
             if (mesh.vertices.size() != mesh.vertexLines || mesh.tris.size() * 3 != mesh.indexCount)
                 return "the mesh hasn't the vertices and triangles its model line says";
             for (auto const& t : mesh.tris)
@@ -648,7 +650,8 @@ namespace Skyborne
         // entries, the lower half's (the gutter's those of the top half's last row, as its colours run
         // on), then the alpha; the last level (1 by 1) the two halves mixed.
         out.assign(blp.begin(), blp.begin() + BLP_HEADER + BLP_PALETTE);
-        out[9] = 8;
+        out[9] = 8;                                                 // 8 bits of alpha, as the game's palette textures
+        out[10] = 8;                                                // with alpha have them
         out[11] = 1;
         Put32(&out[16], size * 2);
         std::fill(out.begin() + 20, out.begin() + BLP_HEADER, 0);
