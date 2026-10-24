@@ -148,4 +148,11 @@ class GogInstallerTest {
         assertNull(GameLayout.englishLanguage(listOf("german Deutsch")))
         assertNull(GameLayout.englishLanguage(emptyList()))
     }
+
+    @Test
+    fun `The Frozen Throne's program is found beside Warcraft III's`() {
+        val programs = listOf(GameLayout.Program("Warcraft III.exe", 1), GameLayout.Program("Frozen Throne.exe", 1))
+        assertEquals("Frozen Throne.exe", GameLayout.expansionProgram(programs))
+        assertNull(GameLayout.expansionProgram(programs.take(1)))
+    }
 }

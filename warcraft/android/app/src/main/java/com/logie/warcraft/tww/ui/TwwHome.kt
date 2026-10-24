@@ -159,6 +159,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                                     else -> "Download the game client, server and maps directly to the app."
                                 }, style = MaterialTheme.typography.bodyMedium)
                                 server.error?.let { Text(it, color = TwwColors.Error, maxLines = 3) }
+                                server.clientError?.let { Text(it, color = TwwColors.Error, maxLines = 3) }
                                 TwwButton(when {
                                     server.phase == WindowsRealmServer.Phase.RUNNING -> "Launch Game"
                                     TwwServer.isBusy -> "Starting…"
@@ -204,6 +205,7 @@ fun TwwLauncher(checkUpdateOnOpen: Boolean) {
                 TwwStatus("World server", server.world.name.lowercase(), server.world == WindowsRealmServer.ComponentStatus.RUNNING)
                 server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 server.error?.let { Text(it, color = TwwColors.Error) }
+                server.clientError?.let { Text(it, color = TwwColors.Error) }
                 TwwButton("Start Server", enabled = editable && report?.canStartServer == true) { TwwServer.start(context) }
                 TwwButton("Stop Server", primary = false, enabled = !busy && TwwServer.isBusy) { playAfterStart = false; TwwServer.stop(context) }
                 TwwButton("Launch Game", enabled = !busy && server.phase == WindowsRealmServer.Phase.RUNNING) { TwwGame.play(context) }

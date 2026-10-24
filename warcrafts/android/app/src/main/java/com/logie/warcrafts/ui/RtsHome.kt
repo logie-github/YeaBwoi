@@ -140,6 +140,8 @@ fun RtsHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     var stopped by remember { mutableStateOf<GameStops.Report?>(null) }
     LaunchedEffect(refresh) {
         withContext(Dispatchers.IO) { GameStops.take(context) }?.let { stopped = it }
+        // Back from Blizzard's installers: the installed Warcraft III goes into the app's folder.
+        if (withContext(Dispatchers.IO) { Game.adoptWarcraft3(context) }) refresh++
     }
 
     Crossfade(current, animationSpec = tween(600), label = "look") { shown ->
@@ -346,10 +348,10 @@ private fun needLabel(item: Needs.Item): Int = when (item) {
     Needs.Item.INSTALL_MPQ -> R.string.rts_need_install_mpq
     Needs.Item.CONVERTED -> R.string.rts_need_converted
     Needs.Item.PROGRAM -> R.string.rts_need_program
-    Needs.Item.DATA -> R.string.rts_need_data
-    Needs.Item.BUILD_INFO -> R.string.rts_need_build_info
+    Needs.Item.ROC_DATA -> R.string.rts_need_roc
+    Needs.Item.TFT_DATA -> R.string.rts_need_tft
+    Needs.Item.PATCH -> R.string.rts_need_patch
     Needs.Item.MAPS -> R.string.rts_need_maps
-    Needs.Item.CD_KEYS -> R.string.rts_need_keys
 }
 
 private fun needNote(item: Needs.Item): Int = when (item) {
@@ -358,10 +360,10 @@ private fun needNote(item: Needs.Item): Int = when (item) {
     Needs.Item.INSTALL_MPQ -> R.string.rts_need_install_mpq_note
     Needs.Item.CONVERTED -> R.string.rts_need_converted_note
     Needs.Item.PROGRAM -> R.string.rts_need_program_note
-    Needs.Item.DATA -> R.string.rts_need_data_note
-    Needs.Item.BUILD_INFO -> R.string.rts_need_build_info_note
+    Needs.Item.ROC_DATA -> R.string.rts_need_roc_note
+    Needs.Item.TFT_DATA -> R.string.rts_need_tft_note
+    Needs.Item.PATCH -> R.string.rts_need_patch_note
     Needs.Item.MAPS -> R.string.rts_need_maps_note
-    Needs.Item.CD_KEYS -> R.string.rts_need_keys_note
 }
 
 /** The game's picture, its weather over it, slowly closing in; the logo over its lower edge. */

@@ -32,6 +32,7 @@ class MainActivity : ComponentActivity() {
         Game.onLauncherShown(this)
         com.logie.warcraft.turtle.TurtleGame.onLauncherShown(this)
         com.logie.warcraft.felsong.FelsongGame.onLauncherShown(this)
+        com.logie.warcraft.local.WindowsRealmGame.onLauncherShown(this)
     }
 
     override fun onStop() {

@@ -16,7 +16,10 @@ interface ManagedWindowsRealm {
     fun root(context: Context): File
     fun report(context: Context): TwwInstall.Report
     fun localClientConfigured(context: Context): Boolean
-    suspend fun openSession(context: Context)
+    /** The realm's container ready for its Wine with no screen ([WindowsRealmGame.prepareRuntime]). */
+    suspend fun prepareRuntime(context: Context): com.winlator.container.Container
+    /** The game's session joining the realm's running Wine ([WindowsRealmGame.openClientSession]), from the launcher. */
+    fun openClientSession(context: Context, container: com.winlator.container.Container)
     fun showSession(context: Context)
     fun prepareClientLaunch(context: Context) {}
     /** The world server's settings the app sets at every start, before it loads (the realm's choices). */

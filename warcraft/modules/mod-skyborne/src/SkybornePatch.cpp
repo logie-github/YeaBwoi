@@ -27,7 +27,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-13";
+        constexpr char const* VERSION = "skyborne-14";
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -341,6 +341,7 @@ namespace Skyborne
                 FillSkinHoles(dbc);
             if (Lower(name) == "charsections")
                 CompleteSkins(dbc);
+            SortCharacterTable(dbc, name);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
         }

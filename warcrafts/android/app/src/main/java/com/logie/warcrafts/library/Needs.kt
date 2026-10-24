@@ -11,8 +11,9 @@ package com.logie.warcrafts.library
  *   converts.
  * - Warcraft II Battle.net Edition (GOG): `Support\TOMES\TOME.1`–`TOME.4` and `Install.mpq`, which
  *   Wargus's tool converts.
- * - Warcraft III 1.30: its program, `Data\{data,indices,config}`, `.build.info`; optional `Maps` and
- *   CD keys.
+ * - Warcraft III 1.27 (installed with Blizzard's own classic installers, on a PC): its program,
+ *   `War3.mpq` (Reign of Chaos), `War3x.mpq` and `War3xLocal.mpq` (The Frozen Throne),
+ *   `War3Patch.mpq`; optional `Maps`. The CD keys are entered in Blizzard's installer, once.
  */
 object Needs {
     enum class Item {
@@ -26,14 +27,14 @@ object Needs {
         CONVERTED,
         /** Warcraft III's program. */
         PROGRAM,
-        /** `Data/data`, `Data/indices`, `Data/config`: Warcraft III's data (Blizzard's CASC storage). */
-        DATA,
-        /** `.build.info`, beside `Data`: which version of the data it is. */
-        BUILD_INFO,
+        /** `War3.mpq`: Reign of Chaos's data. */
+        ROC_DATA,
+        /** `War3x.mpq`, `War3xLocal.mpq`: The Frozen Throne's data. */
+        TFT_DATA,
+        /** `War3Patch.mpq`: the patch's data (1.27). */
+        PATCH,
         /** `Maps/`: skirmish and custom maps (Warcraft III). */
         MAPS,
-        /** The CD keys Warcraft III's first start asks for. */
-        CD_KEYS,
     }
 
     data class Need(val item: Item, val paths: List<String>, val required: Boolean)
@@ -50,29 +51,27 @@ object Needs {
         )
         Install.WC3 -> listOf(
             Need(Item.PROGRAM, install.mainNames.take(1), required = true),
-            Need(Item.DATA, listOf("Data/data", "Data/indices", "Data/config"), required = true),
-            Need(Item.BUILD_INFO, listOf(".build.info"), required = true),
+            Need(Item.ROC_DATA, listOf("War3.mpq"), required = true),
+            Need(Item.TFT_DATA, listOf("War3x.mpq", "War3xLocal.mpq"), required = true),
+            Need(Item.PATCH, listOf("War3Patch.mpq"), required = true),
             Need(Item.MAPS, listOf("Maps"), required = false),
-            Need(Item.CD_KEYS, listOf("_SERIAL_KEYS.txt"), required = false),
         )
     }
 
     /**
      * Each need of [install] and whether it's met: [exists] answers for a path in the game's folder
      * (case-insensitive on the caller's side), [program] is Warcraft III's program the app found,
-     * [hasKeys] whether CD keys were found, [converted] whether Stratagus's data is made.
+     * [converted] whether Stratagus's data is made.
      */
     fun check(
         install: Install,
         program: String?,
-        hasKeys: Boolean,
         converted: Boolean = false,
         exists: (String) -> Boolean,
     ): List<Pair<Need, Boolean>> =
         of(install).map { need ->
             need to when (need.item) {
                 Item.PROGRAM -> program != null
-                Item.CD_KEYS -> hasKeys
                 Item.CONVERTED -> converted
                 else -> need.paths.all(exists)
             }

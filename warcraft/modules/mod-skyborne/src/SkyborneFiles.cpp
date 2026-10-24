@@ -850,6 +850,35 @@ namespace Skyborne
         return at;
     }
 
+    void SortCharacterTable(Dbc& dbc, std::string const& name)
+    {
+        std::string lower = name;
+        for (char& ch : lower)
+            ch = char(std::tolower(static_cast<unsigned char>(ch)));
+        std::vector<uint32_t> keys;
+        if (lower == "charsections")
+            keys = { 1, 2, 3, 8, 9 };
+        else if (lower == "charhairgeosets")
+            keys = { 1, 2, 3 };
+        else if (lower == "characterfacialhairstyles")
+            keys = { 0, 1, 2 };
+        else
+            return;
+        for (uint32_t key : keys)
+            if (key >= dbc.fields || dbc.size < (key + 1) * 4)
+                return;
+        std::stable_sort(dbc.records.begin(), dbc.records.end(), [&](Bytes const& a, Bytes const& b)
+        {
+            for (uint32_t key : keys)
+            {
+                uint32_t x = Get32(&a[key * 4]), y = Get32(&b[key * 4]);
+                if (x != y)
+                    return x < y;
+            }
+            return false;
+        });
+    }
+
     uint32_t Dbc::Get(size_t row, uint32_t field) const { return Get32(&records[row][field * 4]); }
     void Dbc::Set(size_t row, uint32_t field, uint32_t value) { Put32(&records[row][field * 4], value); }
 

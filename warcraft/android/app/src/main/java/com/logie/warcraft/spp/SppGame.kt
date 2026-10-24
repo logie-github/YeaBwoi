@@ -80,10 +80,12 @@ object SppGame {
             Regex("(?im)^\\s*SET\\s+portal\\s+\"127\\.0\\.0\\.1\"\\s*$").containsMatchIn(config.readText())
     }.getOrDefault(false)
 
-    internal suspend fun openSession(context: Context) = WindowsRealmGame.openSession(
-        context, CONTAINER, SESSION_EXTRA, SppFiles.layout(context), "spp", SppSettings.graphicsDriver(context)) { driveC ->
+    internal suspend fun prepareRuntime(context: Context) = WindowsRealmGame.prepareRuntime(
+        context, CONTAINER, SppFiles.layout(context), SppSettings.graphicsDriver(context)) { driveC ->
         installCertificateBundle(context, driveC)
     }
+    internal fun openClientSession(context: Context, container: com.winlator.container.Container) =
+        WindowsRealmGame.openClientSession(context, container, SESSION_EXTRA, SppFiles.layout(context), "spp")
     fun showSession(context: Context) = WindowsRealmGame.showSession(context, SESSION_EXTRA)
     fun play(context: Context) = SppServer.launchGame(context)
 }
