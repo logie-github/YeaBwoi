@@ -22,8 +22,7 @@ expect removed 28880
 go 530 -4237.4 -13345.7 44.5
 target self
 cmd .die
-wait 2
-expect damage 98727 by player
+until damage 98727 by player 10
 cmd .revive
 target 0
 # Light's Judgment: three seconds after it's used on a Vale Moth, the character's strike there
