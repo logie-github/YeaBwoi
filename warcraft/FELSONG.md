@@ -6,11 +6,14 @@ The research below and old Felsong installation files are retained for reference
 
 The app's third game: Felsong (World of Warcraft: Legion 7.3.5) against its own local realm, kept
 completely apart from the 3.3.5a game (ChromieCraft) and Turtle WoW, as Turtle is (`TURTLE.md`).
-**Status: research done; Felsong's launcher is in the app with its look and music, and says it
-isn't playable (no Play); its realm (LegionCore) is being ported to the phone and hasn't been built
-through; the client hasn't been tried on a phone.** Its launcher is in the app's releases from
-build 77 on (the user asked for a release with it, October 16, 2026), saying it isn't playable; the
-game isn't, yet.
+**Status (October 20, 2026): the game is plain LegionCore 7.3.5 (the user's decision: no Felsong
+copy), shown as "Legion 7.3.5"; the code keeps the Felsong names. LegionCore `fed58f7` (the project's
+newest commit) compiles for arm64/musl with the app's patches and an integer `NULL` in the build's
+musl headers; its package (programs, MariaDB, its world and hotfixes, the data tools, the connection
+patcher) is built and published as `felsong-server-<hash>`; the realm starts and logs in through the
+Battle.net REST login under qemu's arm64 emulation; the app installs it, imports and patches the
+client, makes or imports the server's data, and starts the game (`com.logie.warcraft.felsong`). The
+client on a phone is still untested anywhere (box64 #3061).**
 
 ## What the user asked for
 

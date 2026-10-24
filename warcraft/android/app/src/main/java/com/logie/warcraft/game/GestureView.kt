@@ -267,7 +267,10 @@ class GestureView(
         val legion = felsong || spp
         val wait = if (legion) LEGION_LOGIN_WAIT_MS else LOGIN_WAIT_MS
         if (login != null) {
-            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait) {
+            // (a Legion client not at its login screen when the wait ends: asked, not typed blind
+            // into whatever is up, its loading screen or a dialog)
+            whenLoginScreen(SystemClock.uptimeMillis(), seen = 0, legion, baseline = null, wait,
+                timedOut = if (legion) ({ ask(GamePrompt.Kind.PASSWORD) }) else null) {
                 type(login.password, enter = true)
                 if (newAccount) postDelayed({ ask(GamePrompt.Kind.NAME) }, NAME_PROMPT_DELAY_MS)
             }
@@ -568,19 +571,24 @@ class GestureView(
     /**
      * [then] once the login screen is up (the game has shown its cursor a few times running; for a
      * [legion] client, one other than the first it showed, the window's before the game had its
-     * own: its [baseline]), then a moment more for its boxes, or after [wait] in any case: logging
-     * in by itself with the saved password (SavedLogin), or asking for it. The account's name is in
-     * the box already (Config.wtf).
+     * own: its [baseline]), then a moment more for its boxes, or after [wait] in any case ([timedOut]
+     * then, if given): logging in by itself with the saved password (SavedLogin), or asking for it.
+     * The account's name is in the box already (Config.wtf).
      */
-    private fun whenLoginScreen(since: Long, seen: Int, legion: Boolean, baseline: Long?, wait: Long, then: () -> Unit) {
+    private fun whenLoginScreen(since: Long, seen: Int, legion: Boolean, baseline: Long?, wait: Long,
+                                timedOut: (() -> Unit)? = null, then: () -> Unit) {
         val cursor = cursorHere()
         val base = if (legion && baseline == null) cursor else baseline
         val now = if (cursor != null && (!legion || cursor != base)) seen + 1 else 0
-        if (now >= LOGIN_CURSOR_SEEN || SystemClock.uptimeMillis() - since >= wait) {
+        if (now >= LOGIN_CURSOR_SEEN) {
             postDelayed(then, LOGIN_SETTLE_MS)
             return
         }
-        postDelayed({ whenLoginScreen(since, now, legion, base, wait, then) }, LOGIN_POLL_MS)
+        if (SystemClock.uptimeMillis() - since >= wait) {
+            postDelayed(timedOut ?: then, LOGIN_SETTLE_MS)
+            return
+        }
+        postDelayed({ whenLoginScreen(since, now, legion, base, wait, timedOut, then) }, LOGIN_POLL_MS)
     }
 
     private fun ask(kind: GamePrompt.Kind) {

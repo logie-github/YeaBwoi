@@ -35,6 +35,9 @@ object WindowsRealmGame {
         return container
     }
 
+    /** Marks a realm's game session (its program the game, client.cmd). */
+    const val REALM_CLIENT = "realm_client"
+
     /** The game's session, waiting for the launcher to be on screen (Android opens no screen for an app in the background). */
     @Volatile private var pending: Intent? = null
 
@@ -56,6 +59,8 @@ object WindowsRealmGame {
             .putExtra("exec_args", "/d /c R:\\runtime\\client.cmd")
             .putExtra(sessionExtra, true)
             .putExtra("local_server_session", true)
+            // (a game session of this design: an older version's Recents card for a realm's session isn't one)
+            .putExtra(REALM_CLIENT, true)
             // What Wine and Box64 print in the session, and how it ended (Winlator patch 0008).
             .putExtra("session_log", File(layout.root, "runtime/session.log").path)
             // Box64 with the flags of a signal's context right (Winlator patch 0009, scripts/build-box64.sh):
@@ -92,7 +97,8 @@ object WindowsRealmGame {
     @Suppress("UNUSED_PARAMETER")
     fun showSession(context: Context, sessionExtra: String) {
         val tasks = context.getSystemService(android.app.ActivityManager::class.java)?.appTasks.orEmpty()
-        val task = tasks.firstOrNull { runCatching { it.taskInfo.baseIntent.component?.className == RealmSessionActivity::class.java.name }.getOrDefault(false) }
+        val task = tasks.firstOrNull { runCatching { it.taskInfo.baseIntent.let { intent ->
+            intent.component?.className == RealmSessionActivity::class.java.name && intent.getBooleanExtra(REALM_CLIENT, true) } }.getOrDefault(false) }
             ?: return
         TitleMusic.stopForGame()
         task.moveToFront()

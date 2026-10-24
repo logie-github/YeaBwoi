@@ -6,7 +6,9 @@ plugins {
 // CI passes the app's identity, version, signing key and update source as Gradle properties
 // (-Pwow...). Local builds fall back to these defaults.
 def wowProperty = { String name, String fallback ->
-	project.hasProperty(name) ? project.property(name).toString() : fallback
+	// (an empty value is the fallback: a CI job that didn't publish passes its outputs empty)
+	def value = project.hasProperty(name) ? project.property(name).toString() : ""
+	value.isEmpty() ? fallback : value
 }
 def wowKeystore = wowProperty("keystore", "")
 

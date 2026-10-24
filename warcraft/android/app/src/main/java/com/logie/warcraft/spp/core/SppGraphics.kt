@@ -2,12 +2,16 @@
 package com.logie.warcraft.spp.core
 
 /**
- * The graphics API the 7.3.5 client draws with (its Config.wtf's gxApi): it has Direct3D 9, Direct3D 11
- * and OpenGL renderers. On a phone they run through Winlator's DXVK (Direct3D) or its OpenGL driver;
- * one the drivers can't give it stops the client at "Game Initialization Failed!" (a phone's, with
- * Direct3D 11). Direct3D 9 comes first: the phone's 3.3.5a game draws through DXVK's Direct3D 9 on
- * the same drivers. A start that fails moves on to the next ([next]), told by the client's own log of
- * its graphics' start (Logs/gx.log: [failure]).
+ * (Not "Game Initialization Failed!": that is the client's start-up protection, before any graphics.)
+ * The graphics API the 7.3.5 client draws with: it has Direct3D 9, Direct3D 11 and OpenGL renderers
+ * (its table of APIs; GLL, Metal and the null device aren't supported on Windows), which on a phone run
+ * through Winlator's DXVK (Direct3D) or its OpenGL driver. Direct3D 9 comes first: the phone's 3.3.5a
+ * game draws through DXVK's Direct3D 9 on the same drivers. The client takes its gxApi setting only
+ * once videoOptionsVersion is 15 (below, it resets it to "auto" at every start, which picks Direct3D 11
+ * through DXVK), so the API is given on its command line too ([argument]: -d3d, -d3d11, -opengl,
+ * which override the setting). A start whose graphics fail moves on to the next ([next]), told by the
+ * client's log of its graphics' start (Logs/gx.log, written anew at each: [failure]); a failure that
+ * comes before them is its start-up protection's ("Game Initialization Failed!"), not theirs.
  */
 object SppGraphics {
     const val D3D9 = "D3D9"
@@ -15,8 +19,15 @@ object SppGraphics {
     const val OPENGL = "OpenGL"
     val ORDER = listOf(D3D9, D3D11, OPENGL)
 
-    /** A game that ran this long started its graphics: its end isn't their failure. */
-    const val START_SECONDS = 180L
+    /** The client's command-line switch for [api] (it overrides the setting). */
+    fun argument(api: String) = when (valid(api)) {
+        D3D11 -> "-d3d11"
+        OPENGL -> "-opengl"
+        else -> "-d3d"
+    }
+
+    /** A start the client's graphics log doesn't show, ended this soon: its start-up protection stopped it. */
+    const val PROTECTION_SECONDS = 180L
 
     fun name(api: String) = when (api) {
         D3D11 -> "Direct3D 11"
@@ -34,13 +45,18 @@ object SppGraphics {
     fun failure(log: String): String? = log.lineSequence().map { it.trim() }
         .lastOrNull { line -> FAILURES.any { line.contains(it, ignoreCase = true) } }
 
+    /** The lines the client writes to gx.log when its graphics device doesn't start (the decrypted client's). */
     private val FAILURES = listOf(
+        "ReportDeviceCreationFailure",
+        "no output device available",
+        "ConsoleDeviceInitialize(): output device does not",
         "failed to create device",
-        "not supported on adapter",
         "unable to LoadLibrary",
         "unable to GetProcAddress",
         "unable to d3dCreateProc",
-        "Failed to get DXGI Adapter Description",
-        "Failed to get adapter identifier",
+        "ChoosePixelFormat failed",
+        "SetPixelFormat failed",
+        "pfd does not match requested",
+        "pixelFormat does not match requested",
     )
 }

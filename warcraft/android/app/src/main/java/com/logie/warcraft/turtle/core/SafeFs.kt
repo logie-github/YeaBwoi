@@ -123,6 +123,16 @@ class SafeFs(private val scope: File, private val protected: List<File> = emptyL
         Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
     }
 
+    /**
+     * Moves [source], inside [from]'s scope (another guard's), to [target] inside this one's: one
+     * rename, on the same storage only (an IOException otherwise, nothing moved).
+     */
+    fun moveFrom(from: SafeFs, source: File, target: File) {
+        from.check(source)
+        check(target)
+        Files.move(source.toPath(), target.toPath())
+    }
+
     /** Makes [folder] (and its parents inside the scope). */
     fun mkdirs(folder: File): File {
         check(folder, allowScope = true)

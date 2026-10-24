@@ -168,6 +168,13 @@ object FelsongServer {
             val lan = FelsongSettings.lan(context)
             runToEnd(context, listOf("configure") + if (lan) listOf("lan") else emptyList(), File(logs, "configure.log"))
             FelsongSettings.applyToConfig(context)
+            // The Battle.net server tells the client where its REST login is: this phone, or, with
+            // PCs on the Wi-Fi let in, the phone's address there.
+            val restAddress = (if (lan) Server.lanAddress() else null) ?: "127.0.0.1"
+            editConf(File(FelsongFiles.layout(context).etc, "bnetserver.conf")) {
+                set("LoginREST.ExternalAddress", restAddress)
+                set("LoginREST.LocalAddress", "127.0.0.1")
+            }
 
             update { copy(step = Step.DATABASE, detail = null) }
             startDatabase(context)

@@ -63,7 +63,7 @@ object FelsongRealm {
     const val OPENSSL_MODULES = "lib/ossl-modules"
 
     /** The realm's name, as the client's realm list shows it (auth.realmlist). */
-    const val REALM_NAME = "Felsong"
+    const val REALM_NAME = "Legion"
 
     /** A setting in worldserver.conf the launcher offers, with the app's default for a realm on a phone. */
     data class Setting(val key: String, val default: String, val choices: List<String>, val group: Group)

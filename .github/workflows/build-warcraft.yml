@@ -40,6 +40,11 @@ on:
       - "scripts/package-tortoise.sh"
       - "scripts/test-turtle-server.sh"
       - "scripts/turtle-manifests.py"
+      - "scripts/fetch-legioncore.sh"
+      - "scripts/compile-legioncore.sh"
+      - "scripts/package-legioncore.sh"
+      - "scripts/test-felsong-server.sh"
+      - "scripts/felsong-server-hash.sh"
       - ".github/workflows/build-warcraft.yml"
   workflow_dispatch:
 
@@ -317,6 +322,126 @@ jobs:
           PY
           cat "$GITHUB_OUTPUT"
 
+  # The Legion realm (the app's third game): LegionCore 7.3.5 compiled for arm64 on musl (cached by
+  # the compile's inputs, ccache across runs), packed with its own MariaDB and a seed database with
+  # LegionCore's world and hotfixes, tested (scripts/test-felsong-server.sh), then published as
+  # felsong-server-<hash> (the name from when the game was planned as Felsong's realm). The hash is
+  # scripts/felsong-server-hash.sh's, the same on any machine, so a package published from a
+  # developer's machine is found here already. Skipped when the release is there: its
+  # felsong-server.json gives the APK the package's size and SHA-256.
+  felsong-server:
+    name: Legion realm for arm64 (build, test, publish)
+    runs-on: ubuntu-24.04-arm
+    # (a failure here never holds the APK back: it's built without the realm's pin, and says so)
+    continue-on-error: true
+    timeout-minutes: 340
+    outputs:
+      tag: ${{ steps.pin.outputs.tag }}
+      sha256: ${{ steps.pin.outputs.sha256 }}
+      size: ${{ steps.pin.outputs.size }}
+      unpacked: ${{ steps.pin.outputs.unpacked }}
+      commit: ${{ steps.pin.outputs.commit }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release tag and cache keys
+        run: |
+          tag="$(scripts/felsong-server-hash.sh)"
+          echo "FELSONG_TAG=$tag" >> "$GITHUB_ENV"
+          echo "COMPILE_KEY=felsong-compile-v1-${{ hashFiles('warcraft/felsong/server-version.env', 'warcraft/felsong/patches/**', 'scripts/fetch-legioncore.sh', 'scripts/compile-legioncore.sh') }}" >> "$GITHUB_ENV"
+          mkdir -p build/felsong
+          if gh release view "$tag" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/assets.txt" 2> /dev/null &&
+              grep -qx felsong-server.tar.xz "$RUNNER_TEMP/assets.txt" && grep -qx felsong-server.json "$RUNNER_TEMP/assets.txt"; then
+            gh release download "$tag" -p felsong-server.json -D build/felsong --clobber
+            echo "Already published: $tag"
+            echo "PUBLISHED=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Look for the compiled realm
+        id: compiled
+        if: env.PUBLISHED != '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/legioncore-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Restore the compiler cache
+        if: env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/ccache-legioncore
+          key: felsong-ccache-arm64-${{ github.run_id }}
+          restore-keys: felsong-ccache-arm64-
+
+      - name: Compile the realm
+        if: env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        run: |
+          scripts/compile-legioncore.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: Save the compiler cache
+        if: always() && env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/ccache-legioncore
+          key: felsong-ccache-arm64-${{ github.run_id }}
+
+      - name: Save the compiled realm
+        if: env.PUBLISHED != '1' && steps.compiled.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/legioncore-dist
+          key: ${{ env.COMPILE_KEY }}
+
+      - name: Package the realm
+        if: env.PUBLISHED != '1'
+        run: |
+          scripts/package-legioncore.sh
+          sudo chown -R "$(id -u):$(id -g)" build
+
+      - name: Test the realm
+        if: env.PUBLISHED != '1'
+        timeout-minutes: 60
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq strace > /dev/null
+          scripts/test-felsong-server.sh
+
+      # The tag first through the refs API (see the APK's release below), then the prerelease.
+      - name: Publish the realm
+        if: env.PUBLISHED != '1'
+        run: |
+          source warcraft/felsong/server-version.env
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$FELSONG_TAG" > /dev/null; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$FELSONG_TAG" -f sha="$GITHUB_SHA" > /dev/null
+          fi
+          gh release view "$FELSONG_TAG" > /dev/null 2>&1 && gh release delete "$FELSONG_TAG" --yes
+          gh release create "$FELSONG_TAG" build/felsong/felsong-server.tar.xz build/felsong/felsong-server.json \
+            --verify-tag --prerelease \
+            --title "World of Warcraft: Legion realm (LegionCore ${LEGIONCORE_COMMIT::7})" \
+            --notes "The Legion realm, which the World of Warcraft app downloads when Legion 7.3.5 is installed: LegionCore ${LEGIONCORE_COMMIT::7} with MariaDB for Android arm64 (musl), its world and hotfixes databases, the data tools and the connection patcher, for the 7.3.5 (26972) client, built from commit ${GITHUB_SHA::7}.
+
+          \`\`\`
+          $(cat build/felsong/felsong-server.json)
+          \`\`\`"
+
+      - name: The package's pin
+        id: pin
+        run: |
+          python3 - "$FELSONG_TAG" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          info = json.load(open("build/felsong/felsong-server.json"))
+          assert info["file"] == "felsong-server.tar.xz" and len(info["sha256"]) == 64 and info["size"] > 0
+          print(f"tag={sys.argv[1]}")
+          print(f"sha256={info['sha256']}")
+          print(f"size={info['size']}")
+          print(f"unpacked={info['unpacked']}")
+          print(f"commit={info['legioncore']}")
+          PY
+          cat "$GITHUB_OUTPUT"
+
+
   windows-tools:
     name: Data tools for Windows
     runs-on: windows-latest
@@ -498,7 +623,7 @@ jobs:
     # The server test (server-test: hours, with Wrath Remix's whole campaign on each side) runs
     # alongside and doesn't hold the release back, at the user's choice: they play the build
     # themselves; its result is on the run. Anything here failed or cancelled stops the APK.
-    needs: [unit-tests, server, windows-tools, turtle-server]
+    needs: [unit-tests, server, windows-tools, turtle-server, felsong-server]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -615,7 +740,12 @@ jobs:
             -PturtleServerSha256="${{ needs.turtle-server.outputs.sha256 }}" \
             -PturtleServerSize="${{ needs.turtle-server.outputs.size }}" \
             -PturtleServerUnpacked="${{ needs.turtle-server.outputs.unpacked }}" \
-            -PturtleServerCommit="${{ needs.turtle-server.outputs.commit }}"
+            -PturtleServerCommit="${{ needs.turtle-server.outputs.commit }}" \
+            -PfelsongServerTag="${{ needs.felsong-server.outputs.tag }}" \
+            -PfelsongServerSha256="${{ needs.felsong-server.outputs.sha256 }}" \
+            -PfelsongServerSize="${{ needs.felsong-server.outputs.size }}" \
+            -PfelsongServerUnpacked="${{ needs.felsong-server.outputs.unpacked }}" \
+            -PfelsongServerCommit="${{ needs.felsong-server.outputs.commit }}"
 
       - name: Collect APK
         run: |
@@ -643,9 +773,9 @@ jobs:
 
           **Turtle WoW — Vanilla+** (a second game, switched to from the launcher): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), installed from the Turtle WoW launcher in one tap, with your own Turtle WoW 1.18.1 (7272) client. Nothing of the 3.3.5a game changes.
 
-          **Legion — 7.3.5 (Single Player Project)** replaces the Felsong section. Download & Install acquires the inspected AshamaneCore repack, database, server maps and build 26972 full client inside the app (42.3 GB client plus 5.4 GB server; allow 120 GB free during setup), with separate local-server and account controls. Legion client support on Android remains experimental because of an open Box64 startup issue; phone gameplay has not been verified. The original client executable is preserved. Native database, account login and world startup checks passed; the old publisher world server returned an access violation on shutdown, so clean world shutdown is not claimed.
+          **Legion 7.3.5** (a third game, switched to from the launcher): your own World of Warcraft 7.3.5 (26972) client on a LegionCore realm on the phone, LegionCore ${{ needs.felsong-server.outputs.commit }} (release ${{ needs.felsong-server.outputs.tag }}), installed from its launcher step by step (the realm in one tap; the client is yours to add; the server data made on the phone or imported). Legion's client on a phone is unverified. Nothing of the other games changes.
 
-          **The War Within — 11.2.5** keeps its separate Draconic installation and active Uniform Server database. Active downloads and Windows sessions continue in the background.
+          **The War Within — 11.2.5** keeps its separate Draconic installation and active Uniform Server database.
 
           Server package:
           \`\`\`

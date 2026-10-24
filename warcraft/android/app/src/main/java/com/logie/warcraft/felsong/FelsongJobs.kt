@@ -13,6 +13,7 @@ import com.logie.warcraft.felsong.core.FelsongAccountRules
 import com.logie.warcraft.felsong.core.FelsongClient
 import com.logie.warcraft.felsong.core.FelsongDataImport
 import com.logie.warcraft.felsong.core.FelsongLayout
+import com.logie.warcraft.felsong.core.FelsongSpp
 import com.logie.warcraft.turtle.core.SafeFs
 import com.logie.warcraft.turtle.core.VerifiedDownload
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,7 @@ import java.util.zip.ZipInputStream
  * kept to carry on from), so Install can be pressed again, and Repair or Uninstall clean it up.
  */
 object FelsongJobs {
-    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, VERIFY, DATA, IMPORT_DATA, PATCH, REPAIR, BACKUP, RESTORE, UNINSTALL }
+    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, SPP, VERIFY, DATA, IMPORT_DATA, PATCH, REPAIR, BACKUP, RESTORE, UNINSTALL }
 
     enum class Step { CHECKING, DOWNLOADING, UNPACKING, DATABASE, RUNTIME, COPYING_CLIENT, VERIFYING_CLIENT, MAPS, VMAPS, MMAPS, VERIFYING_DATA, PATCHING, ACCOUNT, BACKUP, RESTORE, REMOVING }
 
@@ -100,6 +101,7 @@ object FelsongJobs {
                 Kind.DATABASE -> database(context)
                 Kind.RUNTIME -> runtime(context)
                 Kind.CLIENT -> importClient(context, uri ?: throw JobException("No client picked"), isFolder, options)
+                Kind.SPP -> takeSpp(context)
                 Kind.VERIFY -> verifyClient(context)
                 Kind.DATA -> makeData(context, Kind.DATA, options.withMmaps)
                 Kind.IMPORT_DATA -> importData(context, uri ?: throw JobException("No zip picked"))
@@ -420,7 +422,7 @@ object FelsongJobs {
         val layout = FelsongFiles.layout(context)
         if (!FelsongFiles.hasClient(context)) throw JobException(context.getString(R.string.felsong_error_no_client))
         working(kind, Step.VERIFYING_CLIENT)
-        val exe = FelsongClient.find(layout.client, FelsongClient.EXE) ?: throw JobException(context.getString(R.string.felsong_error_not_client))
+        val exe = FelsongClient.program(layout.client) ?: throw JobException(context.getString(R.string.felsong_error_not_client))
         val exeHash = exe.inputStream().use { sha256(it) }
         val version = FelsongClient.version(layout.client)
         FelsongFiles.updateState(context) { state ->
@@ -434,6 +436,112 @@ object FelsongJobs {
             version == null -> context.getString(R.string.felsong_done_verify_unknown)
             version.isExpected -> context.getString(R.string.felsong_done_verify_exact, version.text)
             else -> context.getString(R.string.felsong_done_verify_different, version.text, FelsongClient.BUILD)
+        }
+    }
+
+    // SPP's Legion files -------------------------------------------------------------------------
+
+    /** SPP's Legion files are on the phone and Legion lacks what they'd give it ([takeSpp]). */
+    fun sppOffer(context: Context): Boolean = runCatching {
+        val spp = com.logie.warcraft.spp.SppFiles.layout(context)
+        (!FelsongFiles.hasClient(context) && FelsongSpp.findClient(spp.client) != null) ||
+            (!FelsongFiles.hasData(context) && (FelsongSpp.findData(spp.server) ?: FelsongSpp.findData(spp.maps)) != null)
+    }.getOrDefault(false)
+
+    /**
+     * The client and the server's data the Single Player Project download put on the phone
+     * ([FelsongSpp]), taken into Legion's folder: moved (one rename each, on the same storage) or,
+     * from SPP's other storage, copied. SPP's patched program becomes the client's, with the
+     * certificate bundle it trusts. What Legion has already stays.
+     */
+    private fun takeSpp(context: Context): String {
+        val kind = Kind.SPP
+        working(kind, Step.CHECKING)
+        preflight(context)
+        if (FelsongServer.isBusy || com.logie.warcraft.spp.SppServer.isBusy) throw JobException(context.getString(R.string.felsong_error_stop_first))
+        val spp = com.logie.warcraft.spp.SppFiles.layout(context)
+        val layout = FelsongFiles.layout(context)
+        val fs = FelsongFiles.fs(context)
+        cleanLeftovers(context)
+        // (SPP's folder, guarded: what's taken is only ever from inside it)
+        val sppFs = SafeFs(spp.root)
+        val client = if (FelsongFiles.hasClient(context)) null else FelsongSpp.findClient(spp.client)?.let { sppFs.check(it) }
+        val data = if (FelsongFiles.hasData(context)) null else (FelsongSpp.findData(spp.server) ?: FelsongSpp.findData(spp.maps))?.let { sppFs.check(it) }
+        if (client == null && data == null) throw JobException(context.getString(R.string.felsong_error_no_spp))
+        val taken = mutableListOf<String>()
+
+        if (client != null) {
+            working(kind, Step.COPYING_CLIENT)
+            take(context, kind, Step.COPYING_CLIENT, sppFs, client, layout.clientStaging, fs)
+            try {
+                working(kind, Step.VERIFYING_CLIENT)
+                val version = FelsongClient.version(layout.clientStaging)
+                if (version != null && !version.isExpected) throw JobException(context.getString(R.string.felsong_error_client_build, version.text, FelsongClient.BUILD))
+                val sppExe = FelsongSpp.child(layout.clientStaging, FelsongSpp.SPP_EXE)?.takeIf { it.isFile && it.inputStream().use(::sha256) == FelsongSpp.SPP_EXE_SHA256 }
+                val original = FelsongClient.find(layout.clientStaging, FelsongClient.EXE)?.takeIf { it.isFile }
+                if (sppExe == null && original == null) throw JobException(context.getString(R.string.felsong_error_not_client))
+                // (a patched program from elsewhere was made for someone else's realm)
+                FelsongClient.find(layout.clientStaging, FelsongClient.PATCHED_EXE)?.let { fs.delete(it) }
+                val exeHash = original?.inputStream()?.use(::sha256) ?: FelsongSpp.SPP_EXE_SHA256
+                if (sppExe != null) {
+                    fs.move(sppExe, File(sppExe.parentFile, FelsongClient.PATCHED_EXE))
+                    val bundle = fs.check(layout.certBundle)
+                    bundle.parentFile?.let { fs.mkdirs(it) }
+                    context.assets.open("spp/web_cert_bundle").use { input -> bundle.outputStream().use { input.copyTo(it) } }
+                }
+                fs.replace(layout.clientStaging, layout.client)
+                FelsongFiles.updateState(context) {
+                    it.copy(clientExeSha256 = exeHash, clientBuild = version?.build ?: FelsongClient.BUILD, patchedFrom = if (sppExe != null) exeHash else null)
+                }
+                taken += context.getString(R.string.felsong_spp_client)
+            } finally {
+                fs.delete(layout.clientStaging)
+            }
+        }
+
+        if (data != null) {
+            working(kind, Step.VERIFYING_DATA)
+            fs.mkdirs(layout.dataImport)
+            try {
+                val found = FelsongDataImport.FOLDERS.mapNotNull { name -> FelsongSpp.child(data, name)?.takeIf { it.isDirectory }?.let { name to it } }
+                for ((name, folder) in found) take(context, kind, Step.UNPACKING, sppFs, folder, File(layout.dataImport, name), fs)
+                fs.mkdirs(layout.data)
+                for ((name, _) in found) fs.replace(File(layout.dataImport, name), File(layout.data, name))
+                FelsongFiles.updateState(context) { it.copy(dataFrom = it.clientExeSha256, dataParts = FelsongFiles.dataParts(context)) }
+                taken += context.getString(R.string.felsong_spp_data, found.joinToString { it.first })
+            } finally {
+                fs.delete(layout.dataImport)
+            }
+        }
+        if (FelsongPackage.isInstalled(context) && FelsongFiles.hasClient(context) && !FelsongFiles.isPatched(context)) patchClient(context, kind)
+        return context.getString(R.string.felsong_done_spp, taken.joinToString("; "))
+    }
+
+    /**
+     * [source] (SPP's) to [target] (Legion's): one rename on the same storage, else copied (SPP's
+     * other storage: what's there stays), with progress.
+     */
+    private fun take(context: Context, kind: Kind, step: Step, from: SafeFs, source: File, target: File, fs: SafeFs) {
+        from.check(source)
+        fs.delete(target)
+        target.parentFile?.let { fs.mkdirs(it) }
+        try {
+            fs.moveFrom(from, source, target)
+            return
+        } catch (e: IOException) {
+            // (another storage: copied below)
+        }
+        val files = source.walkTopDown().onEnter { !java.nio.file.Files.isSymbolicLink(it.toPath()) }.filter { it.isFile }.toList()
+        val total = files.sumOf { it.length() }
+        checkSpace(context, total + SPACE_MARGIN)
+        var done = 0L
+        for (file in files) {
+            checkCancelled()
+            val out = fs.check(File(target, file.relativeTo(source).path))
+            out.parentFile?.let { fs.mkdirs(it) }
+            file.inputStream().use { input -> out.outputStream().use { output -> input.copyTo(output, 1 shl 16) } }
+            done += file.length()
+            working(kind, step, if (total > 0) done.toFloat() / total else null, "${size(context, done)} / ${size(context, total)}")
         }
     }
 
@@ -611,6 +719,8 @@ object FelsongJobs {
         if (!FelsongFiles.hasClient(context)) throw JobException(context.getString(R.string.felsong_error_no_client))
         val layout = FelsongFiles.layout(context)
         val fs = FelsongFiles.fs(context)
+        // (a client taken from SPP's has its patched program only, made for this realm's key: nothing to patch)
+        if (FelsongClient.find(layout.client, FelsongClient.EXE)?.isFile != true && FelsongFiles.isPatched(context)) return context.getString(R.string.felsong_done_patch)
         val exe = FelsongClient.find(layout.client, FelsongClient.EXE) ?: throw JobException(context.getString(R.string.felsong_error_not_client))
         working(kind, Step.PATCHING)
         checkSpace(context, exe.length() * 2 + SPACE_MARGIN)

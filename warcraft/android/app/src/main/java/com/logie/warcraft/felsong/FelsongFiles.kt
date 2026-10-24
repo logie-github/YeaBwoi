@@ -44,10 +44,10 @@ object FelsongFiles {
         return next
     }
 
-    /** The client's program is there with its data. */
+    /** The client's program (or only its patched one: a client taken from SPP's) is there with its data. */
     fun hasClient(context: Context): Boolean {
         val client = layout(context).client
-        return FelsongClient.find(client, FelsongClient.EXE)?.isFile == true && FelsongClient.find(client, "Data")?.isDirectory == true
+        return FelsongClient.program(client) != null && FelsongClient.find(client, "Data")?.isDirectory == true
     }
 
     /** The program the connection patcher made, if it's there. */

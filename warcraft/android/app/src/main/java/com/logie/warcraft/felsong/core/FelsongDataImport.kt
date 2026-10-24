@@ -25,7 +25,7 @@ object FelsongDataImport {
 
     /** src/common/collision/VMapDefinitions.h: VMAP_MAGIC, at the start of every vmtree, vmtile and vmo. */
     private val VMAP_MAGIC = "VMAP_4.8".toByteArray()
-    private const val GAMEOBJECT_MODELS = "temp_gameobject_models"
+    private const val GAMEOBJECT_MODELS = "GameObjectModels.dtree"
 
     /** src/common/collision/Maps/MapDefines.h: MMAP_MAGIC ('MMAP', little-endian) and MMAP_VERSION. */
     const val MMAP_MAGIC = 0x4d4d4150
@@ -73,9 +73,8 @@ object FelsongDataImport {
         return when (folder) {
             "dbc" -> when {
                 !file.endsWith(".db2", ignoreCase = true) -> Problem.NOT_DATA
-                // WDC1 (7.3's DB2 format), WDB6 or WDC2 are what the client has; WDBC is 3.3.5's DBC.
-                head.startsWith("WDBC".toByteArray()) -> Problem.FOREIGN
-                !(head.startsWith("WDC".toByteArray()) || head.startsWith("WDB".toByteArray())) -> Problem.FOREIGN
+                // WDC1 (7.3's DB2 format), WDC2, or an older DB2 (WDB2 to WDB6): never WDBC, a DBC.
+                !(head.startsWith("WDC".toByteArray()) || (head.startsWith("WDB".toByteArray()) && head.size > 3 && head[3].toInt().toChar().isDigit())) -> Problem.FOREIGN
                 else -> null
             }
             "maps" -> when {

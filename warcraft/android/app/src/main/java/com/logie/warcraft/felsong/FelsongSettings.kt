@@ -42,6 +42,14 @@ object FelsongSettings {
 
     fun setKnownAccounts(context: Context, count: Int) = prefs(context).edit().putInt("accounts", count).apply()
 
+    /**
+     * The graphics API the client draws with (Direct3D 9, 11, OpenGL: [com.logie.warcraft.spp.core.SppGraphics]),
+     * moved on to the next when a launch's graphics didn't start ([FelsongGame]).
+     */
+    fun api(context: Context): String = com.logie.warcraft.spp.core.SppGraphics.valid(prefs(context).getString("api", null))
+
+    fun setApi(context: Context, api: String) = prefs(context).edit().putString("api", com.logie.warcraft.spp.core.SppGraphics.valid(api)).apply()
+
     /** Back to the defaults. */
     fun reset(context: Context) = prefs(context).edit().clear().apply()
 

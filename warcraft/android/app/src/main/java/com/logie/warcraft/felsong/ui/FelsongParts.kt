@@ -85,6 +85,7 @@ fun FelsongButton(text: String, modifier: Modifier = Modifier, primary: Boolean 
         modifier
             .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
             .heightIn(min = 44.dp)
+            .graphicsLayer { alpha = if (enabled) 1f else 0.45f }
             .drawBehind {
                 if (primary) {
                     drawRect(Brush.verticalGradient(listOf(FelsongColors.Moss, FelsongColors.Night)))

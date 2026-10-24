@@ -336,3 +336,43 @@ none both; the session's killed with its X server, the database stayed up and sh
 environment `headlessEnvironment` gives on a phone, esync on, no display): `wineserver -p`, the probe
 at 25 s, the database answering at 43 s, its clean shutdown (exit 0) at 68 s. Untested: all of it on
 a phone.
+
+### Before release: an audit of the phone's way into the game
+
+Before the next release, five independent audits went through the way from Start Server into the game
+(the client's start, its graphics, its login, the realm on Android 17, the app's flow), each finding
+checked by another trying to refute it. What they established, and what changed:
+
+- **"Game Initialization Failed!"** (the user's screenshot, 1.0.278) is the client's start-up
+  protection, not its graphics: the dialog's only reference in the decrypted client is its obfuscated
+  entry stub, before any of the game's code; graphics failures have their own dialogs and write
+  `Logs/gx.log`. Under Winlator's stock Box64 0.4.4 the protection fails with exactly this box (exit
+  code 1, through qemu); under 0.4.4-legion it passes. How the stock one could run: Box64's version was
+  extracted over the running binary in place, the failure (ETXTBSY) ignored and the new version
+  recorded anyway, for good. Patch 0012 stages the version's binary, compares it at every start, puts
+  it in place by a rename and records it only once installed; the session's log and the realm's
+  host.log say which Box64 ran (its SHA-256), and the game's report says when the protection stopped it.
+- **The language dialog**: with no textLocale and no launcher, the client asks for a language, and
+  its OK sets the portal to the region's code ("US"), away from the realm. textLocale and audioLocale
+  are written (enUS, the client's data's only one).
+- **The graphics API**: the client resets gxApi to auto at every start while videoOptionsVersion is
+  below 15 (set only after a start that worked); the app writes 15 and passes the API on the command
+  line too (-d3d, -d3d11, -opengl, which override it). Direct3D 9 first. The failure lines matched in
+  gx.log are the client's own (ReportDeviceCreationFailure…); gx.log is moved aside at each launch.
+- **The game's end** ends its session (the realm's code finishes it once client.exit is written:
+  Winlator's helper and an empty desktop stayed otherwise); Wine's crash dialog is off in the realm's
+  prefix (a crash ends the program with its code instead of waiting behind the loading screen); the
+  session's log names the game's windows and Box64's word on a fault (BOX64_SHOWSEGV).
+- **Apart from Wrath** (the user: "completely disconnect it from wrath"): a running local realm no
+  longer stops the 3.3.5a game, Turtle WoW or Felsong from starting (only a second Windows screen is
+  refused), and its start asks nothing of their realms. Every session's screen clears the runtime's tmp
+  but for Wine's server folders and esync memory, so another game's screen leaves the realm's Wine whole;
+  the realm's programs use their container's real paths, not the active-container link a game moves.
+- **Android 17**: the realm and its game share the app's memory budget (its memory limiter, lmkd) and
+  its 32 extra processes (the realm about 15, the game about 6); a start warns when the app's battery use is Restricted, and the app's next start reports why Android
+  ended it while a realm ran (ApplicationExitInfo). host.log has the realm's process count and memory
+  every 5 minutes; the database's key cache is 32 MB. A game session from an older version's Recents
+  card is refused; the game's screen size is taken at launch; the Legion login asks for the password
+  when its wait ends instead of typing it blind.
+
+Untested: all of it on a phone. The client's data isn't on the PC, so its graphics and login weren't run.

@@ -4,6 +4,7 @@ package com.logie.warcraft.local
 
 import android.content.Context
 import com.logie.warcraft.config.ConfFile
+import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.tww.core.TwwInstall
 import com.logie.warcraft.tww.core.TwwSession
 import com.winlator.XServerDisplayActivity
@@ -136,14 +137,16 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     }
 
     /** The game exited (its exit file written): a code other than 0 said, and reported. */
+    @Synchronized
     private fun clientExited(context: Context) {
         val exit = exitFile(context, "client")
-        if (!exit.isFile) return
+        // (once per game: the session's end and the check both see it)
+        if (!exit.isFile || !clientLaunched) return
         clientLaunched = false
         val code = exit.readText().trim()
         val seconds = (System.currentTimeMillis() - clientLaunchedAt) / 1000
         // (the realm's own word first: a graphics start that failed, and what's tried next)
-        val said = runCatching { realm.clientEnded(context, clientLaunchedAt, seconds) }.getOrNull()
+        val said = runCatching { realm.clientEnded(context, clientLaunchedAt, seconds, code) }.getOrNull()
         mutableStatus.value = mutableStatus.value.copy(clientRunning = false,
             clientError = said ?: if (code == "0") null else "The game exited with code $code. ${logTail(context, "client")}")
     }
@@ -216,6 +219,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     return@withLock
                 }
                 WindowsRealmRegistry.release(this@WindowsRealmServer)
+                RealmExitReport.stopped(context)
                 profile = null
                 started.clear()
                 File(layout(context).root, "runtime/login.cnf").delete()
@@ -310,6 +314,33 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     }
 
     /**
+     * The database lighter on a phone's memory, at every start: MyISAM's key cache (the world's
+     * tables) 32 MB, not the repack's 256 MB, and no query cache. The realm and its game share the
+     * app's memory with Android (its memory limiter, its low-memory killer).
+     */
+    private fun lightDatabase(config: File) {
+        var text = config.readText()
+        val wanted = mapOf("key_buffer_size" to "32M", "query_cache_size" to "0")
+        if (wanted.all { (key, value) -> iniValue(text, "mysqld", key) == value }) return
+        for ((key, value) in wanted) text = setIni(text, "mysqld", key, value)
+        replaceConfig(config, text)
+    }
+
+    /** The realm's processes' memory (resident and swapped, summed) in its log. */
+    private fun noteMemory() {
+        val app = appContext ?: return
+        var rss = 0L
+        var swap = 0L
+        for (pid in host.processes()) runCatching {
+            File("/proc/$pid/status").forEachLine { line ->
+                if (line.startsWith("VmRSS:")) rss += line.filter { it.isDigit() }.toLong()
+                if (line.startsWith("VmSwap:")) swap += line.filter { it.isDigit() }.toLong()
+            }
+        }
+        runCatching { File(layout(app).root, "runtime/host.log").appendText("[app] memory: ${rss / 1024} MB resident, ${swap / 1024} MB swapped (realm)\n") }
+    }
+
+    /**
      * The realm's SQL for its databases ([ManagedWindowsRealm.worldStartupSql], [ManagedWindowsRealm.loginStartupSql]),
      * once the database is up and before the world server loads them. A failure doesn't stop the realm
      * (it plays without what the SQL gives); it's reported.
@@ -367,7 +398,8 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 if (report.client.status != TwwInstall.Status.INSTALLED || report.clientBuild?.build != realm.spec.build)
                     throw IOException("The installed client is incomplete or does not match build ${realm.spec.build}.")
                 val layout = layout(app)
-                val command = TwwSession.argument(TwwSession.windows(executable, layout.client, 'D'))
+                val arguments = realm.clientArguments(app).onEach { require(it.matches(Regex("[A-Za-z0-9_.-]+"))) }
+                val command = (listOf(TwwSession.argument(TwwSession.windows(executable, layout.client, 'D'))) + arguments).joinToString(" ")
                 writeScript(app, "client", TwwSession.script(TwwSession.windows(executable.parentFile, layout.client, 'D'), command, "client"))
                 val container = host.container ?: throw IOException("The realm's Windows runtime is not running.")
                 clientLaunched = true
@@ -375,8 +407,12 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 clientProcess = executable.name
                 mutableStatus.value = mutableStatus.value.copy(clientRunning = true, clientError = null,
                     detail = "Client launch requested. Connection compatibility is confirmed only after the client logs in; see runtime/client.log if it exits.", error = null)
+                // (the game's screen as the phone is now: a Fold unfolded since the realm started)
+                GameSettings.gameSize(app).let { (w, h) -> container.setScreenSize("${w}x$h"); withContext(Dispatchers.IO) { container.saveData() } }
                 // (the last game's session log kept: the new session's starts anew)
                 File(layout(app).root, "runtime/session.log").takeIf { it.isFile }?.renameTo(File(layout(app).root, "runtime/session.previous.log"))
+                // (the graphics driver as chosen now: the realm's Wine uses none, the game's session does)
+                realm.clientGraphicsDriver(app)?.let { driver -> container.setGraphicsDriver(driver); withContext(Dispatchers.IO) { container.saveData() } }
                 withContext(Dispatchers.Main) { realm.openClientSession(context, container) }
                 // (opened with the launcher on screen, but no screen in a minute: said; one waiting for the
                 // launcher to be shown isn't waited on)
@@ -442,6 +478,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 .ifBlank { "The server's startup requirements could not be verified." })
             // (the realm's settings first: they can change the ports the profile reads)
             report.detected?.worldConfig?.let { headlessWorld(it) }
+            report.detected?.databaseConfig?.let { lightDatabase(it) }
             val p = readProfile(context)
             profile = p
             started.clear()
@@ -458,6 +495,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             mutableStatus.value = mutableStatus.value.copy(detail = "Preparing this realm's Windows runtime…")
             val container = realm.prepareRuntime(context)
             withContext(Dispatchers.IO) { host.start(context, container, File(runtime, "host.log")) }
+            RealmExitReport.running(context, realm.displayName, runtime)
             // (Wine with no screen, answering, before the database is trusted to it)
             mutableStatus.value = mutableStatus.value.copy(detail = "Starting Windows (Wine and Box64)…")
             writeScript(context, "probe", TwwSession.script("C:\\", "ver", "probe"))
@@ -478,10 +516,14 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             mutableStatus.value = mutableStatus.value.copy(authentication = ComponentStatus.RUNNING, world = ComponentStatus.STARTING, detail = "Starting ${p.detected.worldExecutable?.name}; initial database updates and map loading may take time…")
             startComponent("world")
             waitReady(context, "world", p.worldPorts, 3600, p)
+            noteProcesses("realm running")
             mutableStatus.value = mutableStatus.value.copy(phase = Phase.RUNNING, world = ComponentStatus.RUNNING,
                 detail = "Database, authentication and world ports are accepting local connections. Client login has not yet been verified.", error = null)
+            var checks = 0
             while (scope.isActive && !stopping) {
                 delay(2000)
+                // (the realm's memory in its log every 5 minutes: what a kill for memory left behind)
+                if (++checks % 150 == 1) noteMemory()
                 val lost = listOf("database" to listOf(p.databasePort), "authentication" to p.loginPorts, "world" to p.worldPorts)
                     .firstOrNull { (name, ports) -> exitFile(context, name).exists() || ports.any { !open(it) } }
                 if (lost != null) throw IOException("The ${lost.first} component stopped responding. ${processEnd(lost.first)}${logTail(context, lost.first)}")
@@ -490,7 +532,11 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     knownCrashes = knownCrashes + report
                     throw IOException("A server crashed (its report: $report).\n" + sessionEnd(context, "world"))
                 }
-                if (clientLaunched && exitFile(context, "client").isFile) clientExited(context)
+                if (clientLaunched && exitFile(context, "client").isFile) {
+                    clientExited(context)
+                    // (its session ends with it: Winlator's helper and an empty desktop would stay)
+                    session.get()?.let { s -> withContext(Dispatchers.Main) { s.endFromRealm() } }
+                }
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
@@ -699,6 +745,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         if (!withContext(Dispatchers.IO) { host.stop() })
             throw IOException("Some of the realm's Windows processes did not end; installation files remain locked. Use Force Stop.")
         WindowsRealmRegistry.release(this)
+        appContext?.let { RealmExitReport.stopped(it) }
     }
 
     private fun execute(name: String) {
@@ -709,6 +756,16 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     private fun startComponent(name: String) {
         started += name
         execute(name)
+        noteProcesses("$name started")
+    }
+
+    /**
+     * The realm's process count in its log (Android ends an app's extra processes beyond 32 on the
+     * whole phone, the oldest first: the realm's Wine server).
+     */
+    private fun noteProcesses(moment: String) {
+        val app = appContext ?: return
+        runCatching { File(layout(app).root, "runtime/host.log").appendText("[app] $moment: ${host.processes().size} realm processes\n") }
     }
 
     private fun writeScript(context: Context, name: String, script: String) {
@@ -782,7 +839,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     /** How [name]'s Windows process ended, when it did without its exit file (killed: a signal). */
     private fun processEnd(name: String): String {
         val status = host.exitStatus(name) ?: return ""
-        return if (status > 128) "Its process was ended by signal ${status - 128}${if (status == 137) " (killed: by Android for memory, or by force)" else ""}. "
+        return if (status > 128) "Its process was ended by signal ${status - 128}${if (status == 137) " (killed: by Android for memory, by Android for more than 32 extra processes on the phone (Developer options: Disable child process restrictions), or by force)" else ""}. "
             else "Its process ended with status $status before writing its exit code. "
     }
 

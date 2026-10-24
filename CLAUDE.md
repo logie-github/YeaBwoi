@@ -44,19 +44,19 @@ The World of Warcraft app's second game, Turtle WoW (1.18.1) with its own Tortoi
 completely apart from the 3.3.5a game: `warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its
 realm), `com.logie.warcraft.turtle` (its code, every file operation through `turtle/core/SafeFs`).
 
-## Legion — Single Player Project
+## Legion 7.3.5 (LegionCore)
 
-The former Felsong selection now opens the original SPP AshamaneCore Legion 7.3.5 (26972)
-integration, at the user's request. `warcraft/SPP.md` documents its inspected repack/full-client
-sources and `warcraft/README.md` describes setup. The UI retains the Illidan/fel theme; the
-legacy `felsong` preference key remains for compatibility. New files use `files/spp-legion`;
-old Felsong files and all other realms are preserved. `local/` provides the shared Windows
-realm manager and staged installer for SPP and Draconic; a realm's servers run under Wine with no
-screen (`WindowsRealmHost`, `local/core/HeadlessWine`, Winlator patch 0011), and the game's session
-only joins that Wine (`SPP.md`, issue #53). Legion phone gameplay is unverified: the
-client's Box64 start-up failure (#3061, the flags of single-step contexts) is fixed in the Box64
-local realms run (`scripts/build-box64.sh`, `warcraft/patches/box64/`, `SPP.md`), but the client
-hasn't run on a phone; do not claim it works without a phone test.
+The World of Warcraft app's Legion game is LegionCore 7.3.5 (The Legion Preservation Project,
+`fed58f7`) on the phone, set up like ChromieCraft (native arm64 realm, the client on Winlator), at
+the user's request ("use legioncore ... I don't need the spp ... copy how ChromieCraft works").
+The code keeps the Felsong names (`com.logie.warcraft.felsong`, `files/felsong`,
+`warcraft/felsong/`, `felsong-server-<hash>` releases from the `felsong-server` CI job);
+`warcraft/FELSONG.md` is the brief. It takes the client and server data the Single Player
+Project download left in `files/spp-legion` (`FelsongSpp`, Kind.SPP). The SPP launcher is out of
+the picker; its code (`spp/`, `local/`: the headless Windows realm host, issue #53, `SPP.md`)
+remains for The War Within's Draconic realm, which shares it. The game launches with Box64
+0.4.4-legion (`scripts/build-box64.sh`, `warcraft/patches/box64/`). Legion phone gameplay is
+unverified: do not claim it works without a phone test.
 
 ## Warcraft
 

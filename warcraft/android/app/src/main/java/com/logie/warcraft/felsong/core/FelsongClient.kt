@@ -112,11 +112,18 @@ object FelsongClient {
     private val VERSION = Regex("""\d+\.\d+\.\d+\.(\d{5})""")
     private val VERSION_IN_TEXT = Regex("""\d+\.\d+\.\d+\.(\d{5})""")
 
+    /**
+     * The client's program in [folder]: Wow-64.exe, else the patched one alone (a client taken from
+     * SPP's, whose patched program is the only 64-bit one it has: [FelsongSpp]).
+     */
+    fun program(folder: File): File? =
+        find(folder, EXE)?.takeIf { it.isFile } ?: find(folder, PATCHED_EXE)?.takeIf { it.isFile }
+
     /** The client in [folder]: its version from `.build.info` first, else from the program. */
     fun version(folder: File): Version? {
         val info = find(folder, BUILD_INFO)
         if (info != null && info.isFile) runCatching { versionFromBuildInfo(info.readText()) }.getOrNull()?.let { return it }
-        val exe = find(folder, EXE) ?: return null
+        val exe = program(folder) ?: return null
         return runCatching { exe.inputStream().buffered().use { versionFromExe(it) } }.getOrNull()
     }
 
