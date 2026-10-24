@@ -14,12 +14,14 @@ import android.util.Log
 import android.widget.Toast
 import com.logie.warcraft.modules.GitHubApi
 import com.logie.warcraft.reports.AnomalyReport
+import com.logie.warcraft.reports.AppFailure
 import com.logie.warcraft.reports.GameCrash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.io.RandomAccessFile
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -38,7 +40,10 @@ import java.time.temporal.ChronoUnit
  * Sent ones are kept in `sent/`, the ones opened in the browser in `opened/`.
  *
  * The game's own crash reports go the same way ([GameCrashReports] puts them in the folder, their
- * names starting [GameCrash.PREFIX]), labelled [GameCrash.LABEL].
+ * names starting [GameCrash.PREFIX]), labelled [GameCrash.LABEL], and the app's failures
+ * ([FailureReports], [AppFailure.PREFIX]), labelled [AppFailure.LABEL]: from the realm's process
+ * while its server runs, and from the app's ([FailureReports.watch]), one at a time (a lock on the
+ * folder between the two).
  */
 object AnomalyReports {
     private const val TAG = "AnomalyReports"
@@ -56,6 +61,18 @@ object AnomalyReports {
      * own while the last one's request may still be out, and would send the same report.
      */
     private val sending = Mutex()
+    /** Beside the reports: held by the process sending them (the realm's or the app's). */
+    private const val LOCK = ".sending.lock"
+
+    /** What a report is, by its file's name: what its issue is labelled, what the player is told. */
+    private enum class Kind(val label: String, val sent: Int, val opened: Int, val noBrowser: Int, val waiting: Int, val from: String) {
+        ANOMALY(AnomalyReport.LABEL, R.string.wow_report_sent, R.string.wow_report_opened, R.string.wow_report_no_browser,
+            R.string.wow_report_waiting, "from the realm's report."),
+        CRASH(GameCrash.LABEL, R.string.wow_crash_sent, R.string.wow_crash_opened, R.string.wow_crash_no_browser,
+            R.string.wow_crash_waiting, "from the game's crash report."),
+        FAILURE(AppFailure.LABEL, R.string.wow_failure_sent, R.string.wow_failure_opened, R.string.wow_failure_no_browser,
+            R.string.wow_failure_waiting, "from the app's failure report."),
+    }
 
     fun folder(context: Context) = File(WowFiles.run(context), "reports")
 
@@ -73,7 +90,18 @@ object AnomalyReports {
         val repo = BuildConfig.WOW_UPDATE_REPO
         if (repo.isEmpty() || !sending.tryLock()) return
         try {
-            sendEach(context, repo)
+            val lockFile = withContext(Dispatchers.IO) {
+                runCatching { RandomAccessFile(File(folder(context).apply { mkdirs() }, LOCK), "rw") }.getOrNull()
+            } ?: return
+            lockFile.use {
+                // (the other process is sending: its round, not this one's)
+                val held = runCatching { it.channel.tryLock() }.getOrNull() ?: return
+                try {
+                    sendEach(context, repo)
+                } finally {
+                    runCatching { held.release() }
+                }
+            }
         } finally {
             sending.unlock()
         }
@@ -97,7 +125,7 @@ object AnomalyReports {
             when (val outcome = withContext(Dispatchers.IO) { send(context, repo, file) }) {
                 is Outcome.Sent -> {
                     waiting.remove(file.name)
-                    toast(context, context.getString(if (crash(file)) R.string.wow_crash_sent else R.string.wow_report_sent, outcome.number))
+                    toast(context, context.getString(kind(file).sent, outcome.number))
                 }
                 is Outcome.ForBrowser -> {
                     waiting.remove(file.name)
@@ -105,7 +133,7 @@ object AnomalyReports {
                     open(context, file, outcome.link)
                 }
                 Outcome.Offline -> {
-                    if (file.name !in waiting) toast(context, context.getString(if (crash(file)) R.string.wow_crash_waiting else R.string.wow_report_waiting))
+                    if (file.name !in waiting) toast(context, context.getString(kind(file).waiting))
                     waiting[file.name] = now + RETRY_MS
                 }
                 Outcome.Busy -> waiting[file.name] = now + RETRY_MS
@@ -131,16 +159,13 @@ object AnomalyReports {
         } else {
             waiting[file.name] = System.currentTimeMillis() + RETRY_MS
         }
-        toast(context, context.getString(when {
-            crash(file) -> if (opened) R.string.wow_crash_opened else R.string.wow_crash_no_browser
-            else -> if (opened) R.string.wow_report_opened else R.string.wow_report_no_browser
-        }))
+        toast(context, context.getString(if (opened) kind(file).opened else kind(file).noBrowser))
     }
 
     private fun send(context: Context, repo: String, file: File): Outcome {
         val text = runCatching { file.readText() }.getOrDefault("")
-        val report = AnomalyReport.parse(text)?.signed(signature(crash(file)))
-        val label = if (crash(file)) GameCrash.LABEL else AnomalyReport.LABEL
+        val report = AnomalyReport.parse(text)?.signed(signature(kind(file)))
+        val label = kind(file).label
         if (report == null) {
             // (half written, or not a report: out of the way)
             if (System.currentTimeMillis() - file.lastModified() > RETRY_MS) moveTo(file, "broken")
@@ -183,16 +208,22 @@ object AnomalyReports {
         return if (online(context)) Outcome.ForBrowser(report.newIssueLink(repo, label)) else Outcome.Offline
     }
 
-    private fun signature(crash: Boolean) =
-        "Sent by the World of Warcraft app ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE}) on Android ${Build.VERSION.RELEASE}, " +
-            if (crash) "from the game's crash report." else "from the realm's report."
+    private fun signature(kind: Kind) =
+        "Sent by the World of Warcraft app ${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE}) on Android ${Build.VERSION.RELEASE}, " + kind.from
 
-    private fun crash(file: File) = file.name.startsWith(GameCrash.PREFIX)
+    private fun kind(file: File) = when {
+        file.name.startsWith(GameCrash.PREFIX) -> Kind.CRASH
+        file.name.startsWith(AppFailure.PREFIX) -> Kind.FAILURE
+        else -> Kind.ANOMALY
+    }
 
-    /** One of the app's screens is in front (the launcher's, the game's): its process, not this one. */
+    /**
+     * One of the app's screens is in front (the launcher's, the game's): the app's process (from the
+     * realm's, the realm's own doesn't count: its service is in front only while a screen is bound to it).
+     */
     private fun appInFront(context: Context): Boolean = runCatching {
         context.getSystemService(ActivityManager::class.java).runningAppProcesses.orEmpty().any {
-            it.pid != Process.myPid() && it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            (it.pid != Process.myPid() || !RealmLink.inRealm) && it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
         }
     }.getOrDefault(false)
 
