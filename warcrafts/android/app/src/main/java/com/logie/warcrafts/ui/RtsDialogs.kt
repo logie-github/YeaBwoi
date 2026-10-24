@@ -46,10 +46,8 @@ import com.logie.warcrafts.ImportService
 import com.logie.warcrafts.Imports
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
-import com.logie.warcrafts.Wc3Setup
 import com.logie.warcrafts.game.GameSettings
 import com.logie.warcrafts.game.GameStops
-import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Title
@@ -81,18 +79,11 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     var program by remember { mutableStateOf<String?>(null) }
     var arguments by remember(refresh) { mutableStateOf(RtsFiles.arguments(context, install)) }
     var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
+    var pastedKeys by remember { mutableStateOf(RtsFiles.pastedKeys(context)) }
     var confirmDelete by remember { mutableStateOf(false) }
     var filesIn by remember { mutableStateOf(false) }
-    // Warcraft III from Blizzard: each installer downloaded yet?
-    var rocDownloaded by remember { mutableStateOf(false) }
-    var tftDownloaded by remember { mutableStateOf(false) }
     LaunchedEffect(refresh, imports) {
         withContext(Dispatchers.IO) {
-            if (install == Install.WC3) {
-                com.logie.warcrafts.game.Game.adoptWarcraft3(context)
-                rocDownloaded = Wc3Setup.installer(context, BlizzardDownload.Product.ROC) != null
-                tftDownloaded = Wc3Setup.installer(context, BlizzardDownload.Product.TFT) != null
-            }
             filesIn = com.logie.warcrafts.library.Needs.filesIn(RtsFiles.needs(context, install))
             programs = GameLayout.candidates(RtsFiles.programs(context, install))
             program = RtsFiles.program(context, install)
@@ -149,26 +140,6 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
-                // Warcraft III, set up on the phone from Blizzard: download, then each installer.
-                if (install == Install.WC3 && !filesIn) {
-                    RtsTitle(stringResource(R.string.rts_setup_title), style = MaterialTheme.typography.titleLarge)
-                    Text(stringResource(R.string.rts_setup_steps), style = MaterialTheme.typography.bodyMedium)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (!rocDownloaded || !tftDownloaded) {
-                            RtsButton(stringResource(R.string.rts_setup_download)) { ImportService.downloadWc3(context) }
-                        } else {
-                            RtsButton(stringResource(R.string.rts_setup_install_roc)) {
-                                com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.ROC)
-                                onDismiss()
-                            }
-                            RtsButton(stringResource(R.string.rts_setup_install_tft), primary = false) {
-                                com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.TFT)
-                                onDismiss()
-                            }
-                        }
-                    }
-                    Text(stringResource(R.string.rts_setup_or_files), style = MaterialTheme.typography.bodySmall)
-                }
                 Text(stringResource(R.string.rts_files_move_first), style = MaterialTheme.typography.bodySmall)
                 if (native) Text(stringResource(R.string.rts_files_installer_how), style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -207,6 +178,25 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
             Text(stringResource(R.string.rts_files_arguments_note, install.defaultArguments.ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
+        }
+
+        // Warcraft III's CD keys, pasted here: the four-finger menu types them into the game's key box.
+        if (install.engine == com.logie.warcrafts.library.Engine.WINE) {
+            RtsTitle(stringResource(R.string.rts_files_keys_title), style = MaterialTheme.typography.titleLarge)
+            OutlinedTextField(
+                value = pastedKeys,
+                onValueChange = {
+                    pastedKeys = it
+                    RtsFiles.setPastedKeys(context, it)
+                },
+                label = { Text(stringResource(R.string.rts_files_keys_label)) },
+                minLines = 2,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+                colors = fieldColors(),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val recognised = remember(pastedKeys) { com.logie.warcrafts.library.CdKeys.findPasted(pastedKeys).size }
+            Text(stringResource(R.string.rts_files_keys_note, recognised), style = MaterialTheme.typography.bodySmall)
         }
 
         RtsTitle(stringResource(R.string.rts_files_private_title), style = MaterialTheme.typography.titleLarge)

@@ -27,7 +27,7 @@ import java.util.zip.ZipInputStream
  */
 object Imports {
     /** What an import is doing: copying the files, unpacking GOG's installer, converting for Stratagus. */
-    enum class Phase { COPY, UNPACK, CONVERT, DOWNLOAD }
+    enum class Phase { COPY, UNPACK, CONVERT }
 
     sealed interface State {
         data object Idle : State
@@ -275,7 +275,7 @@ object Imports {
         } ?: 0L
 
     /** Room for [needed] bytes more, with some to spare. */
-    fun checkSpace(context: Context, needed: Long) {
+    private fun checkSpace(context: Context, needed: Long) {
         val free = StatFs(context.filesDir.path).availableBytes
         if (needed + 200L * 1024 * 1024 > free) {
             throw ImportException(

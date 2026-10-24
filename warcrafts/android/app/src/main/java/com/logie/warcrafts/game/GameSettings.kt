@@ -25,7 +25,7 @@ object GameSettings {
         BALANCED(720, R.string.rts_graphics_balanced, R.string.rts_graphics_balanced_summary),
     }
 
-    /** How Warcraft III draws: OpenGL ([Wc3Arguments.OPENGL]; the app's default, as Wine setups for 1.27 use) or Direct3D. */
+    /** How Warcraft III draws: Direct3D (its default) or OpenGL ([Wc3Arguments.OPENGL]). */
     enum class Renderer(@StringRes val label: Int, @StringRes val summary: Int) {
         DIRECT3D(R.string.rts_renderer_d3d, R.string.rts_renderer_d3d_summary),
         OPENGL(R.string.rts_renderer_gl, R.string.rts_renderer_gl_summary),
@@ -43,7 +43,7 @@ object GameSettings {
     }
 
     fun renderer(context: Context): Renderer =
-        Renderer.entries.firstOrNull { it.name == prefs(context).getString("renderer", null) } ?: Renderer.OPENGL
+        Renderer.entries.firstOrNull { it.name == prefs(context).getString("renderer", null) } ?: Renderer.DIRECT3D
 
     fun setRenderer(context: Context, renderer: Renderer) {
         prefs(context).edit().putString("renderer", renderer.name).apply()
