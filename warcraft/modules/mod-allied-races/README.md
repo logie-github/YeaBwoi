@@ -11,6 +11,13 @@ in their own models, looks and voices:
 | Lightforged Draenei | 17 | Alliance | Ammen Vale (the Draenei's start, quests and standing: the Exodar) | Warrior, Paladin, Hunter, Priest, Death Knight, Mage |
 | Zandalari Troll | 18 | Horde | Camp Narache in Mulgore (the Tauren's start, quests and standing: Thunder Bluff) | Warrior, Paladin, Hunter, Rogue, Priest, Death Knight, Shaman, Mage, Druid |
 
+**Undead paladins** too (the user: "let undead be paladins"), on this realm: the Forsaken's paladin
+starts at Deathknell, where their warriors do, with the Blood Elves' paladin gear and action bar
+(without the Blood Elves' racials); the paladin's skills and spells (Holy, Protection,
+Retribution, plate and the paladin's weapons) are open to the Forsaken in the client's tables and
+the server's. Paladin trainers are the Blood Elves': Undercity's Royal Quarter, Silvermoon,
+Orgrimmar.
+
 (The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 to 18 were
 the game's Skeleton, Vrykul, Tuskarr and Forest Troll, which only creatures use; in the game's
 tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
@@ -30,6 +37,12 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   2.136). Today's void elves and Lightforged measure their kin's already and stay as they are; the
   nightborne are made 0.985 (men) and 1.009 (women), the Zandalari 0.817 and 0.874 (today's stand
   upright, their heads 0.3 to 0.5 yards above the stooped trolls').
+- **Weapons on their backs as their kin wear them**: today's game turns a sheathed weapon by data
+  3.3.5 hasn't, so on our models a staff or a two-hander on the back went through the body.
+  `tools/sheaths.py` gives each back sheath point (the sheathed main and off hand, the shield, the
+  large weapons) a bone of its own, turned to the orientation the kin's model has there in Stand
+  (`data/sheaths.json`, measured on the Alternative HD Patch's models); the weapon moves with the
+  body as before.
 - **Looks**, from today's customization tables, on 3.3.5's five sliders:
   - *Skin colour*: every skin colour a player picks today (void elves 30, among them the high elf
     skins; nightborne 10, each with each of the seven body tattoos: 70; Lightforged Draenei 7 with
@@ -52,6 +65,8 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     facial hair x tendrils (12 x 7), Lightforged women their horns x tendrils (13 x 2: the horns'
     slider is the second row's "Horns"); Zandalari men their tusks x piercings (7 x 6), Zandalari
     women their tusks x earrings x piercings x necklace (7 x 2 x 4 x 2).
+  - The Lightforged's forehead rune (today's Rune, whose first choice is None) is always on, as
+    Righteous: the glowing glyph on the brow.
   - Left at their first choice (3.3.5 has no slider for them): ears, eyebrows, eye style and
     eyesight, face tattoos, face jewellery, headdresses, hair decorations, luminous hands. Faces
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5

@@ -1566,6 +1566,13 @@ a realm with modules), then stage 3.
   own colours between), its faces and overlay by CompleteSkins. `check_looks.py` and
   `test_client.cpp` fail on a colour without a row (none now on ChromieCraft's 53 races and sexes
   or Wrath Remix's 45). Not certain this is the crash (nothing here runs the game).
+- The user: "Lol fix the models" (a void elf's staff through her body on her back), "the lightforged
+  draenei forehead light Is missing", "let undead be paladins". The allied races' back sheath points
+  get bones of their own turned to their kin's orientation in Stand (`tools/sheaths.py`, measured on
+  the Alternative HD Patch's models); the Lightforged's Rune (today's first choice is None) is always
+  Righteous; the Forsaken can be paladins on ChromieCraft's realm (Deathknell, the Blood Elves' gear
+  and bar, the paladin's skills and spells opened to them: `tools/build_data.py`'s EXTRA_CLASSES).
+  Not seen in the game: the sheaths and the rune checked by the model renderer and checker only.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
