@@ -144,6 +144,15 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   narrations are. They're kept in the game's own narrations' format: MPEG-1 Layer III, 44.1 kHz,
   constant 160 kbit/s, no ID3 tags and no Xing/VBR header (the user's files were variable bit
   rate with ID3v2.4 tags, which 3.3.5's player may not start).
+  The flight is as long as the narration and 1.5 seconds more (the user: "the intros video needs to
+  be around the same length as the sound clip"): the game's flybys run 69 to 77 seconds and the
+  narrations 37 to 54, so the scene went on in silence. As the world server makes the patch, each
+  race's camera is the game's own flyby (FlybyDraenei, FlybyUndead, FlyByTauren) with every key
+  moved to the same place in the narration's length (`RetimeCamera`, `src/AlliedRacesPatch.cpp`;
+  the narration's length read from its MP3's frames), as its own file (`Cameras\FlybyVoidElf.m2`,
+  `FlybyNightborne`, `FlybyLightforgedDraenei`, `FlybyZandalariTroll`): the same flight, faster
+  (1.5 to 1.9 times; the Zandalari's 1.25). A flyby the game hasn't, or one that doesn't read as a
+  3.3.5 camera, stays the stock one at its own length (the server's log says so).
 - **Character creation**: their portraits (Wowhead's race icons, `data/client/icons`) in the free
   columns of the race icons (the void elves' and nightborne's in the last, the Lightforged's and
   Zandalari's in the one before the Skyborne's); each side's races in two columns, two to a row

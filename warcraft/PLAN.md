@@ -1573,6 +1573,11 @@ a realm with modules), then stage 3.
   Righteous; the Forsaken can be paladins on ChromieCraft's realm (Deathknell, the Blood Elves' gear
   and bar, the paladin's skills and spells opened to them: `tools/build_data.py`'s EXTRA_CLASSES).
   Not seen in the game: the sheaths and the rune checked by the model renderer and checker only.
+- The user: "the intros video needs to be around the same length as the sound clip". Each race's
+  intro camera is the game's flyby retimed to its narration's length + 1.5 s, made by the world
+  server with the patch (`RetimeCamera`). Tested on stand-in 3.3.5 cameras made to the format (no
+  3.3.5 client's base archives here): the real flybys' layout is assumed (type, field of view, clip
+  planes, three tracks); one that doesn't fit is left stock, not changed.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

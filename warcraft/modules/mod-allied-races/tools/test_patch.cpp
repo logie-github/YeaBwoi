@@ -13,6 +13,7 @@
 #include "AlliedRacesPatch.h"
 #include "SkyborneFiles.h"
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <set>
@@ -29,6 +30,43 @@ static void Check(bool ok, std::string const& what)
         ++failures;
 }
 
+// A 3.3.5 camera model as the game's flybys are made (one sequence, one camera: its position,
+// target and roll tracks), [duration] ms long with keys at 0, a third and the end.
+static Bytes Camera(uint32_t duration, uint32_t version = 264)
+{
+    Bytes m(0x170 + 100 + 3 * (8 + 12), 0);
+    auto put = [&](size_t at, uint32_t v) { std::memcpy(&m[at], &v, 4); };
+    std::memcpy(m.data(), "MD20", 4);
+    put(4, version);
+    put(0x1C, 1);
+    put(0x20, 0x130);
+    put(0x130 + 4, duration);
+    put(0x130 + 12, 0x20);
+    put(0x110, 1);
+    put(0x114, 0x170);
+    for (uint32_t t = 0; t < 3; ++t)
+    {
+        size_t track = 0x170 + 16 + t * 32, list = 0x170 + 100 + t * 20;
+        put(track, 0xFFFF0001);           // linear, no global sequence
+        put(track + 4, 1);
+        put(track + 8, static_cast<uint32_t>(list));
+        put(list, 3);
+        put(list + 4, static_cast<uint32_t>(list + 8));
+        put(list + 8, 0);
+        put(list + 12, duration / 3);
+        put(list + 16, duration);
+    }
+    return m;
+}
+
+static uint32_t U32(Bytes const& b, size_t at)
+{
+    uint32_t v = 0;
+    if (at + 4 <= b.size())
+        std::memcpy(&v, &b[at], 4);
+    return v;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 4)
@@ -37,6 +75,32 @@ int main(int argc, char** argv)
         return 2;
     }
     fs::path module = argv[1], files = argv[2], data = argv[3];
+    // The intros: the narrations' lengths, and a flyby made one of them.
+    {
+        struct { char const* file; uint32_t ms; } const narrations[] = {
+            { "voidelf_intro.mp3", 46916 }, { "nightborne_intro.mp3", 38583 }, { "lightforged_intro.mp3", 37355 }, { "zandalari_intro.mp3", 53603 } };
+        for (auto const& n : narrations)
+        {
+            std::ifstream in(module / n.file, std::ios::binary);
+            Bytes mp3((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            uint32_t ms = AlliedRaces::Mp3Milliseconds(mp3);
+            Check(ms + 100 > n.ms && ms < n.ms + 100, std::string(n.file) + " is " + std::to_string(ms) + " ms long (ffprobe: " + std::to_string(n.ms) + ")");
+        }
+        Check(AlliedRaces::Mp3Milliseconds(Bytes(5000, 0x55)) == 0, "...and what isn't an MP3 has no length");
+        Bytes camera = Camera(71667);
+        Check(AlliedRaces::RetimeCamera(camera, 48416), "a flyby is made a narration's length");
+        Check(U32(camera, 0x130 + 4) == 48416, "...its sequence 48416 ms (" + std::to_string(U32(camera, 0x130 + 4)) + ")");
+        bool keys = true;
+        for (uint32_t t = 0; t < 3; ++t)
+        {
+            size_t list = 0x170 + 100 + t * 20;
+            keys = keys && U32(camera, list + 8) == 0 && U32(camera, list + 12) == 16139 && U32(camera, list + 16) == 48416;
+        }
+        Check(keys, "...its position, target and roll keys at the same places in it");
+        Bytes retail = Camera(71667, 274), before = retail;
+        Check(!AlliedRaces::RetimeCamera(retail, 48416) && retail == before, "...and a model of another version is left as it is");
+    }
+
     std::error_code error;
     fs::remove(data / "patch-V.MPQ", error);
     fs::remove(data / "patch-V.MPQ.alliedraces", error);
@@ -114,6 +178,24 @@ int main(int argc, char** argv)
                               "Interface\\GlueXML\\AlliedRacesCreate.lua", "Interface\\GlueXML\\AlliedRacesCreate.xml",
                               "Sound\\CinematicVoices\\VoidElfNarration.mp3", "Sound\\CinematicVoices\\NightborneNarration.mp3" })
         Check(patch->Read(name, bytes) && bytes.size() > 1000, std::string(name) + " is in it");
+    // The intros' cameras, where the game has the flybys they're made from.
+    {
+        Dbc cinematics;
+        Check(patch->Read("DBFilesClient\\CinematicCamera.dbc", bytes) && cinematics.Parse(bytes), "CinematicCamera.dbc is in it");
+        Game game(data, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq" });
+        Bytes stock;
+        if (!game.Read("Cameras\\FlybyDraenei.m2", stock))
+            std::cout << "  (no flybys in this game: the intros' cameras aren't made)\n";
+        else
+            for (size_t i = 0; i < cinematics.records.size(); ++i)
+                if (cinematics.Get(i, 0) >= 9011 && cinematics.Get(i, 0) <= 9014)
+                {
+                    std::string name = reinterpret_cast<char const*>(&cinematics.strings[cinematics.Get(i, 1)]);
+                    Bytes m2;
+                    Check(name.rfind("Cameras\\Flyby", 0) == 0 && patch->Read(name.substr(0, name.size() - 4) + ".m2", m2) && U32(m2, U32(m2, 0x20) + 4) < 60000,
+                          "intro " + std::to_string(cinematics.Get(i, 0)) + "'s camera " + name + " is in it");
+                }
+    }
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", bytes) && std::string(bytes.begin(), bytes.end()).find("AlliedRacesCreate.lua") != std::string::npos,
           "GlueXML.toc lists the character screen's files");
 

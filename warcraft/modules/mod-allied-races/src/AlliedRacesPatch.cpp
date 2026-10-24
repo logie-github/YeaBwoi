@@ -38,7 +38,7 @@ namespace AlliedRaces
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
         constexpr char const* ASIDE = "patch-V.MPQ.aside";          // the patch kept out of the game (SetPatchAside)
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-8";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 8: the character tables in the order the game reads them; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
+        constexpr char const* VERSION = "allied-races-9";   // 9: the intros' cameras their narrations' length; 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 8: the character tables in the order the game reads them; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -134,6 +134,178 @@ namespace AlliedRaces
             }
             blp = Skyborne::EncodeDxt5(sheet);
             return true;
+        }
+    }
+
+    uint32_t Mp3Milliseconds(Bytes const& mp3)
+    {
+        static uint16_t const MPEG1[16] = { 0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0 };
+        static uint16_t const MPEG2[16] = { 0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0 };
+        static uint32_t const RATES[3] = { 44100, 48000, 32000 };
+        size_t at = 0;
+        if (mp3.size() >= 10 && std::memcmp(mp3.data(), "ID3", 3) == 0)   // (a tag first: its size is seven bits a byte)
+            at = 10 + ((mp3[6] & 0x7F) << 21 | (mp3[7] & 0x7F) << 14 | (mp3[8] & 0x7F) << 7 | (mp3[9] & 0x7F));
+        double seconds = 0;
+        uint32_t frames = 0;
+        while (at + 4 <= mp3.size())
+        {
+            uint8_t const* h = &mp3[at];
+            uint32_t version = (h[1] >> 3) & 3, layer = (h[1] >> 1) & 3, bitrate = h[2] >> 4, rate = (h[2] >> 2) & 3;
+            // layer III frames (the narrations' and the game's): MPEG 1 (version 3), 2 (2) or 2.5 (0)
+            if (h[0] != 0xFF || (h[1] & 0xE0) != 0xE0 || version == 1 || layer != 1 || bitrate == 0 || bitrate == 15 || rate == 3)
+            {
+                ++at;   // not a frame's start: on to the next
+                continue;
+            }
+            bool one = version == 3;
+            uint32_t hz = RATES[rate] >> (one ? 0 : version == 2 ? 1 : 2);
+            uint32_t kbps = (one ? MPEG1 : MPEG2)[bitrate];
+            uint32_t samples = one ? 1152 : 576;
+            at += samples / 8 * kbps * 1000 / hz + ((h[2] >> 1) & 1);
+            seconds += double(samples) / hz;
+            ++frames;
+        }
+        return frames ? static_cast<uint32_t>(std::lround(seconds * 1000)) : 0;
+    }
+
+    bool RetimeCamera(Bytes& m2, uint32_t ms)
+    {
+        auto u32 = [&](size_t at) { uint32_t v = 0; if (at + 4 <= m2.size()) std::memcpy(&v, &m2[at], 4); return v; };
+        auto fits = [&](uint64_t at, uint64_t bytes) { return at + bytes <= m2.size(); };
+        if (ms == 0 || m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || u32(4) != 264)
+            return false;
+        uint32_t sequences = u32(0x1C), sequencesAt = u32(0x20);
+        if (sequences == 0 || sequences > 16 || !fits(sequencesAt, uint64_t(sequences) * 64))
+            return false;
+        uint32_t longest = 0;
+        for (uint32_t i = 0; i < sequences; ++i)
+        {
+            if (!(u32(sequencesAt + i * 64 + 12) & 0x20))   // (its keys in another file, a .anim: not a camera's)
+                return false;
+            longest = std::max(longest, u32(sequencesAt + i * 64 + 4));
+        }
+        if (longest == 0)
+            return false;
+        double factor = double(ms) / longest;
+        auto scaled = [&](uint32_t t) { return static_cast<uint32_t>(std::lround(t * factor)); };
+
+        // The tracks: a camera's position, target and roll (3.3.5's camera: type, field of view, far
+        // and near clip, then the three tracks with their bases: 100 bytes), a bone's translation,
+        // rotation and scale (88 bytes). Each checked before anything changes.
+        std::vector<size_t> tracks;
+        uint32_t cameras = u32(0x110), camerasAt = u32(0x114), bones = u32(0x2C), bonesAt = u32(0x30);
+        if (cameras == 0 || cameras > 16 || !fits(camerasAt, uint64_t(cameras) * 100) || bones > 256 || !fits(bonesAt, uint64_t(bones) * 88))
+            return false;
+        for (uint32_t i = 0; i < cameras; ++i)
+            for (uint32_t at : { 16u, 48u, 80u })
+                tracks.push_back(camerasAt + i * 100 + at);
+        for (uint32_t i = 0; i < bones; ++i)
+            for (uint32_t at : { 16u, 36u, 56u })
+                tracks.push_back(bonesAt + i * 88 + at);
+        std::set<uint32_t> keys;   // the timestamps' lists, each changed once
+        for (size_t track : tracks)
+        {
+            uint16_t interpolation = static_cast<uint16_t>(u32(track) & 0xFFFF);
+            int16_t loop = static_cast<int16_t>(u32(track) >> 16);
+            uint32_t lists = u32(track + 4), listsAt = u32(track + 8);
+            if (interpolation > 3 || lists > sequences || !fits(listsAt, uint64_t(lists) * 8))
+                return false;
+            if (loop != -1)   // (on a global sequence: its own time)
+                continue;
+            for (uint32_t l = 0; l < lists; ++l)
+            {
+                uint32_t n = u32(listsAt + l * 8), at = u32(listsAt + l * 8 + 4);
+                if (n == 0)
+                    continue;
+                if (n > 4096 || !fits(at, uint64_t(n) * 4))
+                    return false;
+                uint32_t previous = 0;
+                for (uint32_t k = 0; k < n; ++k)
+                {
+                    uint32_t t = u32(at + k * 4);
+                    if (t < previous || t > longest)
+                        return false;
+                    previous = t;
+                }
+                keys.insert(at);
+            }
+        }
+        Bytes out = m2;
+        auto put = [&](size_t at, uint32_t v) { std::memcpy(&out[at], &v, 4); };
+        for (size_t track : tracks)
+        {
+            if (static_cast<int16_t>(u32(track) >> 16) != -1)
+                continue;
+            uint32_t lists = u32(track + 4), listsAt = u32(track + 8);
+            for (uint32_t l = 0; l < lists; ++l)
+            {
+                uint32_t n = u32(listsAt + l * 8), at = u32(listsAt + l * 8 + 4);
+                if (n == 0 || !keys.erase(at))
+                    continue;
+                for (uint32_t k = 0; k < n; ++k)
+                    put(at + k * 4, scaled(u32(at + k * 4)));
+            }
+        }
+        for (uint32_t i = 0; i < sequences; ++i)
+            put(sequencesAt + i * 64 + 4, scaled(u32(sequencesAt + i * 64 + 4)));
+        m2.swap(out);
+        return true;
+    }
+
+    namespace
+    {
+        // The intros: each race's camera (data/client/dbc/CinematicCamera.txt: its start race's
+        // flyby) made the length of its narration and a moment more, as its own camera
+        // (Cameras\FlybyVoidElf.m2...): the game's flybys run 69 to 77 seconds, the narrations 37 to
+        // 54, and the scene went on in silence. A flyby the game hasn't, or this can't read, stays
+        // the stock one, at its own length.
+        constexpr uint32_t AFTER_NARRATION = 1500;   // ms
+        struct Intro { uint32_t camera; char const* race; char const* narration; };
+        Intro const INTROS[] = {
+            { 9011, "VoidElf", "voidelf_intro.mp3" },
+            { 9012, "Nightborne", "nightborne_intro.mp3" },
+            { 9013, "LightforgedDraenei", "lightforged_intro.mp3" },
+            { 9014, "ZandalariTroll", "zandalari_intro.mp3" },
+        };
+
+        size_t Intros(Game const& game, Dbc& cameras, fs::path const& moduleData, MpqWriter& writer, std::vector<std::string>& problems)
+        {
+            size_t made = 0;
+            for (Intro const& intro : INTROS)
+            {
+                size_t row = 0;
+                while (row < cameras.records.size() && cameras.Get(row, 0) != intro.camera)
+                    ++row;
+                uint32_t at = row < cameras.records.size() ? cameras.Get(row, 1) : uint32_t(cameras.strings.size());
+                if (at >= cameras.strings.size())
+                {
+                    problems.push_back("intro " + std::to_string(intro.camera) + ": no camera row");
+                    continue;
+                }
+                std::string stock(reinterpret_cast<char const*>(&cameras.strings[at]));   // Cameras\FlybyDraenei.mdx
+                std::string base = stock.substr(0, stock.rfind('.'));
+                std::string ours = std::string("Cameras\\Flyby") + intro.race;
+                uint32_t ms = Mp3Milliseconds(ReadFile(moduleData / intro.narration));
+                Bytes m2, skin;
+                if (!game.Read(base + ".m2", m2) || ms == 0 || !RetimeCamera(m2, ms + AFTER_NARRATION))
+                {
+                    problems.push_back(std::string(intro.race) + "'s intro: " + stock + " left at its own length (not in the game, or not a camera this reads)");
+                    continue;
+                }
+                uint32_t views = 0;
+                std::memcpy(&views, &m2[0x44], 4);
+                if (views && !game.Read(base + "00.skin", skin))
+                {
+                    problems.push_back(std::string(intro.race) + "'s intro: " + base + "00.skin isn't in the game; " + stock + " left at its own length");
+                    continue;
+                }
+                writer.Add(ours + ".m2", m2);
+                if (views)
+                    writer.Add(ours + "00.skin", skin);
+                cameras.Set(row, 1, cameras.String(ours + ".mdx"));
+                ++made;
+            }
+            return made;
         }
     }
 
@@ -267,6 +439,8 @@ namespace AlliedRaces
                 problems.push_back(name + ".dbc: " + problem);
                 continue;
             }
+            if (name == "CinematicCamera")
+                packed += Intros(game, dbc, moduleData, writer, problems);
             SortCharacterTable(dbc, name);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
