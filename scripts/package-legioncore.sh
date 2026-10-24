@@ -42,7 +42,10 @@ apk add -q --no-progress patchelf xz tar 7zip curl clang20 lld20 llvm20 alpine-k
 # The phone's Alpine: its MariaDB, and the libraries the programs were linked against.
 if [ "$(uname -m)" = aarch64 ]; then
 	SYSROOT=
-	apk add -q --no-progress mariadb mariadb-client
+	# The libraries the programs were linked against (the compile's own list, scripts/compile-legioncore.sh):
+	# this container isn't the compile's, so they have to be installed here to be copied from.
+	apk add -q --no-progress mariadb mariadb-client musl-dev libstdc++-dev gcc boost-dev openssl-dev \
+		mariadb-connector-c-dev readline-dev bzip2-dev zlib-dev ncurses-dev linux-headers
 else
 	SYSROOT=/repo/build/sysroot-aarch64
 	[ -f "$SYSROOT/.made" ] || { echo "No build/sysroot-aarch64: run scripts/compile-legioncore.sh first." >&2; exit 1; }
