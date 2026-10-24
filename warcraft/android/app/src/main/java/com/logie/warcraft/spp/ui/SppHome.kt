@@ -159,7 +159,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                     MenuTile(Icons.Default.Dns, "Server", server.phase.name.lowercase().replaceFirstChar { it.uppercase() }) { dialog = "server" },
                     MenuTile(Icons.Default.FolderOpen, "Game Files", "$count of 4 components installed") { dialog = "files" },
                     MenuTile(Icons.Default.AccountCircle, "Accounts", SppLogin.selectedName(context) ?: "Create or choose your local account") { dialog = "accounts" },
-                    MenuTile(Icons.Default.Settings, "Solo & Rates", "Dungeon scaling and experience") { dialog = "settings" },
+                    MenuTile(Icons.Default.Settings, "Realm & Graphics", "Dungeon scaling, experience, graphics driver") { dialog = "settings" },
                     MenuTile(Icons.Default.AspectRatio, "Graphics", stringResource(GameSettings.resolution(context).label)) { dialog = "graphics" },
                     MenuTile(Icons.Default.Palette, "App Icon", "Choose the app’s icon") { dialog = "icon" },
                     MenuTile(Icons.Default.SystemUpdateAlt, "Updates", if (checkingUpdate) "Checking…" else "Version ${BuildConfig.VERSION_NAME}") { update() },
@@ -366,7 +366,7 @@ private data class MenuTile(val icon: ImageVector, val title: String, val subtit
         catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) { failure = error.message }
     }
-    FelsongDialog("Solo & Rates", onDismiss, buttons = {
+    FelsongDialog("Realm & Graphics", onDismiss, buttons = {
         FelsongButton("Close", primary = false, onClick = onDismiss)
         FelsongButton("Apply", enabled = editable && values != null && !saving) {
             saving = true
@@ -387,6 +387,15 @@ private data class MenuTile(val icon: ImageVector, val title: String, val subtit
             Text("Solocraft adjusts player stats for dungeon and raid content.", style = MaterialTheme.typography.bodySmall)
             Text("Experience rate: ×${current.xp}")
             SppSettings.RATES.forEach { rate -> WowChoiceRow("×$rate", null, current.xp.toDoubleOrNull() == rate.toDouble()) { if (editable) values = current.copy(xp = rate) } }
+            Text("Every race and class from the start: the allied races (Nightborne, Highmountain Tauren, Void Elf, Lightforged Draenei) and Demon Hunters, without Battle for Azeroth or a level-70 character first.",
+                style = MaterialTheme.typography.bodySmall)
+            Text("Graphics driver")
+            WowChoiceRow("Vortek", "The phone's own driver, as the other games use", current.graphics == SppSettings.VORTEK) {
+                if (editable) values = current.copy(graphics = SppSettings.VORTEK)
+            }
+            if (SppSettings.turnipAvailable(context)) WowChoiceRow("Turnip", "Mesa's driver for Adreno: try it if the game shows nothing or stops", current.graphics == SppSettings.TURNIP) {
+                if (editable) values = current.copy(graphics = SppSettings.TURNIP)
+            }
         }
         failure?.let { Text(it, color = FelsongColors.Blood) }
         if (values == null && failure == null || saving) LinearProgressIndicator(Modifier.fillMaxWidth())

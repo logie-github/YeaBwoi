@@ -29,6 +29,12 @@ object TwwSession {
         return "\"$value\""
     }
 
+    /**
+     * A command's input from [file] (a Windows path), for a script: `< "R:\x.sql"`, the space before
+     * the quote kept. Wine's cmd says "Invalid name." to `<"R:\x.sql"` and doesn't run the command.
+     */
+    fun input(file: String): String = "< " + argument(file)
+
     fun launch(command: TwwInstall.StartupCommand, server: File, logName: String): String {
         val arguments = command.arguments.map { value ->
             // Detected --defaults-file paths use the imported host path; translate only paths

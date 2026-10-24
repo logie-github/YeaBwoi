@@ -19,11 +19,13 @@ import kotlin.coroutines.resume
 /** One isolated container per realm, using the application's existing Wine/Box64 runtime. */
 object WindowsRealmGame {
     /** Called by TwwServer; callers must already have validated a local startup profile. */
-    suspend fun openSession(context: Context, name: String, sessionExtra: String, layout: LocalInstallation, gesturesEnvironment: String? = null) {
+    /** [graphicsDriver]: Winlator's graphics driver setting for the realm's container, when the realm chooses one. */
+    suspend fun openSession(context: Context, name: String, sessionExtra: String, layout: LocalInstallation, gesturesEnvironment: String? = null,
+                            graphicsDriver: String? = null) {
         val app = context.applicationContext
         val installed = withContext(Dispatchers.IO) { RootFSInstaller.installIfNeeded(app) { } }
         if (!installed) throw IOException("The Windows runtime could not be installed.")
-        val container = container(app, name, layout)
+        val container = container(app, name, layout, graphicsDriver)
         val cmd = File(container.rootDir, ".wine/drive_c/windows/system32/cmd.exe")
         if (!cmd.isFile) throw IOException("The realm's Windows container has no cmd.exe; repair the Windows runtime.")
         withContext(Dispatchers.Main) {
@@ -36,6 +38,10 @@ object WindowsRealmGame {
                 .putExtra("local_server_session", true)
                 // What Wine and Box64 print, and how the session ended (Winlator patch 0008).
                 .putExtra("session_log", File(layout.root, "runtime/session.log").path)
+                // Box64 with the flags of a signal's context right (Winlator patch 0009, scripts/build-box64.sh):
+                // modern WoW clients' start-up protection single-steps itself and, on Box64 0.4.4, takes the
+                // wrong branch and stops on a deliberate trap (seen with SPP's 7.3.5 client).
+                .putExtra("box64_version", com.winlator.core.DefaultVersion.BOX64_LEGION)
                 .putExtra("gestures", gesturesEnvironment != null)
                 .putExtra(com.logie.warcraft.game.GestureView.EXTRA_ENVIRONMENT, gesturesEnvironment))
         }
@@ -48,7 +54,7 @@ object WindowsRealmGame {
             .putExtra(sessionExtra, true))
     }
 
-    private suspend fun container(context: Context, name: String, layout: LocalInstallation): Container {
+    private suspend fun container(context: Context, name: String, layout: LocalInstallation, graphicsDriver: String?): Container {
         val manager = ContainerManager(context)
         val drives = "D:${layout.client.path}S:${layout.server.path}R:${layout.root.path}M:${layout.maps.path}"
         val size = GameSettings.gameSize(context).let { "${it.first}x${it.second}" }
@@ -56,13 +62,14 @@ object WindowsRealmGame {
         if (existing != null) {
             existing.setScreenSize(size)
             existing.setDrives(drives)
+            if (graphicsDriver != null) existing.setGraphicsDriver(graphicsDriver)
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
         val defaults = Container(0)
         val data = JSONObject()
             .put("name", name).put("screenSize", size).put("drives", drives)
-            .put("envVars", defaults.getEnvVars()).put("graphicsDriver", defaults.getGraphicsDriver())
+            .put("envVars", defaults.getEnvVars()).put("graphicsDriver", graphicsDriver ?: defaults.getGraphicsDriver())
             .put("dxwrapper", defaults.getDXWrapper()).put("audioDriver", defaults.getAudioDriver())
             .put("wincomponents", defaults.getWinComponents()).put("hudMode", defaults.getHUDMode().toInt())
             .put("startupSelection", defaults.getStartupSelection().toInt()).put("box64Preset", defaults.getBox64Preset())

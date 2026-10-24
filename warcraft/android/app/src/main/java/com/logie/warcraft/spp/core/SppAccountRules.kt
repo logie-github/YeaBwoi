@@ -6,6 +6,12 @@ import java.util.Locale
 
 /** AshamaneCore's linked Battle.net/game-account model, checked against the real realmd schema. */
 object SppAccountRules {
+    /**
+     * The expansion the app's accounts have: Battle for Azeroth, as the repack's own accounts (its
+     * column's default). SPP's core lets an account create the allied races only from it (the world
+     * stays Legion: world.conf's Expansion, which the account's doesn't change).
+     */
+    const val ACCOUNT_EXPANSION = 7
     private val EMAIL = Regex("[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,63}")
     fun normalizeEmail(value: String): String? = value.trim().takeIf { EMAIL.matches(it) }?.uppercase(Locale.ROOT)
     fun validPassword(value: String) = value.length in 1..16 && value.all { it.code in 33..126 }
@@ -24,7 +30,7 @@ object SppAccountRules {
             "INSERT INTO battlenet_accounts(email,sha_pass_hash) VALUES(${text(name)},'${hash(name, password)}');\n" +
             "SET @spp_bnet=LAST_INSERT_ID(); SET @spp_name=CONCAT(@spp_bnet,'#1');\n" +
             "INSERT INTO account(username,sha_pass_hash,email,reg_mail,expansion,battlenet_account,battlenet_index) " +
-            "VALUES(@spp_name,UPPER(SHA1(CONCAT(UPPER(@spp_name),':',${text(password.uppercase(Locale.ROOT))}))),${text(name)},${text(name)},6,@spp_bnet,1);\n" +
+            "VALUES(@spp_name,UPPER(SHA1(CONCAT(UPPER(@spp_name),':',${text(password.uppercase(Locale.ROOT))}))),${text(name)},${text(name)},$ACCOUNT_EXPANSION,@spp_bnet,1);\n" +
             "SET @spp_game=LAST_INSERT_ID();\n" +
             (if (administrator) "INSERT INTO account_access(id,gmlevel,RealmID) VALUES(@spp_game,3,-1);\n" else "") +
             "INSERT INTO realmcharacters(realmid,acctid,numchars) SELECT id,@spp_game,0 FROM realmlist;\nCOMMIT;\n"
