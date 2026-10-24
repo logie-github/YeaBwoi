@@ -80,6 +80,10 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     @Volatile private var knownCrashes: Set<String> = emptySet()
     val authenticationDatabase: String? get() = profile?.login?.getOrNull(4)
     private val started = mutableSetOf<String>()
+    /** When the game was last launched (its graphics' log is this launch's when written since). */
+    @Volatile private var clientLaunchedAt = 0L
+    /** The app, for what the game's session's end reads (its exit file). */
+    @Volatile private var appContext: Context? = null
 
     private data class Profile(
         val detected: TwwInstall.DetectedServer,
@@ -112,6 +116,8 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     /** The game's session for this realm opens (it joins the realm's Wine; nothing of the realm depends on it). */
     internal fun onSessionAttached(runtime: XServerDisplayActivity) {
+        // (closed before its runtime started: Winlator ends what it started; not the game)
+        if (runtime.isDestroyed || runtime.isFinishing) return
         session = WeakReference(runtime)
         // (a realm's session is its game: one that opened after Launch Game gave up waiting is it all the same)
         clientLaunched = true
@@ -122,16 +128,38 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     internal fun onSessionDetached(runtime: XServerDisplayActivity) {
         if (session.get() !== runtime) return
         session.clear()
+        // (the game's end ends its session at once: its exit code read here, not left to the next check)
+        val app = appContext
+        if (clientLaunched && app != null) clientExited(app)
         clientLaunched = false
         mutableStatus.value = mutableStatus.value.copy(clientRunning = false)
     }
 
-    /** The game's session wasn't allowed to open (another Windows session is open). */
-    internal fun onSessionRejected() {
+    /** The game exited (its exit file written): a code other than 0 said, and reported. */
+    private fun clientExited(context: Context) {
+        val exit = exitFile(context, "client")
+        if (!exit.isFile) return
+        clientLaunched = false
+        val code = exit.readText().trim()
+        val seconds = (System.currentTimeMillis() - clientLaunchedAt) / 1000
+        // (the realm's own word first: a graphics start that failed, and what's tried next)
+        val said = runCatching { realm.clientEnded(context, clientLaunchedAt, seconds) }.getOrNull()
+        mutableStatus.value = mutableStatus.value.copy(clientRunning = false,
+            clientError = said ?: if (code == "0") null else "The game exited with code $code. ${logTail(context, "client")}")
+    }
+
+    /**
+     * The game's session wasn't allowed to open: [otherSession], another Windows session is open;
+     * otherwise this realm isn't running (stopped, or Android closed the app, its Wine with it), which
+     * the launcher shows already: no failure of the game's. What the session's screen says is returned.
+     */
+    internal fun onSessionRejected(otherSession: Boolean): String {
         WindowsRealmGame.cancelPending()
         clientLaunched = false
-        mutableStatus.value = mutableStatus.value.copy(clientRunning = false,
-            clientError = "The game's screen didn't open: another Windows session is open. Close it, then Launch Game again.")
+        val message = if (otherSession) "The game's screen didn't open: another Windows session is open. Close it, then Launch Game again."
+            else "${realm.displayName} isn't running (stopped, or Android closed the app). Start Server, then Launch Game."
+        mutableStatus.value = mutableStatus.value.copy(clientRunning = false, clientError = if (otherSession) message else null)
+        return message
     }
 
     /** A game's session may open for this realm: its Wine is running and ready for the game. */
@@ -343,9 +371,12 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                 writeScript(app, "client", TwwSession.script(TwwSession.windows(executable.parentFile, layout.client, 'D'), command, "client"))
                 val container = host.container ?: throw IOException("The realm's Windows runtime is not running.")
                 clientLaunched = true
+                clientLaunchedAt = System.currentTimeMillis()
                 clientProcess = executable.name
                 mutableStatus.value = mutableStatus.value.copy(clientRunning = true, clientError = null,
                     detail = "Client launch requested. Connection compatibility is confirmed only after the client logs in; see runtime/client.log if it exits.", error = null)
+                // (the last game's session log kept: the new session's starts anew)
+                File(layout(app).root, "runtime/session.log").takeIf { it.isFile }?.renameTo(File(layout(app).root, "runtime/session.previous.log"))
                 withContext(Dispatchers.Main) { realm.openClientSession(context, container) }
                 // (opened with the launcher on screen, but no screen in a minute: said; one waiting for the
                 // launcher to be shown isn't waited on)
@@ -395,6 +426,14 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     private suspend fun startNow(context: Context) {
         try {
+            // (this start's logs only, from its first step: an earlier run's are kept as *.previous.log,
+            // never read as this one's, even when this start fails before its Wine runs)
+            val runtime = runtimeFolder(context)
+            for (name in LOGS) {
+                val log = File(runtime, "$name.log")
+                if (log.isFile) log.renameTo(File(runtime, "$name.previous.log"))
+            }
+            appContext = context.applicationContext
             if (!WindowsRealmRegistry.reserve(this)) throw IOException("Close the active game's Windows session before starting this local realm.")
             val report = realm.report(context)
             val missing = listOf("Server Core" to report.core, "Server Database" to report.database, "Map Files" to report.maps)
@@ -408,14 +447,8 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             started.clear()
             knownCrashes = crashReports(p)
             for (port in p.ports) if (open(port)) throw IOException("Local port $port is already in use. Stop the server using it before starting this realm.")
-            val runtime = runtimeFolder(context)
             for (name in listOf("database", "authentication", "world", "realm", "shutdown-db", "shutdown-world", "shutdown-auth", "probe", "client")) {
                 File(runtime, "$name.exit").delete()
-            }
-            // (this start's logs only: an earlier run's, kept as *.previous.log, never read as this one's)
-            for (name in LOGS) {
-                val log = File(runtime, "$name.log")
-                if (log.isFile) log.renameTo(File(runtime, "$name.previous.log"))
             }
             for ((role, command) in p.detected.commands) {
                 val name = roleName(role)
@@ -457,12 +490,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     knownCrashes = knownCrashes + report
                     throw IOException("A server crashed (its report: $report).\n" + sessionEnd(context, "world"))
                 }
-                if (clientLaunched && exitFile(context, "client").isFile) {
-                    clientLaunched = false
-                    val code = exitFile(context, "client").readText().trim()
-                    mutableStatus.value = mutableStatus.value.copy(clientRunning = false,
-                        clientError = if (code == "0") null else "The game exited with code $code. ${logTail(context, "client")}")
-                }
+                if (clientLaunched && exitFile(context, "client").isFile) clientExited(context)
             }
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
@@ -471,9 +499,9 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
             // Keep the realm's Wine and observed running components available to Stop Server; never
             // claim a failed startup shut down a database that may still be saving data. A start that
             // failed before its Wine ran leaves nothing to stop: the runtime is free again.
-            if (!host.running) WindowsRealmRegistry.release(this)
             WindowsRealmGame.cancelPending()
-            refreshObserved()
+            // (before its Wine ran, a port that answers is another program's, never this realm's)
+            if (!host.running) WindowsRealmRegistry.release(this) else refreshObserved()
         }
     }
 
@@ -578,12 +606,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         // (the game first: its session ends; the realm's processes are apart from it)
         closeDisplaySession()
         if (p == null || !host.running) {
-            if (p != null && p.ports.any { open(it) }) {
-                mutableStatus.value = mutableStatus.value.copy(phase = Phase.FAILED,
-                    error = "A server port remains open, but the realm's Windows runtime isn't running. Stop the remaining process before replacing installation files.")
-                refreshObserved()
-                return
-            }
+            // (nothing of the realm's runs: a port that answers is another program's)
             endRuntime()
             profile = null
             started.clear()
@@ -781,10 +804,10 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
     val displayName: String get() = realm.displayName
 
     /** The ends of this start's Windows logs (its servers', its Wine's, the game's session), for a failure's report. */
-    fun runtimeLogs(context: Context): String = listOf("database", "authentication", "world", "host", "session").joinToString("\n\n") { name ->
+    fun runtimeLogs(context: Context): String = listOf("database", "authentication", "world", "host", "session", "client").joinToString("\n\n") { name ->
         val lines = runCatching { File(layout(context).root, "runtime/$name.log").readLines().filter { it.isNotBlank() }.takeLast(60) }.getOrDefault(emptyList())
         if (lines.isEmpty()) "$name.log: nothing written." else "$name.log:\n" + lines.joinToString("\n")
-    }
+    } + (runCatching { realm.clientLogs(context) }.getOrNull()?.let { "\n\n" + it } ?: "")
 
     private companion object {
         /** The logs a start writes anew (the earlier run's kept beside them as *.previous.log). */

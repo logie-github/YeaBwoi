@@ -328,8 +328,11 @@ leaves Recents with it (`autoRemoveFromRecents`, `finishAndRemoveTask`).
 
 Tested on a PC: the realm's database started and stopped by `HeadlessWine` under Wine 10.10 with no
 display (`HeadlessWineTest.realmDatabaseUnderWineWithNoDisplay`, with `HEADLESS_WINE_TESTBED` and
-`HEADLESS_WINE_ROOTFS`); a display session (Xvfb, `explorer /desktop`) on the realm's Wine server:
+`HEADLESS_WINE_ROOTFS`: the test bed is described in the test; x86-64 Wine, without Box64 or esync); a display session (Xvfb, `explorer /desktop`) on the realm's Wine server:
 its programs (start.exe, explorer, cmd, conhost, the program) carried the session's marker and the
 realm's (services, winedevice, plugplay, svchost, rpcss started later, cmd, mysqld) the realm's,
 none both; the session's killed with its X server, the database stayed up and shut down cleanly
-(exit 0), and `wineserver -k` left nothing. Untested: all of it on a phone.
+(exit 0), and `wineserver -k` left nothing. Under Box64 0.4.4-legion (through qemu-aarch64, with the
+environment `headlessEnvironment` gives on a phone, esync on, no display): `wineserver -p`, the probe
+at 25 s, the database answering at 43 s, its clean shutdown (exit 0) at 68 s. Untested: all of it on
+a phone.
