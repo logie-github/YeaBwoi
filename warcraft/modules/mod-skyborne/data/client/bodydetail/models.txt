@@ -1,0 +1,12 @@
+# Bottom Features: the female models the body detail is made for, a race a line: the CRC32 (hex) of the
+# model's vertices and of its 00.skin, the same in ChromieCraft's HD look and the Alternative HD look
+# (tools/art/races/bodydetail_mesh.py). A race whose model has another, or that has no <Race>.mesh, is left as it is.
+Human 82d4b0de 679ca754
+Orc 08378817 f891e428
+Dwarf fd153651 ed5f6a74
+NightElf b83ac64b defa6328
+Scourge a0f91323 3ff44157
+Gnome 34852a66 0b22a8b5
+Troll 24a9b14f e68e802d
+BloodElf dce03384 4282f8fd
+Draenei c7ad9401 f8dee15d

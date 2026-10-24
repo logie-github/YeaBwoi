@@ -1,0 +1,10 @@
+# Bottom Features: each patched race's options, <race> <NN> <name>; 00 is none (no art), 01 on are the
+# details (<race>_<NN>.bin). A race's option count K is its lines' count (tools/build_data.py), coprime with
+# its skin count.
+Human 00 None
+Human 01 Natural
+Human 02 Trimmed
+Human 03 Strip
+Human 04 Bikini
+Human 05 Triangle
+Human 06 Light
