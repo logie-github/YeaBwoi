@@ -12,6 +12,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class TwwSessionTest {
+    @Test fun `script input keeps a space before its quoted path, as Wine's cmd needs`() {
+        assertEquals("< \"R:\\runtime\\realm.sql\"", TwwSession.input("R:\\runtime\\realm.sql"))
+        assertFailsWith<IOException> { TwwSession.input("R:\\run\"time.sql") }
+    }
+
     @Test fun `realm row follows explicit case insensitive world configuration`() {
         assertEquals(7, TwwSession.realmId("# example RealmID = 1\n  realmid = 7 # this realm\n"))
         assertEquals(23, TwwSession.realmId("RealmID = \"23\""))

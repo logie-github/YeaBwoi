@@ -219,12 +219,44 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
      * unix one, at its end), so TrinityCore's console thread reads the end at once and stops the world
      * right after it loads, before it opens its port (and its crash report on the way out hangs, so the
      * process stays, the port never opening). Seen under Wine on x86-64 and under Box64 alike.
+     * With it, the realm's own settings ([ManagedWindowsRealm.worldSettings]).
      */
     private fun headlessWorld(world: File) {
         val conf = ConfFile(world.readText())
-        if (conf["Console.Enable"]?.trim() == "0") return
-        conf.setSwitch("Console.Enable", false)
+        val wanted = mapOf("Console.Enable" to "0") + realm.worldSettings
+        if (wanted.all { (key, value) -> conf[key]?.trim() == value }) return
+        for ((key, value) in wanted) conf[key] = value
         replaceConfig(world, conf.toString())
+    }
+
+    /**
+     * The realm's SQL for its databases ([ManagedWindowsRealm.worldStartupSql], [ManagedWindowsRealm.loginStartupSql]),
+     * once the database is up and before the world server loads them. A failure doesn't stop the realm
+     * (it plays without what the SQL gives); it's reported.
+     */
+    private suspend fun prepareDatabases(context: Context, p: Profile) {
+        val world = p.detected.worldConfig?.let { ConfFile(it.readText())["WorldDatabaseInfo"] }?.split(';')
+            ?.takeIf { it.size == 5 }?.last()
+        realm.worldStartupSql?.let { sql -> world?.let { runStartupSql(context, p, "world-setup", it, sql) } }
+        realm.loginStartupSql?.let { sql -> runStartupSql(context, p, "login-setup", p.login[4], sql) }
+    }
+
+    private suspend fun runStartupSql(context: Context, p: Profile, name: String, database: String, sql: String) {
+        if (!database.matches(Regex("[A-Za-z0-9_]+"))) return
+        val runtime = runtimeFolder(context)
+        LocalConfig.atomicWrite(File(runtime, "$name.sql"), sql)
+        File(runtime, "$name.exit").delete()
+        val command = TwwSession.argument(TwwSession.windows(p.mysql, p.detected.root, 'S')) +
+            " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names $database " + TwwSession.input("R:\\runtime\\$name.sql")
+        writeScript(context, name, TwwSession.script("S:\\", command, name))
+        execute(name)
+        try {
+            waitExit(context, name, 120)
+        } catch (e: IOException) {
+            if (activity.get() == null) throw e
+            com.logie.warcraft.FailureReports.record(context, "${realm.displayName} $name", e.message ?: "failed",
+                runCatching { File(runtime, "$name.log").readText() }.getOrNull())
+        }
     }
 
     fun launchGame(context: Context) {
@@ -268,7 +300,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         try {
             LocalConfig.atomicWrite(File(runtime, "$name.sql"), sql)
             val command = TwwSession.argument(TwwSession.windows(p.mysql, p.detected.root, 'S')) +
-                " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names $database <\"R:\\runtime\\$name.sql\""
+                " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names $database " + TwwSession.input("R:\\runtime\\$name.sql")
             writeScript(context, name, TwwSession.script("S:\\", command, name))
             execute(name)
             waitExit(context, name, 60)
@@ -318,6 +350,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
                     else "Verifying build ${realm.spec.build} in the imported authentication database…")
             verifyServerBuild(context, p)
             setRealm(context, p)
+            prepareDatabases(context, p)
             mutableStatus.value = mutableStatus.value.copy(authentication = ComponentStatus.STARTING, detail = "Starting ${p.detected.authenticationExecutable?.name}…")
             startComponent("authentication")
             waitReady(context, "authentication", p.loginPorts, 120)
@@ -394,10 +427,14 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
 
     private suspend fun setRealm(context: Context, p: Profile) {
         val runtime = runtimeFolder(context)
-        val sql = "UPDATE realmlist SET name='${realm.displayName.replace("'", "''")}', address='127.0.0.1', localAddress='127.0.0.1', port=${p.worldPort}, gamebuild=${realm.spec.build} WHERE id=${p.realmId};\nSELECT COUNT(*) FROM realmlist WHERE id=${p.realmId} AND address='127.0.0.1' AND gamebuild=${realm.spec.build};\n"
+        // (the repack's other realms, which the app doesn't run, out of the client's list: the
+        // authentication server lists only the rows whose flag isn't 3; SPP's lists a "Haunted Lands")
+        val sql = "UPDATE realmlist SET name='${realm.displayName.replace("'", "''")}', address='127.0.0.1', localAddress='127.0.0.1', port=${p.worldPort}, gamebuild=${realm.spec.build} WHERE id=${p.realmId};\n" +
+            "UPDATE realmlist SET flag=3 WHERE id<>${p.realmId} AND flag<>3;\n" +
+            "SELECT COUNT(*) FROM realmlist WHERE id=${p.realmId} AND address='127.0.0.1' AND gamebuild=${realm.spec.build};\n"
         LocalConfig.atomicWrite(File(runtime, "realm.sql"), sql)
         val cmd = TwwSession.argument(TwwSession.windows(p.mysql, p.detected.root, 'S')) +
-            " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names ${p.login[4]} <\"R:\\runtime\\realm.sql\""
+            " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names ${p.login[4]} " + TwwSession.input("R:\\runtime\\realm.sql")
         writeScript(context, "realm", TwwSession.script("S:\\", cmd, "realm"))
         execute("realm")
         waitExit(context, "realm", 60)
@@ -419,7 +456,7 @@ open class WindowsRealmServer(protected val realm: ManagedWindowsRealm) {
         if (proof.exists() && !proof.delete()) throw IOException("The previous build verification record could not be invalidated.")
         LocalConfig.atomicWrite(File(runtime, "build-check.sql"), realm.spec.buildQuery())
         val command = TwwSession.argument(TwwSession.windows(p.mysql, p.detected.root, 'S')) +
-            " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names ${p.login[4]} <\"R:\\runtime\\build-check.sql\""
+            " --defaults-extra-file=R:\\runtime\\login.cnf --default-character-set=utf8mb4 --batch --skip-column-names ${p.login[4]} " + TwwSession.input("R:\\runtime\\build-check.sql")
         writeScript(context, "build-check", TwwSession.script("S:\\", command, "build-check"))
         execute("build-check")
         waitExit(context, "build-check", 60)
