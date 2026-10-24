@@ -22,6 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import m2                                      # noqa: E402
 import scale                                   # noqa: E402
+import sheaths                                 # noqa: E402
 import textures                                # noqa: E402
 
 MODULE = os.path.dirname(HERE)
@@ -133,6 +134,8 @@ def build(read, out_dir, log=print):
             written += m2.convert(read, policy, out_dir, log)
             # at its kin's height (tools/scale.py): blood elves', night elves', Draenei's, trolls'
             scale.to_kin(os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2"), log)
+            # its weapons on its back as its kin wear them (tools/sheaths.py)
+            sheaths.turn(os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2"), log)
             layout_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".layout.json")
             with open(layout_path) as f:
                 layout = json.load(f)
