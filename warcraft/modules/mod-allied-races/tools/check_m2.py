@@ -2,13 +2,18 @@
 """Checks a 3.3.5 model (format 264) and its skin the way the game would trip over them: every
 array inside the file, every track with an entry a sequence (or one for a global sequence, or
 none), every section with at most 64 bones and every bone it names in the model, every index in
-the skin's vertices, every sequence kept outside the file having its file.
+the skin's vertices, every sequence kept outside the file having its file, every track's entry for
+such a sequence within that file, a global sequence's track's times within its loop, every bone's translations and scales real floats within 100
+yards (what tools/m2.py keeps).
 
     python3 tools/check_m2.py DIR/Character/Race/Sex/Name.m2 [--verbose]
 """
+import math
 import os
 import struct
 import sys
+
+FAR = 100.0                          # tools/m2.py leaves out translations and scales beyond this
 
 
 def check(path, verbose=False):
@@ -25,7 +30,7 @@ def check(path, verbose=False):
             say("array at %d (%d x %d at %d) is outside the file" % (at, count, size, offset))
         return count, offset
 
-    n_loops, _ = arr(20, 4)
+    n_loops, loops_at = arr(20, 4)
     n_seqs, seqs_at = arr(28, 64)
     n_lookup, lookup_at = arr(36, 2)
     n_bones, bones_at = arr(44, 88)
@@ -54,10 +59,24 @@ def check(path, verbose=False):
     n_cam_lookup, _ = arr(280, 2)
     n_ribbons, _ = arr(288, 176)
     n_particles, _ = arr(296, 492)
+    loops = struct.unpack_from("<%dI" % n_loops, m, loops_at) if n_loops and loops_at + n_loops * 4 <= len(m) else ()
     name_n, name_at = arr(8, 1)
     name = m[name_at:name_at + name_n - 1].decode("latin1")
     seqs = [struct.unpack_from("<HHIfIHHIIIfffffffHH", m, seqs_at + i * 64) for i in range(n_seqs)]
     in_file = [bool(s[4] & 0x20) for s in seqs]
+    # the sequences kept outside the file: their own files (.anim), which their tracks' entries point into
+    folder = os.path.dirname(path)
+    anims, missing = {}, 0
+    for i, sq in enumerate(seqs):
+        if not in_file[i]:
+            anim = os.path.join(folder, "%s%04d-%02d.anim" % (name, sq[0], sq[1]))
+            if os.path.exists(anim):
+                with open(anim, "rb") as f:
+                    anims[i] = f.read()
+            else:
+                missing += 1
+    if missing:
+        say("%d sequences kept outside the file have no .anim file" % missing)
     lookup = struct.unpack_from("<%dh" % n_lookup, m, lookup_at)
     for idx in lookup:
         if idx >= n_seqs:
@@ -78,7 +97,7 @@ def check(path, verbose=False):
             if field != 0xFFFF and field >= n_seqs:
                 say("sequence %d links to sequence %d of %d" % (i, field, n_seqs))
 
-    def track(at, value_size, what, base_only=False):
+    def track(at, value_size, what, base_only=False, floats=False):
         interp, gseq, tc, to = struct.unpack_from("<hhII", m, at)
         if gseq >= n_loops:
             say("%s: global sequence %d of %d" % (what, gseq, n_loops))
@@ -97,14 +116,25 @@ def check(path, verbose=False):
         for k, (count, offset) in enumerate(entries):
             seq = k if gseq < 0 else None
             external = seq is not None and seq < n_seqs and not in_file[seq]
-            if count and not external and offset + count * 4 > len(m):
-                say("%s: sequence %d's timestamps outside the file" % (what, k))
+            if external and seq not in anims:
+                continue                            # (no file: said above)
+            data, where = (anims[seq], "its .anim file") if external else (m, "the file")
+            if count and offset + count * 4 > len(data):
+                say("%s: sequence %d's timestamps outside %s" % (what, k, where))
+            elif count and gseq >= 0 and gseq < len(loops):
+                times = struct.unpack_from("<%dI" % count, data, offset)
+                if any(t > loops[gseq] + 1 for t in times) or any(a > b for a, b in zip(times, times[1:])):
+                    say("%s: its global sequence's times aren't within the loop (%d ms)" % (what, loops[gseq]))
             if k < len(ventries):
                 vcount, voffset = ventries[k]
                 if vcount != count:
                     say("%s: sequence %d has %d timestamps and %d values" % (what, k, count, vcount))
-                if vcount and not external and voffset + vcount * value_size > len(m):
-                    say("%s: sequence %d's values outside the file" % (what, k))
+                if vcount and voffset + vcount * value_size > len(data):
+                    say("%s: sequence %d's values outside %s" % (what, k, where))
+                elif vcount and floats:
+                    values = struct.unpack_from("<%df" % (vcount * value_size // 4), data, voffset)
+                    if not all(math.isfinite(v) and abs(v) <= FAR for v in values):
+                        say("%s: sequence %d's values aren't real floats within %d yards" % (what, k, FAR))
 
     for b in range(n_bones):
         at = bones_at + b * 88
@@ -112,7 +142,7 @@ def check(path, verbose=False):
         if parent >= n_bones or parent < -1:
             say("bone %d: parent %d" % (b, parent))
         for k, (off, size) in enumerate(((16, 12), (36, 8), (56, 12))):
-            track(at + off, size, "bone %d track %d" % (b, k))
+            track(at + off, size, "bone %d track %d" % (b, k), floats=k != 1)
     for i in range(n_weights):
         track(weights_at + i * 20, 2, "texture weight %d" % i)
     for i in range(n_transforms):
@@ -155,7 +185,6 @@ def check(path, verbose=False):
         say("lights, ribbons or particles are in the model")
 
     # The skin.
-    folder = os.path.dirname(path)
     skin_path = os.path.join(folder, name + "00.skin")
     if not os.path.exists(skin_path):
         say("no skin " + skin_path)
@@ -218,17 +247,6 @@ def check(path, verbose=False):
             say("batch %d: transparency %d of %d" % (i, b[11], n_transp))
         if b[12] >= n_tf_lookup:
             say("batch %d: texture transform %d of %d" % (i, b[12], n_tf_lookup))
-    # External animations: their files.
-    missing = 0
-    for sid, var, *_ in seqs:
-        pass
-    for i, sq in enumerate(seqs):
-        if not in_file[i]:
-            anim = os.path.join(folder, "%s%04d-%02d.anim" % (name, sq[0], sq[1]))
-            if not os.path.exists(anim):
-                missing += 1
-    if missing:
-        say("%d sequences kept outside the file have no .anim file" % missing)
     if verbose:
         import collections
         print("%s: %d sequences, %d bones, %d vertices (%d in the skin), %d sections, %d batches, %d textures, %d events, %d cameras" % (

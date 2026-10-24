@@ -27,7 +27,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-14";
+        constexpr char const* VERSION = "skyborne-15";   // 15: the creatures' races moved in the client's own rows (their beards and voice rows too), the selection screen's music
 
         Bytes ReadFile(fs::path const& path)
         {
