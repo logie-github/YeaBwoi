@@ -176,3 +176,16 @@ stays without its ports (a `+seh` trace and winedbg's backtraces showed it). Wit
 `Console.Enable = 0` the world server opened 8085 after 156 seconds under x86-64 Wine and kept it
 open. The app sets it at every start (`WindowsRealmServer.headlessWorld`) and when it configures
 the repack, for SPP and The War Within alike.
+
+### On the phone: the launcher ended the session (status 137)
+
+The app's first failure reports from a phone (1.0.260, issues #40 and #41) gave the session's log:
+`Windows session started.`, `esync: up and running.`, then `The Windows runtime (wine explorer)
+exited with status 137`, and nothing in `database.log`. The app had killed it: once the session's
+screen was up, `WindowsRealmServer.start` put the launcher back in front, but `MainActivity` is
+`singleTask` and the session's screen was above it in the same task, and Android ends the screens
+above a `singleTask` screen started again (`FLAG_ACTIVITY_REORDER_TO_FRONT` doesn't apply to it).
+The screen's `onDestroy` stops Winlator's environment, which kills Wine (SIGKILL: 137). Local
+realms' sessions now open in `RealmSessionActivity` (Winlator's screen with a task of its own,
+`taskAffinity`), so the launcher coming back only puts the session behind. The games' own sessions
+are unchanged.
