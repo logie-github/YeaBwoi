@@ -14,7 +14,9 @@ druids: the pet and form quests; the Blood Elves' for the Windshapers' rogues). 
 those classes aren't in their start zones: Stormwind's and the Horde's cities have them.
 
 Races 13 and 14 were the game's Naga and Broken, which only creatures use; in the game's tables they
-move to 22 and 23.
+move to 22 and 23: the client's own rows of theirs, whatever their ids (an HD look's too), their race,
+looks, hair shapes, beards and voice rows with them (until skyborne-15 the rows were put by the
+server's tables' ids, and their beards stayed at 13 and 14 beside the Skyborne's).
 
 ## What they have
 
@@ -45,7 +47,8 @@ move to 22 and 23.
 - **Character creation**: their icons are the blood elf's with blue skin, white hair and blue eyes;
   each side's races in two columns (the Alliance's left, the Horde's right), two to a row from the
   top in the screen's order, the side by the game's `GetFactionForRace`, or by the race where the
-  game gives none; their background is their start race's.
+  game gives none; their background is their start race's, and so is their music on the character
+  list (the list plays it by the character's own race, which the game's table hasn't).
 - **Blood elves** get a Dark Ranger skin (colour 19: the blood elf's fairest skin with its
   saturation turned down to a tenth, so grey, and red eyes).
 - **Zoom** on the character creation screen (`SkyborneZoom.lua`): the mouse wheel (the app's pinch)
@@ -103,6 +106,11 @@ move to 22 and 23.
 - `tools/test_screen.py`: `SkyborneCreate.lua` in Lua 5.1 against stand-ins for the game's screen,
   with the game's ten race buttons and with mod-worgoblin's twelve, and with no sides from the game
   (the races' own then): each side two to a row.
+- `tools/test_table_moves.cpp`: this module's and the allied races' table changes applied to
+  stand-in tables laid out as an HD look's may be (a moved race's row at an id of its own, another
+  creature's at the id the server's table gives a moved race's row): the moved race's rows take the
+  new race whole, the other row is left alone, the client's own race row is copied, no facial hair
+  style or voice twice. Fails on the rows before skyborne-15 and allied-races-9. CI runs it.
 - CI's server test: the world server makes the patch from the server's tables (no textures there),
   and a High Order warrior starts in Northshire and a Windshaper shaman at Camp Narache, each with
   their racials and their side's language (Common, Orcish). Releases up to 1.0.236 gave the

@@ -20,6 +20,7 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import check_m2                                # noqa: E402
 import m2                                      # noqa: E402
 import scale                                   # noqa: E402
 import sheaths                                 # noqa: E402
@@ -106,25 +107,37 @@ def voice_files(race, read, out_dir, log):
         for n, fid in enumerate(files):
             name = "%s_%d_%d.mp3" % (race["name"], kit, n + 1)
             path = os.path.join(folder, name)
-            if not os.path.exists(path):
-                data = read(fid)
-                src = path + ".src"
+            # Made again from the game's file (cached by its id) each time: an MP3 already there
+            # may be one an earlier run left cut short, which still decodes in part.
+            src, part = path + ".src", path + ".part"
+            try:
                 with open(src, "wb") as f:
-                    f.write(data)
+                    f.write(read(fid))
                 # Encoded as the game's own MP3s are: MPEG-1 (44.1 kHz), constant bitrate, no ID3
                 # tag and no VBR (Xing) header, which the 2008 client's decoder may not take.
-                result = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-y", "-i", src, "-ac", "1", "-ar", "44100",
-                                         "-codec:a", "libmp3lame", "-b:a", "64k", "-write_xing", "0", "-id3v2_version", "0",
-                                         "-write_id3v1", "0", path], capture_output=True)
-                os.remove(src)
-                if result.returncode:
-                    log("voice %d (kit %d) couldn't be converted: %s" % (fid, kit, result.stderr.decode(errors="replace").strip()))
-                    continue
+                result = subprocess.run(["ffmpeg", "-nostdin", "-loglevel", "error", "-xerror", "-y", "-i", src, "-map", "0:a:0",
+                                         "-ac", "1", "-ar", "44100", "-codec:a", "libmp3lame", "-b:a", "64k", "-write_xing", "0",
+                                         "-id3v2_version", "0", "-write_id3v1", "0", "-f", "mp3", part], capture_output=True)
+                if result.returncode or not os.path.exists(part) or not os.path.getsize(part):
+                    # (a voice missing would be silence where the tables name it: the package isn't made)
+                    raise RuntimeError("voice %d (kit %d) couldn't be converted: %s" %
+                                       (fid, kit, result.stderr.decode(errors="replace").strip()))
+                os.replace(part, path)
+            finally:
+                for temporary in (src, part):
+                    if os.path.exists(temporary):
+                        os.remove(temporary)
             written.append("Sound\\Character\\%s\\%s" % (race["name"], name))
     return written
 
 
 def build(read, out_dir, log=print):
+    # The list of files goes first and comes back last: a run that stops on the way leaves none, so
+    # the world server never takes an earlier run's list for this one's files.
+    os.makedirs(out_dir, exist_ok=True)
+    manifest = os.path.join(out_dir, MANIFEST)
+    if os.path.exists(manifest):
+        os.remove(manifest)
     with open(RACES) as f:
         races = json.load(f)
     written = []
@@ -133,9 +146,14 @@ def build(read, out_dir, log=print):
             policy = dict(model, geosets=None)
             written += m2.convert(read, policy, out_dir, log)
             # at its kin's height (tools/scale.py): blood elves', night elves', Draenei's, trolls'
-            scale.to_kin(os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2"), log)
+            model_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2")
+            scale.to_kin(model_path, log)
             # its weapons on its back as its kin wear them (tools/sheaths.py)
-            sheaths.turn(os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".m2"), log)
+            sheaths.turn(model_path, log)
+            # checked the way the game would trip over it (tools/check_m2.py: the sequences' own files too)
+            problems = check_m2.check(model_path)
+            if problems:
+                raise ValueError("%s: %s" % (model["name"], "; ".join(problems[:20])))
             layout_path = os.path.join(out_dir, model["folder"].replace("\\", "/"), model["name"] + ".layout.json")
             with open(layout_path) as f:
                 layout = json.load(f)
@@ -150,7 +168,7 @@ def build(read, out_dir, log=print):
         written += voice_files(race, read, out_dir, log)
     # the list of files, written last: the world server takes the races into the game only when
     # it's there and every file it names is
-    with open(os.path.join(out_dir, MANIFEST), "w") as out:
+    with open(manifest, "w") as out:
         out.write("".join(name + "\n" for name in sorted(set(written))))
     log("package: %d files in %s" % (len(set(written)), out_dir))
 

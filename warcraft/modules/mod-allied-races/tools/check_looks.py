@@ -21,7 +21,8 @@ colours between are the NPCs'):
     the screen reads a colour's row by its number as the race changes;
   * every hair style has the same hair colours, and its row in CharHairGeosets;
   * every facial hair texture style has the same colours;
-  * CharacterFacialHairStyles has the features 0 to n-1;
+  * CharacterFacialHairStyles has the features 0 to n-1, each once (a creature race's rows left at a
+    player race's number count as its features too);
   * the race's two looks (ChrRaces) have their display and model rows.
 
 Prints each problem and exits 1 if there is one.
@@ -55,8 +56,10 @@ def check(folder):
     sections = table("CharSections")
     hair_geosets = {(r[1], r[2], r[3]) for r in table("CharHairGeosets")}
     facial = collections.defaultdict(set)
+    facial_rows = collections.Counter()
     for r in table("CharacterFacialHairStyles"):
         facial[(r[0], r[1])].add(r[2])
+        facial_rows[(r[0], r[1], r[2])] += 1
     displays = {r[0]: r for r in table("CreatureDisplayInfo")}
     models = {r[0] for r in table("CreatureModelData")}
     races = {r[0]: r for r in table("ChrRaces")}
@@ -131,6 +134,9 @@ def check(folder):
                     problems.append("%s: facial hair %d lacks colours %s" % (who, style, sorted(colours - cs)[:8]))
         for missing in gaps(facial.get((race, sex), set())):
             problems.append("%s: no feature %d in CharacterFacialHairStyles" % (who, missing))
+        for feature in sorted(facial.get((race, sex), set())):
+            if facial_rows[(race, sex, feature)] > 1:
+                problems.append("%s: feature %d is in CharacterFacialHairStyles %d times" % (who, feature, facial_rows[(race, sex, feature)]))
         if race in races:
             display = races[race][4 + sex]
             if display not in displays:

@@ -31784,10 +31784,10 @@ REPLACE INTO `faction_dbc` (`ID`, `ReputationIndex`, `ReputationRaceMask_1`, `Re
 
 -- The intros: the start race's flight over its home, with each race's own narration.
 REPLACE INTO `soundentries_dbc` (`ID`, `SoundType`, `Name`, `File_1`, `File_2`, `File_3`, `File_4`, `File_5`, `File_6`, `File_7`, `File_8`, `File_9`, `File_10`, `Freq_1`, `Freq_2`, `Freq_3`, `Freq_4`, `Freq_5`, `Freq_6`, `Freq_7`, `Freq_8`, `Freq_9`, `Freq_10`, `DirectoryBase`, `Volumefloat`, `Flags`, `MinDistance`, `DistanceCutoff`, `EAXDef`, `SoundEntriesAdvancedID`) VALUES
-(910001, 31, 'VoidElfFlyByNarration', 'VoidElfNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
-(910002, 31, 'NightborneFlyByNarration', 'NightborneNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
-(910003, 31, 'LightforgedDraeneiFlyByNarration', 'LightforgedDraeneiNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
-(910004, 31, 'ZandalariTrollFlyByNarration', 'ZandalariTrollNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
+(910001, 31, 'VoidElfFlyByNarration', 'VoidElfNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
+(910002, 31, 'NightborneFlyByNarration', 'NightborneNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
+(910003, 31, 'LightforgedDraeneiFlyByNarration', 'LightforgedDraeneiNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0),
+(910004, 31, 'ZandalariTrollFlyByNarration', 'ZandalariTrollNarration.mp3', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
 REPLACE INTO `cinematiccamera_dbc` (`ID`, `model`, `soundEntry`, `locationX`, `locationY`, `locationZ`, `rotation`) VALUES
 (9011, 'Cameras\\FlybyDraenei.mdx', 910001, -3963.27001953125, -13938.7001953125, 99.68879699707031, 5.201079845428467),
 (9012, 'Cameras\\FlybyUndead.mdx', 910002, 1658.5799560546875, 1662.9100341796875, 141.23399353027344, 3.141590118408203),

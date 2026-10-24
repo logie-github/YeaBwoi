@@ -1,5 +1,7 @@
 # VocalUISounds: the Skyborne's changes (tools/build_data.py)
 types	iiiiiii
+remapfield	2	13	22
+remapfield	2	14	23
 put	9000	9	13	0	0	0	0
 put	9001	9	14	0	0	0	0
 put	9002	0	13	9549	9550	0	0

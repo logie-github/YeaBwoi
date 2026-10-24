@@ -20,7 +20,10 @@ Orgrimmar.
 
 (The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 to 18 were
 the game's Skeleton, Vrykul, Tuskarr and Forest Troll, which only creatures use; in the game's
-tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
+tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23: the client's own rows of
+theirs, whatever their ids (an HD look's too), their race, looks, hair shapes, facial hair styles and
+voice rows with them (until allied-races-9 the rows were put by the server's tables' ids, and their
+facial hair styles and the Skeleton's voice row stayed at 15 to 18 beside the new races').
 
 ## What they have
 
@@ -73,7 +76,11 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     hasn't).
 - **Voices**: today's (VocalUISounds: the words at the UI's moments; EmotesTextSound: the
   emotes 3.3.5 has), as MP3s encoded the way the game's own are (44.1 kHz, constant bit rate, no
-  tags or VBR header).
+  tags or VBR header). The two moments 3.3.5 has twice that today's tables list once have the same
+  words ("can't drink any more", 6, as 47; "invalid target", 66, as 11: so the game's own blood elves
+  and Draenei have them). Their VocalUISounds rows are 9200 on, clear of the Skyborne's (9000 to
+  9107): until allied-races-9 they began at 9100, and the Skyborne's patch, read after this one, put
+  its rows over the void elves' first eight moments ("inventory full" among them).
 - **Names**: today's name generator's.
 - **Racials** (learned at creation from `playercreateinfo_spell_custom`), as today's where 3.3.5
   allows:
@@ -141,7 +148,9 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
 - **The intro**: the start race's flight over its home with each race's own narration (the user's
   MP3s, `data/client/voidelf_intro.mp3`, `nightborne_intro.mp3`, `lightforged_intro.mp3` and
   `zandalari_intro.mp3`), played through the cinematic's voice entry as the game's own
-  narrations are. They're kept in the game's own narrations' format: MPEG-1 Layer III, 44.1 kHz,
+  narrations are, its sound naming that file alone (the nine other places empty and unweighted, as
+  the Death Knights' narration has them; the other narrations' rows, which they were made from,
+  weigh all ten). They're kept in the game's own narrations' format: MPEG-1 Layer III, 44.1 kHz,
   constant 160 kbit/s, no ID3 tags and no Xing/VBR header (the user's files were variable bit
   rate with ID3v2.4 tags, which 3.3.5's player may not start).
   The flight is as long as the narration and 1.5 seconds more (the user: "the intros video needs to
@@ -168,7 +177,9 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   the same way); their kin's backgrounds: the Blood Elves' for the void elves, the Night Elves' for
   the nightborne, the Draenei's for the Lightforged, the Trolls' for the Zandalari (each scene's
   camera is framed for its own race's height, and theirs is their kin's: the Draenei's, which the
-  void elves had, showed them small; the Forsaken's cut off the nightborne's heads); their texts.
+  void elves had, showed them small; the Forsaken's cut off the nightborne's heads); on the character
+  list, their kin's music (the list plays it again by the selected character's own race,
+  `GlueAmbienceTracks`, which has no entry for them); their texts.
 
 ## ChromieCraft's alone
 
@@ -218,7 +229,12 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     then give those sequences (bones matched by their names' hashes); where nothing fits (32 of the void
     elf women's, their emotes, sits and two dances among them; the Lightforged women's Cry, the
     Zandalari women's Shy), the sequence is drawn as the animation's first variation or Stand. A translation or scale that
-    isn't real floats within 100 yards is left out; the body's texture coordinates stretched across (today's body texture is
+    isn't real floats within 100 yards is left out. A global sequence's track (a loop of its own,
+    not a sequence's) is read from the model whatever the sequences' files (it's never in a
+    sequence's own file: earlier builds took it for one where the first sequence was kept outside),
+    and merged from the track whose loop it is (earlier builds took the first merged sequence's
+    entry, often the parent skeleton's: of the void elves', nightborne's and Lightforged's 329
+    loops' tracks, 225 had another animation's times and 4 none); the body's texture coordinates stretched across (today's body texture is
     twice as wide as tall, the head in its right half; 3.3.5 composes a square), the head's into
     the face region, the eyes' (a texture of their own today) into the FaceUpper strip; the
     geosets 3.3.5's tables choose from kept whole (hair, features, armour); the body parts today's
@@ -234,7 +250,10 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     sections of at most 64 bones, each section's bone combo naming the very bones its vertices
     carry (the game draws with the combo); cameras in 3.3.5's layout. `<Name>.layout.json` tells the
     texture tool where the head went. **`tools/check_m2.py`** checks a model the way the game
-    would trip over it.
+    would trip over it, its sequences' own files too (each track's entry within its `.anim`, every
+    bone's translations and scales real floats within 100 yards, a global sequence's track's times
+    within its loop); each model is checked after it's
+    scaled, and one with a problem stops the package.
   - **`tools/scale.py`**: each model made its kin's height (above), measured on the converted
     model as `tools/render_m2.py` poses it (its head's bone in Stand); the vertices, the bones' pivots and every translation
     (the model's and its `.anim` files'), attachments, events, cameras, bounds, collision and the
@@ -245,7 +264,12 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
     (the eyes, 256 x 64), underwear (256 x 128), hair (as it is, DXT). `tools/blp.py` reads and
     writes BLP2 (palette, DXT1/3/5). `tools/names.py` names them for both the textures and the
     tables.
-  - the voices as MP3s (ffmpeg: mono, 44.1 kHz, constant 64 kbit/s, no tags or VBR header).
+  - the voices as MP3s (ffmpeg: mono, 44.1 kHz, constant 64 kbit/s, no tags or VBR header), made
+    from the game's files each time (an MP3 an earlier run left cut short still decodes in part); one
+    ffmpeg can't read whole stops the package.
+  - `alliedraces.files` is taken out as the package starts and written last, so a package that
+    stops leaves none, and the world server doesn't make the patch from part of the files (the races
+    aren't in the game then: `scripts/package-azerothcore.sh` says so and carries on).
 - As the world server starts, as soon as its configuration is read (`src/AlliedRaces.cpp`),
   `src/AlliedRacesPatch.cpp` makes the game's `Data/patch-V.MPQ` (read after the HD looks'
   patches, whose character tables it builds on, and before Wrath Remix's `patch-Y` and the
@@ -271,11 +295,31 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
 - **`tools/check_looks.py DBC_DIR`**: the creation screen's tables out of a client's whole patch
   chain checked for every look it can step to (each player skin with the faces of its race and
   sex's others, a death knight's with the other death knights', hair colours for every style and
-  its geoset row, the features 0 to n-1, the looks' display and model rows): the rule crash report
+  its geoset row, the features 0 to n-1 each once, the looks' display and model rows): the rule crash report
   #34 broke. Run here on the Alternative HD Patch's tables with this module's and the Skyborne's
-  patches in: 53 races and sexes, no problem; on the rows before that fix it finds 926.
+  patches in: 53 races and sexes, no problem; on the rows before that fix it finds 926, with
+  the patches before allied-races-9 and skyborne-15 32 (the creatures' facial hair styles left at
+  the new races' numbers: run on the Alternative HD Patch's CharSections over ChromieCraft's HD
+  archive, with the server's creature tables).
 - `tools/test_screen.py`: `AlliedRacesCreate.lua` in Lua 5.1 against stand-ins for the game's
-  screen, alone and with the Skyborne's screen code after it. CI runs it.
+  screen, alone and with the Skyborne's screen code after it (the character list's music by the
+  selected character's race too). CI runs it.
+- `tools/test_safety.py`: a global sequence's track read from the model where the first sequence
+  is kept outside it, and merged from its own loop's track; `check_m2.py` finding a track's entry
+  past the end of its `.anim` and translations that aren't real floats; the narrations' rows
+  naming their file alone. CI runs it.
+- `tools/test_voices.py`: the voices made with the real ffmpeg (the game's MP3 format, the sound
+  whole; one left empty or cut short made again; a file ffmpeg can't read whole stops the package,
+  leaving no voice and no list of files). CI runs it.
+- `tools/test_intro.cpp`: the patch made for a stand-in game from the module's intro tables and
+  narrations, each race's intro followed as the game does (its cinematic, camera, sound and the
+  sound's file in the patch, the user's MP3 byte for byte, played alone). CI runs it.
+- `tools/test_voice_tables.cpp`: this module's and the Skyborne's voice tables applied in the
+  game's order (this patch, then the Skyborne's on it): every race's words at the UI's moments and
+  emotes as each module made them, no moment twice, each of the four races with its 51. Fails on
+  the rows before allied-races-9 (the Skyborne's over the void elves' first eight). CI runs it.
+- `../mod-skyborne/tools/test_table_moves.cpp`: the creatures' races moved in a client's own rows
+  (both modules). CI runs it.
 - `tools/test_patch.cpp`: the patch made for a stand-in game from the package's files and read
   back (races, looks and their textures, models, voices, spells, the screen, a second start keeping
   it). Built and run here against the server's tables and a local package.
@@ -286,7 +330,8 @@ tables they move to 24 to 27, as the Skyborne moved 13 and 14 to 22 and 23.
   game does (16 bits), so a model over the limit shows its damage here first.
 - `tools/check_m2.py` on every converted model (every vertex's bone slots lead through its
   section's combo to the bones the vertex names: the first models' didn't, and the game drew them
-  in pieces; run here: all four pass; the HD look's blood elf,
+  in pieces; every track's entry for a sequence kept outside within its `.anim`; run here: all
+  eight pass, on the package of allied-races-9 too; the HD look's blood elf,
   read the same way, passes but for what the HD look itself leaves out).
 - CI's server test: the world server makes the patch (19 tables) before the Skyborne's and Wrath
   Remix's, the races are playable in the world database with their looks, a warrior of each starts

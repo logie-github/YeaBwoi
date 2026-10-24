@@ -10,7 +10,7 @@
 --  * Their icons: the blood elf's, blue and white-haired, in column 7 of the race icons (the patch
 --    paints them there).
 --  * Their backgrounds: the High Order's is the Humans' (they start in Northshire), the Windshapers'
---    the Tauren's (Camp Narache).
+--    the Tauren's (Camp Narache); on the selection screen, those races' music too.
 --  * Their text.
 
 local SKYBORNE = { SKYBORNEA = "Human", SKYBORNEH = "Tauren" };
@@ -93,6 +93,15 @@ end
 local setBackgroundModel = SetBackgroundModel;
 function SetBackgroundModel(model, name)
 	return setBackgroundModel(model, SKYBORNE[strupper(name or "")] or name);
+end
+
+-- Their scenes' music on the character selection screen: the screen plays it again as it's shown, by
+-- the selected character's own race (CharacterSelect_OnShow: GlueAmbienceTracks[strupper(race)]),
+-- which the game's table hasn't for them, so theirs is their start race's (or the selection screen's own).
+if ( type(GlueAmbienceTracks) == "table" ) then
+	for race, background in pairs(SKYBORNE) do
+		GlueAmbienceTracks[race] = GlueAmbienceTracks[strupper(background)] or GlueAmbienceTracks["CHARACTERSELECT"] or "GlueScreenIntro";
+	end
 end
 
 local description = "Thousands of years ago, Highborne exiles made a pact with the elemental spirits of the wind and raised a civilization in Skywall, among the clouds. The shen'dorei lived above the world for millennia, until the air spirits vanished and their sky cities began to fall. Now the Skyborne descend to Azeroth to find their place in it.";

@@ -567,7 +567,7 @@ put	910663	29	ZandalariTroll Emote 127270	ZandalariTroll_127270_1.mp3	ZandalariT
 put	910664	29	ZandalariTroll Emote 127334	ZandalariTroll_127334_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
 put	910665	29	ZandalariTroll Emote 127331	ZandalariTroll_127331_1.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
 put	910666	29	ZandalariTroll Emote 127329	ZandalariTroll_127329_1.mp3	ZandalariTroll_127329_2.mp3	ZandalariTroll_127329_3.mp3	ZandalariTroll_127329_4.mp3	ZandalariTroll_127329_5.mp3	ZandalariTroll_127329_6.mp3	ZandalariTroll_127329_7.mp3				1	1	1	1	1	1	1	0	0	0	Sound\\Character\\ZandalariTroll	0.8999999761581421	0	8.0	45.0	0	0
-put	910001	31	VoidElfFlyByNarration	VoidElfNarration.mp3										1	1	1	1	1	1	1	1	1	1	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
-put	910002	31	NightborneFlyByNarration	NightborneNarration.mp3										1	1	1	1	1	1	1	1	1	1	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
-put	910003	31	LightforgedDraeneiFlyByNarration	LightforgedDraeneiNarration.mp3										1	1	1	1	1	1	1	1	1	1	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
-put	910004	31	ZandalariTrollFlyByNarration	ZandalariTrollNarration.mp3										1	1	1	1	1	1	1	1	1	1	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910001	31	VoidElfFlyByNarration	VoidElfNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910002	31	NightborneFlyByNarration	NightborneNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910003	31	LightforgedDraeneiFlyByNarration	LightforgedDraeneiNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	910004	31	ZandalariTrollFlyByNarration	ZandalariTrollNarration.mp3										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0

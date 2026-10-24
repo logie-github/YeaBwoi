@@ -64,14 +64,17 @@ it: the app in the background, the screen off, swiping the game away in Recents,
 the game. **Launch Game** opens the game, which joins the running realm, in a screen of its own
 (its own card in Recents while it runs); while it runs the button says **Return to Game** and
 brings you back to it (the game isn't started twice). **Leave the game** in the game's menu (four
-fingers) closes the game and brings the launcher back; so does the game exiting, or its card swiped
-away. The realm keeps running, so **Launch Game** is quick the next time. **Stop Server**
+fingers) closes the game and brings the launcher back; so does the game exiting (with its code said
+on the launcher if it isn't 0). Swiping the game's card away closes the game too, leaving you where
+Android puts you. The realm keeps running either way, so **Launch Game** is quick the next time.
+**Stop Server**
 stops the world and authentication servers (the world server saves characters when they log out
 and every few minutes, so log out first) and then shuts the database down cleanly. A server that
 crashes is reported at once (its crash report under `Server/bin64/Crashes`), not after the
-start's hour. Dark mode, power saving or a font change while you play don't end the game. If the
-game's screen doesn't open (Android opens none for an app in the background: tapping **Launch
-Game** with the app on screen does), the launcher says so and the realm carries on.
+start's hour. Dark mode, power saving or a font change while you play don't end the game. Android
+opens no screen for an app in the background, so a game the realm was to open while the app was
+behind (Press start, then another app) opens when you come back to the app; one that doesn't open
+within a minute with the app on screen is said on the launcher, the realm carrying on.
 The game logs in by itself once its login screen is up (it loads its data first, minutes under
 Box64), or asks for the password then. Its first start uses Legion's lowest graphics preset, no
 anti-aliasing and 30 frames a second (5 behind other apps); what you choose in its options
@@ -285,14 +288,14 @@ Blizzard's allied races of today are playable on ChromieCraft's realm, in their 
 - **Nightborne** (Horde) start in Deathknell with the Forsaken: their quests, their standing with Undercity. The same classes.
 - **Lightforged Draenei** (Alliance) start in Ammen Vale with the Draenei and the void elves: their quests, their standing with the Exodar. Warrior, Paladin, Hunter, Priest, Death Knight, Mage.
 - **Zandalari Trolls** (Horde) start at Camp Narache in Mulgore with the Tauren: their quests, their standing with Thunder Bluff. Warrior, Paladin, Hunter, Rogue, Priest, Death Knight, Shaman, Mage, Druid.
-- **Character creation**: with so many races, two to a row down each side's banner; each in its kin's scene (void elves in the Blood Elves', nightborne in the Night Elves', Lightforged in the Draenei's, Zandalari in the Trolls'), whose camera is framed for that height.
+- **Character creation**: with so many races, two to a row down each side's banner; each in its kin's scene (void elves in the Blood Elves', nightborne in the Night Elves', Lightforged in the Draenei's, Zandalari in the Trolls'), whose camera is framed for that height. On the character list, a character of theirs has its kin's music (until this version the list had none for them).
 - **Size**: each the height of its kin in the HD looks: void elves the blood elves', nightborne the night elves', Lightforged the Draenei's, Zandalari the trolls' (today's Zandalari stand upright, their heads up to half a yard higher: they're made 0.82 of their size for men, 0.87 for women).
-- **Animations**: every one kept in a file of its own (emotes, sits, most of the rest) now carries its bones' data; until this version those files held only a few bytes, and the game read those animations from past their end. Where one of today's files doesn't fit its skeleton, the animation is drawn as Stand or the animation's first variation (32 of the void elf women's, their emotes and sits among them; one each for Lightforged and Zandalari women).
+- **Animations**: every one kept in a file of its own (emotes, sits, most of the rest) now carries its bones' data; until this version those files held only a few bytes, and the game read those animations from past their end. Where one of today's files doesn't fit its skeleton, the animation is drawn as Stand or the animation's first variation (32 of the void elf women's, their emotes and sits among them; one each for Lightforged and Zandalari women). The parts of the void elves', nightborne's and Lightforged's models that move on a loop of their own (not with an animation) now move by that loop; until this version most of them took another animation's movement.
 - **Models and looks**: today's player models, skeletons and animations, made 3.3.5's; every skin colour a player picks today (the nightborne's with each body tattoo), every face with every eye colour (face 1 eye 1, face 1 eye 2...; void elves 28 faces x 9 eye colours, nightborne 12 x 6), every hair style and colour; the feature slider carries the men's facial hair or the women's earrings, each with or without void tentacles (void elves; the Lightforged's horns and tendrils, the Zandalari's tusks and piercings, on the same slider), or every chin decoration, mustache and jaw jewellery, or jaw jewellery, earrings and necklace (nightborne). Ears, eyebrows, eye style, face tattoos and jewellery stay at their first choice.
-- **Voices and names**: today's.
+- **Voices and names**: today's, with the two moments 3.3.5 says twice (can't drink any more, invalid target). Until this version the Skyborne's patch, read after theirs, put its own voice rows over the void elves' first eight ("inventory full" among them).
 - **Racials**: Spatial Rift (a rift up to 15 yards ahead; use it again within 6 sec to teleport through it; 3 min cooldown), Entropic Embrace (a chance to empower you: +5% damage and healing for 12 sec), Chill of Night, Preternatural Calm and Cantrips (a mailbox for 10 min) for the void elves; Arcane Pulse (Arcane damage around you and a 50% slow, 3 min cooldown), Arcane Resistance, Magical Affinity and Ancient History (Inscription +15) for the nightborne; Light's Judgment (a strike of Holy damage on your target after 3 sec, 3 min cooldown), Forge of Light (Blacksmithing +10), Light's Reckoning (a burst of Holy damage and healing when you die), Holy Resistance and Demonbane (+20% experience from demons) for the Lightforged Draenei; Regeneratin' (heals over 6 sec, until you take damage; 2.5 min cooldown), Embrace of Pa'ku (a chance for +4% critical strike), Pterrordax Swoop (slows your fall for 2 min) and City of Gold (+2% money looted) for the Zandalari. Ethereal Connection (transmogrification) has nothing to act on here.
 - **Quests**: the start race's own start quests are cloned for the new race, their givers taking in who the player is before sending them down the same road (a void elf or a Lightforged Draenei washed up with the Exodar's survivors, each greeted in its own way; a nightborne sent to learn the Forsaken's ways in Deathknell; a Zandalari troll welcomed by the tauren of Camp Narache); the quests that need one of those first (class training, Mulgore's follow-ups) are cloned with them; the originals are untouched, and every other quest of the start race is open to the new race.
-- **The intro** is the start race's flight over its land, with each race's own narration.
+- **The intro** is the start race's flight over its land, with each race's own narration (its sound now names that file alone).
 
 The game learns them from a patch the realm makes in your client's `Data` folder as it starts (`patch-V.MPQ`, from the module's tables and the races' models, textures and voices the server package brings: about 230 MB, made again only when the client or the package changes). It is read after an HD look's patches and before Wrath Remix's and the Skyborne's, which carry its rows on (it is made first, as the realm reads its settings; version 1.0.148 made it last, and the game didn't know the races until the realm's next start). A `patch-V.MPQ` of your own is left alone, and the game then won't know them. Not yet seen in the game: nothing here runs the 3.3.5 client.
 
