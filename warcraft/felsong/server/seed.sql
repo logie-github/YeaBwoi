@@ -8,6 +8,8 @@ GRANT ALL PRIVILEGES ON `auth`.* TO 'felsong'@'127.0.0.1', 'felsong'@'localhost'
 GRANT ALL PRIVILEGES ON `characters`.* TO 'felsong'@'127.0.0.1', 'felsong'@'localhost';
 GRANT ALL PRIVILEGES ON `world`.* TO 'felsong'@'127.0.0.1', 'felsong'@'localhost';
 GRANT ALL PRIVILEGES ON `hotfixes`.* TO 'felsong'@'127.0.0.1', 'felsong'@'localhost';
+-- (the realm's Stop shuts its MariaDB down cleanly: ctl.sh db-stop)
+GRANT SHUTDOWN ON *.* TO 'felsong'@'127.0.0.1', 'felsong'@'localhost';
 FLUSH PRIVILEGES;
 
 -- The realm: Felsong, on this phone, on its own world and instance ports (ctl.sh's WORLD_PORT,
