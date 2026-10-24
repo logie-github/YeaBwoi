@@ -22,6 +22,8 @@ object FelsongClientSetup {
         put("readTerminationWithoutNotice", "1")
         put("readContest", "1")
         put("movie", "0")
+        // (Legion's intro: the client plays it while this is at most the expansion shown, 6)
+        put("playIntroMovie", "7")
         put("checkAddonVersion", "0")
         put("gxWindow", "1")
         put("gxMaximize", "1")

@@ -28,6 +28,12 @@ class WindowsRealmShutdownTest {
             assertTrue(result.error.orEmpty().contains("clean save has not been verified"))
             File(runtime, "world.exit").writeText("0\r\n")
             assertNull(TwwServer.shutdownResult(context).error)
+            // Stop ends the world and authentication servers with taskkill /F: their code is 1.
+            File(runtime, "world.exit").writeText("1\r\n")
+            File(runtime, "authentication.exit").writeText("1\r\n")
+            assertNull(TwwServer.shutdownResult(context).error)
+            File(runtime, "database.exit").writeText("1\r\n")
+            assertTrue(TwwServer.shutdownResult(context).error.orEmpty().contains("database exited with code 1"))
         } finally { runtime.deleteRecursively() }
     }
 }

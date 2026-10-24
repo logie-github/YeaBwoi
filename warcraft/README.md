@@ -57,6 +57,22 @@ on this device. **Realm & Graphics** controls Solocraft and experience rates whi
 the graphics driver the game uses: **Vortek** (the phone's own driver, as the other games use) or,
 on an Adreno GPU, **Turnip** (Mesa's); try the other one if the game shows nothing or stops.
 
+**Playing, leaving, coming back.** **Launch Game** starts the game in the realm's Windows session;
+while it runs the button says **Return to Game** and brings you back to it (the game isn't started
+twice). **Leave the game** in the game's menu (four fingers) closes the game and brings the
+launcher back; the realm keeps running, so **Launch Game** is quick the next time. **Stop Server**
+stops the world and authentication servers (the world server saves characters when they log out
+and every few minutes, so log out first) and then shuts the database down cleanly. A server that
+crashes is reported at once (its crash report under `Server/bin64/Crashes`), not after the
+start's hour. Dark mode, power saving or a font change while you play no longer end the session.
+The game logs in by itself once its login screen is up (it loads its data first, minutes under
+Box64), or asks for the password then. Its first start uses Legion's lowest graphics preset, no
+anti-aliasing and 30 frames a second (5 behind other apps); what you choose in its options
+stays. The intro movie is skipped. The game trusts the realm's Battle.net server with the
+certificate bundle the app puts in its Windows (it doesn't download it). The realm's second
+world port is 8096 (the repack's 8086 is Wrath Remix's). Once **Download & Install** has
+installed and checked everything, its downloads (about 47 GB) are removed.
+
 **Every race and class from the start.** The allied races (Nightborne, Highmountain Tauren, Void
 Elf, Lightforged Draenei) and Demon Hunters can be created on any account, without Battle for
 Azeroth or a level-70 character first, and up to 16 Demon Hunters. Allied races start at level 20
