@@ -39,7 +39,9 @@ internal class TwwRangeDownload(
         val size get() = end - start + 1
     }
 
-    fun cancel() { aborted.set(true); live.toList().forEach { it.disconnect() } }
+    // A connection still being set up can make disconnect() throw (the JDK's HttpURLConnection, with no
+    // client yet); the others are still closed, and the aborted flag stops that one when it's up.
+    fun cancel() { aborted.set(true); live.toList().forEach { runCatching { it.disconnect() } } }
 
     fun run(check: () -> Unit, progress: (TwwDownload.Progress) -> Unit) {
         require(connections in 2..4 && total > 0 && chunkBytes > 0)
