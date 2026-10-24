@@ -133,7 +133,49 @@ class TouchAddonTest {
         picked = {}
         function HasAction(slot) return actions[slot] == true end
         function PickupAction(slot) table.insert(picked, slot) end
-        function ClearCursor() table.insert(picked, "clear") end
+        function ClearCursor() table.insert(picked, "clear"); cursor = nil end
+        -- Bags and the cursor: an item picked up stays in its place (locked) while the cursor
+        -- holds it; the game's question before destroying it, which closes when the cursor holds
+        -- no item.
+        function hooksecurefunc(name, hook)
+            local original = _G[name]
+            _G[name] = function(...)
+                local results = { original(...) }
+                hook(...)
+                return (table.unpack or unpack)(results)
+            end
+        end
+        bags = { [0] = { [1] = "|Hitem:2589|h[Linen Cloth]|h", [2] = "|Hitem:6948|h[Hearthstone]|h" } }
+        equipped = { [5] = "|Hitem:49|h[Footpad's Vest]|h" }
+        cursor = nil
+        destroyed = {}
+        function GetContainerItemLink(bag, slot) return bags[bag] and bags[bag][slot] end
+        function GetInventoryItemLink(unit, slot) return equipped[slot] end
+        function PickupContainerItem(bag, slot) cursor = { bag = bag, slot = slot, link = bags[bag][slot] } end
+        function PickupInventoryItem(slot) cursor = { slot = slot, link = equipped[slot] } end
+        function CursorHasItem() return cursor ~= nil end
+        function GetCursorInfo() if cursor then return "item", 0, cursor.link end end
+        function DeleteCursorItem()
+            if not cursor then return end
+            table.insert(destroyed, cursor.link)
+            if cursor.bag then bags[cursor.bag][cursor.slot] = nil else equipped[cursor.slot] = nil end
+            cursor = nil
+        end
+        hidden = {}
+        function StaticPopup_Hide(which) table.insert(hidden, which) end
+        StaticPopupDialogs = {
+            DELETE_ITEM = {
+                OnAccept = function(self) DeleteCursorItem() end,
+                OnCancel = function(self) ClearCursor() end,
+                OnUpdate = function(self) if not CursorHasItem() then StaticPopup_Hide("DELETE_ITEM") end end,
+            },
+            DELETE_GOOD_ITEM = {
+                OnAccept = function(self) DeleteCursorItem() end,
+                OnCancel = function(self) ClearCursor() end,
+                OnUpdate = function(self) if not CursorHasItem() then StaticPopup_Hide("DELETE_GOOD_ITEM") end end,
+                EditBoxOnEnterPressed = function(self) DeleteCursorItem() end,
+            },
+        }
     """.trimIndent()
 
     private val lua = JsePlatform.standardGlobals().apply {
@@ -388,6 +430,39 @@ class TouchAddonTest {
         empty.get("hooks").get("PostClick").call(empty, LuaValue.valueOf("RightButton"))
         val picked = lua.get("picked") as LuaTable
         assertEquals(listOf("1", "clear"), (1..picked.length()).map { picked.get(it).tojstring() })
+    }
+
+    @Test
+    fun theQuestionBeforeDestroyingAnItemStaysUntilItsAnswered() {
+        fun destroyed(): List<String> = (lua.get("destroyed") as LuaTable).let { t -> (1..t.length()).map { t.get(it).tojstring() } }
+        val popups = lua.get("StaticPopupDialogs")
+        fun popup(which: String) = popups.get(which)
+        // A tap picks the cloth up and puts it down in the world: the question; the app's right
+        // click after it lets go of the cloth, which no longer closes the question.
+        lua.load("PickupContainerItem(0, 1)").call()
+        event("DELETE_ITEM_CONFIRM", "Linen Cloth")
+        lua.load("ClearCursor()").call()
+        popup("DELETE_ITEM").get("OnUpdate").let { if (!it.isnil()) it.call(popup("DELETE_ITEM")) }
+        assertEquals(0, (lua.get("hidden") as LuaTable).length())
+        // Yes: picked up again and destroyed.
+        popup("DELETE_ITEM").get("OnAccept").call(popup("DELETE_ITEM"))
+        assertEquals(listOf("|Hitem:2589|h[Linen Cloth]|h"), destroyed())
+        assertTrue(lua.get("bags").get(0).get(1).isnil())
+
+        // An equipped item, the question that asks for DELETE typed, answered with Enter.
+        lua.load("PickupInventoryItem(5)").call()
+        event("DELETE_ITEM_CONFIRM", "Footpad's Vest")
+        lua.load("ClearCursor()").call()
+        popup("DELETE_GOOD_ITEM").get("EditBoxOnEnterPressed").call(popup("DELETE_GOOD_ITEM"))
+        assertEquals("|Hitem:49|h[Footpad's Vest]|h", destroyed().last())
+
+        // Another item on the cursor by the time of Yes: it stays.
+        lua.load("PickupContainerItem(0, 2)").call()
+        event("DELETE_ITEM_CONFIRM", "Hearthstone")
+        lua.load("ClearCursor(); cursor = { link = 'other' }").call()
+        popup("DELETE_ITEM").get("OnAccept").call(popup("DELETE_ITEM"))
+        assertEquals(2, destroyed().size)
+        assertEquals("|Hitem:6948|h[Hearthstone]|h", lua.get("bags").get(0).get(2).tojstring())
     }
 
     @Test

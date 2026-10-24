@@ -195,6 +195,7 @@ Nothing is drawn over the game, not even the mouse pointer: the screen itself is
 | **On a talent: tap, then double tap** | A tap shows what the talent does (its tooltip) and spends nothing; a double tap on it spends the point. |
 | **Hold** one finger still | On an item, a talent or an ability (in your bags, the bank, the character pane, the talents, the spellbook or the action bars): a right click there, as on a PC (use or equip an item, sell it to a merchant you have open). On an action bar's button it takes the ability or item off the bar. Anywhere else: bags (B). While a cutscene plays (a new character's intro, a quest's cinematic or movie) it skips it instead (Escape). |
 | **Tap, then tap and hold** | Map (M) |
+| **Destroying an item** | Tap it in your bags or the character pane, then tap outside the windows: the game asks whether to destroy it, and the question stays until you answer **Yes** or **No** (for an item that asks for DELETE typed, three fingers bring up the keyboard). The tap's right click lets go of the item on the cursor, so the app's add-on picks it up again when you say Yes, only if it's still in its place. |
 | **Pinch** with two fingers | Zoom the camera: spread to zoom in, close to zoom out. Put both fingers down together (within about a third of a second) and move them apart or together. |
 | **Two-finger tap** | Target the nearest enemy (the game's Tab; again for the next one) |
 | **Two fingers swiped up** | Chat: opens it, with the keyboard |

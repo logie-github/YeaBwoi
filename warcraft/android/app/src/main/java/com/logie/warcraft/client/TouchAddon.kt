@@ -202,6 +202,66 @@ object TouchAddon {
                 barsReady = true
             end
 
+            -- Destroying an item: the game's question ("Do you want to destroy ...?") stays up until
+            -- it's answered. A tap that puts an item down outside the windows is a left click, which
+            -- asks the question; the item's picture is still the cursor after it, so the app clicks
+            -- the right button too, which lets go of the item, and the game closes its question as
+            -- soon as the cursor holds no item. So where an item is picked up from is kept, the
+            -- question no longer closes by itself, and its Yes picks the item up again first when it
+            -- was let go of (only that item, still in its place; another one on the cursor stays).
+            local DELETE_POPUPS = { "DELETE_ITEM", "DELETE_GOOD_ITEM", "DELETE_QUEST_ITEM", "DELETE_GOOD_QUEST_ITEM" }
+            local picked, asked
+
+            local function linkAt(place)
+                if place.bag then return GetContainerItemLink(place.bag, place.slot) end
+                return GetInventoryItemLink("player", place.slot)
+            end
+
+            hooksecurefunc("PickupContainerItem", function(bag, slot)
+                picked = { bag = bag, slot = slot }
+                picked.link = linkAt(picked)
+            end)
+            hooksecurefunc("PickupInventoryItem", function(slot)
+                picked = { slot = slot }
+                picked.link = linkAt(picked)
+            end)
+
+            -- Before the question's Yes: whether the item asked about is on the cursor (picked up
+            -- again if it was let go of).
+            local function holdAsked()
+                if not asked then return CursorHasItem() end
+                if CursorHasItem() then
+                    local _, _, link = GetCursorInfo()
+                    return link == asked.link
+                end
+                if linkAt(asked) ~= asked.link then return false end
+                if asked.bag then PickupContainerItem(asked.bag, asked.slot) else PickupInventoryItem(asked.slot) end
+                return CursorHasItem()
+            end
+
+            local function readyDeletes()
+                if not StaticPopupDialogs then return end
+                for _, which in ipairs(DELETE_POPUPS) do
+                    local dialog = StaticPopupDialogs[which]
+                    if dialog and not dialog.wowTouch then
+                        dialog.wowTouch = true
+                        dialog.OnUpdate = nil
+                        local accept, enter = dialog.OnAccept, dialog.EditBoxOnEnterPressed
+                        if accept then
+                            dialog.OnAccept = function(...)
+                                if holdAsked() then return accept(...) end
+                            end
+                        end
+                        if enter then
+                            dialog.EditBoxOnEnterPressed = function(...)
+                                if holdAsked() then return enter(...) end
+                            end
+                        end
+                    end
+                end
+            end
+            readyDeletes()
+
             -- A talent's first tap shows what it does (the pointer on it shows its tooltip) and
             -- spends nothing; a second tap on the same talent soon after spends the point, as the
             -- game's own click does. The talents' window is the game's own add-on, loaded when it's
@@ -509,7 +569,14 @@ object TouchAddon {
             watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
             watcher:RegisterEvent("ADDON_LOADED")
             watcher:RegisterEvent("CHAT_MSG_ADDON")
+            watcher:RegisterEvent("DELETE_ITEM_CONFIRM")
             watcher:SetScript("OnEvent", function(self, event, name, message, channel, sender)
+                if event == "DELETE_ITEM_CONFIRM" then
+                    -- (the item on the cursor, when the question comes up)
+                    asked = picked and CursorHasItem() and picked.link and select(3, GetCursorInfo()) == picked.link and picked or nil
+                    readyDeletes()
+                    return
+                end
                 if event == "CHAT_MSG_ADDON" then
                     -- (the realm's, to the player itself)
                     if name == "$REMIX_PREFIX" and sender == UnitName("player") then
