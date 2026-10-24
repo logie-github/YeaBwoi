@@ -180,10 +180,6 @@ int main(int argc, char** argv)
     Bytes toc;
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneCreate.lua") != std::string::npos,
           "the character screen loads theirs");
-    Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneGear.lua") != std::string::npos
-              && patch->Read("Interface\\GlueXML\\SkyborneGearData.lua", bytes) && bytes.size() > 1000
-              && patch->Read("Interface\\GlueXML\\SkyborneGear.xml", bytes) && patch->Read("Interface\\GlueXML\\SkyborneGear.lua", bytes),
-          "the character screen has the gear button");
     Check(patch->Read("Interface\\GlueXML\\GlueXML.toc", toc) && std::string(toc.begin(), toc.end()).find("SkyborneZoom.lua") != std::string::npos
               && patch->Read("Interface\\GlueXML\\SkyborneZoom.lua", bytes) && bytes.size() > 500,
           "the character screen zooms");

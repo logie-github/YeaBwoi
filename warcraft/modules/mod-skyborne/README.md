@@ -54,29 +54,6 @@ move to 22 and 23.
   fit its rectangle, so zooming makes that frame larger around where the character stands (the
   middle of the screen, a little above its middle), the panels kept over the whole screen
   (`CharacterCreateFrame` anchored to `GlueParent`). Showing the screen again starts zoomed out.
-- **Gear button** on the character creation screen (`SkyborneGear.xml/.lua`, data in
-  `SkyborneGearData.lua`): one button that cycles the preview between no gear (a leaf icon,
-  INV_Misc_Leaf_01), the starting gear of the race and class selected (CharStartOutfit; its icon is
-  the starting chest's, the shirt where a class starts without a chest piece) and champion gear (the
-  class's top raid set: the class's own set with the highest item level, Tier 10's heroic 25-player
-  pieces at 277, the damage dealers' set where a class has one for each role; its icon is the set's
-  chest piece). The preview is dressed through the screen's model (`Undress` and `TryOn`), found by
-  what it can do. 3.3.5's has none (its preview is a ModelFFX, dressed by the game from
-  CharStartOutfit), so on this game the button shows and cycles, its icon following the mode, but the
-  preview keeps the gear the game gives it, and the tooltip says so ("This game's preview can't be
-  dressed yet"). Dressing 3.3.5's preview needs a change to the game's executable (PLAN.md, on hold).
-  (The user's play of build 132 found it doing nothing, drawn in a square frame, its tooltip failing:
-  `SetOwner`, a method 3.3.5's tooltips here don't have. Its tooltip is now the creation screen's
-  own, `GlueTooltip_SetOwner` and `GlueTooltip_SetText`, and its icon has no frame; it was then
-  hidden in 3.3.5, until the user asked for it shown between the sex buttons.) The Skyborne take
-  their start race's outfit; a race with no start of its own for a class takes the first race's that
-  has one. The race and class are their file names' (`GetSelectedClass` gives the name, file and
-  position; the lists' third value is whether one can be picked, not an id). The button stands between the sex buttons: where the middle of the two was (3.3.5's: the
-  configuration panel's top, 392 down), the
-  male button moved to its left and the female to its
-  right, 12 apart (their centres 50 either side of the middle). It takes the sex buttons' parent and
-  is drawn over them, and has the leaf for its icon until its data gives one (a button with no
-  texture isn't seen). Not yet seen in the game.
 - **HD looks**: the HD blood elf takes its ears, jaw and eyeballs from a second skin texture
   (`...Skin00_NN_Extra.blp`, the skin row's second texture in CharSections). The patch makes each
   new skin's own and names it in its row, and gives the Skyborne's blood elf skins the blood elf's.
@@ -96,22 +73,22 @@ move to 22 and 23.
   race) and `data/client` (`dbc/*.txt`: the rows to change in the game's tables; `textures.txt`:
   which textures to make from which, and how). Its output is committed; run it again after changing
   it.
-- `tools/build_gear.py` reads the same tables and writes the gear button's data
-  (`data/client/Interface/GlueXML/SkyborneGearData.lua`: starting outfits, champion sets, icons).
-  Its output is committed; run it again after changing it (`CHAMPION_SETS` in it picks a different
-  set for a class).
 - As the world server starts, before it says it's ready (`src/Skyborne.cpp`: the app starts the
   game on that line, and the patch is made again when the realm changes), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
-  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's, and the narration. It's
-  Every skin colour below a race and sex's highest has a row (`FillSkinHoles`: the creation screen
-  reads a colour's row by its number as the race changes, and some colours have none, such as the
-  Skyborne's between the blood elf's skins and their blues): an NPC's skin, as the game's own colours
-  between are. It's
+  size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua` and
+  `SkyborneZoom.lua`, and the narration. Every skin colour below a race and sex's highest has a row
+  (`FillSkinHoles`: the creation screen reads a colour's row by its number as the race changes, and
+  some colours have none, such as the Skyborne's between the blood elf's skins and their blues): an
+  NPC's skin, as the game's own colours between are. The patch is
   made again only when the client's archives or the module's files change (the stamp in
   `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.
+- `data/sql/db-world/skyborne_cleanup.sql` and `data/sql/db-characters/skyborne_cleanup.sql` take
+  out of a realm's databases the ids an earlier build of the module used and this one doesn't (item
+  and spell 98708; CharSections rows 970000 to 999999), and give a character made with one of those
+  rows' skin colours the skin colour it was made from.
 - The game starts with the app's patched executable while the patch is in (the character screen's
   files load only there).
 
@@ -123,11 +100,6 @@ move to 22 and 23.
 - `tools/test_zoom.py`: `SkyborneZoom.lua` in Lua 5.1 against stand-ins for the screen (the wheel
   growing the preview's frame around the character and back, its limits, the panels staying put,
   a fresh start when the screen is shown).
-- `tools/test_gear.py`: `SkyborneGear.lua` and its data in Lua 5.1 against stand-ins for the screen
-  (cycling, the icons, the items on the model, dressing again after a race or class is picked, the
-  screen's own tooltip functions with tooltips that have no methods, as 3.3.5's, its place between
-  the sex buttons and theirs, and, where the model can't be dressed, the button still shown and
-  cycling with a tooltip that says so).
 - `tools/test_screen.py`: `SkyborneCreate.lua` in Lua 5.1 against stand-ins for the game's screen,
   with the game's ten race buttons and with mod-worgoblin's twelve, and with no sides from the game
   (the races' own then): each side two to a row.

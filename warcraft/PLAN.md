@@ -1262,7 +1262,7 @@ for the game on the phone itself ("that's the whole point").
 - Then: "whatever is left in this wrath remix, finish it. And then polish ... First and foremost
   change how the initial new player happens. Because you spawn in and the world loads around you
   but it's very choppy and laggy. Don't stop until it's done make a list of things you aren't sure
-  about and we'll do them later." (The gear button is another session's.)
+  about and we'll do them later."
   - The opening opens from the dark. Found: the choppiness is the game loading Stormwind or
     Orgrimmar (and each act's place after) the moment its loading screen ends, while the tavern
     scene already ran; nothing server-side makes a phone draw a city faster. Done: the app's add-on
@@ -1315,55 +1315,21 @@ for the game on the phone itself ("that's the whole point").
        Out of Time) and takes them home in Back to Your Own Time, the game's own Chromie keeping
        hers. To ask: whether the hooded "Cloaked Ranger" versions away from the Bazaar keep their
        hoods (the story's disguise) or take the new looks too.
-  1. Character creation (on hold, the user's choice). The gear button another session added (PR
-     #17) showed in the user's game (build 132) as a square frame round an icon, doing nothing, and
-     its tooltip failed ("SkyborneGear.lua:352: attempt to call method 'SetOwner' (a nil value)",
-     with any race). Found: 3.3.5's tooltips on that screen are set by GlueXML's functions
-     (`GlueTooltip_SetOwner(owner, tooltip, x, y)`, `GlueTooltip_SetText(text, tooltip)`), not
-     methods; its preview is a ModelFFX with no `Undress` or `TryOn`, so no interface code can dress
-     it. Fixed: the creation screen's tooltip through those functions, no frame round the icon,
-     and the button hidden where the preview can't be dressed, which is everywhere in 3.3.5 (it
-     shows only if a change to the executable ever makes it dressable). Later the user: "Also the button
-     with no gear, gear, and champion gear is it showing ANYWHERE. but it between the sex buttons."
-     Done: shown always, between the sex buttons (moved apart for it);
-     in 3.3.5 it cycles its choice and icon and its tooltip says the preview can't be dressed yet
-     (the executable route below is still what would dress it). Checked here: test_gear.py (54
-     checks). Not checked: the game. Then: "The god damn gear button isn't showing and the race portrait are
-     still 1 column. It's supposed to be 2 columns and the gear button is the most important thing."
-     Checked: release 182's APK carries the new SkyborneGear.lua in its server package; the realm
-     remakes patch-Z.MPQ as it starts when the module's files change, before the game starts. Done:
-     each side's races in two columns, two to a row (both SkyborneCreate.lua and
-     AlliedRacesCreate.lua, the side from the race where the game gives none); the gear button takes
-     the sex buttons' parent, is drawn over them and always has an icon. Checked here: the patch made
-     for a stand-in client with a GlueXML.toc, its creation screen files read back out of it and run
-     in its order in one Lua 5.1 runtime (all load; the button shown with its icon between the sex
-     buttons; each side two to a row); test_gear.py, both test_screen.py. Not checked: the game. Then the user's
-     screenshots (build 182): the button shown, its tooltip saying the preview can't be dressed ("it
-     gives a message saying it doesn't work"); "The size of these models is off" (the nightborne
-     filled the screen, heads cut off). Found and fixed: 3.3.5's race and class lists give each one's
-     name, file and whether it can be picked (1), never an id, and GetSelectedClass gives the name,
-     file and position: the gear button took the 1 for Human and the position for the class; it
-     now goes by the file name. The
-     nightborne take the Night Elves' scene (each race's scene has a camera framed for that race's
-     height: the Forsaken's, for the stooped undead, cut off the night-elf-sized nightborne; their
-     meshes measure as the night elves', 2.55 and 2.36). Still open: dressing the preview needs code
-     in the game itself (a DLL, the community's 3.3.5a extension route: WotLK-Extensions has the
-     glue Lua hook and CharStartOutfit's table at 0xAD3350); not started, the user to decide. Earlier checks: test_gear.py
-     (53 checks, tooltips modelled on 3.3.5's). Not checked: the game. Then: "Also on this menu make it
+  1. Character creation. The gear button (no gear, starting gear and champion gear on the
+     creation screen's preview, PR #17 and after) is taken out, at the user's word: 3.3.5's preview
+     is a ModelFFX that no interface code can dress (it has no `Undress` or `TryOn`), so the button
+     only ever cycled its icon there, and dressing it would have taken a change to the game's
+     executable, which isn't followed. Kept from that work: each side's races in two columns, two
+     to a row (`SkyborneCreate.lua` and `AlliedRacesCreate.lua`, the side from the race where the
+     game gives none); the nightborne in the Night Elves' scene (each race's scene has a camera
+     framed for that race's height: the Forsaken's, for the stooped undead, cut off the
+     night-elf-sized nightborne; their meshes measure as the night elves', 2.55 and 2.36).
+     Then: "Also on this menu make it
      so I can pinch to zoom in or out." Done: the pinch is already the mouse wheel; the Skyborne's
      patch now makes the wheel zoom the creation screen's preview (`SkyborneZoom.lua`: its model
      frame grown around the character, up to 2.5 times, back to the whole screen; the panels kept
      where they are). Checked here: test_zoom.py (10 checks). Not checked: the game (that the
-     ModelFFX draws its scene to its larger rectangle, as model frames do). What follows is the
-     executable route, still on hold: a button, bottom-aligned with the character
-     options, that cycles the preview between no gear, starter gear and the class's Icecrown tier
-     set (Tier 10, the user's choice), never a helmet, live on the creation screen, no restart, no
-     crash risk (the user). Found: 3.3.5's creation screen dresses its model from CharStartOutfit,
-     read once as the game starts, and its Lua has no function to dress it again; the data ways
-     (classes or races standing in for outfits) break class selection or are known to crash the
-     client. The live way is a change to the game's executable (a function the button calls),
-     which needs the user's Wow.exe (12340) to find the code, and can only be tested on the phone;
-     checked byte by byte before it's applied, as the 4 GB patch is, with an Off switch.
+     ModelFFX draws its scene to its larger rectangle, as model frames do).
 - Open offers (not started): (1) when a realm with modules fails its test, test again without each
   picked module in turn, to name the one that crashed and still build with the rest; (2) the
   user's own modules and quests in this repository, offered in the Modules screen.
