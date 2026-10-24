@@ -161,3 +161,18 @@ Windows' `TEMP`, and Windows programs inherit Winlator's Unix `TMPDIR` as is: Wi
 clears `TMPDIR` first (`TwwSession.script`); with that, the database was ready on 3312 under Box64
 in 16 seconds (qemu's emulation included).
 
+
+### The world server stopped itself after loading: its console
+
+With the database and bnetserver up (3312, 1119 and 8081), worldserver loaded the world ("World
+initialized in 9 minutes 34 seconds" under Box64 and qemu, 2 minutes 30 seconds under x86-64 Wine)
+and opened its REST port (8082), but never its game ports (8085, 8086), and never exited: the same
+under Wine on x86-64 and under Box64. `Server.log` ended "Now you ready to play. Halting process...":
+with `Console.Enable = 1`, TrinityCore's console thread reads the process's input, which in the
+Windows session is no console (Wine's Unix input, at its end), so it stops the world as soon as it
+starts. On the way out a static destructor in `common.dll` dereferences null, and the crash
+reporter (dbghelp) hangs writing its report (`bin64\Crashes\*.txt`, left empty), so the process
+stays without its ports (a `+seh` trace and winedbg's backtraces showed it). With
+`Console.Enable = 0` the world server opened 8085 after 156 seconds under x86-64 Wine and kept it
+open. The app sets it at every start (`WindowsRealmServer.headlessWorld`) and when it configures
+the repack, for SPP and The War Within alike.
