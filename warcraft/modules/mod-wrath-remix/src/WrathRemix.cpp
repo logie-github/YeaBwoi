@@ -1876,6 +1876,9 @@ public:
     {
         Player* player = handler->GetSession()->GetPlayer();
         Creature* creature = player->FindNearestCreature(entry, 100.0f);
+        // None alive (all just slain, not yet back): the nearest one's corpse, whose conditions are the same.
+        if (!creature)
+            creature = player->FindNearestCreature(entry, 100.0f, false);
         if (!creature)
         {
             handler->PSendSysMessage("Wrath Remix sees: no creature {} within 100 yards.", entry);
