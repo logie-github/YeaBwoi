@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Blizzard's CDN serves its classic Warcraft III installers over plain HTTP (the address in its own
-     downloaders); everything else stays HTTPS only. -->
-<network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">rogue.blizzard.com.edgesuite.net</domain>
-    </domain-config>
-</network-security-config>

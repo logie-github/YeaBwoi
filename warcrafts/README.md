@@ -2,7 +2,7 @@
 
 Warcraft: Orcs & Humans and Warcraft II: Battle.net Edition (the GOG releases), played natively on
 an Android phone by the Stratagus engine, and Warcraft III (Reign of Chaos and The Frozen Throne,
-1.27) run by Wine and Box64 inside the app, all from your own files. It is a launcher like the
+1.30.4) run by Wine and Box64 inside the app, all from your own files. It is a launcher like the
 World of Warcraft app's: each game has its own look (its picture, logo, colours and weather),
 Press start goes straight into the game, and you play with touch gestures. Nothing connects to
 Blizzard.
@@ -27,7 +27,7 @@ saved games stay.
 | --- | --- | --- |
 | Warcraft: Orcs & Humans (GOG) | GOG's offline installer, as downloaded from the game's page in your GOG library (offline backup game installers): `setup_warcraft_….exe` and every `setup_warcraft_…-1.bin` (`-2.bin`…) that came with it. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` (the installer has them) |
 | Warcraft II: Battle.net Edition (GOG) | GOG's offline installer, as above: `setup_warcraft_ii_….exe` and its `.bin` files. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` (the installer has them) |
-| Warcraft III: Reign of Chaos and The Frozen Throne (one import serves both) | The installed Warcraft III 1.27 folder from a Windows PC (see below), or a zip of it | `Warcraft III.exe`, `War3.mpq`, `War3x.mpq`, `War3xLocal.mpq`, `War3Patch.mpq`. Optional: `Maps` (skirmish and custom maps; the campaigns don't need it) |
+| Warcraft III: Reign of Chaos and The Frozen Throne (one import serves both) | The Warcraft III 1.30 folder (the repack's folder as it unzips), or the zip itself (about 1.8 GB) | `Warcraft III.exe`; `Data\data`, `Data\indices`, `Data\config`; `.build.info`. Optional: `Maps` (skirmish and custom maps; the campaigns don't need it) and the CD keys (`_SERIAL_KEYS.txt`, or your own pasted in **Game files → CD keys**) |
 
 **GOG's installer** (Inno Setup) is unpacked on the phone by innoextract, built for Android into the
 app: **Pick GOG installer**, then in the picker touch and hold the setup `.exe` and tap each `.bin`
@@ -52,11 +52,9 @@ After a Warcraft III import, **Game files** shows the program that starts it (yo
 another) and what it's started with.
 
 **Fullscreen**: every game fills the screen. Warcraft I and II run Stratagus fullscreen (`-F`);
-Warcraft III fills the screen at its 4:3 resolution in windowed fullscreen (`-fullscreen`, the
-game's borderless mode, which asks Wine for no display mode of its own), drawing with OpenGL
-(`-opengl`, as the maintained Wine setups for 1.27 do). Arguments typed in Game files that set a
-window mode (`-window`, `-nativefullscr`) take its place. The runtime has no network at all while
-Private is on (no name server; only `localhost` resolves): to the game, a PC without internet.
+Warcraft III starts with `-windowmode fullscreen -nativefullscr` (1.31's and 1.30's words for it)
+at the screen's size. Arguments typed in Game files that set a window mode (`-window`,
+`-fullscreen` for windowed fullscreen, `-windowmode …`) take its place.
 
 ## First launch
 
@@ -74,20 +72,13 @@ skirmish of the original games; saves and preferences stay in the app.
 engine's output (`stderr.txt`, `stdout.txt` in its folder, with a crash's signal and stack) and
 Android's log for the game's process. **Copy** puts it on the clipboard to send.
 
-**Setting up Warcraft III (1.27), on the phone**: **Games → Warcraft III → Game files**:
-1. **Download from Blizzard**: the app fetches Blizzard's own classic installers (what Blizzard's
-   legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP` fetch: the address
-   and access token inside them, piece by piece from Blizzard's CDN), about 1.4 GB, each piece
-   checked against Blizzard's checksum before it's kept. A stopped download goes on where it
-   stopped.
-2. **Install Reign of Chaos**: Blizzard's installer opens inside the app. Taps are plain clicks
-   there; three fingers open the keyboard for your CD key.
-3. **Install The Frozen Throne** the same way, with its key.
-4. Back in the launcher, the installed game moves into the app and the installers are deleted.
-A Warcraft III 1.27 folder installed on a PC works too (**Pick folder** or **Pick zip**).
-
-**Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of
-Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
+**Warcraft III's first start**: the 1.30 repack opens a black window for up to a minute, then asks
+how to install: choose the classic installer that asks for CD keys. Four fingers open the app's
+menu: the CD keys are listed there (those pasted in **Game files → CD keys**, one per line, and
+those in a key file that came with the game, like the repack's `_SERIAL_KEYS.txt`), and a tap types
+one into the game's key box (tap the box first). Pasted keys stay when the game is imported again. **Reign of Chaos or The Frozen Throne**: the game's own main
+menu switches between them (since patch 1.28.3) and remembers; the launcher's two looks are the
+same game files.
 
 ## Controls
 
