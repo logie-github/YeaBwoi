@@ -15,7 +15,7 @@ import java.io.File
 object FelsongClientSetup {
     const val PORTAL = "127.0.0.1"
 
-    fun values(width: Int, height: Int, accountName: String?): Map<String, String> = buildMap {
+    fun values(width: Int, height: Int, accountName: String?, api: String = "D3D9"): Map<String, String> = buildMap {
         put("portal", PORTAL)
         // (its language, always: with none, and no launcher's LOCALE, the client asks with a dialog,
         // and its OK sets the portal to the region's code, "US", in place of the realm's address; the
@@ -34,7 +34,10 @@ object FelsongClientSetup {
         put("gxMaximize", "1")
         put("gxWindowedResolution", "${width}x$height")
         put("gxFullscreenResolution", "${width}x$height")
-        put("gxApi", "D3D11")
+        // (the graphics API: the client keeps its gxApi only with videoOptionsVersion 15, else resets
+        // it to auto at every start; the launch gives it on the command line too: SppGraphics)
+        put("gxApi", api)
+        put("videoOptionsVersion", "15")
         // The game's cursor shown by the system: taps read it to tell what a click would do.
         put("gxCursor", "1")
         put("hwDetect", "0")
@@ -42,11 +45,11 @@ object FelsongClientSetup {
     }
 
     /** Writes the settings into [client]'s WTF/Config.wtf. */
-    fun apply(client: File, width: Int, height: Int, accountName: String?) {
+    fun apply(client: File, width: Int, height: Int, accountName: String?, api: String = "D3D9") {
         val config = File(client, "WTF/Config.wtf")
         config.parentFile?.mkdirs()
         val text = if (config.isFile) config.readText() else ""
-        config.writeText(ClientConfig.updateConfig(text, values(width, height, accountName)))
+        config.writeText(ClientConfig.updateConfig(text, values(width, height, accountName, api)))
     }
 
     /**

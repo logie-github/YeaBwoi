@@ -13,7 +13,7 @@ FLUSH PRIVILEGES;
 -- The realm: Felsong, on this phone, on its own world and instance ports (ctl.sh's WORLD_PORT,
 -- INSTANCE_PORT), for the 7.3.5 (26972) client.
 UPDATE `auth`.`realmlist`
-SET `name` = 'Felsong', `address` = '127.0.0.1', `localAddress` = '127.0.0.1',
+SET `name` = 'Legion', `address` = '127.0.0.1', `localAddress` = '127.0.0.1',
     `port` = 8095, `gamePort` = 8096, `gamebuild` = 26972, `flag` = 0
 WHERE `id` = 1;
 

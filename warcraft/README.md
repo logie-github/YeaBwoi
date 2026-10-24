@@ -22,105 +22,54 @@ It's being built in stages (see [`PLAN.md`](PLAN.md)). **Stage 1, done:** the la
 
 ## First launch
 
-### Legion — 7.3.5 (Single Player Project)
+### Legion — 7.3.5 (LegionCore)
 
-The Legion header follows Wrath's layout: a tall illustration, a large centered title over
-the lower fade, and the realm controls underneath. Scroll down to installation and settings
-on shorter screens. The background fades to dark green while the controls retain fel accents.
+**Games → Legion 7.3.5** is World of Warcraft: Legion 7.3.5 (build 26972) against a LegionCore
+realm on the phone (The Legion Preservation Project's core), set up and run the way the 3.3.5a
+game's ChromieCraft realm is: the realm's programs are native Android (arm64) programs with their
+own MariaDB, and the game is your client on the app's Windows runtime, in a Windows of its own
+(the container "Felsong"). The code and folders keep the name Felsong (`files/felsong`), from when
+this game was planned as Felsong's realm. The Single Player Project setup is no longer in the
+picker; its files (`files/spp-legion`) stay until Legion takes them (below).
 
-Setup checks that the server download is accessible before starting a missing client download.
-If Google Drive reports a download quota, the repack is temporarily unavailable at its host.
-Repeated retries cannot lift that restriction. Completed client files and partial downloads are
-kept; **Resume / Retry** continues the missing steps when access returns. A fully downloaded,
-validated server archive can be reused even while its host is unavailable. No mirror of a
-different repack is silently substituted.
+**Press start** does the next thing missing, one at a time: it downloads and installs the realm
+(LegionCore's programs, its database with the world and hotfixes, about 110 MB to download and
+1.5 GB on the phone, checked against its SHA-256), then takes what the Single Player Project
+download left on the phone, if it's there, then starts the realm and the game. The numbered steps
+(**Steps**) show the same, from nothing to Play.
 
-The former Felsong section is now **Games → Legion — 7.3.5**, using the original SPP
-AshamaneCore release for client build 26972. Its Illidan header, fel theme, music switch and
-realm tiles follow the existing app. Old Felsong files stay untouched; SPP has its own storage,
-database, accounts and Windows container. See [`SPP.md`](SPP.md) for the inspected release.
+**The Legion files already on the phone.** If the Single Player Project download is on the phone
+(its client and its server data, about 48 GB), **Use them** (or Press start) moves them into
+Legion's folder: one rename each on the same storage, nothing downloaded or copied again (from SPP's
+other storage they're copied, and SPP's copy stays). SPP's patched program becomes the client's
+patched program (it carries the TrinityCore Battle.net key LegionCore's login server has too), and
+the certificate bundle it trusts is the app's. SPP's server data (dbc, maps, vmaps, mmaps,
+cameras, gt) was made by AshamaneCore's extractors in the formats LegionCore reads (maps v1.9 with
+the same header, VMAP_4.8, mmaps version 9; checked file by file against LegionCore's source, not
+yet by a world server on a phone). What Legion has already stays. After this SPP no longer has
+them.
 
-Tap **Download & Install**. Setup downloads the 42.3 GB full client and 5.4 GB repack,
-extracts the server, initialized database and maps, and configures localhost automatically.
-Allow about 120 GB free during installation, including temporary archives and extraction.
-The Legion client uses up to four validated connections to improve throughput where the host
-and connection allow it. Pause/Resume keeps the existing download, including downloads started
-before the speed update. The progress display shows connection count, actual speed and ETA.
-It falls back to a single connection if the host rejects parallel ranges; connection or host
-bandwidth can still limit speed.
-SPP's supplied local-play executable is installed beside the original client executable; text
-configuration and any existing local-play executable are backed up before changes.
+**Without them:** **Game files → Your client** copies your own 7.3.5 client in (a folder or a zip),
+the server's data is made from it on the phone (minutes for the maps and DB2 tables, more for the
+vmaps, hours for pathfinding if chosen), or imported as a zip made on a PC, and LegionCore's
+connection patcher makes `Wow-64_Patched.exe` for the realm.
 
-**Press Start** starts the database, authentication and world processes. **Accounts** creates
-or selects a linked Battle.net/game account, changes its password and optionally remembers it
-on this device. **Realm & Graphics** controls Solocraft and experience rates while stopped, and
-the graphics driver the game uses: **Vortek** (the phone's own driver, as the other games use) or,
-on an Adreno GPU, **Turnip** (Mesa's); try the other one if the game shows nothing or stops. Its
-**Graphics API** is the client's renderer: **Direct3D 9** (the default, as the phone's 3.3.5a game
-draws), **Direct3D 11** or **OpenGL**; a launch whose graphics fail to start (the client's own
-`Logs/gx.log` says so) moves on to the next by itself, said on the launcher. Both apply at the next
-**Launch Game**. The client's language is English (US), the language of its data.
+**The game** starts with the Box64 build that gets Legion's client through its start-up protection
+(0.4.4-legion: Box64's fix for the flags of single-stepped instructions, box64 #3061; the stock
+Box64 gives "Game Initialization Failed!"). Its graphics API is **Direct3D 9** first (the phone's
+3.3.5a game draws through DXVK's Direct3D 9), on its command line and in Config.wtf (kept with
+`videoOptionsVersion` 15); when a launch's own `Logs/gx.log` says its graphics didn't start, the
+next launch uses Direct3D 11, then OpenGL. The client's language is English (US), its portal this
+phone. The realm's ports are its own (database 3312, Battle.net 1119, its REST login 8081, world
+8095 and 8096): it runs beside the other games' realms.
 
-**Apart from the other games.** A local realm (Legion, The War Within) runs on its own: the 3.3.5a
-game, Turtle WoW and their realms start and stop whether it runs or not, and it starts whatever they
-do (only one Windows game screen is open at a time). Both realms together use a lot of a phone's
-memory. **Before a start** the app warns when Android restricts the app's battery use: then Android ends the realm as soon as you leave
-the app (Settings → Apps → World of Warcraft → Battery: **Unrestricted**; on Samsung, keep it out of
-the sleeping apps). If Android does end the app while the realm runs (for memory, say), the next
-start reports why, from Android's own record.
+**Apart from the other games.** Only one Windows game screen is open at a time; otherwise nothing
+of Legion touches the other games' files, realms or accounts, and theirs don't touch Legion's.
 
-**Playing, leaving, coming back.** The realm runs on its own, with no screen: its servers are
-Windows programs the app runs itself, in the background, with a notification (**Local realm
-running**, with **Stop Server**) for as long as it runs. Nothing that happens to a screen stops
-it: the app in the background, the screen off, swiping the game away in Recents, Android closing
-the game. **Launch Game** opens the game, which joins the running realm, in a screen of its own
-(its own card in Recents while it runs); while it runs the button says **Return to Game** and
-brings you back to it (the game isn't started twice). **Leave the game** in the game's menu (four
-fingers) closes the game and brings the launcher back; so does the game exiting (with its code said
-on the launcher if it isn't 0). Swiping the game's card away closes the game too, leaving you where
-Android puts you. The realm keeps running either way, so **Launch Game** is quick the next time.
-**Stop Server**
-stops the world and authentication servers (the world server saves characters when they log out
-and every few minutes, so log out first) and then shuts the database down cleanly. A server that
-crashes is reported at once (its crash report under `Server/bin64/Crashes`), not after the
-start's hour. Dark mode, power saving or a font change while you play don't end the game. Android
-opens no screen for an app in the background, so a game the realm was to open while the app was
-behind (Press start, then another app) opens when you come back to the app; one that doesn't open
-within a minute with the app on screen is said on the launcher, the realm carrying on.
-The game logs in by itself once its login screen is up (it loads its data first, minutes under
-Box64), or asks for the password then. Its first start uses Legion's lowest graphics preset, no
-anti-aliasing and 30 frames a second (5 behind other apps); what you choose in its options
-stays. The intro movie is skipped. The game trusts the realm's Battle.net server with the
-certificate bundle the app puts in its Windows (it doesn't download it). The realm's second
-world port is 8096 (the repack's 8086 is Wrath Remix's). Once **Download & Install** has
-installed and checked everything, its downloads (about 47 GB) are removed.
-
-**Every race and class from the start.** The allied races (Nightborne, Highmountain Tauren, Void
-Elf, Lightforged Draenei) and Demon Hunters can be created on any account, without Battle for
-Azeroth or a level-70 character first, and up to 16 Demon Hunters. Allied races start at level 20
-in their home (the Nighthold, Thunder Totem, Telogrus Rift, the Vindicaar), with their quest to
-their faction's capital, as in 7.3.5. The app sets this at every start: its accounts have Battle
-for Azeroth's expansion (SPP's core asks an account for it before it shows the allied races; the
-world stays Legion), and world.conf has no level-70 rule for Demon Hunters. The repack's second
-realm, which this single core doesn't run, isn't in the client's realm list.
-**Server** provides Start, Stop, Launch Game, actual component status, logs and background
-battery settings. **Game Files** separately reports client, core, database and map status;
-verification, resumable downloads, storage selection and optional existing-file imports use
-the shared application installer. Normal setup preserves an existing database.
-
-**Legion's Android client is experimental.** Box64 has an open
-[Legion/modern WoW startup issue](https://github.com/ptitSeb/box64/issues/3061). Its cause,
-for this client: the client's start-up protection single-steps itself, and Box64 0.4.4 gives
-each step's exception the flags from before the last instruction, so the protection takes a
-wrong turn and stops. Box64's fix for that (upstream #4348, after 0.4.4) is in the Box64 the
-app builds for local realms (0.4.4-legion); with it the client gets through the protection to
-its first window under Box64 (tested on a PC, through qemu, without the game's data). The games'
-own sessions keep Winlator's Box64. Whether the client then renders and plays on the phone is
-still untested.
-Startup failures are reported and phone gameplay has not been verified. The retired streaming mini-client is rejected because its CDN hosts are unavailable.
-Native validation confirmed database, account login and world startup, but the old publisher
-world server returned an access violation on shutdown. The app reports abnormal shutdowns;
-clean world shutdown and Android gameplay are not claimed.
+**Legion on a phone is unverified.** The realm's package is built, started and logged into by CI
+on an arm64 machine (database, Battle.net login with an app-made account, the world server's
+database updates); the world server with real data, and the client drawing and playing on a
+phone, have not been run anywhere yet.
 
 ### The War Within — 11.2.5
 
@@ -386,7 +335,7 @@ A second realm, apart from ChromieCraft: Wrath of the Lich King's story retold a
 - **The realm's bots** live in Northrend: each one that turns up at the Infinite Bazaar (where every character is made) is sent to the start of its level's chapter, and makes its home there, so the prologue is yours alone. A bot in your group follows you anywhere.
 - **Report Time Anomaly**, in the game's menu (Esc, under Macros) and on the toolbar's Help button (the question mark: there are no game masters to ask), for when something in Wrath Remix is wrong: a quest that won't start or finish, someone who isn't where the story says, a transition that goes nowhere. A window asks what went wrong, in as many lines as it takes (up to 1000 letters; you can leave it empty; to write, tap the box, then three fingers for the keyboard); tap **Report**. The realm writes down what led up to it: where you are, the quest you're on and how far along its objectives are, who gave it to you and who you've spoken to since, the rest of your quest log, and your way through the story (the quests you took, finished, turned in and dropped, who you spoke to, the zones you entered, your levels and deaths: its last 300 steps). The app sends that to this app's repository on GitHub as an issue labeled *time anomaly*, without showing anything, if it has a token that may open issues there: yours (the **Modules** token, with **Issues: read and write** added) or the one the app was built with (`DOLPHINXD_UPDATE_TOKEN`, if it has that permission). Otherwise GitHub's new issue page opens in your browser, filled in, for you to send (a long report is shortened there, its oldest steps first): at once from the game, or, if the screen went off or the app went behind first, when you're back in the app (Android lets it open a page only then). With no internet it waits, and goes once the phone is online; if GitHub is busy, it tries again a minute later; if the connection drops before GitHub answers, the app looks on GitHub for the report before sending it again, so it isn't there twice. Reporting the same words again within half a minute counts once; different words are another report. A note at the bottom of the screen says how it went. The reports stay on the phone in `files/run/reports` (`sent/`, `opened/`). The way through the story is noted from this version on.
 - **The game's crash reports**, on either realm: when the game stops on an error it writes its own report (`Errors\*.txt` in the client's folder: the error, the exception and where it happened). While the server runs, the app sends each new one the same way, as an issue labeled *game crash*, with the game's archives listed beside it (most crashes on the character screen come from a table or a model in one of them). Reports from more than three days before the app first looks aren't sent.
-- **The app's failure reports**, for every game: when something fails (a realm that won't start, on 3.3.5a, Turtle WoW, Legion 7.3.5, SPP Legion or The War Within; an installation, a download or an import; a game that won't launch; the app itself crashing), the app sends it the same way, as an issue labeled *app failure*: what the app said, the end of the logs (for SPP Legion and The War Within, the database's, the login server's, the world server's, the realm's Wine's and the game's screen's, this start's only), the phone and the app's version. It goes from the app itself, whichever game you're on, at once, and again every minute while it waits (no internet, GitHub busy); a crash goes the next time the app opens. What you chose isn't a failure (a job you stopped, a game that needs an account first), and the same failure goes once a day at most.
+- **The app's failure reports**, for every game: when something fails (a realm that won't start, on 3.3.5a, Turtle WoW, Legion 7.3.5 or The War Within; an installation, a download or an import; a game that won't launch; the app itself crashing), the app sends it the same way, as an issue labeled *app failure*: what the app said, the end of the logs (for The War Within, the database's, the login server's, the world server's, the realm's Wine's and the game's screen's, this start's only), the phone and the app's version. It goes from the app itself, whichever game you're on, at once, and again every minute while it waits (no internet, GitHub busy); a crash goes the next time the app opens. What you chose isn't a failure (a job you stopped, a game that needs an account first), and the same failure goes once a day at most.
 - Its settings are its own (`files/etc-remix`): its bots, rates and options don't follow ChromieCraft's, and ChromieCraft's progression brackets don't apply (all of Wrath is open). Modules you build into the realm are in both.
 
 Not built yet: Infinite Power, the Keepers' world assignments, Heroic World Tier, timed dungeons. The client's quest cache is cleared when you switch realms (Remix gives some quests and items other levels).
@@ -581,10 +530,6 @@ gradle -p warcraft/unit-tests test
 ```
 
 The app targets Android SDK 28, as Termux and Winlator do: Android lets apps that target 28 or lower run programs from their own storage, where the server and the game's Wine run.
-
-## Felsong — Legion 7.3.5 (not playable yet)
-
-The launcher's **Games** chip (or the **Other games** tile) now lists the other games: Wrath of the Lich King, Turtle WoW and **Felsong**. Felsong's launcher is in its own look (felsong.gg's fel green on dark olive, Illidan over the Broken Isles, its logo, fel motes, Kingdoms Will Burn as its music) and says plainly where it stands: **there is no Play yet**. Its realm (LegionCore 7.3.5) is being ported to the phone and the Legion client hasn't been shown to run on Android (Box64 issue #3061). Choosing it changes nothing of the other games. The plan and findings: `FELSONG.md`.
 
 ## License
 

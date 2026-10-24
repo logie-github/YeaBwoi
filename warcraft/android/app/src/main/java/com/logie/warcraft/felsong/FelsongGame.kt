@@ -12,8 +12,10 @@ import com.logie.warcraft.felsong.core.FelsongClient
 import com.logie.warcraft.felsong.core.FelsongClientSetup
 import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.game.GestureView
+import com.logie.warcraft.spp.core.SppGraphics
 import com.logie.warcraft.turtle.core.SafeFs
 import com.winlator.XServerDisplayActivity
+import com.winlator.core.DefaultVersion
 import com.winlator.container.Container
 import com.winlator.container.ContainerManager
 import com.winlator.xenvironment.RootFS
@@ -130,9 +132,10 @@ object FelsongGame {
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = resolution
         val container = container(context, width, height)
+        val api = withContext(Dispatchers.IO) { chooseApi(context) }
         withContext(Dispatchers.IO) {
             val layout = FelsongFiles.layout(context)
-            FelsongClientSetup.apply(layout.client, width, height, accountName = null)
+            FelsongClientSetup.apply(layout.client, width, height, accountName = null, api = api)
             installCertificateBundle(context, container)
         }
 
@@ -150,7 +153,7 @@ object FelsongGame {
         if (accounts?.isEmpty() == true) throw GameFailed(context.getString(R.string.felsong_game_error_no_account), needsAccount = true)
         val saved = FelsongLogin.get(context)
         val account = accounts?.firstOrNull { saved != null && it.name.equals(saved.name, ignoreCase = true) } ?: accounts?.singleOrNull()
-        if (account != null) withContext(Dispatchers.IO) { FelsongClientSetup.apply(FelsongFiles.layout(context).client, width, height, account.name) }
+        if (account != null) withContext(Dispatchers.IO) { FelsongClientSetup.apply(FelsongFiles.layout(context).client, width, height, account.name, api) }
         val newAccount = account != null && withContext(Dispatchers.IO) { runCatching { FelsongAccounts.characters(context, account.id) == 0 }.getOrDefault(false) }
 
         _state.value = State.Preparing(Step.STARTING)
@@ -160,12 +163,42 @@ object FelsongGame {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
             .putExtra("exec_path", clientPath(context) + "/" + exe)
+            // (its graphics API on its command line, overriding Config.wtf's)
+            .putExtra("exec_args", SppGraphics.argument(api))
+            // Box64 with the fix for Legion's start-up protection ("Game Initialization Failed!" on
+            // Winlator's own Box64: box64 #3061, scripts/build-box64.sh)
+            .putExtra("box64_version", DefaultVersion.BOX64_LEGION)
             .putExtra("gestures", true)
             // The game screen's touch layer, for Felsong: its own saved login and accounts.
             .putExtra(GestureView.EXTRA_ENVIRONMENT, GestureView.ENVIRONMENT_FELSONG)
             .putExtra(GestureView.EXTRA_NEW_ACCOUNT, newAccount)
             .putExtra(GestureView.EXTRA_ACCOUNT, account?.name)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
+    }
+
+    /**
+     * The graphics API for this launch: the one chosen, or, when the last launch's own log of its
+     * graphics' start (Logs/gx.log, written anew at each) says they didn't start, the next one
+     * ([SppGraphics.next]; after the last, the first again). That log is then moved aside, so the
+     * next launch reads only its own.
+     */
+    private fun chooseApi(context: Context): String {
+        val logs = File(FelsongFiles.layout(context).client, "Logs")
+        val gx = File(logs, "gx.log")
+        var api = FelsongSettings.api(context)
+        val failure = if (gx.isFile) SppGraphics.failure(runCatching { gx.readText() }.getOrDefault("")) else null
+        if (failure != null) {
+            api = SppGraphics.next(api) ?: SppGraphics.ORDER.first()
+            FelsongSettings.setApi(context, api)
+            Log.w(TAG, "The last launch's graphics didn't start (\"$failure\"): ${SppGraphics.name(api)} now")
+        }
+        if (gx.isFile) {
+            val fs = FelsongFiles.fs(context)
+            val previous = File(logs, "gx.previous.log")
+            fs.delete(previous)
+            fs.move(gx, previous)
+        }
+        return api
     }
 
     /**
