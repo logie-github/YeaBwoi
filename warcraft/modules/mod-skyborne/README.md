@@ -100,7 +100,8 @@ move to 22 and 23.
   (`data/client/Interface/GlueXML/SkyborneGearData.lua`: starting outfits, champion sets, icons).
   Its output is committed; run it again after changing it (`CHAMPION_SETS` in it picks a different
   set for a class).
-- As the world server starts (`src/Skyborne.cpp`), `src/SkybornePatch.cpp` makes the game's
+- As the world server starts, before it says it's ready (`src/Skyborne.cpp`: the app starts the
+  game on that line, and the patch is made again when the realm changes), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
   size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's, and the narration. It's

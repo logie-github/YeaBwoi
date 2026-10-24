@@ -6,7 +6,7 @@ sending them down the same road.
 
     python3 tools/quests.py WORLD_SQL_DIR    the core's data/sql/base/db_world
 
-Writes data/sql/db-world/allied_races_quests.sql (the clones: quest_template, its addon, texts,
+Writes data/sql/chromiecraft/world/allied_races_quests.sql (the clones: quest_template, its addon, texts,
 map points, starters and enders) and data/retail/cloned_quests.json (which quests were cloned:
 tools/build_data.py opens every other quest of the start race to the new race, these it leaves).
 
@@ -311,8 +311,8 @@ def main(world):
                     rows.append(c)
             insert(table, cols, rows)
     out.extend(bindings(T, CLONED, OFFSET))
-    os.makedirs(os.path.join(MODULE, "data", "sql", "db-world"), exist_ok=True)
-    with open(os.path.join(MODULE, "data", "sql", "db-world", "allied_races_quests.sql"), "w", newline="\n") as f:
+    os.makedirs(os.path.join(MODULE, "data", "sql", "chromiecraft", "world"), exist_ok=True)
+    with open(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_quests.sql"), "w", newline="\n") as f:
         f.write("\n".join(out) + "\n")
     with open(os.path.join(MODULE, "data", "retail", "cloned_quests.json"), "w") as f:
         json.dump(CLONED, f, indent=1)

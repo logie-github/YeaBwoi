@@ -307,10 +307,10 @@ def main():
         # Section 4: no textures (the patch empties every race's: SkybornePatch.cpp, EmptyOverlayRows).
         if base_overlay:
             section(BLOODELF, sex, 4, ["", "", ""], base_overlay[7], 0, dr)
-        for v in range(FACES):
-            f = faces.get((v, 0))
-            if not f:
-                continue
+        # (every face of the first skin, the death knights' too: a death knight's are the skin's all, and
+        # a skin with fewer than the others crashed the character creation screen, releases up to 1.0.245)
+        for f in sorted((r for r in be if r[2] == sex and r[3] == 1 and r[9] == 0 and r[7] & 1), key=lambda r: r[8]):
+            v = f[8]
             t = tex(f)
             section(BLOODELF, sex, 1, [dark_ranger_path(x) if x else "" for x in t], f[7], v, dr)
             for x in t:

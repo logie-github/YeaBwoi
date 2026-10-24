@@ -463,13 +463,17 @@ namespace WrathRemix
 
         if (!Active())
         {
-            // ChromieCraft: the game as it is.
+            // ChromieCraft: the game as it is, its language folder's patch out too (made from the
+            // game's tables as Remix last started, it was read over the allied races' patch and hid
+            // their sounds, its SoundEntries the server's own; taken out here, before the Skyborne's
+            // patch is made from the game's tables).
             if (ours)
             {
                 fs::remove(patch, error);
                 fs::remove(mark, error);
                 LOG_INFO("module", "Wrath Remix: its patch is out of the game ({})", patch.string());
             }
+            UpdateLooksPatch(data, {});
             return;
         }
         if (!ours && fs::exists(patch, error))
@@ -680,7 +684,9 @@ namespace WrathRemix
         }
         if (!sounds.empty())
         {
-            Bytes patched = WithSounds(Read(dbc / "SoundEntries.dbc"), sounds);
+            // (onto the game's table, the HD looks' sounds and the other modules' in: the server's own,
+            // read over theirs, took them away)
+            Bytes patched = WithSounds(clientTable("SoundEntries.dbc"), sounds);
             if (patched.empty())
                 LOG_ERROR("module", "Wrath Remix: {} isn't the DBC file it expects; Moratari speaks without her voice",
                     (dbc / "SoundEntries.dbc").string());

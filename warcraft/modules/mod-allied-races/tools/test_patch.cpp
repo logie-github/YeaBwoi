@@ -46,6 +46,13 @@ int main(int argc, char** argv)
     auto made = fs::last_write_time(data / "patch-V.MPQ", error);
     Check(AlliedRaces::UpdatePatch(module, files, data, log), "a second start keeps it");
     Check(fs::last_write_time(data / "patch-V.MPQ", error) == made, "...without making it again");
+    // Wrath Remix's realm (no allied races): the patch out of the game, kept beside it; back on
+    // ChromieCraft's, it returns without being made again.
+    AlliedRaces::SetPatchAside(data, log);
+    Check(!fs::exists(data / "patch-V.MPQ", error) && fs::exists(data / "patch-V.MPQ.aside", error), "set aside for a realm without the races");
+    Check(AlliedRaces::UpdatePatch(module, files, data, log) && fs::exists(data / "patch-V.MPQ", error) &&
+          !fs::exists(data / "patch-V.MPQ.aside", error), "back for a realm with them");
+    Check(fs::last_write_time(data / "patch-V.MPQ", error) == made, "...without making it again");
 
     auto patch = OpenArchive(data / "patch-V.MPQ");
     Bytes bytes;

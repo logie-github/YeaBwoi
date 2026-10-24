@@ -11,13 +11,14 @@
 --    them out the same way, after this).
 --  * Their icons: their portraits in the free columns of the race icons (the patch paints them
 --    there: data/client/icons).
---  * Their backgrounds: the void elves' and the Lightforged's are the Draenei's (they start in Ammen
---    Vale), the Zandalari's the Tauren's (Camp Narache), the nightborne's the Night Elves'. Each
---    scene's camera is framed for its own race's height: the Forsaken's, for the shorter, stooped
---    undead, cut off the nightborne's head (a night elf's height); the Night Elves' fits them.
+--  * Their backgrounds: their kin's, whose height their models are made (tools/scale.py): the
+--    Blood Elves' for the void elves, the Night Elves' for the nightborne, the Draenei's for the
+--    Lightforged, the Trolls' for the Zandalari. Each scene's camera is framed for its own race's
+--    height, so each looks as its kin does there (the Draenei's showed the void elves small, the
+--    Forsaken's cut off the nightborne's heads).
 --  * Their text.
 
-local ALLIED = { VOIDELF = "Draenei", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Tauren" };
+local ALLIED = { VOIDELF = "BloodElf", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Troll" };
 
 RACE_ICON_TCOORDS["VOIDELF_MALE"]      = { 0.875, 1.0, 0, 0.25 };
 RACE_ICON_TCOORDS["NIGHTBORNE_MALE"]   = { 0.875, 1.0, 0.25, 0.5 };

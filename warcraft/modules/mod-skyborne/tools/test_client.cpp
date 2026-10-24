@@ -123,6 +123,36 @@ int main(int argc, char** argv)
                 ++faceless;
         Check(!npcSkins.empty() && faceless == 0, "every NPC skin has its faces (" + std::to_string(npcSkins.size()) + " skins)");
     }
+    // A player's skin (flag 1, not only a death knight's) has the same faces as every other of its race
+    // and sex, the death knights' (flag 4) among them: a death knight may wear any skin with any of
+    // them, and a skin with fewer faces than the others crashed the character creation screen (the game
+    // read through the missing face's row; releases up to 1.0.245).
+    {
+        std::map<std::tuple<uint32_t, uint32_t, uint32_t>, std::set<uint32_t>> facesOf;
+        std::map<std::pair<uint32_t, uint32_t>, std::set<uint32_t>> playerSkins;
+        for (size_t i = 0; i < sections.records.size(); ++i)
+        {
+            uint32_t race = sections.Get(i, 1), sex = sections.Get(i, 2), base = sections.Get(i, 3), flags = sections.Get(i, 7);
+            uint32_t color = sections.Get(i, 9);
+            if (base == 0 && (flags & 1) && !(flags & 4))
+                playerSkins[{ race, sex }].insert(color);
+            if (base == 1 && (flags & 1))
+                facesOf[{ race, sex, color }].insert(sections.Get(i, 8));
+        }
+        int uneven = 0;
+        std::string first;
+        for (auto const& [who, skins] : playerSkins)
+        {
+            std::set<uint32_t> const& faces = facesOf[{ who.first, who.second, *skins.begin() }];
+            for (uint32_t color : skins)
+                if (facesOf[{ who.first, who.second, color }] != faces)
+                {
+                    if (!uneven++)
+                        first = " (first: race " + std::to_string(who.first) + " sex " + std::to_string(who.second) + " skin " + std::to_string(color) + ")";
+                }
+        }
+        Check(!playerSkins.empty() && uneven == 0, "every player skin has the faces of its race and sex's others" + first);
+    }
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");

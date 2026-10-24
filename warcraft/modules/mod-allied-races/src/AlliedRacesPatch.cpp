@@ -36,8 +36,9 @@ namespace AlliedRaces
     {
         constexpr char const* PATCH = "patch-V.MPQ";
         constexpr char const* MARK = "patch-V.MPQ.alliedraces";
+        constexpr char const* ASIDE = "patch-V.MPQ.aside";          // the patch kept out of the game (SetPatchAside)
         constexpr char const* MANIFEST = "alliedraces.files";
-        constexpr char const* VERSION = "allied-races-6";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene
+        constexpr char const* VERSION = "allied-races-7";   // 2: the models' bone combos name the vertices' bones; 3: the body parts of groups 3.3.5 doesn't know in geoset 0; 4: the meshes within 65535 indices, the tentacles on the feature slider; 5: the Lightforged Draenei and the Zandalari Trolls; 6: the narrations and voices in the game's MP3 format, the nightborne in the night elves' scene; 7: the models their kin's height, the animations' own files whole, the void elves and Zandalari in their kin's scenes
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -142,8 +143,22 @@ namespace AlliedRaces
         if (!fs::exists(clientData / MARK, error))
             return;
         fs::remove(clientData / PATCH, error);
+        fs::remove(clientData / ASIDE, error);
         fs::remove(clientData / MARK, error);
         log("The races' patch is out of the game");
+    }
+
+    void SetPatchAside(fs::path const& clientData, std::function<void(std::string const&)> const& log)
+    {
+        std::error_code error;
+        if (!fs::exists(clientData / MARK, error) || !fs::exists(clientData / PATCH, error))
+            return;
+        fs::remove(clientData / ASIDE, error);
+        fs::rename(clientData / PATCH, clientData / ASIDE, error);
+        if (error)
+            log("The races' patch couldn't be set aside: " + error.message());
+        else
+            log("The races' patch is out of the game, kept beside it for a realm with the races");
     }
 
     bool UpdatePatch(fs::path const& moduleData, fs::path const& files, fs::path const& clientData, std::function<void(std::string const&)> const& log)
@@ -156,8 +171,14 @@ namespace AlliedRaces
             log(patch.string() + " isn't this module's: left alone, so the game won't know the races");
             return false;
         }
+        // (one set aside for a realm without the races comes back, and is made again only if it's old)
+        if (ours && !fs::exists(patch, error) && fs::exists(clientData / ASIDE, error))
+            fs::rename(clientData / ASIDE, patch, error);
         auto start = std::chrono::steady_clock::now();
-        Game game(clientData, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq" });
+        // (Wrath Remix's patches are its realm's alone, its language folder's too: made from the game as
+        // Remix last started, and taken out on ChromieCraft's after this is made, so not read for it)
+        Game game(clientData, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq", "patch-dede-y.mpq",
+            "patch-frfr-y.mpq", "patch-eses-y.mpq", "patch-esmx-y.mpq", "patch-ruru-y.mpq", "patch-kokr-y.mpq", "patch-zhcn-y.mpq", "patch-zhtw-y.mpq" });
         if (game.archives.empty())
         {
             log("No game in " + clientData.string());
