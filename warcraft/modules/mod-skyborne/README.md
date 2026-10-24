@@ -99,7 +99,8 @@ move to 22 and 23.
   game's own row template, the arrows of the face's and the hair's), for a female's body-hair design:
   twelve besides none (Sparse, Light, Medium, Full, Strip, Heart, Moon, Crescent, Star, Swords, Skull,
   Patchy), on the bodies of Human, Orc, Dwarf, Night Elf, Undead, Gnome, Troll, Blood Elf (the
-  Skyborne's too) and Draenei. Tauren have shading only (no hair art was made for them) and the goblin
+  Skyborne's too) and Draenei. A design's skins have every face their skin has, the death knights'
+  too (a design that didn't crashed the character creation screen, up to 1.0.245). Tauren have shading only (no hair art was made for them) and the goblin
   isn't a player's race, so they have none; a male has none, and the void elves and the nightborne
   (mod-allied-races) have none. The row is shown for a female of a race that has designs and hidden
   for anyone else; the race is the one its file name says (3.3.5's race list gives each race's name,
@@ -139,7 +140,8 @@ move to 22 and 23.
   the pelvis texture's texels through the shading's fields (`data/client/shade`), into
   `data/client/features`. Its output is committed; `tools/build_data.py` also writes the Features'
   CharSections rows and `SkyborneFeaturesData.lua` from it.
-- As the world server starts (`src/Skyborne.cpp`), `src/SkybornePatch.cpp` makes the game's
+- As the world server starts, before it says it's ready (`src/Skyborne.cpp`: the app starts the
+  game on that line, and the patch is made again when the realm changes), `src/SkybornePatch.cpp` makes the game's
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
   size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's and the Features row's three, the Features' pelvis textures (from `data/client/features`), and the narration. It's
