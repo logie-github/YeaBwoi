@@ -86,7 +86,8 @@ and moves Timerunners' quest records over.)
 - `.remix goguid ENTRY` (game masters): the nearest game object of that entry and its guid (CI's
   test client clicks the Bazaar's campfire by it).
 - `.remix sees ENTRY` (game masters): whether the story lets you see the nearest creature of that
-  entry (its visibility conditions, as without game master mode), for CI's tests.
+  entry (its visibility conditions, as without game master mode; with none alive, the nearest corpse),
+  for CI's tests.
 - `.remix hourglass` (game masters): where Moratari's Hourglass is and where it would take you back to.
 - `.remix ground [RADIUS] [STEP]` (game masters): the floor's height in a grid around you (how
   `data/bazaar_ground.tsv` was surveyed).
