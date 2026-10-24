@@ -1582,6 +1582,10 @@ a realm with modules), then stage 3.
   an in-game script that gives Questie's race table (`QuestieCompat.ChrRaces`, Questie-335) each race
   as its start race (`AlliedRacesAddons.lua`). Checked in Lua 5.1 against stand-ins (`test_screen.py`),
   not with Questie in the game. The Skyborne have the same gap; not done.
+- CI on PR #64: a wago.tools fetch failed as the server was packaged, and the package without the
+  allied races' files was cached for its key (a re-run reused it) and released (1.0.292). The
+  packager now leaves `build/package-incomplete` then, and the workflow doesn't keep that package:
+  the next run fetches again, and the test and the app, which need the package, stop there.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

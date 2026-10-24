@@ -145,9 +145,12 @@ jobs:
           key: ${{ steps.key.outputs.tested-key }}
           lookup-only: true
 
-      # Saved before the test, so a fix to the test doesn't package the server again.
+      # Saved before the test, so a fix to the test doesn't package the server again. Not one the
+      # allied races' files weren't all made for (a fetch that failed, build/package-incomplete): it
+      # isn't kept for its key, so the next run fetches them again, and the test and the app, which
+      # need the package, don't go on without the races.
       - name: Save the server package
-        if: steps.cached.outputs.cache-hit != 'true'
+        if: steps.cached.outputs.cache-hit != 'true' && hashFiles('build/package-incomplete') == ''
         uses: actions/cache/save@v4
         with:
           path: warcraft/android/server/server.tar.xz
