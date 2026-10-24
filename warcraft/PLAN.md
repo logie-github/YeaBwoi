@@ -1592,6 +1592,14 @@ a realm with modules), then stage 3.
   Skyborne's patch is made before the world says it's ready now (`OnBeforeWorldInitialized`: after
   Wrath Remix's `patch-Y`, made as the tables load, as before); the test waits for Remix's queued
   deletions as it does for ChromieCraft's homecomings.
+- Crash report #47, the same address as #34 (0x004EA77F, reading a missing CharSections row's
+  texture), as the race changed on the creation screen. The screen reads a skin colour's row by its
+  number, and some colours below a race and sex's highest had none (the Skyborne's between the blood
+  elf's skins and their blues; colours the server's tables have and the Alternative HD Patch's
+  haven't). The Skyborne's patch now gives each such colour an NPC's skin row (flag 8, as the game's
+  own colours between), its faces and overlay by CompleteSkins. `check_looks.py` and
+  `test_client.cpp` fail on a colour without a row (none now on ChromieCraft's 53 races and sexes
+  or Wrath Remix's 45). Not certain this is the crash (nothing here runs the game).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
