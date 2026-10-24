@@ -48,6 +48,19 @@ class ConfFileTest {
         assertEquals(text.lines().take(8), out.lines().take(8))
     }
 
+    /** A Windows repack's worldserver.conf (CRLF), its console turned off (WindowsRealmServer.headlessWorld). */
+    @Test
+    fun switchesInWindowsFiles() {
+        val windows = "# Console\r\nConsole.Enable = 1\r\nConsole.EnableHistory = 1\r\nRa.Enable = 0\r\n"
+        val conf = ConfFile(windows)
+        assertEquals("1", conf["Console.Enable"]?.trim())
+        conf.setSwitch("Console.Enable", false)
+        val out = ConfFile(conf.toString())
+        assertEquals("0", out["Console.Enable"]?.trim())
+        assertEquals("1", out["Console.EnableHistory"]?.trim())
+        assertEquals(windows.lines().size, conf.toString().lines().size)
+    }
+
     @Test
     fun addsMissingKeys() {
         val conf = ConfFile(text)
