@@ -175,9 +175,13 @@ The user's requirements, what was decided, what's open, and where it stands. The
   downloaders); `Wc3Setup` downloads with resume and checks every piece, then Blizzard's
   `Installer.exe` runs in the games' Windows (drive G:, taps as plain clicks) where the player types
   their key; the installed folder (`C:\Program Files (x86)\Warcraft III`) is moved into the app's
-  Warcraft III folder. Unverified: the CDN answered this build machine 403 for both address forms
-  (cloud IPs are often refused; from a phone, unknown), the exact address form, and the installer
-  under Wine/Box64.
+  Warcraft III folder. Build 15's file-by-file download got 403 on the phone too. Each downloader
+  carries, after its torrent description, an Akamai token made for that download
+  (`bcac=expires=…~access=/applications/Warcraft3/1.27a2/<ROC|TFT>/enUS/*~md5=…`); sent as a
+  cookie, the CDN serves the installer piece by piece at `<direct download>/<piece number>`
+  (checked from this build machine: pieces 0, 1 and the last of Reign of Chaos match their SHA-1s).
+  Build 16 downloads that way, each piece checked before it's written, resumable. Unverified: the
+  installer under Wine/Box64.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry; the CD keys box takes the keys the user has.

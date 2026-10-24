@@ -2,7 +2,6 @@
 
 package com.logie.warcrafts.library
 
-import java.net.URLEncoder
 import java.security.MessageDigest
 
 /**
@@ -10,9 +9,11 @@ import java.security.MessageDigest
  * (`us.battle.net/download/getLegacy?product=WAR3|W3XP`). Each downloader is a small Windows program
  * carrying a torrent description: the installer's files (`Installer.exe`, `Installer Tome.mpq`,
  * DirectX's redistributable), a SHA-1 for every 256 KB piece of them end to end, and a "direct
- * download" address on Blizzard's CDN ("disable p2p": they come over plain HTTP). [parse] reads that
- * description; the app downloads the files itself and checks every piece ([Pieces]). Plain Kotlin,
- * unit-tested.
+ * download" address on Blizzard's CDN ("disable p2p": plain HTTP), followed by an Akamai access token
+ * made for that download (`bcac=expires=…~access=<the installer's folder on the CDN>~md5=…`). The CDN serves the
+ * installer piece by piece: `<direct download>/<piece number>`, the token sent as a cookie (found by
+ * trying it against Blizzard's server: the pieces' SHA-1s match). [parse] reads all that; [segments]
+ * says which file bytes each piece holds. Plain Kotlin, unit-tested.
  */
 object BlizzardDownload {
     /** The legacy downloaders: Reign of Chaos, then The Frozen Throne (its installer needs the first). */
@@ -23,10 +24,12 @@ object BlizzardDownload {
 
     data class FileEntry(val path: String, val length: Long)
 
-    /** An installer: its folder [name], [files] in torrent order, its CDN address, and its pieces. */
+    /** An installer: its folder [name], [files] in torrent order, its CDN address, token and pieces. */
     class Package(
         val name: String,
         val directDownload: String,
+        /** The cookie the CDN wants (`bcac=…`), or null if the downloader had none. */
+        val token: String?,
         val launchTarget: String,
         val pieceLength: Int,
         val pieces: List<ByteArray>,
@@ -51,78 +54,40 @@ object BlizzardDownload {
         } ?: return null
         val direct = (root["direct download"] as? ByteArray)?.decodeToString() ?: return null
         val launch = (root["launch target"] as? ByteArray)?.decodeToString() ?: "$name/Installer.exe"
-        return Package(name, direct.trimEnd('/'), launch, pieceLength, piecesBytes.toList().chunked(20).map { it.toByteArray() }, files)
+        val token = TOKEN.find(String(downloader, start, downloader.size - start, Charsets.ISO_8859_1))?.value
+        return Package(name, direct.trimEnd('/'), token, launch, pieceLength, piecesBytes.toList().chunked(20).map { it.toByteArray() }, files)
     }
 
-    /** The files the phone needs: the Windows installer and its data (not the Mac app). */
-    fun wanted(pkg: Package): List<FileEntry> = pkg.files.filter { !it.path.startsWith("Installer.app/") }
+    private val TOKEN = Regex("bcac=expires=[0-9]+~access=[!-~&&[^~]]+~md5=[0-9a-f]{32}")
 
-    /**
-     * Where [file] may be on the CDN, the likeliest first: under the installer's folder, then
-     * straight under the address (the downloader's own form isn't documented).
-     */
-    fun urls(pkg: Package, file: FileEntry): List<String> {
-        val path = file.path.split('/').joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
-        val folder = URLEncoder.encode(pkg.name, "UTF-8").replace("+", "%20")
-        return listOf("${pkg.directDownload}/$folder/$path", "${pkg.directDownload}/$path")
+    /** Where piece [index] is on the CDN. */
+    fun pieceUrl(pkg: Package, index: Int): String = "${pkg.directDownload}/$index"
+
+    /** How many bytes piece [index] holds (the last is shorter). */
+    fun pieceSize(pkg: Package, index: Int): Int =
+        minOf(pkg.pieceLength.toLong(), pkg.totalLength - index.toLong() * pkg.pieceLength).toInt()
+
+    /** A run of a piece's bytes in one file: [length] bytes from [pieceOffset] go to [fileOffset] of file [file]. */
+    data class Segment(val file: Int, val fileOffset: Long, val pieceOffset: Int, val length: Int)
+
+    /** The files piece [index] fills, in order. */
+    fun segments(pkg: Package, index: Int): List<Segment> {
+        val start = index.toLong() * pkg.pieceLength
+        val end = start + pieceSize(pkg, index)
+        val out = mutableListOf<Segment>()
+        var fileStart = 0L
+        for ((i, file) in pkg.files.withIndex()) {
+            val fileEnd = fileStart + file.length
+            val from = maxOf(start, fileStart)
+            val to = minOf(end, fileEnd)
+            if (from < to) out += Segment(i, from - fileStart, (from - start).toInt(), (to - from).toInt())
+            fileStart = fileEnd
+        }
+        return out
     }
 
-    /**
-     * Checks the installer's files against its pieces: fed every file's bytes in torrent order
-     * ([skip] for the files the phone doesn't download), it answers whether every piece matched.
-     * Pieces that reach into a skipped file can't be checked and are left out.
-     */
-    class Pieces(private val pkg: Package) {
-        private val digest = MessageDigest.getInstance("SHA-1")
-        private var index = 0
-        private var filled = 0
-        private var skipping = false
-        var checked = 0
-            private set
-        var failed = 0
-            private set
-
-        fun feed(bytes: ByteArray, offset: Int = 0, length: Int = bytes.size) {
-            var at = offset
-            var left = length
-            while (left > 0) {
-                val take = minOf(left, pkg.pieceLength - filled)
-                if (!skipping) digest.update(bytes, at, take)
-                filled += take
-                at += take
-                left -= take
-                if (filled == pkg.pieceLength) endPiece()
-            }
-        }
-
-        /** [length] bytes not on the phone: the piece they fall in can't be checked. */
-        fun skip(length: Long) {
-            var left = length
-            while (left > 0) {
-                skipping = true
-                val take = minOf(left, (pkg.pieceLength - filled).toLong()).toInt()
-                filled += take
-                left -= take
-                if (filled == pkg.pieceLength) endPiece()
-            }
-        }
-
-        /** After the last file: the last, shorter piece. */
-        fun finish(): Boolean {
-            if (filled > 0) endPiece()
-            return failed == 0 && index == pkg.pieces.size
-        }
-
-        private fun endPiece() {
-            val hash = digest.digest()
-            if (!skipping) {
-                if (index < pkg.pieces.size && hash.contentEquals(pkg.pieces[index])) checked++ else failed++
-            }
-            index++
-            filled = 0
-            skipping = false
-        }
-    }
+    fun sha1(bytes: ByteArray, length: Int): ByteArray =
+        MessageDigest.getInstance("SHA-1").apply { update(bytes, 0, length) }.digest()
 
     private fun indexOf(data: ByteArray, needle: ByteArray): Int {
         outer@ for (i in 0..data.size - needle.size) {

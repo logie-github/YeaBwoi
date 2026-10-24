@@ -39,7 +39,8 @@ class BlizzardDownloadTest {
         out.write(str("pieces")); out.write(bytes(pieces))
         out.write("e".toByteArray())
         out.write(str("launch target")); out.write(str("War3-1.27-Installer-enUS-ROC/Installer.exe"))
-        out.write("e trailing program bytes".toByteArray())
+        out.write("e".toByteArray())
+        out.write("PSER^\u0006bcac=expires=1793402955~access=/applications/Warcraft3/1.27a2/ROC/enUS/*~md5=c0baa4d3d5095f5709bdd6f9298c31e2IKOC trailing".toByteArray())
         return out.toByteArray()
     }
 
@@ -50,31 +51,39 @@ class BlizzardDownloadTest {
         assertEquals("http://cdn.example/applications/Warcraft3/1.27a2/ROC/enUS", pkg.directDownload)
         assertEquals(listOf("Installer Tome.mpq", "Installer.app/Info.plist", "Installer.exe"), pkg.files.map { it.path })
         assertEquals(4, pkg.pieces.size)
-        assertEquals(listOf("Installer Tome.mpq", "Installer.exe"), BlizzardDownload.wanted(pkg).map { it.path })
     }
 
     @Test
-    fun `addresses are tried under the installer's folder first, spaces escaped`() {
+    fun `the download's token is read from after the description`() {
         val pkg = BlizzardDownload.parse(downloader())!!
+        assertEquals("bcac=expires=1793402955~access=/applications/Warcraft3/1.27a2/ROC/enUS/*~md5=c0baa4d3d5095f5709bdd6f9298c31e2", pkg.token)
+        assertEquals("http://cdn.example/applications/Warcraft3/1.27a2/ROC/enUS/3", BlizzardDownload.pieceUrl(pkg, 3))
+    }
+
+    @Test
+    fun `each piece's bytes go to the files they belong to`() {
+        val pkg = BlizzardDownload.parse(downloader())!!
+        // Files: tome 0..40, mac 40..50, exe 50..62; pieces of 16.
+        assertEquals(listOf(BlizzardDownload.Segment(0, 0, 0, 16)), BlizzardDownload.segments(pkg, 0))
         assertEquals(
-            listOf(
-                "http://cdn.example/applications/Warcraft3/1.27a2/ROC/enUS/War3-1.27-Installer-enUS-ROC/Installer%20Tome.mpq",
-                "http://cdn.example/applications/Warcraft3/1.27a2/ROC/enUS/Installer%20Tome.mpq",
-            ),
-            BlizzardDownload.urls(pkg, pkg.files[0]),
+            listOf(BlizzardDownload.Segment(0, 32, 0, 8), BlizzardDownload.Segment(1, 0, 8, 8)),
+            BlizzardDownload.segments(pkg, 2),
         )
-    }
-
-    @Test
-    fun `pieces check the downloaded files and skip the ones not downloaded`() {
-        val pkg = BlizzardDownload.parse(downloader())!!
-        val good = BlizzardDownload.Pieces(pkg)
-        good.feed(tome, 0, 25); good.feed(tome, 25, 15); good.skip(mac.size.toLong()); good.feed(exe)
-        assertTrue(good.finish())
-        assertEquals(2, good.checked) // pieces 3 and 4 reach into the skipped Mac file
-        val bad = BlizzardDownload.Pieces(pkg)
-        bad.feed(tome.copyOf().also { it[3] = 99 }); bad.skip(mac.size.toLong()); bad.feed(exe)
-        assertFalse(bad.finish())
+        assertEquals(
+            listOf(BlizzardDownload.Segment(1, 8, 0, 2), BlizzardDownload.Segment(2, 0, 2, 12)),
+            BlizzardDownload.segments(pkg, 3),
+        )
+        assertEquals(14, BlizzardDownload.pieceSize(pkg, 3))
+        // Rebuilt from its pieces, every file is as it was, and every piece's SHA-1 matches.
+        val all = tome + mac + exe
+        val files = pkg.files.map { ByteArray(it.length.toInt()) }
+        for (i in pkg.pieces.indices) {
+            val size = BlizzardDownload.pieceSize(pkg, i)
+            val piece = all.copyOfRange(i * pieceLength, i * pieceLength + size)
+            assertTrue(BlizzardDownload.sha1(piece, size).contentEquals(pkg.pieces[i]))
+            for (s in BlizzardDownload.segments(pkg, i)) piece.copyInto(files[s.file], s.fileOffset.toInt(), s.pieceOffset, s.pieceOffset + s.length)
+        }
+        assertTrue(files[0].contentEquals(tome) && files[1].contentEquals(mac) && files[2].contentEquals(exe))
     }
 
     @Test
@@ -87,7 +96,8 @@ class BlizzardDownloadTest {
         val dir = File(System.getenv("W3_DOWNLOADERS") ?: return)
         for ((file, size) in listOf("WAR3.exe" to 752118042L, "W3XP.exe" to 580710053L)) {
             val pkg = assertNotNull(BlizzardDownload.parse(File(dir, file).readBytes()), file)
-            assertEquals(size, BlizzardDownload.wanted(pkg).first { it.path == "Installer Tome.mpq" }.length)
+            assertEquals(size, pkg.files.first { it.path == "Installer Tome.mpq" }.length)
+            assertNotNull(pkg.token)
             assertTrue(pkg.directDownload.startsWith("http://rogue.blizzard.com.edgesuite.net/applications/Warcraft3/1.27a2/"))
             assertEquals((pkg.totalLength + pkg.pieceLength - 1) / pkg.pieceLength, pkg.pieces.size.toLong())
         }

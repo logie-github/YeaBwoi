@@ -76,9 +76,10 @@ Android's log for the game's process. **Copy** puts it on the clipboard to send.
 
 **Setting up Warcraft III (1.27), on the phone**: **Games → Warcraft III → Game files**:
 1. **Download from Blizzard**: the app fetches Blizzard's own classic installers (what Blizzard's
-   legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP` fetch, from the
-   address inside them on Blizzard's CDN), about 1.4 GB, and checks every piece against Blizzard's
-   checksums. A stopped download goes on where it stopped.
+   legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP` fetch: the address
+   and access token inside them, piece by piece from Blizzard's CDN), about 1.4 GB, each piece
+   checked against Blizzard's checksum before it's kept. A stopped download goes on where it
+   stopped.
 2. **Install Reign of Chaos**: Blizzard's installer opens inside the app. Taps are plain clicks
    there; three fingers open the keyboard for your CD key.
 3. **Install The Frozen Throne** the same way, with its key.
