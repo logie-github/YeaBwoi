@@ -21,6 +21,25 @@ object SppRealm {
     const val CLIENT_EXE_SHA256 = "be484c9a3bd8e5de173e9a8e185a9b6636406d69a9122987f6f2c1d512b2bec5"
     const val DATABASE_PORT = 3312
     const val WORLD_PORT = 8095
+    /**
+     * The world server's second port: the repack's is 8086, which Wrath Remix's world server
+     * listens on (switching to Legion leaves it running), so the world would load and then fail
+     * to open its ports. Beside the world's own, as Felsong had them.
+     */
+    const val INSTANCE_PORT = 8096
+
+    /**
+     * The game's graphics on a phone to start with (Legion's lowest preset, no anti-aliasing, 30
+     * frames a second, 5 behind other apps), written only where Config.wtf has none yet.
+     */
+    val CLIENT_GRAPHICS = mapOf(
+        "graphicsQuality" to "1",
+        "RAIDgraphicsQuality" to "1",
+        "MSAAQuality" to "0",
+        "ffxAntiAliasingMode" to "0",
+        "maxFPS" to "30",
+        "maxFPSBk" to "5",
+    )
 
     /** The allied races 7.3.5 has: Nightborne, Highmountain Tauren, Void Elf, Lightforged Draenei. */
     val ALLIED_RACES = listOf(27, 28, 29, 30)
@@ -38,6 +57,7 @@ object SppRealm {
         "CharacterCreating.Disabled.ClassMask" to "0",
         "Force.Starting.Level" to "0",
         "Force.Teleport" to "0",
+        "InstanceServerPort" to INSTANCE_PORT.toString(),
     )
 
     /**

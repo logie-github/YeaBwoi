@@ -247,3 +247,48 @@ capitals are in the database, and the repack's own Lightforged and Highmountain 
 played through them. The world server loads the changed tables without an error. Character
 creation itself hasn't been tried in a client. The repack's second realm row ("Haunted Lands",
 which this single core doesn't run) is hidden from the client's list (`flag = 3`).
+
+### Reviewed for the phone: stopping, leaving, coming back, crashes
+
+Found by reading the code against the repack and Wine 10.10, and checked here where it could be:
+
+- **Stop.** Wine's `taskkill /IM worldserver.exe` (without `/F`) answers "Could not find process":
+  it closes windows, and the servers are console programs without one (tried under Box64). Stop
+  now ends the world and authentication servers with `/F` (under Box64 the world's port closed in
+  5 s; `world.exit` and `authentication.exit` 1), then shuts MariaDB down with mysqladmin
+  ("Shutdown complete", `database.exit` 0). Only the database's exit counts in the result.
+- **Leave** (the game's menu) ended the whole session, the realm with it: in a local realm's
+  session it now closes the game and brings the launcher back (Winlator patch 0010).
+- **Coming back.** The session was out of Recents and the notification opened Winlator's other
+  screen: Launch Game started a second client. It returns to the running one now (Return to
+  Game), the notification opens the session's own screen, and a game started again in the
+  session gets its login again.
+- **Theme or font changes** (dark mode at sunset, power saving) made the session's screen anew,
+  which ended it: those changes are now the screen's own (`configChanges`).
+- **Crashes.** A server that crashes under Wine hangs writing its report, keeping its port: the
+  app watches `Crashes\` beside the servers while they start and run.
+- **Ports.** The world's second port (`InstanceServerPort`) was the repack's 8086, Wrath Remix's;
+  it's 8096 now, set before the profile is read, and checked with the others.
+- **Force Stop** threw out of its coroutine (the app ended) when the session had already gone;
+  the session's end now releases the installation once its ports close (during a stop too), and
+  a Wine process left of an ended session is ended with it.
+- **The client.** Its Config.wtf is written before it's checked; Legion's intro is skipped
+  (`playIntroMovie`); a phone's graphics to start with, where the game has none of its own; the
+  login waits for the game's own cursor (up to 3 minutes); TrinityCore's certificate bundle
+  (2,709 bytes, the one trinity6.github.io serves, pinning the repack's `bnetserver.cert.pem` key:
+  SHA-256 of its PKCS#1 form `B1241D83…`) is put in the session's ProgramData before it starts.
+- **Space.** The 42 GB client archive and the 5.4 GB repack stayed in `downloads/` after a
+  successful installation; they're removed once everything is installed and checked.
+
+### On the phone, 1.0.268: the session's task trimmed from Recents
+
+The next report from the phone (issue #48) got much further: the database ready, the
+authentication server up, and the world server loading fast (its DB2 stores in 16 s). Then every
+Windows program lost the X server at once ("X connection to :0 broken" six times) and Wine was
+killed (137): the session's screen, where Winlator's X server lives, was gone. Its task was kept
+out of Recents (`excludeFromRecents`), and Android keeps such a task only while it's the most
+recent (`RecentTasks.isInVisibleRange`); once another is (the launcher brought back, Recents
+opened), it's trimmed, and `ActivityTaskSupervisor.onRecentTaskRemoved(wasTrimmed = true)` removes
+the task outright ("recent-task-trimmed"), its screen ended with it. The session's task is now
+in Recents like any other (its own card, a way back to the game too); swiping that card away
+ends the session, as for any game.

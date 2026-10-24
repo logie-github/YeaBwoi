@@ -21,13 +21,14 @@ object WindowsRealmGame {
     /** Called by TwwServer; callers must already have validated a local startup profile. */
     /** [graphicsDriver]: Winlator's graphics driver setting for the realm's container, when the realm chooses one. */
     suspend fun openSession(context: Context, name: String, sessionExtra: String, layout: LocalInstallation, gesturesEnvironment: String? = null,
-                            graphicsDriver: String? = null) {
+                            graphicsDriver: String? = null, prepareDriveC: ((File) -> Unit)? = null) {
         val app = context.applicationContext
         val installed = withContext(Dispatchers.IO) { RootFSInstaller.installIfNeeded(app) { } }
         if (!installed) throw IOException("The Windows runtime could not be installed.")
         val container = container(app, name, layout, graphicsDriver)
         val cmd = File(container.rootDir, ".wine/drive_c/windows/system32/cmd.exe")
         if (!cmd.isFile) throw IOException("The realm's Windows container has no cmd.exe; repair the Windows runtime.")
+        prepareDriveC?.let { prepare -> withContext(Dispatchers.IO) { prepare(File(container.rootDir, ".wine/drive_c")) } }
         withContext(Dispatchers.Main) {
             app.startActivity(Intent(app, RealmSessionActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

@@ -132,6 +132,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                             })
                             server.error?.let { Text(it, color = FelsongColors.Blood, maxLines = 3) }
                             if (job !is LocalInstallJobs.State.Failed || ready || server.phase == WindowsRealmServer.Phase.RUNNING) FelsongButton(when {
+                                server.phase == WindowsRealmServer.Phase.RUNNING && server.clientRunning -> "Return to Game"
                                 server.phase == WindowsRealmServer.Phase.RUNNING -> "Launch Game"
                                 SppServer.isBusy -> "Server status"
                                 ready -> "Press Start"
@@ -139,7 +140,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                             }, Modifier.fillMaxWidth(), enabled = report != null) {
                                 when {
                                     server.phase == WindowsRealmServer.Phase.RUNNING -> {
-                                        if (SppLogin.selectedName(context) == null) { choosingAccountForPlay = true; dialog = "accounts" }
+                                        if (!server.clientRunning && SppLogin.selectedName(context) == null) { choosingAccountForPlay = true; dialog = "accounts" }
                                         else SppGame.play(context)
                                     }
                                     SppServer.isBusy -> dialog = "server"
@@ -194,9 +195,9 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
             server.error?.let { Text(it, color = FelsongColors.Blood) }
             FelsongButton("Start Server", enabled = editable && ready) { SppServer.start(context) }
             FelsongButton("Stop Server", primary = false, enabled = !busy && SppServer.isBusy) { playAfterStart = false; SppServer.stop(context) }
-            FelsongButton("Launch Game", enabled = !busy && server.phase == WindowsRealmServer.Phase.RUNNING) {
+            FelsongButton(if (server.clientRunning) "Return to Game" else "Launch Game", enabled = !busy && server.phase == WindowsRealmServer.Phase.RUNNING) {
                 dialog = null
-                if (SppLogin.selectedName(context) == null) { choosingAccountForPlay = true; dialog = "accounts" }
+                if (!server.clientRunning && SppLogin.selectedName(context) == null) { choosingAccountForPlay = true; dialog = "accounts" }
                 else SppGame.play(context)
             }
             FelsongButton("Logs", primary = false) {
@@ -326,7 +327,8 @@ private data class MenuTile(val icon: ImageVector, val title: String, val subtit
                     }
                     if (!SppAccounts.isPassword(context, email, password)) throw java.io.IOException("The account name or password does not match SPP’s database.")
                     SppLogin.save(context, email, password, rememberPassword)
-                    SppGame.prepareLaunch(context)
+                    // (not under a running client: its Config.wtf is the game's while it runs)
+                    if (!SppServer.status.value.clientRunning) SppGame.prepareLaunch(context)
                 }
                 onSelected()
             } catch (cancelled: CancellationException) { throw cancelled }

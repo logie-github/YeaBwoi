@@ -20,7 +20,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: warcraft/android/winlator
-          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py', 'warcraft/box64-version.env', 'warcraft/patches/box64/**', 'scripts/build-box64.sh') }}
           fail-on-cache-miss: true
       - name: Prepare temporary screenshot tests
         run: |
