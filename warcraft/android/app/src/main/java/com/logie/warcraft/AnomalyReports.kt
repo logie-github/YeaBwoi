@@ -19,6 +19,8 @@ import com.logie.warcraft.reports.GameCrash
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -193,6 +195,11 @@ object AnomalyReports {
                 runCatching { posted.writeText("${System.currentTimeMillis()}\n") }
                 val answer = github.postForAnswer("https://${GitHubApi.API_HOST}/repos/$repo/issues", report.marked(marker).issueJson(label))
                 val (number, page) = AnomalyReport.openedIssue(answer) ?: (0 to "")
+                // (GitHub drops the labels of a new issue from a token without push access; one with
+                // Issues: write adds them afterwards)
+                if (number > 0) runCatching {
+                    github.post("https://${GitHubApi.API_HOST}/repos/$repo/issues/$number/labels", JSONObject().put("labels", JSONArray().put(label)).toString())
+                }.onFailure { Log.w(TAG, "${file.name}: issue #$number not labelled ($it)") }
                 moveTo(file, "sent")
                 Log.i(TAG, "${file.name}: issue #$number, $page")
                 return Outcome.Sent(number, page)
