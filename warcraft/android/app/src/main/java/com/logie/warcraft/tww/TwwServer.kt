@@ -11,4 +11,5 @@ object TwwServer : WindowsRealmServer(TwwIntegration) {
     @JvmStatic fun runtimeAttached(runtime: XServerDisplayActivity) = WindowsRealmRegistry.attached(runtime)
     @JvmStatic fun runtimeDetached(runtime: XServerDisplayActivity) = WindowsRealmRegistry.detached(runtime)
     @JvmStatic fun allowRuntimeStart(runtime: XServerDisplayActivity) = WindowsRealmRegistry.allow(runtime)
+    @JvmStatic fun leaveGame(runtime: XServerDisplayActivity) = WindowsRealmRegistry.leave(runtime)
 }
