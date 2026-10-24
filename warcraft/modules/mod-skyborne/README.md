@@ -145,6 +145,10 @@ move to 22 and 23.
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
   size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's and the Features row's three, the Features' pelvis textures (from `data/client/features`), and the narration. It's
+  Every skin colour below a race and sex's highest has a row (`FillSkinHoles`: the designs' colours
+  follow the server's tables' NPC colours, which some HD looks' tables haven't; a colour with no row
+  crashed the creation screen as the race changed, crash reports #44, #45, #47): an NPC's skin, as
+  the game's own colours between are. It's
   made again only when the client's archives or the module's files change (the stamp in
   `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.

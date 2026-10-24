@@ -1607,6 +1607,17 @@ a realm with modules), then stage 3.
   Skyborne's patch is made before the world says it's ready now (`OnBeforeWorldInitialized`: after
   Wrath Remix's `patch-Y`, made as the tables load, as before); the test waits for Remix's queued
   deletions as it does for ChromieCraft's homecomings.
+- The user (on 1.0.266): "On female races it crashes moving from race to race. I think it's because
+  of the texture pack changes." Crash report #47, the same address as #34 (0x004EA77F, reading a
+  missing CharSections row's texture). The Features designs' skin colours follow the highest colour
+  of the server's tables, whose NPC and death knight skins the Alternative HD Patch's tables
+  haven't: there, colours below the designs had no row at all (Night Elf women's 12, Undead's 6 to
+  9, Gnome's 10 and 11, the Skyborne's 10 to 15), women's only but for the Skyborne. The Skyborne's
+  patch now gives each such colour an NPC's skin row (flag 8, as the game's own colours between),
+  its faces and overlay by CompleteSkins. `check_looks.py` and `test_client.cpp` fail on a colour
+  without a row: 46 on 1.0.266's tables, none now (ChromieCraft 53 races and sexes, Wrath Remix 45).
+  Not certain this is the crash (nothing here runs the game); it is the one thing in the tables
+  that's women's alone and reachable by changing race.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
