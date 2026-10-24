@@ -67,8 +67,12 @@ object TwwGame {
     /** A launch request is queued in the existing Windows session, after real server readiness. */
     fun play(context: Context) = TwwServer.launchGame(context)
 
-    internal suspend fun openSession(context: Context) = com.logie.warcraft.local.WindowsRealmGame.openSession(
-        context, CONTAINER_NAME, SESSION_EXTRA, com.logie.warcraft.local.LocalInstallation(TwwFiles.layout(context).root))
+    internal suspend fun prepareRuntime(context: Context) = com.logie.warcraft.local.WindowsRealmGame.prepareRuntime(
+        context, CONTAINER_NAME, com.logie.warcraft.local.LocalInstallation(TwwFiles.layout(context).root))
+
+    internal fun openClientSession(context: Context, container: com.winlator.container.Container) =
+        com.logie.warcraft.local.WindowsRealmGame.openClientSession(context, container, SESSION_EXTRA,
+            com.logie.warcraft.local.LocalInstallation(TwwFiles.layout(context).root))
 
     internal fun showSession(context: Context) = com.logie.warcraft.local.WindowsRealmGame.showSession(context, SESSION_EXTRA)
 

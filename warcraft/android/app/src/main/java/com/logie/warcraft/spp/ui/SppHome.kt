@@ -131,6 +131,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                                 else -> "Download the game client, SPP server, database and maps directly to the app."
                             })
                             server.error?.let { Text(it, color = FelsongColors.Blood, maxLines = 3) }
+                            server.clientError?.let { Text(it, color = FelsongColors.Blood, maxLines = 3) }
                             if (job !is LocalInstallJobs.State.Failed || ready || server.phase == WindowsRealmServer.Phase.RUNNING) FelsongButton(when {
                                 server.phase == WindowsRealmServer.Phase.RUNNING && server.clientRunning -> "Return to Game"
                                 server.phase == WindowsRealmServer.Phase.RUNNING -> "Launch Game"
@@ -193,6 +194,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
             StatusRow("World", server.world.name.lowercase(), server.world == WindowsRealmServer.ComponentStatus.RUNNING)
             server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             server.error?.let { Text(it, color = FelsongColors.Blood) }
+            server.clientError?.let { Text(it, color = FelsongColors.Blood) }
             FelsongButton("Start Server", enabled = editable && ready) { SppServer.start(context) }
             FelsongButton("Stop Server", primary = false, enabled = !busy && SppServer.isBusy) { playAfterStart = false; SppServer.stop(context) }
             FelsongButton(if (server.clientRunning) "Return to Game" else "Launch Game", enabled = !busy && server.phase == WindowsRealmServer.Phase.RUNNING) {

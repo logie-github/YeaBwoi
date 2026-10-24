@@ -12,4 +12,7 @@ object TwwServer : WindowsRealmServer(TwwIntegration) {
     @JvmStatic fun runtimeDetached(runtime: XServerDisplayActivity) = WindowsRealmRegistry.detached(runtime)
     @JvmStatic fun allowRuntimeStart(runtime: XServerDisplayActivity) = WindowsRealmRegistry.allow(runtime)
     @JvmStatic fun leaveGame(runtime: XServerDisplayActivity) = WindowsRealmRegistry.leave(runtime)
+    // (Winlator patch 0011: a realm's game session joining the realm's running Wine, and one refused)
+    @JvmStatic fun sharedRuntime(runtime: XServerDisplayActivity) = WindowsRealmRegistry.sharedRuntime(runtime)
+    @JvmStatic fun runtimeRejected(runtime: XServerDisplayActivity) = WindowsRealmRegistry.rejected(runtime)
 }

@@ -27,7 +27,8 @@ object TwwIntegration : LocalRealmInstallation {
     override fun root(context: Context) = TwwFiles.layout(context).root
     override fun report(context: Context) = TwwFiles.report(context)
     override fun localClientConfigured(context: Context) = TwwGame.localConfigured(context)
-    override suspend fun openSession(context: Context) = TwwGame.openSession(context)
+    override suspend fun prepareRuntime(context: Context) = TwwGame.prepareRuntime(context)
+    override fun openClientSession(context: Context, container: com.winlator.container.Container) = TwwGame.openClientSession(context, container)
     override fun showSession(context: Context) = TwwGame.showSession(context)
     override fun findClientRoot(folder: File) = TwwInstall.findClientRoot(folder)
     override fun findServerRoot(folder: File) = TwwInstall.findServerRoot(folder)

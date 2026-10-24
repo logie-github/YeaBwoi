@@ -4,42 +4,73 @@ package com.logie.warcraft.local
 import com.winlator.XServerDisplayActivity
 import java.lang.ref.WeakReference
 
-/** Winlator has one shared active Wine home. Reserve it before any activity changes containers. */
+/**
+ * Winlator has one shared Wine home (its runtime folder, the active container): one local realm's
+ * Wine ([WindowsRealmHost], reserved by [reserve]) or one game's screen at a time, except the game's
+ * own session of the realm that holds it, which joins the realm's running Wine.
+ */
 object WindowsRealmRegistry {
     private val realms = linkedMapOf<String, WindowsRealmServer>()
-    private var active = WeakReference<XServerDisplayActivity>(null)
+    private var holder: WindowsRealmServer? = null
+    private var display = WeakReference<XServerDisplayActivity>(null)
 
     @Synchronized internal fun register(server: WindowsRealmServer, extra: String) { realms[extra] = server }
+
+    /** The local realms known so far (each registers as it's first used). */
+    @Synchronized fun servers(): List<WindowsRealmServer> = realms.values.toList()
 
     private fun owner(runtime: XServerDisplayActivity) = realms.entries.firstOrNull {
         runtime.intent.getBooleanExtra(it.key, false)
     }?.value
 
+    private fun liveDisplay() = display.get()?.takeUnless { it.isDestroyed || it.isFinishing }
+
+    /**
+     * A Winlator screen may open: a realm's game session while that realm's Wine runs and is ready, a
+     * game's screen while no realm holds the Wine home; never a second screen.
+     */
     @Synchronized fun allow(runtime: XServerDisplayActivity): Boolean {
-        val current = active.get()?.takeUnless { it.isDestroyed || it.isFinishing }
+        val current = liveDisplay()
         if (current != null && current !== runtime) return false
         val target = owner(runtime)
-        if (realms.values.any { it !== target && it.isBusy }) return false
-        active = WeakReference(runtime)
-        return true
+        val allowed = if (target != null) holder === target && target.allowsSession()
+            else holder == null && realms.values.none { it.isBusy }
+        if (allowed) display = WeakReference(runtime)
+        return allowed
     }
 
     /** A local realm (SPP Legion, The War Within) is running or holds the Windows runtime. */
-    @Synchronized fun anyBusy(): Boolean = realms.values.any { it.isBusy }
+    @Synchronized fun anyBusy(): Boolean = holder != null || realms.values.any { it.isBusy }
 
-    @Synchronized internal fun canOpen(server: WindowsRealmServer): Boolean {
-        val current = active.get()?.takeUnless { it.isDestroyed || it.isFinishing }
-        return (current == null || owner(current) === server) && realms.values.none { it !== server && it.isBusy }
+    /** [server]'s Wine may start: no game's screen open, no other realm holding or running. */
+    @Synchronized internal fun reserve(server: WindowsRealmServer): Boolean {
+        if (liveDisplay() != null) return false
+        if (holder != null && holder !== server) return false
+        if (realms.values.any { it !== server && it.isBusy }) return false
+        holder = server
+        return true
     }
 
+    @Synchronized internal fun release(server: WindowsRealmServer) {
+        if (holder === server) holder = null
+    }
+
+    /** [runtime] is a realm's game session joining that realm's running Wine (Winlator patch 0011). */
+    @Synchronized fun sharedRuntime(runtime: XServerDisplayActivity): Boolean =
+        owner(runtime)?.let { holder === it && it.hostRunning } == true
+
     @Synchronized fun attached(runtime: XServerDisplayActivity) {
-        active = WeakReference(runtime)
-        owner(runtime)?.onRuntimeAttached(runtime)
+        display = WeakReference(runtime)
+        owner(runtime)?.onSessionAttached(runtime)
+    }
+
+    @Synchronized fun rejected(runtime: XServerDisplayActivity) {
+        owner(runtime)?.onSessionRejected()
     }
 
     /**
-     * "Leave the game" in a local realm's session: its client closed and the launcher in front, the
-     * realm left running (Stop Server ends it). False for a session that isn't a local realm's.
+     * "Leave the game" in a local realm's session: its game closed with the session, the realm left
+     * running (Stop Server ends it). False for a session that isn't a local realm's.
      */
     @Synchronized fun leave(runtime: XServerDisplayActivity): Boolean {
         val server = owner(runtime) ?: return false
@@ -48,7 +79,7 @@ object WindowsRealmRegistry {
     }
 
     @Synchronized fun detached(runtime: XServerDisplayActivity) {
-        if (active.get() === runtime) active.clear()
-        realms.values.forEach { it.onRuntimeDetached(runtime) }
+        if (display.get() === runtime) display.clear()
+        realms.values.forEach { it.onSessionDetached(runtime) }
     }
 }
