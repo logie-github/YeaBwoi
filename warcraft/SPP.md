@@ -176,3 +176,74 @@ stays without its ports (a `+seh` trace and winedbg's backtraces showed it). Wit
 `Console.Enable = 0` the world server opened 8085 after 156 seconds under x86-64 Wine and kept it
 open. The app sets it at every start (`WindowsRealmServer.headlessWorld`) and when it configures
 the repack, for SPP and The War Within alike.
+
+### On the phone: the launcher ended the session (status 137)
+
+The app's first failure reports from a phone (1.0.260, issues #40 and #41) gave the session's log:
+`Windows session started.`, `esync: up and running.`, then `The Windows runtime (wine explorer)
+exited with status 137`, and nothing in `database.log`. The app had killed it: once the session's
+screen was up, `WindowsRealmServer.start` put the launcher back in front, but `MainActivity` is
+`singleTask` and the session's screen was above it in the same task, and Android ends the screens
+above a `singleTask` screen started again (`FLAG_ACTIVITY_REORDER_TO_FRONT` doesn't apply to it).
+The screen's `onDestroy` stops Winlator's environment, which kills Wine (SIGKILL: 137). Local
+realms' sessions now open in `RealmSessionActivity` (Winlator's screen with a task of its own,
+`taskAffinity`), so the launcher coming back only puts the session behind. The games' own sessions
+are unchanged.
+
+### The client's start-up protection under Box64 (#3061): the flags in a single step's context
+
+The repack's `SPP_Wow-64.exe` can be started without the game's data: it gets through its
+start-up protection, then asks for a language (a list-view dialog), the same with or without
+data. Under x86-64 Wine that takes about a minute; it's a quick test of the CPU emulation.
+The protection installs a vectored handler, raises privileged-instruction faults (`hlt`) and
+then single-steps itself with the trap flag: about 30,000 `EXCEPTION_SINGLE_STEP`s under x86-64
+Wine, and 25 privileged-instruction and 2 illegal-instruction exceptions at fixed addresses.
+
+Under the app's Box64 0.4.4 (aarch64, through qemu-user here) the sequence parts from Wine's at
+the 36th step: at `0x14000C843` (`je`, right after `add rdx, r11`) Box64 jumps where Wine goes on.
+Box64's own register dump at that step shows its flags still deferred (`flags=???Z?P?`), and the
+context Wine's handler got had `eflags=00010246`: ZF set, left from the `cmp cx, ax` before
+the add. The handler resumes with those flags, the `je` goes the wrong way, and the protection
+ends on its deliberate trap at `0x14037B6B0`. The interpreter (`BOX64_DYNAREC=0`) does the same:
+the emulated signal's context is built from `eflags` without computing the deferred ones first.
+
+Box64 fixed exactly this upstream after 0.4.4: a01ded93, "[SIGNAL] Synchronized deferred flags
+across signal contexts (#4348)" (`CHECK_FLAGS` before the context is built, `RESET_FLAGS` when it's
+read back). 0.4.4 with that commit (`warcraft/patches/box64/`) follows Wine's sequence through
+the protection (one more wait-loop step at `0x14001193C`, and the `rep stosb` at `0x140010479`
+is one step, not 1,750 as on a real CPU, which the protection doesn't mind) to the same two
+"World of Warcraft" windows, with Box64's defaults and with the PERFORMANCE preset the app's
+sessions use. (The windows stay unmapped here, as Notepad's do under this Box64 with a PC's X
+server: Winlator's X server on the phone is a different one.)
+
+`scripts/build-box64.sh` builds it (0.4.4 at its tag's commit, the patches, an arm64 cross
+compiler, stripped, its loader at Winlator's path) as `box64-0.4.4-legion.tzst` beside Winlator's
+own, in `scripts/prepare-winlator.sh`, which rewrites its path for the app with the rest.
+Winlator patch 0009 makes it a built-in version and lets a session ask for it (`box64_version`);
+`WindowsRealmGame` asks for it for local realms' sessions (SPP's and The War Within's), so the
+games keep Winlator's 0.4.4.
+
+### Wine's cmd and `<"file"`
+
+Every SQL the app runs through `mysql.exe` (the realm's row at each start, the build check,
+accounts) was written as `mysql.exe … realmd <"R:\runtime\realm.sql" >"R:\runtime\realm.log"`.
+Wine 10.10's cmd says "Invalid name." to `<"…"` and doesn't run the command (`<R:\…`, unquoted,
+gives "Path not found."); `< "…"`, with a space, works. On the phone the start would have stopped
+right after the database, the realm row unverified. `TwwSession.input` writes it with the space.
+
+### All races and classes
+
+SPP's core (its `game.dll`, checked against AshamaneCore's `legion` branch) shows the allied races
+in character creation only to an account with Battle for Azeroth's expansion (7), whatever
+`race_unlock_requirement` says and whatever world.conf's `Expansion` is (6, which caps the world,
+not the account). The repack's own accounts have 7 (the column's default); the app made its
+accounts with 6. It now makes them with 7 and raises older ones at every start
+(`SppRealm.LOGIN_STARTUP_SQL`), keeps `race_unlock_requirement`'s rows for races 27-30 without an
+achievement (`WORLD_STARTUP_SQL`, as the repack has them), and sets world.conf for Demon Hunters
+without a level-70 character (`CharacterCreating.MinLevelForDemonHunter = 0`,
+`DemonHuntersPerRealm = 16`) and with nothing that stops or moves a new character. Allied races
+start at level 20 (hard-coded) in their home zones; their intro quests and portals to the
+capitals are in the database, and the repack's own Lightforged and Highmountain characters
+played through them. The world server loads the changed tables without an error. Character
+creation itself hasn't been tried in a client. The repack's second realm row ("Haunted Lands",
+which this single core doesn't run) is hidden from the client's list (`flag = 3`).

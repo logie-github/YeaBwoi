@@ -120,6 +120,18 @@
             android:launchMode="singleTask"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
             android:screenOrientation="sensorLandscape" />
+        <!-- A local realm's Windows session (SPP Legion, The War Within): Winlator's screen in a task
+             of its own, so the launcher (singleTask) coming back in front doesn't end it. -->
+        <activity
+            android:name="com.logie.warcraft.local.RealmSessionActivity"
+            android:exported="false"
+            android:theme="@style/AppThemeFullscreenDark"
+            android:supportsPictureInPicture="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.logie.warcraft.realm_session"
+            android:excludeFromRecents="true"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation"
+            android:screenOrientation="sensorLandscape" />
         <activity
             android:name="com.winlator.ControlsEditorActivity"
             android:exported="false"

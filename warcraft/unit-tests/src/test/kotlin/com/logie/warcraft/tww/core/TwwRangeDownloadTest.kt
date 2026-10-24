@@ -148,7 +148,8 @@ class TwwRangeDownloadTest {
         host.rejectBounded = true
         assertContentEquals(bytes, download(root, url).run().readBytes())
         assertTrue(host.starts.isNotEmpty())
-        assertEquals("bytes=700003-", host.requests.last())
+        // (the resume from the kept prefix; the four range connections end in any order, so not necessarily last)
+        assertTrue("bytes=700003-" in host.requests)
     }
     @Test fun truncatedRangesStayIncompleteAndCanBeResumed() = fixture { host, root, url ->
         host.truncate = true
@@ -173,7 +174,8 @@ class TwwRangeDownloadTest {
         host.wrongHeader = true
         assertContentEquals(bytes, download(root, url).run().readBytes())
         assertTrue(host.starts.isNotEmpty())
-        assertEquals("bytes=700003-", host.requests.last())
+        // (the resume from the kept prefix; the four range connections end in any order, so not necessarily last)
+        assertTrue("bytes=700003-" in host.requests)
     }
     @Test fun rangeCacheCannotFollowLinksOutsideTheDownloadDirectory() = fixture { _, root, url ->
         val outside = Files.createTempFile("download-outside-", ".txt").toFile().apply { writeText("untouched") }

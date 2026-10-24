@@ -22,10 +22,12 @@ import com.logie.warcraft.tww.TwwIntegration
 import com.logie.warcraft.tww.TwwJobs
 import com.logie.warcraft.tww.TwwServer
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -48,6 +50,8 @@ object FailureReports {
     private const val SENT = "failures-sent.txt"
     /** How often the reports waiting in the folder are tried again. */
     private const val SEND_EVERY_MS = 60_000L
+    /** How long a failure stays as it is before it's reported (the last of a quick run of them). */
+    private const val SETTLE_MS = 3_000L
     private val stamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss").withZone(ZoneOffset.UTC)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val lock = Any()
@@ -115,10 +119,15 @@ object FailureReports {
         }
     }
 
-    /** Each time [states] comes to a failure (a new one: not the same one said again), reported. */
+    /**
+     * Each time [states] comes to a failure (a new one: not the same one said again), reported, once
+     * it has stayed a moment ([SETTLE_MS]): a realm says its session ended, then, a moment later, why.
+     */
+    @OptIn(FlowPreview::class)
     private fun <T> follow(app: Context, source: String, states: Flow<T>, failed: (T) -> Failure?) {
         scope.launch {
             states.map { runCatching { failed(it) }.getOrNull() }
+                .debounce(SETTLE_MS)
                 .distinctUntilChanged { a, b -> a?.message == b?.message }
                 .collect { failure ->
                     if (failure != null) {

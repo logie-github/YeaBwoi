@@ -19,6 +19,12 @@ interface ManagedWindowsRealm {
     suspend fun openSession(context: Context)
     fun showSession(context: Context)
     fun prepareClientLaunch(context: Context) {}
+    /** The world server's settings the app sets at every start, before it loads (the realm's choices). */
+    val worldSettings: Map<String, String> get() = emptyMap()
+    /** SQL for the world database, run at every start before the world server loads it; safe to repeat. */
+    val worldStartupSql: String? get() = null
+    /** SQL for the authentication database, run at every start with the world's; safe to repeat. */
+    val loginStartupSql: String? get() = null
 }
 
 data class LocalInstallation(val root: File) {

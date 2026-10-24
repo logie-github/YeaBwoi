@@ -34,6 +34,7 @@ on:
       - "scripts/build-tww-7zip.sh"
       - "scripts/prepare-winlator.sh"
       - "scripts/winlator-rewrite.py"
+      - "scripts/build-box64.sh"
       - "scripts/fetch-tortoise.sh"
       - "scripts/compile-tortoise.sh"
       - "scripts/package-tortoise.sh"
@@ -518,12 +519,13 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: warcraft/android/winlator
-          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py') }}
+          key: warcraft-winlator-v1-${{ hashFiles('warcraft/winlator-version.env', 'warcraft/patches/winlator/**', 'scripts/prepare-winlator.sh', 'scripts/winlator-rewrite.py', 'warcraft/box64-version.env', 'warcraft/patches/box64/**', 'scripts/build-box64.sh') }}
 
       - name: Prepare Winlator
         if: steps.winlator.outputs.cache-hit != 'true'
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq python3-zstandard > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-zstandard gcc-aarch64-linux-gnu g++-aarch64-linux-gnu patchelf zstd > /dev/null
           scripts/prepare-winlator.sh
 
       - name: Save Winlator

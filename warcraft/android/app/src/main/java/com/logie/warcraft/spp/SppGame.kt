@@ -62,7 +62,7 @@ object SppGame {
     }.getOrDefault(false)
 
     internal suspend fun openSession(context: Context) = WindowsRealmGame.openSession(
-        context, CONTAINER, SESSION_EXTRA, SppFiles.layout(context), "spp")
+        context, CONTAINER, SESSION_EXTRA, SppFiles.layout(context), "spp", SppSettings.graphicsDriver(context))
     fun showSession(context: Context) = WindowsRealmGame.showSession(context, SESSION_EXTRA)
     fun play(context: Context) = SppServer.launchGame(context)
 }
