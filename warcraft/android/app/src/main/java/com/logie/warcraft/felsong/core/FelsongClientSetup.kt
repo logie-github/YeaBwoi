@@ -17,6 +17,11 @@ object FelsongClientSetup {
 
     fun values(width: Int, height: Int, accountName: String?): Map<String, String> = buildMap {
         put("portal", PORTAL)
+        // (its language, always: with none, and no launcher's LOCALE, the client asks with a dialog,
+        // and its OK sets the portal to the region's code, "US", in place of the realm's address; the
+        // client's data is enUS only, its .build.info's tags)
+        put("textLocale", "enUS")
+        put("audioLocale", "enUS")
         put("readTOS", "1")
         put("readEULA", "1")
         put("readTerminationWithoutNotice", "1")

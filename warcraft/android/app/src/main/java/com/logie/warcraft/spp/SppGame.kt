@@ -54,19 +54,33 @@ object SppGame {
         val unset = SppRealm.CLIENT_GRAPHICS.filterKeys { key -> !Regex("(?im)^\\s*SET\\s+${Regex.escape(key)}\\s").containsMatchIn(text) }
         LocalConfig.atomicWrite(config, ClientConfig.updateConfig(text,
             unset + FelsongClientSetup.values(size.first, size.second, SppLogin.selectedName(context)) +
-                // (the graphics API chosen, or the one a failed start moved on to: SppGraphics)
-                ("gxApi" to SppSettings.api(context))))
+                // (the graphics API chosen, or the one a failed start moved on to, kept by the client only
+                // with videoOptionsVersion 15: SppGraphics; given on its command line too, clientArguments)
+                ("gxApi" to SppSettings.api(context)) + ("videoOptionsVersion" to "15")))
+        // (the graphics log the client writes anew at each start: an earlier one never read as this one's)
+        val gx = File(client, "Logs/gx.log")
+        if (gx.isFile) gx.renameTo(File(client, "Logs/gx.previous.log"))
     }
+
+    /** The client's command line: its graphics API (SppGraphics.argument, overriding Config.wtf's). */
+    internal fun clientArguments(context: Context) = listOf(SppGraphics.argument(SppSettings.api(context)))
 
     /**
      * The game ended [seconds] after its launch at [launchedAt]: when its own log of its graphics'
      * start (Logs/gx.log) says they didn't start, the next API is chosen for the next launch and said
      * (null: nothing to say of it).
      */
-    internal fun clientEnded(context: Context, launchedAt: Long, seconds: Long): String? {
-        if (seconds >= SppGraphics.START_SECONDS) return null
+    internal fun clientEnded(context: Context, launchedAt: Long, seconds: Long, code: String): String? {
         val log = File(SppFiles.layout(context).client, "Logs/gx.log")
-        if (!log.isFile || log.lastModified() < launchedAt - 5_000) return null
+        val written = log.isFile && log.lastModified() >= launchedAt - 5_000
+        if (!written) {
+            // (ended before its graphics, soon and not cleanly: its start-up protection stopped it, the
+            // dialog "Game Initialization Failed!", which the CPU emulation decides; not the graphics API)
+            return if (code != "0" && seconds < SppGraphics.PROTECTION_SECONDS)
+                "The game stopped in its start-up protection (\"Game Initialization Failed!\", exit code $code), before its graphics. " +
+                    "It's the CPU emulation (Box64) that decides it; the report has which Box64 ran."
+            else null
+        }
         val failure = SppGraphics.failure(runCatching { log.readText() }.getOrDefault("")) ?: return null
         val tried = SppSettings.api(context)
         val next = SppGraphics.next(tried)
@@ -79,14 +93,19 @@ object SppGame {
         }
     }
 
-    /** The game's own logs for a report: its graphics' start (Logs/gx.log) and its newest error report. */
+    /**
+     * The game's own logs for a report: its graphics' start (Logs/gx.log, this launch's: an earlier one
+     * is moved aside at each launch), its newest error report, and which Box64 the runtime has.
+     */
     internal fun clientLogs(context: Context): String {
         val client = SppFiles.layout(context).client
+        val box64 = runCatching { com.winlator.xenvironment.components.GuestProgramLauncherComponent.box64Identity(context) }.getOrDefault("Box64: unknown")
         val gx = runCatching { File(client, "Logs/gx.log").readLines().filter { it.isNotBlank() }.takeLast(40) }.getOrDefault(emptyList())
         val error = File(client, "Errors").listFiles { file -> file.name.endsWith(".txt", true) }?.maxByOrNull { it.lastModified() }
         val errorLines = error?.let { runCatching { it.readLines().take(40) }.getOrNull() }.orEmpty()
         return buildString {
-            append(if (gx.isEmpty()) "gx.log (the game's graphics): nothing written." else "gx.log (the game's graphics):\n" + gx.joinToString("\n"))
+            append("$box64\n\n")
+            append(if (gx.isEmpty()) "gx.log (the game's graphics): not written by this launch (it stopped before its graphics)." else "gx.log (the game's graphics):\n" + gx.joinToString("\n"))
             if (error != null) append("\n\nErrors/${error.name}:\n" + errorLines.joinToString("\n"))
         }
     }

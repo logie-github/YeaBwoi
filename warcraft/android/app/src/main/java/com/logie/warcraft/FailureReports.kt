@@ -64,6 +64,8 @@ object FailureReports {
         val app = context.applicationContext
         catchCrashes(app)
         if (RealmLink.inRealm) return
+        // (a local realm that was running when Android last ended the app: why, from Android's record)
+        runCatching { com.logie.warcraft.local.RealmExitReport.checkPrevious(app) }
         val stopped = setOf(
             app.getString(R.string.wow_import_cancelled), app.getString(R.string.turtle_job_cancelled),
             app.getString(R.string.felsong_job_cancelled), app.getString(R.string.tww_stop_other),

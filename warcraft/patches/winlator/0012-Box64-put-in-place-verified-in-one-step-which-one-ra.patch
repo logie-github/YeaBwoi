@@ -1,0 +1,140 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sat, 24 Oct 2026 19:30:07 +0000
+Subject: [PATCH] Box64 put in place verified, in one step; which one ran, in
+ the session's log
+
+Box64's version was extracted over the runtime's binary in place, the
+result ignored and the version recorded anyway: with a Box64 still
+running, the write fails (ETXTBSY) and the other version stays while
+this one is recorded, and nothing extracts it again. Local realms'
+modern clients fail their start-up protection on the stock Box64
+("Game Initialization Failed!"). The version's binary is now extracted
+beside the runtime (once per app build), compared with the installed
+one at every start, and put in place by a rename; the version is
+recorded only once the installed binary is it. A local realm's session
+writes which Box64 it runs (version and SHA-256) in its log.
+---
+ .../com/winlator/XServerDisplayActivity.java  |  2 +
+ .../com/winlator/core/GeneralComponents.java  | 15 +++++
+ .../GuestProgramLauncherComponent.java        | 55 ++++++++++++++++++-
+ 3 files changed, 69 insertions(+), 3 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index 74d9b3b..32fb817 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -636,6 +636,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+         synchronized (sessionLock) {
+             if (sessionEnded) return;
+             environment.startEnvironmentComponents();
++            // World of Warcraft app: which Box64 the session's programs run on (its start put it in place).
++            writeSessionLog("[app] "+GuestProgramLauncherComponent.box64Identity(this));
+ 
+             winHandler.start();
+             com.logie.warcraft.tww.TwwServer.runtimeAttached(this);
+diff --git a/app/src/main/java/com/winlator/core/GeneralComponents.java b/app/src/main/java/com/winlator/core/GeneralComponents.java
+index 582b276..8dfce81 100644
+--- a/app/src/main/java/com/winlator/core/GeneralComponents.java
++++ b/app/src/main/java/com/winlator/core/GeneralComponents.java
+@@ -224,6 +224,21 @@ public abstract class GeneralComponents {
+         }
+     }
+ 
++    /**
++     * World of Warcraft app: [identifier] (a built-in version, or an installed component, else
++     * [defaultVersion]'s) extracted into [destination] instead of the runtime; whether it was.
++     */
++    public static boolean extractFileTo(Type type, Context context, String identifier, String defaultVersion, File destination) {
++        if (isBuiltinComponent(type, identifier)) {
++            String sourcePath = type.assetFolder()+"/"+type.lowerName()+"-"+identifier+".tzst";
++            return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, sourcePath, destination, null);
++        }
++        File source = new File(getComponentDir(type, context), type.lowerName()+"-"+identifier+".tzst");
++        if (TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, source, destination, null)) return true;
++        String sourcePath = type.assetFolder()+"/"+type.lowerName()+"-"+defaultVersion+".tzst";
++        return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, sourcePath, destination, null);
++    }
++
+     private static String parseDisplayText(Type type, String filename) {
+         return filename.replace(type.lowerName()+"-", "").replace(".tzst", "").replace(".sf2", "");
+     }
+diff --git a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+index 20c818c..a076e4b 100644
+--- a/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
++++ b/app/src/main/java/com/winlator/xenvironment/components/GuestProgramLauncherComponent.java
+@@ -119,19 +119,68 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
+     /**
+      * World of Warcraft app: Box64 [version] (null: the app-wide one) in the runtime, and its settings
+      * file, before a guest program starts; for a session, or a local realm's programs with no session.
++     * The version's binary is extracted beside the runtime (once per app build), compared with the
++     * installed one at every start, and put in place in one step (a rename): written over in place, a
++     * Box64 still running refused it (ETXTBSY) and the other version stayed while this one was
++     * recorded, which local realms' modern clients fail on (their start-up protection: "Game
++     * Initialization Failed!").
+      */
+     public static void prepareBox64(Context context, String version) {
+         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
+         String box64Version = version != null ? version : preferences.getString("box64_version", DefaultVersion.BOX64);
+-        String currentBox64Version = preferences.getString("current_box64_version", "");
+-
+-        if (!box64Version.equals(currentBox64Version)) {
++        File installed = new File(RootFS.find(context).getRootDir(), "usr/local/bin/box64");
++        File staging = new File(context.getCacheDir(), "box64-"+box64Version+"-"+com.winlator.core.AppUtils.getVersionCode(context));
++        File staged = new File(staging, "usr/local/bin/box64");
++        if (!staged.isFile()) {
++            FileUtils.delete(staging);
++            staging.mkdirs();
++            if (!GeneralComponents.extractFileTo(GeneralComponents.Type.BOX64, context, box64Version, DefaultVersion.BOX64, staging)) FileUtils.delete(staging);
++        }
++        if (staged.isFile()) {
++            if (!sameContent(staged, installed)) {
++                File temporary = new File(installed.getParentFile(), ".box64-"+box64Version);
++                temporary.delete();
++                if (FileUtils.copy(staged, temporary)) {
++                    FileUtils.chmod(temporary, 0771);
++                    if (!temporary.renameTo(installed)) temporary.delete();
++                }
++            }
++            if (sameContent(staged, installed)) preferences.edit().putString("current_box64_version", box64Version).commit();
++        }
++        else if (!box64Version.equals(preferences.getString("current_box64_version", ""))) {
++            // (no staged copy: as before, in place)
+             GeneralComponents.extractFile(GeneralComponents.Type.BOX64, context, box64Version, DefaultVersion.BOX64);
+             preferences.edit().putString("current_box64_version", box64Version).commit();
+         }
+         copyDefaultBox64RCFile(context);
+     }
+ 
++    /** World of Warcraft app: which Box64 the runtime has (its version as recorded, and its file's SHA-256), for a log. */
++    public static String box64Identity(Context context) {
++        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
++        File installed = new File(RootFS.find(context).getRootDir(), "usr/local/bin/box64");
++        return "Box64 "+preferences.getString("current_box64_version", "?")+" (sha256 "+sha256(installed)+")";
++    }
++
++    private static boolean sameContent(File a, File b) {
++        return a.isFile() && b.isFile() && a.length() == b.length() && sha256(a).equals(sha256(b));
++    }
++
++    private static String sha256(File file) {
++        try (java.io.InputStream input = new java.io.FileInputStream(file)) {
++            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
++            byte[] buffer = new byte[65536];
++            int read;
++            while ((read = input.read(buffer)) > 0) digest.update(buffer, 0, read);
++            StringBuilder hex = new StringBuilder();
++            for (byte b : digest.digest()) hex.append(String.format("%02x", b));
++            return hex.toString();
++        }
++        catch (Exception e) {
++            return "none";
++        }
++    }
++
+     public void setBox64Version(String box64Version) {
+         this.box64Version = box64Version;
+     }
+-- 
+2.43.0
+

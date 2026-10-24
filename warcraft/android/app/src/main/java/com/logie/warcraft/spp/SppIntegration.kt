@@ -38,7 +38,8 @@ object SppIntegration : LocalRealmInstallation {
     override fun openClientSession(context: Context, container: com.winlator.container.Container) = SppGame.openClientSession(context, container)
     override fun showSession(context: Context) = SppGame.showSession(context)
     override fun prepareClientLaunch(context: Context) = SppGame.prepareLaunch(context)
-    override fun clientEnded(context: Context, launchedAt: Long, seconds: Long) = SppGame.clientEnded(context, launchedAt, seconds)
+    override fun clientEnded(context: Context, launchedAt: Long, seconds: Long, code: String) = SppGame.clientEnded(context, launchedAt, seconds, code)
+    override fun clientArguments(context: Context) = SppGame.clientArguments(context)
     override fun clientLogs(context: Context) = SppGame.clientLogs(context)
     override fun configureClient(context: Context) = SppGame.configureInstallation(context)
 

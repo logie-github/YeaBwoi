@@ -22,8 +22,10 @@ interface ManagedWindowsRealm {
     fun openClientSession(context: Context, container: com.winlator.container.Container)
     fun showSession(context: Context)
     fun prepareClientLaunch(context: Context) {}
-    /** The game ended [seconds] after its launch at [launchedAt]: what to say of it (null: nothing of the realm's own). */
-    fun clientEnded(context: Context, launchedAt: Long, seconds: Long): String? = null
+    /** The game ended [seconds] after its launch at [launchedAt] with exit [code]: what to say of it (null: nothing of the realm's own). */
+    fun clientEnded(context: Context, launchedAt: Long, seconds: Long, code: String): String? = null
+    /** The client's command-line arguments after its program (each a plain word: no quotes or spaces). */
+    fun clientArguments(context: Context): List<String> = emptyList()
     /** The game's own logs, for a report of its failure (null: none). */
     fun clientLogs(context: Context): String? = null
     /** The world server's settings the app sets at every start, before it loads (the realm's choices). */

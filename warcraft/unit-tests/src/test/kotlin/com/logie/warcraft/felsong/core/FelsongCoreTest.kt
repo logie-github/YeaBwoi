@@ -141,6 +141,9 @@ class FelsongClientTest {
     fun pointsTheClientAtThePhone() {
         val values = FelsongClientSetup.values(1600, 720, "me@phone")
         assertEquals("127.0.0.1", values["portal"])
+        // (the language dialog's OK would set the portal to "US")
+        assertEquals("enUS", values["textLocale"])
+        assertEquals("enUS", values["audioLocale"])
         assertEquals("1600x720", values["gxWindowedResolution"])
         assertEquals("me@phone", values["accountName"])
         assertNull(FelsongClientSetup.values(1600, 720, null)["accountName"])

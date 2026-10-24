@@ -58,6 +58,15 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
     var message by remember { mutableStateOf<String?>(null) }
     var choosingImport by rememberSaveable { mutableStateOf(LocalInstallJobs.Kind.IMPORT_CLIENT.name) }
     var playAfterStart by rememberSaveable { mutableStateOf(false) }
+    // (a start asked for while another of the phone's realms runs: whether it plays once up)
+    var askOther by remember { mutableStateOf<Boolean?>(null) }
+    var askRestricted by remember { mutableStateOf<Boolean?>(null) }
+    fun startRealm(play: Boolean, restrictedAsked: Boolean = false) {
+        if (!restrictedAsked && com.logie.warcraft.local.OtherRealms.backgroundRestricted(context)) { askRestricted = play; return }
+        if (com.logie.warcraft.local.OtherRealms.running().isNotEmpty()) { askOther = play; return }
+        if (play) playAfterStart = true
+        SppServer.start(context)
+    }
     var choosingAccountForPlay by remember { mutableStateOf(false) }
     var checkingUpdate by remember { mutableStateOf(false) }
     val updateOffer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { checkingUpdate = false }
@@ -147,7 +156,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
                                         else SppGame.play(context)
                                     }
                                     SppServer.isBusy -> dialog = "server"
-                                    ready -> { playAfterStart = true; SppServer.start(context) }
+                                    ready -> startRealm(play = true)
                                     else -> run(LocalInstallJobs.Kind.INSTALL)
                                 }
                             }
@@ -188,6 +197,28 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
         }
     }
     message?.let { text -> FelsongDialog("Legion", { message = null }, buttons = { FelsongButton("Close") { message = null } }) { Text(text) } }
+    askRestricted?.let { play ->
+        FelsongDialog("Android restricts this app", { askRestricted = null }, buttons = {
+            FelsongButton("Cancel", primary = false) { askRestricted = null }
+            FelsongButton("Start anyway", primary = false) { askRestricted = null; startRealm(play, restrictedAsked = true) }
+            FelsongButton("Open settings") { askRestricted = null; com.logie.warcraft.local.OtherRealms.openAppSettings(context) }
+        }) {
+            Text("The app's battery use is Restricted: Android ends the realm as soon as you leave the app (its servers run in the app). In the app's settings, Battery: Unrestricted (on Samsung, also keep it out of Sleeping apps).")
+        }
+    }
+    askOther?.let { play ->
+        FelsongDialog("Another realm is running", { askOther = null }, buttons = {
+            FelsongButton("Cancel", primary = false) { askOther = null }
+            FelsongButton("Start anyway", primary = false) { askOther = null; if (play) playAfterStart = true; SppServer.start(context) }
+            FelsongButton("Stop it and start") {
+                askOther = null
+                if (play) playAfterStart = true
+                com.logie.warcraft.local.OtherRealms.stop(context) { SppServer.start(context) }
+            }
+        }) {
+            Text(com.logie.warcraft.local.OtherRealms.running().joinToString(" and ") + " is running. Legion's realm and its game under the phone's CPU emulation need its memory: stop it first?")
+        }
+    }
     when (dialog) {
         "server" -> FelsongDialog("Local Server", { dialog = null }, buttons = { FelsongButton("Close") { dialog = null } }) {
             Text("${SppRealm.DISTRIBUTION} · 127.0.0.1")
@@ -197,7 +228,7 @@ fun SppHomeRoute(onSwitchGame: () -> Unit) {
             server.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             server.error?.let { Text(it, color = FelsongColors.Blood) }
             server.clientError?.let { Text(it, color = FelsongColors.Blood) }
-            FelsongButton("Start Server", enabled = editable && ready) { SppServer.start(context) }
+            FelsongButton("Start Server", enabled = editable && ready) { startRealm(play = false) }
             FelsongButton("Stop Server", primary = false, enabled = !busy && SppServer.isBusy) { playAfterStart = false; SppServer.stop(context) }
             FelsongButton(if (server.clientRunning) "Return to Game" else "Launch Game", enabled = !busy && server.phase == WindowsRealmServer.Phase.RUNNING) {
                 dialog = null

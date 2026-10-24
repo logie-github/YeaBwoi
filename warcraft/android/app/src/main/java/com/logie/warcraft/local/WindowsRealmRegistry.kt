@@ -33,7 +33,7 @@ object WindowsRealmRegistry {
         val current = liveDisplay()
         if (current != null && current !== runtime) return false
         val target = owner(runtime)
-        val allowed = if (target != null) holder === target && target.allowsSession()
+        val allowed = if (target != null) holder === target && target.allowsSession() && isGame(runtime)
             else holder == null && realms.values.none { it.isBusy }
         if (allowed) display = WeakReference(runtime)
         return allowed
@@ -64,10 +64,15 @@ object WindowsRealmRegistry {
         owner(runtime)?.onSessionAttached(runtime)
     }
 
+    /** A realm's session of this design: its game (an older version's Recents card opened a console). */
+    private fun isGame(runtime: XServerDisplayActivity) = runtime.intent.getBooleanExtra(WindowsRealmGame.REALM_CLIENT, false)
+
     /** [runtime] was refused ([allow]): what its screen says (null: Winlator's own words). */
     @Synchronized fun rejected(runtime: XServerDisplayActivity): String? {
+        val owner = owner(runtime) ?: return null
+        if (!isGame(runtime)) return "This screen is from an earlier version of the app: use Launch Game."
         val other = liveDisplay()?.let { it !== runtime } == true
-        return owner(runtime)?.onSessionRejected(other)
+        return owner.onSessionRejected(other)
     }
 
     /**
