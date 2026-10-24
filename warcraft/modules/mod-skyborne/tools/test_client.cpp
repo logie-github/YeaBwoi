@@ -153,6 +153,21 @@ int main(int argc, char** argv)
         }
         Check(!playerSkins.empty() && uneven == 0, "every player skin has the faces of its race and sex's others" + first);
     }
+    // No skin colour without a row below a race and sex's highest: the screen reads a colour's row by
+    // its number as the race changes, and a colour with no row is a missing row's texture read.
+    {
+        std::map<std::pair<uint32_t, uint32_t>, std::set<uint32_t>> colours;
+        for (size_t i = 0; i < sections.records.size(); ++i)
+            if (sections.Get(i, 3) == 0)
+                colours[{ sections.Get(i, 1), sections.Get(i, 2) }].insert(sections.Get(i, 9));
+        int holes = 0;
+        std::string first;
+        for (auto const& [who, has] : colours)
+            for (uint32_t c = 0; c < *has.rbegin(); ++c)
+                if (!has.count(c) && !holes++)
+                    first = " (first: race " + std::to_string(who.first) + " sex " + std::to_string(who.second) + " colour " + std::to_string(c) + ")";
+        Check(holes == 0, "no skin colour without its row below the highest" + first);
+    }
 
     Dbc spells;
     Check(patch->Read("DBFilesClient\\Spell.dbc", bytes) && spells.Parse(bytes), "Spell.dbc is in it");

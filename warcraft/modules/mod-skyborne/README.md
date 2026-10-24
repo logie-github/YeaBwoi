@@ -105,6 +105,10 @@ move to 22 and 23.
   `Data/patch-Z.MPQ` from the client's own files (WOW_CLIENT_DIR): the tables with the rows changed,
   the textures recoloured (a palette's colours, compressed blocks' end colours: the same format and
   size; with HD looks, each skin's `_Extra` too, named in its CharSections row), the race icons, `GlueXML.toc` with `SkyborneCreate.xml` and `.lua`, the gear button's three files, the zoom's, and the narration. It's
+  Every skin colour below a race and sex's highest has a row (`FillSkinHoles`: the creation screen
+  reads a colour's row by its number as the race changes, and some colours have none, such as the
+  Skyborne's between the blood elf's skins and their blues): an NPC's skin, as the game's own colours
+  between are. It's
   made again only when the client's archives or the module's files change (the stamp in
   `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.

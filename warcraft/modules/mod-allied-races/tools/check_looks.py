@@ -15,6 +15,8 @@ colours between are the NPCs'):
   * every player skin colour that isn't a death knight's has the same faces as the others, and
     every death knight's skin the same as the other death knights';
   * every player skin colour has its underwear where the race has any;
+  * no skin colour below the highest has no row at all (an NPC's will do, as the game's own are):
+    the screen reads a colour's row by its number as the race changes;
   * every hair style has the same hair colours, and its row in CharHairGeosets;
   * every facial hair texture style has the same colours;
   * CharacterFacialHairStyles has the features 0 to n-1;
@@ -57,6 +59,10 @@ def check(folder):
     models = {r[0] for r in table("CreatureModelData")}
     races = {r[0]: r for r in table("ChrRaces")}
 
+    all_colours = collections.defaultdict(set)      # (race, sex) -> skin colours of any row, an NPC's too
+    for r in sections:
+        if r[3] == 0:
+            all_colours[(r[1], r[2])].add(r[9])
     rows = collections.defaultdict(list)            # (race, sex) -> (section, variation, colour, flags)
     for r in sections:
         if r[7] & PLAYER:
@@ -83,6 +89,9 @@ def check(folder):
         if not skins or race not in races:
             continue
         looked += 1
+        for c in range(max(all_colours[(race, sex)])):
+            if c not in all_colours[(race, sex)]:
+                problems.append("%s: skin colour %d has no row at all (below its highest, %d)" % (who, c, max(all_colours[(race, sex)])))
         for dk in (False, True):
             group = sorted(c for c, d in skins.items() if d == dk)
             if not group:
