@@ -6,7 +6,7 @@ on:
       - 'warcraft/android/app/src/test/**'
       - 'warcraft/android/app/src/main/java/com/logie/warcraft/local/**'
       - 'warcraft/android/app/src/main/java/com/logie/warcraft/tww/**'
-      - 'warcraft/android/app/src/main/java/com/logie/warcraft/spp/**'
+      - 'warcraft/android/app/src/main/java/com/logie/warcraft/felsong/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -36,13 +36,3 @@ jobs:
       - name: Run Android lifecycle regression tests
         working-directory: warcraft/android
         run: ./gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest
-      - name: Read rendered Legion launcher previews
-        run: |
-          python - <<'PY'
-          import base64
-          from pathlib import Path
-          for path in sorted(Path('warcraft/android/app/build/reports/spp-previews').glob('*.jpg')):
-              data=base64.b64encode(path.read_bytes()).decode()
-              for index,start in enumerate(range(0,len(data),24000)):
-                  print('SPP_PREVIEW_B64='+path.name+':'+str(index)+':'+data[start:start+24000])
-          PY

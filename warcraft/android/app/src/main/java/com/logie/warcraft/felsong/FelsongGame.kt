@@ -4,12 +4,14 @@ package com.logie.warcraft.felsong
 
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import android.util.Log
 import com.logie.warcraft.MainActivity
 import com.logie.warcraft.R
 import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.felsong.core.FelsongClient
 import com.logie.warcraft.felsong.core.FelsongClientSetup
+import com.logie.warcraft.felsong.core.FelsongGraphics
 import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.game.GestureView
 import com.logie.warcraft.turtle.core.SafeFs
@@ -56,6 +58,9 @@ object FelsongGame {
 
     const val CONTAINER_NAME = "Felsong"
 
+    /** What Wine and Box64 print in the game's session, and how it ended (Winlator patch 0008), in the realm's logs folder. */
+    private const val SESSION_LOG = "game-session.log"
+
     /** The other games' containers (game/Game.kt, turtle/TurtleGame.kt): never Felsong's to touch. */
     private val OTHER_CONTAINERS = setOf("World of Warcraft", "Turtle WoW")
 
@@ -69,10 +74,59 @@ object FelsongGame {
     /** The game screen, waiting for the launcher to be on screen. */
     private var pending: Intent? = null
 
+    /** When the game was last started (uptime, ms), until the launcher is back in front after it. */
+    @Volatile private var launchedAt = 0L
+
     fun onLauncherShown(context: Context) {
-        val intent = pending ?: return
-        pending = null
-        context.startActivity(intent)
+        val intent = pending
+        if (intent != null) {
+            pending = null
+            launchedAt = SystemClock.elapsedRealtime()
+            context.startActivity(intent)
+            return
+        }
+        // The launcher is back after a game: when it ended soon, its graphics may not have started.
+        val started = launchedAt
+        if (started == 0L) return
+        launchedAt = 0L
+        val seconds = (SystemClock.elapsedRealtime() - started) / 1000
+        val message = runCatching { clientEnded(context, System.currentTimeMillis() - seconds * 1000, seconds) }.getOrNull()
+        if (message != null && _state.value is State.Idle) _state.value = State.Failed(message)
+    }
+
+    /**
+     * The game ended [seconds] after its launch at [launchedAt] (wall clock): when its own log of its
+     * graphics' start (Logs/gx.log) says they didn't start, the next API is chosen for the next
+     * launch and said (null: nothing to say of it).
+     */
+    internal fun clientEnded(context: Context, launchedAt: Long, seconds: Long): String? {
+        if (seconds >= FelsongGraphics.START_SECONDS) return null
+        val log = File(FelsongFiles.layout(context).client, "Logs/gx.log")
+        if (!log.isFile || log.lastModified() < launchedAt - 5_000) return null
+        val failure = FelsongGraphics.failure(runCatching { log.readText() }.getOrDefault("")) ?: return null
+        val tried = FelsongSettings.api(context)
+        val next = FelsongGraphics.next(tried)
+        return if (next != null) {
+            FelsongSettings.setApi(context, next)
+            context.getString(R.string.felsong_game_graphics_next, FelsongGraphics.name(tried), failure, FelsongGraphics.name(next))
+        } else {
+            FelsongSettings.setApi(context, FelsongGraphics.ORDER.first())
+            context.getString(R.string.felsong_game_graphics_none, failure)
+        }
+    }
+
+    /** The game's own logs for a report: its graphics' start (Logs/gx.log) and its newest error report. */
+    fun clientLogs(context: Context): String {
+        val client = FelsongFiles.layout(context).client
+        val gx = runCatching { File(client, "Logs/gx.log").readLines().filter { it.isNotBlank() }.takeLast(40) }.getOrDefault(emptyList())
+        val error = File(client, "Errors").listFiles { file -> file.name.endsWith(".txt", true) }?.maxByOrNull { it.lastModified() }
+        val errorLines = error?.let { runCatching { it.readLines().take(40) }.getOrNull() }.orEmpty()
+        val session = runCatching { File(FelsongFiles.layout(context).logs, SESSION_LOG).readLines().takeLast(40) }.getOrDefault(emptyList())
+        return buildString {
+            append(if (gx.isEmpty()) "gx.log (the game's graphics): nothing written." else "gx.log (the game's graphics):\n" + gx.joinToString("\n"))
+            if (error != null) append("\n\nErrors/${error.name}:\n" + errorLines.joinToString("\n"))
+            if (session.isNotEmpty()) append("\n\n$SESSION_LOG (Wine and Box64):\n" + session.joinToString("\n"))
+        }
     }
 
     fun dismiss() {
@@ -132,7 +186,7 @@ object FelsongGame {
         val container = container(context, width, height)
         withContext(Dispatchers.IO) {
             val layout = FelsongFiles.layout(context)
-            FelsongClientSetup.apply(layout.client, width, height, accountName = null)
+            FelsongClientSetup.apply(layout.client, width, height, accountName = null, api = FelsongSettings.api(context))
             installCertificateBundle(context, container)
         }
 
@@ -150,7 +204,7 @@ object FelsongGame {
         if (accounts?.isEmpty() == true) throw GameFailed(context.getString(R.string.felsong_game_error_no_account), needsAccount = true)
         val saved = FelsongLogin.get(context)
         val account = accounts?.firstOrNull { saved != null && it.name.equals(saved.name, ignoreCase = true) } ?: accounts?.singleOrNull()
-        if (account != null) withContext(Dispatchers.IO) { FelsongClientSetup.apply(FelsongFiles.layout(context).client, width, height, account.name) }
+        if (account != null) withContext(Dispatchers.IO) { FelsongClientSetup.apply(FelsongFiles.layout(context).client, width, height, account.name, FelsongSettings.api(context)) }
         val newAccount = account != null && withContext(Dispatchers.IO) { runCatching { FelsongAccounts.characters(context, account.id) == 0 }.getOrDefault(false) }
 
         _state.value = State.Preparing(Step.STARTING)
@@ -161,11 +215,20 @@ object FelsongGame {
             .putExtra("container_id", container.id)
             .putExtra("exec_path", clientPath(context) + "/" + exe)
             .putExtra("gestures", true)
+            // Box64 with the flags of a signal's context right (Winlator patch 0009, scripts/build-box64.sh):
+            // the 7.x client's start-up protection single-steps itself and, on Box64 0.4.4, takes the wrong
+            // branch and stops on a deliberate trap (box64 #3061).
+            .putExtra("box64_version", com.winlator.core.DefaultVersion.BOX64_LEGION)
+            // What Wine and Box64 print in the session, and how it ended (Winlator patch 0008).
+            .putExtra("session_log", File(FelsongFiles.layout(context).logs, SESSION_LOG).path)
             // The game screen's touch layer, for Felsong: its own saved login and accounts.
             .putExtra(GestureView.EXTRA_ENVIRONMENT, GestureView.ENVIRONMENT_FELSONG)
             .putExtra(GestureView.EXTRA_NEW_ACCOUNT, newAccount)
             .putExtra(GestureView.EXTRA_ACCOUNT, account?.name)
-        if (MainActivity.visible) context.startActivity(intent) else pending = intent
+        if (MainActivity.visible) {
+            launchedAt = SystemClock.elapsedRealtime()
+            context.startActivity(intent)
+        } else pending = intent
     }
 
     /**
@@ -195,6 +258,7 @@ object FelsongGame {
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
+            existing.setGraphicsDriver(FelsongSettings.graphicsDriver(context))
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
@@ -203,7 +267,7 @@ object FelsongGame {
             .put("name", CONTAINER_NAME)
             .put("screenSize", screenSize)
             .put("envVars", defaults.getEnvVars())
-            .put("graphicsDriver", defaults.getGraphicsDriver())
+            .put("graphicsDriver", FelsongSettings.graphicsDriver(context))
             .put("dxwrapper", defaults.getDXWrapper())
             .put("audioDriver", defaults.getAudioDriver())
             .put("wincomponents", defaults.getWinComponents())

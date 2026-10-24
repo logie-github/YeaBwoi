@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Legion launcher's texts (com.logie.warcraft.felsong.ui.LegionHome, LegionDialogs). The realm's, the
+     installer's and the game's own texts are in strings_felsong.xml. -->
+<resources>
+    <string name="legion_version">Version %1$s · LegionCore %2$s</string>
+
+    <string name="legion_tile_realm">Realm</string>
+    <string name="legion_tile_files">Game files</string>
+    <string name="legion_tile_files_all">The client and the server\'s data are in</string>
+    <string name="legion_tile_files_client">The client is in; the server\'s data is not</string>
+    <string name="legion_tile_files_none">Download the Legion client, or add your own</string>
+    <string name="legion_tile_accounts">Accounts</string>
+    <string name="legion_tile_accounts_none">Make the account you play with</string>
+    <string name="legion_tile_settings">Realm settings</string>
+    <string name="legion_tile_settings_summary">Experience, gold, starting level, solo scaling</string>
+    <string name="legion_tile_graphics">Graphics</string>
+    <string name="legion_tile_upkeep">Repair and backups</string>
+    <string name="legion_tile_upkeep_summary">Repair, back up the characters, uninstall</string>
+    <string name="legion_tile_icon_summary">Choose the app\'s icon</string>
+    <string name="legion_tile_games_summary">Wrath of the Lich King, Turtle WoW, The War Within</string>
+
+    <string name="legion_step_check">The phone</string>
+    <string name="legion_step_server">The realm (LegionCore)</string>
+    <string name="legion_step_database">The realm\'s databases</string>
+    <string name="legion_step_client">The Legion client (7.3.5, build 26972)</string>
+    <string name="legion_step_data">The server\'s data from the client</string>
+    <string name="legion_step_patch">The client set up for the realm</string>
+    <string name="legion_step_account">Your account</string>
+    <string name="legion_step_ready">Ready</string>
+    <string name="legion_status_done">Done</string>
+    <string name="legion_status_todo">Next</string>
+    <string name="legion_status_needs_you">Needs you</string>
+    <string name="legion_status_blocked">Can\'t on this phone</string>
+    <string name="legion_status_waiting">Waits</string>
+
+    <string name="legion_install_realm">Install the realm</string>
+    <string name="legion_install_note">The realm is LegionCore 7.3.5 and its databases: a download of %1$s, then about 2 GB on the phone (%2$s free).</string>
+    <string name="legion_download_client">Download the Legion client</string>
+    <string name="legion_use_own_client">Add my own client</string>
+    <string name="legion_client_note">The client is 42.3 GB, from its host over HTTP. The app checks every file against the zip\'s own checksums and takes the stock Wow-64.exe out of the client\'s storage, where the build lists its hash. Allow about 50 GB free (%1$s now). A dropped connection carries on where it stopped.</string>
+    <string name="legion_download_keeps">What is downloaded is kept: stop it and press it again, or close the app, and it carries on.</string>
+    <string name="legion_own_folder">Add my client from a folder</string>
+    <string name="legion_own_zip">Add my client from a zip</string>
+    <string name="legion_verify_client">Check the client again</string>
+    <string name="legion_make_data">Make the server\'s data</string>
+    <string name="legion_data_note">The realm needs maps, vmaps and DB2 tables made from the client with LegionCore\'s own tools. It takes a while on a phone (the maps, then the vmaps), with the app kept running in the background.</string>
+    <string name="legion_patch_client">Set up the client for the realm</string>
+    <string name="legion_make_account">Make an account</string>
+    <string name="legion_account_note">Legion\'s login is a Battle.net one: the account is an e-mail address and a password, kept on this phone.</string>
+    <string name="legion_import_data">Add server data made on a computer (zip)</string>
+    <string name="legion_mmaps">Make pathfinding (mmaps) too</string>
+    <string name="legion_mmaps_note">Creatures walk around obstacles with it. It takes hours on a phone; without it they walk straight lines.</string>
+    <string name="legion_ready_note">Starts the realm on this phone, then the game, which signs in by itself. The first start of the realm takes longer: it loads and updates its databases.</string>
+    <string name="legion_first_start">The first start takes several minutes: the realm loads and updates its databases.</string>
+    <string name="legion_realm_online">%1$s is online on this phone.</string>
+    <string name="legion_realm_lan">On your Wi-Fi: %1$s</string>
+    <string name="legion_realm_lan_none">Off</string>
+    <string name="legion_realm_failed">The realm didn\'t start</string>
+    <string name="legion_details">Details</string>
+    <string name="legion_game_failed">The game didn\'t start</string>
+    <string name="legion_game_step_runtime">Installing the Windows runtime</string>
+    <string name="legion_game_step_windows">Setting up Legion\'s Windows</string>
+    <string name="legion_game_step_realm">Starting the realm</string>
+    <string name="legion_game_step_starting">Starting the game</string>
+
+    <string name="legion_realm_row_realm">Realm</string>
+    <string name="legion_realm_row_here">On this phone</string>
+    <string name="legion_realm_row_lan">On your Wi-Fi</string>
+    <string name="legion_realm_row_ports">Ports</string>
+    <string name="legion_lan">Let PCs on my Wi-Fi play on this realm</string>
+    <string name="legion_lan_note">Off: only this phone connects. Applies at the next start of the realm.</string>
+    <string name="legion_logs">Logs</string>
+    <string name="legion_log_end">The end of the log:</string>
+    <string name="legion_no_logs">No log has been written yet.</string>
+    <string name="legion_background">Background activity</string>
+    <string name="legion_background_note">Downloads, the realm and the game keep running while you use another app or the screen is off, if Android lets the app run in the background.</string>
+    <string name="legion_background_row">Battery access</string>
+    <string name="legion_background_free">Unrestricted</string>
+    <string name="legion_background_optimized">Optimized</string>
+    <string name="legion_background_allow">Allow background activity</string>
+
+    <string name="legion_files_client">Client</string>
+    <string name="legion_files_client_in">In (build %1$d)</string>
+    <string name="legion_files_data">Server data</string>
+    <string name="legion_files_patched">Set up for the realm</string>
+    <string name="legion_files_space">Space</string>
+    <string name="legion_files_space_value">%1$s used, %2$s free</string>
+    <string name="legion_files_missing">Missing</string>
+    <string name="legion_files_note">Only the client\'s build record and its storage are kept; its Wow-64.exe is always the stock one from that storage (a different one is kept beside, named .not-stock). Its server data and set-up copy are made on the phone.</string>
+
+    <string name="legion_settings_note">Applied when the realm starts. Tap a setting to go to the next value.</string>
+    <string name="legion_settings_stop_first">Stop the realm and finish what is running to change these.</string>
+    <string name="legion_defaults">Defaults</string>
+    <string name="legion_on">On</string>
+    <string name="legion_off">Off</string>
+    <string name="legion_copper">%1$s copper</string>
+    <string name="legion_setting_xp_kill">Experience from kills</string>
+    <string name="legion_setting_xp_quest">Experience from quests</string>
+    <string name="legion_setting_xp_explore">Experience from exploring</string>
+    <string name="legion_setting_money">Gold from creatures</string>
+    <string name="legion_setting_reputation">Reputation</string>
+    <string name="legion_setting_honor">Honor</string>
+    <string name="legion_setting_level">Starting level of new characters</string>
+    <string name="legion_setting_start_money">Starting money of new characters</string>
+    <string name="legion_setting_solo">Solo scaling for dungeons and raids (Solocraft)</string>
+    <string name="legion_setting_other">Setting</string>
+
+    <string name="legion_graphics_note">The game\'s size on the screen. A new size applies at the next start of the game.</string>
+    <string name="legion_graphics_api">Graphics API</string>
+    <string name="legion_api_d3d9">As the phone\'s 3.3.5a game draws: the likeliest to start</string>
+    <string name="legion_api_d3d11">Legion\'s own: more effects, more asked of the driver</string>
+    <string name="legion_api_opengl">A last try, through the OpenGL driver</string>
+    <string name="legion_graphics_api_note">A start where the graphics fail (\"Game Initialization Failed\") moves on to the next API by itself, and says so.</string>
+    <string name="legion_graphics_driver">Graphics driver</string>
+    <string name="legion_driver_vortek">The phone\'s own driver, as the other games use</string>
+    <string name="legion_driver_turnip">Mesa\'s driver for Adreno: try it if the game shows nothing or stops</string>
+
+    <string name="legion_account_name">E-mail address</string>
+    <string name="legion_account_password">Password</string>
+    <string name="legion_account_new_password">New password</string>
+    <string name="legion_account_rules">An e-mail address and a password of 1 to 16 letters, digits and symbols. Accounts and characters belong to this phone\'s realm only.</string>
+    <string name="legion_account_create">Make a new account</string>
+    <string name="legion_account_admin">Game master account (commands in the game)</string>
+    <string name="legion_account_create_use">Make and use this account</string>
+    <string name="legion_account_use_button">Use this account</string>
+    <string name="legion_account_change_password">Change the password</string>
+    <string name="legion_account_use">Tap to use this account</string>
+    <string name="legion_account_selected">Selected</string>
+    <string name="legion_account_bad_name">That isn\'t an e-mail address the realm accepts.</string>
+    <string name="legion_account_bad_password">The password has to be 1 to 16 letters, digits or symbols, with no spaces.</string>
+    <string name="legion_account_taken">That account exists already.</string>
+    <string name="legion_account_mismatch">The name or password doesn\'t match the realm\'s database.</string>
+    <string name="legion_account_failed">The account couldn\'t be made.</string>
+    <string name="legion_accounts_install_first">Install the realm first: the accounts are in its database.</string>
+    <string name="legion_accounts_busy">A job is running; accounts can be read but wait for it before changes.</string>
+
+    <string name="legion_repair_title">Repair</string>
+    <string name="legion_repair_programs">The realm\'s programs (downloaded and installed again)</string>
+    <string name="legion_repair_configs">The realm\'s configuration (made again; the settings stay)</string>
+    <string name="legion_repair_client">The client (checked, set up for the realm again)</string>
+    <string name="legion_repair_data">The server\'s data (made again from the client)</string>
+    <string name="legion_repair_databases">The databases (accounts and characters are backed up first, then made new)</string>
+    <string name="legion_repair_note">Repair keeps the client\'s files. The databases are the only thing that loses the characters; a backup is made first.</string>
+    <string name="legion_repair">Repair</string>
+    <string name="legion_backups_title">Backups</string>
+    <string name="legion_backups_note">Accounts and characters, as SQL. The app makes one before it updates the realm or resets its databases.</string>
+    <string name="legion_backup_now">Back up now</string>
+    <string name="legion_restore_tap">Tap to restore this backup</string>
+    <string name="legion_no_backups">No backups yet.</string>
+    <string name="legion_uninstall">Uninstall Legion</string>
+    <string name="legion_uninstall_title">Uninstall Legion?</string>
+    <string name="legion_uninstall_body">This removes the realm, its databases (accounts and characters), the client and the server data: %1$s. The other games are not touched. Back up first if you want to keep your characters somewhere else.</string>
+</resources>

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-package com.logie.warcraft.spp.core
+package com.logie.warcraft.felsong.core
 
 /**
  * The graphics API the 7.3.5 client draws with (its Config.wtf's gxApi): it has Direct3D 9, Direct3D 11
@@ -9,7 +9,7 @@ package com.logie.warcraft.spp.core
  * the same drivers. A start that fails moves on to the next ([next]), told by the client's own log of
  * its graphics' start (Logs/gx.log: [failure]).
  */
-object SppGraphics {
+object FelsongGraphics {
     const val D3D9 = "D3D9"
     const val D3D11 = "D3D11"
     const val OPENGL = "OpenGL"

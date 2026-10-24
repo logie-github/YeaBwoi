@@ -12,9 +12,6 @@ import com.logie.warcraft.game.Game
 import com.logie.warcraft.local.LocalInstallJobs
 import com.logie.warcraft.local.WindowsRealmServer
 import com.logie.warcraft.reports.AppFailure
-import com.logie.warcraft.spp.SppIntegration
-import com.logie.warcraft.spp.SppJobs
-import com.logie.warcraft.spp.SppServer
 import com.logie.warcraft.turtle.TurtleGame
 import com.logie.warcraft.turtle.TurtleJobs
 import com.logie.warcraft.turtle.TurtleServer
@@ -38,7 +35,7 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Every failure the app meets, sent to this app's repository on GitHub as an issue: a realm that
- * wouldn't start (3.3.5a, Turtle WoW, Legion, SPP Legion, The War Within), an installation, an import
+ * wouldn't start (3.3.5a, Turtle WoW, Legion, The War Within), an installation, an import
  * or a game launch that failed, and the app itself crashing. Each is made a report in
  * [AnomalyReports]' folder ([AppFailure.markdown]: what the app said, the end of the logs), which
  * sends it as it sends the time anomaly reports, from the app's process: at once, and again every
@@ -95,9 +92,8 @@ object FailureReports {
             (it as? FelsongJobs.State.Failed)?.let { f -> failure("${f.kind}: ${f.message}", f.log) }
         }
         follow(app, "Legion 7.3.5 game", FelsongGame.state) {
-            (it as? FelsongGame.State.Failed)?.takeUnless { f -> f.needsAccount }?.let { f -> failure(f.message) }
+            (it as? FelsongGame.State.Failed)?.takeUnless { f -> f.needsAccount }?.let { f -> failure(f.message, runCatching { FelsongGame.clientLogs(app) }.getOrNull()) }
         }
-        windowsRealm(app, SppServer, SppJobs, SppIntegration.displayName, ::failure)
         windowsRealm(app, TwwServer, TwwJobs, TwwIntegration.displayName, ::failure)
 
         scope.launch {

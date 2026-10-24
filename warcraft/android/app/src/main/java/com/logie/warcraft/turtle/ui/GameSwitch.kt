@@ -32,8 +32,8 @@ import kotlinx.coroutines.withContext
 /**
  * Switching the launcher between the games. Nothing of any game changes; only the realm that's
  * running may be stopped, when the user says so: ChromieCraft's and Turtle WoW's login servers use
- * the same port (the game's 3724), so only one of them runs at a time. Felsong has no realm on the
- * phone yet, so switching to or from it stops nothing.
+ * the same port (the game's 3724), so only one of them runs at a time. Legion's realm has ports of
+ * its own (3312, 1119, 8081, 8095, 8096), so switching to or from it stops nothing.
  */
 object GameSwitch {
     /** A realm that [target]'s realm can't run beside is running. */

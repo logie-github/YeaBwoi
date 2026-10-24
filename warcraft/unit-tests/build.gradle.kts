@@ -31,7 +31,6 @@ sourceSets {
         // Felsong's platform-independent parts: its folder layout, install plan, Legion accounts, client checks.
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/felsong/core")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/tww/core")
-        kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/spp/core")
         // Local realms' Wine with no screen: its processes, environment and marker.
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/local/core")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/reports")

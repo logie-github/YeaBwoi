@@ -24,7 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the app running while a local realm (SPP Legion, The War Within) runs: its Wine with no screen
+ * Keeps the app running while a local realm (The War Within) runs: its Wine with no screen
  * is the app's own processes ([WindowsRealmHost]), which Android ends with the app, so the app is a
  * foreground service then, with its notification (Stop Server) and the CPU kept awake with the
  * screen off. It ends itself once no realm is busy.

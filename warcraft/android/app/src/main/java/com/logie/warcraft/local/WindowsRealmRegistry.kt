@@ -39,7 +39,7 @@ object WindowsRealmRegistry {
         return allowed
     }
 
-    /** A local realm (SPP Legion, The War Within) is running or holds the Windows runtime. */
+    /** A local realm (The War Within) is running or holds the Windows runtime. */
     @Synchronized fun anyBusy(): Boolean = holder != null || realms.values.any { it.isBusy }
 
     /** [server]'s Wine may start: no game's screen open, no other realm holding or running. */

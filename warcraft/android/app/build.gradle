@@ -140,7 +140,6 @@ android {
 
     testOptions.unitTests.includeAndroidResources = true
     testOptions.unitTests.all {
-        outputs.dir(project.layout.buildDirectory.dir('reports/spp-previews'))
         systemProperty 'robolectric.graphicsMode', 'NATIVE'
         systemProperty 'robolectric.dependency.repo.url', 'https://maven-central.storage-download.googleapis.com/maven2'
         maxHeapSize = '3g'

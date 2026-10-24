@@ -11,6 +11,7 @@ object FelsongTexts {
         when (step) {
             FelsongJobs.Step.CHECKING -> R.string.felsong_step_checking
             FelsongJobs.Step.DOWNLOADING -> R.string.felsong_step_downloading
+            FelsongJobs.Step.DOWNLOADING_CLIENT -> R.string.felsong_step_downloading_client
             FelsongJobs.Step.UNPACKING -> R.string.felsong_step_unpacking
             FelsongJobs.Step.DATABASE -> R.string.felsong_step_database
             FelsongJobs.Step.RUNTIME -> R.string.felsong_step_runtime

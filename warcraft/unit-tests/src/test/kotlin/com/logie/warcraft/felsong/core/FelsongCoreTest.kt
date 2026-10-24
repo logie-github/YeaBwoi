@@ -125,6 +125,25 @@ class FelsongClientTest {
     }
 
     @Test
+    fun aClientWithoutWow64CanStillBeUsedWhenItsStorageHoldsTheProgram() {
+        // The publisher's zip has the 32-bit program loose and the 64-bit one only inside the storage.
+        val zip = listOf(".build.info", "Data/config/3b/05/3b05", "Data/data/0000000018.idx", "Data/data/data.000", "Data/indices/x.index", "Wow.exe", "Utils/libcef.dll")
+        assertEquals("", FelsongClient.findRoot(zip))
+        assertEquals(emptyList(), FelsongClient.missing(zip, ""))
+        assertEquals("Retail", FelsongClient.findRoot(zip.map { "Retail/$it" }))
+        // Without the build's record the program can't be taken out, so it must be there.
+        assertEquals(listOf("Wow-64.exe"), FelsongClient.missing(zip.filter { it != ".build.info" }, ""))
+        assertNull(FelsongClient.findRoot(listOf(".build.info")))
+        // What the app fetches from that zip: the record and the storage, not the loose programs.
+        assertTrue(FelsongClient.wanted(".build.info"))
+        assertTrue(FelsongClient.wanted("Data/data/data.039"))
+        assertTrue(FelsongClient.wanted("Data/config/3b/05/3b0517b51edbe0b96f6ac5ea7eaaed38"))
+        assertFalse(FelsongClient.wanted("Wow.exe"))
+        assertFalse(FelsongClient.wanted("Utils/libcef.dll"))
+        assertFalse(FelsongClient.wanted("Data/"))
+    }
+
+    @Test
     fun readsTheVersionOfAClientFolder() {
         val dir = createTempDirectory("client").toFile()
         try {

@@ -104,12 +104,7 @@
             android:exported="false"
             android:stopWithTask="false" />
 
-        <service
-            android:name=".spp.SppService"
-            android:exported="false"
-            android:stopWithTask="false" />
-
-        <!-- A local realm (SPP Legion, The War Within) running: its Wine has no screen and is the
+        <!-- A local realm (The War Within) running: its Wine has no screen and is the
              app's own processes, so the app stays a foreground service while it runs. -->
         <service
             android:name=".local.LocalRealmService"
@@ -127,7 +122,7 @@
             android:launchMode="singleTask"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation|uiMode|fontScale|locale|layoutDirection|colorMode|touchscreen"
             android:screenOrientation="sensorLandscape" />
-        <!-- A local realm's game (SPP Legion, The War Within): Winlator's screen joining the realm's
+        <!-- A local realm's game (The War Within): Winlator's screen joining the realm's
              Wine, which runs with no screen (WindowsRealmHost), in a task of its own, so the launcher
              (singleTask) coming back in front doesn't end it. Its end (Leave, the game exiting,
              swiping it from Recents, Android closing it) ends the game only; the realm runs on. Gone

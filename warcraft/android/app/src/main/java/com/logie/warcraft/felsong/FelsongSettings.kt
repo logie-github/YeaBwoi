@@ -4,6 +4,7 @@ package com.logie.warcraft.felsong
 
 import android.content.Context
 import com.logie.warcraft.felsong.core.FelsongAccountRules
+import com.logie.warcraft.felsong.core.FelsongGraphics
 import com.logie.warcraft.felsong.core.FelsongRealm
 import java.io.File
 
@@ -41,6 +42,26 @@ object FelsongSettings {
     fun knownAccounts(context: Context) = prefs(context).getInt("accounts", -1)
 
     fun setKnownAccounts(context: Context, count: Int) = prefs(context).edit().putInt("accounts", count).apply()
+
+    /** The Vulkan driver the game's Windows uses: the phone's own through Winlator's Vortek, or Mesa's Turnip (Adreno GPUs only). */
+    const val VORTEK = "vortek"
+    const val TURNIP = "turnip"
+
+    /** Turnip can be chosen: the phone's GPU is an Adreno. */
+    fun turnipAvailable(context: Context) = runCatching { com.winlator.core.GPUHelper.getAdrenoModelId(context) > 0 }.getOrDefault(false)
+
+    fun graphics(context: Context): String =
+        if (prefs(context).getString("graphics", VORTEK) == TURNIP && turnipAvailable(context)) TURNIP else VORTEK
+
+    fun setGraphics(context: Context, driver: String) = prefs(context).edit().putString("graphics", if (driver == TURNIP) TURNIP else VORTEK).apply()
+
+    /** Winlator's graphics driver setting for the game's container: the chosen Vulkan driver, Gladio for OpenGL. */
+    fun graphicsDriver(context: Context) = graphics(context) + "," + com.winlator.container.GraphicsDrivers.GLADIO
+
+    /** The graphics API the client draws with (its gxApi: [FelsongGraphics]); a start that failed moves it on. */
+    fun api(context: Context): String = FelsongGraphics.valid(prefs(context).getString("gxApi", null))
+
+    fun setApi(context: Context, api: String) = prefs(context).edit().putString("gxApi", FelsongGraphics.valid(api)).apply()
 
     /** Back to the defaults. */
     fun reset(context: Context) = prefs(context).edit().clear().apply()

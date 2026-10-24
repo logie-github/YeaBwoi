@@ -13,5 +13,7 @@ class WowApp : Application() {
         super.onCreate()
         RealmLink.attach(this)
         FailureReports.watch(this)
+        // The Legion this app had before (SPP's repack) is removed, once (LegacySpp).
+        if (!RealmLink.inRealm) Thread({ runCatching { com.logie.warcraft.felsong.LegacySpp.removeOnce(this) } }, "legacy-spp").start()
     }
 }

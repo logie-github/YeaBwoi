@@ -56,7 +56,7 @@
     <string name="tww_source_server">Open server source</string>
     <string name="tww_source_maps">Open map files source</string>
     <string name="tww_one_tap_note">Installs a streaming client (about 63 MB), the server and maps. Assets download as you play. The app sets the local connection; executables are not patched.</string>
-    <!-- A local realm (SPP Legion, The War Within) running with no screen: its notification. -->
+    <!-- A local realm (The War Within) running with no screen: its notification. -->
     <string name="local_realm_channel">Local realms</string>
     <string name="local_realm_running">Local realm running</string>
     <string name="local_realm_stop">Stop Server</string>

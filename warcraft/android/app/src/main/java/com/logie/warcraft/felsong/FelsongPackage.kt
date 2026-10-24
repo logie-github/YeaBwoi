@@ -16,10 +16,10 @@ import java.io.IOException
 import java.io.InputStream
 
 /**
- * Felsong's realm package (scripts/package-legioncore.sh): LegionCore's programs for arm64, its own
+ * Legion's realm package (scripts/package-legioncore.sh): LegionCore's programs for arm64, its own
  * MariaDB, the SQL, a seed database with LegionCore's world and hotfixes, and the client tools (the
  * map makers, the connection patcher). Not in the APK: CI publishes it as this repository's release
- * `felsong-server-<hash>`, and each build of the app names the one it's made for with its size and
+ * `legion-server-<hash>`, and each build of the app names the one it's made for with its size and
  * SHA-256 ([pinned]). [install] downloads it (carrying on after a dropped connection), checks it,
  * unpacks it next to the one in place and swaps them, so a failure leaves what was there. The
  * package's layout is Turtle's (`server/...` in a tar.xz), so Turtle's unpacker reads it, into

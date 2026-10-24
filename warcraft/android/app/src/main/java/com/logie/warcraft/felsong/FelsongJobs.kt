@@ -9,7 +9,10 @@ import android.provider.OpenableColumns
 import android.text.format.Formatter
 import com.logie.warcraft.R
 import com.logie.warcraft.WowFiles
+import com.logie.warcraft.WowUpdater
+import com.logie.warcraft.client.ZipDownload
 import com.logie.warcraft.felsong.core.FelsongAccountRules
+import com.logie.warcraft.felsong.core.FelsongCasc
 import com.logie.warcraft.felsong.core.FelsongClient
 import com.logie.warcraft.felsong.core.FelsongDataImport
 import com.logie.warcraft.felsong.core.FelsongLayout
@@ -35,9 +38,9 @@ import java.util.zip.ZipInputStream
  * kept to carry on from), so Install can be pressed again, and Repair or Uninstall clean it up.
  */
 object FelsongJobs {
-    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, VERIFY, DATA, IMPORT_DATA, PATCH, REPAIR, BACKUP, RESTORE, UNINSTALL }
+    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, DOWNLOAD_CLIENT, VERIFY, DATA, IMPORT_DATA, PATCH, REPAIR, BACKUP, RESTORE, UNINSTALL }
 
-    enum class Step { CHECKING, DOWNLOADING, UNPACKING, DATABASE, RUNTIME, COPYING_CLIENT, VERIFYING_CLIENT, MAPS, VMAPS, MMAPS, VERIFYING_DATA, PATCHING, ACCOUNT, BACKUP, RESTORE, REMOVING }
+    enum class Step { CHECKING, DOWNLOADING, DOWNLOADING_CLIENT, UNPACKING, DATABASE, RUNTIME, COPYING_CLIENT, VERIFYING_CLIENT, MAPS, VMAPS, MMAPS, VERIFYING_DATA, PATCHING, ACCOUNT, BACKUP, RESTORE, REMOVING }
 
     sealed interface State {
         data object Idle : State
@@ -100,6 +103,7 @@ object FelsongJobs {
                 Kind.DATABASE -> database(context)
                 Kind.RUNTIME -> runtime(context)
                 Kind.CLIENT -> importClient(context, uri ?: throw JobException("No client picked"), isFolder, options)
+                Kind.DOWNLOAD_CLIENT -> downloadClient(context, options)
                 Kind.VERIFY -> verifyClient(context)
                 Kind.DATA -> makeData(context, Kind.DATA, options.withMmaps)
                 Kind.IMPORT_DATA -> importData(context, uri ?: throw JobException("No zip picked"))
@@ -263,21 +267,132 @@ object FelsongJobs {
         try {
             if (isFolder) copyFolder(context, uri, layout, fs, hashes) else copyZip(context, uri, layout, fs, hashes)
             checkCancelled()
-            working(kind, Step.VERIFYING_CLIENT)
-            val exe = FelsongClient.find(layout.clientStaging, FelsongClient.EXE)
-                ?: throw JobException(context.getString(R.string.felsong_error_not_client))
-            val version = FelsongClient.version(layout.clientStaging)
-                ?: throw JobException(context.getString(R.string.felsong_error_client_version))
-            if (!version.isExpected) throw JobException(context.getString(R.string.felsong_error_client_build, version.text, FelsongClient.BUILD))
-            val exeHash = hashes[exe.relativeTo(layout.clientStaging).path.replace('\\', '/').lowercase()]
-                ?: exe.inputStream().use { sha256(it) }
-            // A patched program copied along with the client was made for someone else's realm.
-            FelsongClient.find(layout.clientStaging, FelsongClient.PATCHED_EXE)?.let { fs.delete(it) }
-            fs.replace(layout.clientStaging, layout.client)
-            FelsongFiles.updateState(context) { it.copy(clientExeSha256 = exeHash, clientBuild = version.build, patchedFrom = null) }
+            adoptClient(context, kind, layout.clientStaging)
         } finally {
             fs.delete(layout.clientStaging)
         }
+        return finishClient(context, kind, options)
+    }
+
+    /**
+     * The one complete client the app can fetch ([FelsongClient.SOURCE_URL]): the zip's directory,
+     * then the build record and the storage, file by file in one pass over the zip, each checked
+     * against the zip's CRC. A dropped connection carries on from the first file not complete
+     * (the files done stay in `client.download`, also across a closed app). The stock Wow-64.exe is
+     * then taken out of the storage ([adoptClient]).
+     */
+    private fun downloadClient(context: Context, options: Options): String {
+        val kind = Kind.DOWNLOAD_CLIENT
+        working(kind, Step.CHECKING)
+        preflight(context)
+        val layout = FelsongFiles.layout(context)
+        val fs = FelsongFiles.fs(context)
+        for (folder in listOf(layout.serverStaging, layout.serverOld, layout.clientStaging, layout.dataImport)) fs.delete(folder)
+        val zip = ZipDownload(FelsongClient.SOURCE_URL, null, WowUpdater.userAgent) { cancelled }
+        val staging = layout.clientDownload
+        try {
+            val entries = retrying { zip.directory() }.filter { FelsongClient.wanted(it.name) }
+            val length = retrying { zip.size() }
+            if (length != FelsongClient.SOURCE_SIZE) throw JobException(context.getString(R.string.felsong_error_source_changed, length))
+            if (entries.none { it.name == FelsongClient.BUILD_INFO } || entries.none { it.name.startsWith("Data/data/") }) {
+                throw JobException(context.getString(R.string.felsong_error_source_changed, length))
+            }
+            val total = zip.totalOf(entries)
+            // What is still to write: the files already complete in the staging folder are kept.
+            val stillToWrite = entries.filter { entry ->
+                val file = ZipDownload.target(staging, entry.name)
+                !(file.isFile && file.length() == entry.size)
+            }.sumOf { it.size }
+            checkSpace(context, stillToWrite + SPACE_MARGIN)
+            fs.mkdirs(staging)
+            working(kind, Step.DOWNLOADING_CLIENT, 0f)
+            retrying {
+                zip.extractAll(entries, staging) { done ->
+                    working(kind, Step.DOWNLOADING_CLIENT, done.toFloat() / total, "${size(context, done)} / ${size(context, total)}")
+                }
+            }
+            checkCancelled()
+            fs.delete(layout.clientStaging)
+            adoptClient(context, kind, staging)
+        } catch (e: ZipDownload.Cancelled) {
+            throw VerifiedDownload.Cancelled()
+        }
+        return finishClient(context, kind, options)
+    }
+
+    /** [block], again after a pause when the connection drops (a few tries in a row); cancelling ends it. */
+    private fun <T> retrying(block: () -> T): T {
+        var attempt = 0
+        while (true) {
+            try {
+                return block()
+            } catch (e: ZipDownload.Cancelled) {
+                throw e
+            } catch (e: IOException) {
+                checkCancelled()
+                if (++attempt >= DOWNLOAD_TRIES) throw e
+                Thread.sleep(3_000L * attempt)
+            }
+        }
+    }
+
+    /**
+     * Puts the client in [staging] in place of `client/`: its stock Wow-64.exe first ([stockProgram]),
+     * the build it says it is checked against the realm's, and the manifest told. A patched
+     * program left in the copy was made for someone else's realm and goes.
+     */
+    private fun adoptClient(context: Context, kind: Kind, staging: File) {
+        val layout = FelsongFiles.layout(context)
+        val fs = FelsongFiles.fs(context)
+        working(kind, Step.VERIFYING_CLIENT)
+        stockProgram(context, staging)
+        val exe = FelsongClient.find(staging, FelsongClient.EXE)
+            ?: throw JobException(context.getString(R.string.felsong_error_not_client))
+        val version = FelsongClient.version(staging)
+            ?: throw JobException(context.getString(R.string.felsong_error_client_version))
+        if (!version.isExpected) throw JobException(context.getString(R.string.felsong_error_client_build, version.text, FelsongClient.BUILD))
+        val exeHash = exe.inputStream().use { sha256(it) }
+        FelsongClient.find(staging, FelsongClient.PATCHED_EXE)?.let { fs.delete(it) }
+        fs.replace(staging, layout.client)
+        FelsongFiles.updateState(context) { it.copy(clientExeSha256 = exeHash, clientBuild = version.build, patchedFrom = null) }
+    }
+
+    /**
+     * Makes sure the client's Wow-64.exe is the stock one: the client's storage holds it, and the
+     * build lists its hash ([FelsongCasc]). One that differs (a copy of the client that carried a
+     * changed program) is kept beside as `Wow-64.exe.not-stock`, and the stock one takes its place;
+     * where the storage can't be read, the program there is used as it is.
+     */
+    private fun stockProgram(context: Context, folder: File) {
+        val casc = try { FelsongCasc(folder) } catch (e: FelsongCasc.CascException) { return }
+        val expected = try { casc.expectedHash(FelsongClient.EXE, "x86_64") } catch (e: FelsongCasc.CascException) { null }
+        val existing = FelsongClient.find(folder, FelsongClient.EXE)
+        if (expected == null) {
+            if (existing == null) throw JobException(context.getString(R.string.felsong_error_stock_exe, "the build doesn't list ${FelsongClient.EXE}"))
+            return
+        }
+        if (existing != null && existing.inputStream().use { md5(it) } == expected) return
+        val target = File(folder, FelsongClient.EXE)
+        val fs = FelsongFiles.fs(context)
+        val aside = File(folder, FelsongClient.EXE + ".not-stock")
+        if (existing != null) {
+            fs.delete(aside)
+            fs.move(existing, aside)
+        }
+        try {
+            casc.extract(FelsongClient.EXE, target, "x86_64") { cancelled }
+        } catch (e: FelsongCasc.CascException) {
+            if (aside.isFile && !target.exists()) fs.move(aside, target)
+            if (target.isFile) return
+            throw JobException(context.getString(R.string.felsong_error_stock_exe, e.message ?: ""))
+        } catch (e: IOException) {
+            checkCancelled()
+            throw JobException(context.getString(R.string.felsong_error_stock_exe, e.message ?: ""))
+        }
+    }
+
+    /** After a client is in place: the server's data and the patched program, where the realm is there. */
+    private fun finishClient(context: Context, kind: Kind, options: Options): String {
         if (FelsongPackage.isInstalled(context)) {
             makeData(context, kind, options.withMmaps)
             patchClient(context, kind)
@@ -378,6 +493,17 @@ object FelsongJobs {
         }
         if (close) input.close()
         return digest?.digest()?.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun md5(input: InputStream): String {
+        val digest = MessageDigest.getInstance("MD5")
+        val buffer = ByteArray(1 shl 16)
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) break
+            digest.update(buffer, 0, n)
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun sha256(input: InputStream): String {
@@ -791,6 +917,9 @@ object FelsongJobs {
         } ?: -1L
 
     private fun size(context: Context, bytes: Long) = Formatter.formatShortFileSize(context, bytes)
+
+    /** Tries in a row when the connection to the client's server drops. */
+    private const val DOWNLOAD_TRIES = 8
 
     /** Room kept free beyond what a step writes. */
     private const val SPACE_MARGIN = 500_000_000L

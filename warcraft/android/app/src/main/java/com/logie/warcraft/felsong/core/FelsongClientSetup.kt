@@ -15,7 +15,7 @@ import java.io.File
 object FelsongClientSetup {
     const val PORTAL = "127.0.0.1"
 
-    fun values(width: Int, height: Int, accountName: String?): Map<String, String> = buildMap {
+    fun values(width: Int, height: Int, accountName: String?, api: String = FelsongGraphics.valid(null)): Map<String, String> = buildMap {
         put("portal", PORTAL)
         put("readTOS", "1")
         put("readEULA", "1")
@@ -29,19 +29,35 @@ object FelsongClientSetup {
         put("gxMaximize", "1")
         put("gxWindowedResolution", "${width}x$height")
         put("gxFullscreenResolution", "${width}x$height")
-        put("gxApi", "D3D11")
+        // (the graphics API chosen, or the one a failed start moved on to: FelsongGraphics)
+        put("gxApi", FelsongGraphics.valid(api))
         // The game's cursor shown by the system: taps read it to tell what a click would do.
         put("gxCursor", "1")
         put("hwDetect", "0")
         if (accountName != null) put("accountName", accountName)
     }
 
+    /**
+     * The game's graphics on a phone to start with (Legion's lowest preset, no anti-aliasing, 30
+     * frames a second, 5 behind other apps), written only where Config.wtf has none yet: what's
+     * chosen in the game's own options stays.
+     */
+    val START_GRAPHICS = mapOf(
+        "graphicsQuality" to "1",
+        "RAIDgraphicsQuality" to "1",
+        "MSAAQuality" to "0",
+        "ffxAntiAliasingMode" to "0",
+        "maxFPS" to "30",
+        "maxFPSBk" to "5",
+    )
+
     /** Writes the settings into [client]'s WTF/Config.wtf. */
-    fun apply(client: File, width: Int, height: Int, accountName: String?) {
+    fun apply(client: File, width: Int, height: Int, accountName: String?, api: String = FelsongGraphics.valid(null)) {
         val config = File(client, "WTF/Config.wtf")
         config.parentFile?.mkdirs()
         val text = if (config.isFile) config.readText() else ""
-        config.writeText(ClientConfig.updateConfig(text, values(width, height, accountName)))
+        val unset = START_GRAPHICS.filterKeys { key -> !Regex("(?im)^\\s*SET\\s+${Regex.escape(key)}\\s").containsMatchIn(text) }
+        config.writeText(ClientConfig.updateConfig(text, unset + values(width, height, accountName, api)))
     }
 
     /**

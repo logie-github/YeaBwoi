@@ -84,8 +84,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * Legion Single Player Project in the existing Illidan/fel theme, replacing the Felsong section.
- * The shared installer and managed server controls are supplied by SppHomeRoute.
+ * The launcher in Legion's look: Illidan over the Broken Isles, its logo, and the setup of its realm
+ * on the phone ([LegionHomeRoute]). The app's update check on opening (as the other launchers do),
+ * and the way to the other games.
  */
 @Composable
 fun FelsongLauncher(checkUpdateOnOpen: Boolean) {
@@ -132,7 +133,7 @@ fun FelsongGameChooser(onDismiss: () -> Unit, onPick: (Environments.Environment)
 
 @Composable
 internal fun FelsongHomeScreen(onSwitchGame: () -> Unit) {
-    com.logie.warcraft.spp.ui.SppHomeRoute(onSwitchGame)
+    LegionHomeRoute(onSwitchGame)
 }
 
 /** Illidan over the Broken Isles, drifting slowly, fel motes rising, the logo half over its foot. */
@@ -188,7 +189,7 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
         ) {
             Text("WORLD OF WARCRAFT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.055f).sp), color = FelsongColors.Bone)
             Text("LEGION", style = FelsongGradientText.copy(fontSize = (logoWidth.value * 0.20f).sp, shadow = FelsongGlow))
-            Text("SINGLE PLAYER PROJECT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.04f).sp), color = FelsongColors.Pale)
+            Text("LEGIONCORE · 7.3.5", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.04f).sp), color = FelsongColors.Pale)
         }
         Row(
             Modifier

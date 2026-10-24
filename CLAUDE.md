@@ -44,19 +44,19 @@ The World of Warcraft app's second game, Turtle WoW (1.18.1) with its own Tortoi
 completely apart from the 3.3.5a game: `warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its
 realm), `com.logie.warcraft.turtle` (its code, every file operation through `turtle/core/SafeFs`).
 
-## Legion — Single Player Project
+## Legion
 
-The former Felsong selection now opens the original SPP AshamaneCore Legion 7.3.5 (26972)
-integration, at the user's request. `warcraft/SPP.md` documents its inspected repack/full-client
-sources and `warcraft/README.md` describes setup. The UI retains the Illidan/fel theme; the
-legacy `felsong` preference key remains for compatibility. New files use `files/spp-legion`;
-old Felsong files and all other realms are preserved. `local/` provides the shared Windows
-realm manager and staged installer for SPP and Draconic; a realm's servers run under Wine with no
-screen (`WindowsRealmHost`, `local/core/HeadlessWine`, Winlator patch 0011), and the game's session
-only joins that Wine (`SPP.md`, issue #53). Legion phone gameplay is unverified: the
-client's Box64 start-up failure (#3061, the flags of single-step contexts) is fixed in the Box64
-local realms run (`scripts/build-box64.sh`, `warcraft/patches/box64/`, `SPP.md`), but the client
-hasn't run on a phone; do not claim it works without a phone test.
+The World of Warcraft app's Legion (7.3.5, build 26972; code `com.logie.warcraft.felsong`, folder
+`files/felsong`, shown as "Legion") is **LegionCore** running natively on the phone with the **stock
+client**, rebuilt from nothing on the user's order of October 24, 2026 ("completely restart and wipe
+the current legion"; "no SPP"). The Single Player Project version is gone, and a build removes its
+files, logins and Windows container from a phone once (`LegacySpp`). `warcraft/LEGION.md` is the brief:
+how it is made, the evidence (what was run on a PC under qemu) and what was not tested. The stock
+`Wow-64.exe` is taken out of the client's CASC storage and checked against the build's own hash
+(`FelsongCasc`); the realm package is built, tested and released by the `legion-server` job
+(`scripts/test-legion-server.sh`). The client has never run on a phone (Box64 #3061 is open, the
+app's Box64 has the fix): do not claim it works without a phone test. `local/` stays the shared
+Windows realm manager for The War Within.
 
 ## Warcraft
 

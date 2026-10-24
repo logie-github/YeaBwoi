@@ -39,6 +39,9 @@ class FelsongLayout(val files: File, val dataDir: File = files.parentFile ?: fil
     val client = File(root, "client")
     val clientStaging = File(root, "client.import")
 
+    /** The client being downloaded: the files done stay between tries, and the folder becomes `client/`. */
+    val clientDownload = File(root, "client.download")
+
     val logs = File(root, "logs")
     val run = File(root, "run")
 

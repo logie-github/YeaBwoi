@@ -7,8 +7,8 @@ import java.io.InputStream
 
 /**
  * The Legion client the realm is made for: World of Warcraft 7.3.5, build 26972, 64-bit
- * (`Wow-64.exe`; the 32-bit 7.3 client never ran under Wine). The app never downloads it: Blizzard
- * serves no 7.x client and no copy found is Blizzard's, so the user brings their own, and this says
+ * (`Wow-64.exe`; the 32-bit 7.3 client never ran under Wine). Blizzard serves no 7.x client any
+ * more, so it comes from the user ([SOURCE_URL]'s zip, or their own folder or zip), and this says
  * whether it's that one, from what the client says about itself:
  *
  * - `.build.info` at its top (the Battle.net launcher's record of what's installed, a `|`-separated
@@ -16,8 +16,10 @@ import java.io.InputStream
  * - `Wow-64.exe` itself, which carries its version as `<Version>…` text the way LegionCore's
  *   connection patcher reads it (connection_patcher/Helper.cpp).
  *
- * No file list with checksums exists for 26972 that the app could trust, so no file-by-file check:
- * the client is the user's, as it is.
+ * The program itself isn't taken from wherever the client came from: the client's storage
+ * (`Data/data`) holds the stock `Wow-64.exe` and the build's own record of its hash, so the app
+ * takes it from there ([FelsongCasc]) and the game runs the program Blizzard built, not one a
+ * copy of the client happened to carry.
  */
 object FelsongClient {
     /** The program the game runs; the connection patcher writes its patched copy beside it. */
@@ -26,6 +28,20 @@ object FelsongClient {
     const val BUILD_INFO = ".build.info"
     const val BUILD = FelsongRealm.CLIENT_BUILD
 
+    /**
+     * The one complete 7.3.5.26972 client the app knows how to fetch: a zip of a Battle.net
+     * installation, 42,288,827,614 bytes, served over HTTP only (res/xml/network_security_config.xml
+     * allows that host and no other). The app reads the zip's directory and downloads what the game
+     * needs from it, file by file, each checked against the zip's CRC. Its loose programs aren't
+     * taken (the 32-bit Wow.exe in it is not the stock one: its hash isn't the build's); the stock
+     * Wow-64.exe comes out of the storage ([FelsongCasc]).
+     */
+    const val SOURCE_URL = "http://ashamanecore.com/dicpics/LegionClient.zip"
+    const val SOURCE_SIZE = 42_288_827_614L
+
+    /** The files of the source zip the game and the server's data tools need: the build record and the storage. */
+    fun wanted(name: String): Boolean = name == BUILD_INFO || (name.startsWith("Data/") && !name.endsWith("/"))
+
     /** The version the client's files say, or null where they say nothing. */
     data class Version(val text: String, val build: Int) {
         val isExpected: Boolean get() = build == BUILD
@@ -33,11 +49,16 @@ object FelsongClient {
 
     /**
      * Finds the client's folder among [paths] (relative, with `/`, as a picked folder or a zip
-     * lists them): the one with Wow-64.exe and a Data folder, however deep. "" is the top.
+     * lists them): the one with a Data folder and either Wow-64.exe or the build record that lets
+     * the app take it out of the storage, however deep. "" is the top.
      */
     fun findRoot(paths: List<String>): String? {
-        val exes = paths.filter { it.substringAfterLast('/').equals(EXE, ignoreCase = true) }
-        return exes.map { it.substringBeforeLast('/', "") }
+        val marks = paths.filter {
+            val leaf = it.substringAfterLast('/')
+            leaf.equals(EXE, ignoreCase = true) || leaf.equals(BUILD_INFO, ignoreCase = true)
+        }
+        return marks.map { it.substringBeforeLast('/', "") }
+            .distinct()
             .sortedBy { it.length }
             .firstOrNull { root ->
                 val prefix = if (root.isEmpty()) "" else "$root/"
@@ -47,13 +68,15 @@ object FelsongClient {
 
     /**
      * The files a copy of the client must have for the game and the server's data tools: the
-     * program, the launcher's record and the CASC storage (the `.idx` files and `data.NNN` under `Data/data`).
+     * program (or what the app takes it from: the build record and its configuration), the
+     * launcher's record and the CASC storage (the `.idx` files and `data.NNN` under `Data/data`).
      */
     fun missing(paths: List<String>, root: String): List<String> {
         val prefix = if (root.isEmpty()) "" else "$root/"
         val inside = paths.filter { it.startsWith(prefix, ignoreCase = true) }.map { it.substring(prefix.length) }
         val missing = mutableListOf<String>()
-        if (inside.none { it.equals(EXE, ignoreCase = true) }) missing += EXE
+        val canMakeExe = inside.any { it.equals(BUILD_INFO, ignoreCase = true) } && inside.any { it.startsWith("Data/config/", ignoreCase = true) }
+        if (!canMakeExe && inside.none { it.equals(EXE, ignoreCase = true) }) missing += EXE
         if (inside.none { it.startsWith("Data/data/", ignoreCase = true) && it.endsWith(".idx", ignoreCase = true) }) missing += "Data/data/*.idx"
         if (inside.none { it.startsWith("Data/data/data.", ignoreCase = true) }) missing += "Data/data/data.000"
         return missing

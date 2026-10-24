@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- The original SPP publisher offers its complete client over HTTP only. -->
+    <!-- The publisher of the complete, unmodified Legion 7.3.5 client (build 26972) offers it over HTTP only. -->
     <domain-config cleartextTrafficPermitted="true">
         <domain>ashamanecore.com</domain>
     </domain-config>

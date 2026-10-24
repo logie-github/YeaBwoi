@@ -1,14 +1,15 @@
 # Felsong — Legion 7.3.5: the brief
 
-**Superseded on 2026-10-22:** the user replaced this plan with Single Player Project
-AshamaneCore. The existing launcher slot now uses the integrated [SPP implementation](SPP.md).
-The research below and old Felsong installation files are retained for reference.
+**Research, kept for reference.** On 2026-10-22 this plan was replaced by the Single Player Project
+repack; on 2026-10-24 the user had that removed and asked for LegionCore with the stock client, from
+nothing. That is what the app has now: **`LEGION.md`** says what it is and what was tested. This file is
+the research behind it (what Felsong is, why LegionCore, what the client needs, what can't be
+reproduced). Where it says "no Play" or "not built", `LEGION.md` is newer.
 
 The app's third game: Felsong (World of Warcraft: Legion 7.3.5) against its own local realm, kept
 completely apart from the 3.3.5a game (ChromieCraft) and Turtle WoW, as Turtle is (`TURTLE.md`).
-**Status: research done; Felsong's launcher is in the app with its look and music, and says it
-isn't playable (no Play); its realm (LegionCore) is being ported to the phone and hasn't been built
-through; the client hasn't been tried on a phone.** Its launcher is in the app's releases from
+**Status when written (October 16, 2026): research done; the launcher was in the app with its look and
+music, without Play.** Its launcher is in the app's releases from
 build 77 on (the user asked for a release with it, October 16, 2026), saying it isn't playable; the
 game isn't, yet.
 
