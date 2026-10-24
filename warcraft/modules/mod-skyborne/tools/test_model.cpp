@@ -73,8 +73,8 @@ static std::string ModelLine(Bytes const& m2, Bytes const& skin, size_t vertices
 
 // The made-up model --------------------------------------------------------------------------------
 // 17 vertices: a body of 9 (a 3 by 3 grid, the body texture), a face of 4 (the extra texture) and a
-// leg of 4 (the body texture again, the section that starts last); the skin's lookup runs the body's
-// backwards. Then a tail the change must keep.
+// last part of 4 (the body texture again, the section that starts last); the skin's lookup runs the
+// body's backwards. Then a tail the change must keep.
 
 static void Section(Bytes& s, uint16_t geoset, uint16_t vStart, uint16_t vCount, uint16_t iStart, uint16_t iCount,
                     uint16_t bones, uint16_t combo, float centre)
@@ -140,9 +140,9 @@ static Bytes MakeModel(uint16_t blend = 2)
     return m;
 }
 
-// [leg]: where the leg's indices start (padded with zeros up to it); [faceVertex]: the M2 vertex of
+// [last]: where the last part's indices start (padded with zeros up to it); [faceVertex]: the M2 vertex of
 // the face's first lookup entry.
-static Bytes MakeSkin(uint32_t leg = 30, uint16_t faceVertex = 9, uint16_t legGeoset = 1301, uint16_t faceIndices = 6)
+static Bytes MakeSkin(uint32_t last = 30, uint16_t faceVertex = 9, uint16_t lastGeoset = 1301, uint16_t faceIndices = 6)
 {
     Bytes lookup, indices, props, sections, batches;
     for (int k = 0; k < 17; ++k)
@@ -159,13 +159,13 @@ static Bytes MakeSkin(uint32_t leg = 30, uint16_t faceVertex = 9, uint16_t legGe
         }
     for (uint16_t i : { 9, 11, 10, 10, 11, 12 })
         Add16(indices, i);
-    while (indices.size() / 2 < leg)
+    while (indices.size() / 2 < last)
         Add16(indices, 0);
     for (uint16_t i : { 13, 15, 14, 14, 15, 16 })
         Add16(indices, i);
     Section(sections, 0, 0, 9, 0, 24, 2, 0, 1.0f);
     Section(sections, 0, 9, 4, 24, faceIndices, 1, 1, 7.0f);
-    Section(sections, legGeoset, 13, 4, uint16_t(leg), 6, 1, 2, 4.0f);
+    Section(sections, lastGeoset, 13, 4, uint16_t(last), 6, 1, 2, 4.0f);
     Batch(batches, 0, 0, 0, 0);
     Batch(batches, 3, 1, 0, 1);
     Batch(batches, 0, 2, 0, 0);
@@ -256,10 +256,10 @@ static void TestModel()
     bool indices = true;
     for (size_t k = 0; k < 45; ++k)
         indices = indices && s.Index(k) == (k < 30 ? o.Index(k) : k < 39 ? added[k - 30] : o.Index(k - 9));
-    Check(indices, "the new indices before the leg's");
+    Check(indices, "the new indices before the last part's");
     Check(std::memcmp(s.Section(0), o.Section(0), 48) == 0 && std::memcmp(s.Section(1), o.Section(1), 48) == 0, "the body's and the face's sections as they were");
     Check(Get16(s.Section(2) + 8) == 39 && std::memcmp(s.Section(2), o.Section(2), 8) == 0 && std::memcmp(s.Section(2) + 10, o.Section(2) + 10, 38) == 0,
-          "the leg's section moved on by 9");
+          "the last part's section moved on by 9");
     auto section = [&](size_t i, uint16_t vStart, uint16_t vCount, uint16_t iStart, uint16_t iCount, size_t source)
     {
         uint8_t const* n = s.Section(i);
@@ -267,7 +267,7 @@ static void TestModel()
             && Get16(n + 10) == iCount && std::memcmp(n + 12, o.Section(source) + 12, 36) == 0;
     };
     Check(section(3, 17, 4, 30, 6, 0), "a section of geoset 1101 for the body's triangles, with the body's bones, centre and radius");
-    Check(section(4, 21, 3, 36, 3, 2), "...and one for the leg's");
+    Check(section(4, 21, 3, 36, 3, 2), "...and one for the last part's");
     bool batches = std::memcmp(s.Batch(0), o.Batch(0), 72) == 0;
     for (size_t i = 3; i < 5; ++i)
     {
