@@ -73,8 +73,8 @@ comes from `scripts/prepare-winlator-app.sh warcrafts` (the WoW app keeps its ow
 A separate app (`wifecraft/`, `com.logie.wifecraft`): a dating sim laid out like a visual novel
 (a speaker from the waist up, a text box with a name tab, choices), with the game's newer models
 in the plain WoW look, their emotes as expressions, and the live 3D world behind them (the demo:
-Broken Isles Dalaran; Alleria Windrunner and an original Nightborne, Nyrelle Moonquill; affection
-and five endings). Its menus are WoW's own current interface (talking-head box, gossip window,
+Broken Isles Dalaran; Alleria Windrunner and an original night elf huntress, Nyrelle Moonquill;
+affection and five endings). The user's art for it is in `wifecraft/branding/`. Its menus are WoW's own current interface (talking-head box, gossip window,
 red buttons, reputation bars as affection, achievement toast as an ending); all the game's files,
 interface included, are fetched from wago.tools on the phone, never committed, built in or fetched
 by CI. The brief, the screens and the stages:

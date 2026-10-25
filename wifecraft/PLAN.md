@@ -25,7 +25,8 @@ this is the design. The screens' mockups are on a canvas
   - **the demo's place**: Broken Isles Dalaran (Legion's);
   - **the demo's routes**: one lore character, Alleria Windrunner, and one original character
     (race left to us: "Surprise me" → a Nightborne). Later: "The original character will be
-    female".
+    female". Then the user sent the app's art (`branding/`: two night elf huntresses and a "W"
+    emblem) and, asked, made her a **night elf** instead of a Nightborne.
 - "Design a completely new app called Wifecraft", package `com.logie.wifecraft` (asked: the
   repository's form, not `logie.com.wifecraft`). "Create original menus etc or reuse assets."
 - On the first mockups (menus of our own): "Umm for the screens I wanted you to reuse the wow ui".
@@ -87,9 +88,17 @@ this is the design. The screens' mockups are on a canvas
   the title screen's Endings.
 - **Saves**: an autosave at every scene, six slots, each with a still of the scene, the chapter,
   the place and the time (`files/saves/`, JSON plus a PNG, written atomically).
-- **Original character**: Nyrelle Moonquill, a Nightborne arcanist, new to the world outside
-  Suramar's dome, keeping an enchanting stall in the Magus Commerce Exchange. Female (the user's
-  choice); her name is ours and can change.
+- **Original character**: Nyrelle Moonquill, a night elf huntress, a Sentinel far from Darnassus
+  with her nightsaber, in Dalaran with a kaldorei envoy and wary of a city of mages (her people's
+  old fear of the arcane). Female (the user's choice); her name is ours and can change. She and
+  Alleria are both archers: they differ in temper and in what they want from the player.
+- **The art** (the user's, `branding/`): `header.jpg` (a night elf huntress and her snow leopard
+  at dusk, 3840×2160) is the title screen's backdrop, the huntress kept in frame on the right, the
+  menu on the left over a shade; `splash.jpg` (a night elf huntress under a great tree, 1920×1080)
+  is the first launch's loading art; `icon.png` (the blue-violet "W" emblem, 1254×1254) is the
+  launcher icon (`make-icons.py` makes its layers, as for the other apps) and the emblem beside
+  "Wifecraft" on the title. The game's Dalaran loading art stays a stand-in for scenes in the
+  mockups only.
 
 ## The screens (the canvas)
 
@@ -132,15 +141,16 @@ Settings (not drawn): text speed, auto speed, text box style and opacity, vibrat
 Set after the Legion's defeat, in Dalaran over the Broken Isles; its own story, not the game's.
 
 - **Prologue**: the character screen; arriving at Krasus' Landing.
-- **Chapter I, Morning**: Alleria at Krasus' Landing, watching the Isles; a collision with Nyrelle
-  in the Magus Commerce Exchange (her spilled reagents). Small choices move both.
+- **Chapter I, Morning**: Alleria at Krasus' Landing, watching the Isles; Nyrelle's nightsaber
+  knocks the player down in Runeweaver Square ("You hit your head pretty badly!"). Small choices
+  move both.
 - **Chapter II, Afternoon**: the choice of the canvas: walk Krasus' Landing with Alleria (the Void
-  she carries, the family she came back to), help Nyrelle at her stall (an enchantment gone wrong;
-  ten thousand years under a dome), or wander alone (a short scene with each).
+  she carries, the family she came back to), help Nyrelle find her runaway nightsaber in the Magus
+  Commerce Exchange (a huntress among mages), or wander alone (a short scene with each).
 - **Chapter III, Night**: Alleria at Krasus' Landing, or Nyrelle on a balcony of the Violet
   Citadel; the ending is picked by that route's affection.
-- Endings: Windrunner's Promise (Alleria, romance), Arrows at Dusk (Alleria, friendship), Beyond
-  the Dome (Nyrelle, romance), A Stall in the Exchange (Nyrelle, friendship), A City of Strangers
+- Endings: Windrunner's Promise (Alleria, romance), Arrows at Dusk (Alleria, friendship), Under
+  Elune's Light (Nyrelle, romance), A Saber's Trust (Nyrelle, friendship), A City of Strangers
   (alone).
 
 ## The story script
