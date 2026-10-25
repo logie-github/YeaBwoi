@@ -37,3 +37,14 @@ __pycache__/
 
 # Native archive utility built from pinned 7-Zip sources
 /warcraft/android/app/src/main/jniLibs/arm64-v8a/libtww7zip.so
+# Wifecraft: Gradle and CMake outputs, the desktop renderer harness's build
+/wifecraft/android/.gradle/
+/wifecraft/android/build/
+/wifecraft/android/app/build/
+/wifecraft/android/app/.cxx/
+/wifecraft/android/local.properties
+/wifecraft/android/.kotlin/
+/wifecraft/unit-tests/.gradle/
+/wifecraft/unit-tests/build/
+/wifecraft/unit-tests/.kotlin/
+/wifecraft/engine-test/build/

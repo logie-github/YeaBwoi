@@ -1,0 +1,336 @@
+# Wifecraft's demo: "A Day in Dalaran". Its own story, not the game's.
+# People: alleria, nyrelle (and her nightsaber, saber), you (the player), narrator.
+# Places and their marks: assets/places.json. Emotes: talk, exclaim, question, bow, wave, cheer,
+# laugh, rude, kiss, cry, shy, point, salute, yes, no, applaud, flex, roar.
+
+alleria +10
+nyrelle +10
+
+# ---------------------------------------------------------------- Prologue
+fadeout 0
+scene overlook day
+letterbox on
+shot view sweep_a
+fadein 1500
+shot view sweep_b 9000
+wait 2600
+title Wifecraft | A Day in Dalaran
+wait 2400
+narrator: Dalaran hangs above the Broken Isles. The Legion's fires have finally gone cold.
+narrator: You came for a week of quiet, {name}. The city has other plans.
+fadeout 900
+
+scene krasus day
+cast alleria rail face out
+cast you arrive face rail
+shot view landing
+fadein 900
+walk you near 3200
+shot view behind 3200
+wait 3300
+face alleria you
+shot bust alleria 900
+letterbox off
+wait 500
+
+# ---------------------------------------------------------------- Chapter I
+title Chapter I | Morning
+alleria [talk]: You walk like someone who has never seen the Isles from up here.
+choice What do you say?
+  > Is it that obvious? | alleria +5 | goto a_obvious
+  > I was looking at you, not the Isles. | alleria +10 | goto a_bold
+  > Who's asking? | goto a_wary
+end
+
+:a_obvious
+alleria [laugh]: Only to someone who has stood here a thousand times.
+goto a_name
+:a_bold
+alleria [laugh]: Bold. Dalaran's mages would call that reckless.
+alleria [talk]: I find I don't mind it.
+goto a_name
+:a_wary
+alleria [question]: Careful. In this city, everyone is asking something.
+goto a_name
+
+:a_name
+alleria [bow]: Alleria Windrunner. Ranger of Quel'Thalas.
+alleria [talk]: Lately, a stranger in my own skin. The Void leaves fingerprints.
+you: {name}. Just arrived.
+alleria [point]: Then a warning, {name}. Mind the streets. Some visitors don't watch where they run.
+choice How do you leave it?
+  > I'll be careful. Will I see you again? | alleria +10
+  > I can look after myself. | alleria +5
+end
+alleria [talk]: Krasus' Landing, most days. When the city is too loud.
+fadeout 700
+
+scene street day
+cast you mid face north
+cast saber start face you
+shot view street
+fadein 600
+letterbox on
+wait 400
+run saber past 900
+shot view street_low 500
+wait 650
+shake 500
+emote you no
+wait 500
+cast nyrelle behind face you
+run nyrelle close 1400
+shot two nyrelle you 1200
+wait 1500
+face nyrelle you
+letterbox off
+shot bust nyrelle 700
+nyrelle [exclaim]: Elune's light! Are you hurt?
+nyrelle [talk]: I'm glad you're okay. You hit your head pretty badly!
+choice What do you say?
+  > I've had worse from a sword. | nyrelle +5 | goto n_sword
+  > Your cat owes me an apology. | nyrelle +10 | goto n_cat
+  > Keep that thing on a leash. | nyrelle -5 | goto n_leash
+end
+
+:n_sword
+nyrelle [laugh]: A fighter, then. Good. Dalaran is full of people who'd have fainted.
+goto n_name
+:n_cat
+nyrelle [laugh]: She is not a cat. Don't tell her you said that.
+nyrelle [shy]: ...But yes. She owes you one.
+goto n_name
+:n_leash
+nyrelle [no]: A Sentinel's saber is no one's pet. She chose to follow me.
+nyrelle [talk]: Still. I'm sorry.
+goto n_name
+
+:n_name
+nyrelle [bow]: Nyrelle Moonquill. Sentinel, far from Darnassus, and lost among mages.
+nyrelle [talk]: This city hums. Every stone is full of magic. My people learned to fear that.
+nyrelle [question]: You don't seem to mind it. Will you show me it isn't all dangerous?
+choice What do you say?
+  > Of course. We'll start with the bakery. | nyrelle +10
+  > It's mostly dangerous. That's the fun. | nyrelle +5
+  > Find a mage to ask. | nyrelle -5
+end
+nyrelle [laugh]: Then I'll find you again, {name}. Or she will.
+fadeout 800
+
+# ---------------------------------------------------------------- Chapter II
+scene plaza day
+cast you centre face steps
+shot view plaza
+fadein 800
+title Chapter II | Afternoon
+choice Where do you spend the afternoon?
+  > Walk Krasus' Landing with Alleria. | goto alleria_day
+  > Help Nyrelle find her runaway saber. | goto nyrelle_day
+  > Wander the city on your own. | goto alone_day
+end
+
+# ---- Alleria's afternoon
+:alleria_day
+set route_alleria
+fadeout 700
+scene krasus dusk
+cast alleria rail face out
+cast you near face rail
+shot view behind
+fadein 900
+wait 600
+face alleria you
+shot bust alleria 900
+alleria [talk]: You came. Most people find the Landing too quiet.
+alleria [question]: Do you know what I see when I look at the Isles?
+choice What do you think she sees?
+  > Everything you fought to save. | alleria +10
+  > Everything you lost. | alleria +5
+  > The way home. | alleria +20
+end
+alleria [talk]: All of it, I think. And the shadow in me that wants none of it.
+alleria [talk]: Some days the Void whispers that I'm alone. It lies. It's usually lying.
+choice What do you say?
+  > You're not alone. Not today. | alleria +20
+  > Then I'll keep you company until it stops. | alleria +10
+  > Maybe you should rest. | alleria +0
+end
+alleria [laugh]: Kind words. I'm not used to them from strangers.
+alleria [talk]: Meet me on the Citadel's terrace tonight. The city is different after dark.
+fadeout 900
+goto night
+
+# ---- Nyrelle's afternoon
+:nyrelle_day
+set route_nyrelle
+fadeout 700
+scene plaza day
+cast nyrelle steps face you
+cast you centre face steps
+cast saber hide face you
+shot bust nyrelle
+fadein 800
+nyrelle [exclaim]: There you are! She's gone again. She hates portals, and the whole city is portals.
+nyrelle [question]: Where would you hide, if you were a nightsaber?
+choice Where do you look?
+  > Somewhere high, where she can watch everything. | nyrelle +10 | goto n_high
+  > Somewhere warm, near the bakery. | nyrelle +20 | goto n_warm
+  > Just call her name. | nyrelle +5 | goto n_call
+end
+:n_high
+nyrelle [yes]: She does love a rooftop.
+goto n_found
+:n_warm
+nyrelle [laugh]: You've met her, haven't you?
+goto n_found
+:n_call
+nyrelle [talk]: She only answers when she wants to. Like all cats. Don't tell her I said that.
+goto n_found
+:n_found
+letterbox on
+shot view plaza_wide 1200
+walk saber found 2200
+wait 2300
+face nyrelle saber
+emote nyrelle cheer
+wait 1500
+face nyrelle you
+letterbox off
+shot two nyrelle you 900
+nyrelle [laugh]: Found her! Or she found us.
+nyrelle [shy]: Thank you, {name}. I thought this city would be cold. It isn't, with you in it.
+choice What do you say?
+  > I'm glad I got knocked over. | nyrelle +20
+  > Anytime. She can find me anywhere. | nyrelle +10
+  > Try to keep her close next time. | nyrelle +0
+end
+nyrelle [talk]: Come to the Citadel's terrace tonight. The moon shows from there. Elune's light.
+fadeout 900
+goto night
+
+# ---- Wandering alone
+:alone_day
+fadeout 700
+scene street day
+cast you mid face north
+shot view street
+fadein 800
+narrator: You wander. Dalaran's streets curl around you, full of mages, merchants and the smell of bread.
+narrator: Twice you think you see a ranger's green cloak. Once, a flash of a nightsaber's tail.
+choice Do you follow either?
+  > Follow the green cloak. | alleria +5
+  > Follow the nightsaber. | nyrelle +5
+  > Keep wandering. | set wanderer
+end
+narrator: The afternoon slips away before you notice.
+fadeout 900
+goto night
+
+# ---------------------------------------------------------------- Chapter III
+:night
+title Chapter III | Night
+if flag route_alleria goto night_alleria
+if flag route_nyrelle goto night_nyrelle
+goto night_alone
+
+:night_alleria
+scene terrace night
+cast alleria partner face view
+cast you arrive face partner
+shot view terrace_wide
+fadein 1000
+walk you beside 2500
+shot two alleria you 2500
+wait 2600
+face alleria you
+face you alleria
+shot bust alleria 900
+alleria [talk]: You came.
+alleria [talk]: From up here the city looks like it's made of starlight. Easy to forget it's made of people.
+if alleria >= 60 goto alleria_romance
+if alleria >= 20 goto alleria_friend
+goto alone_end
+
+:alleria_romance
+alleria [talk]: I've spent a long time listening to things that lie to me.
+alleria [talk]: You haven't, once. That's rare enough that I mean to keep it.
+choice What do you do?
+  > Take her hand.
+  > Stand closer, and say nothing.
+end
+letterbox on
+shot two alleria you 1600
+emote alleria bow
+wait 1800
+emote you kiss
+wait 1600
+fadeout 1600
+ending windrunner
+
+:alleria_friend
+alleria [talk]: Thank you for today, {name}. You'd make a good ranger. You notice things.
+alleria [salute]: If the Void gets loud again, I know where to find a friend.
+letterbox on
+shot view terrace_wide 2000
+wait 2000
+fadeout 1400
+ending arrows
+
+:night_nyrelle
+scene terrace night
+cast nyrelle partner face view
+cast saber lie face view
+cast you arrive face partner
+shot view terrace_wide
+fadein 1000
+walk you beside 2500
+shot two nyrelle you 2500
+wait 2600
+face nyrelle you
+face you nyrelle
+shot bust nyrelle 900
+nyrelle [talk]: There. Do you see her? Elune's light, even above a city of mages.
+if nyrelle >= 60 goto nyrelle_romance
+if nyrelle >= 20 goto nyrelle_friend
+goto alone_end
+
+:nyrelle_romance
+nyrelle [shy]: My people say the moon watches over the ones we choose.
+nyrelle [talk]: I think... I'd like her to watch over you, too. With me.
+choice What do you do?
+  > Kiss her.
+  > Tell her you choose her too.
+end
+letterbox on
+shot two nyrelle you 1600
+emote nyrelle kiss
+wait 1800
+emote saber roar
+wait 1400
+fadeout 1600
+ending moonlight
+
+:nyrelle_friend
+nyrelle [laugh]: You and Shadowpaw are friends now. That means you're stuck with both of us.
+nyrelle [wave]: Goodnight, {name}. Thank you for showing me the city isn't all dangerous.
+letterbox on
+shot view terrace_wide 2000
+wait 2000
+fadeout 1400
+ending saber
+
+:night_alone
+scene terrace night
+cast you beside face view
+shot view terrace_wide
+fadein 1000
+goto alone_end
+
+:alone_end
+narrator: The city glows beneath you. Somewhere below, someone laughs; somewhere, a portal hums.
+narrator: Tomorrow, perhaps. Dalaran will still be here.
+letterbox on
+shot view terrace_wide 2500
+wait 2500
+fadeout 1400
+ending strangers
