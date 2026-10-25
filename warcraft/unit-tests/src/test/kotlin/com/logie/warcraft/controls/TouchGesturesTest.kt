@@ -70,6 +70,29 @@ class TouchGesturesTest {
     }
 
     @Test
+    fun aHoldThenAMoveDragsWithTheLeftButtonFromWhereItWasHeld() {
+        // TomTom's arrow at the top: held, then dragged down and across, as the mouse moves it.
+        gestures.down(0, 600f, 100f, 0)
+        gestures.onHold(TouchGestures.HOLD_MS)
+        gestures.move(0, 605f, 103f) // (still within a tap's reach: nothing yet)
+        gestures.move(0, 640f, 150f)
+        gestures.move(0, 700f, 250f)
+        gestures.up(0, 710f, 260f, 2000)
+        // On the left half too (Immersion's dialog at the bottom): a drag, not the stick, and no bags.
+        gestures.down(0, 300f, 500f, 3000)
+        gestures.onHold(3000 + TouchGestures.HOLD_MS)
+        gestures.move(0, 300f, 400f)
+        gestures.up(0, 300f, 400f, 4000)
+        assertEquals(
+            listOf(
+                "to 600,100", "press LEFT", "to 640,150", "to 700,250", "to 710,260", "release LEFT",
+                "to 300,500", "press LEFT", "to 300,400", "to 300,400", "release LEFT",
+            ),
+            log.events,
+        )
+    }
+
+    @Test
     fun leftSwipeWalksWithSidewaysSteps() {
         gestures.down(0, 200f, 400f, 0)
         gestures.move(0, 200f, 370f) // up

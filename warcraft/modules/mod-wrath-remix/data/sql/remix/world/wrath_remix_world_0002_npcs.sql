@@ -7,6 +7,9 @@
 -- Chrono-Lord Epoch, the Keepers their own Caverns of Time selves, the echoes the people they were.
 -- Moratari has no title over her head: she meets the Timerunner beside quest givers all over
 -- Northrend, and there she is one more traveler in a war full of them.
+-- Her own spawns (where she waits at her posts) are out of creatures' fights (unit_flags 512,
+-- immune to NPCs): Eternus's loyalists stand by some of them, and their faction (2111) counts hers
+-- an enemy. As the companion she fights beside the Timerunner (src/RemixMoratari.cpp clears it).
 
 SET @MORATARI := 770001, @ETERNUS := 770002, @ANDORMU := 770003, @NOZARI := 770004,
     @ALURMI := 770005, @ZEPHYR := 770006, @SAAT := 770007, @CHRONOLOGIST := 770008,
@@ -31,7 +34,7 @@ DELETE FROM `creature_template` WHERE `entry` BETWEEN 770001 AND 770199 AND `ent
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `minlevel`, `maxlevel`, `exp`, `faction`, `npcflag`,
   `speed_walk`, `speed_run`, `rank`, `unit_class`, `unit_flags`, `unit_flags2`, `type`, `flags_extra`,
   `HealthModifier`, `DamageModifier`, `BaseAttackTime`, `RegenHealth`, `ScriptName`) VALUES
-(@MORATARI,       'Moratari',       NULL,                      80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_moratari'),
+(@MORATARI,       'Moratari',       NULL,                      80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 512, 2048, 7, 2, 10, 1, 2000, 1, 'npc_remix_moratari'),
 (@ETERNUS,        'Eternus',        'Infinite Dragonflight',   83, 83, 2, 35, 3, 1, 1.14286, 3, 2, 0, 2048, 2, 2, 25, 1, 2000, 1, 'npc_remix_eternus'),
 (@ANDORMU,        'Andormu',        'Keepers of Time',         80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_keeper'),
 (@NOZARI,         'Nozari',         'Keepers of Time',         80, 80, 2, 35, 3, 1, 1.14286, 0, 1, 0, 2048, 2, 2, 10, 1, 2000, 1, 'npc_remix_keeper'),
