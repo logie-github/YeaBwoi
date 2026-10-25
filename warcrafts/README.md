@@ -50,8 +50,9 @@ the app hasn't been run on them, nor on GOG's installers, here (innoextract was 
 
 **Fullscreen**: every game fills the screen. Warcraft I and II run Stratagus fullscreen (`-F`);
 Warcraft III fills the screen at its 4:3 resolution (registry `reswidth`/`resheight`, Wine's desktop
-the same size), drawing with Direct3D through DXVK (OpenGL, `-opengl`, drew the main menu's banner with black holes on the phone; it can
-still be chosen in Graphics). Its films play through Winlator's own DirectShow. Wine's Light visual style is on for any Windows dialog. The runtime has no network at all while
+the same size), drawing with OpenGL (`-opengl`, the way seen working on the phone). Graphics → Warcraft III draws with offers Direct3D
+through Wine and Direct3D through DXVK too. The opening film is skipped (marked seen); a later film the game shows black
+is skipped after 5 seconds (Escape). Wine's Light visual style is on for any Windows dialog. The runtime has no network at all while
 Private is on (no name server; only `localhost` resolves): to the game, a PC without internet.
 
 ## First launch
@@ -93,6 +94,11 @@ on from there. It needs about 2 GB free while it runs, 1.3 GB after.
 
 **Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
+
+**If something goes wrong in Warcraft III**: Games → Warcraft III → Game files → **Copy report of the last run**
+copies what the last game did: the settings it ran with, Windows' messages (Wine's errors and the libraries it
+loaded), what the app read from the game's screen (whether it saw a match, all black, and so on) and your last
+40 taps with what each was sent as. If a run shows only a black screen, the launcher says so when you come back.
 
 ## Controls
 

@@ -51,6 +51,13 @@ class Wc3ScreenTest {
     }
 
     @Test
+    fun blackPictures() {
+        assertTrue(Wc3Screen.black(listOf(0x000000, 0x050302, 0x020202)))
+        assertFalse(Wc3Screen.black(listOf(0x000000, 0x203020)))
+        assertFalse(Wc3Screen.black(emptyList()))
+    }
+
+    @Test
     fun aStillBattlefieldIsAPausedGame() {
         val field = List(Wc3Screen.FIELD.size) { 0x406030 + it }
         assertTrue(Wc3Screen.still(field, field))

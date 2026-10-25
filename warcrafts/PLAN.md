@@ -270,6 +270,28 @@ The user's requirements, what was decided, what's open, and where it stands. The
     Space. `RtsGestures` gets `HeldDrag` and `dragZone` (Warcraft I and II keep their gestures).
   Not known until the phone: whether 110 ms is the cause of the missed clicks, whether Direct3D
   draws the banner right and the films show, whether the game's pointer changes shape when aiming.
+- **Build 27 on the phone: "nothing works and it's a black screen entirely"**, and "start anticipating
+  things like 10 at a time rather than being reactive". Build 27 changed two untested things at once
+  (Direct3D through DXVK as the default, Windows' DirectShow), after build 25/26 had shown the menu
+  with OpenGL. Build 28, all at once:
+  1. OpenGL (`-opengl`) is the default again; DirectShow is Wine's again (Winlator restores it).
+  2. Three ways to draw, each applied to the container at start: OpenGL, Direct3D through Wine
+     (wined3d), Direct3D through DXVK.
+  3. The opening film is marked seen (`Misc\seenintromovie`): it can't hold the first start black.
+  4. Clicks: the pointer goes there, 70 ms pass, a one-pixel nudge and back, then the press (110 ms):
+     the game may read a press before it reads the pointer's new place. Drags hold their moves until
+     their press is down.
+  5. A picture all black for 5 s after the game had shown something: Escape once (a film shown black).
+  6. `Wc3Report`: each run's report (`files/wc3-last-run.txt`): settings, Wine's output (the
+     container's `WINEDEBUG=+loaddll` with Wine's default errors and fixmes, through Winlator's
+     `ProcessHelper` callbacks), what `Wc3Watcher` read (readings, races, black, still, upside down)
+     and the last 40 taps with their reason. Game files → Copy report.
+  7. A run whose picture was black every time: the launcher says so on return, with the report.
+  8. The picture is read every 350 ms (was 250).
+  9. No console seen (or nothing read): taps are left clicks (the menus).
+  10. README and this plan.
+  Not known until the phone: whether OpenGL shows the menu again (as in 25), whether clicks now land,
+  what the report says.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

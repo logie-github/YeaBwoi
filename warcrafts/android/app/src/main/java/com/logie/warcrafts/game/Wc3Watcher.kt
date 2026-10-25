@@ -31,10 +31,23 @@ class Wc3Watcher(private val xServer: XServer) {
     /** Since when (uptime ms) the battlefield hasn't moved, or 0. */
     @Volatile var stillSince = 0L
         private set
+    /** Since when (uptime ms) the whole picture has been black, or 0. */
+    @Volatile var blackSince = 0L
+        private set
+    /** Whether the game has shown anything but black since it started (a menu, a loading screen). */
+    @Volatile var shownSomething = false
+        private set
+
+    // For the report ([summary]).
+    private var readings = 0
+    private var blackReadings = 0
+    private var stillReadings = 0
+    private var pictureSize = ""
+    private val racesSeen = HashMap<String, Int>()
+    private var lastField: List<Int>? = null
 
     private val main = Handler(Looper.getMainLooper())
     private var running = false
-    private var lastField: List<Int>? = null
     /** Which way up the read picture is: found from the first console seen. */
     @Volatile private var flipped: Boolean? = null
 
@@ -97,6 +110,7 @@ class Wc3Watcher(private val xServer: XServer) {
             val picture = synchronized(drawable.renderLock) {
                 val texture = drawable.texture ?: return@queueEvent
                 texture.updateFromDrawable()
+                pictureSize = "${drawable.width}x${drawable.height}"
                 draw(texture.textureId, texture.isFlipY, maxOf(1, drawable.width / 2), maxOf(1, drawable.height / 2))
             }
             // Worked out here, on the drawing thread, from the picture read into [pixels]; only the
@@ -170,7 +184,7 @@ class Wc3Watcher(private val xServer: XServer) {
         }
     }
 
-    private class Reading(val race: String?, val flipped: Boolean?, val field: List<Int>)
+    private class Reading(val race: String?, val flipped: Boolean?, val field: List<Int>, val black: Boolean)
 
     private fun understand(picture: Picture): Reading {
         val way = flipped
@@ -188,7 +202,9 @@ class Wc3Watcher(private val xServer: XServer) {
             }
         }
         val field = Wc3Screen.FIELD.map { (x, y) -> picture.colour(x, y, foundWay ?: false) }
-        return Reading(found, foundWay, field)
+        val black = found == null && Wc3Screen.black(field) &&
+            Wc3Screen.black(listOf(0.5f to 0.85f, 0.5f to 0.03f, 0.1f to 0.9f, 0.9f to 0.9f).map { (x, y) -> picture.colour(x, y, false) })
+        return Reading(found, foundWay, field, black)
     }
 
     private fun apply(reading: Reading) {
@@ -200,11 +216,30 @@ class Wc3Watcher(private val xServer: XServer) {
             else -> 0L
         }
         lastField = reading.field
+        val now = SystemClock.uptimeMillis()
+        blackSince = if (reading.black) (if (blackSince == 0L) now else blackSince) else 0L
+        if (!reading.black) shownSomething = true
+        readings++
+        if (reading.black) blackReadings++
+        if (stillSince != 0L) stillReadings++
+        reading.race?.let { racesSeen[it] = (racesSeen[it] ?: 0) + 1 }
         known = true
     }
 
+    /** Whether the picture was read a few times and was black every time: the game never drew anything. */
+    val blackOnly: Boolean get() = readings > 3 && !shownSomething
+
+    /** What the picture showed this run, for the report. */
+    fun summary(): List<String> = listOf(
+        "readings: $readings (picture ${pictureSize.ifEmpty { "never read" }}, " +
+            "upside down: ${flipped ?: "not known"})",
+        "console seen: ${if (racesSeen.isEmpty()) "never" else racesSeen.entries.joinToString { "${it.key} ${it.value}" }}",
+        "all black: $blackReadings, battlefield still: $stillReadings",
+        "last battlefield colours: ${lastField?.joinToString(" ") { "%06x".format(it) } ?: "none"}",
+    )
+
     companion object {
-        private const val POLL_MS = 250L
+        private const val POLL_MS = 350L
         /** The block averaged around each point: 11 pixels of a 1440-pixel-wide picture. */
         private const val BLOCK = 11f / 1440f
     }

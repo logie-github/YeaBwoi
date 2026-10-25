@@ -15,7 +15,9 @@ import com.logie.warcrafts.library.Offline
 import com.logie.warcrafts.library.Title
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
+import com.winlator.container.DXWrappers
 import com.winlator.container.ContainerManager
+import com.winlator.core.EnvVars
 import com.winlator.core.KeyValueSet
 import com.winlator.core.WineRegistryEditor
 import com.winlator.xenvironment.RootFS
@@ -150,6 +152,15 @@ object Game {
         if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, title, width, height) }
 
         _state.value = State.Preparing(Step.STARTING)
+        Wc3Report.start(context, listOf(
+            "App" to (runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"),
+            "Game" to "${title.key}: $execPath",
+            "Screen" to "${width}x$height (${GameSettings.resolution(context).name})",
+            "Draws with" to "${GameSettings.renderer(context).name}, Direct3D by ${container.dxWrapper}",
+            "Graphics driver" to container.graphicsDriver,
+            "Windows parts" to container.winComponents,
+            "Private" to RtsFiles.isPrivate(context).toString(),
+        ))
         val intent = Intent(context, XServerDisplayActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
@@ -169,11 +180,15 @@ object Game {
     }
 
     /**
-     * Windows' parts in the games' Windows: Winlator's, with its own DirectShow (`quartz` and the
-     * rest, as Winlator turns on for the games that play their films through it): Warcraft III plays
-     * its films through DirectShow (Blizzard's `blizzard.ax`), which showed black with Wine's.
+     * Windows' parts in the games' Windows: Winlator's defaults, with Wine's own DirectShow (build 27
+     * put Windows' in for the films, and that build showed only a black screen; Winlator puts Wine's
+     * back when it's turned off).
      */
-    private fun winComponents(current: String): String = KeyValueSet(current).put("directshow", "1").toString()
+    private fun winComponents(current: String): String = KeyValueSet(current).put("directshow", "0").toString()
+
+    /** What draws Warcraft III's Direct3D: Wine's own (wined3d, with OpenGL) or DXVK (Vulkan); unused with `-opengl`. */
+    private fun dxWrapper(context: Context): String =
+        if (GameSettings.renderer(context) == GameSettings.Renderer.WINED3D) DXWrappers.WINED3D else DXWrappers.DXVK
 
     /** The games' Windows: made the first time, its screen and drives set every time. */
     private suspend fun container(context: Context, width: Int, height: Int): Container {
@@ -186,6 +201,8 @@ object Game {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
             existing.winComponents = winComponents(existing.winComponents)
+            existing.dxWrapper = dxWrapper(context)
+            existing.envVars = EnvVars(existing.envVars).put("WINEDEBUG", Wc3Report.WINE_DEBUG).toString()
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
@@ -193,9 +210,9 @@ object Game {
         val data = JSONObject()
             .put("name", CONTAINER_NAME)
             .put("screenSize", screenSize)
-            .put("envVars", defaults.getEnvVars())
+            .put("envVars", EnvVars(defaults.getEnvVars()).put("WINEDEBUG", Wc3Report.WINE_DEBUG).toString())
             .put("graphicsDriver", defaults.getGraphicsDriver())
-            .put("dxwrapper", defaults.getDXWrapper())
+            .put("dxwrapper", dxWrapper(context))
             .put("audioDriver", defaults.getAudioDriver())
             .put("wincomponents", winComponents(defaults.getWinComponents()))
             .put("drives", drives)
@@ -232,6 +249,8 @@ object Game {
             registry.setStringValue(blizzard, "InstallPath", gameDir)
             registry.setStringValue(blizzard, "Program", program)
             registry.setStringValue(blizzard, "GamePath", program)
+            // The opening film is a film like the others (DirectShow): marked seen, the game starts at its menu.
+            registry.setDwordValue("Software\\Blizzard Entertainment\\Warcraft III\\Misc", "seenintromovie", 1)
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)

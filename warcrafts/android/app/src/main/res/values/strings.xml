@@ -81,6 +81,10 @@
     <string name="rts_keys_failed">The keys couldn\'t be written: %1$s</string>
     <string name="rts_wc3_download">Download and install</string>
     <string name="rts_wc3_install">Install</string>
+    <string name="rts_wc3_black_run">Warcraft III showed only a black screen this time. Try another way of drawing it: Graphics → Warcraft III draws with. The report below says what happened; Copy sends it.</string>
+    <string name="rts_wc3_report_copy">Copy report of the last run</string>
+    <string name="rts_wc3_report_copied">Report copied</string>
+    <string name="rts_wc3_report_how">What the last game did: the settings, Windows\' messages, what the app saw on the screen and your last taps. Paste it to whoever is helping you.</string>
     <string name="rts_wc3_ready">Installed. Press start to play.</string>
     <string name="rts_need_wc3_downloaded">Downloaded from Blizzard</string>
     <string name="rts_need_wc3_downloaded_note">Game files → Download and install.</string>
@@ -170,10 +174,12 @@
     <string name="rts_graphics_balanced">720 lines</string>
     <string name="rts_graphics_balanced_summary">The fastest</string>
     <string name="rts_renderer_title">Warcraft III draws with</string>
-    <string name="rts_renderer_d3d">Direct3D</string>
-    <string name="rts_renderer_d3d_summary">The game\'s own default, through DXVK: the app\'s default</string>
+    <string name="rts_renderer_d3d">Direct3D through DXVK</string>
+    <string name="rts_renderer_d3d_summary">The game\'s Direct3D on the phone\'s Vulkan. The default in build 27, which showed a black screen</string>
+    <string name="rts_renderer_wined3d">Direct3D through Wine</string>
+    <string name="rts_renderer_wined3d_summary">The game\'s Direct3D, drawn by Wine with OpenGL: try it if OpenGL\'s picture has flaws</string>
     <string name="rts_renderer_gl">OpenGL</string>
-    <string name="rts_renderer_gl_summary">-opengl: try it if Direct3D\'s picture is wrong</string>
+    <string name="rts_renderer_gl_summary">-opengl: the app\'s default, seen working on the phone</string>
     <string name="rts_vibration">Vibrate on a hold</string>
     <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
 

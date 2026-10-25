@@ -436,6 +436,19 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
             }
         }
 
+        // The last run's report (settings, Wine's output, the picture, the taps), to send.
+        val clipboard = LocalClipboardManager.current
+        var copied by remember { mutableStateOf(false) }
+        if (com.logie.warcrafts.game.Wc3Report.file(context).isFile) {
+            RtsButton(stringResource(if (copied) R.string.rts_wc3_report_copied else R.string.rts_wc3_report_copy), primary = false) {
+                com.logie.warcrafts.game.Wc3Report.read(context)?.let {
+                    clipboard.setText(AnnotatedString(it))
+                    copied = true
+                }
+            }
+            Text(stringResource(R.string.rts_wc3_report_how), style = MaterialTheme.typography.bodySmall)
+        }
+
         RtsTitle(stringResource(R.string.rts_files_private_title), style = MaterialTheme.typography.titleLarge)
         RtsSwitchRow(stringResource(R.string.rts_files_private), stringResource(R.string.rts_files_private_summary), private) {
             private = it

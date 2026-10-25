@@ -98,6 +98,9 @@ object Wc3Screen {
         return before.indices.all { distance(before[it], now[it]) <= 3 }
     }
 
+    /** Whether every colour is (nearly) black. */
+    fun black(colours: List<Int>): Boolean = colours.isNotEmpty() && colours.all { brightness(it) < 24 }
+
     private fun channel(colour: Int, shift: Int) = (colour shr shift) and 0xff
 
     private fun brightness(colour: Int) = channel(colour, 16) + channel(colour, 8) + channel(colour, 0)

@@ -180,6 +180,9 @@ class GestureView(
     fun onGameWindowShown() {
         xServer.renderer.isCursorVisible = false
         watcher.start()
+        Wc3Report.note("the game's window is up")
+        removeCallbacks(skipBlack)
+        postDelayed(skipBlack, 1000)
     }
 
     // Gestures ---------------------------------------------------------------------------------
@@ -188,7 +191,30 @@ class GestureView(
         val point = XForm.transformPoint(xform, x, y)
         pointerX = point[0]
         pointerY = point[1]
+        // While a drag's button waits to go down where it started, the pointer waits too.
+        if (pressPending) return
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
+    }
+
+    /** A drag's button is about to go down (after [SETTLE_MS]): pointer moves wait for it. */
+    private var pressPending = false
+    private var releaseAfterPress = false
+
+    /**
+     * A button press where the pointer is now, after the game has had time to see the pointer there:
+     * the pointer moved there with the touch, but the game reads it once a frame and may take the
+     * press first, at the pointer's old place. So: [SETTLE_MS], a one-pixel nudge and back (a fresh
+     * movement for the game to read), then the press.
+     */
+    private fun pressHere(button: Pointer.Button, then: () -> Unit) {
+        val x = pointerX.toInt()
+        val y = pointerY.toInt()
+        postDelayed({
+            xServer.injectPointerMove(x + 1, y)
+            xServer.injectPointerMove(x, y)
+            xServer.injectPointerButtonPress(button)
+            then()
+        }, SETTLE_MS)
     }
 
     /** Where the pointer is on the game's screen, in its pixels. */
@@ -274,43 +300,92 @@ class GestureView(
     override fun click(button: Button) {
         val now = SystemClock.uptimeMillis()
         val (x, y) = pointerAt() ?: (0f to 0f)
+        var why: String
         val pressed = when {
             button == Button.LEFT -> {
                 // A hold: on a command button it may start aiming; elsewhere it's the aim's target, or a selection.
                 aimUntil = if (onOrders(x, y)) now + AIM_MS else 0L
+                why = "hold"
                 Button.LEFT
             }
             leftClickHere() -> {
                 if (onOrders(x, y)) aimUntil = now + AIM_MS
+                why = when {
+                    watcher.race == null -> "tap, no console (menus)"
+                    Wc3Screen.onHeroButtons(x, y) -> "tap, hero buttons"
+                    Wc3Screen.onConsole(watcher.race!!, x, y) -> "tap, console"
+                    else -> "tap, dialog"
+                }
                 Button.LEFT
             }
             // On the battlefield, just after a command button: its target, unless the pointer says otherwise.
             now < aimUntil -> {
                 aimUntil = 0L
-                if (pointerIsNormal() == true) Button.RIGHT else Button.LEFT
+                val normal = pointerIsNormal()
+                why = "tap after a command button, pointer normal: ${normal ?: "not known"}"
+                if (normal == true) Button.RIGHT else Button.LEFT
             }
             else -> {
                 cursorShape()?.let {
                     shapesSeen += it
                     normalShape = it
                 }
+                why = "tap, battlefield"
                 Button.RIGHT
             }
         }
-        xServer.injectPointerButtonPress(pressed.x)
-        postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS)
+        Wc3Report.tap("%.3f,%.3f %s → %s".format(x, y, why, pressed))
+        pressHere(pressed.x) { postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS) }
     }
 
     override fun doubleClick(button: Button) {
-        xServer.injectPointerButtonPress(button.x)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
-        postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS + DOUBLE_GAP_MS)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS * 2 + DOUBLE_GAP_MS)
+        val (x, y) = pointerAt() ?: (0f to 0f)
+        Wc3Report.tap("%.3f,%.3f double hold → double %s".format(x, y, button))
+        pressHere(button.x) {
+            postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
+            postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS + DOUBLE_GAP_MS)
+            postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS * 2 + DOUBLE_GAP_MS)
+        }
     }
 
-    override fun press(button: Button) = xServer.injectPointerButtonPress(button.x)
+    override fun press(button: Button) {
+        val (x, y) = pointerAt() ?: (0f to 0f)
+        Wc3Report.tap("%.3f,%.3f drag starts → %s down".format(x, y, button))
+        pressPending = true
+        pressHere(button.x) {
+            pressPending = false
+            // Where the finger went meanwhile.
+            xServer.injectPointerMove(pointerX.toInt(), pointerY.toInt())
+            if (releaseAfterPress) {
+                releaseAfterPress = false
+                postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
+            }
+        }
+    }
 
-    override fun release(button: Button) = xServer.injectPointerButtonRelease(button.x)
+    override fun release(button: Button) {
+        if (pressPending) {
+            releaseAfterPress = true
+            return
+        }
+        xServer.injectPointerButtonRelease(button.x)
+    }
+
+    /** A film the game shows black: the picture all black a while after the game had shown something. Escape skips it. */
+    private val skipBlack = object : Runnable {
+        private var skippedFor = 0L
+        override fun run() {
+            val since = watcher.blackSince
+            if (since != 0L && since != skippedFor && watcher.shownSomething &&
+                SystemClock.uptimeMillis() - since >= BLACK_SKIP_MS
+            ) {
+                skippedFor = since
+                Wc3Report.note("the picture stayed black ${BLACK_SKIP_MS / 1000} s: Escape (a film shown black)")
+                tapKey(XKeycode.KEY_ESC)
+            }
+            postDelayed(this, 1000)
+        }
+    }
 
     /** Held, then moved: a selection box on the battlefield; elsewhere the hold is taken back (slid off a button). */
     override fun heldDrag(x: Float, y: Float): HeldDrag {
@@ -417,7 +492,11 @@ class GestureView(
     }
 
     override fun onDetachedFromWindow() {
+        removeCallbacks(skipBlack)
         watcher.stop()
+        Wc3Report.finish(watcher.summary())
+        // A run that showed only black: the launcher says so, with the report ([GameStops]).
+        if (watcher.blackOnly) runCatching { java.io.File(context.filesDir, GameStops.BLACK_RUN).writeText("") }
         removeCallbacks(typeNext)
         super.onDetachedFromWindow()
     }
@@ -432,6 +511,10 @@ class GestureView(
          */
         private const val CLICK_MS = 110L
         private const val DOUBLE_GAP_MS = 60L
+        /** From the pointer reaching a spot to the button going down there: two frames at 30 a second. */
+        private const val SETTLE_MS = 70L
+        /** A picture black this long, after the game had shown something: a film shown black, skipped. */
+        private const val BLACK_SKIP_MS = 5000L
         /** How long after a command button the next battlefield tap gives its target. */
         private const val AIM_MS = 8000L
         /** A second two-finger tap within this long is Space. */

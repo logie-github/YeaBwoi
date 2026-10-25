@@ -28,6 +28,8 @@ object GameStops {
     class Report(val title: Title?, val text: String)
 
     private const val RUNNING = "running"
+    /** In `files/`: Warcraft III's last run showed only a black picture ([GestureView]). */
+    const val BLACK_RUN = "wc3-black-run"
     private const val NORMAL_EXIT = "Stratagus: exit 0"
 
     /** A Stratagus game starts in this process: the last run's output goes, this one's is watched. */
@@ -62,6 +64,12 @@ object GameStops {
             val text = runCatching { app.readText() }.getOrDefault("")
             app.delete()
             if (text.isNotBlank()) return Report(null, text.lines().take(80).joinToString("\n"))
+        }
+        val black = File(context.filesDir, BLACK_RUN)
+        if (black.isFile) {
+            black.delete()
+            val report = Wc3Report.read(context, limit = 20_000) ?: ""
+            return Report(Title.ROC, context.getString(com.logie.warcrafts.R.string.rts_wc3_black_run) + "\n\n" + report)
         }
         for (title in listOf(Title.WC1, Title.WC2)) {
             val dir = RtsFiles.stratagusDir(context, title.install)

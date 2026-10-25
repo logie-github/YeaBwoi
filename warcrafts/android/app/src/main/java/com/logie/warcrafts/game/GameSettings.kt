@@ -24,13 +24,14 @@ object GameSettings {
     }
 
     /**
-     * How Warcraft III draws: Direct3D (the game's own default, through DXVK on the phone's Vulkan;
-     * the app's default since OpenGL drew the main menu's banner with black holes on the phone) or
-     * OpenGL (`-opengl`, as desktop Wine setups for 1.27 use).
+     * How Warcraft III draws. OpenGL (`-opengl`) is the default: the one seen drawing the game on the
+     * phone (build 25, its main menu; build 27's Direct3D through DXVK gave a black screen). Direct3D
+     * through Wine (wined3d, which draws with OpenGL itself) and through DXVK (Vulkan) can be chosen.
      */
     enum class Renderer(@StringRes val label: Int, @StringRes val summary: Int) {
-        DIRECT3D(R.string.rts_renderer_d3d, R.string.rts_renderer_d3d_summary),
         OPENGL(R.string.rts_renderer_gl, R.string.rts_renderer_gl_summary),
+        WINED3D(R.string.rts_renderer_wined3d, R.string.rts_renderer_wined3d_summary),
+        DIRECT3D(R.string.rts_renderer_d3d, R.string.rts_renderer_d3d_summary),
     }
 
     private const val PREFS = "game"
@@ -45,7 +46,7 @@ object GameSettings {
     }
 
     fun renderer(context: Context): Renderer =
-        Renderer.entries.firstOrNull { it.name == prefs(context).getString("renderer", null) } ?: Renderer.DIRECT3D
+        Renderer.entries.firstOrNull { it.name == prefs(context).getString("renderer", null) } ?: Renderer.OPENGL
 
     fun setRenderer(context: Context, renderer: Renderer) {
         prefs(context).edit().putString("renderer", renderer.name).apply()
@@ -58,7 +59,7 @@ object GameSettings {
         prefs(context).edit().putBoolean("vibration", on).apply()
     }
 
-    /** What Warcraft III's program is started with: `-opengl` unless Direct3D is chosen in Graphics. */
+    /** What Warcraft III's program is started with: `-opengl` for OpenGL, nothing for either Direct3D. */
     fun arguments(context: Context, install: Install): String =
         if (install == Install.WC3 && renderer(context) == Renderer.OPENGL) "-opengl" else ""
 
