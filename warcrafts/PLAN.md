@@ -192,9 +192,27 @@ The user's requirements, what was decided, what's open, and where it stands. The
   Frozen Throne), only the next one's button offered; the checklist is Downloaded, Installed;
   Reign of Chaos starts `Warcraft III.exe`, The Frozen Throne `Frozen Throne.exe`, with `-opengl`
   unless Direct3D is chosen; the registry gets the 4:3 resolution and Wine's Light style.
+- **Silent install** (after build 21 the user sent Blizzard's installer showing a blank licence
+  page with Agree greyed out under Wine, and: "Needs to install silently"). `Installer.exe` has no
+  silent switch. Each package (`Installer Tome.mpq`) carries the install script
+  (`InstallCD\InstallerFileList\InstallerFileList.xml`): on Win32, stage 1 copies `Common\*` and
+  `PC\*` into the game's folder (`War3.mpq`, `War3Patch.mpq`, `War3x.mpq`, `War3xLocal.mpq`, the
+  programs, `Maps`, `Movies`, Miles' files), stage 2 adds `PC-100\*` (`PC-100x\*`) into `war3.mpq`
+  (`War3x.mpq`) uncompressed, then the CD key is written into the archive (`font\font.gid`,
+  `font\font.exp`), and the registry gets `InstallPath`, `GamePath`/`Program`. Build 22 does it in
+  the app: `library/Wc3Script` reads the script (Win32, English; case-insensitive paths keep the
+  first spelling), `wc3unpack` (StormLib, `stratagus/tools/wc3unpack.cpp`, shipped as
+  libwc3unpack.so) runs the plan, `Wc3Setup` downloads only the packages (the installer program,
+  DirectX and the Mac's files are skipped) and installs, Reign of Chaos then The Frozen Throne, into
+  `files/wc3-setup/game`, which becomes the Warcraft III folder; the registry values go into the
+  games' Windows at each start (`F:\`). Left out: the CD key step, the uninstaller, DirectX's
+  setup, shortcuts. Tested here on a PC build of the tool with both real packages: every file
+  copied and every archive addition byte-identical to the package's. Not known yet: whether 1.27
+  starts offline without the key data in its archives (single player needs no key in 1.27 as far
+  as known; the installer only writes it for Battle.net), and the arm64 build on the phone.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
-  carry; the CD keys box takes the keys the user has.
+  carry. Since build 22 no key is asked for at all (silent install).
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
@@ -227,6 +245,8 @@ The user's requirements, what was decided, what's open, and where it stands. The
 6. **Stratagus's folders on Android, what a game says when it stops** — built (build 6); the stop
    report came back from the phone.
 7. **Lua without FORTIFY** — built (build 7).
+9. **Warcraft III installed silently** (download and install in one step, no installer window or
+   key) — built (build 22); not yet run on the phone.
 8. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
 
 ## Where it stands
@@ -234,4 +254,5 @@ The user's requirements, what was decided, what's open, and where it stands. The
 Stage 7: built locally and in CI; unit tests pass. On the user's phone: both GOG installers
 unpacked (build 4), both conversions ran (build 5), the games stopped at launch (build 5); build 6
 got past the folders and stopped in Lua's start on FORTIFY (its report); build 7 builds Lua
-without it, not yet run.
+without it, not yet run. Warcraft III: build 21's download worked on the phone, Blizzard's installer
+showed a blank licence page; build 22 installs without it, not yet run.

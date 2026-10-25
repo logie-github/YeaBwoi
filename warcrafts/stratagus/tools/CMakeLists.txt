@@ -2,7 +2,8 @@
 # war1tool turns Warcraft I's GOG files into War1gus's data, wartool Warcraft II Battle.net
 # Edition's into Wargus's. scripts/build-stratagus.sh builds them with the zlib, libpng and bzip2
 # the engine's build made (STRATAGUS_BUILD), from the pinned War1gus and Wargus (WAR1GUS_SRC,
-# WARGUS_SRC). Linked statically to the C++ library, they need nothing beside them.
+# WARGUS_SRC); wc3unpack installs Warcraft III from Blizzard's installer package. Linked statically
+# to the C++ library, they need nothing beside them.
 cmake_minimum_required(VERSION 3.16)
 project(warcraft_tools C CXX)
 
@@ -38,3 +39,8 @@ add_executable(war1tool
 )
 target_include_directories(war1tool PRIVATE ${WAR1GUS_SRC} ${PNG_INC} ${ZLIB_INC} ${STRATAGUS_INCLUDE_DIR})
 target_link_libraries(war1tool PRIVATE ${PNG_LIB} ${ZLIB_LIB} -static-libstdc++)
+
+# Warcraft III from Blizzard's classic installer package, installed by the app itself (Wc3Install.kt).
+add_executable(wc3unpack wc3unpack.cpp)
+target_include_directories(wc3unpack PRIVATE ${WARGUS_SRC}/StormLib/src)
+target_link_libraries(wc3unpack PRIVATE storm ${ZLIB_LIB} ${BZ2_LIB} -static-libstdc++)

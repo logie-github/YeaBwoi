@@ -8,6 +8,7 @@ import com.logie.warcrafts.library.BlizzardDownload.Product
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Needs
+import com.logie.warcrafts.library.Wc3Script
 import java.io.File
 import java.io.RandomAccessFile
 import java.io.IOException
@@ -15,76 +16,138 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Warcraft III, set up on the phone from Blizzard: the app downloads Blizzard's classic 1.27
- * installers itself ([download], what Blizzard's legacy downloaders fetch, every piece checked
- * against Blizzard's checksums), then Blizzard's own installer runs in the games' Windows, where the
- * player types their CD key ([com.logie.warcrafts.game.Game.install]), Reign of Chaos first, then The
- * Frozen Throne. When the game is installed there, [adopt] moves it into the app's Warcraft III
- * folder and the installers are deleted.
+ * Warcraft III, set up on the phone from Blizzard, silently: the app downloads Blizzard's classic
+ * 1.27 installers itself ([download], what Blizzard's legacy downloaders fetch, every piece checked
+ * against Blizzard's checksums), then installs the game from them itself ([install]): Blizzard's
+ * install script in each package says which files go where ([Wc3Script]), and the app's `wc3unpack`
+ * copies them out and puts the rest into the game's archives, Reign of Chaos first, then The Frozen
+ * Throne over it. No installer window, licence page or CD key: the game plays offline.
  *
- * The installers live in `files/wc3-setup/<installer's folder>/`, drive G: in the games' Windows.
+ * The downloads live in `files/wc3-setup/<installer's folder>/`, the game being installed in
+ * `files/wc3-setup/game/`, which becomes the app's Warcraft III folder when both are in.
  */
 object Wc3Setup {
     fun dir(context: Context) = File(context.filesDir, "wc3-setup")
 
-    private fun marker(context: Context, product: Product) = File(dir(context), "${product.name}.done")
+    private fun downloadedMarker(context: Context, product: Product) = File(dir(context), "${product.name}.done")
 
-    /** The installer program of [product], once downloaded and checked. */
-    fun installer(context: Context, product: Product): File? {
-        val name = marker(context, product).takeIf { it.isFile }?.readText()?.trim() ?: return null
-        return File(dir(context), "$name/Installer.exe").takeIf { it.isFile }
+    private fun installedMarker(context: Context, product: Product) = File(dir(context), "${product.name}.installed")
+
+    private fun staging(context: Context) = File(dir(context), "game")
+
+    private const val TOME = "Installer Tome.mpq"
+    private const val SCRIPT = "InstallCD\\InstallerFileList\\InstallerFileList.xml"
+
+    /** [product]'s package (`Installer Tome.mpq`), once downloaded and checked, until it's installed. */
+    private fun tome(context: Context, product: Product): File? {
+        val name = downloadedMarker(context, product).takeIf { it.isFile }?.readText()?.trim() ?: return null
+        return File(dir(context), "$name/$TOME").takeIf { it.isFile }
     }
 
-    /** Both installers downloaded and checked. */
-    fun downloaded(context: Context): Boolean = Product.entries.all { installer(context, it) != null }
+    private fun installed(context: Context, product: Product) = installedMarker(context, product).isFile
 
-    /** The next thing to do to have Warcraft III: download, install each game, or nothing (play). */
-    enum class Step { DOWNLOAD, INSTALL_ROC, INSTALL_TFT, READY }
+    /** Both games downloaded (or already installed from their download). */
+    fun downloaded(context: Context): Boolean = Product.entries.all { installed(context, it) || tome(context, it) != null }
 
-    /** [winePrefix]: the games' Windows (`.wine`), where Blizzard's installers install, if it's made. */
-    fun step(context: Context, winePrefix: File?): Step {
-        if (Needs.ready(RtsFiles.needs(context, Install.WC3))) return Step.READY
-        if (!downloaded(context)) return Step.DOWNLOAD
-        val installed = winePrefix?.let { installedIn(it) }
-        val names = installed?.list()?.map { it.lowercase() }?.toSet().orEmpty()
-        return if ("war3.mpq" in names) Step.INSTALL_TFT else Step.INSTALL_ROC
+    /** The next thing to do to have Warcraft III: download, install, or nothing (play). */
+    enum class Step { DOWNLOAD, INSTALL, READY }
+
+    fun step(context: Context): Step = when {
+        Needs.ready(RtsFiles.needs(context, Install.WC3)) -> Step.READY
+        !downloaded(context) -> Step.DOWNLOAD
+        else -> Step.INSTALL
     }
 
-    /** Where Blizzard's installer puts the game in the games' Windows (searched for its `War3.mpq`). */
-    fun installedIn(winePrefix: File): File? {
-        val driveC = File(winePrefix, "drive_c")
-        return listOf("Program Files (x86)/Warcraft III", "Program Files/Warcraft III", "Warcraft III")
-            .map { File(driveC, it) }
-            .firstOrNull { dir -> dir.listFiles()?.any { it.name.equals("War3.mpq", ignoreCase = true) } == true }
+    /** Downloads what's missing, then installs: the whole setup, from wherever it was left. */
+    fun setUp(context: Context, report: Imports.Report) {
+        for (product in Product.entries) {
+            if (!installed(context, product) && tome(context, product) == null) download(context, product, report)
+        }
+        install(context, report)
     }
 
     /**
-     * After Blizzard's installers: the game moves from the games' Windows into the app's Warcraft III
-     * folder (one rename, same storage), once both games are in it, and the installers go.
+     * Installs both games from their packages, as Blizzard's installer would on Windows ([Wc3Script]),
+     * into the staging folder; each package is deleted once its game is in (the space goes to the
+     * next), and the finished game becomes the app's Warcraft III folder. Doing it again after a stop
+     * starts the unfinished game over: every file of it is written again.
      */
-    fun adopt(context: Context, winePrefix: File): Boolean {
-        val installed = installedIn(winePrefix) ?: return false
-        val names = installed.list()?.map { it.lowercase() }?.toSet() ?: return false
-        if ("war3x.mpq" !in names) return false
+    fun install(context: Context, report: Imports.Report) {
+        val game = staging(context)
+        for (product in Product.entries) {
+            if (installed(context, product)) continue
+            val tome = tome(context, product) ?: throw Imports.ImportException(context.getString(R.string.rts_setup_not_downloaded))
+            report(Imports.Phase.UNPACK, null, context.getString(R.string.rts_setup_reading))
+            game.mkdirs()
+            val work = File(dir(context), "${product.name}.work").apply { deleteRecursively(); mkdirs() }
+            val script = File(work, "InstallerFileList.xml")
+            unpack(context, listOf("extract", tome.path, SCRIPT, script.path), work, null)
+            val steps = Wc3Script.plan(script.readText(), alreadyThere = listing(game))
+            if (steps.isEmpty()) throw Imports.ImportException(context.getString(R.string.rts_setup_bad_script))
+            for (step in steps) {
+                val target = (step.archive ?: step.to).replace('\\', '/')
+                if (!GameLayout.isSafe(target)) throw Imports.ImportException("Unsafe path in Blizzard's script: $target")
+            }
+            Imports.checkSpace(context, tome.length())
+            val plan = File(work, "plan.txt").apply { writeText(Wc3Script.planText(steps)) }
+            val name = context.getString(if (product == Product.TFT) R.string.rts_title_tft else R.string.rts_title_roc)
+            unpack(context, listOf("run", tome.path, plan.path, game.path), work) { done, total ->
+                report(Imports.Phase.UNPACK, if (total > 0) done.toFloat() / total else null, name)
+            }
+            work.deleteRecursively()
+            installedMarker(context, product).writeText("")
+            tome.parentFile?.deleteRecursively()
+            downloadedMarker(context, product).delete()
+        }
+        adopt(context)
+    }
+
+    /** The staging folder's files and folders, as the script spells them (`Maps\(2)BootyBay.w3m`). */
+    private fun listing(game: File): List<String> =
+        game.walkTopDown().filter { it != game }.map { it.relativeTo(game).path.replace('/', '\\') }.toList()
+
+    /** Runs `wc3unpack`; [onProgress] gets its "progress <done> <total>" lines. */
+    private fun unpack(context: Context, args: List<String>, work: File, onProgress: ((Long, Long) -> Unit)?) {
+        var last = 0L
+        val result = Tools.run(listOf(Tools.file(context, "libwc3unpack.so").path) + args, work, File(work, "wc3unpack.log")) { line ->
+            if (onProgress != null && line.startsWith("progress ")) {
+                val now = System.currentTimeMillis()
+                if (now - last < 250) return@run
+                last = now
+                val parts = line.split(' ')
+                val done = parts.getOrNull(1)?.toLongOrNull() ?: return@run
+                val total = parts.getOrNull(2)?.toLongOrNull() ?: return@run
+                onProgress(done, total)
+            }
+        }
+        if (result.code != 0) {
+            val error = result.tail.lastOrNull { it.startsWith("error:") }?.removePrefix("error:")?.trim()
+            throw Imports.ImportException(context.getString(R.string.rts_setup_install_failed, error ?: "exit ${result.code}"))
+        }
+    }
+
+    /** The installed game becomes the app's Warcraft III folder (one rename, same storage); the setup's files go. */
+    private fun adopt(context: Context) {
+        val game = staging(context)
         val target = RtsFiles.folder(context, Install.WC3)
         val old = File(target.parentFile, "wc3.old")
         old.deleteRecursively()
         target.parentFile?.mkdirs()
-        if (target.exists() && !target.renameTo(old)) return false
-        if (!installed.renameTo(target)) {
+        if (target.exists() && !target.renameTo(old)) throw Imports.ImportException("Can't replace ${target.path}")
+        if (!game.renameTo(target)) {
             old.renameTo(target)
-            return false
+            throw Imports.ImportException("Can't move the game into ${target.path}")
         }
         old.deleteRecursively()
         RtsFiles.setProgram(context, Install.WC3, null)
         dir(context).deleteRecursively()
-        return true
     }
 
     /**
-     * Downloads [product]'s installer from Blizzard, piece by piece, each checked against Blizzard's
-     * SHA-1 before it's written; nothing is installed yet. A stopped download goes on from the last
-     * piece written (`<installer>.pieces` holds how many).
+     * Downloads [product]'s installer package (`Installer Tome.mpq`, the only file of Blizzard's
+     * installer the app needs) from Blizzard, piece by piece, each checked against Blizzard's SHA-1
+     * before it's written. A stopped download goes on from the last piece written (`<installer>.pieces`
+     * holds the next one's number).
      */
     fun download(context: Context, product: Product, report: Imports.Report) {
         report(Imports.Phase.DOWNLOAD, null, context.getString(R.string.rts_setup_downloader))
@@ -94,18 +157,25 @@ object Wc3Setup {
         for (file in pkg.files) {
             if (!GameLayout.isSafe(file.path)) throw Imports.ImportException("Unsafe path in Blizzard's list: ${file.path}")
         }
+        // Only the package is needed: Blizzard's installer program, its DirectX and the Mac's files aren't.
+        val tomeIndex = pkg.files.indexOfFirst { it.path == TOME }
+        if (tomeIndex < 0) throw Imports.ImportException(context.getString(R.string.rts_setup_bad_downloader))
+        val tomeStart = pkg.files.take(tomeIndex).sumOf { it.length }
+        val tomeLength = pkg.files[tomeIndex].length
+        val first = (tomeStart / pkg.pieceLength).toInt()
+        val last = ((tomeStart + tomeLength - 1) / pkg.pieceLength).toInt()
+
         val root = File(dir(context), pkg.name)
         val progress = File(dir(context), "${pkg.name}.pieces")
-        var next = progress.takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull() ?: 0
-        if (next == 0) root.deleteRecursively()
+        var next = progress.takeIf { it.isFile }?.readText()?.trim()?.toIntOrNull()?.coerceIn(first, last + 1) ?: first
+        if (next == first) root.deleteRecursively()
         // The download, and the game it installs (about as big) beside it.
-        val left = pkg.totalLength - next.toLong() * pkg.pieceLength
-        Imports.checkSpace(context, left + pkg.totalLength)
+        Imports.checkSpace(context, tomeLength - (next - first).toLong() * pkg.pieceLength + tomeLength)
 
-        val files = pkg.files.map { File(root, it.path).apply { parentFile?.mkdirs() } }
+        val tome = File(root, TOME).apply { parentFile?.mkdirs() }
         val buffer = ByteArray(pkg.pieceLength)
-        val count = pkg.pieces.size
-        while (next < count) {
+        val count = last + 1 - first
+        while (next <= last) {
             if (Imports.cancelled) throw Imports.ImportException("Stopped")
             val size = BlizzardDownload.pieceSize(pkg, next)
             var good = false
@@ -128,17 +198,18 @@ object Wc3Setup {
                     ?: Imports.ImportException(context.getString(R.string.rts_setup_damaged))
             }
             for (segment in BlizzardDownload.segments(pkg, next)) {
-                RandomAccessFile(files[segment.file], "rw").use { out ->
+                if (segment.file != tomeIndex) continue
+                RandomAccessFile(tome, "rw").use { out ->
                     out.seek(segment.fileOffset)
                     out.write(buffer, segment.pieceOffset, segment.length)
                 }
             }
             next++
             progress.writeText(next.toString())
-            report(Imports.Phase.DOWNLOAD, next.toFloat() / count, pkg.files[BlizzardDownload.segments(pkg, next - 1).last().file].path.substringAfterLast('/'))
+            report(Imports.Phase.DOWNLOAD, (next - first).toFloat() / count, context.getString(if (product == Product.TFT) R.string.rts_title_tft else R.string.rts_title_roc))
         }
         progress.delete()
-        marker(context, product).writeText(pkg.name)
+        downloadedMarker(context, product).writeText(pkg.name)
     }
 
     private fun fetch(url: String, cookie: String?): ByteArray {

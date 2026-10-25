@@ -8,7 +8,6 @@ import com.logie.warcrafts.MainActivity
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.Wc3Setup
-import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.Engine
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Needs
@@ -34,7 +33,7 @@ import kotlin.coroutines.resume
 
 /**
  * A game. Warcraft I and II are native: [StratagusActivity] plays the data made from the user's GOG
- * files. Warcraft III is Blizzard's 1.27, installed in the app ([Wc3Setup], [install]) into
+ * files. Warcraft III is Blizzard's 1.27, installed in the app ([Wc3Setup]) into
  * `files/games/wc3/`, on Winlator, which runs Windows programs on the phone (Wine, Box64 and its own
  * X server; scripts/prepare-winlator-app.sh builds it into the app). [play] gets everything ready
  * and starts it:
@@ -130,47 +129,10 @@ object Game {
         val program = if (title == Title.TFT) "Frozen Throne.exe" else "Warcraft III.exe"
         val arguments = GameSettings.arguments(context, install)
         val execPath = File(folder, program).path + if (arguments.isNotEmpty()) " $arguments" else ""
-        startWindows(context, title, resolution, execPath, installer = false)
+        startWindows(context, title, resolution, execPath)
     }
 
-    /**
-     * Blizzard's installer of [product], downloaded by [Wc3Setup], run in the games' Windows: the
-     * player types their CD key there and installs; the launcher then takes the game ([adoptWarcraft3]).
-     */
-    fun install(context: Context, product: BlizzardDownload.Product) {
-        if (_state.value is State.Preparing) return
-        val app = context.applicationContext
-        val resolution = GameSettings.gameSize(context)
-        _state.value = State.Preparing(Step.RUNTIME)
-        scope.launch {
-            try {
-                val installer = withContext(Dispatchers.IO) { Wc3Setup.installer(app, product) }
-                    ?: throw GameFailed(app.getString(R.string.rts_setup_not_downloaded))
-                val title = if (product == BlizzardDownload.Product.TFT) Title.TFT else Title.ROC
-                startWindows(app, title, resolution, installer.path, installer = true)
-                _state.value = State.Idle
-            } catch (e: GameFailed) {
-                _state.value = State.Failed(e.message ?: "")
-            } catch (e: kotlinx.coroutines.CancellationException) {
-                _state.value = State.Idle
-                throw e
-            } catch (e: Exception) {
-                _state.value = State.Failed(app.getString(R.string.rts_game_error, e.message ?: e.javaClass.simpleName))
-            }
-        }
-    }
-
-    /** The games' Windows (`.wine`), if it's been made. */
-    private fun winePrefix(context: Context): File? =
-        ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME }?.let { File(it.rootDir, ".wine") }
-
-    /** Warcraft III installed by Blizzard's installers in the games' Windows: moved into the app's folder ([Wc3Setup.adopt]). */
-    fun adoptWarcraft3(context: Context): Boolean = winePrefix(context)?.let { Wc3Setup.adopt(context, it) } ?: false
-
-    /** What's next to have Warcraft III ([Wc3Setup.step]). */
-    fun warcraft3Step(context: Context): Wc3Setup.Step = Wc3Setup.step(context, winePrefix(context))
-
-    private suspend fun startWindows(context: Context, title: Title, resolution: Pair<Int, Int>, execPath: String, installer: Boolean) {
+    private suspend fun startWindows(context: Context, title: Title, resolution: Pair<Int, Int>, execPath: String) {
         val install = title.install
         _state.value = State.Preparing(Step.RUNTIME, 0f)
         val installed = withContext(Dispatchers.IO) {
@@ -184,7 +146,7 @@ object Game {
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = resolution
         val container = container(context, width, height)
-        if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, width, height) }
+        if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, title, width, height) }
 
         _state.value = State.Preparing(Step.STARTING)
         val intent = Intent(context, XServerDisplayActivity::class.java)
@@ -194,7 +156,6 @@ object Game {
             // The app's touch controls (GestureView) in place of Winlator's touchpad.
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_TITLE, title.key)
-            .putExtra(GestureView.EXTRA_INSTALLER, installer)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
 
@@ -209,10 +170,8 @@ object Game {
     /** The games' Windows: made the first time, its screen and drives set every time. */
     private suspend fun container(context: Context, width: Int, height: Int): Container {
         val manager = ContainerManager(context)
-        // Warcraft III on F:, Blizzard's installers on G: while they're on the phone ([Wc3Setup]).
-        val drives = Install.entries.filter { it.engine == Engine.WINE }.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path } +
-            "G:" + Wc3Setup.dir(context).path
-        Wc3Setup.dir(context).mkdirs()
+        // Warcraft III on F:.
+        val drives = Install.entries.filter { it.engine == Engine.WINE }.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path }
         val screenSize = "${width}x$height"
         val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
         if (existing != null) {
@@ -246,10 +205,24 @@ object Game {
      * (1.27 fills the screen at it), and Windows' own dialogs in Wine's Light style (it comes with
      * the runtime but is off: without it they're drawn like Windows 95).
      */
-    private fun configureWarcraft3(container: Container, width: Int, height: Int) {
+    private fun configureWarcraft3(container: Container, title: Title, width: Int, height: Int) {
         val userReg = File(container.rootDir, ".wine/user.reg")
         if (!userReg.isFile) return
+        // Where the game is, as Blizzard's installer writes it (F:, the app's Warcraft III folder).
+        val gameDir = "${drive(Install.WC3)}:\\"
+        val program = gameDir + if (title == Title.TFT) "Frozen Throne.exe" else "Warcraft III.exe"
+        val systemReg = File(container.rootDir, ".wine/system.reg")
+        if (systemReg.isFile) WineRegistryEditor(systemReg).use { registry ->
+            for (key in listOf("Software\\Blizzard Entertainment\\Warcraft III", "Software\\Wow6432Node\\Blizzard Entertainment\\Warcraft III")) {
+                registry.setStringValue(key, "InstallPath", gameDir)
+                registry.setStringValue(key, "GamePath", program)
+            }
+        }
         WineRegistryEditor(userReg).use { registry ->
+            val blizzard = "Software\\Blizzard Entertainment\\Warcraft III"
+            registry.setStringValue(blizzard, "InstallPath", gameDir)
+            registry.setStringValue(blizzard, "Program", program)
+            registry.setStringValue(blizzard, "GamePath", program)
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)

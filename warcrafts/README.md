@@ -27,7 +27,7 @@ saved games stay.
 | --- | --- | --- |
 | Warcraft: Orcs & Humans (GOG) | GOG's offline installer, as downloaded from the game's page in your GOG library (offline backup game installers): `setup_warcraft_….exe` and every `setup_warcraft_…-1.bin` (`-2.bin`…) that came with it. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` (the installer has them) |
 | Warcraft II: Battle.net Edition (GOG) | GOG's offline installer, as above: `setup_warcraft_ii_….exe` and its `.bin` files. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` (the installer has them) |
-| Warcraft III: Reign of Chaos and The Frozen Throne | Nothing: set up in the app from Blizzard (below), with your two CD keys | — |
+| Warcraft III: Reign of Chaos and The Frozen Throne | Nothing: downloaded from Blizzard and installed in the app (below) | — |
 
 **GOG's installer** (Inno Setup) is unpacked on the phone by innoextract, built for Android into the
 app: **Pick GOG installer**, then in the picker touch and hold the setup `.exe` and tap each `.bin`
@@ -71,16 +71,19 @@ engine's output (`stderr.txt`, `stdout.txt` in its folder, with a crash's signal
 Android's log for the game's process. **Copy** puts it on the clipboard to send.
 
 **Setting up Warcraft III (1.27), on the phone**: **Games → Warcraft III → Game files**:
-1. **Download from Blizzard**: the app fetches Blizzard's own classic installers (what Blizzard's
-   legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP` fetch: the address
-   and access token inside them, piece by piece from Blizzard's CDN), about 1.4 GB, each piece
-   checked against Blizzard's checksum before it's kept. A stopped download goes on where it
-   stopped.
-2. **Install Reign of Chaos**: Blizzard's installer opens inside the app. Taps are plain clicks
-   there; three fingers open the keyboard for your CD key.
-3. **Install The Frozen Throne** the same way, with its key.
-4. Back in the launcher, the installed game moves into the app and the installers are deleted.
-Game files shows the three steps, ticks the done ones and offers only the next one's button.
+**Download and install** does everything, silently: no installer window, licence page or CD key.
+1. The app fetches the game packages of Blizzard's own classic installers (`Installer Tome.mpq`,
+   what Blizzard's legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP`
+   fetch: the address and access token inside them, piece by piece from Blizzard's CDN), about
+   1.3 GB, each piece checked against Blizzard's checksum before it's kept. A stopped download goes
+   on where it stopped.
+2. It installs them itself, as Blizzard's installer would on Windows: the install list in each
+   package says which files go where; the app's `wc3unpack` copies them out and puts the rest into
+   the game's archives, Reign of Chaos first, then The Frozen Throne over it. Each package is
+   deleted once installed. The CD key the installer would ask for is left out: the game plays
+   offline.
+Game files shows the two steps and ticks the done ones; if the setup stopped, the same button goes
+on from there. It needs about 2 GB free while it runs, 1.3 GB after.
 
 **Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
@@ -144,7 +147,7 @@ phone works as on a PC.
 | `android/app/` | The app (Kotlin, Jetpack Compose) |
 | `branding/` | The user's art and `make-art.py`, which makes the pictures, logos and launcher icon |
 | `fonts/` | Licenses of the bundled fonts (Cinzel, Jost: SIL OFL) |
-| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads, the hosts file, resolutions and update picking |
+| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads and install lists, the hosts file, resolutions and update picking |
 
 ```
 scripts/build-stratagus.sh

@@ -15,7 +15,6 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.IntentCompat
 import androidx.core.content.ContextCompat
-import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.Install
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,10 +68,8 @@ class ImportService : Service() {
                 }
                 when {
                     convertOnly -> Unit
-                    // Warcraft III from Blizzard: both installers downloaded; installing is the player's step.
-                    wc3Setup -> for (product in BlizzardDownload.Product.entries) {
-                        if (Wc3Setup.installer(this@ImportService, product) == null) Wc3Setup.download(this@ImportService, product, report)
-                    }
+                    // Warcraft III from Blizzard: both games downloaded and installed, silently.
+                    wc3Setup -> Wc3Setup.setUp(this@ImportService, report)
                     !installer.isNullOrEmpty() -> Imports.importInstaller(this@ImportService, install, installer, report)
                     folder -> Imports.importFolder(this@ImportService, install, uri!!, report)
                     else -> Imports.importZip(this@ImportService, install, uri!!, report)
@@ -190,7 +187,7 @@ class ImportService : Service() {
                 .putParcelableArrayListExtra(EXTRA_INSTALLER, ArrayList(uris)),
         )
 
-        /** Downloads Warcraft III's classic installers from Blizzard ([Wc3Setup]). */
+        /** Downloads Warcraft III from Blizzard and installs it ([Wc3Setup.setUp]). */
         fun downloadWc3(context: Context) = ContextCompat.startForegroundService(
             context,
             Intent(context, ImportService::class.java).putExtra(EXTRA_INSTALL, Install.WC3.key).putExtra(EXTRA_WC3_SETUP, true),

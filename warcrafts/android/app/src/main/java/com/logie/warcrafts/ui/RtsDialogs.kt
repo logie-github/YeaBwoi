@@ -49,7 +49,6 @@ import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.Wc3Setup
 import com.logie.warcrafts.game.GameSettings
 import com.logie.warcrafts.game.GameStops
-import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Title
@@ -298,9 +297,9 @@ fun GameStoppedDialog(report: GameStops.Report, onDismiss: () -> Unit) {
 }
 
 /**
- * Warcraft III, set up in the app ([Wc3Setup]): one step at a time, the next one's button the only
- * one. Download Blizzard's installers; install Reign of Chaos (Blizzard's installer opens, the player
- * types their key); install The Frozen Throne; then it's ready, and Press start plays it.
+ * Warcraft III, set up in the app ([Wc3Setup]): one button downloads both games from Blizzard and
+ * installs them, silently (no installer window, licence page or CD key); then it's ready, and Press
+ * start plays it. A stopped setup goes on from where it was with the same button.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -313,10 +312,7 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
     var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
     var confirmDelete by remember { mutableStateOf(false) }
     LaunchedEffect(refresh, imports) {
-        step = withContext(Dispatchers.IO) {
-            com.logie.warcrafts.game.Game.adoptWarcraft3(context)
-            com.logie.warcrafts.game.Game.warcraft3Step(context)
-        }
+        step = withContext(Dispatchers.IO) { Wc3Setup.step(context) }
     }
     val working = (imports as? Imports.State.Working)?.takeIf { it.install == Install.WC3 }
     val current = step
@@ -325,8 +321,7 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
         Text(stringResource(R.string.rts_wc3_intro), style = MaterialTheme.typography.bodyMedium)
         val order = listOf(
             Wc3Setup.Step.DOWNLOAD to R.string.rts_wc3_step_download,
-            Wc3Setup.Step.INSTALL_ROC to R.string.rts_wc3_step_roc,
-            Wc3Setup.Step.INSTALL_TFT to R.string.rts_wc3_step_tft,
+            Wc3Setup.Step.INSTALL to R.string.rts_wc3_step_install,
         )
         for ((index, entry) in order.withIndex()) {
             val (s, label) = entry
@@ -353,20 +348,7 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
                 }
                 when (current) {
                     Wc3Setup.Step.DOWNLOAD -> RtsButton(stringResource(R.string.rts_wc3_download)) { ImportService.downloadWc3(context) }
-                    Wc3Setup.Step.INSTALL_ROC -> {
-                        Text(stringResource(R.string.rts_wc3_installer_how), style = MaterialTheme.typography.bodySmall)
-                        RtsButton(stringResource(R.string.rts_wc3_install_roc)) {
-                            com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.ROC)
-                            onDismiss()
-                        }
-                    }
-                    Wc3Setup.Step.INSTALL_TFT -> {
-                        Text(stringResource(R.string.rts_wc3_installer_how), style = MaterialTheme.typography.bodySmall)
-                        RtsButton(stringResource(R.string.rts_wc3_install_tft)) {
-                            com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.TFT)
-                            onDismiss()
-                        }
-                    }
+                    Wc3Setup.Step.INSTALL -> RtsButton(stringResource(R.string.rts_wc3_install)) { ImportService.downloadWc3(context) }
                     Wc3Setup.Step.READY -> Text(stringResource(R.string.rts_wc3_ready), style = MaterialTheme.typography.titleMedium, color = look.good)
                     null -> RtsSpinner(28.dp)
                 }

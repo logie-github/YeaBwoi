@@ -140,8 +140,6 @@ fun RtsHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     var stopped by remember { mutableStateOf<GameStops.Report?>(null) }
     LaunchedEffect(refresh) {
         withContext(Dispatchers.IO) { GameStops.take(context) }?.let { stopped = it }
-        // Back from Blizzard's installers: the installed Warcraft III goes into the app's folder.
-        if (withContext(Dispatchers.IO) { Game.adoptWarcraft3(context) }) refresh++
     }
 
     Crossfade(current, animationSpec = tween(600), label = "look") { shown ->

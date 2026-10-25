@@ -29,7 +29,7 @@ env:
 
 jobs:
   unit-tests:
-    name: Unit tests (gestures, game files, CD keys, offline, updates)
+    name: Unit tests (gestures, game files, Warcraft III setup, offline, updates)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -164,7 +164,7 @@ jobs:
           mkdir -p dist
           cp warcrafts/android/app/build/outputs/apk/release/app-release.apk "dist/$APK_FILE"
           "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "dist/$APK_FILE" | head -3
-          unzip -l "dist/$APK_FILE" | grep -E "assets/(rootfs|container_pattern|stratagus/)|lib/arm64-v8a/(libwinlator|libmain|libwartool|libwar1tool)"
+          unzip -l "dist/$APK_FILE" | grep -E "assets/(rootfs|container_pattern|stratagus/)|lib/arm64-v8a/(libwinlator|libmain|libwartool|libwar1tool|libwc3unpack)"
           ls -la dist
 
       # The APK is published as a GitHub release: release downloads work straight from a phone.

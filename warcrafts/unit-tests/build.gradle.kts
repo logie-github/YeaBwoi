@@ -1,6 +1,7 @@
 // Runs the Warcraft app's platform-independent code (the touch gestures, finding a game
-// in the files picked and the program that starts it, CD keys, the offline hosts file, the games'
-// resolution, Warcraft III's arguments, update picking) on the JVM, without Android. The sources live in the app.
+// in the files picked and the program that starts it, Warcraft III's download and install list,
+// the offline hosts file, the games' resolution, update picking) on the JVM, without Android. The
+// sources live in the app.
 
 plugins {
     kotlin("jvm") version "2.2.20"

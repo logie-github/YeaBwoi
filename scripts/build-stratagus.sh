@@ -2,10 +2,11 @@
 # Builds Warcraft I and II for the Warcraft app, native on Android (arm64): the Stratagus engine
 # (warcrafts/stratagus-version.env) as SDL's libmain.so, War1gus's and Wargus's data tools as
 # programs (shipped as libwar1tool.so and libwartool.so, which Android lets the app run),
-# innoextract for GOG's installers (libinnoextract.so, with Boost and liblzma), SDL's Java
+# innoextract for GOG's installers (libinnoextract.so, with Boost and liblzma), wc3unpack for
+# Warcraft III's (libwc3unpack.so, Blizzard's installer package installed without its installer), SDL's Java
 # activity, and the two games' scripts. Into warcrafts/android/stratagus (git-ignored):
 #
-#   jniLibs/arm64-v8a/   libmain.so libwartool.so libwar1tool.so libinnoextract.so
+#   jniLibs/arm64-v8a/   libmain.so libwartool.so libwar1tool.so libinnoextract.so libwc3unpack.so
 #   java/                org/libsdl/app/*.java (SDL's, for the engine's screen)
 #   assets/stratagus/    war1gus.zip wargus.zip (scripts, campaigns, maps, contrib, shaders)
 #
@@ -71,7 +72,7 @@ android "$ROOT/warcrafts/stratagus/tools" "$WORK/tools" \
 	-DWARGUS_SRC="$WORK/wargus" -DWAR1GUS_SRC="$WORK/war1gus" -DSTORM_SKIP_INSTALL=ON \
 	-DZLIB_INCLUDE_DIR="$WORK/engine/zlib/src/zlib-build" -DZLIB_LIBRARY="$WORK/engine/zlib/src/zlib-build/libz.a" \
 	-DBZIP2_INCLUDE_DIR="$WORK/stratagus/third-party/bzip2" -DBZIP2_LIBRARIES="$WORK/engine/bzip2/src/bzip2-build/libbz2.a"
-make -C "$WORK/tools" -j"$JOBS" wartool war1tool > "$WORK/tools.make.log" || { tail -40 "$WORK/tools.make.log"; exit 1; }
+make -C "$WORK/tools" -j"$JOBS" wartool war1tool wc3unpack > "$WORK/tools.make.log" || { tail -40 "$WORK/tools.make.log"; exit 1; }
 
 # innoextract, for GOG's installers: liblzma and Boost for Android first (zlib and bzip2 are the
 # engine build's), from archives checked against their SHA-256.
@@ -124,6 +125,7 @@ mkdir -p "$OUT/jniLibs/arm64-v8a" "$OUT/java" "$OUT/assets/stratagus"
 "$strip" -o "$OUT/jniLibs/arm64-v8a/libmain.so" "$WORK/engine/libmain.so"
 "$strip" -o "$OUT/jniLibs/arm64-v8a/libwartool.so" "$WORK/tools/wartool"
 "$strip" -o "$OUT/jniLibs/arm64-v8a/libwar1tool.so" "$WORK/tools/war1tool"
+"$strip" -o "$OUT/jniLibs/arm64-v8a/libwc3unpack.so" "$WORK/tools/wc3unpack"
 "$strip" -o "$OUT/jniLibs/arm64-v8a/libinnoextract.so" "$WORK/innoextract-build/innoextract"
 cp -r "$WORK/stratagus/third-party/SDL/android-project/app/src/main/java/org" "$OUT/java/"
 
