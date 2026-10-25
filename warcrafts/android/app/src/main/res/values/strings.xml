@@ -37,7 +37,7 @@
     <!-- What's needed -->
     <string name="rts_needs_title">What\'s needed</string>
     <string name="rts_needs_title_ready">Everything is in</string>
-    <string name="rts_needs_where_wc3">Set up in the app, no PC: Game files → Download and install fetches Blizzard\'s own Warcraft III (1.27, Reign of Chaos and The Frozen Throne) and installs it by itself. No installer, no CD key.</string>
+    <string name="rts_needs_where_wc3">Set up in the app, no PC: Game files → Download and install fetches Blizzard\'s own Warcraft III (1.27, Reign of Chaos and The Frozen Throne) and installs it by itself, then you type your two CD keys once.</string>
     <string name="rts_needs_where_wc1">From GOG: the offline installer of Warcraft: Orcs &amp; Humans (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_….exe, and every setup_warcraft_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_needs_where_wc2">From GOG: the offline installer of Warcraft II: Battle.net Edition (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_ii_….exe, and every setup_warcraft_ii_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_need_war_data">The game\'s data</string>
@@ -70,13 +70,23 @@
     <string name="rts_wc3_title">Warcraft III</string>
     <string name="rts_wc3_intro">Blizzard\'s own Warcraft III (1.27, Reign of Chaos and The Frozen Throne), set up here on the phone. It then plays offline, filling the screen at 4:3.</string>
     <string name="rts_wc3_step_download">Download both games from Blizzard (about 1.3 GB; Wi-Fi is best)</string>
-    <string name="rts_wc3_step_install">Install them (no questions, no CD key: it plays offline)</string>
+    <string name="rts_wc3_step_install">Install them (no installer window, no questions)</string>
+    <string name="rts_wc3_step_keys">Type your two CD keys (the game asks for them at start)</string>
+    <string name="rts_keys_how">Your CD keys are on the game\'s box or CD case, or in your Blizzard account (Games and codes). 26 characters each; dashes are fine. The app writes them into the game as Blizzard\'s installer would; they never leave the phone.</string>
+    <string name="rts_keys_roc">Reign of Chaos CD key</string>
+    <string name="rts_keys_tft">The Frozen Throne CD key</string>
+    <string name="rts_keys_save">Save keys</string>
+    <string name="rts_keys_change">Change CD keys</string>
+    <string name="rts_keys_bad">Each key must be 26 characters: the digits 2 4 6 7 8 9 and letters other than A, I, L, O, Q, S, U (dashes and spaces don\'t count).</string>
+    <string name="rts_keys_failed">The keys couldn\'t be written: %1$s</string>
     <string name="rts_wc3_download">Download and install</string>
     <string name="rts_wc3_install">Install</string>
     <string name="rts_wc3_ready">Installed. Press start to play.</string>
     <string name="rts_need_wc3_downloaded">Downloaded from Blizzard</string>
     <string name="rts_need_wc3_downloaded_note">Game files → Download and install.</string>
     <string name="rts_need_wc3_installed">Warcraft III installed</string>
+    <string name="rts_need_wc3_keys">Your CD keys</string>
+    <string name="rts_need_wc3_keys_note">Reign of Chaos and The Frozen Throne: Game files → type them, Save keys.</string>
     <string name="rts_need_wc3_installed_note">Reign of Chaos, then The Frozen Throne, installed by the app after the download.</string>
     <string name="rts_convert_title">Converting %1$s for the phone</string>
     <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>

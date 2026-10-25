@@ -20,6 +20,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
+import com.logie.warcrafts.library.Wc3Keys
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -297,6 +303,71 @@ fun GameStoppedDialog(report: GameStops.Report, onDismiss: () -> Unit) {
 }
 
 /**
+ * The player's two CD keys (on the game's box or in their Blizzard account), typed here and written
+ * into the installed game as Blizzard's installer would ([Wc3Setup.saveKeys]). Dashes and spaces
+ * may be typed; each key must be 26 of the characters Warcraft III's keys are made of.
+ */
+@Composable
+private fun Warcraft3Keys(onSaved: () -> Unit) {
+    val context = LocalContext.current
+    val look = LocalLook.current
+    val scope = rememberCoroutineScope()
+    var roc by remember { mutableStateOf("") }
+    var tft by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    Text(stringResource(R.string.rts_keys_how), style = MaterialTheme.typography.bodySmall)
+    for ((label, value, set) in listOf(
+        Triple(R.string.rts_keys_roc, roc) { v: String -> roc = v },
+        Triple(R.string.rts_keys_tft, tft) { v: String -> tft = v },
+    )) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = { set(it.replace("\n", "").take(40)) },
+            label = { Text(stringResource(label)) },
+            singleLine = true,
+            isError = value.isNotBlank() && Wc3Keys.normalize(value) == null,
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrectEnabled = false, keyboardType = KeyboardType.Password),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+            colors = fieldColors(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+    error?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = look.blood) }
+    if (saving) {
+        RtsSpinner(28.dp)
+    } else {
+        RtsButton(stringResource(R.string.rts_keys_save)) {
+            val rocKey = Wc3Keys.normalize(roc)
+            val tftKey = Wc3Keys.normalize(tft)
+            if (rocKey == null || tftKey == null) {
+                error = context.getString(R.string.rts_keys_bad)
+                return@RtsButton
+            }
+            saving = true
+            error = null
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { runCatching { Wc3Setup.saveKeys(context, rocKey, tftKey) } }
+                saving = false
+                result.onSuccess { onSaved() }.onFailure { error = it.message ?: it.javaClass.simpleName }
+            }
+        }
+    }
+}
+
+/** The colours of the dialogs' text fields. */
+@Composable
+private fun fieldColors() = LocalLook.current.let { look ->
+    OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = look.accent,
+        unfocusedBorderColor = look.steel,
+        focusedLabelColor = look.accent,
+        unfocusedLabelColor = look.mist,
+        cursorColor = look.accent,
+    )
+}
+
+/**
  * Warcraft III, set up in the app ([Wc3Setup]): one button downloads both games from Blizzard and
  * installs them, silently (no installer window, licence page or CD key); then it's ready, and Press
  * start plays it. A stopped setup goes on from where it was with the same button.
@@ -311,6 +382,7 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
     var step by remember { mutableStateOf<Wc3Setup.Step?>(null) }
     var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var changeKeys by remember { mutableStateOf(false) }
     LaunchedEffect(refresh, imports) {
         step = withContext(Dispatchers.IO) { Wc3Setup.step(context) }
     }
@@ -322,6 +394,7 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
         val order = listOf(
             Wc3Setup.Step.DOWNLOAD to R.string.rts_wc3_step_download,
             Wc3Setup.Step.INSTALL to R.string.rts_wc3_step_install,
+            Wc3Setup.Step.KEYS to R.string.rts_wc3_step_keys,
         )
         for ((index, entry) in order.withIndex()) {
             val (s, label) = entry
@@ -349,7 +422,15 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
                 when (current) {
                     Wc3Setup.Step.DOWNLOAD -> RtsButton(stringResource(R.string.rts_wc3_download)) { ImportService.downloadWc3(context) }
                     Wc3Setup.Step.INSTALL -> RtsButton(stringResource(R.string.rts_wc3_install)) { ImportService.downloadWc3(context) }
-                    Wc3Setup.Step.READY -> Text(stringResource(R.string.rts_wc3_ready), style = MaterialTheme.typography.titleMedium, color = look.good)
+                    Wc3Setup.Step.KEYS -> Warcraft3Keys { refresh++ }
+                    Wc3Setup.Step.READY -> {
+                        Text(stringResource(R.string.rts_wc3_ready), style = MaterialTheme.typography.titleMedium, color = look.good)
+                        if (changeKeys) {
+                            Warcraft3Keys { changeKeys = false; refresh++ }
+                        } else {
+                            RtsButton(stringResource(R.string.rts_keys_change), primary = false) { changeKeys = true }
+                        }
+                    }
                     null -> RtsSpinner(28.dp)
                 }
             }

@@ -9,18 +9,21 @@ class NeedsTest {
     private val installed = setOf("warcraft iii.exe", "frozen throne.exe", "war3.mpq", "war3x.mpq", "war3xlocal.mpq", "maps")
 
     @Test
-    fun `Warcraft III is downloaded first, then installed`() {
+    fun `Warcraft III is downloaded first, then installed, then its keys typed`() {
         val nothing = Needs.check(Install.WC3) { false }
-        assertEquals(listOf(Needs.Item.WC3_DOWNLOADED, Needs.Item.WC3_INSTALLED), nothing.filter { !it.second }.map { it.first.item })
+        assertEquals(listOf(Needs.Item.WC3_DOWNLOADED, Needs.Item.WC3_INSTALLED, Needs.Item.WC3_KEYS), nothing.filter { !it.second }.map { it.first.item })
         val downloaded = Needs.check(Install.WC3, downloaded = true) { false }
-        assertEquals(listOf(Needs.Item.WC3_INSTALLED), downloaded.filter { !it.second }.map { it.first.item })
+        assertEquals(listOf(Needs.Item.WC3_INSTALLED, Needs.Item.WC3_KEYS), downloaded.filter { !it.second }.map { it.first.item })
         assertFalse(Needs.ready(downloaded))
+        val noKeys = Needs.check(Install.WC3) { it.lowercase() in installed }
+        assertEquals(listOf(Needs.Item.WC3_KEYS), noKeys.filter { !it.second }.map { it.first.item })
     }
 
     @Test
-    fun `an installed Warcraft III is ready, its installers gone or not`() {
-        assertTrue(Needs.ready(Needs.check(Install.WC3) { it.lowercase() in installed }))
-        assertFalse(Needs.ready(Needs.check(Install.WC3, downloaded = true) { it.lowercase() in installed - "war3x.mpq" }))
+    fun `an installed Warcraft III with its keys is ready, its installers gone or not`() {
+        val withKeys = installed + Wc3Keys.SAVED
+        assertTrue(Needs.ready(Needs.check(Install.WC3) { it.lowercase() in withKeys }))
+        assertFalse(Needs.ready(Needs.check(Install.WC3, downloaded = true) { it.lowercase() in withKeys - "war3x.mpq" }))
     }
 
     @Test

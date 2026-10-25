@@ -347,6 +347,7 @@ private fun needLabel(item: Needs.Item): Int = when (item) {
     Needs.Item.CONVERTED -> R.string.rts_need_converted
     Needs.Item.WC3_DOWNLOADED -> R.string.rts_need_wc3_downloaded
     Needs.Item.WC3_INSTALLED -> R.string.rts_need_wc3_installed
+    Needs.Item.WC3_KEYS -> R.string.rts_need_wc3_keys
 }
 
 private fun needNote(item: Needs.Item): Int = when (item) {
@@ -356,6 +357,7 @@ private fun needNote(item: Needs.Item): Int = when (item) {
     Needs.Item.CONVERTED -> R.string.rts_need_converted_note
     Needs.Item.WC3_DOWNLOADED -> R.string.rts_need_wc3_downloaded_note
     Needs.Item.WC3_INSTALLED -> R.string.rts_need_wc3_installed_note
+    Needs.Item.WC3_KEYS -> R.string.rts_need_wc3_keys_note
 }
 
 /** The game's picture, its weather over it, slowly closing in; the logo over its lower edge. */

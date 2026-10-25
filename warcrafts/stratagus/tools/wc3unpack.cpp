@@ -12,6 +12,15 @@
 // Usage:
 //   wc3unpack extract <package> <name> <output file>
 //   wc3unpack run <package> <plan> <game folder>
+//   wc3unpack key <archive> <name in the archive> <text>
+//
+// "key" writes what Blizzard's installer writes into the game's archives after installing: the
+// player's CD key (font\font.gid in war3.mpq, font\font.exp in War3x.mpq), the owner's name
+// (font\font.clh) and the installer's mark (font\font.ccd, the text "sgubon"), each encoded the way
+// Game.dll 1.27 decodes them (read from its code and checked against it, run in an emulator):
+// one 64-byte block per file, its bytes plus a keystream from Blizzard's SHA-1, then IDEA with
+// little-endian 16-bit words, then 8 bytes: a checksum (the first SHA-1 word after hashing the
+// block), 0, the text's length. The keys come from a fixed seed of the C library's rand().
 //
 // "run" prints "progress <bytes done> <bytes in all>" as it goes and "done" at the end; any failure
 // is a line starting "error:" and exit code 1. Built with StormLib (Wargus's copy).
@@ -19,6 +28,7 @@
 #include <StormLib.h>
 
 #include <cerrno>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -188,12 +198,133 @@ int run(const char *packagePath, const char *planPath, const std::string &folder
 	return result;
 }
 
+
+// ---- The key files' encoding (see the top). ----
+
+struct MsRand {
+	uint32_t seed;
+	int next() { seed = seed * 214013u + 2531011u; return (seed >> 16) & 0x7fff; }
+};
+
+uint32_t sar(uint32_t x, int n) { return (uint32_t) ((int32_t) x >> n); }
+
+// Blizzard's SHA-1: words read little-endian, no rotation in the message expansion, rotations
+// made with arithmetic shifts.
+void bsha1(uint32_t h[5], const uint8_t block[64]) {
+	uint32_t w[80];
+	for (int i = 0; i < 16; ++i) w[i] = block[4 * i] | (block[4 * i + 1] << 8) | (block[4 * i + 2] << 16) | ((uint32_t) block[4 * i + 3] << 24);
+	for (int i = 16; i < 80; ++i) w[i] = w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16];
+	uint32_t a = h[0], b = h[1], c = h[2], d = h[3], e = h[4];
+	for (int i = 0; i < 80; ++i) {
+		uint32_t f, k;
+		if (i < 20) { f = (b & c) | (~b & d); k = 0x5A827999; }
+		else if (i < 40) { f = b ^ c ^ d; k = 0x6ED9EBA1; }
+		else if (i < 60) { f = ((c | b) & d) | (c & b); k = 0x8F1BBCDC; }
+		else { f = b ^ c ^ d; k = 0xCA62C1D6; }
+		uint32_t t = ((a << 5) | sar(a, 27)) + f + e + k + w[i];
+		e = d; d = c; c = (b << 30) | sar(b, 2); b = a; a = t;
+	}
+	h[0] += a; h[1] += b; h[2] += c; h[3] += d; h[4] += e;
+}
+
+const uint32_t SHA_IV[5] = {0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0};
+
+uint16_t ideaMul(uint32_t a, uint32_t b) {
+	if (a == 0) a = 0x10000;
+	if (b == 0) b = 0x10000;
+	uint32_t r = (uint32_t) (((uint64_t) a * b) % 0x10001);
+	return (uint16_t) (r == 0x10000 ? 0 : r);
+}
+
+void ideaEncrypt(uint8_t data[8], const uint16_t z[52]) {
+	uint16_t x[4];
+	for (int i = 0; i < 4; ++i) x[i] = data[2 * i] | (data[2 * i + 1] << 8);
+	for (int r = 0; r < 8; ++r) {
+		const uint16_t *k = z + 6 * r;
+		x[0] = ideaMul(x[0], k[0]); x[1] += k[1]; x[2] += k[2]; x[3] = ideaMul(x[3], k[3]);
+		uint16_t t0 = ideaMul(k[4], x[0] ^ x[2]);
+		uint16_t t1 = ideaMul(k[5], (uint16_t) (t0 + (x[1] ^ x[3])));
+		t0 += t1;
+		x[0] ^= t1; x[3] ^= t0; t0 ^= x[1]; x[1] = x[2] ^ t1; x[2] = t0;
+	}
+	uint16_t out[4] = {ideaMul(x[0], z[48]), (uint16_t) (x[2] + z[49]), (uint16_t) (x[1] + z[50]), ideaMul(x[3], z[51])};
+	for (int i = 0; i < 4; ++i) { data[2 * i] = out[i] & 0xff; data[2 * i + 1] = out[i] >> 8; }
+}
+
+// The file holding [text] (at most 63 bytes), as the game reads it.
+std::vector<uint8_t> encodeKeyFile(const std::string &text) {
+	// The files' key: 19 non-zero bytes of rand() after srand(0x150b).
+	uint8_t key[19];
+	MsRand r{0x150b};
+	for (int n = 0; n < 19;) { uint8_t b = r.next() & 0xff; if (b) key[n++] = b; }
+	// 0x70 bytes of rand() after srand(0x4fa7), mixed with the SHA-1 of the key repeated.
+	uint8_t buf[0x70], keyBlock[64];
+	MsRand r2{0x4fa7};
+	for (int i = 0; i < 0x70; ++i) buf[i] = r2.next() & 0xff;
+	for (int i = 0; i < 64; ++i) keyBlock[i] = key[i % 19];
+	uint32_t h[5];
+	std::memcpy(h, SHA_IV, sizeof(h));
+	bsha1(h, keyBlock);
+	uint8_t d[20];
+	for (int i = 0; i < 5; ++i) for (int j = 0; j < 4; ++j) d[4 * i + j] = (h[i] >> (8 * j)) & 0xff;
+	for (int i = 0; i < 0x70; ++i) buf[i] ^= d[i % 20];
+	// The keystream: the SHA-1 state after the last 64 of those bytes; IDEA's key: the first 16.
+	std::memcpy(h, SHA_IV, sizeof(h));
+	bsha1(h, buf + 0x30);
+	for (int i = 0; i < 5; ++i) for (int j = 0; j < 4; ++j) d[4 * i + j] = (h[i] >> (8 * j)) & 0xff;
+	uint16_t z[52];
+	{
+		uint8_t k[16];
+		for (int i = 0; i < 16; i += 2) { k[i] = buf[i + 1]; k[i + 1] = buf[i]; } // words little-endian
+		for (int i = 0; i < 52; ++i) {
+			int bit = 16 * (i % 8) + 25 * (i / 8);
+			uint16_t v = 0;
+			for (int b = 0; b < 16; ++b) {
+				int p = (bit + b) % 128;
+				v = (uint16_t) ((v << 1) | ((k[p / 8] >> (7 - p % 8)) & 1));
+			}
+			z[i] = v;
+		}
+	}
+	uint8_t block[64] = {0};
+	std::memcpy(block, text.data(), text.size());
+	std::vector<uint8_t> out(72);
+	for (int k = 0; k < 64; ++k) out[k] = (uint8_t) (block[k] + d[(63 - k) % 20]);
+	for (int i = 0; i < 64; i += 8) ideaEncrypt(&out[i], z);
+	bsha1(h, block);
+	for (int j = 0; j < 4; ++j) out[64 + j] = (h[0] >> (8 * j)) & 0xff;
+	out[68] = 0;
+	out[69] = (uint8_t) text.size();
+	return out;
+}
+
+int key(const char *archivePath, const char *name, const std::string &text) {
+	if (text.size() > 63) { SetLastError(ERROR_INVALID_PARAMETER); return fail("text too long"); }
+	std::vector<uint8_t> data = encodeKeyFile(text);
+	HANDLE archive = nullptr;
+	if (!SFileOpenArchive(archivePath, 0, 0, &archive)) return fail(std::string("can't open ") + archivePath);
+	HANDLE out = nullptr;
+	bool good = SFileCreateFile(archive, name, 0, (DWORD) data.size(), 0, MPQ_FILE_REPLACEEXISTING, &out);
+	if (good) {
+		good = SFileWriteFile(out, data.data(), (DWORD) data.size(), 0);
+		DWORD error = GetLastError();
+		good = SFileFinishFile(out) && good;
+		if (!good) SetLastError(error);
+	}
+	if (!good) { DWORD error = GetLastError(); SFileCloseArchive(archive); SetLastError(error); return fail(std::string("can't write ") + name); }
+	if (!SFileCloseArchive(archive)) return fail(std::string("can't finish ") + archivePath);
+	std::printf("done\n");
+	return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv) {
 	if (argc == 5 && std::strcmp(argv[1], "extract") == 0) return extract(argv[2], argv[3], argv[4]);
 	if (argc == 5 && std::strcmp(argv[1], "run") == 0) return run(argv[2], argv[3], argv[4]);
+	if (argc == 5 && std::strcmp(argv[1], "key") == 0) return key(argv[2], argv[3], argv[4]);
 	std::fprintf(stderr, "usage: wc3unpack extract <package> <name> <output file>\n"
-		"       wc3unpack run <package> <plan> <game folder>\n");
+		"       wc3unpack run <package> <plan> <game folder>\n"
+		"       wc3unpack key <archive> <name in the archive> <text>\n");
 	return 2;
 }

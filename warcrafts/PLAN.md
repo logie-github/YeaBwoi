@@ -218,9 +218,25 @@ The user's requirements, what was decided, what's open, and where it stands. The
   handle). `patches/wargus/0001` makes `ulong32` 4 bytes on arm64 too (also used by wartool's
   StormLib). After it, the arm64 build under qemu installs both games and every archive addition
   is byte-identical to the package's (build 23).
+- **CD keys after the silent install** (build 24 on the phone: installed, then the game said
+  "Warcraft III was unable to find a CD Key. Please reinstall the game from the Warcraft III CD").
+  1.27's Game.dll (1.27.0.52240) reads `font\font.gid` (the RoC key, required), `font\font.exp`
+  (TFT's), `font\font.clh` (owner, required) and `font\font.ccd` (compared with "sgubon") from its
+  archives; no public description of their format was found, so it was read from Game.dll
+  (0x6f313340 and below): each file is one 64-byte block and an 8-byte trailer; the block is the
+  text plus a keystream (the state of Blizzard's SHA-1, the Battle.net variant: little-endian words,
+  no rotation in the expansion, arithmetic shifts, after hashing bytes from MSVC `rand()` seeded
+  0x4fa7 mixed with the SHA-1 of a key from `rand()` seeded 0x150b), then IDEA (little-endian words,
+  key from the same bytes); the trailer is the first SHA-1 word after hashing the block, 0, the
+  length. `wc3unpack key` writes them; checked by running Game.dll's own decoder in an x86
+  emulator (unicorn) on the encoder's output (key, owner and mark decode exactly), and the arm64
+  build's output is byte-identical. The key text is 26 characters from Game.dll's table
+  `246789BCDEFGHJKMNPRTVWXYZ`. Build 25 asks for the two keys in Game files (a third step,
+  `Wc3Keys`, need `keys.done`). The keys are the user's own; nothing is generated. Not known: whether
+  the user's keys pass the game's own check (it validates them itself at start).
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
-  carry. Since build 22 no key is asked for at all (silent install).
+  carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.
 - The GOG contents come from GOG Database's manifests: Warcraft I (Windows build, DOSBox
   dependency) has `WAR.EXE`, `DATA\*.WAR`, `WAR1.CUE/BIN`; Warcraft II BNE has `Warcraft II BNE.exe`,
   `Install.mpq`, `War2Dat.mpq`, `Support\TOMES\TOME.1-4`. wartool detects BNE by `Support/TOMES/TOME.1`.
@@ -254,7 +270,8 @@ The user's requirements, what was decided, what's open, and where it stands. The
    report came back from the phone.
 7. **Lua without FORTIFY** — built (build 7).
 9. **Warcraft III installed silently** (download and install in one step, no installer window or
-   key) — built (build 22); on the phone it stopped on an arm64 StormLib bug, fixed in build 23.
+   key) — built (build 22); on the phone it stopped on an arm64 StormLib bug, fixed in build 24,
+   which installed; the game then asked for the CD key data: build 25 writes the user's keys.
 8. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
 
 ## Where it stands
@@ -264,4 +281,5 @@ unpacked (build 4), both conversions ran (build 5), the games stopped at launch 
 got past the folders and stopped in Lua's start on FORTIFY (its report); build 7 builds Lua
 without it, not yet run. Warcraft III: build 21's download worked on the phone, Blizzard's installer
 showed a blank licence page; build 22 installs without it but stopped on the phone (StormLib on
-arm64); build 23 fixes that (tested under qemu), not yet run on the phone.
+arm64); build 24 installed on the phone and the game started, asking for its CD key; build 25
+writes the keys the user types, not yet run on the phone.

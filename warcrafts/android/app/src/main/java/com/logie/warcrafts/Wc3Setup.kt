@@ -8,6 +8,7 @@ import com.logie.warcrafts.library.BlizzardDownload.Product
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Needs
+import com.logie.warcrafts.library.Wc3Keys
 import com.logie.warcrafts.library.Wc3Script
 import java.io.File
 import java.io.RandomAccessFile
@@ -49,13 +50,34 @@ object Wc3Setup {
     /** Both games downloaded (or already installed from their download). */
     fun downloaded(context: Context): Boolean = Product.entries.all { installed(context, it) || tome(context, it) != null }
 
-    /** The next thing to do to have Warcraft III: download, install, or nothing (play). */
-    enum class Step { DOWNLOAD, INSTALL, READY }
+    /** The next thing to do to have Warcraft III: download, install, type the CD keys, or nothing (play). */
+    enum class Step { DOWNLOAD, INSTALL, KEYS, READY }
 
-    fun step(context: Context): Step = when {
-        Needs.ready(RtsFiles.needs(context, Install.WC3)) -> Step.READY
-        !downloaded(context) -> Step.DOWNLOAD
-        else -> Step.INSTALL
+    fun step(context: Context): Step {
+        val needs = RtsFiles.needs(context, Install.WC3)
+        return when {
+            Needs.ready(needs) -> Step.READY
+            needs.any { (need, met) -> need.item == Needs.Item.WC3_INSTALLED && met } -> Step.KEYS
+            !downloaded(context) -> Step.DOWNLOAD
+            else -> Step.INSTALL
+        }
+    }
+
+    /**
+     * Writes the player's CD keys into the installed game, as Blizzard's installer does ([Wc3Keys]);
+     * [roc] and [tft] already [Wc3Keys.normalize]d.
+     */
+    fun saveKeys(context: Context, roc: String, tft: String) {
+        val folder = RtsFiles.folder(context, Install.WC3)
+        val names = folder.list().orEmpty()
+        File(folder, Wc3Keys.SAVED).delete()
+        for (write in Wc3Keys.writes(roc, tft)) {
+            val archive = names.firstOrNull { it.equals(write.archive, ignoreCase = true) }
+                ?: throw Imports.ImportException(context.getString(R.string.rts_keys_failed, write.archive))
+            unpack(context, listOf("key", File(folder, archive).path, write.name, write.text), folder, R.string.rts_keys_failed, null)
+        }
+        File(folder, "wc3unpack.log").delete()
+        File(folder, Wc3Keys.SAVED).writeText("")
     }
 
     /** Downloads what's missing, then installs: the whole setup, from wherever it was left. */
@@ -81,7 +103,7 @@ object Wc3Setup {
             game.mkdirs()
             val work = File(dir(context), "${product.name}.work").apply { deleteRecursively(); mkdirs() }
             val script = File(work, "InstallerFileList.xml")
-            unpack(context, listOf("extract", tome.path, SCRIPT, script.path), work, null)
+            unpack(context, listOf("extract", tome.path, SCRIPT, script.path), work, onProgress = null)
             val steps = Wc3Script.plan(script.readText(), alreadyThere = listing(game))
             if (steps.isEmpty()) throw Imports.ImportException(context.getString(R.string.rts_setup_bad_script))
             for (step in steps) {
@@ -107,7 +129,7 @@ object Wc3Setup {
         game.walkTopDown().filter { it != game }.map { it.relativeTo(game).path.replace('/', '\\') }.toList()
 
     /** Runs `wc3unpack`; [onProgress] gets its "progress <done> <total>" lines. */
-    private fun unpack(context: Context, args: List<String>, work: File, onProgress: ((Long, Long) -> Unit)?) {
+    private fun unpack(context: Context, args: List<String>, work: File, failure: Int = R.string.rts_setup_install_failed, onProgress: ((Long, Long) -> Unit)? = null) {
         var last = 0L
         val result = Tools.run(listOf(Tools.file(context, "libwc3unpack.so").path) + args, work, File(work, "wc3unpack.log")) { line ->
             if (onProgress != null && line.startsWith("progress ")) {
@@ -122,7 +144,7 @@ object Wc3Setup {
         }
         if (result.code != 0) {
             val error = result.tail.lastOrNull { it.startsWith("error:") }?.removePrefix("error:")?.trim()
-            throw Imports.ImportException(context.getString(R.string.rts_setup_install_failed, error ?: "exit ${result.code}"))
+            throw Imports.ImportException(context.getString(failure, error ?: "exit ${result.code}"))
         }
     }
 

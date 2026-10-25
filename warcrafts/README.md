@@ -27,7 +27,7 @@ saved games stay.
 | --- | --- | --- |
 | Warcraft: Orcs & Humans (GOG) | GOG's offline installer, as downloaded from the game's page in your GOG library (offline backup game installers): `setup_warcraft_….exe` and every `setup_warcraft_…-1.bin` (`-2.bin`…) that came with it. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` (the installer has them) |
 | Warcraft II: Battle.net Edition (GOG) | GOG's offline installer, as above: `setup_warcraft_ii_….exe` and its `.bin` files. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` (the installer has them) |
-| Warcraft III: Reign of Chaos and The Frozen Throne | Nothing: downloaded from Blizzard and installed in the app (below) | — |
+| Warcraft III: Reign of Chaos and The Frozen Throne | Your two CD keys: the game is downloaded from Blizzard and installed in the app (below) | — |
 
 **GOG's installer** (Inno Setup) is unpacked on the phone by innoextract, built for Android into the
 app: **Pick GOG installer**, then in the picker touch and hold the setup `.exe` and tap each `.bin`
@@ -71,7 +71,8 @@ engine's output (`stderr.txt`, `stdout.txt` in its folder, with a crash's signal
 Android's log for the game's process. **Copy** puts it on the clipboard to send.
 
 **Setting up Warcraft III (1.27), on the phone**: **Games → Warcraft III → Game files**:
-**Download and install** does everything, silently: no installer window, licence page or CD key.
+**Download and install** does everything, silently: no installer window or licence page. Then
+you type your two CD keys once.
 1. The app fetches the game packages of Blizzard's own classic installers (`Installer Tome.mpq`,
    what Blizzard's legacy downloaders at `us.battle.net/download/getLegacy?product=WAR3|W3XP`
    fetch: the address and access token inside them, piece by piece from Blizzard's CDN), about
@@ -80,9 +81,14 @@ Android's log for the game's process. **Copy** puts it on the clipboard to send.
 2. It installs them itself, as Blizzard's installer would on Windows: the install list in each
    package says which files go where; the app's `wc3unpack` copies them out and puts the rest into
    the game's archives, Reign of Chaos first, then The Frozen Throne over it. Each package is
-   deleted once installed. The CD key the installer would ask for is left out: the game plays
-   offline.
-Game files shows the two steps and ticks the done ones; if the setup stopped, the same button goes
+   deleted once installed.
+3. **Your CD keys**: type the Reign of Chaos and The Frozen Throne keys (on the box or CD case, or
+   in your Blizzard account; 26 characters, dashes are fine) and tap **Save keys**. The app writes
+   them into the game's archives as Blizzard's installer does (`font\font.gid` in `war3.mpq`,
+   `font\font.exp` in `War3x.mpq`, encoded the way the game reads them); the game won't start
+   without them ("unable to find a CD Key"). They stay on the phone. **Change CD keys** writes
+   others.
+Game files shows the three steps and ticks the done ones; if the setup stopped, the same button goes
 on from there. It needs about 2 GB free while it runs, 1.3 GB after.
 
 **Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of

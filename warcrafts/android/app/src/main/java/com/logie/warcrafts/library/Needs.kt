@@ -28,6 +28,8 @@ object Needs {
         WC3_DOWNLOADED,
         /** Warcraft III installed (Reign of Chaos and The Frozen Throne) in the app. */
         WC3_INSTALLED,
+        /** The player's CD keys written into the game ([Wc3Keys]). */
+        WC3_KEYS,
     }
 
     data class Need(val item: Item, val paths: List<String>, val required: Boolean)
@@ -45,6 +47,7 @@ object Needs {
         Install.WC3 -> listOf(
             Need(Item.WC3_DOWNLOADED, emptyList(), required = true),
             Need(Item.WC3_INSTALLED, listOf("Warcraft III.exe", "Frozen Throne.exe", "War3.mpq", "War3x.mpq"), required = true),
+            Need(Item.WC3_KEYS, listOf(Wc3Keys.SAVED), required = true),
         )
     }
 
