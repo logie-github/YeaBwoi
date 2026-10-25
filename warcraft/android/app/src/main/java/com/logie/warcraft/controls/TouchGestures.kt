@@ -130,6 +130,11 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         private const val STICK_RADIUS_DP = 70f
         private const val DOUBLE_TAP_SLOP_DP = 64f
         private const val PINCH_START_DP = 24f
+        /**
+         * How far a held finger goes from where the hold began before it drags (the left button
+         * down): a deliberate move, not the finger settling, so a hold that drifts stays a hold.
+         */
+        private const val HOLD_DRAG_DP = 32f
         /** How far the fingers spread or close for one notch of the wheel. */
         private const val ZOOM_STEP_DP = 28f
 
@@ -156,6 +161,9 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         var y = startY
         var moved = false
         var role = Role.NEW
+        /** Where the hold began (Role.HOLDING). */
+        var holdX = startX
+        var holdY = startY
         fun travel() = hypot(x - startX, y - startY)
     }
 
@@ -195,6 +203,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     private val stickRadius = STICK_RADIUS_DP * density
     private val doubleTapSlop = DOUBLE_TAP_SLOP_DP * density
     private val pinchStart = PINCH_START_DP * density
+    private val holdDrag = HOLD_DRAG_DP * density
     private val zoomStep = ZOOM_STEP_DP * density
 
     private var width = 0f
@@ -282,9 +291,9 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             }
             Role.DRAG -> out.pointerTo(x, y)
             // Held, then moved: the left button down where it was held, then along with the finger.
-            Role.HOLDING -> if (finger.moved) {
+            Role.HOLDING -> if (hypot(x - finger.holdX, y - finger.holdY) > holdDrag) {
                 finger.role = Role.DRAG
-                out.pointerTo(finger.startX, finger.startY)
+                out.pointerTo(finger.holdX, finger.holdY)
                 out.press(Button.LEFT)
                 out.pointerTo(x, y)
             }
@@ -356,6 +365,8 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 }
                 !out.turnsModel() -> {
                     finger.role = Role.HOLDING
+                    finger.holdX = finger.x
+                    finger.holdY = finger.y
                     continue
                 }
             }
