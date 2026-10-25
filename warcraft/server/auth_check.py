@@ -170,6 +170,7 @@ CMSG_GAMEOBJ_USE = 0x0B1
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
+SMSG_TRAINER_LIST, CMSG_TRAINER_BUY_SPELL, SMSG_TRAINER_BUY_SUCCEEDED, SMSG_TRAINER_BUY_FAILED = 0x1B1, 0x1B2, 0x1B3, 0x1B4
 
 # AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
 TRACE = os.environ.get("AUTH_CHECK_TRACE") == "1"
@@ -615,6 +616,23 @@ def run_script(session, player_guid, steps):
                 _, item, reason = struct.unpack_from("<QIB", body, 0)
                 print(f"script:   buying {item} failed ({reason})")
                 heard.append(f"buy failed {reason}")
+            elif opcode == SMSG_TRAINER_LIST:
+                # The trainer's guid, type and spells: each its id, whether it can be learned now
+                # (0) and its cost, 38 bytes in all.
+                _, kind, count = struct.unpack_from("<QiI", body, 0)
+                print(f"script:   trainer window: type {kind}, {count} spells")
+                heard.append(f"trainer type {kind}, {count} spells")
+                for n in range(count):
+                    spell, usable, cost = struct.unpack_from("<IBI", body, 16 + 38 * n)
+                    heard.append(f"trainer spell {spell} state {usable} cost {cost}")
+            elif opcode == SMSG_TRAINER_BUY_SUCCEEDED:
+                _, spell = struct.unpack_from("<QI", body, 0)
+                print(f"script:   trained {spell}")
+                heard.append(f"trained {spell}")
+            elif opcode == SMSG_TRAINER_BUY_FAILED:
+                _, spell, reason = struct.unpack_from("<QII", body, 0)
+                print(f"script:   training {spell} failed ({reason})")
+                heard.append(f"train failed {spell} {reason}")
             elif opcode in (SMSG_SPELLNONMELEEDAMAGELOG, SMSG_SPELLHEALLOG):
                 # The target's and the caster's packed guids, then the spell and the amount.
                 _, at = packed_guid(body, 0)
@@ -755,6 +773,12 @@ def run_script(session, player_guid, steps):
             session.send(CMSG_BUY_ITEM, struct.pack("<QIIIB", guid, item, slot, 1, 0))
             session.pump(2.0, packets)
             heard.append(f"bought {item}" if any(o == SMSG_BUY_ITEM for o, _ in packets) else "not bought")
+        elif word == "train":
+            # train <entry> <spell>: a trainer's spell bought, as its window's Train button does.
+            entry, spell = (int(v) for v in rest.split())
+            guid = creature_guid(entry)
+            session.send(CMSG_TRAINER_BUY_SPELL, struct.pack("<QI", guid, spell))
+            session.pump(2.0, packets)
         elif word == "accept":
             # (one called over is let go first, beside the character: a quest that takes the
             # character somewhere as it's taken or turned in, a portal to Dalaran say, would have it
