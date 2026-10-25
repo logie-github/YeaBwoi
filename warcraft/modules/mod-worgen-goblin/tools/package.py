@@ -19,7 +19,8 @@ OUT is the module's data folder in the package (src/modules/mod-worgen-goblin/da
     game's whole English text file) become Interface/GlueXML/WorgenGoblinStrings.lua.
   - sql/chromiecraft/world/: its SQL for the world database (the races' starts, stats, gear, action
     bars, skills, racials and quests; its death knights' quests and the goblins' trike vendor), named
-    after the module (the servers know an applied file by its name alone, across every module):
+    after the module (the servers know an applied file by its name alone, across every module),
+    without the columns this core's tables haven't (GONE):
     ChromieCraft's alone (ctl.sh's realm_sql), never Wrath Remix's. Its *_dbc SQL isn't used: it
     takes whole rows the allied races' and the Skyborne's SQL also change
     (data/server/worgen_goblin_dbc.sql merges instead).
@@ -46,6 +47,93 @@ SQL = {
     "data/sql/supplementary/optional-mount-vendor.sql": "worgen_goblin_trike_vendor.sql",
 }
 STRINGS = re.compile(r"^(RACE_INFO|ABILITY_INFO)_(WORGEN|GOBLIN)\w*\s*=")
+# Columns its SQL names that this core's tables haven't: its death knights' quests were written for an
+# older core (quest_template's RewardBonusMoney; creature_template's models, scale, trainer and
+# immunity columns; creature's id1 to id3). Taken out of its INSERTs, values and all, or renamed
+# (RENAMED); a creature's models and scale go into creature_template_model, where this core keeps them.
+GONE = {"quest_template": ("RewardBonusMoney",),
+        "creature_template": ("modelid1", "modelid2", "modelid3", "modelid4", "scale", "trainer_type", "trainer_spell",
+                              "trainer_class", "trainer_race", "mechanic_immune_mask", "spell_school_immune_mask"),
+        "creature": ("id2", "id3")}
+RENAMED = {"creature": {"id1": "id"}}
+
+
+def values_of(text, at):
+    """The rows of an INSERT's VALUES from [at]: each row's values as their SQL text, and where the
+    statement's rows end."""
+    rows, row, value, depth, i = [], [], [], 0, at
+    while i < len(text):
+        c = text[i]
+        if c == "'" or c == '"':
+            j = i + 1
+            while j < len(text) and text[j] != c:
+                j += 2 if text[j] == "\\" else 1
+            value.append(text[i:j + 1])
+            i = j + 1
+            continue
+        if c == "(":
+            depth += 1
+            if depth == 1:
+                row, value = [], []
+                i += 1
+                continue
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                row.append("".join(value).strip())
+                rows.append(row)
+                i += 1
+                continue
+        elif c == "," and depth == 1:
+            row.append("".join(value).strip())
+            value = []
+            i += 1
+            continue
+        elif c == ";" and depth == 0:
+            return rows, i
+        if depth >= 1:
+            value.append(c)
+        i += 1
+    return rows, i
+
+
+def drop_columns(sql):
+    """[sql] with GONE's columns taken out of its INSERTs into those tables."""
+    out, at = [], 0
+    pattern = re.compile(r"INSERT INTO `?(\w+)`?\s*\(([^)]*)\)\s*VALUES", re.I)
+    for m in pattern.finditer(sql):
+        if m.start() < at:
+            continue
+        table, cols = m.group(1), [c.strip().strip("`") for c in m.group(2).split(",")]
+        gone = [i for i, c in enumerate(cols) if c in GONE.get(table, ())]
+        if not gone and not set(cols) & set(RENAMED.get(table, {})):
+            continue
+        cols = [RENAMED.get(table, {}).get(c, c) for c in cols]
+        rows, end = values_of(sql, m.end())
+        keep = [i for i in range(len(cols)) if i not in gone]
+        assert all(len(r) == len(cols) for r in rows), (table, "a row of the wrong size")
+        out.append(sql[at:m.start()])
+        out.append(f"INSERT INTO `{table}` (" + ", ".join(f"`{cols[i]}`" for i in keep) + ") VALUES\n"
+                   + ",\n".join("(" + ", ".join(r[i] for i in keep) + ")" for r in rows))
+        if table == "creature_template":
+            entry = cols.index("entry")
+            scale = cols.index("scale") if "scale" in cols else None
+            models = [(r[entry], n, r[i], r[scale] if scale is not None else "1") for r in rows
+                      for n, i in enumerate(i for i in gone if cols[i].startswith("modelid")) if r[i] not in ("0", "")]
+            if models:
+                out.append(";\nDELETE FROM `creature_template_model` WHERE `CreatureID` IN ("
+                           + ", ".join(sorted({e for e, _, _, _ in models})) + ");\n"
+                           + "INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, "
+                           + "`Probability`, `VerifiedBuild`) VALUES\n"
+                           + ",\n".join(f"({e}, {n}, {d}, {sc}, 1, 0)" for e, n, d, sc in models))
+        at = end
+    out.append(sql[at:])
+    text = "".join(out)
+    # (and in the DELETEs that clear them first)
+    for table, names in RENAMED.items():
+        for old, new in names.items():
+            text = re.sub(r"(DELETE FROM `?%s`? WHERE [^;]*?)`?\b%s\b`?" % (table, old), r"\1`%s`" % new, text, flags=re.I)
+    return text
 
 
 def icon_column(data):
@@ -108,7 +196,9 @@ def main():
     sql = os.path.join(out, "sql", "chromiecraft", "world")
     os.makedirs(sql, exist_ok=True)
     for src, name in SQL.items():
-        shutil.copyfile(os.path.join(worgoblin, src), os.path.join(sql, name))
+        text = open(os.path.join(worgoblin, src), encoding="utf-8").read()
+        with open(os.path.join(sql, name), "w", encoding="utf-8", newline="\n") as f:
+            f.write(drop_columns(text))
 
     with open(manifest + ".part", "w", newline="\n") as f:
         f.write("\n".join(listed) + "\n")

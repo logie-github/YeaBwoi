@@ -76,7 +76,11 @@ same tables and screen, put text an editor damaged into the game (quotes doubled
   quests opened to them, its death knights' quests, the trike vendor: `tools/package.py`) goes into
   this module's `data/sql/chromiecraft/world` as the server is packaged, which ctl.sh puts in
   ChromieCraft's world database's update list alone; mod-worgoblin's own `data/sql` isn't in the
-  package. Its optional class trainers (templates only) aren't used.
+  package. Its death knights' quests were written for an older core: the columns this core's tables
+  haven't are taken out of them (quest_template's RewardBonusMoney; creature_template's models and
+  scale, which go into creature_template_model, and its trainer and immunity columns), and
+  creature's id1 is this core's id (build 1.0.328's server test stopped on them). Its optional
+  class trainers (templates only) aren't used.
 - Its message at every login ("This server is running the Worgoblin module") is off
   (`Announce.enable`, set by ctl.sh).
 
@@ -114,5 +118,8 @@ same tables and screen, put text an editor damaged into the game (quotes doubled
   tables, races 9 and 12 playable with their looks, the capitals' reputations with every race's bits,
   a Worgen and a Goblin warrior at their starts with their racials and their side's language; on
   Wrath Remix, the patch set aside and none of it in its world; back on ChromieCraft, the patch back.
+- Its SQL, as `tools/package.py` writes it, applied twice to a world database made from the pinned
+  core's base and updates (MariaDB 11.4), with the allied races' and the Skyborne's: no error. Run
+  here.
 - Not tested: the game itself (the models drawn, the looks, the screen on a phone): nothing here
   runs the 3.3.5 client.
