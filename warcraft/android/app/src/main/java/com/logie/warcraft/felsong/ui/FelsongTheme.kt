@@ -2,6 +2,7 @@
 
 package com.logie.warcraft.felsong.ui
 
+import com.logie.warcraft.ui.drawFrame
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -71,13 +72,14 @@ object FelsongColors {
  * Marcellus for titles: an open (SIL OFL, warcraft/fonts) flared serif in the spirit of the
  * site's Friz Quadrata, which can't be shipped; Jost for reading, as in the rest of the app.
  */
-val FelsongDisplayFont = FontFamily(Font(R.font.felsong_marcellus, FontWeight.Normal))
+// (Wrath's display face, Cinzel: the launchers lettered alike)
+val FelsongDisplayFont = com.logie.warcraft.ui.WowDisplayFont
 
 val FelsongDisplayStyle = TextStyle(
     fontFamily = FelsongDisplayFont,
-    fontWeight = FontWeight.Normal,
+    fontWeight = FontWeight.SemiBold,
     color = FelsongColors.Bone,
-    letterSpacing = 0.05.em,
+    letterSpacing = 0.08.em,
 )
 
 /** The site's lettering for titles and main buttons (white to pale fel). */
@@ -154,6 +156,9 @@ fun DrawScope.drawFelsongFrame(alpha: Float = 1f, lit: Float = 0f) {
         Offset(w * 0.15f, line / 2), Offset(w * 0.85f, line / 2), 1.6.dp.toPx(), alpha = alpha,
     )
     drawPath(diamond(Offset(w / 2, line / 2), 3.dp.toPx()), FelsongColors.Pale, alpha = alpha)
+    // The game's window corners, as Wrath's launcher draws them: a bracket and a rivet at each,
+    // in the logo's fel on its dark iron.
+    drawFrame(corner = FelsongColors.Lime, alpha = (0.75f + 0.25f * lit) * alpha, line = null)
 }
 
 private fun diamond(c: Offset, d: Float) = Path().apply {

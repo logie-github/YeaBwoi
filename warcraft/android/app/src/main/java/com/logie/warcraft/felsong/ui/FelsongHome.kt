@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
@@ -350,7 +351,7 @@ private fun FelsongHomeScreen(
                     Tile(Icons.Default.FolderOpen, stringResource(R.string.wow_tile_files), filesSummary(facts)) { onDialog(FelsongDialogKind.FILES) },
                     Tile(Icons.Default.People, stringResource(R.string.wow_tile_accounts), facts.savedAccount ?: stringResource(R.string.felsong_tile_accounts_summary)) { onDialog(FelsongDialogKind.ACCOUNTS) },
                     Tile(Icons.Default.Tune, stringResource(R.string.wow_tile_graphics), graphicsSummary(context)) { onDialog(FelsongDialogKind.GRAPHICS) },
-                    Tile(Icons.Default.Tune, stringResource(R.string.felsong_tile_options), stringResource(R.string.felsong_tile_options_summary, xp, stringResource(if (solo) R.string.felsong_on else R.string.felsong_off))) { onDialog(FelsongDialogKind.OPTIONS) },
+                    Tile(Icons.Default.Speed, stringResource(R.string.felsong_tile_options), stringResource(R.string.felsong_tile_options_summary, xp, stringResource(if (solo) R.string.felsong_on else R.string.felsong_off))) { onDialog(FelsongDialogKind.OPTIONS) },
                     Tile(Icons.Default.Checklist, stringResource(R.string.felsong_tile_game_options),
                         FelsongSettings.options(context).size.let { on -> if (on == 0) stringResource(R.string.felsong_tile_game_options_none) else pluralStringResource(R.plurals.felsong_tile_game_options_on, on, on) }) { onDialog(FelsongDialogKind.GAME_OPTIONS) },
                     Tile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), felsongAddonsSummary(context, facts)) { onDialog(FelsongDialogKind.ADDONS) },
@@ -395,8 +396,9 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
     // Use Wrath's hero proportions in every orientation, rather than compressing the
     // illustration and wordmark into a small banner above the installation panel.
     val headerHeight = min((screenWidth * 0.62f).coerceIn(240.dp, 460.dp), screenHeight * 0.62f)
-    val logoWidth = min(min(screenWidth * 0.78f, headerHeight * 1.25f), 460.dp)
-    val logoHeight = logoWidth * 0.5f
+    val logoWidth = min(min(screenWidth * 0.84f, headerHeight * 1.35f), 480.dp)
+    // (World of Warcraft: Legion's own logo, the user's art)
+    val logoHeight = logoWidth * (640f / 1444f)
     val motion = rememberInfiniteTransition(label = "header")
     val drift by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(32_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
     val breathe by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(3_800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
@@ -406,7 +408,7 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
         reveal.animateTo(1f, tween(1_400, easing = FastOutSlowInEasing))
     }
     val statusBar = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.55f + 24.dp)) {
+    Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.55f)) {
         Box(Modifier.fillMaxWidth().height(headerHeight).clipToBounds()) {
             Image(
                 painter = painterResource(R.drawable.felsong_header),
@@ -425,11 +427,14 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
             FelsongMotes(alpha = reveal.value)
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to FelsongColors.Olive)))
         }
-        Column(
-            modifier = Modifier.align(Alignment.TopCenter)
+        Image(
+            painter = painterResource(R.drawable.felsong_logo),
+            contentDescription = "World of Warcraft: Legion",
+            modifier = Modifier
+                .align(Alignment.TopCenter)
                 .offset(y = headerHeight - logoHeight * 0.45f)
-                .width(logoWidth).height(logoHeight)
-                .semantics { contentDescription = "World of Warcraft: Legion" }
+                .width(logoWidth)
+                .height(logoHeight)
                 .graphicsLayer {
                     val value = reveal.value
                     alpha = ((value - 0.2f) / 0.8f).coerceIn(0f, 1f)
@@ -437,13 +442,7 @@ internal fun FelsongHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Un
                     scaleX = scale
                     scaleY = scale
                 },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("WORLD OF WARCRAFT", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.055f).sp), color = FelsongColors.Bone)
-            Text("LEGION", style = FelsongGradientText.copy(fontSize = (logoWidth.value * 0.20f).sp, shadow = FelsongGlow))
-            Text("7.3.5", style = FelsongDisplayStyle.copy(fontSize = (logoWidth.value * 0.04f).sp), color = FelsongColors.Pale)
-        }
+        )
         Row(
             Modifier
                 .align(Alignment.TopStart)

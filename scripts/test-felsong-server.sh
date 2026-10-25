@@ -117,6 +117,7 @@ DELETE FROM hotfixes.hotfix_data WHERE Id = 2000000001;
 DELETE FROM hotfixes.char_base_info WHERE ID = 1000;
 DELETE FROM world.playercreateinfo WHERE race = 5 AND class = 2;
 DELETE FROM world.playercreateinfo_action WHERE race = 5 AND class = 2;
+DELETE FROM world.player_levelstats WHERE race = 5 AND class = 2;
 INSERT INTO hotfixes.char_base_info (ID, RaceID, ClassID) VALUES (1000, 5, 2);
 INSERT INTO hotfixes.hotfix_data (Id, TableHash, RecordId, Deleted) VALUES (2000000001, 812099832, 1000, 0);
 DROP TEMPORARY TABLE IF EXISTS app_copy;
@@ -129,11 +130,21 @@ CREATE TEMPORARY TABLE app_copy SELECT * FROM world.playercreateinfo_action WHER
 UPDATE app_copy SET race = 5;
 INSERT INTO world.playercreateinfo_action SELECT * FROM app_copy;
 DROP TEMPORARY TABLE app_copy;
+DROP TEMPORARY TABLE IF EXISTS app_copy;
+CREATE TEMPORARY TABLE app_copy SELECT * FROM world.player_levelstats WHERE race = 10 AND class = 2;
+UPDATE app_copy SET race = 5;
+INSERT INTO world.player_levelstats SELECT * FROM app_copy;
+DROP TEMPORARY TABLE app_copy;
 SQL
 CTL sql world < "$FILES/run/undead-paladins.sql" || fail "the undead paladins' rows didn't go in"
 [ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race = 5 AND class = 2" | CTL sql world)" = 1 ] || fail "no undead paladin start"
 echo "undead paladin action buttons: $(echo "SELECT COUNT(*) FROM playercreateinfo_action WHERE race = 5 AND class = 2" | CTL sql world)"
-head -4 "$FILES/run/undead-paladins.sql" | CTL sql world || fail "the undead paladins' rows didn't come out"
+# (the undead paladin has every level's stats the blood elf paladin has: without them the world
+# server stops as it starts, issue #74)
+stats=$(echo "SELECT COUNT(*) FROM player_levelstats WHERE race = 5 AND class = 2" | CTL sql world)
+echo "undead paladin level stats: $stats"
+[ "$stats" -gt 0 ] && [ "$stats" = "$(echo "SELECT COUNT(*) FROM player_levelstats WHERE race = 10 AND class = 2" | CTL sql world)" ] || fail "the undead paladin has no level stats"
+head -5 "$FILES/run/undead-paladins.sql" | CTL sql world || fail "the undead paladins' rows didn't come out"
 rm -f "$FILES/run/undead-paladins.sql"
 
 echo "== Battle.net login (7.3.5, build 26972)"
