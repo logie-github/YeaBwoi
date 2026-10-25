@@ -234,6 +234,8 @@ The **Add-ons** tile opens the add-on manager over the whole screen. Its add-ons
 - **Delete** (tap twice) removes the add-on's folders; a library folder another installed add-on also brought stays.
 - **Import zip** picks a zip on the phone. The app finds the add-ons in it however it's packed (the add-on's folder at the top, several side by side, inside `Interface/AddOns/`, a download's own folder around it, or no folder at all), names each folder after its `.toc` as the game needs, and puts them in the client's `Interface/AddOns`, each replacing an older copy of itself.
 
+Two popular add-ons made for a PC's screen are fitted to the phone's by the app's own add-on: **TomTom**'s arrow starts at the top of the screen, in the middle (TomTom's own place for it is the middle of the screen, over your character); once you drag it somewhere else (hold, then drag), it stays there. **Immersion**'s quest and gossip choices and its talking box are kept on the screen, 16 points from its edges (Immersion puts the choices to the right of the middle, a distance that on a phone's screen put them partly past its edge).
+
 Add-ons load the next time the game starts, or with `/reload` in the game. The app sets the game to load add-ons whatever version they say they're for (`checkAddonVersion 0`), so a 3.3.5a add-on marked for another version still loads; add-ons for today's game don't work in 3.3.5a. In-game settings of add-ons are saved by the game in the client's `WTF` folder.
 
 ## HD look
