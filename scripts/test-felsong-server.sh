@@ -103,6 +103,13 @@ echo "world: $creatures creature templates"
 echo "SELECT id, name, address, port, gamePort, gamebuild FROM realmlist" | CTL sql auth
 [ "$(echo "SELECT COUNT(*) FROM account WHERE username = 'GM@GM'" | CTL sql auth)" = 0 ] || fail "LegionCore's public GM@GM account is still there"
 
+# The allied races and hero classes the app's game options unlock (patch 0009): their creation data.
+echo "SELECT raceID, expansion, achievementId FROM race_unlock_requirement WHERE raceID > 22 ORDER BY raceID" | CTL sql world
+allied=$(echo "SELECT COUNT(DISTINCT race) FROM playercreateinfo WHERE race IN (27, 28, 29, 30)" | CTL sql world)
+echo "allied races with a start: $allied of 4"
+[ "$allied" = 4 ] || fail "the allied races (27 to 30) have no start in playercreateinfo"
+[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE class IN (6, 12)" | CTL sql world)" -gt 0 ] || fail "death knights and demon hunters have no start"
+
 echo "== Battle.net login (7.3.5, build 26972)"
 python3 -I "$CHECK" account-sql legion@phone Shell1 3 | CTL sql auth
 CTL bnetserver > "$FILES/logs/bnetserver.out" 2>&1 & pids+=($!)

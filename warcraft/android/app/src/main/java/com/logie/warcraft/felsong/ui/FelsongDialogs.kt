@@ -4,6 +4,8 @@
 
 package com.logie.warcraft.felsong.ui
 
+import com.logie.warcraft.felsong.core.FelsongGameOptions
+
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
@@ -77,10 +79,43 @@ fun FelsongDialogs(dialog: FelsongDialogKind?, facts: FelsongFacts, onDialog: (F
         FelsongDialogKind.ACCOUNTS -> AccountsDialog(onDismiss)
         FelsongDialogKind.GRAPHICS -> GraphicsDialog(onDismiss)
         FelsongDialogKind.OPTIONS -> OptionsDialog(onDismiss)
+        FelsongDialogKind.GAME_OPTIONS -> GameOptionsDialog(onDismiss)
+        FelsongDialogKind.ADDONS -> FelsongAddonManager(onDismiss)
         FelsongDialogKind.ICON -> IconDialog(onDismiss)
         FelsongDialogKind.REPAIR -> RepairDialog(onDismiss)
         FelsongDialogKind.UNINSTALL -> UninstallDialog(facts, onDismiss)
         null -> {}
+    }
+}
+
+/**
+ * Game options: the game's small changes ([FelsongGameOptions]), each a switch, taking effect at the
+ * realm's next start (each is a setting of the realm's).
+ */
+@Composable
+private fun GameOptionsDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val server by FelsongServer.status.collectAsState()
+    FelsongDialog(title = stringResource(R.string.felsong_tile_game_options), onDismiss = onDismiss, buttons = {
+        FelsongButton(stringResource(R.string.felsong_close), onClick = onDismiss)
+    }) {
+        Text(stringResource(R.string.felsong_game_options_body), style = MaterialTheme.typography.bodySmall)
+        for (option in FelsongGameOptions.entries) {
+            var on by remember { mutableStateOf(FelsongSettings.option(context, option)) }
+            val (title, summary) = when (option) {
+                FelsongGameOptions.UNLOCK_ALLIED_RACES -> R.string.felsong_option_allied to R.string.felsong_option_allied_summary
+                FelsongGameOptions.UNLOCK_ALL_CLASSES -> R.string.felsong_option_classes to R.string.felsong_option_classes_summary
+                FelsongGameOptions.NO_UNDERWEAR -> R.string.felsong_option_underwear to R.string.felsong_option_underwear_summary
+            }
+            FelsongSwitchRow(stringResource(title), stringResource(summary), on) {
+                on = it
+                FelsongSettings.setOption(context, option, it)
+            }
+        }
+        Text(
+            stringResource(if (server.phase == FelsongServer.Phase.STOPPED) R.string.felsong_game_options_next_start else R.string.felsong_game_options_restart),
+            style = MaterialTheme.typography.bodySmall,
+        )
     }
 }
 

@@ -50,3 +50,18 @@ class FelsongSppTest {
         }
     }
 }
+
+class FelsongGameOptionsTest {
+    @Test
+    fun theOptionsAreTheRealmsSettings() {
+        val conf = FelsongGameOptions.conf(setOf(FelsongGameOptions.UNLOCK_ALLIED_RACES, FelsongGameOptions.NO_UNDERWEAR))
+        assertEquals("1", conf["App.UnlockAlliedRaces"])
+        assertEquals("1", conf["App.NoUnderwear"])
+        // (one switched off is written off, so the realm's file says it)
+        assertEquals("0", conf["App.UnlockAllClasses"])
+        assertEquals(3, conf.size)
+        // (the realm's patch reads these names)
+        val patch = java.io.File("../felsong/patches/0009-App-game-options.patch").readText()
+        for (key in conf.keys) kotlin.test.assertTrue("\"$key\"" in patch, "the realm's patch doesn't read $key")
+    }
+}

@@ -38,18 +38,43 @@ object FelsongClientSetup {
         // it to auto at every start; the launch gives it on the command line too: SppGraphics)
         put("gxApi", api)
         put("videoOptionsVersion", "15")
+        // (every start-up configuration warning marked seen: the client's bitfield of them; one is
+        // "your current graphics API will not be supported", shown at each login with Direct3D 9)
+        put("seenConfigurationWarnings", "65535")
+        // 60 frames a second (the user's choice; the Z Fold's screen), 5 behind other apps.
+        put("maxFPS", "60")
+        put("maxFPSBk", "5")
         // The game's cursor shown by the system: taps read it to tell what a click would do.
         put("gxCursor", "1")
         put("hwDetect", "0")
         if (accountName != null) put("accountName", accountName)
     }
 
+    /**
+     * The graphics to start with, for a Galaxy Z Fold 8 (Snapdragon 8 Elite, its Adreno through
+     * DXVK; the CPU emulated by Box64 is what limits the game): Legion's "Fair" preset (3) in the
+     * world, its lowest in raids, no anti-aliasing, the full render scale. Written only where
+     * Config.wtf has none yet: what's chosen in the game's options stays.
+     */
+    val FIRST_START = mapOf(
+        "graphicsQuality" to "3",
+        "RAIDgraphicsQuality" to "1",
+        "MSAAQuality" to "0",
+        "ffxAntiAliasingMode" to "0",
+        "renderscale" to "1",
+        "gxVSync" to "0",
+    )
+
+    /** [FIRST_START]'s settings that [config] (Config.wtf's text) has none of. */
+    fun firstStart(config: String): Map<String, String> =
+        FIRST_START.filterKeys { key -> !Regex("(?im)^\\s*SET\\s+${Regex.escape(key)}\\s").containsMatchIn(config) }
+
     /** Writes the settings into [client]'s WTF/Config.wtf. */
     fun apply(client: File, width: Int, height: Int, accountName: String?, api: String = "D3D9") {
         val config = File(client, "WTF/Config.wtf")
         config.parentFile?.mkdirs()
         val text = if (config.isFile) config.readText() else ""
-        config.writeText(ClientConfig.updateConfig(text, values(width, height, accountName, api)))
+        config.writeText(ClientConfig.updateConfig(text, firstStart(text) + values(width, height, accountName, api)))
     }
 
     /**

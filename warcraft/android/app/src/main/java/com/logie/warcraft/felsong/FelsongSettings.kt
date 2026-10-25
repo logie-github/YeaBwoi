@@ -50,6 +50,15 @@ object FelsongSettings {
 
     fun setApi(context: Context, api: String) = prefs(context).edit().putString("api", com.logie.warcraft.spp.core.SppGraphics.valid(api)).apply()
 
+    /** A game option is on ([FelsongGameOptions]). */
+    fun option(context: Context, option: com.logie.warcraft.felsong.core.FelsongGameOptions) =
+        prefs(context).getBoolean("option." + option.key, option.default)
+
+    fun setOption(context: Context, option: com.logie.warcraft.felsong.core.FelsongGameOptions, on: Boolean) =
+        prefs(context).edit().putBoolean("option." + option.key, on).apply()
+
+    fun options(context: Context) = com.logie.warcraft.felsong.core.FelsongGameOptions.entries.filter { option(context, it) }.toSet()
+
     /** Back to the defaults. */
     fun reset(context: Context) = prefs(context).edit().clear().apply()
 
@@ -61,6 +70,14 @@ object FelsongSettings {
             for (setting in FelsongRealm.SETTINGS) set(setting.key, value(context, setting))
             for ((key, value) in FelsongRealm.FIXED_SETTINGS) set(key, value)
             for ((key, value) in FelsongRealm.dataSettings(parts)) set(key, value)
+            for ((key, value) in com.logie.warcraft.felsong.core.FelsongGameOptions.conf(options(context))) set(key, value)
+        }
+        // The game keeps the table rows it was sent (its Cache folder): a realm that sends other
+        // rows than at its last start (No underwear switched) has the game read them again.
+        val sent = option(context, com.logie.warcraft.felsong.core.FelsongGameOptions.NO_UNDERWEAR).toString()
+        if (prefs(context).getString("sent.no_underwear", "false") != sent) {
+            FelsongFiles.fs(context).delete(File(FelsongFiles.layout(context).client, "Cache"))
+            prefs(context).edit().putString("sent.no_underwear", sent).apply()
         }
     }
 }

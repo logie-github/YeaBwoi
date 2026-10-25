@@ -189,6 +189,24 @@
     <string name="felsong_spp_client">the client (with SPP\'s patched program for this realm)</string>
     <string name="felsong_spp_data">the server data (%1$s)</string>
     <string name="felsong_done_spp">Taken from SPP\'s download: %1$s.</string>
+    <string name="felsong_addons_no_client">Add your Legion client first (Game files): add-ons go in it.</string>
+    <string name="felsong_addons_search">Search Legion 7.3.5 add-ons</string>
+    <string name="felsong_addons_search_clear">Clear the search</string>
+    <string name="felsong_tile_game_options">Game options</string>
+    <string name="felsong_tile_game_options_none">Small changes to the game</string>
+    <plurals name="felsong_tile_game_options_on">
+        <item quantity="one">%d on</item>
+        <item quantity="other">%d on</item>
+    </plurals>
+    <string name="felsong_game_options_body">Small changes to the game, each on or off: more than an add-on can do, much less than a module. They\'re the realm\'s settings: your client\'s files don\'t change.</string>
+    <string name="felsong_option_allied">Unlock allied races</string>
+    <string name="felsong_option_allied_summary">The allied races at character creation from the start, with no reputation or quest first.</string>
+    <string name="felsong_option_classes">Unlock all classes</string>
+    <string name="felsong_option_classes_summary">Death knights and demon hunters from the start, with no character of 55 or 70 on the account first.</string>
+    <string name="felsong_option_underwear">No underwear</string>
+    <string name="felsong_option_underwear_summary">Takes away the underwear layer painted on characters where nothing is worn.</string>
+    <string name="felsong_game_options_next_start">Changes apply when the realm next starts.</string>
+    <string name="felsong_game_options_restart">The realm is running: changes apply when it next starts (Server → Stop, then Press start).</string>
     <string name="felsong_home_no_client">Add your Legion 7.3.5 (26972) client to play (step 3). The app can\'t download it: Blizzard no longer serves it.</string>
     <string name="felsong_home_no_data">The world server needs the server data, made from your client on the phone (step 4).</string>
     <string name="felsong_home_no_patch">Your Wow-64.exe isn\'t patched for this realm yet (step 5): one tap, on the phone.</string>

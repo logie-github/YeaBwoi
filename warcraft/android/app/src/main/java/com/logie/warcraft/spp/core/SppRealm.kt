@@ -37,7 +37,7 @@ object SppRealm {
         "RAIDgraphicsQuality" to "1",
         "MSAAQuality" to "0",
         "ffxAntiAliasingMode" to "0",
-        "maxFPS" to "30",
+        "maxFPS" to "60",
         "maxFPSBk" to "5",
     )
 
