@@ -38,6 +38,19 @@ class Wc3ScreenTest {
     }
 
     @Test
+    fun heroButtonsOrdersAndMinimap() {
+        assertTrue(Wc3Screen.onHeroButtons(0.02f, 0.15f))      // a hero's portrait
+        assertTrue(Wc3Screen.onHeroButtons(0.02f, 0.75f))      // the idle worker
+        assertFalse(Wc3Screen.onHeroButtons(0.02f, 0.02f))     // the top bar's menu button
+        assertFalse(Wc3Screen.onHeroButtons(0.3f, 0.3f))
+        assertTrue(Wc3Screen.onOrders(0.8f, 0.85f))            // a command button
+        assertTrue(Wc3Screen.onOrders(0.7f, 0.9f))             // an item
+        assertFalse(Wc3Screen.onOrders(0.1f, 0.9f))            // the minimap
+        assertTrue(Wc3Screen.onMinimap(0.1f, 0.9f))
+        assertFalse(Wc3Screen.onMinimap(0.5f, 0.9f))
+    }
+
+    @Test
     fun aStillBattlefieldIsAPausedGame() {
         val field = List(Wc3Screen.FIELD.size) { 0x406030 + it }
         assertTrue(Wc3Screen.still(field, field))

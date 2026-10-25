@@ -16,6 +16,7 @@ import com.logie.warcrafts.library.Title
 import com.winlator.XServerDisplayActivity
 import com.winlator.container.Container
 import com.winlator.container.ContainerManager
+import com.winlator.core.KeyValueSet
 import com.winlator.core.WineRegistryEditor
 import com.winlator.xenvironment.RootFS
 import com.winlator.xenvironment.RootFSInstaller
@@ -167,6 +168,13 @@ object Game {
         File(etc, "nsswitch.conf").writeText(Offline.nsswitch(RtsFiles.isPrivate(context)))
     }
 
+    /**
+     * Windows' parts in the games' Windows: Winlator's, with its own DirectShow (`quartz` and the
+     * rest, as Winlator turns on for the games that play their films through it): Warcraft III plays
+     * its films through DirectShow (Blizzard's `blizzard.ax`), which showed black with Wine's.
+     */
+    private fun winComponents(current: String): String = KeyValueSet(current).put("directshow", "1").toString()
+
     /** The games' Windows: made the first time, its screen and drives set every time. */
     private suspend fun container(context: Context, width: Int, height: Int): Container {
         val manager = ContainerManager(context)
@@ -177,6 +185,7 @@ object Game {
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
+            existing.winComponents = winComponents(existing.winComponents)
             withContext(Dispatchers.IO) { existing.saveData() }
             return existing
         }
@@ -188,7 +197,7 @@ object Game {
             .put("graphicsDriver", defaults.getGraphicsDriver())
             .put("dxwrapper", defaults.getDXWrapper())
             .put("audioDriver", defaults.getAudioDriver())
-            .put("wincomponents", defaults.getWinComponents())
+            .put("wincomponents", winComponents(defaults.getWinComponents()))
             .put("drives", drives)
             .put("hudMode", defaults.getHUDMode().toInt())
             .put("startupSelection", defaults.getStartupSelection().toInt())

@@ -69,6 +69,19 @@ object Wc3Screen {
         return y >= tops[column]
     }
 
+    /**
+     * The hero buttons down the left edge (below the top bar) and the idle-worker button above the
+     * minimap: left clicks, though they're over the battlefield.
+     */
+    fun onHeroButtons(x: Float, y: Float): Boolean = x < 0.055f && y > TOP_BAR && y < 0.8f
+
+    /** The command buttons (the grid at the bottom right) and the inventory: what may wait for a target. */
+    fun onOrders(x: Float, y: Float): Boolean =
+        (x in 0.765f..0.99f && y >= 0.74f) || (x in 0.64f..0.74f && y >= 0.80f)
+
+    /** The minimap (measured from the console's art: the same for every race). */
+    fun onMinimap(x: Float, y: Float): Boolean = x in 0.013f..0.185f && y in 0.803f..0.986f
+
     /** Where to read the battlefield, to tell whether it moves: a grid over the part above the console. */
     val FIELD: List<Pair<Float, Float>> = buildList {
         for (row in 0 until 4) for (column in 0 until 6) add((0.08f + column * 0.168f) to (0.12f + row * 0.15f))

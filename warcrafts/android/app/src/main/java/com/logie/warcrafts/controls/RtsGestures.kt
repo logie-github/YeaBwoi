@@ -11,6 +11,16 @@ enum class Button { LEFT, RIGHT }
 /** A key the gestures hold. */
 enum class Key { LEFT, RIGHT, UP, DOWN, SHIFT }
 
+/** What a finger that was held, then moved, does ([GestureOutput.heldDrag]). */
+enum class HeldDrag {
+    /** Pans the map, as a swipe does. */
+    PAN,
+    /** Drags with the left button down from where it was held: a selection box. */
+    SELECT,
+    /** Nothing: the hold is taken back (slid off a button before lifting). */
+    CANCEL,
+}
+
 /** What the gestures do, in the game: the game screen ([com.logie.warcrafts.game.GestureView]) does it. */
 interface GestureOutput {
     /** The mouse pointer to this point of the screen (the view's pixels). */
@@ -30,6 +40,16 @@ interface GestureOutput {
     fun showMenu()
     /** A short vibration: a hold was recognised. */
     fun feedback()
+
+    /** The button held down, and let go ([HeldDrag.SELECT], [dragZone]). */
+    fun press(button: Button) {}
+    fun release(button: Button) {}
+
+    /** What a held finger that then moves does, from where it was held. */
+    fun heldDrag(x: Float, y: Float): HeldDrag = HeldDrag.PAN
+
+    /** Whether a swipe starting here drags with the left button down (a minimap) instead of panning. */
+    fun dragZone(x: Float, y: Float): Boolean = false
 }
 
 /**
@@ -49,6 +69,10 @@ interface GestureOutput {
  *   the selection).
  * - **Two-finger tap**: the game's menu. **Pinch**: zoom (the mouse wheel).
  * - **Three-finger tap**: the phone's keyboard. **Four-finger tap**: the app's menu.
+ *
+ * What a game may add ([GestureOutput]'s defaults keep the above): a held finger that then moves
+ * draws a selection box or takes the hold back ([HeldDrag]), and a swipe from a minimap drags
+ * on it ([GestureOutput.dragZone]).
  */
 class RtsGestures(private val out: GestureOutput, density: Float) {
     companion object {
@@ -74,7 +98,7 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
         var moved = false
     }
 
-    private enum class Mode { IDLE, PENDING, HELD, PAN, MULTI, SHIFT, DONE }
+    private enum class Mode { IDLE, PENDING, HELD, PAN, DRAG, CANCELLED, MULTI, SHIFT, DONE }
 
     private enum class Multi { UNDECIDED, MOVED, PINCH }
 
@@ -125,6 +149,11 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
                 releaseKeys()
                 mode = Mode.DONE
             }
+            Mode.DRAG -> {
+                out.release(Button.LEFT)
+                mode = Mode.DONE
+            }
+            Mode.CANCELLED -> mode = Mode.DONE
             Mode.MULTI -> startMulti()
             Mode.IDLE, Mode.DONE -> {}
         }
@@ -147,13 +176,30 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
             Mode.PENDING, Mode.HELD -> {
                 val finger = fingers.values.firstOrNull() ?: return
                 if (finger.moved) {
-                    mode = Mode.PAN
-                    pan(finger)
+                    val what = when {
+                        mode == Mode.HELD -> out.heldDrag(finger.startX, finger.startY)
+                        out.dragZone(finger.startX, finger.startY) -> HeldDrag.SELECT
+                        else -> HeldDrag.PAN
+                    }
+                    when (what) {
+                        HeldDrag.PAN -> {
+                            mode = Mode.PAN
+                            pan(finger)
+                        }
+                        HeldDrag.SELECT -> {
+                            mode = Mode.DRAG
+                            out.pointerTo(finger.startX, finger.startY)
+                            out.press(Button.LEFT)
+                            out.pointerTo(finger.x, finger.y)
+                        }
+                        HeldDrag.CANCEL -> mode = Mode.CANCELLED
+                    }
                 }
             }
             Mode.PAN -> fingers.values.firstOrNull()?.let { pan(it) }
+            Mode.DRAG -> fingers.values.firstOrNull()?.let { out.pointerTo(it.x, it.y) }
             Mode.MULTI -> moveMulti()
-            Mode.SHIFT, Mode.IDLE, Mode.DONE -> {}
+            Mode.SHIFT, Mode.CANCELLED, Mode.IDLE, Mode.DONE -> {}
         }
     }
 
@@ -172,6 +218,11 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
             }
             Mode.PENDING, Mode.HELD -> if (fingers.isEmpty()) clickFor(finger, now)
             Mode.PAN -> if (fingers.isEmpty()) releaseKeys()
+            Mode.DRAG -> {
+                out.pointerTo(x, y)
+                out.release(Button.LEFT)
+                mode = Mode.DONE
+            }
             Mode.MULTI -> if (fingers.isNotEmpty()) {
                 startMulti()
             } else if (multi == Multi.UNDECIDED && now - firstDownAt <= MULTI_TAP_MS) {
@@ -181,7 +232,7 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
                     else -> out.gameMenu()
                 }
             }
-            Mode.IDLE, Mode.DONE -> {}
+            Mode.CANCELLED, Mode.IDLE, Mode.DONE -> {}
         }
         if (fingers.isEmpty()) {
             releaseKeys()
@@ -212,6 +263,7 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
 
     /** The touch was taken away (another window, the system): lets go of everything. */
     fun cancel() {
+        if (mode == Mode.DRAG) out.release(Button.LEFT)
         releaseKeys()
         fingers.clear()
         mode = Mode.IDLE

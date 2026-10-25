@@ -19,6 +19,7 @@ import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import com.logie.warcrafts.controls.Button
 import com.logie.warcrafts.controls.GestureOutput
+import com.logie.warcrafts.controls.HeldDrag
 import com.logie.warcrafts.controls.Key
 import com.logie.warcrafts.controls.RtsGestures
 import com.logie.warcrafts.library.Title
@@ -53,6 +54,18 @@ class GestureView(
     private val watcher = Wc3Watcher(xServer)
     /** Until when (uptime ms) taps are left clicks: just after the game's menu was asked for. */
     private var dialogUntil = 0L
+    /**
+     * Until when (uptime ms) the next tap on the battlefield is a left click: after a command
+     * button or an item was pressed, the game may be waiting for its target (a spell, Attack,
+     * Patrol, where to build), which only a left click gives; a right click would cancel it.
+     */
+    private var aimUntil = 0L
+    /** The game's mouse pointer shapes seen (its normal one is the shape at plain right clicks). */
+    private val cursorShapes = HashMap<com.winlator.xserver.Cursor, Long>()
+    private val shapesSeen = HashSet<Long>()
+    private var normalShape: Long? = null
+    /** A two-finger tap waiting to see whether a second one follows (then it's Space, not the menu). */
+    private var pendingMenu: Runnable? = null
 
     /** From the view's pixels to the game screen's. */
     private val xform = XForm.getInstance()
@@ -157,7 +170,11 @@ class GestureView(
     }
 
     /** Back in the game: Escape (cancels an order, closes a menu). */
-    fun escape() = tapKey(XKeycode.KEY_ESC)
+    fun escape() {
+        aimUntil = 0L
+        dialogUntil = 0L
+        tapKey(XKeycode.KEY_ESC)
+    }
 
     /** The game's first window is up: on a touch screen the finger is the pointer, never drawn. */
     fun onGameWindowShown() {
@@ -192,9 +209,10 @@ class GestureView(
         if (width <= 0f || height <= 0f) return false
         val x = pointerX / width
         val y = pointerY / height
-        if (!watcher.known) return y >= WC3_PANEL_TOP || y <= WC3_BAR_BOTTOM
+        // No console seen (the menus, or the picture not read yet): the game's menus take left clicks.
         val race = watcher.race ?: return true
         val now = SystemClock.uptimeMillis()
+        if (Wc3Screen.onHeroButtons(x, y)) return true
         if (Wc3Screen.onConsole(race, x, y)) {
             // The bar's buttons on the left (Quests, Menu, Allies, Log) open dialogs.
             if (y <= Wc3Screen.TOP_BAR && x < MENU_BUTTONS_END) dialogUntil = now + DIALOG_MS
@@ -205,8 +223,80 @@ class GestureView(
         return still != 0L && now - still >= STILL_MS
     }
 
+    /** The pointer's place as fractions of the game's screen, or null before the screen is known. */
+    private fun pointerAt(): Pair<Float, Float>? {
+        val width = xServer.screenInfo.width.toFloat()
+        val height = xServer.screenInfo.height.toFloat()
+        if (width <= 0f || height <= 0f) return null
+        return pointerX / width to pointerY / height
+    }
+
+    /** A point of the view as fractions of the game's screen. */
+    private fun screenAt(viewX: Float, viewY: Float): Pair<Float, Float>? {
+        val width = xServer.screenInfo.width.toFloat()
+        val height = xServer.screenInfo.height.toFloat()
+        if (width <= 0f || height <= 0f) return null
+        val point = XForm.transformPoint(xform, viewX, viewY)
+        return point[0] / width to point[1] / height
+    }
+
+    /** On a command button or an item: what may wait for a target. */
+    private fun onOrders(x: Float, y: Float): Boolean = watcher.race != null && Wc3Screen.onOrders(x, y)
+
+    /** The shape of the game's mouse pointer now (its picture, hot spot and size), or null. */
+    private fun cursorShape(): Long? {
+        val cursor = xServer.inputDeviceManager.pointWindow?.attributes?.cursor ?: return null
+        return cursorShapes.getOrPut(cursor) {
+            val data = cursor.cursorImage.data
+            var hash = 17L
+            if (data != null) {
+                val copy = data.duplicate()
+                copy.rewind()
+                while (copy.hasRemaining()) hash = hash * 31 + copy.get()
+            }
+            (hash * 31 + cursor.hotSpotX) * 31 + cursor.hotSpotY
+        }
+    }
+
+    /**
+     * Whether the game's pointer says it isn't waiting for a target: its shape is the one it has at
+     * plain right clicks. Known only once the game has shown more than one shape (a game drawing its
+     * own pointer shows one); until then, unknown (null).
+     */
+    private fun pointerIsNormal(): Boolean? {
+        val shape = cursorShape() ?: return null
+        shapesSeen += shape
+        val normal = normalShape ?: return null
+        if (shapesSeen.size < 2) return null
+        return shape == normal
+    }
+
     override fun click(button: Button) {
-        val pressed = if (button == Button.RIGHT && leftClickHere()) Button.LEFT else button
+        val now = SystemClock.uptimeMillis()
+        val (x, y) = pointerAt() ?: (0f to 0f)
+        val pressed = when {
+            button == Button.LEFT -> {
+                // A hold: on a command button it may start aiming; elsewhere it's the aim's target, or a selection.
+                aimUntil = if (onOrders(x, y)) now + AIM_MS else 0L
+                Button.LEFT
+            }
+            leftClickHere() -> {
+                if (onOrders(x, y)) aimUntil = now + AIM_MS
+                Button.LEFT
+            }
+            // On the battlefield, just after a command button: its target, unless the pointer says otherwise.
+            now < aimUntil -> {
+                aimUntil = 0L
+                if (pointerIsNormal() == true) Button.RIGHT else Button.LEFT
+            }
+            else -> {
+                cursorShape()?.let {
+                    shapesSeen += it
+                    normalShape = it
+                }
+                Button.RIGHT
+            }
+        }
         xServer.injectPointerButtonPress(pressed.x)
         postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS)
     }
@@ -214,8 +304,27 @@ class GestureView(
     override fun doubleClick(button: Button) {
         xServer.injectPointerButtonPress(button.x)
         postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
-        postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS * 2)
-        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS * 3)
+        postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS + DOUBLE_GAP_MS)
+        postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS * 2 + DOUBLE_GAP_MS)
+    }
+
+    override fun press(button: Button) = xServer.injectPointerButtonPress(button.x)
+
+    override fun release(button: Button) = xServer.injectPointerButtonRelease(button.x)
+
+    /** Held, then moved: a selection box on the battlefield; elsewhere the hold is taken back (slid off a button). */
+    override fun heldDrag(x: Float, y: Float): HeldDrag {
+        val race = watcher.race ?: return HeldDrag.CANCEL
+        val (sx, sy) = screenAt(x, y) ?: return HeldDrag.CANCEL
+        if (Wc3Screen.onHeroButtons(sx, sy) || Wc3Screen.onConsole(race, sx, sy)) return HeldDrag.CANCEL
+        return HeldDrag.SELECT
+    }
+
+    /** A swipe from the minimap moves the camera with it (the left button held), as a mouse would. */
+    override fun dragZone(x: Float, y: Float): Boolean {
+        if (watcher.race == null) return false
+        val (sx, sy) = screenAt(x, y) ?: return false
+        return Wc3Screen.onMinimap(sx, sy)
     }
 
     override fun wheel(up: Boolean) {
@@ -228,9 +337,21 @@ class GestureView(
 
     override fun keyUp(key: Key) = xServer.injectKeyRelease(key.x)
 
+    /** Two fingers: the game's menu (F10); twice quickly: Space, to the last alert (base under attack). */
     override fun gameMenu() {
-        dialogUntil = SystemClock.uptimeMillis() + DIALOG_MS
-        tapKey(XKeycode.KEY_F10)
+        pendingMenu?.let {
+            removeCallbacks(it)
+            pendingMenu = null
+            tapKey(XKeycode.KEY_SPACE)
+            return
+        }
+        val menu = Runnable {
+            pendingMenu = null
+            dialogUntil = SystemClock.uptimeMillis() + DIALOG_MS
+            tapKey(XKeycode.KEY_F10)
+        }
+        pendingMenu = menu
+        postDelayed(menu, SECOND_TAP_MS)
     }
 
     override fun openKeyboard() = askText(chat = true)
@@ -305,7 +426,16 @@ class GestureView(
         /** The game the launcher started ([Title.key]): the loading screen's and menus' look. */
         const val EXTRA_TITLE = "com.logie.warcrafts.TITLE"
 
-        private const val CLICK_MS = 40L
+        /**
+         * How long a click holds the button: Warcraft III reads the mouse once a frame, and at the
+         * phone's frame rate a shorter click can fall between two readings and never be seen.
+         */
+        private const val CLICK_MS = 110L
+        private const val DOUBLE_GAP_MS = 60L
+        /** How long after a command button the next battlefield tap gives its target. */
+        private const val AIM_MS = 8000L
+        /** A second two-finger tap within this long is Space. */
+        private const val SECOND_TAP_MS = 320L
         /** Before the picture is read: Warcraft III's bottom panel starts about three quarters down; its top bar ends 5% down. */
         private const val WC3_PANEL_TOP = 0.76f
         private const val WC3_BAR_BOTTOM = 0.05f

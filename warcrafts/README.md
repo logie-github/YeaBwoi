@@ -50,8 +50,8 @@ the app hasn't been run on them, nor on GOG's installers, here (innoextract was 
 
 **Fullscreen**: every game fills the screen. Warcraft I and II run Stratagus fullscreen (`-F`);
 Warcraft III fills the screen at its 4:3 resolution (registry `reswidth`/`resheight`, Wine's desktop
-the same size), drawing with OpenGL (`-opengl`, as the maintained Wine setups for 1.27 do; Direct3D
-in Graphics). Wine's Light visual style is on for any Windows dialog. The runtime has no network at all while
+the same size), drawing with Direct3D through DXVK (OpenGL, `-opengl`, drew the main menu's banner with black holes on the phone; it can
+still be chosen in Graphics). Its films play through Winlator's own DirectShow. Wine's Light visual style is on for any Windows dialog. The runtime has no network at all while
 Private is on (no name server; only `localhost` resolves): to the game, a PC without internet.
 
 ## First launch
@@ -96,23 +96,26 @@ Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
 
 ## Controls
 
-Nothing is drawn over the game. The gestures are the ones you chose.
+Nothing is drawn over the game. The gestures are the ones you chose, with what Warcraft III needs added.
 
 | Gesture | In the game |
 | --- | --- |
-| Swipe one finger | Pans the map the way you swipe, for as long as the finger stays away from where it landed; lift to stop |
-| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on all its menus (main menu, campaigns, skirmish setup, loading and score screens), on its bottom panel and top bar, and on a dialog over the paused game (the F10 menu, the quest log). The app tells a match from the menus by the game's console, read from its picture (the console's art and layout are in the game's files) |
-| Touch and hold | Left click when you lift (after a short buzz): select a unit or building, press a button of the game's panel or menus |
+| Swipe one finger | Pans the map the way you swipe, for as long as the finger stays away from where it landed; lift to stop. Warcraft III: a swipe that starts on the minimap moves the camera along it instead |
+| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on all its menus (main menu, campaigns, skirmish setup, loading and score screens), on its bottom panel and top bar, on the hero buttons down the left edge and the idle-worker button, and on a dialog over the paused game (the F10 menu, the quest log). The app tells a match from the menus by the game's console, read from its picture (the console's art and layout are in the game's files) |
+| Tap after a command button (Warcraft III) | After you tap a spell, Attack, Patrol, an item or a building to build, the next tap on the battlefield is its target (the left click the game waits for; a right click would cancel it). When the game's pointer shows it isn't waiting for a target (after training a unit, say), that tap stays a right click |
+| Touch and hold | Left click when you lift (after a short buzz): select a unit or building, press a button of the game's panel or menus. While you hold a Warcraft III button its tooltip shows |
+| Hold, then drag (Warcraft III) | On the battlefield: a selection box from where you held. On a button: slide off before lifting and nothing is pressed |
 | Hold twice on the same spot | Double click: every unit of that kind on the screen |
 | Rest one finger, tap or hold with another | Shift-click: queue orders, add units to the selection |
 | Two-finger tap | The game's own menu (F10: save, load, options, quit), in all three games |
+| Two-finger tap twice quickly (Warcraft III) | Space: the camera to the last alert ("Our base is under attack") |
 | Pinch | Zoom (the mouse wheel), where the game has it |
 | Three-finger tap | The phone's keyboard, for chat and cheat codes (sent with Enter) |
 | Four-finger tap | The app's menu: keyboard, chat, leave the game |
 | Back | Escape: cancel what's being aimed, close a window |
 
-There's no selection box and no control groups (your choice). A mouse or keyboard connected to the
-phone works as on a PC.
+There are no control groups (your choice). A mouse or keyboard connected to the phone works as on a
+PC.
 
 ## The menus
 

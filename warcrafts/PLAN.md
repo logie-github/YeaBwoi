@@ -250,6 +250,26 @@ The user's requirements, what was decided, what's open, and where it stands. The
   greys and noise (none found; best score 0.22 of the 0.8 needed). Not known: the picture as read on
   the phone (orientation is found from the first console seen), dialogs in a game that doesn't pause
   (LAN, maybe the victory dialog): touch and hold there.
+- **Build 26 on the phone, and the controls Warcraft III needs** (the user: "the main screen will
+  not let me do any touching. It will move the mouse but won't click", "look at the flag", "movies
+  don't show it's just black screen", "add what touch controls you think are needed"). Build 27:
+  - Clicks hold the button 110 ms (was 40): Warcraft III reads the mouse once a frame, and at the
+    phone's frame rate a 40 ms click can fall between two readings. No console seen: left clicks
+    (the picture not read yet counts as the menus).
+  - The banner in the main menu (recording) had black holes flickering through it: OpenGL's
+    drawing on the phone. Direct3D is the default now (DXVK 2.4.1's d3d8 on Vulkan), OpenGL a choice.
+  - Films: Warcraft III plays them through DirectShow (`Game.dll`: FilterGraph, `RenderFile`,
+    `IVideoWindow.put_Owner`; `War3.exe` registers `blizzard.ax`); the container now has Winlator's
+    own DirectShow (`wincomponents` directshow=1, as Winlator sets for its film-playing games).
+  - Controls: aim (after a tap on the command grid, x 0.765-0.99, y from 0.74, or the inventory,
+    x 0.64-0.74, y from 0.80, measured from the console's art, the next battlefield tap within 8 s
+    is a left click, unless the game's pointer shape is the one it has at plain right clicks, once
+    the game has shown two shapes); hero buttons and idle worker (x below 0.055, y 0.053-0.8) left
+    clicks; hold then drag: a selection box on the battlefield, cancel on a button; a swipe from the
+    minimap (x 0.013-0.185, y 0.803-0.986) drags the camera; two two-finger taps within 0.32 s:
+    Space. `RtsGestures` gets `HeldDrag` and `dragZone` (Warcraft I and II keep their gestures).
+  Not known until the phone: whether 110 ms is the cause of the missed clicks, whether Direct3D
+  draws the banner right and the films show, whether the game's pointer changes shape when aiming.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

@@ -171,9 +171,9 @@
     <string name="rts_graphics_balanced_summary">The fastest</string>
     <string name="rts_renderer_title">Warcraft III draws with</string>
     <string name="rts_renderer_d3d">Direct3D</string>
-    <string name="rts_renderer_d3d_summary">The game\'s own default on Windows: try it if OpenGL\'s picture is wrong</string>
+    <string name="rts_renderer_d3d_summary">The game\'s own default, through DXVK: the app\'s default</string>
     <string name="rts_renderer_gl">OpenGL</string>
-    <string name="rts_renderer_gl_summary">-opengl: the app\'s default, what Wine setups for 1.27 use</string>
+    <string name="rts_renderer_gl_summary">-opengl: try it if Direct3D\'s picture is wrong</string>
     <string name="rts_vibration">Vibrate on a hold</string>
     <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
 

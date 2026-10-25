@@ -17,6 +17,12 @@ class RtsGesturesTest {
         override fun openKeyboard() { events += "keyboard" }
         override fun showMenu() { events += "menu" }
         override fun feedback() { events += "buzz" }
+        override fun press(button: Button) { events += "press $button" }
+        override fun release(button: Button) { events += "release $button" }
+        var held = HeldDrag.PAN
+        var minimap: ((Float, Float) -> Boolean)? = null
+        override fun heldDrag(x: Float, y: Float) = held
+        override fun dragZone(x: Float, y: Float) = minimap?.invoke(x, y) ?: false
     }
 
     private val out = Recorder()
@@ -163,5 +169,59 @@ class RtsGesturesTest {
         gestures.up(1, 300f, 300f, 150)
         gestures.up(0, 60f, 10f, 200)
         assertEquals(listOf("down RIGHT", "up RIGHT"), out.events)
+    }
+
+    @Test
+    fun `held then moved draws a selection box with the left button down`() {
+        out.held = HeldDrag.SELECT
+        gestures.down(0, 100f, 100f, 0)
+        gestures.onHold(RtsGestures.HOLD_MS)
+        gestures.move(0, 160f, 150f)
+        gestures.move(0, 200f, 190f)
+        gestures.up(0, 210f, 200f, 900)
+        assertEquals(listOf("buzz", "move 100,100", "press LEFT", "move 160,150", "move 200,190", "move 210,200", "release LEFT"), out.events)
+    }
+
+    @Test
+    fun `held then slid off takes the hold back`() {
+        out.held = HeldDrag.CANCEL
+        gestures.down(0, 100f, 100f, 0)
+        gestures.onHold(RtsGestures.HOLD_MS)
+        gestures.move(0, 160f, 150f)
+        gestures.up(0, 160f, 150f, 900)
+        assertEquals(listOf("buzz"), out.events)
+    }
+
+    @Test
+    fun `held then moved still pans where the game wants it`() {
+        gestures.down(0, 100f, 100f, 0)
+        gestures.onHold(RtsGestures.HOLD_MS)
+        gestures.move(0, 200f, 100f)
+        gestures.up(0, 200f, 100f, 900)
+        assertEquals(listOf("buzz", "down RIGHT", "up RIGHT"), out.events)
+    }
+
+    @Test
+    fun `a swipe from the minimap drags on it instead of panning`() {
+        out.minimap = { x, y -> x < 50f && y > 400f }
+        gestures.down(0, 20f, 450f, 0)
+        gestures.move(0, 40f, 470f)
+        gestures.up(0, 45f, 480f, 300)
+        assertEquals(listOf("move 20,450", "press LEFT", "move 40,470", "move 45,480", "release LEFT"), out.events)
+        out.events.clear()
+        gestures.down(0, 300f, 300f, 1000)
+        gestures.move(0, 340f, 300f)
+        gestures.up(0, 340f, 300f, 1300)
+        assertEquals(listOf("down RIGHT", "up RIGHT"), out.events)
+    }
+
+    @Test
+    fun `a second finger during a drag lets go of the button`() {
+        out.held = HeldDrag.SELECT
+        gestures.down(0, 100f, 100f, 0)
+        gestures.onHold(RtsGestures.HOLD_MS)
+        gestures.move(0, 160f, 150f)
+        gestures.down(1, 300f, 300f, 800)
+        assertTrue(out.events.last() == "release LEFT")
     }
 }
