@@ -177,6 +177,8 @@ object Game {
             "Game" to "${title.key}: $execPath",
             "Screen" to "${width}x$height (${GameSettings.resolution(context).name})",
             "Draws with" to "${GameSettings.renderer(context).name}, Direct3D by ${container.dxWrapper}",
+            "Controls" to if (GameSettings.touchpad(context)) "Winlator's touchpad" else "the app's gestures",
+            "Wine's pointer grab" to "off (X11 Driver GrabPointer N): the cursor is kept in the game's window without it",
             "Graphics driver" to container.graphicsDriver,
             "Windows parts" to container.winComponents,
             "Private" to RtsFiles.isPrivate(context).toString(),
@@ -185,8 +187,11 @@ object Game {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .putExtra("container_id", container.id)
             .putExtra("exec_path", execPath)
-            // The app's touch controls (GestureView) in place of Winlator's touchpad.
+            // The app's touch controls (GestureView) in place of Winlator's touchpad; with Winlator's
+            // touchpad chosen (Graphics, under Controls), the GestureView stands aside, every touch
+            // going on to the touchpad, and keeps only the report and the start's bookkeeping.
             .putExtra("gestures", true)
+            .putExtra(GestureView.EXTRA_TOUCHPAD, GameSettings.touchpad(context))
             .putExtra(GestureView.EXTRA_TITLE, title.key)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
     }
@@ -326,6 +331,14 @@ object Game {
             registry.setStringValue(blizzard, "InstallPath", gameDir)
             registry.setStringValue(blizzard, "Program", program)
             registry.setStringValue(blizzard, "GamePath", program)
+            // Wine keeps the cursor in a window (Warcraft III's ClipCursor, DirectInput's exclusive
+            // mouse, which clips one pixel inside the screen even for a fullscreen window) by
+            // grabbing the X pointer on a window of its own. Winlator's X server gave a program
+            // holding the pointer no button presses (patches/winlator/0005 fixes that), the likely
+            // reason the game's pointer moved and nothing was pressed. Without the grab (Wine's own
+            // setting) presses go to the game's window as any click does; the clip itself stays,
+            // kept by Wine's server, and on the phone there's nowhere else for the pointer to go.
+            registry.setStringValue("Software\\Wine\\X11 Driver", "GrabPointer", "N")
             // The opening film is a film like the others (DirectShow): marked seen, the game starts at its menu.
             registry.setDwordValue("Software\\Blizzard Entertainment\\Warcraft III\\Misc", "seenintromovie", 1)
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"

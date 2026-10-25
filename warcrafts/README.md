@@ -52,7 +52,9 @@ the app hasn't been run on them, nor on GOG's installers, here (innoextract was 
 Warcraft III fills the screen at its 4:3 resolution (registry `reswidth`/`resheight`, Wine's desktop
 the same size), drawing with OpenGL (`-opengl`, the way seen working on the phone). Graphics → Warcraft III draws with offers Direct3D
 through Wine and Direct3D through DXVK too. The opening film is skipped (marked seen); a later film the game shows black
-is skipped after 5 seconds (Escape). Wine's Light visual style is on for any Windows dialog. The runtime has no network at all while
+is skipped after 5 seconds (Escape). Wine's Light visual style is on for any Windows dialog. The game keeps the
+pointer inside its window without Windows grabbing the pointer (Wine's `GrabPointer` off): while Wine held it, Winlator's
+screen passed the game no presses, the likely reason taps moved the game's pointer but pressed nothing. The runtime has no network at all while
 Private is on (no name server; only `localhost` resolves): to the game, a PC without internet.
 
 ## First launch
@@ -96,8 +98,9 @@ on from there. It needs about 2 GB free while it runs, 1.3 GB after.
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
 
 **If something goes wrong in Warcraft III**: Games → Warcraft III → Game files → **Copy report of the last run**
-copies what the last game did: the settings it ran with, Windows' messages (Wine's errors), what the app read from the game's screen (whether it saw a match, all black, and so on) and your last
-40 taps with what each was sent as. If a run shows only a black screen, the launcher says so when you come back.
+copies what the last game did: the settings it ran with, Windows' messages (Wine's errors), what the app read from the game's screen (whether it saw a match, all black, and so on), your last
+40 taps with what each was sent as, and the last 40 mouse button presses with where they went (the game's window,
+Windows holding the pointer, or nowhere), all of them counted. If a run shows only a black screen, the launcher says so when you come back.
 If a start never shows the game, the next start makes the games' Windows again from new (about a minute, once);
 it holds none of the game's files, saves or keys, so nothing is lost.
 
@@ -124,6 +127,15 @@ Nothing is drawn over the game. The gestures are the ones you chose, with what W
 There are no control groups (your choice). A mouse or keyboard connected to the phone works as on a
 PC.
 
+**If taps don't click in Warcraft III**: Graphics → **Winlator's touchpad (if taps don't click)** starts
+it with Winlator's own touchpad in place of the gestures above: drag a finger to move the pointer (from
+wherever it is, like a laptop's touchpad), tap to left click where it is, two-finger tap to right click,
+rest one finger and move another to drag with the left button held (a selection box), two fingers close
+together moved up or down to scroll, and four fingers for Winlator's menu (keyboard, exit). Back is still
+Escape. It's off unless you turn it on, and it takes effect at the next start. If the touchpad clicks
+and the gestures don't, the gestures are the problem; if neither clicks, it's further down (the report
+says where each press went).
+
 ## The menus
 
 - **Launcher**: Press start, **What's needed** (the checklist above), and tiles for **Game files**, **Games** (the four games, each by its
@@ -132,8 +144,8 @@ PC.
   Warcraft III: its setup (download, install each game), **Private** (on: the games' Windows has no
   network at all), deleting.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
-  Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong) and
-  the hold's vibration.
+  Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong),
+  the hold's vibration and, for Warcraft III, Winlator's touchpad in place of the gestures.
 - **In the game** (four fingers): back to the game, keyboard, chat or cheat code, leave the game. Save in the game first (two-finger tap, the game's menu):
   leaving ends it where it is.
 

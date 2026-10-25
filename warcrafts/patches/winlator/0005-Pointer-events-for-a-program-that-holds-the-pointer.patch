@@ -1,0 +1,142 @@
+From c11d0f902faeb2ed273a95570b953788b76c0cdd Mon Sep 17 00:00:00 2001
+From: Warcraft <warcrafts@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 23:46:54 +0000
+Subject: [PATCH] Pointer events for a program that holds the pointer
+
+While a program holds the pointer (XGrabPointer: Wine's cursor clipping, for ClipCursor and
+DirectInput), a button press went only to the windows that chose presses on the grabbed window
+itself, never to the program through its grab; Wine's clipping window chooses none, so no press
+arrived while it kept the cursor in a game's window. And the clipping window is a child of Wine's
+desktop window, which Winlator disables when it maps, so its grab got no motion or release either.
+Now, as an X server does, the press, release and motion go to the program that holds the pointer.
+Releases go there if its grab asked for releases. Its grab doesn't end with the buttons.
+---
+ .../winlator/xserver/InputDeviceManager.java  | 79 +++++++++++++++----
+ 1 file changed, 63 insertions(+), 16 deletions(-)
+
+diff --git a/app/src/main/java/com/winlator/xserver/InputDeviceManager.java b/app/src/main/java/com/winlator/xserver/InputDeviceManager.java
+index e785264..0d374c0 100644
+--- a/app/src/main/java/com/winlator/xserver/InputDeviceManager.java
++++ b/app/src/main/java/com/winlator/xserver/InputDeviceManager.java
+@@ -68,9 +68,20 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+         return pointWindow;
+     }
+ 
++    /**
++     * Warcraft app: whether a program holds the pointer (its XGrabPointer, as Wine's cursor clipping
++     * does: ClipCursor, DirectInput), not a button's own grab. An X server sends that program the
++     * pointer's events, presses included, whichever window it grabbed: Wine's clipping window is a
++     * child of its desktop window, which Winlator disables (XServerDisplayActivity), so the disabled
++     * mark doesn't hold them back.
++     */
++    public boolean isClientGrab() {
++        return xServer.grabManager.getWindow() != null && !xServer.grabManager.isReleaseWithButtons();
++    }
++
+     private void sendEvent(Window window, int eventId, Event event) {
+         Window grabWindow = xServer.grabManager.getWindow();
+-        if (grabWindow != null && grabWindow.attributes.isEnabled()) {
++        if (grabWindow != null && (grabWindow.attributes.isEnabled() || isClientGrab())) {
+             EventListener eventListener = xServer.grabManager.getEventListener();
+             if (xServer.grabManager.isOwnerEvents() && window != null) {
+                 window.sendEvent(eventId, event, xServer.grabManager.getClient());
+@@ -86,7 +97,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+ 
+     private void sendEvent(Window window, Bitmask eventMask, Event event) {
+         Window grabWindow = xServer.grabManager.getWindow();
+-        if (grabWindow != null && grabWindow.attributes.isEnabled()) {
++        if (grabWindow != null && (grabWindow.attributes.isEnabled() || isClientGrab())) {
+             EventListener eventListener = xServer.grabManager.getEventListener();
+             if (xServer.grabManager.isOwnerEvents() && window != null) {
+                 window.sendEvent(eventMask, event, eventListener.client);
+@@ -151,30 +162,44 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+         }
+         else {
+             Window grabWindow = xServer.grabManager.getWindow();
++            // Warcraft app: a program holds the pointer: the press goes to that program, as an X
++            // server sends it (to the grabbed window if its grab asked for presses). It went only to
++            // the windows that chose presses on the grabbed window itself: Wine's clipping window
++            // chooses none, so while Wine kept the cursor in a game's window no press arrived.
++            if (grabWindow != null && isClientGrab()) {
++                Window window = xServer.grabManager.isOwnerEvents() ? pointWindow.getAncestorWithEventId(Event.BUTTON_PRESS) : null;
++                sendEvent(window, Event.BUTTON_PRESS, createButtonPress(button, window != null ? window : grabWindow));
++                return;
++            }
++
+             if (grabWindow == null) {
+                 grabWindow = pointWindow.getAncestorWithEventId(Event.BUTTON_PRESS);
+                 if (grabWindow != null) xServer.grabManager.activatePointerGrab(grabWindow);
+             }
+ 
+             if (grabWindow != null && grabWindow.attributes.isEnabled()) {
+-                Bitmask eventMask = createPointerEventMask();
+-                eventMask.unset(button.flag());
++                grabWindow.sendEvent(Event.BUTTON_PRESS, createButtonPress(button, grabWindow));
++            }
++        }
++    }
+ 
+-                short x = xServer.pointer.getX();
+-                short y = xServer.pointer.getY();
++    private ButtonPress createButtonPress(Pointer.Button button, Window eventWindow) {
++        Bitmask eventMask = createPointerEventMask();
++        eventMask.unset(button.flag());
+ 
+-                FullscreenTransformation fullscreenTransformation = grabWindow.getFullscreenTransformation();
+-                if (fullscreenTransformation != null) {
+-                    short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
+-                    x = transformedPoint[0];
+-                    y = transformedPoint[1];
+-                }
++        short x = xServer.pointer.getX();
++        short y = xServer.pointer.getY();
+ 
+-                short[] localPoint = grabWindow.rootPointToLocal(x, y);
+-                Window child = grabWindow.isAncestorOf(pointWindow) ? pointWindow : null;
+-                grabWindow.sendEvent(Event.BUTTON_PRESS, new ButtonPress(button.code(), xServer.windowManager.rootWindow, grabWindow, child, x, y, localPoint[0], localPoint[1], eventMask));
+-            }
++        FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
++        if (fullscreenTransformation != null) {
++            short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
++            x = transformedPoint[0];
++            y = transformedPoint[1];
+         }
++
++        short[] localPoint = eventWindow.rootPointToLocal(x, y);
++        Window child = eventWindow.isAncestorOf(pointWindow) ? pointWindow : null;
++        return new ButtonPress(button.code(), xServer.windowManager.rootWindow, eventWindow, child, x, y, localPoint[0], localPoint[1], eventMask);
+     }
+ 
+     @Override
+@@ -186,6 +211,28 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
+         else {
+             Bitmask eventMask = createPointerEventMask();
+             Window grabWindow = xServer.grabManager.getWindow();
++            // Warcraft app: a program holds the pointer: the release goes to it if its grab asked for
++            // releases (not for pointer motion, as below). Its grab stays when the buttons are up.
++            if (grabWindow != null && isClientGrab()) {
++                Window window = xServer.grabManager.isOwnerEvents() ? pointWindow.getAncestorWithEventId(Event.BUTTON_RELEASE) : null;
++                Window eventWindow = window != null ? window : grabWindow;
++
++                short x = xServer.pointer.getX();
++                short y = xServer.pointer.getY();
++
++                FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
++                if (fullscreenTransformation != null) {
++                    short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
++                    x = transformedPoint[0];
++                    y = transformedPoint[1];
++                }
++
++                short[] localPoint = eventWindow.rootPointToLocal(x, y);
++                Window child = eventWindow.isAncestorOf(pointWindow) ? pointWindow : null;
++                sendEvent(window, Event.BUTTON_RELEASE, new ButtonRelease(button.code(), xServer.windowManager.rootWindow, eventWindow, child, x, y, localPoint[0], localPoint[1], eventMask));
++                return;
++            }
++
+             Window window = grabWindow == null || xServer.grabManager.isOwnerEvents() ? pointWindow.getAncestorWithEventMask(eventMask) : null;
+ 
+             if (grabWindow != null || window != null) {
+-- 
+2.43.0
+

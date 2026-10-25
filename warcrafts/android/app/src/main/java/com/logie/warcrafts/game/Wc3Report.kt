@@ -4,6 +4,7 @@ package com.logie.warcrafts.game
 
 import android.content.Context
 import android.os.Build
+import com.logie.warcrafts.controls.ClickRoute
 import com.winlator.core.Callback
 import com.winlator.core.ProcessHelper
 import java.io.File
@@ -16,7 +17,8 @@ import java.util.Locale
  * What happened in Warcraft III's last run, for the user to copy and send: the settings it ran with,
  * what Wine and the programs under it printed (Wine's errors and the libraries loaded: the
  * container's `WINEDEBUG`, [WINE_DEBUG]), what the app read from the game's picture
- * ([Wc3Watcher]) and the last taps, with what each was sent as. Kept in `files/wc3-last-run.txt`,
+ * ([Wc3Watcher]), the last taps, with what each was sent as, and the last mouse button presses, with
+ * where the X server sent them ([ClickRoute]). Kept in `files/wc3-last-run.txt`,
  * started again for each run; Game files → Copy report.
  */
 object Wc3Report {
@@ -36,6 +38,9 @@ object Wc3Report {
     private val tail = ArrayDeque<String>()
     private var dropped = 0
     private val taps = ArrayDeque<String>()
+    /** Each mouse button press and where the X server sent it ([ClickRoute]), the last 40; and all of them counted. */
+    private val presses = ArrayDeque<String>()
+    private val pressCounts = IntArray(ClickRoute.Kind.entries.size)
 
     private val output = Callback<String> { line -> add(line) }
 
@@ -56,6 +61,9 @@ object Wc3Report {
         runCatching { writer?.close() }
         tail.clear()
         taps.clear()
+        presses.clear()
+        pressCounts.fill(0)
+        lastPress = null
         dropped = 0
         bytes = 0
         val target = file(context)
@@ -86,6 +94,22 @@ object Wc3Report {
         taps.addLast(line)
         if (taps.size > 40) taps.removeFirst()
     }
+
+    /**
+     * A mouse button press (from the gestures, Winlator's touchpad or a mouse) and where the X
+     * server sends it: the game's window, Wine holding the pointer, or nowhere ([ClickRoute]).
+     */
+    @Synchronized
+    fun press(kind: ClickRoute.Kind, line: String) {
+        pressCounts[kind.ordinal]++
+        presses.addLast(line)
+        if (presses.size > 40) presses.removeFirst()
+        // In the report as it's written too (a game swiped away never writes its end): the first
+        // few, and each time presses start going somewhere else.
+        if (pressCounts.sum() <= 3 || kind != lastPress) add("[app] press: $line")
+        lastPress = kind
+    }
+    private var lastPress: ClickRoute.Kind? = null
 
     @Synchronized
     private fun add(line: String) {
@@ -128,6 +152,9 @@ object Wc3Report {
             for (line in summary) out.write(line + "\n")
             out.write("---- the last taps ----\n")
             for (line in taps) out.write(line + "\n")
+            out.write("---- the last presses, where the X server sent them ----\n")
+            out.write(ClickRoute.summary(pressCounts) + "\n")
+            for (line in presses) out.write(line + "\n")
             out.close()
         }
         writer = null

@@ -173,13 +173,14 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     }
 }
 
-/** Graphics: the games' resolution, Warcraft III's renderer, vibration. */
+/** Graphics: the games' resolution, Warcraft III's renderer, vibration, Warcraft III's touchpad fallback. */
 @Composable
 fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var resolution by remember { mutableStateOf(GameSettings.resolution(context)) }
     var renderer by remember { mutableStateOf(GameSettings.renderer(context)) }
     var vibration by remember { mutableStateOf(GameSettings.vibration(context)) }
+    var touchpad by remember { mutableStateOf(GameSettings.touchpad(context)) }
     RtsDialog(stringResource(R.string.rts_tile_graphics), onDismiss = onDismiss) {
         Text(stringResource(R.string.rts_graphics_note), style = MaterialTheme.typography.bodySmall)
         for (choice in GameSettings.Resolution.entries) {
@@ -204,6 +205,12 @@ fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
         RtsSwitchRow(stringResource(R.string.rts_vibration), stringResource(R.string.rts_vibration_summary), vibration) {
             vibration = it
             GameSettings.setVibration(context, it)
+        }
+        if (title.install == com.logie.warcrafts.library.Install.WC3) {
+            RtsSwitchRow(stringResource(R.string.rts_touchpad), stringResource(R.string.rts_touchpad_summary), touchpad) {
+                touchpad = it
+                GameSettings.setTouchpad(context, it)
+            }
         }
     }
 }

@@ -18,6 +18,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
 import com.logie.warcrafts.controls.Button
+import com.logie.warcrafts.controls.ClickRoute
 import com.logie.warcrafts.controls.GestureOutput
 import com.logie.warcrafts.controls.HeldDrag
 import com.logie.warcrafts.controls.Key
@@ -30,6 +31,7 @@ import com.winlator.renderer.ViewTransformation
 import com.winlator.xserver.Pointer
 import com.winlator.xserver.XKeycode
 import com.winlator.xserver.XServer
+import com.winlator.xserver.events.Event
 
 /**
  * The games' touch controls ([RtsGestures]) over Winlator's game screen, in place of its touchpad:
@@ -38,6 +40,11 @@ import com.winlator.xserver.XServer
  * drawn over the game: swipes pan the map, taps right-click, holds left-click, a resting finger is
  * Shift, two fingers open the game's menu, three the phone's keyboard, four the app's menu
  * ([GameMenu]). Back is the game's Escape.
+ *
+ * With Winlator's touchpad chosen ([GameSettings.touchpad], [EXTRA_TOUCHPAD]) it stands aside: every
+ * touch goes to Winlator's own touchpad under it (a finger moves the pointer, a tap clicks), its
+ * pointer is drawn, and four fingers open Winlator's menu; Back is still Escape, and the run's
+ * report and the start's bookkeeping are kept.
  */
 @SuppressLint("ViewConstructor")
 class GestureView(
@@ -50,6 +57,8 @@ class GestureView(
     private val gestures = RtsGestures(this, density)
     private val title = Title.of(activity.intent.getStringExtra(EXTRA_TITLE)) ?: Title.TFT
     private val vibrate = GameSettings.vibration(activity)
+    /** Winlator's own touchpad takes the touches ([EXTRA_TOUCHPAD]): this view only keeps the report. */
+    private val touchpad = activity.intent.getBooleanExtra(EXTRA_TOUCHPAD, false)
     /** What the game shows: a match (its console) or its menus, a paused battlefield ([Wc3Watcher]). */
     private val watcher = Wc3Watcher(xServer)
     /** Until when (uptime ms) taps are left clicks: just after the game's menu was asked for. */
@@ -85,6 +94,32 @@ class GestureView(
             postDelayed(this, TYPE_STEP_MS)
         }
     }
+
+    /**
+     * Each mouse button press, from the gestures, Winlator's touchpad or a mouse, and where the X
+     * server sends it, into the report ([ClickRoute]): heard just before the X server routes it
+     * (Winlator calls its pointer's listeners newest first), with the X server's lock held.
+     */
+    private val pressWatch = object : Pointer.OnPointerMotionListener {
+        override fun onPointerButtonPress(button: Pointer.Button) {
+            if (button == Pointer.Button.BUTTON_SCROLL_UP || button == Pointer.Button.BUTTON_SCROLL_DOWN) return
+            runCatching {
+                val grabbed = xServer.grabManager.window
+                val programGrab = grabbed != null && !xServer.grabManager.isReleaseWithButtons
+                val target = if (grabbed == null) xServer.inputDeviceManager.pointWindow?.getAncestorWithEventId(Event.BUTTON_PRESS) else null
+                val grab = grabbed?.let(::routeWindow)
+                val under = target?.let(::routeWindow)
+                val name = button.name.removePrefix("BUTTON_").lowercase()
+                Wc3Report.press(
+                    ClickRoute.kind(grab, programGrab, under),
+                    "$name at ${xServer.pointer.x},${xServer.pointer.y}: ${ClickRoute.describe(grab, programGrab, under)}",
+                )
+            }
+        }
+    }
+
+    private fun routeWindow(window: com.winlator.xserver.Window) =
+        ClickRoute.Win(window.id, window.className, window.attributes.isEnabled, !window.isInputOutput)
 
     init {
         layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -127,6 +162,8 @@ class GestureView(
         for (seconds in longArrayOf(20, 45, 90, 180)) {
             postDelayed({ if (!windowShown) Wc3Report.note("no game window yet after $seconds s") }, seconds * 1000)
         }
+        Wc3Report.note(if (touchpad) "controls: Winlator's touchpad (the app's gestures off)" else "controls: the app's gestures")
+        xServer.pointer.addOnPointerMotionListener(pressWatch)
     }
 
     /** Whether the game's first window has shown. */
@@ -158,6 +195,8 @@ class GestureView(
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // Winlator's touchpad chosen: every touch goes on to it, under this view.
+        if (touchpad) return false
         // A mouse or a trackpad goes to the game as it is (Winlator's own handling, under this view).
         if (event.isFromSource(InputDevice.SOURCE_MOUSE)) {
             xServer.renderer.isCursorVisible = true
@@ -203,7 +242,8 @@ class GestureView(
     fun onGameWindowShown() {
         windowShown = true
         runCatching { java.io.File(context.filesDir, Game.STARTING).delete() }
-        xServer.renderer.isCursorVisible = false
+        // With Winlator's touchpad its pointer is drawn, as Winlator does (the finger moves it from afar).
+        if (!touchpad) xServer.renderer.isCursorVisible = false
         watcher.start()
         Wc3Report.note("the game's window is up")
         removeCallbacks(skipBlack)
@@ -517,6 +557,7 @@ class GestureView(
     }
 
     override fun onDetachedFromWindow() {
+        xServer.pointer.removeOnPointerMotionListener(pressWatch)
         removeCallbacks(skipBlack)
         watcher.stop()
         Wc3Report.note("the game's screen closed")
@@ -531,6 +572,12 @@ class GestureView(
     companion object {
         /** The game the launcher started ([Title.key]): the loading screen's and menus' look. */
         const val EXTRA_TITLE = "com.logie.warcrafts.TITLE"
+
+        /**
+         * Whether Winlator's own touchpad takes the touches in place of the app's gestures
+         * ([GameSettings.touchpad]): the fallback for taps that don't click.
+         */
+        const val EXTRA_TOUCHPAD = "com.logie.warcrafts.TOUCHPAD"
 
         /** Whether the game's screen is open (its Wine processes are the running game's, not leftovers). */
         @Volatile var screenUp = false

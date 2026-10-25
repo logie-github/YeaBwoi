@@ -320,6 +320,55 @@ The user's requirements, what was decided, what's open, and where it stands. The
   4. A start while the game's screen is still open (Winlator's screen is single-instance, so a new
      start only brought it back with nothing started, and reset the report) returns to it.
   Tested here: the app compiles, 70 unit tests pass. Not on the phone.
+- **Build 31: clicks** (build 30 on the phone: the game starts and draws with Direct3D through Wine or
+  DXVK; on the main menu "It moves the cursor but doesn't select", as in builds 25/26 with OpenGL).
+  Found in the sources (Winlator at the app's commit, Wine 10.10, the runtime's Wine):
+  - Wine keeps the cursor in a window by grabbing the X pointer on a clipping window of its own
+    (`winex11.drv/mouse.c:366-438`, `XGrabPointer(clip_window, False, PointerMotion|ButtonPress|ButtonRelease)`):
+    for a game's `ClipCursor` smaller than the screen, and for DirectInput's exclusive mouse, which
+    clips one pixel inside the screen "even if the window covers the whole screen"
+    (`dinput/mouse.c:316-324`). Warcraft III confines the cursor when fullscreen (Wine bug 27616:
+    its window "simply grabs the mouse").
+  - Winlator's X server sent a press during such a grab only to listeners chosen on the grabbed
+    window itself (`InputDeviceManager.onPointerButtonPress`), not to the program through its grab.
+    Wine's clipping window chooses only structure and focus events (`window.c:2690`, `1188`), so no
+    press arrived. Worse, the clipping window is put in Wine's desktop window before that maps
+    (`window.c:2591`, `explorer/desktop.c:1283`), and Winlator disables the desktop window and
+    everything in it as it maps (`XServerDisplayActivity.onMapWindow`, `disableAllDescendants`).
+    So during the grab no motion, press or release reached Wine. The game's pointer still followed
+    the finger: Wine asks the X server where the pointer is when it has heard nothing for 100 ms
+    (`win32u/input.c:755`, `XQueryPointer`), and Winlator answers that whatever the grab.
+  - Checked by running Winlator's own routing classes (`InputDeviceManager`, `GrabManager`, `Window`)
+    on the JVM with those windows as Wine makes them: before, a click during the grab gave Wine
+    nothing (with the clipping window not disabled, motion and release but no press); after, the
+    motion, press and release, at the clipping window's coordinates, which Wine maps back. Clicks
+    with no grab and drags are the same before and after.
+  - Ruled out: Wine 10.10 doesn't ignore the ordinary motion events while it reads XInput2's raw
+    motion (`mouse.c:1592-1615`; older Wines did), so the app's absolute pointer moves are fine. And
+    Wine 10.10 doesn't read XInput2's raw button events at all: presses only ever come from the
+    ordinary ButtonPress.
+  Build 31, both fixes at once:
+  1. Wine's `HKCU\Software\Wine\X11 Driver\GrabPointer` = `N`, written at each start
+     (`win32u/sysparams.c:5566`): Wine keeps the clip (its server still holds the cursor inside, and
+     `ClipCursor` still succeeds, `input.c:2760-2769`, so DirectInput doesn't warp the cursor) but
+     never grabs the X pointer for it (`input.c:2716`). Presses go to the game's window like any click.
+  2. `patches/winlator/0005`: while a program holds the pointer, its presses, releases and motion go
+     to it as an X server sends them, whatever window it grabbed and whether Winlator disabled that
+     window (other grabs remain: Wine's `SetCursorPos` grabs the pointer for a moment).
+  3. The report: every mouse button press (gestures, Winlator's touchpad, a mouse) and where the X
+     server sent it (`controls/ClickRoute`): the game's window, a program holding the pointer, or
+     dropped. The last 40 and the counts at the end, the first three and each change of where they
+     go in the report as it's written.
+  4. Graphics → **Winlator's touchpad (if taps don't click)**, off unless chosen: Warcraft III with
+     Winlator's own touchpad (drag to move the pointer, tap to click, two-finger tap to right click,
+     four fingers for Winlator's menu with Exit). The app's view stays on the game screen with every
+     touch going on to the touchpad. Without the view (no `gestures` extra), the start's bookkeeping
+     would be lost: the `wc3-starting` mark would never be cleared, so every other start would make
+     the games' Windows again, and a start while the game ran would stop it. Back stays Escape.
+  Not changed: the graphics, the tap logic in matches (`Wc3Watcher`, `Wc3Screen`), the click timing.
+  Tested here: the app compiles with the five Winlator patches, 76 unit tests pass (6 new), the
+  routing check above. Not on the phone: whether Warcraft III's clicks land now, and whether it does
+  clip the cursor (with the grab off the report can't show it; it shows where each press went).
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

@@ -182,6 +182,8 @@
     <string name="rts_renderer_gl_summary">-opengl: the app\'s default, seen working on the phone</string>
     <string name="rts_vibration">Vibrate on a hold</string>
     <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
+    <string name="rts_touchpad">Winlator\'s touchpad (if taps don\'t click)</string>
+    <string name="rts_touchpad_summary">Warcraft III only. In place of the app\'s gestures: drag a finger to move the pointer, tap to left click, two-finger tap to right click. Four fingers open Winlator\'s menu (keyboard, exit). Back is still Escape.</string>
 
     <!-- Controls -->
     <string name="rts_controls_swipe">Swipe one finger</string>

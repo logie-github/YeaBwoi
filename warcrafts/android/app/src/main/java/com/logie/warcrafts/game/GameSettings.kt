@@ -59,6 +59,16 @@ object GameSettings {
         prefs(context).edit().putBoolean("vibration", on).apply()
     }
 
+    /**
+     * Warcraft III with Winlator's own touchpad in place of the app's gestures (a finger moves the
+     * pointer, a tap clicks where it is): the fallback if taps don't click. Off unless chosen.
+     */
+    fun touchpad(context: Context): Boolean = prefs(context).getBoolean("touchpad", false)
+
+    fun setTouchpad(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("touchpad", on).apply()
+    }
+
     /** What Warcraft III's program is started with: `-opengl` for OpenGL, nothing for either Direct3D. */
     fun arguments(context: Context, install: Install): String =
         if (install == Install.WC3 && renderer(context) == Renderer.OPENGL) "-opengl" else ""
