@@ -1612,6 +1612,23 @@ a realm with modules), then stage 3.
   Lua with the other two modules' code, the looks checker (no new problem), the world's SQL against
   MariaDB in every order, the hooks compiled against the core's headers. Not checked: the game on a
   phone. The starting areas come next.
+- The user, on the starting areas' maps: "Yes use the map converter if it works." Tried here:
+  wotlkconv (Bar3b0n3s/Converter) on the seven maps the two starts use, fetched from wago.tools
+  (Gilneas2 654, Gilneas 638, GilneasPhase1/2 655/656, LostIsles 648 (Kezan and the Lost Isles),
+  LostIslesPhase1/2 659/661: 241 tiles; their ids are free in 3.3.5's Map.dbc, their areas'
+  ids free in its AreaTable). None failed. Two things it leaves that 3.3.5 can't take, fixed after
+  it: the WDT's empty tiles keep Cataclysm's flag 2 (3.3.5 and the server's extractor take any
+  flag as a tile, 4036 of them on Gilneas2), and Cataclysm's "Shallow Water" (liquid 301, not in
+  3.3.5's LiquidType) is Water (1). With those, AzerothCore's map_extractor takes all 241 tiles
+  (heights -500 to 291, Gilneas's own areas), and the 6900 models, skins, buildings and textures
+  they place (fetched with all they use) convert, none failing (losses: shadow batches, LOD data,
+  newer shaders reset, 2048 textures halved). vmap4_extractor and vmap4_assembler take them (1022
+  models; 7 buildings couldn't open: five are 3.3.5's own (the game has them), two goblin ones
+  whose group files wago.tools didn't give), and mmaps_generator makes Gilneas2's paths (50 tiles,
+  no errors). 75 models have no skin file left in today's game (they won't draw). Not checked: any
+  of it in the game. Next: the maps' rows in the game's tables (Map, AreaTable, WorldMapArea,
+  loading screens, lights) and the server's; the server's data made for the new maps as the realm
+  is packaged (the phone's extractor reads patch-1 to 5 only); the creatures, quests and scripts.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
