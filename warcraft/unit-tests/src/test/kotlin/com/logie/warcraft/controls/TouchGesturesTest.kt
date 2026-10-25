@@ -70,6 +70,17 @@ class TouchGesturesTest {
     }
 
     @Test
+    fun aHoldThatDriftsStaysAHold() {
+        // (a finger settling after the hold, up to 30 px: no drag, the bags as it lifts)
+        gestures.down(0, 600f, 300f, 0)
+        gestures.onHold(TouchGestures.HOLD_MS)
+        gestures.move(0, 615f, 310f)
+        gestures.move(0, 625f, 315f)
+        gestures.up(0, 625f, 315f, 1500)
+        assertEquals(listOf("tap B"), log.events)
+    }
+
+    @Test
     fun aHoldThenAMoveDragsWithTheLeftButtonFromWhereItWasHeld() {
         // TomTom's arrow at the top: held, then dragged down and across, as the mouse moves it.
         gestures.down(0, 600f, 100f, 0)
