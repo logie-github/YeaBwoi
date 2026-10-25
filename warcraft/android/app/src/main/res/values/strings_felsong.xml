@@ -206,7 +206,7 @@
     <string name="felsong_option_underwear">No underwear</string>
     <string name="felsong_option_underwear_summary">Takes away the underwear layer painted on characters where nothing is worn.</string>
     <string name="felsong_option_undead_paladins">Undead paladins</string>
-    <string name="felsong_option_undead_paladins_summary">Paladin as a class for the Forsaken at character creation. They start in Deathknell with the paladin\'s spells and another race\'s paladin outfit.</string>
+    <string name="felsong_option_undead_paladins_summary">Paladin as a class for the Forsaken at character creation. They start in Deathknell with another race\'s paladin outfit, and train at the Forsaken\'s priest trainers, who teach them what a paladin trainer does.</string>
     <string name="felsong_game_options_next_start">Changes apply when the realm next starts.</string>
     <string name="felsong_game_options_restart">The realm is running: changes apply when it next starts (Server → Stop, then Press start).</string>
     <string name="felsong_home_no_client">Add your Legion 7.3.5 (26972) client to play (step 3). The app can\'t download it: Blizzard no longer serves it.</string>

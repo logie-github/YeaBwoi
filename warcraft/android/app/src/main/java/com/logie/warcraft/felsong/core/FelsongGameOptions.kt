@@ -18,7 +18,8 @@ package com.logie.warcraft.felsong.core
  * - [UNDEAD_PALADINS]: undead paladins at character creation: the pair added to the game's race
  *   and class table (hotfixes.char_base_info, sent as a hotfix), the undead warrior's start and the
  *   blood elf paladin's action bars copied for it ([sql], at every start of the realm); its outfit
- *   is another race's paladin's (patch 0010).
+ *   is another race's paladin's, and the priest trainers teach them a paladin trainer's spells
+ *   (patch 0010, reading App.UndeadPaladins).
  */
 enum class FelsongGameOptions(val key: String, val conf: String, val default: Boolean) {
     UNLOCK_ALL_CLASSES("unlock_all_classes", "App.UnlockAllClasses", false),

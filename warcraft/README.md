@@ -75,7 +75,8 @@ realm's next start; your client's files don't change.
 - **Undead paladins:** Paladin as a class for the Forsaken at character creation. The realm adds the
   pair to the game's race and class table (sent as a hotfix), gives them the undead warrior's start
   in Deathknell and the blood elf paladin's action bars, and, with no undead paladin outfit in the
-  game, another race's paladin outfit.
+  game, another race's paladin outfit. They train at the priest trainers (in Undercity, Deathknell,
+  Brill...), who offer them a paladin trainer's lessons (LegionCore patch 0010).
 - **No underwear:** the realm sends the game its character table's underwear rows without their
   textures (as hotfixes), so the skin shows where nothing is worn. Switching it (or Undead paladins) clears the
   game's cache of such rows (`client/Cache`) at the realm's next start.

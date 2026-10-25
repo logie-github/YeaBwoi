@@ -62,8 +62,8 @@ class FelsongGameOptionsTest {
         assertEquals(FelsongGameOptions.entries.size, conf.size)
         // (the realm's patch reads these names)
         val patch = java.io.File("../felsong/patches/0009-App-game-options.patch").readText()
-        // (Undead paladins is rows in the databases, FelsongGameOptions.sql, not a setting the patch reads)
-        for (key in conf.keys - "App.UndeadPaladins") kotlin.test.assertTrue("\"$key\"" in patch, "the realm's patch doesn't read $key")
+        val patches = patch + java.io.File("../felsong/patches/0010-App-race-and-class-pairs.patch").readText()
+        for (key in conf.keys) kotlin.test.assertTrue("\"$key\"" in patches, "the realm's patches don't read $key")
     }
 }
 
