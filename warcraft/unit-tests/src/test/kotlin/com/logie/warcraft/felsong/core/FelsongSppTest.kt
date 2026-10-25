@@ -59,9 +59,26 @@ class FelsongGameOptionsTest {
         assertEquals("1", conf["App.NoUnderwear"])
         // (one switched off is written off, so the realm's file says it)
         assertEquals("0", conf["App.UnlockAllClasses"])
-        assertEquals(3, conf.size)
+        assertEquals(FelsongGameOptions.entries.size, conf.size)
         // (the realm's patch reads these names)
         val patch = java.io.File("../felsong/patches/0009-App-game-options.patch").readText()
-        for (key in conf.keys) kotlin.test.assertTrue("\"$key\"" in patch, "the realm's patch doesn't read $key")
+        val patches = patch + java.io.File("../felsong/patches/0010-App-race-and-class-pairs.patch").readText()
+        for (key in conf.keys) kotlin.test.assertTrue("\"$key\"" in patches, "the realm's patches don't read $key")
+    }
+}
+
+class FelsongUndeadPaladinsTest {
+    @Test
+    fun theRowsAreTheOnesTheRealmsTestRuns() {
+        val on = FelsongGameOptions.sql(setOf(FelsongGameOptions.UNDEAD_PALADINS)).trim().lines()
+        val off = FelsongGameOptions.sql(emptySet()).trim().lines()
+        // (off: only the rows taken out; on: the same, then put in)
+        assertEquals(4, off.size)
+        assertEquals(off, on.take(4))
+        kotlin.test.assertTrue(on.any { "VALUES (2000000001, ${FelsongGameOptions.CHAR_BASE_INFO_HASH}, 1000, 0)" in it })
+        // (the realm's CI test runs these very statements against the real databases)
+        val script = java.io.File("../../scripts/test-felsong-server.sh").readText()
+        val tested = script.substringAfter("<<'SQL'\n").substringBefore("\nSQL\n").lines()
+        assertEquals(on, tested)
     }
 }

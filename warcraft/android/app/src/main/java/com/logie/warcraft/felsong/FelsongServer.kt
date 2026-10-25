@@ -317,6 +317,10 @@ object FelsongServer {
             "UPDATE realmlist SET name = '${FelsongRealm.REALM_NAME}', address = '$address', localAddress = '127.0.0.1', " +
                 "port = ${FelsongRealm.WORLD_PORT}, gamePort = ${FelsongRealm.INSTANCE_PORT}, gamebuild = ${FelsongRealm.CLIENT_BUILD}, flag = 0 WHERE id = 1;",
         )
+        // The game options' rows (an undead paladin's start...), put in or taken out as switched.
+        // (a failure here leaves the realm starting without them, said in its log)
+        runCatching { FelsongDb.exec(context, "world", com.logie.warcraft.felsong.core.FelsongGameOptions.sql(FelsongSettings.options(context))) }
+            .onFailure { android.util.Log.w("FelsongServer", "The game options' rows: ${it.message}") }
     }
 
     /** One of the realm's ports already taken (by another app, or another game's server). */

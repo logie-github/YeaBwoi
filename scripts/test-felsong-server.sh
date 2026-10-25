@@ -110,6 +110,32 @@ echo "allied races with a start: $allied of 4"
 [ "$allied" = 4 ] || fail "the allied races (27 to 30) have no start in playercreateinfo"
 [ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE class IN (6, 12)" | CTL sql world)" -gt 0 ] || fail "death knights and demon hunters have no start"
 
+# The Undead paladins option's rows (FelsongGameOptions.sql, the same statements): in, then out.
+echo "== game options: undead paladins"
+cat > "$FILES/run/undead-paladins.sql" <<'SQL'
+DELETE FROM hotfixes.hotfix_data WHERE Id = 2000000001;
+DELETE FROM hotfixes.char_base_info WHERE ID = 1000;
+DELETE FROM world.playercreateinfo WHERE race = 5 AND class = 2;
+DELETE FROM world.playercreateinfo_action WHERE race = 5 AND class = 2;
+INSERT INTO hotfixes.char_base_info (ID, RaceID, ClassID) VALUES (1000, 5, 2);
+INSERT INTO hotfixes.hotfix_data (Id, TableHash, RecordId, Deleted) VALUES (2000000001, 812099832, 1000, 0);
+DROP TEMPORARY TABLE IF EXISTS app_copy;
+CREATE TEMPORARY TABLE app_copy SELECT * FROM world.playercreateinfo WHERE race = 5 AND class = 1;
+UPDATE app_copy SET class = 2;
+INSERT INTO world.playercreateinfo SELECT * FROM app_copy;
+DROP TEMPORARY TABLE app_copy;
+DROP TEMPORARY TABLE IF EXISTS app_copy;
+CREATE TEMPORARY TABLE app_copy SELECT * FROM world.playercreateinfo_action WHERE race = 10 AND class = 2;
+UPDATE app_copy SET race = 5;
+INSERT INTO world.playercreateinfo_action SELECT * FROM app_copy;
+DROP TEMPORARY TABLE app_copy;
+SQL
+CTL sql world < "$FILES/run/undead-paladins.sql" || fail "the undead paladins' rows didn't go in"
+[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race = 5 AND class = 2" | CTL sql world)" = 1 ] || fail "no undead paladin start"
+echo "undead paladin action buttons: $(echo "SELECT COUNT(*) FROM playercreateinfo_action WHERE race = 5 AND class = 2" | CTL sql world)"
+head -4 "$FILES/run/undead-paladins.sql" | CTL sql world || fail "the undead paladins' rows didn't come out"
+rm -f "$FILES/run/undead-paladins.sql"
+
 echo "== Battle.net login (7.3.5, build 26972)"
 python3 -I "$CHECK" account-sql legion@phone Shell1 3 | CTL sql auth
 CTL bnetserver > "$FILES/logs/bnetserver.out" 2>&1 & pids+=($!)

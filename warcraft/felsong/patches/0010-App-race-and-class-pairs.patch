@@ -1,0 +1,156 @@
+From c78a2efbad445f5da6976f1ec69fa97881a44b04 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 14:19:09 +0000
+Subject: [PATCH] App: race and class pairs from the hotfixes; a start outfit
+ for a new pair; undead paladins train at priest trainers
+
+---
+ src/server/game/DataStores/DB2Stores.cpp      |  3 +-
+ .../game/Entities/Creature/Creature.cpp       | 29 +++++++++++++++++--
+ src/server/game/Entities/Creature/Creature.h  |  4 +++
+ src/server/game/Entities/Player/Player.cpp    | 16 ++++++++++
+ src/server/game/Handlers/NPCHandler.cpp       |  4 +--
+ 5 files changed, 51 insertions(+), 5 deletions(-)
+
+diff --git a/src/server/game/DataStores/DB2Stores.cpp b/src/server/game/DataStores/DB2Stores.cpp
+index b8b6424..dce52f6 100644
+--- a/src/server/game/DataStores/DB2Stores.cpp
++++ b/src/server/game/DataStores/DB2Stores.cpp
+@@ -1043,7 +1043,8 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
+     LOAD_DB2(sCharacterLoadoutStore);
+     LOAD_DB2(sCharacterLoadoutItemStore);
+     //LOAD_DB2(sCharacterServiceInfoStore);
+-    //LOAD_DB2(sCharBaseInfoStore);
++    // (the race and class pairs: the app's game options add some, sent to the client as hotfixes)
++    LOAD_DB2(sCharBaseInfoStore);
+     LOAD_DB2(sCharBaseSectionStore);
+     //LOAD_DB2(sCharComponentTextureLayoutsStore);
+     //LOAD_DB2(sCharComponentTextureSectionsStore);
+diff --git a/src/server/game/Entities/Creature/Creature.cpp b/src/server/game/Entities/Creature/Creature.cpp
+index 9f2a426..b2d5e61 100644
+--- a/src/server/game/Entities/Creature/Creature.cpp
++++ b/src/server/game/Entities/Creature/Creature.cpp
+@@ -17,6 +17,7 @@
+  */
+ 
+ #include "Creature.h"
++#include "Config.h"
+ #include "BattlegroundMgr.h"
+ #include "CellImpl.h"
+ #include "CharmInfo.h"
+@@ -1485,7 +1486,7 @@ bool Creature::isCanTrainingOf(Player* player, bool msg) const
+     if (!isTrainer())
+         return false;
+ 
+-    TrainerSpellData const* trainer_spells = GetTrainerSpells();
++    TrainerSpellData const* trainer_spells = GetTrainerSpells(player);
+ 
+     if ((!trainer_spells || trainer_spells->spellList.empty()) && GetCreatureTemplate()->trainer_type != TRAINER_TYPE_PETS)
+     {
+@@ -1497,7 +1498,7 @@ bool Creature::isCanTrainingOf(Player* player, bool msg) const
+     switch (GetCreatureTemplate()->trainer_type)
+     {
+         case TRAINER_TYPE_CLASS:
+-            if (player->getClass() != GetCreatureTemplate()->trainer_class)
++            if (player->getClass() != GetCreatureTemplate()->trainer_class && !IsUndeadPaladinAtPriestTrainer(player))
+             {
+                 if (msg)
+                 {
+@@ -3633,6 +3634,30 @@ uint32 Creature::UpdateVendorItemCurrentCount(VendorItem const* vItem, uint32 us
+     return vCount->count;
+ }
+ 
++bool Creature::IsUndeadPaladinAtPriestTrainer(Player const* player) const
++{
++    CreatureTemplate const* info = GetCreatureTemplate();
++    return player && info && info->trainer_type == TRAINER_TYPE_CLASS && info->trainer_class == CLASS_PRIEST &&
++        player->getClass() == CLASS_PALADIN && player->getRace() == RACE_UNDEAD_PLAYER && sConfigMgr->GetBoolDefault("App.UndeadPaladins", false);
++}
++
++TrainerSpellData const* Creature::GetTrainerSpells(Player const* player) const
++{
++    if (!IsUndeadPaladinAtPriestTrainer(player))
++        return GetTrainerSpells();
++    // (the first paladin class trainer with spells: what a paladin learns at any of them)
++    static TrainerSpellData const* paladin = []() -> TrainerSpellData const*
++    {
++        for (auto const& itr : *sObjectMgr->GetCreatureTemplates())
++            if (itr.second.trainer_type == TRAINER_TYPE_CLASS && itr.second.trainer_class == CLASS_PALADIN)
++                if (TrainerSpellData const* spells = sObjectMgr->GetNpcTrainerSpells(itr.first))
++                    if (!spells->spellList.empty())
++                        return spells;
++        return nullptr;
++    }();
++    return paladin ? paladin : GetTrainerSpells();
++}
++
+ TrainerSpellData const* Creature::GetTrainerSpells() const
+ {
+     return sObjectMgr->GetNpcTrainerSpells(GetEntry());
+diff --git a/src/server/game/Entities/Creature/Creature.h b/src/server/game/Entities/Creature/Creature.h
+index 8cdfc02..d4411dc 100644
+--- a/src/server/game/Entities/Creature/Creature.h
++++ b/src/server/game/Entities/Creature/Creature.h
+@@ -663,6 +663,10 @@ class TC_GAME_API Creature : public Unit, public GridObject<Creature>, public Ma
+         uint32 UpdateVendorItemCurrentCount(VendorItem const* vItem, uint32 used_count);
+ 
+         TrainerSpellData const* GetTrainerSpells() const;
++        /** The spells [player] is offered here: an undead paladin at a priest trainer (App.UndeadPaladins), a paladin trainer's. */
++        TrainerSpellData const* GetTrainerSpells(Player const* player) const;
++        /** An undead paladin at a priest trainer, while the app's Undead paladins option is on. */
++        bool IsUndeadPaladinAtPriestTrainer(Player const* player) const;
+ 
+         CreatureTemplate const* GetCreatureTemplate() const { return m_creatureInfo; }
+         CreatureData const* GetCreatureData() const { return m_creatureData; }
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index 91bccd4..b267085 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -888,6 +888,22 @@ bool Player::Create(ObjectGuid::LowType guidlow, WorldPackets::Character::Charac
+                 oEntry = entry;
+                 break;
+             }
++        // A race and class the game has no outfit for (the app's game options: an undead paladin):
++        // the class's outfit of another race, the same sex.
++        if (!oEntry)
++            for (CharStartOutfitEntry const* entry : sCharStartOutfitStore)
++                if (entry->ClassID == createInfo->Class && entry->SexID == createInfo->Sex && entry->OutfitID == 0)
++                {
++                    oEntry = entry;
++                    break;
++                }
++        if (!oEntry)
++            for (CharStartOutfitEntry const* entry : sCharStartOutfitStore)
++                if (entry->ClassID == createInfo->Class && entry->SexID == createInfo->Sex)
++                {
++                    oEntry = entry;
++                    break;
++                }
+ 
+         if (oEntry)
+         {
+diff --git a/src/server/game/Handlers/NPCHandler.cpp b/src/server/game/Handlers/NPCHandler.cpp
+index a222c50..0e10502 100644
+--- a/src/server/game/Handlers/NPCHandler.cpp
++++ b/src/server/game/Handlers/NPCHandler.cpp
+@@ -127,7 +127,7 @@ void WorldSession::SendTrainerList(ObjectGuid const& guid, std::string const& st
+         return;
+     }
+ 
+-    TrainerSpellData const* trainer_spells = unit->GetTrainerSpells();
++    TrainerSpellData const* trainer_spells = unit->GetTrainerSpells(GetPlayer());
+     if (!trainer_spells)
+     {
+         TC_LOG_DEBUG("network", "WORLD: SendTrainerList - Training spells not found for creature (GUID: %u Entry: %u)",
+@@ -218,7 +218,7 @@ void WorldSession::HandleTrainerBuySpell(WorldPackets::NPC::TrainerBuySpell& pac
+         return;
+     }
+ 
+-    TrainerSpellData const* trainer_spells = unit->GetTrainerSpells();
++    TrainerSpellData const* trainer_spells = unit->GetTrainerSpells(GetPlayer());
+     if (!trainer_spells)
+     {
+         SendTrainerService(packet.TrainerGUID, packet.SpellID, 0);
+-- 
+2.43.0
+
