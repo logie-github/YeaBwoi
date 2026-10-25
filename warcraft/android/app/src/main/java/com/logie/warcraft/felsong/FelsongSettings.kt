@@ -74,10 +74,10 @@ object FelsongSettings {
         }
         // The game keeps the table rows it was sent (its Cache folder): a realm that sends other
         // rows than at its last start (No underwear switched) has the game read them again.
-        val sent = option(context, com.logie.warcraft.felsong.core.FelsongGameOptions.NO_UNDERWEAR).toString()
-        if (prefs(context).getString("sent.no_underwear", "false") != sent) {
+        val sent = com.logie.warcraft.felsong.core.FelsongGameOptions.CLIENT_CACHED.filter { option(context, it) }.joinToString(",") { it.key }
+        if (prefs(context).getString("sent.client_cached", "") != sent) {
             FelsongFiles.fs(context).delete(File(FelsongFiles.layout(context).client, "Cache"))
-            prefs(context).edit().putString("sent.no_underwear", sent).apply()
+            prefs(context).edit().putString("sent.client_cached", sent).apply()
         }
     }
 }

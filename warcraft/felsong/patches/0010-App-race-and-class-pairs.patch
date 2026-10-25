@@ -1,0 +1,55 @@
+From 50d86a1760db4c1af54441f95380eef022042191 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 14:19:09 +0000
+Subject: [PATCH] App: race and class pairs from the hotfixes; a start outfit
+ for a new pair
+
+---
+ src/server/game/DataStores/DB2Stores.cpp   |  3 ++-
+ src/server/game/Entities/Player/Player.cpp | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/server/game/DataStores/DB2Stores.cpp b/src/server/game/DataStores/DB2Stores.cpp
+index b8b6424..dce52f6 100644
+--- a/src/server/game/DataStores/DB2Stores.cpp
++++ b/src/server/game/DataStores/DB2Stores.cpp
+@@ -1043,7 +1043,8 @@ uint32 DB2Manager::LoadStores(std::string const& dataPath, uint32 defaultLocale)
+     LOAD_DB2(sCharacterLoadoutStore);
+     LOAD_DB2(sCharacterLoadoutItemStore);
+     //LOAD_DB2(sCharacterServiceInfoStore);
+-    //LOAD_DB2(sCharBaseInfoStore);
++    // (the race and class pairs: the app's game options add some, sent to the client as hotfixes)
++    LOAD_DB2(sCharBaseInfoStore);
+     LOAD_DB2(sCharBaseSectionStore);
+     //LOAD_DB2(sCharComponentTextureLayoutsStore);
+     //LOAD_DB2(sCharComponentTextureSectionsStore);
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index 91bccd4..b267085 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -888,6 +888,22 @@ bool Player::Create(ObjectGuid::LowType guidlow, WorldPackets::Character::Charac
+                 oEntry = entry;
+                 break;
+             }
++        // A race and class the game has no outfit for (the app's game options: an undead paladin):
++        // the class's outfit of another race, the same sex.
++        if (!oEntry)
++            for (CharStartOutfitEntry const* entry : sCharStartOutfitStore)
++                if (entry->ClassID == createInfo->Class && entry->SexID == createInfo->Sex && entry->OutfitID == 0)
++                {
++                    oEntry = entry;
++                    break;
++                }
++        if (!oEntry)
++            for (CharStartOutfitEntry const* entry : sCharStartOutfitStore)
++                if (entry->ClassID == createInfo->Class && entry->SexID == createInfo->Sex)
++                {
++                    oEntry = entry;
++                    break;
++                }
+ 
+         if (oEntry)
+         {
+-- 
+2.43.0
+

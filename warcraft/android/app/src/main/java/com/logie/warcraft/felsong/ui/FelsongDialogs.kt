@@ -106,6 +106,7 @@ private fun GameOptionsDialog(onDismiss: () -> Unit) {
                 FelsongGameOptions.UNLOCK_ALLIED_RACES -> R.string.felsong_option_allied to R.string.felsong_option_allied_summary
                 FelsongGameOptions.UNLOCK_ALL_CLASSES -> R.string.felsong_option_classes to R.string.felsong_option_classes_summary
                 FelsongGameOptions.NO_UNDERWEAR -> R.string.felsong_option_underwear to R.string.felsong_option_underwear_summary
+                FelsongGameOptions.UNDEAD_PALADINS -> R.string.felsong_option_undead_paladins to R.string.felsong_option_undead_paladins_summary
             }
             FelsongSwitchRow(stringResource(title), stringResource(summary), on) {
                 on = it
