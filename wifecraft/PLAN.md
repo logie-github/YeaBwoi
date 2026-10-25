@@ -113,7 +113,8 @@ The user's requirements, what was decided, what's open, and where it stands. The
    "Arrive in Dalaran".
 4. **Dialogue**: the screenshot's layout over the live scene, the words in Legion's talking-head
    box (dark, or parchment as a setting), the name in gold.
-5. **Choice**: the scene dimmed, a gossip window: the question, two to four choices with the
+5. **Choice**: a gossip window low on the screen, where the talking head sits (the user: "I don't
+   like how the options are in front of their faces"): the question, two to four choices with the
    gossip icon.
 6. **Pause and Reputation**: the Game Menu (Resume, Save, Load, What Was Said, Options, Title
    Screen) beside the Reputation pane (each route's portrait, bar and standing).

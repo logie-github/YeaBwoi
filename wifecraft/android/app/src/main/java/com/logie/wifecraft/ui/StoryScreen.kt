@@ -125,9 +125,13 @@ fun StoryScreen(
         }
 
         director.choice?.let { c ->
-            MetalPanel(Modifier.align(Alignment.Center).widthIn(min = 420.dp, max = 620.dp), parchment = true) {
+            // Low, where the talking head sits: the faces stay in sight above it.
+            MetalPanel(
+                Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp).widthIn(max = 820.dp).fillMaxWidth(0.88f),
+                parchment = true,
+            ) {
                 Column {
-                    Text(c.prompt, style = morpheusStyle(22.sp, WowColors.ink).copy(shadow = null), modifier = Modifier.padding(bottom = 6.dp))
+                    Text(c.prompt, style = morpheusStyle(19.sp, WowColors.ink).copy(shadow = null), modifier = Modifier.padding(bottom = 2.dp))
                     c.options.forEachIndexed { i, text -> GossipOption(text, { director.choose(i) }) }
                 }
             }

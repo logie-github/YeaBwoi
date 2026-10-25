@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -279,7 +280,7 @@ fun LoadingBar(progress: Float, modifier: Modifier = Modifier) {
 fun GossipOption(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val art = LocalArt.current
     androidx.compose.foundation.layout.Row(
-        modifier.clickable(role = Role.Button, onClick = onClick).padding(vertical = 8.dp, horizontal = 6.dp),
+        modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(vertical = 6.dp, horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Canvas(Modifier.width(22.dp).height(22.dp)) {
