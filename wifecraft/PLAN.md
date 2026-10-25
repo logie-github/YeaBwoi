@@ -25,7 +25,7 @@ this is the design. The screens' mockups are on a canvas
   - **the demo's place**: Broken Isles Dalaran (Legion's);
   - **the demo's routes**: one lore character, Alleria Windrunner, and one original character
     (race left to us: "Surprise me" → a Nightborne). Later: "The original character will be
-  female".
+    female".
 - "Design a completely new app called Wifecraft", package `com.logie.wifecraft` (asked: the
   repository's form, not `logie.com.wifecraft`). "Create original menus etc or reuse assets."
 - On the first mockups (menus of our own): "Umm for the screens I wanted you to reuse the wow ui".
