@@ -37,7 +37,7 @@
     <!-- What's needed -->
     <string name="rts_needs_title">What\'s needed</string>
     <string name="rts_needs_title_ready">Everything is in</string>
-    <string name="rts_needs_where_wc3">Set up in the app, no PC: Game files downloads Blizzard\'s own Warcraft III installers (1.27), then you install Reign of Chaos and The Frozen Throne with your CD keys.</string>
+    <string name="rts_needs_where_wc3">Set up in the app, no PC: Game files → Download and install fetches Blizzard\'s own Warcraft III (1.27, Reign of Chaos and The Frozen Throne) and installs it by itself. No installer, no CD key.</string>
     <string name="rts_needs_where_wc1">From GOG: the offline installer of Warcraft: Orcs &amp; Humans (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_….exe, and every setup_warcraft_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_needs_where_wc2">From GOG: the offline installer of Warcraft II: Battle.net Edition (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_ii_….exe, and every setup_warcraft_ii_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_need_war_data">The game\'s data</string>
@@ -74,10 +74,10 @@
     <string name="rts_wc3_download">Download and install</string>
     <string name="rts_wc3_install">Install</string>
     <string name="rts_wc3_ready">Installed. Press start to play.</string>
-    <string name="rts_need_wc3_downloaded">Blizzard\'s installers</string>
-    <string name="rts_need_wc3_downloaded_note">Downloaded into the app: Game files → Download from Blizzard.</string>
+    <string name="rts_need_wc3_downloaded">Downloaded from Blizzard</string>
+    <string name="rts_need_wc3_downloaded_note">Game files → Download and install.</string>
     <string name="rts_need_wc3_installed">Warcraft III installed</string>
-    <string name="rts_need_wc3_installed_note">Reign of Chaos, then The Frozen Throne, each with its CD key: Game files.</string>
+    <string name="rts_need_wc3_installed_note">Reign of Chaos, then The Frozen Throne, installed by the app after the download.</string>
     <string name="rts_convert_title">Converting %1$s for the phone</string>
     <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
     <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>
@@ -185,7 +185,7 @@
     <string name="rts_controls_three">Three-finger tap</string>
     <string name="rts_controls_three_does">The phone\'s keyboard, for chat and cheat codes (sent with Enter).</string>
     <string name="rts_controls_four">Four-finger tap</string>
-    <string name="rts_controls_four_does">The app\'s menu: keyboard, CD keys, leave the game.</string>
+    <string name="rts_controls_four_does">The app\'s menu: keyboard, leave the game.</string>
     <string name="rts_controls_back">Back</string>
     <string name="rts_controls_back_does">Escape: cancel what\'s being aimed, close a window.</string>
     <string name="rts_controls_mouse">A mouse or keyboard connected to the phone works as on a PC.</string>
