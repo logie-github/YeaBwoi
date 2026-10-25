@@ -63,6 +63,13 @@ object Game {
     enum class Step { RUNTIME, WINDOWS, STARTING }
 
     private const val CONTAINER_NAME = "Warcraft"
+    /** The games' Windows as this version makes it; an older one is made again once ([remakeReason]). */
+    private const val GENERATION_EXTRA = "rtsGeneration"
+    private const val GENERATION = "30"
+    /** A start in progress: written as Warcraft III starts, deleted when its window shows. */
+    const val STARTING = "wc3-starting"
+    /** [STARTING]'s text when that start had the games' Windows made fresh (not made again for it). */
+    private const val FRESH = "fresh"
 
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state
@@ -137,6 +144,13 @@ object Game {
 
     private suspend fun startWindows(context: Context, title: Title, resolution: Pair<Int, Int>, execPath: String) {
         val install = title.install
+        // The game's screen is still open (Winlator's screen is single-instance: a new start would
+        // only bring it back, with nothing started): back to it, its game and report untouched.
+        if (GestureView.screenUp) {
+            val back = Intent(context, XServerDisplayActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (MainActivity.visible) context.startActivity(back) else pending = back
+            return
+        }
         _state.value = State.Preparing(Step.RUNTIME, 0f)
         val installed = withContext(Dispatchers.IO) {
             RootFSInstaller.installIfNeeded(context) { percent ->
@@ -148,12 +162,16 @@ object Game {
 
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = resolution
-        val container = container(context, width, height)
+        val (container, madeFresh) = container(context, width, height)
         if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, title, width, height) }
 
         _state.value = State.Preparing(Step.STARTING)
         val leftovers = withContext(Dispatchers.IO) { stopLeftovers(context) }
+        // Cleared when the game's window shows ([GestureView.onGameWindowShown]): still here at the
+        // next start, this one never showed a window.
+        withContext(Dispatchers.IO) { File(context.filesDir, STARTING).writeText(if (madeFresh != null) FRESH else "") }
         Wc3Report.start(context, listOf(
+            "Games' Windows" to (madeFresh ?: "as before"),
             "Left over from before, stopped" to leftovers.ifEmpty { listOf("nothing") }.joinToString(), 
             "App" to (runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"),
             "Game" to "${title.key}: $execPath",
@@ -216,13 +234,43 @@ object Game {
     private fun dxWrapper(context: Context): String =
         if (GameSettings.renderer(context) == GameSettings.Renderer.WINED3D) DXWrappers.WINED3D else DXWrappers.DXVK
 
-    /** The games' Windows: made the first time, its screen and drives set every time. */
-    private suspend fun container(context: Context, width: Int, height: Int): Container {
+    /**
+     * Why the games' Windows has to be made again before this start, or null to keep it: once for
+     * [GENERATION] (builds 27 and 28 changed its parts and settings, and build 28 never started),
+     * and after a start that never showed the game's window, unless that start already had a fresh one.
+     */
+    private fun remakeReason(context: Context, existing: Container): String? {
+        if (existing.getExtra(GENERATION_EXTRA) != GENERATION) return "made fresh (once, for this version)"
+        val starting = File(context.filesDir, STARTING)
+        if (starting.isFile && runCatching { starting.readText() }.getOrDefault("") != FRESH) {
+            return "made fresh (the last start never showed the game)"
+        }
+        return null
+    }
+
+    /**
+     * The games' Windows: made the first time (and again when [remakeReason] says so: it holds no
+     * game files, saves or keys, which are all in the game's folder on F:, and the game's registry
+     * values are written at every start), its screen and drives set every time. With why it was
+     * made fresh for this start, or null if it wasn't.
+     */
+    private suspend fun container(context: Context, width: Int, height: Int): Pair<Container, String?> {
         val manager = ContainerManager(context)
         // Warcraft III on F:.
         val drives = Install.entries.filter { it.engine == Engine.WINE }.joinToString("") { "${drive(it)}:" + RtsFiles.folder(context, it).path }
         val screenSize = "${width}x$height"
-        val existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
+        var existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
+        var fresh: String? = null
+        if (existing != null) {
+            val reason = remakeReason(context, existing)
+            if (reason != null) {
+                val old = existing
+                suspendCancellableCoroutine { done -> manager.removeContainerAsync(old) { done.resume(Unit) } }
+                // Not all of it could be removed: kept as it is (its drive links are never followed).
+                existing = manager.containers.firstOrNull { it.name == CONTAINER_NAME }
+                fresh = if (existing == null) reason else null
+            }
+        }
         if (existing != null) {
             existing.setScreenSize(screenSize)
             existing.setDrives(drives)
@@ -230,7 +278,7 @@ object Game {
             existing.dxWrapper = dxWrapper(context)
             existing.envVars = EnvVars(existing.envVars).put("WINEDEBUG", Wc3Report.WINE_DEBUG).toString()
             withContext(Dispatchers.IO) { existing.saveData() }
-            return existing
+            return existing to null
         }
         val defaults = Container(0)
         val data = JSONObject()
@@ -249,7 +297,10 @@ object Game {
         val created = suspendCancellableCoroutine { done ->
             manager.createContainerAsync(data) { container -> done.resume(container) }
         }
-        return created ?: throw GameFailed(context.getString(R.string.rts_game_error_windows))
+        created ?: throw GameFailed(context.getString(R.string.rts_game_error_windows))
+        created.putExtra(GENERATION_EXTRA, GENERATION)
+        withContext(Dispatchers.IO) { created.saveData() }
+        return created to (fresh ?: "made fresh (the first time)")
     }
 
     /**

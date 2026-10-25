@@ -20,8 +20,11 @@ import java.util.Locale
  * started again for each run; Game files → Copy report.
  */
 object Wc3Report {
-    /** Wine's output: its errors and fixmes (on by default) and every library it loads (native or Wine's own). */
-    const val WINE_DEBUG = "+loaddll"
+    /**
+     * Wine's output: its errors only (a library not found, a crash). Build 28's `+loaddll` with the
+     * fixmes printed a line for every library each program loaded, all through the app.
+     */
+    const val WINE_DEBUG = "-all,err+all"
 
     private const val MAX_BYTES = 1_500_000
     private const val TAIL_LINES = 400
@@ -38,9 +41,18 @@ object Wc3Report {
 
     fun file(context: Context) = File(context.filesDir, "wc3-last-run.txt")
 
-    /** A run starts: the report again from nothing, the settings at its top, Wine's output from here on. */
-    @Synchronized
+    /**
+     * A run starts: the report again from nothing, the settings at its top, Wine's output from here on.
+     * Winlator's output threads call [add] holding its list of listeners, so the listener is added
+     * and taken off outside this object's lock (the other order, both at once, would deadlock).
+     */
     fun start(context: Context, settings: List<Pair<String, String>>) {
+        begin(context, settings)
+        listen()
+    }
+
+    @Synchronized
+    private fun begin(context: Context, settings: List<Pair<String, String>>) {
         runCatching { writer?.close() }
         tail.clear()
         taps.clear()
@@ -53,7 +65,6 @@ object Wc3Report {
         add("Phone: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         for ((name, value) in settings) add("$name: $value")
         add("---- output ----")
-        listen()
     }
 
     /**
@@ -100,8 +111,13 @@ object Wc3Report {
     }
 
     /** The game was left: the report's end (what didn't fit, the last taps, the picture's readings). */
-    @Synchronized
     fun finish(summary: List<String>) {
+        ProcessHelper.removeDebugCallback(output)
+        end(summary)
+    }
+
+    @Synchronized
+    private fun end(summary: List<String>) {
         val out = writer ?: return
         runCatching {
             if (tail.isNotEmpty()) {
@@ -116,7 +132,6 @@ object Wc3Report {
         }
         writer = null
         tail.clear()
-        ProcessHelper.removeDebugCallback(output)
     }
 
     /** The last run's report, at most [limit] characters (its start and its end), or null if there's none. */

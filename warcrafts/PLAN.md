@@ -302,6 +302,24 @@ The user's requirements, what was decided, what's open, and where it stands. The
   (`winfs`), wineserver, Box64 or a `.exe` are stopped and listed in the report; the game screen
   listens to Wine's output again once it's up (before Wine starts); every window shown is noted
   (class, title, size, drawn), and "no game window yet" at 20, 45, 90 and 180 s; the screen closing.
+- **Build 30** (a new session, after the user: "the game won't even start"; build 29 not yet run on
+  the phone). Build 28's report showed nothing after "---- output ----": the listener was taken off
+  (fixed in 29), so it can't say why no window came. What builds 27 and 28 changed that stays on the
+  phone is the games' Windows itself (its DirectShow switched to Windows' and back, settings, and a
+  game possibly killed mid-run with the registry being written), and build 26's fresh one showed the
+  menu. Build 30:
+  1. The games' Windows is made again once (`rtsGeneration` 30 in the container), and again after any
+     start that never showed the game's window (`files/wc3-starting`, written as Warcraft III starts,
+     deleted when its window shows), but not twice in a row. It holds no game files, saves or keys
+     (all in the game's folder on F:, never followed: Winlator's delete doesn't follow links); the
+     registry values are written at each start. The report says whether it was made fresh and why.
+  2. Wine's output is its errors only (`-all,err+all`), not build 28's `+loaddll` with fixmes.
+  3. The report's lock: Winlator's output threads call it holding their listener list, and the
+     report took that list holding its own lock (start, finish): a deadlock on leaving the game. The
+     listener is now added and removed outside it.
+  4. A start while the game's screen is still open (Winlator's screen is single-instance, so a new
+     start only brought it back with nothing started, and reset the report) returns to it.
+  Tested here: the app compiles, 70 unit tests pass. Not on the phone.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

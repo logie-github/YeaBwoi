@@ -96,9 +96,10 @@ on from there. It needs about 2 GB free while it runs, 1.3 GB after.
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
 
 **If something goes wrong in Warcraft III**: Games → Warcraft III → Game files → **Copy report of the last run**
-copies what the last game did: the settings it ran with, Windows' messages (Wine's errors and the libraries it
-loaded), what the app read from the game's screen (whether it saw a match, all black, and so on) and your last
+copies what the last game did: the settings it ran with, Windows' messages (Wine's errors), what the app read from the game's screen (whether it saw a match, all black, and so on) and your last
 40 taps with what each was sent as. If a run shows only a black screen, the launcher says so when you come back.
+If a start never shows the game, the next start makes the games' Windows again from new (about a minute, once);
+it holds none of the game's files, saves or keys, so nothing is lost.
 
 ## Controls
 

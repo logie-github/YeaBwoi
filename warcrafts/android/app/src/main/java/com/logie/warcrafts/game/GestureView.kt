@@ -202,6 +202,7 @@ class GestureView(
     /** The game's first window is up: on a touch screen the finger is the pointer, never drawn. */
     fun onGameWindowShown() {
         windowShown = true
+        runCatching { java.io.File(context.filesDir, Game.STARTING).delete() }
         xServer.renderer.isCursorVisible = false
         watcher.start()
         Wc3Report.note("the game's window is up")
