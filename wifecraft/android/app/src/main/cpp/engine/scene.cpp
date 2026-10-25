@@ -3,7 +3,9 @@
 #include <GLES3/gl3.h>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
+#include <unordered_map>
 
 #include "blp.h"
 
@@ -150,7 +152,43 @@ unsigned program(const char* vs, const char* fs) {
     return p;
 }
 
-int loc(unsigned p, const char* name) { return glGetUniformLocation(p, name); }
+// Uniform locations, looked up once per program and name (the names are the literals below).
+std::unordered_map<uint64_t, int> gLocations;
+
+int loc(unsigned p, const char* name) {
+    uint64_t key = uint64_t(p) << 44 ^ uint64_t(reinterpret_cast<uintptr_t>(name));
+    auto it = gLocations.find(key);
+    if (it != gLocations.end()) return it->second;
+    int l = glGetUniformLocation(p, name);
+    gLocations[key] = l;
+    return l;
+}
+
+// The six planes of the camera's view (ax + by + cz + d >= 0 inside), from its matrix.
+struct Frustum {
+    float p[6][4];
+    explicit Frustum(const M4& m) {
+        for (int i = 0; i < 3; ++i)
+            for (int s = 0; s < 2; ++s) {
+                float* q = p[i * 2 + s];
+                float sign = s ? -1.0f : 1.0f;
+                for (int c = 0; c < 4; ++c) q[c] = m.at(3, c) + sign * m.at(i, c);
+                float n = std::sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]);
+                if (n > 0) for (int c = 0; c < 4; ++c) q[c] /= n;
+            }
+    }
+    bool sphere(const V3& c, float r) const {
+        for (const auto& q : p) if (q[0] * c.x + q[1] * c.y + q[2] * c.z + q[3] < -r) return false;
+        return true;
+    }
+    bool box(const V3& mn, const V3& mx) const {
+        for (const auto& q : p) {
+            V3 v(q[0] >= 0 ? mx.x : mn.x, q[1] >= 0 ? mx.y : mn.y, q[2] >= 0 ? mx.z : mn.z);
+            if (q[0] * v.x + q[1] * v.y + q[2] * v.z + q[3] < 0) return false;
+        }
+        return true;
+    }
+};
 
 void blendFor(uint32_t mode) {
     switch (mode) {
@@ -167,6 +205,7 @@ void blendFor(uint32_t mode) {
 Scene::~Scene() { /* GL objects die with the context */ }
 
 bool Scene::initGl() {
+    gLocations.clear();
     m2Prog_ = program(kM2Vs, kM2Fs);
     wmoProg_ = program(kWmoVs, kLitFs);
     skyProg_ = program(kSkyVs, kSkyFs);
@@ -308,6 +347,8 @@ void Scene::uploadCityGl() {
         if (path.empty() || !readFile(path, b) || !g.load(b)) continue;
         GroupGl gl;
         uploadGroup(g, gl);
+        gl.boundsMin = city_.groups[gi].boundsMin;
+        gl.boundsMax = city_.groups[gi].boundsMax;
         groups_.push_back(std::move(gl));
     }
 }
@@ -334,6 +375,8 @@ bool Scene::loadCity(uint32_t rootFileId, const std::vector<int>& groups, const 
         Prop p;
         p.mesh = m;
         p.world = M4::translation(d.position) * M4::rotation(d.rotation) * M4::scaling(V3(d.scale, d.scale, d.scale));
+        p.centre = p.world.point((m->model->extentMin + m->model->extentMax) * 0.5f);
+        p.radius = (m->model->extentMax - m->model->extentMin).length() * 0.5f * d.scale;
         props_.push_back(p);
     }
     cityLoaded_ = true;
@@ -545,11 +588,13 @@ void litUniforms(unsigned p, const Light& l, const V3& eye, const M4& viewProj) 
 
 void Scene::drawCity(bool transparent) {
     if (groups_.empty()) return;
+    Frustum f(proj_ * view_);
     unsigned p = wmoProg_;
     glUseProgram(p);
     float white[4] = {1, 1, 1, 1};
     glUniform4fv(loc(p, "uColor"), 1, white);
     for (const GroupGl& g : groups_) {
+        if (!f.box(g.boundsMin, g.boundsMax)) continue;
         glBindVertexArray(g.vao);
         for (const WmoBatch& b : g.batches) {
             if (!b.indexCount || b.material >= city_.materials.size()) continue;
@@ -664,7 +709,9 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     drawCity(false);
     litUniforms(m2Prog_, light_, eye_, viewProj);
     float one[4] = {1, 1, 1, 1};
-    for (Prop& pr : props_) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
+    Frustum frustum(viewProj);
+    for (Prop& pr : props_) pr.seen = frustum.sphere(pr.centre, pr.radius) && (pr.centre - eye_).length() - pr.radius < light_.fogEnd;
+    for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, false, kPropTex);
     for (auto& [id, a] : actors_) {
         if (!a.visible) continue;
         M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
@@ -675,7 +722,7 @@ void Scene::render(int width, int height, uint32_t nowMs) {
     litUniforms(wmoProg_, light_, eye_, viewProj);
     drawCity(true);
     litUniforms(m2Prog_, light_, eye_, viewProj);
-    for (Prop& pr : props_) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
+    for (Prop& pr : props_) if (pr.seen) drawModel(*pr.mesh, pr.world, nullptr, nullptr, pr.mesh->boneTex, -1, 0, nowMs, one, true, kPropTex);
     for (auto& [id, a] : actors_) {
         if (!a.visible) continue;
         M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));

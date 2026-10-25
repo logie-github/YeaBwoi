@@ -1,7 +1,7 @@
 # Wifecraft — the brief
 
-The user's requirements, what was decided, what's open, and where it stands. Nothing is built yet:
-this is the design. The screens' mockups are on a canvas
+The user's requirements, what was decided, what's open, and where it stands. The demo is built
+(see the end); `README.md` is the manual. The screens' mockups are on a canvas
 (https://claude.ai/artifact/B2i9Zi7R6hmyCJ8pNTjNVn, private to the user).
 
 ## What the user asked for
@@ -199,14 +199,30 @@ more routes and places.
 ## Open
 
 - The gestures above.
-- Nyrelle's name; the endings' names (ours, to change freely).
-- Art: an app icon (the user's, as for the other apps, or one made from the game's art).
-- Alleria's exact look (which of her creature displays) and every file id: from wago.tools' tables
-  in stage 0, not guessed.
-- How big the first download is: unknown until the demo's file list exists.
+- The endings' names (ours, to change freely).
 - Whether wago.tools can serve one pinned game build (so a game patch can't change the demo's
   files under it), or the app keeps whatever it fetched first.
 
 ## Where it stands
 
-Designed: this brief and the canvas. No code, no CI workflow, no release.
+The user, after the design: "Make up a name and just do whatever. Make it playable. Short demo for
+now just showing what this engine can do. Include cutscenes etc". Built (stages 0 to 5):
+
+- **Renderer**: our own (C++17, OpenGL ES 3; WebWowViewerCpp not used): BLP, M2 with skins, .anim
+  files and GPU skinning, character customization (geosets, textures, shoulder attachments),
+  Dalaran's WMO groups and props, sky, sun and fog by time of day, frustum culling. Checked on the
+  desktop (`engine-test/`, Mesa headless EGL) against the real files.
+- **The app**: title, Gathering Dalaran (from wago.tools, 294.9 MB, Wi-Fi only, pause/resume),
+  Who Are You? (name; a Kirin Tor Invoker, man or woman: the player's look is fixed to these two
+  creature displays for now, full customization is later), the dialogue and choice screens in
+  WoW's interface, the Game Menu with reputation, six save slots and an autosave, the log,
+  options, endings, the updater, `build-wifecraft.yml`.
+- **The demo story** (`assets/story/demo.wfs`): *A Day in Dalaran*, prologue flyover and title
+  cards, three chapters, cutscenes (flyover, the saber's charge with a camera shake, walks, camera
+  moves), the five endings above, each reachable (`unit-tests/DemoStoryTest`).
+- **Nyrelle Moonquill** is the original character's name; her saber is Shadowpaw.
+- **Not tested on a phone**: nothing here runs on one. Speed on the Fold, the download on a real
+  connection and touch handling are unverified (stage 6).
+
+Not done: the character screen's 3D model and customization, the Legerdemain Lounge, "Use my own
+client's files", music and sound, graphics settings (resolution, view distance).

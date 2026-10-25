@@ -38,7 +38,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.logie.wifecraft.R
 import com.logie.wifecraft.data.Endings
 import com.logie.wifecraft.engine.Clock
-import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.play.Director
 import kotlin.math.abs
 
@@ -86,7 +85,7 @@ fun Modifier.storyGestures(
 /** The story: the 3D scene, and over it the talking head, choices, cards, fades and endings. */
 @Composable
 fun StoryScreen(
-    scene: SceneView,
+    scene: android.view.View,
     director: Director,
     parchment: Boolean,
     frame: Int,

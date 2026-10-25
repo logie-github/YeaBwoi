@@ -135,20 +135,25 @@ fun OptionsPanel(
             Text("Text speed: " + if (textSpeed >= 120) "at once" else "$textSpeed letters a second", style = frizStyle(13.sp, Color.White))
             Slider(
                 textSpeed.toFloat(), { onTextSpeed(it.toInt()) }, valueRange = 15f..120f,
-                colors = SliderDefaults.colors(thumbColor = WowColors.gold, activeTrackColor = WowColors.gold),
+                colors = SliderDefaults.colors(thumbColor = WowColors.gold, activeTrackColor = WowColors.gold, inactiveTrackColor = Color(0xFF3A3020)),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(parchment, onParchment)
+                Checkbox(parchment, onParchment, colors = goldCheckbox())
                 Text("Parchment talking head (instead of Legion's dark one)", style = frizStyle(13.sp, Color.White))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(wifiOnly, onWifiOnly)
+                Checkbox(wifiOnly, onWifiOnly, colors = goldCheckbox())
                 Text("Download the game's files on Wi-Fi only", style = frizStyle(13.sp, Color.White))
             }
             WowButton("Back", onBack, Modifier.align(Alignment.CenterHorizontally), width = 150.dp, height = 38.dp)
         }
     }
 }
+
+@Composable
+fun goldCheckbox() = androidx.compose.material3.CheckboxDefaults.colors(
+    checkedColor = WowColors.gold, uncheckedColor = WowColors.gold.copy(alpha = 0.7f), checkmarkColor = Color.Black,
+)
 
 /** The endings found, and how many are left. */
 @Composable

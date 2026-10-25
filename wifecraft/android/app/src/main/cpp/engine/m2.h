@@ -116,7 +116,8 @@ public:
     std::vector<uint32_t> globalLoops;
     std::vector<M2Attachment> attachments;
     std::vector<int16_t> attachmentLookup;
-    V3 boundsMin, boundsMax;
+    V3 boundsMin, boundsMax;     // as the file gives them (the animations' reach)
+    V3 extentMin, extentMax;     // of the vertices themselves
 
     // The sequence index playing `animId` (its first variation), or -1.
     int findSequence(uint16_t animId) const;

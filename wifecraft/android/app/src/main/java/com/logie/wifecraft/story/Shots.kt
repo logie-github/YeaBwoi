@@ -26,13 +26,14 @@ data class CameraPose(val eye: Vec3, val at: Vec3, val fov: Float) {
 object Shots {
     /** A speaker from the waist up, seen from a little to their right. */
     fun bust(pos: Vec3, facing: Float, height: Float): CameraPose {
+        // From the thighs to just above the head, at a 32° field of view.
         val h = height.coerceIn(1.0f, 3.5f)
-        val d = max(1.6f, h * 0.98f)
+        val d = max(1.6f, h * 1.08f)
         val fx = cos(facing); val fy = sin(facing)
         val rx = sin(facing); val ry = -cos(facing)
-        val side = 0.15f * d
-        val eye = Vec3(pos.x + fx * d + rx * side, pos.y + fy * d + ry * side, pos.z + h * 0.90f)
-        val at = Vec3(pos.x, pos.y, pos.z + h * 0.78f)
+        val side = 0.12f * d
+        val eye = Vec3(pos.x + fx * d + rx * side, pos.y + fy * d + ry * side, pos.z + h * 0.92f)
+        val at = Vec3(pos.x, pos.y, pos.z + h * 0.80f)
         return CameraPose(eye, at, 32f)
     }
 

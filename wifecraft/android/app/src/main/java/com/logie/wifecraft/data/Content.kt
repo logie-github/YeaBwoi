@@ -74,10 +74,10 @@ object Cast {
     data class Person(val key: String, val look: String, val name: String, val height: Float)
 
     fun person(who: String, playerLook: String, playerName: String): Person? = when (who) {
-        "alleria" -> Person("alleria", "alleria", "Alleria Windrunner", 2.4f)
-        "nyrelle" -> Person("nyrelle", "nyrelle", "Nyrelle Moonquill", 2.15f)
-        "saber" -> Person("saber", "saber", "Shadowpaw", 1.3f)
-        "you" -> Person("you", playerLook, playerName, if (playerLook == "player_woman") 1.85f else 1.95f)
+        "alleria" -> Person("alleria", "alleria", "Alleria Windrunner", 2.36f)
+        "nyrelle" -> Person("nyrelle", "nyrelle", "Nyrelle Moonquill", 2.33f)
+        "saber" -> Person("saber", "saber", "Shadowpaw", 1.31f)
+        "you" -> Person("you", playerLook, playerName, if (playerLook == "player_woman") 1.97f else 2.08f)
         else -> null
     }
 

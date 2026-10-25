@@ -231,6 +231,8 @@ fun AchievementToast(heading: String, name: String, detail: String, count: Strin
             if (art?.achievement != null) piece(art.achievement, 0f, 0f, size.width, size.height)
             else drawRect(Color(0xE0201408))
             val s = size.height * 0.62f
+            val inset = s * 0.14f
+            piece(art?.heart, size.width * 0.045f + inset, (size.height - s) / 2 + inset, s - 2 * inset, s - 2 * inset)
             piece(art?.achievementIcon, size.width * 0.045f, (size.height - s) / 2, s, s)
         },
     ) {

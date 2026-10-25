@@ -2,13 +2,15 @@
 // game's files. Reads commands (one per line) from a file:
 //
 //   files DIR                                  the downloaded files, each named by its id
-//   city ROOT GROUP,GROUP,...  X Y Z RADIUS    Dalaran's groups and the props near X Y Z
+//   city ROOT GROUP,GROUP,...  X Y Z RADIUS [X Y Z ...]   Dalaran's groups and the props near the points
 //   actor N MODEL SCALE X Y Z FACING [tex T=F,T=F] [geo GROUP=VALUE,...]
 //   attach N ATTACHMENT MODEL T=F,...
 //   anim N ANIM [once]
 //   camera EX EY EZ TX TY TZ FOV
 //   light day|dusk|night
 //   fog START END
+//   lightv V1 ... V23                          a light as the app passes it (Lights.of)
+//   clear                                      takes everyone off stage
 //   render OUT.ppm WIDTH HEIGHT TIME_MS
 //
 // Build: engine-test/build.sh; run: build/harness commands.txt
@@ -97,7 +99,10 @@ int main(int argc, char** argv) {
             ss >> root >> gs >> x >> y >> z >> r;
             std::vector<int> groups;
             for (auto& g : split(gs, ',')) groups.push_back(std::atoi(g.c_str()));
-            bool ok = scene.loadCity(root, groups, {V3(x, y, z)}, r);
+            std::vector<V3> centres{V3(x, y, z)};
+            float cx, cy, cz;
+            while (ss >> cx >> cy >> cz) centres.emplace_back(cx, cy, cz);
+            bool ok = scene.loadCity(root, groups, centres, r);
             std::fprintf(stderr, "city %u: %s\n", root, ok ? "ok" : "FAILED");
         } else if (cmd == "actor") {
             int name; uint32_t model; float scale, x, y, z, facing;
@@ -136,6 +141,16 @@ int main(int argc, char** argv) {
             scene.setCamera(V3(ex, ey, ez), V3(tx, ty, tz), fov);
         } else if (cmd == "light") {
             std::string p; ss >> p; light = preset(p); scene.setLight(light);
+        } else if (cmd == "lightv") {
+            float v[23];
+            for (float& f : v) ss >> f;
+            float* dst[] = {light.skyTop, light.skyHorizon, light.skyBelow, light.sunDir, light.sunColor, light.ambient, light.fogColor};
+            for (int i = 0; i < 7; ++i) for (int k = 0; k < 3; ++k) dst[i][k] = v[i * 3 + k];
+            light.fogStart = v[21]; light.fogEnd = v[22];
+            scene.setLight(light);
+        } else if (cmd == "clear") {
+            for (auto& [name, id] : actors) scene.removeActor(id);
+            actors.clear();
         } else if (cmd == "fog") {
             ss >> light.fogStart >> light.fogEnd; scene.setLight(light);
         } else if (cmd == "render") {

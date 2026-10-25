@@ -19,16 +19,12 @@ data class Piece(val image: ImageBitmap, val offset: IntOffset, val size: IntSiz
  * achievement toast, the loading bar, Dalaran's loading art, and the game's fonts. Null pieces
  * (before the download) fall back to plain drawing.
  */
-class WowArt private constructor(private val files: GameFiles) {
+class WowArt private constructor(private val files: GameFiles, private val decode: (Int, Int) -> Bitmap?) {
     private val images = mutableMapOf<Int, ImageBitmap?>()
 
     private fun image(id: Int, maxSize: Int = 4096): ImageBitmap? = images.getOrPut(id) {
         if (!files.has(id)) return@getOrPut null
-        val px = Native.decodeBlp(files.file(id).path, maxSize) ?: return@getOrPut null
-        val w = px[0]; val h = px[1]
-        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-        bmp.setPixels(px, 2, w, 0, 0, w, h)
-        bmp.asImageBitmap()
+        decode(id, maxSize)?.asImageBitmap()
     }
 
     private fun piece(id: Int, l: Int, r: Int, t: Int, b: Int): Piece? =
@@ -75,6 +71,7 @@ class WowArt private constructor(private val files: GameFiles) {
     // The achievement toast.
     val achievement = piece(4035524, 640, 950, 174, 275)
     val achievementIcon = piece(4035524, 110, 184, 518, 592)
+    val heart = whole(236709)   // interface/icons/achievement_worldevent_valentine.blp
 
     // The loading screen: its bar, and Dalaran's loading art.
     val loadingBorder = whole(131811, 2048)
@@ -96,6 +93,16 @@ class WowArt private constructor(private val files: GameFiles) {
 
     companion object {
         /** Builds the art from whatever is downloaded (off the main thread: it decodes textures). */
-        fun load(files: GameFiles): WowArt = WowArt(files)
+        fun load(files: GameFiles, decode: (Int, Int) -> Bitmap? = { id, max -> blp(files, id, max) }): WowArt =
+            WowArt(files, decode)
+
+        /** A game texture as a bitmap, through the renderer's decoder. */
+        fun blp(files: GameFiles, id: Int, maxSize: Int): Bitmap? {
+            val px = Native.decodeBlp(files.file(id).path, maxSize) ?: return null
+            val w = px[0]; val h = px[1]
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            bmp.setPixels(px, 2, w, 0, 0, w, h)
+            return bmp
+        }
     }
 }

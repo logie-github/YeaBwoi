@@ -22,9 +22,9 @@ AGENT = "YeaBwoi-build/1.0 (+https://github.com/logie-github/YeaBwoi)"
 
 # The interface: Legion's talking head, the red buttons, the gossip parchment, the achievement
 # toast, reputation bars, metal frames and stone, the loading bar and Dalaran's loading art, the
-# gossip icon, and the game's fonts (Friz Quadrata, Morpheus).
+# gossip icon, the endings' heart icon, and the game's fonts (Friz Quadrata, Morpheus).
 UI = [1111217, 1536801, 3813080, 4035524, 2139076, 3056750, 3056755, 374155, 131811, 131812,
-      7963775, 132053, 615960, 615962]
+      7963775, 132053, 236709, 615960, 615962]
 
 # Dalaran (Legion's, over the Broken Isles) and its outdoor groups.
 CITY_ROOT = 1120838

@@ -81,6 +81,14 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
         std::memcpy(&vertices[i], r.data + o, kVertexSize);
     }
 
+    if (!vertices.empty()) {
+        extentMin = extentMax = V3(vertices[0].pos[0], vertices[0].pos[1], vertices[0].pos[2]);
+        for (const M2Vertex& v : vertices) {
+            extentMin = V3(std::min(extentMin.x, v.pos[0]), std::min(extentMin.y, v.pos[1]), std::min(extentMin.z, v.pos[2]));
+            extentMax = V3(std::max(extentMax.x, v.pos[0]), std::max(extentMax.y, v.pos[1]), std::max(extentMax.z, v.pos[2]));
+        }
+    }
+
     a = readArray(r, 72);
     for (uint32_t i = 0; i < a.count; ++i) {
         colorRgb.push_back(readTrack(r, a.offset + i * 40));

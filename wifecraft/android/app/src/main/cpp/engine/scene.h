@@ -94,12 +94,16 @@ private:
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
+        V3 boundsMin, boundsMax;
         std::vector<WmoBatch> batches;
         bool outdoors = true;
     };
     struct Prop {
         ModelGl* mesh = nullptr;
         M4 world;
+        V3 centre;
+        float radius = 1;
+        bool seen = true;
         float rgba[4] = {1, 1, 1, 1};
     };
 

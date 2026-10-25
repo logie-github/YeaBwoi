@@ -113,7 +113,7 @@ fun GatherScreen(
             else WowButton(if (progress.done > 0) "Resume" else "Start", onStart, width = 140.dp, height = 40.dp)
             WowButton("Back", onBack, width = 140.dp, height = 40.dp)
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                androidx.compose.material3.Checkbox(wifiOnly, onWifiOnly)
+                androidx.compose.material3.Checkbox(wifiOnly, onWifiOnly, colors = goldCheckbox())
                 Text("Wi-Fi only", style = frizStyle(13.sp))
             }
         }

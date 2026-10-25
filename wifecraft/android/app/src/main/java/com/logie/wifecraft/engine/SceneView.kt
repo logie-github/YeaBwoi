@@ -3,6 +3,8 @@ package com.logie.wifecraft.engine
 import android.content.Context
 import android.opengl.GLSurfaceView
 import android.os.SystemClock
+import com.logie.wifecraft.data.Content
+import com.logie.wifecraft.data.Look
 import com.logie.wifecraft.story.CameraPose
 import java.util.concurrent.ConcurrentLinkedQueue
 import javax.microedition.khronos.egl.EGLConfig
@@ -17,24 +19,37 @@ object Clock {
 /** Where someone stands this frame. */
 data class Placement(val x: Float, val y: Float, val z: Float, val facing: Float, val visible: Boolean = true)
 
+/** A change to the scene, run on the GL thread with the renderer's handle and its ids for people. */
+fun interface Change {
+    fun apply(scene: Long, ids: MutableMap<String, Int>)
+}
+
+/** What the story stages on: the 3D view, or a stand-in in tests. People are named by the story's keys. */
+interface Stage {
+    /** Each frame's camera and placements. */
+    var frame: Pair<CameraPose, Map<String, Placement>>?
+    /** Dalaran is loaded once and kept for every story after. */
+    val cityLoaded: java.util.concurrent.atomic.AtomicBoolean
+    fun loadCity(centres: FloatArray, onDone: () -> Unit)
+    fun light(values: FloatArray)
+    fun addActor(key: String, look: Look)
+    fun removeActor(key: String)
+    fun removeAll()
+    fun anim(key: String, anim: Int, loop: Boolean, nowMs: Int)
+}
+
 /**
  * The 3D view behind the story. The story side posts changes ([post]) and each frame's camera and
  * placements ([frame]); the GL thread applies them and draws. People are named by the story's
  * keys ("alleria", "you"...); the renderer's own ids stay on the GL thread.
  */
-class SceneView(context: Context, filesDir: String) : GLSurfaceView(context) {
+class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), Stage {
 
-    /** A change to the scene, run on the GL thread with the renderer's handle and ids. */
-    fun interface Change {
-        fun apply(scene: Long, ids: MutableMap<String, Int>)
-    }
-
-    @Volatile var frame: Pair<CameraPose, Map<String, Placement>>? = null
+    @Volatile override var frame: Pair<CameraPose, Map<String, Placement>>? = null
     @Volatile var ready = false
         private set
 
-    /** Dalaran is loaded once and kept for every story after. */
-    val cityLoaded = java.util.concurrent.atomic.AtomicBoolean(false)
+    override val cityLoaded = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private val changes = ConcurrentLinkedQueue<Change>()
     private val handle = Native.create(filesDir)
@@ -79,6 +94,37 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context) {
     fun post(change: Change) {
         changes.add(change)
     }
+
+    override fun loadCity(centres: FloatArray, onDone: () -> Unit) = post { h, _ ->
+        Native.loadCity(h, Content.CITY_ROOT, Content.CITY_GROUPS, centres, Content.PROP_RADIUS)
+        cityLoaded.set(true)
+        onDone()
+    }
+
+    override fun light(values: FloatArray) = post { h, _ -> Native.light(h, values) }
+
+    override fun addActor(key: String, look: Look) = post { h, ids ->
+        ids.remove(key)?.let { Native.removeActor(h, it) }
+        val id = Native.addActor(
+            h, look.model,
+            look.textures.keys.toIntArray(), look.textures.values.toIntArray(),
+            look.geosetGroups.keys.toIntArray(), look.geosetGroups.values.toIntArray(), look.scale,
+        )
+        if (id > 0) {
+            ids[key] = id
+            for (att in look.attachments) Native.attach(h, id, att.point, att.model, intArrayOf(2), intArrayOf(att.texture))
+        }
+    }
+
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) } }
+
+    override fun removeAll() = post { h, ids ->
+        for (id in ids.values) Native.removeActor(h, id)
+        ids.clear()
+    }
+
+    override fun anim(key: String, anim: Int, loop: Boolean, nowMs: Int) =
+        post { h, ids -> ids[key]?.let { Native.anim(h, it, anim, loop, nowMs) } }
 
     /** Releases the renderer once the view is gone. */
     fun dispose() {

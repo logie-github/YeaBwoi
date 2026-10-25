@@ -12,7 +12,7 @@ self-updating from this repository's GitHub releases.
 | `parasiteeve/` | Parasite Eve | `com.logie.pe` | Beetle PSX HW core + LibretroDroid |
 | `warcraft/` | World of Warcraft 3.3.5a: ChromieCraft and Wrath Remix realms, the game on Winlator | `com.logie.warcraft` | AzerothCore/ChromieCraft + playerbots (musl arm64), `mod-wrath-remix`, Winlator |
 | `warcrafts/` | Warcraft (on the phone): Warcraft I and II (GOG) native, Warcraft III RoC/TFT 1.30, offline | `com.logie.warcrafts` | Stratagus + War1gus/Wargus (arm64), innoextract for GOG's installers; Winlator (the WoW app's commit) for WC3 |
-| `wifecraft/` | Wifecraft: a Warcraft dating sim (visual novel), designed, not built yet | `com.logie.wifecraft` | Its own renderer for the game's models and world (OpenGL ES), the game's files fetched from wago.tools on the phone |
+| `wifecraft/` | Wifecraft: a Warcraft dating sim (visual novel), a playable demo | `com.logie.wifecraft` | Its own renderer for the game's models and world (OpenGL ES), the game's files fetched from wago.tools on the phone |
 
 - **How the apps are made, tested and released:** `docs/single-game-apps.md`. Read it before
   building or changing an app.
@@ -78,5 +78,6 @@ affection and five endings). The user's art for it is in `wifecraft/branding/`. 
 red buttons, reputation bars as affection, achievement toast as an ending); all the game's files,
 interface included, are fetched from wago.tools on the phone, never committed, built in or fetched
 by CI. The brief, the screens and the stages:
-`wifecraft/PLAN.md` (the mockups: https://claude.ai/artifact/B2i9Zi7R6hmyCJ8pNTjNVn). Designed only:
-nothing is built yet.
+`wifecraft/PLAN.md` (the mockups: https://claude.ai/artifact/B2i9Zi7R6hmyCJ8pNTjNVn); the manual:
+`wifecraft/README.md`. The demo (A Day in Dalaran: cutscenes, five endings) is built and
+unit-tested; `wifecraft/engine-test/` renders scenes on the desktop. Never tested on a phone.

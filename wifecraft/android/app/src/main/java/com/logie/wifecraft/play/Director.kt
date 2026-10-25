@@ -12,9 +12,8 @@ import com.logie.wifecraft.data.Save
 import com.logie.wifecraft.data.Saves
 import com.logie.wifecraft.data.Settings
 import com.logie.wifecraft.engine.Clock
-import com.logie.wifecraft.engine.Native
 import com.logie.wifecraft.engine.Placement
-import com.logie.wifecraft.engine.SceneView
+import com.logie.wifecraft.engine.Stage
 import com.logie.wifecraft.story.CameraPose
 import com.logie.wifecraft.story.Command
 import com.logie.wifecraft.story.Shots
@@ -35,7 +34,7 @@ class Director(
     private val content: Content,
     private val settings: Settings,
     private val saves: Saves,
-    private val scene: SceneView,
+    private val scene: Stage,
     private val onFinished: () -> Unit,
 ) {
     data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean)
@@ -101,19 +100,12 @@ class Director(
 
     private fun startCity() {
         // A story before this one may have left people on stage.
-        scene.post { h, ids ->
-            for (id in ids.values) Native.removeActor(h, id)
-            ids.clear()
-        }
+        scene.removeAll()
         if (cityRequested) return
         cityRequested = true
         if (scene.cityLoaded.get()) { cityReady.set(true); return }
         val centres = content.allMarks().flatMap { listOf(it.x, it.y, it.z) }.toFloatArray()
-        scene.post { h, _ ->
-            Native.loadCity(h, Content.CITY_ROOT, Content.CITY_GROUPS, centres, Content.PROP_RADIUS)
-            scene.cityLoaded.set(true)
-            cityReady.set(true)
-        }
+        scene.loadCity(centres) { cityReady.set(true) }
     }
 
     // ------------------------------------------------------------------ input
@@ -250,12 +242,12 @@ class Director(
     private fun stage(c: Command, now: Int, instant: Boolean) {
         when (c) {
             is Command.Scene -> {
-                for (key in actors.keys.toList()) scene.post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) } }
+                for (key in actors.keys) scene.removeActor(key)
                 actors.clear()
                 place = content.places[c.place] ?: place
                 placeName = place.name
                 val light = Lights.of(c.light)
-                scene.post { h, _ -> Native.light(h, light) }
+                scene.light(light)
                 place.views.values.firstOrNull()?.let { cut(it) }
                 if (!instant) save(0)
             }
@@ -267,7 +259,7 @@ class Director(
             }
             is Command.Remove -> {
                 actors.remove(c.who)
-                scene.post { h, ids -> ids.remove(c.who)?.let { Native.removeActor(h, it) } }
+                scene.removeActor(c.who)
             }
             is Command.Move -> {
                 val a = actors[c.who] ?: return
@@ -300,26 +292,12 @@ class Director(
         val person = Cast.person(who, settings.playerLook, playerName)
         val look = person?.let { content.looks[it.look] }
         val a = Actor(who, pos, 0f)
-        if (look != null) {
-            scene.post { h, ids ->
-                ids.remove(who)?.let { Native.removeActor(h, it) }
-                val id = Native.addActor(
-                    h, look.model,
-                    look.textures.keys.toIntArray(), look.textures.values.toIntArray(),
-                    look.geosetGroups.keys.toIntArray(), look.geosetGroups.values.toIntArray(), look.scale,
-                )
-                if (id > 0) {
-                    ids[who] = id
-                    for (att in look.attachments)
-                        Native.attach(h, id, att.point, att.model, intArrayOf(2), intArrayOf(att.texture))
-                }
-            }
-        }
+        if (look != null) scene.addActor(who, look)
         return a
     }
 
     private fun postAnim(who: String, anim: Int, loop: Boolean, now: Int) {
-        scene.post { h, ids -> ids[who]?.let { Native.anim(h, it, anim, loop, now) } }
+        scene.anim(who, anim, loop, now)
     }
 
     private fun facingToward(a: Actor, target: String): Float {
@@ -357,6 +335,22 @@ class Director(
         return camFrom.lerp(camTo, t)
     }
 
+    /**
+     * Someone standing well in front of what the camera films (the player behind whom a close-up is
+     * taken) is left out of the picture, as a visual novel leaves out the one it's seen through.
+     */
+    private fun inTheWay(a: Actor, cam: CameraPose): Boolean {
+        val view = cam.at - cam.eye
+        val length = kotlin.math.sqrt(view.x * view.x + view.y * view.y + view.z * view.z)
+        if (length < 0.01f) return false
+        val dir = view * (1f / length)
+        val head = Vec3(a.pos.x, a.pos.y, a.pos.z + 1.5f) - cam.eye
+        val along = head.x * dir.x + head.y * dir.y + head.z * dir.z
+        if (along <= 0f || along > length - 1.0f) return false
+        val across = head - dir * along
+        return kotlin.math.sqrt(across.x * across.x + across.y * across.y + across.z * across.z) < 0.9f
+    }
+
     private fun pushFrame(now: Int) {
         camera = currentCamera(now)
         var cam = camera
@@ -375,7 +369,7 @@ class Director(
                     postAnim(key, Emotes.STAND, loop = true, now)
                 }
             }
-            Placement(a.pos.x, a.pos.y, a.pos.z, a.facing, a.visible)
+            Placement(a.pos.x, a.pos.y, a.pos.z, a.facing, a.visible && !inTheWay(a, cam))
         }
         scene.frame = cam to people
     }
