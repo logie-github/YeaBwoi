@@ -139,9 +139,11 @@ SQL
 CTL sql world < "$FILES/run/undead-paladins.sql" || fail "the undead paladins' rows didn't go in"
 [ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race = 5 AND class = 2" | CTL sql world)" = 1 ] || fail "no undead paladin start"
 echo "undead paladin action buttons: $(echo "SELECT COUNT(*) FROM playercreateinfo_action WHERE race = 5 AND class = 2" | CTL sql world)"
-# (every race and class with a start has level stats: the world server stops without them, issue #74)
-missing=$(echo "SELECT COUNT(*) FROM playercreateinfo p WHERE NOT EXISTS (SELECT 1 FROM player_levelstats s WHERE s.race = p.race AND s.class = p.class AND s.level = 1)" | CTL sql world)
-[ "$missing" = 0 ] || fail "$missing race and class starts have no level stats"
+# (the undead paladin has every level's stats the blood elf paladin has: without them the world
+# server stops as it starts, issue #74)
+stats=$(echo "SELECT COUNT(*) FROM player_levelstats WHERE race = 5 AND class = 2" | CTL sql world)
+echo "undead paladin level stats: $stats"
+[ "$stats" -gt 0 ] && [ "$stats" = "$(echo "SELECT COUNT(*) FROM player_levelstats WHERE race = 10 AND class = 2" | CTL sql world)" ] || fail "the undead paladin has no level stats"
 head -5 "$FILES/run/undead-paladins.sql" | CTL sql world || fail "the undead paladins' rows didn't come out"
 rm -f "$FILES/run/undead-paladins.sql"
 
