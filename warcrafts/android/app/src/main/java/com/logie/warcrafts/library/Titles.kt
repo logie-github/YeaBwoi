@@ -25,24 +25,22 @@ enum class Install(
      * program that starts it ([GameLayout.pickProgram]).
      */
     val mainNames: List<String>,
-    /** What the program is started with, unless changed in Game files (Warcraft III). */
-    val defaultArguments: String,
     /** The Stratagus game package ([Engine.STRATAGUS]): its scripts in the APK and its data tool. */
     val stratagusGame: String? = null,
     /** Its GOG installer's name, to tell it from another game's ([GameLayout.findInstaller]). */
     val installerHint: Regex? = null,
 ) {
     /** Warcraft: Orcs & Humans (GOG, the DOS game): War1gus. */
-    WC1("wc1", Engine.STRATAGUS, listOf("WAR.EXE", "DATA/DATA.WAR"), "", stratagusGame = "war1gus", installerHint = Regex("(?i)orcs")),
+    WC1("wc1", Engine.STRATAGUS, listOf("WAR.EXE", "DATA/DATA.WAR"), stratagusGame = "war1gus", installerHint = Regex("(?i)orcs")),
 
     /** Warcraft II: Battle.net Edition (GOG): Wargus. */
     WC2(
-        "wc2", Engine.STRATAGUS, listOf("Warcraft II BNE.exe", "Support/TOMES/TOME.1", "Install.mpq"), "",
+        "wc2", Engine.STRATAGUS, listOf("Warcraft II BNE.exe", "Support/TOMES/TOME.1", "Install.mpq"),
         stratagusGame = "wargus", installerHint = Regex("(?i)warcraft[ _]?(ii|2)|tides|bne"),
     ),
 
-    /** Warcraft III 1.30.4: Reign of Chaos and The Frozen Throne. */
-    WC3("wc3", Engine.WINE, listOf("Warcraft III.exe", "Frozen Throne.exe", "war3.exe"), ""),
+    /** Warcraft III 1.27: Reign of Chaos and The Frozen Throne, installed by Blizzard's classic installers in the app ([com.logie.warcrafts.Wc3Setup]). */
+    WC3("wc3", Engine.WINE, listOf("Warcraft III.exe", "Frozen Throne.exe")),
 }
 
 /** A game as the launcher shows it: its own picture, logo and colours. */

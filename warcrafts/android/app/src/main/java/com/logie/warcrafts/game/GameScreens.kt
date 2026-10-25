@@ -59,7 +59,6 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.logie.warcrafts.R
-import com.logie.warcrafts.library.CdKeys
 import com.logie.warcrafts.library.Title
 import com.logie.warcrafts.ui.LocalLook
 import com.logie.warcrafts.ui.RtsButton
@@ -160,28 +159,24 @@ internal fun Loading(text: String) {
 }
 
 /**
- * The game's menu (four fingers): back to the game, the keyboard, chat, the CD keys that came with
- * the game (typed into the game's key box), or leave the game for the launcher.
+ * The game's menu (four fingers): back to the game, the keyboard, chat, or leave the game for the
+ * launcher.
  */
 object GameMenu {
     fun show(
         activity: Activity,
         title: Title,
-        keys: List<CdKeys.Found>,
         onKeyboard: () -> Unit,
         onChat: () -> Unit,
-        onTypeKey: (String) -> Unit,
         onLeave: () -> Unit,
     ) {
         var dialog: ComponentDialog? = null
         fun close(then: () -> Unit) = { dialog?.dismiss(); then() }
         dialog = fullScreenDialog(activity, title, dim = true) {
             Menu(
-                keys = keys,
                 onBack = close {},
                 onKeyboard = close(onKeyboard),
                 onChat = close(onChat),
-                onTypeKey = { key -> dialog?.dismiss(); onTypeKey(key) },
                 onLeave = close(onLeave),
             )
         }
@@ -191,11 +186,9 @@ object GameMenu {
 
 @Composable
 private fun Menu(
-    keys: List<CdKeys.Found>,
     onBack: () -> Unit,
     onKeyboard: () -> Unit,
     onChat: () -> Unit,
-    onTypeKey: (String) -> Unit,
     onLeave: () -> Unit,
 ) {
     val look = LocalLook.current
@@ -218,16 +211,6 @@ private fun Menu(
                 RtsButton(stringResource(R.string.rts_game_menu_back), Modifier.fillMaxWidth(), onClick = onBack)
                 RtsButton(stringResource(R.string.rts_game_menu_keyboard), Modifier.fillMaxWidth(), primary = false, onClick = onKeyboard)
                 RtsButton(stringResource(R.string.rts_game_menu_chat), Modifier.fillMaxWidth(), primary = false, onClick = onChat)
-                if (keys.isNotEmpty()) {
-                    Text(stringResource(R.string.rts_game_menu_keys), style = MaterialTheme.typography.bodySmall, color = look.mist)
-                    for (key in keys) {
-                        RtsButton(
-                            if (key.label.isNotEmpty()) "${key.label}: ${key.key}" else key.key,
-                            Modifier.fillMaxWidth(),
-                            primary = false,
-                        ) { onTypeKey(key.key) }
-                    }
-                }
                 RtsButton(stringResource(R.string.rts_game_menu_leave), Modifier.fillMaxWidth(), primary = false, onClick = onLeave)
                 Text(stringResource(R.string.rts_game_menu_leave_note), style = MaterialTheme.typography.bodySmall, color = look.mist)
             }

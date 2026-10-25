@@ -10,8 +10,8 @@ import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.Wc3Setup
 import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.Engine
-import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
+import com.logie.warcrafts.library.Needs
 import com.logie.warcrafts.library.Offline
 import com.logie.warcrafts.library.Title
 import com.winlator.XServerDisplayActivity
@@ -34,17 +34,19 @@ import kotlin.coroutines.resume
 
 /**
  * A game. Warcraft I and II are native: [StratagusActivity] plays the data made from the user's GOG
- * files. Warcraft III is the user's own files (`files/games/wc3/`) on Winlator, which runs Windows programs on
- * the phone (Wine, Box64 and its own X server; scripts/prepare-winlator-app.sh builds it into the
- * app). [play] gets everything ready and starts it:
+ * files. Warcraft III is Blizzard's 1.27, installed in the app ([Wc3Setup], [install]) into
+ * `files/games/wc3/`, on Winlator, which runs Windows programs on the phone (Wine, Box64 and its own
+ * X server; scripts/prepare-winlator-app.sh builds it into the app). [play] gets everything ready
+ * and starts it:
  *
  * 1. Winlator's runtime is installed, the first time and after an update that changes it
  *    (`/data/data/com.logie.warcrafts/winfs`, from the APK);
- * 2. Blizzard's servers are put out of the games' reach, unless Private is off ([Offline]);
- * 3. the games' Windows (one Winlator container) is made, the first time, with Warcraft I, II and
- *    III as drives D:, E: and F:, and its screen set to this phone's shape;
- * 4. Warcraft III is told the screen's size and language;
- * 5. Winlator's game screen starts the game's program, with the app's touch controls ([GestureView]).
+ * 2. the runtime is offline while Private is on ([Offline]);
+ * 3. the games' Windows (one Winlator container) is made, the first time, Warcraft III on F: and
+ *    Blizzard's installers on G:, its screen set to the game's 4:3 size;
+ * 4. Warcraft III is told that size, and Windows' dialogs get Wine's Light style;
+ * 5. Winlator's game screen starts Warcraft III.exe or Frozen Throne.exe, with the app's touch
+ *    controls ([GestureView]).
  *
  * Nothing goes to a server: the campaigns, custom games against the computer and the games' own
  * local network modes are all on the phone.
@@ -120,15 +122,14 @@ object Game {
             if (MainActivity.visible) context.startActivity(intent) else pending = intent
             return
         }
-        // The Frozen Throne starts from its own program (1.27: Frozen Throne.exe), Reign of Chaos from
-        // Warcraft III.exe.
-        val program = withContext(Dispatchers.IO) {
-            val main = RtsFiles.program(context, install)
-            if (title == Title.TFT) GameLayout.expansionProgram(RtsFiles.programs(context, install)) ?: main else main
+        // Reign of Chaos starts Warcraft III.exe, The Frozen Throne its own Frozen Throne.exe.
+        val folder = RtsFiles.folder(context, install)
+        if (!withContext(Dispatchers.IO) { Needs.ready(RtsFiles.needs(context, install)) }) {
+            throw GameFailed(context.getString(R.string.rts_game_error_no_game, context.getString(com.logie.warcrafts.ImportService.installName(install))))
         }
-            ?: throw GameFailed(context.getString(R.string.rts_game_error_no_game, context.getString(com.logie.warcrafts.ImportService.installName(install))))
+        val program = if (title == Title.TFT) "Frozen Throne.exe" else "Warcraft III.exe"
         val arguments = GameSettings.arguments(context, install)
-        val execPath = File(RtsFiles.folder(context, install), program).path + if (arguments.isNotEmpty()) " $arguments" else ""
+        val execPath = File(folder, program).path + if (arguments.isNotEmpty()) " $arguments" else ""
         startWindows(context, title, resolution, execPath, installer = false)
     }
 
@@ -159,11 +160,15 @@ object Game {
         }
     }
 
+    /** The games' Windows (`.wine`), if it's been made. */
+    private fun winePrefix(context: Context): File? =
+        ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME }?.let { File(it.rootDir, ".wine") }
+
     /** Warcraft III installed by Blizzard's installers in the games' Windows: moved into the app's folder ([Wc3Setup.adopt]). */
-    fun adoptWarcraft3(context: Context): Boolean {
-        val container = ContainerManager(context).containers.firstOrNull { it.name == CONTAINER_NAME } ?: return false
-        return Wc3Setup.adopt(context, File(container.rootDir, ".wine"))
-    }
+    fun adoptWarcraft3(context: Context): Boolean = winePrefix(context)?.let { Wc3Setup.adopt(context, it) } ?: false
+
+    /** What's next to have Warcraft III ([Wc3Setup.step]). */
+    fun warcraft3Step(context: Context): Wc3Setup.Step = Wc3Setup.step(context, winePrefix(context))
 
     private suspend fun startWindows(context: Context, title: Title, resolution: Pair<Int, Int>, execPath: String, installer: Boolean) {
         val install = title.install
@@ -237,10 +242,9 @@ object Game {
     }
 
     /**
-     * Warcraft III's settings in the games' Windows registry: the screen's size, the whole screen
-     * (`windowmode` 1, windowed fullscreen; 0 is windowed, 2 native fullscreen; the start's
-     * arguments say it too, [com.logie.warcrafts.library.Wc3Arguments]), and English unless a
-     * language was chosen (the repack's "Classic Launcher" key).
+     * Warcraft III's settings in the games' Windows registry: its resolution, the screen's 4:3 size
+     * (1.27 fills the screen at it), and Windows' own dialogs in Wine's Light style (it comes with
+     * the runtime but is off: without it they're drawn like Windows 95).
      */
     private fun configureWarcraft3(container: Container, width: Int, height: Int) {
         val userReg = File(container.rootDir, ".wine/user.reg")
@@ -249,16 +253,11 @@ object Game {
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)
-            registry.setDwordValue(video, "windowmode", 1)
-            // Windows' own dialogs (the game's messages) in Wine's Light style, which comes with the
-            // runtime but is off: without it they're drawn like Windows 95.
             val theme = "Software\\Microsoft\\Windows\\CurrentVersion\\ThemeManager"
             registry.setStringValue(theme, "ThemeActive", "1")
             registry.setStringValue(theme, "DllName", "C:\\windows\\resources\\themes\\light\\light.msstyles")
             registry.setStringValue(theme, "ColorName", "NormalColor")
             registry.setStringValue(theme, "SizeName", "NormalSize")
-            val launcher = "Software\\Blizzard Entertainment\\Classic Launcher\\w3"
-            if (registry.getStringValue(launcher, "Locale", "").isEmpty()) registry.setStringValue(launcher, "Locale", "enUS")
         }
     }
 }

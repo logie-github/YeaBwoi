@@ -7,10 +7,8 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.StringRes
 import com.logie.warcrafts.R
-import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Screen
-import com.logie.warcrafts.library.Wc3Arguments
 
 /** The games' settings chosen in the launcher (Graphics). They apply the next time a game starts. */
 object GameSettings {
@@ -25,7 +23,7 @@ object GameSettings {
         BALANCED(720, R.string.rts_graphics_balanced, R.string.rts_graphics_balanced_summary),
     }
 
-    /** How Warcraft III draws: OpenGL ([Wc3Arguments.OPENGL]; the app's default, as Wine setups for 1.27 use) or Direct3D. */
+    /** How Warcraft III draws: OpenGL (`-opengl`, the app's default, as Wine setups for 1.27 use) or Direct3D. */
     enum class Renderer(@StringRes val label: Int, @StringRes val summary: Int) {
         DIRECT3D(R.string.rts_renderer_d3d, R.string.rts_renderer_d3d_summary),
         OPENGL(R.string.rts_renderer_gl, R.string.rts_renderer_gl_summary),
@@ -56,14 +54,9 @@ object GameSettings {
         prefs(context).edit().putBoolean("vibration", on).apply()
     }
 
-    /**
-     * What a game's program is started with: the user's (Game files), and for Warcraft III,
-     * borderless and its renderer ([Wc3Arguments]).
-     */
-    fun arguments(context: Context, install: Install): String {
-        val own = RtsFiles.arguments(context, install)
-        return if (install == Install.WC3) Wc3Arguments.of(own, renderer(context) == Renderer.OPENGL) else own
-    }
+    /** What Warcraft III's program is started with: `-opengl` unless Direct3D is chosen in Graphics. */
+    fun arguments(context: Context, install: Install): String =
+        if (install == Install.WC3 && renderer(context) == Renderer.OPENGL) "-opengl" else ""
 
     /** The screen the launcher is on (a Fold's inside or outside), in pixels. */
     fun screenSize(context: Context): Pair<Int, Int> =

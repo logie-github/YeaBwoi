@@ -182,6 +182,16 @@ The user's requirements, what was decided, what's open, and where it stands. The
   (checked from this build machine: pieces 0, 1 and the last of Reign of Chaos match their SHA-1s).
   Build 16 downloads that way, each piece checked before it's written, resumable. Unverified: the
   installer under Wine/Box64.
+- **Warcraft III, clean rebuild** (after build 16 the user: "Completely scrap what you have for
+  warcraft 3 except for gesture controls and start over clean", then agreed to: Blizzard's real 1.27
+  on Wine, set up by the app). Removed: the 1.30 handling, CD key box/menu/files (`CdKeys`),
+  start-argument logic (`Wc3Arguments`), Warcraft III's folder/zip import, program picker and file
+  checklist, the Classic Launcher locale. Kept: the gesture layer, the Windows-layer start, the
+  offline lock, the verified Blizzard download (`BlizzardDownload`, `Wc3Setup`). Warcraft III's
+  Game files is its own dialog with three steps (download, install Reign of Chaos, install The
+  Frozen Throne), only the next one's button offered; the checklist is Downloaded, Installed;
+  Reign of Chaos starts `Warcraft III.exe`, The Frozen Throne `Frozen Throne.exe`, with `-opengl`
+  unless Direct3D is chosen; the registry gets the 4:3 resolution and Wine's Light style.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry; the CD keys box takes the keys the user has.

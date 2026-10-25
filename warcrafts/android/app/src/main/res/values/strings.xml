@@ -37,7 +37,7 @@
     <!-- What's needed -->
     <string name="rts_needs_title">What\'s needed</string>
     <string name="rts_needs_title_ready">Everything is in</string>
-    <string name="rts_needs_where_wc3">Set up on the phone: Game files → Download from Blizzard, then install Reign of Chaos and The Frozen Throne with your CD keys (Blizzard\'s own installers, in the app). Or bring a Warcraft III 1.27 folder installed on a PC (Pick folder or Pick zip). These must be in it:</string>
+    <string name="rts_needs_where_wc3">Set up in the app, no PC: Game files downloads Blizzard\'s own Warcraft III installers (1.27), then you install Reign of Chaos and The Frozen Throne with your CD keys.</string>
     <string name="rts_needs_where_wc1">From GOG: the offline installer of Warcraft: Orcs &amp; Humans (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_….exe, and every setup_warcraft_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_needs_where_wc2">From GOG: the offline installer of Warcraft II: Battle.net Edition (on GOG\'s site, the game\'s offline backup game installers): setup_warcraft_ii_….exe, and every setup_warcraft_ii_…-1.bin (-2.bin…) file that came with it. Copy them to the phone\'s Downloads, then Game files → Pick GOG installer and pick them together (touch and hold the first, then tap the others). The app unpacks and converts it by itself (a few minutes). The installed folder from a PC (C:\\GOG Games\\…) or a zip of it works too. What the app takes from it:</string>
     <string name="rts_need_war_data">The game\'s data</string>
@@ -48,16 +48,6 @@
     <string name="rts_need_install_mpq_note">Install.mpq, beside the game\'s program (about 490 MB).</string>
     <string name="rts_need_converted">Converted for the phone</string>
     <string name="rts_need_converted_note">The app does this itself once the files above are in, in a few minutes. Game files → Convert again redoes it.</string>
-    <string name="rts_need_program">The game\'s program</string>
-    <string name="rts_need_program_note">Warcraft III.exe, what starts the game.</string>
-    <string name="rts_need_roc">Reign of Chaos</string>
-    <string name="rts_need_roc_note">War3.mpq: the first game\'s units, maps, sound and campaign.</string>
-    <string name="rts_need_tft">The Frozen Throne</string>
-    <string name="rts_need_tft_note">War3x.mpq and War3xLocal.mpq: the expansion\'s data and its campaign.</string>
-    <string name="rts_need_patch">Patch 1.27</string>
-    <string name="rts_need_patch_note">War3Patch.mpq. If it\'s missing, the PC install hasn\'t been patched: install the 1.27b patch on the PC first.</string>
-    <string name="rts_need_maps">Skirmish and custom maps (optional)</string>
-    <string name="rts_need_maps_note">The Maps folder: skirmish and custom maps. The campaigns are inside the game\'s data and don\'t need it.</string>
     <string name="rts_needs_space_native">Room: the installer, about as much again while it\'s unpacked, and the converted data. Free now: %1$s.</string>
     <string name="rts_needs_space">Room: the game\'s size, plus about 1.5 GB for the games\' Windows the first time. Free now: %1$s.</string>
     <string name="rts_needs_native">Played natively on the phone by Stratagus (War1gus, Wargus): an open-source engine that plays the game from your files, campaigns and skirmishes, the original art and sounds. The intro videos are left out, and Warcraft II\'s music (converting those needs a tool phones don\'t have).</string>
@@ -67,12 +57,6 @@
     <string name="rts_stopped_title_app">The app stopped</string>
     <string name="rts_stopped_text">It ended by itself. This is what it said last (and Android\'s log for it): copy it and send it, so it can be fixed.</string>
     <string name="rts_stopped_copy">Copy</string>
-    <string name="rts_setup_title">Set up from Blizzard</string>
-    <string name="rts_setup_steps">1. Download: the app fetches Blizzard\'s own Warcraft III installers (1.27, about 1.4 GB; Wi-Fi recommended).\n2. Install Reign of Chaos: Blizzard\'s installer opens. Tap through it and type your Reign of Chaos CD key when it asks (three fingers open the keyboard).\n3. Install The Frozen Throne the same way, with its key.\nWhen both are installed, Warcraft III is ready: come back here or press start.</string>
-    <string name="rts_setup_download">Download from Blizzard</string>
-    <string name="rts_setup_install_roc">Install Reign of Chaos</string>
-    <string name="rts_setup_install_tft">Install The Frozen Throne</string>
-    <string name="rts_setup_or_files">Already installed on a PC? Pick folder or Pick zip below takes that Warcraft III folder instead.</string>
     <string name="rts_setup_download_title">Downloading %1$s from Blizzard</string>
     <string name="rts_setup_downloader">Asking Blizzard for the installer…</string>
     <string name="rts_setup_checking">Checking every piece against Blizzard\'s checksums…</string>
@@ -80,6 +64,20 @@
     <string name="rts_setup_damaged">The download was damaged and has been removed. Try again (Wi-Fi recommended).</string>
     <string name="rts_setup_refused">Blizzard\'s server refused the download (HTTP %1$d). Try again later or on another network.</string>
     <string name="rts_setup_not_downloaded">Download the installers first (Game files → Download from Blizzard).</string>
+    <string name="rts_wc3_title">Warcraft III</string>
+    <string name="rts_wc3_intro">Blizzard\'s own Warcraft III (1.27, Reign of Chaos and The Frozen Throne), set up here on the phone. It then plays offline, filling the screen at 4:3.</string>
+    <string name="rts_wc3_step_download">Download Blizzard\'s installers (about 1.4 GB; Wi-Fi is best)</string>
+    <string name="rts_wc3_step_roc">Install Reign of Chaos, with its CD key</string>
+    <string name="rts_wc3_step_tft">Install The Frozen Throne, with its CD key</string>
+    <string name="rts_wc3_download">Download from Blizzard</string>
+    <string name="rts_wc3_install_roc">Install Reign of Chaos</string>
+    <string name="rts_wc3_install_tft">Install The Frozen Throne</string>
+    <string name="rts_wc3_installer_how">Blizzard\'s installer opens. Taps work like mouse clicks there. When it asks for your CD key, tap the box, then tap with three fingers to open the keyboard. When it\'s done, leave with a four-finger tap → Leave.</string>
+    <string name="rts_wc3_ready">Installed. Press start to play.</string>
+    <string name="rts_need_wc3_downloaded">Blizzard\'s installers</string>
+    <string name="rts_need_wc3_downloaded_note">Downloaded into the app: Game files → Download from Blizzard.</string>
+    <string name="rts_need_wc3_installed">Warcraft III installed</string>
+    <string name="rts_need_wc3_installed_note">Reign of Chaos, then The Frozen Throne, each with its CD key: Game files.</string>
     <string name="rts_convert_title">Converting %1$s for the phone</string>
     <string name="rts_unpack_title">Unpacking %1$s\'s GOG installer</string>
     <string name="rts_installer_none">There\'s no GOG installer in what was picked: pick its setup .exe (setup_warcraft_….exe) together with the .bin files beside it.</string>
@@ -110,7 +108,6 @@
     <string name="rts_game_menu_back">Back to the game</string>
     <string name="rts_game_menu_keyboard">Keyboard</string>
     <string name="rts_game_menu_chat">Chat or cheat code</string>
-    <string name="rts_game_menu_keys">CD keys: a tap types it into the game\'s key box (tap the box first).</string>
     <string name="rts_game_menu_leave">Leave the game</string>
     <string name="rts_game_menu_leave_note">Save first: leaving ends the game where it is. A two-finger tap opens the game\'s own menu, with Save and Quit.</string>
     <string name="rts_prompt_chat">Chat</string>
@@ -124,7 +121,6 @@
 
     <!-- Game files -->
     <string name="rts_files_title">%1$s: files</string>
-    <string name="rts_files_what_wc3">Bring the installed Warcraft III 1.27 folder from a PC (with Warcraft III.exe, War3.mpq, War3x.mpq and Maps in it), or a zip of it. It holds both Reign of Chaos and The Frozen Throne.</string>
     <string name="rts_files_what_wc1">Bring Warcraft: Orcs &amp; Humans from GOG: its offline installer (the setup .exe and every .bin file that came with it), or the installed folder (with WAR.EXE and the DATA folder in it), or a zip of that folder. The app unpacks and converts it for the phone; it\'s then played natively by Stratagus.</string>
     <string name="rts_files_what_wc2">Bring Warcraft II Battle.net Edition from GOG: its offline installer (the setup .exe and every .bin file that came with it), or the installed folder (with Warcraft II BNE.exe, Install.mpq and Support\\TOMES in it), or a zip of that folder. The app unpacks and converts it for the phone; it\'s then played natively by Stratagus.</string>
     <string name="rts_files_installed">In the app: %1$s</string>
@@ -132,14 +128,8 @@
     <string name="rts_files_move_first">Put the files on the phone itself first (Downloads is fine): files in a cloud folder can\'t be read fast enough. Adding again replaces what\'s there.</string>
     <string name="rts_files_pick_folder">Pick folder</string>
     <string name="rts_files_pick_zip">Pick zip</string>
-    <string name="rts_files_keys_title">CD keys</string>
-    <string name="rts_files_keys_label">Your CD keys, one per line</string>
-    <string name="rts_files_keys_note">Warcraft III asks for a Reign of Chaos key and a Frozen Throne key the first time it starts. Paste yours here, one per line (a label before a key, like \"TFT: …\", shows with it). In the game, tap the key box, then four fingers → the key. Keys found in the box: %1$d.</string>
     <string name="rts_files_pick_installer">Pick GOG installer</string>
     <string name="rts_files_installer_how">Pick GOG installer: in the picker, touch and hold the setup .exe, tap each .bin file beside it, then confirm. Or put them in a folder of their own (one inside Downloads) and Pick folder.</string>
-    <string name="rts_files_program">Program that starts it</string>
-    <string name="rts_files_arguments">Started with</string>
-    <string name="rts_files_arguments_note">What the program is started with (this game\'s default: %1$s).</string>
     <string name="rts_files_private_title">Private</string>
     <string name="rts_files_private">Keep Blizzard\'s servers out of reach</string>
     <string name="rts_files_private_summary">Battle.net, the patch servers and Blizzard\'s sites are blocked for every game: nothing can sign in, update or download. Campaigns, custom games against the computer and local network games don\'t need them.</string>

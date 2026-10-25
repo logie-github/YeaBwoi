@@ -3,7 +3,6 @@
 package com.logie.warcrafts
 
 import android.content.Context
-import com.logie.warcrafts.library.CdKeys
 import com.logie.warcrafts.library.Engine
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
@@ -60,13 +59,6 @@ object RtsFiles {
 
     fun hasGame(context: Context, install: Install): Boolean = Needs.ready(needs(context, install))
 
-    /** What the program is started with. */
-    fun arguments(context: Context, install: Install): String =
-        prefs(context).getString("arguments_${install.key}", null) ?: install.defaultArguments
-
-    fun setArguments(context: Context, install: Install, arguments: String) {
-        prefs(context).edit().putString("arguments_${install.key}", arguments.trim()).apply()
-    }
 
     /** Blizzard's servers kept out of reach ([com.logie.warcrafts.library.Offline]): on unless turned off. */
     fun isPrivate(context: Context): Boolean = prefs(context).getBoolean("private", true)
@@ -75,35 +67,10 @@ object RtsFiles {
         prefs(context).edit().putBoolean("private", value).apply()
     }
 
-    /**
-     * The CD keys the user pasted in Game files (Warcraft III), as typed. Kept beside the games'
-     * folders, so importing the game again keeps them.
-     */
-    fun pastedKeys(context: Context): String =
-        File(context.filesDir, "cdkeys.txt").takeIf { it.isFile }?.let { runCatching { it.readText() }.getOrNull() }.orEmpty()
-
-    fun setPastedKeys(context: Context, text: String) {
-        File(context.filesDir, "cdkeys.txt").writeText(text)
-    }
-
-    /**
-     * The CD keys the game menu offers: those pasted in Game files, then those in a text file next
-     * to the game's program (Warcraft III's repack has one).
-     */
-    fun cdKeys(context: Context, install: Install): List<CdKeys.Found> {
-        val pasted = if (install.engine == Engine.WINE) CdKeys.findPasted(pastedKeys(context)) else emptyList()
-        val program = program(context, install) ?: return pasted
-        val dir = File(folder(context, install), program).parentFile ?: return pasted
-        val inFiles = dir.listFiles { file -> file.isFile && file.length() < 64 * 1024 && CdKeys.isKeyFile(file.name) }
-            .orEmpty()
-            .flatMap { file -> runCatching { CdKeys.find(file.readText()) }.getOrDefault(emptyList()) }
-        return (pasted + inFiles).distinctBy { it.key }
-    }
 
     /** The launcher's checklist for [install]: each thing the game needs, and whether it's in the app. */
     fun needs(context: Context, install: Install): List<Pair<Needs.Need, Boolean>> {
         val root = folder(context, install)
-        val program = program(context, install)
         // Paths from a PC's folder may differ in case from the names the checklist uses.
         fun exists(path: String): Boolean {
             var dir = root
@@ -112,7 +79,7 @@ object RtsFiles {
             }
             return true
         }
-        return Needs.check(install, program, isConverted(context, install), ::exists)
+        return Needs.check(install, isConverted(context, install), Wc3Setup.downloaded(context), ::exists)
     }
 
     /** How much room a game takes. */

@@ -56,47 +56,36 @@ import com.logie.warcrafts.library.Title
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** What to bring for each game: what the picker wants. */
+/** What to bring for Warcraft I or II: what the picker wants. */
 private fun whatToImport(install: Install): Int = when (install) {
     Install.WC1 -> R.string.rts_files_what_wc1
-    Install.WC2 -> R.string.rts_files_what_wc2
-    Install.WC3 -> R.string.rts_files_what_wc3
+    else -> R.string.rts_files_what_wc2
 }
 
 /**
- * Game files for the game the launcher shows: what to bring and where it stands, the folder or zip
- * picker, the program that starts it and what it's started with, Private (Blizzard's servers out of
- * reach), and deleting the files.
+ * Game files for the game the launcher shows. Warcraft I and II: what to bring and where it stands,
+ * GOG's installer or the folder or zip, converting again, deleting. Warcraft III: its setup in the
+ * app ([Warcraft3Dialog]).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
+    if (title.install == Install.WC3) {
+        Warcraft3Dialog(onDismiss)
+        return
+    }
     val context = LocalContext.current
     val look = LocalLook.current
     val install = title.install
     val imports by Imports.state.collectAsState()
     var refresh by remember { mutableIntStateOf(0) }
     var size by remember { mutableLongStateOf(-1L) }
-    var programs by remember { mutableStateOf<List<GameLayout.Program>>(emptyList()) }
-    var program by remember { mutableStateOf<String?>(null) }
-    var arguments by remember(refresh) { mutableStateOf(RtsFiles.arguments(context, install)) }
-    var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
     var confirmDelete by remember { mutableStateOf(false) }
     var filesIn by remember { mutableStateOf(false) }
-    // Warcraft III from Blizzard: each installer downloaded yet?
-    var rocDownloaded by remember { mutableStateOf(false) }
-    var tftDownloaded by remember { mutableStateOf(false) }
     LaunchedEffect(refresh, imports) {
         withContext(Dispatchers.IO) {
-            if (install == Install.WC3) {
-                com.logie.warcrafts.game.Game.adoptWarcraft3(context)
-                rocDownloaded = Wc3Setup.installer(context, BlizzardDownload.Product.ROC) != null
-                tftDownloaded = Wc3Setup.installer(context, BlizzardDownload.Product.TFT) != null
-            }
             filesIn = com.logie.warcrafts.library.Needs.filesIn(RtsFiles.needs(context, install))
-            programs = GameLayout.candidates(RtsFiles.programs(context, install))
-            program = RtsFiles.program(context, install)
-            size = if (program != null || filesIn) RtsFiles.size(context, install) else -1L
+            size = if (filesIn) RtsFiles.size(context, install) else -1L
         }
     }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri: Uri? ->
@@ -114,10 +103,7 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
 
     RtsDialog(
         stringResource(R.string.rts_files_title, stringResource(ImportService.installName(install))),
-        onDismiss = {
-            RtsFiles.setArguments(context, install, arguments)
-            onDismiss()
-        },
+        onDismiss = onDismiss,
     ) {
         Text(stringResource(whatToImport(install)), style = MaterialTheme.typography.bodyMedium)
         when {
@@ -142,38 +128,18 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
                     )
                 }
                 Text(
-                    if ((program != null || filesIn) && size >= 0) {
+                    if (filesIn && size >= 0) {
                         stringResource(R.string.rts_files_installed, Formatter.formatShortFileSize(context, size))
                     } else {
                         stringResource(R.string.rts_files_missing)
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
-                // Warcraft III, set up on the phone from Blizzard: download, then each installer.
-                if (install == Install.WC3 && !filesIn) {
-                    RtsTitle(stringResource(R.string.rts_setup_title), style = MaterialTheme.typography.titleLarge)
-                    Text(stringResource(R.string.rts_setup_steps), style = MaterialTheme.typography.bodyMedium)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (!rocDownloaded || !tftDownloaded) {
-                            RtsButton(stringResource(R.string.rts_setup_download)) { ImportService.downloadWc3(context) }
-                        } else {
-                            RtsButton(stringResource(R.string.rts_setup_install_roc)) {
-                                com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.ROC)
-                                onDismiss()
-                            }
-                            RtsButton(stringResource(R.string.rts_setup_install_tft), primary = false) {
-                                com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.TFT)
-                                onDismiss()
-                            }
-                        }
-                    }
-                    Text(stringResource(R.string.rts_setup_or_files), style = MaterialTheme.typography.bodySmall)
-                }
                 Text(stringResource(R.string.rts_files_move_first), style = MaterialTheme.typography.bodySmall)
                 if (native) Text(stringResource(R.string.rts_files_installer_how), style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     if (native) RtsButton(stringResource(R.string.rts_files_pick_installer)) { pickInstaller.launch(arrayOf("*/*")) }
-                    RtsButton(stringResource(R.string.rts_files_pick_folder), primary = !native) { pickFolder.launch(null) }
+                    RtsButton(stringResource(R.string.rts_files_pick_folder), primary = false) { pickFolder.launch(null) }
                     RtsButton(stringResource(R.string.rts_files_pick_zip), primary = false) {
                         pickZip.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
                     }
@@ -184,38 +150,7 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
             }
         }
 
-        // Warcraft III's program and arguments (Warcraft I and II are played by Stratagus).
-        if (install.engine == com.logie.warcrafts.library.Engine.WINE && programs.isNotEmpty()) {
-            RtsTitle(stringResource(R.string.rts_files_program), style = MaterialTheme.typography.titleLarge)
-            for (candidate in programs.take(6)) {
-                RtsChoiceRow(
-                    candidate.path,
-                    Formatter.formatShortFileSize(context, candidate.size),
-                    selected = candidate.path == program,
-                ) {
-                    RtsFiles.setProgram(context, install, candidate.path)
-                    refresh++
-                }
-            }
-            OutlinedTextField(
-                value = arguments,
-                onValueChange = { arguments = it.replace("\n", "") },
-                label = { Text(stringResource(R.string.rts_files_arguments)) },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
-                colors = fieldColors(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(stringResource(R.string.rts_files_arguments_note, install.defaultArguments.ifEmpty { "—" }), style = MaterialTheme.typography.bodySmall)
-        }
-
-        RtsTitle(stringResource(R.string.rts_files_private_title), style = MaterialTheme.typography.titleLarge)
-        RtsSwitchRow(stringResource(R.string.rts_files_private), stringResource(R.string.rts_files_private_summary), private) {
-            private = it
-            RtsFiles.setPrivate(context, it)
-        }
-
-        if ((program != null || filesIn) && working == null) {
+        if (filesIn && working == null) {
             if (confirmDelete) {
                 Text(stringResource(R.string.rts_files_delete_confirm), style = MaterialTheme.typography.bodyMedium, color = look.blood)
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -335,18 +270,6 @@ fun GameChooser(current: Title, onDismiss: () -> Unit, onChoose: (Title) -> Unit
     }
 }
 
-/** The colours of the dialogs' text fields. */
-@Composable
-private fun fieldColors() = LocalLook.current.let { look ->
-    OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = look.accent,
-        unfocusedBorderColor = look.steel,
-        focusedLabelColor = look.accent,
-        unfocusedLabelColor = look.mist,
-        cursorColor = look.accent,
-    )
-}
-
 /**
  * A game (or the app) stopped by itself: what it said last ([GameStops]), to copy and send. The
  * games' output is in English, as the engine writes it.
@@ -370,6 +293,106 @@ fun GameStoppedDialog(report: GameStops.Report, onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 color = LocalLook.current.mist,
             )
+        }
+    }
+}
+
+/**
+ * Warcraft III, set up in the app ([Wc3Setup]): one step at a time, the next one's button the only
+ * one. Download Blizzard's installers; install Reign of Chaos (Blizzard's installer opens, the player
+ * types their key); install The Frozen Throne; then it's ready, and Press start plays it.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Warcraft3Dialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val look = LocalLook.current
+    val imports by Imports.state.collectAsState()
+    var refresh by remember { mutableIntStateOf(0) }
+    var step by remember { mutableStateOf<Wc3Setup.Step?>(null) }
+    var private by remember { mutableStateOf(RtsFiles.isPrivate(context)) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    LaunchedEffect(refresh, imports) {
+        step = withContext(Dispatchers.IO) {
+            com.logie.warcrafts.game.Game.adoptWarcraft3(context)
+            com.logie.warcrafts.game.Game.warcraft3Step(context)
+        }
+    }
+    val working = (imports as? Imports.State.Working)?.takeIf { it.install == Install.WC3 }
+    val current = step
+
+    RtsDialog(stringResource(R.string.rts_wc3_title), onDismiss = onDismiss) {
+        Text(stringResource(R.string.rts_wc3_intro), style = MaterialTheme.typography.bodyMedium)
+        val order = listOf(
+            Wc3Setup.Step.DOWNLOAD to R.string.rts_wc3_step_download,
+            Wc3Setup.Step.INSTALL_ROC to R.string.rts_wc3_step_roc,
+            Wc3Setup.Step.INSTALL_TFT to R.string.rts_wc3_step_tft,
+        )
+        for ((index, entry) in order.withIndex()) {
+            val (s, label) = entry
+            val done = current != null && current.ordinal > s.ordinal
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(if (done) "✓" else "${index + 1}", style = MaterialTheme.typography.titleMedium, color = if (done) look.good else look.gold)
+                Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, color = if (current == s) look.text else look.mist)
+            }
+        }
+
+        when {
+            working != null -> {
+                Text(
+                    stringResource(ImportService.phaseTitle(working.phase), stringResource(ImportService.installName(Install.WC3))),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                if (working.progress == null) RtsSpinner(28.dp) else RtsProgressLine(working.progress)
+                working.detail?.let { Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 1) }
+                RtsButton(stringResource(R.string.rts_import_stop), primary = false) { ImportService.cancel(context) }
+            }
+            else -> {
+                (imports as? Imports.State.Failed)?.takeIf { it.install == Install.WC3 }?.let {
+                    Text(stringResource(R.string.rts_import_failed, it.message), style = MaterialTheme.typography.bodyMedium, color = look.blood)
+                }
+                when (current) {
+                    Wc3Setup.Step.DOWNLOAD -> RtsButton(stringResource(R.string.rts_wc3_download)) { ImportService.downloadWc3(context) }
+                    Wc3Setup.Step.INSTALL_ROC -> {
+                        Text(stringResource(R.string.rts_wc3_installer_how), style = MaterialTheme.typography.bodySmall)
+                        RtsButton(stringResource(R.string.rts_wc3_install_roc)) {
+                            com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.ROC)
+                            onDismiss()
+                        }
+                    }
+                    Wc3Setup.Step.INSTALL_TFT -> {
+                        Text(stringResource(R.string.rts_wc3_installer_how), style = MaterialTheme.typography.bodySmall)
+                        RtsButton(stringResource(R.string.rts_wc3_install_tft)) {
+                            com.logie.warcrafts.game.Game.install(context, BlizzardDownload.Product.TFT)
+                            onDismiss()
+                        }
+                    }
+                    Wc3Setup.Step.READY -> Text(stringResource(R.string.rts_wc3_ready), style = MaterialTheme.typography.titleMedium, color = look.good)
+                    null -> RtsSpinner(28.dp)
+                }
+            }
+        }
+
+        RtsTitle(stringResource(R.string.rts_files_private_title), style = MaterialTheme.typography.titleLarge)
+        RtsSwitchRow(stringResource(R.string.rts_files_private), stringResource(R.string.rts_files_private_summary), private) {
+            private = it
+            RtsFiles.setPrivate(context, it)
+        }
+
+        if (current == Wc3Setup.Step.READY && working == null) {
+            if (confirmDelete) {
+                Text(stringResource(R.string.rts_files_delete_confirm), style = MaterialTheme.typography.bodyMedium, color = look.blood)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    RtsButton(stringResource(R.string.rts_files_delete_yes), primary = false) {
+                        RtsFiles.delete(context, Install.WC3)
+                        confirmDelete = false
+                        refresh++
+                    }
+                    RtsButton(stringResource(R.string.rts_files_delete_no)) { confirmDelete = false }
+                }
+            } else {
+                RtsButton(stringResource(R.string.rts_files_delete), primary = false) { confirmDelete = true }
+            }
         }
     }
 }

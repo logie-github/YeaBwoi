@@ -7,6 +7,7 @@ import com.logie.warcrafts.library.BlizzardDownload
 import com.logie.warcrafts.library.BlizzardDownload.Product
 import com.logie.warcrafts.library.GameLayout
 import com.logie.warcrafts.library.Install
+import com.logie.warcrafts.library.Needs
 import java.io.File
 import java.io.RandomAccessFile
 import java.io.IOException
@@ -32,6 +33,21 @@ object Wc3Setup {
     fun installer(context: Context, product: Product): File? {
         val name = marker(context, product).takeIf { it.isFile }?.readText()?.trim() ?: return null
         return File(dir(context), "$name/Installer.exe").takeIf { it.isFile }
+    }
+
+    /** Both installers downloaded and checked. */
+    fun downloaded(context: Context): Boolean = Product.entries.all { installer(context, it) != null }
+
+    /** The next thing to do to have Warcraft III: download, install each game, or nothing (play). */
+    enum class Step { DOWNLOAD, INSTALL_ROC, INSTALL_TFT, READY }
+
+    /** [winePrefix]: the games' Windows (`.wine`), where Blizzard's installers install, if it's made. */
+    fun step(context: Context, winePrefix: File?): Step {
+        if (Needs.ready(RtsFiles.needs(context, Install.WC3))) return Step.READY
+        if (!downloaded(context)) return Step.DOWNLOAD
+        val installed = winePrefix?.let { installedIn(it) }
+        val names = installed?.list()?.map { it.lowercase() }?.toSet().orEmpty()
+        return if ("war3.mpq" in names) Step.INSTALL_TFT else Step.INSTALL_ROC
     }
 
     /** Where Blizzard's installer puts the game in the games' Windows (searched for its `War3.mpq`). */

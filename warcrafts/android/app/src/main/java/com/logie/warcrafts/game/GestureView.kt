@@ -17,7 +17,6 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.appcompat.app.AppCompatActivity
-import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.controls.Button
 import com.logie.warcrafts.controls.GestureOutput
 import com.logie.warcrafts.controls.Key
@@ -215,10 +214,8 @@ class GestureView(
     override fun showMenu() = GameMenu.show(
         activity,
         title,
-        keys = RtsFiles.cdKeys(activity, title.install),
         onKeyboard = { askText(chat = false) },
         onChat = { askText(chat = true) },
-        onTypeKey = { key -> type(key, enter = false) },
         onLeave = { leave() },
     )
 

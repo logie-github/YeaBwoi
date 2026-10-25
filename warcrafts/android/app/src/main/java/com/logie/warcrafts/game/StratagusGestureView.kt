@@ -115,10 +115,8 @@ class StratagusGestureView(
     override fun showMenu() = GameMenu.show(
         activity,
         title,
-        keys = emptyList(),
         onKeyboard = { typeText() },
         onChat = { openKeyboard() },
-        onTypeKey = {},
         onLeave = onLeave,
     )
 

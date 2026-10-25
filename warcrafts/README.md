@@ -27,7 +27,7 @@ saved games stay.
 | --- | --- | --- |
 | Warcraft: Orcs & Humans (GOG) | GOG's offline installer, as downloaded from the game's page in your GOG library (offline backup game installers): `setup_warcraft_….exe` and every `setup_warcraft_…-1.bin` (`-2.bin`…) that came with it. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `DATA\DATA.WAR` and the other `.WAR` files in `DATA` (the installer has them) |
 | Warcraft II: Battle.net Edition (GOG) | GOG's offline installer, as above: `setup_warcraft_ii_….exe` and its `.bin` files. Or the installed game folder (`C:\GOG Games\…`), or a zip of it | `Support\TOMES\TOME.1` to `TOME.4`, and `Install.mpq` (the installer has them) |
-| Warcraft III: Reign of Chaos and The Frozen Throne (one import serves both) | The installed Warcraft III 1.27 folder from a Windows PC (see below), or a zip of it | `Warcraft III.exe`, `War3.mpq`, `War3x.mpq`, `War3xLocal.mpq`, `War3Patch.mpq`. Optional: `Maps` (skirmish and custom maps; the campaigns don't need it) |
+| Warcraft III: Reign of Chaos and The Frozen Throne | Nothing: set up in the app from Blizzard (below), with your two CD keys | — |
 
 **GOG's installer** (Inno Setup) is unpacked on the phone by innoextract, built for Android into the
 app: **Pick GOG installer**, then in the picker touch and hold the setup `.exe` and tap each `.bin`
@@ -48,14 +48,10 @@ the whole folder takes it along. The GOG folders' contents are GOG's own lists (
 the app hasn't been run on them, nor on GOG's installers, here (innoextract was tested on Inno Setup
 6.2 to 6.7 installers).
 
-After a Warcraft III import, **Game files** shows the program that starts it (you can pick
-another) and what it's started with.
-
 **Fullscreen**: every game fills the screen. Warcraft I and II run Stratagus fullscreen (`-F`);
-Warcraft III fills the screen at its 4:3 resolution in windowed fullscreen (`-fullscreen`, the
-game's borderless mode, which asks Wine for no display mode of its own), drawing with OpenGL
-(`-opengl`, as the maintained Wine setups for 1.27 do). Arguments typed in Game files that set a
-window mode (`-window`, `-nativefullscr`) take its place. The runtime has no network at all while
+Warcraft III fills the screen at its 4:3 resolution (registry `reswidth`/`resheight`, Wine's desktop
+the same size), drawing with OpenGL (`-opengl`, as the maintained Wine setups for 1.27 do; Direct3D
+in Graphics). Wine's Light visual style is on for any Windows dialog. The runtime has no network at all while
 Private is on (no name server; only `localhost` resolves): to the game, a PC without internet.
 
 ## First launch
@@ -84,7 +80,7 @@ Android's log for the game's process. **Copy** puts it on the clipboard to send.
    there; three fingers open the keyboard for your CD key.
 3. **Install The Frozen Throne** the same way, with its key.
 4. Back in the launcher, the installed game moves into the app and the installers are deleted.
-A Warcraft III 1.27 folder installed on a PC works too (**Pick folder** or **Pick zip**).
+Game files shows the three steps, ticks the done ones and offers only the next one's button.
 
 **Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
@@ -103,7 +99,7 @@ Nothing is drawn over the game. The gestures are the ones you chose.
 | Two-finger tap | The game's own menu (F10: save, load, options, quit), in all three games |
 | Pinch | Zoom (the mouse wheel), where the game has it |
 | Three-finger tap | The phone's keyboard, for chat and cheat codes (sent with Enter) |
-| Four-finger tap | The app's menu: keyboard, CD keys, leave the game |
+| Four-finger tap | The app's menu: keyboard, chat, leave the game |
 | Back | Escape: cancel what's being aimed, close a window |
 
 There's no selection box and no control groups (your choice). A mouse or keyboard connected to the
@@ -113,14 +109,13 @@ phone works as on a PC.
 
 - **Launcher**: Press start, **What's needed** (the checklist above), and tiles for **Game files**, **Games** (the four games, each by its
   logo, with whether its files are in), **Graphics**, **Controls** (the gestures) and **Updates**.
-- **Game files**: what to import, the import, the program that starts the game and what it's
-  started with, **Private** (on: Blizzard's servers are out of reach for every game), and deleting
-  the game's files.
+- **Game files**: Warcraft I and II: what to import, the import, converting again, deleting.
+  Warcraft III: its setup (download, install each game), **Private** (on: the games' Windows has no
+  network at all), deleting.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
   Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong) and
   the hold's vibration.
-- **In the game** (four fingers): back to the game, keyboard, chat or cheat code, the CD keys
-  (pasted in Game files or in a key file that came with the game), leave the game. Save in the game first (two-finger tap, the game's menu):
+- **In the game** (four fingers): back to the game, keyboard, chat or cheat code, leave the game. Save in the game first (two-finger tap, the game's menu):
   leaving ends it where it is.
 
 ## Galaxy Z Fold 8
@@ -149,7 +144,7 @@ phone works as on a PC.
 | `android/app/` | The app (Kotlin, Jetpack Compose) |
 | `branding/` | The user's art and `make-art.py`, which makes the pictures, logos and launcher icon |
 | `fonts/` | Licenses of the bundled fonts (Cinzel, Jost: SIL OFL) |
-| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, CD keys, the hosts file, resolutions and update picking |
+| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads, the hosts file, resolutions and update picking |
 
 ```
 scripts/build-stratagus.sh
