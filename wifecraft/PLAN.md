@@ -24,7 +24,8 @@ this is the design. The screens' mockups are on a canvas
     that" → wago.tools;
   - **the demo's place**: Broken Isles Dalaran (Legion's);
   - **the demo's routes**: one lore character, Alleria Windrunner, and one original character
-    (race left to us: "Surprise me" → a Nightborne).
+    (race left to us: "Surprise me" → a Nightborne). Later: "The original character will be
+  female".
 - "Design a completely new app called Wifecraft", package `com.logie.wifecraft` (asked: the
   repository's form, not `logie.com.wifecraft`). "Create original menus etc or reuse assets."
 - On the first mockups (menus of our own): "Umm for the screens I wanted you to reuse the wow ui".
@@ -87,8 +88,8 @@ this is the design. The screens' mockups are on a canvas
 - **Saves**: an autosave at every scene, six slots, each with a still of the scene, the chapter,
   the place and the time (`files/saves/`, JSON plus a PNG, written atomically).
 - **Original character**: Nyrelle Moonquill, a Nightborne arcanist, new to the world outside
-  Suramar's dome, keeping an enchanting stall in the Magus Commerce Exchange. Female (assumed; to
-  confirm); her name is ours and can change.
+  Suramar's dome, keeping an enchanting stall in the Magus Commerce Exchange. Female (the user's
+  choice); her name is ours and can change.
 
 ## The screens (the canvas)
 
@@ -188,7 +189,7 @@ more routes and places.
 ## Open
 
 - The gestures above.
-- Nyrelle's name and sex; the endings' names (ours, to change freely).
+- Nyrelle's name; the endings' names (ours, to change freely).
 - Art: an app icon (the user's, as for the other apps, or one made from the game's art).
 - Alleria's exact look (which of her creature displays) and every file id: from wago.tools' tables
   in stage 0, not guessed.
