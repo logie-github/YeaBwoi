@@ -186,6 +186,14 @@ def sql_value(v, t):
     return str(i32(int(v)))
 
 
+def or_into(column):
+    """SQL for a race mask column (a signed INT) with the new row's bits OR'd in: MariaDB ORs as
+    64-bit unsigned numbers (a -1, every race, becomes 2^64 - 1, which the column can't take, and
+    the statement fails), so the result is taken back to the column's 32 bits."""
+    bits = f"((`{column}` | VALUES(`{column}`)) & 0xFFFFFFFF)"
+    return f"`{column}` = IF({bits} >= 0x80000000, CAST({bits} AS SIGNED) - 4294967296, {bits})"
+
+
 class Sql:
     def __init__(self):
         self.parts = []
@@ -204,6 +212,19 @@ class Sql:
             chunk = rows[i:i + 200]
             values = ",\n".join("(" + ", ".join(sql_value(v, t) for v, t in zip(r, types)) + ")" for r in chunk)
             self.parts.append(f"REPLACE INTO `{table}` ({cols}) VALUES\n{values};")
+
+    def merge_masks(self, table, columns, types, rows, masks):
+        """Rows put in, or, where the table has the row already, their bits OR'd into its [masks]:
+        another module's rows of the same table (the reputations: the allied races', the Skyborne's,
+        mod-worgen-goblin's) keep their races' bits whichever is applied last."""
+        if not rows:
+            return
+        cols = ", ".join(f"`{c}`" for c in columns)
+        update = ", ".join(or_into(m) for m in masks)
+        for i in range(0, len(rows), 200):
+            chunk = rows[i:i + 200]
+            values = ",\n".join("(" + ", ".join(sql_value(v, t) for v, t in zip(r, types)) + ")" for r in chunk)
+            self.parts.append(f"INSERT INTO `{table}` ({cols}) VALUES\n{values}\nON DUPLICATE KEY UPDATE {update};")
 
 
 def dbc_row_values(dbc, row, types):
@@ -493,7 +514,7 @@ def main():
             cols = COLUMNS[sql_table]
             body = ",\n".join("(" + ", ".join(str(i32(x)) for x in v) + ")" for v in rows)
             sql.raw(f"INSERT INTO `{sql_table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body}\n"
-                    f"ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);")
+                    f"ON DUPLICATE KEY UPDATE {or_into('RaceMask')};")
         if wrong:
             # (releases up to 1.0.236 put these races in the other side's language rows too)
             sql.raw(f"UPDATE `{sql_table}` SET `RaceMask` = `RaceMask` & ~{ALLIANCE_BITS | HORDE_BITS} "
@@ -524,7 +545,7 @@ def main():
             cols = COLUMNS[sql_table]
             body = ",\n".join("(" + ", ".join(str(i32(x)) for x in v) + ")" for v in rows)
             sql.raw(f"INSERT INTO `{sql_table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body}\n"
-                    f"ON DUPLICATE KEY UPDATE `RaceMask` = `RaceMask` | VALUES(`RaceMask`);")
+                    f"ON DUPLICATE KEY UPDATE {or_into('RaceMask')};")
 
     sql.comment("Standing: the start race's (the Exodar's for the void elves, Undercity's for the nightborne).")
     factions = D("Faction")
@@ -544,7 +565,10 @@ def main():
                 if v[2 + slot] != r[2 + slot]:
                     client.orfield("Faction", r[0], 2 + slot, v[2 + slot] & ~r[2 + slot])
             faction_rows.append(dbc_row_values(factions, v, ft))
-    sql.replace("faction_dbc", COLUMNS["faction_dbc"], ft, faction_rows)
+    # (merged, not replaced: the Skyborne's SQL changes the same rows, and until 1.0.328 whichever was put in
+    # last took the other's races' bits out of the reputations' rows)
+    sql.merge_masks("faction_dbc", COLUMNS["faction_dbc"], ft, faction_rows,
+                    [f"ReputationRaceMask_{n}" for n in range(1, 5)])
 
     # The intros: the start race's flight, their own narration (the user's MP3s) -----------------
     seqs, cams = D("CinematicSequences"), D("CinematicCamera")

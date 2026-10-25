@@ -174,6 +174,17 @@ configure_realm() {
 			setkey "$allied_conf" AlliedRaces.Enable 1
 		fi
 	fi
+	# The Worgen and Goblins (mod-worgen-goblin, from mod-worgoblin) likewise; and mod-worgoblin's
+	# message at every login ("This server is running the Worgoblin module") is off.
+	worgen_conf="$R_ETC/modules/mod_worgen_goblin.conf"
+	if [ -f "$worgen_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$worgen_conf" WorgenGoblin.Enable 0
+		else
+			setkey "$worgen_conf" WorgenGoblin.Enable 1
+		fi
+	fi
+	[ ! -f "$R_ETC/modules/mod_worgoblin.conf" ] || setkey "$R_ETC/modules/mod_worgoblin.conf" Announce.enable false
 	if [ "$REALM" = remix ]; then
 		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||
 			setall "$R_ETC/modules/progression_system.conf" ProgressionSystem.Bracket_ 0
@@ -255,12 +266,14 @@ run_dbimport() {
 # - The allied races' (mod-allied-races, ChromieCraft's alone): data/sql/chromiecraft, into
 #   ChromieCraft's world database; and data/sql/remix, which takes earlier releases' rows of theirs
 #   out of Remix's.
+# - The Worgen's and Goblins' (mod-worgen-goblin: mod-worgoblin's own SQL, which the package puts
+#   there in place of the module's data/sql), into ChromieCraft's world database.
 realm_sql() {
 	if [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
 	else
-		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world"
+		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-worgen-goblin/data/sql/chromiecraft/world acore_world"
 	fi
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }

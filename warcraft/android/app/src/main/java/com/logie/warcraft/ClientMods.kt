@@ -57,13 +57,13 @@ object ClientMods {
      * A module's patch for the game is in its `Data`: the realm's picked modules' (`patch-M.MPQ`, put
      * there by the realm's start: `ctl.sh modules`; mod-worgoblin's, mod-arac's...) or the Skyborne's
      * (`patch-Z.MPQ`, made by mod-skyborne as the world server starts) or the void elves' and the
-     * nightborne's (`patch-V.MPQ`, mod-allied-races). Their interface files only load in the
-     * patched executable.
+     * nightborne's (`patch-V.MPQ`, mod-allied-races) or the Worgen's and Goblins' (`patch-U.MPQ`,
+     * mod-worgen-goblin). Their interface files only load in the patched executable.
      */
     fun hasModulePatch(context: Context): Boolean {
         val data = File(WowFiles.client(context), "Data")
         return File(data, "patch-M.MPQ/realm-modules.stamp").isFile || File(data, "patch-Z.MPQ.skyborne").isFile ||
-            File(data, "patch-V.MPQ.alliedraces").isFile
+            File(data, "patch-V.MPQ.alliedraces").isFile || File(data, "patch-U.MPQ.worgengoblin").isFile
     }
 
     /** Makes the patched executable when the modules' patch needs it and it isn't there. Background thread. */

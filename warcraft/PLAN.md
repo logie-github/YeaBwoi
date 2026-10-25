@@ -1586,6 +1586,32 @@ a realm with modules), then stage 3.
   allied races' files was cached for its key (a re-run reused it) and released (1.0.292). The
   packager now leaves `build/package-incomplete` then, and the workflow doesn't keep that package:
   the next run fetches again, and the test and the app, which need the package, stop there.
+- The user's recording of the creation screen: a Zandalari Troll showed a black screen, a missing
+  model's cube and "GlueParent.lua:384: Usage: PlayGlueAmbience". The allied races' screen code sent
+  them to a troll scene the game doesn't have (3.3.5's trolls use the Orcs' scene: no UI_Troll, no
+  TROLL music). Now the Orcs' scene (allied-races-11); `test_screen.py` uses the game's music table
+  and fails on the old code.
+- The user's screenshot (Immersion's quest list cut off at the right, TomTom's arrow over the
+  character): "a quick compatibility hotfix for ChromieCraft add-ons". The app's add-on (WowTouch)
+  loads after TomTom and Immersion now and fits them to the phone's screen: TomTom's arrow starts at
+  the top of the screen, in the middle (where the player hasn't dragged it), and Immersion's choices
+  and talking box are clamped to the screen, 16 from its edges (its choices sit 500 right of the
+  middle). Unit-tested in Lua against stand-ins; not seen in the game.
+- The user: Worgen and Goblins starting areas (Gilneas, Kezan and the Lost Isles) ported from
+  Cataclysm and joined to Wrath's world after them; first, "worgen and goblins are NOT in chromie
+  craft. Use the popular worgen goblin module to do this." mod-worgoblin (heyitsbench, pinned) is
+  built into the realm, ChromieCraft's alone, through `modules/mod-worgen-goblin` (its README): its
+  tables' changes put on top of the game's and the others' (its whole tables would have undone the
+  HD looks', the allied races' and the Skyborne's rows, and carried its editor's damage to 2000 spell
+  texts), the game's goblin and fel orc creatures moved to races 28 and 29, its files for the game in
+  a patch of their own (patch-U, made first), its SQL in ChromieCraft's world only, its rows merged
+  into the world's tables at every start, 18 race buttons on the creation screen, its Worgen's
+  missing feature and hair numbers filled. Found on the way: the Skyborne's and the allied races'
+  reputation rows replaced each other's (whichever went in last took the other's races' standing
+  out); both merge now. Checked here: the patch for a stand-in game (`test_patch.cpp`), the screen in
+  Lua with the other two modules' code, the looks checker (no new problem), the world's SQL against
+  MariaDB in every order, the hooks compiled against the core's headers. Not checked: the game on a
+  phone. The starting areas come next.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

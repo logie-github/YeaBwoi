@@ -393,6 +393,57 @@ EOF
 	done
 	echo "Their racials work in the world, their first quests are their own, and Rescue the Survivors! can be done."
 
+	echo "== the Worgen and Goblins (mod-worgen-goblin, from mod-worgoblin)"
+	grep -E "Worgen and Goblins: The Worgen's and Goblins' patch is in the game: 30 tables, [0-9]+ files" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Worgen's and Goblins' patch"
+	[ -s "$FILES/client/Data/patch-U.MPQ" ] && [ -s "$FILES/client/Data/patch-U.MPQ.worgengoblin" ] || fail "the Worgen's and Goblins' patch isn't in the game"
+	# Made before the allied races' patch (and so the Skyborne's and Wrath Remix's), which are made
+	# from the game with it in.
+	worgen=$(grep -n -m1 "Worgen and Goblins: The Worgen's and Goblins' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	echo "world.out: the Worgen's and Goblins' patch at line ${worgen:-?}, the allied races' at line ${allied:-?}"
+	[ -n "$worgen" ] && [ -n "$allied" ] && [ "$worgen" -lt "$allied" ] || fail "the Worgen's and Goblins' patch was made after the allied races'"
+	grep -q "Worgen and Goblins: their rows are in the world's tables" "$FILES/logs/world.out" ||
+		fail "the world server didn't put the Worgen's and Goblins' rows in its tables"
+	for race in 9 12; do
+		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
+	done
+	looks=$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (9, 12)" | CTL sql acore_world)
+	[ "$looks" -ge 1642 ] || fail "the Worgen's and Goblins' looks aren't in the world database ($looks rows)"
+	# mod-worgoblin's own SQL in ChromieCraft's world alone (Wrath Remix's is checked below).
+	[ "$(echo "SELECT COUNT(*) FROM updates_include WHERE path LIKE '%mod-worgen-goblin/data/sql/chromiecraft/world'" | CTL sql acore_world)" = 1 ] ||
+		fail "ChromieCraft's world database doesn't list the Worgen's and Goblins' SQL"
+	# Every race's standing in the capitals' reputations, the allied races' and the Skyborne's too:
+	# until 1.0.328 whichever module's SQL went in last took the others' races out of those rows.
+	# Stormwind (72): the Worgen (2048), void elves (16384), High Order (4096); Orgrimmar (76): the
+	# Goblins (256), nightborne (32768), Windshapers (8192).
+	for want in 72:2048:Worgen 72:16384:void-elves 72:4096:High-Order 76:256:Goblins 76:32768:nightborne 76:8192:Windshapers; do
+		faction=${want%%:*} rest=${want#*:} bit=${rest%%:*} who=${rest#*:}
+		masks=$(echo "SELECT (ReputationRaceMask_1 | ReputationRaceMask_2 | ReputationRaceMask_3 | ReputationRaceMask_4) & $bit FROM faction_dbc WHERE ID = $faction" | CTL sql acore_world)
+		[ -n "$masks" ] && [ "$masks" != 0 ] || fail "the $who have no standing in faction $faction's row"
+	done
+	# A Worgen warrior in Shadowglen and a Goblin warrior in the Valley of Trials (mod-worgoblin's
+	# starts), each with their racials and their side's language.
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Worgtester 12 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/worgen.out" || fail "the Worgen warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Gobtester 9 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/goblin.out" || fail "the Goblin warrior didn't get into the world"
+	for who in "Worgtester:12:1:Shadowglen" "Gobtester:9:1:the Valley of Trials"; do
+		name=${who%%:*} rest=${who#*:} race=${rest%%:*} rest=${rest#*:} class=${rest%%:*} place=${rest#*:}
+		at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
+		echo "$name at $at, $place's start $start"
+		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
+	done
+	for who in Worgtester:68975,68976,68978,68992:4 Gobtester:69041,69042,69044,69045,69046,69070:6; do
+		name=${who%%:*} rest=${who#*:} spells=${rest%%:*} count=${rest#*:}
+		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
+		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
+	done
+	for who in Worgtester:98 Gobtester:109; do
+		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
+	done
+	echo "The Worgen start in Shadowglen and the Goblins in the Valley of Trials, with their racials and their side's language."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 
@@ -504,6 +555,16 @@ EOF
 		fail "Wrath Remix's world has the allied races' quests"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world)" -gt 0 ] ||
 		fail "ChromieCraft lost the allied races"
+	# The Worgen and Goblins likewise: their patch set aside, none of mod-worgoblin's SQL or rows in
+	# Remix's world.
+	grep -q "^WorgenGoblin.Enable = 0" "$FILES/etc-remix/modules/mod_worgen_goblin.conf" || fail "the Worgen and Goblins aren't off in Wrath Remix's config"
+	grep -q "^WorgenGoblin.Enable = 1" "$FILES/etc/modules/mod_worgen_goblin.conf" || fail "the Worgen and Goblins aren't on in ChromieCraft's config"
+	[ ! -e "$FILES/client/Data/patch-U.MPQ" ] && [ -e "$FILES/client/Data/patch-U.MPQ.aside" ] ||
+		fail "the Worgen's and Goblins' patch is in the game on Wrath Remix (or wasn't kept aside)"
+	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (9, 12)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Worgen or Goblins can be made on Wrath Remix"
+	[ "$(echo "SELECT COUNT(*) FROM charsections_dbc WHERE RaceID IN (9, 12)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has the Worgen's and Goblins' looks"
 	# Against the DBC files its world server read (the modules' over the game's, when there are).
 	remix_data=$(sed -n 's/^DataDir = "\(.*\)"$/\1/p' "$FILES/etc-remix/worldserver.conf")
 	python3 "$ROOT/warcraft/server/remix_check.py" patch "$FILES/client/Data/patch-Y.MPQ" "$remix_data/dbc" ||
@@ -621,6 +682,8 @@ EOF
 	done
 	[ -e "$FILES/client/Data/patch-V.MPQ" ] && [ ! -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch didn't come back on ChromieCraft"
+	[ -e "$FILES/client/Data/patch-U.MPQ" ] && [ ! -e "$FILES/client/Data/patch-U.MPQ.aside" ] ||
+		fail "the Worgen's and Goblins' patch didn't come back on ChromieCraft"
 	# home in their side's capital: Stormwind (map 0, zone 1519) and Orgrimmar (map 1, zone 1637)
 	# (the world server queues their writes as it starts: they can land a moment after it's ready)
 	for expected in "Wintergarde	0	1519" "Agmarshammer	1	1637"; do

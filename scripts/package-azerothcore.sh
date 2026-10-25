@@ -70,6 +70,9 @@ cp -r "$DIST/sql" "$pkg/src/data/sql"
 for dir in "$DIST"/modules/*/; do
 	dir=${dir%/}
 	name=$(basename "$dir")
+	# mod-worgoblin's SQL is ChromieCraft's alone: mod-worgen-goblin's package step (below) puts it in
+	# that module's data/sql/chromiecraft, which only ChromieCraft's world database reads (ctl.sh).
+	[ "$name" != mod-worgoblin ] || continue
 	if [ -d "$dir/data/sql" ]; then
 		mkdir -p "$pkg/src/modules/$name/data"
 		cp -r "$dir/data/sql" "$pkg/src/modules/$name/data/sql"
@@ -78,6 +81,11 @@ for dir in "$DIST"/modules/*/; do
 	if [ -d "$dir/data/client" ]; then
 		mkdir -p "$pkg/src/modules/$name/data"
 		cp -r "$dir/data/client" "$pkg/src/modules/$name/data/client"
+	fi
+	# SQL a module runs itself as the world server starts (mod-worgen-goblin's).
+	if [ -d "$dir/data/server" ]; then
+		mkdir -p "$pkg/src/modules/$name/data"
+		cp -r "$dir/data/server" "$pkg/src/modules/$name/data/server"
 	fi
 	# Older modules (mod-npc-talent-template) keep theirs in sql/<database>, which the servers
 	# don't read: it goes where they look, data/sql/db-<database>. Without it the world server
@@ -124,6 +132,18 @@ if [ -d "$DIST/modules/mod-allied-races" ]; then
 		"$pkg/src/modules/mod-allied-races/data/files" ||
 		{ echo "The allied races' files weren't all made (tools/package.py says which): the races aren't in the game" >&2
 		  echo "mod-allied-races" >> "$INCOMPLETE"; }
+fi
+
+# The Worgen's and Goblins' files (mod-worgen-goblin, tools/package.py): mod-worgoblin's files for
+# the game (its models, textures, sounds, icons and texts: never in the repository), laid out for the
+# game's patch the world server makes, and its SQL for ChromieCraft's world database alone. Without
+# them the races aren't in the game.
+if [ -d "$DIST/modules/mod-worgen-goblin" ] && [ -d "$DIST/modules/mod-worgoblin" ]; then
+	apk add -q --no-progress py3-numpy py3-pillow
+	python3 /repo/warcraft/modules/mod-worgen-goblin/tools/package.py "$DIST/modules/mod-worgoblin" \
+		"$pkg/src/modules/mod-worgen-goblin/data" ||
+		{ echo "mod-worgoblin's files weren't all made (tools/package.py says why): the Worgen and Goblins aren't in the game" >&2
+		  echo "mod-worgen-goblin" >> "$INCOMPLETE"; }
 fi
 
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are

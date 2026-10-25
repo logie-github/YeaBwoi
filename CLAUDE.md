@@ -27,6 +27,11 @@ self-updating from this repository's GitHub releases.
   own models, ChromieCraft's realm only: the user, "Only chromie needs new races"): `warcraft/modules/mod-allied-races` (its README); `tools/races.py`, `tools/build_data.py` and
   `tools/quests.py` make its data, committed; `tools/package.py` fetches and converts the game's
   files as the server is packaged (never committed).
+- **The Worgen and Goblins** (mod-worgoblin, built in, ChromieCraft's realm only: the user, "Use the
+  popular worgen goblin module"): `warcraft/modules/mod-worgen-goblin` (its README) puts it in on top
+  of the others' changes; `tools/build_data.py` makes its data, committed; `tools/package.py` makes
+  its files for the game as the server is packaged (never committed). Next: Gilneas's and Kezan's
+  starting areas from Cataclysm, joined to Wrath's world after them (`warcraft/PLAN.md`).
 - Each app's `README.md` is its user manual; keep it current with every change.
 
 ## Rules

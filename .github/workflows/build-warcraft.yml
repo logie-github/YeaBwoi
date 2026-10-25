@@ -582,6 +582,7 @@ jobs:
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_screen.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_zoom.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-allied-races/tools/test_screen.py
+          "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-worgen-goblin/tools/test_screen.py
 
       # The allied races' tools: the model converter's pieces, the textures' codec, the tables'
       # data, the voices (with ffmpeg), the intros' narrations through a patch, both race patches'
