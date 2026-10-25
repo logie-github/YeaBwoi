@@ -101,7 +101,7 @@ Nothing is drawn over the game. The gestures are the ones you chose.
 | Gesture | In the game |
 | --- | --- |
 | Swipe one finger | Pans the map the way you swipe, for as long as the finger stays away from where it landed; lift to stop |
-| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel and top bar |
+| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on all its menus (main menu, campaigns, skirmish setup, loading and score screens), on its bottom panel and top bar, and on a dialog over the paused game (the F10 menu, the quest log). The app tells a match from the menus by the game's console, read from its picture (the console's art and layout are in the game's files) |
 | Touch and hold | Left click when you lift (after a short buzz): select a unit or building, press a button of the game's panel or menus |
 | Hold twice on the same spot | Double click: every unit of that kind on the screen |
 | Rest one finger, tap or hold with another | Shift-click: queue orders, add units to the selection |

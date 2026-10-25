@@ -234,6 +234,22 @@ The user's requirements, what was decided, what's open, and where it stands. The
   `246789BCDEFGHJKMNPRTVWXYZ`. Build 25 asks for the two keys in Game files (a third step,
   `Wc3Keys`, need `keys.done`). The keys are the user's own; nothing is generated. Not known: whether
   the user's keys pass the game's own check (it validates them itself at start).
+- **Warcraft III's menus didn't answer taps** (build 25 on the phone: the main menu up, the user's
+  recording showing nothing reacting). A tap was a right click everywhere but the in-match panel
+  and top bar, and the game's menus ignore right clicks. Build 26 reads the game's picture
+  (`game/Wc3Watcher`: four times a second the game's window is drawn at half size into a texture of
+  the app's own and read back) and recognises the in-match console (`library/Wc3Screen`,
+  `Wc3ScreenData` generated from `UI\FrameDef\UI\ConsoleUI.fdf` and each race's console tiles,
+  RoC and TFT: 11x11-pixel blocks of the stone frame, light and dark, compared with tolerance 40;
+  a match needs 80% of each). No console: every tap is a left click. In a match: the console (where
+  its panel starts in each 80th of the width, and the top bar) is a left click, the battlefield a
+  right click, and a battlefield that doesn't change for 0.4 s (single player pauses under the F10
+  menu and the quest log) or the 1.5 s after the game's menu was asked for are left clicks.
+  Tested here on the console renders at 1024x768 to 2448x1836, blurred, 10% darker and brighter, at
+  half texture quality (all found, with their race) and on the menu frames of the user's recording,
+  greys and noise (none found; best score 0.22 of the 0.8 needed). Not known: the picture as read on
+  the phone (orientation is found from the first console seen), dialogs in a game that doesn't pause
+  (LAN, maybe the victory dialog): touch and hold there.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

@@ -22,6 +22,7 @@ import com.logie.warcrafts.controls.GestureOutput
 import com.logie.warcrafts.controls.Key
 import com.logie.warcrafts.controls.RtsGestures
 import com.logie.warcrafts.library.Title
+import com.logie.warcrafts.library.Wc3Screen
 import com.winlator.core.AppUtils
 import com.winlator.math.XForm
 import com.winlator.renderer.ViewTransformation
@@ -48,6 +49,10 @@ class GestureView(
     private val gestures = RtsGestures(this, density)
     private val title = Title.of(activity.intent.getStringExtra(EXTRA_TITLE)) ?: Title.TFT
     private val vibrate = GameSettings.vibration(activity)
+    /** What the game shows: a match (its console) or its menus, a paused battlefield ([Wc3Watcher]). */
+    private val watcher = Wc3Watcher(xServer)
+    /** Until when (uptime ms) taps are left clicks: just after the game's menu was asked for. */
+    private var dialogUntil = 0L
 
     /** From the view's pixels to the game screen's. */
     private val xform = XForm.getInstance()
@@ -157,33 +162,51 @@ class GestureView(
     /** The game's first window is up: on a touch screen the finger is the pointer, never drawn. */
     fun onGameWindowShown() {
         xServer.renderer.isCursorVisible = false
+        watcher.start()
     }
 
     // Gestures ---------------------------------------------------------------------------------
 
     override fun pointerTo(x: Float, y: Float) {
         val point = XForm.transformPoint(xform, x, y)
+        pointerX = point[0]
         pointerY = point[1]
         xServer.injectPointerMove(point[0].toInt(), point[1].toInt())
     }
 
-    /** Where the pointer is, down the game's screen (0 top, 1 bottom). */
+    /** Where the pointer is on the game's screen, in its pixels. */
+    private var pointerX = 0f
     private var pointerY = 0f
 
     /**
-     * Warcraft III's interface: the panel along the bottom (minimap, portrait, inventory, command
-     * buttons) and the menu bar along the top, where a right click does nothing useful: a tap there
-     * is the left click that presses what's under it. On the battlefield it stays the right click.
+     * Whether a tap here is the left click that presses what's under it, rather than the right
+     * click (move, attack, gather) it is on the battlefield. Read from the game's picture
+     * ([Wc3Watcher]): its menus, loading and score screens and cinematics (no console on screen);
+     * in a match, its console (the panel along the bottom, the bar along the top) and a dialog
+     * over a paused battlefield (the F10 menu, the quest log), or just after the game's menu was
+     * asked for. Until the picture has been read: the panel and the bar only, as before.
      */
-    private fun onInterface(): Boolean {
+    private fun leftClickHere(): Boolean {
+        val width = xServer.screenInfo.width.toFloat()
         val height = xServer.screenInfo.height.toFloat()
-        if (height <= 0f) return false
+        if (width <= 0f || height <= 0f) return false
+        val x = pointerX / width
         val y = pointerY / height
-        return y >= WC3_PANEL_TOP || y <= WC3_BAR_BOTTOM
+        if (!watcher.known) return y >= WC3_PANEL_TOP || y <= WC3_BAR_BOTTOM
+        val race = watcher.race ?: return true
+        val now = SystemClock.uptimeMillis()
+        if (Wc3Screen.onConsole(race, x, y)) {
+            // The bar's buttons on the left (Quests, Menu, Allies, Log) open dialogs.
+            if (y <= Wc3Screen.TOP_BAR && x < MENU_BUTTONS_END) dialogUntil = now + DIALOG_MS
+            return true
+        }
+        if (now < dialogUntil) return true
+        val still = watcher.stillSince
+        return still != 0L && now - still >= STILL_MS
     }
 
     override fun click(button: Button) {
-        val pressed = if (button == Button.RIGHT && onInterface()) Button.LEFT else button
+        val pressed = if (button == Button.RIGHT && leftClickHere()) Button.LEFT else button
         xServer.injectPointerButtonPress(pressed.x)
         postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS)
     }
@@ -205,7 +228,10 @@ class GestureView(
 
     override fun keyUp(key: Key) = xServer.injectKeyRelease(key.x)
 
-    override fun gameMenu() = tapKey(XKeycode.KEY_F10)
+    override fun gameMenu() {
+        dialogUntil = SystemClock.uptimeMillis() + DIALOG_MS
+        tapKey(XKeycode.KEY_F10)
+    }
 
     override fun openKeyboard() = askText(chat = true)
 
@@ -270,6 +296,7 @@ class GestureView(
     }
 
     override fun onDetachedFromWindow() {
+        watcher.stop()
         removeCallbacks(typeNext)
         super.onDetachedFromWindow()
     }
@@ -279,9 +306,15 @@ class GestureView(
         const val EXTRA_TITLE = "com.logie.warcrafts.TITLE"
 
         private const val CLICK_MS = 40L
-        /** Warcraft III's bottom panel starts about three quarters down; its top bar ends 5% down. */
+        /** Before the picture is read: Warcraft III's bottom panel starts about three quarters down; its top bar ends 5% down. */
         private const val WC3_PANEL_TOP = 0.76f
         private const val WC3_BAR_BOTTOM = 0.05f
+        /** The top bar's menu buttons end at 0.343 of its 0.8 width (ConsoleUI.fdf's first two pieces). */
+        private const val MENU_BUTTONS_END = 0.343f / 0.8f
+        /** Taps stay left clicks this long after a dialog was asked for, until the paused battlefield shows. */
+        private const val DIALOG_MS = 1500L
+        /** A battlefield unchanged for this long: the game paused, a dialog over it. */
+        private const val STILL_MS = 400L
         private const val KEY_MS = 50L
         private const val TYPE_STEP_MS = 15L
 
