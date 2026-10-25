@@ -241,5 +241,13 @@ cat disappears and the char walks through the wall"). Fixed in 1.0.2:
   (fixed), words no longer jump rows as they type, larger type on a darker box, 60 letters a
   second by default, a double tap no longer skips a line unread.
 
+**Music and sounds** (1.0.4; the user: "Can you add sounds and music. Taken from the game or no"):
+taken from the game, fetched from wago.tools like the rest (16 MB, the last pack; the story plays
+without it). `tools/sounds.py` picks them from the game's tables: Legion Dalaran's dawn, day,
+dusk and night music; Alleria's own theme (The War Within); Darnassus and the Temple of the Moon
+for Nyrelle; Dalaran's day and night ambience; emote voices (night elf woman for Nyrelle, void elf
+woman for Alleria, human for the player) and Shadowpaw's nightsaber sounds; the interface's sound
+kits (click, menus, gossip, the achievement fanfare). Volumes in Options.
+
 Not done: the character screen's 3D model and customization, the Legerdemain Lounge, "Use my own
-client's files", music and sound, graphics settings (resolution, view distance).
+client's files", spoken dialogue, graphics settings (resolution, view distance).

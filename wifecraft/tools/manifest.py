@@ -6,7 +6,7 @@ fetched by the app, on the phone, from wago.tools.
     python3 tools/manifest.py CACHE_DIR
 
 CACHE_DIR keeps files fetched while working the list out (each named by its id). It reads
-assets/looks.json (tools/looks.py) and assets/places.json.
+assets/looks.json (tools/looks.py), assets/places.json and assets/sounds.json (tools/sounds.py).
 """
 import json
 import math
@@ -156,6 +156,14 @@ def main():
         props.append(fid)
         props += m2_deps(cache, fid, [])
     packs.append(("props", props))
+
+    # Music and sounds (tools/sounds.py): last, as the story plays without them.
+    snd = json.load(open(os.path.join(ASSETS, "sounds.json")))
+    sound = list(snd["music"].values()) + list(snd["ambience"].values())
+    sound += [f for ids in snd["ui"].values() for f in ids]
+    sound += [f for v in snd["voices"].values() for ids in v.values() for f in ids]
+    sound += [f for ids in snd["effects"].values() for f in ids]
+    packs.append(("sound", sound))
 
     seen = set()
     out = {"source": "https://wago.tools/api/casc/<id>?download", "packs": []}

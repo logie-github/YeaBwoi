@@ -9,6 +9,7 @@ nyrelle +10
 # ---------------------------------------------------------------- Prologue
 fadeout 0
 scene overlook day
+music dawn 0
 letterbox on
 shot view sweep_a
 fadein 1500
@@ -21,6 +22,7 @@ narrator: You came to the city of mages for a quiet week, {name}. Dalaran has ne
 fadeout 900
 
 scene krasus day
+music alleria 2500
 cast alleria rail face out
 cast you arrive face rail
 shot view landing
@@ -66,19 +68,23 @@ alleria [talk]: I'm on the Landing most mornings. My sister keeps a house in the
 fadeout 700
 
 scene street day
+music day 1500
 cast you mid face north
 cast saber start face you
 shot view street
 fadein 600
 letterbox on
 wait 400
+sound saber_roar
 run saber past 900
 shot view street_low 500
 wait 650
+sound saber_pounce
 shake 500
 emote you no
 wait 500
 cast nyrelle behind face you
+music nyrelle 2000
 run nyrelle close 1400
 shot two nyrelle you 1200
 wait 1500
@@ -119,6 +125,7 @@ fadeout 800
 
 # ---------------------------------------------------------------- Chapter II
 scene plaza day
+music day 2000
 cast you centre face steps
 shot view plaza
 fadein 800
@@ -134,6 +141,7 @@ end
 set route_alleria
 fadeout 700
 scene krasus dusk
+music dusk 2000
 cast alleria rail face out
 cast you near face rail
 shot view behind
@@ -165,6 +173,7 @@ goto night
 set route_nyrelle
 fadeout 700
 scene plaza day
+music nyrelle 2000
 cast nyrelle steps face you
 cast you centre face steps
 cast saber hide face you
@@ -189,6 +198,7 @@ goto n_found
 :n_found
 letterbox on
 shot view plaza_wide 1200
+sound saber_alert
 walk saber found 2200
 wait 2300
 face nyrelle saber
@@ -235,6 +245,7 @@ goto night_alone
 
 :night_alleria
 scene terrace night
+music alleria2 2500
 cast alleria partner face view
 cast you arrive face partner
 shot view terrace_wide
@@ -278,6 +289,7 @@ ending arrows
 
 :night_nyrelle
 scene terrace night
+music moon 2500
 cast nyrelle partner face view
 cast saber lie face view
 cast you arrive face partner
@@ -321,6 +333,7 @@ ending saber
 
 :night_alone
 scene terrace night
+music night 2500
 cast you beside face view
 shot view terrace_wide
 fadein 1000

@@ -17,6 +17,9 @@ package com.logie.wifecraft.story
  *     shot bust alleria 800          the camera: bust WHO, two A B, wide, view NAME (a place's
  *                                    camera), and how long the move takes (0: a cut)
  *     shake 400                      the camera shakes
+ *     music alleria [2000]           the game's music by its name (assets/sounds.json), faded in
+ *                                    over that long; "music off" fades it out
+ *     sound saber_roar               a sound effect, by its name in assets/sounds.json
  *     wait 1200                      a pause, in milliseconds
  *     alleria [laugh]: Words...      a line; "you:" is the player, "narrator:" has no name
  *     choice Where to?               a choice, its options below, then "end"
@@ -45,6 +48,8 @@ sealed interface Command {
     data class Emote(val who: String, val emote: String, val loop: Boolean, override val line: Int) : Command
     data class Shot(val kind: String, val args: List<String>, val ms: Int, override val line: Int) : Command
     data class Shake(val ms: Int, override val line: Int) : Command
+    data class Music(val name: String, val fadeMs: Int, override val line: Int) : Command
+    data class Sound(val name: String, override val line: Int) : Command
     data class Wait(val ms: Int, override val line: Int) : Command
     data class Say(val who: String, val emote: String?, val text: String, override val line: Int) : Command
     data class Choice(val prompt: String, val options: List<Option>, override val line: Int) : Command
@@ -132,6 +137,8 @@ class Script(val commands: List<Command>) {
                         Command.Shot(words[1], if (ms != null) args.dropLast(1) else args, ms ?: 0, n)
                     }
                     words[0] == "shake" -> Command.Shake(int(1, 400), n)
+                    words[0] == "music" -> Command.Music(words.getOrNull(1) ?: fail(n, "music needs a name, or off"), int(2, 1500), n)
+                    words[0] == "sound" -> Command.Sound(words.getOrNull(1) ?: fail(n, "sound needs a name"), n)
                     words[0] == "wait" -> Command.Wait(int(1, 1000), n)
                     words[0] == "choice" -> {
                         val options = mutableListOf<Option>()

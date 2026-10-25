@@ -43,6 +43,7 @@ class Saves(context: Context) {
             .put("stage", JSONArray(s.stage))
             .put("log", JSONArray(s.log.takeLast(120).map { JSONArray(listOf(it.who, it.text)) }))
             .put("chapter", s.chapter)
+            .put("music", s.music)
             .put("playerName", save.playerName)
             .put("playerLook", save.playerLook)
             .put("place", save.place)
@@ -68,6 +69,7 @@ class Saves(context: Context) {
                 MutableList(a.length()) { a.getJSONArray(it).let { e -> LogEntry(e.getString(0), e.getString(1)) } }
             },
             chapter = o.optString("chapter"),
+            music = o.optString("music"),
         )
         return Save(slot, state, o.optString("playerName"), o.optString("playerLook", "player_man"), o.optString("place"), o.optLong("savedAt"))
     }
@@ -91,6 +93,13 @@ class Settings(context: Context) {
     var boxStyle: String
         get() = prefs.getString("boxStyle", "dark") ?: "dark"
         set(v) = prefs.edit().putString("boxStyle", v).apply()
+    /** The music's and the sounds' loudness, 0 to 100. */
+    var musicVolume: Int
+        get() = prefs.getInt("musicVolume", 70)
+        set(v) = prefs.edit().putInt("musicVolume", v).apply()
+    var soundVolume: Int
+        get() = prefs.getInt("soundVolume", 85)
+        set(v) = prefs.edit().putInt("soundVolume", v).apply()
     var wifiOnly: Boolean
         get() = prefs.getBoolean("wifiOnly", true)
         set(v) = prefs.edit().putBoolean("wifiOnly", v).apply()

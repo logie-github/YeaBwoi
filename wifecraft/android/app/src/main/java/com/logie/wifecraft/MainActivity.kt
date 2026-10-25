@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.logie.wifecraft.audio.Audio
 import com.logie.wifecraft.data.Cast
 import com.logie.wifecraft.data.Content
 import com.logie.wifecraft.data.GameFiles
@@ -27,6 +28,8 @@ import com.logie.wifecraft.data.Saves
 import com.logie.wifecraft.data.Settings
 import com.logie.wifecraft.engine.SceneView
 import com.logie.wifecraft.play.Director
+import com.logie.wifecraft.play.Sounds
+import com.logie.wifecraft.ui.LocalSounds
 import com.logie.wifecraft.ui.CreatorScreen
 import com.logie.wifecraft.ui.EndingsPanel
 import com.logie.wifecraft.ui.GatherScreen
@@ -53,6 +56,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var settings: Settings
     private lateinit var saves: Saves
     private var scene: SceneView? = null
+    private var audio: Audio? = null
 
     enum class Screen { Title, Gather, Creator, Story }
     enum class Panel { None, Pause, Save, Load, Log, Options, Endings, Update }
@@ -68,21 +72,28 @@ class MainActivity : ComponentActivity() {
         content = Content(applicationContext)
         settings = Settings(applicationContext)
         saves = Saves(applicationContext)
+        audio = runCatching { Audio(applicationContext, files) }.getOrNull()?.apply {
+            musicVolume = settings.musicVolume / 100f
+            soundVolume = settings.soundVolume / 100f
+        }
         setContent { App() }
     }
 
     override fun onPause() {
         super.onPause()
         scene?.onPause()
+        audio?.pause()
     }
 
     override fun onResume() {
         super.onResume()
         scene?.onResume()
+        audio?.resume()
     }
 
     override fun onDestroy() {
         scene?.dispose()
+        audio?.release()
         super.onDestroy()
     }
 
@@ -101,11 +112,23 @@ class MainActivity : ComponentActivity() {
         var parchment by remember { mutableStateOf(settings.boxStyle == "parchment") }
         var textSpeed by remember { mutableIntStateOf(settings.textSpeed) }
         var wifiOnly by remember { mutableStateOf(settings.wifiOnly) }
+        var musicVolume by remember { mutableIntStateOf(settings.musicVolume) }
+        var soundVolume by remember { mutableIntStateOf(settings.soundVolume) }
         val progress by files.progress.collectAsState()
 
         // WoW's interface art, once its files are here (and again when downloads finish).
         LaunchedEffect(progress.complete.contains("interface")) {
             if (files.packComplete("interface")) art = withContext(Dispatchers.IO) { WowArt.load(files) }
+        }
+        // The music and sounds, once they're here; Dalaran's dawn under the title and menus.
+        LaunchedEffect(progress.complete.contains("sound")) {
+            if (files.packComplete("sound")) audio?.filesArrived()
+        }
+        LaunchedEffect(screen) {
+            if (screen != Screen.Story) {
+                audio?.music("dawn", 2000)
+                audio?.ambience("")
+            }
         }
         LaunchedEffect(Unit) {
             if (Updater.isConfigured) update = withContext(Dispatchers.IO) { runCatching { Updater.findUpdate() }.getOrNull() }
@@ -121,7 +144,7 @@ class MainActivity : ComponentActivity() {
         }
 
         fun startStory(build: (Director) -> Unit) {
-            val d = Director(content, settings, saves, sceneView()) {
+            val d = Director(content, settings, saves, sceneView(), audio ?: Sounds.None) {
                 director = null
                 screen = Screen.Title
                 saveList = saves.all()
@@ -141,12 +164,17 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        CompositionLocalProvider(LocalArt provides art) {
+        val story = files.packs.filter { it.name != "sound" }
+        val storyReady = story.all { p -> p.files.all { files.has(it.first) } }
+        val soundMissing = files.packs.filter { it.name == "sound" }
+            .sumOf { p -> p.files.filter { !files.has(it.first) }.sumOf { it.second } }
+        CompositionLocalProvider(LocalArt provides art, LocalSounds provides { name: String -> audio?.ui(name) }) {
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
                     Screen.Title -> TitleScreen(
-                        filesReady = files.allComplete,
+                        filesReady = storyReady,
                         downloadSize = "%.0f MB".format(files.totalBytes / 1e6),
+                        soundMissing = if (storyReady && soundMissing > 0) "%.0f MB".format(soundMissing / 1e6) else null,
                         hasSave = saveList.any { it != null },
                         updateTitle = update?.title,
                         onContinue = { saves.latest()?.let { s -> startStory { it.resume(s) } } },
@@ -159,7 +187,7 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.Gather -> GatherScreen(
                         progress = progress,
-                        packLabels = listOf("interface" to "WoW's interface", "people" to "Alleria, Nyrelle and you", "city" to "Dalaran", "props" to "The city's lamps, banners and stalls"),
+                        packLabels = listOf("interface" to "WoW's interface", "people" to "Alleria, Nyrelle and you", "city" to "Dalaran", "props" to "The city's lamps, banners and stalls", "sound" to "Music and sounds"),
                         wifiOnly = wifiOnly,
                         onWifiOnly = { wifiOnly = it; settings.wifiOnly = it },
                         onStart = { files.start(wifiOnly) },
@@ -176,7 +204,7 @@ class MainActivity : ComponentActivity() {
                         onBack = { screen = Screen.Title },
                     )
                     Screen.Story -> director?.let { d ->
-                        StoryScreen(sceneView(), d, parchment, frame, onMenu = { panel = Panel.Pause }, onLog = { panel = Panel.Log })
+                        StoryScreen(sceneView(), d, parchment, frame, onMenu = { audio?.ui("open"); panel = Panel.Pause }, onLog = { panel = Panel.Log })
                     }
                 }
 
@@ -186,7 +214,7 @@ class MainActivity : ComponentActivity() {
                     Panel.Pause -> if (d != null) PauseMenu(
                         chapter = d.runner.state.chapter,
                         bonds = Cast.bonds.map { (key, name, who) -> Triple(name, who, d.runner.affection(key)) },
-                        onResume = { panel = Panel.None },
+                        onResume = { audio?.ui("close"); panel = Panel.None },
                         onSave = { saveList = saves.all(); panel = Panel.Save },
                         onLoad = { saveList = saves.all(); panel = Panel.Load },
                         onLog = { panel = Panel.Log },
@@ -217,6 +245,8 @@ class MainActivity : ComponentActivity() {
                             textSpeed, { textSpeed = it; settings.textSpeed = if (it >= 120) 0 else it },
                             parchment, { parchment = it; settings.boxStyle = if (it) "parchment" else "dark" },
                             wifiOnly, { wifiOnly = it; settings.wifiOnly = it },
+                            musicVolume, { musicVolume = it; settings.musicVolume = it; audio?.musicVolume = it / 100f },
+                            soundVolume, { soundVolume = it; settings.soundVolume = it; audio?.soundVolume = it / 100f },
                             onBack = { panel = if (d != null) Panel.Pause else Panel.None },
                         )
                     }

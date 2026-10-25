@@ -35,6 +35,7 @@ class Director(
     private val settings: Settings,
     private val saves: Saves,
     private val scene: Stage,
+    private val sounds: Sounds = Sounds.None,
     private val onFinished: () -> Unit,
 ) {
     data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean) {
@@ -98,6 +99,7 @@ class Director(
         runner = StoryRunner(content.script, save.state) { playerName }
         startCity()
         for (c in runner.stageCommands()) stage(c, Clock.now(), instant = true)
+        sounds.music(save.state.music, 1500)
         fade = 1f; fadeFrom = 1f; fadeTo = 0f; fadeStart = Clock.now(); fadeMs = 900
     }
 
@@ -141,6 +143,7 @@ class Director(
     fun choose(option: Int) {
         if (choice == null) return
         choice = null
+        sounds.ui("click")
         runner.choose(option)
     }
 
@@ -200,11 +203,15 @@ class Director(
                 is Step.Stage -> stage(step.command, now, instant = false)
                 is Step.Pause -> pause(step.command, now)
                 is Step.Line -> say(step, now)
-                is Step.Choose -> choice = Choice(step.prompt, step.options)
+                is Step.Choose -> {
+                    choice = Choice(step.prompt, step.options)
+                    sounds.ui("gossip")
+                }
                 is Step.Ending -> {
                     settings.endings = settings.endings + step.id
                     settings.seen = seen
                     ending = step.id
+                    sounds.ui("ending")
                 }
                 Step.Finished -> {
                     settings.seen = seen
@@ -226,6 +233,7 @@ class Director(
             val anim = step.emote?.let { Emotes.byName[it] } ?: Emotes.TALK
             postAnim(step.who, anim, loop = false, now)
         }
+        step.emote?.let { voice(step.who, it) }
         revealed = 0
         line = Line(step.who, name, step.text, step.index, now, step.index.toString() in seen)
     }
@@ -259,6 +267,7 @@ class Director(
                 placeName = place.name
                 val light = Lights.of(c.light)
                 scene.light(light)
+                sounds.ambience(if (c.light == "night") "night" else "day")
                 place.views.values.firstOrNull()?.let { cut(it) }
                 if (!instant) save(0)
             }
@@ -286,7 +295,10 @@ class Director(
             is Command.Face -> actors[c.who]?.let { it.facing = facingToward(it, c.target) }
             is Command.Emote -> if (!instant) {
                 Emotes.byName[c.emote]?.let { postAnim(c.who, it, c.loop, now) }
+                voice(c.who, c.emote)
             }
+            is Command.Music -> sounds.music(if (c.name == "off") "" else c.name, if (instant) 1500 else c.fadeMs)
+            is Command.Sound -> if (!instant) sounds.effect(c.name)
             is Command.Shot -> {
                 val pose = shot(c) ?: return
                 if (instant || c.ms <= 0) cut(pose) else {
@@ -305,6 +317,15 @@ class Director(
         val a = Actor(who, pos, 0f)
         if (look != null) scene.addActor(who, look)
         return a
+    }
+
+    /** The speaker's voice for an emote (the saber has her own sounds). */
+    private fun voice(who: String, emote: String) {
+        if (who == "saber") {
+            if (emote == "roar") sounds.effect("saber_roar")
+            return
+        }
+        Cast.person(who, settings.playerLook, playerName)?.let { sounds.voice(it.look, emote) }
     }
 
     private fun postAnim(who: String, anim: Int, loop: Boolean, now: Int) {

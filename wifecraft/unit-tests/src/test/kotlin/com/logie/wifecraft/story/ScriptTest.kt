@@ -55,6 +55,22 @@ class ScriptTest {
     }
 
     @Test
+    fun readsMusicAndSounds() {
+        val c = Script.parse("music alleria 2000\nmusic off\nmusic dawn\nsound saber_roar").commands
+        assertEquals(Command.Music("alleria", 2000, 1), c[0])
+        assertEquals(Command.Music("off", 1500, 2), c[1])
+        assertEquals(Command.Music("dawn", 1500, 3), c[2])
+        assertEquals(Command.Sound("saber_roar", 4), c[3])
+        // The runner remembers the music playing (for saves), and "off" is none.
+        val state = StoryState()
+        val r = StoryRunner(Script(c), state)
+        r.next(); assertEquals("alleria", state.music)
+        r.next(); assertEquals("", state.music)
+        r.next(); assertEquals("dawn", state.music)
+        assertIs<Step.Stage>(r.next())
+    }
+
+    @Test
     fun refusesJumpsToNowhere() {
         val e = assertFailsWith<ScriptException> { Script.parse("goto nowhere") }
         assertTrue("nowhere" in e.message!!)

@@ -33,6 +33,8 @@ import com.logie.wifecraft.R
 fun TitleScreen(
     filesReady: Boolean,
     downloadSize: String,
+    /** The music and sounds' size when they aren't fetched yet (the story plays silent without). */
+    soundMissing: String?,
     hasSave: Boolean,
     updateTitle: String?,
     onContinue: () -> Unit,
@@ -85,6 +87,13 @@ fun TitleScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 WowButton("Options", onOptions, width = 112.dp, height = 40.dp)
                 WowButton("Updates", onUpdates, width = 112.dp, height = 40.dp)
+            }
+            if (soundMissing != null) {
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    WowButton("Get Music", onGather, width = 112.dp, height = 40.dp)
+                    Text("WoW's music and sounds ($soundMissing)", style = frizStyle(12.sp, Color.White))
+                }
             }
             Spacer(Modifier.weight(1f))
             Text("Version ${BuildConfig.VERSION_NAME}", style = frizStyle(11.sp))

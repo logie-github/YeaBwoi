@@ -127,11 +127,20 @@ fun OptionsPanel(
     textSpeed: Int, onTextSpeed: (Int) -> Unit,
     parchment: Boolean, onParchment: (Boolean) -> Unit,
     wifiOnly: Boolean, onWifiOnly: (Boolean) -> Unit,
+    musicVolume: Int, onMusicVolume: (Int) -> Unit,
+    soundVolume: Int, onSoundVolume: (Int) -> Unit,
     onBack: () -> Unit,
 ) {
+    val gold = SliderDefaults.colors(thumbColor = WowColors.gold, activeTrackColor = WowColors.gold, inactiveTrackColor = Color(0xFF3A3020))
     MetalPanel(Modifier.width(520.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("Options", style = frizStyle(16.sp), modifier = Modifier.align(Alignment.CenterHorizontally))
+            for ((label, value, set) in listOf(Triple("Music", musicVolume, onMusicVolume), Triple("Sounds", soundVolume, onSoundVolume))) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("$label: ${if (value == 0) "off" else "$value%"}", style = frizStyle(13.sp, Color.White), modifier = Modifier.width(110.dp))
+                    Slider(value.toFloat(), { set(it.toInt()) }, valueRange = 0f..100f, colors = gold, modifier = Modifier.height(32.dp))
+                }
+            }
             Text("Text speed: " + if (textSpeed >= 120) "at once" else "$textSpeed letters a second", style = frizStyle(13.sp, Color.White))
             Slider(
                 textSpeed.toFloat(), { onTextSpeed(it.toInt()) }, valueRange = 15f..120f,

@@ -51,6 +51,9 @@ object WowColors {
 
 val LocalArt = staticCompositionLocalOf<WowArt?> { null }
 
+/** Plays one of the interface's sounds by name (click, open, close...); silent until set. */
+val LocalSounds = staticCompositionLocalOf<(String) -> Unit> { {} }
+
 @Composable
 fun frizStyle(size: TextUnit, color: Color = WowColors.gold, shadow: Boolean = true): TextStyle {
     val art = LocalArt.current
@@ -86,6 +89,7 @@ fun WowButton(
     width: Dp = 200.dp,
     height: Dp = 44.dp,
 ) {
+    val click = LocalSounds.current
     val art = LocalArt.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
@@ -98,7 +102,7 @@ fun WowButton(
         modifier
             .width(width)
             .height(height)
-            .clickable(source, null, enabled = enabled, role = Role.Button, onClick = onClick)
+            .clickable(source, null, enabled = enabled, role = Role.Button, onClick = { click("click"); onClick() })
             .drawBehind {
                 if (pieces?.left == null || pieces.center == null || pieces.right == null) {
                     drawRect(if (enabled) Color(0xFF7A0E0A) else Color(0xFF3A3A3A))

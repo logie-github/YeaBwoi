@@ -16,6 +16,7 @@ class DemoStoryTest {
     private val script = Script.parse(File(assets, "story/demo.wfs").readText())
     private val places = JSONObject(File(assets, "places.json").readText()).getJSONObject("places")
     private val looks = JSONObject(File(assets, "looks.json").readText())
+    private val sounds = JSONObject(File(assets, "sounds.json").readText())
 
     private val people = setOf("alleria", "nyrelle", "saber", "you")
     private val speakers = people + "narrator"
@@ -74,6 +75,8 @@ class DemoStoryTest {
                                 assertTrue(c.emote in emotes, "$at: no emote ${c.emote}")
                             }
                             is Command.Remove -> cast -= c.who
+                            is Command.Music -> assertTrue(c.name == "off" || sounds.getJSONObject("music").has(c.name), "$at: no music ${c.name}")
+                            is Command.Sound -> assertTrue(sounds.getJSONObject("effects").has(c.name), "$at: no sound ${c.name}")
                             is Command.Shot -> when (c.kind) {
                                 "view" -> assertTrue(views(place).has(c.args.single()), "$at: no view ${c.args} in $place")
                                 "bust" -> assertTrue(c.args.single() in cast, "$at: ${c.args} isn't on stage")
@@ -122,6 +125,19 @@ class DemoStoryTest {
             val l = looks.getJSONObject(key)
             assertTrue(l.getInt("model") > 0, key)
         }
+    }
+
+    @Test
+    fun everySceneHasMusic() {
+        // Each scene's first commands start its music (or keep the one playing, which the save remembers).
+        val state = StoryState()
+        val r = StoryRunner(script, state) { "Tester" }
+        while (true) {
+            val step = r.next()
+            if (step is Step.Line) break
+            if (step is Step.Finished) fail("no line")
+        }
+        assertTrue(state.music.isNotEmpty(), "the story starts silent")
     }
 
     private fun marks(place: String) = places.getJSONObject(place).getJSONObject("marks")

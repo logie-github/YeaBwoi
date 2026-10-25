@@ -13,6 +13,8 @@ data class StoryState(
     val stage: MutableList<Int> = mutableListOf(),
     val log: MutableList<LogEntry> = mutableListOf(),
     var chapter: String = "",
+    /** The music playing ("" for none), to start again when a save is loaded. */
+    var music: String = "",
     var ending: String? = null,
 )
 
@@ -64,7 +66,11 @@ class StoryRunner(val script: Script, val state: StoryState, private val playerN
                     state.stage += at
                     return Step.Stage(c)
                 }
-                is Command.Shake -> return Step.Stage(c)
+                is Command.Shake, is Command.Sound -> return Step.Stage(c)
+                is Command.Music -> {
+                    state.music = if (c.name == "off") "" else c.name
+                    return Step.Stage(c)
+                }
                 is Command.Fade, is Command.Wait -> return Step.Pause(c)
                 is Command.Title -> {
                     state.chapter = listOf(c.heading, c.sub).filter { it.isNotEmpty() }.joinToString(" · ")
