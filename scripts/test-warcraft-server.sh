@@ -448,6 +448,13 @@ EOF
 		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
 	done
 	echo "The Worgen start in Shadowglen and the Goblins in the Valley of Trials, with their racials and their side's language."
+	# The two go again: a realm keeps ten characters an account, and Wrath Remix's way home (below)
+	# needs room on ChromieCraft for the Timerunners it brings back (1.0.330's run had no room).
+	for name in Worgtester Gobtester; do
+		echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = '$name'" | CTL sql acore_characters
+	done
+	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Worgtester', 'Gobtester')" | CTL sql acore_characters)" = 0 ] ||
+		fail "the Worgen and Goblin test characters are still there"
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
