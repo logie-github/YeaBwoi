@@ -434,10 +434,15 @@ EOF
 		echo "$name at $at, $place's start $start"
 		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
 	done
-	for who in Worgtester:68975,68976,68978,68992:4 Gobtester:69041,69042,69044,69045,69046,69070:6; do
-		name=${who%%:*} rest=${who#*:} spells=${rest%%:*} count=${rest#*:}
-		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
-		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
+	# Their racials are a racial skill's (789 the Worgen's, 790 the Goblins'), as the game's own races'
+	# are: the core teaches its spells at every login and keeps them out of character_spell, so the
+	# skill is checked, and its spells given to the race in the world's tables.
+	for who in Worgtester:789:2048:68975,68976,68978,68992:4 Gobtester:790:256:69041,69042,69044,69045,69046,69070:6; do
+		name=${who%%:*} rest=${who#*:} skill=${rest%%:*} rest=${rest#*:} bit=${rest%%:*} rest=${rest#*:} spells=${rest%%:*} count=${rest#*:}
+		knows=$(echo "SELECT COUNT(*) FROM character_skills s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.skill = $skill" | CTL sql acore_characters)
+		[ "$knows" = 1 ] || fail "$name hasn't its racial skill ($skill)"
+		given=$(echo "SELECT COUNT(DISTINCT Spell) FROM skilllineability_dbc WHERE SkillLine = $skill AND Spell IN ($spells) AND RaceMask & $bit" | CTL sql acore_world)
+		[ "$given" = "$count" ] || fail "$name's racial skill gives $given of its $count racials"
 	done
 	for who in Worgtester:98 Gobtester:109; do
 		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
