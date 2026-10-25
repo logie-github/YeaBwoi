@@ -63,6 +63,28 @@ next launch uses Direct3D 11, then OpenGL. The client's language is English (US)
 phone. The realm's ports are its own (database 3312, Battle.net 1119, its REST login 8081, world
 8095 and 8096): it runs beside the other games' realms.
 
+**Game options** (a tile): small changes to the game, each a switch, more than an add-on can do and
+much less than a module. They're settings of the realm's (`App.*` in `files/felsong/etc/worldserver.conf`,
+read by the app's patch of LegionCore), written at every start, so a switch takes effect at the
+realm's next start; your client's files don't change.
+
+- **Unlock allied races:** Nightborne, Highmountain Tauren, Void Elves and Lightforged Draenei at
+  character creation from the start, with no reputation or quest first.
+- **Unlock all classes:** death knights and demon hunters from the start, with no character of 55
+  (or 70) on the account first.
+- **No underwear:** the realm sends the game its character table's underwear rows without their
+  textures (as hotfixes), so the skin shows where nothing is worn. Switching it clears the game's
+  cache of such rows (`client/Cache`) at the realm's next start.
+
+**Add-ons** (a tile): the same add-on manager as the other games', from
+[warperia.com's Legion 7.3.5 list](https://warperia.com/legion-addons/), or zips on the phone, into
+Legion's client (`Interface/AddOns`). The game loads add-ons whatever version they say they're for.
+
+**On the Galaxy Z Fold 8:** the game runs at up to 60 frames a second (5 behind other apps). Its
+first start uses Legion's "Fair" preset in the world (3), the lowest in raids, no anti-aliasing,
+full render scale and no vsync; what you change in the game's options stays. The warning about
+the graphics API (Direct3D 9) isn't shown: the client's configuration warnings are marked seen.
+
 **Apart from the other games.** Only one Windows game screen is open at a time; otherwise nothing
 of Legion touches the other games' files, realms or accounts, and theirs don't touch Legion's.
 

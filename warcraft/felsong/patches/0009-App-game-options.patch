@@ -1,0 +1,117 @@
+From 92aaa1497c5eedfd70ca1e5bcf2c1bc0b3672b89 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 00:23:36 +0000
+Subject: [PATCH] App: game options (App.UnlockAllClasses,
+ App.UnlockAlliedRaces, App.NoUnderwear)
+
+---
+ src/server/game/DataStores/DB2Stores.cpp      | 23 +++++++++++++++++++
+ src/server/game/DataStores/DB2Stores.h        |  1 +
+ src/server/game/Handlers/CharacterHandler.cpp | 20 +++++++++++++---
+ 3 files changed, 41 insertions(+), 3 deletions(-)
+
+diff --git a/src/server/game/DataStores/DB2Stores.cpp b/src/server/game/DataStores/DB2Stores.cpp
+index f2e47ec..b8b6424 100644
+--- a/src/server/game/DataStores/DB2Stores.cpp
++++ b/src/server/game/DataStores/DB2Stores.cpp
+@@ -22,6 +22,7 @@
+ #include "DB2LoadInfo.h"
+ #include "DatabaseEnv.h"
+ #include "ObjectMgr.h"
++#include "Config.h"
+ 
+ DB2Storage<AchievementEntry>                    sAchievementStore("Achievement.db2", AchievementLoadInfo::Instance());
+ DB2Storage<Achievement_CategoryEntry>           sAchievement_CategoryStore("Achievement_Category.db2", Achievement_CategoryLoadInfo::Instance());
+@@ -2456,6 +2457,28 @@ void DB2Manager::LoadHotfixData()
+                 store->EraseRecord(deletedRecord.first.second);
+ 
+     TC_LOG_INFO("server.loading", ">> Loaded %u hotfix records in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
++    LoadAppHotfixes();
++}
++
++// The app's game options that change the game's tables (worldserver.conf, App.*), sent to the client
++// as hotfixes of their rows: App.NoUnderwear, the underwear sections of CharSections with no
++// texture, so a character's skin shows where nothing is worn.
++void DB2Manager::LoadAppHotfixes()
++{
++    if (!sConfigMgr->GetBoolDefault("App.NoUnderwear", false))
++        return;
++    uint32 count = 0;
++    for (CharSectionsEntry const* entry : sCharSectionsStore)
++    {
++        if (entry->BaseSection != uint8(CharBaseSectionVariation::Underwear))
++            continue;
++        CharSectionsEntry* row = const_cast<CharSectionsEntry*>(entry);
++        for (int32& material : row->MaterialResourcesID)
++            material = 0;
++        InsertNewHotfix(sCharSectionsStore.GetTableHash(), entry->ID);
++        ++count;
++    }
++    TC_LOG_INFO("server.loading", ">> App.NoUnderwear: %u underwear sections without their textures", count);
+ }
+ 
+ void DB2Manager::InsertNewHotfix(uint32 tableHash, uint32 recordId)
+diff --git a/src/server/game/DataStores/DB2Stores.h b/src/server/game/DataStores/DB2Stores.h
+index 5966f70..edfa9a5 100644
+--- a/src/server/game/DataStores/DB2Stores.h
++++ b/src/server/game/DataStores/DB2Stores.h
+@@ -411,6 +411,7 @@ public:
+     void LoadingExtraHotfixData();
+ 
+     void LoadHotfixData();
++    void LoadAppHotfixes();
+     static std::map<uint64, int32> const& GetHotfixData();
+ 
+     std::vector<uint32> GetAreasForGroup(uint32 areaGroupId);
+diff --git a/src/server/game/Handlers/CharacterHandler.cpp b/src/server/game/Handlers/CharacterHandler.cpp
+index 002a796..3c9fc72 100644
+--- a/src/server/game/Handlers/CharacterHandler.cpp
++++ b/src/server/game/Handlers/CharacterHandler.cpp
+@@ -47,6 +47,7 @@
+ #include "SocialMgr.h"
+ #include "SystemPackets.h"
+ #include "WorldStateMgr.h"
++#include "Config.h"
+ 
+ void WorldSession::HandleCharEnum(PreparedQueryResult result, bool isDeleted)
+ {
+@@ -112,12 +113,25 @@ void WorldSession::HandleCharEnum(PreparedQueryResult result, bool isDeleted)
+     charEnum.IsDemonHunterCreationAllowed = GetAccountExpansion() >= EXPANSION_LEGION || canAlwaysCreateDemonHunter;
+     charEnum.IsAlliedRacesCreationAllowed = GetAccountExpansion() >= EXPANSION_LEGION;
+ 
++    // The app's game options (worldserver.conf, App.*): every class from the start (the client asks
++    // for a character of 55 before a death knight, of 70 before a demon hunter), and the allied
++    // races with no reputation or quest (their achievements and expansion taken as had).
++    bool unlockAlliedRaces = sConfigMgr->GetBoolDefault("App.UnlockAlliedRaces", false);
++    if (sConfigMgr->GetBoolDefault("App.UnlockAllClasses", false))
++    {
++        charEnum.MaxCharacterLevel = std::max<int32>(charEnum.MaxCharacterLevel, MAX_LEVEL);
++        charEnum.IsDemonHunterCreationAllowed = true;
++        charEnum.HasDemonHunterOnRealm = false;
++    }
++    if (unlockAlliedRaces)
++        charEnum.IsAlliedRacesCreationAllowed = true;
++
+     for (auto const& requirement : sObjectMgr->GetRaceUnlockRequirements())
+     {
+         WorldPackets::Character::EnumCharactersResult::RaceUnlock raceUnlock;
+         raceUnlock.RaceID = requirement.first;
+-        raceUnlock.HasExpansion = GetAccountExpansion() >= requirement.second.Expansion;
+-        raceUnlock.HasAchievement = requirement.second.AchievementId == 0 || HasAchievement(requirement.second.AchievementId);
++        raceUnlock.HasExpansion = unlockAlliedRaces || GetAccountExpansion() >= requirement.second.Expansion;
++        raceUnlock.HasAchievement = unlockAlliedRaces || requirement.second.AchievementId == 0 || HasAchievement(requirement.second.AchievementId);
+         raceUnlock.HasHeritageArmor = true;
+         charEnum.RaceUnlockData.push_back(raceUnlock);
+     }
+@@ -240,7 +254,7 @@ void WorldSession::HandleCharCreateOpcode(WorldPackets::Character::CreateChar& c
+         return;
+     }
+ 
+-    if (raceExpansionRequirement->Expansion > GetAccountExpansion())
++    if (raceExpansionRequirement->Expansion > GetAccountExpansion() && !sConfigMgr->GetBoolDefault("App.UnlockAlliedRaces", false))
+     {
+         SendCharCreate(CHAR_CREATE_EXPANSION);
+         return;
+-- 
+2.43.0
+

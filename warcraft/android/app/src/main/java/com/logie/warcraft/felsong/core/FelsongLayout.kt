@@ -50,6 +50,9 @@ class FelsongLayout(val files: File, val dataDir: File = files.parentFile ?: fil
     val patcherHome = root
     val certBundle = File(root, CERT_BUNDLE_IN_HOME)
 
+    /** What came from warperia.com's add-ons (the add-on manager's records). */
+    val addonRecords = File(root, "addons/warperia.tsv")
+
     /** Downloads in progress, kept between tries (`*.part`). */
     val downloads = File(root, "downloads")
 

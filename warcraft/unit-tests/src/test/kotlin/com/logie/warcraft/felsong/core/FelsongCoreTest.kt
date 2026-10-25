@@ -150,6 +150,11 @@ class FelsongClientTest {
         // (the graphics API kept by the client only with videoOptionsVersion 15)
         assertEquals("D3D9", values["gxApi"])
         assertEquals("15", values["videoOptionsVersion"])
+        assertEquals("65535", values["seenConfigurationWarnings"])
+        assertEquals("60", values["maxFPS"])
+        // (the first start's graphics only where the game has none of its own)
+        assertEquals("3", FelsongClientSetup.firstStart("SET portal \"x\"\r\n")["graphicsQuality"])
+        assertNull(FelsongClientSetup.firstStart("SET graphicsQuality \"7\"\r\n")["graphicsQuality"])
         assertEquals("OpenGL", FelsongClientSetup.values(1600, 720, null, "OpenGL")["gxApi"])
         val dir = createTempDirectory("client").toFile()
         try {

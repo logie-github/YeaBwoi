@@ -47,7 +47,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.MusicNote
@@ -82,6 +84,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.semantics.contentDescription
@@ -224,7 +227,7 @@ fun FelsongHomeRoute(onSwitchGame: () -> Unit) {
 }
 
 /** The screens: the tiles' (as the other launchers'), and the ones the server's opens. */
-enum class FelsongDialogKind { STEPS, SERVER, FILES, ACCOUNTS, GRAPHICS, OPTIONS, ICON, REPAIR, UNINSTALL }
+enum class FelsongDialogKind { STEPS, SERVER, FILES, ACCOUNTS, GRAPHICS, OPTIONS, GAME_OPTIONS, ADDONS, ICON, REPAIR, UNINSTALL }
 
 /** Where a job's progress and outcome show: the client, the data and the patch under Game files, the rest under Server. */
 fun dialogFor(kind: FelsongJobs.Kind): FelsongDialogKind = when (kind) {
@@ -348,6 +351,9 @@ private fun FelsongHomeScreen(
                     Tile(Icons.Default.People, stringResource(R.string.wow_tile_accounts), facts.savedAccount ?: stringResource(R.string.felsong_tile_accounts_summary)) { onDialog(FelsongDialogKind.ACCOUNTS) },
                     Tile(Icons.Default.Tune, stringResource(R.string.wow_tile_graphics), graphicsSummary(context)) { onDialog(FelsongDialogKind.GRAPHICS) },
                     Tile(Icons.Default.Tune, stringResource(R.string.felsong_tile_options), stringResource(R.string.felsong_tile_options_summary, xp, stringResource(if (solo) R.string.felsong_on else R.string.felsong_off))) { onDialog(FelsongDialogKind.OPTIONS) },
+                    Tile(Icons.Default.Checklist, stringResource(R.string.felsong_tile_game_options),
+                        FelsongSettings.options(context).size.let { on -> if (on == 0) stringResource(R.string.felsong_tile_game_options_none) else pluralStringResource(R.plurals.felsong_tile_game_options_on, on, on) }) { onDialog(FelsongDialogKind.GAME_OPTIONS) },
+                    Tile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), felsongAddonsSummary(context, facts)) { onDialog(FelsongDialogKind.ADDONS) },
                     Tile(Icons.Default.Palette, stringResource(R.string.wow_tile_icon), stringResource(AppIcons.current(context).label)) { onDialog(FelsongDialogKind.ICON) },
                     Tile(Icons.Default.SystemUpdate, stringResource(R.string.wow_tile_updates), stringResource(R.string.wow_tile_updates_summary, BuildConfig.VERSION_NAME)) { WowUpdateActivity.launch(context) },
                     Tile(Icons.Default.SwapHoriz, stringResource(R.string.games_tile), stringResource(R.string.games_tile_felsong_summary)) { onSwitchGame() },

@@ -23,10 +23,11 @@ object Warperia {
     const val LIST = "$SITE/wotlk-addons/"
     const val AJAX = "$SITE/wp-admin/admin-ajax.php"
 
-    /** The site's sections, each with its list and its add-ons' pages: 3.3.5a's, and 1.12's (Turtle WoW's client). */
+    /** The site's sections, each with its list and its add-ons' pages: 3.3.5a's, 1.12's (Turtle WoW's client) and 7.3.5's (Legion's). */
     enum class Flavor(val list: String, val type: String) {
         WOTLK("$SITE/wotlk-addons/", "addon-wotlk"),
         VANILLA("$SITE/vanilla-addons/", "addon-vanilla"),
+        LEGION("$SITE/legion-addons/", "addon-legion"),
     }
 
     /** The list's orders, as the site names them. */
