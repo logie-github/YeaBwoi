@@ -12,6 +12,7 @@ self-updating from this repository's GitHub releases.
 | `parasiteeve/` | Parasite Eve | `com.logie.pe` | Beetle PSX HW core + LibretroDroid |
 | `warcraft/` | World of Warcraft 3.3.5a: ChromieCraft and Wrath Remix realms, the game on Winlator | `com.logie.warcraft` | AzerothCore/ChromieCraft + playerbots (musl arm64), `mod-wrath-remix`, Winlator |
 | `warcrafts/` | Warcraft (on the phone): Warcraft I and II (GOG) native, Warcraft III RoC/TFT 1.30, offline | `com.logie.warcrafts` | Stratagus + War1gus/Wargus (arm64), innoextract for GOG's installers; Winlator (the WoW app's commit) for WC3 |
+| `wifecraft/` | Wifecraft: a Warcraft dating sim (visual novel), designed, not built yet | `com.logie.wifecraft` | Its own renderer for the game's models and world (OpenGL ES), the game's files fetched from wago.tools on the phone |
 
 - **How the apps are made, tested and released:** `docs/single-game-apps.md`. Read it before
   building or changing an app.
@@ -66,3 +67,14 @@ DOSBox and wants them Android-native), and Warcraft III (Reign of Chaos and The 
 on Winlator, offline (Blizzard's names blocked in the runtime's hosts file), with the touch gestures
 the user chose. The brief: `warcrafts/PLAN.md`; the manual: `warcrafts/README.md`. Its Winlator
 comes from `scripts/prepare-winlator-app.sh warcrafts` (the WoW app keeps its own script).
+
+## Wifecraft
+
+A separate app (`wifecraft/`, `com.logie.wifecraft`): a dating sim laid out like a visual novel
+(a speaker from the waist up, a text box with a name tab, choices), with the game's newer models
+in the plain WoW look, their emotes as expressions, and the live 3D world behind them (the demo:
+Broken Isles Dalaran; Alleria Windrunner and an original Nightborne, Nyrelle Moonquill; affection
+and five endings). Its menus are its own; the game's files are fetched from wago.tools on the
+phone, never committed, built in or fetched by CI. The brief, the screens and the stages:
+`wifecraft/PLAN.md` (the mockups: https://claude.ai/artifact/B2i9Zi7R6hmyCJ8pNTjNVn). Designed only:
+nothing is built yet.
