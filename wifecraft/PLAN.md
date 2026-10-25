@@ -27,6 +27,9 @@ this is the design. The screens' mockups are on a canvas
     (race left to us: "Surprise me" → a Nightborne).
 - "Design a completely new app called Wifecraft", package `com.logie.wifecraft` (asked: the
   repository's form, not `logie.com.wifecraft`). "Create original menus etc or reuse assets."
+- On the first mockups (menus of our own): "Umm for the screens I wanted you to reuse the wow ui".
+  Asked, the user chose **the current WoW interface** (today's game files on wago.tools, the same
+  source as the models) and **affection as WoW reputation** (Neutral to Exalted) instead of hearts.
 
 ## Decided
 
@@ -34,18 +37,28 @@ this is the design. The screens' mockups are on a canvas
   `Wifecraft 1.0.N`, tag `wifecraft-N`. Kotlin and Compose like the libretro apps (way B in
   `docs/single-game-apps.md`, `parasiteeve/` as the template for the shell: title screen, settings,
   updater, unit tests, CI), with no emulator: its engine is its own.
-- **Menus are original**, made for Wifecraft, not the game's interface art: the menus are there
-  before anything is downloaded (the first launch), and they give the app a look of its own. The
-  game's assets are used for what's inside the scene: the world, the people, their looks, emotes
-  and the world's light.
-- **The look** (the canvas): Dalaran at night. Ground `#1B1431`, panels `#221A3D`, gold trim
-  `#E9C873` (bright `#F6E2A6`), violet lines `#6E5A9E`, cream text `#F2E8D5`, rose for affection
-  `#E07A96`. Cinzel for the logo, names and buttons; Alegreya Sans for the story's words (both SIL
-  OFL, already licensed in `warcraft/fonts/`). Square-cornered panels with a 1 px gold or violet
-  line; gold diamonds at the text box's corners. The text box is night (dark, translucent) by
-  default, parchment (light) as a setting.
-- **The sigil and icon**: a heart inside a dashed rune ring inside a gold diamond (the canvas's
-  title screen), unless the user sends art.
+- **The menus are WoW's own interface**, the current game's (the canvas): its textures, drawn
+  by Compose from the game's files, which the app fetches like the rest (never bundled). Each screen
+  is a WoW window:
+
+  | Screen | WoW's | Files (file id; atlas member from `UiTextureAtlasMember`) |
+  | --- | --- | --- |
+  | Title, Gathering Dalaran | The login and loading screens | Loading art `loadscreen_camelot_dalaran.blp` (7963775) as the first launch's backdrop; loading bar `loading-barborder.blp` (131811), `loading-barfill.blp` (131812) |
+  | Every button | The red panel button | `128redbutton.blp` (1536801): `128-redbutton-left`, `_128-redbutton-center`, `128-redbutton-right` (and their `-disabled`, `-pressed`) |
+  | Panels (menu, character, saves) | The metal window frame | `ui-frame-diamondmetal-*` corners and edges (3056750, 3056755) over `ui-background-rock.blp` (374155) |
+  | Dialogue | Legion's talking head | `talkingheads.blp` (1111217): `talkingheads-textbackground` (dark, default), `talkingheads-neutral-textbackground` (parchment), `-portraitframe`, `-portraitbg` |
+  | Choice | The gossip window | `questbg-parchment` (3813080) inside the metal frame; `gossipgossipicon.blp` (132053) before each choice |
+  | Bonds | The reputation pane | `ui-frame-bar-*` border, background and `-fill-green/-yellow/-blue` (2139076) |
+  | An ending | The achievement toast | `ui-achievement-alert-background`, `ui-achievement-iconframe` (4035524) |
+  | Text | The game's fonts | Friz Quadrata `fonts/frizqt__.ttf` (615960), Morpheus `fonts/morpheus.ttf` (615962) for titles |
+
+  Colours are the game's: gold `#FFD100` for names and buttons, white words with a 1 px black
+  shadow, dark brown on parchment. The files are fetched first on the first launch (a few MB) so the
+  menus are WoW's from the start; until they're in, the Gathering screen alone draws plainly.
+  Atlas pieces are cut by `UiTextureAtlasMember` (CommittedLeft/Right/Top/Bottom) from wago.tools'
+  table export; 2x pieces are drawn at half size. The game's newer textures are mostly
+  uncompressed BLP2 (encoding 3, BGRA), the rest DXT: the app decodes both.
+- **The title**: "Wifecraft" in Morpheus, gold, over Dalaran; "A Dalaran Romance" in Friz.
 - **Game files from wago.tools**, on the phone. Nothing from the game goes into the repository,
   the APK or CI (`docs/single-game-apps.md`): on first launch the app fetches the files the demo
   needs by file id (`https://wago.tools/api/casc/<id>?download`, as
@@ -57,18 +70,20 @@ this is the design. The screens' mockups are on a canvas
   buildings, ADT terrain, BLP textures) on the phone, in native code (OpenGL ES 3), so nothing has
   to be converted to glTF and nothing converted is ever published.
 - **The screen** (like the user's screenshot): the live scene fills it; the speaker is framed from
-  the waist up in the middle (two speakers: left and right); the text box sits low with the name in
-  a tab on its top left; the words appear a few at a time; a gold arrow shows when a line is done.
+  the waist up in the middle (two speakers: left and right); the talking-head box sits low with the
+  name in gold at its top; the words appear a few at a time; a gold arrow shows when a line is done.
   No buttons on screen: gestures.
 - **Expressions are emotes**: each line can name one (talk, exclamation, question, laugh, cry, shy,
   kiss, wave, bow, point, cheer, yes, no, and the standing idle in between). Which ones each model
   has is checked per model (stage 4); a missing one falls back to talk.
-- **Affection**: one number per route, 0 to 100, changed by choices; shown as five hearts in the
-  pause menu's Bonds (20 a heart) with a line on how that character sees the player. The choices
-  themselves don't show numbers.
-- **Endings** (five in the demo): for each route a romance ending (60 or more on that route at the
-  end) and a friendship ending (30 to 59), and one ending alone (neither). An ending, once seen, is
-  listed in the title screen's Endings.
+- **Affection is reputation**: one number per route, 0 to 100, changed by choices, shown as WoW's
+  reputation bar and standing in the pause menu's Reputation pane: Neutral 0–19, Friendly 20–39,
+  Honored 40–59, Revered 60–79, Exalted 80–100, with a line on how that character sees the player.
+  The choices themselves don't show numbers.
+- **Endings** (five in the demo): for each route a romance ending (Revered or higher on that route
+  at the end) and a friendship ending (Friendly or Honored), and one ending alone (Neutral with
+  both). An ending is shown as an achievement toast ("Ending Unlocked") and, once seen, listed in
+  the title screen's Endings.
 - **Saves**: an autosave at every scene, six slots, each with a still of the scene, the chapter,
   the place and the time (`files/saves/`, JSON plus a PNG, written atomically).
 - **Original character**: Nyrelle Moonquill, a Nightborne arcanist, new to the world outside
@@ -77,19 +92,24 @@ this is the design. The screens' mockups are on a canvas
 
 ## The screens (the canvas)
 
-1. **Title**: live Dalaran behind, the sigil and WIFECRAFT, "A Dalaran Romance", `[ tap to begin ]`;
-   Continue, New story, Load, Endings, Settings, Updates.
-2. **First launch: Gathering Dalaran**: what is being fetched (the city, Alleria, Nyrelle, the
-   player's looks, emotes and light), progress, Pause, Wi-Fi only, and "Use files from my own
-   client instead". The story can start once the first scene's files are in.
+1. **Title** (WoW's login screen): live Dalaran behind, "Wifecraft"; Continue and New Story
+   centred low, Load, Endings, Options, Updates at the bottom right, the version bottom left.
+2. **First launch: Gathering Dalaran** (a loading screen): the Dalaran loading art, WoW's loading
+   bar, what is being fetched (the interface first, then the city, Alleria, Nyrelle, the player's
+   looks, emotes and light), Pause, Wi-Fi only, and "Use my own client's files". The story can
+   start once the first scene's files are in.
 3. **Your character**: the player's model turning in the Legerdemain Lounge (swipe to turn, pinch
-   to zoom); name, race, body, skin, face, hair, hair colour, outfit; "Arrive in Dalaran".
-4. **Dialogue**: the screenshot's layout over the live scene.
-5. **Choice**: the scene dimmed, two to four choices.
-6. **Pause and Bonds**: Resume, Save, Load, What was said (the log), Settings, Title screen; each
-   route's hearts.
-7. **Save and load**: six slots and the autosave.
-8. **An ending**: its name, "Ending N of 5", Credits, Endings found, Title screen.
+   to zoom), a metal-framed panel: name, race, body, skin, face, hair, hair colour, outfit;
+   "Arrive in Dalaran".
+4. **Dialogue**: the screenshot's layout over the live scene, the words in Legion's talking-head
+   box (dark, or parchment as a setting), the name in gold.
+5. **Choice**: the scene dimmed, a gossip window: the question, two to four choices with the
+   gossip icon.
+6. **Pause and Reputation**: the Game Menu (Resume, Save, Load, What Was Said, Options, Title
+   Screen) beside the Reputation pane (each route's portrait, bar and standing).
+7. **Save and load**: six slots and the autosave in a metal frame; Save, Load, Delete, Back.
+8. **An ending**: the achievement toast ("Ending Unlocked", its name, "1/5"); Credits, Endings,
+   Title Screen.
 
 Settings (not drawn): text speed, auto speed, text box style and opacity, vibration, graphics
 (resolution scale, view distance, shadows).
@@ -169,7 +189,7 @@ more routes and places.
 
 - The gestures above.
 - Nyrelle's name and sex; the endings' names (ours, to change freely).
-- Art: the user's (as for the other apps) or the canvas's sigil.
+- Art: an app icon (the user's, as for the other apps, or one made from the game's art).
 - Alleria's exact look (which of her creature displays) and every file id: from wago.tools' tables
   in stage 0, not guessed.
 - How big the first download is: unknown until the demo's file list exists.
