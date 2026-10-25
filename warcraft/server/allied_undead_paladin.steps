@@ -6,7 +6,7 @@
 go 0 1845.5 1626.8 97.0
 talk 2123
 has gossip text 4442
-has option: priestly ways
+has option: I seek more training in the priestly ways
 expect-not gossip text 4439
 # The training is a paladin trainer's, the Horde's (Seal of Corruption, not the Alliance's Seal of
 # Vengeance), with Devotion Aura to learn at level 1; nothing a priest learns.
