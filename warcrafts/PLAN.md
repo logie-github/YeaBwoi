@@ -292,6 +292,16 @@ The user's requirements, what was decided, what's open, and where it stands. The
   10. README and this plan.
   Not known until the phone: whether OpenGL shows the menu again (as in 25), whether clicks now land,
   what the report says.
+- **Build 28 on the phone: "Now it doesn't start at all"**, with its report: settings only, no
+  output at all, no "game's window is up". Two findings: Winlator's game screen takes every output
+  listener off as it opens (`ProcessHelper.removeAllDebugCallbacks()`, `XServerDisplayActivity`
+  line 163), so the report's listener, added before, heard nothing; and no game window ever showed.
+  The likeliest hold-up: Wine's and Box64's processes left running from build 27's black-screen run
+  (an app swiped away doesn't take them with it), holding Wine's server for the prefix, so the new
+  start waits on them. Build 29: before each start, processes of the app's user running the runtime
+  (`winfs`), wineserver, Box64 or a `.exe` are stopped and listed in the report; the game screen
+  listens to Wine's output again once it's up (before Wine starts); every window shown is noted
+  (class, title, size, drawn), and "no game window yet" at 20, 45, 90 and 180 s; the screen closing.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

@@ -53,6 +53,15 @@ object Wc3Report {
         add("Phone: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         for ((name, value) in settings) add("$name: $value")
         add("---- output ----")
+        listen()
+    }
+
+    /**
+     * Wine's output to this report from here on. Winlator's game screen takes every listener off as
+     * it opens (before it starts Wine), so the game screen calls this again once it's up
+     * ([GestureView]).
+     */
+    fun listen() {
         ProcessHelper.removeDebugCallback(output)
         ProcessHelper.addDebugCallback(output)
     }

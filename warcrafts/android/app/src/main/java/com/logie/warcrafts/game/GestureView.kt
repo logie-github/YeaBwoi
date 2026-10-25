@@ -107,7 +107,30 @@ class GestureView(
         // A game window smaller than the screen is scaled up to fill it (the pointer follows).
         xServer.renderer.isForceWindowsFullscreen = true
         updateXform(AppUtils.getScreenWidth(), AppUtils.getScreenHeight())
+
+        // The report ([Wc3Report]): Wine's output (Winlator's screen took the listener off as it
+        // opened, before starting Wine), every window shown, and how long the game takes to show one.
+        screenUp = true
+        Wc3Report.listen()
+        Wc3Report.note("the game's screen is up, Wine starting")
+        xServer.windowManager.addOnWindowModificationListener(object : com.winlator.xserver.WindowManager.OnWindowModificationListener {
+            private var count = 0
+            override fun onMapWindow(window: com.winlator.xserver.Window) {
+                if (++count > 40) return
+                val content = window.content
+                Wc3Report.note(
+                    "window shown: class \"${window.className}\", title \"${window.name}\", " +
+                        "${content?.width ?: 0}x${content?.height ?: 0}, drawn: ${window.isRenderable}"
+                )
+            }
+        })
+        for (seconds in longArrayOf(20, 45, 90, 180)) {
+            postDelayed({ if (!windowShown) Wc3Report.note("no game window yet after $seconds s") }, seconds * 1000)
+        }
     }
+
+    /** Whether the game's first window has shown. */
+    private var windowShown = false
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
@@ -178,6 +201,7 @@ class GestureView(
 
     /** The game's first window is up: on a touch screen the finger is the pointer, never drawn. */
     fun onGameWindowShown() {
+        windowShown = true
         xServer.renderer.isCursorVisible = false
         watcher.start()
         Wc3Report.note("the game's window is up")
@@ -494,6 +518,8 @@ class GestureView(
     override fun onDetachedFromWindow() {
         removeCallbacks(skipBlack)
         watcher.stop()
+        Wc3Report.note("the game's screen closed")
+        screenUp = false
         Wc3Report.finish(watcher.summary())
         // A run that showed only black: the launcher says so, with the report ([GameStops]).
         if (watcher.blackOnly) runCatching { java.io.File(context.filesDir, GameStops.BLACK_RUN).writeText("") }
@@ -504,6 +530,10 @@ class GestureView(
     companion object {
         /** The game the launcher started ([Title.key]): the loading screen's and menus' look. */
         const val EXTRA_TITLE = "com.logie.warcrafts.TITLE"
+
+        /** Whether the game's screen is open (its Wine processes are the running game's, not leftovers). */
+        @Volatile var screenUp = false
+            private set
 
         /**
          * How long a click holds the button: Warcraft III reads the mouse once a frame, and at the

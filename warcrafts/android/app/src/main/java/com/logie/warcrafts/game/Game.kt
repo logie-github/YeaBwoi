@@ -152,7 +152,9 @@ object Game {
         if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, title, width, height) }
 
         _state.value = State.Preparing(Step.STARTING)
+        val leftovers = withContext(Dispatchers.IO) { stopLeftovers(context) }
         Wc3Report.start(context, listOf(
+            "Left over from before, stopped" to leftovers.ifEmpty { listOf("nothing") }.joinToString(), 
             "App" to (runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "?"),
             "Game" to "${title.key}: $execPath",
             "Screen" to "${width}x$height (${GameSettings.resolution(context).name})",
@@ -169,6 +171,30 @@ object Game {
             .putExtra("gestures", true)
             .putExtra(GestureView.EXTRA_TITLE, title.key)
         if (MainActivity.visible) context.startActivity(intent) else pending = intent
+    }
+
+    /**
+     * Wine's and Box64's processes still running from an earlier game (the game swiped away, the
+     * app stopped while it ran): stopped before a new start, which they could hold up (Wine's
+     * server, a game waiting on a film). The app's own processes aren't touched. What was stopped.
+     */
+    private fun stopLeftovers(context: Context): List<String> {
+        if (GestureView.screenUp) return emptyList()
+        val own = android.os.Process.myPid()
+        val stopped = mutableListOf<String>()
+        val runtime = RootFS.find(context).rootDir.path
+        for (pid in File("/proc").list().orEmpty().mapNotNull { it.toIntOrNull() }) {
+            if (pid == own) continue
+            val command = runCatching { File("/proc/$pid/cmdline").readText().replace('\u0000', ' ').trim() }.getOrNull() ?: continue
+            if (command.isEmpty() || command.startsWith(context.packageName)) continue
+            if (command.contains(runtime) || command.contains("wineserver") || command.contains("box64") ||
+                command.endsWith(".exe") || command.contains(".exe ")
+            ) {
+                runCatching { android.os.Process.killProcess(pid) }
+                stopped += command.take(80)
+            }
+        }
+        return stopped
     }
 
     /** The runtime's name lookups: none but this phone's while Private is on, offline ([Offline]). */
