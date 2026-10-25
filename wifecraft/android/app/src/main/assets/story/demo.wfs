@@ -16,8 +16,8 @@ shot view sweep_b 9000
 wait 2600
 title Wifecraft | A Day in Dalaran
 wait 2400
-narrator: Dalaran hangs above the Broken Isles. The Legion's fires have finally gone cold.
-narrator: You came for a week of quiet, {name}. The city has other plans.
+narrator: Dalaran floats above the Broken Isles again. Argus is dark in the sky, and the Legion is broken.
+narrator: You came to the city of mages for a quiet week, {name}. Dalaran has never been quiet.
 fadeout 900
 
 scene krasus day
@@ -35,34 +35,34 @@ wait 500
 
 # ---------------------------------------------------------------- Chapter I
 title Chapter I | Morning
-alleria [talk]: You walk like someone who has never seen the Isles from up here.
+alleria [talk]: You've been staring at the Isles for a while. First time seeing them from above?
 choice What do you say?
   > Is it that obvious? | alleria +5 | goto a_obvious
-  > I was looking at you, not the Isles. | alleria +10 | goto a_bold
+  > Honestly? I was looking at you. | alleria +10 | goto a_bold
   > Who's asking? | goto a_wary
 end
 
 :a_obvious
-alleria [laugh]: Only to someone who has stood here a thousand times.
+alleria [laugh]: Only to someone who's stood here a hundred times. The view never gets any smaller.
 goto a_name
 :a_bold
-alleria [laugh]: Bold. Dalaran's mages would call that reckless.
+alleria [laugh]: Honest, at least. Most of Dalaran would have pretended otherwise.
 alleria [talk]: I find I don't mind it.
 goto a_name
 :a_wary
-alleria [question]: Careful. In this city, everyone is asking something.
+alleria [question]: Careful. In this city, the question is usually the expensive part.
 goto a_name
 
 :a_name
-alleria [bow]: Alleria Windrunner. Ranger of Quel'Thalas.
-alleria [talk]: Lately, a stranger in my own skin. The Void leaves fingerprints.
-you: {name}. Just arrived.
-alleria [point]: Then a warning, {name}. Mind the streets. Some visitors don't watch where they run.
+alleria [bow]: Alleria Windrunner, ranger of Quel'Thalas.
+alleria [talk]: Lately, a guest of the Light, and of something less polite. The Void tends to follow me.
+you: {name}. I got in this morning.
+alleria [point]: Then a lesson Dalaran teaches the hard way: watch the streets. Not everything running through them has two legs.
 choice How do you leave it?
   > I'll be careful. Will I see you again? | alleria +10
   > I can look after myself. | alleria +5
 end
-alleria [talk]: Krasus' Landing, most days. When the city is too loud.
+alleria [talk]: I'm on the Landing most mornings. My sister keeps a house in the city, and I keep out of it while she works.
 fadeout 700
 
 scene street day
@@ -85,36 +85,36 @@ wait 1500
 face nyrelle you
 letterbox off
 shot bust nyrelle 700
-nyrelle [exclaim]: Elune's light! Are you hurt?
+nyrelle [exclaim]: Elune's mercy! Don't try to get up yet. Are you hurt?
 nyrelle [talk]: I'm glad you're okay. You hit your head pretty badly!
 choice What do you say?
-  > I've had worse from a sword. | nyrelle +5 | goto n_sword
+  > I've taken worse hits in training. | nyrelle +5 | goto n_sword
   > Your cat owes me an apology. | nyrelle +10 | goto n_cat
-  > Keep that thing on a leash. | nyrelle -5 | goto n_leash
+  > Keep that animal on a leash. | nyrelle -5 | goto n_leash
 end
 
 :n_sword
-nyrelle [laugh]: A fighter, then. Good. Dalaran is full of people who'd have fainted.
+nyrelle [laugh]: A fighter. Good. Half of Dalaran would still be lying on the cobbles, calling for a healer.
 goto n_name
 :n_cat
-nyrelle [laugh]: She is not a cat. Don't tell her you said that.
-nyrelle [shy]: ...But yes. She owes you one.
+nyrelle [laugh]: She is not a cat. Please don't say that where she can hear you.
+nyrelle [shy]: ...But yes. She owes you one. So do I.
 goto n_name
 :n_leash
-nyrelle [no]: A Sentinel's saber is no one's pet. She chose to follow me.
-nyrelle [talk]: Still. I'm sorry.
+nyrelle [no]: A Sentinel's saber is no one's pet. She walks beside me because she chooses to.
+nyrelle [talk]: Still, she shouldn't have run you down. I'm sorry.
 goto n_name
 
 :n_name
-nyrelle [bow]: Nyrelle Moonquill. Sentinel, far from Darnassus, and lost among mages.
-nyrelle [talk]: This city hums. Every stone is full of magic. My people learned to fear that.
-nyrelle [question]: You don't seem to mind it. Will you show me it isn't all dangerous?
+nyrelle [bow]: Nyrelle Moonquill, of the Sentinels. A long way from Darnassus, and quite lost among the mages.
+nyrelle [talk]: This city hums. Every stone is soaked in arcane magic, and my people have good reason to fear that.
+nyrelle [question]: You seem at home here, though. Would you show me it isn't all dangerous?
 choice What do you say?
-  > Of course. We'll start with the bakery. | nyrelle +10
-  > It's mostly dangerous. That's the fun. | nyrelle +5
-  > Find a mage to ask. | nyrelle -5
+  > Gladly. We'll start with something sweet from the market. | nyrelle +10
+  > It's mostly dangerous. That's half the fun. | nyrelle +5
+  > Ask a mage. They love explaining things. | nyrelle -5
 end
-nyrelle [laugh]: Then I'll find you again, {name}. Or she will.
+nyrelle [laugh]: Then I'll find you again, {name}. Or she will. She's better at it.
 fadeout 800
 
 # ---------------------------------------------------------------- Chapter II
@@ -141,22 +141,22 @@ fadein 900
 wait 600
 face alleria you
 shot bust alleria 900
-alleria [talk]: You came. Most people find the Landing too quiet.
-alleria [question]: Do you know what I see when I look at the Isles?
+alleria [talk]: You came. Most people find the Landing too quiet. I've come to like that about it.
+alleria [question]: Tell me something. When I look out there, what do you think I see?
 choice What do you think she sees?
-  > Everything you fought to save. | alleria +10
+  > Everything you fought to protect. | alleria +10
   > Everything you lost. | alleria +5
   > The way home. | alleria +20
 end
-alleria [talk]: All of it, I think. And the shadow in me that wants none of it.
-alleria [talk]: Some days the Void whispers that I'm alone. It lies. It's usually lying.
+alleria [talk]: Some of each. I spent a very long time fighting beyond the stars. The world I came back to had moved on without me.
+alleria [talk]: And the Void I carry likes to whisper that I belong nowhere. It's lying. It usually is.
 choice What do you say?
-  > You're not alone. Not today. | alleria +20
-  > Then I'll keep you company until it stops. | alleria +10
-  > Maybe you should rest. | alleria +0
+  > You belong here. Today, at least. | alleria +20
+  > Then I'll keep you company until it goes quiet. | alleria +10
+  > Maybe you should get some rest. | alleria +0
 end
-alleria [laugh]: Kind words. I'm not used to them from strangers.
-alleria [talk]: Meet me on the Citadel's terrace tonight. The city is different after dark.
+alleria [laugh]: Kind words. I've had little practice receiving them.
+alleria [talk]: The Violet Citadel has a terrace that catches the stars. Meet me there tonight.
 fadeout 900
 goto night
 
@@ -171,20 +171,20 @@ cast saber hide face you
 shot bust nyrelle
 fadein 800
 nyrelle [exclaim]: There you are! She's gone again. She hates portals, and the whole city is portals.
-nyrelle [question]: Where would you hide, if you were a nightsaber?
+nyrelle [question]: If you were a nightsaber who'd had enough of mages, where would you hide?
 choice Where do you look?
-  > Somewhere high, where she can watch everything. | nyrelle +10 | goto n_high
-  > Somewhere warm, near the bakery. | nyrelle +20 | goto n_warm
+  > Somewhere high, where she can watch everyone. | nyrelle +10 | goto n_high
+  > Somewhere warm, near the food stalls. | nyrelle +20 | goto n_warm
   > Just call her name. | nyrelle +5 | goto n_call
 end
 :n_high
-nyrelle [yes]: She does love a rooftop.
+nyrelle [yes]: She does love a rooftop. Let's look up, then.
 goto n_found
 :n_warm
-nyrelle [laugh]: You've met her, haven't you?
+nyrelle [laugh]: You've definitely met her.
 goto n_found
 :n_call
-nyrelle [talk]: She only answers when she wants to. Like all cats. Don't tell her I said that.
+nyrelle [talk]: Shadowpaw only comes when she wants to. Like every cat. Do not tell her I said that.
 goto n_found
 :n_found
 letterbox on
@@ -197,14 +197,14 @@ wait 1500
 face nyrelle you
 letterbox off
 shot two nyrelle you 900
-nyrelle [laugh]: Found her! Or she found us.
-nyrelle [shy]: Thank you, {name}. I thought this city would be cold. It isn't, with you in it.
+nyrelle [laugh]: Found her! Or she found us. With her, it's never clear.
+nyrelle [shy]: Thank you, {name}. I expected this city to be cold. It isn't, with you in it.
 choice What do you say?
-  > I'm glad I got knocked over. | nyrelle +20
-  > Anytime. She can find me anywhere. | nyrelle +10
-  > Try to keep her close next time. | nyrelle +0
+  > I'm glad she knocked me over. | nyrelle +20
+  > Any time. She knows where to find me now. | nyrelle +10
+  > Maybe keep her closer next time. | nyrelle +0
 end
-nyrelle [talk]: Come to the Citadel's terrace tonight. The moon shows from there. Elune's light.
+nyrelle [talk]: Come to the Violet Citadel's terrace tonight. The moon shows from there. Elune's light.
 fadeout 900
 goto night
 
@@ -215,14 +215,14 @@ scene street day
 cast you mid face north
 shot view street
 fadein 800
-narrator: You wander. Dalaran's streets curl around you, full of mages, merchants and the smell of bread.
+narrator: You wander. Dalaran's streets curl around you: mages arguing, merchants calling, the smell of fresh bread.
 narrator: Twice you think you see a ranger's green cloak. Once, a flash of a nightsaber's tail.
 choice Do you follow either?
   > Follow the green cloak. | alleria +5
   > Follow the nightsaber. | nyrelle +5
   > Keep wandering. | set wanderer
 end
-narrator: The afternoon slips away before you notice.
+narrator: The afternoon slips away before you notice it go.
 fadeout 900
 goto night
 
@@ -246,14 +246,14 @@ face alleria you
 face you alleria
 shot bust alleria 900
 alleria [talk]: You came.
-alleria [talk]: From up here the city looks like it's made of starlight. Easy to forget it's made of people.
+alleria [talk]: From up here the city looks made of starlight. It's easy to forget it's made of people.
 if alleria >= 60 goto alleria_romance
 if alleria >= 20 goto alleria_friend
 goto alone_end
 
 :alleria_romance
-alleria [talk]: I've spent a long time listening to things that lie to me.
-alleria [talk]: You haven't, once. That's rare enough that I mean to keep it.
+alleria [talk]: I've spent years listening to a voice that lies to me.
+alleria [talk]: You haven't. Not once. That's rare enough that I'd like to keep it close.
 choice What do you do?
   > Take her hand.
   > Stand closer, and say nothing.
@@ -268,8 +268,8 @@ fadeout 1600
 ending windrunner
 
 :alleria_friend
-alleria [talk]: Thank you for today, {name}. You'd make a good ranger. You notice things.
-alleria [salute]: If the Void gets loud again, I know where to find a friend.
+alleria [talk]: Thank you for today, {name}. You'd make a decent ranger: you notice things.
+alleria [salute]: If the Void gets loud again, I'll know where to find a friend.
 letterbox on
 shot view terrace_wide 2000
 wait 2000
@@ -296,7 +296,7 @@ goto alone_end
 
 :nyrelle_romance
 nyrelle [shy]: My people say the moon watches over the ones we choose.
-nyrelle [talk]: I think... I'd like her to watch over you, too. With me.
+nyrelle [talk]: I think I'd like her to watch over you too. With me.
 choice What do you do?
   > Kiss her.
   > Tell her you choose her too.
@@ -311,8 +311,8 @@ fadeout 1600
 ending moonlight
 
 :nyrelle_friend
-nyrelle [laugh]: You and Shadowpaw are friends now. That means you're stuck with both of us.
-nyrelle [wave]: Goodnight, {name}. Thank you for showing me the city isn't all dangerous.
+nyrelle [laugh]: Shadowpaw has decided you're one of us now. You're stuck with both of us.
+nyrelle [wave]: Goodnight, {name}. Thank you for showing me the city isn't all danger.
 letterbox on
 shot view terrace_wide 2000
 wait 2000
@@ -327,7 +327,7 @@ fadein 1000
 goto alone_end
 
 :alone_end
-narrator: The city glows beneath you. Somewhere below, someone laughs; somewhere, a portal hums.
+narrator: The city glows beneath you. Somewhere below, someone laughs. Somewhere, a portal hums.
 narrator: Tomorrow, perhaps. Dalaran will still be here.
 letterbox on
 shot view terrace_wide 2500

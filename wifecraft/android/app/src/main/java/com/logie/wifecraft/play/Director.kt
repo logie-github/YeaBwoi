@@ -37,7 +37,10 @@ class Director(
     private val scene: Stage,
     private val onFinished: () -> Unit,
 ) {
-    data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean)
+    data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean) {
+        /** When a tap showed the whole line (it then stays whole), or -1 while it's still typing. */
+        var completedAt = -1
+    }
     data class Choice(val prompt: String, val options: List<String>)
 
     var line by mutableStateOf<Line?>(null); private set
@@ -115,7 +118,13 @@ class Director(
         val now = Clock.now()
         val l = line
         if (l != null) {
-            if (revealed < l.text.length) revealed = l.text.length else advanceLine()
+            if (revealed < l.text.length) {
+                l.completedAt = now
+                revealed = l.text.length
+            } else if (l.completedAt < 0 || now - l.completedAt > 180) {
+                // (a quick second tap is the same tap landing twice: it doesn't skip the line unread)
+                advanceLine()
+            }
             return
         }
         if (title != null && now - titleShownAt > 400) {
@@ -176,7 +185,9 @@ class Director(
         // Words appearing, and fast-forward through read lines.
         line?.let { l ->
             val speed = settings.textSpeed
-            revealed = if (speed <= 0) l.text.length else ((now - l.shownAt) * speed / 1000).coerceAtMost(l.text.length)
+            revealed = if (speed <= 0 || speed >= 120 || l.completedAt >= 0) l.text.length
+            else ((now - l.shownAt) * speed / 1000).coerceAtMost(l.text.length)
+            if (revealed >= l.text.length && l.completedAt < 0) l.completedAt = now
             if (fastForward && l.seen && now - l.shownAt > 90) advanceLine()
         }
         if (title != null && now - titleShownAt > 2800) title = null
@@ -336,10 +347,12 @@ class Director(
     }
 
     /**
-     * Someone standing well in front of what the camera films (the player behind whom a close-up is
-     * taken) is left out of the picture, as a visual novel leaves out the one it's seen through.
+     * The player, standing well in front of what the camera films (a close-up taken over their
+     * shoulder), is left out of the picture, as a visual novel leaves out the one it's seen
+     * through. Only the player: the others (the saber at someone's feet) always stay in the scene.
      */
     private fun inTheWay(a: Actor, cam: CameraPose): Boolean {
+        if (a.key != "you") return false
         val view = cam.at - cam.eye
         val length = kotlin.math.sqrt(view.x * view.x + view.y * view.y + view.z * view.z)
         if (length < 0.01f) return false

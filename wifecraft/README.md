@@ -49,7 +49,7 @@ the title screen.
 - **Game Menu**: Resume, Save, Load, What Was Said, Options, Title Screen, and the Reputation pane.
 - **Save / Load**: six slots and the autosave (made at the start of each scene). **Continue** on
   the title loads the latest.
-- **Options**: text speed; the parchment talking head instead of Legion's dark one; Wi-Fi only.
+- **Options**: text speed (60 letters a second to start; at the far right, whole lines at once); the parchment talking head instead of Legion's dark one; Wi-Fi only.
 
 ## Updates
 

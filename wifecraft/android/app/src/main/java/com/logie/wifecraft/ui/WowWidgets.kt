@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -161,22 +162,31 @@ fun MetalPanel(
 
 /** Legion's talking-head box: the name in gold above the words. */
 @Composable
-fun TalkingHead(name: String, text: String, parchment: Boolean, modifier: Modifier = Modifier, more: Boolean = false) {
+fun TalkingHead(name: String, text: String, revealed: Int, parchment: Boolean, modifier: Modifier = Modifier, more: Boolean = false) {
     val art = LocalArt.current
     val bg = if (parchment) art?.talkParchment else art?.talkDark
     val ink = if (parchment) WowColors.ink else WowColors.white
     Box(
         modifier.drawBehind {
+            // A dark ground under Legion's see-through box, so the words read over any scene.
+            if (!parchment) drawRoundRect(Color(0x99000000), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height * 0.12f))
             if (bg != null) piece(bg, 0f, 0f, size.width, size.height)
             else drawRect(if (parchment) Color(0xF0E8D5A8) else Color(0xE0101010))
-        }.padding(start = 44.dp, end = 44.dp, top = 22.dp, bottom = 20.dp),
+        }.padding(start = 40.dp, end = 40.dp, top = 16.dp, bottom = 18.dp),
     ) {
         androidx.compose.foundation.layout.Column {
-            if (name.isNotEmpty()) Text(name, style = frizStyle(17.sp, if (parchment) WowColors.inkLight else WowColors.gold, !parchment))
+            if (name.isNotEmpty()) Text(name, style = frizStyle(19.sp, if (parchment) WowColors.inkLight else WowColors.gold, !parchment))
+            // The whole line is laid out from the start, the part still to come invisible, so words
+            // don't jump to the next row as they're typed.
+            val shown = revealed.coerceIn(0, text.length)
+            val words = androidx.compose.ui.text.buildAnnotatedString {
+                append(text.substring(0, shown))
+                withStyle(androidx.compose.ui.text.SpanStyle(color = Color.Transparent, shadow = Shadow(Color.Transparent))) { append(text.substring(shown)) }
+            }
             Text(
-                text,
-                style = frizStyle(16.sp, ink, !parchment).copy(lineHeight = 22.sp, fontStyle = if (name.isEmpty()) androidx.compose.ui.text.font.FontStyle.Italic else null),
-                modifier = Modifier.padding(top = 4.dp),
+                words,
+                style = frizStyle(19.sp, ink, !parchment).copy(lineHeight = 26.sp, fontStyle = if (name.isEmpty()) androidx.compose.ui.text.font.FontStyle.Italic else null),
+                modifier = Modifier.padding(top = 4.dp, end = 12.dp),
             )
         }
         if (more) {

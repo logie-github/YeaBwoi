@@ -48,7 +48,8 @@ SLOT_GEOSETS = {
     8: [(0, 5), (1, 20)],
     10: [(0, 4), (1, 23)],
     15: [(0, 15)],
-    19: [(0, 12)],
+    # 19 (tabard, group 12) is left out: these NPCs' baked skins paint no tabard, so its mesh
+    # would show scraps of the rest of the texture over the robe.
 }
 # When several slots set one group, the first slot listed wins.
 PRIORITY = {8: [10, 5, 4], 10: [5, 4], 13: [5, 7]}
@@ -98,6 +99,12 @@ def main():
     skinned = table(d, "ChrCustomizationSkinnedModel")
     layers = table(d, "ChrModelTextureLayer", None)
     chr_models = table(d, "ChrModel", None)
+    options_by_model = {}
+    for r in table(d, "ChrCustomizationOption", None):
+        options_by_model.setdefault(num(r, "ChrModelID"), []).append(num(r, "ID"))
+    choices_by_option = {}
+    for r in table(d, "ChrCustomizationChoice", None):
+        choices_by_option.setdefault(num(r, "ChrCustomizationOptionID"), []).append(r)
     slots_by_npc = {}
     for r in table(d, "NPCModelItemSlotDisplayInfo", None):
         slots_by_npc.setdefault(num(r, "NpcModelID"), {})[num(r, "ItemSlot")] = num(r, "ItemDisplayInfoID")
@@ -132,9 +139,11 @@ def main():
             ex = extra[ext_id]
             # The race model's texture layout, for which texture each customization fills.
             layout = 0
+            chr_model = 0
             for m in chr_models:
                 if num(m, "DisplayID") and num(cdi.get(num(m, "DisplayID"), {}), "ModelID") == num(disp, "ModelID"):
                     layout = num(m, "CharComponentTextureLayoutID")
+                    chr_model = num(m, "ID")
             bake = num(ex, "HDBakeMaterialResourcesID") or num(ex, "BakeMaterialResourcesID")
             if bake:
                 look["textures"]["1"] = first_texture(bake)
@@ -168,6 +177,31 @@ def main():
                             fid = first_texture(num(mats[m], "MaterialResourcesID"))
                             if fid:
                                 look["textures"][str(tt)] = fid
+            # The groups still unset take their option's choice: the display's own, or the race's
+            # default (the first choice open to everyone) where it chose none. Otherwise every
+            # group shows its 01 geoset, and today's models carry alternatives for the same place
+            # (two sets of eyes, faces) that then fight each other on screen.
+            chosen_by_option = {num(choices[c], "ChrCustomizationOptionID"): c for c in chosen if c in choices}
+            for opt in options_by_model.get(chr_model, []):
+                if opt in chosen_by_option:
+                    pick = chosen_by_option[opt]
+                elif opt in choices_by_option:
+                    open_choices = [c for c in choices_by_option[opt] if not num(c, "ChrCustomizationReqID")] or choices_by_option[opt]
+                    pick = num(min(open_choices, key=lambda c: (num(c, "OrderIndex"), num(c, "ID"))), "ID")
+                else:
+                    continue
+                found = {}   # geoset group -> (matches the chosen related choice, value)
+                for el in elements.get(pick, []):
+                    g = num(el, "ChrCustomizationGeosetID")
+                    if not g or g not in geo:
+                        continue
+                    rel = num(el, "RelatedChrCustomizationChoiceID")
+                    rank = 2 if rel in chosen else (1 if not rel else 0)
+                    t = num(geo[g], "GeosetType")
+                    if t not in found or rank > found[t][0]:
+                        found[t] = (rank, num(geo[g], "GeosetID"))
+                for t, (_, v) in found.items():
+                    groups.setdefault(t, v)
             # Equipment.
             per_group = {}
             for npc_slot, display in sorted(slots_by_npc.get(ext_id, {}).items()):
@@ -203,6 +237,9 @@ def main():
                             pick = hit[0]
                             break
                 groups[cg] = pick[1]
+            # A robe covers the boots' tops, as in the game (high boots would poke through its hem).
+            if groups.get(13) == 2 and groups.get(5, 1) > 1:
+                groups[5] = 1
             look["geosetGroups"] = {str(k): v for k, v in sorted(groups.items())}
         out[name] = look
     json.dump(out, sys.stdout, indent=1, sort_keys=True)

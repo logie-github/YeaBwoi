@@ -224,5 +224,21 @@ now just showing what this engine can do. Include cutscenes etc". Built (stages 
 - **Not tested on a phone**: nothing here runs on one. Speed on the Fold, the download on a real
   connection and touch handling are unverified (stage 6).
 
+**First phone test** (Wifecraft 1.0.1, the user): "The text needs work and so does the animation
+but overall I'm impressed." Asked, the text meant all of it (the writing, how the box looks, how it
+plays); the overlap was on the characters; the vanishing was at the end of Nyrelle's route ("The
+cat disappears and the char walks through the wall"). Fixed in 1.0.2:
+
+- The terrace walk went through the Violet Citadel's wall (its start, and the wide shot's camera,
+  were inside): both moved onto the terrace. Every walk is now checked against the city's walls,
+  and the engine stands each person on the floor under them (the street's start was 1.8 yards up).
+- Shadowpaw vanished: the rule that leaves the player out of an over-the-shoulder close-up hid
+  anyone in the camera's way. It's the player's alone now; Shadowpaw lies clear of Nyrelle.
+- Overlapping textures: the NPCs' tabard mesh (their baked skins paint no tabard) and high boots
+  through robes; options the displays leave unset now take the race's defaults.
+- The text: the dialogue rewritten; a tap that showed the whole line was undone the next frame
+  (fixed), words no longer jump rows as they type, larger type on a darker box, 60 letters a
+  second by default, a double tap no longer skips a line unread.
+
 Not done: the character screen's 3D model and customization, the Legerdemain Lounge, "Use my own
 client's files", music and sound, graphics settings (resolution, view distance).

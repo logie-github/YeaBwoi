@@ -85,7 +85,7 @@ class Settings(context: Context) {
         set(v) = prefs.edit().putString("playerLook", v).apply()
     /** Characters per second the words appear at; 0 shows a line at once. */
     var textSpeed: Int
-        get() = prefs.getInt("textSpeed", 45)
+        get() = prefs.getInt("textSpeed", 60)
         set(v) = prefs.edit().putInt("textSpeed", v).apply()
     /** "dark" (Legion's talking head) or "parchment". */
     var boxStyle: String

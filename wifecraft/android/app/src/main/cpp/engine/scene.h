@@ -58,6 +58,9 @@ public:
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
     float actorHeight(int id) const;
+    // The floor under (x, y) nearest below z (a little above counts: a step up), or z itself when
+    // the city has no floor there.
+    float floorAt(float x, float y, float z) const;
 
     void setCamera(V3 eye, V3 target, float fovDegrees);
     void setLight(const Light& l) { light_ = l; }
@@ -117,6 +120,8 @@ private:
 
     WmoRoot city_;
     std::vector<GroupGl> groups_;
+    // The city's walkable triangles (facing up), nine floats each, filed by 4-yard cell.
+    std::map<std::pair<int, int>, std::vector<float>> floor_;
     std::vector<int> groupIds_;
     std::vector<Prop> props_;
     std::vector<V3> propCentres_;
@@ -133,6 +138,7 @@ private:
     void uploadModel(ModelGl& m);
     void uploadGroup(const WmoGroup& g, GroupGl& out);
     void uploadCityGl();
+    void addFloor(const WmoGroup& g);
     void warmCity();
     void drawSky();
     void drawCity(bool transparent);

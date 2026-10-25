@@ -90,6 +90,8 @@ class DemoStoryTest {
                         c.emote?.let { assertTrue(it in emotes, "line ${c.line}: no emote $it") }
                         assertTrue(c.who == "narrator" || c.who == "you" || c.who in cast, "line ${c.line}: ${c.who} speaks off stage")
                         assertTrue("{name}" !in step.text)
+                        // Three rows of the talking-head box at most.
+                        assertTrue(step.text.length <= 150, "line ${c.line} is ${step.text.length} letters: too long for the box")
                     }
                     is Step.Choose -> {
                         for (i in step.options.indices.drop(1)) {

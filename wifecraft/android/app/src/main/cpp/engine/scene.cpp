@@ -337,14 +337,60 @@ void Scene::uploadGroup(const WmoGroup& g, GroupGl& out) {
     out.outdoors = (g.flags & 0x2000) == 0;
 }
 
+namespace {
+constexpr float kFloorCell = 4.0f;
+int floorCell(float v) { return int(std::floor(v / kFloorCell)); }
+}
+
+void Scene::addFloor(const WmoGroup& g) {
+    const float* p = g.positions.data();
+    for (size_t i = 0; i + 2 < g.indices.size(); i += 3) {
+        const float* a = p + g.indices[i] * 3;
+        const float* b = p + g.indices[i + 1] * 3;
+        const float* c = p + g.indices[i + 2] * 3;
+        V3 n = (V3(b[0], b[1], b[2]) - V3(a[0], a[1], a[2])).cross(V3(c[0], c[1], c[2]) - V3(a[0], a[1], a[2]));
+        float len = n.length();
+        if (len < 1e-6f || std::fabs(n.z) / len < 0.5f) continue;   // walls and overhangs
+        float tri[9] = {a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]};
+        int x0 = floorCell(std::min({a[0], b[0], c[0]})), x1 = floorCell(std::max({a[0], b[0], c[0]}));
+        int y0 = floorCell(std::min({a[1], b[1], c[1]})), y1 = floorCell(std::max({a[1], b[1], c[1]}));
+        if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) continue;              // huge sheets: skip
+        for (int x = x0; x <= x1; ++x)
+            for (int y = y0; y <= y1; ++y) {
+                auto& v = floor_[{x, y}];
+                v.insert(v.end(), tri, tri + 9);
+            }
+    }
+}
+
+float Scene::floorAt(float x, float y, float z) const {
+    auto it = floor_.find({floorCell(x), floorCell(y)});
+    if (it == floor_.end()) return z;
+    float best = -1e9f;
+    const std::vector<float>& t = it->second;
+    for (size_t i = 0; i + 8 < t.size(); i += 9) {
+        float ax = t[i], ay = t[i + 1], bx = t[i + 3], by = t[i + 4], cx = t[i + 6], cy = t[i + 7];
+        float d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+        if (std::fabs(d) < 1e-9f) continue;
+        float u = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / d;
+        float v = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / d;
+        if (u < -1e-4f || v < -1e-4f || u + v > 1.0001f) continue;
+        float h = u * t[i + 2] + v * t[i + 5] + (1 - u - v) * t[i + 8];
+        if (h <= z + 1.2f && h > best) best = h;
+    }
+    return best > z - 3.0f ? best : z;
+}
+
 void Scene::uploadCityGl() {
     groups_.clear();
+    floor_.clear();
     for (int gi : groupIds_) {
         if (gi < 0 || size_t(gi) >= city_.groups.size()) continue;
         Bytes b;
         std::string path = files_(city_.groups[gi].fileId);
         WmoGroup g;
         if (path.empty() || !readFile(path, b) || !g.load(b)) continue;
+        addFloor(g);
         GroupGl gl;
         uploadGroup(g, gl);
         gl.boundsMin = city_.groups[gi].boundsMin;
@@ -395,6 +441,7 @@ void Scene::warmCity() {
 
 void Scene::clearCity() {
     groups_.clear();
+    floor_.clear();
     props_.clear();
     city_ = WmoRoot();
     cityLoaded_ = false;
@@ -453,6 +500,7 @@ void Scene::removeActor(int id) {
 void Scene::placeActor(int id, V3 position, float facing) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
+    position.z = floorAt(position.x, position.y, position.z);
     it->second.position = position;
     it->second.facing = facing;
 }
