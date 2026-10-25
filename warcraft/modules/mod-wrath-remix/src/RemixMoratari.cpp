@@ -514,6 +514,8 @@ namespace
                 return;
             owner = player->GetGUID();
             me->SetFaction(player->GetFaction());
+            // (her template keeps her posts out of fights: Eternus's loyalists stand by some of them)
+            me->SetImmuneToNPC(false);
             me->SetReactState(REACT_DEFENSIVE);
             Follow(player);
         }
