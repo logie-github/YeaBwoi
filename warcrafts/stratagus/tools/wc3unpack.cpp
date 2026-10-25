@@ -100,8 +100,9 @@ bool putInto(HANDLE package, HANDLE archive, const Step &step, unsigned long lon
 	std::vector<char> data(size);
 	DWORD got = 0;
 	bool read = size == 0 || (SFileReadFile(file, data.data(), size, &got, nullptr) || GetLastError() == ERROR_HANDLE_EOF);
+	DWORD readError = GetLastError();
 	SFileCloseFile(file);
-	if (!read || got != size) return false;
+	if (!read || got != size) { SetLastError(readError); return false; }
 	HANDLE out = nullptr;
 	if (!SFileCreateFile(archive, step.to.c_str(), 0, size, 0, MPQ_FILE_REPLACEEXISTING, &out)) {
 		if (GetLastError() != ERROR_DISK_FULL) return false;
@@ -112,7 +113,13 @@ bool putInto(HANDLE package, HANDLE archive, const Step &step, unsigned long lon
 			!SFileCreateFile(archive, step.to.c_str(), 0, size, 0, MPQ_FILE_REPLACEEXISTING, &out)) return false;
 	}
 	bool good = size == 0 || SFileWriteFile(out, data.data(), size, 0);
-	good = SFileFinishFile(out) && good;
+	if (!good) {
+		DWORD error = GetLastError();
+		SFileFinishFile(out);
+		SetLastError(error);
+		return false;
+	}
+	if (!SFileFinishFile(out)) return false;
 	done += size;
 	std::printf("progress %llu %llu\n", done, total);
 	std::fflush(stdout);

@@ -109,7 +109,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: warcrafts/android/stratagus
-          key: warcrafts-stratagus-v1-${{ hashFiles('warcrafts/stratagus-version.env', 'warcrafts/patches/stratagus/**', 'warcrafts/patches/stratagus-deps/**', 'warcrafts/stratagus/**', 'scripts/build-stratagus.sh') }}
+          key: warcrafts-stratagus-v1-${{ hashFiles('warcrafts/stratagus-version.env', 'warcrafts/patches/stratagus/**', 'warcrafts/patches/stratagus-deps/**', 'warcrafts/patches/wargus/**', 'warcrafts/stratagus/**', 'scripts/build-stratagus.sh') }}
 
       - name: Build Stratagus
         if: steps.stratagus.outputs.cache-hit != 'true'

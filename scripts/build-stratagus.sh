@@ -46,6 +46,9 @@ done
 for patch in "$ROOT"/warcrafts/patches/stratagus-deps/*.patch; do
 	git -C "$WORK/stratagus/third-party" apply "$patch"
 done
+for patch in "$ROOT"/warcrafts/patches/wargus/*.patch; do
+	git -C "$WORK/wargus" apply "$patch"
+done
 
 # tolua++ for this machine: it writes the engine's Lua bindings during the build.
 cmake -S "$WORK/stratagus/third-party/lua-5.1.5" -B "$WORK/host-lua" -DCMAKE_BUILD_TYPE=Release > /dev/null

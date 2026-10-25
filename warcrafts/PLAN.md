@@ -210,6 +210,14 @@ The user's requirements, what was decided, what's open, and where it stands. The
   copied and every archive addition byte-identical to the package's. Not known yet: whether 1.27
   starts offline without the key data in its archives (single player needs no key in 1.27 as far
   as known; the installer only writes it for Battle.net), and the arm64 build on the phone.
+- **Build 22 on the phone**: "Installing stopped: can't put PC-100\(Mac)BNetMenu.html into War3.mpq
+  (9)", the first file small enough to be written in one piece. Reproduced here with the arm64 build
+  under qemu: Wargus's StormLib bundles LibTomCrypt, whose `ulong32` is `unsigned long` (8 bytes)
+  on every 64-bit CPU but x86-64 and SPARC, so on arm64 its MD5 state is 112 bytes in StormLib's
+  96-byte `hctx`, overwriting the file handle's CRC, error code and write flag (error 9: not a write
+  handle). `patches/wargus/0001` makes `ulong32` 4 bytes on arm64 too (also used by wartool's
+  StormLib). After it, the arm64 build under qemu installs both games and every archive addition
+  is byte-identical to the package's (build 23).
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 22 no key is asked for at all (silent install).
@@ -246,7 +254,7 @@ The user's requirements, what was decided, what's open, and where it stands. The
    report came back from the phone.
 7. **Lua without FORTIFY** — built (build 7).
 9. **Warcraft III installed silently** (download and install in one step, no installer window or
-   key) — built (build 22); not yet run on the phone.
+   key) — built (build 22); on the phone it stopped on an arm64 StormLib bug, fixed in build 23.
 8. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
 
 ## Where it stands
@@ -255,4 +263,5 @@ Stage 7: built locally and in CI; unit tests pass. On the user's phone: both GOG
 unpacked (build 4), both conversions ran (build 5), the games stopped at launch (build 5); build 6
 got past the folders and stopped in Lua's start on FORTIFY (its report); build 7 builds Lua
 without it, not yet run. Warcraft III: build 21's download worked on the phone, Blizzard's installer
-showed a blank licence page; build 22 installs without it, not yet run.
+showed a blank licence page; build 22 installs without it but stopped on the phone (StormLib on
+arm64); build 23 fixes that (tested under qemu), not yet run on the phone.
