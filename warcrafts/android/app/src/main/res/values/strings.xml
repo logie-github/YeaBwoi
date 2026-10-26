@@ -23,7 +23,7 @@
     <string name="rts_tile_graphics">Graphics</string>
     <string name="rts_tile_graphics_summary">%1$s · %2$d×%3$d</string>
     <string name="rts_tile_controls">Controls</string>
-    <string name="rts_tile_controls_summary">Swipe pans · tap right-clicks · hold left-clicks</string>
+    <string name="rts_tile_controls_summary">Swipe pans · tap selects or orders · hold right-clicks</string>
     <string name="rts_tile_updates">Updates</string>
     <string name="rts_tile_updates_summary">Version %1$s</string>
     <string name="rts_version">Warcraft %1$s · offline, no Battle.net · Warcraft I and II by Stratagus</string>
@@ -200,7 +200,7 @@
     <string name="rts_renderer_gl">OpenGL</string>
     <string name="rts_renderer_gl_summary">-opengl: the app\'s default, seen working on the phone</string>
     <string name="rts_vibration">Vibrate on a hold</string>
-    <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
+    <string name="rts_vibration_summary">A short buzz when a touch becomes a hold</string>
     <string name="rts_touchpad">Winlator\'s touchpad (if taps don\'t click)</string>
     <string name="rts_walk_pickup">Heroes pick up items they walk over</string>
     <string name="rts_walk_pickup_summary">Warcraft III: a hero takes an item from the ground by walking over it or standing on it, as if it had been clicked (a powerup is used). One the hero dropped stays there until it walks away. From the next map on.</string>
@@ -218,11 +218,11 @@
     <string name="rts_controls_double_tap">Double tap (Warcraft III)</string>
     <string name="rts_controls_walk">Walk over an item</string>
     <string name="rts_controls_walk_does">Warcraft III: your hero picks it up (a tap on it sends the hero there). Off in Graphics, under Controls.</string>
-    <string name="rts_controls_double_tap_does">On your unit: every unit of its kind on the screen. On a hero button: the camera to the hero. On the ground or an enemy: attack-move. On an inventory item: picks it up; tap a slot, the ground or a unit to put it there.</string>
+    <string name="rts_controls_double_tap_does">On your unit: every unit of its kind on the screen. On a hero button: the camera to the hero. On an enemy or a neutral one (a shop to buy from, a gold mine): selects it. On the ground: attack-move. On an inventory item: picks it up; tap a slot, the ground or a unit to put it there.</string>
     <string name="rts_controls_hold">Touch and hold</string>
-    <string name="rts_controls_hold_does">Left click when you lift (after a short buzz): selects anything (an enemy, a shop to buy from), presses a button. Holding a Warcraft III button shows its tooltip.</string>
+    <string name="rts_controls_hold_does">Warcraft III, in a match: the right click when you lift (after a short buzz), anywhere: on your own units (follow, load into a transport, repair), on an ability button (autocast on or off), on an inventory item (pick it up to move or give it; the next tap puts it down), on the minimap (go there). Holding a button shows its tooltip until you lift. In the menus and the game\'s dialogs, and in Warcraft I and II: the left click (selects, presses a button).</string>
     <string name="rts_controls_double">Hold twice on the same spot</string>
-    <string name="rts_controls_double_does">Double click: every unit of that kind on the screen.</string>
+    <string name="rts_controls_double_does">Double click: every unit of that kind on the screen (Warcraft III in a match: the right click again; there a double tap does it).</string>
     <string name="rts_controls_rest">Rest one finger, tap or hold with another</string>
     <string name="rts_controls_rest_does">Shift-click: queue orders one after another, add units to the selection.</string>
     <string name="rts_controls_two_tap">Two-finger tap</string>

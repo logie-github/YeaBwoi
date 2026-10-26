@@ -83,7 +83,8 @@ interface GestureOutput {
  *   its bottom panel and top bar ([com.logie.warcrafts.game.GestureView]).
  * - **Touch and hold** ([HOLD_MS], a buzz): left click there when the finger lifts (select a unit,
  *   press a button of the game's panel or menus). Two holds in a row on the same spot: a double
- *   click (every unit of that kind on the screen).
+ *   click (every unit of that kind on the screen). Warcraft III's screen makes a hold in a match
+ *   the right click ([com.logie.warcrafts.game.GestureView]).
  * - **A finger resting** while another taps or holds: those are Shift-clicks (queue orders, add to
  *   the selection).
  * - **Two-finger tap**: the game's menu. **Pinch**: zoom (the mouse wheel).

@@ -38,7 +38,8 @@ import com.winlator.xserver.events.Event
  * The games' touch controls ([RtsGestures]) over Winlator's game screen, in place of its touchpad:
  * Winlator's XServerDisplayActivity puts it on top (patches/winlator/0004). It turns the gestures
  * into the X server's pointer, buttons and keys, where Wine passes them to the game, with nothing
- * drawn over the game: swipes pan the map, taps right-click, holds left-click, a resting finger is
+ * drawn over the game: swipes pan the map, taps right-click, holds left-click (Warcraft III in a
+ * match: right-click, [holdRightClicks]), a resting finger is
  * Shift, two fingers open the game's menu, three the phone's keyboard, four the app's menu
  * ([GameMenu]). Back is the game's Escape.
  *
@@ -409,8 +410,19 @@ class GestureView(
         val (x, y) = pointerAt() ?: (0f to 0f)
         var why: String
         val pressed = when {
+            // A hold in a match: the right click, wherever it is (your own units: follow, load, repair;
+            // the panel: autocast on or off, an item picked up to move or give; the minimap). It ends
+            // the game's waiting for a target, as a right click does; a kept order stays.
+            button == Button.LEFT && holdRightClicks(x, y, now) -> {
+                aimUntil = 0L
+                val onItem = Wc3Screen.onInventory(x, y)
+                // An item picked up: the next tap puts it down (a slot, the ground, a unit: a left click there).
+                itemUntil = if (onItem) now + AIM_MS else 0L
+                why = if (onItem) "hold, an item → picked up" else "hold (in a match: the right click)"
+                Button.RIGHT
+            }
             button == Button.LEFT -> {
-                // A hold: on a command button it may start aiming; elsewhere it's the aim's target, or a selection.
+                // A hold in the menus or a dialog: on a command button it may start aiming; elsewhere it's the aim's target, or a selection.
                 when {
                     onOrders(x, y) -> orderTapped(x, y, now)
                     now < aimUntil -> aimed(now)
@@ -500,10 +512,29 @@ class GestureView(
         pressHere(pressed.x) { postDelayed({ xServer.injectPointerButtonRelease(pressed.x) }, CLICK_MS) }
     }
 
+    /** A second hold on the same spot: a double click, or in a match (where a hold is the right click) another right click. */
     override fun doubleClick(button: Button) {
-        forgetOrder("a selection")
         val (x, y) = pointerAt() ?: (0f to 0f)
+        if (holdRightClicks(x, y, SystemClock.uptimeMillis())) return click(Button.LEFT)
         Wc3Report.tap("%.3f,%.3f double hold → double %s".format(x, y, button))
+        doubleClickHere(button)
+    }
+
+    /**
+     * Whether a hold is the right click: in a match, but not while one of the game's dialogs is up
+     * over the battlefield (the menu, the log: they take left clicks, as taps do there).
+     */
+    private fun holdRightClicks(x: Float, y: Float, now: Long): Boolean {
+        if (!inMatch()) return false
+        if (Wc3Screen.onConsole(watcher.race, x, y) || Wc3Screen.onHeroButtons(x, y)) return true
+        if (now < dialogUntil) return false
+        val still = watcher.stillSince
+        return still == 0L || now - still < STILL_MS
+    }
+
+    /** A double click where the pointer is (every unit of that kind on the screen, the camera to a hero). */
+    private fun doubleClickHere(button: Button) {
+        forgetOrder("a selection")
         pressHere(button.x) {
             postDelayed({ xServer.injectPointerButtonRelease(button.x) }, CLICK_MS)
             postDelayed({ xServer.injectPointerButtonPress(button.x) }, CLICK_MS + DOUBLE_GAP_MS)
@@ -582,10 +613,11 @@ class GestureView(
     }
 
     /**
-     * A double tap: the right click, whatever a tap would be there. On an item in the inventory it
-     * picks the item up (to move it to another slot, drop it on the ground or give it to a unit:
-     * the next tap puts it there); on the battlefield it's the game's own order for what's there
-     * (pick up an item on the ground, move, attack), a kept order left as it is.
+     * A double tap. On an item in the inventory: picked up (the right click; to move it to another
+     * slot, drop it on the ground or give it to a unit, the next tap puts it there). On a hero
+     * button or the player's own unit: a double click (the camera to the hero, every unit of its
+     * kind on the screen). On an enemy or a neutral one: the left click, which selects it (a shop to
+     * buy from), a hold being the right click. On the ground: attack-move.
      */
     override fun doubleTap() {
         val now = SystemClock.uptimeMillis()
@@ -604,7 +636,17 @@ class GestureView(
                 pressHere(Pointer.Button.BUTTON_RIGHT) { postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT) }, CLICK_MS) }
             }
             // A hero's button (the camera to the hero) or the player's own unit (every unit of its kind on the screen).
-            Wc3Screen.onHeroButtons(x, y) || underHere() == Wc3Cursor.Under.OWN -> doubleClick(Button.LEFT)
+            Wc3Screen.onHeroButtons(x, y) || underHere() == Wc3Cursor.Under.OWN -> {
+                Wc3Report.tap("%.3f,%.3f double tap → double LEFT".format(x, y))
+                doubleClickHere(Button.LEFT)
+            }
+            // An enemy or a neutral one (a shop to buy from, a gold mine): selected (the left click),
+            // a hold being the right click.
+            underHere() == Wc3Cursor.Under.ENEMY || underHere() == Wc3Cursor.Under.NEUTRAL -> {
+                forgetOrder("a selection")
+                Wc3Report.tap("%.3f,%.3f double tap, %s → LEFT (selects)".format(x, y, underHere()?.name?.lowercase()))
+                pressHere(Pointer.Button.BUTTON_LEFT) { postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_MS) }
+            }
             // Anywhere else on the battlefield: attack-move (A, then the place: fighting all the way there).
             else -> {
                 forgetOrder("attack-move")
@@ -706,7 +748,7 @@ class GestureView(
      * The order kept for the battlefield's taps: after a command button whose order waits for a
      * target (Move, Attack, Patrol, a spell), every later tap on the battlefield gives that order
      * again there (its button, then the tap as its target), until another command button, a
-     * selection (a hold, a box, the portraits) or Escape. Known from the command card ([Wc3Watcher]):
+     * selection (a tap on the player's own unit, a double tap, a box, the portraits) or Escape. Known from the command card ([Wc3Watcher]):
      * kept only when the card emptied but for Cancel after its button (a target was awaited), and
      * given again only while the card shows the same buttons as when it was tapped.
      */

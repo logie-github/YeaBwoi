@@ -506,6 +506,17 @@ The user's requirements, what was decided, what's open, and where it stands. The
     Kotlin makes the same file byte for byte as the tested one; with it the first Human campaign
     mission plays its opening. Not tried: on the phone, saved games and replays from before, other
     patch versions' `War3Patch.mpq`.
+- **Build 37: a hold is the right click** (the user: "Do we have a simple hold tap? If not can I make
+  that right click?", then chose "right click everywhere" of three ways put to them, and "Single tap
+  should work as it does now"). Warcraft III in a match: a hold is the right click wherever it is
+  (`GestureView.holdRightClicks`): what taps can't right-click (the player's own units: follow, load,
+  repair; ability buttons: autocast; inventory items: picked up, the next tap putting it down; the
+  minimap), and on the battlefield the same order as a tap. It ends the game's waiting for a target
+  (aim forgotten); a kept order stays. A second hold there: another right click. In the menus and
+  the game's dialogs (a still picture, or just after the top bar's menu buttons) a hold is still the
+  left click; Warcraft I and II unchanged. What the hold did (selecting an enemy, a shop, a neutral
+  one) is now a double tap on it (by the cursor's tint: red or yellow → the left click); a double tap
+  on the ground stays attack-move. Taps unchanged. Not tried on the phone.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.
