@@ -1586,6 +1586,89 @@ a realm with modules), then stage 3.
   allied races' files was cached for its key (a re-run reused it) and released (1.0.292). The
   packager now leaves `build/package-incomplete` then, and the workflow doesn't keep that package:
   the next run fetches again, and the test and the app, which need the package, stop there.
+- The user's recording of the creation screen: a Zandalari Troll showed a black screen, a missing
+  model's cube and "GlueParent.lua:384: Usage: PlayGlueAmbience". The allied races' screen code sent
+  them to a troll scene the game doesn't have (3.3.5's trolls use the Orcs' scene: no UI_Troll, no
+  TROLL music). Now the Orcs' scene (allied-races-11); `test_screen.py` uses the game's music table
+  and fails on the old code.
+- The user's screenshot (Immersion's quest list cut off at the right, TomTom's arrow over the
+  character): "a quick compatibility hotfix for ChromieCraft add-ons". The app's add-on (WowTouch)
+  loads after TomTom and Immersion now and fits them to the phone's screen: TomTom's arrow starts at
+  the top of the screen, in the middle (where the player hasn't dragged it), and Immersion's choices
+  and talking box are clamped to the screen, 16 from its edges (its choices sit 500 right of the
+  middle). Unit-tested in Lua against stand-ins; not seen in the game.
+- The user: Worgen and Goblins starting areas (Gilneas, Kezan and the Lost Isles) ported from
+  Cataclysm and joined to Wrath's world after them; first, "worgen and goblins are NOT in chromie
+  craft. Use the popular worgen goblin module to do this." mod-worgoblin (heyitsbench, pinned) is
+  built into the realm, ChromieCraft's alone, through `modules/mod-worgen-goblin` (its README): its
+  tables' changes put on top of the game's and the others' (its whole tables would have undone the
+  HD looks', the allied races' and the Skyborne's rows, and carried its editor's damage to 2000 spell
+  texts), the game's goblin and fel orc creatures moved to races 28 and 29, its files for the game in
+  a patch of their own (patch-U, made first), its SQL in ChromieCraft's world only, its rows merged
+  into the world's tables at every start, 18 race buttons on the creation screen, its Worgen's
+  missing feature and hair numbers filled. Found on the way: the Skyborne's and the allied races'
+  reputation rows replaced each other's (whichever went in last took the other's races' standing
+  out); both merge now. Checked here: the patch for a stand-in game (`test_patch.cpp`), the screen in
+  Lua with the other two modules' code, the looks checker (no new problem), the world's SQL against
+  MariaDB in every order, the hooks compiled against the core's headers. Not checked: the game on a
+  phone. The starting areas come next.
+- The user, on the starting areas' maps: "Yes use the map converter if it works." Tried here:
+  wotlkconv (Bar3b0n3s/Converter) on the seven maps the two starts use, fetched from wago.tools
+  (Gilneas2 654, Gilneas 638, GilneasPhase1/2 655/656, LostIsles 648 (Kezan and the Lost Isles),
+  LostIslesPhase1/2 659/661: 241 tiles; their ids are free in 3.3.5's Map.dbc, their areas'
+  ids free in its AreaTable). None failed. Two things it leaves that 3.3.5 can't take, fixed after
+  it: the WDT's empty tiles keep Cataclysm's flag 2 (3.3.5 and the server's extractor take any
+  flag as a tile, 4036 of them on Gilneas2), and Cataclysm's "Shallow Water" (liquid 301, not in
+  3.3.5's LiquidType) is Water (1). With those, AzerothCore's map_extractor takes all 241 tiles
+  (heights -500 to 291, Gilneas's own areas), and the 6900 models, skins, buildings and textures
+  they place (fetched with all they use) convert, none failing (losses: shadow batches, LOD data,
+  newer shaders reset, 2048 textures halved). vmap4_extractor and vmap4_assembler take them (1022
+  models; 7 buildings couldn't open: five are 3.3.5's own (the game has them), two goblin ones
+  whose group files wago.tools didn't give), and mmaps_generator makes Gilneas2's paths (50 tiles,
+  no errors). 75 models have no skin file left in today's game (they won't draw). Not checked: any
+  of it in the game. Next: the maps' rows in the game's tables (Map, AreaTable, WorldMapArea,
+  loading screens, lights) and the server's; the server's data made for the new maps as the realm
+  is packaged (the phone's extractor reads patch-1 to 5 only); the creatures, quests and scripts.
+- The user, after the converter's trial: "If you can covert them then use them. Make them start in
+  the new zones. I'm looking for a very faithful port that doesn't overwrite the old 3.3.5 content";
+  then: "be sure that the new quests and stuff don't mess up original vanilla to wrath ... for any other
+  character than worgen or goblin the world and quests and everything stay as is. If cataclysm content
+  comes for those races, it will only be AFTER defeating the lich king." The rules the port keeps
+  (mod-worgen-goblin's README, The starting areas): the areas are maps of their own, the two races'
+  alone (no other character let on); every row new (Cataclysm's ids that 3.3.5a uses for something else
+  given new ones), no row or file of 3.3.5a's changed (the patch adds only files the game hasn't; a
+  building's rooms named only for Cataclysm's own buildings); the quests the two races' alone; the way
+  into Wrath's world by its own NPCs, nothing new spawned there; CI checks the game's own world is as
+  it was. Stages:
+  1. **Maps** (built, released: `cata-zones-<hash>`): their maps, everything they place, their tables' rows (maps, 92 areas,
+     lights, music, ambience, world maps, loading screens, buildings' rooms), the package
+     (`cata-zones-<hash>`, the zones job) with the server's data for them, the realm's patch and
+     world taking them in, the starts there; `WorgenGoblin.StartingAreas` off until stage 4.
+  2. Creatures and objects (built): the Cataclysm Preservation Project's (698 kinds of creature, 285
+     of object; 19162 creatures and 3007 objects, Gilneas's on each map whose terrain they're seen
+     with), their looks (clothes and weapons too: 475 item looks), factions, equipment, texts,
+     gossip, paths. Spawns' ids 10000000 to 12999999: AzerothCore stops the world server when a new
+     spawn's id would pass 0xFFFFFF (CI checks the highest).
+  3. Quests, items, spells, SmartAI, loot (built, loaded and checked against AzerothCore's world
+     locally; not yet played): 270 quests (all the two races' alone), 396 items, 358 spells
+     (Cataclysm's in 3.3.5a's layout where 3.3.5a hasn't them), 1076 SmartAI rows, loot, vendors,
+     46 graveyards (their places from TrinityCore's world_safe_locs: Cataclysm Classic's game hasn't
+     them), 56 area triggers, the areas' phase auras (spell_area). CPP's own coverage of these zones
+     is partial (Gilneas's chapters 1 and 2 have C++ scripts; Kezan's is a stub): what it lacks is
+     to be written here. `data/zones/left-for-later.txt` lists what isn't in yet.
+  4. Scripts (`src/WorgenGoblinZones.cpp`, `src/WorgenGoblinGilneas.cpp`): CPP's Gilneas scripts
+     (chapters 1 and 2: 10 creature, 1 object, 8 spell and 1 area trigger scripts) ported, compiled
+     against the core's headers, not yet run; the vehicles (27, their seats, riders and spell clicks)
+     and the invasion's camera flight in the tables. The terrain swaps as whole maps the player is
+     moved between (done: 638 until quest 14222, 654, then 655 from 14386; a loading screen where
+     Cataclysm had none), Cataclysm's spell effects 3.3.5a hasn't (done: the phases updated, the
+     teleports; the two movies as their narration, the game having their sound and not their
+     pictures). To do: the generic spell scripts Gilneas uses (Darkflight, Two Forms, Throw Torch and
+     four more), what CPP lacks (Gilneas's chapter 3, Kezan, the Lost Isles), the Worgen's human form (they're Worgen
+     from the start here, as mod-worgoblin has them). Then the app downloads the package and the
+     starts go on.
+  5. The way into Wrath's world: Worgen to Darnassus, Goblins to Orgrimmar.
+  Not for this port: Cataclysm's content for the other races (the user: only after the Lich King).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

@@ -34,6 +34,10 @@ DATA_RACES="$FILES/data-races"
 DB_DIR="$FILES/mysql"
 # The world server's data with the DBC files of the realm's modules over the game's (ctl.sh modules).
 DATA_MODULES="$FILES/data-modules"
+# The Worgen's and Goblins' starting areas' package (Gilneas, Kezan, the Lost Isles: cata-zones, the
+# release the app downloads; mod-worgen-goblin's README): client/ for the game's patch, server/ for
+# the world server's data (zones_data).
+ZONES="$FILES/zones"
 # What the modules the app's user picked bring for the game's files (scripts/module-files.py).
 MODULE_FILES="$SERVER/share"
 # The modules whose SQL went into the world database (ctl.sh modules); goes with the databases.
@@ -174,6 +178,17 @@ configure_realm() {
 			setkey "$allied_conf" AlliedRaces.Enable 1
 		fi
 	fi
+	# The Worgen and Goblins (mod-worgen-goblin, from mod-worgoblin) likewise; and mod-worgoblin's
+	# message at every login ("This server is running the Worgoblin module") is off.
+	worgen_conf="$R_ETC/modules/mod_worgen_goblin.conf"
+	if [ -f "$worgen_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$worgen_conf" WorgenGoblin.Enable 0
+		else
+			setkey "$worgen_conf" WorgenGoblin.Enable 1
+		fi
+	fi
+	[ ! -f "$R_ETC/modules/mod_worgoblin.conf" ] || setkey "$R_ETC/modules/mod_worgoblin.conf" Announce.enable false
 	if [ "$REALM" = remix ]; then
 		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||
 			setall "$R_ETC/modules/progression_system.conf" ProgressionSystem.Bracket_ 0
@@ -255,12 +270,14 @@ run_dbimport() {
 # - The allied races' (mod-allied-races, ChromieCraft's alone): data/sql/chromiecraft, into
 #   ChromieCraft's world database; and data/sql/remix, which takes earlier releases' rows of theirs
 #   out of Remix's.
+# - The Worgen's and Goblins' (mod-worgen-goblin: mod-worgoblin's own SQL, which the package puts
+#   there in place of the module's data/sql), into ChromieCraft's world database.
 realm_sql() {
 	if [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
 	else
-		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world"
+		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-worgen-goblin/data/sql/chromiecraft/world acore_world"
 	fi
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }
@@ -371,6 +388,37 @@ module_data() {
 	echo "The world server reads $count DBC files of the realm's modules over the game's"
 }
 
+# The starting areas' maps in the world server's data (maps, vmaps, mmaps): their files linked in
+# (hard links, or copies where the phone's storage has none), never in place of a file that's there
+# (a building's collision model the game's own data has already is the game's); a file the package
+# has once for several names (a terrain swap's tiles that are its base map's) under each of them
+# (server/same.txt). Once a package: data/.zones says which is in.
+zones_data() {
+	[ -f "$ZONES/TAG" ] && [ -d "$ZONES/server/maps" ] && [ -d "$DATA/maps" ] || return 0
+	tag=$(cat "$ZONES/TAG")
+	[ "$(cat "$DATA/.zones" 2> /dev/null)" != "$tag" ] || return 0
+	count=0
+	for part in maps vmaps mmaps; do
+		mkdir -p "$DATA/$part"
+		for file in "$ZONES/server/$part"/*; do
+			[ -f "$file" ] || continue
+			dest="$DATA/$part/${file##*/}"
+			[ -e "$dest" ] && continue
+			ln "$file" "$dest" 2> /dev/null || cp "$file" "$dest"
+			count=$((count + 1))
+		done
+	done
+	if [ -f "$ZONES/server/same.txt" ]; then
+		while IFS="$(printf '\t')" read -r name kept; do
+			[ -n "$name" ] && [ ! -e "$DATA/$name" ] || continue
+			ln "$ZONES/server/$kept" "$DATA/$name" 2> /dev/null || cp "$ZONES/server/$kept" "$DATA/$name"
+			count=$((count + 1))
+		done < "$ZONES/server/same.txt"
+	fi
+	echo "$tag" > "$DATA/.zones"
+	echo "The starting areas' maps are in the world server's data ($count files)"
+}
+
 # The modules' patch for the game (their models, interface, the DBC files above) goes in the game's
 # Data as patch-M.MPQ, a folder the game reads like an archive; a realm without one takes it out.
 # realm-modules.stamp in it says which it is, so it's copied again only when the realm's changes
@@ -465,6 +513,7 @@ auth)
 world)
 	realm "${1:-main}"
 	realm_sql
+	[ "$REALM" = remix ] || zones_data
 	mkdir -p "$R_LOGS"
 	cd "$RUN"
 	# jemalloc in place of musl's malloc, which is slow for the world server's many threads.
@@ -487,6 +536,10 @@ world)
 	# The game's folder: Wrath Remix writes its patch there as it starts (Bronze and its prices,
 	# Data/patch-Y.MPQ) and ChromieCraft's world server takes it out (mod-wrath-remix).
 	export WOW_CLIENT_DIR="$FILES/client"
+	# The Worgen's and Goblins' starting areas (mod-worgen-goblin), ChromieCraft's alone.
+	if [ "$REALM" != remix ] && [ -f "$ZONES/client/files.txt" ]; then
+		export WOW_ZONES_DIR="$ZONES"
+	fi
 	exec "$SERVER/bin/worldserver" -c "$R_ETC/worldserver.conf"
 	;;
 maps)

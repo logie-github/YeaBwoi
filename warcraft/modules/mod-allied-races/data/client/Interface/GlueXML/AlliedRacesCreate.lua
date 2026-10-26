@@ -13,12 +13,15 @@
 --    there: data/client/icons).
 --  * Their backgrounds: their kin's, whose height their models are made (tools/scale.py): the
 --    Blood Elves' for the void elves, the Night Elves' for the nightborne, the Draenei's for the
---    Lightforged, the Trolls' for the Zandalari. Each scene's camera is framed for its own race's
---    height, so each looks as its kin does there (the Draenei's showed the void elves small, the
---    Forsaken's cut off the nightborne's heads). On the selection screen, their kin's music too.
+--    Lightforged, the Trolls' for the Zandalari: the Orcs' (3.3.5's trolls have no scene of their
+--    own, Interface\Glues\Models has no UI_Troll, and the music table no TROLL: a Zandalari sent
+--    there had a black screen, a missing model's cube and PlayGlueAmbience's usage error). Each
+--    scene's camera is framed for its own race's height, so each looks as its kin does there (the
+--    Draenei's showed the void elves small, the Forsaken's cut off the nightborne's heads). On the
+--    selection screen, their kin's music too.
 --  * Their text.
 
-local ALLIED = { VOIDELF = "BloodElf", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Troll" };
+local ALLIED = { VOIDELF = "BloodElf", NIGHTBORNE = "NightElf", LIGHTFORGEDDRAENEI = "Draenei", ZANDALARITROLL = "Orc" };
 
 RACE_ICON_TCOORDS["VOIDELF_MALE"]      = { 0.875, 1.0, 0, 0.25 };
 RACE_ICON_TCOORDS["NIGHTBORNE_MALE"]   = { 0.875, 1.0, 0.25, 0.5 };

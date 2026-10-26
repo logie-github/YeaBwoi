@@ -5,79 +5,32 @@ name: Build APKs
 on:
   push:
     branches: ["**"]
-    # V3 Gold, Azure Dreams, Parasite Eve and (later) World of Warcraft have their own workflows.
-    paths-ignore:
-      - "**.md"
-      - "games/*/branding/**"
-      - "v3gold/**"
-      - "scripts/prepare-vita3k.sh"
-      - ".github/workflows/build-apk.yml"
-      - ".github/workflows/build-v3gold.yml"
-      - "azuredreams/**"
-      - "scripts/build-swanstation.sh"
-      - "scripts/build-beetle.sh"
-      - "scripts/prepare-libretrodroid.sh"
-      - ".github/workflows/build-azuredreams.yml"
-      - "parasiteeve/**"
-      - ".github/workflows/build-parasiteeve.yml"
-      - "warcraft/**"
-      - "scripts/build-azerothcore.sh"
-      - "scripts/compile-azerothcore.sh"
-      - "scripts/package-azerothcore.sh"
-      - "scripts/fetch-azerothcore.sh"
-      - "scripts/test-warcraft-server.sh"
-      - "scripts/prepare-winlator.sh"
-      - "scripts/winlator-rewrite.py"
-      - "scripts/fetch-tortoise.sh"
-      - "scripts/compile-tortoise.sh"
-      - "scripts/package-tortoise.sh"
-      - "scripts/test-turtle-server.sh"
-      - "scripts/turtle-manifests.py"
-      - ".github/workflows/build-warcraft.yml"
-      - "warcrafts/**"
-      - "scripts/prepare-winlator-app.sh"
-      - "scripts/build-stratagus.sh"
-      - ".github/workflows/build-warcrafts.yml"
-      - "docs/**"
-      - "scripts/maven-mirror.init.gradle"
-      - ".gitattributes"
-  # (a pull request of the other apps' files alone doesn't start the Dolphin builds either)
+    # Only what the Dolphin apps are built from (the other apps have their own workflows: a push or
+    # a pull request of their files alone never starts these builds). This file isn't listed: after
+    # changing build settings here, run the workflow by hand.
+    paths:
+      - "games/**"
+      - "!games/*/branding/**"
+      - "dolphin-version.env"
+      - "patches/**"
+      - "overlay/**"
+      - "ci/**"
+      - "scripts/prepare-dolphin.sh"
+      - "scripts/apps-to-build.sh"
+      - "unit-tests/**"
+      - "!**.md"
   pull_request:
-    paths-ignore:
-      - "**.md"
-      - "games/*/branding/**"
-      - "v3gold/**"
-      - "scripts/prepare-vita3k.sh"
-      - ".github/workflows/build-apk.yml"
-      - ".github/workflows/build-v3gold.yml"
-      - "azuredreams/**"
-      - "scripts/build-swanstation.sh"
-      - "scripts/build-beetle.sh"
-      - "scripts/prepare-libretrodroid.sh"
-      - ".github/workflows/build-azuredreams.yml"
-      - "parasiteeve/**"
-      - ".github/workflows/build-parasiteeve.yml"
-      - "warcraft/**"
-      - "scripts/build-azerothcore.sh"
-      - "scripts/compile-azerothcore.sh"
-      - "scripts/package-azerothcore.sh"
-      - "scripts/fetch-azerothcore.sh"
-      - "scripts/test-warcraft-server.sh"
-      - "scripts/prepare-winlator.sh"
-      - "scripts/winlator-rewrite.py"
-      - "scripts/fetch-tortoise.sh"
-      - "scripts/compile-tortoise.sh"
-      - "scripts/package-tortoise.sh"
-      - "scripts/test-turtle-server.sh"
-      - "scripts/turtle-manifests.py"
-      - ".github/workflows/build-warcraft.yml"
-      - "warcrafts/**"
-      - "scripts/prepare-winlator-app.sh"
-      - "scripts/build-stratagus.sh"
-      - ".github/workflows/build-warcrafts.yml"
-      - "docs/**"
-      - "scripts/maven-mirror.init.gradle"
-      - ".gitattributes"
+    paths:
+      - "games/**"
+      - "!games/*/branding/**"
+      - "dolphin-version.env"
+      - "patches/**"
+      - "overlay/**"
+      - "ci/**"
+      - "scripts/prepare-dolphin.sh"
+      - "scripts/apps-to-build.sh"
+      - "unit-tests/**"
+      - "!**.md"
   workflow_dispatch:
     inputs:
       app:
@@ -115,7 +68,7 @@ jobs:
           EVENT: ${{ github.event_name }}
           REQUESTED: ${{ inputs.app }}
         run: |
-          if [ "$EVENT" = push ]; then
+          if [ "$EVENT" = push ] || [ "$EVENT" = pull_request ]; then
             # Only the apps that changed since their last release.
             games="$(scripts/apps-to-build.sh)"
           elif [ "$EVENT" = workflow_dispatch ] && [ "$REQUESTED" != all ]; then
