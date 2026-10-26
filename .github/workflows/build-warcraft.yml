@@ -214,7 +214,7 @@ jobs:
   # (scripts/test-turtle-server.sh), then published. Skipped when the release for these inputs is
   # there already: its turtle-server.json gives the APK the package's size and SHA-256.
   turtle-server:
-    name: Turtle WoW realm for arm64 (build, test, publish)
+    name: OctoWoW realm (Tortoise-WoW) for arm64 (build, test, publish)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 340
     outputs:
@@ -301,8 +301,8 @@ jobs:
           gh release view "$TURTLE_TAG" > /dev/null 2>&1 && gh release delete "$TURTLE_TAG" --yes
           gh release create "$TURTLE_TAG" build/turtle/turtle-server.tar.xz build/turtle/turtle-server.json \
             --verify-tag --prerelease \
-            --title "World of Warcraft: Turtle WoW realm (Tortoise-WoW ${TORTOISE_COMMIT::7})" \
-            --notes "Turtle WoW's realm, which the World of Warcraft app downloads when Turtle WoW is installed: Tortoise-WoW ${TORTOISE_COMMIT::7} with ACE $ACE_VERSION and MariaDB for Android arm64 (musl), for the Turtle WoW 1.18.1 (7272) client, built from commit ${GITHUB_SHA::7}.
+            --title "World of Warcraft: OctoWoW realm (Tortoise-WoW ${TORTOISE_COMMIT::7})" \
+            --notes "OctoWoW's realm (Turtle WoW's before), which the World of Warcraft app downloads when the game is installed: Tortoise-WoW ${TORTOISE_COMMIT::7} with ACE $ACE_VERSION and MariaDB for Android arm64 (musl), for the 1.18.1 (7272) client (OctoWoW's), built from commit ${GITHUB_SHA::7}.
 
           \`\`\`
           $(cat build/turtle/turtle-server.json)
@@ -773,7 +773,7 @@ jobs:
 
           **Server data:** in the app, **Game files → Download server data** gets AzerothCore's ready-made data ($SERVER_DATA_VERSION, $((SERVER_DATA_SIZE / 1000000)) MB), the data CI tests this build's server on (the test runs alongside the release, not before it: its result is on the build's run). **WarcraftServerData-windows.zip** makes it from your own client on a Windows PC instead (see its README.txt).
 
-          **Turtle WoW — Vanilla+** (a second game, switched to from the launcher): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), installed from the Turtle WoW launcher in one tap, with your own Turtle WoW 1.18.1 (7272) client. Nothing of the 3.3.5a game changes.
+          **OctoWoW — Mysteries of Azeroth** (a second game, switched to from the launcher; Turtle WoW before): its own realm, Tortoise-WoW ${{ needs.turtle-server.outputs.commit }} (release ${{ needs.turtle-server.outputs.tag }}), with OctoWoW's 1.18.1 (7272) client, which the app downloads from OctoWoW's own server and checks against its torrent; Press start does both in one tap. OctoWoW's own server isn't published: the rules on the phone are Turtle WoW 1.18.1's. Nothing of the 3.3.5a game changes.
 
           **Legion 7.3.5** (a third game, switched to from the launcher): your own World of Warcraft 7.3.5 (26972) client on a LegionCore realm on the phone, LegionCore ${{ needs.felsong-server.outputs.commit }} (release ${{ needs.felsong-server.outputs.tag }}), installed from its launcher step by step (the realm in one tap; the client is yours to add; the server data made on the phone or imported). Legion's client on a phone is unverified. Nothing of the other games changes.
 
