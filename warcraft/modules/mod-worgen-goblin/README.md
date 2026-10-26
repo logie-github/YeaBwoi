@@ -155,14 +155,15 @@ and quests are in. So far:
   ItemDisplayInfo rules, run in-process: its command line can't read the tables those join from).
 - **Their quests, items, spells and scripts' data** (the same tool): 270 quests, every one the
   Worgen's or the Goblins' alone; their items (Cataclysm's ids where they're free); their spells
-  (Cataclysm's split tables made 3.3.5a's one row; 3.3.5a's own where it has the same spell); CPP's
+  (Cataclysm's split tables made 3.3.5a's one row; 3.3.5a's own where it has the same spell; a new
+  one never on an id the world's spell tables already name, as AzerothCore's own rows can); CPP's
   SmartAI, loot, vendors, trainers (the realm's own trainers of the same class or profession),
   graveyards (their places from TrinityCore's `world_safe_locs`: Cataclysm Classic's game hasn't
   them), area triggers and the areas' phase auras (`spell_area`, as quests are taken and done).
   What they name that isn't in yet (C++ scripts CPP has, vehicles, spell visuals) is listed in
   `data/zones/left-for-later.txt`.
 - **Their vehicles** (`tools/zones/vehicles.py`): Gilneas's horses, the Forsaken's catapults and the
-  rest (26 vehicles, 42 seats as new rows of the game's tables and the server's; a seat's fields as
+  rest (27 vehicles, 43 seats as new rows of the game's tables and the server's; a seat's fields as
   AzerothCore's own layout names them, WoWDBDefs leaving 3.3.5a's unnamed), who rides them and how
   a player gets on (`vehicle_template_accessory`, `npc_spellclick_spells`).
 - **CPP's scripts of Gilneas** (`src/WorgenGoblinGilneas.cpp`, `.h`: CPP's chapters 1 and 2, made

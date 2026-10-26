@@ -21,7 +21,9 @@ ITEM_SPELLS = 5
 class ItemsMixin:
     def stock_items(self):
         if "stock_items" not in self.t:
-            self.t["stock_items"] = {int(r["entry"]): r for r in db.rows(db.AC_DB, "SELECT entry, name, class, subclass FROM item_template")}
+            # (the realm's own items: never the starting areas' own, should a world they're in be read)
+            self.t["stock_items"] = {int(r["entry"]): r for r in db.rows(
+                db.AC_DB, "SELECT entry, name, class, subclass FROM item_template WHERE VerifiedBuild IS NULL OR VerifiedBuild <> -15595")}
         return self.t["stock_items"]
 
     def item(self, cata_id):

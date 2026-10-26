@@ -1650,7 +1650,7 @@ a realm with modules), then stage 3.
      gossip, paths. Spawns' ids 10000000 to 12999999: AzerothCore stops the world server when a new
      spawn's id would pass 0xFFFFFF (CI checks the highest).
   3. Quests, items, spells, SmartAI, loot (built, loaded and checked against AzerothCore's world
-     locally; not yet played): 270 quests (all the two races' alone), 395 items, 314 spells
+     locally; not yet played): 270 quests (all the two races' alone), 396 items, 358 spells
      (Cataclysm's in 3.3.5a's layout where 3.3.5a hasn't them), 1076 SmartAI rows, loot, vendors,
      46 graveyards (their places from TrinityCore's world_safe_locs: Cataclysm Classic's game hasn't
      them), 56 area triggers, the areas' phase auras (spell_area). CPP's own coverage of these zones
@@ -1658,7 +1658,7 @@ a realm with modules), then stage 3.
      to be written here. `data/zones/left-for-later.txt` lists what isn't in yet.
   4. Scripts (`src/WorgenGoblinZones.cpp`, `src/WorgenGoblinGilneas.cpp`): CPP's Gilneas scripts
      (chapters 1 and 2: 10 creature, 1 object, 8 spell and 1 area trigger scripts) ported, compiled
-     against the core's headers, not yet run; the vehicles (26, their seats, riders and spell clicks)
+     against the core's headers, not yet run; the vehicles (27, their seats, riders and spell clicks)
      and the invasion's camera flight in the tables. The terrain swaps as whole maps the player is
      moved between (done: 638 until quest 14222, 654, then 655 from 14386; a loading screen where
      Cataclysm had none), Cataclysm's spell effects 3.3.5a hasn't (done: the phases updated, the

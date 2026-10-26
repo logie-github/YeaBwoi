@@ -8,11 +8,9 @@ quest's required spell: 14: 14007 14008 14009 14010 14011 14012 14013 14266 1427
 spell (not in Cataclysm's tables): 14: 66607 66766 67474 68685 69082 71916 73915 73962 83137 89126 90062 91127 91182 91203
 spell area group: 14: 67682 68211 68750 70456 70797 71914 72849 72891 73417 73568 73603 73616 82022 91847
 spell aura 558: 1: 68976
-spell event: 8: 67279 67350 68682 68707 68743 68953 69858 71061
+spell event: 10: 66836 66925 67279 67350 68682 68707 68743 68953 69858 71061
 spell script spell_gen_darkflight: 1: 68992
 spell script spell_gen_enable_worgen_altered_form: 1: 94293
-spell script spell_gen_gilneas_prison_periodic_dummy: 1: 66853
-spell script spell_gen_throw_torch: 1: 67063
 spell script spell_gen_two_forms: 1: 68996
 spell script spell_westfall_reaping_blows: 1: 79425
 spell script spell_westfall_wake_harvest_golem: 1: 79436

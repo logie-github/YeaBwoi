@@ -1187,6 +1187,103 @@ public:
         return true;
     }
 };
+
+/*######
+## CPP's generic spell scripts Gilneas uses (spell_generic.cpp there)
+######*/
+
+enum GilneasPrison
+{
+    SPELL_SUMMON_RAVENOUS_WORGEN_1 = 66836,
+    SPELL_SUMMON_RAVENOUS_WORGEN_2 = 66925,
+
+    NPC_WORGEN_RUNT                = 35456,
+};
+
+static Position const WorgenRuntHousePos[] =
+{
+    // House Roof
+    { -1729.345f, 1526.495f, 55.47962f, 6.188943f },
+    { -1709.63f, 1527.464f, 56.86086f, 3.258752f },
+    { -1717.75f, 1513.727f, 55.47941f, 4.704845f },
+    { -1724.719f, 1526.731f, 55.66177f, 6.138319f },
+    { -1713.974f, 1526.625f, 56.21981f, 3.306195f },
+    { -1718.104f, 1524.071f, 55.81641f, 4.709816f },
+    { -1718.262f, 1518.557f, 55.55954f, 4.726997f },
+    // Cathedral Roof
+    { -1618.054f, 1489.644f, 68.45153f, 3.593639f },
+    { -1625.62f, 1487.033f, 71.27762f, 3.531424f },
+    { -1638.569f, 1489.736f, 68.55273f, 4.548815f },
+    { -1630.399f, 1481.66f, 71.41516f, 3.484555f },
+    { -1622.424f, 1483.882f, 67.67381f, 3.404875f },
+    { -1634.344f, 1491.3f, 70.10101f, 4.6248f },
+    { -1631.979f, 1491.585f, 71.11481f, 4.032866f },
+    { -1627.273f, 1499.689f, 68.89395f, 4.251452f },
+    { -1622.665f, 1489.818f, 71.03797f, 3.776179f },
+};
+
+// The worgen runts of By the Skin of his Teeth (14154), onto the house's roof or the cathedral's.
+class spell_gen_gilneas_prison_periodic_dummy : public SpellScript
+{
+    PrepareSpellScript(spell_gen_gilneas_prison_periodic_dummy);
+
+    static void SummonRunt(Unit* caster, uint8 i)
+    {
+        if (Creature* runt = caster->SummonCreature(Id(NPC_WORGEN_RUNT), WorgenRuntHousePos[i]))
+            runt->AI()->DoAction(i);
+    }
+
+    void HandleDummy(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        if (!caster)
+            return;
+        if (urand(0, 1) == 0)
+        {
+            caster->CastSpell(caster, SpellId(SPELL_SUMMON_RAVENOUS_WORGEN_1), true);
+            for (uint8 i = 0; i < 7; i++)
+                SummonRunt(caster, i);
+        }
+        else
+        {
+            caster->CastSpell(caster, SpellId(SPELL_SUMMON_RAVENOUS_WORGEN_2), true);
+            for (uint8 i = 7; i < 16; i++)
+                SummonRunt(caster, i);
+            if (urand(0, 1) == 1)
+                for (uint8 i = 0, n = urand(1, 3); i < n; i++)
+                    SummonRunt(caster, i);
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_gen_gilneas_prison_periodic_dummy::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+    }
+};
+
+enum ThrowTorch
+{
+    NPC_ROUND_UP_WORGEN_CREDIT  = 35582,
+    SPELL_THROW_TORCH           = 67063
+};
+
+// Sacrifices (14212): a worgen not burning yet, set alight, counts.
+class spell_gen_throw_torch : public SpellScript
+{
+    PrepareSpellScript(spell_gen_throw_torch);
+
+    void HandleEffect(SpellMissInfo /*missInfo*/)
+    {
+        if (Player* player = GetCaster() ? GetCaster()->ToPlayer() : nullptr)
+            if (GetHitUnit() && !GetHitUnit()->HasAura(SpellId(SPELL_THROW_TORCH)))
+                player->KilledMonsterCredit(Id(NPC_ROUND_UP_WORGEN_CREDIT));
+    }
+
+    void Register() override
+    {
+        BeforeHit += BeforeSpellHitFn(spell_gen_throw_torch::HandleEffect);
+    }
+};
 }
 
 void AddWorgenGoblinGilneasScripts()
@@ -1211,4 +1308,6 @@ void AddWorgenGoblinGilneasScripts()
     RegisterSpellScript(spell_gilneas_save_drowning_milita_effect);
     RegisterSpellScript(spell_gilneas_drowning_vehicle_exit_dummy);
     new at_gasping_for_breath();
+    RegisterSpellScript(spell_gen_gilneas_prison_periodic_dummy);
+    RegisterSpellScript(spell_gen_throw_torch);
 }

@@ -203,11 +203,13 @@ namespace WorgenGoblinZones
             case 66780: return 66780;
             case 66781: return 66781;
             case 66782: return 66782;
+            case 66836: return 66836;
             case 66853: return 66853;
             case 66894: return 66894;
             case 66908: return 66908;
             case 66914: return 66914;
             case 66915: return 66915;
+            case 66925: return 66925;
             case 66927: return 66927;
             case 66928: return 66928;
             case 66966: return 66966;

@@ -77,6 +77,7 @@ class SpellsMixin:
         key = ("Spell", cata_id)
         if key in self.done:
             return self.done[key]
+        self.server_spell_ids()
         our = self.ids.new("Spell", cata_id)
         self.done[key] = self.spell_ids[cata_id] = our
         values = self.spell_values(cata_id, name)
@@ -102,6 +103,25 @@ class SpellsMixin:
                 index.setdefault(int(r["spell_id"]), []).append(r)
             self.t["cpp_spell_scripts"] = index
         return self.t["cpp_spell_scripts"]
+
+    # The world's tables that name spells by id (AzerothCore's own rows for spells its game's table
+    # hasn't among them: a Cataclysm id one of them names isn't free).
+    SERVER_SPELL_TABLES = {
+        "spell_area": "spell", "spell_bonus_data": "entry", "spell_cooldown_overrides": "Id",
+        "spell_custom_attr": "spell_id", "spell_enchant_proc_data": "entry", "spell_group": "spell_id",
+        "spell_linked_spell": "spell_trigger", "spell_loot_template": "Entry", "spell_pet_auras": "spell",
+        "spell_proc": "SpellId", "spell_ranks": "spell_id", "spell_required": "spell_id", "spell_scripts": "id",
+        "spell_script_names": "spell_id", "spell_target_position": "ID", "spell_threat": "entry",
+        "spell_dbc": "ID",
+    }
+
+    def server_spell_ids(self):
+        if "server_spell_ids" not in self.t:
+            taken = self.ids.taken_ids("Spell")
+            for table, column in self.SERVER_SPELL_TABLES.items():
+                if column in db.column_names(db.AC_DB, table):
+                    taken |= {abs(int(r[column])) for r in db.rows(db.AC_DB, f"SELECT DISTINCT `{column}` FROM `{table}`")}
+            self.t["server_spell_ids"] = True
 
     def target_positions(self):
         """CPP's spell_target_position, by spell (a teleport's place: on Gilneas's map 654, which the
