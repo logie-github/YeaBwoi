@@ -1651,7 +1651,8 @@ a realm with modules), then stage 3.
      gossip, paths. Spawns' ids 10000000 to 12999999: AzerothCore stops the world server when a new
      spawn's id would pass 0xFFFFFF (CI checks the highest).
   3. Quests, items, spells, SmartAI, loot (built, loaded and checked against AzerothCore's world
-     locally; not yet played): 270 quests (all the two races' alone), 396 items, 358 spells
+     locally; not yet played): 247 quests (all the two races' alone; only the starting areas' own:
+     their zones', or given by what stands on their maps, never another zone's a row names), 396 items, 358 spells
      (Cataclysm's in 3.3.5a's layout where 3.3.5a hasn't them), 1076 SmartAI rows, loot, vendors,
      46 graveyards (their places from TrinityCore's world_safe_locs: Cataclysm Classic's game hasn't
      them), 56 area triggers, the areas' phase auras (spell_area). CPP's own coverage of these zones
@@ -1664,7 +1665,15 @@ a realm with modules), then stage 3.
      moved between (done: 638 until quest 14222, 654, then 655 from 14386; a loading screen where
      Cataclysm had none), Cataclysm's spell effects 3.3.5a hasn't (done: the phases updated, the
      teleports; the two movies as their narration, the game having their sound and not their
-     pictures). To do: the generic spell scripts Gilneas uses (Darkflight, Two Forms, Throw Torch and
+     pictures); the quests whose objective is a spell cast on a creature (the 14 class quests: the
+     cast counts as a kill). Where each zone's quests stand (a check of every objective's way to
+     credit against what's ported: not played): Gilneas 103 of 120 can complete, Kezan 30 of 36, the
+     Lost Isles 60 of 82. What's left: Kezan's (its hot rod isn't a vehicle in CPP and none of its
+     quest creatures has AI: LegionCore's scripts are the reference, its world database a download
+     this environment can't reach), the Lost Isles' 22 (half have LegionCore scripts), Gilneas's 17
+     (the Battle for Gilneas City, the finale, the Lost Isles' and Gilneas's credits by spell), the
+     class quests' spells 3.3.5a teaches later (Flash Heal, Arcane Missiles, Steady Shot) or not at
+     all (Primal Strike), the Lost Isles' phases (CPP hasn't them). To do as well: the generic spell scripts Gilneas uses (Darkflight, Two Forms, Throw Torch and
      four more), what CPP lacks (Gilneas's chapter 3, Kezan, the Lost Isles), the Worgen's human form (they're Worgen
      from the start here, as mod-worgoblin has them). Then the app downloads the package and the
      starts go on.

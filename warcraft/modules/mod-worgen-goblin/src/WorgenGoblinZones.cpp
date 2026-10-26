@@ -14,11 +14,14 @@
  *    movie (its narration: Cataclysm Classic's game has the Worgen's and Goblins' movies' sound, not
  *    their pictures), the phases updated (the area's phase auras, spell_area), a teleport to the
  *    spell's place (spell_target_position).
+ *  - Cataclysm's quests whose objective is a spell cast on a creature (its class quests: Charge on a
+ *    training dummy): 3.3.5a's quests haven't the kind, so the cast on it counts as a kill would.
  */
 
 #include "WorgenGoblinZonesIds.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "Spell.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
@@ -68,7 +71,21 @@ namespace
 class WorgenGoblinZonesPlayer : public PlayerScript
 {
 public:
-    WorgenGoblinZonesPlayer() : PlayerScript("WorgenGoblinZonesPlayer", { PLAYERHOOK_ON_BEFORE_TELEPORT, PLAYERHOOK_ON_LOGIN }) { }
+    WorgenGoblinZonesPlayer() : PlayerScript("WorgenGoblinZonesPlayer", { PLAYERHOOK_ON_BEFORE_TELEPORT, PLAYERHOOK_ON_LOGIN,
+        PLAYERHOOK_ON_SPELL_CAST }) { }
+
+    // A quest whose objective is a spell cast on a creature (Cataclysm's class quests: CAST_CREDITS):
+    // the cast on one counts, as 3.3.5a counts a kill.
+    void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
+    {
+        Unit* target = spell->m_targets.GetUnitTarget();
+        if (!target || !target->IsCreature())
+            return;
+        for (WorgenGoblinZones::CastCredit const& credit : WorgenGoblinZones::CAST_CREDITS)
+            if (credit.spell == spell->GetSpellInfo()->Id && credit.creature == target->GetEntry()
+                && player->GetQuestStatus(credit.quest) == QUEST_STATUS_INCOMPLETE)
+                player->KilledMonsterCredit(credit.creature, target->GetGUID());
+    }
 
     // Onto Gilneas: onto the player's own map of it.
     bool OnPlayerBeforeTeleport(Player* player, uint32 mapid, float x, float y, float z, float orientation, uint32 options, Unit* target) override

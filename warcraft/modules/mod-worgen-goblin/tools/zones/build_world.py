@@ -851,6 +851,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         self.graveyards()
         self.area_triggers()
         self.area_spells()
+        self.credits = self.cast_credits()
 
 
 # The columns a starting areas' row is known by, by table (to take exactly their rows out again).

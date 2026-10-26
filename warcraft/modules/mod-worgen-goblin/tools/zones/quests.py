@@ -27,22 +27,29 @@ CONDITION_VALUES = {1: [(1, "spell")], 2: [(1, "item")], 5: [(1, "faction")], 8:
 
 class QuestsMixin:
     def quest_id(self, cata_id):
+        """A quest of the starting areas as the realm's (0 for one of elsewhere a row names: Icecrown's,
+        Azshara's, the way into Orgrimmar's, which stage 5 brings in as Wrath's own NPCs give it)."""
         cata_id = int(cata_id or 0)
         if cata_id <= 0:
+            return 0
+        if cata_id not in self.local_quests():
+            self.drop("quest outside the starting areas", cata_id)
             return 0
         if cata_id not in self.quests_seen:
             self.quests_seen.add(cata_id)
             self.quest_queue.append(cata_id)
         return self.ENTRY + cata_id
 
-    def quests_in_scope(self):
-        sorts = ", ".join(str(z) for z in QUEST_ZONES)
-        ids = {int(r["ID"]) for r in db.rows(db.CPP_DB, f"SELECT ID FROM quest_template WHERE QuestSortID IN ({sorts})")}
-        for table, column in (("creature_queststarter", "id"), ("creature_questender", "id")):
-            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM {table} WHERE {column} IN ({db.ids_in(self.creatures)})")}
-        for table in ("gameobject_queststarter", "gameobject_questender"):
-            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM {table} WHERE id IN ({db.ids_in(self.objects)})")}
-        return ids
+    def local_quests(self):
+        """The starting areas' quests: their zones' (QuestSortID), and the ones a creature or object
+        that stands on their maps gives."""
+        if "local_quests" not in self.t:
+            sorts = ", ".join(str(z) for z in QUEST_ZONES)
+            ids = {int(r["ID"]) for r in db.rows(db.CPP_DB, f"SELECT ID FROM quest_template WHERE QuestSortID IN ({sorts})")}
+            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM creature_queststarter WHERE id IN ({db.ids_in(self.creatures)})")}
+            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM gameobject_queststarter WHERE id IN ({db.ids_in(self.objects)})")}
+            self.t["local_quests"] = ids
+        return self.t["local_quests"]
 
     def races_of(self, sort, cpp_mask):
         mine = QUEST_ZONES.get(sort)
@@ -53,7 +60,7 @@ class QuestsMixin:
         return (mask & (WORGEN | GOBLIN)) or (WORGEN | GOBLIN)
 
     def quests(self):
-        for q in sorted(self.quests_in_scope()):
+        for q in sorted(self.local_quests()):
             self.quest_id(q)
         while self.quest_queue:
             batch, self.quest_queue = self.quest_queue, []

@@ -174,13 +174,18 @@ and quests are in. So far:
   AzerothCore's own); what the scripts name (their `NPC_`, `SPELL_`, `QUEST_`, `PATH_`, `BROADCAST_`
   and `CINEMATIC_` constants) comes into the world with them, and `src/WorgenGoblinZonesIds.h`
   (written by the build, `tools/zones/scripts.py`) turns Cataclysm's ids into the realm's.
+- **Their quests are their own**: a quest is ported when it's of the starting areas' zones or a
+  creature or object standing on their maps gives it; another zone's quest a row names (Icecrown's,
+  Azshara's, the way on to Orgrimmar's) isn't, and is listed in `left-for-later.txt`.
 - **What 3.3.5a's server doesn't do** (`src/WorgenGoblinZones.cpp`): Gilneas's terrain swaps, the
   player taken to their own map of Gilneas (638 until Last Stand, 14222, is done, then 654, then 655
   once Leader of the Pack, 14386, is), on any teleport there and as either quest is handed in; and
   Cataclysm's spell effects 3.3.5a hasn't (`tools/zones/spells.py`, made dummies, each answered by
   its script in `spell_script_names`): the phases updated, the teleports with their places
   (`spell_target_position`), the two movies as their narration (Cataclysm Classic's game has the
-  Worgen's and Goblins' movies' sound, not their pictures).
+  Worgen's and Goblins' movies' sound, not their pictures); and the quests whose objective is a
+  spell cast on a creature (the class quests' "practise on the training dummy": `CAST_CREDITS` in
+  `src/WorgenGoblinZonesIds.h`), which 3.3.5a's quests haven't: the cast counts as a kill would.
 
 Next: the generic spell scripts CPP's Gilneas uses (Darkflight, Two Forms, Throw Torch and four
 more), what CPP lacks (Gilneas's last chapter, Kezan and the Lost Isles), and the way into Wrath's

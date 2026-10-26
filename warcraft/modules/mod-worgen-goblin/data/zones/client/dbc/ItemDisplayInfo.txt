@@ -43,8 +43,6 @@ put	60314							0	0	0	0	0	0	0	0					cloth_c_03purple_chest_tl				0	0
 put	60335							1	1	0	0	0	0	0	0	cloth_b_08black_sleeve_au	cloth_b_08black_sleeve_al		cloth_b_08black_chest_tu	cloth_b_08black_chest_tl				0	0
 put	60341							0	0	0	0	0	0	0	0					cloth_b_06purple_chest_tl	cloth_b_06purple_belt_lu			0	0
 put	60342							2	0	0	0	0	0	0	0	cloth_a_08blacktie_sleeve_au	cloth_a_08blacktie_sleeve_al		cloth_c_02purple_chest_tu	cloth_c_02purple_chest_tl				0	0
-put	60364							0	0	0	0	0	0	0	0	mail_c_02brown_sleeve_au			mail_c_02brown_chest_tu	mail_c_02brown_chest_tl	mail_c_02brown_belt_lu			0	0
-put	60365							0	0	0	0	0	0	0	0	leather_c_02black_sleeve_au			leather_c_02black_chest_tu	leather_c_02black_chest_tl	leather_c_02black_belt_lu			0	0
 put	60366							2	0	0	0	0	0	0	0	cloth_holiday_valentines_a_02_sleeve_au	cloth_holiday_valentines_a_02_sleeve_al		cloth_holiday_valentines_a_02_chest_tu	cloth_holiday_valentines_a_02_chest_tl				0	0
 put	60367							0	0	0	0	0	0	0	0					cloth_holiday_valentines_a_02_chest_tl				0	0
 put	60371							0	0	0	0	0	0	0	0					robe_holiday_newyears_a_02black_chest_tl				0	0
@@ -411,7 +409,6 @@ put	68843					inv_gauntlets_105v3		2	0	0	0	0	10	0	0		mail_common_a_01gray_glove_
 put	68845					inv_chest_mail_16v3		0	0	0	0	0	10	0	0	mail_common_a_01gray_sleeve_au	mail_common_a_01gray_sleeve_al		mail_common_a_01gray_chest_tu	mail_common_a_01gray_chest_tl				0	0
 put	68953					inv_boots_mail_11v3		1	0	0	0	0	10	0	0							mail_common_a_01gray_boot_ll	mail_common_a_01gray_boot_fo	0	0
 put	69049	axe_1h_horde_a_01.mdx		axe_1h_horde_a_01red		inv_throwingaxe_06		0	0	0	0	0	8	0	0									0	0
-put	69303	axe_2h_horde_a_03.mdx		axe_2h_horde_a_03steel		inv_axe_11		0	0	0	0	0	9	0	0									0	0
 put	69854							0	0	0	0	0	0	0	0	mail_common_b_02white_sleeve_au			mail_common_b_02white_chest_tu	mail_common_b_02white_chest_tl	mail_common_b_02white_belt_lu			0	0
 put	69855							0	0	0	0	0	0	0	0					mail_common_b_02white_belt_tl	mail_common_b_02white_belt_lu			0	0
 put	70346							0	0	0	0	0	0	0	0					cloth_gilneasclothes_b_01nobleb_chest_tl	cloth_c_02red_belt_lu			0	0

@@ -7,6 +7,8 @@ Cataclysm's ids, brought into the world with the rest), and the header that turn
 import os
 import re
 
+import db
+
 from build_tables import MODULE, game_path
 
 SOURCES = os.path.join(MODULE, "src")
@@ -117,9 +119,24 @@ class ScriptsMixin:
         self.done[key] = our
         return our
 
+    def cast_credits(self):
+        """The quests whose objective is a spell cast on a creature (Cataclysm's class quests: Charge
+        on a training dummy). 3.3.5a's quests haven't the kind: the module's code counts them.
+        [(quest, creature, spell)], the realm's ids."""
+        rows = db.rows(db.CPP_DB, f"SELECT ID, RequiredSpell, RequiredNpcOrGo1 FROM quest_template "
+                                  f"WHERE ID IN ({db.ids_in(self.quests_seen)}) AND RequiredSpell > 0 AND RequiredNpcOrGo1 > 0")
+        out = []
+        for r in rows:
+            spell = self.spell(r["RequiredSpell"])
+            if spell:
+                self.need_creature(r["RequiredNpcOrGo1"])
+                out.append((self.ENTRY + int(r["ID"]), self.creature_entry(r["RequiredNpcOrGo1"]), spell))
+        return sorted(out)
+
     def write_ids_header(self, phases):
         """src/WorgenGoblinZonesIds.h: Cataclysm's ids as the realm's, for the scripts."""
         spells = sorted((c, o) for c, o in self.spell_ids.items() if o)
+        credits = self.credits
         lines = [
             "// SPDX-License-Identifier: GPL-3.0-or-later",
             "// Written by tools/zones/build_world.py (scripts.py): Cataclysm's ids of the starting areas as the",
@@ -161,6 +178,15 @@ class ScriptsMixin:
             "            default: return 0;",
             "        }",
             "    }",
+            "",
+            "    // A quest whose objective is a spell cast on a creature (WorgenGoblinZones.cpp counts them).",
+            "    struct CastCredit { uint32 quest, creature, spell; };",
+            "    constexpr CastCredit CAST_CREDITS[] =",
+            "    {",
+        ]
+        lines += [f"        {{ {q}, {c}, {sp} }}," for q, c, sp in credits]
+        lines += [
+            "    };",
             "",
             "    // A phase of Cataclysm's as its bit in the phase mask (0 for one the starting areas haven't).",
             "    constexpr uint32 PhaseMask(uint32 phase)",

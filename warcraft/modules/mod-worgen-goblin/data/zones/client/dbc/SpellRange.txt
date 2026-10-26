@@ -18,8 +18,6 @@ put	202	0.0	0.0	35.0	35.0	0	Medium-Long																0	Medium-Long												
 put	203	0.0	0.0	90.0	90.0	0	Ninety																0	Ninety																0
 put	204	0.0	0.0	50.0	50.0	0	Extended Range																0	Extended																0
 put	205	0.0	0.0	35.0	35.0	2	Hunter Range																0	Hunter																0
-put	206	0.0	0.0	5.0	5.0	1	Combat Range																0	Combat																0
-put	207	0.0	0.0	6.0	6.0	0	Six yards																0	Six yards																0
-put	208	0.0	0.0	45.0	45.0	0	Longer Range																0	Longer																0
-put	209	5.0	5.0	30.0	30.0	0	Monster Shoot																0	Monster Shoot Range																0
-put	210	0.0	0.0	7.0	7.0	0	Seven yards																0	Seven yards																0
+put	206	0.0	0.0	6.0	6.0	0	Six yards																0	Six yards																0
+put	207	0.0	0.0	45.0	45.0	0	Longer Range																0	Longer																0
+put	208	0.0	0.0	5.0	5.0	1	Combat Range																0	Combat																0
