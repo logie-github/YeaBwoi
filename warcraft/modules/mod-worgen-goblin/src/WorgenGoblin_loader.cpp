@@ -4,6 +4,8 @@ void AddWorgenGoblinZonesScripts();
 void AddWorgenGoblinGilneasScripts();
 void AddWorgenGoblinKezanScripts();
 void AddWorgenGoblinFormsScripts();
+void AddWorgenGoblinLostIslesScripts();
+void AddWorgenGoblinGilneasEndScripts();
 
 void Addmod_worgen_goblinScripts()
 {
@@ -12,4 +14,6 @@ void Addmod_worgen_goblinScripts()
     AddWorgenGoblinGilneasScripts();
     AddWorgenGoblinKezanScripts();
     AddWorgenGoblinFormsScripts();
+    AddWorgenGoblinLostIslesScripts();
+    AddWorgenGoblinGilneasEndScripts();
 }

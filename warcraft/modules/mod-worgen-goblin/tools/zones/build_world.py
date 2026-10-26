@@ -29,7 +29,7 @@ from items import ItemsMixin  # noqa: E402
 from quests import QuestsMixin  # noqa: E402
 from spells import SpellsMixin  # noqa: E402
 from vehicles import VehiclesMixin  # noqa: E402
-from scripts import VEHICLES, ScriptsMixin  # noqa: E402
+from scripts import KILL_CREDITS, VEHICLES, ScriptsMixin  # noqa: E402
 from build_tables import OUT  # noqa: E402
 
 # The starting areas' rows' ranges: ENTRY + Cataclysm's entry (creatures, objects, quests, gossip
@@ -499,7 +499,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         for e, t in sorted(templates.items()):
             self.sql.add("creature_template", {
                 "entry": ENTRY + e, "difficulty_entry_1": 0, "difficulty_entry_2": 0, "difficulty_entry_3": 0,
-                "KillCredit1": self.creature_entry(t["KillCredit1"]), "KillCredit2": self.creature_entry(t["KillCredit2"]),
+                "KillCredit1": self.creature_entry(int(t["KillCredit1"]) or KILL_CREDITS.get(e, 0)), "KillCredit2": self.creature_entry(t["KillCredit2"]),
                 "name": t["name"], "subname": t["subname"], "IconName": t["IconName"],
                 "gossip_menu_id": self.gossip_menu(gossip.get(e, 0)), "minlevel": num(t["minlevel"]), "maxlevel": num(t["maxlevel"]),
                 "exp": 0, "faction": self.faction_template(t["faction"]), "npcflag": num(t["npcflag"]) & NPCFLAG_MASK,

@@ -10,6 +10,7 @@ put	16389	10	Cataclysm16389	carnivorousplant01_submerge.ogg										1	0	0	0	0	0
 put	16419	10	Cataclysm16419	mastiff_attack_01.ogg	mastiff_attack_02.ogg	mastiff_attack_03.ogg	mastiff_attack_04.ogg	mastiff_attack_05.ogg	mastiff_attack_06.ogg					1	1	1	1	1	1	0	0	0	0	sound\\creature\\mastiff	0.80000001192	0	8.0	45.0	0	0
 put	16420	10	Cataclysm16420	mastiff_wound_01.ogg	mastiff_wound_02.ogg	mastiff_wound_03.ogg	mastiff_wound_04.ogg	mastiff_wound_05.ogg						1	1	1	1	1	0	0	0	0	0	sound\\creature\\mastiff	0.80000001192	0	8.0	45.0	0	0
 put	16421	10	Cataclysm16421	mastiff_death.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\mastiff	0.80000001192	0	8.0	45.0	0	0
+put	16450	27	Cataclysm16450	cycloneofelements.ogg										1	0	0	0	0	0	0	0	0	0	sound\\spells	0.80000001192	512	8.0	45.0	0	0
 put	16455	28	Cataclysm16455	mus_cataclysm_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.80000001192	0	8.0	45.0	0	0
 put	16458	10	Cataclysm16458	protodragon\\protodragonroar.ogg	raptorscreams\\raptorscream_01.ogg	raptorscreams\\raptorscream_02.ogg	raptorscreams\\raptorscream_03.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature	0.5	0	160.0	200.0	0	0
 put	17881	50	Cataclysm17881	amb_citybilgewaterharbor_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0

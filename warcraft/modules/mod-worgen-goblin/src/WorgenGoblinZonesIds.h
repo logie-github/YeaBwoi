@@ -32,6 +32,7 @@ namespace WorgenGoblinZones
             case 2061: return 2061;
             case 2075: return 2075;
             case 2098: return 2098;
+            case 2983: return 2983;
             case 3366: return 3366;
             case 3385: return 3385;
             case 3599: return 3599;
@@ -206,6 +207,10 @@ namespace WorgenGoblinZones
             case 67805: return 67805;
             case 67807: return 67807;
             case 67825: return 67825;
+            case 67851: return 67851;
+            case 67852: return 67852;
+            case 67853: return 67853;
+            case 67854: return 67854;
             case 67917: return 67917;
             case 67919: return 67919;
             case 68060: return 68060;
@@ -232,6 +237,7 @@ namespace WorgenGoblinZones
             case 68345: return 68345;
             case 68376: return 68376;
             case 68425: return 68425;
+            case 68445: return 68445;
             case 68480: return 68480;
             case 68481: return 68481;
             case 68482: return 68482;
@@ -280,6 +286,7 @@ namespace WorgenGoblinZones
             case 68996: return 80865;
             case 69013: return 69013;
             case 69027: return 69027;
+            case 69077: return 69077;
             case 69094: return 69094;
             case 69123: return 69123;
             case 69196: return 69196;
@@ -287,6 +294,9 @@ namespace WorgenGoblinZones
             case 69296: return 69296;
             case 69303: return 69303;
             case 69434: return 69434;
+            case 69484: return 69484;
+            case 69485: return 69485;
+            case 69486: return 69486;
             case 69607: return 69607;
             case 69608: return 69608;
             case 69626: return 69626;
@@ -320,6 +330,8 @@ namespace WorgenGoblinZones
             case 70686: return 70686;
             case 70687: return 70687;
             case 70688: return 70688;
+            case 70695: return 70695;
+            case 70696: return 70696;
             case 70732: return 70732;
             case 70735: return 70735;
             case 70736: return 70736;
@@ -360,6 +372,7 @@ namespace WorgenGoblinZones
             case 72051: return 72051;
             case 72069: return 72069;
             case 72126: return 72126;
+            case 72157: return 72157;
             case 72206: return 72206;
             case 72207: return 72207;
             case 72240: return 72240;
@@ -370,6 +383,7 @@ namespace WorgenGoblinZones
             case 72522: return 72522;
             case 72652: return 72652;
             case 72660: return 72660;
+            case 72676: return 72676;
             case 72774: return 72774;
             case 72775: return 72775;
             case 72776: return 72776;
@@ -385,9 +399,12 @@ namespace WorgenGoblinZones
             case 72870: return 72870;
             case 72872: return 72872;
             case 72880: return 72880;
+            case 72885: return 72885;
+            case 72886: return 72886;
             case 72891: return 72891;
             case 72939: return 72939;
             case 72971: return 72971;
+            case 73065: return 73065;
             case 73066: return 73066;
             case 73080: return 73080;
             case 73116: return 73116;
@@ -404,6 +421,7 @@ namespace WorgenGoblinZones
             case 73617: return 73617;
             case 73631: return 73631;
             case 73702: return 73702;
+            case 73756: return 73756;
             case 73838: return 73838;
             case 73852: return 73852;
             case 73871: return 73871;
@@ -419,8 +437,10 @@ namespace WorgenGoblinZones
             case 73999: return 73999;
             case 74000: return 74000;
             case 74005: return 74005;
+            case 74025: return 74025;
             case 74036: return 74036;
             case 74038: return 74038;
+            case 74093: return 74093;
             case 74096: return 74096;
             case 74103: return 74103;
             case 74916: return 74916;

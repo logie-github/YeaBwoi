@@ -14,7 +14,8 @@ from quests import STAND_INS
 
 SOURCES = os.path.join(MODULE, "src")
 # The module's files with the starting areas' scripts.
-SCRIPT_FILES = ("WorgenGoblinGilneas.cpp", "WorgenGoblinGilneas.h", "WorgenGoblinKezan.cpp")
+SCRIPT_FILES = ("WorgenGoblinGilneas.cpp", "WorgenGoblinGilneas.h", "WorgenGoblinKezan.cpp", "WorgenGoblinLostIsles.cpp",
+                "WorgenGoblinGilneasEnd.cpp")
 CONSTANT = re.compile(r"\b(NPC|OBJECT|SPELL|QUEST|PATH|BROADCAST|CINEMATIC)_\w+\s*=\s*(\d+)")
 REGISTERED = re.compile(r"Register(?:CreatureAI|GameObjectAI|SpellScript|SpellAndAuraScriptPair)\((\w+)|new (\w+)\(\)")
 IDS_HEADER = os.path.join(SOURCES, "WorgenGoblinZonesIds.h")
@@ -31,6 +32,24 @@ CREATURE_SCRIPTS = {
     37213: "npc_kezan_buccaneer_kicker",              # Fourth and Goal: the same, kicking
     37114: "npc_kezan_shark",                         # Necessary Roughness: a Steamwheedle Shark
     37598: "npc_kezan_gasbot",                        # 447: the Gasbot
+    # The Lost Isles (WorgenGoblinLostIsles.cpp)
+    35769: "npc_lost_isles_foreman_dampwick",         # Miner Troubles' giver
+    35813: "npc_lost_isles_frightened_miner",
+    36145: "npc_lost_isles_thrall_below_deck",        # Precious Cargo
+    36161: "npc_lost_isles_thrall_cyclone",           # Warchief's Revenge's giver
+    36178: "npc_lost_isles_cyclone",
+    36425: "npc_lost_isles_flight_giver",             # Sassy: Up, Up & Away!
+    39341: "npc_lost_isles_flight_giver",             # the Mine Cart: Wild Mine Cart Ride
+    38448: "npc_lost_isles_faceless",                 # Surrender or Else!
+    38531: "npc_lost_isles_oomlot_warrior",           # Town-In-A-Box: Under Attack
+    38855: "npc_lost_isles_volcanoth",
+    # Gilneas's last chapter (WorgenGoblinGilneasEnd.cpp)
+    36540: "npc_gilneas_mountain_horse",              # The Hungry Ettin
+    37067: "npc_gilneas_crash_survivor",              # Stranded at the Marsh
+    43747: "npc_gilneas_hippogryph",                  # Endgame
+}
+OBJECT_SCRIPTS = {
+    195188: "go_lost_isles_escape_pod",               # Goblin Escape Pods
 }
 SPELL_SCRIPTS = {
     67555: "spell_kezan_vault_interact",              # The Great Bank Heist: Vault Interact (the vault's door)
@@ -39,7 +58,16 @@ SPELL_SCRIPTS = {
     69992: "spell_kezan_throw_footbomb",              # Necessary Roughness
     70051: "spell_kezan_kick_footbomb",               # Fourth and Goal
     70253: "spell_kezan_gasbot_panel",                # 447: the Gasbot Control Panel's
+    67917: "spell_lost_isles_nitro_potassium_bananas", 68280: "spell_lost_isles_ktc_snapflash",
+    71170: "spell_lost_isles_remote_control_fireworks", 71914: "spell_lost_isles_irresistible_pool_pony",
+    72891: "spell_lost_isles_rocket_boots", 72885: "spell_lost_isles_rocket_boots_damage",
+    73702: "spell_lost_isles_blastshadows_soulstone", 72206: "spell_lost_isles_fire_cannon",
+    70797: "spell_gilneas_belysras_talisman",
 }
+# A kill that counts for another creature (creature_template.KillCredit1), where CPP has none: Free the
+# Captives' Oomlot Shamans (the quest counts its own Shaman, which stands nowhere), Repel the
+# Paratroopers' (the same: the paratroopers that come down are another creature).
+KILL_CREDITS = {38574: 38644, 39069: 39042}
 # Cataclysm's vehicles of creatures CPP has none for (its creature_template.VehicleId 0). The hot rod's
 # is SkyFireDB's (468, a 5.4.8 sniff: the driver's seat) with Cataclysm's passengers' seats (467:
 # the same driver's seat and five passengers', the homies riding in it as LegionCore seats them); the
@@ -63,6 +91,8 @@ SPELL_EDITS = {
     70052: {0: {"ImplicitTargetA": 25, "ImplicitTargetB": 0}},
     67526: {0: {"ImplicitTargetA": 1}}, 67508: {0: {"ImplicitTargetA": 1}}, 67524: {0: {"ImplicitTargetA": 1}},
     67525: {0: {"ImplicitTargetA": 1}}, 67522: {0: {"ImplicitTargetA": 1}},
+    72206: {0: {"Effect": 3, "ImplicitTargetA": 1, "ImplicitTargetB": 0, "EffectTriggerSpell": 0}},   # the Fire Cannon
+    73702: {0: {"ImplicitTargetA": 1}},                                                              # the soulstone, thrown down
 }
 
 
@@ -106,7 +136,7 @@ class ScriptsMixin:
         """CPP's script name kept when there's code for it (the module's or AzerothCore's); where CPP
         has none, the module's own (CREATURE_SCRIPTS, SPELL_SCRIPTS)."""
         if not name:
-            name = {"creature": CREATURE_SCRIPTS, "spell": SPELL_SCRIPTS}.get(kind, {}).get(int(cata_id), "")
+            name = {"creature": CREATURE_SCRIPTS, "spell": SPELL_SCRIPTS, "object": OBJECT_SCRIPTS}.get(kind, {}).get(int(cata_id), "")
         if not name:
             return ""
         if name in self.ported()[0] or name in self.core_scripts():
@@ -118,6 +148,11 @@ class ScriptsMixin:
         """What the ported scripts name, brought in."""
         for e in CREATURE_SCRIPTS:
             self.need_creature(e)
+        for e in OBJECT_SCRIPTS:
+            self.need_object(e)
+        for killed, credit in KILL_CREDITS.items():
+            self.need_creature(killed)
+            self.need_creature(credit)
         for s in SPELL_SCRIPTS:
             self.spell(s)
         for npc, _, _ in SPELL_CLICKS:
