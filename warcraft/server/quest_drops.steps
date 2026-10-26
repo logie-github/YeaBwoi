@@ -20,6 +20,8 @@ expect loot item 2834
 go 0 2449.1 480.4 44.7
 kill-loot 1941
 expect loot item 2834
-# Out of the fight, so the character can log out.
+# Out of the fight, away from the graverobbers, so the character can log out (the realm keeps one in
+# combat: 1.0.345's test was still fighting the next one by the spawn).
+go 0 1676.7 1678.3 121.7
 cmd .combatstop
 wait 2
