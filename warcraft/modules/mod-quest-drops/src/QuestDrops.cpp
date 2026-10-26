@@ -1,14 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Quest drops (mod-quest-drops): an item a quest asks the player to collect from creatures (the bear
- * asses of "bring me 10") drops more often while the quest needs it, where its chance was low (the
- * user: "ones that had ridiculously low drop rates, such as less than 25% chance push the drop rate to
- * 75. For 10% or less set it to 50"): a quest drop (the loot tables' QuestRequired) that rolls on its
- * own chance rolls 75 when that was under 25, 50 when it was 10 or less, and its own chance otherwise.
- * One in a group of items (one of them drops) is left as it is, as raising it would take from the
- * group's other items (24 of the game's 5725 quest drops). Each player who needs the item sees it in
- * the loot, as before; those who don't, don't. ChromieCraft's realm alone (ctl.sh sets
- * QuestDrops.Enable for each realm).
+ * Quest drops (mod-quest-drops), ChromieCraft's realm (ctl.sh sets QuestDrops.Enable for each realm):
+ *
+ *  An item a quest asks the player to collect (a quest drop: the loot tables' QuestRequired) drops more
+ *  often where its chance was low (the user: "ones that had ridiculously low drop rates, such as less
+ *  than 25% chance push the drop rate to 75. For 10% or less set it to 50"): 75 where it was under 25,
+ *  50 where it was 10 or less, its own from 25 up. Each player who needs it sees it in the loot, as
+ *  before; those who don't, don't.
+ *
+ *  Every other drop from creatures rolls ten times its chance, 10 at least and 100 at most (the user:
+ *  "Increase other drop rates by 10 total so 1% drop rate in rare etc item becomes 10 but 100 stays at
+ *  100 but not less than 10"); a reference (the roll into a table of world drops: the greens, blues and
+ *  epics) too. Chests, skinning, mining, herbs, fishing and pickpocketing keep their chances.
+ *
+ * Items in a loot group (one of the group drops, by their chances) are left as they are: a higher chance
+ * for one would take from the group's others (24 of the game's 5725 quest drops are in one).
  */
 
 #include "Chat.h"
@@ -18,10 +24,21 @@
 #include "LootMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include <algorithm>
 
 namespace
 {
     bool enabled = true;
+
+    // Any other drop's chance, as the module rolls it: ten times its own, 10 at least, 100 at most (the
+    // user: "Increase other drop rates by 10 total so 1% drop rate in rare etc item becomes 10 but 100
+    // stays at 100 but not less than 10").
+    float RaisedOther(float chance)
+    {
+        if (chance <= 0.0f)
+            return chance;
+        return std::min(100.0f, std::max(10.0f, chance * 10.0f));
+    }
 
     // A quest drop's chance, as the module rolls it.
     float Raised(float chance)
@@ -52,10 +69,19 @@ class QuestDropsLoot : public GlobalScript
 public:
     QuestDropsLoot() : GlobalScript("QuestDropsLoot", { GLOBALHOOK_ON_ITEM_ROLL }) { }
 
-    bool OnItemRoll(Player const* /*player*/, LootStoreItem const* item, float& chance, Loot& /*loot*/, LootStore const& /*store*/) override
+    bool OnItemRoll(Player const* /*player*/, LootStoreItem const* item, float& chance, Loot& loot, LootStore const& store) override
     {
-        if (enabled && item->needs_quest && !item->groupid && !item->reference)
-            chance = Raised(chance);
+        if (!enabled || item->groupid)
+            return true;
+        if (item->needs_quest)
+        {
+            if (!item->reference)
+                chance = Raised(chance);
+        }
+        // (a creature's: its own table, or a reference from it, the roll into a table of world drops; a
+        // chest's references keep theirs)
+        else if (loot.sourceWorldObjectGUID.IsCreatureOrVehicle() && (&store == &LootTemplates_Creature || &store == &LootTemplates_Reference))
+            chance = RaisedOther(chance);
         return true;
     }
 };
@@ -86,7 +112,8 @@ public:
 
     static bool HandleChance(ChatHandler* handler, float chance)
     {
-        handler->PSendSysMessage("Quest drops: {:g} rolls {:g}{}", chance, enabled ? Raised(chance) : chance, enabled ? "" : " (off)");
+        handler->PSendSysMessage("Quest drops: {:g} rolls {:g} for a quest item, {:g} for any other{}", chance,
+            enabled ? Raised(chance) : chance, enabled ? RaisedOther(chance) : chance, enabled ? "" : " (off)");
         return true;
     }
 

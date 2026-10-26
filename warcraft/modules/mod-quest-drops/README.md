@@ -12,17 +12,25 @@ hook) changes a quest drop's chance before the roll. Each player who needs the i
 corpse's loot, as before, and those who don't, don't; the number that drops (the loot table's count)
 is unchanged.
 
-Left as they are: quest drops in a loot group (one item of the group drops, by its chances), where a
+Every other drop from creatures rolls ten times its chance, 10% at the least and 100% at the most (the
+user: "Increase other drop rates by 10 total so 1% drop rate in rare etc item becomes 10 but 100 stays
+at 100 but not less than 10"): a creature's own loot table, and the references in it (the roll into a
+table of world drops, the greens, blues and epics), whose own rows roll so too. Chests (a chest's
+references too), skinning, mining, herbs, fishing and pickpocketing keep their chances.
+
+Left as they are: drops in a loot group (one item of the group drops, by its chances), where a
 higher chance would take from the group's other items. In AzerothCore's base world, of the 5725 quest
 drops, 24 are in groups.
 
 ChromieCraft's realm alone: the app's `ctl.sh` sets `QuestDrops.Enable` (`conf/mod_quest_drops.conf.dist`)
 to 1 for it and 0 for Wrath Remix's as each starts.
 
-Game masters: `.questdrops chance <percent>` says what a quest drop of that chance rolls on the realm;
+Game masters: `.questdrops chance <percent>` says what a quest drop and any other drop of that chance roll on the
+realm;
 `.questdrops near <entry>` takes you beside the nearest living creature of an entry (300 yards at most).
 
 Tested by the realm test (`scripts/test-warcraft-server.sh`, `warcraft/server/quest_drops.steps`): the
-chances 40, 15, 10 and 5 roll 40, 75, 50 and 50; and a warlock on Piercing the Veil kills twenty
+chances 40, 15, 10, 5, 0.5 and 100 roll 40, 75, 50, 50, 50 and 100 for a quest item and 100, 100, 100,
+50, 10 and 100 for any other; and a warlock on Piercing the Veil kills twenty
 Rattlecage Skeletons, which drop its skull at 15%: nine skulls at least (at 75% that's missed about
 once in a thousand tries, at 15% reached about once in a thousand).

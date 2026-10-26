@@ -1,14 +1,18 @@
 # Quest drops (mod-quest-drops), ChromieCraft's realm: a quest drop rolls 75% where its chance was under
-# 25%, 50% where it was 10% or less, its own chance from 25% up (the user's rule). What the module rolls
-# for each:
+# 25%, 50% where it was 10% or less, its own chance from 25% up; any other creature drop ten times its
+# chance, 10% at least and 100% at most (the user's rules). What the module rolls for each:
 cmd .questdrops chance 40
-expect Quest drops: 40 rolls 40
+expect Quest drops: 40 rolls 40 for a quest item, 100 for any other
 cmd .questdrops chance 15
-expect Quest drops: 15 rolls 75
+expect Quest drops: 15 rolls 75 for a quest item, 100 for any other
 cmd .questdrops chance 10
-expect Quest drops: 10 rolls 50
+expect Quest drops: 10 rolls 50 for a quest item, 100 for any other
 cmd .questdrops chance 5
-expect Quest drops: 5 rolls 50
+expect Quest drops: 5 rolls 50 for a quest item, 50 for any other
+cmd .questdrops chance 0.5
+expect Quest drops: 0.5 rolls 50 for a quest item, 10 for any other
+cmd .questdrops chance 100
+expect Quest drops: 100 rolls 100 for a quest item, 100 for any other
 # And in the loot: Piercing the Veil (1470, a warlock's) asks for Rattlecage Skeletons' Rattlecage
 # Skulls, which they drop at 15%. Now 75%: twenty kills, nine skulls at least (a working module misses
 # that about once in a thousand tries; at 15% it's reached about once in a thousand). The character
