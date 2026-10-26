@@ -281,12 +281,14 @@ run_dbimport() {
 #   out of Remix's.
 # - The Worgen's and Goblins' (mod-worgen-goblin: mod-worgoblin's own SQL, which the package puts
 #   there in place of the module's data/sql), into ChromieCraft's world database.
+# - WoW: Forever's new quests (mod-forever-quests, ChromieCraft's alone): data/sql/chromiecraft.
 realm_sql() {
 	if [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
 	else
-		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-worgen-goblin/data/sql/chromiecraft/world acore_world"
+		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-worgen-goblin/data/sql/chromiecraft/world acore_world" \
+			"mod-forever-quests/data/sql/chromiecraft/world acore_world"
 	fi
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }

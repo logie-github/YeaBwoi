@@ -710,6 +710,11 @@ jobs:
             warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-table-moves"
           "$RUNNER_TEMP/test-table-moves" warcraft/modules/mod-skyborne/data/client warcraft/modules/mod-allied-races/data/client
 
+      # WoW: Forever's quests (mod-forever-quests): the page reader, the races, the committed SQL
+      # against its data.
+      - name: WoW Forever's quests
+        run: python3 warcraft/modules/mod-forever-quests/tools/test_forever.py
+
       # The DBC checksums the app checks OctoWoW's server data against come from the pinned
       # Tortoise-WoW; they must be the ones at that commit. (The client is checked against OctoWoW's
       # own torrent, which the app reads from OctoWoW's server.)
