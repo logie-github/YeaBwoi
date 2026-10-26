@@ -173,7 +173,7 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     }
 }
 
-/** Graphics: the games' resolution, Warcraft III's renderer, vibration, Warcraft III's touchpad fallback. */
+/** Graphics: the games' resolution, Warcraft III's renderer, vibration, Warcraft III's touchpad fallback and walk-over pickup. */
 @Composable
 fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
     val context = LocalContext.current
@@ -181,6 +181,7 @@ fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
     var renderer by remember { mutableStateOf(GameSettings.renderer(context)) }
     var vibration by remember { mutableStateOf(GameSettings.vibration(context)) }
     var touchpad by remember { mutableStateOf(GameSettings.touchpad(context)) }
+    var walkOverPickup by remember { mutableStateOf(GameSettings.walkOverPickup(context)) }
     RtsDialog(stringResource(R.string.rts_tile_graphics), onDismiss = onDismiss) {
         Text(stringResource(R.string.rts_graphics_note), style = MaterialTheme.typography.bodySmall)
         for (choice in GameSettings.Resolution.entries) {
@@ -211,6 +212,10 @@ fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
                 touchpad = it
                 GameSettings.setTouchpad(context, it)
             }
+            RtsSwitchRow(stringResource(R.string.rts_walk_pickup), stringResource(R.string.rts_walk_pickup_summary), walkOverPickup) {
+                walkOverPickup = it
+                GameSettings.setWalkOverPickup(context, it)
+            }
         }
     }
 }
@@ -225,6 +230,7 @@ fun ControlsDialog(onDismiss: () -> Unit) {
         R.string.rts_controls_order to R.string.rts_controls_order_does,
         R.string.rts_controls_tap_drag to R.string.rts_controls_tap_drag_does,
         R.string.rts_controls_double_tap to R.string.rts_controls_double_tap_does,
+        R.string.rts_controls_walk to R.string.rts_controls_walk_does,
         R.string.rts_controls_hold to R.string.rts_controls_hold_does,
         R.string.rts_controls_double to R.string.rts_controls_double_does,
         R.string.rts_controls_rest to R.string.rts_controls_rest_does,

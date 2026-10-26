@@ -7,6 +7,7 @@ import android.content.Intent
 import com.logie.warcrafts.MainActivity
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
+import com.logie.warcrafts.Wc3PickupSetup
 import com.logie.warcrafts.Wc3Setup
 import com.logie.warcrafts.library.ClassicPlus
 import com.logie.warcrafts.library.Engine
@@ -112,6 +113,8 @@ object Game {
 
     /** The game screen, waiting for the launcher to be on screen (Android starts no screens from the background). */
     private var pending: Intent? = null
+    /** The heroes' walk-over pickup at this start ([Wc3PickupSetup]), for the report. */
+    private var walkOverPickup = "not set up"
 
     fun onLauncherShown(context: Context) {
         val intent = pending ?: return
@@ -179,6 +182,7 @@ object Game {
             "Screen" to "${width}x$height (${GameSettings.resolution(context).name})",
             "Draws with" to "${GameSettings.renderer(context).name}, Direct3D by ${container.dxWrapper}",
             "Controls" to if (GameSettings.touchpad(context)) "Winlator's touchpad" else "the app's gestures",
+            "Walk-over pickup" to walkOverPickup,
             "Wine's pointer grab" to "off (X11 Driver GrabPointer N): the cursor is kept in the game's window without it",
             "Graphics driver" to container.graphicsDriver,
             "Windows parts" to container.winComponents,
@@ -317,6 +321,10 @@ object Game {
     private fun configureWarcraft3(context: Context, container: Container, title: Title, width: Int, height: Int) {
         val userReg = File(container.rootDir, ".wine/user.reg")
         if (!userReg.isFile) return
+        val game = RtsFiles.folder(context, Install.WC3)
+        // The heroes' walk-over pickup: the game's Blizzard.j with it, read from the game's folder.
+        walkOverPickup = runCatching { Wc3PickupSetup.prepare(context, game, GameSettings.walkOverPickup(context)) }
+            .getOrElse { "off: ${it.javaClass.simpleName}: ${it.message}" }
         // Where the game is, as Blizzard's installer writes it (F:, the app's Warcraft III folder).
         val gameDir = "${drive(Install.WC3)}:\\"
         val program = gameDir + if (title == Title.TFT) "Frozen Throne.exe" else "Warcraft III.exe"
@@ -340,8 +348,10 @@ object Game {
             // setting) presses go to the game's window as any click does; the clip itself stays,
             // kept by Wine's server, and on the phone there's nowhere else for the pointer to go.
             registry.setStringValue("Software\\Wine\\X11 Driver", "GrabPointer", "N")
-            // Classic+ ([ClassicPlus]): its files loose in the game's folder, read in place of the game's own.
-            registry.setDwordValue(blizzard, "Allow Local Files", if (ClassicPlus.enabled(RtsFiles.folder(context, Install.WC3))) 1 else 0)
+            // Classic+ ([ClassicPlus]) and the walk-over pickup ([Wc3PickupSetup]): files loose in the
+            // game's folder, read in place of the game's own.
+            val local = ClassicPlus.enabled(game) || walkOverPickup.startsWith("on")
+            registry.setDwordValue(blizzard, "Allow Local Files", if (local) 1 else 0)
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)

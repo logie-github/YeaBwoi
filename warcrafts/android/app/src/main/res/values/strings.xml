@@ -202,6 +202,8 @@
     <string name="rts_vibration">Vibrate on a hold</string>
     <string name="rts_vibration_summary">A short buzz when touch and hold right-clicks</string>
     <string name="rts_touchpad">Winlator\'s touchpad (if taps don\'t click)</string>
+    <string name="rts_walk_pickup">Heroes pick up items they walk over</string>
+    <string name="rts_walk_pickup_summary">Warcraft III: a hero takes an item from the ground by walking over it or standing on it, as if it had been clicked (a powerup is used). One the hero dropped stays there until it walks away. From the next map on.</string>
     <string name="rts_touchpad_summary">Warcraft III only. In place of the app\'s gestures: drag a finger to move the pointer, tap to left click, two-finger tap to right click. Four fingers open Winlator\'s menu (keyboard, exit). Back is still Escape.</string>
 
     <!-- Controls -->
@@ -214,6 +216,8 @@
     <string name="rts_controls_tap_drag">Tap, then touch and drag (Warcraft III)</string>
     <string name="rts_controls_tap_drag_does">A selection box from where the second touch lands; the first tap does nothing.</string>
     <string name="rts_controls_double_tap">Double tap (Warcraft III)</string>
+    <string name="rts_controls_walk">Walk over an item</string>
+    <string name="rts_controls_walk_does">Warcraft III: your hero picks it up (a tap on it sends the hero there). Off in Graphics, under Controls.</string>
     <string name="rts_controls_double_tap_does">On your unit: every unit of its kind on the screen. On a hero button: the camera to the hero. On the ground or an enemy: attack-move. On an inventory item: picks it up; tap a slot, the ground or a unit to put it there.</string>
     <string name="rts_controls_hold">Touch and hold</string>
     <string name="rts_controls_hold_does">Left click when you lift (after a short buzz): selects anything (an enemy, a shop to buy from), presses a button. Holding a Warcraft III button shows its tooltip.</string>

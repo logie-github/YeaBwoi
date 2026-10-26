@@ -479,6 +479,33 @@ The user's requirements, what was decided, what's open, and where it stands. The
     shops). The console without its race: the highest panel edge of the four races. Not known until
     the phone: the cursor's timing there (Winlator's frames), the probe's orientation when the console
     isn't recognised (taken as found by the watcher, else the picture's bottom first).
+- **Build 36: heroes pick up items by walking over them** (the user, after build 35: "It still won't
+  let me pick up items. Can we make it just so walking over them with a hero does it")
+  - **Why a tap on an item may not have picked it up**: over an item the game's cursor is yellow
+    (measured: neutral 1283 changed pixels, own 11), so the tap is the right click, the game's pick-up
+    order. But with a kept order (build 32) a tap on an item is that order again: Move walks onto the
+    item without taking it. Not seen on the phone, so not certain.
+  - **How**: 1.27 has no such setting, and every map's script calls `InitBlizzard` from the game's
+    `Scripts\Blizzard.j`. With `Allow Local Files` on, 1.27 reads a `Blizzard.j` at the top of the
+    game's folder (Wine's file trace: it asks for `F:\blizzard.j` and `F:\common.j`, not under
+    `Scripts\`; one at `F:\Scripts\Blizzard.j` was ignored; at the top, a changed starting gold showed
+    in a skirmish). `library/Wc3Pickup` adds globals, functions and a call at the end of
+    `InitBlizzard`; `Wc3PickupSetup` takes the player's own from `War3Patch.mpq` with `wc3unpack
+    extract` at each start (again only when the archive or the addition changes), writes it, and
+    `Game` turns `Allow Local Files` on for it. Graphics → Controls turns it off (the file removed).
+  - **The addition**: ten times a second, each hero of each player at the controls (alive, shown, not
+    an illusion, not paused, with an inventory; no cinematic) is given (`UnitAddItem`) an item on the
+    ground within 50 of its edge, when there's room or it's a powerup. A used powerup lies there
+    dead a while (life 0, still visible): left alone, or a tome would count twice (found by the test).
+    An item a hero drops (the game's drop event) stays until that hero is 150 from it.
+  - **Tested in 1.27 under Wine** with a test-only harness in the same file (a Paladin, items, orders,
+    results written with `PreloadGenEnd` to `Logs\`), on Frozen Throne (Booty Bay) and Reign of Chaos
+    (Duskwood): 300 away not taken; stood on, taken; a tome used once (Strength 22 → 23, and not again);
+    dropped beside the hero, left; walked away and back by a Move order, taken; full inventory, left;
+    in a cinematic, left, then taken after it; the game's pick-up event fired each time. The app's
+    Kotlin makes the same file byte for byte as the tested one; with it the first Human campaign
+    mission plays its opening. Not tried: on the phone, saved games and replays from before, other
+    patch versions' `War3Patch.mpq`.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

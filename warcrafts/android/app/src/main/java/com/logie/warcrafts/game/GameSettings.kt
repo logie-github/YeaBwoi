@@ -69,6 +69,13 @@ object GameSettings {
         prefs(context).edit().putBoolean("touchpad", on).apply()
     }
 
+    /** Warcraft III's heroes pick up an item by walking over it ([com.logie.warcrafts.library.Wc3Pickup]). On unless turned off. */
+    fun walkOverPickup(context: Context): Boolean = prefs(context).getBoolean("walkOverPickup", true)
+
+    fun setWalkOverPickup(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("walkOverPickup", on).apply()
+    }
+
     /** What Warcraft III's program is started with: `-opengl` for OpenGL, nothing for either Direct3D. */
     fun arguments(context: Context, install: Install): String =
         if (install == Install.WC3 && renderer(context) == Renderer.OPENGL) "-opengl" else ""

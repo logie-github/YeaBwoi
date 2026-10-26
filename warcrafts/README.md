@@ -141,6 +141,7 @@ Nothing is drawn over the game. The gestures are the ones you chose, with what W
 | Keep tapping (Warcraft III) | An order that waited for its target (Move, Attack, Patrol, a spell) is kept: every later tap on the battlefield gives it again there (the app taps its button, then your spot), until you tap another command button, select other units (a tap on your unit, a hold, a box, the portraits) or press Back. The app reads the command card from the game's picture: an order is kept only when the card showed the game waiting for a target, and given again only while the card shows the same buttons |
 | Tap, then touch and drag (Warcraft III) | A selection box from where the second touch lands (within about a quarter of a second of the tap); the first tap does nothing. Taps on the battlefield wait that moment to see whether a box or a second tap follows |
 | Double tap (Warcraft III) | On one of your units: every unit of that kind on the screen. On a hero button: the camera to the hero. On the ground or an enemy: attack-move (your units fight everything on the way). On an item in the inventory: picks it up; the next tap puts it in a slot, on the ground or on a unit (gives it) |
+| Walk over an item (Warcraft III) | Your hero picks it up: walking over it or standing on it, however the hero got there (a tap on the item, a kept Move, an attack-move). A tome or rune is used as when clicked; with a full inventory the item stays on the ground. An item the hero drops stays there until the hero walks away from it, so walking back over it picks it up again. Not during cutscenes |
 | Touch and hold | Left click when you lift (after a short buzz): selects anything, an enemy or a shop too (to buy from it), presses a button of the game's panel or menus. While you hold a Warcraft III button its tooltip shows |
 | Hold, then drag (Warcraft III) | On the battlefield: a selection box from where you held. On a button: slide off before lifting and nothing is pressed |
 | Hold twice on the same spot | Double click: every unit of that kind on the screen |
@@ -154,6 +155,15 @@ Nothing is drawn over the game. The gestures are the ones you chose, with what W
 
 There are no control groups (your choice). A mouse or keyboard connected to the phone works as on a
 PC.
+
+**Walk-over pickup** (Warcraft III, on unless turned off in Graphics, under Controls): the game has no
+such setting, so at each start the app takes the game's own script library (`Scripts\Blizzard.j`, from
+`War3Patch.mpq` in your game's folder), adds the pickup to it and puts it at the top of the game's folder
+as `Blizzard.j`, with the game's `Allow Local Files` on so it reads it. Every map's script starts by calling
+that library, so it works in skirmishes, custom maps and the campaigns; map triggers that wait for a hero
+to pick something up still fire. Turned off, the file is removed. It starts with the next map; a game
+saved before probably keeps what it was saved with, and a replay recorded with it probably plays back
+right only with it on (neither tried).
 
 **If taps don't click in Warcraft III**: Graphics → **Winlator's touchpad (if taps don't click)** starts
 it with Winlator's own touchpad in place of the gestures above: drag a finger to move the pointer (from
@@ -173,7 +183,8 @@ says where each press went).
   **Private** (on: the games' Windows has no network at all), deleting.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
   Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong),
-  the hold's vibration and, for Warcraft III, Winlator's touchpad in place of the gestures.
+  the hold's vibration and, for Warcraft III, Winlator's touchpad in place of the gestures and the
+  heroes' walk-over pickup.
 - **In the game** (four fingers): back to the game, keyboard, chat or cheat code, leave the game. Save in the game first (two-finger tap, the game's menu):
   leaving ends it where it is.
 
