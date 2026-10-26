@@ -181,10 +181,11 @@ namespace Skyborne
                 }
             }
 
-            bool Read(std::string const& name, Bytes& out) override
+            // The block of the file at [name], or 0xFFFFFFFF.
+            uint32_t Block(std::string const& name) const
             {
                 if (_hashes.empty())
-                    return false;
+                    return 0xFFFFFFFF;
                 uint32_t count = uint32_t(_hashes.size() / 4);
                 uint32_t start = Hash(name, 0) % count, a = Hash(name, 1), b = Hash(name, 2);
                 uint32_t block = 0xFFFFFFFF;
@@ -200,6 +201,21 @@ namespace Skyborne
                             break;
                     }
                 }
+                return block;
+            }
+
+            bool Has(std::string const& name) override
+            {
+                uint32_t block = Block(name);
+                if (block == 0xFFFFFFFF)
+                    return false;
+                uint32_t flags = _blocks[size_t(block) * 4 + 3];
+                return (flags & 0x80000000) && !(flags & 0x02000000);
+            }
+
+            bool Read(std::string const& name, Bytes& out) override
+            {
+                uint32_t block = Block(name);
                 if (block == 0xFFFFFFFF)
                     return false;
                 uint32_t const* bl = &_blocks[size_t(block) * 4];
@@ -286,6 +302,11 @@ namespace Skyborne
                      !error && it != fs::recursive_directory_iterator(); it.increment(error))
                     if (it->is_regular_file(error))
                         _files[GamePath(it->path().lexically_relative(folder).generic_string())] = it->path();
+            }
+
+            bool Has(std::string const& name) override
+            {
+                return _files.count(GamePath(name)) != 0;
             }
 
             bool Read(std::string const& name, Bytes& out) override
@@ -685,6 +706,14 @@ namespace Skyborne
         return false;
     }
 
+    bool Game::Has(std::string const& name) const
+    {
+        for (auto const& a : archives)
+            if (a->Has(name))
+                return true;
+        return false;
+    }
+
     std::string Game::Describe() const
     {
         std::ostringstream out;
@@ -750,24 +779,40 @@ namespace Skyborne
         return _ok;
     }
 
+    bool MpqWriter::AddSame(std::string const& name, std::string const& existing)
+    {
+        for (uint32_t i = 0; i < _blocks.size(); ++i)
+            if (_blocks[i].first == existing)
+            {
+                _same.emplace_back(name, i);
+                return true;
+            }
+        return false;
+    }
+
     bool MpqWriter::Finish()
     {
         uint32_t hashSize = 16;
-        while (hashSize < _blocks.size() * 2)
+        while (hashSize < (_blocks.size() + _same.size()) * 2)
             hashSize *= 2;
         std::vector<uint32_t> hashes(size_t(hashSize) * 4, 0xFFFFFFFF), blocks;
-        for (uint32_t i = 0; i < _blocks.size(); ++i)
+        auto put = [&](std::string const& name, uint32_t block)
         {
-            std::string const& name = _blocks[i].first;
             uint32_t index = Hash(name, 0) & (hashSize - 1);
             while (hashes[size_t(index) * 4 + 3] != 0xFFFFFFFF)
                 index = (index + 1) & (hashSize - 1);
             hashes[size_t(index) * 4 + 0] = Hash(name, 1);
             hashes[size_t(index) * 4 + 1] = Hash(name, 2);
             hashes[size_t(index) * 4 + 2] = 0;
-            hashes[size_t(index) * 4 + 3] = i;
+            hashes[size_t(index) * 4 + 3] = block;
+        };
+        for (uint32_t i = 0; i < _blocks.size(); ++i)
+        {
+            put(_blocks[i].first, i);
             blocks.insert(blocks.end(), _blocks[i].second.begin(), _blocks[i].second.end());
         }
+        for (auto const& [name, block] : _same)
+            put(name, block);
         Crypt(hashes.data(), hashes.size(), Hash("(hash table)", 3), true);
         Crypt(blocks.data(), blocks.size(), Hash("(block table)", 3), true);
         uint32_t hashPos = uint32_t(_pos);

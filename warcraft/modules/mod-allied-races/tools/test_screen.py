@@ -37,9 +37,10 @@ function GetFactionForRace(i) return RACES[i][1], RACES[i][2] end
 function CharacterCreateEnumerateRaces(...) CharacterCreate.numRaces = select("#", ...) / 3 end
 BACKGROUND = nil
 function SetBackgroundModel(model, name) BACKGROUND = name end
--- the game's table of the scenes' music (GlueParent.lua, its enUS patch's: Troll and Gnome added)
-GlueAmbienceTracks = { HUMAN = "GlueScreenHuman", ORC = "GlueScreenOrcTroll", TROLL = "GlueScreenOrcTroll",
-  DWARF = "GlueScreenDwarfGnome", GNOME = "GlueScreenDwarfGnome", TAUREN = "GlueScreenTauren", SCOURGE = "GlueScreenUndead",
+-- the game's table of the scenes' music (GlueParent.lua): the scenes there are, no TROLL or GNOME
+-- (trolls are shown in the Orcs' scene, gnomes in the Dwarves')
+GlueAmbienceTracks = { HUMAN = "GlueScreenHuman", ORC = "GlueScreenOrcTroll",
+  DWARF = "GlueScreenDwarfGnome", TAUREN = "GlueScreenTauren", SCOURGE = "GlueScreenUndead",
   NIGHTELF = "GlueScreenNightElf", DRAENEI = "GlueScreenDraenei", BLOODELF = "GlueScreenBloodElf",
   DARKPORTAL = "GlueScreenIntro", DEATHKNIGHT = "GlueScreenIntro", CHARACTERSELECT = "GlueScreenIntro" }
 AMBIENCE = nil
@@ -97,7 +98,8 @@ for native, races, with_skyborne in [
     lua.execute('SetBackgroundModel("m", "LightforgedDraenei")')
     check(g.BACKGROUND == "Draenei", "the Lightforged Draenei's background is the Draenei's")
     lua.execute('SetBackgroundModel("m", "ZandalariTroll")')
-    check(g.BACKGROUND == "Troll", "the Zandalari's background is the Trolls' (their kin's height)")
+    check(g.BACKGROUND == "Orc", "the Zandalari's background is the Trolls' own, the Orcs' scene (3.3.5 has no UI_Troll)")
+    check(g.GlueAmbienceTracks[g.BACKGROUND.upper()] is not None, "every background the screen asks for has its music")
     lua.execute('SetBackgroundModel("m", "Orc")')
     check(g.BACKGROUND == "Orc", "the game's own backgrounds stay")
     music = [("VoidElf", "GlueScreenBloodElf"), ("Nightborne", "GlueScreenNightElf"), ("LightforgedDraenei", "GlueScreenDraenei"),

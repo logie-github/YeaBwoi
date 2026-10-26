@@ -31,6 +31,8 @@ on:
       - "scripts/module-files.py"
       - "scripts/fetch-azerothcore.sh"
       - "scripts/test-warcraft-server.sh"
+      - "scripts/package-zones.sh"
+      - "scripts/zones-hash.sh"
       - "scripts/build-tww-7zip.sh"
       - "scripts/prepare-winlator.sh"
       - "scripts/winlator-rewrite.py"
@@ -80,7 +82,7 @@ jobs:
           echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
           # A test that passed on this package, this data and this test script: server-test leaves
           # it there (an arm64 runner for nothing on every app-only build).
-          echo "tested-key=warcraft-server-tested-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'scripts/module-files.py', 'warcraft/server/**', 'warcraft/server-data.env', 'scripts/test-warcraft-server.sh') }}" >> "$GITHUB_OUTPUT"
+          echo "tested-key=warcraft-server-tested-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'scripts/module-files.py', 'warcraft/server/**', 'warcraft/server-data.env', 'scripts/test-warcraft-server.sh', 'warcraft/modules/**', 'warcraft/zones-version.env', 'scripts/package-zones.sh', 'scripts/zones-hash.sh') }}" >> "$GITHUB_OUTPUT"
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
@@ -169,7 +171,7 @@ jobs:
   # none of them (the app alone) uses the result of the run that tested them.
   server-test:
     name: Server for arm64 (test)
-    needs: [server]
+    needs: [server, zones]
     if: needs.server.outputs.tested != 'true'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 240
@@ -192,6 +194,17 @@ jobs:
           echo "WOW_DATA_ZIP=$RUNNER_TEMP/data.zip" >> "$GITHUB_ENV"
           df -h / | tail -1
 
+      # The Worgen's and Goblins' starting areas' package (the zones job's release), installed and
+      # tested with the realm when the zones job made it.
+      - name: Get the starting areas
+        if: needs.zones.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ needs.zones.outputs.tag }}" -p cata-zones.tar.xz -D "$RUNNER_TEMP"
+          echo "${{ needs.zones.outputs.sha256 }}  $RUNNER_TEMP/cata-zones.tar.xz" | sha256sum -c -
+          echo "WOW_ZONES_TAR=$RUNNER_TEMP/cata-zones.tar.xz" >> "$GITHUB_ENV"
+
       # (Wrath Remix's campaign is played to its end on each side, scenes and all: about 95
       # minutes on a 4-core x86_64 machine, longer under strace)
       - name: Test the server
@@ -207,6 +220,92 @@ jobs:
         with:
           path: build/server-tested
           key: ${{ needs.server.outputs.tested-key }}
+
+  # The Worgen's and Goblins' starting areas (Gilneas, Kezan and the Lost Isles, from Cataclysm
+  # Classic's files on wago.tools, made for 3.3.5a: scripts/package-zones.sh), published as the release
+  # cata-zones-<hash> (scripts/zones-hash.sh) when it isn't there already. The game's files fetched
+  # are kept in the cache between runs.
+  zones:
+    name: Starting areas (build, publish)
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    timeout-minutes: 300
+    outputs:
+      tag: ${{ steps.pin.outputs.tag }}
+      sha256: ${{ steps.pin.outputs.sha256 }}
+      size: ${{ steps.pin.outputs.size }}
+      unpacked: ${{ steps.pin.outputs.unpacked }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release tag
+        run: |
+          tag="$(scripts/zones-hash.sh)"
+          echo "ZONES_TAG=$tag" >> "$GITHUB_ENV"
+          mkdir -p build/zones
+          if gh release view "$tag" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/assets.txt" 2> /dev/null &&
+              grep -qx cata-zones.tar.xz "$RUNNER_TEMP/assets.txt" && grep -qx cata-zones.json "$RUNNER_TEMP/assets.txt"; then
+            gh release download "$tag" -p cata-zones.json -D build/zones --clobber
+            echo "Already published: $tag"
+            echo "PUBLISHED=1" >> "$GITHUB_ENV"
+          fi
+
+      - name: Restore the game's files
+        if: env.PUBLISHED != '1'
+        uses: actions/cache/restore@v4
+        with:
+          path: build/zones/cache
+          key: zones-files-${{ hashFiles('warcraft/modules/mod-worgen-goblin/data/zones/files.tsv', 'warcraft/modules/mod-worgen-goblin/tools/zones/common.py') }}
+          restore-keys: zones-files-
+
+      - name: Make the package
+        if: env.PUBLISHED != '1'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake g++ libboost-all-dev libssl-dev libbz2-dev libreadline-dev zlib1g-dev libmysqlclient-dev > /dev/null
+          source warcraft/server-data.env
+          curl -fsSL --retry 5 --retry-all-errors -o "$RUNNER_TEMP/data.zip" "$SERVER_DATA_URL"
+          echo "$SERVER_DATA_SHA256  $RUNNER_TEMP/data.zip" | sha256sum -c -
+          WOW_DATA_ZIP="$RUNNER_TEMP/data.zip" scripts/package-zones.sh
+
+      - name: Save the game's files
+        if: always() && env.PUBLISHED != '1'
+        uses: actions/cache/save@v4
+        with:
+          path: build/zones/cache
+          key: zones-files-${{ hashFiles('warcraft/modules/mod-worgen-goblin/data/zones/files.tsv', 'warcraft/modules/mod-worgen-goblin/tools/zones/common.py') }}-${{ github.run_id }}
+
+      - name: Publish the package
+        if: env.PUBLISHED != '1'
+        run: |
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$ZONES_TAG" > /dev/null; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$ZONES_TAG" -f sha="$GITHUB_SHA" > /dev/null
+          fi
+          gh release view "$ZONES_TAG" > /dev/null 2>&1 && gh release delete "$ZONES_TAG" --yes
+          gh release create "$ZONES_TAG" build/zones/cata-zones.tar.xz build/zones/cata-zones.json \
+            --verify-tag --prerelease \
+            --title "World of Warcraft: the Worgen's and Goblins' starting areas" \
+            --notes "Gilneas, Kezan and the Lost Isles from Cataclysm Classic, made for 3.3.5a, which the World of Warcraft app downloads for the Worgen and Goblins on ChromieCraft's realm, built from commit ${GITHUB_SHA::7}.
+
+          \`\`\`
+          $(cat build/zones/cata-zones.json)
+          \`\`\`"
+
+      - name: The package's pin
+        id: pin
+        run: |
+          python3 - "$ZONES_TAG" >> "$GITHUB_OUTPUT" <<'PY'
+          import json, sys
+          info = json.load(open("build/zones/cata-zones.json"))
+          assert info["file"] == "cata-zones.tar.xz" and len(info["sha256"]) == 64 and info["size"] > 0
+          print(f"tag={sys.argv[1]}")
+          print(f"sha256={info['sha256']}")
+          print(f"size={info['size']}")
+          print(f"unpacked={info['unpacked']}")
+          PY
+          cat "$GITHUB_OUTPUT"
 
   # Turtle WoW's realm: Tortoise-WoW and ACE compiled for arm64 on musl (cached by the compile's
   # inputs, ccache across runs), packed with its own MariaDB and a seed database, tested
@@ -582,6 +681,7 @@ jobs:
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_screen.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_zoom.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-allied-races/tools/test_screen.py
+          "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-worgen-goblin/tools/test_screen.py
 
       # The allied races' tools: the model converter's pieces, the textures' codec, the tables'
       # data, the voices (with ffmpeg), the intros' narrations through a patch, both race patches'

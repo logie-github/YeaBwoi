@@ -230,7 +230,10 @@ facial hair styles and the Skeleton's voice row stayed at 15 to 18 beside the ne
   Zandalari's in the one before the Skyborne's); each side's races in two columns, two to a row
   from the top (`AlliedRacesCreate.lua`, which the Skyborne's screen code lays out again after,
   the same way); their kin's backgrounds: the Blood Elves' for the void elves, the Night Elves' for
-  the nightborne, the Draenei's for the Lightforged, the Trolls' for the Zandalari (each scene's
+  the nightborne, the Draenei's for the Lightforged, the Trolls' for the Zandalari, which in 3.3.5 is
+  the Orcs' scene (the game has no troll scene of its own: until allied-races-11 the Zandalari were
+  sent to one, and the screen went black with a missing model's cube in it and an error about
+  PlayGlueAmbience) (each scene's
   camera is framed for its own race's height, and theirs is their kin's: the Draenei's, which the
   void elves had, showed them small; the Forsaken's cut off the nightborne's heads); on the character
   list, their kin's music (the list plays it again by the selected character's own race,

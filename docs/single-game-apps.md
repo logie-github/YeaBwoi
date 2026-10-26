@@ -136,8 +136,10 @@ app's identity as properties with an app prefix (`-Ppe…`, `-Pad…`): `Version
 One workflow per app, `.github/workflows/build-<app>.yml`, modeled on `build-parasiteeve.yml`:
 
 - Triggers on pushes that touch the app's folder and whatever it shares (scripts, patches), not on
-  its README or branding alone. The Dolphin workflow (`build-apk.yml`) has a `paths-ignore` list:
-  add a new app's paths there too.
+  its README or branding alone. The Dolphin workflow (`build-apk.yml`) lists the only paths it
+  builds from (`games/`, `patches/`, `overlay/`, `ci/`, `dolphin-version.env`, its two scripts and
+  the root `unit-tests/`), so another app's files never start the Dolphin builds; a pull request
+  builds only the Dolphin apps that changed, as a push does (`scripts/apps-to-build.sh`).
 - Job 1 runs `<app>/unit-tests`. Job 2 installs the NDK and CMake with `sdkmanager`, builds the
   emulator parts, picks the signing key (the `DOLPHINXD_KEYSTORE_*` secrets, else the shared
   `ci/dolphinxd-ci.p12`, password `dolphinxd`), builds `:app:assembleRelease` with
