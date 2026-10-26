@@ -53,6 +53,7 @@ object TurtleGame {
 
     enum class Step { RUNTIME, WINDOWS, REALM, STARTING }
 
+    /** The Windows the game runs in (named when the game was Turtle WoW: kept, so it stays the same one). */
     const val CONTAINER_NAME = "Turtle WoW"
 
     /** The 3.3.5a game's container (game/Game.kt): never Turtle's to touch. */

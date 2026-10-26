@@ -55,6 +55,7 @@ import com.logie.warcraft.turtle.TurtleAccounts
 import com.logie.warcraft.turtle.TurtleFiles
 import com.logie.warcraft.turtle.TurtleJobs
 import com.logie.warcraft.turtle.TurtleLogin
+import com.logie.warcraft.turtle.OctoClient
 import com.logie.warcraft.turtle.TurtlePackage
 import com.logie.warcraft.turtle.TurtleServer
 import com.logie.warcraft.turtle.TurtleService
@@ -301,8 +302,11 @@ private fun FilesDialog(onDismiss: () -> Unit) {
     val parts = remember(job) { TurtleFiles.dataParts(context) }
     val state = remember(job) { TurtleFiles.state(context) }
     val installed = remember(job) { TurtlePackage.isInstalled(context) }
+    val inProgress = remember(job) { TurtleFiles.clientInProgress(context) }
     var clientSize by remember { mutableStateOf<Long?>(null) }
     var withMmaps by remember { mutableStateOf(TurtleSettings.mmaps(context)) }
+    var update by remember { mutableStateOf<UpdateCheck>(UpdateCheck.Idle) }
+    val scope = rememberCoroutineScope()
     val working = job is TurtleJobs.State.Working
 
     LaunchedEffect(hasClient) {
@@ -335,21 +339,55 @@ private fun FilesDialog(onDismiss: () -> Unit) {
         TurtleStatusLine(
             stringResource(R.string.turtle_files_client_state),
             when {
+                !hasClient && inProgress != null -> stringResource(R.string.turtle_files_client_partial, Formatter.formatShortFileSize(context, inProgress))
                 !hasClient -> stringResource(R.string.wow_files_client_no)
-                state.clientCheck == InstallState.ClientCheck.EXACT -> stringResource(R.string.turtle_files_client_exact, sizeText)
-                state.clientCheck == InstallState.ClientCheck.DIFFERENT -> stringResource(R.string.turtle_files_client_different, sizeText, state.clientDifferences)
-                else -> stringResource(R.string.wow_files_client_yes, sizeText)
+                state.clientIsOctoWow -> stringResource(R.string.turtle_files_client_exact, sizeText)
+                else -> stringResource(R.string.turtle_files_client_unchecked, sizeText)
             },
-            good = if (state.clientCheck == InstallState.ClientCheck.DIFFERENT) null else hasClient,
+            good = if (hasClient && !state.clientIsOctoWow) null else hasClient,
         )
+        when (val check = update) {
+            UpdateCheck.Idle -> {}
+            UpdateCheck.Checking -> Text(stringResource(R.string.turtle_client_update_checking), style = MaterialTheme.typography.bodySmall)
+            UpdateCheck.Current -> TurtleStatusLine(stringResource(R.string.turtle_client_update), stringResource(R.string.turtle_client_update_none), good = true)
+            is UpdateCheck.Found -> TurtleStatusLine(
+                stringResource(R.string.turtle_client_update),
+                check.update.changes?.let { stringResource(R.string.turtle_client_update_found, it.fetch.size, Formatter.formatShortFileSize(context, it.bytes)) }
+                    ?: stringResource(R.string.turtle_client_update_found_unknown),
+                good = null,
+            )
+            is UpdateCheck.Failed -> Text(stringResource(R.string.turtle_client_update_failed, check.message), style = MaterialTheme.typography.bodySmall)
+        }
         Text(stringResource(R.string.turtle_files_client_body), style = MaterialTheme.typography.bodySmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            TurtleButton(stringResource(R.string.wow_files_client_folder), primary = !hasClient, enabled = !working) { pickFolder.launch(null) }
+            when {
+                hasClient -> TurtleButton(stringResource(R.string.turtle_client_sync), primary = update is UpdateCheck.Found, enabled = !working) {
+                    update = UpdateCheck.Idle
+                    TurtleService.job(context, TurtleJobs.Kind.VERIFY, options = TurtleJobs.Options(withMmaps = withMmaps))
+                }
+                else -> TurtleButton(stringResource(if (inProgress != null) R.string.turtle_resume else R.string.turtle_client_download), enabled = !working) {
+                    TurtleService.job(context, TurtleJobs.Kind.DOWNLOAD_CLIENT, options = TurtleJobs.Options(withMmaps = withMmaps))
+                }
+            }
+            if (hasClient) {
+                TurtleButton(stringResource(R.string.turtle_client_check_update), primary = false, enabled = !working && update != UpdateCheck.Checking) {
+                    update = UpdateCheck.Checking
+                    scope.launch {
+                        update = withContext(Dispatchers.IO) {
+                            runCatching { OctoClient.checkUpdate(context) }.fold(
+                                onSuccess = { found -> if (found == null) UpdateCheck.Current else UpdateCheck.Found(found) },
+                                onFailure = { UpdateCheck.Failed(it.message ?: it.javaClass.simpleName) },
+                            )
+                        }
+                    }
+                }
+            }
+            TurtleButton(stringResource(R.string.wow_files_client_folder), primary = false, enabled = !working) { pickFolder.launch(null) }
             TurtleButton(stringResource(R.string.wow_files_client_zip), primary = false, enabled = !working) {
                 pickZip.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
             }
-            if (hasClient) TurtleButton(stringResource(R.string.turtle_check_files), primary = false, enabled = !working) { TurtleService.job(context, TurtleJobs.Kind.VERIFY) }
         }
+        Text(stringResource(R.string.turtle_files_client_import_body), style = MaterialTheme.typography.bodySmall)
 
         TurtleTitle(stringResource(R.string.wow_files_data), style = MaterialTheme.typography.titleLarge)
         for (part in listOf("dbc", "maps", "vmaps", "mmaps")) {
@@ -370,6 +408,19 @@ private fun FilesDialog(onDismiss: () -> Unit) {
         }
         Text(stringResource(R.string.wow_files_space, Formatter.formatShortFileSize(context, TurtleFiles.freeSpace(context))), style = MaterialTheme.typography.bodySmall)
     }
+}
+
+/** Asking OctoWoW's server whether it has a newer client than the phone's. */
+private sealed interface UpdateCheck {
+    data object Idle : UpdateCheck
+
+    data object Checking : UpdateCheck
+
+    data object Current : UpdateCheck
+
+    data class Found(val update: OctoClient.Update) : UpdateCheck
+
+    data class Failed(val message: String) : UpdateCheck
 }
 
 // Graphics ---------------------------------------------------------------------------------------
@@ -650,7 +701,7 @@ private fun UninstallDialog(facts: TurtleFacts, onDismiss: () -> Unit) {
     var typed by remember { mutableStateOf("") }
     TurtleDialog(title = stringResource(R.string.turtle_tile_uninstall), onDismiss = onDismiss, buttons = {
         TurtleButton(stringResource(R.string.turtle_cancel), primary = false, onClick = onDismiss)
-        TurtleButton(stringResource(R.string.turtle_uninstall), enabled = typed.trim().equals("TURTLE", ignoreCase = true)) {
+        TurtleButton(stringResource(R.string.turtle_uninstall), enabled = typed.trim().equals("OCTO", ignoreCase = true)) {
             TurtleService.job(context, TurtleJobs.Kind.UNINSTALL)
             Toast.makeText(context, R.string.turtle_uninstalling, Toast.LENGTH_SHORT).show()
             onDismiss()

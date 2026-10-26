@@ -46,7 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -58,7 +61,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
-/** A panel like the site's cards: dark bark, see-through, in its gradient frame. */
+/** A panel like the site's cards: dark, a little see-through, in its steel frame. */
 @Composable
 fun TurtleWindow(
     modifier: Modifier = Modifier,
@@ -77,8 +80,10 @@ fun TurtleWindow(
         modifier
             .graphicsLayer { alpha = if (enabled) 1f else 0.42f }
             .drawBehind {
-                val see = if (opaque) 1f else 0.86f
-                drawRect(Brush.verticalGradient(listOf(TurtleColors.Earth.copy(alpha = see), TurtleColors.Bark.copy(alpha = maxOf(see, 0.93f)))))
+                val see = if (opaque) 1f else 0.88f
+                drawRect(Brush.verticalGradient(listOf(TurtleColors.Earth.copy(alpha = see), TurtleColors.Bark.copy(alpha = maxOf(see, 0.94f)))))
+                // The site's cards: a faint violet haze in their upper corner.
+                drawRect(Brush.radialGradient(listOf(TurtleColors.Dusk.copy(alpha = 0.35f), Color.Transparent), center = Offset(size.width * 0.15f, 0f), radius = size.maxDimension * 0.7f))
                 if (lit > 0f) drawRect(Brush.radialGradient(listOf(TurtleColors.Orange.copy(alpha = 0.2f * lit), Color.Transparent)))
                 drawTurtleFrame(lit = lit)
             }
@@ -89,29 +94,49 @@ fun TurtleWindow(
 }
 
 /**
- * A button as on turtlecraft.gg: the [primary] one's capitals in the gold-to-coral gradient on a
- * warm dark plate in the gradient frame; the others plain stone lettering.
+ * A button as on octowow.st: capitals on a smoky dark plate in a steel bevel. The [primary] one is
+ * the site's Download button, an ember glow rising from its lower edge, orange capitals, a steel
+ * diamond at each end; [green] makes it its Sign up button instead; the others are plain plates.
  */
 @Composable
-fun TurtleButton(text: String, modifier: Modifier = Modifier, primary: Boolean = true, enabled: Boolean = true, onClick: () -> Unit) {
+fun TurtleButton(text: String, modifier: Modifier = Modifier, primary: Boolean = true, enabled: Boolean = true, green: Boolean = false, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.7f, stiffness = 900f), label = "press")
+    val glow = if (green) TurtleColors.Moss else TurtleColors.Coral
     Box(
         modifier
             .graphicsLayer { alpha = if (enabled) 1f else 0.38f }
             .heightIn(min = 44.dp)
+            .padding(horizontal = if (primary) 6.dp else 0.dp)
             .drawBehind {
+                val px = 1.dp.toPx()
+                drawRect(Brush.verticalGradient(listOf(Color(0xFF2E2925), Color(0xFF15110F))))
                 if (primary) {
-                    drawRect(Brush.verticalGradient(listOf(TurtleColors.Earth, TurtleColors.Night)))
-                    drawRect(TurtleColors.Gold.copy(alpha = 0.14f * press))
-                    drawRect(
-                        Brush.verticalGradient(listOf(TurtleColors.Gold.copy(alpha = 0.75f), TurtleColors.Coral.copy(alpha = 0.75f))),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(1.3.dp.toPx()),
-                    )
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, glow.copy(alpha = 0.32f + 0.25f * press)), startY = size.height * 0.35f))
+                    drawLine(glow, Offset(px, size.height - 1.5f * px), Offset(size.width - px, size.height - 1.5f * px), 1.6f * px)
                 } else {
                     drawRect(TurtleColors.Gold.copy(alpha = 0.08f * press))
-                    drawRect(TurtleColors.Dust.copy(alpha = 0.8f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+                }
+                drawRect(TurtleColors.SteelDark, style = Stroke(2.4f * px))
+                drawRect(
+                    Brush.verticalGradient(listOf(TurtleColors.SteelLight, TurtleColors.Steel.copy(alpha = 0.6f), TurtleColors.SteelDark)),
+                    topLeft = Offset(1.2f * px, 1.2f * px),
+                    size = Size(size.width - 2.4f * px, size.height - 2.4f * px),
+                    style = Stroke(1f * px),
+                    alpha = if (primary) 0.9f else 0.55f,
+                )
+                if (primary) {
+                    // The steel diamonds at the ends, edged with the button's own colour.
+                    val r = 6 * px
+                    for (cx in listOf(0f, size.width)) {
+                        val cy = size.height / 2
+                        val outer = Path().apply { moveTo(cx, cy - r); lineTo(cx + r, cy); lineTo(cx, cy + r); lineTo(cx - r, cy); close() }
+                        drawPath(outer, glow)
+                        val k = 0.68f
+                        val inner = Path().apply { moveTo(cx, cy - r * k); lineTo(cx + r * k, cy); lineTo(cx, cy + r * k); lineTo(cx - r * k, cy); close() }
+                        drawPath(inner, Brush.verticalGradient(listOf(TurtleColors.SteelLight, TurtleColors.Steel), startY = cy - r, endY = cy + r))
+                    }
                 }
             }
             .clickable(interactionSource = interaction, indication = null, enabled = enabled, onClick = onClick)
@@ -120,19 +145,27 @@ fun TurtleButton(text: String, modifier: Modifier = Modifier, primary: Boolean =
     ) {
         Text(
             text.uppercase(),
-            style = if (primary) TurtleGradientText.copy(fontSize = 14.sp, shadow = TurtleShadow) else TurtleDisplayStyle.copy(fontSize = 14.sp, color = TurtleColors.Parchment),
+            style = TurtleDisplayStyle.copy(
+                fontSize = 14.sp,
+                color = when {
+                    !primary -> TurtleColors.Parchment
+                    green -> TurtleColors.Moss
+                    else -> TurtleColors.Orange
+                },
+                shadow = TurtleShadow,
+            ),
             maxLines = 1,
         )
     }
 }
 
-/** A title in the site's capitals with a gold rule fading out to its right. */
+/** A heading as the site's (Almendra, gold to ember), with an ember rule fading out to its right. */
 @Composable
 fun TurtleTitle(text: String, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.headlineSmall) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Text(text.uppercase(), style = style.copy(brush = TurtleColors.GoldCoral), maxLines = 1)
+        Text(text, style = style.copy(brush = TurtleColors.GoldCoral, shadow = TurtleShadow), maxLines = 1)
         Spacer(Modifier.width(12.dp))
-        Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(TurtleColors.Gold.copy(alpha = 0.6f), Color.Transparent))))
+        Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(TurtleColors.Coral.copy(alpha = 0.7f), Color.Transparent))))
     }
 }
 
@@ -221,7 +254,7 @@ fun TurtleDialog(
 fun TurtleProgressLine(progress: Float, modifier: Modifier = Modifier) {
     Canvas(modifier.fillMaxWidth().height(10.dp)) {
         val y = size.height / 2
-        drawLine(TurtleColors.Brown, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+        drawLine(TurtleColors.SteelDark, Offset(0f, y), Offset(size.width, y), 2.dp.toPx())
         val end = size.width * progress.coerceIn(0f, 1f)
         drawLine(Brush.horizontalGradient(listOf(TurtleColors.Coral, TurtleColors.Gold), endX = end.coerceAtLeast(1f)), Offset(0f, y), Offset(end, y), 2.4.dp.toPx())
         drawCircle(Brush.radialGradient(listOf(TurtleColors.Gold, Color.Transparent), center = Offset(end, y), radius = 8.dp.toPx()), radius = 8.dp.toPx(), center = Offset(end, y))

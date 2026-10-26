@@ -38,7 +38,7 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Every failure the app meets, sent to this app's repository on GitHub as an issue: a realm that
- * wouldn't start (3.3.5a, Turtle WoW, Legion, SPP Legion, The War Within), an installation, an import
+ * wouldn't start (3.3.5a, OctoWoW, Legion, SPP Legion, The War Within), an installation, an import
  * or a game launch that failed, and the app itself crashing. Each is made a report in
  * [AnomalyReports]' folder ([AppFailure.markdown]: what the app said, the end of the logs), which
  * sends it as it sends the time anomaly reports, from the app's process: at once, and again every
@@ -81,13 +81,13 @@ object FailureReports {
         follow(app, "World of Warcraft 3.3.5a game", Game.state) {
             (it as? Game.State.Failed)?.takeUnless { f -> f.needsAccount }?.let { f -> failure(f.message) }
         }
-        follow(app, "Turtle WoW server", TurtleServer.status) {
+        follow(app, "OctoWoW server", TurtleServer.status) {
             if (it.phase == TurtleServer.Phase.FAILED && !it.blockedByChromieCraft) failure(it.error.orEmpty(), it.log) else null
         }
-        follow(app, "Turtle WoW installation", TurtleJobs.state) {
+        follow(app, "OctoWoW installation", TurtleJobs.state) {
             (it as? TurtleJobs.State.Failed)?.let { f -> failure("${f.kind}: ${f.message}", f.log) }
         }
-        follow(app, "Turtle WoW game", TurtleGame.state) {
+        follow(app, "OctoWoW game", TurtleGame.state) {
             (it as? TurtleGame.State.Failed)?.takeUnless { f -> f.needsAccount || f.chromieCraft }?.let { f -> failure(f.message) }
         }
         follow(app, "Legion 7.3.5 server", FelsongServer.status) {
