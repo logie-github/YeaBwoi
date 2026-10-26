@@ -48,6 +48,10 @@ GILNEAS_PHASES = [
     (70695, 24680, 14434),    # 189: the Headlands, Keel Harbor (Keel Harbor to Rut'theran Village)
     (74093, 24680, 14434),    # 191: Keel Harbor's ships, the same
 ]
+# The way out into Wrath's world (stage 5): Warchief's Emissary, which Cataclysm's Kor'kron Loyalist
+# takes in its Orgrimmar, taken by 3.3.5a's Thrall in Grommash Hold (the module's code takes the Goblins
+# there on taking it; the Worgen to Rut'theran Village after Rut'theran Village: WorgenGoblinZones.cpp).
+WAY_OUT = {25266: 4949}
 REWARDED, NOT_REWARDED = 1 << 6, (1 << 0) | (1 << 1) | (1 << 3)    # (AzerothCore's quest status bits)
 TAKEN = (1 << 1) | (1 << 3) | (1 << 6)
 # What the quests say of a Cataclysm spell that is untrue of its stand-in (Arcane Missiles' proc), left out.
@@ -234,6 +238,11 @@ class QuestsMixin:
                                      ("gameobject_questender", "object", self.objects_done)):
             for r in db.rows(db.CPP_DB, f"SELECT * FROM {table} WHERE id IN ({db.ids_in(entries)}) AND quest IN ({db.ids_in(self.quests_seen)})"):
                 self.sql.add(table, {"id": self.ENTRY + int(r["id"]), "quest": self.ENTRY + int(r["quest"])})
+        # The way out: a quest Cataclysm ends in a city of its own whose ender 3.3.5a's world hasn't, taken
+        # by that city's own (nothing new stands there: WAY_OUT).
+        for quest, ender in WAY_OUT.items():
+            if quest in self.quests_seen:
+                self.sql.add("creature_questender", {"id": ender, "quest": self.ENTRY + quest})
 
     # --- SmartAI -----------------------------------------------------------------------------------
 

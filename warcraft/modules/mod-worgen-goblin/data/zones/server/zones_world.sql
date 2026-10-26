@@ -57464,7 +57464,8 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (6039199, 6025123),
 (6039341, 6025125),
 (6043727, 6026706),
-(6050371, 6014157);
+(6050371, 6014157),
+(4949, 6025266);
 INSERT INTO `gameobject_queststarter` (`id`, `quest`) VALUES
 (6202613, 6025207);
 INSERT INTO `gameobject_questender` (`id`, `quest`) VALUES
