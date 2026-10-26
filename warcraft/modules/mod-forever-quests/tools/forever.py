@@ -524,6 +524,7 @@ def build(server_data, world):
     dbc_dir = os.path.join(server_data, "dbc")
 
     qcols, core_quests = table(world, "quest_template")
+    core_ids = {int(q["ID"]) for q in core_quests}
     acols, _ = table(world, "quest_template_addon")
     icols, core_items = table(world, "item_template")
     lcols, loot = table(world, "creature_loot_template")
@@ -742,8 +743,12 @@ def build(server_data, world):
         template.append(row)
         addon = {c: 0 for c in acols}
         pre = (q.get("preQuestSingle") or []) + (q.get("preQuestGroup") or [])
+        # (a breadcrumb only to a quest that's here: Forever's or the core's; the world server names any other)
+        crumb = q.get("breadcrumbForQuestId") or 0
+        if crumb not in Q and crumb not in core_ids:
+            crumb = 0
         addon.update({"ID": qid, "PrevQuestID": pre[0] if pre else 0, "ProvidedItemCount": 1 if q.get("sourceItemId") else 0,
-                      "ExclusiveGroup": 0, "BreadcrumbForQuestId": q.get("breadcrumbForQuestId") or 0})
+                      "ExclusiveGroup": 0, "BreadcrumbForQuestId": crumb})
         addons.append(addon)
         if page["progress"]:
             requests.append({"ID": qid, "EmoteOnComplete": 1, "EmoteOnIncomplete": 1, "CompletionText": page["progress"], "VerifiedBuild": 0})
