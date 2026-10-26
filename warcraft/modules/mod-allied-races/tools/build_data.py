@@ -60,10 +60,18 @@ TEMPLATE = {
     LIGHTFORGED: {WARRIOR: DRAENEI, PALADIN: DRAENEI, HUNTER: DRAENEI, PRIEST: DRAENEI, DK: DRAENEI, MAGE: DRAENEI},
     ZANDALARI: {WARRIOR: TAUREN, PALADIN: BLOODELF, HUNTER: TAUREN, ROGUE: TROLL, PRIEST: TROLL, DK: TAUREN, SHAMAN: TAUREN, MAGE: TROLL, DRUID: TAUREN},
 }
-# Classes the old races are given (the user: "Also let undead be paladins"), each with the race whose
-# start gear and action bar it takes; they begin where the race's warriors do.
-EXTRA_CLASSES = {UNDEAD: {PALADIN: BLOODELF}}
-PALADIN_LINES = (184, 267, 594)                 # Retribution, Protection, Holy
+# Classes the old races are given, each with the race whose start gear, action bar, class skills and
+# class quests it takes; they begin where the race's warriors do. The user: "Also let undead be
+# paladins"; then WoW: Forever's new pairs ("Add these race class combos"): human hunters, dwarf
+# shamans, gnome priests, orc mages and troll warlocks.
+EXTRA_CLASSES = {
+    UNDEAD: {PALADIN: BLOODELF},
+    HUMAN: {HUNTER: DWARF},
+    DWARF: {SHAMAN: DRAENEI},
+    GNOME: {PRIEST: HUMAN},
+    ORC: {MAGE: TROLL},
+    TROLL: {WARLOCK: ORC},
+}
 STATS_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL}   # their kin's starting stats
 MODEL_FROM = {VOIDELF: BLOODELF, NIGHTBORNE: NIGHTELF, LIGHTFORGED: DRAENEI, ZANDALARI: TROLL}   # whose model rows theirs are copied from
 PREFIX = {VOIDELF: "Ve", NIGHTBORNE: "Nb", LIGHTFORGED: "Ld", ZANDALARI: "Za"}
@@ -100,6 +108,47 @@ SPELLS = {"rift": 98711, "rift_open": 98712, "entropic": 98713, "entropic_buff":
           "judgment": 98723, "judgment_strike": 98724, "forge": 98725, "reckoning": 98726, "reckoning_burst": 98727,
           "holy_res": 98728, "demonbane": 98729, "regeneratin": 98730, "paku": 98731, "paku_buff": 98732, "swoop": 98733,
           "city_of_gold": 98734}
+# WoW: Forever's racials for the eight races of 1.x (the user: "Add the new or updated racials to each race"):
+# forever.warcraftdb.com's spells (Forever 1.60.1). Its new spells' ids are a million and more, past what
+# 3.3.5's tables take; theirs here are these. The racials 3.3.5 has and Forever keeps (some changed) keep
+# their own ids.
+FOREVER = {"will_to_survive": 98800, "ruthless": 98801, "blood_fury": 98802, "blood_fury_sp": 98803, "savage": 98804,
+           "shatter_curse": 98806, "earth_fury": 98807, "big_game_hunter": 98808, "elunes_light": 98809,
+           "quickness": 98810, "grave_melee": 98811, "grave_caster": 98812, "grave_drain": 98813,
+           "cultivation": 98814, "plainsrunning": 98815, "plainsrunning_speed": 98816,
+           "mind_mana": 98817, "mind_rage": 98818, "mind_energy": 98819, "mind_runic": 98820,
+           "eureka_priest": 98821, "eureka_mage": 98822, "eureka_warlock": 98823, "eureka_warrior": 98824,
+           "eureka_rogue": 98825, "confounding_flash": 98826, "rapid_regeneration": 98842}
+# The gnome priest's own two (Forever's priest racials), taught by the module as the level comes
+# (AlliedRacesForever.cpp): Contingency Plan's ward a rank, its shield a rank and its healing a rank.
+CONTINGENCY_WARD = (98827, 98828, 98829, 98830, 98831)
+CONTINGENCY_SHIELD = (98832, 98833, 98834, 98835, 98836)
+CONTINGENCY_HEAL = (98837, 98838, 98839, 98840, 98841)
+CONTINGENCY_LEVEL = (20, 30, 40, 50, 60)
+CONTINGENCY_ABSORB = (155, 290, 467, 596, 926)
+CONTINGENCY_TICK = (25, 40, 56, 102, 134)                # healing every 3 sec for 15 sec
+ID_FOREVER_ABILITY = 23500                     # new SkillLineAbility rows (the game's end at 21980)
+# Each race's racial skill line and its racials in Forever: (spell, class mask: 0 for every class).
+RACIAL_LINE = {HUMAN: 754, ORC: 125, DWARF: 101, NIGHTELF: 126, UNDEAD: 220, TAUREN: 124, GNOME: 753, TROLL: 733}
+CLS = {c: 1 << (c - 1) for c in (WARRIOR, PALADIN, HUNTER, ROGUE, PRIEST, DK, SHAMAN, MAGE, WARLOCK, DRUID)}
+FOREVER_KIT = {
+    HUMAN: [(FOREVER["will_to_survive"], 0), (20600, 0), (FOREVER["ruthless"], 0), (20598, 0)],
+    ORC: [(FOREVER["blood_fury"], 0), (20573, 0), (FOREVER["savage"], 0), (FOREVER["shatter_curse"], 0)],
+    DWARF: [(20594, 0), (2481, 0), (FOREVER["earth_fury"], 0), (FOREVER["big_game_hunter"], 0)],
+    NIGHTELF: [(FOREVER["elunes_light"], 0), (FOREVER["quickness"], 0), (58984, 0), (20585, 0)],
+    # (Touch of the Grave's 20% is Forever's warriors', paladins' and rogues'; death knights, which
+    # Forever hasn't, have it too)
+    UNDEAD: [(20577, 0), (FOREVER["grave_melee"], CLS[WARRIOR] | CLS[PALADIN] | CLS[ROGUE] | CLS[DK]),
+             (FOREVER["grave_caster"], CLS[PRIEST] | CLS[MAGE] | CLS[WARLOCK]), (5227, 0), (7744, 0)],
+    TAUREN: [(20549, 0), (20550, 0), (FOREVER["cultivation"], 0), (FOREVER["plainsrunning"], 0)],
+    # (Expansive Mind's runic power: the gnome death knight's, which Forever hasn't)
+    GNOME: [(20593, 0), (20589, 0), (FOREVER["mind_mana"], CLS[PRIEST] | CLS[MAGE] | CLS[WARLOCK]),
+            (FOREVER["mind_rage"], CLS[WARRIOR]), (FOREVER["mind_energy"], CLS[ROGUE]), (FOREVER["mind_runic"], CLS[DK]),
+            (FOREVER["eureka_priest"], CLS[PRIEST]), (FOREVER["eureka_mage"], CLS[MAGE]),
+            (FOREVER["eureka_warlock"], CLS[WARLOCK]), (FOREVER["eureka_warrior"], CLS[WARRIOR]),
+            (FOREVER["eureka_rogue"], CLS[ROGUE])],
+    TROLL: [(26297, 0), (20555, 0), (FOREVER["rapid_regeneration"], 0), (20557, 0)],
+}
 NPC_RIFT = 900101
 NPC_JUDGMENT, NPC_RECKONING = 900102, 900103   # earlier releases' stalkers for Light's Judgment and Reckoning (deleted)
 DISPLAY_RIFT = 9510                            # Creature\Spells\Creature_SpellPortal
@@ -210,7 +259,9 @@ class Sql:
         cols = ", ".join(f"`{c}`" for c in columns)
         for i in range(0, len(rows), 200):
             chunk = rows[i:i + 200]
-            values = ",\n".join("(" + ", ".join(sql_value(v, t) for v, t in zip(r, types)) + ")" for r in chunk)
+            # (the core's spell class masks are unsigned columns, where every bit is 4294967295)
+            values = ",\n".join("(" + ", ".join(str(int(v) & 0xFFFFFFFF) if "SpellClassMask" in c and t == "i" else sql_value(v, t)
+                                                 for v, t, c in zip(r, types, columns)) + ")" for r in chunk)
             self.parts.append(f"REPLACE INTO `{table}` ({cols}) VALUES\n{values};")
 
     def merge_masks(self, table, columns, types, rows, masks):
@@ -524,7 +575,17 @@ def main():
     ors("SkillRaceClassInfo", D("SkillRaceClassInfo"), 2, 1, "skillraceclassinfo_dbc")
     ors("SkillLineAbility", D("SkillLineAbility"), 3, 1, "skilllineability_dbc")
 
-    sql.comment("Undead paladins: the paladin skills and abilities the Horde's paladins (blood elves) have, theirs too.")
+    # Each class's own skill lines (its specs' lines, as SkillRaceClassInfo has them for that class alone),
+    # whose abilities of no class (class mask 0) are the class's too.
+    line_category = {r[0]: r[1] for r in lines.rows}
+    class_lines = {}
+    for r in D("SkillRaceClassInfo").rows:
+        if line_category.get(r[1]) == 7 and r[3] and r[3] & (r[3] - 1) == 0 and not lines.s(
+                next(x for x in lines.rows if x[0] == r[1])[3]).startswith("Pet"):
+            class_lines.setdefault(r[3].bit_length(), set()).add(r[1])
+
+    sql.comment("The old races' new classes (undead paladins; human hunters, dwarf shamans, gnome priests, orc mages, troll\n"
+                "warlocks): the class's skills and abilities that the race their start comes from has, theirs too.")
     for table, dbc, f_mask, f_class, f_line, sql_table in (
             ("SkillRaceClassInfo", D("SkillRaceClassInfo"), 2, 3, 1, "skillraceclassinfo_dbc"),
             ("SkillLineAbility", D("SkillLineAbility"), 3, 4, 1, "skilllineability_dbc")):
@@ -534,7 +595,7 @@ def main():
                 bit, like_bit = 1 << (race - 1), 1 << (like - 1)
                 for r in dbc.rows:
                     mask, cmask = r[f_mask], r[f_class]
-                    ours = (cmask & (1 << (cls - 1))) or (cmask == 0 and r[f_line] in PALADIN_LINES)
+                    ours = (cmask & (1 << (cls - 1))) or (cmask == 0 and r[f_line] in class_lines.get(cls, ()))
                     if not ours or not mask & like_bit or mask & bit or r[f_line] in racial_lines:
                         continue
                     client.orfield(table, r[0], f_mask, bit)
@@ -749,6 +810,242 @@ def main():
             f"INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`, `VerifiedBuild`) VALUES\n"
             f"({NPC_RIFT}, 0, {DISPLAY_RIFT}, 1, 1, 12340);")
 
+    # WoW: Forever's racials for the eight races of 1.x --------------------------------------------
+    def effects(*specs, **extra):
+        """Effects 1 to 3 (the rest cleared): each (effect, aura, amount, misc, more fields), the amount as
+        the tooltip has it (base points one less, one die side)."""
+        f = {}
+        for n in range(1, 4):
+            spec = specs[n - 1] if n <= len(specs) else None
+            effect, aura, amount, misc, more = (spec + (0, 0, 0, 0, {})[len(spec):]) if spec else (0, 0, 0, 0, {})
+            f.update({f"Effect_{n}": effect, f"EffectAura_{n}": aura, f"EffectBasePoints_{n}": amount - 1 if effect else 0,
+                      f"EffectDieSides_{n}": 1 if effect else 0, f"EffectMiscValue_{n}": misc, f"EffectMiscValueB_{n}": 0,
+                      f"ImplicitTargetA_{n}": 1 if effect else 0, f"ImplicitTargetB_{n}": 0, f"EffectRadiusIndex_{n}": 0,
+                      f"EffectTriggerSpell_{n}": 0, f"EffectAuraPeriod_{n}": 0, f"EffectRealPointsPerLevel_{n}": 0.0,
+                      f"EffectMechanic_{n}": 0, f"EffectSpellClassMaskA_{n}": 0, f"EffectSpellClassMaskB_{n}": 0,
+                      f"EffectSpellClassMaskC_{n}": 0, f"EffectChainTargets_{n}": 0, f"EffectItemType_{n}": 0})
+            f.update(more)
+        f.update(extra)
+        return f
+
+    AURA, TRIGGER, DISPEL, DISPEL_MECHANIC, DUMMY, LEECH = 6, 64, 38, 108, 3, 9
+    PHYSICAL, ALL = 1, 127
+    passive = dict(DurationIndex=21, RecoveryTime=0, CategoryRecoveryTime=0, Category=0, ProcTypeMask=0, ProcChance=101,
+                   SpellVisualID_1=0)
+    active = dict(Attributes=0x10, AttributesEx=0, AttributesEx2=0, CastingTimeIndex=1, RangeIndex=1, Category=0,
+                  CategoryRecoveryTime=0, StartRecoveryCategory=133, StartRecoveryTime=1500, PowerType=0, ManaCost=0,
+                  ManaCostPct=0, BaseLevel=1, SpellLevel=1, ProcTypeMask=0, ProcChance=101, PreventionType=2)
+    D_INF, D_2, D_3, D_6, D_8, D_10, D_15, D_30 = 21, 39, 27, 32, 31, 1, 8, 9
+    icon = lambda sid: by_id[sid][C["SpellIconID"]]
+    every_spell = (0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF)
+    family = {PRIEST: 6, MAGE: 3, WARLOCK: 5, WARRIOR: 4, ROGUE: 8}
+
+    def class_mod(n, op, amount):
+        """Effect n: Add Pct Modifier on every spell of the class (SpellClassSet)."""
+        return (AURA, 108, amount, op, {f"EffectSpellClassMaskA_{n}": every_spell[0], f"EffectSpellClassMaskB_{n}": every_spell[1],
+                                         f"EffectSpellClassMaskC_{n}": every_spell[2]})
+
+    F = FOREVER
+    forever_rows = [
+        # Human
+        spell(59752, F["will_to_survive"], "Will to Survive", "Racial", "Instantly removes all Stun effects.", "",
+              **effects((DISPEL_MECHANIC, 0, 1, 12)), **dict(active, AttributesEx=163840, AttributesEx5=393224, RecoveryTime=180000,
+                                                              DurationIndex=0, SpellVisualID_1=86, SpellIconID=icon(59752))),
+        spell(20598, F["ruthless"], "Ruthless", "Racial Passive", "Increases your critical strike chance with all spells and attacks by 2%.", "",
+              **effects((AURA, 290, 2)), **passive, SpellIconID=icon(20597)),
+        spell(20598, 20598, "The Human Spirit", "Racial Passive", "Spirit increased by $s1%.", "", **effects((AURA, 137, 5, 4))),
+        # Orc
+        spell(20572, F["blood_fury"], "Blood Fury", "Racial", "Increases Attack Power and Spell Power by 10% for $d.",
+              "Attack Power and Spell Power increased by 10%.",
+              **effects((AURA, 166, 10), (AURA, 167, 10), (TRIGGER, 0, 0, 0, {"EffectTriggerSpell_3": F["blood_fury_sp"]})),
+              **dict(active, RecoveryTime=180000, DurationIndex=D_15, AttributesEx=32, AttributesEx2=147456, SpellIconID=icon(20572),
+                     SpellVisualID_1=47)),
+        spell(20572, F["blood_fury_sp"], "Blood Fury", "", "Spell Power increased by 10%.", "Spell Power increased by 10%.",
+              **effects((AURA, 13, 0, 126), (AURA, 135, 0, 127)),
+              **dict(active, Attributes=0x80, RecoveryTime=0, DurationIndex=D_15, StartRecoveryCategory=0, StartRecoveryTime=0,
+                     SpellIconID=icon(20572), SpellVisualID_1=0)),
+        spell(20573, 20573, "Hardiness", "Racial Passive", "Duration of Stun effects on you reduced by 20%.", "",
+              **effects((AURA, 232, -20, 12))),
+        spell(20598, F["savage"], "Savage", "Racial Passive", "Increases your critical strike chance with all spells and abilities by 1%.", "",
+              **effects((AURA, 290, 1)), **passive, SpellIconID=icon(20574)),
+        spell(26297, F["shatter_curse"], "Shatter Curse", "Racial",
+              "Instantly removes all Curses, and reduces all Magical damage taken by 5% for $d.", "Reduces Magical damage taken by 5%.",
+              **effects((AURA, 87, -5, 126), (DISPEL, 0, 99, 2)),
+              **dict(active, RecoveryTime=180000, DurationIndex=D_8, SpellIconID=icon(475), SpellVisualID_1=0)),
+        # Dwarf: Stoneform's immunities last 8 sec now, and its second part (65116) reduces Physical damage
+        # taken instead of raising armour
+        spell(20594, 20594, "Stoneform", "Racial",
+              "Instantly removes and grants immunity to all Bleed, Poison, and Disease effects, and reduces all Physical damage taken by 10% for $d.",
+              "Immune to Bleed, Poison, and Disease effects. Reduces Physical damage taken by 10%.",
+              RecoveryTime=180000, DurationIndex=D_8),
+        spell(65116, 65116, "Stoneform", "", "Reduces Physical damage taken by 10%.", "Reduces Physical damage taken by 10%.",
+              **effects((AURA, 87, -10, PHYSICAL))),
+        spell(20598, F["earth_fury"], "Earth Fury", "Racial Passive", "Increases your critical strike bonus to damage and healing by 2%.", "",
+              **effects((AURA, 163, 2, ALL), (AURA, 50, 2)), **passive, SpellIconID=icon(59224)),
+        spell(20557, F["big_game_hunter"], "Big Game Hunter", "Racial Passive", "Damage dealt versus Beasts increased by $s1%.", "",
+              SpellIconID=icon(20595)),
+        # Night Elf
+        spell(26297, F["elunes_light"], "Elune's Light", "Racial", "Increases your critical strike chance with all spells and attacks by 10% for $d.",
+              "Critical strike chance with all spells and attacks increased by 10%.",
+              **effects((AURA, 290, 10)), **dict(active, RecoveryTime=180000, DurationIndex=D_15, SpellIconID=icon(8921), SpellVisualID_1=0)),
+        spell(20598, F["quickness"], "Quickness", "Racial Passive",
+              "Dodge chance increased by 1% and movement speed increased by 2%. Night Elf Rogues and Druids are harder to detect in Stealth as if they were 1 level higher.", "",
+              **effects((AURA, 49, 1), (AURA, 129, 2), (AURA, 154, 5)), **passive, SpellIconID=icon(20582)),
+        # (in combat its cooldown is 2 min: AlliedRacesForever.cpp)
+        spell(58984, 58984, "Shadowmeld", "Racial",
+              "Activate to slip into the shadows, reducing the chance for enemies to detect your presence. Lasts until cancelled or upon moving. Using this ability in combat discourages enemies from attacking you, but increases the cooldown to 2 min.",
+              "Shadowmelded.", RecoveryTime=10000),
+        # Undead
+        spell(20598, F["grave_melee"], "Touch of the Grave", "Racial Passive",
+              "Your spells and attacks have a 20% chance to drain Health from the target, up to 5% of your maximum Health.", "",
+              **effects((AURA, 4, 5)), **dict(passive, ProcTypeMask=0x55554, ProcChance=20), SpellIconID=icon(20579)),
+        spell(20598, F["grave_caster"], "Touch of the Grave", "Racial Passive",
+              "Your spells and attacks have a 30% chance to drain Health from the target, up to 5% of your maximum Health.", "",
+              **effects((AURA, 4, 5)), **dict(passive, ProcTypeMask=0x55554, ProcChance=30), SpellIconID=icon(20579)),
+        spell(20549, F["grave_drain"], "Touch of the Grave", "", "Drains Health from the target.", "",
+              **effects((LEECH, 0, 1, 0, {"ImplicitTargetA_1": 6, "EffectMultipleValue_1": 1.0})),
+              **dict(active, Attributes=0x10, AttributesEx=0, AttributesEx4=0, Mechanic=0, ShapeshiftMask=0, MaxTargets=0, RecoveryTime=0,
+                     DurationIndex=0, CastingTimeIndex=1, RangeIndex=13, InterruptFlags=0, StartRecoveryCategory=0, StartRecoveryTime=0,
+                     SchoolMask=32, SpellIconID=icon(20579), SpellVisualID_1=0, DefenseType=0, AttributesEx3=0x10000)),
+        spell(5227, 5227, "Underwater Breathing", "Racial Passive", "Underwater breath lasts $s1% longer than normal.", "",
+              **effects((AURA, 155, 300))),
+        # Tauren
+        spell(20549, 20549, "War Stomp", "Racial", "Stuns up to $i enemies within $a1 yds for $d.", "Stunned.", RecoveryTime=90000),
+        spell(20550, 20550, "Endurance", "Racial Passive", "Total Health increased by 5% and critical strike bonus to damage and healing increased by 2%.", "",
+              **effects((AURA, 282, 5), (AURA, 163, 2, ALL), (AURA, 50, 2))),
+        spell(20577, F["cultivation"], "Cultivation", "Racial",
+              "Cultivate a nearby herb, growing a duplicate you can harvest without requiring Herbalism skill. Each herb may only be cultivated once.", "",
+              **effects((DUMMY, 0, 15)), **dict(active, AttributesEx=0, AttributesEx2=0, ShapeshiftMask=0, TargetCreatureType=0,
+                                                CastingTimeIndex=14, RecoveryTime=900000, RangeIndex=7, SpellIconID=icon(20552),
+                                                SpellVisualID_1=0, InterruptFlags=15)),
+        spell(20598, F["plainsrunning"], "Plainsrunning", "Racial Passive",
+              "Gain 1% increased movement speed every 5 sec spent moving, up to a maximum of 30% increase. Taking damage or standing still will reduce this effect. In addition, you move 3% faster while mounted.", "",
+              **effects((AURA, 226, 1, 0, {"EffectAuraPeriod_1": 1000}), (AURA, 4, 5), (AURA, 130, 3)),
+              **dict(passive, ProcTypeMask=0x100000, ProcChance=100), SpellIconID=icon(2983)),
+        spell(2983, F["plainsrunning_speed"], "Plainsrunning", "", "Movement speed increased by 1%.", "Movement speed increased by $s1%.",
+              **effects((AURA, 31, 1)), **dict(active, Attributes=0, RecoveryTime=0, DurationIndex=D_INF, StartRecoveryCategory=0,
+                                               StartRecoveryTime=0, CumulativeAura=30, SpellIconID=icon(2983), SpellVisualID_1=0)),
+        # Gnome
+        spell(20593, 20593, "Engineering Specialization", "Racial Passive",
+              "Your gnomish ingenuity reduces the rate of engineering devices failing or backfiring when you use them by 20%.", "",
+              **effects((AURA, 4, 20))),
+        spell(20589, 20589, "Escape Artist", "Racial",
+              "Instantly escape the effects of any movement impairing effect and gain immunity to those effects for $d.",
+              "Immune to movement impairing effects.",
+              **effects((77, 0, 0), (AURA, 77, 1, 7), (AURA, 77, 1, 11)), RecoveryTime=120000, DurationIndex=D_3),
+        spell(20598, F["mind_mana"], "Expansive Mind", "Racial Passive", "Maximum Mana increased by 5%.", "",
+              **effects((AURA, 132, 5, 0)), **passive, SpellIconID=icon(20591)),
+        spell(20598, F["mind_rage"], "Expansive Mind", "Racial Passive", "Maximum Rage increased by 5%.", "",
+              **effects((AURA, 132, 5, 1)), **passive, SpellIconID=icon(20591)),
+        spell(20598, F["mind_energy"], "Expansive Mind", "Racial Passive", "Maximum Energy increased by 5%.", "",
+              **effects((AURA, 132, 5, 3)), **passive, SpellIconID=icon(20591)),
+        spell(20598, F["mind_runic"], "Expansive Mind", "Racial Passive", "Maximum Runic Power increased by 5%.", "",
+              **effects((AURA, 132, 5, 6)), **passive, SpellIconID=icon(20591)),
+    ]
+    eureka = {PRIEST: ("eureka_priest", "Mana", "non-periodic damaging or healing abilities", "deal 10% more damage or healing"),
+              MAGE: ("eureka_mage", "Mana", "damaging abilities", "deal 10% more damage"),
+              WARLOCK: ("eureka_warlock", "Mana", "non-periodic damaging abilities", "deal 10% more damage"),
+              WARRIOR: ("eureka_warrior", "Rage", "non-periodic damaging abilities", "deal 10% more damage"),
+              ROGUE: ("eureka_rogue", "Energy", "non-periodic damaging abilities", "deal 10% more damage")}
+    for cls, (key, power, what, more) in eureka.items():
+        mods = [class_mod(1, 14, -10), class_mod(2, 0, 10)]
+        if cls == MAGE:
+            mods.append(class_mod(3, 22, 10))            # (the mage's periodic damage too)
+        forever_rows.append(spell(26297, F[key], "Eureka!", "Racial",
+                                  f"Your {what} have their {power} cost reduced by 10% and {more} for $d.",
+                                  f"{what[0].upper() + what[1:]} cost 10% less {power} and {more}.",
+                                  **effects(*mods), **dict(active, RecoveryTime=120000, DurationIndex=D_8, SpellClassSet=family[cls],
+                                                           SchoolMask=8, DispelType=1, SpellIconID=icon(20593), SpellVisualID_1=0)))
+    # The gnome priest's own: Confounding Flash (level 10) and Contingency Plan (level 20 on, five ranks)
+    forever_rows.append(spell(20549, F["confounding_flash"], "Confounding Flash", "Racial",
+                              "Confuses up to $i enemies within $a1 yds for $d. Any damage taken will break the effect.", "Confused.",
+                              **effects((AURA, 5, 0, 0, {"ImplicitTargetA_1": 18, "ImplicitTargetB_1": 16, "EffectRadiusIndex_1": 14})),
+                              **dict(Mechanic=2, CastingTimeIndex=3, RecoveryTime=120000, DurationIndex=D_3, ManaCostPct=3, PowerType=0,
+                                     BaseLevel=10, SpellLevel=10, AuraInterruptFlags=0x2, SchoolMask=2, MaxTargets=5, ShapeshiftMask=0,
+                                     SpellIconID=icon(8122), SpellVisualID_1=0)))
+    for rank, (ward, shield, heal, level, absorb, tick) in enumerate(zip(CONTINGENCY_WARD, CONTINGENCY_SHIELD, CONTINGENCY_HEAL, CONTINGENCY_LEVEL,
+                                                                          CONTINGENCY_ABSORB, CONTINGENCY_TICK), 1):
+        forever_rows.append(spell(17, ward, "Contingency Plan", f"Rank {rank}",
+                                  f"Place a Holy ward on an ally for $d. The next time this ally takes damage dropping their Health below 35%, they will gain a shield absorbing {absorb} damage and begin healing for {tick * 5} Health over 15 sec. A target may be affected by only one Contingency Plan.",
+                                  "Warded against damage taking Health below 35%.",
+                                  **effects((AURA, 4, 35, 0, {"ImplicitTargetA_1": 21})),
+                                  **dict(active, Attributes=0x10, RecoveryTime=600000, DurationIndex=D_30, RangeIndex=4, BaseLevel=level,
+                                         ProcTypeMask=0x100000, ProcChance=100,
+                                         SpellLevel=level, SchoolMask=2, DispelType=1, SpellClassSet=0, SpellClassMask_1=0, SpellClassMask_2=0,
+                                         SpellClassMask_3=0, ManaCostPct=0, SpellIconID=icon(47788), SpellVisualID_1=0)))
+        forever_rows.append(spell(17, shield, "Contingency Plan", f"Rank {rank}", f"Absorbing {absorb} damage.", f"Absorbing {absorb} damage.",
+                                  **effects((AURA, 69, absorb, ALL)),
+                                  **dict(active, Attributes=0x80, RecoveryTime=0, DurationIndex=D_15, RangeIndex=13, BaseLevel=level, SpellLevel=level,
+                                         SchoolMask=2, DispelType=1, SpellClassSet=0, SpellClassMask_1=0, SpellClassMask_2=0, SpellClassMask_3=0,
+                                         StartRecoveryCategory=0, StartRecoveryTime=0, SpellIconID=icon(47788), SpellVisualID_1=0)))
+        forever_rows.append(spell(17, heal, "Contingency Plan", f"Rank {rank}", f"Healing {tick} damage every 3 sec.", f"Healing {tick} damage every 3 sec.",
+                                  **effects((AURA, 8, tick, 0, {"EffectAuraPeriod_1": 3000})),
+                                  **dict(active, Attributes=0x80, RecoveryTime=0, DurationIndex=D_15, RangeIndex=13, BaseLevel=level, SpellLevel=level,
+                                         SchoolMask=2, DispelType=1, SpellClassSet=0, SpellClassMask_1=0, SpellClassMask_2=0, SpellClassMask_3=0,
+                                         StartRecoveryCategory=0, StartRecoveryTime=0, SpellIconID=icon(47788), SpellVisualID_1=0)))
+    forever_rows += [
+        # Troll
+        spell(26297, 26297, "Berserking", "Racial", "Increases your spellcasting and attack speed by $s1% for $d.",
+              "Spellcasting and attack speed increased by $s1%.", **effects((AURA, 193, 10))),
+        spell(20555, 20555, "Regeneration", "Racial Passive",
+              "Health regeneration rate increased by $s1%. In addition, $s2% of total Health regeneration will continue during combat.", "",
+              **effects((AURA, 88, 20), (AURA, 116, 20))),
+        spell(20578, F["rapid_regeneration"], "Rapid Regeneration", "Racial",
+              "Regenerate 50% of your maximum Health over $d. Any movement, action, or damage taken will cancel the effect.",
+              "Regenerating 50% of maximum Health over $d.",
+              **effects((AURA, 20, 10, 0, {"EffectAuraPeriod_1": 1200})),
+              **dict(active, Attributes=0x10, AttributesEx=536870976, RecoveryTime=180000, DurationIndex=D_6, ChannelInterruptFlags=15374,
+                     SpellIconID=icon(20555), SpellVisualID_1=by_id[20578][C["SpellVisualID_1"]])),
+    ]
+    sql.comment("WoW: Forever's racials for the eight races of 1.x (Forever 1.60.1, forever.warcraftdb.com): its new ones, and\n"
+                "the changes to those 3.3.5 has (War Stomp's cooldown, Stoneform's immunities and Physical damage, Berserking's 10%...).")
+    sql.replace("spell_dbc", COLUMNS["spell_dbc"], spt, forever_rows)
+    sql.raw(f"DELETE FROM `spell_proc` WHERE `SpellId` IN ({F['grave_melee']}, {F['grave_caster']}, {F['plainsrunning']}, "
+            f"{', '.join(str(w) for w in CONTINGENCY_WARD)});\n"
+            f"INSERT INTO `spell_proc` (`SpellId`, `SchoolMask`, `SpellFamilyName`, `SpellFamilyMask0`, `SpellFamilyMask1`, `SpellFamilyMask2`, "
+            f"`ProcFlags`, `SpellTypeMask`, `SpellPhaseMask`, `HitMask`, `AttributesMask`, `DisableEffectsMask`, `ProcsPerMinute`, `Chance`, `Cooldown`, `Charges`) VALUES\n"
+            f"({F['grave_melee']}, 0, 0, 0, 0, 0, 0x55554, 1, 2, 0, 0, 0, 0, 20, 0, 0),\n"
+            f"({F['grave_caster']}, 0, 0, 0, 0, 0, 0x55554, 1, 2, 0, 0, 0, 0, 30, 0, 0),\n"
+            + ",\n".join(f"({sid}, 0, 0, 0, 0, 0, 0x100000, 0, 0, 0, 0, 0, 0, 100, 0, 0)" for sid in (F["plainsrunning"],) + CONTINGENCY_WARD) + ";")
+    scripted = [(F["blood_fury_sp"], "spell_forever_blood_fury"), (58984, "spell_forever_shadowmeld"),
+                (F["grave_melee"], "spell_forever_touch_of_the_grave"), (F["grave_caster"], "spell_forever_touch_of_the_grave"),
+                (F["cultivation"], "spell_forever_cultivation"), (F["plainsrunning"], "spell_forever_plainsrunning")]
+    scripted += [(ward, "spell_forever_contingency_plan") for ward in CONTINGENCY_WARD]
+    sql.raw(f"DELETE FROM `spell_script_names` WHERE `ScriptName` LIKE 'spell\\_forever\\_%';\n"
+            "INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES\n"
+            + ",\n".join(f"({sid}, '{name}')" for sid, name in scripted) + ";")
+
+    # Each race's racial line: its old abilities' rows given Forever's racials (the rest no longer taught: a
+    # skill's spells are taught at each login, not kept, so a character loses the old ones at its next).
+    sla = D("SkillLineAbility")
+    slt = TYPES["skilllineability_dbc"]
+    ability_rows, next_ability = [], ID_FOREVER_ABILITY
+    for race, kit in FOREVER_KIT.items():
+        line = RACIAL_LINE[race]
+        old = [r for r in sla.rows if r[1] == line]
+        for i, (sid, cmask) in enumerate(kit):
+            if i < len(old):
+                v = dbc_row_values(sla, old[i], slt)
+            else:
+                v = dbc_row_values(sla, old[0], slt)
+                v[0] = next_ability
+                next_ability += 1
+            v[2], v[3], v[4], v[9] = sid, 1 << (race - 1), cmask, 1     # spell, race, class, taught with the skill
+            client.put("SkillLineAbility", slt, v)
+            ability_rows.append(v)
+        for r in old[len(kit):]:
+            v = dbc_row_values(sla, r, slt)
+            v[9] = 0                                         # no longer taught
+            client.put("SkillLineAbility", slt, v)
+            ability_rows.append(v)
+    sql.comment("Each race's racial skill line teaches Forever's racials (its rows, and new ones from 23500); the old ones no longer.")
+    sql.replace("skilllineability_dbc", COLUMNS["skilllineability_dbc"], slt, ability_rows)
+    sql.comment("New characters' action bars: Forever's racial where 3.3.5's stood (Will to Survive for Every Man for Himself,\n"
+                "one Blood Fury for the orcs' three).")
+    for race, olds, new in ((HUMAN, (59752,), F["will_to_survive"]), (ORC, (20572, 33697, 33702), F["blood_fury"])):
+        sql.raw(f"UPDATE `playercreateinfo_action` SET `action` = {new} WHERE `race` = {race} AND `type` = 0 "
+                f"AND `action` IN ({', '.join(str(o) for o in olds)});")
+
     # The world database: starts, skills, stats, quests, standing ----------------------------------
     sql.comment("Where they start (their start race's place), for every class (the death knights' at Ebon Hold).")
     cols, pci = sqlrows.table(os.path.join(world, "playercreateinfo.sql"))
@@ -801,6 +1098,17 @@ def main():
         if add:
             sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {add} WHERE (`raceMask` & 2047) = {mask & 2047} AND `classMask` = {r['classMask']} AND `skill` = {skill};")
 
+    sql.comment("The old races' new classes: the class's own starting skills the race their start comes from has (a human\n"
+                "hunter's Guns, as a dwarf hunter's).")
+    for r in skills:
+        mask, cmask, skill = int(r["raceMask"]), int(r["classMask"]), int(r["skill"])
+        for race, classes in EXTRA_CLASSES.items():
+            for cls, like in classes.items():
+                bit, like_bit = 1 << (race - 1), 1 << (like - 1)
+                if mask and cmask == 1 << (cls - 1) and mask & like_bit and not mask & bit:
+                    sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {bit} WHERE (`raceMask` & 2047) = {mask & 2047} "
+                            f"AND `classMask` = {cmask} AND `skill` = {skill};")
+
     sql.comment("Their racials, learned at creation.")
     sql.raw(f"DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN {min(SPELLS.values())} AND {max(SPELLS.values())};")
     custom = [(BIT[VOIDELF], SPELLS["rift"], "Void Elf - Spatial Rift"), (BIT[VOIDELF], SPELLS["entropic"], "Void Elf - Entropic Embrace"),
@@ -837,6 +1145,14 @@ def main():
         sql.raw(f"UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | {b} WHERE `AllowableRaces` & {s} AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF{keep};")
         sql.raw(f"UPDATE `item_template` SET `AllowableRace` = `AllowableRace` | {b} WHERE `AllowableRace` <> -1 AND `AllowableRace` & {s} AND `AllowableRace` & 0x7FFFFFFF <> 0x7FFFFFFF;")
         sql.raw(f"UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | {b} WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & {s};")
+
+    sql.comment("The old races' new classes: the class's own quests (one class's alone) of the race their start comes from are\n"
+                "theirs too: a human hunter's taming lessons are a dwarf hunter's, a dwarf shaman's totems a Draenei shaman's.")
+    for race, classes in EXTRA_CLASSES.items():
+        for cls, like in classes.items():
+            bit, like_bit = 1 << (race - 1), 1 << (like - 1)
+            sql.raw(f"UPDATE `quest_template` q JOIN `quest_template_addon` a ON a.`ID` = q.`ID` SET q.`AllowableRaces` = q.`AllowableRaces` | {bit} "
+                    f"WHERE a.`AllowableClasses` = {1 << (cls - 1)} AND q.`AllowableRaces` & {like_bit} AND q.`AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF;")
 
     # Write -----------------------------------------------------------------------------------------
     with open(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "allied_races_world.sql"), "w", newline="\n") as f:

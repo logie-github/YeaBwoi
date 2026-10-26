@@ -1,22 +1,24 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: World of Warcraft <warcraft@users.noreply.github.com>
 Date: Sun, 25 Oct 2026 22:22:57 +0000
-Subject: [PATCH] Undead paladins train at the priest trainers
+Subject: [PATCH] New race and class pairs train at another class's trainers
 
-The app's undead paladins (mod-allied-races, on the realm whose
-AlliedRaces.Enable is on) find a paladin trainer in every priest class
-trainer: ObjectMgr::GetTrainer(creature, player) gives them the paladin
-class trainer whose spells suit them most (the Horde's), in the gossip's
-trainer option, the trainer list, buying a spell, resetting talents and
-seeing the trainer.
+The app's new race and class pairs (mod-allied-races, on the realm whose
+AlliedRaces.Enable is on) find their own class's trainer in another
+class's trainers: undead paladins and dwarf shamans at the priest
+trainers, human hunters at the warrior trainers, gnome priests and troll
+warlocks at the mage trainers, orc mages at the warlock trainers.
+ObjectMgr::GetTrainer(creature, player) gives them their class's trainer
+whose spells suit them most, in the gossip's trainer option, the trainer
+list, buying a spell, resetting talents and seeing the trainer.
 ---
  .../game/Entities/Creature/Creature.cpp       |  2 +-
  src/server/game/Entities/Player/Player.cpp    |  2 +-
  .../game/Entities/Player/PlayerGossip.cpp     |  2 +-
- src/server/game/Globals/ObjectMgr.cpp         | 30 +++++++++++++++++++
- src/server/game/Globals/ObjectMgr.h           |  2 ++
- src/server/game/Handlers/NPCHandler.cpp       |  4 +--
- 6 files changed, 37 insertions(+), 5 deletions(-)
+ src/server/game/Globals/ObjectMgr.cpp         | 41 +++++++++++++++++++
+ src/server/game/Globals/ObjectMgr.h           |  2 +
+ src/server/game/Handlers/NPCHandler.cpp       |  4 +-
+ 6 files changed, 48 insertions(+), 5 deletions(-)
 
 diff --git a/src/server/game/Entities/Creature/Creature.cpp b/src/server/game/Entities/Creature/Creature.cpp
 index 2182bd8d02..397044e988 100644
@@ -58,31 +60,42 @@ index dc6a489247..e5cc26506c 100644
                      {
                          LOG_ERROR("sql.sql", "GOSSIP_OPTION_TRAINER:: Player {} (GUID: {}) requested wrong gossip menu: {} at Creature: {} (Entry: {})",
 diff --git a/src/server/game/Globals/ObjectMgr.cpp b/src/server/game/Globals/ObjectMgr.cpp
-index 61afa50914..06913481f3 100644
+index 61afa50914..06f8b30711 100644
 --- a/src/server/game/Globals/ObjectMgr.cpp
 +++ b/src/server/game/Globals/ObjectMgr.cpp
-@@ -10117,6 +10117,36 @@ Trainer::Trainer* ObjectMgr::GetTrainer(uint32 creatureId)
+@@ -10117,6 +10117,47 @@ Trainer::Trainer* ObjectMgr::GetTrainer(uint32 creatureId)
      return nullptr;
  }
  
 +Trainer::Trainer* ObjectMgr::GetTrainer(uint32 creatureId, Player const* player)
 +{
 +    Trainer::Trainer* trainer = GetTrainer(creatureId);
-+    // The app's undead paladins (mod-allied-races, on the realm whose AlliedRaces.Enable is on): every
-+    // priest class trainer trains them as a paladin trainer does, with the paladin trainer whose spells
-+    // suit them most (the Horde's, whose paladins' spells are theirs too).
-+    if (!trainer || !player || player->getClass() != CLASS_PALADIN || player->getRace() != RACE_UNDEAD_PLAYER ||
-+        trainer->GetTrainerType() != Trainer::Type::Class || trainer->GetTrainerRequirement() != CLASS_PRIEST ||
-+        !sConfigMgr->GetOption<bool>("AlliedRaces.Enable", false))
++    if (!trainer || !player || trainer->GetTrainerType() != Trainer::Type::Class)
 +        return trainer;
 +
-+    auto paladins = _classTrainers.find(CLASS_PALADIN);
-+    if (paladins == _classTrainers.end())
++    // The app's new race and class pairs (mod-allied-races, on the realm whose AlliedRaces.Enable is on):
++    // another class's trainers train them, as their own class's trainer whose spells suit them most does.
++    uint8 host = 0;
++    switch (player->getRace())
++    {
++        case RACE_UNDEAD_PLAYER: host = player->getClass() == CLASS_PALADIN ? CLASS_PRIEST : 0; break;
++        case RACE_HUMAN:         host = player->getClass() == CLASS_HUNTER ? CLASS_WARRIOR : 0; break;
++        case RACE_DWARF:         host = player->getClass() == CLASS_SHAMAN ? CLASS_PRIEST : 0; break;
++        case RACE_GNOME:         host = player->getClass() == CLASS_PRIEST ? CLASS_MAGE : 0; break;
++        case RACE_ORC:           host = player->getClass() == CLASS_MAGE ? CLASS_WARLOCK : 0; break;
++        case RACE_TROLL:         host = player->getClass() == CLASS_WARLOCK ? CLASS_MAGE : 0; break;
++        default: break;
++    }
++    if (!host || trainer->GetTrainerRequirement() != host || !sConfigMgr->GetOption<bool>("AlliedRaces.Enable", false))
++        return trainer;
++
++    auto own = _classTrainers.find(player->getClass());
++    if (own == _classTrainers.end())
 +        return trainer;
 +
 +    Trainer::Trainer* best = nullptr;
 +    std::size_t bestCount = 0;
-+    for (Trainer::Trainer const* candidate : paladins->second)
++    for (Trainer::Trainer const* candidate : own->second)
 +    {
 +        std::size_t count = std::count_if(candidate->GetSpells().begin(), candidate->GetSpells().end(),
 +            [player](Trainer::Spell const& spell) { return player->IsSpellFitByClassAndRace(spell.SpellId); });
@@ -99,14 +112,14 @@ index 61afa50914..06913481f3 100644
  {
      // find all items from the reference vendor
 diff --git a/src/server/game/Globals/ObjectMgr.h b/src/server/game/Globals/ObjectMgr.h
-index 271ea7cb0b..962cbae10f 100644
+index 271ea7cb0b..b3fd2d3649 100644
 --- a/src/server/game/Globals/ObjectMgr.h
 +++ b/src/server/game/Globals/ObjectMgr.h
 @@ -1443,6 +1443,8 @@ public:
      bool DeleteGameTele(std::string_view name);
  
      Trainer::Trainer* GetTrainer(uint32 creatureId);
-+    /** The trainer [player] finds at the creature: an undead paladin (mod-allied-races) at a priest class trainer, a paladin trainer. */
++    /** The trainer [player] finds at the creature: a new race and class pair (mod-allied-races) at its host class's trainer, its own class's. */
 +    Trainer::Trainer* GetTrainer(uint32 creatureId, Player const* player);
      std::vector<Trainer::Trainer const*> const& GetClassTrainers(uint8 classId) const { return _classTrainers.at(classId); }
  
