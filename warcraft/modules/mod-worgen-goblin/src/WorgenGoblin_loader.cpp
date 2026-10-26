@@ -3,6 +3,7 @@ void AddWorgenGoblinScripts();
 void AddWorgenGoblinZonesScripts();
 void AddWorgenGoblinGilneasScripts();
 void AddWorgenGoblinKezanScripts();
+void AddWorgenGoblinFormsScripts();
 
 void Addmod_worgen_goblinScripts()
 {
@@ -10,4 +11,5 @@ void Addmod_worgen_goblinScripts()
     AddWorgenGoblinZonesScripts();
     AddWorgenGoblinGilneasScripts();
     AddWorgenGoblinKezanScripts();
+    AddWorgenGoblinFormsScripts();
 }

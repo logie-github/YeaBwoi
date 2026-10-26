@@ -241,6 +241,12 @@ public:
     }
 };
 
+// For the module's other scripts (WorgenGoblinForms.cpp: a Worgen's story in Gilneas).
+bool WorgenGoblinStartingAreasOn()
+{
+    return ZonesOn();
+}
+
 void AddWorgenGoblinScripts()
 {
     new WorgenGoblinWorld();
