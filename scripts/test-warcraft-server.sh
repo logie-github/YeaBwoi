@@ -479,10 +479,18 @@ EOF
 	# character is let onto their maps. Then off again: their rows go, and the starts are back.
 	if [ -n "${WOW_ZONES_TAR:-}" ]; then
 		echo "== the Worgen's and Goblins' starting areas (mod-worgen-goblin, data/zones)"
+		# (the game's own: every row outside the starting areas' ranges, mod-worgen-goblin's
+		# tools/zones/build_world.py: ids from 6000000, spawns from 60000000)
 		world_rows() {
-			echo "SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM creature_template), (SELECT COUNT(*) FROM creature),
-				(SELECT COUNT(*) FROM gameobject_template), (SELECT COUNT(*) FROM gameobject), (SELECT COUNT(*) FROM quest_template),
-				(SELECT COUNT(*) FROM item_template), (SELECT COUNT(*) FROM smart_scripts),
+			echo "SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM creature_template WHERE entry NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM creature WHERE guid NOT BETWEEN 60000000 AND 69999999),
+				(SELECT COUNT(*) FROM gameobject_template WHERE entry NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM gameobject WHERE guid NOT BETWEEN 60000000 AND 69999999),
+				(SELECT COUNT(*) FROM quest_template WHERE ID NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM item_template), (SELECT COUNT(*) FROM smart_scripts WHERE entryorguid NOT BETWEEN 6000000 AND 6999999
+					AND -entryorguid NOT BETWEEN 60000000 AND 69999999),
+				(SELECT COUNT(*) FROM creature_text WHERE CreatureID NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM gossip_menu WHERE MenuID NOT BETWEEN 6000000 AND 6999999),
 				(SELECT GROUP_CONCAT(CONCAT(race, ':', class, ':', map, ':', ROUND(position_x)) ORDER BY race, class) FROM playercreateinfo WHERE race NOT IN (9, 12)))" |
 				CTL sql acore_world
 		}
@@ -511,12 +519,14 @@ EOF
 		[ "$after" = "$before" ] || fail "the game's own creatures, objects, quests or starts changed: $after"
 		# Their new characters, where Cataclysm starts them: a Worgen warrior in Gilneas City (on map
 		# 638, Gilneas as it is until quest 14222), a Goblin warrior in Kezan; a Human and an Orc
-		# where they always have.
+		# where they always have. (On an account of their own: the tester's has the realm's ten
+		# characters by now.)
+		python3 "$ROOT/warcraft/server/auth_check.py" account-sql zoner secret123 | CTL sql acore_auth
 		for who in "Zonewolf:12:1:638" "Zonegoblin:9:1:648" "Zonehuman:1:1:0" "Zoneorc:2:1:1"; do
 			IFS=: read -r name race class map <<EOF2
 $who
 EOF2
-			python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" "$class" "$FILES/run/skyborne.steps" |
+			python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 zoner secret123 "$name" "$race" "$class" "$FILES/run/skyborne.steps" |
 				tee "$FILES/logs/zones-$name.out" || fail "$name didn't get into the world (logs/zones-$name.out)"
 			at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
 			start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)

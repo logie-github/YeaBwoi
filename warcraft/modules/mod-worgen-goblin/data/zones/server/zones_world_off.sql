@@ -1,0 +1,18 @@
+-- The starting areas' world out (tools/zones/build_world.py): every row in their ranges.
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 6000000 AND 6999999;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 6000000 AND 6999999;
+DELETE FROM `creature_template_movement` WHERE `CreatureId` BETWEEN 6000000 AND 6999999;
+DELETE FROM `creature_template_addon` WHERE `entry` BETWEEN 6000000 AND 6999999;
+DELETE FROM `creature_text` WHERE `CreatureID` BETWEEN 6000000 AND 6999999;
+DELETE FROM `creature` WHERE `guid` BETWEEN 60000000 AND 69999999;
+DELETE FROM `creature_addon` WHERE `guid` BETWEEN 60000000 AND 69999999;
+DELETE FROM `creature_formations` WHERE `leaderGUID` BETWEEN 60000000 AND 69999999;
+DELETE FROM `waypoint_data` WHERE `id` BETWEEN 600000000 AND 699999999;
+DELETE FROM `broadcast_text` WHERE `ID` BETWEEN 6000000 AND 6999999;
+DELETE FROM `npc_text` WHERE `ID` BETWEEN 6000000 AND 6999999;
+DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN 6000000 AND 6999999;
+DELETE FROM `gossip_menu_option` WHERE `MenuID` BETWEEN 6000000 AND 6999999;
+DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 6000000 AND 6999999;
+DELETE FROM `gameobject_template_addon` WHERE `entry` BETWEEN 6000000 AND 6999999;
+DELETE FROM `gameobject` WHERE `guid` BETWEEN 60000000 AND 69999999;
+DELETE FROM `gameobject_addon` WHERE `guid` BETWEEN 60000000 AND 69999999;

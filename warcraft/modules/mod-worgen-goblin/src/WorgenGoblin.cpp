@@ -32,6 +32,7 @@
 #include "Log.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "StringFormat.h"
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
@@ -168,12 +169,48 @@ public:
         fs::path zones = ModuleData() / "zones" / "server";
         if (ZonesOn())
         {
-            if (RunSql(zones / "zones_dbc.sql") && RunSql(zones / "starts_on.sql"))
+            if (RunSql(zones / "zones_dbc.sql") && RunSql(zones / "starts_on.sql") && ZonesWorld(zones, true))
                 LOG_INFO("module", "Worgen and Goblins: the starting areas are in the world (Gilneas, Kezan and the Lost Isles)");
         }
-        else if (RunSql(zones / "zones_off.sql"))
+        else if (RunSql(zones / "zones_off.sql") && ZonesWorld(zones, false))
             LOG_INFO("module", "Worgen and Goblins: no starting areas ({}): they start with the Night Elves and the Orcs",
                 ZonesPackage().empty() ? "their package isn't installed" : "off");
+    }
+
+    // The starting areas' creatures, objects and the rest (zones_world.sql: rows in ranges of their
+    // own), put in when they aren't, or aren't these (app_zones says which are), and taken out whole
+    // (zones_world_off.sql) when the areas are off.
+    static bool ZonesWorld(fs::path const& zones, bool on)
+    {
+        WorldDatabase.DirectExecute("CREATE TABLE IF NOT EXISTS `app_zones` (`version` VARCHAR(32) NOT NULL) ENGINE=InnoDB");
+        std::string in;
+        if (QueryResult result = WorldDatabase.Query("SELECT `version` FROM `app_zones` LIMIT 1"))
+            in = (*result)[0].Get<std::string>();
+        std::string version;
+        if (on)
+        {
+            std::ifstream file(zones / "zones_world.sql", std::ios::binary);
+            std::string sql((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            uint64 hash = 1469598103934665603ull;
+            for (unsigned char c : sql)
+                hash = (hash ^ c) * 1099511628211ull;
+            version = Acore::StringFormat("{:016x}", hash);
+        }
+        if (in == version)
+            return true;
+        if (!RunSql(zones / "zones_world_off.sql"))
+            return false;
+        WorldDatabase.DirectExecute("DELETE FROM `app_zones`");
+        if (!on)
+        {
+            LOG_INFO("module", "Worgen and Goblins: the starting areas' creatures and objects are out of the world");
+            return true;
+        }
+        if (!RunSql(zones / "zones_world.sql"))
+            return false;
+        WorldDatabase.DirectExecute(Acore::StringFormat("INSERT INTO `app_zones` (`version`) VALUES ('{}')", version));
+        LOG_INFO("module", "Worgen and Goblins: the starting areas' creatures and objects are in the world ({})", version);
+        return true;
     }
 };
 

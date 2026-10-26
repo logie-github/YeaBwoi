@@ -8,15 +8,10 @@ and the realm's other modules have no row of that id; where they have one (a dif
 same number) it gets a new id, and what names it is renumbered with it. A row 3.3.5a already has as it
 is (the same sound, the same files) is used as it is.
 
-    python3 tools/zones/build_tables.py CACHE STOCK_DBC WOWDBDEFS LISTFILE CORE_DIR
-
-CACHE: where Cataclysm Classic's tables are kept between runs; STOCK_DBC: the server's dbc folder
-(3.3.5a's own tables); WOWDBDEFS: a WoWDBDefs checkout's definitions folder; LISTFILE: the community
-listfile (id;path); CORE_DIR: the core's source (its *_dbc tables' columns). Writes:
+Used by build_world.py (the starting areas' whole build), which writes, besides its own:
   - data/zones/client/dbc/<Table>.txt: the rows for the game's patch (mod-skyborne's format);
   - data/zones/server/zones_dbc.sql: the same for the world server's *_dbc tables;
-  - data/zones/files.tsv: the game's files they name (loading screens, world maps, sounds, skyboxes),
-    for tools/zones/files.py, which adds the maps' own.
+  - data/zones/files.tsv: the game's files they name, with the maps' own and everything those use.
 """
 import os
 import re
@@ -36,10 +31,13 @@ OUT = os.path.join(MODULE, "data", "zones")
 SERVER = {
     "Map": "map_dbc", "AreaTable": "areatable_dbc", "Light": "light_dbc", "WMOAreaTable": "wmoareatable_dbc",
     "WorldMapArea": "worldmaparea_dbc", "WorldMapOverlay": "worldmapoverlay_dbc", "SoundEntries": "soundentries_dbc",
+    "CreatureDisplayInfo": "creaturedisplayinfo_dbc", "CreatureDisplayInfoExtra": "creaturedisplayinfoextra_dbc",
+    "CreatureModelData": "creaturemodeldata_dbc", "Faction": "faction_dbc", "FactionTemplate": "factiontemplate_dbc",
+    "GameObjectDisplayInfo": "gameobjectdisplayinfo_dbc",
 }
-# New ids, where Cataclysm's are taken, from here up (none of 3.3.5a's or the realm's other modules').
-NEW_IDS = {"LightParams": 9000, "LoadingScreens": 8800, "WorldMapArea": 8800, "AreaBit": None}
-NEW_ID_BASE = 880000
+# New ids, where Cataclysm's are taken: from just past the highest of 3.3.5a's own (the game sizes some
+# tables' lookups by their highest id), or from here for these.
+NEW_IDS = {"LightParams": 9000, "LoadingScreens": 8800, "WorldMapArea": 8800}
 # 3.3.5a's own exploration bits end at 3617 and a character has 4096 (128 fields of 32): Cataclysm's
 # past that are given free ones, from here.
 FREE_AREA_BITS = range(3618, 4096)
@@ -92,11 +90,19 @@ class Ids:
 
     def __init__(self, stock_dir, dbd):
         self.stock_dir, self.dbd = stock_dir, dbd
-        self.taken, self.given = {}, {}
+        self.taken, self.given, self.rows_cache = {}, {}, {}
         self.others = others_ids()
 
     def stock_rows(self, table):
-        return {r[0]: r for r in common.stock(self.stock_dir, table, None if table == "LightParams" else self.dbd).rows()}
+        if table not in self.rows_cache:
+            self.rows_cache[table] = {r[0]: r for r in common.stock(self.stock_dir, table, None if table == "LightParams" else self.dbd).rows()}
+        return self.rows_cache[table]
+
+    def stock_ids(self, table):
+        try:
+            return common.stock(self.stock_dir, table).ids()
+        except FileNotFoundError:
+            return set()
 
     def taken_ids(self, table):
         if table not in self.taken:
@@ -112,7 +118,10 @@ class Ids:
         if want is not None and want > 0 and want not in taken:
             taken.add(want)
             return want
-        start = self.given.get(table, NEW_IDS.get(table) or NEW_ID_BASE)
+        if table not in self.given:
+            stock = self.stock_ids(table)
+            self.given[table] = NEW_IDS.get(table) or (max(stock) + 1 if stock else 1)
+        start = self.given[table]
         while start in taken:
             start += 1
         taken.add(start)
@@ -245,7 +254,18 @@ class Builder:
         return self.t[name]
 
     def by_id(self, name):
-        return {int(r["ID"]): r for r in self.table(name)}
+        key = ("by_id", name)
+        if key not in self.t:
+            self.t[key] = {int(r["ID"]): r for r in self.table(name)}
+        return self.t[key]
+
+    def kit_entries(self, kit_id):
+        if "kit_entries" not in self.t:
+            index = {}
+            for e in self.table("SoundKitEntry"):
+                index.setdefault(int(e["SoundKitID"]), []).append(e)
+            self.t["kit_entries"] = index
+        return self.t["kit_entries"].get(int(kit_id), [])
 
     def file(self, fdid, kind):
         """A file of the game by its id (in the patch with its listfile path), as the path 3.3.5a names it by."""
@@ -268,7 +288,7 @@ class Builder:
         kit = self.by_id("SoundKit").get(kit_id)
         if kit is None:
             return 0
-        entries = [e for e in self.table("SoundKitEntry") if int(e["SoundKitID"]) == kit_id][:10]
+        entries = self.kit_entries(kit_id)[:10]
         paths, freqs = [], []
         for e in entries:
             try:
@@ -600,35 +620,3 @@ class Builder:
                 self.out.add("WorldMapOverlay", values)
 
 
-def main():
-    if len(sys.argv) != 6:
-        sys.exit(__doc__)
-    cache, stock_dir, dbd, listfile_path, core = sys.argv[1:]
-    b = Builder(cache, stock_dir, dbd, listfile_path)
-    b.maps()
-    b.areas()
-    b.lights()
-    b.world_maps()
-    # The maps' files and everything they use (fetched, to be read), and the buildings' areas.
-    start = files.map_files(b.names)
-    start.update(b.files)
-    found, wmo_ids, missing = files.closure(cache, b.names, b.fdids, start)
-    b.wmo_areas(wmo_ids)
-    b.out.write(core)
-    with open(os.path.join(OUT, "files.tsv"), "w", newline="\n") as f:
-        f.write("# The game's files the starting areas need (tools/zones/build_tables.py): Cataclysm Classic's\n"
-                f"# file id at {common.BUILD}, the path it's put in the game at, and what it is\n")
-        for fdid, (path, kind) in sorted(found.items()):
-            f.write(f"{fdid}\t{path}\t{kind}\n")
-    for table, rows in sorted(b.out.rows.items()):
-        print(f"{table}: {len(rows)} rows")
-    kinds = {}
-    for _, kind in found.values():
-        kinds[kind] = kinds.get(kind, 0) + 1
-    print(f"files: {len(found)} {kinds}; buildings: {len(wmo_ids)}; not in the build: {len(missing)}")
-    for m in missing[:20]:
-        print("  missing", m)
-
-
-if __name__ == "__main__":
-    main()

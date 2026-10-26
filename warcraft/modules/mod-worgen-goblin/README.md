@@ -118,7 +118,8 @@ and quests are in. So far:
   discovered parts, loading screens, music and ambience (Ogg Vorbis, as mod-worgoblin's own voices).
   `data/zones/files.tsv` lists them by Cataclysm Classic's file ids (never the files: those are the
   game's).
-- **Their rows in the game's tables and the server's** (`tools/zones/build_tables.py`,
+- **Their rows in the game's tables and the server's** (`tools/zones/build_world.py`, which runs
+  `build_tables.py`,
   `data/zones/client/dbc`, `data/zones/server`): the maps, their 92 areas, lights (3.3.5a's own
   layout: its light positions, colour and number bands, checked on the lights both games have), the
   areas' music, intro music, ambience and sounds, the buildings' areas, the world maps and their
@@ -139,9 +140,34 @@ and quests are in. So far:
   race's character is let onto their maps (a game master's is). Off, or without the package: their
   rows go, and the two races start with the Night Elves and the Orcs as before.
 
-Next: their creatures and objects, quests, items and spells (the Cataclysm Preservation Project's
-world, `The-Cataclysm-Preservation-Project/TrinityCore`), the scripts and phases, and the way into
-Wrath's world after them (Worgen to Darnassus, Goblins to Orgrimmar), each with new ids only.
+- **Their creatures and objects** (`tools/zones/build_world.py`, from the Cataclysm Preservation
+  Project's world: `The-Cataclysm-Preservation-Project/TrinityCore`, its full TDB with its updates
+  since, in a local MariaDB as `cpp_world`, and AzerothCore's own as `ac_world`): the 601 kinds of
+  creature and 277 of object on the two maps, 19162 creatures and 3007 objects (Gilneas's on each of
+  its maps whose terrain they're seen with), their looks (Cataclysm's new ones as new rows of the
+  game's tables and the server's, through the converter's own rules; 3.3.5a's own where it's the same
+  model and textures), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
+  gossip and Cataclysm's 31 phases as 3.3.5a's phase mask's bits. All in ranges of their own
+  (`zones_world.sql`: creatures', objects', texts' and menus' ids from 6000000, spawns from 60000000,
+  paths from 600000000), put in once (the world database's `app_zones` says which) and taken out
+  whole with the areas off. What they name that isn't in yet (their items' looks, their spells,
+  loot, vehicles, scripts) is listed in `data/zones/left-for-later.txt`.
+
+Next: the quests, items, spells, loot and scripts, the phases' changes as the story goes, and the
+way into Wrath's world after them (Worgen to Darnassus, Goblins to Orgrimmar), each with new ids only.
+
+### Making the starting areas' data again
+
+`tools/zones/build_world.py CACHE STOCK_DBC WOWDBDEFS LISTFILE CORE_DIR CONVERTER` (its docstring),
+with a local MariaDB holding the two worlds it reads:
+
+- `cpp_world`: the Cataclysm Preservation Project's `TDB_full_world_434.22011_2022_01_09.sql` (its
+  release) and then its `sql/updates/world/4.3.4/*.sql` in order;
+- `ac_world`: the realm's core's `data/sql/base/db_world/*.sql` and then its
+  `data/sql/updates/db_world/*.sql` in order.
+
+It fetches what it needs of Cataclysm Classic's tables and files from wago.tools into CACHE, and
+writes `data/zones`. The package is made from that by CI (`scripts/package-zones.sh`).
 
 ## Tests
 
