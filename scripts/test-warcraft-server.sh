@@ -399,12 +399,18 @@ EOF
 		fail "Deathknell's priest trainer didn't train the undead paladin as a paladin (logs/allied-undead-paladin.out)"
 	echo "An undead paladin trains at the priest trainers."
 	# It goes again: a realm keeps ten characters an account, and Wrath Remix's way home (below)
-	# needs room on ChromieCraft for the Timerunners it brings back.
-	echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = 'Lighttaker'" | CTL sql acore_characters
-	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Lighttaker'" | CTL sql acore_characters)" = 0 ] ||
-		fail "the undead paladin test character is still there"
+	# needs room on ChromieCraft for the Timerunners it brings back. A test character is moved off the
+	# test account (to none), not deleted: its other rows (spells, home, action bars...) stay with its
+	# row, and a Timerunner coming home takes the guid after the largest in the characters table, which
+	# a deleted one's leftovers would still hold (1.0.350: both Timerunners' homecoming dropped, unsaid).
+	set_aside() {
+		echo "UPDATE characters SET account = 0 WHERE name = '$1'" | CTL sql acore_characters
+		[ "$(echo "SELECT COUNT(*) FROM characters c JOIN acore_auth.account a ON a.id = c.account WHERE c.name = '$1'" | CTL sql acore_characters)" = 0 ] ||
+			fail "the test character $1 is still on the test account"
+	}
+	set_aside Lighttaker
 	# WoW: Forever's new pairs, each at its start with its race's Forever racials, trained by another
-	# class's trainer there as its own class's trainer does; each goes again after (room for Remix's
+	# class's trainer there as its own class's trainer does; each set aside after (room for Remix's
 	# way home).
 	for who in Humhunter:1:3:human_hunter Dwarfshaman:3:7:dwarf_shaman Gnomepriest:7:5:gnome_priest \
 		Orcmage:2:8:orc_mage Trollwarlock:8:9:troll_warlock; do
@@ -414,9 +420,7 @@ EOF
 		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" "$class" \
 			"$ROOT/warcraft/server/forever_$file.steps" | tee "$FILES/logs/forever-$file.out" ||
 			fail "$name's racials or trainer weren't Forever's (logs/forever-$file.out)"
-		echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = '$name'" | CTL sql acore_characters
-		[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = '$name'" | CTL sql acore_characters)" = 0 ] ||
-			fail "the test character $name is still there"
+		set_aside "$name"
 	done
 	echo "Human hunters, dwarf shamans, gnome priests, orc mages and troll warlocks: Forever's racials, trained at their host class's trainers."
 
@@ -424,9 +428,7 @@ EOF
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 9 \
 		"$ROOT/warcraft/server/quest_drops.steps" | tee "$FILES/logs/quest-drops.out" ||
 		fail "the Rattlecage Skeletons' skulls didn't drop at the raised rate (logs/quest-drops.out)"
-	echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = 'Dropper'" | CTL sql acore_characters
-	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Dropper'" | CTL sql acore_characters)" = 0 ] ||
-		fail "the quest drops test character is still there"
+	set_aside Dropper
 	echo "Quest drops roll 75% under 25%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
 
 	echo "== world server shutdown, the way the app stops it"
