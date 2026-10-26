@@ -1,0 +1,71 @@
+{
+ "comment": "The story's places in Dalaran (dalaran2.wmo's own coordinates: x, y across, z up, yards). Marks are where people stand or look; views are fixed cameras (eye, target, field of view). twoSide picks which side a two-shot is filmed from.",
+ "places": {
+  "overlook": {
+   "name": "Above Dalaran",
+   "marks": {},
+   "views": {
+    "sweep_a": {"eye": [-260, -260, 170], "at": [0, 0, 40], "fov": 50},
+    "sweep_b": {"eye": [230, -280, 110], "at": [0, 0, 60], "fov": 50}
+   }
+  },
+  "krasus": {
+   "name": "Krasus' Landing",
+   "marks": {
+    "rail": [150, -193, 16.21],
+    "out": [168, -222, 16],
+    "arrive": [146, -166, 16.8],
+    "near": [149.2, -191.6, 16.3]
+   },
+   "views": {
+    "landing": {"eye": [138, -158, 23], "at": [149, -190, 17], "fov": 50},
+    "behind": {"eye": [147.3, -188.3, 18.5], "at": [150.6, -194.2, 17.4], "fov": 42}
+   },
+   "twoSide": -1
+  },
+  "street": {
+   "name": "Dalaran's streets",
+   "marks": {
+    "mid": [-20, -90, 7.60],
+    "north": [-60, -90, 4.48],
+    "start": [-46, -90.5, 5.54],
+    "past": [8, -89.5, 8.44],
+    "behind": [-46, -91.5, 5.48],
+    "close": [-23.2, -90.4, 7.6]
+   },
+   "views": {
+    "street": {"eye": [-11, -91.5, 10.2], "at": [-28, -90, 8.6], "fov": 50},
+    "street_low": {"eye": [-15.5, -92.6, 8.3], "at": [-22, -90, 8.7], "fov": 55}
+   },
+   "twoSide": -1
+  },
+  "plaza": {
+   "name": "A plaza below the Violet Citadel",
+   "marks": {
+    "centre": [-41, 40, -0.58],
+    "steps": [-43.8, 39.6, -0.83],
+    "hide": [-58, 28, -1.63],
+    "found": [-42.5, 37.3, -0.6]
+   },
+   "views": {
+    "plaza": {"eye": [-30, 44, 2.6], "at": [-46, 40, 0.6], "fov": 50},
+    "plaza_wide": {"eye": [-28, 38, 4], "at": [-46, 38, 0.3], "fov": 55}
+   },
+   "twoSide": 1
+  },
+  "terrace": {
+   "name": "The Violet Citadel's terrace",
+   "marks": {
+    "partner": [-72, 80, 19.32],
+    "view": [-20, 80, 19],
+    "arrive": [-79.5, 92, 19.32],
+    "beside": [-73.4, 80.5, 19.32],
+    "lie": [-69.3, 77.8, 19.32]
+   },
+   "views": {
+    "terrace_wide": {"eye": [-80.5, 96.5, 23.2], "at": [-73, 81, 20], "fov": 50}
+   },
+   "twoSide": -1
+  }
+ }
+}

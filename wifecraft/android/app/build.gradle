@@ -1,0 +1,87 @@
+plugins {
+	id 'com.android.application'
+	id 'org.jetbrains.kotlin.plugin.compose'
+}
+
+// CI passes the app's identity, version, signing key and update source as Gradle properties
+// (-Pwc...). Local builds fall back to these defaults.
+def wcProperty = { String name, String fallback ->
+	project.hasProperty(name) ? project.property(name).toString() : fallback
+}
+def wcKeystore = wcProperty("keystore", "")
+
+android {
+	namespace = "com.logie.wifecraft"
+	compileSdk = 35
+	ndkVersion = "29.0.14206865"
+
+	buildFeatures {
+		buildConfig = true
+		compose = true
+	}
+
+	defaultConfig {
+		applicationId = wcProperty("wcApplicationId", "com.logie.wifecraft")
+		minSdk = 26
+		targetSdk = 35
+		versionCode = wcProperty("wcVersionCode", "1").toInteger()
+		versionName = wcProperty("wcVersionName", "1.0")
+
+		buildConfigField "String", "WC_UPDATE_REPO", "\"${wcProperty("wcUpdateRepo", "")}\""
+		buildConfigField "String", "WC_RELEASE_TAG_PREFIX", "\"${wcProperty("wcReleaseTagPrefix", "")}\""
+		buildConfigField "String", "WC_UPDATE_TOKEN", "\"${wcProperty("wcUpdateToken", "")}\""
+
+		ndk {
+			abiFilters "arm64-v8a"
+		}
+	}
+
+	signingConfigs {
+		wc {
+			if (wcKeystore) {
+				storeFile = file(wcKeystore)
+				storePassword = wcProperty("storepass", "")
+				keyAlias = wcProperty("keyalias", "")
+				keyPassword = wcProperty("keypass", "")
+			}
+		}
+	}
+
+	buildTypes {
+		release {
+			minifyEnabled = true
+			shrinkResources = true
+			proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+			signingConfig = wcKeystore ? signingConfigs.wc : signingConfigs.debug
+		}
+	}
+
+	// The renderer (src/main/cpp): Dalaran, the people, the camera, in OpenGL ES 3.
+	externalNativeBuild {
+		cmake {
+			path = "src/main/cpp/CMakeLists.txt"
+			version = "3.22.1+"
+		}
+	}
+
+	compileOptions {
+		sourceCompatibility JavaVersion.VERSION_17
+		targetCompatibility JavaVersion.VERSION_17
+	}
+
+	lint {
+		abortOnError = false
+		checkReleaseBuilds = false
+	}
+}
+
+dependencies {
+	implementation 'androidx.core:core-ktx:1.12.0'
+	implementation platform('androidx.compose:compose-bom:2025.04.00')
+	implementation 'androidx.compose.ui:ui'
+	implementation 'androidx.compose.foundation:foundation'
+	implementation 'androidx.compose.material3:material3'
+	implementation 'androidx.activity:activity-compose:1.9.3'
+	implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
+	implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+}
