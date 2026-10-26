@@ -1672,12 +1672,14 @@ a realm with modules), then stage 3.
      Arcane Missiles → Fireball, Rejuvenation → Healing Touch, Immolate → Shadow Bolt, Primal Strike
      → Lightning Bolt). Where each zone's quests stand (a check of every objective's way to
      credit against what's ported: not played): Gilneas 103 of 120 can complete, Kezan 30 of 36, the
-     Lost Isles 60 of 82. What's left: Kezan's (its hot rod isn't a vehicle in CPP and none of its
-     quest creatures has AI: LegionCore's scripts are the reference, its world database a download
-     this environment can't reach), the Lost Isles' 22 (half have LegionCore scripts), Gilneas's 17
+     Lost Isles 60 of 82. Kezan's six (done, not played: src/WorgenGoblinKezan.cpp, after LegionCore's
+     kezan.cpp, whose world database is a download this environment can't reach; the vehicles CPP
+     hasn't from Cataclysm's tables and SkyFireDB's 5.4.8 world, which git reaches; the footballs
+     aimed by the script, a phone having no aiming arc; Deathwing's flight after Fourth and Goal left
+     out). What's left: the Lost Isles' 22 (half have LegionCore scripts), Gilneas's 17
      (the Battle for Gilneas City, the finale, the Lost Isles' and Gilneas's credits by spell), the
      Lost Isles' phases (CPP hasn't them). To do as well: the generic spell scripts Gilneas uses (Darkflight, Two Forms, Throw Torch and
-     four more), what CPP lacks (Gilneas's chapter 3, Kezan, the Lost Isles), the Worgen's human form (they're Worgen
+     four more), what CPP lacks (Gilneas's chapter 3, the Lost Isles), the Worgen's human form (they're Worgen
      from the start here, as mod-worgoblin has them). Then the app downloads the package and the
      starts go on.
   5. The way into Wrath's world: Worgen to Darnassus, Goblins to Orgrimmar.

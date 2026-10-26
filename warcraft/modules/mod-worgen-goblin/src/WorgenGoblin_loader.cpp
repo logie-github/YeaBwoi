@@ -2,10 +2,12 @@
 void AddWorgenGoblinScripts();
 void AddWorgenGoblinZonesScripts();
 void AddWorgenGoblinGilneasScripts();
+void AddWorgenGoblinKezanScripts();
 
 void Addmod_worgen_goblinScripts()
 {
     AddWorgenGoblinScripts();
     AddWorgenGoblinZonesScripts();
     AddWorgenGoblinGilneasScripts();
+    AddWorgenGoblinKezanScripts();
 }

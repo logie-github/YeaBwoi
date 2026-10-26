@@ -163,6 +163,7 @@ namespace WorgenGoblinZones
             case 66299: return 66299;
             case 66300: return 66300;
             case 66306: return 66306;
+            case 66392: return 66392;
             case 66393: return 66393;
             case 66403: return 66403;
             case 66404: return 66404;
@@ -189,6 +190,8 @@ namespace WorgenGoblinZones
             case 67352: return 67352;
             case 67357: return 67357;
             case 67476: return 67476;
+            case 67488: return 67488;
+            case 67492: return 67492;
             case 67502: return 67502;
             case 67503: return 67503;
             case 67508: return 67508;
@@ -235,6 +238,7 @@ namespace WorgenGoblinZones
             case 68483: return 68483;
             case 68491: return 68491;
             case 68492: return 68492;
+            case 68503: return 68503;
             case 68555: return 68555;
             case 68558: return 68558;
             case 68559: return 68559;
@@ -287,6 +291,13 @@ namespace WorgenGoblinZones
             case 69608: return 69608;
             case 69626: return 69626;
             case 69858: return 69858;
+            case 69992: return 69992;
+            case 69993: return 69993;
+            case 70015: return 70015;
+            case 70016: return 70016;
+            case 70051: return 70051;
+            case 70052: return 70052;
+            case 70075: return 70075;
             case 70086: return 70086;
             case 70112: return 70112;
             case 70197: return 70197;
@@ -297,6 +308,8 @@ namespace WorgenGoblinZones
             case 70247: return 70247;
             case 70251: return 70251;
             case 70253: return 70253;
+            case 70256: return 70256;
+            case 70259: return 70259;
             case 70268: return 70268;
             case 70354: return 70354;
             case 70389: return 70389;
@@ -333,6 +346,7 @@ namespace WorgenGoblinZones
             case 71658: return 71658;
             case 71659: return 71659;
             case 71660: return 71660;
+            case 71661: return 71661;
             case 71662: return 71662;
             case 71732: return 71732;
             case 71808: return 71808;

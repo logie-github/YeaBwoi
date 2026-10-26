@@ -191,9 +191,30 @@ and quests are in. So far:
   Charge → Heroic Strike, Steady Shot → Auto Shot, Flash Heal → Lesser Heal, Arcane Missiles →
   Fireball, Rejuvenation → Healing Touch, Immolate → Shadow Bolt, Primal Strike → Lightning Bolt
   (Eviscerate as it is).
+- Kezan's quests CPP left unscripted (`src/WorgenGoblinKezan.cpp`, after LegionCore 7.3.5's
+  `kezan.cpp` and Cataclysm's spells; what the world needs for them that CPP hasn't is in
+  `tools/zones/scripts.py`: the scripts' names, the vehicles, the Buccaneer's spell clicks, the
+  spells' edits):
+  - Rolling with my Homies: the keys summon the hot rod (Cataclysm's vehicle 467: a driver's seat
+    and the passengers'); driven up to Izzy, Ace or Gobber, each gets in and counts. Hired Looters
+    it runs into are knocked away, their Stolen Loot the player's (Robbing Hoods).
+  - The Great Bank Heist: the vault's door seats the player at the vault, which calls for one of its
+    five tools; the right one fills its bar a tenth (Cataclysm's own instructions on the screen), a
+    wrong one, or none within 8 seconds, takes a tenth off. Full, it counts and gives the Personal
+    Riches.
+  - Necessary Roughness: clicking the Buccaneer on the field puts the player in one; eight sharks run
+    at it, a few steps at a time, and each footbomb goes at the nearest (Cataclysm aims it with an arc
+    and a cursor, which a phone hasn't). One reaching the Buccaneer ends the try.
+  - Fourth and Goal: the Buccaneer again; the kick goes through the uprights and counts (Deathwing's
+    flight over Kezan after it isn't here).
+  - 447: the Gasbot Control Panel sends the Gasbot to the generator in the house, where it blows up
+    and counts.
+  The vehicles CPP has none for are inferred from Cataclysm's tables (SkyFireDB's 5.4.8 world has
+  the hot rod's, a driver's seat alone; the rest by their seats and the vault's power bar), and the
+  Buccaneer's place from SkyFireDB's spawn: none of it has been played.
 
 Next: the generic spell scripts CPP's Gilneas uses (Darkflight, Two Forms, Throw Torch and four
-more), what CPP lacks (Gilneas's last chapter, Kezan and the Lost Isles), and the way into Wrath's
+more), what CPP lacks (Gilneas's last chapter and the Lost Isles), and the way into Wrath's
 world after them (Worgen to Darnassus, Goblins to
 Orgrimmar), each with new ids only.
 

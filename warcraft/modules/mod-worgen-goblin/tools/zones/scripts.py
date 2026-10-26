@@ -14,10 +14,56 @@ from quests import STAND_INS
 
 SOURCES = os.path.join(MODULE, "src")
 # The module's files with the starting areas' scripts.
-SCRIPT_FILES = ("WorgenGoblinGilneas.cpp", "WorgenGoblinGilneas.h")
+SCRIPT_FILES = ("WorgenGoblinGilneas.cpp", "WorgenGoblinGilneas.h", "WorgenGoblinKezan.cpp")
 CONSTANT = re.compile(r"\b(NPC|OBJECT|SPELL|QUEST|PATH|BROADCAST|CINEMATIC)_\w+\s*=\s*(\d+)")
 REGISTERED = re.compile(r"Register(?:CreatureAI|GameObjectAI|SpellScript|SpellAndAuraScriptPair)\((\w+)|new (\w+)\(\)")
 IDS_HEADER = os.path.join(SOURCES, "WorgenGoblinZonesIds.h")
+
+# What CPP left unscripted that the module scripts (WorgenGoblinKezan.cpp: Kezan, from LegionCore 7.3.5's
+# kezan.cpp and Cataclysm's spells), by Cataclysm's ids: the scripts' names, and what the scripts need
+# of the data that CPP hasn't.
+CREATURE_SCRIPTS = {
+    34840: "npc_kezan_hot_rod",                       # Rolling with my Homies: the player's hot rod
+    34890: "npc_kezan_homie", 34892: "npc_kezan_homie", 34954: "npc_kezan_homie",          # Izzy, Ace, Gobber
+    34959: "npc_kezan_homie_riding", 34957: "npc_kezan_homie_riding", 34958: "npc_kezan_homie_riding",
+    35486: "npc_kezan_vault",                         # The Great Bank Heist: the vault the player cracks
+    37179: "npc_kezan_buccaneer",                     # Necessary Roughness: the player's Bilgewater Buccaneer
+    37213: "npc_kezan_buccaneer_kicker",              # Fourth and Goal: the same, kicking
+    37114: "npc_kezan_shark",                         # Necessary Roughness: a Steamwheedle Shark
+    37598: "npc_kezan_gasbot",                        # 447: the Gasbot
+}
+SPELL_SCRIPTS = {
+    67555: "spell_kezan_vault_interact",              # The Great Bank Heist: Vault Interact (the vault's door)
+    67526: "spell_kezan_vault_tool", 67508: "spell_kezan_vault_tool", 67524: "spell_kezan_vault_tool",
+    67525: "spell_kezan_vault_tool", 67522: "spell_kezan_vault_tool",                     # its five tools
+    69992: "spell_kezan_throw_footbomb",              # Necessary Roughness
+    70051: "spell_kezan_kick_footbomb",               # Fourth and Goal
+    70253: "spell_kezan_gasbot_panel",                # 447: the Gasbot Control Panel's
+}
+# Cataclysm's vehicles of creatures CPP has none for (its creature_template.VehicleId 0). The hot rod's
+# is SkyFireDB's (468, a 5.4.8 sniff: the driver's seat) with Cataclysm's passengers' seats (467:
+# the same driver's seat and five passengers', the homies riding in it as LegionCore seats them); the
+# Buccaneers' and the vault's by their seats: 469 (a seat the player controls, hidden inside the
+# Buccaneer's model, after the hot rod's 468) and 476 (its power bar Cataclysm's "vault cracking
+# progress").
+VEHICLES = {34840: 467, 37179: 469, 37213: 469, 35486: 476}
+# Spells' places CPP hasn't (spell_target_position): Necessary Roughness's Buccaneer stands where the
+# one the player clicks does (SkyFireDB's spawn of 48526), the sharks coming at it (LegionCore's paths).
+SPELL_POSITIONS = {70015: (648, -8250.8, 1484.25, 41.4065, 3.20886)}
+# Spell clicks CPP hasn't: (creature, spell, the quests one of which the player has to have taken).
+SPELL_CLICKS = [(48526, 70015, (24502,)), (48526, 70075, (24503, 28414))]
+# Cataclysm's spells as the module's scripts need them in 3.3.5a: by effect, what changes. The
+# footballs' throws and kicks aimed by the game's trajectory (TARGET_DEST_TRAJ) are aimed by the
+# script at the nearest shark or the goal (a phone has no aiming arc); the vault's tools target
+# the vault (Cataclysm: the player's vehicle; here the vehicle casts them).
+SPELL_EDITS = {
+    69992: {0: {"Effect": 3, "ImplicitTargetA": 1, "ImplicitTargetB": 0, "EffectTriggerSpell": 0}},
+    69993: {0: {"ImplicitTargetA": 25, "ImplicitTargetB": 0}},
+    70051: {0: {"Effect": 3, "ImplicitTargetA": 1, "ImplicitTargetB": 0, "EffectTriggerSpell": 0}},
+    70052: {0: {"ImplicitTargetA": 25, "ImplicitTargetB": 0}},
+    67526: {0: {"ImplicitTargetA": 1}}, 67508: {0: {"ImplicitTargetA": 1}}, 67524: {0: {"ImplicitTargetA": 1}},
+    67525: {0: {"ImplicitTargetA": 1}}, 67522: {0: {"ImplicitTargetA": 1}},
+}
 
 
 def read_sources(folder, names):
@@ -57,7 +103,10 @@ class ScriptsMixin:
         return self.t["core_scripts"]
 
     def script_name(self, name, kind, cata_id):
-        """CPP's script name kept when there's code for it (the module's or AzerothCore's)."""
+        """CPP's script name kept when there's code for it (the module's or AzerothCore's); where CPP
+        has none, the module's own (CREATURE_SCRIPTS, SPELL_SCRIPTS)."""
+        if not name:
+            name = {"creature": CREATURE_SCRIPTS, "spell": SPELL_SCRIPTS}.get(kind, {}).get(int(cata_id), "")
         if not name:
             return ""
         if name in self.ported()[0] or name in self.core_scripts():
@@ -67,6 +116,12 @@ class ScriptsMixin:
 
     def need_scripted(self):
         """What the ported scripts name, brought in."""
+        for e in CREATURE_SCRIPTS:
+            self.need_creature(e)
+        for s in SPELL_SCRIPTS:
+            self.spell(s)
+        for npc, _, _ in SPELL_CLICKS:
+            self.need_creature(npc)
         _, ids = self.ported()
         for e in ids.get("NPC", ()):
             self.need_creature(e)

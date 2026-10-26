@@ -14,6 +14,7 @@ import os
 import common
 import db
 from build_tables import game_path
+from scripts import SPELL_EDITS, SPELL_POSITIONS
 
 # Cataclysm's effects 3.3.5a has under another number or not at all: as a dummy (3) the module answers.
 EFFECT_HOOKS = {45: "movie", 167: "phases", 170: "phases", 252: "teleport"}
@@ -85,11 +86,15 @@ class SpellsMixin:
         self.out.add("Spell", values)
         for what in sorted({h[2] for h in self.spell_hooks if h[0] == cata_id} & SCRIPTED_HOOKS):
             self.sql.add("spell_script_names", {"spell_id": our, "ScriptName": f"spell_worgen_goblin_zones_{what}"})
-        for r in self.cpp_spell_scripts().get(cata_id, []):
+        for r in self.cpp_spell_scripts().get(cata_id, []) or [{"ScriptName": ""}]:
             name = self.script_name(r["ScriptName"], "spell", cata_id)
             if name:
                 self.sql.add("spell_script_names", {"spell_id": our, "ScriptName": name})
-        for r in self.target_positions().get(cata_id, []):
+        positions = self.target_positions().get(cata_id, [])
+        if not positions and cata_id in SPELL_POSITIONS:
+            m, x, y, z, o = SPELL_POSITIONS[cata_id]
+            positions = [{"EffectIndex": 0, "MapID": m, "PositionX": x, "PositionY": y, "PositionZ": z, "Orientation": o}]
+        for r in positions:
             self.sql.add("spell_target_position", {"ID": our, "EffectIndex": r["EffectIndex"], "MapID": r["MapID"],
                                                    "PositionX": float(r["PositionX"]), "PositionY": float(r["PositionY"]),
                                                    "PositionZ": float(r["PositionZ"]), "Orientation": float(r["Orientation"]),
@@ -258,6 +263,13 @@ class SpellsMixin:
                   f"EffectBonusCoefficient_{i}": float(e["EffectBonusCoefficient"] or 0)})
         for k, letter in enumerate("ABC"):
             v[f"EffectSpellClassMask{letter}_{i}"] = int(e[f"EffectSpellClassMask_{k}"] or 0) & 0xFFFFFFFF
+        # A vehicle's summon: its value is the spell the summoner gets in with (AzerothCore's as Cataclysm's).
+        properties = self.by_id("SummonProperties").get(int(e["EffectMiscValue_1"] or 0), {})
+        ride = int(float(e["EffectBasePoints"] or 0))
+        if effect == 28 and int(properties.get("Control", 0) or 0) == 4 and ride > 8:
+            v[f"EffectBasePoints_{i}"] = self.spell(ride)
+        for column, value in SPELL_EDITS.get(cata_id, {}).get(i, {}).items():
+            v[f"{column}_{i}"] = value
 
     def target(self, target, cata_id):
         if target <= 104:

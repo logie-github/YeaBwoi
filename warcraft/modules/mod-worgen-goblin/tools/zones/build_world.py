@@ -29,7 +29,7 @@ from items import ItemsMixin  # noqa: E402
 from quests import QuestsMixin  # noqa: E402
 from spells import SpellsMixin  # noqa: E402
 from vehicles import VehiclesMixin  # noqa: E402
-from scripts import ScriptsMixin  # noqa: E402
+from scripts import VEHICLES, ScriptsMixin  # noqa: E402
 from build_tables import OUT  # noqa: E402
 
 # The starting areas' rows' ranges: ENTRY + Cataclysm's entry (creatures, objects, quests, gossip
@@ -512,7 +512,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
                 "type": num(t["type"]), "type_flags": num(t["type_flags"]),
                 "lootid": self.loot("creature_loot_template", t["lootid"]),
                 "pickpocketloot": self.loot("pickpocketing_loot_template", t["pickpocketloot"]),
-                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": self.vehicle(t["VehicleId"]),
+                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": self.vehicle(int(t["VehicleId"]) or VEHICLES.get(e, 0)),
                 "mingold": num(t["mingold"]), "maxgold": num(t["maxgold"]), "AIName": "",
                 "MovementType": num(t["MovementType"]), "HoverHeight": num(t["HoverHeight"]),
                 "HealthModifier": num(t["HealthModifier"]), "ManaModifier": num(t["ManaModifier"]),
@@ -871,7 +871,7 @@ KEYS = {"creature_template": ["entry"], "creature_template_model": ["CreatureID"
         "vehicle_template_accessory": ["entry"], "npc_spellclick_spells": ["npc_entry"],
         "creature_default_trainer": ["CreatureId"], "creature_equip_template": ["CreatureID"], "game_graveyard": ["ID"], "graveyard_zone": ["ID", "GhostZone"],
         "areatrigger": ["entry"], "areatrigger_involvedrelation": ["id"], "areatrigger_scripts": ["entry"],
-        "spell_area": ["spell", "area"]}
+        "spell_area": ["spell", "area"], "conditions": ["SourceTypeOrReferenceId", "SourceGroup", "SourceEntry"]}
 
 
 def write_world(b):
