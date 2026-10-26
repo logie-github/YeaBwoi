@@ -105,6 +105,7 @@ import com.logie.warcraft.TitleMusic
 import com.logie.warcraft.WowFiles
 import com.logie.warcraft.WowUpdateActivity
 import com.logie.warcraft.WowUpdater
+import com.logie.warcraft.ZonesPackage
 import com.logie.warcraft.game.Game
 import com.logie.warcraft.game.GameSettings
 import com.logie.warcraft.turtle.ui.GameSwitch
