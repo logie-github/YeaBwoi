@@ -68,6 +68,9 @@ def parse(path):
     sheet = page[page.find('<article class="qp-sheet">'):page.find("</article>")]
     heads = ["<h2>", '<div class="qp-more">']
     q = {}
+    # where the site files it: Quests › <zone, class or kind>
+    m = re.search(r'<nav class="qp-crumbs"[^>]*>.*?</a>.*?<span>([^<]+)</span>\s*</nav>', page)
+    q["category"] = html.unescape(m.group(1)).strip() if m else ""
     objectives = section(sheet, "<h2>Quest Objectives</h2>", heads)
     q["objectives_text"] = text(objectives.split('<ul class="qp-need">')[0])
     q["need_items"] = [(i, c) for i, c, _ in items(objectives)]

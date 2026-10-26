@@ -1609,6 +1609,23 @@ a realm with modules), then stage 3.
   and the server test (all in ChromieCraft's world, none in Remix's, no word from the world
   server about them). Not checked: playing them.
 
+- Then the user: "Yes use whatever model you think" (for Forever's new NPCs) "Also for the no text
+  ones just make something simple up like (Hand in the quest)". mod-forever-quests now has 123
+  quests and 91 new NPCs (681 spawns): QuestieDB's spots, put on the world by 3.3.5's
+  WorldMapArea (checked against the core's NPCs Forever kept: within a yard, except in Redridge,
+  the Eastern Plaguelands, Mulgore and Stormwind, whose maps Forever redrew and where QuestieDB
+  holds back new spawns), on the ground by the server's map files (`tools/terrain.py`, the core's
+  GridTerrainData reading; 79% of the core's own spawns within a yard of it, the rest in
+  buildings: there the height of the core's spawn within 12 yards). Each drawn as the core's
+  creature nearest it in kind (`Looks` in `tools/forever.py`: type and family from Wowhead's
+  tooltip, side from FactionTemplate and the faction's standing, name words, distance, the old
+  world first; never holiday creatures, spirit healers or triggers), its look, equipment,
+  fighting numbers and loot. Reward items from Wowhead's tooltips and the Forever client's Item
+  and ItemSparse (wago.tools); those whose use is a spell 3.3.5 hasn't are left out. No hand-in
+  text: "Hand in the quest." Checked here: the SQL in MariaDB on the core's base tables, twice;
+  every giver, ender and creature to kill standing somewhere, every item to collect dropping.
+  Not seen: the new NPCs' looks and places in the game.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made

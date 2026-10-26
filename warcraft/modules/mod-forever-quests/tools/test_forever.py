@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """mod-forever-quests' tools and data, without the game's or the core's files: foreverchanges.py on a
-stand-in page laid out as the site's are; the races each Forever race mask opens; and the committed
-SQL against the committed data (every quest there with its words, a giver and an ender; every new
-item it names made; nothing past the core's quest table's limit)."""
+stand-in page laid out as the site's are; wowhead.py on stand-in tooltips; the races each Forever
+race mask opens; and the committed SQL against the committed data (every quest there with its words,
+a giver and an ender; every new item it names made; every new NPC drawn and standing somewhere;
+nothing past the core's quest table's limit)."""
 import json
 import os
 import re
@@ -13,6 +14,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import forever  # noqa: E402
 import foreverchanges  # noqa: E402
+import wowhead  # noqa: E402
 import sqlrows  # noqa: E402
 
 MODULE = os.path.dirname(HERE)
@@ -25,7 +27,8 @@ def check(ok, what):
         print("FAIL:", what)
 
 
-PAGE = """<html><body><h1>Stand-in</h1><div class="qp-grid"><article class="qp-sheet"><h2>Quest Objectives</h2>
+PAGE = """<html><body><nav class="qp-crumbs" aria-label="Breadcrumb"><a href="/quests">Quests</a><span aria-hidden="true"> › </span>
+<span>Durotar</span></nav><h1>Stand-in</h1><div class="qp-grid"><article class="qp-sheet"><h2>Quest Objectives</h2>
 <p>Bring 4 Test Pelts to Tester and slay 3 Test Wolves.</p><ul class="qp-need"><li class="qp-need-item"><a class="qp-item"
 href="/item/250001" data-tip="250001"><span class="qp-item-icon"><img src="/icon/inv_misc_pelt_wolf_01.jpg" alt="" width="40"
 height="40" loading="lazy"/><b>4</b></span><span class="qp-item-name q1">Test Pelt</span></a></li><li class="qp-need-goal"><span
@@ -57,9 +60,25 @@ with tempfile.TemporaryDirectory() as tmp:
     check(page["progress"] == "Not yet?" and page["completion"] == "Done, $N.", "the progress and completion texts")
     check((page["level"], page["min_level"], page["side"], page["shareable"]) == (12, 7, "Horde", True), "the facts")
     check(page["icons"]["250001"] == "inv_misc_pelt_wolf_01", "the icons")
+    check(page["category"] == "Durotar", "where the site files it: %r" % page["category"])
     with open(path, "w", encoding="utf-8") as f:
         f.write("<html>404</html>")
     check(foreverchanges.parse(path) is None, "a page the site hasn't")
+
+# Wowhead's tooltips, as nether.wowhead.com gives them.
+spider = wowhead.npc({"name": "Test", "tooltip": "<table><tr><td><b class=\"q\">Test</b></td></tr><tr><td>Level 8 Beast (Elite)</td></tr>"
+                                                "<tr><td>Spider</td></tr></table>"})
+check(spider == {"type": 1, "family": "Spider", "rank": 1, "level": [8, 8]}, "an NPC's tooltip: %r" % spider)
+lance = wowhead.item({"name": "Lance", "quality": 2, "icon": "inv_spear_08", "spells": [], "tooltip":
+                      "<table><tr><td><b class=\"q2\">Lance</b><span class=\"q\"><br>Item Level <!--ilvl-->25</span><!--bo--><br>Binds when "
+                      "picked up<table width=\"100%\"><tr><td>Two-Hand</td><th><!--scstart2:6--><span class=\"q1\">Polearm</span><!--scend--></th>"
+                      "</tr></table><table width=\"100%\"><tr><td><span><!--dmg-->44 - 67 Damage</span></td><th>Speed <!--spd-->3.30</th></tr></table>"
+                      "<br><span><!--stat3-->+7 Agility</span><br><span><!--stat7-->+5 Stamina</span><br>Durability 75 / 75</td></tr></table><table><tr>"
+                      "<td><span class=\"q2\">Equip: Increases damage and healing done by magical spells and effects by up to <span><!--rtg41-->4"
+                      "</span>.</span><div class=\"whtt-sellprice\">Sell Price: <span class=\"moneysilver\">32</span> <span class=\"moneycopper\">55"
+                      "</span></div></td></tr></table>"})
+check((lance["dmg"], lance["speed"], lance["durability"], lance["sell"], lance["bonding"]) == ([44, 67], 3.3, 75, 3255, 1), "an item's numbers: %r" % lance)
+check(lance["stats"] == [[3, 7], [7, 5], [45, 4]], "an item's stats, spell damage as spell power: %r" % lance["stats"])
 
 # Forever's race masks (QuestieDB's): every Alliance race is all of the realm's Alliance, a race the
 # realm adds goes with the race whose start it takes, Forever's Skyborne are the module's.
@@ -100,8 +119,19 @@ for qid, q in quests.items():
         i = int(q[key])
         check(i < 200000 or i in items, "%d's item %d is made" % (qid, i))
     check(int(q["RewardXPDifficulty"]) in range(0, 9), "%d's experience is one of the game's steps" % qid)
+new_npcs = {int(n) for n, v in data["npcs"].items() if v.get("new")}
+templates = {int(r["entry"]) for r in rows("creature_template")}
+models = {int(r["CreatureID"]) for r in rows("creature_template_model")}
+spawns = rows("creature")
+standing = {int(r["id1"]) for r in spawns}
+check(templates == new_npcs, "the SQL's new NPCs are quests.json's")
+for n in new_npcs:
+    check(n in models, "%d is drawn" % n)
+    check(n in standing, "%d stands somewhere" % n)
+check(all(forever.FIRST_GUID <= int(r["guid"]) < forever.FIRST_GUID + 100000 for r in spawns), "the spawns' guids are the module's")
+check(all(-20000 < float(r["position_z"]) < 20000 for r in spawns), "the spawns stand at a height")
 for r in rows("creature_loot_template"):
-    check(int(r["Item"]) in items, "the drop %s is an item made here" % r["Item"])
+    check(int(r["Item"]) in items or "as " in r["Comment"], "the drop %s is an item made here, or the look's own loot" % r["Item"])
 
 print("%d checks failed" % len(failures) if failures else "All checks passed (%d quests, %d items)" % (len(quests), len(items)))
 sys.exit(1 if failures else 0)

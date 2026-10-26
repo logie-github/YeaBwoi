@@ -359,7 +359,14 @@ EOF
 	[ "$forever" = "$(echo $forever_ids | wc -w)" ] || fail "WoW: Forever's quests aren't all in ChromieCraft's world ($forever)"
 	complaints=$(grep -ihwE "quest.*($(echo $forever_ids | tr ' ' '|'))" "$FILES/logs/world.out" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
 	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about WoW: Forever's quests"; }
-	echo "WoW: Forever's quests: $forever in ChromieCraft's world"
+	# Nor about their new people and creatures (their spawns too) or items.
+	forever_others=$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); print("|".join([n for n, v in d["npcs"].items() if v.get("new")] + list(d["items"]) + list(d["rewards"])))' \
+		"$ROOT/warcraft/modules/mod-forever-quests/data/forever/quests.json")
+	complaints=$(grep -ihwE "(creature|item|entry).*($forever_others)" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about WoW: Forever's NPCs or items"; }
+	spawned=$(echo "SELECT COUNT(*) FROM creature WHERE guid BETWEEN 8600000 AND 8699999" | CTL sql acore_world)
+	[ "$spawned" -gt 0 ] || fail "WoW: Forever's new NPCs aren't in ChromieCraft's world"
+	echo "WoW: Forever's quests: $forever in ChromieCraft's world, $spawned spawns of their new NPCs"
 	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, a Lightforged Draenei
 	# warrior in Ammen Vale, a Zandalari warrior at Camp Narache, each with their racials.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Voidtester 15 1 "$FILES/run/skyborne.steps" |
@@ -526,6 +533,8 @@ EOF
 		fail "Wrath Remix's world has the allied races' quests"
 	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID IN (98299, 97558, 86576)" | CTL sql acore_world_remix)" = 0 ] ||
 		fail "Wrath Remix's world has WoW: Forever's quests"
+	[ "$(echo "SELECT COUNT(*) FROM creature WHERE guid BETWEEN 8600000 AND 8699999" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has WoW: Forever's new NPCs"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world)" -gt 0 ] ||
 		fail "ChromieCraft lost the allied races"
 	# Against the DBC files its world server read (the modules' over the game's, when there are).
