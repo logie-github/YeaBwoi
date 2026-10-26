@@ -76,8 +76,65 @@ object Wc3Screen {
     fun onHeroButtons(x: Float, y: Float): Boolean = x < 0.055f && y > TOP_BAR && y < 0.8f
 
     /** The command buttons (the grid at the bottom right) and the inventory: what may wait for a target. */
-    fun onOrders(x: Float, y: Float): Boolean =
-        (x in 0.765f..0.99f && y >= 0.74f) || (x in 0.64f..0.74f && y >= 0.80f)
+    fun onOrders(x: Float, y: Float): Boolean = onCommandCard(x, y) || onInventory(x, y)
+
+    /** The hero's or unit's inventory: the six slots left of the command buttons. */
+    fun onInventory(x: Float, y: Float): Boolean = x in 0.64f..0.74f && y >= 0.80f
+
+    /** The command buttons alone (the grid at the bottom right, 4 across and 3 down), not the inventory. */
+    fun onCommandCard(x: Float, y: Float): Boolean = x in 0.765f..0.99f && y >= 0.74f
+
+    /**
+     * The command card's 12 buttons, row by row from the top left: their centres. The grid of
+     * [onCommandCard] (0.612 to 0.792 across the interface's 0.8, 0.444 to 0.594 down its 0.6) in
+     * 4 columns of 0.045 and 3 rows of 0.05.
+     */
+    val ORDER_SLOTS: List<Pair<Float, Float>> = buildList {
+        for (row in 0 until 3) for (column in 0 until 4) {
+            add((0.6345f + 0.045f * column) / 0.8f to (0.469f + 0.05f * row) / 0.6f)
+        }
+    }
+
+    /** Where the command card is read: three points across the middle of each of [ORDER_SLOTS]. */
+    val ORDER_POINTS: List<Pair<Float, Float>> =
+        ORDER_SLOTS.flatMap { (x, y) -> listOf((x - 0.012f) to y, x to y, (x + 0.012f) to y) }
+
+    /** The command button nearest to ([x], [y]): its index in [ORDER_SLOTS]. */
+    fun orderSlot(x: Float, y: Float): Int =
+        ORDER_SLOTS.indices.minBy { val (sx, sy) = ORDER_SLOTS[it]; (sx - x) * (sx - x) + (sy - y) * (sy - y) }
+
+    /** A slot with no button: dark at all three of its points. */
+    private const val EMPTY_SLOT = 120
+    /** How far (summed over red, green and blue) a button's point may change and still be the same button. */
+    private const val CARD_TOLERANCE = 60
+
+    private fun slotEmpty(points: List<Int>, slot: Int) = (0 until 3).all { brightness(points[slot * 3 + it]) < EMPTY_SLOT }
+
+    /**
+     * Whether the command card (read at [ORDER_POINTS]) shows the game waiting for a target: in
+     * Warcraft III an order that needs one (Move, Attack, Patrol, a spell, a building's place)
+     * empties the card but for Cancel in its bottom-right corner.
+     */
+    fun targeting(points: List<Int>?): Boolean {
+        if (points == null || points.size != ORDER_POINTS.size) return false
+        val cancel = ORDER_SLOTS.size - 1
+        val empty = (0 until cancel).count { slotEmpty(points, it) }
+        return empty >= cancel - 1 && !slotEmpty(points, cancel)
+    }
+
+    /**
+     * Whether two readings of the command card show the same buttons: the same units selected,
+     * not another unit's card, a submenu (Build) or a wait for a target. A slot or two may differ
+     * (a button greyed for its cooldown, a hotkey's highlight).
+     */
+    fun sameCard(a: List<Int>?, b: List<Int>?): Boolean {
+        if (a == null || b == null || a.size != ORDER_POINTS.size || b.size != ORDER_POINTS.size) return false
+        if (ORDER_SLOTS.indices.all { slotEmpty(a, it) }) return false
+        val same = ORDER_SLOTS.indices.count { slot ->
+            (0 until 3).all { distance(a[slot * 3 + it], b[slot * 3 + it]) <= CARD_TOLERANCE }
+        }
+        return same >= ORDER_SLOTS.size - 2
+    }
 
     /** The minimap (measured from the console's art: the same for every race). */
     fun onMinimap(x: Float, y: Float): Boolean = x in 0.013f..0.185f && y in 0.803f..0.986f

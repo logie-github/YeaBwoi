@@ -222,6 +222,9 @@ fun ControlsDialog(onDismiss: () -> Unit) {
     val rows = listOf(
         R.string.rts_controls_swipe to R.string.rts_controls_swipe_does,
         R.string.rts_controls_tap to R.string.rts_controls_tap_does,
+        R.string.rts_controls_order to R.string.rts_controls_order_does,
+        R.string.rts_controls_tap_drag to R.string.rts_controls_tap_drag_does,
+        R.string.rts_controls_double_tap to R.string.rts_controls_double_tap_does,
         R.string.rts_controls_hold to R.string.rts_controls_hold_does,
         R.string.rts_controls_double to R.string.rts_controls_double_does,
         R.string.rts_controls_rest to R.string.rts_controls_rest_does,

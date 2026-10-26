@@ -23,6 +23,9 @@ class RtsGesturesTest {
         var minimap: ((Float, Float) -> Boolean)? = null
         override fun heldDrag(x: Float, y: Float) = held
         override fun dragZone(x: Float, y: Float) = minimap?.invoke(x, y) ?: false
+        var waits = false
+        override fun tapWaits(x: Float, y: Float) = waits
+        override fun doubleTap() { events += "double tap" }
     }
 
     private val out = Recorder()
@@ -223,5 +226,80 @@ class RtsGesturesTest {
         gestures.move(0, 160f, 150f)
         gestures.down(1, 300f, 300f, 800)
         assertTrue(out.events.last() == "release LEFT")
+    }
+
+    @Test
+    fun `where taps wait, a tap clicks only once the wait is over`() {
+        out.waits = true
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        assertTrue(gestures.tapWaiting)
+        assertEquals(emptyList(), out.events)
+        gestures.tapTimeout(100 + RtsGestures.TAP_WAIT_MS)
+        assertEquals(listOf("move 100,200", "click RIGHT"), out.events)
+    }
+
+    @Test
+    fun `a tap, then a touch that drags, draws a selection box from the second touch with no click`() {
+        out.waits = true
+        out.held = HeldDrag.SELECT
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        gestures.down(1, 300f, 300f, 250)
+        gestures.move(1, 400f, 380f)
+        gestures.up(1, 420f, 400f, 700)
+        gestures.tapTimeout(1000)
+        assertEquals(listOf("move 300,300", "press LEFT", "move 400,380", "move 420,400", "release LEFT"), out.events)
+    }
+
+    @Test
+    fun `a tap, then a drag where no box can be drawn, clicks the tap and pans`() {
+        out.waits = true
+        out.held = HeldDrag.CANCEL
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        gestures.down(1, 300f, 300f, 250)
+        gestures.move(1, 360f, 302f)
+        assertEquals(listOf("move 100,200", "click RIGHT", "down RIGHT"), out.events)
+    }
+
+    @Test
+    fun `two quick taps on one spot are a double tap`() {
+        out.waits = true
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        gestures.down(1, 104f, 203f, 200)
+        gestures.up(1, 104f, 203f, 280)
+        gestures.tapTimeout(600)
+        assertEquals(listOf("move 100,200", "double tap"), out.events)
+    }
+
+    @Test
+    fun `two quick taps far apart are two taps`() {
+        out.waits = true
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        gestures.down(1, 400f, 200f, 200)
+        gestures.up(1, 400f, 200f, 280)
+        gestures.tapTimeout(280 + RtsGestures.TAP_WAIT_MS)
+        assertEquals(listOf("move 100,200", "click RIGHT", "move 400,200", "click RIGHT"), out.events)
+    }
+
+    @Test
+    fun `a touch long after a tap clicks the tap first`() {
+        out.waits = true
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        gestures.down(1, 100f, 200f, 100 + RtsGestures.TAP_WAIT_MS + 50)
+        assertEquals(listOf("move 100,200", "click RIGHT"), out.events)
+    }
+
+    @Test
+    fun `without waiting taps, a tap clicks at once and a tap then drag pans`() {
+        gestures.down(0, 100f, 200f, 0)
+        gestures.up(0, 100f, 200f, 100)
+        gestures.down(1, 300f, 300f, 200)
+        gestures.move(1, 360f, 302f)
+        assertEquals(listOf("move 100,200", "click RIGHT", "down RIGHT"), out.events)
     }
 }

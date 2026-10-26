@@ -369,6 +369,32 @@ The user's requirements, what was decided, what's open, and where it stands. The
   Tested here: the app compiles with the five Winlator patches, 76 unit tests pass (6 new), the
   routing check above. Not on the phone: whether Warcraft III's clicks land now, and whether it does
   clip the cursor (with the grab off the report can't show it; it shows where each press went).
+- **Build 32: the controls the user asked for after build 31** (playing a match: "Tapping once then
+  moving once is too much. Make it keep the last selected move until I click another one. Also
+  selecting multiple units needs to be easier. Like tap left then tap and drag for select box";
+  "Double tap on items should let me pick them up"):
+  1. **The kept order**: the command card is read with the console (`Wc3Screen.ORDER_SLOTS`, 4x3
+     from `onCommandCard`'s grid, three points per button, `ORDER_POINTS`). A command button tapped
+     is remembered with the card as it was; at its target tap, a card read since then that is empty
+     but for its bottom-right button (Cancel: `targeting`) keeps it (and makes that tap the left
+     click; a card that isn't waiting makes it the right click, as after Stop). Each later
+     battlefield tap clicks the kept button, waits 90 ms, then left-clicks the tap's spot, while
+     the card shows the same buttons (`sameCard`: 10 of 12 within 60); another card (another unit,
+     the Build submenu after placing a building) lets it go, and so do another command button, a
+     hold, a box, a double hold, a tap on the portraits or hero buttons, Escape. Taps during an
+     order given again wait for it. Thresholds (a button's point brighter than 120, summed) are from
+     the game's art as known, not from the phone's picture: if the card is misread nothing is kept
+     and taps stay as before. The report notes each order kept and let go.
+  2. **Tap, then touch and drag**: `RtsGestures` holds a tap where `tapWaits` (Warcraft III: the
+     battlefield and the inventory in a match) for `TAP_WAIT_MS` 250 ms; a touch in that time that
+     drags where `heldDrag` says SELECT draws the box from its own start, the tap's click left out.
+     Hold, then drag still draws one too.
+  3. **Double tap**: a second tap within 250 ms on the same spot (40 dp): `doubleTap`, a right
+     click there. On the inventory it picks the item up, and the next battlefield tap within 8 s
+     is the left click that puts it down; on the battlefield it's the plain right click (pick up an
+     item on the ground), a kept order left as it is.
+  Warcraft I and II keep their gestures (`tapWaits` false). Tested here: compiles, 87 unit tests
+  (the gestures and the card logic). Not on the phone.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

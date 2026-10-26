@@ -79,6 +79,8 @@ class GestureView(
     /** From the view's pixels to the game screen's. */
     private val xform = XForm.getInstance()
     private val hold = Runnable { gestures.onHold(SystemClock.uptimeMillis()) }
+    /** A tap that waited for a selection box ([RtsGestures.tapWaiting]) clicks now if none came. */
+    private val tapCheck = Runnable { gestures.tapTimeout(SystemClock.uptimeMillis()) }
 
     /** Key presses still to send for text from the prompt, a few milliseconds apart. */
     private val typing = ArrayDeque<() -> Unit>()
@@ -222,6 +224,10 @@ class GestureView(
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 if (event.actionMasked == MotionEvent.ACTION_UP) removeCallbacks(hold)
                 gestures.up(id, event.getX(index), event.getY(index), now)
+                if (gestures.tapWaiting) {
+                    removeCallbacks(tapCheck)
+                    postDelayed(tapCheck, RtsGestures.TAP_WAIT_MS)
+                }
             }
             MotionEvent.ACTION_CANCEL -> {
                 removeCallbacks(hold)
@@ -234,6 +240,8 @@ class GestureView(
     /** Back in the game: Escape (cancels an order, closes a menu). */
     fun escape() {
         aimUntil = 0L
+        itemUntil = 0L
+        forgetOrder("Escape")
         dialogUntil = 0L
         tapKey(XKeycode.KEY_ESC)
     }
@@ -364,17 +372,41 @@ class GestureView(
 
     override fun click(button: Button) {
         val now = SystemClock.uptimeMillis()
+        // An order being given again (its button, then the target) is still running: this click after it.
+        if (now < busyUntil) {
+            val px = pointerX
+            val py = pointerY
+            postDelayed({
+                pointerX = px
+                pointerY = py
+                xServer.injectPointerMove(px.toInt(), py.toInt())
+                click(button)
+            }, busyUntil - now)
+            return
+        }
         val (x, y) = pointerAt() ?: (0f to 0f)
         var why: String
         val pressed = when {
             button == Button.LEFT -> {
                 // A hold: on a command button it may start aiming; elsewhere it's the aim's target, or a selection.
+                when {
+                    onOrders(x, y) -> orderTapped(x, y, now)
+                    now < aimUntil -> aimed(now)
+                    else -> forgetOrder("a selection")
+                }
                 aimUntil = if (onOrders(x, y)) now + AIM_MS else 0L
                 why = "hold"
                 Button.LEFT
             }
             leftClickHere() -> {
-                if (onOrders(x, y)) aimUntil = now + AIM_MS
+                itemUntil = 0L
+                if (onOrders(x, y)) {
+                    aimUntil = now + AIM_MS
+                    orderTapped(x, y, now)
+                } else if (watcher.race != null && !Wc3Screen.onMinimap(x, y) && now >= aimUntil) {
+                    // The portraits, the hero buttons, the menu bar: another selection, or a dialog.
+                    forgetOrder("a tap on the panel")
+                }
                 why = when {
                     watcher.race == null -> "tap, no console (menus)"
                     Wc3Screen.onHeroButtons(x, y) -> "tap, hero buttons"
@@ -383,12 +415,44 @@ class GestureView(
                 }
                 Button.LEFT
             }
-            // On the battlefield, just after a command button: its target, unless the pointer says otherwise.
+            // On the battlefield with an item picked up from the inventory (a double tap): it goes down here.
+            now < itemUntil -> {
+                itemUntil = 0L
+                why = "tap, putting down the picked-up item"
+                Button.LEFT
+            }
+            // On the battlefield, just after a command button: its target, unless the game isn't waiting for one.
             now < aimUntil -> {
                 aimUntil = 0L
+                val targeting = aimed(now)
                 val normal = pointerIsNormal()
-                why = "tap after a command button, pointer normal: ${normal ?: "not known"}"
-                if (normal == true) Button.RIGHT else Button.LEFT
+                why = "tap after a command button, waiting for a target: ${targeting ?: "not known"}, pointer normal: ${normal ?: "not known"}"
+                when (targeting) {
+                    true -> Button.LEFT
+                    false -> Button.RIGHT
+                    null -> if (normal == true) Button.RIGHT else Button.LEFT
+                }
+            }
+            // On the battlefield with an order kept: its button again, then this tap is its target.
+            keptOrder != null -> {
+                val card = watcher.orders
+                // Not read since the order was last given (quick taps): the same card as then.
+                val fresh = watcher.ordersAt > orderPressedAt
+                when {
+                    fresh && Wc3Screen.targeting(card) -> {
+                        why = "tap, the game still waiting for the kept order's target"
+                        Button.LEFT
+                    }
+                    !fresh || Wc3Screen.sameCard(card, orderCard) -> {
+                        giveKeptOrder(x, y)
+                        return
+                    }
+                    else -> {
+                        forgetOrder("the command card changed")
+                        why = "tap, battlefield"
+                        Button.RIGHT
+                    }
+                }
             }
             else -> {
                 cursorShape()?.let {
@@ -404,6 +468,7 @@ class GestureView(
     }
 
     override fun doubleClick(button: Button) {
+        forgetOrder("a selection")
         val (x, y) = pointerAt() ?: (0f to 0f)
         Wc3Report.tap("%.3f,%.3f double hold → double %s".format(x, y, button))
         pressHere(button.x) {
@@ -415,6 +480,7 @@ class GestureView(
 
     override fun press(button: Button) {
         val (x, y) = pointerAt() ?: (0f to 0f)
+        if (!Wc3Screen.onMinimap(x, y)) forgetOrder("a selection box")
         Wc3Report.tap("%.3f,%.3f drag starts → %s down".format(x, y, button))
         pressPending = true
         pressHere(button.x) {
@@ -458,6 +524,121 @@ class GestureView(
         val (sx, sy) = screenAt(x, y) ?: return HeldDrag.CANCEL
         if (Wc3Screen.onHeroButtons(sx, sy) || Wc3Screen.onConsole(race, sx, sy)) return HeldDrag.CANCEL
         return HeldDrag.SELECT
+    }
+
+    /**
+     * In a match, a tap on the battlefield or the inventory waits a moment for what follows: on the
+     * battlefield a touch that drags right after it draws a selection box; on either, a second tap
+     * is a double tap ([doubleTap]).
+     */
+    override fun tapWaits(x: Float, y: Float): Boolean {
+        val race = watcher.race ?: return false
+        val (sx, sy) = screenAt(x, y) ?: return false
+        if (Wc3Screen.onInventory(sx, sy)) return true
+        return !Wc3Screen.onHeroButtons(sx, sy) && !Wc3Screen.onConsole(race, sx, sy)
+    }
+
+    /**
+     * A double tap: the right click, whatever a tap would be there. On an item in the inventory it
+     * picks the item up (to move it to another slot, drop it on the ground or give it to a unit:
+     * the next tap puts it there); on the battlefield it's the game's own order for what's there
+     * (pick up an item on the ground, move, attack), a kept order left as it is.
+     */
+    override fun doubleTap() {
+        if (SystemClock.uptimeMillis() < busyUntil) return click(Button.RIGHT)
+        val (x, y) = pointerAt() ?: (0f to 0f)
+        aimUntil = 0L
+        // An item picked up: the next tap puts it down (a slot, the ground, a unit), a left click.
+        itemUntil = if (Wc3Screen.onInventory(x, y)) SystemClock.uptimeMillis() + AIM_MS else 0L
+        Wc3Report.tap("%.3f,%.3f double tap → RIGHT".format(x, y))
+        pressHere(Pointer.Button.BUTTON_RIGHT) { postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT) }, CLICK_MS) }
+    }
+
+    // The kept order --------------------------------------------------------------------------
+
+    /**
+     * The order kept for the battlefield's taps: after a command button whose order waits for a
+     * target (Move, Attack, Patrol, a spell), every later tap on the battlefield gives that order
+     * again there (its button, then the tap as its target), until another command button, a
+     * selection (a hold, a box, the portraits) or Escape. Known from the command card ([Wc3Watcher]):
+     * kept only when the card emptied but for Cancel after its button (a target was awaited), and
+     * given again only while the card shows the same buttons as when it was tapped.
+     */
+    private var keptOrder: Pair<Float, Float>? = null
+    /** The command button last tapped (screen fractions), not kept until its target was given. */
+    private var orderButton: Pair<Float, Float>? = null
+    /** The command card as it was when [orderButton] was tapped. */
+    private var orderCard: List<Int>? = null
+    /** When (uptime ms) [orderButton] went down. */
+    private var orderPressedAt = 0L
+    /** Until when (uptime ms) an order being given again is still clicking. */
+    private var busyUntil = 0L
+    /** Until when (uptime ms) an item picked up from the inventory ([doubleTap]) waits to be put down. */
+    private var itemUntil = 0L
+
+    /** A command button tapped: remembered, kept once its target is given ([aimed]). */
+    private fun orderTapped(x: Float, y: Float, now: Long) {
+        keptOrder = null
+        val onCard = Wc3Screen.onCommandCard(x, y)
+        val card = watcher.orders
+        // An item, or a tap while the card waits for a target (Cancel, or a button no longer there): nothing to keep.
+        if (!onCard || card == null || Wc3Screen.targeting(card)) {
+            orderButton = null
+            return
+        }
+        orderButton = Wc3Screen.ORDER_SLOTS[Wc3Screen.orderSlot(x, y)]
+        orderCard = card
+        orderPressedAt = now + SETTLE_MS
+    }
+
+    /**
+     * The target for the command button just tapped: whether the game waits for one (the card
+     * read since the button went down shows only Cancel), or null if not read since. An order
+     * that waited for its target is kept.
+     */
+    private fun aimed(now: Long): Boolean? {
+        if (watcher.ordersAt <= orderPressedAt) return null
+        val targeting = Wc3Screen.targeting(watcher.orders)
+        val button = orderButton
+        if (targeting && button != null) {
+            if (keptOrder != button) Wc3Report.note("order kept: command button ${Wc3Screen.orderSlot(button.first, button.second) + 1}")
+            keptOrder = button
+        } else if (!targeting) {
+            forgetOrder("the order needed no target")
+        }
+        return targeting
+    }
+
+    private fun forgetOrder(why: String) {
+        if (keptOrder != null) Wc3Report.note("order let go: $why")
+        keptOrder = null
+        orderButton = null
+    }
+
+    /** The kept order again: its button, a moment for the game to wait for a target, then the target where the tap was. */
+    private fun giveKeptOrder(x: Float, y: Float) {
+        val (bx, by) = keptOrder ?: return
+        val width = xServer.screenInfo.width.toFloat()
+        val height = xServer.screenInfo.height.toFloat()
+        Wc3Report.tap("%.3f,%.3f tap, the kept order again → its button, then LEFT".format(x, y))
+        val targetX = x * width
+        val targetY = y * height
+        busyUntil = SystemClock.uptimeMillis() + SETTLE_MS * 2 + CLICK_MS * 2 + ORDER_GAP_MS + 20
+        pointerX = bx * width
+        pointerY = by * height
+        xServer.injectPointerMove(pointerX.toInt(), pointerY.toInt())
+        pressHere(Pointer.Button.BUTTON_LEFT) {
+            postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_MS)
+            postDelayed({
+                orderPressedAt = SystemClock.uptimeMillis()
+                pointerX = targetX
+                pointerY = targetY
+                xServer.injectPointerMove(targetX.toInt(), targetY.toInt())
+                pressHere(Pointer.Button.BUTTON_LEFT) {
+                    postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_MS)
+                }
+            }, CLICK_MS + ORDER_GAP_MS)
+        }
     }
 
     /** A swipe from the minimap moves the camera with it (the left button held), as a mouse would. */
@@ -595,6 +776,8 @@ class GestureView(
         private const val BLACK_SKIP_MS = 5000L
         /** How long after a command button the next battlefield tap gives its target. */
         private const val AIM_MS = 8000L
+        /** A kept order given again: from its button's release to the target's click, for the game to wait for a target. */
+        private const val ORDER_GAP_MS = 90L
         /** A second two-finger tap within this long is Space. */
         private const val SECOND_TAP_MS = 320L
         /** Before the picture is read: Warcraft III's bottom panel starts about three quarters down; its top bar ends 5% down. */

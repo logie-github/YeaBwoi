@@ -37,6 +37,12 @@ class Wc3Watcher(private val xServer: XServer) {
     /** Whether the game has shown anything but black since it started (a menu, a loading screen). */
     @Volatile var shownSomething = false
         private set
+    /** The command card's colours at [Wc3Screen.ORDER_POINTS] while a match is on, or null. */
+    @Volatile var orders: List<Int>? = null
+        private set
+    /** When (uptime ms) the picture [orders] came from was read. */
+    @Volatile var ordersAt = 0L
+        private set
 
     // For the report ([summary]).
     private var readings = 0
@@ -184,7 +190,10 @@ class Wc3Watcher(private val xServer: XServer) {
         }
     }
 
-    private class Reading(val race: String?, val flipped: Boolean?, val field: List<Int>, val black: Boolean)
+    private class Reading(
+        val race: String?, val flipped: Boolean?, val field: List<Int>, val black: Boolean,
+        val orders: List<Int>?, val at: Long,
+    )
 
     private fun understand(picture: Picture): Reading {
         val way = flipped
@@ -204,12 +213,15 @@ class Wc3Watcher(private val xServer: XServer) {
         val field = Wc3Screen.FIELD.map { (x, y) -> picture.colour(x, y, foundWay ?: false) }
         val black = found == null && Wc3Screen.black(field) &&
             Wc3Screen.black(listOf(0.5f to 0.85f, 0.5f to 0.03f, 0.1f to 0.9f, 0.9f to 0.9f).map { (x, y) -> picture.colour(x, y, false) })
-        return Reading(found, foundWay, field, black)
+        val orders = if (found == null) null else Wc3Screen.ORDER_POINTS.map { (x, y) -> picture.colour(x, y, foundWay ?: false) }
+        return Reading(found, foundWay, field, black, orders, SystemClock.uptimeMillis())
     }
 
     private fun apply(reading: Reading) {
         if (reading.flipped != null) flipped = reading.flipped
         race = reading.race
+        orders = reading.orders
+        ordersAt = reading.at
         stillSince = when {
             reading.race == null -> 0L
             Wc3Screen.still(lastField, reading.field) -> if (stillSince == 0L) SystemClock.uptimeMillis() else stillSince

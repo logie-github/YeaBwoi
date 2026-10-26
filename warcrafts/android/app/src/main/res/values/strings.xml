@@ -190,6 +190,12 @@
     <string name="rts_controls_swipe_does">Pans the map the way you swipe, for as long as the finger stays away from where it landed. Lift to stop.</string>
     <string name="rts_controls_tap">Tap</string>
     <string name="rts_controls_tap_does">Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, a tap is the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel and top bar.</string>
+    <string name="rts_controls_order">Command button, then taps (Warcraft III)</string>
+    <string name="rts_controls_order_does">Tap Move, Attack, Patrol or a spell, then tap its target: from then on every tap on the battlefield gives that order again, until you tap another command button, select other units (a hold, a box, the portraits) or press Back.</string>
+    <string name="rts_controls_tap_drag">Tap, then touch and drag (Warcraft III)</string>
+    <string name="rts_controls_tap_drag_does">A selection box from where the second touch lands; the first tap does nothing.</string>
+    <string name="rts_controls_double_tap">Double tap (Warcraft III)</string>
+    <string name="rts_controls_double_tap_does">On an item in the inventory: picks it up; tap a slot, the ground or a unit to put it there. On the battlefield: the game\'s own order for what\'s there (pick up an item, move, attack), even with an order kept.</string>
     <string name="rts_controls_hold">Touch and hold</string>
     <string name="rts_controls_hold_does">Left click when you lift (after a short buzz): select a unit or building, press a button of the game\'s panel or menus.</string>
     <string name="rts_controls_double">Hold twice on the same spot</string>

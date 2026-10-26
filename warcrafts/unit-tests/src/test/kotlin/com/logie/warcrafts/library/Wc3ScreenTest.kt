@@ -97,4 +97,49 @@ class Wc3ScreenTest {
         }
         for (file in menus) assertNull(Wc3Screen.race(sampler(file)), file.name)
     }
+
+    private val dark = 0x101010
+    private val icon = 0x8a6a40
+
+    /** A command card read at its points: [filled] slots show a button (each slot its own colour). */
+    private fun card(filled: Set<Int>): List<Int> = Wc3Screen.ORDER_SLOTS.indices.flatMap { slot ->
+        List(3) { if (slot in filled) icon + slot * 0x000304 else dark }
+    }
+
+    @Test
+    fun `the command card's slots lie on the command buttons, row by row`() {
+        assertEquals(12, Wc3Screen.ORDER_SLOTS.size)
+        for ((x, y) in Wc3Screen.ORDER_SLOTS) assertTrue(Wc3Screen.onCommandCard(x, y))
+        for ((x, y) in Wc3Screen.ORDER_POINTS) assertTrue(Wc3Screen.onCommandCard(x, y))
+        val (x0, y0) = Wc3Screen.ORDER_SLOTS[0]
+        val (x11, y11) = Wc3Screen.ORDER_SLOTS[11]
+        assertTrue(x0 < x11 && y0 < y11)
+        assertEquals(5, Wc3Screen.orderSlot(Wc3Screen.ORDER_SLOTS[5].first + 0.01f, Wc3Screen.ORDER_SLOTS[5].second - 0.01f))
+    }
+
+    @Test
+    fun `a card of only Cancel is the game waiting for a target`() {
+        assertTrue(Wc3Screen.targeting(card(setOf(11))))
+        assertFalse(Wc3Screen.targeting(card(setOf(0, 1, 2, 3, 4, 11))))   // a unit's card
+        assertFalse(Wc3Screen.targeting(card(emptySet())))                // nothing selected
+        assertFalse(Wc3Screen.targeting(null))
+    }
+
+    @Test
+    fun `the same buttons are the same card, another unit's or a submenu is not`() {
+        val footman = card(setOf(0, 1, 2, 3, 4))
+        assertTrue(Wc3Screen.sameCard(footman, card(setOf(0, 1, 2, 3, 4))))
+        assertTrue(Wc3Screen.sameCard(footman, card(setOf(0, 1, 2, 3))))         // one button greyed
+        assertFalse(Wc3Screen.sameCard(footman, card(setOf(11))))                 // waiting for a target
+        assertFalse(Wc3Screen.sameCard(footman, card(setOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 11))))  // a builder's submenu
+        assertFalse(Wc3Screen.sameCard(card(emptySet()), card(emptySet())))        // no buttons to go by
+    }
+
+    @Test
+    fun `the inventory is apart from the command buttons`() {
+        assertTrue(Wc3Screen.onInventory(0.69f, 0.9f))
+        assertFalse(Wc3Screen.onCommandCard(0.69f, 0.9f))
+        assertTrue(Wc3Screen.onOrders(0.69f, 0.9f))
+        assertTrue(Wc3Screen.onOrders(0.85f, 0.85f))
+    }
 }

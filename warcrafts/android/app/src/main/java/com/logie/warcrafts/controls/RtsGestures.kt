@@ -50,6 +50,19 @@ interface GestureOutput {
 
     /** Whether a swipe starting here drags with the left button down (a minimap) instead of panning. */
     fun dragZone(x: Float, y: Float): Boolean = false
+
+    /**
+     * Whether a tap here waits [RtsGestures.TAP_WAIT_MS] for what may follow before it clicks: a
+     * touch that drags (a selection box, where [heldDrag] says so) or a second tap there
+     * ([doubleTap]). The game screen then calls [RtsGestures.tapTimeout].
+     */
+    fun tapWaits(x: Float, y: Float): Boolean = false
+
+    /** Two quick taps on the same spot where taps wait ([tapWaits]), the pointer there. */
+    fun doubleTap() {
+        click(Button.RIGHT)
+        click(Button.RIGHT)
+    }
 }
 
 /**
@@ -71,8 +84,10 @@ interface GestureOutput {
  * - **Three-finger tap**: the phone's keyboard. **Four-finger tap**: the app's menu.
  *
  * What a game may add ([GestureOutput]'s defaults keep the above): a held finger that then moves
- * draws a selection box or takes the hold back ([HeldDrag]), and a swipe from a minimap drags
- * on it ([GestureOutput.dragZone]).
+ * draws a selection box or takes the hold back ([HeldDrag]), a swipe from a minimap drags on it
+ * ([GestureOutput.dragZone]), and, where taps wait ([GestureOutput.tapWaits]), a tap followed at
+ * once by a touch that drags draws a selection box from where the second touch landed (the tap's
+ * own click left out), and two quick taps on one spot are a double tap ([GestureOutput.doubleTap]).
  */
 class RtsGestures(private val out: GestureOutput, density: Float) {
     companion object {
@@ -84,6 +99,11 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
         const val REST_MS = 200L
         /** A second hold this soon after the first one lifted, on the same spot, is a double click. */
         const val DOUBLE_HOLD_MS = 900L
+        /**
+         * Where taps wait ([GestureOutput.tapWaits]): a touch this soon after a tap lifted that then
+         * drags draws a selection box; one that lifts on the same spot is a double tap.
+         */
+        const val TAP_WAIT_MS = 250L
     }
 
     private val slop = 10f * density
@@ -117,6 +137,15 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
     /** In Shift mode: the finger tapping or holding (the other one rests). */
     private var actor: Int? = null
 
+    /** A tap whose click waits for a touch that may drag a selection box ([GestureOutput.tapWaits]). */
+    private var waitingTap: Finger? = null
+    private var waitingTapUpAt = 0L
+    /** The finger that landed while [waitingTap] waited: dragged, it draws the box. */
+    private var boxFinger: Int? = null
+
+    /** Whether a tap's click is waiting: the game screen calls [tapTimeout] [TAP_WAIT_MS] after the finger lifted. */
+    val tapWaiting: Boolean get() = waitingTap != null
+
     /** The last hold's left click: where and when, for a double click. */
     private var lastHoldAt = Long.MIN_VALUE / 2
     private var lastHoldX = 0f
@@ -124,6 +153,14 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
 
     fun down(id: Int, x: Float, y: Float, now: Long) {
         val finger = Finger(x, y, now)
+        if (waitingTap != null) {
+            if (fingers.isEmpty() && boxFinger == null && now - waitingTapUpAt <= TAP_WAIT_MS) {
+                // Right after a tap: dragged, this finger draws a selection box.
+                boxFinger = id
+            } else {
+                flushTap()
+            }
+        }
         if (fingers.isEmpty()) {
             fingers[id] = finger
             mode = Mode.PENDING
@@ -176,7 +213,17 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
             Mode.PENDING, Mode.HELD -> {
                 val finger = fingers.values.firstOrNull() ?: return
                 if (finger.moved) {
+                    val box = boxFinger != null && waitingTap != null &&
+                        out.heldDrag(finger.startX, finger.startY) == HeldDrag.SELECT
+                    if (box) {
+                        // Tap, then touch and drag: a selection box; the tap's own click is left out.
+                        waitingTap = null
+                        boxFinger = null
+                    } else {
+                        flushTap()
+                    }
                     val what = when {
+                        box -> HeldDrag.SELECT
                         mode == Mode.HELD -> out.heldDrag(finger.startX, finger.startY)
                         out.dragZone(finger.startX, finger.startY) -> HeldDrag.SELECT
                         else -> HeldDrag.PAN
@@ -209,14 +256,29 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
         finger.y = y
         when (mode) {
             Mode.SHIFT -> if (id == actor) {
-                if (!finger.moved) clickFor(finger, now)
+                if (!finger.moved) clickFor(finger, now, mayWait = false)
                 actor = null
             } else {
                 // The resting finger lifted: Shift ends.
                 releaseKeys()
                 mode = Mode.DONE
             }
-            Mode.PENDING, Mode.HELD -> if (fingers.isEmpty()) clickFor(finger, now)
+            Mode.PENDING, Mode.HELD -> if (fingers.isEmpty()) {
+                val tap = waitingTap
+                if (tap != null && id == boxFinger && !finger.held &&
+                    hypot(finger.startX - tap.startX, finger.startY - tap.startY) <= sameSpot
+                ) {
+                    // A second tap on the same spot: a double tap.
+                    waitingTap = null
+                    boxFinger = null
+                    out.pointerTo(tap.startX, tap.startY)
+                    out.doubleTap()
+                } else {
+                    // A second touch after a tap that didn't drag: the tap's click first, then this one's.
+                    flushTap()
+                    clickFor(finger, now)
+                }
+            }
             Mode.PAN -> if (fingers.isEmpty()) releaseKeys()
             Mode.DRAG -> {
                 out.pointerTo(x, y)
@@ -261,8 +323,24 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
         }
     }
 
+    /** [TAP_WAIT_MS] after a tap lifted ([tapWaiting]): no touch came to drag a box, so the tap clicks. */
+    fun tapTimeout(now: Long) {
+        if (waitingTap != null && fingers.isEmpty() && now - waitingTapUpAt >= TAP_WAIT_MS) flushTap()
+    }
+
+    /** The waiting tap's click, now. */
+    private fun flushTap() {
+        val tap = waitingTap ?: return
+        waitingTap = null
+        boxFinger = null
+        out.pointerTo(tap.startX, tap.startY)
+        out.click(Button.RIGHT)
+    }
+
     /** The touch was taken away (another window, the system): lets go of everything. */
     fun cancel() {
+        waitingTap = null
+        boxFinger = null
         if (mode == Mode.DRAG) out.release(Button.LEFT)
         releaseKeys()
         fingers.clear()
@@ -270,8 +348,16 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
         actor = null
     }
 
-    /** A lifted finger that didn't move: a tap right-clicks, a hold left-clicks (twice, for a second hold there). */
-    private fun clickFor(finger: Finger, now: Long) {
+    /**
+     * A lifted finger that didn't move: a tap right-clicks (after [TAP_WAIT_MS] where a selection box
+     * may follow, unless [mayWait] is off), a hold left-clicks (twice, for a second hold there).
+     */
+    private fun clickFor(finger: Finger, now: Long, mayWait: Boolean = true) {
+        if (!finger.held && mayWait && out.tapWaits(finger.startX, finger.startY)) {
+            waitingTap = finger
+            waitingTapUpAt = now
+            return
+        }
         out.pointerTo(finger.startX, finger.startY)
         if (!finger.held) {
             out.click(Button.RIGHT)
