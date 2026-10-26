@@ -14,7 +14,7 @@ import com.logie.warcraft.turtle.core.TurtleLayout
 import java.io.File
 
 /**
- * Turtle WoW's storage on the phone: [TurtleLayout] under the app's files folder, every change to
+ * OctoWoW's storage on the phone: [TurtleLayout] under the app's files folder, every change to
  * it through [fs] (which refuses anything outside `files/turtle` or in the other games' folders),
  * and its installation manifest ([state]).
  */
@@ -44,12 +44,15 @@ object TurtleFiles {
         return next
     }
 
-    /** The client manifest and DBC checksums in the APK (scripts/turtle-manifests.py). */
-    fun clientManifest(context: Context): ClientManifest =
-        context.assets.open("turtle/client-manifest.tsv").use { ClientManifest.parse(it.reader().readText()) }
+    /** Tortoise-WoW's DBC checksums (scripts/turtle-manifests.py) and OctoWoW's own tables, in the APK. */
+    fun dbcManifest(context: Context): DbcManifest = DbcManifest.parse(
+        context.assets.open("turtle/dbc-sha256.tsv").use { it.reader().readText() },
+        context.assets.open("turtle/octowow-dbc.txt").use { it.reader().readText() },
+    )
 
-    fun dbcManifest(context: Context): DbcManifest =
-        context.assets.open("turtle/dbc-sha256.tsv").use { DbcManifest.parse(it.reader().readText()) }
+    /** A download, check or update of the client that stopped before it was done, and how much of it is there. */
+    fun clientInProgress(context: Context): Long? =
+        layout(context).clientDownload.takeIf { it.isDirectory }?.let { WowFiles.sizeOf(it) }
 
     fun hasClient(context: Context): Boolean {
         val client = layout(context).client

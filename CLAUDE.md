@@ -38,11 +38,15 @@ self-updating from this repository's GitHub releases.
 - Never commit build outputs (`build/`, `.cxx/`, `<app>/android/core/`) or any game files.
 - Tell the user what was tested and what wasn't (nothing here runs on a real phone).
 
-## Turtle WoW
+## OctoWoW (was Turtle WoW)
 
-The World of Warcraft app's second game, Turtle WoW (1.18.1) with its own Tortoise-WoW realm, kept
-completely apart from the 3.3.5a game: `warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its
-realm), `com.logie.warcraft.turtle` (its code, every file operation through `turtle/core/SafeFs`).
+The World of Warcraft app's second game: OctoWoW's client (1.18.1, build 7272, downloaded from
+OctoWoW's own server and checked against its torrent: `turtle/core/ClientTorrent`, `ClientSync`)
+on its own Tortoise-WoW realm, kept completely apart from the 3.3.5a game. It was Turtle WoW until
+October 2026 (the user: "replace turtle wow with octo wow"); OctoWoW's server isn't published, so
+the realm stays Tortoise-WoW. The code, folders and realm keep Turtle's names:
+`warcraft/TURTLE.md` (the brief), `warcraft/turtle/` (its realm), `com.logie.warcraft.turtle` (its
+code, every file operation through `turtle/core/SafeFs`). Its look is octowow.st's.
 
 ## Legion 7.3.5 (LegionCore)
 

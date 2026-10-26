@@ -24,7 +24,8 @@ class IsolationTest {
         val layout = TurtleLayout(files, files.parentFile)
         val paths = listOf(
             layout.server, layout.serverStaging, layout.serverOld, layout.ctl, layout.etc, layout.databases,
-            layout.data, layout.dataWork, layout.client, layout.clientStaging, layout.logs, layout.run,
+            layout.data, layout.dataWork, layout.client, layout.clientStaging, layout.clientDownload, layout.clientKept,
+            layout.clientTorrent, layout.logs, layout.run,
             layout.downloads, layout.backups, layout.stateFile,
         )
         for (path in paths) {

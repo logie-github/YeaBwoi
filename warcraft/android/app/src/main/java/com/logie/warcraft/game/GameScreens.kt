@@ -112,8 +112,8 @@ private fun fullScreenDialog(activity: Activity, dim: Boolean, content: @Composa
 /**
  * The loading screen until the game's first window shows ("Entering Azeroth"): the game's picture,
  * its logo, a spinner and what's happening. The 3.3.5a game's: the Lich King before Icecrown
- * Citadel, snow falling. Turtle WoW's ([GestureView.ENVIRONMENT_TURTLE]): the old map of Kalimdor
- * and the Eastern Kingdoms with warm motes rising, its logo, in its own colours. Felsong's
+ * Citadel, snow falling. OctoWoW's ([GestureView.ENVIRONMENT_TURTLE]): its launcher's violet wood
+ * with its logo, gold and violet motes rising, in its own colours. Felsong's
  * ([GestureView.ENVIRONMENT_FELSONG]): Illidan before the Black Temple with fel motes rising, its
  * logo breathing as on felsong.gg's own loading screen. The same calls as the game screen's own
  * loading box, which it replaces (patches/winlator/0004).
@@ -193,10 +193,9 @@ internal fun TurtleLoading(text: String) {
             .background(TurtleColors.Night),
         contentAlignment = Alignment.Center,
     ) {
-        // The map fills the screen, its sides past the edges (it's wider than any screen), darkened
-        // a little for the words.
+        // The wood fills the screen, its sides past the edges, darkened a little for the words.
         Image(
-            painterResource(R.drawable.turtle_loading),
+            painterResource(R.drawable.octowow_header),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
@@ -205,7 +204,7 @@ internal fun TurtleLoading(text: String) {
         TurtleMotes(Modifier.fillMaxSize(), alpha = 0.8f)
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(22.dp)) {
             Image(
-                painterResource(R.drawable.turtle_logo),
+                painterResource(R.drawable.octowow_logo),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.width(360.dp),

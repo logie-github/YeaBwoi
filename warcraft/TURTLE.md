@@ -1,10 +1,109 @@
-# Turtle WoW — Vanilla+: the brief
+# OctoWoW (was Turtle WoW — Vanilla+): the brief
+
+The app's second game, played on the phone against its own local realm, next to (and completely
+apart from) the 3.3.5a game with its ChromieCraft realm and Wrath Remix. It was Turtle WoW until
+October 2026, when it became OctoWoW (below); the code, the folder (`files/turtle`) and the realm
+keep Turtle's names, so an install carries on. The user's manual is `README.md` ("OctoWoW"); the
+3.3.5a game's brief is `PLAN.md`.
+
+## OctoWoW (October 2026)
+
+### What the user asked
+
+- "See if we can replace turtle wow with octo wow private server setup just like we have it in our
+  own server."
+- Told OctoWoW's own server isn't published: "So find a source for it that we can play. I know some
+  release the old updates."
+- The launcher in **OctoWoW's site look** (their pick over keeping the Turtle art).
+
+### What was found
+
+- **OctoWoW** (octowow.st): a Vanilla+ server since April 2026, "built on Turtle WoW's 1.17.2
+  patch", with 1.18.1 "restored from data mined from the original Turtle WoW" (July 2026); three
+  realms; run anonymously, its data kept by "Knowledge Keepers". **Its server isn't published**: its
+  Gitea (`octowow.st/git`, 132 public repositories read through its API) has its launcher
+  (OctoLauncher, TypeScript), add-ons and client tools, no core, no database; its roadmap and pages
+  say nothing of releasing them.
+- **Its client is downloadable**, from its own server, as its launcher gets it: a torrent
+  (`dl.octowow.st/download/client.torrent`, 50 files, 9.46 GB, 1 MiB pieces, a BEP 19 web seed
+  `https://dl.octowow.st/client/`), each file over HTTPS with ranges (also `client/latest/`), and a
+  9.46 GB zip. Its WoW.exe (read from the file) is **1.18.1, build 7272**, Turtle WoW's last,
+  rebuilt by OctoWoW ("OCTOWOW CLIENT BUILD gen=2 ... horizon-farclip+questlog-zonelist"); its realm
+  list isn't forced ("octowow.st" in it is only on the list of sites it may open); its login screen
+  only links to OctoWoW's pages. It imports no DXVK; it loads `d3d9.dll` from its folder when the
+  game draws with Direct3D, and the torrent ships one (DXVK gplasync 2.7.1, an OctoLauncher mod), as
+  well as other launcher mods loaded only through VanillaFixes' chainloader.
+- **Its content against Tortoise-WoW** (DBC tables read from its MPQs on dl.octowow.st with HTTP
+  ranges, a small MPQ reader written for it): 135 of the 159 tables Tortoise has checksums of are
+  byte for byte Turtle 1.18.1's; 20 are OctoWoW's own (its `patch-5.mpq`: Spell, SkillLine,
+  CreatureDisplayInfo, ItemDisplayInfo, Taxi*, ...), all with Turtle's record layouts; three tables
+  1.12's patch.MPQ marks deleted and Turtle's hashes.txt aren't Tortoise's versions. Against
+  Tortoise's world database (its `sql/base`): every one of its 27,916 spells is in OctoWoW's
+  Spell.dbc (which has 109 more), every creature model is there, 2 of 23,078 items have no model;
+  4 of 6,247 skill rows point at skill lines OctoWoW dropped (Felguard, Dragonhawk). Its patch
+  changes about 165 map files (Gilneas, a Karazhan map, Sunnyglade, the Grove, the Emerald Sanctum,
+  two battlegrounds, tiles of both continents). Tortoise's map tools read `patch.MPQ` and
+  `patch-2..9`; OctoWoW's `patch-1` and `patch-2` hold only music.
+- **"Old updates" released by others**: the Turtle WoW **1.17.1/1.17.2 leak** is passed around as
+  Windows repacks (debug builds, MySQL, a 1.17.2 client; one with PartyBots on chroniclecoders.com,
+  its source only "on request"); **LunaticPTR** (a 1.17.1 server) publishes a release repack. None
+  has source to build for a phone, and they're made for older clients than OctoWoW's 1.18.1 (7272).
+  Tortoise-WoW, the open restoration of Turtle WoW's 1.18.1 server, is the one public server made
+  for that client.
+- octowow.st's look (its site is turtlecraft.gg's, re-skinned, its files under `turtle_assets/`):
+  the near-black page, steel-framed panels with corner brackets and rivets, Folkard headings in
+  gold to ember, Fontin Sans SC capitals, a steel band with diamonds under the menu, buttons on
+  smoky plates with an ember (Download) or green (Sign up) glow and steel diamond ends; its
+  launcher: a violet wood and the OctoWoW logo.
+
+### Decided
+
+- **OctoWoW's client on the realm we have**: Tortoise-WoW with TortoiseBots stays the realm (the
+  same package, `turtle-server-*`); the game, its texts and its look become OctoWoW's.
+- **The app downloads OctoWoW's client** (Install does, after the realm; **Download from OctoWoW**
+  under Game files): `ClientTorrent` reads OctoWoW's torrent (fetched at each download or check;
+  the last one kept in `files/turtle/client.torrent` for offline checks and the next update's
+  removals), `ClientSync` brings a folder to exactly it: every file read in the torrent's order and
+  hashed piece by piece, missing or resized files downloaded into `.part` with ranges (carrying on
+  after a stop), pieces that don't match fetched again alone, files the previous torrent had and
+  this one hasn't deleted, and archives in `Data/` it doesn't list removed (another client's
+  `patch-6.mpq` would load over OctoWoW's). It works in `client.download` and puts it in place of
+  `client/` only when every piece matches. OctoWoW's `d3d9.dll` and `realmlist.wtf` are kept in
+  `client-kept/` for their pieces, out of the game's folder.
+- **Your own copy** (folder or zip): copied in, then synced the same way (only what differs
+  downloaded); without OctoWoW's server, taken unchecked. Turtle's client manifest is gone from the
+  app (`client-manifest.tsv`, and from `turtle-manifests.py`).
+- **Updates**: Check for an update (the torrent's info hash against the phone's) and Check and
+  update (a sync). The server's data is made again when the client's MPQ archives change (a key
+  over their SHA-256s, hashed during the sync), not on any change.
+- **The DBC check** keeps Tortoise's checksums and knows OctoWoW's own 24 tables
+  (`assets/turtle/octowow-dbc.txt`): only others count as different.
+- **The look**: OctoWoW's logo (octowow.st's, its see-through letters made solid over the page's
+  colour) over OctoLauncher's violet wood, gold and violet motes, the site's steel band, frames
+  (brackets and rivets) and buttons (ember glow, steel diamonds), Almendra (SIL OFL, the nearest
+  open font to Folkard) for headings, Alegreya Sans SC for capitals; the spinner has eight plates.
+  Turtle's music stays. The user's Turtle art stays in `branding/turtle/`.
+
+### Where it stands
+
+- **Checked off the phone**: the sync's JVM tests (fresh download, resume from a part, a dropped
+  connection, a connection dropping every few kB, no connection at all, a damaged piece fetched alone, a resized file, a seed serving wrong bytes, an update's
+  removals, another client's archives, an imported client's spellings and its DXVK, BEP 47 padding,
+  cancel, the folder guard); OctoWoW's real torrent parsed by the app's code and real pieces
+  fetched from its web seed with the app's downloader (six of WoW.exe's, and the last one, across
+  `patch-5.mpq` and `realmlist.wtf`) matching; all of the app's JVM tests; the app's Kotlin
+  compiled; the launcher and Game files rendered (Robolectric, phone size).
+- **Not checked**: a whole 9.5 GB download on a phone; the OctoWoW client running on Winlator; a
+  login and play against the realm (its login takes build 7272, as Turtle's client did); the server
+  data made on the phone from OctoWoW's client (the same tools, its archives as listed above).
+
+## Turtle WoW (before October 2026)
 
 The app's second game: Turtle WoW, played on the phone against its own local realm, next to (and
 completely apart from) the 3.3.5a game with its ChromieCraft realm and Wrath Remix. The user's
 manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
 
-## What the user asked for
+### What the user asked for
 
 - Turtle WoW as a **separate, fully working game environment** in the launcher ("Turtle WoW —
   Vanilla+"), alongside ChromieCraft and Wrath Remix, **with no way to disturb them**: their
@@ -21,7 +120,7 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   and the Eastern Kingdoms as the header, the "Turtle WoW: Mysteries of Azeroth" logo) and
   turtlecraft.gg's look.
 
-## What was found (October 2026)
+### What was found (October 2026)
 
 - **Turtle WoW is shut down.** Blizzard won its lawsuit: on April 15, 2026 a California court entered
   a consent judgment and permanent injunction that bars the team from running the server, updating
@@ -58,7 +157,7 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   `#ff7757` on buttons, links and borders, orange `#f89d41`, uppercase Fontin Sans headings,
   Friz Quadrata in the menu, thin gold rules fading out both ways.
 
-## Decided
+### Decided
 
 - **A native build, not Docker**: Tortoise-WoW and ACE compiled for arm64 on musl (Alpine) like
   the ChromieCraft realm (`scripts/compile-tortoise.sh`, three small portability patches in
@@ -67,8 +166,9 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   imported (`scripts/package-tortoise.sh`). **Not in the APK**: CI publishes it as its own
   prerelease, `turtle-server-<hash>`, once for each version of its inputs; each APK names the one
   it's made for with its size and SHA-256, and the app downloads it on Install (resumable, checked).
-- **The client is never downloaded.** Turtle's own CDN mirrors still appear in the manifest
-  Tortoise ships, but the court order bars distributing that client, so the app doesn't fetch it.
+- **The client is never downloaded** (until OctoWoW, above). Turtle's own CDN mirrors still appear
+  in the manifest Tortoise ships, but the court order bars distributing that client, so the app
+  doesn't fetch it.
   The user picks their own copy (folder or zip); the app copies it into Turtle's folder and hashes
   every file as it copies, against the manifest (`assets/turtle/client-manifest.tsv`,
   `scripts/turtle-manifests.py`, checked against the pinned commit in CI). A client that differs
@@ -106,7 +206,7 @@ manual is `README.md` ("Turtle WoW"); the 3.3.5a game's brief is `PLAN.md`.
   realm comes with an app update and is put in with the accounts and characters kept (backed up
   first) and the new database updates applied at the next start.
 
-## Where it stands
+### Where it stands
 
 **First version: released (`wow-build-65`, with its realm `turtle-server-4aa752a01dff`); tested off
 the phone; the user's first install on a phone found a fault (below), fixed in the build after it.**
@@ -205,7 +305,7 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   Wine/Box64), making the server's data from a real 1.18.1 client, the world server past the DBC
   load, offline play end to end, and the launcher on the phone.
 
-## Sources
+### Sources
 
 - Tortoise-WoW: https://github.com/tortoise-wow/tortoise-wow (GPL-2.0), pinned in
   `turtle/server-version.env`
@@ -219,3 +319,10 @@ the phone; the user's first install on a phone found a fault (below), fixed in t
   https://legalclarity.org/blizzard-lawsuit-against-turtle-wow-settlement-and-shutdown/,
   https://gigazine.net/gsc_news/en/20260421-turtle-wow-down/
 - turtlecraft.gg (its stylesheet, for the theme)
+- OctoWoW: https://octowow.st/ (its client: https://dl.octowow.st/download/client.torrent; its public
+  repositories: https://octowow.st/git/explore/repos; its launcher:
+  https://octowow.st/git/OctoWoW/OctoLauncher)
+- Turtle WoW's successor servers: https://turtle-wow.fandom.com/wiki/List_of_Turtle_WoW_clones
+- The 1.17.2 leak's repacks: https://chroniclecoders.com/games/world-of-warcraft/repacks/turtlewow-1172-repack-with-partybots-and-battlebots,
+  https://wowprivateservers.vercel.app/news/turtle-wow-source-leak/
+- Almendra (SIL OFL): https://github.com/google/fonts/tree/main/ofl/almendra

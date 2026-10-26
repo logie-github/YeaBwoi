@@ -9,8 +9,9 @@ import android.provider.OpenableColumns
 import android.text.format.Formatter
 import com.logie.warcraft.R
 import com.logie.warcraft.WowFiles
-import com.logie.warcraft.client.ClientBuild
 import com.logie.warcraft.turtle.core.ClientManifest
+import com.logie.warcraft.turtle.core.ClientSync
+import com.logie.warcraft.turtle.core.ClientTorrent
 import com.logie.warcraft.turtle.core.InstallState
 import com.logie.warcraft.turtle.core.SafeFs
 import com.logie.warcraft.turtle.core.TurtleDataImport
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.StateFlow
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -30,15 +30,15 @@ import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
 /**
- * Turtle WoW's installation, repair and removal, run one at a time by [TurtleService] (which keeps
+ * OctoWoW's installation, repair and removal, run one at a time by [TurtleService] (which keeps
  * them going with the app in the background). Every file they touch is in `files/turtle`, through
  * [TurtleFiles.fs]; a step that fails leaves what was there before it (staging folders, a download
  * kept to carry on from), so Install can be pressed again, and Repair or Uninstall clean it up.
  */
 object TurtleJobs {
-    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, VERIFY, DATA, IMPORT_DATA, REPAIR, BACKUP, RESTORE, UNINSTALL }
+    enum class Kind { INSTALL, PROGRAMS, DATABASE, RUNTIME, CLIENT, DOWNLOAD_CLIENT, VERIFY, DATA, IMPORT_DATA, REPAIR, BACKUP, RESTORE, UNINSTALL }
 
-    enum class Step { CHECKING, DOWNLOADING, UNPACKING, DATABASE, RUNTIME, COPYING_CLIENT, VERIFYING_CLIENT, MAPS, VMAPS, MMAPS, VERIFYING_DATA, ACCOUNT, BACKUP, RESTORE, REMOVING }
+    enum class Step { CHECKING, DOWNLOADING, UNPACKING, DATABASE, RUNTIME, DOWNLOADING_CLIENT, COPYING_CLIENT, VERIFYING_CLIENT, MAPS, VMAPS, MMAPS, VERIFYING_DATA, ACCOUNT, BACKUP, RESTORE, REMOVING }
 
     sealed interface State {
         data object Idle : State
@@ -101,7 +101,7 @@ object TurtleJobs {
                 Kind.DATABASE -> database(context)
                 Kind.RUNTIME -> runtime(context)
                 Kind.CLIENT -> importClient(context, uri ?: throw JobException("No client picked"), isFolder, options)
-                Kind.VERIFY -> verifyClient(context)
+                Kind.DOWNLOAD_CLIENT, Kind.VERIFY -> syncClient(context, kind, options)
                 Kind.DATA -> makeData(context, Kind.DATA, options.withMmaps)
                 Kind.IMPORT_DATA -> importData(context, uri ?: throw JobException("No zip picked"))
                 Kind.REPAIR -> repair(context, options)
@@ -125,6 +125,9 @@ object TurtleJobs {
         } catch (e: VerifiedDownload.Corrupt) {
             remember(context, kind)
             _state.value = State.Failed(kind, context.getString(R.string.turtle_error_corrupt))
+        } catch (e: ClientSync.Corrupt) {
+            remember(context, kind)
+            _state.value = State.Failed(kind, context.getString(R.string.turtle_error_client_corrupt), e.message)
         } catch (e: Exception) {
             remember(context, kind)
             _state.value = State.Failed(kind, context.getString(R.string.turtle_job_error, e.message ?: e.javaClass.simpleName))
@@ -151,8 +154,10 @@ object TurtleJobs {
         if (!TurtlePackage.isCurrent(context)) programsStep(context, kind, pin)
         if (!TurtleFiles.hasDatabases(context)) databaseStep(context, kind, pin)
 
+        // OctoWoW's client, from OctoWoW's server, if it isn't here yet (or a download stopped).
+        if (!TurtleFiles.hasClient(context)) syncClient(context, kind, options, makeDataAfter = false)
         val state = TurtleFiles.state(context)
-        if (TurtleFiles.hasClient(context) && (!TurtleFiles.hasData(context) || state.dataFrom != state.clientExeSha256)) {
+        if (TurtleFiles.hasClient(context) && (!TurtleFiles.hasData(context) || state.dataFrom != state.clientIdentity)) {
             makeData(context, kind, options.withMmaps)
         }
 
@@ -255,66 +260,38 @@ object TurtleJobs {
     private data class Picked(val uri: Uri, val path: String, val size: Long)
 
     /**
-     * Copies the user's Turtle WoW client (a folder or a zip) into `client.import`, hashing every
-     * file as it's copied and comparing it with Turtle's final 1.18.1 manifest, then puts it in
-     * place of `client/`. Then the server's data is made from it.
+     * Copies the user's copy of the client (a folder or a zip) into `client.import`, then makes it
+     * OctoWoW's: checked piece by piece against OctoWoW's torrent, and what differs (or is missing,
+     * or another client's) downloaded from OctoWoW ([syncClient]). Then the server's data is made
+     * from it. Without OctoWoW's server, it's taken as it is, unchecked.
      */
     private fun importClient(context: Context, uri: Uri, isFolder: Boolean, options: Options): String {
         val kind = Kind.CLIENT
         working(kind, Step.CHECKING)
         preflight(context)
+        // Asked before the copy, not after it: the check that follows needs the realm stopped.
+        if (TurtleServer.isBusy) throw JobException(context.getString(R.string.turtle_error_stop_first))
         val layout = TurtleFiles.layout(context)
         val fs = TurtleFiles.fs(context)
-        val manifest = TurtleFiles.clientManifest(context)
         cleanLeftovers(context)
         fs.mkdirs(layout.clientStaging)
-        val hashes = mutableMapOf<String, String>()
         try {
-            if (isFolder) copyFolder(context, uri, layout, fs, manifest, hashes) else copyZip(context, uri, layout, fs, manifest, hashes)
+            if (isFolder) copyFolder(context, uri, layout, fs) else copyZip(context, uri, layout, fs)
             checkCancelled()
             working(kind, Step.VERIFYING_CLIENT)
-            val exe = ClientManifest.find(layout.clientStaging, ClientManifest.EXE)
-                ?: throw JobException(context.getString(R.string.turtle_error_not_client))
-            val report = compare(manifest, hashes)
-            if (!report.usable(manifest)) {
-                throw JobException(context.getString(R.string.turtle_error_client_incomplete, report.missing.filter { it in manifest.required }.joinToString()))
-            }
-            val exeHash = hashes[exe.relativeTo(layout.clientStaging).path.replace('\\', '/').lowercase()]
-                ?: exe.inputStream().use { ClientManifest.sha256(it) }
-            fs.replace(layout.clientStaging, layout.client)
-            TurtleFiles.updateState(context) {
-                it.copy(
-                    clientExeSha256 = exeHash,
-                    clientCheck = if (report.exact) InstallState.ClientCheck.EXACT else InstallState.ClientCheck.DIFFERENT,
-                    clientDifferences = report.missing.size + report.different.size,
-                )
-            }
+            if (ClientManifest.find(layout.clientStaging, ClientManifest.EXE) == null) throw JobException(context.getString(R.string.turtle_error_not_client))
+            val missing = ClientManifest.missingRequired(layout.clientStaging)
+            if (missing.isNotEmpty()) throw JobException(context.getString(R.string.turtle_error_client_incomplete, missing.joinToString()))
+            // The copy is the client to work on now, in place of a download that stopped.
+            fs.delete(layout.clientDownload)
+            fs.move(layout.clientStaging, layout.clientDownload)
         } finally {
             fs.delete(layout.clientStaging)
         }
-        // The server's data comes from this client: made now, if the realm is installed.
-        if (TurtlePackage.isInstalled(context)) makeData(context, kind, options.withMmaps)
-        val state = TurtleFiles.state(context)
-        return context.getString(
-            if (state.clientCheck == InstallState.ClientCheck.EXACT) R.string.turtle_done_client_exact else R.string.turtle_done_client_different,
-            state.clientDifferences,
-        )
+        return syncClient(context, kind, options, imported = true)
     }
 
-    private fun compare(manifest: ClientManifest, hashes: Map<String, String>): ClientManifest.Report {
-        val missing = mutableListOf<String>()
-        val different = mutableListOf<String>()
-        for (entry in manifest.files) {
-            val hash = hashes[entry.path.lowercase()]
-            when {
-                hash == null -> missing += entry.path
-                !hash.equals(entry.sha256, ignoreCase = true) -> different += entry.path
-            }
-        }
-        return ClientManifest.Report(manifest.files.size, missing, different, emptyList())
-    }
-
-    private fun copyFolder(context: Context, tree: Uri, layout: TurtleLayout, fs: SafeFs, manifest: ClientManifest, hashes: MutableMap<String, String>) {
+    private fun copyFolder(context: Context, tree: Uri, layout: TurtleLayout, fs: SafeFs) {
         val files = mutableListOf<Picked>()
         listTree(context, tree, DocumentsContract.getTreeDocumentId(tree), "", files)
         val root = ClientManifest.findRoot(files.map { it.path }) ?: throw JobException(context.getString(R.string.turtle_error_not_client))
@@ -330,20 +307,19 @@ object TurtleJobs {
             val target = fs.check(File(layout.clientStaging, relative))
             target.parentFile?.let { fs.mkdirs(it) }
             val input = context.contentResolver.openInputStream(file.uri) ?: throw JobException(context.getString(R.string.turtle_error_read, file.path))
-            val hash = input.use { copyHashing(it, target) { read -> done += read; progressCopy(context, done, total, relative) } }
-            hashes[relative.lowercase()] = hash
+            input.use { copyInto(it, target) { read -> done += read; progressCopy(context, done, total, relative) } }
         }
     }
 
-    private fun copyZip(context: Context, zip: Uri, layout: TurtleLayout, fs: SafeFs, manifest: ClientManifest, hashes: MutableMap<String, String>) {
+    private fun copyZip(context: Context, zip: Uri, layout: TurtleLayout, fs: SafeFs) {
         val total = sizeOf(context, zip)
-        checkSpace(context, (if (total > 0) total else manifest.totalSize) + SPACE_MARGIN)
+        checkSpace(context, (if (total > 0) total else CLIENT_SPACE) + SPACE_MARGIN)
         val input = context.contentResolver.openInputStream(zip) ?: throw JobException(context.getString(R.string.turtle_error_read, zip.lastPathSegment ?: ""))
         var read = 0L
         val counting = object : java.io.FilterInputStream(input) {
             override fun read(b: ByteArray, off: Int, len: Int): Int = super.read(b, off, len).also { if (it > 0) read += it }
         }
-        val written = mutableMapOf<String, String>()
+        val written = mutableListOf<String>()
         try {
             ZipInputStream(counting.buffered(1 shl 16)).use { stream ->
                 while (true) {
@@ -354,15 +330,15 @@ object TurtleJobs {
                     if (!ClientManifest.isSafePath(name)) continue
                     val target = fs.check(File(layout.clientStaging, name))
                     target.parentFile?.let { fs.mkdirs(it) }
-                    written[name.lowercase()] = copyHashing(stream, target, close = false) { progressCopy(context, read, total, name.substringAfterLast('/')) }
+                    copyInto(stream, target, close = false) { progressCopy(context, read, total, name.substringAfterLast('/')) }
+                    written += name
                 }
             }
         } catch (e: java.util.zip.ZipException) {
             throw JobException(context.getString(R.string.turtle_error_zip, e.message ?: ""))
         }
         // The client may be in a folder of the zip: it's moved up to the top of the staging.
-        val paths = written.keys.toList()
-        val root = ClientManifest.findRoot(paths) ?: throw JobException(context.getString(R.string.turtle_error_not_client))
+        val root = ClientManifest.findRoot(written) ?: throw JobException(context.getString(R.string.turtle_error_not_client))
         if (root.isNotEmpty()) {
             val inner = ClientManifest.find(layout.clientStaging, root) ?: throw JobException(context.getString(R.string.turtle_error_not_client))
             val lifted = File(layout.root, "client.lift")
@@ -371,17 +347,14 @@ object TurtleJobs {
             fs.delete(layout.clientStaging)
             fs.move(lifted, layout.clientStaging)
         }
-        val prefix = if (root.isEmpty()) "" else "${root.lowercase()}/"
-        for ((path, hash) in written) if (path.startsWith(prefix)) hashes[path.removePrefix(prefix)] = hash
     }
 
     private fun progressCopy(context: Context, done: Long, total: Long, name: String) {
         working(Kind.CLIENT, Step.COPYING_CLIENT, if (total > 0) done.toFloat() / total else null, "${size(context, done)} · $name")
     }
 
-    /** Copies [input] into [target] and returns its SHA-256; [onRead] gets each block's size. */
-    private fun copyHashing(input: InputStream, target: File, close: Boolean = true, onRead: (Int) -> Unit): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+    /** Copies [input] into [target] (OctoWoW's torrent checks it afterwards); [onRead] gets each block's size. */
+    private fun copyInto(input: InputStream, target: File, close: Boolean = true, onRead: (Int) -> Unit) {
         target.outputStream().use { output ->
             val buffer = ByteArray(1 shl 16)
             var since = 0
@@ -389,7 +362,6 @@ object TurtleJobs {
                 val n = input.read(buffer)
                 if (n < 0) break
                 output.write(buffer, 0, n)
-                digest.update(buffer, 0, n)
                 since += n
                 if (since >= 4 shl 20) {
                     checkCancelled()
@@ -400,7 +372,6 @@ object TurtleJobs {
             if (since > 0) onRead(since)
         }
         if (close) input.close()
-        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     private fun listTree(context: Context, tree: Uri, documentId: String, path: String, out: MutableList<Picked>) {
@@ -426,29 +397,84 @@ object TurtleJobs {
         }
     }
 
-    /** The client in place, checked again file by file against the manifest (Repair). */
-    private fun verifyClient(context: Context): String {
-        val kind = Kind.VERIFY
+    /**
+     * OctoWoW's client made exactly OctoWoW's current one, from its server: downloaded where it
+     * isn't here, checked piece by piece where it is, what differs fetched again, what OctoWoW's
+     * client no longer has removed ([ClientSync]). It's worked on in `client.download` (kept
+     * between tries, so a download carries on), and put in place of `client/` once every piece
+     * matches: the game never starts on half a client. Then, if the archives changed, the server's
+     * data is made again. [imported]: the copy in `client.download` came from the user, and is
+     * taken unchecked if OctoWoW's server can't be reached.
+     */
+    private fun syncClient(context: Context, kind: Kind, options: Options, makeDataAfter: Boolean = true, imported: Boolean = false): String {
+        working(kind, Step.CHECKING)
+        preflight(context)
+        // The game reads the client, and the world server the data an update makes again.
+        if (TurtleServer.isBusy) throw JobException(context.getString(R.string.turtle_error_stop_first))
         val layout = TurtleFiles.layout(context)
-        if (!TurtleFiles.hasClient(context)) throw JobException(context.getString(R.string.turtle_error_no_client))
-        val manifest = TurtleFiles.clientManifest(context)
-        val total = manifest.totalSize
-        val report = manifest.verify(layout.client, deep = true) { done, name ->
-            checkCancelled()
-            working(kind, Step.VERIFYING_CLIENT, done.toFloat() / total, name)
+        val fs = TurtleFiles.fs(context)
+        val fetched = runCatching { OctoClient.fetch() }
+        val bytes = fetched.getOrNull() ?: OctoClient.savedBytes(context)
+        if (bytes == null) {
+            if (imported) return takeUnchecked(context, kind, options, makeDataAfter)
+            throw JobException(context.getString(R.string.turtle_error_octowow_unreachable, fetched.exceptionOrNull()?.message ?: ""))
         }
-        val exe = ClientManifest.find(layout.client, ClientManifest.EXE)
-        val exeHash = exe?.inputStream()?.use { ClientManifest.sha256(it) }
+        val torrent = try {
+            ClientTorrent.parse(bytes)
+        } catch (e: IOException) {
+            throw JobException(context.getString(R.string.turtle_error_octowow_torrent, e.message ?: ""))
+        }
+        val previous = OctoClient.saved(context)?.takeIf { it.infoHash != torrent.infoHash }
+        // The client is worked on apart from client/, so the game can't start on it half done.
+        if (!layout.clientDownload.exists() && layout.client.exists()) fs.move(layout.client, layout.clientDownload)
+        val sync = OctoClient.sync(context, torrent, layout.clientDownload)
+        checkSpace(context, sync.bytesToFetch() + SPACE_MARGIN)
+        val result = sync.run(previous = previous, cancelled = { cancelled }) { progress ->
+            val step = if (progress.step == ClientSync.Step.CHECKING) Step.VERIFYING_CLIENT else Step.DOWNLOADING_CLIENT
+            val fraction = if (progress.total > 0) progress.done.toFloat() / progress.total else null
+            val file = progress.file.substringAfterLast('/')
+            val detail = if (progress.downloaded > 0) {
+                context.getString(R.string.turtle_client_progress_fetched, size(context, progress.done), size(context, progress.total), size(context, progress.downloaded), file)
+            } else {
+                context.getString(R.string.turtle_client_progress, size(context, progress.done), size(context, progress.total), file)
+            }
+            working(kind, step, fraction, detail)
+        }
+        fs.replace(layout.clientDownload, layout.client)
+        OctoClient.save(context, bytes)
+        val exe = torrent.find(ClientManifest.EXE)?.path?.let { result.sha256[it] }
         TurtleFiles.updateState(context) {
             it.copy(
-                clientExeSha256 = exeHash,
-                clientCheck = if (report.exact) InstallState.ClientCheck.EXACT else InstallState.ClientCheck.DIFFERENT,
-                clientDifferences = report.missing.size + report.different.size,
+                clientExeSha256 = exe ?: it.clientExeSha256,
+                clientCheck = InstallState.ClientCheck.EXACT,
+                clientDifferences = 0,
+                clientKey = result.dataKey,
+                clientTorrent = torrent.infoHash,
+                clientCheckedAt = System.currentTimeMillis(),
             )
         }
-        val version = exe?.inputStream()?.buffered()?.use { ClientBuild.read(it) }?.toString() ?: "?"
-        return if (report.exact) context.getString(R.string.turtle_done_verify_exact, version)
-        else context.getString(R.string.turtle_done_verify_different, report.missing.size, report.different.size, (report.missing + report.different).take(6).joinToString())
+        if (makeDataAfter && TurtlePackage.isInstalled(context)) {
+            val state = TurtleFiles.state(context)
+            if (!TurtleFiles.hasData(context) || state.dataFrom != state.clientIdentity) makeData(context, kind, options.withMmaps)
+        }
+        val message = if (result.downloaded == 0L && result.removed.isEmpty()) context.getString(R.string.turtle_done_client_checked)
+        else context.getString(R.string.turtle_done_client_synced, size(context, result.downloaded), result.removed.size)
+        return if (fetched.isFailure) message + " " + context.getString(R.string.turtle_done_client_offline) else message
+    }
+
+    /** The user's copy in `client.download` taken as it is (OctoWoW's server out of reach): checked later. */
+    private fun takeUnchecked(context: Context, kind: Kind, options: Options, makeDataAfter: Boolean): String {
+        val layout = TurtleFiles.layout(context)
+        val fs = TurtleFiles.fs(context)
+        working(kind, Step.VERIFYING_CLIENT)
+        val exe = ClientManifest.find(layout.clientDownload, ClientManifest.EXE) ?: throw JobException(context.getString(R.string.turtle_error_not_client))
+        val exeHash = exe.inputStream().use { ClientManifest.sha256(it) }
+        fs.replace(layout.clientDownload, layout.client)
+        TurtleFiles.updateState(context) {
+            it.copy(clientExeSha256 = exeHash, clientCheck = InstallState.ClientCheck.NONE, clientDifferences = 0, clientKey = null, clientTorrent = null)
+        }
+        if (makeDataAfter && TurtlePackage.isInstalled(context)) makeData(context, kind, options.withMmaps)
+        return context.getString(R.string.turtle_done_client_unchecked)
     }
 
     // The server's data --------------------------------------------------------------------------
@@ -492,20 +518,20 @@ object TurtleJobs {
             throw JobException(context.getString(R.string.turtle_error_no_maps), WowFiles.tail(File(layout.logs, "maps.log"), 30))
         }
         // Pathfinding made before (hours on the phone, or imported) stays when it isn't made again:
-        // it's made from the same 1.18.1 terrain.
+        // it's made from the terrain, which a client update rarely changes.
         val mmaps = File(layout.data, "mmaps")
         if (!withMmaps && mmaps.list()?.isNotEmpty() == true) TurtleFiles.fs(context).move(mmaps, File(layout.dataWork, "mmaps"))
         runCtl(context, kind, Step.VERIFYING_DATA, listOf("data-done"), "data-done.log")
-        val exeHash = TurtleFiles.state(context).clientExeSha256
         TurtleFiles.updateState(context) {
             it.copy(
-                dataFrom = exeHash,
+                dataFrom = it.clientIdentity,
                 dataParts = TurtleFiles.dataParts(context),
                 dbcCheck = if (dbc.exact) InstallState.ClientCheck.EXACT else InstallState.ClientCheck.DIFFERENT,
+                dbcOwn = dbc.ownDifferent,
             )
         }
-        return if (dbc.exact) context.getString(R.string.turtle_done_data, TurtleFiles.dataParts(context).sorted().joinToString())
-        else context.getString(R.string.turtle_done_data_dbc_different, dbc.missing.size + dbc.different.size)
+        return if (dbc.exact) context.getString(R.string.turtle_done_data, TurtleFiles.dataParts(context).sorted().joinToString(), dbc.ownDifferent)
+        else context.getString(R.string.turtle_done_data_dbc_different, dbc.unexpected.size, dbc.unexpected.take(6).joinToString())
     }
 
     /**
@@ -541,17 +567,18 @@ object TurtleJobs {
             TurtleFiles.updateState(context) { state ->
                 state.copy(
                     // Made from the user's client: Install doesn't make it again over the import.
-                    dataFrom = if ("dbc" in found || "maps" in found) state.clientExeSha256 else state.dataFrom,
+                    dataFrom = if ("dbc" in found || "maps" in found) state.clientIdentity else state.dataFrom,
                     dataParts = TurtleFiles.dataParts(context),
                     dbcCheck = when {
                         dbc == null -> state.dbcCheck
                         dbc.exact -> InstallState.ClientCheck.EXACT
                         else -> InstallState.ClientCheck.DIFFERENT
                     },
+                    dbcOwn = dbc?.ownDifferent ?: state.dbcOwn,
                 )
             }
             val summary = found.joinToString { context.getString(R.string.turtle_import_part, it, counts[it] ?: 0) }
-            return if (dbc != null && !dbc.exact) context.getString(R.string.turtle_done_import_dbc_different, summary, dbc.missing.size + dbc.different.size)
+            return if (dbc != null && !dbc.exact) context.getString(R.string.turtle_done_import_dbc_different, summary, dbc.unexpected.size)
             else context.getString(R.string.turtle_done_import, summary)
         } finally {
             fs.delete(layout.dataImport)
@@ -670,8 +697,8 @@ object TurtleJobs {
             install(context, Options(withMmaps = options.withMmaps))
             _state.value = State.Working(kind, Step.CHECKING)
         }
-        if (Repair.CLIENT in options.repairs && TurtleFiles.hasClient(context)) {
-            verifyClient(context)
+        if (Repair.CLIENT in options.repairs && (TurtleFiles.hasClient(context) || layout.clientDownload.exists())) {
+            syncClient(context, kind, options, makeDataAfter = false)
             done += context.getString(R.string.turtle_repair_client)
         }
         if (Repair.DATA in options.repairs && TurtleFiles.hasClient(context)) {
@@ -805,6 +832,9 @@ object TurtleJobs {
 
     /** dbc, maps and vmaps while they're made (mmaps come to about as much again). */
     private const val DATA_SPACE = 3_000_000_000L
+
+    /** OctoWoW's client, about (9.46 GB in October 2026). */
+    const val CLIENT_SPACE = 9_500_000_000L
 
     private const val MAX_BACKUPS = 6
 }

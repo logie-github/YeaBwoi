@@ -27,7 +27,7 @@ object FelsongRealm {
     /** The ports the other games' servers use (warcraft/server/ctl.sh, warcraft/turtle/server/ctl.sh). */
     val OTHER_PORTS = mapOf(
         3310 to "ChromieCraft's database", 3724 to "ChromieCraft's login server", 8085 to "ChromieCraft's world server",
-        8086 to "Wrath Remix's world server", 3311 to "Turtle WoW's database", 8090 to "Turtle WoW's world server",
+        8086 to "Wrath Remix's world server", 3311 to "OctoWoW's database", 8090 to "OctoWoW's world server",
     )
 
     /** The ports Felsong's realm listens on. */

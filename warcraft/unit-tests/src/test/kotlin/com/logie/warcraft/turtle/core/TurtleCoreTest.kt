@@ -17,81 +17,64 @@ class ClientManifestTest {
     private val assets = File("../android/app/src/main/assets/turtle")
 
     @Test
-    fun readsTurtlesFinalClientManifest() {
-        val manifest = ClientManifest.parse(File(assets, "client-manifest.tsv").readText())
-        assertEquals(44, manifest.files.size)
-        assertEquals(8, manifest.gone.size)
-        val exe = manifest.files.single { it.path == "WoW.exe" }
-        assertEquals(4907008L, exe.size)
-        assertTrue(exe.sha256.startsWith("6c511221c8e6a685"))
-        assertTrue("Data/dbc.MPQ" in manifest.required && "WoW.exe" in manifest.required)
-        // About 9 GB, every path safe.
-        assertTrue(manifest.totalSize in 8_000_000_000L..10_000_000_000L)
-        assertTrue(manifest.files.all { ClientManifest.isSafePath(it.path) })
-    }
-
-    @Test
-    fun readsTheDbcChecksums() {
-        val dbc = DbcManifest.parse(File(assets, "dbc-sha256.tsv").readText())
+    fun readsTheDbcChecksumsAndOctoWowsOwnTables() {
+        val dbc = DbcManifest.parse(File(assets, "dbc-sha256.tsv").readText(), File(assets, "octowow-dbc.txt").readText())
         assertTrue(dbc.hashes.size > 150)
         assertEquals("990d23c46d40cecc1aa68bfdad3810cacbb8f3c6fa1abfc19ad1c0f63f8ca88f", dbc.hashes["AreaTable.dbc"])
+        assertEquals(24, dbc.own.size)
+        assertTrue("Spell.dbc" in dbc.own && "SkillLine.dbc" in dbc.own && "AreaTable.dbc" !in dbc.own)
+        // Every one of OctoWoW's tables is one Tortoise has a checksum of.
+        assertTrue(dbc.hashes.keys.containsAll(dbc.own))
     }
 
     @Test
     fun refusesUnsafePaths() {
         for (bad in listOf("../x", "/etc/passwd", "a/../../b", "C:\\x", "a//b", "")) assertFalse(ClientManifest.isSafePath(bad), bad)
-        assertFailsWith<IllegalArgumentException> { ClientManifest.parse("file\t../WoW.exe\t1\tab") }
+        assertTrue(ClientManifest.isSafePath("Data/patch-5.mpq"))
     }
 
     @Test
     fun findsTheClientInAPickedFolderOrZip() {
         assertEquals("", ClientManifest.findRoot(listOf("WoW.exe", "Data/dbc.MPQ")))
-        assertEquals("Turtle WoW", ClientManifest.findRoot(listOf("Turtle WoW/WoW.exe", "Turtle WoW/Data/patch.MPQ", "readme.txt")))
+        assertEquals("OctoWoW", ClientManifest.findRoot(listOf("OctoWoW/WoW.exe", "OctoWoW/Data/patch.MPQ", "readme.txt")))
         assertEquals("a/b", ClientManifest.findRoot(listOf("a/b/wow.exe", "a/b/data/x")))
         assertNull(ClientManifest.findRoot(listOf("WoW.exe")))
         assertNull(ClientManifest.findRoot(listOf("Data/dbc.MPQ")))
     }
 
     @Test
-    fun verifiesAClientFolder() {
+    fun knowsWhatAClientCantDoWithout() {
         val dir = createTempDirectory("client").toFile()
         try {
-            fun write(path: String, text: String): ClientManifest.Entry {
-                val file = File(dir, path).apply { parentFile.mkdirs(); writeText(text) }
-                return ClientManifest.Entry(path, file.length(), sha(text))
-            }
-            val exe = write("WoW.exe", "exe")
-            val dbc = write("Data/dbc.MPQ", "dbc")
-            File(dir, "Data/dbc.MPQ").renameTo(File(dir, "Data/DBC.mpq")) // another case: Windows doesn't care
-            val manifest = ClientManifest(
-                listOf(exe, dbc, ClientManifest.Entry("Data/patch.MPQ", 3, sha("abc"))),
-                listOf("TurtleWoW.exe"),
-            )
-            File(dir, "TurtleWoW.exe").writeText("old launcher")
-            val quick = manifest.verify(dir, deep = false)
-            assertEquals(listOf("Data/patch.MPQ"), quick.missing)
-            assertEquals(listOf("TurtleWoW.exe"), quick.leftovers)
-            File(dir, "Data/patch.MPQ").writeText("abd") // right size, other bytes
-            val deep = manifest.verify(dir, deep = true)
-            assertEquals(listOf("Data/patch.MPQ"), deep.different)
-            assertFalse(deep.exact)
-            File(dir, "Data/patch.MPQ").writeText("abc")
-            assertTrue(manifest.verify(dir, deep = true).exact)
+            File(dir, "WoW.exe").writeText("exe")
+            File(dir, "data").mkdirs()
+            File(dir, "data/DBC.mpq").writeText("dbc") // another case: Windows doesn't care
+            assertEquals(listOf("Data/terrain.MPQ", "Data/patch.MPQ"), ClientManifest.missingRequired(dir))
+            File(dir, "data/terrain.MPQ").writeText("t")
+            File(dir, "data/patch.MPQ").writeText("p")
+            assertEquals(emptyList(), ClientManifest.missingRequired(dir))
         } finally {
             dir.deleteRecursively()
         }
     }
 
     @Test
-    fun verifiesDbcFiles() {
+    fun verifiesDbcFilesWithOctoWowsOwn() {
         val dir = createTempDirectory("dbc").toFile()
         try {
-            File(dir, "Spell.dbc").writeText("spells")
-            val manifest = DbcManifest(mapOf("Spell.dbc" to sha("spells"), "Map.dbc" to sha("maps")))
+            File(dir, "Spell.dbc").writeText("octowow's spells")
+            File(dir, "Map.dbc").writeText("maps")
+            val manifest = DbcManifest(mapOf("Spell.dbc" to sha("spells"), "Map.dbc" to sha("maps"), "Talent.dbc" to sha("t")), own = setOf("Spell.dbc"))
             val report = manifest.verify(dir)
-            assertEquals(listOf("Map.dbc"), report.missing)
-            File(dir, "Map.dbc").writeText("other")
-            assertEquals(listOf("Map.dbc"), manifest.verify(dir).different)
+            assertEquals(listOf("Talent.dbc"), report.missing)
+            assertEquals(listOf("Spell.dbc"), report.different)
+            assertEquals(listOf("Talent.dbc"), report.unexpected)
+            assertFalse(report.exact)
+            File(dir, "Talent.dbc").writeText("t")
+            val again = manifest.verify(dir)
+            // Only OctoWoW's own table differs: as expected.
+            assertTrue(again.exact)
+            assertEquals(1, again.ownDifferent)
         } finally {
             dir.deleteRecursively()
         }
@@ -133,12 +116,20 @@ class InstallStateTest {
         val state = InstallState(
             serverSha256 = "a".repeat(64), serverTag = "turtle-server-abc", databaseFrom = "a".repeat(64), databaseUpdated = true,
             clientExeSha256 = "b".repeat(64), clientCheck = InstallState.ClientCheck.DIFFERENT, clientDifferences = 3,
-            dataFrom = "b".repeat(64), dataParts = setOf("dbc", "maps", "vmaps"), dbcCheck = InstallState.ClientCheck.EXACT,
+            clientKey = "mpq:" + "c".repeat(64), clientTorrent = "d".repeat(40), clientCheckedAt = 7,
+            dataFrom = "b".repeat(64), dataParts = setOf("dbc", "maps", "vmaps"), dbcCheck = InstallState.ClientCheck.EXACT, dbcOwn = 24,
             interruptedStep = "MAPS", updatedAt = 42,
         )
         assertEquals(state, InstallState.parse(state.toJson()))
         assertEquals(InstallState(), InstallState.parse("not json"))
         assertEquals(InstallState(), InstallState.parse(null))
+        // The data follows the archives' key; a client never checked has only its WoW.exe's hash.
+        assertEquals("mpq:" + "c".repeat(64), state.clientIdentity)
+        assertEquals("b".repeat(64), state.copy(clientKey = null).clientIdentity)
+        // Exactly OctoWoW's only when checked against its torrent: Turtle WoW's old check doesn't count.
+        assertTrue(state.copy(clientCheck = InstallState.ClientCheck.EXACT).clientIsOctoWow)
+        assertFalse(state.copy(clientCheck = InstallState.ClientCheck.EXACT, clientTorrent = null).clientIsOctoWow)
+        assertFalse(state.clientIsOctoWow)
     }
 
     private fun facts(
@@ -153,7 +144,8 @@ class InstallStateTest {
         val lines = InstallPlan.of(facts(server = false, current = false, db = false, client = false, data = false, account = null))
         assertEquals(InstallPlan.Status.TODO, status(lines, InstallPlan.Step.SERVER))
         assertEquals(InstallPlan.Status.WAITING, status(lines, InstallPlan.Step.DATABASE))
-        assertEquals(InstallPlan.Status.NEEDS_USER, status(lines, InstallPlan.Step.CLIENT))
+        // The app downloads OctoWoW's client itself.
+        assertEquals(InstallPlan.Status.TODO, status(lines, InstallPlan.Step.CLIENT))
         assertEquals(InstallPlan.Status.WAITING, status(lines, InstallPlan.Step.DATA))
         assertFalse(InstallPlan.ready(lines))
         assertEquals(InstallPlan.Step.SERVER, InstallPlan.next(lines)?.step)

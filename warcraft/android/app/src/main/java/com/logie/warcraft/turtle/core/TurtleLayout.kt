@@ -5,7 +5,8 @@ package com.logie.warcraft.turtle.core
 import java.io.File
 
 /**
- * Where Turtle WoW lives in the app's storage: everything under one folder, `files/turtle`, and
+ * Where OctoWoW lives in the app's storage: everything under one folder, `files/turtle` (the name
+ * from when this game was Turtle WoW, kept so an install carries on), and
  * nothing anywhere else. The ChromieCraft realm (and Wrath Remix, which shares its server) keeps
  * `files/server`, `files/etc`, `files/mysql`, `files/data`, `files/client`... as before; nothing
  * here is ever one of those or inside one ([PROTECTED_NAMES], checked by [SafeFs] and the tests).
@@ -28,15 +29,25 @@ class TurtleLayout(val files: File, val dataDir: File = files.parentFile ?: file
     /** Turtle's own MariaDB data folder: tw_logon, tw_char, tw_world, tw_logs. */
     val databases = File(root, "mysql")
 
-    /** The server's data made from the Turtle client: dbc, maps, vmaps, mmaps. */
+    /** The server's data made from the client: dbc, maps, vmaps, mmaps. */
     val data = File(root, "data")
     val dataWork = File(root, "data.work")
     /** Server data being imported from a zip made on a computer. */
     val dataImport = File(root, "data.import")
 
-    /** The user's Turtle WoW 1.18.1 client, the game's drive D:. */
+    /** OctoWoW's client (1.18.1, build 7272), the game's drive D:. */
     val client = File(root, "client")
+    /** A copy of the user's client being taken in, before it's checked against OctoWoW's. */
     val clientStaging = File(root, "client.import")
+    /**
+     * The client while it's downloaded, checked or updated (ClientSync): kept between tries, so a
+     * download carries on; put in place of `client/` once every piece matches.
+     */
+    val clientDownload = File(root, "client.download")
+    /** The client's files the game mustn't see (OctoWoW's own DXVK, its realm list), kept for their checksums. */
+    val clientKept = File(root, "client-kept")
+    /** The torrent the client was last made to match (OctoWoW's), for the next update's removals. */
+    val clientTorrent = File(root, "client.torrent")
 
     val logs = File(root, "logs")
     val run = File(root, "run")

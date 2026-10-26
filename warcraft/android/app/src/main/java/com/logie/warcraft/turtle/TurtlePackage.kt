@@ -52,7 +52,7 @@ object TurtlePackage {
 
     fun downloadedSoFar(context: Context): Long = File(downloadFile(context).path + ".part").length()
 
-    class NotPinned : IOException("This build of the app has no Turtle WoW realm package")
+    class NotPinned : IOException("This build of the app has no OctoWoW realm package")
 
     /**
      * Downloads (or finishes downloading) and checks the pinned package. [onProgress]: bytes so far
@@ -91,7 +91,7 @@ object TurtlePackage {
                 onEntry = { onProgress(counting.count.toFloat() / pin.size) },
             )
             if (!File(layout.serverStaging, "ctl.sh").isFile || !File(layout.serverStaging, "bin/mangosd").isFile) {
-                throw IOException("Not a Turtle WoW realm package")
+                throw IOException("Not an OctoWoW realm package")
             }
             File(layout.serverStaging, STAMP).writeText(pin.sha256)
             fs.replace(layout.serverStaging, layout.server)

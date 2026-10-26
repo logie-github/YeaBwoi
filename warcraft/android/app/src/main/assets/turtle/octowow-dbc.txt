@@ -1,0 +1,31 @@
+# The DBC tables OctoWoW's client has its own versions of, which differ from Turtle WoW's final
+# 1.18.1 ones (dbc-sha256.tsv, Tortoise-WoW's checksums). Read from OctoWoW's client 2026.10.24.2
+# (its torrent's files on dl.octowow.st): the 20 tables in its own patch-5.mpq; three that 1.12's
+# patch.MPQ marks deleted, whose only copies in OctoWoW's client (dbc.MPQ's) aren't the versions
+# Tortoise has checksums of; and Turtle's hashes.txt, which OctoWoW's patches don't have.
+# Tortoise-WoW's world server loads none of the last four. Its other 135 tables are byte for byte
+# Turtle's.
+AreaTrigger.dbc
+ChatChannels.dbc
+CreatureDisplayInfo.dbc
+CreatureDisplayInfoExtra.dbc
+CreatureModelData.dbc
+Faction.dbc
+GameTips.dbc
+GroundEffectTexture.dbc
+ItemDisplayInfo.dbc
+SkillLine.dbc
+SkillLineAbility.dbc
+SkillRaceClassInfo.dbc
+SoundEntries.dbc
+Spell.dbc
+SpellIcon.dbc
+SpellVisual.dbc
+SpellVisualKit.dbc
+TaxiNodes.dbc
+TaxiPath.dbc
+TaxiPathNode.dbc
+CharacterCreateCameras.dbc
+SpellAuraNames.dbc
+SpellEffectNames.dbc
+hashes.txt
