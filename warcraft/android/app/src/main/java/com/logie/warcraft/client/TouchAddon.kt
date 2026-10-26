@@ -51,7 +51,8 @@ package com.logie.warcraft.client
  * Add-ons made for a PC's screen are fitted to the phone's: TomTom's arrow at the top of the screen,
  * in the middle (TomTom's own place for it is the middle of the screen, over the character), unless
  * the player has dragged it elsewhere; Immersion's quest and gossip choices and its talking box kept
- * on the screen (its choices sit 500 right of the middle, past a phone screen's edge).
+ * on the screen (its choices sit 500 right of the middle, past a phone screen's edge: they come in to
+ * 16 from it each time they show, and Immersion keeps that place).
  */
 object TouchAddon {
     const val FOLDER = "WowTouch"
@@ -66,7 +67,7 @@ object TouchAddon {
             ## Title: WowTouch
             ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix; TomTom's arrow and Immersion's windows fitted to the phone's screen.
             ## Author: World of Warcraft app
-            ## Version: 8
+            ## Version: 9
             ## OptionalDeps: TomTom, Immersion
             $FOLDER.lua
         """.trimIndent() + "\n",
@@ -577,7 +578,23 @@ object TouchAddon {
             -- Immersion's quest and gossip choices and its talking box stay on the screen, 16 from
             -- its edges: Immersion puts the choices 500 to the right of the middle, which on a
             -- phone's screen (narrower than a PC's, the interface bigger) is partly past its edge.
-            local ARROW_TOP, EDGE = -36, 16
+            local ARROW_TOP, EDGE, CHOICE_WIDTH = -36, 16, 310
+
+            -- Immersion's choices sit at an offset from the middle of the screen (its setting
+            -- titleoffset, 500 at first; a drag sets it anew). Where that puts them past the edge,
+            -- they come in to 16 from it, and Immersion keeps that place (its setting): each time
+            -- they show, as the screen's width can change (the Fold opened or closed).
+            local function fitImmersionChoices(titles)
+                local point, to, toPoint, x, y = titles:GetPoint()
+                if type(x) ~= "number" then return end
+                local scale = titles:GetEffectiveScale() / UIParent:GetEffectiveScale()
+                local room = math.max(0, GetScreenWidth() / scale / 2 - CHOICE_WIDTH / 2 - EDGE)
+                if math.abs(x) <= room then return end
+                x = x > 0 and room or -room
+                titles:ClearAllPoints()
+                titles:SetPoint(point, to, toPoint, x, y)
+                if type(ImmersionSetup) == "table" then ImmersionSetup.titleoffset = x end
+            end
 
             local function fitAddons()
                 local arrow = TomTomCrazyArrow
@@ -597,6 +614,9 @@ object TouchAddon {
                         part:SetClampedToScreen(true)
                         part:SetClampRectInsets(-EDGE, EDGE, EDGE, -EDGE)
                     end
+                    local titles = immersion.TitleButtons
+                    fitImmersionChoices(titles)
+                    titles:HookScript("OnShow", fitImmersionChoices)
                 end
             end
 

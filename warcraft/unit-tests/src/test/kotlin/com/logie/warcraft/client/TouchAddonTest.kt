@@ -573,6 +573,7 @@ class TouchAddonTest {
             function frame:IsUserPlaced() return self.userPlaced end
             function frame:SetClampedToScreen(clamped) self.clamped = clamped end
             function frame:SetClampRectInsets(left, right, top, bottom) self.insets = { left, right, top, bottom } end
+            function frame:GetEffectiveScale() return self.scale or 1 end
         """.trimIndent()).call()
         val frame = lua.get(name)
         frame.get("SetPoint").invoke(LuaValue.varargsOf(arrayOf(frame) + point.map {
@@ -608,6 +609,7 @@ class TouchAddonTest {
 
     @Test
     fun immersionsChoicesAndTalkingBoxStayOnTheScreen() {
+        lua.load("ImmersionSetup = { titleoffset = 500 }").call()
         val titles = pcFrame("ImmersionTitleButtons", "CENTER", "UIParent", "CENTER", 500, 0)
         val talkBox = pcFrame("ImmersionTalkBox", "BOTTOM", 0, 150)
         lua.load("ImmersionFrame = { TitleButtons = ImmersionTitleButtons, TalkBox = ImmersionTalkBox }").call()
@@ -617,8 +619,29 @@ class TouchAddonTest {
             // 16 from its edges (the choices are wider than their list)
             assertEquals(listOf(-16, 16, 16, -16), (1..4).map { part.get("insets").get(it).toint() })
         }
-        // Immersion's own places stay; the game keeps them on the screen.
-        assertEquals(listOf("CENTER", "UIParent", "CENTER", "500", "0"), points(titles))
+        // The choices, 500 right of the middle, come in to 16 from the edge of a screen 1024 wide
+        // (512 - 155 - 16), and Immersion keeps that place.
+        assertEquals(listOf("CENTER", "UIParent", "CENTER", "341", "0"), points(titles))
+        assertEquals(341, lua.get("ImmersionSetup").get("titleoffset").toint())
+    }
+
+    @Test
+    fun immersionsChoicesComeInEachTimeTheyShow() {
+        lua.load("ImmersionSetup = { titleoffset = -100 }").call()
+        val titles = pcFrame("ImmersionTitleButtons", "CENTER", "UIParent", "CENTER", -100, 20)
+        val talkBox = pcFrame("ImmersionTalkBox", "BOTTOM", 0, 150)
+        lua.load("ImmersionFrame = { TitleButtons = ImmersionTitleButtons, TalkBox = ImmersionTalkBox }").call()
+        event("PLAYER_ENTERING_WORLD")
+        // Already on the screen: left where it is.
+        assertEquals(listOf("CENTER", "UIParent", "CENTER", "-100", "20"), points(titles))
+        // Bigger (Immersion's scale), dragged to the left edge: the next time they show, in again.
+        titles.set("scale", LuaValue.valueOf(2))
+        titles.get("SetPoint").invoke(LuaValue.varargsOf(arrayOf(titles, LuaValue.valueOf("CENTER"),
+            lua.get("UIParent"), LuaValue.valueOf("CENTER"), LuaValue.valueOf(-300), LuaValue.valueOf(20))))
+        titles.get("hooks").get(1).call(titles)
+        // 1024 / 2 / 2 - 155 - 16
+        assertEquals(listOf("CENTER", "table", "CENTER", "-85", "20"), points(titles))
+        assertEquals(-85, lua.get("ImmersionSetup").get("titleoffset").toint())
     }
 
     @Test

@@ -414,6 +414,17 @@ EOF
 			fail "$name's racials and quests didn't work in the world (logs/allied-$file-world.out)"
 	done
 	echo "Their racials work in the world, their first quests are their own, and Rescue the Survivors! can be done."
+	# An undead paladin (Paladin for the Forsaken) at Deathknell's priest trainer: greeted as a
+	# priest, trained as a paladin.
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Lighttaker 5 2 \
+		"$ROOT/warcraft/server/allied_undead_paladin.steps" | tee "$FILES/logs/allied-undead-paladin.out" ||
+		fail "Deathknell's priest trainer didn't train the undead paladin as a paladin (logs/allied-undead-paladin.out)"
+	echo "An undead paladin trains at the priest trainers."
+	# It goes again: a realm keeps ten characters an account, and Wrath Remix's way home (below)
+	# needs room on ChromieCraft for the Timerunners it brings back.
+	# (erased the way the realm erases one: a partial delete leaves rows a later character with its
+	# guid collides with)
+	erase_character Lighttaker || fail "the undead paladin test character is still there"
 
 	echo "== the Worgen and Goblins (mod-worgen-goblin, from mod-worgoblin)"
 	grep -E "Worgen and Goblins: The Worgen's and Goblins' patch is in the game: 30 tables, [0-9]+ files" "$FILES/logs/world.out" ||

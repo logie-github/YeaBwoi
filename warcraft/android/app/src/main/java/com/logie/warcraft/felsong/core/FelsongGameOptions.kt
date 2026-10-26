@@ -17,7 +17,7 @@ package com.logie.warcraft.felsong.core
  *   textures (as hotfixes of their rows), so the skin shows where nothing is worn.
  * - [UNDEAD_PALADINS]: undead paladins at character creation: the pair added to the game's race
  *   and class table (hotfixes.char_base_info, sent as a hotfix), the undead warrior's start and the
- *   blood elf paladin's action bars copied for it ([sql], at every start of the realm); its outfit
+ *   blood elf paladin's action bars and level stats copied for it ([sql], at every start of the realm); its outfit
  *   is another race's paladin's, and the priest trainers teach them a paladin trainer's spells
  *   (patch 0010, reading App.UndeadPaladins).
  */
@@ -49,11 +49,14 @@ enum class FelsongGameOptions(val key: String, val conf: String, val default: Bo
             append("DELETE FROM hotfixes.char_base_info WHERE ID = $UNDEAD_PALADIN_ROW;\n")
             append("DELETE FROM world.playercreateinfo WHERE race = $UNDEAD AND class = $PALADIN;\n")
             append("DELETE FROM world.playercreateinfo_action WHERE race = $UNDEAD AND class = $PALADIN;\n")
+            append("DELETE FROM world.player_levelstats WHERE race = $UNDEAD AND class = $PALADIN;\n")
             if (UNDEAD_PALADINS in on) {
                 append("INSERT INTO hotfixes.char_base_info (ID, RaceID, ClassID) VALUES ($UNDEAD_PALADIN_ROW, $UNDEAD, $PALADIN);\n")
                 append("INSERT INTO hotfixes.hotfix_data (Id, TableHash, RecordId, Deleted) VALUES ($UNDEAD_PALADIN_HOTFIX, $CHAR_BASE_INFO_HASH, $UNDEAD_PALADIN_ROW, 0);\n")
                 copy("world.playercreateinfo", "race = $UNDEAD AND class = $WARRIOR", "class = $PALADIN")
                 copy("world.playercreateinfo_action", "race = $BLOOD_ELF AND class = $PALADIN", "race = $UNDEAD")
+                // (every level's stats: without them the world server stops as it starts, issue #74)
+                copy("world.player_levelstats", "race = $BLOOD_ELF AND class = $PALADIN", "race = $UNDEAD")
             }
         }
 
