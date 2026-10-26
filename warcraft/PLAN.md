@@ -1586,6 +1586,23 @@ a realm with modules), then stage 3.
   allied races' files was cached for its key (a re-run reused it) and released (1.0.292). The
   packager now leaves `build/package-incomplete` then, and the workflow doesn't keep that package:
   the next run fetches again, and the test and the app, which need the package, stop there.
+- The user: undead paladins "speak to any priest trainer it will count as though it is a paladin
+  trainer"; then WoW: Forever's new race and class pairs ("Add these race class combos. For human
+  hunters make them use the warrior trainer. For dwarf shamans the priest trainer. For gnome priests
+  use the mage trainer. For orc mages the warlock trainer. For troll warlock the mage trainer.") and
+  its racials ("Add the new or updated racials to each race"), ChromieCraft's realm alone, as the
+  allied races are. Wowhead's guide was unreadable here (its text loads by script); the pairs from
+  Warcraft Tavern and lfcarry, every racial's numbers from forever.warcraftdb.com's spells (Forever
+  1.60.1). `mod-allied-races` (its README): the pairs in `EXTRA_CLASSES`, the host trainers by core
+  patch 0011 and `allied_races_class_trainers.sql` (checked: every one of the host classes' trainer
+  menus, for every race and class, evaluated against the conditions before and after: each pair sees
+  its host class's greeting and options, everyone else what they did), the racials as spells and
+  each race's racial skill line (`tools/build_data.py`) with `src/AlliedRacesForever.cpp` for the
+  scripted ones. Departures: Engineering Specialization has its text alone; Cultivation puts the herb
+  in the bags; Eureka!'s "non-periodic" is 3.3.5's direct damage and healing; death knights get Touch
+  of the Grave's 20% and gnome death knights Expansive Mind's Runic Power; the gnome priest's
+  Confounding Flash and Contingency Plan are taught by level, not by Forever's quests. Not seen in
+  the game: the realm test takes each new pair to its host trainer and checks its race's racials.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

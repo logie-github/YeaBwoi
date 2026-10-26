@@ -11,17 +11,67 @@ in their own models, looks and voices:
 | Lightforged Draenei | 17 | Alliance | Ammen Vale (the Draenei's start, quests and standing: the Exodar) | Warrior, Paladin, Hunter, Priest, Death Knight, Mage |
 | Zandalari Troll | 18 | Horde | Camp Narache in Mulgore (the Tauren's start, quests and standing: Thunder Bluff) | Warrior, Paladin, Hunter, Rogue, Priest, Death Knight, Shaman, Mage, Druid |
 
-**Undead paladins** too (the user: "let undead be paladins"), on this realm: the Forsaken's paladin
-starts at Deathknell, where their warriors do, with the Blood Elves' paladin gear and action bar
-(without the Blood Elves' racials); the paladin's skills and spells (Holy, Protection,
-Retribution, plate and the paladin's weapons) are open to the Forsaken in the client's tables and
-the server's. They train at the Blood Elves' paladin trainers (Undercity's Royal Quarter, Silvermoon,
-Orgrimmar) and at every priest trainer, who is a paladin trainer to them: the core gives an undead
-paladin the paladin class trainer whose spells suit them most (the Horde's) wherever a priest class
-trainer is asked for (`warcraft/patches/azerothcore/0011`: its gossip option, its list, buying a
-spell, unlearning talents), and `data/sql/chromiecraft/world/allied_races_priest_trainers.sql` gives
-the priest trainers' greeting and options (training, talents, dual specialization) to undead paladins
-as to priests (a second way through their class conditions), and their "I can't train you" not.
+**The old races' new classes** too, on this realm: undead paladins (the user: "let undead be
+paladins") and WoW: Forever's new pairs (the user: "Add these race class combos"): human hunters,
+dwarf shamans, gnome priests, orc mages and troll warlocks (`EXTRA_CLASSES` in `tools/build_data.py`).
+Each starts where its race's warriors do, with the gear, action bar (without that race's racials),
+class skills and abilities of a race that has the class: the Blood Elves' paladins, the dwarves'
+hunters (their Guns), the Draenei's shamans, the humans' priests, the trolls' mages, the orcs'
+warlocks; that race's class quests (one class's alone: a hunter's taming, a shaman's totems) are
+theirs too. They train at their class's own trainers, and at another class's (the user: "For human
+hunters make them use the warrior trainer..."):
+
+| Pair | Also trains at |
+| --- | --- |
+| Undead paladin | the priest trainers |
+| Human hunter | the warrior trainers |
+| Dwarf shaman | the priest trainers |
+| Gnome priest | the mage trainers |
+| Orc mage | the warlock trainers |
+| Troll warlock | the mage trainers |
+
+There the core gives them their own class's trainer whose spells suit them most
+(`warcraft/patches/azerothcore/0011`: the gossip's trainer option, the list, buying a spell,
+unlearning talents, seeing the trainer), and `data/sql/chromiecraft/world/allied_races_class_trainers.sql`
+gives them that trainer's greeting and options (training, talents, dual specialization) as to its own
+class (a second way through the class conditions, a way each pair), and its "I can't train you" not.
+
+**WoW: Forever's racials** for the eight races of 1.x, on this realm (the user: "Add the new or updated
+racials to each race"), as forever.warcraftdb.com has them (Forever 1.60.1); Blood Elves and Draenei,
+which Forever hasn't, keep theirs:
+
+| Race | Racials |
+| --- | --- |
+| Human | Will to Survive (removes Stuns, 3 min), Perception (stealth detection for 20 sec, 3 min), Ruthless (+2% crit), The Human Spirit (+5% Spirit) |
+| Orc | Blood Fury (+10% Attack Power and Spell Power for 15 sec, 3 min), Hardiness (Stuns 20% shorter), Savage (+1% crit), Shatter Curse (removes Curses, 5% less Magical damage for 8 sec, 3 min) |
+| Dwarf | Stoneform (removes and grants immunity to Bleeds, Poisons and Diseases, 10% less Physical damage for 8 sec, 3 min), Find Treasure, Earth Fury (+2% crit bonus to damage and healing), Big Game Hunter (+5% damage to Beasts) |
+| Night Elf | Elune's Light (+10% crit for 15 sec, 3 min), Quickness (+1% dodge, +2% movement speed, stealth a level better for rogues and druids), Shadowmeld (10 sec cooldown, 2 min in combat), Wisp Spirit |
+| Undead | Cannibalize, Touch of the Grave (20% chance for warriors, paladins, rogues and death knights, 30% for priests, mages and warlocks: a hit drains as much Health as it did, 5% of maximum Health at most), Underwater Breathing (300%), Will of the Forsaken |
+| Tauren | War Stomp (1.5 min), Endurance (+5% Health, +2% crit bonus), Cultivation (harvests the herb within 10 yards without Herbalism, each herb once; 3 sec cast, 15 min), Plainsrunning (+1% speed every 5 sec moving, 30% at most; standing still or hits take it away; +3% mounted) |
+| Gnome | Engineering Specialization, Escape Artist (and 3 sec immune to movement impairing effects, 2 min), Expansive Mind (+5% maximum Mana, Rage, Energy or Runic Power), Eureka! (10% cheaper, 10% stronger abilities for 8 sec, 2 min; a version each class) |
+| Troll | Berserking (+10% attack and casting speed for 10 sec, 3 min), Regeneration (+20%, 20% in combat), Rapid Regeneration (50% of maximum Health over 6 sec, until you move, act or are hit; 3 min), Beast Slaying |
+
+Gnome priests also have Forever's two priest racials: Confounding Flash (level 10: confuses up to 5
+enemies within 8 yards for 3 sec, until hit; 2 min) and Contingency Plan (a rank at levels 20, 30,
+40, 50 and 60: a ward on an ally for 30 sec that, when damage leaves them below 35% Health, shields
+155 to 926 and heals 125 to 670 over 15 sec; 10 min), taught as those levels come (Forever teaches
+them by quests from a priestess 3.3.5 hasn't).
+
+How: `tools/build_data.py` writes Forever's spells (ids 98800 to 98842; Forever's own ids pass a
+million, past 3.3.5's tables) and the changes to the racials 3.3.5 has, and gives each race's racial
+skill line Forever's racials (its rows, and new ones from 23500); the old ones are no longer taught,
+and a character loses them at its next login (the core teaches a skill's spells at each login without
+keeping them). `src/AlliedRacesForever.cpp` scripts what a spell's row can't: Blood Fury's Spell
+Power, Shadowmeld's cooldown in combat, Touch of the Grave's drain, Cultivation, Plainsrunning,
+Contingency Plan and the gnome priest's spells. New characters' action bars have Will to Survive and
+the one Blood Fury where 3.3.5's racials stood. Departures, where 3.3.5 can't do as Forever does:
+Engineering Specialization has its text alone (3.3.5's devices fail by their own scripts' rolls);
+Eureka!'s "non-periodic" is the class's direct damage and healing (3.3.5's spell modifiers), the
+mage's periodic damage too, as Forever has; the death knights (which Forever hasn't) have Touch of the
+Grave's 20% and, gnomes, Expansive Mind's Runic Power; Cultivation's harvest goes into the bags
+rather than a second herb to pick, and a herb's skill needs a level of a fifth of it (80 at most).
+Wrath Remix's realm keeps 3.3.5's racials: the patch is set aside there, and its world database has
+none of this.
 
 (The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 to 18 were
 the game's Skeleton, Vrykul, Tuskarr and Forest Troll, which only creatures use; in the game's

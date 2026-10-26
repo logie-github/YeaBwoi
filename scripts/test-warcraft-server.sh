@@ -403,6 +403,22 @@ EOF
 	echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = 'Lighttaker'" | CTL sql acore_characters
 	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Lighttaker'" | CTL sql acore_characters)" = 0 ] ||
 		fail "the undead paladin test character is still there"
+	# WoW: Forever's new pairs, each at its start with its race's Forever racials, trained by another
+	# class's trainer there as its own class's trainer does; each goes again after (room for Remix's
+	# way home).
+	for who in Humhunter:1:3:human_hunter Dwarfshaman:3:7:dwarf_shaman Gnomepriest:7:5:gnome_priest \
+		Orcmage:2:8:orc_mage Trollwarlock:8:9:troll_warlock; do
+		IFS=: read -r name race class file <<EOF
+$who
+EOF
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" "$class" \
+			"$ROOT/warcraft/server/forever_$file.steps" | tee "$FILES/logs/forever-$file.out" ||
+			fail "$name's racials or trainer weren't Forever's (logs/forever-$file.out)"
+		echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = '$name'" | CTL sql acore_characters
+		[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = '$name'" | CTL sql acore_characters)" = 0 ] ||
+			fail "the test character $name is still there"
+	done
+	echo "Human hunters, dwarf shamans, gnome priests, orc mages and troll warlocks: Forever's racials, trained at their host class's trainers."
 
 	echo "== quest drops (mod-quest-drops): what a quest asks for drops from every creature that has it"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 1 \

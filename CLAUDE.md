@@ -24,7 +24,9 @@ self-updating from this repository's GitHub releases.
 - **The Skyborne** (WoW: Forever's race, both realms): `warcraft/modules/mod-skyborne` (its README);
   `tools/build_data.py` makes its data, committed.
 - **The allied races** (void elves, nightborne, Lightforged Draenei, Zandalari Trolls: Blizzard's
-  own models, ChromieCraft's realm only: the user, "Only chromie needs new races"): `warcraft/modules/mod-allied-races` (its README); `tools/races.py`, `tools/build_data.py` and
+  own models, ChromieCraft's realm only: the user, "Only chromie needs new races"), with WoW: Forever's new race and class
+  pairs (undead paladins, human hunters, dwarf shamans, gnome priests, orc mages, troll warlocks, each also trained at
+  another class's trainers) and Forever's racials for the eight races of 1.x: `warcraft/modules/mod-allied-races` (its README); `tools/races.py`, `tools/build_data.py` and
   `tools/quests.py` make its data, committed; `tools/package.py` fetches and converts the game's
   files as the server is packaged (never committed).
 - Each app's `README.md` is its user manual; keep it current with every change.
