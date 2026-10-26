@@ -654,7 +654,7 @@ def build(server_data, world):
             if z is None:
                 continue
             hostile = npc["friendly"] == ""
-            spawn_rows.append({"guid": guid, "id1": n, "id2": 0, "id3": 0, "map": map_id, "zoneId": 0, "areaId": 0, "spawnMask": 1,
+            spawn_rows.append({"guid": guid, "id": n, "map": map_id, "zoneId": 0, "areaId": 0, "spawnMask": 1,
                                "phaseMask": 1, "equipment_id": 1 if source in looks.equips else 0,
                                "position_x": x, "position_y": y, "position_z": round(z + 0.1, 2),
                                "orientation": round((guid * 2.39996) % 6.28318, 3), "spawntimesecs": 300,
@@ -682,7 +682,8 @@ def build(server_data, world):
         insert("creature_template", looks.cols, templates)
         insert("creature_template_model", ["CreatureID", "Idx", "CreatureDisplayID", "DisplayScale", "Probability", "VerifiedBuild"], models)
         insert("creature_equip_template", ["CreatureID", "ID", "ItemID1", "ItemID2", "ItemID3", "VerifiedBuild"], equips)
-        insert("creature", ["guid", "id1", "id2", "id3", "map", "zoneId", "areaId", "spawnMask", "phaseMask", "equipment_id",
+        # (the core's updates since its base SQL name the creature column `id`: 2026_06_16_00)
+        insert("creature", ["guid", "id", "map", "zoneId", "areaId", "spawnMask", "phaseMask", "equipment_id",
                             "position_x", "position_y", "position_z", "orientation", "spawntimesecs", "wander_distance",
                             "currentwaypoint", "curhealth", "curmana", "MovementType", "npcflag", "unit_flags", "dynamicflags",
                             "ScriptName", "VerifiedBuild", "CreateObject", "Comment"], spawn_rows)
@@ -758,7 +759,10 @@ def build(server_data, world):
     insert("quest_request_items", ["ID", "EmoteOnComplete", "EmoteOnIncomplete", "CompletionText", "VerifiedBuild"], requests)
     insert("quest_offer_reward", ["ID", "Emote1", "Emote2", "Emote3", "Emote4", "EmoteDelay1", "EmoteDelay2", "EmoteDelay3",
                                   "EmoteDelay4", "RewardText", "VerifiedBuild"], offers)
-    out.append("\n-- Who gives and takes them")
+    out.append("\n-- Who gives and takes them; the core's own among them who give no quest there are made quest givers")
+    plain = sorted({r["id"] for r in starters + enders if r["id"] in looks.templates and not int(looks.templates[r["id"]]["npcflag"]) & 2})
+    if plain:
+        out.append("UPDATE `creature_template` SET `npcflag` = `npcflag` | 2 WHERE `entry` IN (%s);" % ", ".join(map(str, plain)))
     insert("creature_queststarter", ["id", "quest"], starters)
     insert("gameobject_queststarter", ["id", "quest"], object_starters)
     insert("creature_questender", ["id", "quest"], enders)

@@ -123,7 +123,7 @@ new_npcs = {int(n) for n, v in data["npcs"].items() if v.get("new")}
 templates = {int(r["entry"]) for r in rows("creature_template")}
 models = {int(r["CreatureID"]) for r in rows("creature_template_model")}
 spawns = rows("creature")
-standing = {int(r["id1"]) for r in spawns}
+standing = {int(r["id"]) for r in spawns}
 check(templates == new_npcs, "the SQL's new NPCs are quests.json's")
 for n in new_npcs:
     check(n in models, "%d is drawn" % n)
