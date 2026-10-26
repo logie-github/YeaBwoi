@@ -404,6 +404,15 @@ EOF
 	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Lighttaker'" | CTL sql acore_characters)" = 0 ] ||
 		fail "the undead paladin test character is still there"
 
+	echo "== quest drops (mod-quest-drops): what a quest asks for drops from every creature that has it"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 1 \
+		"$ROOT/warcraft/server/quest_drops.steps" | tee "$FILES/logs/quest-drops.out" ||
+		fail "the Rot Hide Graverobbers didn't each drop Graverobbers' Embalming Ichor (logs/quest-drops.out)"
+	echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = 'Dropper'" | CTL sql acore_characters
+	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Dropper'" | CTL sql acore_characters)" = 0 ] ||
+		fail "the quest drops test character is still there"
+	echo "Five Rot Hide Graverobbers, five Embalming Ichors."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 

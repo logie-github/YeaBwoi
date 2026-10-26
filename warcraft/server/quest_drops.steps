@@ -1,0 +1,19 @@
+# Quest drops (mod-quest-drops): Graverobbers (358) asks for 8 Embalming Ichors, which Rot Hide
+# Graverobbers drop at 40%. With the module every one of them has one while the quest needs it: five
+# kills, five Ichors (at 40%, five of five would happen about once in a hundred tries).
+cmd .levelup 9
+cmd .quest add 358
+go 0 2515.8 538.4 34.6
+kill-loot 1941
+expect loot item 2834
+kill-loot 1941
+expect loot item 2834
+kill-loot 1941
+expect loot item 2834
+kill-loot 1941
+expect loot item 2834
+kill-loot 1941
+expect loot item 2834
+# Out of the fight, so the character can log out.
+cmd .combatstop
+wait 2

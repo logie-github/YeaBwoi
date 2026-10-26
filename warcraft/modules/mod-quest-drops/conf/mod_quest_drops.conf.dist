@@ -1,0 +1,13 @@
+[worldserver]
+
+########################################
+# Quest drops (mod-quest-drops): what a quest asks you to collect drops from every creature that has it
+########################################
+#
+#    QuestDrops.Enable
+#        Description: An item a quest asks for that creatures (or chests, or anything looted) drop
+#                     on their own chance drops from every one while the quest needs it. Items in a
+#                     loot group (one of several drops) keep their chances. Both realms.
+#        Default:     1
+
+QuestDrops.Enable = 1

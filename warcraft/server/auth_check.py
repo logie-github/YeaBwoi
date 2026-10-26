@@ -170,6 +170,7 @@ CMSG_GAMEOBJ_USE = 0x0B1
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
+CMSG_LOOT, CMSG_LOOT_RELEASE, SMSG_LOOT_RESPONSE = 0x15D, 0x15F, 0x160
 SMSG_TRAINER_LIST, CMSG_TRAINER_BUY_SPELL, SMSG_TRAINER_BUY_SUCCEEDED, SMSG_TRAINER_BUY_FAILED = 0x1B1, 0x1B2, 0x1B3, 0x1B4
 
 # AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
@@ -616,6 +617,21 @@ def run_script(session, player_guid, steps):
                 _, item, reason = struct.unpack_from("<QIB", body, 0)
                 print(f"script:   buying {item} failed ({reason})")
                 heard.append(f"buy failed {reason}")
+            elif opcode == SMSG_LOOT_RESPONSE:
+                # The corpse's guid, the loot's kind, then (when it can be looted) its gold and
+                # items: each its slot, item, count, look and random properties, and slot type.
+                _, kind = struct.unpack_from("<QB", body, 0)
+                if kind == 0:
+                    print(f"script:   loot refused ({body[9] if len(body) > 9 else '?'})")
+                    heard.append("loot refused")
+                else:
+                    gold, count = struct.unpack_from("<IB", body, 9)
+                    print(f"script:   loot window: {gold} copper, {count} items")
+                    heard.append(f"loot window {count}")
+                    for n in range(count):
+                        _, item, amount = struct.unpack_from("<BII", body, 14 + 22 * n)
+                        print(f"script:   loot item {item} x{amount}")
+                        heard.append(f"loot item {item} x{amount}")
             elif opcode == SMSG_TRAINER_LIST:
                 # The trainer's guid, type and spells: each its id, whether it can be learned now
                 # (0) and its cost, 38 bytes in all.
@@ -725,6 +741,36 @@ def run_script(session, player_guid, steps):
             say(session, ".damage 100 pct")
             session.pump(3.0, packets)
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
+        elif word == "kill-loot":
+            # kill-loot <entry>: the nearest living creature of an entry called over, killed by the
+            # character (a game master's .damage: the kill and its loot are the character's) and
+            # its corpse looted, as a player does after each kill on a collecting quest.
+            entry = int(rest)
+            for attempt in range(6):
+                try:
+                    target, yards = creature_guid(entry, near=True, patience=0)
+                    break
+                except RuntimeError:
+                    if attempt == 5:
+                        raise
+                    say(session, ".respawn all")
+                    session.pump(5.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
+            session.pump(0.5, packets)
+            # (within looting distance, 5.5 yards, when it dies)
+            for _ in range(3):
+                if yards <= 4:
+                    break
+                say(session, ".npc follow")
+                session.pump(arrival(yards), packets)
+                _, yards = creature_guid(entry, near=True)
+            say(session, ".damage 100 pct")
+            session.pump(2.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.send(CMSG_LOOT, struct.pack("<Q", target))
+            session.pump(1.5, packets)
+            session.send(CMSG_LOOT_RELEASE, struct.pack("<Q", target))
             session.pump(0.5, packets)
         elif word == "use":
             say(session, f".remix goguid {int(rest)}")
