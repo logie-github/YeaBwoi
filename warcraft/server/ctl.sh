@@ -186,6 +186,13 @@ configure_realm() {
 			setkey "$worgen_conf" WorgenGoblin.Enable 0
 		else
 			setkey "$worgen_conf" WorgenGoblin.Enable 1
+			# Their starting areas on (the module takes them in only with their package, which the
+			# app downloads): set once, as a realm made before they could be turned on has them off
+			# (a later choice of off is kept).
+			if [ ! -f "$R_ETC/modules/.worgen_goblin_zones" ]; then
+				setkey "$worgen_conf" WorgenGoblin.StartingAreas 1
+				: > "$R_ETC/modules/.worgen_goblin_zones"
+			fi
 		fi
 	fi
 	[ ! -f "$R_ETC/modules/mod_worgoblin.conf" ] || setkey "$R_ETC/modules/mod_worgoblin.conf" Announce.enable false

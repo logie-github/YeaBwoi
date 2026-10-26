@@ -76,6 +76,12 @@ android {
 		buildConfigField "long", "FELSONG_SERVER_SIZE", "${wowProperty("felsongServerSize", "0")}L"
 		buildConfigField "long", "FELSONG_SERVER_UNPACKED", "${wowProperty("felsongServerUnpacked", "0")}L"
 		buildConfigField "String", "FELSONG_SERVER_COMMIT", "\"${wowProperty("felsongServerCommit", "")}\""
+		// The Worgen's and Goblins' starting areas (scripts/package-zones.sh), published by CI as the
+		// release cata-zones-<hash>: the one this build downloads (ZonesPackage), with its size and SHA-256.
+		buildConfigField "String", "ZONES_TAG", "\"${wowProperty("zonesTag", "")}\""
+		buildConfigField "String", "ZONES_SHA256", "\"${wowProperty("zonesSha256", "")}\""
+		buildConfigField "long", "ZONES_SIZE", "${wowProperty("zonesSize", "0")}L"
+		buildConfigField "long", "ZONES_UNPACKED", "${wowProperty("zonesUnpacked", "0")}L"
 
 		ndk {
 			// Phones only: the server and the game's runtime are built for arm64.

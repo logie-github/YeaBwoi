@@ -54,7 +54,7 @@ class ImportService : Service() {
         wakeLock = (getSystemService(Context.POWER_SERVICE) as PowerManager)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "warcraft:import")
             .apply { acquire(6 * 60 * 60 * 1000L) }
-        if (kind == Imports.Kind.DOWNLOAD || kind == Imports.Kind.MODS || kind == Imports.Kind.MODULES) {
+        if (kind == Imports.Kind.DOWNLOAD || kind == Imports.Kind.MODS || kind == Imports.Kind.MODULES || kind == Imports.Kind.ZONES) {
             // With the screen off, Android would otherwise slow the Wi-Fi down to save power.
             @Suppress("DEPRECATION")
             wifiLock = (applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager)
@@ -89,6 +89,10 @@ class ImportService : Service() {
                         Imports.set(Imports.State.Working(kind, progress = progress, detail = detail))
                         notifyThrottled(kind, progress, detail)
                     }
+                    Imports.Kind.ZONES -> ZonesPackage.downloadAndInstall(this@ImportService, { Imports.cancelled }) { part, progress, detail ->
+                        Imports.set(Imports.State.Working(kind, part, 2, progress, detail))
+                        notifyThrottled(kind, progress, "$part / 2 · ${(progress * 100).toInt()}%")
+                    }
                     Imports.Kind.MODULES -> {
                         val report = { progress: Float?, detail: String? ->
                             Imports.set(Imports.State.Working(kind, progress = progress, detail = detail))
@@ -111,7 +115,7 @@ class ImportService : Service() {
             )
             // A stopped or failed job leaves its half-made folder behind: it's of no use. (A
             // download's stays, to carry on from next time.)
-            for (name in listOf("client.import", "data.import", "data.work")) {
+            for (name in listOf("client.import", "data.import", "data.work", "zones.new")) {
                 java.io.File(WowFiles.root(this@ImportService), name).deleteRecursively()
             }
             Imports.set(state)
@@ -158,6 +162,7 @@ class ImportService : Service() {
             Imports.Kind.SERVER_DATA -> R.string.wow_data_import_title
             Imports.Kind.MODS -> R.string.wow_mods_title
             Imports.Kind.MODULES -> R.string.wow_modules_job_title
+            Imports.Kind.ZONES -> R.string.wow_zones_title
         }
     )
 
@@ -229,6 +234,12 @@ class ImportService : Service() {
         fun downloadServerData(context: Context) = start(
             context,
             Intent(context, ImportService::class.java).putExtra(EXTRA_KIND, Imports.Kind.DOWNLOAD.name),
+        )
+
+        /** The Worgen's and Goblins' starting areas (ZonesPackage). */
+        fun downloadZones(context: Context) = start(
+            context,
+            Intent(context, ImportService::class.java).putExtra(EXTRA_KIND, Imports.Kind.ZONES.name),
         )
 
         fun extract(context: Context, withMmaps: Boolean) = start(

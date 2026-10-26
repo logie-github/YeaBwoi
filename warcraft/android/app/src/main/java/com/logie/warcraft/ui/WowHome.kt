@@ -185,6 +185,17 @@ private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
 
     val serverStopped = server.phase == Server.Phase.STOPPED || server.phase == Server.Phase.FAILED
 
+    // The Worgen's and Goblins' starting areas, once the realm's set up and while it's stopped: this
+    // build's package downloaded once (ZonesPackage), in at the realm's next start.
+    var zonesTried by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(checkUpdate, serverStopped, imports is Imports.State.Idle, facts) {
+        if (zonesTried || checkUpdate || !serverStopped || imports !is Imports.State.Idle) return@LaunchedEffect
+        if (withContext(Dispatchers.IO) { ZonesPackage.needed(context) }) {
+            zonesTried = true
+            ImportService.downloadZones(context)
+        }
+    }
+
     // A realm build with the user's modules, asked for earlier: how it went, once at the app's
     // opening; a finished one goes in while the realm is stopped (Modules screen otherwise).
     LaunchedEffect(checkUpdate, serverStopped, imports is Imports.State.Idle) {
@@ -706,6 +717,10 @@ fun importTitle(state: Imports.State.Working): String = when (state.kind) {
         ?: stringResource(R.string.wow_mods_title)
     Imports.Kind.MODULES -> state.progress?.let { stringResource(R.string.wow_modules_job_progress, (it * 100).toInt()) }
         ?: stringResource(R.string.wow_modules_job_title)
+    Imports.Kind.ZONES -> stringResource(
+        if (state.part <= 1) R.string.wow_zones_progress else R.string.wow_zones_unpack_progress,
+        ((state.progress ?: 0f) * 100).toInt(),
+    )
 }
 
 /** `PRESS START`, gold, breathing with the frost light behind it. */

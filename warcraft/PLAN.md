@@ -1682,7 +1682,18 @@ a realm with modules), then stage 3.
      four more), what CPP lacks (Gilneas's chapter 3, the Lost Isles), the Worgen's human form (they're Worgen
      from the start here, as mod-worgoblin has them). Then the app downloads the package and the
      starts go on.
-  5. The way into Wrath's world: Worgen to Darnassus, Goblins to Orgrimmar.
+     Done since (none of it played): the Lost Isles' and Gilneas's third chapter's phases (Cataclysm's
+     own phase auras over the zones, from the quest leading into each phase to the one after it); their
+     unscripted quests (src/WorgenGoblinLostIsles.cpp, WorgenGoblinGilneasEnd.cpp: vehicles and flights
+     nobody's data has made simpler, at the user's word); the race intros (Cataclysm's flights over
+     Gilneas and Kezan with their narration); the Worgen's two forms (src/WorgenGoblinForms.cpp: race 1
+     and the human model shown, race 12 kept; Gilneas's human start); the app downloading the package
+     (ZonesPackage.kt) and the starting areas on (ctl.sh, once). The user: "Make the worgen and goblin
+     new zones playable 100% of what you're able to do including the starter zones. And see if you can
+     pull the right intro cinematic and audio."
+  5. The way into Wrath's world (done, not played): Rut'theran Village turned in, the Worgen sail to
+     Rut'theran Village, Darnassus their home; Warchief's Emissary taken, the Goblins go to Grommash
+     Hold, where 3.3.5a's Thrall takes it, Orgrimmar their home.
   Not for this port: Cataclysm's content for the other races (the user: only after the Lich King).
 - The user: undead paladins "speak to any priest trainer it will count as though it is a paladin
   trainer"; then WoW: Forever's new race and class pairs ("Add these race class combos. For human

@@ -35,7 +35,7 @@ import java.util.zip.ZipInputStream
  * stopped job leaves things as they were.
  */
 object Imports {
-    enum class Kind { CLIENT, DOWNLOAD, EXTRACT, SERVER_DATA, MODS, MODULES }
+    enum class Kind { CLIENT, DOWNLOAD, EXTRACT, SERVER_DATA, MODS, MODULES, ZONES }
 
     sealed interface State {
         data object Idle : State
