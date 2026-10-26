@@ -174,6 +174,15 @@ configure_realm() {
 			setkey "$allied_conf" AlliedRaces.Enable 1
 		fi
 	fi
+	# Quest drops (mod-quest-drops: rare quest items drop more often) are ChromieCraft's alone.
+	quest_drops_conf="$R_ETC/modules/mod_quest_drops.conf"
+	if [ -f "$quest_drops_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$quest_drops_conf" QuestDrops.Enable 0
+		else
+			setkey "$quest_drops_conf" QuestDrops.Enable 1
+		fi
+	fi
 	if [ "$REALM" = remix ]; then
 		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||
 			setall "$R_ETC/modules/progression_system.conf" ProgressionSystem.Bracket_ 0

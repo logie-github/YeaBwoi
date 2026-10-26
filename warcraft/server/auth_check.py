@@ -911,6 +911,16 @@ def run_script(session, player_guid, steps):
                 raise RuntimeError(f"the realm didn't let the character go in {rest} s; heard: {heard}")
             print("script: the realm let the character go")
             return transcript
+        elif word == "at-least":
+            # at-least <n> <text>: at least n of what was heard since the last check has text in it
+            # (a chance's count over many tries); then forgets what was heard, as expect does.
+            n, text = rest.split(" ", 1)
+            found = sum(1 for h in heard if text.lower() in h.lower())
+            print(f"script:   {found} of what was heard has \"{text}\"")
+            if found < int(n):
+                raise RuntimeError(f"at-least {n} \"{text}\" failed: {found}; heard: {heard}")
+            heard.clear()
+            continue
         elif word in ("expect", "expect-not", "has"):
             found = any(rest.lower() in h.lower() for h in heard)
             if found != (word != "expect-not"):

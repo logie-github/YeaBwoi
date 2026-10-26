@@ -1,13 +1,15 @@
 [worldserver]
 
 ########################################
-# Quest drops (mod-quest-drops): what a quest asks you to collect drops from every creature that has it
+# Quest drops (mod-quest-drops): what a quest asks you to collect drops more often where it was rare
 ########################################
 #
 #    QuestDrops.Enable
 #        Description: An item a quest asks for that creatures (or chests, or anything looted) drop
-#                     on their own chance drops from every one while the quest needs it. Items in a
-#                     loot group (one of several drops) keep their chances. Both realms.
+#                     on their own chance drops, while the quest needs it, 75% of the time where its
+#                     chance was under 25%, 50% where it was 10% or less; 25% and up as it was.
+#                     Items in a loot group (one of several drops) keep their chances. The app's
+#                     ctl.sh sets it for each realm: on for ChromieCraft, off for Wrath Remix.
 #        Default:     1
 
 QuestDrops.Enable = 1

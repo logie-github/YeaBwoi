@@ -420,14 +420,14 @@ EOF
 	done
 	echo "Human hunters, dwarf shamans, gnome priests, orc mages and troll warlocks: Forever's racials, trained at their host class's trainers."
 
-	echo "== quest drops (mod-quest-drops): what a quest asks for drops from every creature that has it"
-	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 1 \
+	echo "== quest drops (mod-quest-drops): rare quest items drop at 75% (under 25%) or 50% (10% or less)"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 9 \
 		"$ROOT/warcraft/server/quest_drops.steps" | tee "$FILES/logs/quest-drops.out" ||
-		fail "the Rot Hide Graverobbers didn't each drop Graverobbers' Embalming Ichor (logs/quest-drops.out)"
+		fail "the Rattlecage Skeletons' skulls didn't drop at the raised rate (logs/quest-drops.out)"
 	echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = 'Dropper'" | CTL sql acore_characters
 	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Dropper'" | CTL sql acore_characters)" = 0 ] ||
 		fail "the quest drops test character is still there"
-	echo "Five Rot Hide Graverobbers, five Embalming Ichors."
+	echo "Quest drops roll 75% under 25%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
@@ -530,6 +530,9 @@ EOF
 	# ChromieCraft), none of their SQL in Remix's world, its races 15 to 18 the game's own.
 	grep -q "^AlliedRaces.Enable = 0" "$FILES/etc-remix/modules/mod_allied_races.conf" || fail "the allied races aren't off in Wrath Remix's config"
 	grep -q "^AlliedRaces.Enable = 1" "$FILES/etc/modules/mod_allied_races.conf" || fail "the allied races aren't on in ChromieCraft's config"
+	# Quest drops' raised rates too are ChromieCraft's alone.
+	grep -q "^QuestDrops.Enable = 0" "$FILES/etc-remix/modules/mod_quest_drops.conf" || fail "quest drops aren't off in Wrath Remix's config"
+	grep -q "^QuestDrops.Enable = 1" "$FILES/etc/modules/mod_quest_drops.conf" || fail "quest drops aren't on in ChromieCraft's config"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||
