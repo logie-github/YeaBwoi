@@ -1,0 +1,5975 @@
+{
+ "_about": "Forever's new quests (ids 86000 and up, not in the core) left out, and why.",
+ "picked": 38,
+ "new": 889,
+ "left_out": {
+  "86574": {
+   "name": "Stonetalon Supply Run",
+   "why": [
+    "new NPCs: [268925]",
+    "an item dropped by creatures the 3.3.5 world hasn't (277917)"
+   ]
+  },
+  "86585": {
+   "name": "Banner of the Fallen",
+   "why": [
+    "new NPCs: [269153]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "86613": {
+   "name": "Excavation Tools",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "86614": {
+   "name": "Silver of the Waves",
+   "why": [
+    "new objects"
+   ]
+  },
+  "86667": {
+   "name": "Snowbound",
+   "why": [
+    "new NPCs: [49808, 258043]",
+    "an item to collect with no creature to drop it (279379)"
+   ]
+  },
+  "86758": {
+   "name": "Twisting the Knife",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (279591)"
+   ]
+  },
+  "86784": {
+   "name": "Sticks and Bones",
+   "why": [
+    "new NPCs: [265812]",
+    "an item to collect with no creature to drop it (279991)"
+   ]
+  },
+  "87318": {
+   "name": "Hearts of the Lost",
+   "why": [
+    "new NPCs: [271322]"
+   ]
+  },
+  "87491": {
+   "name": "Spark of Freedom",
+   "why": [
+    "new NPCs: [271481]"
+   ]
+  },
+  "87760": {
+   "name": "Holy Diver",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (280686)"
+   ]
+  },
+  "88756": {
+   "name": "Bring Back a Bang",
+   "why": [
+    "an item to collect with no creature to drop it (280806)"
+   ]
+  },
+  "88757": {
+   "name": "Accessories of the Lost",
+   "why": [
+    "new NPCs: [271322, 271322]",
+    "an item to collect with no creature to drop it (284705)",
+    "an item to collect with no creature to drop it (284150)",
+    "an item to collect with no creature to drop it (284146)"
+   ]
+  },
+  "88758": {
+   "name": "Sentiments of the Lost",
+   "why": [
+    "new NPCs: [271322]"
+   ]
+  },
+  "90902": {
+   "name": "Rediscovering the Light",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [244808, 244808]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "91208": {
+   "name": "Coming to Terms",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [244808, 244808]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "91209": {
+   "name": "Continue Your Training",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [244808, 246152]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "91282": {
+   "name": "A Second Home",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246152, 246349]"
+   ]
+  },
+  "91285": {
+   "name": "Murlocs at the Gates",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246349, 246349]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "91294": {
+   "name": "Touring the Grounds",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246349, 246378]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "91316": {
+   "name": "Making Repairs",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246393, 246393]",
+    "an item to collect with no creature to drop it (246213)"
+   ]
+  },
+  "91317": {
+   "name": "The Tarnished",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246378, 246378]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item dropped by creatures the 3.3.5 world hasn't (270435)"
+   ]
+  },
+  "91723": {
+   "name": "Delicate Instruments",
+   "why": [
+    "new NPCs: [248242, 248242]"
+   ]
+  },
+  "91724": {
+   "name": "Delicate Instruments",
+   "why": [
+    "new NPCs: [248242, 248242]"
+   ]
+  },
+  "91725": {
+   "name": "Stolen Enchanting Supplies",
+   "why": [
+    "new NPCs: [248248, 248248]",
+    "an item to collect with no creature to drop it (247805)"
+   ]
+  },
+  "91732": {
+   "name": "Good Steel",
+   "why": [
+    "new NPCs: [248266, 248266]",
+    "an item to collect with no creature to drop it (247816)"
+   ]
+  },
+  "91733": {
+   "name": "Downstream",
+   "why": [
+    "new NPCs: [248265, 248265]",
+    "an item to collect with no creature to drop it (247817)",
+    "an item to collect with no creature to drop it (247813)",
+    "an item to collect with no creature to drop it (247818)"
+   ]
+  },
+  "91736": {
+   "name": "Applejack Still",
+   "why": [
+    "new objects"
+   ]
+  },
+  "91738": {
+   "name": "An Apple Treat",
+   "why": [
+    "an item to collect with no creature to drop it (247824)"
+   ]
+  },
+  "91740": {
+   "name": "Croaky's Head",
+   "why": [
+    "new NPCs: [248277]",
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "91743": {
+   "name": "Rascally Rodents",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (247839)"
+   ]
+  },
+  "91745": {
+   "name": "Mining Consultant",
+   "why": [
+    "new NPCs: [247226]"
+   ]
+  },
+  "91746": {
+   "name": "Elmpaw's Head",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "91751": {
+   "name": "Rough Wolf Pelts",
+   "why": [
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "91752": {
+   "name": "The Big Picture",
+   "why": [
+    "new NPCs: [247226]",
+    "an item dropped by creatures the 3.3.5 world hasn't (247886)"
+   ]
+  },
+  "91753": {
+   "name": "An Enchanting Lesson",
+   "why": [
+    "an item to collect with no creature to drop it (247884)",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "91758": {
+   "name": "Follow That Kobold!",
+   "why": [
+    "new NPCs: [248415]"
+   ]
+  },
+  "91772": {
+   "name": "Shhh! We're Hunting Kobolds",
+   "why": [
+    "new NPCs: [248415]",
+    "objects to use"
+   ]
+  },
+  "91775": {
+   "name": "Book Return",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (248002)"
+   ]
+  },
+  "91777": {
+   "name": "Rare Books",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (248003)"
+   ]
+  },
+  "91858": {
+   "name": "Diplomatic Incident",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246378, 248840]"
+   ]
+  },
+  "91859": {
+   "name": "A Curious Pair",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248840, 259611]"
+   ]
+  },
+  "91860": {
+   "name": "A Grim Fate",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259611]",
+    "new objects"
+   ]
+  },
+  "91861": {
+   "name": "Into Fenris Keep",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248755]",
+    "new objects"
+   ]
+  },
+  "91862": {
+   "name": "Lumina Windsinger",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248755, 248755]"
+   ]
+  },
+  "91899": {
+   "name": "A Sealed Crate",
+   "why": [
+    "new NPCs: [256386, 256390, 256386, 256390]",
+    "an item to collect with no creature to drop it (248765)"
+   ]
+  },
+  "91900": {
+   "name": "A Sealed Crate",
+   "why": [
+    "new NPCs: [256386, 256390, 256386, 256390]",
+    "an item to collect with no creature to drop it (248766)"
+   ]
+  },
+  "91901": {
+   "name": "A Sealed Crate",
+   "why": [
+    "new NPCs: [256386, 256390, 256386, 256390]"
+   ]
+  },
+  "91904": {
+   "name": "A Sealed Crate",
+   "why": [
+    "new NPCs: [256386, 256390, 256386, 256390]",
+    "an item to collect with no creature to drop it (248770)"
+   ]
+  },
+  "91905": {
+   "name": "A Sealed Crate",
+   "why": [
+    "new NPCs: [256386, 256390, 256386, 256390]",
+    "an item to collect with no creature to drop it (248771)"
+   ]
+  },
+  "92109": {
+   "name": "My First Alchemy Set",
+   "why": [
+    "new NPCs: [249713, 249713]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "92110": {
+   "name": "My First Real Potion",
+   "why": [
+    "new NPCs: [249713, 249713]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "92124": {
+   "name": "Book Inventory",
+   "why": [
+    "new NPCs: [247229]"
+   ]
+  },
+  "92401": {
+   "name": "A Frightened Request",
+   "why": [
+    "new NPCs: [250686, 250686]",
+    "a place to explore (a script)"
+   ]
+  },
+  "92415": {
+   "name": "Remember That I Love You",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "92421": {
+   "name": "Light's Justice",
+   "why": [
+    "new NPCs: [266484, 266484]",
+    "an item dropped by creatures the 3.3.5 world hasn't (268580)"
+   ]
+  },
+  "92422": {
+   "name": "The Wrath of Rath'mael",
+   "why": [
+    "new NPCs: [251001, 251001]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92432": {
+   "name": "An Alarming Request",
+   "why": [
+    "new NPCs: [247264, 269127]"
+   ]
+  },
+  "92434": {
+   "name": "Blood in the Streets",
+   "why": [
+    "new NPCs: [269127]",
+    "a place to explore (a script)"
+   ]
+  },
+  "92456": {
+   "name": "A Green Sample",
+   "why": [
+    "an item to collect with no creature to drop it (251983)"
+   ]
+  },
+  "92457": {
+   "name": "Starving Arcane",
+   "why": [
+    "new NPCs: [269127, 269127]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92458": {
+   "name": "Heart of Disruption",
+   "why": [
+    "new NPCs: [269127, 269127]",
+    "an item dropped by creatures the 3.3.5 world hasn't (251961)"
+   ]
+  },
+  "92459": {
+   "name": "Friend of the Kirin Tor",
+   "why": [
+    "new NPCs: [269127, 252085]"
+   ]
+  },
+  "92460": {
+   "name": "Coming of Age",
+   "why": [
+    "new NPCs: [251362, 251361]"
+   ]
+  },
+  "92461": {
+   "name": "Harmony in Balance",
+   "why": [
+    "new NPCs: [251361, 251361]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92462": {
+   "name": "Infestation Investigation",
+   "why": [
+    "new NPCs: [251368, 251368]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92463": {
+   "name": "The Cirrusfly Queen",
+   "why": [
+    "new NPCs: [251368, 251368]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92464": {
+   "name": "Elemental Unrest",
+   "why": [
+    "new NPCs: [251361, 249363]"
+   ]
+  },
+  "92465": {
+   "name": "Agitators",
+   "why": [
+    "new NPCs: [249363, 249363]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92466": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251374, 251374]",
+    "an item dropped by creatures the 3.3.5 world hasn't (251924)"
+   ]
+  },
+  "92467": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251374, 251166]"
+   ]
+  },
+  "92468": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251166, 251374]"
+   ]
+  },
+  "92469": {
+   "name": "Return to Rorian",
+   "why": [
+    "new NPCs: [249363, 251361]"
+   ]
+  },
+  "92470": {
+   "name": "Foul Matriarch",
+   "why": [
+    "new NPCs: [251366, 251366]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item dropped by creatures the 3.3.5 world hasn't (252665)"
+   ]
+  },
+  "92471": {
+   "name": "Aetheen of the Gales",
+   "why": [
+    "new NPCs: [251361, 251366]"
+   ]
+  },
+  "92472": {
+   "name": "The Next Step",
+   "why": [
+    "new NPCs: [251366, 251523]"
+   ]
+  },
+  "92473": {
+   "name": "Aggressive Encroachment",
+   "why": [
+    "new NPCs: [257551, 257551]",
+    "an item dropped by creatures the 3.3.5 world hasn't (251918)"
+   ]
+  },
+  "92474": {
+   "name": "Falling With Style",
+   "why": [
+    "new NPCs: [263113, 251361]",
+    "a spell to cast (a script)"
+   ]
+  },
+  "92479": {
+   "name": "A Scribbled Letter",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248415]"
+   ]
+  },
+  "92481": {
+   "name": "A Student of the Arcane",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251361, 251379]"
+   ]
+  },
+  "92482": {
+   "name": "The Way of the Hunter",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251361, 251376]"
+   ]
+  },
+  "92483": {
+   "name": "At Home in the Shadows",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251361, 251389]"
+   ]
+  },
+  "92484": {
+   "name": "Embracing the Elements",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251361, 251374]"
+   ]
+  },
+  "92485": {
+   "name": "A Student of Nature",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251361, 251373]"
+   ]
+  },
+  "92489": {
+   "name": "Power Overwhelming",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92514": {
+   "name": "Welcome to Shen'dar Village",
+   "why": [
+    "new NPCs: [251523, 251523]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92515": {
+   "name": "The Problem With Prideclaws",
+   "why": [
+    "new NPCs: [251993, 251993]",
+    "an item dropped by creatures the 3.3.5 world hasn't (252670)"
+   ]
+  },
+  "92516": {
+   "name": "Hippogryph Harrassment",
+   "why": [
+    "new NPCs: [251906, 251906]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92517": {
+   "name": "The Criminal Element",
+   "why": [
+    "new NPCs: [251523, 251523]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92519": {
+   "name": "Ward Restocking",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (278462)"
+   ]
+  },
+  "92528": {
+   "name": "Among the Faithful",
+   "why": [
+    "new NPCs: [257065, 251523]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92529": {
+   "name": "Falaath Village",
+   "why": [
+    "new NPCs: [251904, 257065]"
+   ]
+  },
+  "92532": {
+   "name": "The Warrior's Path",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251361, 251964]"
+   ]
+  },
+  "92544": {
+   "name": "Al'Aketh Thugs",
+   "why": [
+    "new NPCs: [252095, 252095]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92550": {
+   "name": "Havoc in the Highlands",
+   "why": [
+    "new NPCs: [251523, 251523]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item dropped by creatures the 3.3.5 world hasn't (252661)"
+   ]
+  },
+  "92551": {
+   "name": "Stolen Supplies",
+   "why": [
+    "new NPCs: [252172, 252172]",
+    "an item dropped by creatures the 3.3.5 world hasn't (252760)"
+   ]
+  },
+  "92553": {
+   "name": "Restocking the Larders",
+   "why": [
+    "new NPCs: [251905, 251905]"
+   ]
+  },
+  "92579": {
+   "name": "To Valanaar",
+   "why": [
+    "new NPCs: [251523, 252383]"
+   ]
+  },
+  "92595": {
+   "name": "The Windshapers",
+   "why": [
+    "new NPCs: [251902, 251902]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92596": {
+   "name": "The High Order",
+   "why": [
+    "new NPCs: [251903, 251903]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92597": {
+   "name": "Reading the Ley Lines",
+   "why": [
+    "new NPCs: [251371, 251371]",
+    "objects to use"
+   ]
+  },
+  "92598": {
+   "name": "The Gift of Skysight",
+   "why": [
+    "new NPCs: [251487, 251487]",
+    "objects to use"
+   ]
+  },
+  "92640": {
+   "name": "Desperate Times",
+   "why": [
+    "new NPCs: [252476, 252383]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92642": {
+   "name": "Disrupting Logistics",
+   "why": [
+    "new NPCs: [252378, 252378]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92643": {
+   "name": "The Turncoat",
+   "why": [
+    "new NPCs: [252476, 253372]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92644": {
+   "name": "Unfortunate News",
+   "why": [
+    "new NPCs: [253372, 252476]"
+   ]
+  },
+  "92645": {
+   "name": "Breaking the Breaker",
+   "why": [
+    "new NPCs: [252378, 252378]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92646": {
+   "name": "Confront Lorthuna",
+   "why": [
+    "new NPCs: [253590, 251968]",
+    "a place to explore (a script)",
+    "special objectives (a script)"
+   ]
+  },
+  "92679": {
+   "name": "Blood Tithe",
+   "why": [
+    "new NPCs: [252448, 252800]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92682": {
+   "name": "Make Yourself Useful",
+   "why": [
+    "new NPCs: [252800, 252800]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item to collect with no creature to drop it (253591)"
+   ]
+  },
+  "92683": {
+   "name": "Flutterfly Dust",
+   "why": [
+    "new NPCs: [252800, 252800]",
+    "an item to collect with no creature to drop it (253595)",
+    "special objectives (a script)"
+   ]
+  },
+  "92684": {
+   "name": "Ornery Ornery Galestriders",
+   "why": [
+    "new NPCs: [252800, 252800]",
+    "an item dropped by creatures the 3.3.5 world hasn't (253597)"
+   ]
+  },
+  "92685": {
+   "name": "The Hills Have Eyes",
+   "why": [
+    "new NPCs: [252800, 252800]",
+    "an item dropped by creatures the 3.3.5 world hasn't (253596)"
+   ]
+  },
+  "92693": {
+   "name": "Standing Our Ground",
+   "why": [
+    "new NPCs: [252800, 252800]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92698": {
+   "name": "What Is My Purpose?",
+   "why": [
+    "new NPCs: [250929, 252800]"
+   ]
+  },
+  "92699": {
+   "name": "The Supreme Magister",
+   "why": [
+    "new NPCs: [252383, 252475]"
+   ]
+  },
+  "92700": {
+   "name": "The Grand Skyseer",
+   "why": [
+    "new NPCs: [252383, 251968]"
+   ]
+  },
+  "92701": {
+   "name": "To Valanaar",
+   "why": [
+    "new NPCs: [251523, 252383]"
+   ]
+  },
+  "92703": {
+   "name": "Deliver the News",
+   "why": [
+    "new NPCs: [252800, 252448]"
+   ]
+  },
+  "92706": {
+   "name": "WANTED: Bruuz",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (253710)"
+   ]
+  },
+  "92707": {
+   "name": "The Giant in the Den",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item dropped by creatures the 3.3.5 world hasn't (253711)"
+   ]
+  },
+  "92708": {
+   "name": "A Grand Adventure",
+   "why": [
+    "new NPCs: [251968, 251968]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92709": {
+   "name": "A Grand Adventure",
+   "why": [
+    "new NPCs: [252475, 252475]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92727": {
+   "name": "The Missing Scholar",
+   "why": [
+    "new NPCs: [253204]",
+    "new objects"
+   ]
+  },
+  "92741": {
+   "name": "Unwelcome Visitors",
+   "why": [
+    "new NPCs: [253004, 253004]",
+    "an item dropped by creatures the 3.3.5 world hasn't (254378)"
+   ]
+  },
+  "92742": {
+   "name": "Testing the Wells",
+   "why": [
+    "new NPCs: [253092, 253092]",
+    "an item to collect with no creature to drop it (254546)",
+    "an item to collect with no creature to drop it (254547)"
+   ]
+  },
+  "92743": {
+   "name": "A Conqueror's Crown",
+   "why": [
+    "needs a Conqueror's Crown that QuestieDB doesn't list, and Magram standing"
+   ]
+  },
+  "92744": {
+   "name": "Murloc Gills",
+   "why": [
+    "new NPCs: [253092, 253092]"
+   ]
+  },
+  "92745": {
+   "name": "The State of the Mines",
+   "why": [
+    "new NPCs: [253092, 253092]"
+   ]
+  },
+  "92747": {
+   "name": "Moonbrook Espionage",
+   "why": [
+    "new NPCs: [253092, 253092]",
+    "an item to collect with no creature to drop it (254676)"
+   ]
+  },
+  "92748": {
+   "name": "Explosive Consultation",
+   "why": [
+    "new NPCs: [253092]"
+   ]
+  },
+  "92749": {
+   "name": "A Dynamite Plan",
+   "why": [
+    "needs [92748] first, which isn't here"
+   ]
+  },
+  "92750": {
+   "name": "Detonation at a Distance",
+   "why": [
+    "needs [92748] first, which isn't here"
+   ]
+  },
+  "92751": {
+   "name": "Detonation at a Distance",
+   "why": [
+    "needs [92750] first, which isn't here"
+   ]
+  },
+  "92752": {
+   "name": "Explosive Consultation",
+   "why": [
+    "new NPCs: [253092]"
+   ]
+  },
+  "92753": {
+   "name": "Destruction in Deadmines",
+   "why": [
+    "new NPCs: [253092, 253279]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "92754": {
+   "name": "A New Need for Shadow Protection",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92755": {
+   "name": "Mysterious Mysticism",
+   "why": [
+    "nobody starts it in the data",
+    "new NPCs: [253096]"
+   ]
+  },
+  "92811": {
+   "name": "Economic Warfare",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92812": {
+   "name": "Economic Warfare",
+   "why": [
+    "new NPCs: [253140, 253140]"
+   ]
+  },
+  "92814": {
+   "name": "I Need a Tailor",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92817": {
+   "name": "Leather Technique",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92818": {
+   "name": "Big, No, MASSIVE Iron Axes",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92819": {
+   "name": "Destruction in Deadmines",
+   "why": [
+    "new NPCs: [253279, 253279]",
+    "objects to use"
+   ]
+  },
+  "92834": {
+   "name": "Avenged Tenfold",
+   "why": [
+    "new NPCs: [252475, 252475]",
+    "an item dropped by creatures the 3.3.5 world hasn't (255658)"
+   ]
+  },
+  "92840": {
+   "name": "Catching Wind",
+   "why": [
+    "new NPCs: [252475, 252475]",
+    "objects to use"
+   ]
+  },
+  "92841": {
+   "name": "Valley of Bones",
+   "why": [
+    "new NPCs: [253136]"
+   ]
+  },
+  "92844": {
+   "name": "Mountain of Bones",
+   "why": [
+    "new NPCs: [253136, 253136]"
+   ]
+  },
+  "92846": {
+   "name": "Outcast Necromancers",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [253136]"
+   ]
+  },
+  "92847": {
+   "name": "Corrupting Tears",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92849": {
+   "name": "The Missing Scholar",
+   "why": [
+    "new NPCs: [253284]",
+    "new objects",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "objects to use"
+   ]
+  },
+  "92850": {
+   "name": "The Missing Scholar",
+   "why": [
+    "new NPCs: [253284, 253285]",
+    "an item dropped by creatures the 3.3.5 world hasn't (257107)"
+   ]
+  },
+  "92860": {
+   "name": "In Service of Zephras",
+   "why": [
+    "new NPCs: [252475, 252383]"
+   ]
+  },
+  "92867": {
+   "name": "Ground to Keep",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92871": {
+   "name": "In Service of Zephras",
+   "why": [
+    "new NPCs: [251968, 252383]"
+   ]
+  },
+  "92872": {
+   "name": "Dutiful Steps",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92873": {
+   "name": "Proof of Concept",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92880": {
+   "name": "Return to Valanaar",
+   "why": [
+    "new NPCs: [252378, 252383]"
+   ]
+  },
+  "92881": {
+   "name": "The High Elder's Request",
+   "why": [
+    "new NPCs: [252383, 252476]"
+   ]
+  },
+  "92893": {
+   "name": "No Mercy for the Weak",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92894": {
+   "name": "Bone Raising",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "92909": {
+   "name": "Harvesting the Harvesters",
+   "why": [
+    "new NPCs: [253395, 253395]",
+    "an item dropped by creatures the 3.3.5 world hasn't (255007)"
+   ]
+  },
+  "92910": {
+   "name": "Harvesting the Harvesters",
+   "why": [
+    "new NPCs: [253395]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "92911": {
+   "name": "Harvesting the Harvesters",
+   "why": [
+    "new NPCs: [253395, 253395]",
+    "an item dropped by creatures the 3.3.5 world hasn't (255007)",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "92947": {
+   "name": "Making Our Move",
+   "why": [
+    "new NPCs: [253844, 253576]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93034": {
+   "name": "Valley of Bones",
+   "why": [
+    "new NPCs: [253177]"
+   ]
+  },
+  "93035": {
+   "name": "Ravaging Ravagers",
+   "why": [
+    "new NPCs: [253177, 253177]"
+   ]
+  },
+  "93036": {
+   "name": "Infiltrating the Cult",
+   "why": [
+    "new NPCs: [251523, 251904]"
+   ]
+  },
+  "93037": {
+   "name": "Outing Outcasts",
+   "why": [
+    "new NPCs: [253177, 253177]"
+   ]
+  },
+  "93041": {
+   "name": "Facing the Truth",
+   "why": [
+    "new NPCs: [253177]"
+   ]
+  },
+  "93044": {
+   "name": "A Cleansing Cry",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "93058": {
+   "name": "Saving Our Own",
+   "why": [
+    "nobody starts it in the data",
+    "new NPCs: [253177]"
+   ]
+  },
+  "93062": {
+   "name": "Bone Burying",
+   "why": [
+    "nobody starts it in the data",
+    "new NPCs: [253177]"
+   ]
+  },
+  "93065": {
+   "name": "Prepare for Battle",
+   "why": [
+    "new NPCs: [252383, 253844]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93066": {
+   "name": "Bristleback Retreat",
+   "why": [
+    "nobody starts it in the data",
+    "new NPCs: [253851]"
+   ]
+  },
+  "93072": {
+   "name": "Long-Term Solutions",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93089": {
+   "name": "What Comes Next",
+   "why": [
+    "new NPCs: [252476, 252475]"
+   ]
+  },
+  "93090": {
+   "name": "What Comes Next",
+   "why": [
+    "new NPCs: [252476, 251968]"
+   ]
+  },
+  "93122": {
+   "name": "Checking Things Out",
+   "why": [
+    "nobody starts it in the data",
+    "new NPCs: [253177]"
+   ]
+  },
+  "93125": {
+   "name": "Going Home",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93128": {
+   "name": "Khan Jehn",
+   "why": [
+    "new NPCs: [253177]"
+   ]
+  },
+  "93129": {
+   "name": "Threat of Starvation",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93159": {
+   "name": "The Strange Hermit",
+   "why": [
+    "new NPCs: [251684, 251684]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93160": {
+   "name": "The Forest's Bounty",
+   "why": [
+    "new NPCs: [251684, 251684]",
+    "an item to collect with no creature to drop it (257128)"
+   ]
+  },
+  "93165": {
+   "name": "Mercy Falls on Deaf Ears",
+   "why": [
+    "new NPCs: [254151, 254151]",
+    "an item dropped by creatures the 3.3.5 world hasn't (258771)"
+   ]
+  },
+  "93172": {
+   "name": "Free the Hollows",
+   "why": [
+    "new NPCs: [251684, 251684]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93176": {
+   "name": "My Little Friends",
+   "why": [
+    "new NPCs: [217412, 217412]"
+   ]
+  },
+  "93188": {
+   "name": "Return to Orgrul",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93196": {
+   "name": "Khan Jehn",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93226": {
+   "name": "Buying Friendship: Magram",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93227": {
+   "name": "Buying Friendship: Gelkis",
+   "why": [
+    "new NPCs: [253140]"
+   ]
+  },
+  "93317": {
+   "name": "Crab Season",
+   "why": [
+    "new NPCs: [257006, 257006]",
+    "an item dropped by creatures the 3.3.5 world hasn't (257941)"
+   ]
+  },
+  "93318": {
+   "name": "WANTED: Vulgara the Insatiable",
+   "why": [
+    "new NPCs: [252172]",
+    "new objects",
+    "an item dropped by creatures the 3.3.5 world hasn't (257942)"
+   ]
+  },
+  "93319": {
+   "name": "Pilfered Windstones",
+   "why": [
+    "new NPCs: [251906, 251906]",
+    "an item dropped by creatures the 3.3.5 world hasn't (257945)"
+   ]
+  },
+  "93320": {
+   "name": "Tower Defense",
+   "why": [
+    "new NPCs: [252383, 252378]"
+   ]
+  },
+  "93429": {
+   "name": "Blood of My Blood",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93430": {
+   "name": "Taking the Bait Back",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93459": {
+   "name": "More Al'Aketh Ears",
+   "why": [
+    "new NPCs: [254151, 254151]",
+    "an item dropped by creatures the 3.3.5 world hasn't (258771)"
+   ]
+  },
+  "93461": {
+   "name": "Welcome to Shen'dar Village",
+   "why": [
+    "new NPCs: [251523, 251523]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93464": {
+   "name": "The Visiting Mage",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93465": {
+   "name": "Notes on Draenethyst",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item dropped by creatures the 3.3.5 world hasn't (258774)"
+   ]
+  },
+  "93552": {
+   "name": "Harvesting Windstones",
+   "why": [
+    "new NPCs: [251363, 251363]",
+    "an item to collect with no creature to drop it (258772)"
+   ]
+  },
+  "93585": {
+   "name": "This Light of Mine",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [255597]"
+   ]
+  },
+  "93663": {
+   "name": "Lost in Transit",
+   "why": [
+    "an item to collect with no creature to drop it (260452)"
+   ]
+  },
+  "93678": {
+   "name": "Abridged Notes on Draenethyst",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "93680": {
+   "name": "Key to the City",
+   "why": [
+    "an item to collect with no creature to drop it (279469)"
+   ]
+  },
+  "93735": {
+   "name": "The Broken Construct",
+   "why": [
+    "new NPCs: [251968, 256083]"
+   ]
+  },
+  "93736": {
+   "name": "Unwelcome Spirits",
+   "why": [
+    "new NPCs: [254344, 254344]",
+    "an item dropped by creatures the 3.3.5 world hasn't (262357)"
+   ]
+  },
+  "93737": {
+   "name": "The Broken Construct",
+   "why": [
+    "new NPCs: [256083, 256083]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item to collect with no creature to drop it (260881)",
+    "an item to collect with no creature to drop it (260883)",
+    "an item to collect with no creature to drop it (260880)"
+   ]
+  },
+  "93738": {
+   "name": "The Broken Construct",
+   "why": [
+    "new NPCs: [256083, 251968]"
+   ]
+  },
+  "93739": {
+   "name": "Exploring the Horde",
+   "why": [
+    "needs [95350] first, which isn't here"
+   ]
+  },
+  "93740": {
+   "name": "Blood for Blood",
+   "why": [
+    "new NPCs: [251968, 251968]",
+    "an item dropped by creatures the 3.3.5 world hasn't (255658)"
+   ]
+  },
+  "93746": {
+   "name": "A Firm Response",
+   "why": [
+    "new NPCs: [251968, 251968]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93791": {
+   "name": "Speak with Belann",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252373, 256507, 256507]"
+   ]
+  },
+  "93797": {
+   "name": "Boughs in the Wind",
+   "why": [
+    "new NPCs: [256507, 256507]",
+    "an item to collect with no creature to drop it (262668)"
+   ]
+  },
+  "93835": {
+   "name": "Confront Lorthuna",
+   "why": [
+    "new NPCs: [253590, 252475]",
+    "a place to explore (a script)",
+    "special objectives (a script)"
+   ]
+  },
+  "93836": {
+   "name": "The Fate of Zephras",
+   "why": [
+    "new NPCs: [251968, 252476]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93862": {
+   "name": "Crate Return",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (262917)"
+   ]
+  },
+  "93926": {
+   "name": "The Western Watch",
+   "why": [
+    "new NPCs: [251523, 252155]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93927": {
+   "name": "A Last Request",
+   "why": [
+    "new NPCs: [252155, 251523]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item to collect with no creature to drop it (254871)",
+    "an item to collect with no creature to drop it (263415)",
+    "an item to collect with no creature to drop it (263418)"
+   ]
+  },
+  "93928": {
+   "name": "Of Mice and Milk",
+   "why": [
+    "the mouse's cookie isn't in the data (a scripted hand-in)"
+   ]
+  },
+  "93948": {
+   "name": "Deliver the Signet",
+   "why": [
+    "new NPCs: [251523, 252476]"
+   ]
+  },
+  "93949": {
+   "name": "Bugged",
+   "why": [
+    "new NPCs: [252383, 252383]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "93951": {
+   "name": "A Little Beauty",
+   "why": [
+    "new NPCs: [251991, 251991]",
+    "an item to collect with no creature to drop it (263493)"
+   ]
+  },
+  "93958": {
+   "name": "The Inner Sanctum",
+   "why": [
+    "new NPCs: [253576, 253590]"
+   ]
+  },
+  "93963": {
+   "name": "Exploring the Alliance",
+   "why": [
+    "new NPCs: [1748, 1748]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94003": {
+   "name": "The Skybreaker Bulwark",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252377, 252377]",
+    "an item dropped by creatures the 3.3.5 world hasn't (263993)"
+   ]
+  },
+  "94004": {
+   "name": "Craftsman's Writ: Elixir of Ogre's Strength",
+   "why": [
+    "new NPCs: [257281]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264011)"
+   ]
+  },
+  "94006": {
+   "name": "The Great Ursera Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252359, 255853]"
+   ]
+  },
+  "94007": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [254084, 252389]"
+   ]
+  },
+  "94013": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252389, 252389]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94050": {
+   "name": "Training the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252389, 254411]"
+   ]
+  },
+  "94212": {
+   "name": "Craftsman's Writ: Elixir of Wisdom",
+   "why": [
+    "new NPCs: [257296]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264012)"
+   ]
+  },
+  "94213": {
+   "name": "Craftsman's Writ: Lesser Mana Potion",
+   "why": [
+    "new NPCs: [257315]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264013)"
+   ]
+  },
+  "94214": {
+   "name": "Craftsman's Writ: Shadow Protection Potion",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264014)"
+   ]
+  },
+  "94215": {
+   "name": "Craftsman's Writ: Free Action Potion",
+   "why": [
+    "new NPCs: [261928]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264015)"
+   ]
+  },
+  "94216": {
+   "name": "Craftsman's Writ: Elixir of Lesser Agility",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264016)"
+   ]
+  },
+  "94217": {
+   "name": "Craftsman's Writ: Lesser Troll's Blood Elixir",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264017)"
+   ]
+  },
+  "94218": {
+   "name": "Craftsman's Writ: Elixir of Defense",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264018)"
+   ]
+  },
+  "94219": {
+   "name": "Craftsman's Writ: Draught of Water Breathing",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264019)"
+   ]
+  },
+  "94220": {
+   "name": "Craftsman's Writ: Pearl-Handled Dagger",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264020)"
+   ]
+  },
+  "94221": {
+   "name": "Craftsman's Writ: Golden Rod",
+   "why": [
+    "new NPCs: [257296]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264021)"
+   ]
+  },
+  "94222": {
+   "name": "Craftsman's Writ: Iridescent Hammer",
+   "why": [
+    "new NPCs: [257316]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264022)"
+   ]
+  },
+  "94223": {
+   "name": "Craftsman's Writ: Silver Skeleton Key",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264023)"
+   ]
+  },
+  "94224": {
+   "name": "Craftsman's Writ: Heavy Bronze Mace",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264024)"
+   ]
+  },
+  "94225": {
+   "name": "Craftsman's Writ: Rough Bronze Leggings",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264025)"
+   ]
+  },
+  "94226": {
+   "name": "Craftsman's Writ: Green Iron Gauntlets",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264026)"
+   ]
+  },
+  "94227": {
+   "name": "Craftsman's Writ: Big Bronze Knife",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264027)"
+   ]
+  },
+  "94228": {
+   "name": "Craftsman's Writ: Green Iron Boots",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264028)"
+   ]
+  },
+  "94229": {
+   "name": "Craftsman's Writ: Ornate Spyglass",
+   "why": [
+    "new NPCs: [257282]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264029)"
+   ]
+  },
+  "94230": {
+   "name": "Craftsman's Writ: Explosive Sheep",
+   "why": [
+    "new NPCs: [257304]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264030)"
+   ]
+  },
+  "94231": {
+   "name": "Craftsman's Writ: Moonsight Rifle",
+   "why": [
+    "new NPCs: [257317]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264031)"
+   ]
+  },
+  "94232": {
+   "name": "Craftsman's Writ: Minor Recombobulator",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264032)"
+   ]
+  },
+  "94233": {
+   "name": "Craftsman's Writ: Practice Lock",
+   "why": [
+    "new NPCs: [261932]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264033)"
+   ]
+  },
+  "94234": {
+   "name": "Craftsman's Writ: Shadow Goggles",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264034)"
+   ]
+  },
+  "94235": {
+   "name": "Craftsman's Writ: Gnomish Universal Remote",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264035)"
+   ]
+  },
+  "94236": {
+   "name": "Craftsman's Writ: Big Bronze Bomb",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264036)"
+   ]
+  },
+  "94237": {
+   "name": "Craftsman's Writ: Crafted Solid Shot",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264037)"
+   ]
+  },
+  "94238": {
+   "name": "Craftsman's Writ: Heavy Leather Ball",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264038)"
+   ]
+  },
+  "94239": {
+   "name": "Craftsman's Writ: Fine Leather Pants",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264039)"
+   ]
+  },
+  "94240": {
+   "name": "Craftsman's Writ: Herbalist's Gloves",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264040)"
+   ]
+  },
+  "94241": {
+   "name": "Craftsman's Writ: Dark Leather Tunic",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264041)"
+   ]
+  },
+  "94242": {
+   "name": "Craftsman's Writ: Pilferer's Gloves",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264042)"
+   ]
+  },
+  "94243": {
+   "name": "Craftsman's Writ: Heavy Quiver",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264043)"
+   ]
+  },
+  "94244": {
+   "name": "Craftsman's Writ: Dark Leather Shoulders",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264044)"
+   ]
+  },
+  "94245": {
+   "name": "Craftsman's Writ: Barbaric Gloves",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264045)"
+   ]
+  },
+  "94246": {
+   "name": "Craftsman's Writ: Red Whelp Gloves",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264046)"
+   ]
+  },
+  "94247": {
+   "name": "Craftsman's Writ: Lesser Wizard's Robe",
+   "why": [
+    "new NPCs: [257282]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264047)"
+   ]
+  },
+  "94248": {
+   "name": "Craftsman's Writ: Blue Overalls",
+   "why": [
+    "new NPCs: [257304]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264048)"
+   ]
+  },
+  "94249": {
+   "name": "Craftsman's Writ: Azure Silk Hood",
+   "why": [
+    "new NPCs: [257316]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264049)"
+   ]
+  },
+  "94250": {
+   "name": "Craftsman's Writ: Small Silk Pack",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264050)"
+   ]
+  },
+  "94251": {
+   "name": "Craftsman's Writ: Phoenix Pants",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264051)"
+   ]
+  },
+  "94252": {
+   "name": "Craftsman's Writ: Red Woolen Boots",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264052)"
+   ]
+  },
+  "94253": {
+   "name": "Craftsman's Writ: Colorful Kilt",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264053)"
+   ]
+  },
+  "94254": {
+   "name": "Craftsman's Writ: Greater Adept's Robe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264054)"
+   ]
+  },
+  "94255": {
+   "name": "Craftsman's Writ: Spider Silk Slippers",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264055)"
+   ]
+  },
+  "94256": {
+   "name": "Craftsman's Writ: Frost Protection Potion",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264056)"
+   ]
+  },
+  "94257": {
+   "name": "Craftsman's Writ: Lesser Invisibility Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264057)"
+   ]
+  },
+  "94258": {
+   "name": "Craftsman's Writ: Lesser Stoneshield Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264058)"
+   ]
+  },
+  "94259": {
+   "name": "Craftsman's Writ: Nature Protection Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264059)"
+   ]
+  },
+  "94260": {
+   "name": "Craftsman's Writ: Catseye Draught",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264060)"
+   ]
+  },
+  "94261": {
+   "name": "Craftsman's Writ: Great Rage Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264061)"
+   ]
+  },
+  "94262": {
+   "name": "Craftsman's Writ: Mana Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264062)"
+   ]
+  },
+  "94263": {
+   "name": "Craftsman's Writ: Fire Protection Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264063)"
+   ]
+  },
+  "94264": {
+   "name": "Craftsman's Writ: Shadow Oil",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264064)"
+   ]
+  },
+  "94265": {
+   "name": "Craftsman's Writ: Goblin Rocket Fuel",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264065)"
+   ]
+  },
+  "94266": {
+   "name": "Craftsman's Writ: Elixir of Agility",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264066)"
+   ]
+  },
+  "94267": {
+   "name": "Craftsman's Writ: Wildvine Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264067)"
+   ]
+  },
+  "94268": {
+   "name": "Craftsman's Writ: Steel Plate Helm",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264068)"
+   ]
+  },
+  "94269": {
+   "name": "Craftsman's Writ: Inlaid Mithril Cylinder",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264069)"
+   ]
+  },
+  "94270": {
+   "name": "Craftsman's Writ: Steel Weapon Chain",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264070)"
+   ]
+  },
+  "94271": {
+   "name": "Craftsman's Writ: Ornate Mithril Shoulders",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264071)"
+   ]
+  },
+  "94272": {
+   "name": "Craftsman's Writ: Blue Glittering Axe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264072)"
+   ]
+  },
+  "94273": {
+   "name": "Craftsman's Writ: Moonsteel Broadsword",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264073)"
+   ]
+  },
+  "94274": {
+   "name": "Craftsman's Writ: Golden Scale Coif",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264074)"
+   ]
+  },
+  "94275": {
+   "name": "Craftsman's Writ: Solid Sharpening Stone",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264075)"
+   ]
+  },
+  "94276": {
+   "name": "Craftsman's Writ: Wicked Mithril Blade",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264076)"
+   ]
+  },
+  "94277": {
+   "name": "Craftsman's Writ: Truesilver Rod",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264077)"
+   ]
+  },
+  "94278": {
+   "name": "Craftsman's Writ: Golden Scale Gauntlets",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264078)"
+   ]
+  },
+  "94279": {
+   "name": "Craftsman's Writ: Heavy Mithril Axe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264079)"
+   ]
+  },
+  "94280": {
+   "name": "Craftsman's Writ: Mechanical Dragonling",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264080)"
+   ]
+  },
+  "94281": {
+   "name": "Craftsman's Writ: Advanced Target Dummy",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264081)"
+   ]
+  },
+  "94282": {
+   "name": "Craftsman's Writ: Craftsman's Monocle",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264082)"
+   ]
+  },
+  "94283": {
+   "name": "Craftsman's Writ: Goblin Land Mine",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264083)"
+   ]
+  },
+  "94284": {
+   "name": "Craftsman's Writ: Catseye Ultra Goggles",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264084)"
+   ]
+  },
+  "94285": {
+   "name": "Craftsman's Writ: Unstable Trigger",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264085)"
+   ]
+  },
+  "94286": {
+   "name": "Craftsman's Writ: Flash Bomb",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264086)"
+   ]
+  },
+  "94287": {
+   "name": "Craftsman's Writ: Fire Goggles",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264087)"
+   ]
+  },
+  "94288": {
+   "name": "Craftsman's Writ: Mithril Frag Bomb",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264088)"
+   ]
+  },
+  "94289": {
+   "name": "Craftsman's Writ: Gyromatic Micro-Adjuster",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264089)"
+   ]
+  },
+  "94290": {
+   "name": "Craftsman's Writ: Mechanical Repair Kit",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264090)"
+   ]
+  },
+  "94291": {
+   "name": "Craftsman's Writ: Dark Iron Bomb",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264091)"
+   ]
+  },
+  "94292": {
+   "name": "Craftsman's Writ: Comfortable Leather Hat",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264092)"
+   ]
+  },
+  "94293": {
+   "name": "Craftsman's Writ: Guardian Cloak",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264093)"
+   ]
+  },
+  "94294": {
+   "name": "Craftsman's Writ: Dusky Bracers",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264094)"
+   ]
+  },
+  "94295": {
+   "name": "Craftsman's Writ: Wild Leather Helmet",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264095)"
+   ]
+  },
+  "94296": {
+   "name": "Craftsman's Writ: Wild Leather Shoulders",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264096)"
+   ]
+  },
+  "94297": {
+   "name": "Craftsman's Writ: Quickdraw Quiver",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264097)"
+   ]
+  },
+  "94298": {
+   "name": "Craftsman's Writ: Swift Boots",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264098)"
+   ]
+  },
+  "94299": {
+   "name": "Craftsman's Writ: Nightscape Shoulders",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264099)"
+   ]
+  },
+  "94300": {
+   "name": "Craftsman's Writ: Big Voodoo Mask",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264100)"
+   ]
+  },
+  "94301": {
+   "name": "Craftsman's Writ: Big Voodoo Robe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264101)"
+   ]
+  },
+  "94302": {
+   "name": "Craftsman's Writ: Turtle Scale Breastplate",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264102)"
+   ]
+  },
+  "94303": {
+   "name": "Craftsman's Writ: Thick Leather Ammo Pouch",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264103)"
+   ]
+  },
+  "94304": {
+   "name": "Craftsman's Writ: Mageweave Bag",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264104)"
+   ]
+  },
+  "94305": {
+   "name": "Craftsman's Writ: Shadoweave Gloves",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264105)"
+   ]
+  },
+  "94306": {
+   "name": "Craftsman's Writ: Crimson Silk Robe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264106)"
+   ]
+  },
+  "94307": {
+   "name": "Craftsman's Writ: Shadoweave Robe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264107)"
+   ]
+  },
+  "94308": {
+   "name": "Craftsman's Writ: Enchanted Mageweave Pouch",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264108)"
+   ]
+  },
+  "94309": {
+   "name": "Craftsman's Writ: Star Belt",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264109)"
+   ]
+  },
+  "94310": {
+   "name": "Craftsman's Writ: Black Mageweave Vest",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264110)"
+   ]
+  },
+  "94311": {
+   "name": "Craftsman's Writ: Red Mageweave Pants",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264111)"
+   ]
+  },
+  "94312": {
+   "name": "Craftsman's Writ: Orange Martial Shirt",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264112)"
+   ]
+  },
+  "94313": {
+   "name": "Craftsman's Writ: White Bandit Mask",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264113)"
+   ]
+  },
+  "94314": {
+   "name": "Craftsman's Writ: Cindercloth Robe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264114)"
+   ]
+  },
+  "94315": {
+   "name": "Craftsman's Writ: Earthen Silk Belt",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264115)"
+   ]
+  },
+  "94316": {
+   "name": "Craftsman's Writ: Potion of Demonslaying",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264116)"
+   ]
+  },
+  "94317": {
+   "name": "Craftsman's Writ: Dreamless Sleep Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264117)"
+   ]
+  },
+  "94318": {
+   "name": "Craftsman's Writ: Greater Fire Protection Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264118)"
+   ]
+  },
+  "94319": {
+   "name": "Craftsman's Writ: Draught of Detect Demon",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264119)"
+   ]
+  },
+  "94320": {
+   "name": "Craftsman's Writ: Gift of Arthas",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264120)"
+   ]
+  },
+  "94321": {
+   "name": "Craftsman's Writ: Flask of Chromatic Resistance",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264121)"
+   ]
+  },
+  "94322": {
+   "name": "Craftsman's Writ: Limited Invulnerability Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264122)"
+   ]
+  },
+  "94323": {
+   "name": "Craftsman's Writ: Major Rejuvenation Potion",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264123)"
+   ]
+  },
+  "94324": {
+   "name": "Craftsman's Writ: Distilled Firewater",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264124)",
+    "an item to collect with no creature to drop it (246948)"
+   ]
+  },
+  "94325": {
+   "name": "Craftsman's Writ: Radiant Circlet",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264125)"
+   ]
+  },
+  "94326": {
+   "name": "Craftsman's Writ: Radiant Belt",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264126)"
+   ]
+  },
+  "94327": {
+   "name": "Craftsman's Writ: Orcish War Leggings",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264127)"
+   ]
+  },
+  "94328": {
+   "name": "Craftsman's Writ: Mithril Spurs",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264128)"
+   ]
+  },
+  "94329": {
+   "name": "Craftsman's Writ: Imperial Plate Chest",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264129)"
+   ]
+  },
+  "94330": {
+   "name": "Craftsman's Writ: Darkrune Gauntlets",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264130)"
+   ]
+  },
+  "94331": {
+   "name": "Craftsman's Writ: Huge Thorium Battleaxe",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264131)"
+   ]
+  },
+  "94332": {
+   "name": "Craftsman's Writ: Arcanite Skeleton Key",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264132)"
+   ]
+  },
+  "94333": {
+   "name": "Craftsman's Writ: Ebon Shiv",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264133)"
+   ]
+  },
+  "94334": {
+   "name": "Craftsman's Writ: Masterwork Target Dummy",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264134)"
+   ]
+  },
+  "94335": {
+   "name": "Craftsman's Writ: Green Lens",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264135)"
+   ]
+  },
+  "94336": {
+   "name": "Craftsman's Writ: Lifelike Mechanical Toad",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264136)"
+   ]
+  },
+  "94337": {
+   "name": "Craftsman's Writ: Gnomish Alarm-O-Bot",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264137)"
+   ]
+  },
+  "94338": {
+   "name": "Craftsman's Writ: Goblin Jumper Cables XL",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264138)"
+   ]
+  },
+  "94339": {
+   "name": "Craftsman's Writ: Field Repair Bot 74A",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264139)"
+   ]
+  },
+  "94340": {
+   "name": "Craftsman's Writ: Truesilver Transformer",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264140)"
+   ]
+  },
+  "94341": {
+   "name": "Craftsman's Writ: Sniper Scope",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264141)"
+   ]
+  },
+  "94342": {
+   "name": "Craftsman's Writ: Tranquil Mechanical Yeti",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264142)"
+   ]
+  },
+  "94343": {
+   "name": "Craftsman's Writ: Wicked Leather Pants",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264143)"
+   ]
+  },
+  "94344": {
+   "name": "Craftsman's Writ: Gordok Ogre Suit",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264144)"
+   ]
+  },
+  "94345": {
+   "name": "Craftsman's Writ: Volcanic Breastplate",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264145)"
+   ]
+  },
+  "94346": {
+   "name": "Craftsman's Writ: Runic Leather Headband",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264146)"
+   ]
+  },
+  "94347": {
+   "name": "Craftsman's Writ: Wicked Leather Bracers",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264147)"
+   ]
+  },
+  "94348": {
+   "name": "Craftsman's Writ: Chimeric Vest",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264148)"
+   ]
+  },
+  "94349": {
+   "name": "Craftsman's Writ: Heavy Scorpid Helm",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264149)"
+   ]
+  },
+  "94350": {
+   "name": "Craftsman's Writ: Runic Leather Bracers",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264150)"
+   ]
+  },
+  "94351": {
+   "name": "Craftsman's Writ: Frostsaber Boots",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264151)"
+   ]
+  },
+  "94352": {
+   "name": "Craftsman's Writ: Wizardweave Turban",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264152)"
+   ]
+  },
+  "94353": {
+   "name": "Craftsman's Writ: Runecloth Bag",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264153)"
+   ]
+  },
+  "94354": {
+   "name": "Craftsman's Writ: Runecloth Boots",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264154)"
+   ]
+  },
+  "94355": {
+   "name": "Craftsman's Writ: Tuxedo Jacket",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264155)"
+   ]
+  },
+  "94356": {
+   "name": "Craftsman's Writ: Felcloth Boots",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264156)"
+   ]
+  },
+  "94357": {
+   "name": "Craftsman's Writ: Cenarion Herb Bag",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264157)"
+   ]
+  },
+  "94358": {
+   "name": "Craftsman's Writ: Shadoweave Mask",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264158)"
+   ]
+  },
+  "94359": {
+   "name": "Craftsman's Writ: Ghostweave Vest",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264159)"
+   ]
+  },
+  "94360": {
+   "name": "Craftsman's Writ: Soul Pouch",
+   "why": [
+    "nobody ends it in the data",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (264160)"
+   ]
+  },
+  "94369": {
+   "name": "The Fate of Zephras",
+   "why": [
+    "new NPCs: [252475, 252476]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94373": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257446, 257446]"
+   ]
+  },
+  "94374": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257446]"
+   ]
+  },
+  "94375": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257446, 257446]"
+   ]
+  },
+  "94411": {
+   "name": "Meddlesome Mages",
+   "why": [
+    "new NPCs: [251902, 251902]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94413": {
+   "name": "A Magical Affront",
+   "why": [
+    "new NPCs: [251903, 251903]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94414": {
+   "name": "The Anchors of Zephras",
+   "why": [
+    "new NPCs: [257554, 257554]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94427": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246378, 257648]"
+   ]
+  },
+  "94434": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257648, 257648]"
+   ]
+  },
+  "94435": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257648, 246378]"
+   ]
+  },
+  "94436": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246378, 257655]"
+   ]
+  },
+  "94438": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257655, 257663]"
+   ]
+  },
+  "94440": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257663, 257655]",
+    "an item dropped by creatures the 3.3.5 world hasn't (264693)"
+   ]
+  },
+  "94441": {
+   "name": "A Lesson in Divinity",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257655, 246378]"
+   ]
+  },
+  "94449": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258098, 258113, 257597]"
+   ]
+  },
+  "94465": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257597, 257808]"
+   ]
+  },
+  "94466": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257808, 257808]"
+   ]
+  },
+  "94467": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257808]"
+   ]
+  },
+  "94468": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257597]"
+   ]
+  },
+  "94472": {
+   "name": "Earth Sapta",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257446, 257446]"
+   ]
+  },
+  "94473": {
+   "name": "Fire Sapta",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257808, 257808]"
+   ]
+  },
+  "94484": {
+   "name": "Unnerving Silence",
+   "why": [
+    "new NPCs: [252359, 257944]"
+   ]
+  },
+  "94485": {
+   "name": "Tears of the Lady",
+   "why": [
+    "new NPCs: [257944, 257944]",
+    "an item to collect with no creature to drop it (265105)"
+   ]
+  },
+  "94486": {
+   "name": "Feathers for Binding",
+   "why": [
+    "new NPCs: [257944, 257944]",
+    "an item dropped by creatures the 3.3.5 world hasn't (265140)"
+   ]
+  },
+  "94487": {
+   "name": "Unwanted and Unworthy",
+   "why": [
+    "new NPCs: [257944, 257944]",
+    "an item dropped by creatures the 3.3.5 world hasn't (265141)"
+   ]
+  },
+  "94488": {
+   "name": "The Ties That Bind",
+   "why": [
+    "new NPCs: [257944, 257944]",
+    "an item dropped by creatures the 3.3.5 world hasn't (265475)"
+   ]
+  },
+  "94489": {
+   "name": "The Wounds of Betrayal",
+   "why": [
+    "new NPCs: [257944, 257944]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "kill credit (a script)"
+   ]
+  },
+  "94490": {
+   "name": "Ripped Missive",
+   "why": [
+    "new NPCs: [257944]",
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "94491": {
+   "name": "The Fate of the Den",
+   "why": [
+    "new NPCs: [257944, 252359]"
+   ]
+  },
+  "94493": {
+   "name": "A Sacrifice in Vain",
+   "why": [
+    "new NPCs: [257944, 257944]"
+   ]
+  },
+  "94494": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258098, 258043]"
+   ]
+  },
+  "94495": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258043, 258203]"
+   ]
+  },
+  "94497": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258203, 258203]",
+    "an item to collect with no creature to drop it (265734)"
+   ]
+  },
+  "94499": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258203, 258203]",
+    "an item to collect with no creature to drop it (265748)"
+   ]
+  },
+  "94500": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258203, 258203]",
+    "an item to collect with no creature to drop it (265773)"
+   ]
+  },
+  "94501": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258203, 258043]"
+   ]
+  },
+  "94502": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258043]",
+    "new objects"
+   ]
+  },
+  "94503": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [5895]",
+    "new objects"
+   ]
+  },
+  "94505": {
+   "name": "Call of Water",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [5895, 258043]"
+   ]
+  },
+  "94568": {
+   "name": "The Cult's True Plans",
+   "why": [
+    "new NPCs: [252476, 252476]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94616": {
+   "name": "Water Sapta",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258043, 258043]"
+   ]
+  },
+  "94638": {
+   "name": "Strength and Mercy",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [255853, 255853]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94773": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94774": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94775": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94776": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94777": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94778": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94779": {
+   "name": "Divine Grace",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94789": {
+   "name": "Call of Air",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258098, 259023]"
+   ]
+  },
+  "94792": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251507, 251507]"
+   ]
+  },
+  "94793": {
+   "name": "Training the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251507, 258930]"
+   ]
+  },
+  "94817": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258785, 258785]"
+   ]
+  },
+  "94818": {
+   "name": "Contingency Plan",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94819": {
+   "name": "Contingency Plan",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258785]"
+   ]
+  },
+  "94820": {
+   "name": "Contingency Plan",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody ends it in the data"
+   ]
+  },
+  "94821": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94822": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "new NPCs: [258785]"
+   ]
+  },
+  "94823": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94824": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258785]"
+   ]
+  },
+  "94825": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94826": {
+   "name": "Confounding Flash",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "94863": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251507, 251507]"
+   ]
+  },
+  "94864": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [251507, 251507]"
+   ]
+  },
+  "94872": {
+   "name": "Buying Friendship: Magram",
+   "why": [
+    "new NPCs: [253139]"
+   ]
+  },
+  "94873": {
+   "name": "Buying Friendship: Gelkis",
+   "why": [
+    "new NPCs: [253140]"
+   ]
+  },
+  "94896": {
+   "name": "Aid For The Refugees",
+   "why": [
+    "new NPCs: [259012, 259012]",
+    "an item to collect with no creature to drop it (266433)"
+   ]
+  },
+  "94897": {
+   "name": "The Fate of a Loved One",
+   "why": [
+    "new NPCs: [259012, 259012]",
+    "an item dropped by creatures the 3.3.5 world hasn't (266434)"
+   ]
+  },
+  "94911": {
+   "name": "Child of Nature",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259118]"
+   ]
+  },
+  "94912": {
+   "name": "Child of Nature",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [270459]"
+   ]
+  },
+  "94913": {
+   "name": "Moonglade",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94914": {
+   "name": "Moonglade",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "94946": {
+   "name": "The Magical City of Dalaran",
+   "why": [
+    "new NPCs: [252475, 259084]"
+   ]
+  },
+  "94947": {
+   "name": "Welcome to Azeroth",
+   "why": [
+    "new NPCs: [259084, 1748]",
+    "objects to use"
+   ]
+  },
+  "94978": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252389, 252389]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "94979": {
+   "name": "Taming the Beast",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252389, 252389]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "95034": {
+   "name": "The Debt",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259620, 259620]"
+   ]
+  },
+  "95036": {
+   "name": "A Moon-Kissed Blade",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259620, 248840]",
+    "an item to collect with no creature to drop it (267454)",
+    "an item to collect with no creature to drop it (267361)",
+    "an item to collect with no creature to drop it (272448)"
+   ]
+  },
+  "95041": {
+   "name": "Data Hoarders",
+   "why": [
+    "an item to collect with no creature to drop it (267413)"
+   ]
+  },
+  "95042": {
+   "name": "Seeking the Kor Gem",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259649, 259649]"
+   ]
+  },
+  "95065": {
+   "name": "Fishin' Time",
+   "why": [
+    "new NPCs: [267118, 267118]"
+   ]
+  },
+  "95111": {
+   "name": "An Underrated Talent",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248840]"
+   ]
+  },
+  "95125": {
+   "name": "Ott's Masterwork",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "95126": {
+   "name": "The Moonsilver Blade",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248840]"
+   ]
+  },
+  "95140": {
+   "name": "Old Fire-Eye",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259620, 259620]"
+   ]
+  },
+  "95161": {
+   "name": "Remember That I Love You",
+   "why": [
+    "needs [92415] first, which isn't here"
+   ]
+  },
+  "95189": {
+   "name": "Crest of Lordaeron",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "95195": {
+   "name": "Bloodied Insignia",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "95204": {
+   "name": "Crest of Lordaeron",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "95212": {
+   "name": "Never Saddle on Quality",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (267414)"
+   ]
+  },
+  "95216": {
+   "name": "The New Plague",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (275443)"
+   ]
+  },
+  "95217": {
+   "name": "The Quarry's Smith",
+   "why": [
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "95250": {
+   "name": "Abominable Creatures",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item dropped by creatures the 3.3.5 world hasn't (268518)"
+   ]
+  },
+  "95314": {
+   "name": "That Shadowvale Green Elixir",
+   "why": [
+    "an item to collect with no creature to drop it (268801)"
+   ]
+  },
+  "95328": {
+   "name": "Whispering Horror Residue",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item dropped by creatures the 3.3.5 world hasn't (268812)"
+   ]
+  },
+  "95349": {
+   "name": "The Earthen Ring",
+   "why": [
+    "new NPCs: [251968, 259119]"
+   ]
+  },
+  "95350": {
+   "name": "Welcome to Azeroth",
+   "why": [
+    "new NPCs: [259119]"
+   ]
+  },
+  "95384": {
+   "name": "Partial Mystical Notes",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95495": {
+   "name": "The Hermit Tanner",
+   "why": [
+    "new NPCs: [261366]"
+   ]
+  },
+  "95507": {
+   "name": "Vrang's Game",
+   "why": [
+    "an item to collect with no creature to drop it (269719)"
+   ]
+  },
+  "95508": {
+   "name": "Unwelcome Guests",
+   "why": [
+    "new NPCs: [261366, 261366]"
+   ]
+  },
+  "95534": {
+   "name": "Strahnbrad Mystery",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "95621": {
+   "name": "Trouble in the Valley",
+   "why": [
+    "new NPCs: [261366, 261366]",
+    "an item dropped by creatures the 3.3.5 world hasn't (270151)"
+   ]
+  },
+  "95646": {
+   "name": "Horrors in the Highland",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (270180)"
+   ]
+  },
+  "95647": {
+   "name": "Lost in the Thicket Things",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "95663": {
+   "name": "Dragonmaw Rumors",
+   "why": [
+    "new NPCs: [13155]"
+   ]
+  },
+  "95664": {
+   "name": "Elder Knowledge",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item dropped by creatures the 3.3.5 world hasn't (270866)"
+   ]
+  },
+  "95682": {
+   "name": "Open the Maw",
+   "why": [
+    "new NPCs: [13155, 13155]"
+   ]
+  },
+  "95697": {
+   "name": "Changing Tastes",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (271100)"
+   ]
+  },
+  "95737": {
+   "name": "Seeking Caitlin",
+   "why": [
+    "leads to Excavation Site: Wetlands, a new dungeon"
+   ]
+  },
+  "95748": {
+   "name": "The Gurubashi Legends of Old",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95770": {
+   "name": "Locating the Lost City",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95772": {
+   "name": "Songblade Search",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "95773": {
+   "name": "Enemies in the Water",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item dropped by creatures the 3.3.5 world hasn't (270305)"
+   ]
+  },
+  "95774": {
+   "name": "Her Name Is Olgra",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (277277)"
+   ]
+  },
+  "95775": {
+   "name": "The Drowned City",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (270308)",
+    "an item to collect with no creature to drop it (270309)",
+    "an item to collect with no creature to drop it (270310)",
+    "an item to collect with no creature to drop it (270311)"
+   ]
+  },
+  "95776": {
+   "name": "The Only Good Brinescale...",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95795": {
+   "name": "Fallen in the Fen",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "95803": {
+   "name": "A Token of Good Faith",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [246378]"
+   ]
+  },
+  "95805": {
+   "name": "Grace of An'she and Mu'sha",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95809": {
+   "name": "Heartwoven",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "95810": {
+   "name": "Lost Relic Carry",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item dropped by creatures the 3.3.5 world hasn't (270865)"
+   ]
+  },
+  "95816": {
+   "name": "Sign Me Up!",
+   "why": [
+    "new NPCs: [256391]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (270897)"
+   ]
+  },
+  "95817": {
+   "name": "Rotgath Stonebeard",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "95819": {
+   "name": "Sign Me Up!",
+   "why": [
+    "new NPCs: [256388]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (270897)"
+   ]
+  },
+  "95883": {
+   "name": "The Tortured Soul",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95884": {
+   "name": "The Offering Stone",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95885": {
+   "name": "The Offering of Blood",
+   "why": [
+    "new objects"
+   ]
+  },
+  "95998": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [263399, 263399]",
+    "objects to use"
+   ]
+  },
+  "95999": {
+   "name": "WANTED: Incinerator Gar'im",
+   "why": [
+    "new objects",
+    "an item dropped by creatures the 3.3.5 world hasn't (271872)"
+   ]
+  },
+  "96016": {
+   "name": "The Tempest's Weapons",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259023]"
+   ]
+  },
+  "96031": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96044": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96045": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96046": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96047": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96050": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96055": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96056": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96057": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96058": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [265813]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96059": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96101": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [263664, 263664]",
+    "objects to use"
+   ]
+  },
+  "96102": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96130": {
+   "name": "Chakuyak",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (270302)"
+   ]
+  },
+  "96135": {
+   "name": "Heed My Call",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259023, 259023]",
+    "an item dropped by creatures the 3.3.5 world hasn't (212792)"
+   ]
+  },
+  "96136": {
+   "name": "Call of Air",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "96138": {
+   "name": "Merrick's Bow",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "96139": {
+   "name": "The Valor Family",
+   "why": [
+    "an item to collect with no creature to drop it (281046)"
+   ]
+  },
+  "96204": {
+   "name": "The Windshaper's Wrath",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [248755, 259620]"
+   ]
+  },
+  "96222": {
+   "name": "Khan Hratha",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [253066]"
+   ]
+  },
+  "96241": {
+   "name": "Talkin' bout Toxins, Mon",
+   "why": [
+    "new NPCs: [264074, 264074]",
+    "an item dropped by creatures the 3.3.5 world hasn't (273001)"
+   ]
+  },
+  "96243": {
+   "name": "Call of Earth",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [258098, 258113, 257446]"
+   ]
+  },
+  "96259": {
+   "name": "Defending the Dead",
+   "why": [
+    "new NPCs: [259118, 259118]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96260": {
+   "name": "Stronger than Steel",
+   "why": [
+    "new NPCs: [264072, 264072]",
+    "an item dropped by creatures the 3.3.5 world hasn't (273181)"
+   ]
+  },
+  "96261": {
+   "name": "The Broodmother",
+   "why": [
+    "new NPCs: [259118, 259118]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96264": {
+   "name": "Elemental Aid",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [259023, 259023]"
+   ]
+  },
+  "96294": {
+   "name": "A Darker Truth",
+   "why": [
+    "new NPCs: [259118]",
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "96339": {
+   "name": "Legacy Reward: Replica Ironforge Air Rifle",
+   "why": [
+    "not a quest to play (Legacy Reward: Replica Ironforge Air Rifle)"
+   ]
+  },
+  "96383": {
+   "name": "Legacy Reward: Spectral Bear Cub",
+   "why": [
+    "not a quest to play (Legacy Reward: Spectral Bear Cub)"
+   ]
+  },
+  "96390": {
+   "name": "Nip 'Em in the Bud",
+   "why": [
+    "new NPCs: [264936, 264936]"
+   ]
+  },
+  "96391": {
+   "name": "Underground Map",
+   "why": [
+    "new NPCs: [264936]"
+   ]
+  },
+  "96392": {
+   "name": "Farsen's Watch",
+   "why": [
+    "new NPCs: [264936, 264936]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96393": {
+   "name": "Old Ironforge Incursion",
+   "why": [
+    "new NPCs: [264936]",
+    "an item dropped by creatures the 3.3.5 world hasn't (274286)"
+   ]
+  },
+  "96394": {
+   "name": "The Restless Dead",
+   "why": [
+    "new NPCs: [264943, 264943]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96395": {
+   "name": "An Ancient Grudge",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "96403": {
+   "name": "Important Heirlooms",
+   "why": [
+    "new NPCs: [265003, 265003]",
+    "an item to collect with no creature to drop it (274289)"
+   ]
+  },
+  "96408": {
+   "name": "A Visitor to Dun Morogh",
+   "why": [
+    "new NPCs: [264936]"
+   ]
+  },
+  "96604": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [265809, 265809]",
+    "objects to use"
+   ]
+  },
+  "96605": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [265810, 265810]",
+    "objects to use"
+   ]
+  },
+  "96606": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [265811, 265811]",
+    "objects to use"
+   ]
+  },
+  "96607": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [265812, 265812]",
+    "objects to use"
+   ]
+  },
+  "96608": {
+   "name": "The Great Outdoors",
+   "why": [
+    "new NPCs: [265813, 265813]",
+    "objects to use"
+   ]
+  },
+  "96626": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [263399]"
+   ]
+  },
+  "96627": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [263399]"
+   ]
+  },
+  "96628": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [265813]"
+   ]
+  },
+  "96629": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [265813]"
+   ]
+  },
+  "96630": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [265811]",
+    "new objects"
+   ]
+  },
+  "96634": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [265811]"
+   ]
+  },
+  "96638": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [251366, 263664]"
+   ]
+  },
+  "96646": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [263664, 251905]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96652": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [265809]",
+    "new objects"
+   ]
+  },
+  "96655": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [265809]"
+   ]
+  },
+  "96656": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [265812]"
+   ]
+  },
+  "96658": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [265812, 265944]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96659": {
+   "name": "The Adventurer",
+   "why": [
+    "new NPCs: [265810]"
+   ]
+  },
+  "96661": {
+   "name": "Camping 101: Cooking",
+   "why": [
+    "new NPCs: [265810]"
+   ]
+  },
+  "96774": {
+   "name": "Ancient Gurubashi Idol",
+   "why": [
+    "new NPCs: [264074, 264074]",
+    "an item to collect with no creature to drop it (276894)"
+   ]
+  },
+  "96779": {
+   "name": "Syndicate Sabotage",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96781": {
+   "name": "What's the Big Idea?",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "an item to collect with no creature to drop it (275482)"
+   ]
+  },
+  "96782": {
+   "name": "Covert Extraction",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "an item to collect with no creature to drop it (275635)",
+    "an item to collect with no creature to drop it (275636)"
+   ]
+  },
+  "96783": {
+   "name": "A Way In",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new objects"
+   ]
+  },
+  "96784": {
+   "name": "Master of Disguise",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [266847]",
+    "new objects"
+   ]
+  },
+  "96785": {
+   "name": "Ain't No Telling",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "new NPCs: [266847]",
+    "an item to collect with no creature to drop it (275709)"
+   ]
+  },
+  "96786": {
+   "name": "The Syndicate Sting",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "nobody starts it in the data",
+    "an item to collect with no creature to drop it (275882)",
+    "an item to collect with no creature to drop it (275706)"
+   ]
+  },
+  "96800": {
+   "name": "Past Due",
+   "why": [
+    "new NPCs: [264265, 264265]",
+    "an item to collect with no creature to drop it (273169)"
+   ]
+  },
+  "96821": {
+   "name": "Legging It",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96822": {
+   "name": "For Honor",
+   "why": [
+    "new NPCs: [266940, 266940]",
+    "an item to collect with no creature to drop it (275713)",
+    "an item to collect with no creature to drop it (275716)",
+    "an item to collect with no creature to drop it (275717)"
+   ]
+  },
+  "96825": {
+   "name": "This Fruit Could Bite Back",
+   "why": [
+    "an item to collect with no creature to drop it (275718)"
+   ]
+  },
+  "96873": {
+   "name": "A Pain in the Neck",
+   "why": [
+    "new NPCs: [266881, 266881]",
+    "an item to collect with no creature to drop it (247884)",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96874": {
+   "name": "This Is Spinal Axe",
+   "why": [
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96875": {
+   "name": "Beasts of Thunder Ridge",
+   "why": [
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "96876": {
+   "name": "Ukor's Lost Pack",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "96877": {
+   "name": "Halikor's Hoof",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "96895": {
+   "name": "The Argent Emissary",
+   "why": [
+    "new NPCs: [267009]"
+   ]
+  },
+  "96896": {
+   "name": "A Righteous Cause",
+   "why": [
+    "new NPCs: [267008, 267008]"
+   ]
+  },
+  "96897": {
+   "name": "The Cult of the Damned",
+   "why": [
+    "new NPCs: [267009, 267009]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96898": {
+   "name": "Remnants of War",
+   "why": [
+    "new NPCs: [267009, 267009]",
+    "an item dropped by creatures the 3.3.5 world hasn't (275851)"
+   ]
+  },
+  "96899": {
+   "name": "Bandarion Keep",
+   "why": [
+    "new NPCs: [267009, 267008]"
+   ]
+  },
+  "96984": {
+   "name": "Heart of Disruption",
+   "why": [
+    "new NPCs: [269127]",
+    "an item dropped by creatures the 3.3.5 world hasn't (251961)"
+   ]
+  },
+  "96986": {
+   "name": "The Grave Knight",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "96987": {
+   "name": "Opportunistic Education",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (275996)"
+   ]
+  },
+  "96988": {
+   "name": "Source of Power",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (275997)"
+   ]
+  },
+  "97003": {
+   "name": "Chol'aruk the Ravener",
+   "why": [
+    "new NPCs: [267310, 267310]",
+    "an item dropped by creatures the 3.3.5 world hasn't (276070)"
+   ]
+  },
+  "97005": {
+   "name": "Chol'aruk the Ravener",
+   "why": [
+    "new NPCs: [267309, 267309]",
+    "an item dropped by creatures the 3.3.5 world hasn't (276070)"
+   ]
+  },
+  "97047": {
+   "name": "The Cook in the Cage",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (216617)"
+   ]
+  },
+  "97048": {
+   "name": "Returning to Port",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97065": {
+   "name": "Tip the Scales - Keefer's Angelfish",
+   "why": [
+    "new NPCs: [267806, 267806]"
+   ]
+  },
+  "97066": {
+   "name": "Tip the Scales - Brownell's Blue Striped Racer",
+   "why": [
+    "new NPCs: [267806, 267806]"
+   ]
+  },
+  "97067": {
+   "name": "Tip the Scales - Dezian Queenfish",
+   "why": [
+    "new NPCs: [267806, 267806]"
+   ]
+  },
+  "97220": {
+   "name": "Philmor's Favor",
+   "why": [
+    "new NPCs: [268511]"
+   ]
+  },
+  "97222": {
+   "name": "Gatehouse Goods",
+   "why": [
+    "objects to use"
+   ]
+  },
+  "97223": {
+   "name": "Bloodtalon Matriarch",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (277128)"
+   ]
+  },
+  "97225": {
+   "name": "Forgotten Loa Idols",
+   "why": [
+    "an item to collect with no creature to drop it (277135)"
+   ]
+  },
+  "97234": {
+   "name": "Reading Room",
+   "why": [
+    "new NPCs: [268568]"
+   ]
+  },
+  "97237": {
+   "name": "Shelf Picked",
+   "why": [
+    "new NPCs: [268568]",
+    "an item to collect with no creature to drop it (277196)",
+    "an item to collect with no creature to drop it (277194)",
+    "an item to collect with no creature to drop it (277195)",
+    "an item to collect with no creature to drop it (277197)"
+   ]
+  },
+  "97242": {
+   "name": "Yelmak's Medley",
+   "why": [
+    "an item to collect with no creature to drop it (277278)",
+    "an item to collect with no creature to drop it (277279)"
+   ]
+  },
+  "97243": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [252382, 254082, 268592]"
+   ]
+  },
+  "97244": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [268592, 268592]",
+    "an item dropped by creatures the 3.3.5 world hasn't (277267)"
+   ]
+  },
+  "97245": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [268592, 268592]",
+    "an item dropped by creatures the 3.3.5 world hasn't (277269)",
+    "special objectives (a script)"
+   ]
+  },
+  "97246": {
+   "name": "Meal Appeal",
+   "why": [
+    "new NPCs: [268701]"
+   ]
+  },
+  "97249": {
+   "name": "Favorite Food",
+   "why": [
+    "new NPCs: [268682]"
+   ]
+  },
+  "97250": {
+   "name": "Wrongly Blamed, Justly Corrected",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "97253": {
+   "name": "Parts and Pieces",
+   "why": [
+    "an item to collect with no creature to drop it (277331)"
+   ]
+  },
+  "97257": {
+   "name": "Call of Fire",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [268592, 252382]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "97263": {
+   "name": "Your Package Has Arrived",
+   "why": [
+    "new NPCs: [258098]",
+    "new objects"
+   ]
+  },
+  "97265": {
+   "name": "Hate the Hatefury",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [268705]"
+   ]
+  },
+  "97277": {
+   "name": "Grund and Gozwin",
+   "why": [
+    "new NPCs: [2756, 2756]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item to collect with no creature to drop it (277976)"
+   ]
+  },
+  "97279": {
+   "name": "Wayward Weapons",
+   "why": [
+    "an item to collect with no creature to drop it (277653)"
+   ]
+  },
+  "97281": {
+   "name": "A Simmering Storm",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "97282": {
+   "name": "Stormy Potential",
+   "why": [
+    "needs [97281] first, which isn't here"
+   ]
+  },
+  "97284": {
+   "name": "Vahlarriel's Vengeance",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97286": {
+   "name": "Research Access",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [211022, 211033, 211022, 211033]"
+   ]
+  },
+  "97287": {
+   "name": "Shrewd Negotiations",
+   "why": [
+    "new NPCs: [252085]"
+   ]
+  },
+  "97288": {
+   "name": "Unending Torment",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "97289": {
+   "name": "Unending Torment",
+   "why": [
+    "new NPCs: [271613]"
+   ]
+  },
+  "97290": {
+   "name": "Unending Torment",
+   "why": [
+    "new NPCs: [271613]"
+   ]
+  },
+  "97291": {
+   "name": "Unending Torment",
+   "why": [
+    "an item to collect with no creature to drop it (281246)",
+    "an item to collect with no creature to drop it (281300)"
+   ]
+  },
+  "97292": {
+   "name": "Unending Torment",
+   "why": [
+    "injects a serum in the Ruins of Lordaeron (a spell on an object in a new dungeon)"
+   ]
+  },
+  "97326": {
+   "name": "Rocks to Rests",
+   "why": [
+    "new NPCs: [268684, 268684]",
+    "an item to collect with no creature to drop it (277952)"
+   ]
+  },
+  "97328": {
+   "name": "Anything of Value",
+   "why": [
+    "nobody ends it in the data",
+    "new objects",
+    "an item to collect with no creature to drop it (277953)"
+   ]
+  },
+  "97329": {
+   "name": "Where's the Key?",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97331": {
+   "name": "Zimmix's Great Escape",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97420": {
+   "name": "Reduce, Reuse, Reconcile",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "97485": {
+   "name": "Traditions of the Bluff",
+   "why": [
+    "new NPCs: [269068, 269068]",
+    "objects to use",
+    "an item to collect with no creature to drop it (278078)"
+   ]
+  },
+  "97538": {
+   "name": "Pigments for Paints",
+   "why": [
+    "an item to collect with no creature to drop it (278201)"
+   ]
+  },
+  "97539": {
+   "name": "Silky Sutures",
+   "why": [
+    "nobody ends it in the data"
+   ]
+  },
+  "97583": {
+   "name": "WRIGGLE.",
+   "why": [
+    "new NPCs: [269452, 269452]",
+    "an item to collect with no creature to drop it (278265)"
+   ]
+  },
+  "97899": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97900": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97901": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97902": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97903": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97904": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97905": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97906": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97907": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97908": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [265809]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97915": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97916": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97917": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97918": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97919": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97920": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97921": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97922": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97923": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97924": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97925": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [263399]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97927": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97928": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97929": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97930": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97931": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97932": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97933": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97934": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97935": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97936": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97937": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [265810]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97938": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97939": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97940": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97941": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97942": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97943": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97944": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97946": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97948": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97949": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97950": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [265811]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97951": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97952": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97953": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97954": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97955": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97956": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97957": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97958": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97959": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97960": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97961": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [265812]",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97963": {
+   "name": "Camping 101: Alchemy",
+   "why": [
+    "new NPCs: [263664, 257019]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97964": {
+   "name": "Camping 101: Blacksmithing",
+   "why": [
+    "new NPCs: [263664, 251913]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97965": {
+   "name": "Camping 101: First Aid",
+   "why": [
+    "new NPCs: [263664, 257018]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97967": {
+   "name": "Camping 101: Fishing",
+   "why": [
+    "new NPCs: [263664, 251992]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97968": {
+   "name": "Camping 101: Herbalism",
+   "why": [
+    "new NPCs: [263664, 254345]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97969": {
+   "name": "Camping 101: Leatherworking",
+   "why": [
+    "new NPCs: [263664, 251993]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97970": {
+   "name": "Camping 101: Mining",
+   "why": [
+    "new NPCs: [263664, 257022]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97971": {
+   "name": "Camping 101: Skinning",
+   "why": [
+    "new NPCs: [263664, 257024]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97972": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [263664, 251991]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97973": {
+   "name": "Camping 101: Tailoring",
+   "why": [
+    "new NPCs: [263664, 251991]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "97977": {
+   "name": "Nature's Call",
+   "why": [
+    "an item to collect with no creature to drop it (279082)"
+   ]
+  },
+  "97979": {
+   "name": "The Goddess Provides",
+   "why": [
+    "a spell to cast (a script)"
+   ]
+  },
+  "97985": {
+   "name": "Thundering Hearts",
+   "why": [
+    "new NPCs: [270038, 270038]",
+    "an item dropped by creatures the 3.3.5 world hasn't (279186)"
+   ]
+  },
+  "98013": {
+   "name": "Swelling Forces",
+   "why": [
+    "new NPCs: [270269, 270269]"
+   ]
+  },
+  "98021": {
+   "name": "Journey to Sentinel Hill",
+   "why": [
+    "new NPCs: [1748]"
+   ]
+  },
+  "98024": {
+   "name": "Journey to the Crossroads",
+   "why": [
+    "needs [95350] first, which isn't here"
+   ]
+  },
+  "98025": {
+   "name": "WANTED: Jai'vhanel",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (281038)"
+   ]
+  },
+  "98027": {
+   "name": "Gleaming Crescent Necklace",
+   "why": [
+    "new objects"
+   ]
+  },
+  "98028": {
+   "name": "Baron Marinous",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "98059": {
+   "name": "Hillsbrad's Hoard",
+   "why": [
+    "new NPCs: [251493, 251493]"
+   ]
+  },
+  "98067": {
+   "name": "Eyes of the Sentinels",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "98069": {
+   "name": "Stolen Freewind Supplies",
+   "why": [
+    "an item to collect with no creature to drop it (279383)"
+   ]
+  },
+  "98071": {
+   "name": "Brewer's Trade",
+   "why": [
+    "its objective (the hops from Dun Garok) isn't in the data"
+   ]
+  },
+  "98093": {
+   "name": "Field to Clear",
+   "why": [
+    "new NPCs: [14242, 14242]"
+   ]
+  },
+  "98094": {
+   "name": "Scout Support",
+   "why": [
+    "new NPCs: [270438]"
+   ]
+  },
+  "98095": {
+   "name": "Valuable Vantages",
+   "why": [
+    "new NPCs: [270438, 270438]"
+   ]
+  },
+  "98156": {
+   "name": "Packaged Pristine Pelts",
+   "why": [
+    "nobody starts it in the data"
+   ]
+  },
+  "98190": {
+   "name": "A Friend of the Family",
+   "why": [
+    "new NPCs: [1748]"
+   ]
+  },
+  "98191": {
+   "name": "A Friend of the Family",
+   "why": [
+    "new NPCs: [1748]"
+   ]
+  },
+  "98197": {
+   "name": "Spoils of War",
+   "why": [
+    "an item to collect with no creature to drop it (279821)",
+    "an item to collect with no creature to drop it (279822)"
+   ]
+  },
+  "98208": {
+   "name": "Bloom of the Heavens",
+   "why": [
+    "new NPCs: [270844, 270844]",
+    "an item to collect with no creature to drop it (279915)"
+   ]
+  },
+  "98209": {
+   "name": "Bloom of the Heavens",
+   "why": [
+    "new NPCs: [270844]"
+   ]
+  },
+  "98216": {
+   "name": "Understanding Our Present",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (279993)"
+   ]
+  },
+  "98221": {
+   "name": "From the Ashes",
+   "why": [
+    "its objective (the attack plans to destroy) isn't in the data"
+   ]
+  },
+  "98223": {
+   "name": "Old Habits",
+   "why": [
+    "new objects"
+   ]
+  },
+  "98230": {
+   "name": "This Land Was Their Land",
+   "why": [
+    "new NPCs: [270637]"
+   ]
+  },
+  "98240": {
+   "name": "Crimson Crate Delivery",
+   "why": [
+    "new NPCs: [270637]"
+   ]
+  },
+  "98245": {
+   "name": "Razormaw Needling",
+   "why": [
+    "new NPCs: [270637, 270637]"
+   ]
+  },
+  "98246": {
+   "name": "Trying Times",
+   "why": [
+    "new NPCs: [270637, 270637]",
+    "an item to collect with no creature to drop it (280132)"
+   ]
+  },
+  "98247": {
+   "name": "Shipping Label",
+   "why": [
+    "new NPCs: [256390]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (280179)"
+   ]
+  },
+  "98248": {
+   "name": "Shipping Label",
+   "why": [
+    "new NPCs: [256386]",
+    "starts from an item no creature of the 3.3.5 world drops",
+    "an item to collect with no creature to drop it (280180)"
+   ]
+  },
+  "98251": {
+   "name": "Never Coming Back",
+   "why": [
+    "new NPCs: [267214, 267214]"
+   ]
+  },
+  "98252": {
+   "name": "A Void Path",
+   "why": [
+    "new NPCs: [267214, 271181]"
+   ]
+  },
+  "98282": {
+   "name": "Alchemical Hazards",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (280319)"
+   ]
+  },
+  "98283": {
+   "name": "Carnage",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (280331)",
+    "an item dropped by creatures the 3.3.5 world hasn't (280330)"
+   ]
+  },
+  "98284": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "new NPCs: [263664, 257020]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "98285": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "new NPCs: [251684, 251684]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "98286": {
+   "name": "Camping 101: Enchanting",
+   "why": [
+    "new NPCs: [263664, 257020]",
+    "creatures to kill that the 3.3.5 world hasn't",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "98287": {
+   "name": "Camping 101: Engineering",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "a profession requirement (Forever's Camping)"
+   ]
+  },
+  "98291": {
+   "name": "Death to the Dragonmaw",
+   "why": [
+    "new NPCs: [270637, 270637]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "98293": {
+   "name": "Forced Disarmament",
+   "why": [
+    "new objects",
+    "an item to collect with no creature to drop it (280369)"
+   ]
+  },
+  "98297": {
+   "name": "Stopping the Cycle",
+   "why": [
+    "new NPCs: [270637, 270637]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "98300": {
+   "name": "Word to Ironforge",
+   "why": [
+    "new NPCs: [270637]"
+   ]
+  },
+  "98310": {
+   "name": "Gleaning Our Future",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (280395)",
+    "an item dropped by creatures the 3.3.5 world hasn't (280396)",
+    "an item dropped by creatures the 3.3.5 world hasn't (280397)",
+    "an item dropped by creatures the 3.3.5 world hasn't (280398)"
+   ]
+  },
+  "98319": {
+   "name": "Secure the Mountain",
+   "why": [
+    "new NPCs: [271546, 271546]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "98321": {
+   "name": "Flintfire's Shipment",
+   "why": [
+    "an item to collect with no creature to drop it (280413)"
+   ]
+  },
+  "98322": {
+   "name": "Secure the Mountain",
+   "why": [
+    "new NPCs: [271546]"
+   ]
+  },
+  "98323": {
+   "name": "Secure the Mountain",
+   "why": [
+    "new NPCs: [271546]"
+   ]
+  },
+  "98326": {
+   "name": "Frosthowl",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (280426)"
+   ]
+  },
+  "98338": {
+   "name": "REUSE ME",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98340": {
+   "name": "The Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98341": {
+   "name": "The Great Windborne Cat Spirit",
+   "why": [
+    "new NPCs: [272054]"
+   ]
+  },
+  "98342": {
+   "name": "The Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "an item to collect with no creature to drop it (280502)",
+    "an item to collect with no creature to drop it (280679)",
+    "an item to collect with no creature to drop it (280680)"
+   ]
+  },
+  "98362": {
+   "name": "To Thunder Bluff",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98372": {
+   "name": "An Unfortunate End",
+   "why": [
+    "nobody starts it in the data",
+    "new NPCs: [271866]"
+   ]
+  },
+  "98386": {
+   "name": "Alther's Mill",
+   "why": [
+    "objects to use",
+    "kill credit (a script)"
+   ]
+  },
+  "98387": {
+   "name": "Blackrock Blockade",
+   "why": [
+    "an item to collect with no creature to drop it (280841)",
+    "an item to collect with no creature to drop it (280839)"
+   ]
+  },
+  "98389": {
+   "name": "A Light in the Darkness",
+   "why": [
+    "new NPCs: [244808, 244808]",
+    "kill credit (a script)"
+   ]
+  },
+  "98392": {
+   "name": "Darkness in the Glade",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (280831)",
+    "an item dropped by creatures the 3.3.5 world hasn't (280832)",
+    "an item dropped by creatures the 3.3.5 world hasn't (280834)"
+   ]
+  },
+  "98393": {
+   "name": "The Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98394": {
+   "name": "The Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98396": {
+   "name": "The Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "an item to collect with no creature to drop it (280502)",
+    "an item to collect with no creature to drop it (280679)",
+    "an item to collect with no creature to drop it (280680)"
+   ]
+  },
+  "98397": {
+   "name": "To Darnassus",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98398": {
+   "name": "The Oracle Tree",
+   "why": [
+    "new objects"
+   ]
+  },
+  "98403": {
+   "name": "Twisted Hatred",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't",
+    "an item dropped by creatures the 3.3.5 world hasn't (281023)"
+   ]
+  },
+  "98404": {
+   "name": "The Great Windborne Cat Spirit",
+   "why": [
+    "new NPCs: [272054, 272054]",
+    "an item to collect with no creature to drop it (280502)",
+    "an item to collect with no creature to drop it (280679)",
+    "an item to collect with no creature to drop it (280680)"
+   ]
+  },
+  "98405": {
+   "name": "The Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98417": {
+   "name": "Vengeful Trail",
+   "why": [
+    "new NPCs: [221269, 221269]",
+    "an item to collect with no creature to drop it (281014)"
+   ]
+  },
+  "98418": {
+   "name": "Shared Fury",
+   "why": [
+    "new NPCs: [221269, 221269]"
+   ]
+  },
+  "98423": {
+   "name": "The Treaty of Understanding",
+   "why": [
+    "starts from an item no creature of the 3.3.5 world drops"
+   ]
+  },
+  "98424": {
+   "name": "Fizsprocket's Notes",
+   "why": [
+    "an item to collect with no creature to drop it (281035)",
+    "an item to collect with no creature to drop it (281036)",
+    "an item to collect with no creature to drop it (281037)"
+   ]
+  },
+  "98427": {
+   "name": "Ceasing Operations",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (281048)"
+   ]
+  },
+  "98430": {
+   "name": "The Longwalkers",
+   "why": [
+    "new NPCs: [272203]",
+    "a place to explore (a script)"
+   ]
+  },
+  "98459": {
+   "name": "A Lack of Virtue",
+   "why": [
+    "new NPCs: [254078]"
+   ]
+  },
+  "98471": {
+   "name": "Message from the Supreme Magister",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98512": {
+   "name": "Al'Aketh Assassins",
+   "why": [
+    "new NPCs: [273017, 273017]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "98517": {
+   "name": "Call of Fire",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98545": {
+   "name": "Leonid's Letter",
+   "why": [
+    "new NPCs: [267008, 272526]"
+   ]
+  },
+  "98574": {
+   "name": "Hallowed Memorandum",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98575": {
+   "name": "Tainted Tablet",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98576": {
+   "name": "Glyphic Parchment",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98581": {
+   "name": "Archaic Rune",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [257446]"
+   ]
+  },
+  "98601": {
+   "name": "A Difficult Path",
+   "why": [
+    "a class quest (3.3.5's class training has its own)",
+    "new NPCs: [244808]"
+   ]
+  },
+  "98731": {
+   "name": "Blessings of the Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98738": {
+   "name": "Blessings of the Great Windborne Cat Spirit",
+   "why": [
+    "new NPCs: [272054]"
+   ]
+  },
+  "98739": {
+   "name": "Blessings of the Great Cat Spirit",
+   "why": [
+    "a class quest (3.3.5's class training has its own)"
+   ]
+  },
+  "98815": {
+   "name": "Highland Hides",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (284845)"
+   ]
+  },
+  "98823": {
+   "name": "Earthen Echo",
+   "why": [
+    "new NPCs: [259118]"
+   ]
+  },
+  "98824": {
+   "name": "Prehistoric Prism",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (270865)"
+   ]
+  },
+  "98887": {
+   "name": "Conflict at Darkspear Islands",
+   "why": [
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98888": {
+   "name": "Conflict at Darkspear Islands",
+   "why": [
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98889": {
+   "name": "Conflict at Darkspear Islands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98891": {
+   "name": "Conflict at Darkspear Islands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98893": {
+   "name": "Conflict at Darkspear Islands",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98895": {
+   "name": "Darkspear Islands Clash",
+   "why": [
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98896": {
+   "name": "Darkspear Islands Clash",
+   "why": [
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98897": {
+   "name": "Darkspear Islands Clash",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98899": {
+   "name": "Darkspear Islands Clash",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98901": {
+   "name": "Darkspear Islands Clash",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data",
+    "an item to collect with no creature to drop it (274895)"
+   ]
+  },
+  "98903": {
+   "name": "The Battle for Darkspear Islands!",
+   "why": [
+    "new NPCs: [275273, 275273]"
+   ]
+  },
+  "98904": {
+   "name": "The Battle for Darkspear Islands!",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98905": {
+   "name": "The Battle for Darkspear Islands!",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98906": {
+   "name": "The Battle for Darkspear Islands!",
+   "why": [
+    "new NPCs: [275276, 275276]"
+   ]
+  },
+  "98907": {
+   "name": "The Battle for Darkspear Islands!",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98908": {
+   "name": "The Battle for Darkspear Islands!",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98910": {
+   "name": "Darkspear's Basic Care Package",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98913": {
+   "name": "Theramore Basic Care Package",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98977": {
+   "name": "Mossheart the Elder",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "98983": {
+   "name": "Frostleaf the Elder",
+   "why": [
+    "nobody starts it in the data",
+    "nobody ends it in the data"
+   ]
+  },
+  "99046": {
+   "name": "The Lost Runner",
+   "why": [
+    "new NPCs: [275683]"
+   ]
+  },
+  "99047": {
+   "name": "Not Dead Yet",
+   "why": [
+    "new NPCs: [275683]"
+   ]
+  },
+  "99048": {
+   "name": "A Missing Hand",
+   "why": [
+    "new NPCs: [275657]"
+   ]
+  },
+  "99049": {
+   "name": "Threat from Below",
+   "why": [
+    "new NPCs: [275657]",
+    "an item to collect with no creature to drop it (286012)",
+    "an item to collect with no creature to drop it (286011)",
+    "an item to collect with no creature to drop it (286010)"
+   ]
+  },
+  "99050": {
+   "name": "The Great Tree Provides",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286017)"
+   ]
+  },
+  "99051": {
+   "name": "Threat from Below",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286008)"
+   ]
+  },
+  "99052": {
+   "name": "Threat from Below",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286009)"
+   ]
+  },
+  "99053": {
+   "name": "Escaping Ban'ethil",
+   "why": [
+    "new NPCs: [275744]",
+    "a place to explore (a script)"
+   ]
+  },
+  "99073": {
+   "name": "Easing Suffering",
+   "why": [
+    "new NPCs: [275683]"
+   ]
+  },
+  "99079": {
+   "name": "Longwalker Malah",
+   "why": [
+    "new NPCs: [275789]"
+   ]
+  },
+  "99080": {
+   "name": "Drive Them Out",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286075)"
+   ]
+  },
+  "99081": {
+   "name": "Grim Tidings",
+   "why": [
+    "new NPCs: [275789]"
+   ]
+  },
+  "99082": {
+   "name": "The High Chieftain",
+   "why": [
+    "needs [99080] first, which isn't here"
+   ]
+  },
+  "99101": {
+   "name": "Our Ancient Enemy",
+   "why": [
+    "needs [99081] first, which isn't here"
+   ]
+  },
+  "99108": {
+   "name": "Sparring Match",
+   "why": [
+    "duels with other players"
+   ]
+  },
+  "99123": {
+   "name": "Lost in the Shadows",
+   "why": [
+    "new NPCs: [275811]",
+    "a place to explore (a script)"
+   ]
+  },
+  "99127": {
+   "name": "A Net Disaster",
+   "why": [
+    "an item to collect with no creature to drop it (286205)"
+   ]
+  },
+  "99128": {
+   "name": "Slimy Menace",
+   "why": [
+    "needs [99127] first, which isn't here"
+   ]
+  },
+  "99129": {
+   "name": "A Man About a Murloc",
+   "why": [
+    "needs [99128] first, which isn't here"
+   ]
+  },
+  "99130": {
+   "name": "An Enticing Offer",
+   "why": [
+    "an item to collect with no creature to drop it (286214)"
+   ]
+  },
+  "99131": {
+   "name": "Baited for Success",
+   "why": [
+    "needs [99130] first, which isn't here"
+   ]
+  },
+  "99134": {
+   "name": "Discipline",
+   "why": [
+    "kill credit (a script)"
+   ]
+  },
+  "99141": {
+   "name": "Patience",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286201)"
+   ]
+  },
+  "99142": {
+   "name": "Tomb Weed",
+   "why": [
+    "an item to collect with no creature to drop it (286204)"
+   ]
+  },
+  "99143": {
+   "name": "Bottles and Baubles",
+   "why": [
+    "an item to collect with no creature to drop it (286209)"
+   ]
+  },
+  "99144": {
+   "name": "Seeking Refuge",
+   "why": [
+    "new NPCs: [275954, 246152]",
+    "a place to explore (a script)"
+   ]
+  },
+  "99152": {
+   "name": "As Above, So Below",
+   "why": [
+    "new NPCs: [246389, 246389]",
+    "an item dropped by creatures the 3.3.5 world hasn't (286259)"
+   ]
+  },
+  "99153": {
+   "name": "The One That Got Away",
+   "why": [
+    "new NPCs: [259190, 259190]",
+    "an item to collect with no creature to drop it (286269)"
+   ]
+  },
+  "99156": {
+   "name": "Rear Guard Patrol",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286326)"
+   ]
+  },
+  "99159": {
+   "name": "Finding Warmth",
+   "why": [
+    "an item to collect with no creature to drop it (286339)"
+   ]
+  },
+  "99160": {
+   "name": "Rime's Wrath",
+   "why": [
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  },
+  "99161": {
+   "name": "Rime's Wrath",
+   "why": [
+    "an item dropped by creatures the 3.3.5 world hasn't (286325)"
+   ]
+  },
+  "99162": {
+   "name": "Treacherous Cold",
+   "why": [
+    "an item to collect with no creature to drop it (286360)",
+    "an item to collect with no creature to drop it (286359)",
+    "an item to collect with no creature to drop it (286358)"
+   ]
+  },
+  "99191": {
+   "name": "A Donation of Wool",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [276170]"
+   ]
+  },
+  "99192": {
+   "name": "A Donation of Silk",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [276170]"
+   ]
+  },
+  "99196": {
+   "name": "A Donation of Wool",
+   "why": [
+    "new NPCs: [276171, 276171]"
+   ]
+  },
+  "99197": {
+   "name": "A Donation of Silk",
+   "why": [
+    "nobody ends it in the data",
+    "new NPCs: [276171]"
+   ]
+  },
+  "99260": {
+   "name": "Fillion's Mission",
+   "why": [
+    "new NPCs: [253285, 252475]"
+   ]
+  },
+  "99267": {
+   "name": "An Unfortunate End",
+   "why": [
+    "new NPCs: [271866, 271866]"
+   ]
+  },
+  "99411": {
+   "name": "Kyle's Gone Missing!",
+   "why": [
+    "new NPCs: [277182, 277182]",
+    "creatures to kill that the 3.3.5 world hasn't"
+   ]
+  }
+ }
+}

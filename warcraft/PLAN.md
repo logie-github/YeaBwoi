@@ -1587,6 +1587,28 @@ a realm with modules), then stage 3.
   packager now leaves `build/package-incomplete` then, and the workflow doesn't keep that package:
   the next run fetches again, and the test and the app, which need the package, stop there.
 
+- The user: "Check to see how many of these quests it would be easy to implement into a Forever WoW
+  module" (Wowhead's Forever quests), then "See about implementing them", then "I want the exact
+  quest text from wowhead or another source. Also don't worry about the new zone ones."
+  `warcraft/modules/mod-forever-quests` (its README), ChromieCraft's realm only (`realm_sql`):
+  38 of Forever's 889 new quests (ids 86000 and up the core hasn't), those whose givers, enders,
+  creatures to kill and item droppers are all in the core's world and need no script. Sources:
+  QuestieDB's Forever database (github.com/Questie/QuestieDB, read as Lua data, nothing run) for
+  who gives and ends what, objectives, item sources, chains and races; foreverchanges.pro's quest
+  pages (Wowhead's Forever data; Wowhead itself refuses scripted reads) for the exact words,
+  counts, rewards, money, experience and reputation; wow4ever.quest for experience where that
+  page has none; Wowhead's item tooltips for the 8 new reward items' stats. Estimated, not from
+  any source: drop chances (60% from one or two kinds of creature, 35% from more; quest starters
+  8% or always from one creature), money for the quests whose rewards block the data lacks
+  (median of the core's quests of that level and step), experience for 5 of them, the new
+  items' looks (3.3.5's display with the same icon). Left out: new zones and dungeons, new NPCs
+  (no source gives their models; the Forever client's Creature table holds only companion
+  pets), items with no dropping creature in the data, scripts, class, Crafting and Camping
+  quests (`data/forever/report.json`, every quest with its reasons). Checked here: the SQL in
+  MariaDB 10.11 on the core's base world tables, twice; `tools/test_forever.py`. CI: that test,
+  and the server test (all in ChromieCraft's world, none in Remix's, no word from the world
+  server about them). Not checked: playing them.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made

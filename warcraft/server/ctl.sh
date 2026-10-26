@@ -255,12 +255,13 @@ run_dbimport() {
 # - The allied races' (mod-allied-races, ChromieCraft's alone): data/sql/chromiecraft, into
 #   ChromieCraft's world database; and data/sql/remix, which takes earlier releases' rows of theirs
 #   out of Remix's.
+# - WoW: Forever's new quests (mod-forever-quests, ChromieCraft's alone): data/sql/chromiecraft.
 realm_sql() {
 	if [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
 	else
-		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world"
+		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-forever-quests/data/sql/chromiecraft/world acore_world"
 	fi
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }

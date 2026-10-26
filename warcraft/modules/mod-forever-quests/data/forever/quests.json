@@ -1,0 +1,2608 @@
+{
+ "_about": "QuestieDB's Forever data (github.com/Questie/QuestieDB, read by tools/forever.py import): the new quests the 3.3.5 world can carry as they are, the items they use and their NPCs' zones; each quest's page: its words, objectives, rewards, money, experience and reputation from foreverchanges.pro (Wowhead's Forever database). Quest text (c) Blizzard Entertainment.",
+ "quests": {
+  "86576": {
+   "page": {
+    "objectives_text": "Bring 15 Glittering Sunstones to Mor'rogal.",
+    "need_items": [
+     [
+      277936,
+      15
+     ]
+    ],
+    "need_goals": [],
+    "description": "In addition to spreading their filth across the Charred Vale, the Bloodfury harpies gather anything shiny that they can find. I'm told that they collect a variety of golden-yellow sunstones for decoration. I have no use for such trinkets, but Mor'rogal has mentioned using them before.$B$BWhile you're fighting the harpies of the Vale, keep your eye out for Glittering Sunstones. Bring any that you find to Mor'rogal, up on the hills above us.",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      281252,
+      1
+     ]
+    ],
+    "money": 2000,
+    "xp": 2100,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 26,
+    "min_level": 18,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Bloodfury Trinkets",
+   "startedBy": [
+    [
+     11860
+    ]
+   ],
+   "finishedBy": [
+    [
+     11861
+    ]
+   ],
+   "requiredLevel": 18,
+   "questLevel": 26,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Bring 15 Glittering Sunstones to Mor'rogal."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      277936
+     ]
+    ]
+   ],
+   "zoneOrSort": 406
+  },
+  "86757": {
+   "page": {
+    "objectives_text": "Bring 6 Jagged Orc Swords and 4 Curved Orc Daggers to Shandrina.",
+    "need_items": [
+     [
+      279505,
+      6
+     ],
+     [
+      279507,
+      4
+     ]
+    ],
+    "need_goals": [],
+    "description": "Orcs have taken over the eastern forest, and their scouts and grunts now lurk throughout the woods! It's not safe for our kind to move about Ashenvale any more.$B$BWe need to push back the orcs and secure the forest. We've been able to pick off some of the grunts and scouts by carefully sneaking around the edges of their camp.$B$BFight the orcs and bring me the jagged swords and curved knives that they use. I'll make sure their weapons are salvaged and repurposed, so nothing goes to waste.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 3000,
+    "xp": 2550,
+    "reputation": [
+     [
+      "Darnassus",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 32,
+    "min_level": 27,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Slowing the Orc Advance",
+   "startedBy": [
+    [
+     3955
+    ]
+   ],
+   "finishedBy": [
+    [
+     3955
+    ]
+   ],
+   "requiredLevel": 27,
+   "questLevel": 30,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring 6 Jagged Orc Swords and 4 Curved Orc Daggers to Shandrina."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      279505
+     ],
+     [
+      279507
+     ]
+    ]
+   ],
+   "zoneOrSort": 331,
+   "reputationReward": [
+    [
+     69,
+     100
+    ]
+   ]
+  },
+  "86776": {
+   "page": {
+    "objectives_text": "Bring 10 Bronze Bars to Morhan Coppertongue.",
+    "need_items": [
+     [
+      2841,
+      10
+     ]
+    ],
+    "need_goals": [],
+    "description": "Thelsamar's a great place to live, but we don't have all of the amenities of Ironforge. I'm always running out of bronze! I need more bronze if I'm going to keep making tools and kettles and pots!$B$BI can tell you have a little experience at the forge. Think you could smelt me some bronze bars? I can pay you well for it!",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      3576,
+      10
+     ]
+    ],
+    "money": 2500,
+    "xp": 2450,
+    "reputation": [
+     [
+      "Ironforge",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "Gotta keep the forges going!",
+    "completion": "Ah, this is a relief! I should be able to keep the forge going now. Hopefully one of these days we'll get a trader bringing coal into town regularly!",
+    "level": 30,
+    "min_level": 15,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Ingredients for the Forge",
+   "startedBy": [
+    [
+     167
+    ]
+   ],
+   "finishedBy": [
+    [
+     167
+    ]
+   ],
+   "requiredLevel": 15,
+   "questLevel": 30,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring 10 Bronze Bars to Morhan Coppertongue."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      2841
+     ]
+    ]
+   ],
+   "zoneOrSort": 38,
+   "reputationReward": [
+    [
+     47,
+     100
+    ]
+   ]
+  },
+  "87288": {
+   "page": {
+    "objectives_text": "Bring 6 Soft Nightsaber Pelts to Aldria.",
+    "need_items": [
+     [
+      280087,
+      6
+     ]
+    ],
+    "need_goals": [],
+    "description": "Hello, traveler! I hope you are enjoying your visit to our village. I like Dolanaar because it is small and rustic and everyone is friendly.$B$BI'm a local trader, and I bring in all sorts of tools and trinkets that might be useful to you in your travels. Indeed, if you are interested in a trade, I find myself in need of some nightsaber pelts. While these majestic creatures are beautiful, the local ones are rather aggressive, so don't feel too bad about defending yourself.",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      280088,
+      1
+     ]
+    ],
+    "money": 0,
+    "xp": 625,
+    "reputation": [
+     [
+      "Darnassus",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "It is good to see you again! Are you here to trade?",
+    "completion": "Oh, these are wonderful. It is a shame to resort to violence with such majestic animals, but it is important to keep the roads safe, and these pelts will make beautiful blankets and shawls.$B$BHere, let me give you something to remember them. It is both soft and sturdy.",
+    "level": 7,
+    "min_level": 4,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Soft Saber Pelts",
+   "startedBy": [
+    [
+     3608
+    ]
+   ],
+   "finishedBy": [
+    [
+     3608
+    ]
+   ],
+   "requiredLevel": 4,
+   "questLevel": 7,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring 6 Soft Nightsaber Pelts to Aldria."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      280087
+     ]
+    ]
+   ],
+   "zoneOrSort": 141,
+   "reputationReward": [
+    [
+     69,
+     100
+    ],
+    [
+     54,
+     25
+    ],
+    [
+     469,
+     25
+    ],
+    [
+     47,
+     25
+    ],
+    [
+     72,
+     25
+    ]
+   ]
+  },
+  "91741": {
+   "page": {
+    "objectives_text": "Return the book to Brother Paxton.",
+    "need_items": [
+     [
+      247857,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "<One of the kobolds dropped this book. It looks like the kobold might have tried to eat it.$B$BBrother Paxton inside the abbey has a small library he maintains. The book must have come from there.>",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 17,
+    "xp": 85,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "What's that you got there? It looks like one of my books.",
+    "completion": "Hey! How did you end up with that? It's supposed to be on the shelf! Oh dear, the kobolds have been stealing my books again. They must want to eat them!$B$BThanks for bringing back the book, but what will I do about the rest of my missing collection?",
+    "level": 2,
+    "min_level": 1,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Nibbled-On Book",
+   "startedBy": [
+    null,
+    null,
+    [
+     247834
+    ]
+   ],
+   "finishedBy": [
+    [
+     951
+    ]
+   ],
+   "requiredLevel": 1,
+   "questLevel": 2,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Return the book to Brother Paxton."
+   ],
+   "sourceItemId": 247857,
+   "zoneOrSort": 12
+  },
+  "91920": {
+   "page": {
+    "objectives_text": "Gather 3 murloc eyes and bring them to Apothecary Renferrel at the Sepulcher.",
+    "need_items": [
+     [
+      730,
+      3
+     ]
+    ],
+    "need_goals": [],
+    "description": "I wouldn't dare to question the effectiveness of Apothecary Renferrel's formulae, however I would be lying if I said that the potion made any noticeable difference.$B$BAlong the shore of Lake Lordamere are a swarm of murlocs, and of note, murlocs have eyes. I suspect the apothecary's willingness to try new things is suppressed by his recent obsession with hearts. Bring him a few.$B$BIf my choice is to inevitably die a second death or have Renferrel kill me for questioning his methods, I choose the latter.",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      4597,
+      1
+     ],
+     [
+      4596,
+      1
+     ]
+    ],
+    "money": 200,
+    "xp": 440,
+    "reputation": [
+     [
+      "Undercity",
+      50
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "Oh. You're back?",
+    "completion": "The potion didn't work? Of course it didn't work. You brought me insufficient hearts. The recipe clearly calls for six. You brought three.$B$BHowever, I confess I hadn't considered applications for murloc parts until now...$B$B<Renferrel takes the eyes.>$B$BI can afford to sacrifice a few of my own hearts to get your Deathstalker's strength back.",
+    "level": 11,
+    "min_level": 10,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Wild Eyes",
+   "startedBy": [
+    [
+     1951
+    ]
+   ],
+   "finishedBy": [
+    [
+     1937
+    ]
+   ],
+   "requiredLevel": 10,
+   "questLevel": 11,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Gather 3 murloc eyes and bring them to Apothecary Renferrel at the Sepulcher."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      730
+     ]
+    ]
+   ],
+   "zoneOrSort": 130,
+   "reputationReward": [
+    [
+     68,
+     50
+    ]
+   ]
+  },
+  "91921": {
+   "page": {
+    "objectives_text": "Bring Quinn's potion to Quinn Yorick at the Ivar Patch, north of the Sepulcher.",
+    "need_items": [
+     [
+      248930,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "Here is the new potion to aid in Quinn's recovery, made with love extracted from six whole hearts.$B$BNow, please excuse me before your presence necessitates more paperwork.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "You return! I was beginning to come to terms with devolving into a ghoul.",
+    "completion": "<Quinn takes the potion and drinks it.>$B$BYes, I can feel it working.  I will soon be able to travel.$B$BYou have done me a great favor, Saixgone.",
+    "level": 11,
+    "min_level": 10,
+    "side": "Horde",
+    "shareable": false
+   },
+   "name": "Return to Quinn (Again)",
+   "startedBy": [
+    [
+     1937
+    ]
+   ],
+   "finishedBy": [
+    [
+     1951
+    ]
+   ],
+   "requiredLevel": 10,
+   "questLevel": 11,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Bring Quinn's potion to Quinn Yorick at the Ivar Patch, north of the Sepulcher."
+   ],
+   "sourceItemId": 248930,
+   "zoneOrSort": 130,
+   "reputationReward": [
+    [
+     68,
+     75
+    ]
+   ]
+  },
+  "93224": {
+   "page": {
+    "objectives_text": "Acquire 5 Carved Centaur Totems by slaying centaur of any clan throughout Desolace, then return them to Captain Pentigast at Nijel's Point.",
+    "need_items": [
+     [
+      254432,
+      5
+     ]
+    ],
+    "need_goals": [],
+    "description": "It likely comes as no surprise to you that both of the centaur clans are hesitant to accept aid from anyone outside of their clan. This is especially true for folks like you and me - you know, non-centaurs.$B$BOne thing we all have in common is an understanding that money is power, and we have learned that the local centaur barter with carved wood. If you bring me a few samples of their designs, I can put in a rush order for similar etchings. Perhaps we can buy ourselves an advantage.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 40,
+    "min_level": 30,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Carved Centaur Totems",
+   "startedBy": [
+    [
+     5396
+    ]
+   ],
+   "finishedBy": [
+    [
+     5396
+    ]
+   ],
+   "requiredLevel": 30,
+   "questLevel": 40,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Acquire 5 Carved Centaur Totems by slaying centaur of any clan throughout Desolace, then return them to Captain Pentigast at Nijel's Point."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      254432
+     ]
+    ]
+   ],
+   "zoneOrSort": 405
+  },
+  "93225": {
+   "page": {
+    "objectives_text": "Acquire 5 Carved Centaur Totems by slaying centaur of any clan throughout Desolace, then return them to Gurda Wildmane at Ghost Walker Post.",
+    "need_items": [
+     [
+      254432,
+      5
+     ]
+    ],
+    "need_goals": [],
+    "description": "I have noticed that centaur from different clans sometimes gather away from settlements and engage in trade. I have observed this across numerous nights and seemingly with every clan; most importantly I have seen the currency they use: carved totems.$B$BI believe we can turn the tides in our favor with either the Gelkis or the Magram if we deliver a heavy bundle of totems right to them. I have already begun carving some, but I doubt they will be easily fooled without a few authentic ones.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 40,
+    "min_level": 30,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Carved Centaur Totems",
+   "startedBy": [
+    [
+     5412
+    ]
+   ],
+   "finishedBy": [
+    [
+     5412
+    ]
+   ],
+   "requiredLevel": 30,
+   "questLevel": 40,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Acquire 5 Carved Centaur Totems by slaying centaur of any clan throughout Desolace, then return them to Gurda Wildmane at Ghost Walker Post."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      254432
+     ]
+    ]
+   ],
+   "zoneOrSort": 405
+  },
+  "95213": {
+   "page": {
+    "objectives_text": "Bring the Empty Powder Keg to Quarrymaster Thesten at Gol'Bolar Quarry.",
+    "need_items": [
+     [
+      268548,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "The keg is stamped:$B$BBLASTING POWDER - DANGER - DO NOT HANDLE - DANGER - QUARRYMASTER AUTHORIZATION ONLY - DANGER$B$BYou get a sinking feeling that the troggs shouldn't have this. It would be best to report this to the quarry sooner rather than later.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "What's that you've got?",
+    "completion": "<The $R turns pale as he sees the empty keg.>$B$B...Where did you find this?",
+    "level": 10,
+    "min_level": 7,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Stolen Blasting Powder",
+   "startedBy": [
+    null,
+    null,
+    [
+     268548
+    ]
+   ],
+   "finishedBy": [
+    [
+     1256
+    ]
+   ],
+   "requiredLevel": 7,
+   "questLevel": 10,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring the Empty Powder Keg to Quarrymaster Thesten at Gol'Bolar Quarry."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      268548
+     ]
+    ]
+   ],
+   "zoneOrSort": 1
+  },
+  "95214": {
+   "page": {
+    "objectives_text": "Recover 16 Stolen Blasting Powder from the troggs east of Gol'Bolar Quarry, then return to Quarrymaster Thesten.",
+    "need_items": [
+     [
+      267415,
+      16
+     ]
+    ],
+    "need_goals": [],
+    "description": "This keg held enough powder to turn King Magni's throne room into an open air courtyard. We've got to get it back from the troggs before they work out how to ignite it.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "I hope you've got good news for me?",
+    "completion": "That should be all the stolen powder. Thank you, $C.$B$BPlease accept this reward, and... I'd appreciate if you didn't mention this little incident to anyone.",
+    "level": 10,
+    "min_level": 7,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Stolen Blasting Powder",
+   "startedBy": [
+    [
+     1256
+    ]
+   ],
+   "finishedBy": [
+    [
+     1256
+    ]
+   ],
+   "requiredLevel": 7,
+   "questLevel": 10,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Recover 16 Stolen Blasting Powder from the troggs east of Gol'Bolar Quarry, then return to Quarrymaster Thesten."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      267415
+     ]
+    ]
+   ],
+   "preQuestSingle": [
+    95213
+   ],
+   "zoneOrSort": 1,
+   "reputationReward": [
+    [
+     47,
+     75
+    ]
+   ]
+  },
+  "95494": {
+   "page": {
+    "objectives_text": "Collect 6 Savannah Lion Hides from the Savannah Matriarchs and Savannah Patriarchs in the Barrens.",
+    "need_items": [
+     [
+      269715,
+      6
+     ]
+    ],
+    "need_goals": [],
+    "description": "I need someone with a strong sword arm and some extra time on their hands to help me gather some lion hides. It stings my pride to ask a stranger for this aid, but I took an injury to my leg recently. Until I heal, I'm in no shape to go hunting myself but I have obligations to keep.$B$BThe big ones in this area generally have the best hides, so start with those first.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 1000,
+    "xp": 1350,
+    "reputation": [
+     [
+      "Orgrimmar",
+      50
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "How goes the hunt?",
+    "completion": "Yes, these look like they will do nicely. I have an arrangement with a local tanner to deliver these raw hides in exchange for various finished leather goods that I use as part of my trade.$B$BI've never come up short on my end of the arrangement, and even with my injury I do not intend to start now.",
+    "level": 18,
+    "min_level": 14,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Bruised Pride and Lion Hides",
+   "startedBy": [
+    [
+     3682
+    ]
+   ],
+   "finishedBy": [
+    [
+     3682
+    ]
+   ],
+   "requiredLevel": 14,
+   "questLevel": 18,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Collect 6 Savannah Lion Hides from the Savannah Matriarchs and Savannah Patriarchs in the Barrens."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      269715
+     ]
+    ]
+   ],
+   "zoneOrSort": 17,
+   "reputationReward": [
+    [
+     76,
+     50
+    ]
+   ]
+  },
+  "95981": {
+   "page": {
+    "objectives_text": "Slay 8 Dalaran Wizards and 8 Dalaran Watchers for Shadow Priest Allister in the Sepulcher.",
+    "need_items": [],
+    "need_goals": [
+     [
+      "Dalaran Watcher",
+      8
+     ],
+     [
+      "Dalaran Wizard",
+      8
+     ]
+    ],
+    "description": "Taking away their pendants is just the first step. If the Kirin Tor really are shipping a steady supply of relics from Dalaran, we must stop them at the source.$B$BSearch the roads around Ambermill for Dalaran's wizards and watchers. Their presence has allowed free access across our borders for too long. If we can cull their numbers, that should put a stop to these pendants making it into Silverpine Forest in the first place.",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      281265,
+      1
+     ]
+    ],
+    "money": 1200,
+    "xp": 1550,
+    "reputation": [
+     [
+      "Undercity",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "Ever since the barrier went down around Dalaran, the Kirin Tor have maintained a death grip on the roads. They're paranoid about something, that much is certain.$B$BFor now, however, the why is irrelevant.",
+    "level": 20,
+    "min_level": 10,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Watching the Roads",
+   "startedBy": [
+    [
+     2121
+    ]
+   ],
+   "finishedBy": [
+    [
+     2121
+    ]
+   ],
+   "requiredLevel": 10,
+   "questLevel": 20,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Slay 8 Dalaran Wizards and 8 Dalaran Watchers for Shadow Priest Allister in the Sepulcher."
+   ],
+   "objectives": [
+    [
+     [
+      1888
+     ],
+     [
+      1889
+     ]
+    ]
+   ],
+   "zoneOrSort": 130,
+   "reputationReward": [
+    [
+     68,
+     100
+    ]
+   ]
+  },
+  "96137": {
+   "page": {
+    "objectives_text": "Defeat 10 Young Black Ravagers and 7 Black Ravagers then return to Sirra Von'Indi in Darkshire for more information.",
+    "need_items": [
+     [
+      281143,
+      1
+     ]
+    ],
+    "need_goals": [
+     [
+      "Young Black Ravager",
+      10
+     ],
+     [
+      "Black Ravager",
+      7
+     ]
+    ],
+    "description": "A small dagger belonging to the self-appointed ranger, Ira, who kept the forests safe by preventing the beasts within from attacking travelers.$B$BWith Ira's spirit still wandering the woods, perhaps her unfinished business was to clear out the worg that continue to claim victims throughout the forest.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 24,
+    "min_level": 18,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Ira's Dagger",
+   "startedBy": [
+    [
+     6176
+    ],
+    null,
+    [
+     281143
+    ]
+   ],
+   "finishedBy": [
+    [
+     268
+    ]
+   ],
+   "requiredLevel": 18,
+   "questLevel": 24,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Defeat 10 Young Black Ravagers and 7 Black Ravagers then return to Sirra Von'Indi in Darkshire for more information."
+   ],
+   "objectives": [
+    [
+     [
+      923
+     ],
+     [
+      628
+     ]
+    ]
+   ],
+   "sourceItemId": 281143,
+   "zoneOrSort": 10
+  },
+  "97236": {
+   "page": {
+    "objectives_text": "Deliver the Fang of Githyiss to someone interested in the study of spiders in Aldrassil.",
+    "need_items": [],
+    "need_goals": [],
+    "description": "A fresh specimen from a beast of this size is quite a find. Perhaps someone in Aldrassil familiar with the study of spiders would be interested in the fang.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 100,
+    "xp": 450,
+    "reputation": [
+     [
+      "Darnassus",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "My, my. How I do love surprises, $N.$B$BThis specimen will surely help further my studies.",
+    "level": 5,
+    "min_level": 1,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Fang of Githyiss",
+   "startedBy": [
+    null,
+    null,
+    [
+     277190
+    ]
+   ],
+   "finishedBy": [
+    [
+     2082
+    ]
+   ],
+   "requiredLevel": 1,
+   "questLevel": 5,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Deliver the Fang of Githyiss to someone interested in the study of spiders in Aldrassil."
+   ],
+   "zoneOrSort": 141,
+   "reputationReward": [
+    [
+     69,
+     100
+    ]
+   ]
+  },
+  "97275": {
+   "page": {
+    "objectives_text": "Give Yelmak's Potion to Whuut.",
+    "need_items": [
+     [
+      277566,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "Whuut is a prodigy. That much is true. But he doesn't yet have the experience, wisdom, and time on the stirring rod to know how to respect alchemical processes.$B$BHe is exhausting all of the rarest and most exotic reagents we have available without pausing to practice and refine his basic skills.$B$BGive him this potion I've brewed with a quick tonic method. He'll reconsider everything he's doing when he learns how local remedies and careful touch are the first true mastery.",
+    "reward_choice": [
+     [
+      3385,
+      2
+     ],
+     [
+      929,
+      2
+     ]
+    ],
+    "reward_items": [],
+    "money": 0,
+    "xp": 800,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "Alright, what's next... Black Lotus, Mountain Silversage...",
+    "completion": "Grorru--whaa?$B$BYou say Yelmak made this potion from speargrass and cattail with no other reagents? I didn't know chemists had any real need for these common plants we see every day.$B$BMaybe he's right. There could be a lot I'm missing out on by skipping to the most rare and least-studied flora first.$B$BDrakath, take your pick from one of these potions I brewed earlier. I appreciate you taking the time to visit our shop.",
+    "level": 15,
+    "min_level": 9,
+    "side": "Horde",
+    "shareable": false
+   },
+   "name": "Whuut's the Rush",
+   "startedBy": [
+    [
+     3347
+    ]
+   ],
+   "finishedBy": [
+    [
+     11046
+    ]
+   ],
+   "requiredLevel": 9,
+   "questLevel": 15,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Give Yelmak's Potion to Whuut."
+   ],
+   "sourceItemId": 277566,
+   "zoneOrSort": 1637
+  },
+  "97558": {
+   "page": {
+    "objectives_text": "Bring Shelene Rhobart 8 Duskbat Wing Membranes, 6 Darkhound Hides and 3 Vile Fin Murloc Skin.",
+    "need_items": [
+     [
+      278242,
+      8
+     ],
+     [
+      278243,
+      6
+     ],
+     [
+      278244,
+      3
+     ]
+    ],
+    "need_goals": [],
+    "description": "One part of undeath no one mentions is what happens when we are injured. How does the skin of an undead heal itself?$B$BWell, it doesn't.$B$BOurs is a cursed life, $N. We must take from the living to further our own existence.$B$BWhen we sustain an injury, we must replace our skin which usually means animal hides. Since different hide thicknesses are better for different places on our bodies a variety is key!$B$BBring me wing membranes of a duskbat, hides from a darkhound and skin of a Vile Fin murloc.",
+    "reward_choice": [
+     [
+      281283,
+      1
+     ],
+     [
+      281284,
+      1
+     ],
+     [
+      281285,
+      1
+     ]
+    ],
+    "reward_items": [],
+    "money": 300,
+    "xp": 650,
+    "reputation": [
+     [
+      "Undercity",
+      75
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "Have you gathered the skin I inquired about? Our stocks are running low.$B$BIt may seem odd to ask for murloc skin but it works well for internal membranes, or surfaces like cheeks or mouths.$B$BSimilarly, the duskbat wing membranes are especially suited for more delicate areas, like faces or fingers. It prevents the skin from being too... thick.",
+    "completion": "Ah, excellent! Thank you for acquiring these. I can promise they will be put to good use.",
+    "level": 11,
+    "min_level": 6,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Hides for the Forsaken",
+   "startedBy": [
+    [
+     3549
+    ]
+   ],
+   "finishedBy": [
+    [
+     3549
+    ]
+   ],
+   "requiredLevel": 6,
+   "questLevel": 11,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Bring Shelene Rhobart 8 Duskbat Wing Membranes, 6 Darkhound Hides and 3 Vile Fin Murloc Skin."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      278242
+     ],
+     [
+      278243
+     ],
+     [
+      278244
+     ]
+    ]
+   ],
+   "zoneOrSort": 85,
+   "reputationReward": [
+    [
+     68,
+     75
+    ]
+   ]
+  },
+  "97891": {
+   "page": {
+    "objectives_text": "Bring the Unstable Potion to Doctor Martin Felben in the Apothecarium within the time limit.",
+    "need_items": [],
+    "need_goals": [
+     [
+      "Speak to Doctor Martin Felben",
+      1
+     ]
+    ],
+    "description": "You! Quickly, I need you to bring this potion across the slime canal to Doctor Martin Felben in the Apothecarium!$B$BIt has a very limited shelf life, and no I can't go myself, my knees rattle and pop out if I attempt to run.$B$BJust another lovely side effect of undeath, apparently.$B$BBut we're wasting time! Here, take this and go!$B$B<Alessandro makes a shooing motion.>",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 800,
+    "xp": 1150,
+    "reputation": [
+     [
+      "Undercity",
+      150
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "Ah, marvelous! I had been waiting for Alessandro's potion to arrive. The last six he sent destabilized along the way, but you've made it just in time!$B$BHere, take this for your effort. That is all for now, unless you have other business with me?$B$BIf not, remove yourself so I may continue my experiments unhindered.",
+    "level": 16,
+    "min_level": 9,
+    "side": "Horde",
+    "shareable": false
+   },
+   "name": "Prompt Potion Runner",
+   "startedBy": [
+    [
+     7683
+    ]
+   ],
+   "finishedBy": [
+    [
+     11044
+    ]
+   ],
+   "requiredLevel": 9,
+   "questLevel": 16,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Bring the Unstable Potion to Doctor Martin Felben in the Apothecarium within the time limit."
+   ],
+   "sourceItemId": 279020,
+   "zoneOrSort": 1497,
+   "reputationReward": [
+    [
+     68,
+     150
+    ]
+   ]
+  },
+  "97894": {
+   "page": {
+    "objectives_text": "Check on Gorbold Steelhand in Auberdine in Darkshore.$B$BBorgus mentioned a boat on the southern-most dock in Stormwind Harbor that can take you there.",
+    "need_items": [],
+    "need_goals": [
+     [
+      "Take the boat to Auberdine and find Gorbold Steelhand.",
+      1
+     ]
+    ],
+    "description": "Pleasure to make yer acquaintance! Name's Borgus, of the one and only Steelhand family. You can always count on a Steelhand fer a fair deal!$B$BA few weeks back me brother Gorbold joined up with a merchant stall in Auberdine. Plenty of coin to be made supplyin' ships there, let me tell you! Lucky sod.$B$BI haven't heard from him since--mind checking on him if yer heading that way?$B$BThere's a new ship in the harbor that will take ye straight there. Head to the southern-most dock; can't miss it!",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "Old Borgy sent you? Always looking out for me.$B$BWe could certainly use another set of hands around here. Business has all but stopped with the recent tragedy, and I think you could help set things right.",
+    "level": 17,
+    "min_level": 13,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Business in Auberdine",
+   "startedBy": [
+    [
+     7232
+    ]
+   ],
+   "finishedBy": [
+    [
+     6301
+    ]
+   ],
+   "requiredLevel": 13,
+   "questLevel": 17,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Check on Gorbold Steelhand in Auberdine in Darkshore.",
+    "",
+    "Borgus mentioned a boat on the southern-most dock in Stormwind Harbor that can take you there."
+   ],
+   "zoneOrSort": 148,
+   "breadcrumbForQuestId": 982
+  },
+  "97914": {
+   "page": {
+    "objectives_text": "Bring Thundris' Letter to Baros Alexston in Stormwind.$B$BThundris mentioned a boat in Auberdine that can take you there.",
+    "need_items": [
+     [
+      279045,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "Auberdine is a humble place, $C. You will not hear its name spoken in the boughs of Darnassus. Most reference only what the Sundering took from us--the thriving cities of Ameth'Aran, Bashal'Aran, and... Lathar'Lazal.$B$BYet Auberdine remains in their shadow.$B$BI would see our work here recognized. A new vessel connects us to the kingdom of Stormwind, bringing life and supplies to our shores. I beseech you join its next voyage, and bring this letter to a human called Baros Alexston.$B$BMake our home known.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 90,
+    "xp": 130,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "I can smell the sea on you, friend!$B$B<Baros laughs.>$B$BWhat brings you to Stormwind?",
+    "completion": "<Baros opens the letter and begins to read it, his smile fading.>",
+    "level": 17,
+    "min_level": 13,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Expanding Horizons",
+   "startedBy": [
+    [
+     3649
+    ]
+   ],
+   "finishedBy": [
+    [
+     1646
+    ]
+   ],
+   "requiredLevel": 13,
+   "questLevel": 17,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring Thundris' Letter to Baros Alexston in Stormwind.",
+    "",
+    "Thundris mentioned a boat in Auberdine that can take you there."
+   ],
+   "sourceItemId": 279045,
+   "zoneOrSort": 1519
+  },
+  "97926": {
+   "page": {
+    "objectives_text": "Bring Alexston's Reply to Thundris Windweaver in Auberdine in Darkshore.",
+    "need_items": [
+     [
+      279048,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "I wish it was that easy to help, $C. I really do.$B$BShould you choose to spend more time in our lands, you will find that many are without. Stormwind's coffers are not what they once were, and what remains is spread thin.$B$BGive this reply to the elder the next time you see him. It's not what he's hoping for, but it's all I have to offer right now.",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      282286,
+      1
+     ]
+    ],
+    "money": 90,
+    "xp": 130,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "You have returned. What news comes from Stormwind?",
+    "completion": "Sad news indeed. Still, I thank you for making the journey.$B$BWith neither Stormwind nor Darnassus coming to aid us, it seems that Auberdine's fate is our own to decide.",
+    "level": 17,
+    "min_level": 13,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Making Do",
+   "startedBy": [
+    [
+     1646
+    ]
+   ],
+   "finishedBy": [
+    [
+     3649
+    ]
+   ],
+   "requiredLevel": 13,
+   "questLevel": 17,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring Alexston's Reply to Thundris Windweaver in Auberdine in Darkshore."
+   ],
+   "sourceItemId": 279048,
+   "preQuestSingle": [
+    97914
+   ],
+   "zoneOrSort": 148
+  },
+  "98042": {
+   "page": {
+    "objectives_text": "Obtain a Peerless Eye from a Twilight Disciple or Thug at the Master's Glaive in Darkshore and find someone in Auberdine who is willing to take it.",
+    "need_items": [
+     [
+      279279,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "<As you tear away the single page from the Twilight Tome, a foreboding voice floods your mind, uninvited.>$B$BThey have failed.$B$BYou will be forgotten.$B$BThey will lose the eye they gained.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 900,
+    "xp": 1250,
+    "reputation": [
+     [
+      "Darnassus",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "You look troubled. I am listening.",
+    "completion": "<Thundris does not speak for some time.>$B$BThis bears the mark of an ancient evil, $C. I will see it brought to Darnassus at once for further study.$B$BAnde'thoras-ethil.",
+    "level": 17,
+    "min_level": 12,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "It's All Fun and Games Until...",
+   "startedBy": [
+    null,
+    [
+     12666
+    ]
+   ],
+   "finishedBy": [
+    [
+     3649
+    ]
+   ],
+   "requiredLevel": 12,
+   "questLevel": 17,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Obtain a Peerless Eye from a Twilight Disciple or Thug at the Master's Glaive in Darkshore and find someone in Auberdine who is willing to take it."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      279279
+     ]
+    ]
+   ],
+   "zoneOrSort": 148,
+   "reputationReward": [
+    [
+     69,
+     100
+    ]
+   ]
+  },
+  "98046": {
+   "page": {
+    "objectives_text": "Bring the Drained Vessel to Lariia in the Temple of the Moon in Darnassus.",
+    "need_items": [
+     [
+      279291,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "<Arch Druid Fandral Staghelm's gaze narrows.>$B$BYou're still here?$B$BTake the phial and get out of my sight, $C. It is clear my answers do not lie in the waters, just as they did not before.$B$BPerhaps one of the priestesses in the Temple of the Moon to the south will dispose of it.$B$B<Fandral looks away, no longer speaking to you.>$B$BI must look elsewhere if this is to work...",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "How may I aid you?",
+    "completion": "Do not mind the Arch Druid, Sneaky. He bears the weight of much in Malfurion's absence.$B$BWait! Some drops yet remain in the phial! Perhaps that is why his incantation failed?",
+    "level": 11,
+    "min_level": 1,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Crown of the Earth",
+   "startedBy": [
+    [
+     3516
+    ]
+   ],
+   "finishedBy": [
+    [
+     4092
+    ]
+   ],
+   "requiredLevel": 1,
+   "questLevel": 11,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring the Drained Vessel to Lariia in the Temple of the Moon in Darnassus."
+   ],
+   "sourceItemId": 279291,
+   "preQuestSingle": [
+    935
+   ],
+   "zoneOrSort": 141,
+   "reputationReward": [
+    [
+     69,
+     150
+    ]
+   ]
+  },
+  "98065": {
+   "page": {
+    "objectives_text": "Bring the Moonwell Remnants to Tyrande Whisperwind in the Temple of the Moon in Darnassus.",
+    "need_items": [
+     [
+      279331,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "You must bring this to Tyrande at once! I will transfer it to a more ceremonial container for you.$B$BDo not be afraid. The High Priestess of Elune is firm, but kind. She protects all who enter Darnassus, and carries our goddess' light to all.$B$BShe will be glad to receive this sacred water. You will find her directly above us.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "Please state your business. I have a city to run, and a people to lead.",
+    "completion": "Staghelm has done much in my beloved's absence, but he is not Malfurion. And he does not run the affairs of Darnassus--that burden is mine alone.$B$B<Tyrande's face settles.>$B$BI apologize. As you have likely seen, we have many challenges to overcome.$B$BFandral is Arch Druid for now, and I ask you respect his station. But his doings pertain to druidism, and mine not only to Elune but indeed to lead our people as she wills.$B$BEvery drop of this water is blessed by our goddess. I thank you for saving it.",
+    "level": 11,
+    "min_level": 1,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Crown of the Earth",
+   "startedBy": [
+    [
+     4092
+    ]
+   ],
+   "finishedBy": [
+    [
+     7999
+    ]
+   ],
+   "requiredLevel": 1,
+   "questLevel": 11,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring the Moonwell Remnants to Tyrande Whisperwind in the Temple of the Moon in Darnassus."
+   ],
+   "sourceItemId": 279331,
+   "preQuestSingle": [
+    98046
+   ],
+   "zoneOrSort": 141,
+   "reputationReward": [
+    [
+     69,
+     150
+    ]
+   ]
+  },
+  "98070": {
+   "page": {
+    "objectives_text": "Slay 5 Screeching Harpies, 5 Screeching Roguefeather Harpies and 5 Screeching Windcaller Harpies.",
+    "need_items": [],
+    "need_goals": [
+     [
+      "Screeching Harpy",
+      5
+     ],
+     [
+      "Screeching Roguefeather",
+      5
+     ],
+     [
+      "Screeching Windcaller",
+      5
+     ]
+    ],
+    "description": "The Screeching Canyon is home to a local band of harpies known for their ferocious nature and raiding tactics. They have ambushed the last few supply caravans that have been brave enough to traverse this place.$B$BI fear if something isn't done soon, there will be no caravans that will dare make the trek to Freewind Post.$B$BGo, slay as many of these harpies as you are able. Return to me once the deed has been done, and I will reward you well for your efforts.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 3000,
+    "xp": 2500,
+    "reputation": [
+     [
+      "Thunder Bluff",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 31,
+    "min_level": 27,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Stop the Screeching",
+   "startedBy": [
+    [
+     4877
+    ]
+   ],
+   "finishedBy": [
+    [
+     4877
+    ]
+   ],
+   "requiredLevel": 27,
+   "questLevel": 31,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Slay 5 Screeching Harpies, 5 Screeching Roguefeather Harpies and 5 Screeching Windcaller Harpies."
+   ],
+   "objectives": [
+    [
+     [
+      4100
+     ],
+     [
+      4101
+     ],
+     [
+      4104
+     ]
+    ]
+   ],
+   "zoneOrSort": 400,
+   "reputationReward": [
+    [
+     81,
+     100
+    ]
+   ]
+  },
+  "98072": {
+   "page": {
+    "objectives_text": "Collect 10 Pristine Crimson Scales and bring them to James Halloran in Menethil Harbor.",
+    "need_items": [
+     [
+      279385,
+      8
+     ]
+    ],
+    "need_goals": [],
+    "description": "You're quite the go-getter! I have just one more favor to ask, if you're up for something a bit more dangerous.$B$BThe crocolisk trade is steady money, but they're small fish compared to what whelp scales will bring. Folks will pay top dollar for a sack of those.$B$BCrocs of the sky, I call 'em! There's no way my apprentice could get them--but it seems right up your alley!$B$BYou'll find whelps far to the east, along the Green Belt. But be careful, there's nasty orcs in those hills!",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 27,
+    "min_level": 19,
+    "side": "",
+    "shareable": true
+   },
+   "name": "Crocs of the Sky",
+   "startedBy": [
+    [
+     2094
+    ]
+   ],
+   "finishedBy": [
+    [
+     2094
+    ]
+   ],
+   "questLevel": 27,
+   "objectivesText": [
+    "Collect 8 Pristine Crimson Scales and bring them to James Halloran in Menethil Harbor."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      279385
+     ]
+    ]
+   ]
+  },
+  "98155": {
+   "page": {
+    "objectives_text": "Bring 5 Pristine Pesterhide Pelts to Kristy Grant.",
+    "need_items": [
+     [
+      279472,
+      5
+     ]
+    ],
+    "need_goals": [],
+    "description": "The Pesterhide hyenas of Thousand Needles have the most gorgeous coats. I haven't seen such a brilliant hue of fur like that in all of my travels!$B$BI would like to send back some pelts to my sisters back in Stormwind, as I know they could make something incredible out of them.$B$BI don't have any fighting experience, so I would be very grateful if you could gather some of the Pesterhide pelts in my stead.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 3000,
+    "xp": 2500,
+    "reputation": [
+     [
+      "Stormwind",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 31,
+    "min_level": 27,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Pristine Pesterhide Pelts",
+   "startedBy": [
+    [
+     11826
+    ]
+   ],
+   "finishedBy": [
+    [
+     11826
+    ]
+   ],
+   "requiredLevel": 27,
+   "questLevel": 29,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring 5 Pristine Pesterhide Pelts to Kristy Grant."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      279472
+     ]
+    ]
+   ],
+   "zoneOrSort": 400,
+   "reputationReward": [
+    [
+     72,
+     100
+    ]
+   ]
+  },
+  "98189": {
+   "page": {
+    "objectives_text": "Bring the Menethil Statuette to Captain Stoutfist in Menethil Keep.",
+    "need_items": [
+     [
+      279589,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "My goodness, it's--it's beautiful!$B$BThe Blind Princess was to deliver this to Menethil Harbor before tragedy struck. We were so close!$B$BI believe it was to be signed for by Captain Stoutfist in Menethil Keep just behind us. Why don't you do the honors of finishing the job?",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 25,
+    "min_level": 20,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Return the Statuette",
+   "startedBy": [
+    [
+     1242
+    ]
+   ],
+   "finishedBy": [
+    [
+     2104
+    ]
+   ],
+   "requiredLevel": 20,
+   "questLevel": 25,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring the Menethil Statuette to Captain Stoutfist in Menethil Keep."
+   ],
+   "sourceItemId": 279589,
+   "zoneOrSort": 11
+  },
+  "98219": {
+   "page": {
+    "objectives_text": "Speak to Lieutenant Farren Orinelle in Southshore in Hillsbrad Foothills.",
+    "need_items": [],
+    "need_goals": [],
+    "description": "Thank you again for delivering the statuette safely, $N.$B$BI could use your help with something else. There's a member of the city guard who was reassigned to duty in Southshore out in the Hillsbrad Foothills.$B$BHis father was a friend of mine, and while I don't disagree that he could use the lesson... I'd still like to see him succeed. He would really benefit from someone like you helping him out.$B$BThere is a boat that can take you that way from Menethil Harbor, if you are passing back through.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 30,
+    "min_level": 20,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "The Shamed Lieutenant",
+   "startedBy": [
+    [
+     928
+    ]
+   ],
+   "finishedBy": [
+    [
+     2228
+    ]
+   ],
+   "requiredLevel": 20,
+   "questLevel": 30,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Speak to Lieutenant Farren Orinelle in Southshore in Hillsbrad Foothills."
+   ],
+   "zoneOrSort": 1519
+  },
+  "98298": {
+   "page": {
+    "objectives_text": "Bring 6 Worgen Bits to Dalar Dawnweaver in The Sepulcher.",
+    "need_items": [
+     [
+      280375,
+      6
+     ]
+    ],
+    "need_goals": [],
+    "description": "Ah, it's all become so embarrassingly clear! Arugal hardly had any magic at all, let alone enough to create the worgen. 'Arugal's Curse.' Pah! Barely potent enough to last a few seconds.$B$BThese shackles prove he can bind the beasts, not create them. The worgen clearly spread their curse a different way. I would know how.$B$BGo to the Greymane Wall to the south. The worgen seem to be spreading to the humans nearby. Tear the beasts apart and bring me whatever you find. This requires a more direct approach.",
+    "reward_choice": [],
+    "reward_items": [
+     [
+      281315,
+      1
+     ]
+    ],
+    "money": 800,
+    "xp": 1150,
+    "reputation": [
+     [
+      "Undercity",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "Fangs, claws, gizzards. It makes no difference to me. The easiest way to study something is to see the guts yourself.",
+    "completion": "It appears I get the last laugh after all, haha! Arugal truly was a fool. And I, Dalar Dawnweaver, have exposed him as the fraud he is.$B$BThese pieces are all the proof I need that the curse has nothing to do with that blithering dolt.$B$BRegrettably, that means his remedy is also worth nothing. It seems the search for a solution to the worgen curse continues.",
+    "level": 16,
+    "min_level": 9,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Arugal's Folly",
+   "startedBy": [
+    [
+     1938
+    ]
+   ],
+   "finishedBy": [
+    [
+     1938
+    ]
+   ],
+   "requiredLevel": 9,
+   "questLevel": 16,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Bring 6 Worgen Bits to Dalar Dawnweaver in The Sepulcher."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      280375
+     ]
+    ]
+   ],
+   "zoneOrSort": 130,
+   "reputationReward": [
+    [
+     68,
+     100
+    ]
+   ]
+  },
+  "98299": {
+   "page": {
+    "objectives_text": "Slay 5 Sickly Refugees and 5 Haggard Refugees for Dalar Dawnweaver in The Sepulcher.",
+    "need_items": [],
+    "need_goals": [
+     [
+      "Haggard Refugee",
+      5
+     ],
+     [
+      "Sickly Refugee",
+      5
+     ]
+    ],
+    "description": "If there is one thing we do know, it is that Arugal is responsible for worgen within Silverpine--be it his own machinations or otherwise. What we don't know is how it spreads.$B$BWhile I research a way to stop the curse, our first priority is to contain it. It appears this affliction cannot infect forsaken, but a large group of humans have gathered by the Greymane Wall.$B$BGo to the wall and put down these refugees before they have a chance to become servants for Arugal. And try not to get bit, $R.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 1200,
+    "xp": 1550,
+    "reputation": [
+     [
+      "Undercity",
+      100
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "It seems the Gilneans are not too keen on allowing anyone past their wall. That is fortunate, I suppose. It means there is likely no chance for the worgen curse to spread to their city.$B$BCan you imagine the depravity if an entire kingdom were infected?",
+    "level": 20,
+    "min_level": 9,
+    "side": "Horde",
+    "shareable": true
+   },
+   "name": "Stop the Spread",
+   "startedBy": [
+    [
+     1938
+    ]
+   ],
+   "finishedBy": [
+    [
+     1938
+    ]
+   ],
+   "requiredLevel": 9,
+   "questLevel": 20,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Slay 5 Sickly Refugees and 5 Haggard Refugees for Dalar Dawnweaver in The Sepulcher."
+   ],
+   "objectives": [
+    [
+     [
+      2053
+     ],
+     [
+      2054
+     ]
+    ]
+   ],
+   "zoneOrSort": 130,
+   "reputationReward": [
+    [
+     68,
+     100
+    ]
+   ]
+  },
+  "98313": {
+   "page": {
+    "objectives_text": "Bring the Whelgar Relic Package to Historian Karnik in Ironforge.",
+    "need_items": [
+     [
+      280403,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "Whatever this is all about, $N, it's epic stuff alright.$B$BI'll bundle everything up nice for you. Take it to Historian Karnik in the Hall of Explorers in Ironforge. You'll usually find him in the back, nose-deep in some tome or another in the library.$B$BIt'll take a downright army to crack the case on this one, but if what we've seen so far is any indication it will well be worth it!",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 32,
+    "min_level": 24,
+    "side": "",
+    "shareable": false
+   },
+   "name": "For Further Study",
+   "startedBy": [
+    [
+     1077
+    ]
+   ],
+   "finishedBy": [
+    [
+     2916
+    ]
+   ],
+   "requiredLevel": 24,
+   "questLevel": 32,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring the Whelgar Relic Package to Historian Karnik in Ironforge."
+   ],
+   "sourceItemId": 280403,
+   "zoneOrSort": 1537
+  },
+  "98391": {
+   "page": {
+    "objectives_text": "Speak to Sister Aquinne in Darnassus.",
+    "need_items": [],
+    "need_goals": [],
+    "description": "Blessings to you, $C. The Sisterhood of Elune has stood as a pillar of kaldorei society for thousands of years.$B$BBefore the Great Sundering, before the War of the Ancients, through the Long Vigil, we have guided and healed our people through the darkness. Such is our charge, and such is the demand of the peerless Mother Moon.$B$BWe now require your aid in a matter of great importance. Sister Aquinne awaits your arrival in Darnassus.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "I am glad you arrived so quickly. The Sisterhood requires your aid.",
+    "level": 10,
+    "min_level": 5,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "The Sisterhood of Elune",
+   "startedBy": [
+    [
+     3600
+    ]
+   ],
+   "finishedBy": [
+    [
+     7316
+    ]
+   ],
+   "requiredLevel": 5,
+   "questLevel": 10,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Speak to Sister Aquinne in Darnassus."
+   ],
+   "zoneOrSort": 1657,
+   "breadcrumbForQuestId": 2519,
+   "reputationReward": [
+    [
+     69,
+     10
+    ]
+   ]
+  },
+  "98407": {
+   "page": {
+    "objectives_text": "Collect 5 Spiked Collars from Gnoll Thrashers for Deputy Feldon near Lakeshire.",
+    "need_items": [
+     [
+      280911,
+      5
+     ]
+    ],
+    "need_goals": [],
+    "description": "If the gnolls are growing so bold they are willing to camp this close to humans, there's no telling how much further they'll go. We need to deter them.$B$BThe beasts are hardly organized, but they seem to respect strength above all else. If we can slay the worst of them, maybe claim some of their trophies, we can remind these gnolls why they should stay in the hills where they belong.$B$BShould you see any of their thrashers, bring me their collars. That should put the fear of the Alliance back into them.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "A full assessment of the gnolls cannot be complete without facing the worst of their kind. Put those thrashers down!",
+    "completion": "Quite the armful you have.$B$BWhile this doesn't solve our problem out here, I can rest comfortably knowing we've discouraged them pushing any further. Great work, $N.",
+    "level": 17,
+    "min_level": 11,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Show of Force",
+   "startedBy": [
+    [
+     1070
+    ]
+   ],
+   "finishedBy": [
+    [
+     1070
+    ]
+   ],
+   "requiredLevel": 11,
+   "questLevel": 17,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Collect 5 Spiked Collars from Redridge Thrashers for Deputy Feldon near Lakeshire."
+   ],
+   "objectives": [
+    null,
+    null,
+    [
+     [
+      280911
+     ]
+    ]
+   ],
+   "zoneOrSort": 44,
+   "reputationReward": [
+    [
+     72,
+     100
+    ]
+   ]
+  },
+  "98435": {
+   "page": {
+    "objectives_text": "Bring Thunderhorn's Report to Arch Druid Hamuul Runetotem in Thunder Bluff.",
+    "need_items": [],
+    "need_goals": [
+     [
+      "Cleanse the Wildmane Well",
+      1
+     ]
+    ],
+    "description": "Our elders in Thunder Bluff must know of the progress we have made here, thanks to your aid.$B$BPlease, take this to Arch Druid Hamuul Runetotem in Thunder Bluff. You will find him in the Elder Rise, on the east side of the city. You must take the lifts up to the center of the city, then cross the bridges to reach it.",
+    "reward_choice": [
+     [
+      3443,
+      1
+     ],
+     [
+      4961,
+      1
+     ]
+    ],
+    "reward_items": [],
+    "money": 0,
+    "xp": 85,
+    "reputation": [
+     [
+      "Thunder Bluff",
+      10
+     ]
+    ],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "Ah, no wonder there is such joy running through the streams of Mulgore. You have done a great service today. The wells provide much for not only our people, but to the wildlife we depend on for food, clothing, and companionship.$B$BIt is my humble pleasure to honor Mull's request. Please, accept this token of my gratitude.",
+    "level": 10,
+    "min_level": 4,
+    "side": "Horde",
+    "shareable": false
+   },
+   "name": "Thunderhorn's Report",
+   "startedBy": [
+    [
+     2948
+    ]
+   ],
+   "finishedBy": [
+    [
+     5769
+    ]
+   ],
+   "requiredLevel": 4,
+   "questLevel": 10,
+   "requiredRaces": 8589934770,
+   "objectivesText": [
+    "Bring Thunderhorn's Report to Arch Druid Hamuul Runetotem in Thunder Bluff."
+   ],
+   "sourceItemId": 281139,
+   "preQuestSingle": [
+    760
+   ],
+   "zoneOrSort": 215,
+   "reputationReward": [
+    [
+     81,
+     10
+    ]
+   ]
+  },
+  "98461": {
+   "page": {
+    "objectives_text": "Deliver Hollee's Note to Tarrel Rockweaver near Menethil Harbor in the Wetlands.",
+    "need_items": [
+     [
+      281243,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "If you're heading out of Auberdine, I could use your help!$B$BMy dear friend Tarrel and I were classmates in school. Oh, he was such a quickfire on all things excavation! We got split up after graduation--him to Wetlands, and me to here in Darkshore.$B$B<Hollee sighs, then her brow furrows slightly.>$B$BSorry, and his wife... Merrin.$B$BIt doesn't matter. If you go to the Wetlands, could you make sure he's alright? And maybe give him this? He's probably near Menethil Harbor. There's a boat straight there.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 125,
+    "xp": 170,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "What's all this about?",
+    "completion": "<Tarrel reads the note.>$B$BOh... oh my. Poor Hollee.$B$BShe always did have a bit of a thing for me. And, truth be told, there was a time where I would have reciprocated. But I'm married. Happily married!$B$BI think the best thing to do here is not to reply. I don't know how to let her down, and I have far more pressing things to worry about here! My wife is missing!",
+    "level": 21,
+    "min_level": 18,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Unrequited Love",
+   "startedBy": [
+    [
+     2913
+    ]
+   ],
+   "finishedBy": [
+    [
+     2096
+    ]
+   ],
+   "requiredLevel": 18,
+   "questLevel": 21,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Deliver Hollee's Note to Tarrel Rockweaver near Menethil Harbor in the Wetlands."
+   ],
+   "sourceItemId": 281243,
+   "zoneOrSort": 11
+  },
+  "98463": {
+   "page": {
+    "objectives_text": "Visit Nixxrax Fillamug in the Salty Sailor Tavern in Booty Bay in Stranglethorn.",
+    "need_items": [],
+    "need_goals": [],
+    "description": "Look, I'm glad to have you at my bar, and that's exactly why I'm telling you this.$B$BThe real party? That's over at the Salty Sailor Tavern in Booty Bay. Yes, in Stranglethorn Vale--that Booty Bay.$B$BDon't give me that look. I know it's run by goblins. Bartenders talk, and bar patrons talk a LOT. All I'm saying is that if you want to see things get real wild, head over there.$B$BNixxrax Fillamug will keep you topped up, don't even worry.",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "",
+    "completion": "",
+    "level": 33,
+    "min_level": 28,
+    "side": "Alliance",
+    "shareable": true
+   },
+   "name": "Talk of the Town",
+   "startedBy": [
+    [
+     2366
+    ]
+   ],
+   "finishedBy": [
+    [
+     2832
+    ]
+   ],
+   "requiredLevel": 28,
+   "questLevel": 33,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Visit Nixxrax Fillamug in the Salty Sailor Tavern in Booty Bay in Stranglethorn."
+   ],
+   "zoneOrSort": 33
+  },
+  "99158": {
+   "page": {
+    "objectives_text": "Bring the crate of candles to Father Gavin at Misty Pine Refuge.",
+    "need_items": [
+     [
+      286355,
+      1
+     ]
+    ],
+    "need_goals": [],
+    "description": "There's a priest out in the mountains that belongs to an organization called the Argent Dawn. They're a holy group that is dedicated to finding and destroying the unholy and unnatural.$B$BFather Gavin though, he's mostly the type that seeks to help and heal everyone rather than grab a weapon. He's fixed up an old building to serve as a rest spot for travelers and called it Misty Pine Refuge. I've got a shipment of holy candles that I need to get him. Could you bring them to him if your going that way?",
+    "reward_choice": [],
+    "reward_items": [],
+    "money": 0,
+    "xp": 0,
+    "reputation": [],
+    "reward_spell": 0,
+    "progress": "Why did the Light guide you here today?",
+    "completion": "Ah. Candles from Ironforge.$B$BWhile I am mostly able to live independently in my hermitage, there are a few key things that I appreciate from the city and the pious.",
+    "level": 8,
+    "min_level": 5,
+    "side": "Alliance",
+    "shareable": false
+   },
+   "name": "Dawn in the Mountains",
+   "startedBy": [
+    [
+     1226
+    ]
+   ],
+   "finishedBy": [
+    [
+     1253
+    ]
+   ],
+   "requiredLevel": 5,
+   "questLevel": 8,
+   "requiredRaces": 4294967373,
+   "objectivesText": [
+    "Bring the crate of candles to Father Gavin at Misty Pine Refuge."
+   ],
+   "sourceItemId": 286355,
+   "zoneOrSort": 1,
+   "breadcrumbForQuestId": 99159
+  }
+ },
+ "items": {
+  "247834": {
+   "name": "Nibbled-On Book",
+   "npcDrops": [
+    6,
+    80,
+    257
+   ],
+   "startQuest": 91741,
+   "class": 12,
+   "subClass": 0
+  },
+  "247857": {
+   "name": "Nibbled-On Book",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_book_04"
+  },
+  "248930": {
+   "name": "Quinn's Potion",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_potion_09"
+  },
+  "254432": {
+   "name": "Carved Centaur Totem",
+   "npcDrops": [
+    4654,
+    4655,
+    4656,
+    4657,
+    4659
+   ],
+   "class": 15,
+   "subClass": 0,
+   "icon": "trade_archaeology_vrykul_runestick"
+  },
+  "267415": {
+   "name": "Stolen Blasting Powder",
+   "npcDrops": [
+    1116,
+    1118
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_dust_02"
+  },
+  "268548": {
+   "name": "Empty Powder Keg",
+   "npcDrops": [
+    1116,
+    1118,
+    1115,
+    1117
+   ],
+   "startQuest": 95213,
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_cask_02"
+  },
+  "269715": {
+   "name": "Savannah Lion Hide",
+   "npcDrops": [
+    3241,
+    3416
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_10_skinning_leather_rarehide_color1"
+  },
+  "277190": {
+   "name": "Fang of Githyiss",
+   "npcDrops": [
+    1994
+   ],
+   "startQuest": 97236,
+   "class": 12,
+   "subClass": 0
+  },
+  "277566": {
+   "name": "Yelmak's Potion",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_potion_16"
+  },
+  "277936": {
+   "name": "Glittering Sunstone",
+   "npcDrops": [
+    4022,
+    4023,
+    4024,
+    4025,
+    4026,
+    4027,
+    5930,
+    12579
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_gem_goldendraenite_02"
+  },
+  "278242": {
+   "name": "Duskbat Wing Membrane",
+   "npcDrops": [
+    1553,
+    1554
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_icon_wing07a"
+  },
+  "278243": {
+   "name": "Darkhound Hide",
+   "npcDrops": [
+    1547,
+    1548
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_pelt_wolf_02"
+  },
+  "278244": {
+   "name": "Vile Fin Murloc Skin",
+   "npcDrops": [
+    1544,
+    1545
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_head_murloc_01"
+  },
+  "279020": {
+   "name": "Unstable Potion",
+   "class": 12,
+   "subClass": 0
+  },
+  "279045": {
+   "name": "Thundris' Letter",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_scrollrolled04b"
+  },
+  "279048": {
+   "name": "Alexston's Reply",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_scrollrolled02"
+  },
+  "279279": {
+   "name": "Peerless Eye",
+   "npcDrops": [
+    2338,
+    2339
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_eye_03"
+  },
+  "279291": {
+   "name": "Drained Vessel",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_potion_87"
+  },
+  "279331": {
+   "name": "Moonwell Remnants",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_potion_17"
+  },
+  "279385": {
+   "name": "Pristine Crimson Scale",
+   "npcDrops": [
+    1042,
+    1043,
+    1044,
+    1069
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_monsterscales_15"
+  },
+  "279472": {
+   "name": "Pristine Pesterhide Pelt",
+   "npcDrops": [
+    4249
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_pelt_boar_01"
+  },
+  "279505": {
+   "name": "Jagged Orcish Sword",
+   "npcDrops": [
+    11682
+   ],
+   "class": 2,
+   "subClass": 7,
+   "icon": "inv_sword_1h_undergroundquest_b_01"
+  },
+  "279507": {
+   "name": "Curved Orcish Dagger",
+   "npcDrops": [
+    11680
+   ],
+   "class": 2,
+   "subClass": 15,
+   "icon": "inv_weapon_shortblade_04"
+  },
+  "279589": {
+   "name": "Menethil Statuette",
+   "class": 12,
+   "subClass": 0,
+   "icon": "spell_holy_divineintervention"
+  },
+  "280087": {
+   "name": "Soft Nightsaber Pelt",
+   "npcDrops": [
+    2042
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_pelt_05"
+  },
+  "280375": {
+   "name": "Worgen Bits",
+   "npcDrops": [
+    1924
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_misc_bone_07"
+  },
+  "280403": {
+   "name": "Whelgar Relic Package",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_crate_03"
+  },
+  "280911": {
+   "name": "Spiked Collar",
+   "npcDrops": [
+    712
+   ],
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_jewelry_necklace_22"
+  },
+  "281139": {
+   "name": "Thunderhorn's Report",
+   "class": 12,
+   "subClass": 0
+  },
+  "281143": {
+   "name": "Ira's Dagger",
+   "npcDrops": [
+    272260
+   ],
+   "startQuest": 96137,
+   "class": 15,
+   "subClass": 4,
+   "icon": "inv_weapon_shortblade_05"
+  },
+  "281243": {
+   "name": "Hollee's Note",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_valentinescard02"
+  },
+  "286355": {
+   "name": "Crate of Candles",
+   "class": 12,
+   "subClass": 0,
+   "icon": "inv_box_01"
+  }
+ },
+ "npcs": {
+  "11860": {
+   "zoneID": 406
+  },
+  "11861": {
+   "zoneID": 406
+  },
+  "3955": {
+   "zoneID": 331
+  },
+  "167": {
+   "zoneID": 38
+  },
+  "3608": {
+   "zoneID": 141
+  },
+  "951": {
+   "zoneID": 12
+  },
+  "1951": {
+   "zoneID": 130
+  },
+  "1937": {
+   "zoneID": 130
+  },
+  "5396": {
+   "zoneID": 405
+  },
+  "5412": {
+   "zoneID": 405
+  },
+  "1256": {
+   "zoneID": 1
+  },
+  "3682": {
+   "zoneID": 17
+  },
+  "2121": {
+   "zoneID": 130
+  },
+  "6176": {
+   "zoneID": 36
+  },
+  "268": {
+   "zoneID": 10
+  },
+  "2082": {
+   "zoneID": 141
+  },
+  "3347": {
+   "zoneID": 1637
+  },
+  "11046": {
+   "zoneID": 1637
+  },
+  "3549": {
+   "zoneID": 85
+  },
+  "7683": {
+   "zoneID": 1497
+  },
+  "11044": {
+   "zoneID": 1497
+  },
+  "7232": {
+   "zoneID": 1519
+  },
+  "6301": {
+   "zoneID": 148
+  },
+  "3649": {
+   "zoneID": 148
+  },
+  "1646": {
+   "zoneID": 1519
+  },
+  "3516": {
+   "zoneID": 1657
+  },
+  "4092": {
+   "zoneID": 1657
+  },
+  "7999": {
+   "zoneID": 1657
+  },
+  "4877": {
+   "zoneID": 400
+  },
+  "2094": {
+   "zoneID": 11
+  },
+  "11826": {
+   "zoneID": 357
+  },
+  "1242": {
+   "zoneID": 11
+  },
+  "2104": {
+   "zoneID": 11
+  },
+  "928": {
+   "zoneID": 1519
+  },
+  "2228": {
+   "zoneID": 267
+  },
+  "1938": {
+   "zoneID": 130
+  },
+  "1077": {
+   "zoneID": 11
+  },
+  "2916": {
+   "zoneID": 1537
+  },
+  "3600": {
+   "zoneID": 141
+  },
+  "7316": {
+   "zoneID": 1657
+  },
+  "1070": {
+   "zoneID": 44
+  },
+  "2948": {
+   "zoneID": 215
+  },
+  "5769": {
+   "zoneID": 1638
+  },
+  "2913": {
+   "zoneID": 148
+  },
+  "2096": {
+   "zoneID": 11
+  },
+  "2366": {
+   "zoneID": 267
+  },
+  "2832": {
+   "zoneID": 33
+  },
+  "1226": {
+   "zoneID": 1
+  },
+  "1253": {
+   "zoneID": 1
+  }
+ }
+}

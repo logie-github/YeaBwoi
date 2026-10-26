@@ -27,6 +27,9 @@ self-updating from this repository's GitHub releases.
   own models, ChromieCraft's realm only: the user, "Only chromie needs new races"): `warcraft/modules/mod-allied-races` (its README); `tools/races.py`, `tools/build_data.py` and
   `tools/quests.py` make its data, committed; `tools/package.py` fetches and converts the game's
   files as the server is packaged (never committed).
+- **WoW: Forever's quests** (ChromieCraft's realm only): `warcraft/modules/mod-forever-quests` (its
+  README); `tools/forever.py` makes its SQL from QuestieDB's Forever data and foreverchanges.pro's
+  quest pages (the exact text), committed.
 - Each app's `README.md` is its user manual; keep it current with every change.
 
 ## Rules

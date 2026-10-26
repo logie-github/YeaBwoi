@@ -1,0 +1,110 @@
+{
+ "_about": "The new reward items' stats, from Wowhead's tooltips (nether.wowhead.com/forever/tooltip/item/<id>, read 26 October 2026): quality, slot, type, armor, stats, durability, item level, sell price (copper), icon.",
+ "items": {
+  "280088": {
+   "name": "Soft Saber Sack",
+   "quality": 1,
+   "icon": "inv_misc_bag_10_blue",
+   "bind": "pickup",
+   "slot": "bag",
+   "bag_slots": 6,
+   "item_level": 5,
+   "sell": 62
+  },
+  "281252": {
+   "name": "Harpy Claw Ring",
+   "quality": 2,
+   "icon": "inv_jewelry_ring_03",
+   "bind": "pickup",
+   "slot": "finger",
+   "item_level": 26,
+   "stats": {
+    "Spirit": 5
+   },
+   "sell": 1249
+  },
+  "281265": {
+   "name": "Roadwatcher's Confidence",
+   "quality": 2,
+   "icon": "inv_jewelry_necklace_01",
+   "bind": "pickup",
+   "slot": "neck",
+   "item_level": 20,
+   "stats": {
+    "Spirit": 3
+   },
+   "sell": 565
+  },
+  "281283": {
+   "name": "Patchwing Pants",
+   "quality": 2,
+   "icon": "inv_pants_02",
+   "bind": "pickup",
+   "slot": "legs",
+   "type": "cloth",
+   "armor": 18,
+   "item_level": 11,
+   "stats": {
+    "Intellect": 2
+   },
+   "durability": 35,
+   "sell": 123
+  },
+  "281284": {
+   "name": "Howlhide Vest",
+   "quality": 2,
+   "icon": "inv_chest_wolf",
+   "bind": "pickup",
+   "slot": "chest",
+   "type": "leather",
+   "armor": 58,
+   "item_level": 11,
+   "stats": {
+    "Agility": 2
+   },
+   "durability": 55,
+   "sell": 155
+  },
+  "281285": {
+   "name": "Finscale Soles",
+   "quality": 2,
+   "icon": "inv_boots_01",
+   "bind": "pickup",
+   "slot": "feet",
+   "type": "mail",
+   "armor": 79,
+   "item_level": 11,
+   "stats": {
+    "Strength": 1
+   },
+   "durability": 35,
+   "sell": 141
+  },
+  "281315": {
+   "name": "Foulfur Gloves",
+   "quality": 2,
+   "icon": "inv_gauntlets_05",
+   "bind": "pickup",
+   "slot": "hands",
+   "type": "cloth",
+   "armor": 18,
+   "item_level": 16,
+   "stats": {
+    "Intellect": 3
+   },
+   "durability": 18,
+   "sell": 155
+  },
+  "282286": {
+   "name": "Shipwright's Satchel",
+   "quality": 1,
+   "icon": "inv_misc_bag_06",
+   "bind": "pickup",
+   "slot": "bag",
+   "bag_slots": 6,
+   "item_level": 5,
+   "sell": 200,
+   "note": "Forever's 6 Slot Reagent Bag; 3.3.5 has no reagent bags, so a plain bag here"
+  }
+ }
+}

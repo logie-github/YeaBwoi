@@ -349,6 +349,17 @@ EOF
 	[ "$(echo "SELECT AllowableRaces & 131072 FROM quest_template WHERE ID = 747" | CTL sql acore_world)" = 0 ] || fail "The Hunt Begins is open to the Zandalari: only its clone should be"
 	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 960750" | CTL sql acore_world)" = 960747 ] || fail "the clone of The Hunt Continues doesn't follow the clone of The Hunt Begins"
 	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 959288" | CTL sql acore_world)" = 959280 ] || fail "a void elf's Hunter Training doesn't follow the clone of the quest before it"
+
+	echo "== WoW: Forever's new quests (mod-forever-quests)"
+	# All in ChromieCraft's world, and the world server
+	# loaded them without a word about any of them (a creature, an item or a quest it couldn't find).
+	forever_ids=$(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.argv[1]))["quests"]))' \
+		"$ROOT/warcraft/modules/mod-forever-quests/data/forever/quests.json")
+	forever=$(echo "SELECT COUNT(*) FROM quest_template WHERE ID IN ($(echo $forever_ids | tr ' ' ','))" | CTL sql acore_world)
+	[ "$forever" = "$(echo $forever_ids | wc -w)" ] || fail "WoW: Forever's quests aren't all in ChromieCraft's world ($forever)"
+	complaints=$(grep -ihwE "quest.*($(echo $forever_ids | tr ' ' '|'))" "$FILES/logs/world.out" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about WoW: Forever's quests"; }
+	echo "WoW: Forever's quests: $forever in ChromieCraft's world"
 	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, a Lightforged Draenei
 	# warrior in Ammen Vale, a Zandalari warrior at Camp Narache, each with their racials.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Voidtester 15 1 "$FILES/run/skyborne.steps" |
@@ -513,6 +524,8 @@ EOF
 		fail "Wrath Remix's world has the allied races' race rows"
 	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID BETWEEN 950000 AND 979999" | CTL sql acore_world_remix)" = 0 ] ||
 		fail "Wrath Remix's world has the allied races' quests"
+	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID IN (98299, 97558, 86576)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has WoW: Forever's quests"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world)" -gt 0 ] ||
 		fail "ChromieCraft lost the allied races"
 	# Against the DBC files its world server read (the modules' over the game's, when there are).
