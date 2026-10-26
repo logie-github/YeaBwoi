@@ -5,7 +5,7 @@ package com.logie.warcraft.turtle
 import android.content.Context
 import com.logie.warcraft.R
 
-/** Turtle WoW's states in words, for the launcher and the notification. */
+/** OctoWoW's states in words, for the launcher and the notification. */
 object TurtleTexts {
     fun step(context: Context, step: TurtleJobs.Step): String = context.getString(
         when (step) {
@@ -13,6 +13,7 @@ object TurtleTexts {
             TurtleJobs.Step.DOWNLOADING -> R.string.turtle_step_downloading
             TurtleJobs.Step.UNPACKING -> R.string.turtle_step_unpacking
             TurtleJobs.Step.DATABASE -> R.string.turtle_step_database
+            TurtleJobs.Step.DOWNLOADING_CLIENT -> R.string.turtle_step_downloading_client
             TurtleJobs.Step.COPYING_CLIENT -> R.string.turtle_step_copying
             TurtleJobs.Step.VERIFYING_CLIENT -> R.string.turtle_step_verifying
             TurtleJobs.Step.MAPS -> R.string.turtle_step_maps

@@ -1335,7 +1335,8 @@ for the game on the phone itself ("that's the whole point").
   user's own modules and quests in this repository, offered in the Modules screen.
 
 - **Turtle WoW — Vanilla+**, a second game with its own Tortoise-WoW realm, kept apart from this
-  one (released in `wow-build-65`): its brief is `TURTLE.md`.
+  one (released in `wow-build-65`), now **OctoWoW** (its client downloaded from OctoWoW, the same
+  realm; October 2026): its brief is `TURTLE.md`.
 
 - Then: "Look up how you took Sylvanas and Alleria and put them into the game. Do the same thing by
   adding void elves ... Also for nightborne ... Combine face and eye colors ... Use the voice lines

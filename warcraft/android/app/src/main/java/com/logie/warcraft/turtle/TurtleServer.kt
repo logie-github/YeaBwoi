@@ -439,12 +439,12 @@ object TurtleServer {
 
 /** SQL on Turtle's own databases (tw_*), through its MariaDB client, while its MariaDB runs. */
 object TurtleDb {
-    class NotRunningException : IOException("Turtle WoW's database isn't running")
+    class NotRunningException : IOException("OctoWoW's database isn't running")
 
     private val DATABASES = setOf("tw_logon", "tw_char", "tw_world", "tw_logs")
 
     fun query(context: Context, database: String, sql: String): List<List<String>> {
-        require(database in DATABASES) { "Not one of Turtle WoW's databases: $database" }
+        require(database in DATABASES) { "Not one of OctoWoW's databases: $database" }
         if (!TurtleServer.databaseUp) throw NotRunningException()
         val process = TurtleServer.ctl(context, "sql", database).redirectErrorStream(false).start()
         process.outputStream.bufferedWriter().use { it.write(sql) }
@@ -452,7 +452,7 @@ object TurtleDb {
         val errors = process.errorStream.bufferedReader().readText()
         if (!process.waitFor(60, TimeUnit.SECONDS)) {
             process.destroy()
-            throw IOException("Turtle WoW's database didn't answer")
+            throw IOException("OctoWoW's database didn't answer")
         }
         if (process.exitValue() != 0) throw IOException(errors.lines().firstOrNull { it.isNotBlank() } ?: "SQL failed")
         return output.lines().filter { it.isNotEmpty() }.map { it.split('\t') }

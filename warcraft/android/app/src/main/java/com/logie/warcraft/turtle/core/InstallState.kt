@@ -5,7 +5,7 @@ package com.logie.warcraft.turtle.core
 import org.json.JSONObject
 
 /**
- * Turtle WoW's installation manifest (`files/turtle/install.json`): what's in place, from which
+ * OctoWoW's installation manifest (`files/turtle/install.json`): what's in place, from which
  * version, and how it was checked. Written after each step that finishes (atomically, through
  * [SafeFs.writeAtomically]), so an install that stopped halfway knows what's done, and a repair
  * knows what to look at. Nothing in it is about the other games.
@@ -18,20 +18,33 @@ data class InstallState(
     val databaseFrom: String? = null,
     /** The world server applied its database updates at least once (it does at each start). */
     val databaseUpdated: Boolean = false,
-    /** The client in `client/`: its WoW.exe's SHA-256, and how it compared with the manifest. */
+    /** The client in `client/`: its WoW.exe's SHA-256, and how it compared with OctoWoW's torrent. */
     val clientExeSha256: String? = null,
     val clientCheck: ClientCheck = ClientCheck.NONE,
-    /** Files of the client that differed from Turtle's final 1.18.1 (when [clientCheck] isn't EXACT). */
+    /** Files of the client that differed (when [clientCheck] is DIFFERENT). */
     val clientDifferences: Int = 0,
-    /** The server's data in `data/`: made from the client with this WoW.exe. */
+    /** What the server's data is made from in the client: its MPQ archives' key (ClientSync.Result.dataKey). */
+    val clientKey: String? = null,
+    /** The torrent the client was last checked against (its info hash), and when. */
+    val clientTorrent: String? = null,
+    val clientCheckedAt: Long = 0L,
+    /** The server's data in `data/`: made from the client with this [clientIdentity]. */
     val dataFrom: String? = null,
     val dataParts: Set<String> = emptySet(),
     val dbcCheck: ClientCheck = ClientCheck.NONE,
+    /** OctoWoW's own DBC tables among the server's data (they differ from Turtle's 1.18.1 by design). */
+    val dbcOwn: Int = 0,
     /** The step an install or repair was on when it last stopped without finishing, if one did. */
     val interruptedStep: String? = null,
     val updatedAt: Long = 0L,
 ) {
     enum class ClientCheck { NONE, EXACT, DIFFERENT }
+
+    /** The client was last found to be exactly OctoWoW's (a check against Turtle WoW's list, before, doesn't count). */
+    val clientIsOctoWow: Boolean get() = clientCheck == ClientCheck.EXACT && clientTorrent != null
+
+    /** What the server's data has to be made from: the archives' key, or WoW.exe's hash for a client never checked. */
+    val clientIdentity: String? get() = clientKey ?: clientExeSha256
 
     fun toJson(): String = JSONObject()
         .put("version", 1)
@@ -42,9 +55,13 @@ data class InstallState(
         .put("clientExeSha256", clientExeSha256 ?: JSONObject.NULL)
         .put("clientCheck", clientCheck.name)
         .put("clientDifferences", clientDifferences)
+        .put("clientKey", clientKey ?: JSONObject.NULL)
+        .put("clientTorrent", clientTorrent ?: JSONObject.NULL)
+        .put("clientCheckedAt", clientCheckedAt)
         .put("dataFrom", dataFrom ?: JSONObject.NULL)
         .put("dataParts", dataParts.sorted().joinToString(","))
         .put("dbcCheck", dbcCheck.name)
+        .put("dbcOwn", dbcOwn)
         .put("interruptedStep", interruptedStep ?: JSONObject.NULL)
         .put("updatedAt", updatedAt)
         .toString(2)
@@ -64,9 +81,13 @@ data class InstallState(
                     clientExeSha256 = str("clientExeSha256"),
                     clientCheck = check("clientCheck"),
                     clientDifferences = json.optInt("clientDifferences", 0),
+                    clientKey = str("clientKey"),
+                    clientTorrent = str("clientTorrent"),
+                    clientCheckedAt = json.optLong("clientCheckedAt", 0L),
                     dataFrom = str("dataFrom"),
                     dataParts = json.optString("dataParts", "").split(',').filter { it.isNotBlank() }.toSet(),
                     dbcCheck = check("dbcCheck"),
+                    dbcOwn = json.optInt("dbcOwn", 0),
                     interruptedStep = str("interruptedStep"),
                     updatedAt = json.optLong("updatedAt", 0L),
                 )
@@ -88,7 +109,7 @@ object InstallPlan {
         /** The app can do it by itself (Install does). */
         TODO,
 
-        /** Needs the user: their client (the app can't download it), or an account. */
+        /** Needs the user: an account. */
         NEEDS_USER,
 
         /** Can't be done on this phone ([Facts.blocker] says why). */
@@ -100,7 +121,7 @@ object InstallPlan {
 
     /** What the app found on the phone. */
     data class Facts(
-        /** Why Turtle WoW can't run on this phone at all (not arm64, not the phone's main user), or null. */
+        /** Why OctoWoW can't run on this phone at all (not arm64, not the phone's main user), or null. */
         val blocker: String? = null,
         val serverInstalled: Boolean,
         /** The installed package is the one this app version is made for. */
@@ -127,7 +148,8 @@ object InstallPlan {
         add(Step.CHECK, Status.DONE)
         add(Step.SERVER, if (facts.serverInstalled && facts.serverCurrent) Status.DONE else Status.TODO)
         add(Step.DATABASE, if (facts.databasesThere) Status.DONE else if (facts.serverInstalled) Status.TODO else Status.WAITING)
-        add(Step.CLIENT, if (facts.clientThere) Status.DONE else Status.NEEDS_USER)
+        // OctoWoW's client: the app downloads it (Install does), or the user brings a copy.
+        add(Step.CLIENT, if (facts.clientThere) Status.DONE else Status.TODO)
         add(
             Step.DATA,
             when {

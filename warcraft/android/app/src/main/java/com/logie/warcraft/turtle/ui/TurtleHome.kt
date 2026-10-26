@@ -114,12 +114,12 @@ import com.logie.warcraft.turtle.core.InstallState
 import kotlinx.coroutines.delay
 
 /**
- * The launcher when Turtle WoW is the chosen game. It works the way the 3.3.5a launcher does
+ * The launcher when OctoWoW is the chosen game. It works the way the 3.3.5a launcher does
  * (WowHome): the picture and the logo, under them what the realm is doing with the one thing to do
  * next (Press start, or what's under way, or what's missing with the button that fixes it), then
- * the same tiles in the same order, each opening its screen. Only the look is Turtle WoW's: the old
- * map of Kalimdor and the Eastern Kingdoms with warm motes, its logo, turtlecraft.gg's colours and
- * its own music. Nothing here reads or changes the 3.3.5a game's files or realm, except
+ * the same tiles in the same order, each opening its screen. Only the look is OctoWoW's, from
+ * octowow.st: its launcher's violet wood under its logo, gold and violet motes, the steel band, frames
+ * and buttons of its site, its headings' lettering. Nothing here reads or changes the 3.3.5a game's files or realm, except
  * [Server.stop] when the user asks to stop ChromieCraft's realm (they share the login port).
  */
 @Composable
@@ -136,7 +136,8 @@ fun TurtleHomeRoute(onSwitchGame: () -> Unit) {
     fun play() {
         when {
             facts.blocker != null || facts.pin == null && !facts.programsInstalled -> {}
-            !facts.programsCurrent || !facts.databases ->
+            // The realm, OctoWoW's client and the server's data, in one tap.
+            !facts.programsCurrent || !facts.databases || !facts.client ->
                 TurtleService.job(context, TurtleJobs.Kind.INSTALL, options = TurtleJobs.Options(withMmaps = TurtleSettings.mmaps(context)))
             facts.client && facts.data -> TurtleGame.play(context)
             else -> TurtleServer.start(context)
@@ -179,7 +180,7 @@ enum class TurtleDialogKind { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, OPTIONS
 
 /** Where a job's progress and outcome show: the client and the data under Game files, the rest under Server. */
 fun dialogFor(kind: TurtleJobs.Kind): TurtleDialogKind = when (kind) {
-    TurtleJobs.Kind.CLIENT, TurtleJobs.Kind.VERIFY, TurtleJobs.Kind.DATA, TurtleJobs.Kind.IMPORT_DATA -> TurtleDialogKind.FILES
+    TurtleJobs.Kind.CLIENT, TurtleJobs.Kind.DOWNLOAD_CLIENT, TurtleJobs.Kind.VERIFY, TurtleJobs.Kind.DATA, TurtleJobs.Kind.IMPORT_DATA -> TurtleDialogKind.FILES
     else -> TurtleDialogKind.SERVER
 }
 
@@ -241,7 +242,7 @@ data class TurtleFacts(
                 dataParts = TurtleFiles.dataParts(context),
                 data = data,
                 // Data made before the app kept track of its client is taken as the client's.
-                dataCurrent = data && (state.dataFrom == null || state.dataFrom == state.clientExeSha256),
+                dataCurrent = data && (state.dataFrom == null || state.dataFrom == state.clientIdentity),
                 accounts = TurtleSettings.knownAccounts(context),
                 savedAccount = TurtleLogin.get(context)?.name,
                 used = runCatching { TurtleFiles.used(context) }.getOrDefault(0L),
@@ -325,12 +326,12 @@ private fun filesSummary(facts: TurtleFacts): String = stringResource(
     }
 )
 
-/** The old map, slowly closing in, motes rising over it; the logo over its lower edge. */
+/** OctoWoW's launcher's violet wood, slowly closing in, motes rising over it; the site's steel band under it, the logo over its lower edge. */
 @Composable
 private fun TurtleHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit) {
     val headerHeight = min((screenWidth * 0.5f).coerceIn(220.dp, 420.dp), screenHeight * 0.55f)
     val logoWidth = min(min(screenWidth * 0.82f, headerHeight * 1.6f), 480.dp)
-    val logoHeight = logoWidth * (238f / 748f)
+    val logoHeight = logoWidth * (337f / 900f)
     val motion = rememberInfiniteTransition(label = "header")
     val drift by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(32_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "drift")
     val breathe by motion.animateFloat(0f, 1f, infiniteRepeatable(tween(3_800, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
@@ -343,11 +344,11 @@ private fun TurtleHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit
     Box(Modifier.fillMaxWidth().padding(top = statusBar).height(headerHeight + logoHeight * 0.6f)) {
         Box(Modifier.fillMaxWidth().height(headerHeight).clipToBounds()) {
             Image(
-                painter = painterResource(R.drawable.turtle_header),
+                painter = painterResource(R.drawable.octowow_header),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                // The Maelstrom between the two continents stays in sight on a narrow screen.
-                alignment = BiasAlignment(0f, -0.2f),
+                // The great trees on the right stay in sight on a narrow screen.
+                alignment = BiasAlignment(0.4f, -0.2f),
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     val zoom = 1.02f + 0.05f * drift
                     scaleX = zoom
@@ -356,11 +357,14 @@ private fun TurtleHeader(screenWidth: Dp, screenHeight: Dp, onSwitch: () -> Unit
                     alpha = reveal.value
                 },
             )
+            // A violet glow behind where the logo sits, as on OctoWoW's art.
+            Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(TurtleColors.Violet.copy(alpha = 0.22f * reveal.value), Color.Transparent), center = androidx.compose.ui.geometry.Offset.Unspecified)))
             TurtleMotes(alpha = reveal.value)
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to TurtleColors.Night)))
         }
+        OctoBand(Modifier.align(Alignment.TopCenter).offset(y = headerHeight - 11.dp).graphicsLayer { alpha = reveal.value })
         Image(
-            painter = painterResource(R.drawable.turtle_logo),
+            painter = painterResource(R.drawable.octowow_logo),
             contentDescription = stringResource(R.string.turtle_name),
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -521,6 +525,7 @@ private fun RealmPanel(
                 stringResource(
                     when {
                         !facts.programsCurrent || !facts.databases -> if (facts.programsInstalled) R.string.turtle_home_start_line_update else R.string.turtle_home_start_line_install
+                        !facts.client -> R.string.turtle_home_start_line_client
                         !facts.data -> R.string.turtle_home_start_line_no_data
                         facts.client -> R.string.turtle_home_start_line_game
                         else -> R.string.turtle_home_start_line
@@ -537,9 +542,14 @@ private fun RealmPanel(
                 !facts.programsCurrent || !facts.databases -> facts.pin?.let { pin ->
                     Notice(stringResource(R.string.turtle_home_no_realm, Formatter.formatShortFileSize(context, pin.size), Formatter.formatShortFileSize(context, facts.free)))
                 }
-                !facts.client -> Notice(stringResource(R.string.turtle_home_no_client), stringResource(R.string.wow_tile_files)) { onDialog(TurtleDialogKind.FILES) }
+                !facts.client -> Notice(
+                    stringResource(R.string.turtle_home_no_client, Formatter.formatShortFileSize(context, TurtleJobs.CLIENT_SPACE), Formatter.formatShortFileSize(context, facts.free)),
+                    stringResource(R.string.wow_tile_files),
+                ) { onDialog(TurtleDialogKind.FILES) }
                 !facts.data || !facts.dataCurrent -> Notice(stringResource(R.string.turtle_home_no_data), stringResource(R.string.wow_tile_files)) { onDialog(TurtleDialogKind.FILES) }
                 facts.accounts == 0 && facts.savedAccount == null -> Notice(stringResource(R.string.turtle_home_no_account), stringResource(R.string.wow_tile_accounts)) { onDialog(TurtleDialogKind.ACCOUNTS) }
+                // A client from before (Turtle WoW's, or one taken offline): it plays, and one check makes it OctoWoW's.
+                !facts.state.clientIsOctoWow -> Notice(stringResource(R.string.turtle_home_client_unchecked), stringResource(R.string.wow_tile_files)) { onDialog(TurtleDialogKind.FILES) }
             }
         }
     }

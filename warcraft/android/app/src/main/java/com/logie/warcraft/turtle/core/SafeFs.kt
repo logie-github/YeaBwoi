@@ -150,6 +150,16 @@ class SafeFs(private val scope: File, private val protected: List<File> = emptyL
         Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
     }
 
+    /** Writes [bytes] to [file] through a temporary file and a rename, so it's never half written. */
+    fun writeAtomically(file: File, bytes: ByteArray) {
+        check(file)
+        val tmp = File(file.path + ".tmp")
+        check(tmp)
+        file.parentFile?.let { Files.createDirectories(it.toPath()) }
+        tmp.writeBytes(bytes)
+        Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+    }
+
     /** A folder inside the scope, as its own scope (same protected folders). */
     fun within(folder: File): SafeFs = SafeFs(check(folder, allowScope = true), protected)
 

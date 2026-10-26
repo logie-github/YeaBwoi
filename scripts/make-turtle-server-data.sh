@@ -1,10 +1,11 @@
 #!/bin/sh
-# Makes Turtle WoW's server data on a computer, pathfinding (mmaps) included, from your own Turtle
-# WoW 1.18.1 client, for the app to import (Turtle WoW → Game files → Import zip): the same files
-# the phone makes, in a fraction of the phone's hours. Needs Docker (on Linux, or Docker Desktop
-# on a Mac or Windows) and a checkout of this repository.
+# Makes OctoWoW's server data on a computer, pathfinding (mmaps) included, from a copy of OctoWoW's
+# client (its launcher's folder, or the zip from octowow.st unpacked), for the app to import
+# (OctoWoW → Game files → Import zip): the same files the phone makes, in a fraction of the phone's
+# hours. Needs Docker (on Linux, or Docker Desktop on a Mac or Windows) and a checkout of this
+# repository.
 #
-#   scripts/make-turtle-server-data.sh /path/to/TurtleWoW [parts]
+#   scripts/make-turtle-server-data.sh /path/to/OctoWoW [parts]
 #
 # parts: the folders the zip gets, comma-separated: dbc,maps,vmaps,mmaps (the default, all of
 # them), or "mmaps" for pathfinding alone, to add to the data the phone made (the maps and vmaps
@@ -32,15 +33,14 @@ for part in $(echo "$PARTS" | tr ',' ' '); do
 done
 want() { case ",$PARTS," in *",$1,"*) return 0 ;; *) return 1 ;; esac; }
 
-# The client: WoW.exe beside Data, and 1.18.1 (7272)'s WoW.exe, else a warning (the app checks the
-# DBC files against Turtle's checksums as it imports them).
+# The client: WoW.exe beside Data, and a 1.18.1 (7272) WoW.exe, else a warning (the app checks the
+# DBC files as it imports them). OctoWoW's WoW.exe has its build where its own launcher reads it.
 exe=$(find "$CLIENT" -maxdepth 1 -iname wow.exe | head -1)
 data=$(find "$CLIENT" -maxdepth 1 -iname data -type d | head -1)
-[ -n "$exe" ] && [ -n "$data" ] || { echo "No WoW.exe and Data folder in $CLIENT: give the Turtle WoW folder" >&2; exit 1; }
-expected=$(awk -F'\t' '$1 == "file" && $2 == "WoW.exe" { print $4 }' "$ROOT/warcraft/android/app/src/main/assets/turtle/client-manifest.tsv")
-actual=$( (sha256sum "$exe" 2> /dev/null || shasum -a 256 "$exe") | awk '{ print $1 }')
-if [ "$actual" != "$expected" ]; then
-	echo "Warning: $exe isn't Turtle WoW 1.18.1 (7272)'s, the only client the realm accepts; carrying on." >&2
+[ -n "$exe" ] && [ -n "$data" ] || { echo "No WoW.exe and Data folder in $CLIENT: give the OctoWoW folder" >&2; exit 1; }
+build=$(dd if="$exe" bs=1 skip=$((0x437bfc)) count=4 2> /dev/null || true)
+if [ "$build" != 7272 ]; then
+	echo "Warning: $exe isn't a 1.18.1 (7272) client, the only one the realm accepts; carrying on." >&2
 fi
 
 # The tools, for this computer, from the realm's own commit.
