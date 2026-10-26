@@ -170,7 +170,7 @@ CMSG_GAMEOBJ_USE = 0x0B1
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
-CMSG_LOOT, CMSG_LOOT_RELEASE, SMSG_LOOT_RESPONSE = 0x15D, 0x15F, 0x160
+CMSG_LOOT, CMSG_LOOT_RELEASE, SMSG_LOOT_RESPONSE, SMSG_LOOT_RELEASE_RESPONSE = 0x15D, 0x15F, 0x160, 0x161
 SMSG_TRAINER_LIST, CMSG_TRAINER_BUY_SPELL, SMSG_TRAINER_BUY_SUCCEEDED, SMSG_TRAINER_BUY_FAILED = 0x1B1, 0x1B2, 0x1B3, 0x1B4
 
 # AUTH_CHECK_TRACE=1: every packet the world server sends, on stderr (for debugging a script).
@@ -632,6 +632,10 @@ def run_script(session, player_guid, steps):
                         _, item, amount = struct.unpack_from("<BII", body, 14 + 22 * n)
                         print(f"script:   loot item {item} x{amount}")
                         heard.append(f"loot item {item} x{amount}")
+            elif opcode == SMSG_LOOT_RELEASE_RESPONSE:
+                # (the core's answer to a corpse out of reach, or gone: no window)
+                print("script:   loot let go")
+                heard.append("loot let go")
             elif opcode == SMSG_TRAINER_LIST:
                 # The trainer's guid, type and spells: each its id, whether it can be learned now
                 # (0) and its cost, 38 bytes in all.
