@@ -6293,6 +6293,7 @@
 377898	item/objectcomponents/weapon/sword_2h_cataclysm_b_01.m2	model
 377902	item/objectcomponents/weapon/sword_2h_cataclysm_b_01red.blp	texture
 378542	creature/goblinhotrod/t_vfx_water3b.blp	texture
+378600	cameras/flybyworgen.m2	model
 381341	dungeons/textures/goblin boat/ce_goblinboatfloor.blp	texture
 381342	dungeons/textures/goblin boat/goblinfloat.blp	texture
 381945	dungeons/textures/goblin boat/ce_targetbanner.blp	texture
@@ -6422,6 +6423,7 @@
 404761	interface/worldmap/thelostisles_terrain2/thelostisles_terrain27.blp	ui
 404762	interface/worldmap/thelostisles_terrain2/thelostisles_terrain28.blp	ui
 404763	interface/worldmap/thelostisles_terrain2/thelostisles_terrain29.blp	ui
+404865	cameras/flybygoblin.m2	model
 404867	character/worgen/male/worganmaleskin_r.blp	texture
 405140	world/wmo/azeroth/buildings/gilneas/worgen_docks_01_000.wmo	model
 405216	world/wmo/azeroth/buildings/gilneas/gilneas_worgendwellingwmo_000.wmo	model
@@ -7123,6 +7125,8 @@
 455956	world/wmo/azeroth/buildings/gilneas/gilneas_marketquarter_011.wmo	model
 455957	world/wmo/azeroth/buildings/gilneas/gilneas_marketquarter_012.wmo	model
 455958	world/wmo/azeroth/buildings/gilneas/gilneas_marketquarter_013.wmo	model
+456104	sound/cinematicvoices/goblinnarration.mp3	sound
+456105	sound/cinematicvoices/worgennarration.mp3	sound
 456109	world/wmo/azeroth/buildings/gilneas/gilneas_house_e_000.wmo	model
 456110	world/wmo/azeroth/buildings/gilneas/gilneas_house_e_001.wmo	model
 456111	world/wmo/azeroth/buildings/gilneas/gilneas_house_e_002.wmo	model
@@ -7274,7 +7278,9 @@
 468181	textures/bakednpctextures/creaturedisplayextra-24854.blp	texture
 468182	textures/bakednpctextures/creaturedisplayextra-24855.blp	texture
 468498	world/wmo/azeroth/buildings/horde_goblin/kezanshortwalls_07_000.wmo	model
+469772	cameras/flybyworgen00.skin	model
 469780	cameras/flybygilneasshort00.skin	model
+469787	cameras/flybygoblin00.skin	model
 472420	character/worgen/female/worgenfemale00.skin	model
 472457	character/worgen/male/worgenmale00.skin	model
 472731	creature/ancientseaturtlefire/ancientseaturtlefire00.skin	model

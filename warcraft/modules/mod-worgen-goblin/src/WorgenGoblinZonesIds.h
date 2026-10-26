@@ -521,6 +521,8 @@ namespace WorgenGoblinZones
         switch (cata)
         {
             case 168: return 168;
+            case 170: return 170;
+            case 172: return 172;
             default: return 0;
         }
     }

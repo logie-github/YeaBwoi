@@ -402,6 +402,8 @@ put	23101	28	Cataclysm23101	mus_goblin_uu08.mp3	mus_goblin_uu10.mp3	mus_goblin_u
 put	23102	28	Cataclysm23102	mus_goblin_uu09.mp3	mus_goblin_uu12.mp3	mus_goblin_uu15.mp3	mus_goblin_uu17.mp3	mus_lirescue_eu01.mp3						1	2	1	1	1	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
 put	23103	28	Cataclysm23103	mus_goblin_uu34.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
 put	23104	28	Cataclysm23104	mus_goblin_uu03.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23105	31	Cataclysm23105	worgennarration.mp3										1	0	0	0	0	0	0	0	0	0	sound\\cinematicvoices	0.40000000596	0	7.0	30.0	0	0
+put	23106	31	Cataclysm23106	goblinnarration.mp3										1	0	0	0	0	0	0	0	0	0	sound\\cinematicvoices	0.40000000596	0	7.0	30.0	0	0
 put	23107	28	Cataclysm23107	mus_goblin_uu05.mp3	mus_goblin_uu08.mp3	mus_goblin_uu12.mp3	mus_goblin_uu14.mp3	mus_goblin_uu15.mp3	mus_goblin_uu35.mp3	mus_goblin_uu36.mp3	mus_goblin_uu46.mp3			1	1	1	1	1	1	1	1	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
 put	23108	28	Cataclysm23108	mus_goblin_uu23.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
 put	23109	28	Cataclysm23109	mus_goblin_uu04.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0

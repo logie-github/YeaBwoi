@@ -921,6 +921,11 @@ def main():
     b.lights()
     b.world_maps()
     b.world()
+    # The two races' intros, Cataclysm's camera flights with their narration.
+    for race, cata_seq in build_tables.INTROS_CATACLYSM.items():
+        b.out.intros[race] = b.cinematic(cata_seq)
+        if b.out.intros[race]:
+            b.out.set("ChrRaces", race, build_tables.CHRRACES_CINEMATIC, b.out.intros[race])
     # The maps' files, the world's, and everything they use; the buildings' rooms.
     start = files.map_files(b.names)
     start.update(b.files)
