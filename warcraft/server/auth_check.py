@@ -768,8 +768,16 @@ def run_script(session, player_guid, steps):
             say(session, ".damage 100 pct")
             session.pump(2.0, packets)
             session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
-            session.send(CMSG_LOOT, struct.pack("<Q", target))
-            session.pump(1.5, packets)
+            # (the realm may be slow to answer, or to have the corpse ready: up to 6 sec, asked twice;
+            # 1.0.340's test had one kill's answer miss a 1.5 sec wait)
+            for _ in range(2):
+                session.send(CMSG_LOOT, struct.pack("<Q", target))
+                for _ in range(3):
+                    session.pump(1.0, packets)
+                    if any(o == SMSG_LOOT_RESPONSE for o, _ in packets):
+                        break
+                if any(o == SMSG_LOOT_RESPONSE for o, _ in packets):
+                    break
             session.send(CMSG_LOOT_RELEASE, struct.pack("<Q", target))
             session.pump(0.5, packets)
         elif word == "use":
