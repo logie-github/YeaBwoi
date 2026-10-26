@@ -22,3 +22,15 @@
 
 WorgenGoblin.Enable = 1
 WorgenGoblin.ClientPatch = 1
+
+#
+#    WorgenGoblin.StartingAreas
+#        Description: The Worgen's and Goblins' starting areas from Cataclysm (Gilneas, Kezan and the
+#                     Lost Isles: data/zones, the README), when their package is installed
+#                     (WOW_ZONES_DIR): their maps, models, music and pictures in the game's patch
+#                     (only files the game hasn't), their rows in the world's tables, and the two
+#                     races' new characters started there. Off (or no package): they start with the
+#                     Night Elves and the Orcs, and the areas' rows are taken out. Off until their
+#                     creatures and quests are in (the README says where that stands).
+#        Default:     0
+WorgenGoblin.StartingAreas = 0

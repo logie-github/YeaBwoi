@@ -19,6 +19,8 @@
 #include "../../mod-skyborne/src/SkyborneFiles.h"
 #include <algorithm>
 #include <chrono>
+#include <map>
+#include <set>
 #include <cstdio>
 #include <sstream>
 
@@ -35,7 +37,8 @@ namespace WorgenGoblin
         constexpr char const* MARK = "patch-U.MPQ.worgengoblin";
         constexpr char const* ASIDE = "patch-U.MPQ.aside";
         constexpr char const* MANIFEST = "worgengoblin.files";
-        constexpr char const* VERSION = "worgen-goblin-1";
+        constexpr char const* VERSION = "worgen-goblin-2";
+        constexpr char const* MINIMAP = "textures\\minimap\\md5translate.trs";
         // The character screen's files in the game's GlueXML.toc, in this order: the races' texts
         // (mod-worgoblin's, from its files), the extra race buttons, then the script.
         constexpr char const* STRINGS = "WorgenGoblinStrings.lua";
@@ -132,7 +135,41 @@ namespace WorgenGoblin
             log("The Worgen's and Goblins' patch is out of the game, kept beside it for a realm with them");
     }
 
-    bool UpdatePatch(fs::path const& moduleData, fs::path const& files, fs::path const& clientData, std::function<void(std::string const&)> const& log)
+    namespace
+    {
+        std::vector<std::string> Lines(std::string const& text)
+        {
+            std::vector<std::string> out;
+            std::istringstream in(text);
+            std::string line;
+            while (std::getline(in, line))
+            {
+                if (!line.empty() && line.back() == '\r')
+                    line.pop_back();
+                if (!line.empty())
+                    out.push_back(line);
+            }
+            return out;
+        }
+
+        std::string LowerText(std::string text)
+        {
+            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+            return text;
+        }
+
+        // The tables' changes of a folder (dbc/<Table>.txt), by table.
+        void TableChanges(fs::path const& folder, std::map<std::string, std::vector<fs::path>>& out)
+        {
+            std::error_code error;
+            for (auto it = fs::directory_iterator(folder / "dbc", error); !error && it != fs::directory_iterator(); it.increment(error))
+                if (it->path().extension() == ".txt")
+                    out[it->path().stem().string()].push_back(it->path());
+        }
+    }
+
+    bool UpdatePatch(fs::path const& moduleData, fs::path const& files, fs::path const& clientData, std::function<void(std::string const&)> const& log,
+                     Zones const& zones)
     {
         std::error_code error;
         fs::path patch = clientData / PATCH, mark = clientData / MARK;
@@ -193,6 +230,22 @@ namespace WorgenGoblin
             stamp.Add(name);
             stamp.Add(std::to_string(fs::file_size(LocalPath(files, name), error)));
         }
+        // The starting areas: their package (what it was made from) and their tables' rows.
+        bool withZones = !zones.tables.empty() && !zones.package.empty() && fs::exists(zones.package / "files.txt", error);
+        if (withZones)
+        {
+            stamp.Add("zones");
+            stamp.Add(Text(zones.package / ".." / "TAG"));
+            stamp.Add(Text(zones.package / "files.txt"));
+            std::map<std::string, std::vector<fs::path>> rows;
+            TableChanges(zones.tables, rows);
+            for (auto const& [table, paths] : rows)
+                for (auto const& path : paths)
+                {
+                    stamp.Add(table);
+                    stamp.Add(Text(path));
+                }
+        }
         if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
             return true;
 
@@ -222,14 +275,69 @@ namespace WorgenGoblin
         if (missing)
             problems.push_back(std::to_string(missing) + " of mod-worgoblin's files aren't in " + files.string());
 
-        std::vector<fs::path> changes;
-        for (auto it = fs::directory_iterator(moduleData / "dbc", error); !error && it != fs::directory_iterator(); it.increment(error))
-            if (it->path().extension() == ".txt")
-                changes.push_back(it->path());
-        std::sort(changes.begin(), changes.end());
-        for (auto const& path : changes)
+        // The starting areas' files: the ones the game hasn't (a file of the game's own is never
+        // replaced); a file the package has once for several paths (a terrain swap's tiles that are
+        // its base map's) stored once.
+        size_t zoneFiles = 0, gameHas = 0, zoneMissing = 0;
+        if (withZones)
         {
-            std::string name = path.stem().string();
+            std::map<std::string, std::string> same;
+            for (std::string const& line : Lines(Text(zones.package / "same.txt")))
+            {
+                size_t tab = line.find('\t');
+                if (tab != std::string::npos)
+                    same[line.substr(0, tab)] = line.substr(tab + 1);
+            }
+            std::set<std::string> added;
+            // (the files stored first, then the paths that are one of them)
+            std::vector<std::string> names = Lines(Text(zones.package / "files.txt"));
+            std::stable_partition(names.begin(), names.end(), [&](std::string const& n) { return !same.count(n); });
+            for (std::string const& name : names)
+            {
+                if (game.Has(name))
+                {
+                    ++gameHas;
+                    continue;
+                }
+                auto it = same.find(name);
+                std::string const& stored = it == same.end() ? name : it->second;
+                if (it != same.end() && added.count(stored) && writer.AddSame(name, stored))
+                {
+                    ++zoneFiles;
+                    continue;
+                }
+                Bytes data = ReadFile(LocalPath(zones.package / "files", LowerText(stored)));
+                if (data.empty())
+                {
+                    ++zoneMissing;
+                    continue;
+                }
+                writer.Add(name, data);
+                added.insert(name);
+                ++zoneFiles;
+            }
+            if (zoneMissing)
+                problems.push_back(std::to_string(zoneMissing) + " of the starting areas' files aren't in " + zones.package.string());
+            // Their maps' lines in the game's minimap index.
+            Bytes index;
+            std::string text;
+            if (game.Read(MINIMAP, index))
+                text.assign(index.begin(), index.end());
+            std::string ours = Text(zones.package / "minimap.txt");
+            if (!text.empty() && text.back() != '\n')
+                text += "\r\n";
+            for (std::string const& line : Lines(ours))
+                text += line + "\r\n";
+            writer.Add(MINIMAP, Bytes(text.begin(), text.end()));
+        }
+
+        // The tables: mod-worgoblin's changes, then the starting areas' rows.
+        std::map<std::string, std::vector<fs::path>> changes;
+        TableChanges(moduleData, changes);
+        if (withZones)
+            TableChanges(zones.tables, changes);
+        for (auto const& [name, paths] : changes)
+        {
             Bytes data;
             Dbc dbc;
             if (!game.Read("DBFilesClient\\" + name + ".dbc", data) || !dbc.Parse(data))
@@ -237,7 +345,10 @@ namespace WorgenGoblin
                 problems.push_back(name + ".dbc isn't in the game");
                 continue;
             }
-            std::string problem = Skyborne::ApplyChanges(dbc, Text(path));
+            std::string problem;
+            for (auto const& path : paths)
+                if (problem.empty())
+                    problem = Skyborne::ApplyChanges(dbc, Text(path));
             if (!problem.empty())
             {
                 problems.push_back(name + ".dbc: " + problem);
@@ -288,6 +399,9 @@ namespace WorgenGoblin
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
         log("The Worgen's and Goblins' patch is in the game: " + std::to_string(tables) + " tables, " + std::to_string(packed)
             + " files (" + std::to_string(seconds) + " s)");
+        if (withZones)
+            log("The starting areas are in it: " + std::to_string(zoneFiles) + " files (" + std::to_string(gameHas)
+                + " the game has already, its own kept)");
         return true;
     }
 }

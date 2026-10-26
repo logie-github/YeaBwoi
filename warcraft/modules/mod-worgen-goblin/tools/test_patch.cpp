@@ -215,6 +215,55 @@ int main(int argc, char** argv)
         Check((m & 2048) && (m & 16384) && (m & 4096), "...Stormwind's row with the Worgen's, the void elves' and the High Order's bits");
     }
 
+    // The starting areas (WG_ZONE_TABLES: the module's data/zones/client): a stand-in package of a few
+    // files, one a file the game has (never replaced), one another's (stored once), and the minimap
+    // index's lines; the tables' rows on top of the races'.
+    if (char const* zoneTables = std::getenv("WG_ZONE_TABLES"))
+    {
+        fs::path package = fs::temp_directory_path() / "wg-zones-test";
+        fs::remove_all(package, error);
+        fs::create_directories(package / "client" / "files" / "world" / "maps" / "gilneas2");
+        fs::create_directories(package / "client" / "files" / "interface" / "gluexml");
+        std::ofstream(package / "client" / "files" / "world" / "maps" / "gilneas2" / "gilneas2_24_33.adt") << "a tile of Gilneas";
+        std::ofstream(package / "client" / "files" / "interface" / "gluexml" / "gluexml.toc") << "NOT THE GAME'S";
+        std::ofstream(package / "client" / "files.txt") << "world\\maps\\gilneas2\\gilneas2_24_33.adt\n"
+            << "world\\maps\\gilneas\\gilneas_24_33.adt\ninterface\\gluexml\\gluexml.toc\n";
+        std::ofstream(package / "client" / "same.txt") << "world\\maps\\gilneas\\gilneas_24_33.adt\tworld\\maps\\gilneas2\\gilneas2_24_33.adt\n";
+        std::ofstream(package / "client" / "minimap.txt") << "dir: Gilneas2\nGilneas2\\map24_33.blp\tcataclysm_gilneas2_map24_33.blp\n";
+        std::ofstream(package / "TAG") << "cata-zones-test\n";
+        size_t mapsBefore = 0, areasBefore = 0;
+        {
+            Game g(data, { "patch-u.mpq" });
+            Bytes b;
+            Dbc d;
+            if (g.Read("DBFilesClient\\Map.dbc", b) && d.Parse(b))
+                mapsBefore = d.records.size();
+            if (g.Read("DBFilesClient\\AreaTable.dbc", b) && d.Parse(b))
+                areasBefore = d.records.size();
+        }
+        Check(WorgenGoblin::UpdatePatch(module, files, data, log, { zoneTables, package / "client" }), "the patch with the starting areas");
+        Game z(data, {});
+        Bytes b;
+        Check(z.Read("world\\maps\\gilneas2\\gilneas2_24_33.adt", b) && std::string(b.begin(), b.end()) == "a tile of Gilneas", "a map's tile is in it");
+        Check(z.Read("world\\maps\\gilneas\\gilneas_24_33.adt", b) && std::string(b.begin(), b.end()) == "a tile of Gilneas",
+              "...and a terrain swap's tile that's the same, under its own name");
+        Check(z.Read("Interface\\GlueXML\\GlueXML.toc", b) && std::string(b.begin(), b.end()).find("NOT THE GAME'S") == std::string::npos,
+              "a file the game has is the game's (not the package's)");
+        Check(z.Read("textures\\minimap\\md5translate.trs", b) && std::string(b.begin(), b.end()).find("dir: Gilneas2") != std::string::npos,
+              "the minimap index has the maps' lines");
+        Dbc maps, areas, races2;
+        Check(z.Read("DBFilesClient\\Map.dbc", b) && maps.Parse(b) && Find(maps, 654) >= 0 && Find(maps, 638) >= 0 && Find(maps, 648) >= 0
+              && Str(maps, Find(maps, 654), 1) == "Gilneas2" && maps.records.size() == mapsBefore + 7, "the seven maps, added to the game's");
+        Check(z.Read("DBFilesClient\\AreaTable.dbc", b) && areas.Parse(b) && Find(areas, 4714) >= 0 && Find(areas, 4737) >= 0
+              && areas.records.size() == areasBefore + 92, "the 92 areas (Gilneas, Kezan...), added to the game's");
+        Check(z.Read("DBFilesClient\\ChrRaces.dbc", b) && races2.Parse(b) && Str(races2, Find(races2, 12), 11) == "Worgen",
+              "the races' changes still in");
+        Check(WorgenGoblin::UpdatePatch(module, files, data, log), "without the starting areas again");
+        Game n(data, {});
+        Check(!n.Read("world\\maps\\gilneas2\\gilneas2_24_33.adt", b), "...their files are out");
+        fs::remove_all(package, error);
+    }
+
     std::cout << (failures ? "FAILED (" + std::to_string(failures) + ")" : std::string("PASSED")) << "\n";
     return failures ? 1 : 0;
 }

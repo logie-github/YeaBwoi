@@ -87,8 +87,9 @@ for dir in "$SRC"/modules/*/; do
 	dir=${dir%/}
 	name=$(basename "$dir")
 	# (data/patch: a module's files for the game, mod-worgoblin's: package-azerothcore.sh makes the
-	# game's patch's files from them; data/server: SQL a module runs itself, mod-worgen-goblin's)
-	for sql in "$dir"/data/sql "$dir"/data/client "$dir"/data/server "$dir"/data/patch "$dir"/sql "$dir"/src/Bracket_*/sql; do
+	# game's patch's files from them; data/server: SQL a module runs itself, mod-worgen-goblin's;
+	# data/zones: its starting areas' rows for the game's tables and the world's)
+	for sql in "$dir"/data/sql "$dir"/data/client "$dir"/data/server "$dir"/data/zones "$dir"/data/patch "$dir"/sql "$dir"/src/Bracket_*/sql; do
 		[ -d "$sql" ] || continue
 		rel=${sql#"$dir/"}
 		mkdir -p "$DIST/modules/$name/$(dirname "$rel")"

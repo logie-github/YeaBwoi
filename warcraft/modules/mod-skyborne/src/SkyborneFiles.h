@@ -29,6 +29,8 @@ namespace Skyborne
         virtual ~Archive() = default;
         // The file at [name] (the game's path, backslashes, any case) into [out].
         virtual bool Read(std::string const& name, Bytes& out) = 0;
+        // Whether it has a file at [name] (without reading it).
+        virtual bool Has(std::string const& name) = 0;
         fs::path path;
     };
 
@@ -42,6 +44,7 @@ namespace Skyborne
     public:
         Game(fs::path const& data, std::vector<std::string> const& skip);
         bool Read(std::string const& name, Bytes& out) const;
+        bool Has(std::string const& name) const;
         std::string locale;                 // enUS...
         std::vector<std::unique_ptr<Archive>> archives;
         // What the archives are (names, sizes, times), to know when the patch is to be made again.
@@ -54,11 +57,14 @@ namespace Skyborne
     public:
         explicit MpqWriter(fs::path const& path);
         bool Add(std::string const& name, Bytes const& data);
+        // Another name for a file already added (its bytes stored once): false if there's none of [existing].
+        bool AddSame(std::string const& name, std::string const& existing);
         bool Finish();
         bool ok() const { return _ok; }
     private:
         std::ofstream _out;
         std::vector<std::pair<std::string, std::vector<uint32_t>>> _blocks; // name, block entry
+        std::vector<std::pair<std::string, uint32_t>> _same;                 // name, block
         uint64_t _pos = 32;
         bool _ok = true;
     };

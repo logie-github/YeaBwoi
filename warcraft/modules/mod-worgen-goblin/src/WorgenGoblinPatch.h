@@ -16,8 +16,18 @@ namespace WorgenGoblin
     // mod-worgoblin's files ([files]: its models, textures, sounds, icons and texts, laid out by
     // tools/package.py as the server was packaged, listed in worgengoblin.files there), when the
     // client, the module or those files changed since. True when the patch is in place.
+    //
+    // With the starting areas ([zones]: their tables' rows, data/zones/client, and the package the app
+    // installed, its client folder; both empty for none) it also has their maps, models, sounds and
+    // pictures (only the files the game hasn't: none of the game's own is replaced), their rows in
+    // the game's tables (after mod-worgoblin's) and their maps' lines in the minimap index.
+    struct Zones
+    {
+        fs::path tables;
+        fs::path package;
+    };
     bool UpdatePatch(fs::path const& moduleData, fs::path const& files, fs::path const& clientData,
-                     std::function<void(std::string const&)> const& log);
+                     std::function<void(std::string const&)> const& log, Zones const& zones = {});
     // Takes the patch out, if it's this module's.
     void RemovePatch(fs::path const& clientData, std::function<void(std::string const&)> const& log);
     // Takes the patch out of the game but keeps it, beside it (patch-U.MPQ.aside): for a realm without

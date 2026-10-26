@@ -95,6 +95,54 @@ same tables and screen, put text an editor damaged into the game (quotes doubled
   mod-worgoblin's `data/patch` for it): its files for the game, its race texts and its SQL, into the
   package.
 
+## The starting areas (Gilneas, Kezan and the Lost Isles)
+
+The user: Gilneas's and Kezan's starting areas from Cataclysm, "a very faithful port that doesn't
+overwrite the old 3.3.5 content", the two races started there and joined to Wrath's world after them;
+"for any other character than worgen or goblin the world and quests and everything stay as is". It's
+being built in stages (`warcraft/PLAN.md`); `WorgenGoblin.StartingAreas` is off until their creatures
+and quests are in. So far:
+
+- **Their maps**, from Cataclysm Classic's files (`tools/zones/common.py` names the build, from
+  wago.tools), made for 3.3.5a by [wotlkconv](https://github.com/Bar3b0n3s/Converter) (the commit
+  `warcraft/zones-version.env` pins): Gilneas (map 654), the Lost Isles with Kezan (648), and the maps
+  whose terrain Cataclysm swaps into them as the story goes. 3.3.5a can't swap a map's terrain, so each
+  swap is made a whole map of its own (its base's tiles where it has none: 638, Gilneas as it is until
+  quest 14222, where the Worgen start; 655 and 656; 659 and 661 for the Lost Isles), the player to be
+  moved between them as Cataclysm swaps them. Two things the converter leaves that 3.3.5a can't take
+  are fixed after it: the empty tiles' flag in a map's tile list, and Cataclysm's liquid types 3.3.5a
+  hasn't (made its own of the same kind). Their ids are free in 3.3.5a's tables, and kept.
+- **Everything they place** (`tools/zones/files.py`): the models, buildings and textures, with
+  everything those use, read from the files themselves; the world's textures at most 512 across (a
+  32-bit game on a phone), the interface's as they are; their minimap pictures, world maps and their
+  discovered parts, loading screens, music and ambience (Ogg Vorbis, as mod-worgoblin's own voices).
+  `data/zones/files.tsv` lists them by Cataclysm Classic's file ids (never the files: those are the
+  game's).
+- **Their rows in the game's tables and the server's** (`tools/zones/build_tables.py`,
+  `data/zones/client/dbc`, `data/zones/server`): the maps, their 92 areas, lights (3.3.5a's own
+  layout: its light positions, colour and number bands, checked on the lights both games have), the
+  areas' music, intro music, ambience and sounds, the buildings' areas, the world maps and their
+  discovered parts, the loading screens. Every row is a new one: a Cataclysm id that 3.3.5a or another
+  of the realm's modules has for something else is given a new one (and what names it is renumbered);
+  one of 3.3.5a's that's the same (the same sound files) is used as it is. Exploration bits past
+  3.3.5a's 4096 get free ones.
+- **The package** (`tools/zones/package.py`, `scripts/package-zones.sh`): the converted files, and the
+  world server's data for the seven maps (AzerothCore's own map, vmap and mmap tools over a stand-in
+  game of them), published by CI as the release `cata-zones-<hash>`. Files with the same bytes (a terrain
+  swap's tiles that are its base's) are kept once and named under each path.
+- **In the realm** (`src/WorgenGoblin.cpp`, `src/WorgenGoblinPatch.cpp`, `ctl.sh zones_data`), with
+  the package installed (`files/zones`) and `WorgenGoblin.StartingAreas` on: the patch-U the realm
+  makes has their files (only those the game hasn't: none of the game's own is replaced), their rows
+  (after mod-worgoblin's) and their maps' lines in the game's minimap index; the world server's data
+  has their maps (never in place of a file that's there); the world's tables have their rows; the two
+  races' new characters start in Gilneas City and Kezan (death knights at Ebon Hold, as ever). No other
+  race's character is let onto their maps (a game master's is). Off, or without the package: their
+  rows go, and the two races start with the Night Elves and the Orcs as before.
+
+Next: their creatures and objects, quests, items and spells (the Cataclysm Preservation Project's
+world, `The-Cataclysm-Preservation-Project/TrinityCore`), the scripts and phases, and the way into
+Wrath's world after them (Worgen to Darnassus, Goblins to Orgrimmar), each with new ids only.
+
 ## Tests
 
 - `tools/test_screen.py`: `WorgenGoblinCreate.lua` in Lua 5.1 against stand-ins for the game's
@@ -118,6 +166,18 @@ same tables and screen, put text an editor damaged into the game (quotes doubled
   tables, races 9 and 12 playable with their looks, the capitals' reputations with every race's bits,
   a Worgen and a Goblin warrior at their starts with their racials and their side's language; on
   Wrath Remix, the patch set aside and none of it in its world; back on ChromieCraft, the patch back.
+  With the starting areas' package (the zones job's): their maps in the server's data with paths for
+  each, their files in the patch, their seven maps and 92 areas in the world's tables; a Worgen warrior
+  starts on map 638 in Gilneas City and a Goblin warrior in Kezan (648), a Human and an Orc where they
+  always have; the game's own creatures, objects, quests, items, scripts and other races' starts as
+  they were; a Human put on Gilneas's map is taken home as it logs in; off again, their rows gone and
+  the starts back.
+- `tools/test_patch.cpp` with `WG_ZONE_TABLES`: a stand-in package's files in the patch, one the game
+  has kept as the game's, one that's another's stored once under both names, the minimap index's
+  lines, the seven maps and 92 areas added to the game's tables with the races' changes still in;
+  without the package again, its files out. Built and run here.
+- The starting areas' converter run here on all seven maps: AzerothCore's map_extractor takes all 241
+  tiles, vmap4_extractor and vmap4_assembler the models and buildings, mmaps_generator the paths.
 - Its SQL, as `tools/package.py` writes it, applied twice to a world database made from the pinned
   core's base and updates (MariaDB 11.4), with the allied races' and the Skyborne's: no error. Run
   here.

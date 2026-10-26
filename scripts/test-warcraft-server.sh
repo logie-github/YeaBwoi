@@ -229,6 +229,21 @@ stop_world() {
 	tail -3 "$world_log"
 	echo "The world server shut down."
 }
+# A character erased the way the realm erases one (its every row: Player::DeleteFromDB), from the
+# world server's console, while it runs.
+erase_character() {
+	local name=$1 guid
+	guid=$(echo "SELECT guid FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+	[ -n "$guid" ] || return 0
+	echo "character erase $name" >&3
+	for _ in $(seq 30); do
+		if [ "$(echo "SELECT (SELECT COUNT(*) FROM characters WHERE guid = $guid) + (SELECT COUNT(*) FROM character_achievement_progress WHERE guid = $guid)" | CTL sql acore_characters)" = 0 ]; then
+			return 0
+		fi
+		sleep 1
+	done
+	return 1
+}
 # A stand-in for the game the Skyborne's patch is made from (mod-skyborne): the server's tables as
 # the game's language archive (a folder, which the module reads like one). No textures in it.
 if [ -n "$DATA_ZIP" ]; then
@@ -449,12 +464,94 @@ EOF
 	done
 	echo "The Worgen start in Shadowglen and the Goblins in the Valley of Trials, with their racials and their side's language."
 	# The two go again: a realm keeps ten characters an account, and Wrath Remix's way home (below)
-	# needs room on ChromieCraft for the Timerunners it brings back (1.0.330's run had no room).
+	# needs room on ChromieCraft for the Timerunners it brings back (1.0.330's run had no room). The
+	# world server erases them, everything of theirs (1.0.331's run deleted their rows in SQL and left
+	# their achievements behind: the next character the realm made had their guid, and a Timerunner
+	# coming home on it collided with them).
 	for name in Worgtester Gobtester; do
-		echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = '$name'" | CTL sql acore_characters
+		erase_character "$name" || fail "$name wasn't erased"
 	done
-	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name IN ('Worgtester', 'Gobtester')" | CTL sql acore_characters)" = 0 ] ||
-		fail "the Worgen and Goblin test characters are still there"
+
+	# The starting areas (mod-worgen-goblin's data/zones, the zones job's package): installed the way
+	# the app installs it and turned on, the two races' new characters start in Gilneas and Kezan;
+	# nothing of the game's own world changes for anyone else (the Humans and Orcs start where they
+	# always have, the game's creatures, objects and quests are as they were), and no other race's
+	# character is let onto their maps. Then off again: their rows go, and the starts are back.
+	if [ -n "${WOW_ZONES_TAR:-}" ]; then
+		echo "== the Worgen's and Goblins' starting areas (mod-worgen-goblin, data/zones)"
+		world_rows() {
+			echo "SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM creature_template), (SELECT COUNT(*) FROM creature),
+				(SELECT COUNT(*) FROM gameobject_template), (SELECT COUNT(*) FROM gameobject), (SELECT COUNT(*) FROM quest_template),
+				(SELECT COUNT(*) FROM item_template), (SELECT COUNT(*) FROM smart_scripts),
+				(SELECT GROUP_CONCAT(CONCAT(race, ':', class, ':', map, ':', ROUND(position_x)) ORDER BY race, class) FROM playercreateinfo WHERE race NOT IN (9, 12)))" |
+				CTL sql acore_world
+		}
+		before=$(world_rows)
+		stop_world
+		mkdir -p "$FILES/zones"
+		tar -xJf "$WOW_ZONES_TAR" -C "$FILES/zones" --strip-components=1
+		cat "$FILES/zones/TAG" "$FILES/zones/VERSION"
+		sed -i 's/^WorgenGoblin.StartingAreas .*/WorgenGoblin.StartingAreas = 1/' "$FILES/etc/modules/mod_worgen_goblin.conf"
+		start_world world-zones.out
+		wait_world_ready
+		grep -E "The starting areas' maps are in the world server's data \([0-9]+ files\)" "$world_log" ||
+			fail "ctl.sh didn't put the starting areas' maps in the world server's data"
+		grep -E "Worgen and Goblins: The starting areas are in it: [0-9]+ files" "$world_log" ||
+			fail "the game's patch hasn't the starting areas"
+		grep -q "Worgen and Goblins: the starting areas are in the world" "$world_log" || fail "the starting areas aren't in the world"
+		for map in 638 648 654 655 656 659 661; do
+			[ -s "$FILES/data/mmaps/$(printf %03d "$map").mmap" ] || fail "map $map has no paths in the world server's data"
+		done
+		[ "$(echo "SELECT COUNT(*) FROM map_dbc WHERE ID IN (638, 648, 654, 655, 656, 659, 661)" | CTL sql acore_world)" = 7 ] ||
+			fail "the world's tables haven't the starting areas' seven maps"
+		areas=$(echo "SELECT COUNT(*) FROM areatable_dbc WHERE ContinentID IN (648, 654)" | CTL sql acore_world)
+		[ "$areas" = 92 ] || fail "the world's tables have $areas of the starting areas' 92 areas"
+		after=$(world_rows)
+		echo "the game's own world: $before"
+		[ "$after" = "$before" ] || fail "the game's own creatures, objects, quests or starts changed: $after"
+		# Their new characters, where Cataclysm starts them: a Worgen warrior in Gilneas City (on map
+		# 638, Gilneas as it is until quest 14222), a Goblin warrior in Kezan; a Human and an Orc
+		# where they always have.
+		for who in "Zonewolf:12:1:638" "Zonegoblin:9:1:648" "Zonehuman:1:1:0" "Zoneorc:2:1:1"; do
+			IFS=: read -r name race class map <<EOF2
+$who
+EOF2
+			python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" "$class" "$FILES/run/skyborne.steps" |
+				tee "$FILES/logs/zones-$name.out" || fail "$name didn't get into the world (logs/zones-$name.out)"
+			at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+			start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
+			echo "$name at $at, its start $start"
+			[ -n "$at" ] && [ "$at" = "$start" ] && [ "${at%% *}" = "$map" ] || fail "$name didn't start on map $map ($at, its start $start)"
+		done
+		# No other race's character on their maps: one there anyway (a Human put on Gilneas's map) is
+		# taken home as it logs in, on an account that isn't a game master's.
+		python3 "$ROOT/warcraft/server/auth_check.py" account-sql plainer secret123 | CTL sql acore_auth
+		echo "DELETE FROM account_access WHERE id = (SELECT id FROM account WHERE username = 'PLAINER')" | CTL sql acore_auth
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 plainer secret123 Plainhuman 1 1 "$FILES/run/skyborne.steps" > /dev/null ||
+			fail "a player's Human didn't get into the world"
+		echo "UPDATE characters SET map = 654, position_x = -1451.53, position_y = 1403.35, position_z = 35.5561 WHERE name = 'Plainhuman'" |
+			CTL sql acore_characters
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 plainer secret123 Plainhuman 1 1 "$FILES/run/skyborne.steps" |
+			tee "$FILES/logs/zones-plainhuman.out" > /dev/null || fail "the Human put on Gilneas's map didn't get into the world"
+		at=$(echo "SELECT map FROM characters WHERE name = 'Plainhuman'" | CTL sql acore_characters)
+		[ "$at" = 0 ] || fail "a Human on Gilneas's map was left there (map $at)"
+		echo "A Human on Gilneas's map is taken home."
+		for name in Zonewolf Zonegoblin Zonehuman Zoneorc Plainhuman; do
+			erase_character "$name" || fail "$name wasn't erased"
+		done
+		# Off again.
+		stop_world
+		sed -i 's/^WorgenGoblin.StartingAreas .*/WorgenGoblin.StartingAreas = 0/' "$FILES/etc/modules/mod_worgen_goblin.conf"
+		start_world world-zones-off.out
+		wait_world_ready
+		grep -q "Worgen and Goblins: no starting areas" "$world_log" || fail "the world server didn't take the starting areas out"
+		[ "$(echo "SELECT COUNT(*) FROM map_dbc WHERE ID IN (638, 648, 654, 655, 656, 659, 661)" | CTL sql acore_world)" = 0 ] ||
+			fail "the starting areas' maps are still in the world's tables"
+		[ "$(echo "SELECT map FROM playercreateinfo WHERE race = 12 AND class = 1" | CTL sql acore_world)" = 1 ] ||
+			fail "the Worgen don't start in Shadowglen again"
+		[ "$(world_rows)" = "$before" ] || fail "the game's own world isn't as it was after the starting areas went"
+		echo "The starting areas are in and out again, the game's own world as it was."
+	fi
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

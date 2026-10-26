@@ -1,0 +1,116 @@
+# SoundEntries: the starting areas (tools/zones/build_tables.py)
+types	iisssssssssssiiiiiiiiiisfiffii
+put	16382	50	Cataclysm16382	lostislesphase1_day.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.38999998569	512	8.0	45.0	0	0
+put	16383	50	Cataclysm16383	lostislesphase1_night.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.5	512	8.0	45.0	0	0
+put	16455	28	Cataclysm16455	mus_cataclysm_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.80000001192	0	8.0	45.0	0	0
+put	17881	50	Cataclysm17881	amb_citybilgewaterharbor_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17882	50	Cataclysm17882	amb_citybilgewaterharbor_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17883	50	Cataclysm17883	amb_citygilneas_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17884	50	Cataclysm17884	amb_citygilneas_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17885	50	Cataclysm17885	amb_coastalbarren_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17886	50	Cataclysm17886	amb_coastalbarren_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17889	50	Cataclysm17889	amb_coastalnormal_day02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17890	50	Cataclysm17890	amb_coastalnormal_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17891	50	Cataclysm17891	amb_coastalrainy_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
+put	17892	50	Cataclysm17892	amb_coastalrainy_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
+put	17904	50	Cataclysm17904	amb_forestrainy_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17905	50	Cataclysm17905	amb_forestrainy_night02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17914	50	Cataclysm17914	amb_industrialdrillingplatform_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17915	50	Cataclysm17915	amb_industrialdrillingplatform_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
+put	17916	50	Cataclysm17916	amb_industrialmining_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17917	50	Cataclysm17917	amb_industrialmining_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17918	50	Cataclysm17918	amb_jungleoasis_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	17919	50	Cataclysm17919	amb_jungleoasis_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	18021	50	Cataclysm18021	amb_forestblackwald.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
+put	18088	50	Cataclysm18088	amb_plainsrainy_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
+put	18089	50	Cataclysm18089	amb_plainsrainy_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
+put	18126	50	Cataclysm18126	amb_industrialdocks_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.79000002146	528	8.0	45.0	0	0
+put	18473	50	Cataclysm18473	amb_wastelandnormal_day02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	18474	50	Cataclysm18474	amb_wastelandnormal_night02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
+put	22254	28	Cataclysm22254	mus_goblin_uu02.mp3	mus_goblin_uu06.mp3	mus_goblin_uu10.mp3	mus_goblin_uu18.mp3	mus_goblin_uu20.mp3						1	1	1	1	1	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22543	28	Cataclysm22543	mus_goblin_uu04.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22544	28	Cataclysm22544	mus_goblin_uu19.mp3	mus_goblin_uu34.mp3	mus_goblin_uu47.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22545	28	Cataclysm22545	mus_goblin_uu43.mp3	mus_goblin_uu44.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22546	28	Cataclysm22546	mus_goblin_uu31.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22547	28	Cataclysm22547	mus_goblin_uu05.mp3	mus_goblin_uu29.mp3	mus_goblin_uu30.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22548	28	Cataclysm22548	mus_lirescue_eu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22549	28	Cataclysm22549	mus_goblin_uu29.mp3	mus_goblin_uu30.mp3	mus_goblin_uu31.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22550	28	Cataclysm22550	mus_goblin_uu08.mp3	mus_goblin_uu13.mp3	mus_goblin_uu14.mp3	mus_goblin_uu15.mp3							1	1	1	1	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22551	28	Cataclysm22551	mus_goblin_uu11.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22552	28	Cataclysm22552	mus_goblin_uu10.mp3	mus_goblin_uu11.mp3	mus_goblin_uu12.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22553	28	Cataclysm22553	mus_lirescue_eu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22554	28	Cataclysm22554	mus_goblin_uu02.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22555	28	Cataclysm22555	mus_goblin_uu41.mp3	mus_goblin_uu42.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22556	28	Cataclysm22556	mus_goblin_uu16.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22557	28	Cataclysm22557	mus_goblin_uu22.mp3	mus_goblin_uu28.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22841	28	Cataclysm22841	mus_goblin_uu08.mp3	mus_goblin_uu14.mp3	mus_goblin_uu15.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22970	28	Cataclysm22970	mus_lirescue_eu01.mp3	mus_goblin_uu06.mp3	mus_goblin_uu11.mp3	mus_goblin_uu15.mp3	mus_goblin_uu17.mp3	mus_goblin_uu34.mp3	mus_goblin_uu35.mp3	mus_goblin_uu47.mp3			1	1	1	1	1	1	1	1	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	22987	28	Cataclysm22987	mus_goblin_uu08.mp3	mus_goblin_uu14.mp3	mus_goblin_uu15.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23077	28	Cataclysm23077	mus_alliancehero_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23078	28	Cataclysm23078	mus_cataclysm_uu01.mp3	mus_cataclysm_uu02.mp3	mus_cataclysm_uu03.mp3	mus_cataclysm_uu04.mp3	mus_cataclysm_uu05.mp3	mus_cataclysm_uu06.mp3	mus_scarred_uu01.mp3	mus_scarred_uu02.mp3	mus_scarred_uu03.mp3	mus_scarred_uu04.mp3	1	1	1	1	1	1	1	1	1	1	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23079	28	Cataclysm23079	mus_rift_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23080	28	Cataclysm23080	mus_rift_uu02.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23081	28	Cataclysm23081	mus_scarred_uu01.mp3	mus_scarred_uu02.mp3	mus_scarred_uu03.mp3	mus_scarred_uu04.mp3	mus_cataclysm_uu05.mp3	mus_cataclysm_uu06.mp3	mus_shadows_uu03.mp3				1	1	1	1	1	1	1	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23082	28	Cataclysm23082	mus_shadows_uu01.mp3	mus_shadows_uu02.mp3	mus_shadows_uu04.mp3	mus_shadows_uu05.mp3	mus_scarred_uu01.mp3	mus_scarred_uu04.mp3	mus_cataclysm_uu05.mp3	mus_cataclysm_uu06.mp3			1	1	1	1	1	1	1	1	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23083	28	Cataclysm23083	mus_rift_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23084	28	Cataclysm23084	mus_rift_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23085	28	Cataclysm23085	mus_cataclysm_uu01.mp3	mus_cataclysm_uu02.mp3	mus_cataclysm_uu03.mp3	mus_cataclysm_uu04.mp3	mus_cataclysm_uu05.mp3	mus_cataclysm_uu06.mp3	mus_alliancehero_uu01.mp3				1	1	1	1	1	1	1	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23086	28	Cataclysm23086	naxxramaswalking1.mp3	naxxramaswalking2.mp3	naxxramaswalking4.mp3	naxxramaswalking6.mp3	naxxramasabominationwing3.mp3						1	1	1	1	1	0	0	0	0	0	sound\\music\\zonemusic\\naxxramas	0.68999999762	0	8.0	45.0	0	0
+put	23087	28	Cataclysm23087	mus_cataclysm_uu01.mp3	mus_cataclysm_uu02.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23088	28	Cataclysm23088	mus_rift_uu02.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23089	28	Cataclysm23089	mus_alliancehero_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23090	28	Cataclysm23090	mus_chogall_e01.mp3	mus_chogall_e02.mp3	mus_chogall_e04.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23091	28	Cataclysm23091	mus_rift_uu03.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23092	28	Cataclysm23092	mus_rift_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23093	28	Cataclysm23093	mus_tanaris_gu05.mp3	mus_tanaris_gu08.mp3	mus_shadows_uu05.mp3	mus_scarred_uu04.mp3							1	1	1	1	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23094	28	Cataclysm23094	mus_rift_uu02.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23095	28	Cataclysm23095	mus_rift_uu03.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23096	28	Cataclysm23096	mus_moonglade_gu07.mp3	mus_haunted_uu01.mp3	mus_haunted_uu02.mp3	mus_barrowdens_gu02.mp3	mus_barrowdens_gu05.mp3						1	1	1	1	1	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23097	28	Cataclysm23097	mus_rift_uu01.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23098	28	Cataclysm23098	mus_shadows_uu01.mp3	mus_shadows_uu02.mp3	mus_shadows_uu04.mp3	mus_shadows_uu05.mp3	mus_haunted_uu01.mp3	mus_haunted_uu02.mp3	mus_haunted_uu03.mp3				1	1	1	1	1	1	1	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23099	28	Cataclysm23099	mus_rift_uu02.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23101	28	Cataclysm23101	mus_goblin_uu08.mp3	mus_goblin_uu10.mp3	mus_goblin_uu14.mp3	mus_goblin_uu16.mp3	mus_goblin_uu18.mp3	mus_lirescue_eu01.mp3					1	1	1	1	1	1	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23102	28	Cataclysm23102	mus_goblin_uu09.mp3	mus_goblin_uu12.mp3	mus_goblin_uu15.mp3	mus_goblin_uu17.mp3	mus_lirescue_eu01.mp3						1	2	1	1	1	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23103	28	Cataclysm23103	mus_goblin_uu34.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23104	28	Cataclysm23104	mus_goblin_uu03.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23107	28	Cataclysm23107	mus_goblin_uu05.mp3	mus_goblin_uu08.mp3	mus_goblin_uu12.mp3	mus_goblin_uu14.mp3	mus_goblin_uu15.mp3	mus_goblin_uu35.mp3	mus_goblin_uu36.mp3	mus_goblin_uu46.mp3			1	1	1	1	1	1	1	1	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23108	28	Cataclysm23108	mus_goblin_uu23.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23109	28	Cataclysm23109	mus_goblin_uu04.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23110	28	Cataclysm23110	mus_goblin_uu05.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23111	28	Cataclysm23111	mus_goblin_uu05.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23112	28	Cataclysm23112	mus_lirescue_eu03.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23113	28	Cataclysm23113	mus_lirescue_eu02.mp3	mus_lirescue_eu03.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23114	28	Cataclysm23114	mus_goblin_uu24.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23115	28	Cataclysm23115	zonemusic\\naxxramas\\naxxramashubbase1.mp3	zonemusic\\naxxramas\\naxxramashubbase2.mp3	cataclysm\\mus_tanaris_gu05.mp3	cataclysm\\mus_tanaris_gu09.mp3							1	1	1	1	0	0	0	0	0	0	sound\\music	0.68999999762	0	8.0	45.0	0	0
+put	23116	28	Cataclysm23116	mus_goblin_uu25.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23117	28	Cataclysm23117	mus_goblin_uu08.mp3	mus_goblin_uu14.mp3	mus_goblin_uu15.mp3	mus_goblin_uu17.mp3	mus_goblin_uu34.mp3						1	1	1	1	1	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23118	28	Cataclysm23118	mus_goblin_uu02.mp3	mus_goblin_uu43.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23119	28	Cataclysm23119	mus_goblin_uu20.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23120	28	Cataclysm23120	mus_goblin_uu06.mp3	mus_goblin_uu34.mp3	mus_goblin_uu35.mp3	mus_goblin_uu36.mp3	mus_goblin_uu37.mp3	mus_goblin_uu46.mp3					1	1	1	1	1	1	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23121	28	Cataclysm23121	mus_goblin_uu21.mp3	mus_goblin_uu44.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23122	28	Cataclysm23122	zfrally9.mp3	zfquiet1.mp3	zfquiet2.mp3	zfquiet7.mp3	zfquietshort8.mp3	zfstinger10.mp3	zfstinger11.mp3	zfstinger12.mp3	zfstinger15.mp3		1	1	1	1	1	1	1	1	1	0	sound\\music\\event	0.68999999762	0	8.0	45.0	0	0
+put	23123	28	Cataclysm23123	mus_goblin_uu26.mp3	mus_goblin_uu33.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23124	28	Cataclysm23124	mus_goblin_uu45.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23125	28	Cataclysm23125	mus_goblin_uu27.mp3	mus_goblin_uu32.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23127	28	Cataclysm23127	mus_goblin_uu47.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23128	28	Cataclysm23128	mus_goblin_uu06.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23129	28	Cataclysm23129	mus_goblin_uu28.mp3	mus_goblin_uu35.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23130	28	Cataclysm23130	mus_goblin_uu28.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23131	28	Cataclysm23131	mus_goblin_uu41.mp3	mus_goblin_uu44.mp3									1	1	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23132	28	Cataclysm23132	mus_goblin_uu47.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23133	28	Cataclysm23133	mus_lirescue_eu04.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23134	28	Cataclysm23134	mus_goblin_uu42.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23137	28	Cataclysm23137	mus_vashjirnaga_gu02.mp3	mus_vashjirnaga_gu06.mp3	mus_vashjirnagathrone_gu01.mp3	mus_vashjirnagathrone_gu04.mp3							1	1	1	1	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23138	28	Cataclysm23138	mus_goblin_uu36.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23139	28	Cataclysm23139	mus_goblin_uu37.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23140	28	Cataclysm23140	mus_goblin_uu22.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23141	28	Cataclysm23141	mus_lirescue_eu03.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23142	28	Cataclysm23142	mus_lirescue_eu02.mp3	mus_lirescue_eu03.mp3	mus_lirescue_eu04.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	23143	28	Cataclysm23143	mus_goblin_uu46.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
+put	880000	50	Cataclysm4214	largeroomtonenew.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	1.0	4624	8.0	45.0	0	0
+put	880001	50	Cataclysm4168	dungeoncatheadral.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	8.0	45.0	0	0
+put	880002	50	Cataclysm4195	largeroomtone.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
+put	880003	50	Cataclysm4182	minestandarddungeon.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
+put	880004	50	Cataclysm9017	cavesmallwarm02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	7.0	30.0	0	0
+put	880005	50	Cataclysm9004	minestandard02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
+put	880006	50	Cataclysm9023	cavevolcanic.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	7.0	30.0	0	0

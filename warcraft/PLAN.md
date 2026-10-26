@@ -1629,6 +1629,32 @@ a realm with modules), then stage 3.
   of it in the game. Next: the maps' rows in the game's tables (Map, AreaTable, WorldMapArea,
   loading screens, lights) and the server's; the server's data made for the new maps as the realm
   is packaged (the phone's extractor reads patch-1 to 5 only); the creatures, quests and scripts.
+- The user, after the converter's trial: "If you can covert them then use them. Make them start in
+  the new zones. I'm looking for a very faithful port that doesn't overwrite the old 3.3.5 content";
+  then: "be sure that the new quests and stuff don't mess up original vanilla to wrath ... for any other
+  character than worgen or goblin the world and quests and everything stay as is. If cataclysm content
+  comes for those races, it will only be AFTER defeating the lich king." The rules the port keeps
+  (mod-worgen-goblin's README, The starting areas): the areas are maps of their own, the two races'
+  alone (no other character let on); every row new (Cataclysm's ids that 3.3.5a uses for something else
+  given new ones), no row or file of 3.3.5a's changed (the patch adds only files the game hasn't; a
+  building's rooms named only for Cataclysm's own buildings); the quests the two races' alone; the way
+  into Wrath's world by its own NPCs, nothing new spawned there; CI checks the game's own world is as
+  it was. Stages:
+  1. **Maps** (this commit): their maps, everything they place, their tables' rows (maps, 92 areas,
+     lights, music, ambience, world maps, loading screens, buildings' rooms), the package
+     (`cata-zones-<hash>`, the zones job) with the server's data for them, the realm's patch and
+     world taking them in, the starts there; `WorgenGoblin.StartingAreas` off until stage 4.
+  2. Creatures and objects: the Cataclysm Preservation Project's (599 kinds, 11862 creatures, 2151
+     objects on the two maps), their looks, factions, equipment, texts, gossip, paths.
+  3. Quests (234), items, spells (Cataclysm's in 3.3.5a's layout where 3.3.5a hasn't them), SmartAI,
+     loot, vendors, trainers. CPP's own coverage of these zones is partial (115 creature kinds with
+     SmartAI, 8 with C++ scripts: Gilneas's chapters 1 and 2; Kezan's script a stub): what it lacks
+     is written here, from Cataclysm's own data where it has it.
+  4. Scripts, the terrain swaps as whole maps the player is moved between (a loading screen where
+     Cataclysm had none), phases (Cataclysm's 31 phases of these maps fit 3.3.5a's 32-bit mask), the
+     vehicles and scenes. Then the app downloads the package and the starts go on.
+  5. The way into Wrath's world: Worgen to Darnassus, Goblins to Orgrimmar.
+  Not for this port: Cataclysm's content for the other races (the user: only after the Lich King).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

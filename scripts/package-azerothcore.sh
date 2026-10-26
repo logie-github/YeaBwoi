@@ -87,6 +87,12 @@ for dir in "$DIST"/modules/*/; do
 		mkdir -p "$pkg/src/modules/$name/data"
 		cp -r "$dir/data/server" "$pkg/src/modules/$name/data/server"
 	fi
+	# mod-worgen-goblin's starting areas: their rows for the game's tables and the world's (their
+	# files for the game and the server's data are the cata-zones package's, which the app downloads).
+	if [ -d "$dir/data/zones" ]; then
+		mkdir -p "$pkg/src/modules/$name/data/zones"
+		cp -r "$dir/data/zones/client" "$dir/data/zones/server" "$pkg/src/modules/$name/data/zones/"
+	fi
 	# Older modules (mod-npc-talent-template) keep theirs in sql/<database>, which the servers
 	# don't read: it goes where they look, data/sql/db-<database>. Without it the world server
 	# stops at the end of loading, on a table that isn't there. The servers know an applied file
