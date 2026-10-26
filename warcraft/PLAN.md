@@ -1640,19 +1640,30 @@ a realm with modules), then stage 3.
   building's rooms named only for Cataclysm's own buildings); the quests the two races' alone; the way
   into Wrath's world by its own NPCs, nothing new spawned there; CI checks the game's own world is as
   it was. Stages:
-  1. **Maps** (this commit): their maps, everything they place, their tables' rows (maps, 92 areas,
+  1. **Maps** (built, released: `cata-zones-<hash>`): their maps, everything they place, their tables' rows (maps, 92 areas,
      lights, music, ambience, world maps, loading screens, buildings' rooms), the package
      (`cata-zones-<hash>`, the zones job) with the server's data for them, the realm's patch and
      world taking them in, the starts there; `WorgenGoblin.StartingAreas` off until stage 4.
-  2. Creatures and objects: the Cataclysm Preservation Project's (599 kinds, 11862 creatures, 2151
-     objects on the two maps), their looks, factions, equipment, texts, gossip, paths.
-  3. Quests (234), items, spells (Cataclysm's in 3.3.5a's layout where 3.3.5a hasn't them), SmartAI,
-     loot, vendors, trainers. CPP's own coverage of these zones is partial (115 creature kinds with
-     SmartAI, 8 with C++ scripts: Gilneas's chapters 1 and 2; Kezan's script a stub): what it lacks
-     is written here, from Cataclysm's own data where it has it.
-  4. Scripts, the terrain swaps as whole maps the player is moved between (a loading screen where
-     Cataclysm had none), phases (Cataclysm's 31 phases of these maps fit 3.3.5a's 32-bit mask), the
-     vehicles and scenes. Then the app downloads the package and the starts go on.
+  2. Creatures and objects (built): the Cataclysm Preservation Project's (698 kinds of creature, 285
+     of object; 19162 creatures and 3007 objects, Gilneas's on each map whose terrain they're seen
+     with), their looks (clothes and weapons too: 475 item looks), factions, equipment, texts,
+     gossip, paths. Spawns' ids 10000000 to 12999999: AzerothCore stops the world server when a new
+     spawn's id would pass 0xFFFFFF (CI checks the highest).
+  3. Quests, items, spells, SmartAI, loot (built, loaded and checked against AzerothCore's world
+     locally; not yet played): 270 quests (all the two races' alone), 395 items, 314 spells
+     (Cataclysm's in 3.3.5a's layout where 3.3.5a hasn't them), 1076 SmartAI rows, loot, vendors,
+     46 graveyards (their places from TrinityCore's world_safe_locs: Cataclysm Classic's game hasn't
+     them), 56 area triggers, the areas' phase auras (spell_area). CPP's own coverage of these zones
+     is partial (Gilneas's chapters 1 and 2 have C++ scripts; Kezan's is a stub): what it lacks is
+     to be written here. `data/zones/left-for-later.txt` lists what isn't in yet.
+  4. Scripts (begun: `src/WorgenGoblinZones.cpp`): the terrain swaps as whole maps the player is
+     moved between (done: 638 until quest 14222, 654, then 655 from 14386; a loading screen where
+     Cataclysm had none), Cataclysm's spell effects 3.3.5a hasn't (done: the phases updated, the
+     teleports; the two movies as their narration, the game having their sound and not their
+     pictures). To do: CPP's C++ scripts of Gilneas (chapters 1 and 2), what CPP lacks (Gilneas's
+     chapter 3, Kezan, the Lost Isles), the vehicles (23), the Worgen's human form (they're Worgen
+     from the start here, as mod-worgoblin has them). Then the app downloads the package and the
+     starts go on.
   5. The way into Wrath's world: Worgen to Darnassus, Goblins to Orgrimmar.
   Not for this port: Cataclysm's content for the other races (the user: only after the Lich King).
 

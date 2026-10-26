@@ -217,7 +217,14 @@ wait_world_ready() {
 		if grep -q "(worldserver-daemon) ready" "$world_log"; then ready=1; break; fi
 		sleep 1
 	done
-	[ -n "$ready" ] || fail "the world server didn't start"
+	if [ -z "$ready" ]; then
+		# (how it ended: 0 is a shutdown, its console's end among them; 1 an error; over 128 a signal)
+		if ! kill -0 "$world" 2> /dev/null; then
+			wait "$world" 2> /dev/null && echo "The world server exited with 0." || echo "The world server exited with $?."
+			ls -l "$FILES/run/world.in" /proc/$$/fd/3 2>&1 || true
+		fi
+		fail "the world server didn't start"
+	fi
 	echo "The world server was ready in $(($(date +%s) - start)) s."
 }
 stop_world() {
@@ -480,15 +487,23 @@ EOF
 	if [ -n "${WOW_ZONES_TAR:-}" ]; then
 		echo "== the Worgen's and Goblins' starting areas (mod-worgen-goblin, data/zones)"
 		# (the game's own: every row outside the starting areas' ranges, mod-worgen-goblin's
-		# tools/zones/build_world.py: ids from 6000000, spawns from 60000000)
+		# tools/zones/build_world.py: ids from 6000000, spawns from 10000000)
 		world_rows() {
 			echo "SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM creature_template WHERE entry NOT BETWEEN 6000000 AND 6999999),
-				(SELECT COUNT(*) FROM creature WHERE guid NOT BETWEEN 60000000 AND 69999999),
+				(SELECT COUNT(*) FROM creature WHERE guid NOT BETWEEN 10000000 AND 12999999),
 				(SELECT COUNT(*) FROM gameobject_template WHERE entry NOT BETWEEN 6000000 AND 6999999),
-				(SELECT COUNT(*) FROM gameobject WHERE guid NOT BETWEEN 60000000 AND 69999999),
+				(SELECT COUNT(*) FROM gameobject WHERE guid NOT BETWEEN 10000000 AND 12999999),
 				(SELECT COUNT(*) FROM quest_template WHERE ID NOT BETWEEN 6000000 AND 6999999),
-				(SELECT COUNT(*) FROM item_template), (SELECT COUNT(*) FROM smart_scripts WHERE entryorguid NOT BETWEEN 6000000 AND 6999999
-					AND -entryorguid NOT BETWEEN 60000000 AND 69999999),
+				(SELECT COUNT(*) FROM item_template WHERE VerifiedBuild IS NULL OR VerifiedBuild <> -15595),
+				(SELECT COUNT(*) FROM smart_scripts WHERE entryorguid NOT BETWEEN 6000000 AND 6999999
+					AND -entryorguid NOT BETWEEN 10000000 AND 12999999 AND entryorguid NOT BETWEEN 600000000 AND 699999999),
+				(SELECT COUNT(*) FROM creature_queststarter WHERE quest NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM creature_questender WHERE quest NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM creature_loot_template WHERE Entry NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM npc_vendor WHERE entry NOT BETWEEN 6000000 AND 6999999),
+				(SELECT COUNT(*) FROM spell_area WHERE area NOT IN (SELECT ID FROM areatable_dbc
+					WHERE ContinentID IN (638, 648, 654, 655, 656, 659, 661))),
+				(SELECT COUNT(*) FROM areatrigger_involvedrelation WHERE quest NOT BETWEEN 6000000 AND 6999999),
 				(SELECT COUNT(*) FROM creature_text WHERE CreatureID NOT BETWEEN 6000000 AND 6999999),
 				(SELECT COUNT(*) FROM gossip_menu WHERE MenuID NOT BETWEEN 6000000 AND 6999999),
 				(SELECT GROUP_CONCAT(CONCAT(race, ':', class, ':', map, ':', ROUND(position_x)) ORDER BY race, class) FROM playercreateinfo WHERE race NOT IN (9, 12)))" |
@@ -514,6 +529,10 @@ EOF
 			fail "the world's tables haven't the starting areas' seven maps"
 		areas=$(echo "SELECT COUNT(*) FROM areatable_dbc WHERE ContinentID IN (648, 654)" | CTL sql acore_world)
 		[ "$areas" = 92 ] || fail "the world's tables have $areas of the starting areas' 92 areas"
+		# Their spawns' ids under AzerothCore's limit (a new spawn's id is one after the highest, and
+		# the world server stops when it would pass 0xFFFFFF).
+		spawns=$(echo "SELECT GREATEST((SELECT MAX(guid) FROM creature), (SELECT MAX(guid) FROM gameobject))" | CTL sql acore_world)
+		[ "$spawns" -lt 15000000 ] || fail "the starting areas' spawns' ids reach $spawns: a new spawn would stop the world server"
 		after=$(world_rows)
 		echo "the game's own world: $before"
 		[ "$after" = "$before" ] || fail "the game's own creatures, objects, quests or starts changed: $after"

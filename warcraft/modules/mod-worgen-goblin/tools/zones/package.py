@@ -27,9 +27,7 @@ Nothing in it replaces a file of 3.3.5a's: the patch the realm makes of it adds 
 hasn't (src/WorgenGoblinPatch.cpp), and the server's files are new maps' (ctl.sh zones).
 """
 import concurrent.futures
-import csv
 import hashlib
-import io
 import json
 import os
 import re
@@ -52,6 +50,45 @@ LIQUID_KIND = {0: 1, 1: 2, 2: 3, 3: 4}
 # Textures of the world (terrain, models, buildings) at most this big: 3.3.5a is a 32-bit game, and a
 # phone's; the interface's (world maps, loading screens) as they are.
 WORLD_TEXTURES = 512
+
+
+def read_aliases():
+    """aliases.tsv: {file id: the other paths the game loads it by}."""
+    path, aliases = os.path.join(ZONES, "aliases.tsv"), {}
+    if os.path.exists(path):
+        for line in open(path, encoding="utf-8"):
+            if line.startswith("#") or not line.strip():
+                continue
+            fdid, alias = line.rstrip("\n").split("\t")
+            aliases.setdefault(int(fdid), []).append(alias)
+    return aliases
+
+
+def put_aliases(conv, files, aliases):
+    """Each converted file again at the other paths the game loads it by (an item's model, textures
+    and icon where 3.3.5a's ItemDisplayInfo looks: aliases.tsv); a model's skins and animations go
+    with it. Their data is shared in the patch (dedupe)."""
+    made = 0
+    for fdid, paths in sorted(aliases.items()):
+        if fdid not in files:
+            continue
+        src = os.path.join(conv, files[fdid][0])
+        if not os.path.exists(src):
+            continue
+        pairs = [(src, os.path.join(conv, a)) for a in paths]
+        if src.endswith(".m2"):
+            folder, stem = os.path.dirname(src), os.path.basename(src)[:-3]
+            for name in os.listdir(folder):
+                if name.startswith(stem) and name.endswith((".skin", ".anim")) and name[len(stem):len(stem) + 1].isdigit():
+                    for a in paths:
+                        pairs.append((os.path.join(folder, name), os.path.join(conv, a[:-3] + name[len(stem):])))
+        for a, b in pairs:
+            if os.path.exists(b):
+                continue
+            os.makedirs(os.path.dirname(b), exist_ok=True)
+            shutil.copyfile(a, b)
+            made += 1
+    print(f"{made} files put where 3.3.5a also loads them")
 
 
 def run(*args, **kw):
@@ -198,7 +235,7 @@ def maps(conv, cache):
 
 def minimaps(conv, files_dir, tiles):
     """The minimap pictures under textures\\minimap, and the index's lines naming them by map and tile."""
-    lines, same = [], {}
+    lines = []
     root = os.path.join(conv, "world", "minimaps")
     for map_id, directory in common.MAPS.items():
         base = common.MAPS.get(common.OVERLAYS.get(map_id, map_id))
@@ -354,6 +391,7 @@ def main():
             dest = os.path.join(conv, path)
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             shutil.copyfile(src, dest)
+    put_aliases(conv, files, read_aliases())
     tiles, _ = maps(conv, cache)
     client = os.path.join(out, "client", "files")
     minimap = minimaps(conv, client, tiles)

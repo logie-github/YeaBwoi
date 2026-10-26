@@ -94,6 +94,27 @@ def table(cache, name):
     return list(csv.DictReader(io.StringIO(open(path, encoding="utf-8").read())))
 
 
+# The graveyards' places: not in the game's tables since Cataclysm Classic (the server's own), so
+# TrinityCore's, as it moved them out of WorldSafeLocs.dbc into its world (the same ids).
+SAFE_LOCS = ("https://raw.githubusercontent.com/TrinityCore/TrinityCore/e0eec525aa505be993400a9b84ab074ace8e50a1/"
+             "sql/old/8.x/world/19071_2020_06_17/2019_10_26_01_world.sql")
+
+
+def world_safe_locs(cache):
+    """{id: (map, x, y, z, facing in degrees, name)}."""
+    path = os.path.join(cache, "world_safe_locs.sql")
+    if not os.path.exists(path):
+        data = fetch_url(SAFE_LOCS)
+        with open(path + ".part", "wb") as f:
+            f.write(data)
+        os.replace(path + ".part", path)
+    out = {}
+    for m in re.finditer(r"^\((\d+),(\d+),([-\d.e]+),([-\d.e]+),([-\d.e]+),([-\d.e]+),'((?:[^'\\]|\\.)*)'\)",
+                         open(path, encoding="utf-8").read(), re.M):
+        out[int(m[1])] = (int(m[2]), float(m[3]), float(m[4]), float(m[5]), float(m[6]), m[7].replace("\\'", "'"))
+    return out
+
+
 def listfile(path):
     """The community listfile (id;path) as {id: path} and {path: id}, paths in lower case."""
     by_id, by_path = {}, {}

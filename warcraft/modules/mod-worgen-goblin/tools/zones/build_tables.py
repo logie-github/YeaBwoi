@@ -15,7 +15,6 @@ Used by build_world.py (the starting areas' whole build), which writes, besides 
 """
 import os
 import re
-import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -23,7 +22,6 @@ MODULE = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.dirname(HERE))
 import common  # noqa: E402
-import files  # noqa: E402
 from build_data import columns, esc  # noqa: E402
 
 OUT = os.path.join(MODULE, "data", "zones")
@@ -33,7 +31,9 @@ SERVER = {
     "WorldMapArea": "worldmaparea_dbc", "WorldMapOverlay": "worldmapoverlay_dbc", "SoundEntries": "soundentries_dbc",
     "CreatureDisplayInfo": "creaturedisplayinfo_dbc", "CreatureDisplayInfoExtra": "creaturedisplayinfoextra_dbc",
     "CreatureModelData": "creaturemodeldata_dbc", "Faction": "faction_dbc", "FactionTemplate": "factiontemplate_dbc",
-    "GameObjectDisplayInfo": "gameobjectdisplayinfo_dbc",
+    "GameObjectDisplayInfo": "gameobjectdisplayinfo_dbc", "Spell": "spell_dbc", "Item": "item_dbc",
+    "ItemDisplayInfo": "itemdisplayinfo_dbc", "SpellCastTimes": "spellcasttimes_dbc", "SpellDuration": "spellduration_dbc",
+    "SpellRange": "spellrange_dbc", "SpellRadius": "spellradius_dbc", "SummonProperties": "summonproperties_dbc",
 }
 # New ids, where Cataclysm's are taken: from just past the highest of 3.3.5a's own (the game sizes some
 # tables' lookups by their highest id), or from here for these.

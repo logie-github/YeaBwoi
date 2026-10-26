@@ -8,17 +8,15 @@ plus Cataclysm's id), so they can be taken out whole (zones_world_off.sql) and t
 told apart from them. The game's tables' rows they need (looks, models, factions, sounds) are new rows
 too, where 3.3.5a hasn't the same thing already.
 
-    python3 tools/zones/build_world.py CACHE STOCK_DBC WOWDBDEFS LISTFILE CORE_DIR CONVERTER
+    python3 tools/zones/build_world.py CACHE STOCK_DBC WOWDBDEFS LISTFILE CORE_DIR CONVERTER_SRC
 
-The first five as build_tables.py's; CONVERTER: wotlkconv as a command. And a local MariaDB with
+The first five as build_tables.py's; CONVERTER_SRC: wotlkconv's src folder at the commit
+zones-version.env pins (it's run in-process, for the tables it joins from others). And a local MariaDB with
 CPP's world (db.CPP_DB) and AzerothCore's (db.AC_DB): README, The starting areas. Writes what
 build_tables.py does, and data/zones/server/zones_world.sql (and zones_world_off.sql).
 """
 import os
-import re
 import shutil
-import struct
-import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -27,19 +25,25 @@ import build_tables  # noqa: E402
 import common  # noqa: E402
 import db  # noqa: E402
 import files  # noqa: E402
-from build_tables import OUT, game_path  # noqa: E402
+from items import ItemsMixin  # noqa: E402
+from quests import QuestsMixin  # noqa: E402
+from spells import SpellsMixin  # noqa: E402
+from build_tables import OUT  # noqa: E402
 
 # The starting areas' rows' ranges: ENTRY + Cataclysm's entry (creatures, objects, quests, gossip
 # menus, texts, loot), GUID + CPP's guid for a spawn on its map (and a block more for each terrain
-# swap's map it's on too), PATH + CPP's path id (waypoints, action lists).
+# swap's map it's on too), PATH + CPP's path id (waypoints, action lists). Spawns stay under 0xFFFFFF:
+# AzerothCore stops the world server when a new spawn's id (one after the highest) would pass it.
 ENTRY = 6_000_000
-GUID = 60_000_000
+GUID = 10_000_000
 GUID_BLOCK = 1_000_000
 PATH = 600_000_000
+# The tables convert_rows converts whole.
+WHOLE_TABLES = {"ItemDisplayInfo"}
 # Gilneas's terrain swaps (common.OVERLAYS): a spawn of CPP's on map 654 is on each map of Gilneas
 # whose terrain it's seen with (terrainSwapMap -1: all of them).
 GILNEAS = (654, 638, 655)
-VERIFIED = 15595                      # (4.3.4's build: the rows' own mark)
+VERIFIED = -15595                     # (the starting areas' rows' own mark: 4.3.4's build, negative, as none of AzerothCore's)
 # Cataclysm's phases on the two maps, as 3.3.5a's phase mask's bits (the default, 169, the first:
 # AzerothCore's own default phase).
 PHASES = [169, 105, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187,
@@ -91,6 +95,9 @@ class Sql:
         out = [header]
         for table, rows in self.tables.items():
             cols = list(rows[0])
+            unknown = set(cols) - set(db.column_names(db.AC_DB, table))
+            if unknown:
+                raise ValueError(f"{table} hasn't the columns {sorted(unknown)} in AzerothCore's world ({db.AC_DB})")
             names = ", ".join(f"`{c}`" for c in cols)
             for i in range(0, len(rows), 250):
                 values = ",\n".join("(" + ", ".join(sqlv(r.get(c)) for c in cols) + ")" for r in rows[i:i + 250])
@@ -99,15 +106,23 @@ class Sql:
             f.write("\n".join(out) + "\n")
 
 
-class WorldBuilder(build_tables.Builder):
-    def __init__(self, cache, stock_dir, dbd, listfile, converter):
+class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
+    ENTRY, PATH, GILNEAS = ENTRY, PATH, GILNEAS
+
+    def __init__(self, cache, stock_dir, dbd, listfile, converter_src):
         super().__init__(cache, stock_dir, dbd, listfile)
-        self.stock_dir, self.dbd, self.converter = stock_dir, dbd, converter
+        self.creature_queue, self.creatures_seen, self.creatures_done = [], set(), set()
+        self.equips = {}             # CPP's creature: its equipment ids
+        self.object_queue, self.objects_seen, self.objects_done = [], set(), set()
+        self.quest_queue, self.quests_seen = [], set()
+        self.paths_needed, self.actionlists_needed, self.actionlists_done, self.smart_done = set(), set(), set(), set()
+        self.spell_hooks, self.aliases, self.ai_templates = [], {}, []
+        self.stock_dir, self.dbd, self.converter_src = stock_dir, dbd, converter_src
         self.sql = Sql()
         self.dropped = {}            # what's left out for now, by kind: {kind: set of Cataclysm ids}
         self.world_files = {}        # fdid: (path, kind)
         self.converted = {}          # table: {id: row as values}
-        self.tried = {}              # table: ids asked of the converter (once each: it reads the listfile)
+        self.tried = {}              # table: ids asked of the converter (once each)
         self.cpp_spawns = db.rows(db.CPP_DB, "SELECT * FROM creature WHERE map IN (654, 648)")
         self.cpp_objects = db.rows(db.CPP_DB, "SELECT * FROM gameobject WHERE map IN (654, 648)")
         self.creatures = {int(r["id"]) for r in self.cpp_spawns}
@@ -132,28 +147,49 @@ class WorldBuilder(build_tables.Builder):
                 f.write(data)
         return path
 
-    def convert_rows(self, name, ids, joins=()):
-        """Cataclysm's rows of [ids] of a table, in 3.3.5a's layout (wotlkconv db convert): {id: values}."""
-        tried = self.tried.setdefault(name, set())
-        want = sorted({int(i) for i in ids if int(i) > 0} - tried)
-        tried.update(want)
-        if want:
-            for j in joins:
-                self.db2(j)
-            work = os.path.join(self.cache, "dbcout")
-            shutil.rmtree(work, ignore_errors=True)
-            os.makedirs(work)
-            args = [*self.converter, "db", "convert", self.db2(name), "--dbd", self.dbd, "--template-dir", self.stock_dir,
-                    "--no-merge", "-o", work, "-l", self.listfile_path, "-q", "-f"]
-            for i in want:
-                args += ["--only-id", str(i)]
-            subprocess.run(args, check=True, stdout=subprocess.DEVNULL)
-            out = [f for f in os.listdir(work) if f.lower() == name.lower() + ".dbc"]
-            table = common.Dbc(os.path.join(work, out[0]), common.layout(self.dbd, name)) if out else None
-            got = self.converted.setdefault(name, {})
-            for row in (table.rows() if table else []):
-                got[row[0]] = row
+    def convert_rows(self, name, ids):
+        """Cataclysm's rows of [ids] of a table, in 3.3.5a's layout (wotlkconv db convert): {id: values}.
+        Item looks are converted whole, once (as quick as one of them: the table's read either way)."""
+        if name in WHOLE_TABLES:
+            if name not in self.converted:
+                self.convert_table(name, ())
+        else:
+            tried = self.tried.setdefault(name, set())
+            want = sorted({int(i) for i in ids if int(i) > 0} - tried)
+            tried.update(want)
+            if want:
+                self.convert_table(name, want)
         return {i: self.converted[name][i] for i in ids if i in self.converted.get(name, {})}
+
+    def convert_table(self, name, ids):
+        """convert_rows's conversion: [ids] of a table (() for all of it) into self.converted."""
+        work = os.path.join(self.cache, "dbcout")
+        shutil.rmtree(work, ignore_errors=True)
+        os.makedirs(work)
+        target = os.path.join(work, name + ".dbc")
+        self.convert_in_process(name, ids, target)
+        got = self.converted.setdefault(name, {})
+        for row in common.Dbc(target, common.layout(self.dbd, name)).rows():
+            got[row[0]] = row
+
+    def convert_in_process(self, name, ids, target):
+        """What `wotlkconv db convert TABLE --only-id ...` does, in-process: the listfile read once, and
+        Cataclysm Classic's tables beside it for the columns it joins from others (ItemDisplayInfo's,
+        which its command line can't read)."""
+        resolver = self.resolver()
+        from wotlkconv.db import MappingLibrary, convert_db2, find_template
+        from wotlkconv.options import Options
+        from wotlkconv.report import FileResult
+        opts = Options(db_templates=self.stock_dir, db_merge=False, db_row_ids=tuple(ids), overwrite=True)
+        path = self.db2(name)
+        result = FileResult(source=path, kind="db2")
+        data, result = convert_db2(open(path, "rb").read(), path, opts, resolver.listfile, resolver.tables.definitions,
+                                   MappingLibrary(None), find_template(self.stock_dir, name), name, result,
+                                   tables=resolver.tables)
+        if not result.ok or not data:
+            raise RuntimeError(f"{name}: " + "; ".join(n.message for n in result.notes))
+        with open(target, "wb") as f:
+            f.write(data)
 
     def columns(self, table):
         return [c for c, _ in common.layout(self.dbd, table)]
@@ -312,7 +348,7 @@ class WorldBuilder(build_tables.Builder):
         for slot in self.slots().get(cata_id, {}).items():
             index, item_display = slot
             if 0 <= index < ITEM_SLOTS:
-                values[f"NPCItemDisplay_{index}"] = self.item_display(item_display)
+                values[f"NPCItemDisplay_{index}"] = self.item_look(item_display)
         bake = int(r.get("BakeMaterialResourcesID", 0) or 0)
         if bake:
             texture = self.material_file(bake)
@@ -336,15 +372,6 @@ class WorldBuilder(build_tables.Builder):
             for r in self.table("TextureFileData"):
                 self._materials.setdefault(int(r["MaterialResourcesID"]), int(r["FileDataID"]))
         return self._materials.get(int(material))
-
-    def item_display(self, cata_id):
-        """An ItemDisplayInfo (clothes and weapons on NPCs): 3.3.5a's of that id when it has it (item
-        looks keep their ids), else for later (its files and their names are stage 3's, with the items)."""
-        cata_id = int(cata_id or 0)
-        if cata_id <= 0 or cata_id in self.ids.stock_rows("ItemDisplayInfo"):
-            return cata_id
-        self.drop("item display", cata_id)
-        return 0
 
     # --- Factions ----------------------------------------------------------------------------------
 
@@ -426,48 +453,45 @@ class WorldBuilder(build_tables.Builder):
                 self._groups.setdefault(int(r["PhaseGroupID"]), []).append(int(r["PhaseID"]))
         return self._groups
 
-    def spell(self, cata_id):
-        """A spell a creature has (an aura, its spells): 3.3.5a's own when it has that spell (by its
-        id and name), else for stage 3 (Cataclysm's spells in 3.3.5a's layout)."""
-        cata_id = int(cata_id or 0)
-        if cata_id <= 0:
-            return 0
-        stock = self.ids.stock_rows("Spell").get(cata_id) if hasattr(self, "_spell_names") else None
-        names = self.spell_names()
-        if cata_id in names and names[cata_id] == self.cata_spell_names().get(cata_id):
-            return cata_id
-        self.drop("spell", cata_id)
-        return 0
-
-    def spell_names(self):
-        if not hasattr(self, "_spell_names"):
-            spells = common.stock(self.stock_dir, "Spell", self.dbd)
-            index = [c for c, _ in common.layout(self.dbd, "Spell")].index("Name_lang")
-            self._spell_names = {r[0]: r[index] for r in spells.rows()}
-        return self._spell_names
-
-    def cata_spell_names(self):
-        if not hasattr(self, "_cata_spell_names"):
-            self._cata_spell_names = {int(r["ID"]): r["Name_lang"] for r in self.table("SpellName")}
-        return self._cata_spell_names
-
     def creature_entry(self, cata_entry):
         cata_entry = int(cata_entry or 0)
         return ENTRY + cata_entry if cata_entry else 0
 
-    def creatures_templates(self):
-        entries = set(self.creatures)
-        templates = {int(r["entry"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_template WHERE entry IN ({db.ids_in(entries)})")}
-        # (the creatures they count as for quests, whose templates are theirs too)
-        credits = {int(t[k]) for t in templates.values() for k in ("KillCredit1", "KillCredit2") if int(t[k] or 0)}
-        more = credits - set(templates)
-        if more:
-            templates.update({int(r["entry"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_template WHERE entry IN ({db.ids_in(more)})")})
+    def object_entry(self, cata_entry):
+        cata_entry = int(cata_entry or 0)
+        return ENTRY + cata_entry if cata_entry else 0
+
+    def need_creature(self, cata_entry):
+        cata_entry = int(cata_entry or 0)
+        if cata_entry > 0 and cata_entry not in self.creatures_seen:
+            self.creatures_seen.add(cata_entry)
+            self.creature_queue.append(cata_entry)
+
+    def need_object(self, cata_entry):
+        cata_entry = int(cata_entry or 0)
+        if cata_entry > 0 and cata_entry not in self.objects_seen:
+            self.objects_seen.add(cata_entry)
+            self.object_queue.append(cata_entry)
+
+    def creatures_templates(self, batch):
+        templates = {int(r["entry"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_template WHERE entry IN ({db.ids_in(batch)})")}
+        for e in set(batch) - set(templates):
+            self.drop("creature (not in CPP)", e)
+        for t in templates.values():
+            for k in ("KillCredit1", "KillCredit2"):
+                self.need_creature(t[k])
         entries = set(templates)
+        self.creatures_done |= entries
         models = db.rows(db.CPP_DB, f"SELECT * FROM creature_template_model WHERE CreatureID IN ({db.ids_in(entries)})")
         gossip = {int(r["CreatureID"]): int(r["MenuID"]) for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_template_gossip WHERE CreatureID IN ({db.ids_in(entries)})")}
         movement = {int(r["CreatureId"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_template_movement WHERE CreatureId IN ({db.ids_in(entries)})")}
         addons = {int(r["entry"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_template_addon WHERE entry IN ({db.ids_in(entries)})")}
+        spells = db.rows(db.CPP_DB, f"SELECT entry, spell1, spell2, spell3, spell4, spell5, spell6, spell7, spell8 FROM creature_template WHERE entry IN ({db.ids_in(entries)})")
+        for r in spells:
+            for i in range(1, 9):
+                spell = self.spell(r[f"spell{i}"])
+                if spell:
+                    self.sql.add("creature_template_spell", {"CreatureID": ENTRY + int(r["entry"]), "Index": i - 1, "Spell": spell, "VerifiedBuild": VERIFIED})
         for e, t in sorted(templates.items()):
             self.sql.add("creature_template", {
                 "entry": ENTRY + e, "difficulty_entry_1": 0, "difficulty_entry_2": 0, "difficulty_entry_3": 0,
@@ -482,18 +506,21 @@ class WorldBuilder(build_tables.Builder):
                 "RangeVariance": num(t["RangeVariance"]), "unit_class": num(t["unit_class"]), "unit_flags": num(t["unit_flags"]),
                 "unit_flags2": num(t["unit_flags2"]) & UNIT_FLAGS2_MASK, "dynamicflags": 0, "family": num(t["family"]),
                 "type": num(t["type"]), "type_flags": num(t["type_flags"]),
-                "lootid": 0, "pickpocketloot": 0, "skinloot": 0, "PetSpellDataId": 0, "VehicleId": 0,
+                "lootid": self.loot("creature_loot_template", t["lootid"]),
+                "pickpocketloot": self.loot("pickpocketing_loot_template", t["pickpocketloot"]),
+                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": 0,
                 "mingold": num(t["mingold"]), "maxgold": num(t["maxgold"]), "AIName": "",
                 "MovementType": num(t["MovementType"]), "HoverHeight": num(t["HoverHeight"]),
                 "HealthModifier": num(t["HealthModifier"]), "ManaModifier": num(t["ManaModifier"]),
                 "ArmorModifier": num(t["ArmorModifier"]), "ExperienceModifier": num(t["ExperienceModifier"]),
                 "RacialLeader": num(t["RacialLeader"]), "movementId": 0, "RegenHealth": num(t["RegenHealth"]),
                 "CreatureImmunitiesId": 0, "flags_extra": 0, "ScriptName": "", "VerifiedBuild": VERIFIED})
-            for tag in ("lootid", "pickpocketloot", "skinloot", "VehicleId"):
-                if num(t[tag]):
-                    self.drop(tag, t[tag])
-            if t["AIName"] or t["ScriptName"]:
-                self.drop("creature script", e)
+            if num(t["VehicleId"]):
+                self.drop("vehicle", t["VehicleId"])
+            if t["AIName"] == "SmartAI":
+                self.ai_templates.append(self.sql.tables["creature_template"][-1])
+            if t["ScriptName"]:
+                self.drop(f"creature script {t['ScriptName']}", e)
         for m in models:
             display = self.display(m["CreatureDisplayID"])
             if display:
@@ -506,7 +533,18 @@ class WorldBuilder(build_tables.Builder):
                 "Rooted": 0, "Chase": 0, "Random": num(mv["Random"]), "InteractionPauseTimer": num(mv["InteractionPauseTimer"])})
         for e, a in sorted(addons.items()):
             self.sql.add("creature_template_addon", self.addon(a, "entry", ENTRY + e))
+        self.trainers(entries)
+        self.equipment(entries)
         return templates
+
+    def equipment(self, entries):
+        """Their weapons (creature_equip_template: items, which 3.3.5a shows by their Item rows)."""
+        for r in db.rows(db.CPP_DB, f"SELECT * FROM creature_equip_template WHERE CreatureID IN ({db.ids_in(entries)})"):
+            items = [self.item(r[f"ItemID{i}"]) for i in (1, 2, 3)]
+            self.equips.setdefault(int(r["CreatureID"]), set()).add(int(r["ID"]))
+            self.sql.add("creature_equip_template", {"CreatureID": ENTRY + int(r["CreatureID"]), "ID": r["ID"],
+                                                     "ItemID1": items[0], "ItemID2": items[1], "ItemID3": items[2],
+                                                     "VerifiedBuild": VERIFIED})
 
     def addon(self, a, key, value):
         auras = " ".join(str(s) for s in (self.spell(x) for x in (a.get("auras") or "").split()) if s)
@@ -515,6 +553,14 @@ class WorldBuilder(build_tables.Builder):
                 "bytes1": num(a["StandState"]) | (num(a["VisFlags"]) << 16) | (num(a["AnimTier"]) << 24),
                 "bytes2": num(a["SheathState"]) | (num(a["PvPFlags"]) << 8),
                 "emote": num(a["emote"]), "visibilityDistanceType": num(a["visibilityDistanceType"]), "auras": auras or None}
+
+    def equipment_id(self, spawn):
+        """A spawn's equipment: CPP's 0 is its creature's first (AzerothCore's 0 is none)."""
+        ids = self.equips.get(int(spawn["id"]), set())
+        wanted = num(spawn["equipment_id"])
+        if wanted == 0:
+            return 1 if 1 in ids else 0
+        return wanted if wanted == -1 or wanted in ids else 0
 
     def spawn_maps(self, row):
         """The maps of ours a spawn of CPP's is on (Gilneas's by the terrain it's seen with)."""
@@ -535,15 +581,13 @@ class WorldBuilder(build_tables.Builder):
                 guid = self.spawn_guid(r["guid"], map_id)
                 self.sql.add("creature", {
                     "guid": guid, "id": ENTRY + int(r["id"]), "map": map_id, "zoneId": 0, "areaId": 0, "spawnMask": 1,
-                    "phaseMask": self.phase_mask(r["PhaseId"], r["PhaseGroup"]), "equipment_id": 0,
+                    "phaseMask": self.phase_mask(r["PhaseId"], r["PhaseGroup"]), "equipment_id": self.equipment_id(r),
                     "position_x": num(r["position_x"]), "position_y": num(r["position_y"]), "position_z": num(r["position_z"]),
                     "orientation": num(r["orientation"]), "spawntimesecs": num(r["spawntimesecs"]),
                     "wander_distance": num(r["wander_distance"]), "currentwaypoint": 0, "curhealth": num(r["curhealth"]),
                     "curmana": num(r["curmana"]), "MovementType": num(r["MovementType"]), "npcflag": num(r["npcflag"]) & NPCFLAG_MASK,
                     "unit_flags": num(r["unit_flags"]), "dynamicflags": 0, "ScriptName": "", "VerifiedBuild": VERIFIED,
                     "CreateObject": 0, "Comment": None})
-                if num(r["equipment_id"]):
-                    self.drop("equipment", r["id"])
                 a = addons.get(int(r["guid"]))
                 if a:
                     row = self.addon(a, "guid", guid)
@@ -682,21 +726,22 @@ class WorldBuilder(build_tables.Builder):
         self.done[key] = values["ID"]
         return values["ID"]
 
-    def objects_templates(self):
-        templates = db.rows(db.CPP_DB, f"SELECT * FROM gameobject_template WHERE entry IN ({db.ids_in(self.objects)})")
-        addons = {int(r["entry"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM gameobject_template_addon WHERE entry IN ({db.ids_in(self.objects)})")}
+    def objects_templates(self, batch):
+        templates = db.rows(db.CPP_DB, f"SELECT * FROM gameobject_template WHERE entry IN ({db.ids_in(batch)})")
+        addons = {int(r["entry"]): r for r in db.rows(db.CPP_DB, f"SELECT * FROM gameobject_template_addon WHERE entry IN ({db.ids_in(batch)})")}
+        self.objects_done |= {int(t["entry"]) for t in templates}
         for t in templates:
             e = int(t["entry"])
             values = {"entry": ENTRY + e, "type": num(t["type"]), "displayId": self.object_display(t["displayId"]),
                       "name": t["name"], "IconName": t["IconName"], "castBarCaption": t["castBarCaption"], "unk1": t["unk1"],
                       "size": num(t["size"])}
-            # (each type's data that names a spell, a quest, a lock, loot or a text: stage 3's, kept as
-            # nothing for now)
             for i in range(24):
-                values[f"Data{i}"] = num(t[f"Data{i}"]) if self.plain_data(num(t["type"]), i) else 0
-                if not self.plain_data(num(t["type"]), i) and num(t[f"Data{i}"]):
-                    self.drop(f"object data (type {t['type']} data {i})", e)
+                values[f"Data{i}"] = self.object_data(num(t["type"]), i, num(t[f"Data{i}"]), e)
             values.update({"AIName": "", "ScriptName": "", "VerifiedBuild": VERIFIED})
+            if t["AIName"] == "SmartGameObjectAI":
+                values["AIName"] = "SmartGameObjectAI"
+            if t["ScriptName"]:
+                self.drop(f"object script {t['ScriptName']}", e)
             self.sql.add("gameobject_template", values)
             a = addons.get(e)
             if a:
@@ -705,15 +750,35 @@ class WorldBuilder(build_tables.Builder):
                     "flags": num(a["flags"]), "mingold": num(a["mingold"]), "maxgold": num(a["maxgold"]),
                     "artkit0": 0, "artkit1": 0, "artkit2": 0, "artkit3": 0})
 
-    @staticmethod
-    def plain_data(kind, index):
-        """Whether an object type's data field is a plain number (not an id of something else)."""
-        references = {
-            0: {1}, 1: {0, 2, 3}, 2: {0, 1, 2, 3, 4, 7}, 3: {0, 1, 4, 6, 7, 8, 10, 12, 14, 15}, 5: {2, 3, 4}, 6: {0, 3, 5, 6, 8},
-            7: {}, 8: {0}, 9: {0, 2}, 10: {0, 1, 2, 3, 4, 7, 10, 12, 13, 14, 16, 19, 21}, 13: {0, 4}, 15: {0, 6},
-            18: {1, 2, 3, 4, 5, 6}, 22: {0}, 25: {1, 2, 3, 4},
-        }
-        return index not in references.get(kind, set(range(24)))
+    # Each object type's data fields that name something (AzerothCore's layout, CPP's the same for these).
+    OBJECT_DATA = {0: {1: "lock"}, 1: {1: "lock", 3: "object"}, 2: {0: "lock", 1: "none", 3: "gossip"},
+                   3: {0: "lock", 1: "loot", 6: "event", 7: "object", 8: "quest", 14: "none"}, 5: {5: "quest"},
+                   6: {0: "lock", 3: "spell", 12: "none", 13: "none"}, 8: {2: "object", 4: "quest"},
+                   10: {0: "lock", 1: "quest", 2: "event", 7: "page", 10: "spell", 12: "object", 14: "none", 15: "none", 19: "gossip"},
+                   22: {0: "spell"}}
+
+    def object_data(self, kind, index, value, entry):
+        what = self.OBJECT_DATA.get(kind, {}).get(index)
+        if not value or what is None:
+            return value
+        if what == "lock":
+            if value in self.ids.stock_rows("Lock"):
+                return value
+            self.drop("object lock", value)
+            return 0
+        if what == "loot":
+            return self.loot("gameobject_loot_template", value)
+        if what == "quest":
+            return self.quest_id(value)
+        if what == "spell":
+            return self.spell(value)
+        if what == "object":
+            self.need_object(value)
+            return self.object_entry(value)
+        if what == "gossip":
+            return self.gossip_menu(value)
+        self.drop(f"object data {what}", entry)
+        return 0
 
     def object_spawns(self):
         addons = {int(r["guid"]): r for r in db.rows(db.CPP_DB, "SELECT a.* FROM gameobject_addon a JOIN gameobject g ON g.guid = a.guid WHERE g.map IN (654, 648)")}
@@ -752,38 +817,88 @@ class WorldBuilder(build_tables.Builder):
 
     def world(self):
         self.prefetch()
-        templates = self.creatures_templates()
+        for e in sorted(self.creatures):
+            self.need_creature(e)
+        for e in sorted(self.objects):
+            self.need_object(e)
+        # (creatures, objects, quests and scripts name each other: until nothing new is named)
+        while True:
+            while self.creature_queue or self.object_queue or self.quest_queue:
+                if self.creature_queue:
+                    batch, self.creature_queue = self.creature_queue, []
+                    self.creatures_templates(batch)
+                if self.object_queue:
+                    batch, self.object_queue = self.object_queue, []
+                    self.objects_templates(batch)
+                if self.quest_queue:
+                    self.quests()
+            new = (self.creatures_done | self.objects_done) - self.smart_done
+            if not new:
+                break
+            self.smart_done |= new
+            self.smart_scripts(new)
+            if not (self.creature_queue or self.object_queue or self.quest_queue):
+                break
         paths = self.creature_spawns()
-        self.waypoints(paths)
+        self.waypoints(paths | self.paths_needed)
         self.formations()
-        self.creature_texts(set(templates))
-        self.objects_templates()
+        self.creature_texts(self.creatures_done)
         self.object_spawns()
+        self.quest_relations()
+        self.vendors()
+        self.graveyards()
+        self.area_triggers()
+        self.area_spells()
+
+
+# The columns a starting areas' row is known by, by table (to take exactly their rows out again).
+KEYS = {"creature_template": ["entry"], "creature_template_model": ["CreatureID"], "creature_template_movement": ["CreatureId"],
+        "creature_template_addon": ["entry"], "creature_template_spell": ["CreatureID"], "creature_text": ["CreatureID"],
+        "creature": ["guid"], "creature_addon": ["guid"], "creature_formations": ["memberGUID"], "waypoint_data": ["id"],
+        "broadcast_text": ["ID"], "npc_text": ["ID"], "gossip_menu": ["MenuID"], "gossip_menu_option": ["MenuID"],
+        "gameobject_template": ["entry"], "gameobject_template_addon": ["entry"], "gameobject": ["guid"], "gameobject_addon": ["guid"],
+        "item_template": ["entry"], "quest_template": ["ID"], "quest_template_addon": ["ID"], "quest_offer_reward": ["ID"],
+        "quest_request_items": ["ID"], "quest_details": ["ID"], "quest_poi": ["QuestID"], "quest_poi_points": ["QuestID"],
+        "creature_queststarter": ["id", "quest"], "creature_questender": ["id", "quest"], "gameobject_queststarter": ["id", "quest"],
+        "gameobject_questender": ["id", "quest"], "smart_scripts": ["entryorguid", "source_type"],
+        "creature_loot_template": ["Entry"], "pickpocketing_loot_template": ["Entry"], "skinning_loot_template": ["Entry"],
+        "reference_loot_template": ["Entry"], "gameobject_loot_template": ["Entry"], "npc_vendor": ["entry"],
+        "spell_script_names": ["spell_id", "ScriptName"], "spell_target_position": ["ID", "EffectIndex"],
+        "creature_default_trainer": ["CreatureId"], "creature_equip_template": ["CreatureID"], "game_graveyard": ["ID"], "graveyard_zone": ["ID", "GhostZone"],
+        "areatrigger": ["entry"], "areatrigger_involvedrelation": ["id"], "areatrigger_scripts": ["entry"],
+        "spell_area": ["spell", "area"]}
 
 
 def write_world(b):
     server = os.path.join(OUT, "server")
     b.sql.write(os.path.join(server, "zones_world.sql"),
-                "-- The starting areas' world (tools/zones/build_world.py): the Cataclysm Preservation Project's creatures\n"
-                "-- and objects of Gilneas and the Lost Isles, in rows of their own (ids from 6000000, spawns from 60000000,\n"
-                "-- paths from 600000000). Put in by src/WorgenGoblin.cpp with the starting areas on, taken out with them off.")
-    ranges = [("creature_template", "entry", ENTRY, ENTRY + 999_999), ("creature_template_model", "CreatureID", ENTRY, ENTRY + 999_999),
-              ("creature_template_movement", "CreatureId", ENTRY, ENTRY + 999_999), ("creature_template_addon", "entry", ENTRY, ENTRY + 999_999),
-              ("creature_text", "CreatureID", ENTRY, ENTRY + 999_999), ("creature", "guid", GUID, GUID + 9_999_999),
-              ("creature_addon", "guid", GUID, GUID + 9_999_999), ("creature_formations", "leaderGUID", GUID, GUID + 9_999_999),
-              ("waypoint_data", "id", PATH, PATH + 99_999_999), ("broadcast_text", "ID", ENTRY, ENTRY + 999_999),
-              ("npc_text", "ID", ENTRY, ENTRY + 999_999), ("gossip_menu", "MenuID", ENTRY, ENTRY + 999_999),
-              ("gossip_menu_option", "MenuID", ENTRY, ENTRY + 999_999), ("gameobject_template", "entry", ENTRY, ENTRY + 999_999),
-              ("gameobject_template_addon", "entry", ENTRY, ENTRY + 999_999), ("gameobject", "guid", GUID, GUID + 9_999_999),
-              ("gameobject_addon", "guid", GUID, GUID + 9_999_999)]
+                "-- The starting areas' world (tools/zones/build_world.py): the Cataclysm Preservation Project's creatures,\n"
+                "-- objects, quests, scripts, loot and the rest of Gilneas and the Lost Isles, in rows of their own (ids from\n"
+                "-- 6000000, spawns from 10000000, paths from 600000000; their items keep Cataclysm's ids where they're free).\n"
+                "-- Put in by src/WorgenGoblin.cpp with the starting areas on, taken out with them off.")
     with open(os.path.join(server, "zones_world_off.sql"), "w", newline="\n") as f:
-        f.write("-- The starting areas' world out (tools/zones/build_world.py): every row in their ranges.\n")
-        for table, key, lo, hi in ranges:
-            f.write(f"DELETE FROM `{table}` WHERE `{key}` BETWEEN {lo} AND {hi};\n")
-    with open(os.path.join(OUT, "files-world.tsv"), "w", newline="\n") as f:
-        f.write("# The game's files the starting areas' creatures and objects need (tools/zones/build_world.py): id, path, kind\n")
-        for fdid, (path, kind) in sorted(b.world_files.items()):
-            f.write(f"{fdid}\t{path}\t{kind}\n")
+        f.write("-- The starting areas' world out (tools/zones/build_world.py): exactly their rows, by their keys.\n")
+        for table, rows in b.sql.tables.items():
+            keys = KEYS[table]
+            values = sorted({tuple(r[k] for k in keys) for r in rows})
+            for i in range(0, len(values), 500):
+                chunk = values[i:i + 500]
+                if len(keys) == 1:
+                    f.write(f"DELETE FROM `{table}` WHERE `{keys[0]}` IN ({', '.join(sqlv(v[0]) for v in chunk)});\n")
+                else:
+                    f.write(f"DELETE FROM `{table}` WHERE ({', '.join(f'`{k}`' for k in keys)}) IN ("
+                            + ", ".join("(" + ", ".join(sqlv(x) for x in v) + ")" for v in chunk) + ");\n")
+    with open(os.path.join(OUT, "aliases.tsv"), "w", newline="\n") as f:
+        f.write("# Other paths the game loads some of the starting areas' files by (tools/zones/build_world.py: an item's\n"
+                "# model, textures and icon where 3.3.5a looks for them): id, path\n")
+        for fdid, paths in sorted(b.aliases.items()):
+            for path in sorted(paths):
+                f.write(f"{fdid}\t{path}\n")
+    with open(os.path.join(OUT, "spell-hooks.tsv"), "w", newline="\n") as f:
+        f.write("# Cataclysm's spell effects and auras 3.3.5a hasn't, made dummies the module answers (tools/zones/spells.py):\n"
+                "# Cataclysm's spell id, the spell's id here, effect index, what, Cataclysm's value\n")
+        for cata_id, index, what, value in b.spell_hooks:
+            f.write(f"{cata_id}\t{b.done.get(('Spell', cata_id), cata_id)}\t{index}\t{what}\t{value}\n")
     with open(os.path.join(OUT, "left-for-later.txt"), "w", newline="\n") as f:
         f.write("# What the starting areas' world names that isn't in it yet (the stages to come: PLAN.md), by kind:\n")
         for kind, ids in sorted(b.dropped.items()):
@@ -793,8 +908,8 @@ def write_world(b):
 def main():
     if len(sys.argv) != 7:
         sys.exit(__doc__)
-    cache, stock_dir, dbd, listfile_path, core, converter = sys.argv[1:]
-    b = WorldBuilder(cache, stock_dir, dbd, listfile_path, converter.split())
+    cache, stock_dir, dbd, listfile_path, core, converter_src = sys.argv[1:]
+    b = WorldBuilder(cache, stock_dir, dbd, listfile_path, converter_src)
     b.listfile_path = listfile_path
     b.maps()
     b.areas()
@@ -805,6 +920,8 @@ def main():
     start = files.map_files(b.names)
     start.update(b.files)
     start.update(b.world_files)
+    for fdid in b.aliases:
+        start.setdefault(fdid, (b.names[fdid], "texture"))
     found, wmo_ids, missing = files.closure(cache, b.names, b.fdids, start)
     b.wmo_areas(wmo_ids)
     b.out.write(core)

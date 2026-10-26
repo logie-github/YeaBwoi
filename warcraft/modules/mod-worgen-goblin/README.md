@@ -148,17 +148,35 @@ and quests are in. So far:
   game's tables and the server's, through the converter's own rules; 3.3.5a's own where it's the same
   model and textures), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
   gossip and Cataclysm's 31 phases as 3.3.5a's phase mask's bits. All in ranges of their own
-  (`zones_world.sql`: creatures', objects', texts' and menus' ids from 6000000, spawns from 60000000,
+  (`zones_world.sql`: creatures', objects', texts' and menus' ids from 6000000, spawns from 10000000
+  (under 0xFFFFFF, AzerothCore's limit for spawns),
   paths from 600000000), put in once (the world database's `app_zones` says which) and taken out
-  whole with the areas off. What they name that isn't in yet (their items' looks, their spells,
-  loot, vehicles, scripts) is listed in `data/zones/left-for-later.txt`.
+  whole with the areas off. Their clothes and weapons are item looks of their own (the converter's
+  ItemDisplayInfo rules, run in-process: its command line can't read the tables those join from).
+- **Their quests, items, spells and scripts' data** (the same tool): 270 quests, every one the
+  Worgen's or the Goblins' alone; their items (Cataclysm's ids where they're free); their spells
+  (Cataclysm's split tables made 3.3.5a's one row; 3.3.5a's own where it has the same spell); CPP's
+  SmartAI, loot, vendors, trainers (the realm's own trainers of the same class or profession),
+  graveyards (their places from TrinityCore's `world_safe_locs`: Cataclysm Classic's game hasn't
+  them), area triggers and the areas' phase auras (`spell_area`, as quests are taken and done).
+  What they name that isn't in yet (C++ scripts CPP has, vehicles, spell visuals) is listed in
+  `data/zones/left-for-later.txt`.
+- **What 3.3.5a's server doesn't do** (`src/WorgenGoblinZones.cpp`): Gilneas's terrain swaps, the
+  player taken to their own map of Gilneas (638 until Last Stand, 14222, is done, then 654, then 655
+  once Leader of the Pack, 14386, is), on any teleport there and as either quest is handed in; and
+  Cataclysm's spell effects 3.3.5a hasn't (`tools/zones/spells.py`, made dummies, each answered by
+  its script in `spell_script_names`): the phases updated, the teleports with their places
+  (`spell_target_position`), the two movies as their narration (Cataclysm Classic's game has the
+  Worgen's and Goblins' movies' sound, not their pictures).
 
-Next: the quests, items, spells, loot and scripts, the phases' changes as the story goes, and the
-way into Wrath's world after them (Worgen to Darnassus, Goblins to Orgrimmar), each with new ids only.
+Next: CPP's C++ scripts of Gilneas, what CPP lacks (Gilneas's last chapter, Kezan and the Lost
+Isles), the vehicles, and the way into Wrath's world after them (Worgen to Darnassus, Goblins to
+Orgrimmar), each with new ids only.
 
 ### Making the starting areas' data again
 
-`tools/zones/build_world.py CACHE STOCK_DBC WOWDBDEFS LISTFILE CORE_DIR CONVERTER` (its docstring),
+`tools/zones/build_world.py CACHE STOCK_DBC WOWDBDEFS LISTFILE CORE_DIR CONVERTER_SRC` (its docstring;
+CONVERTER_SRC is the converter's `src` folder at the commit `warcraft/zones-version.env` pins),
 with a local MariaDB holding the two worlds it reads:
 
 - `cpp_world`: the Cataclysm Preservation Project's `TDB_full_world_434.22011_2022_01_09.sql` (its
@@ -193,7 +211,8 @@ writes `data/zones`. The package is made from that by CI (`scripts/package-zones
   a Worgen and a Goblin warrior at their starts with their racials and their side's language; on
   Wrath Remix, the patch set aside and none of it in its world; back on ChromieCraft, the patch back.
   With the starting areas' package (the zones job's): their maps in the server's data with paths for
-  each, their files in the patch, their seven maps and 92 areas in the world's tables; a Worgen warrior
+  each, their files in the patch, their seven maps and 92 areas in the world's tables, their spawns'
+  ids under AzerothCore's limit (0xFFFFFF); a Worgen warrior
   starts on map 638 in Gilneas City and a Goblin warrior in Kezan (648), a Human and an Orc where they
   always have; the game's own creatures, objects, quests, items, scripts and other races' starts as
   they were; a Human put on Gilneas's map is taken home as it logs in; off again, their rows gone and
