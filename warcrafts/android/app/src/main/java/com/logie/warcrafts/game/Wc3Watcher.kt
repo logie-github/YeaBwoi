@@ -54,6 +54,11 @@ class Wc3Watcher(private val xServer: XServer) {
 
     private val main = Handler(Looper.getMainLooper())
     private var running = false
+    /**
+     * Whether a match is on, from the game's open files ([Wc3Files]): the console isn't recognised
+     * when its art is another's (Classic+), and a match still has a battlefield and command card.
+     */
+    var inMatch: () -> Boolean = { false }
     /** Which way up the read picture is: found from the first console seen. */
     @Volatile private var flipped: Boolean? = null
 
@@ -82,6 +87,8 @@ class Wc3Watcher(private val xServer: XServer) {
         renderer.xServerView.queueEvent {
             target?.destroy()
             target = null
+            probeTarget?.destroy()
+            probeTarget = null
             material?.destroy()
             material = null
             quad.destroy()
@@ -125,6 +132,82 @@ class Wc3Watcher(private val xServer: XServer) {
             main.post { apply(reading) }
         }
         renderer.xServerView.requestRender()
+    }
+
+    // The cursor's square ([probe]) ----------------------------------------------------------
+
+    private var probeTarget: RenderTarget? = null
+    private var probeSize = 0
+    private var probePixels: ByteBuffer? = null
+
+    /**
+     * A [size] x [size] square of the game's picture at full size, centred on ([x], [y]) (the game
+     * screen's pixels), as RGB ints, rows in either order (as [com.logie.warcrafts.library.Wc3Cursor]
+     * takes them), to [then] on the main thread; null if there's no picture.
+     */
+    fun probe(x: Int, y: Int, size: Int, then: (IntArray?) -> Unit) {
+        val renderer = xServer.renderer
+        val drawable = gameWindow()?.content
+        if (renderer == null || drawable == null) {
+            main.post { then(null) }
+            return
+        }
+        val screenWidth = xServer.screenInfo.width.toInt().coerceAtLeast(1)
+        val screenHeight = xServer.screenInfo.height.toInt().coerceAtLeast(1)
+        renderer.xServerView.queueEvent {
+            val square = runCatching {
+                synchronized(drawable.renderLock) {
+                    val texture = drawable.texture ?: return@runCatching null
+                    texture.updateFromDrawable()
+                    val cx = x * drawable.width / screenWidth
+                    val cy = y * drawable.height / screenHeight
+                    readSquare(texture.textureId, texture.isFlipY, drawable.width.toInt(), drawable.height.toInt(), cx, cy, size, flipped ?: false)
+                }
+            }.getOrNull()
+            main.post { then(square) }
+        }
+        renderer.xServerView.requestRender()
+    }
+
+    /** The texture drawn at its own size with only [size] x [size] around ([cx], [cy]) in this watcher's target, read back. */
+    private fun readSquare(textureId: Int, flipY: Boolean, width: Int, height: Int, cx: Int, cy: Int, size: Int, upsideDown: Boolean): IntArray {
+        if (probeTarget == null || probeSize != size) {
+            probeTarget?.destroy()
+            probeTarget = RenderTarget().apply { allocateFramebuffer(size, size) }
+            probeSize = size
+            probePixels = ByteBuffer.allocateDirect(size * size * 4).order(ByteOrder.nativeOrder())
+        }
+        val viewport = IntArray(4)
+        GLES20.glGetIntegerv(GLES20.GL_VIEWPORT, viewport, 0)
+        val screen = material ?: ScreenMaterial().also { material = it }
+        val blending = GLES20.glIsEnabled(GLES20.GL_BLEND)
+        GLES20.glDisable(GLES20.GL_BLEND)
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, probeTarget!!.framebuffer)
+        // The whole picture at its size, placed so that the square around the point lands on the target:
+        // the target's first row is the picture's bottom (as [read] takes it), unless found upside down.
+        GLES20.glViewport(size / 2 - cx, size / 2 - (if (upsideDown) cy else height - cy), width, height)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        screen.use()
+        screen.setUniformBool(screen.uniforms.flipY, flipY)
+        quad.bind(screen.programId)
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
+        screen.setUniformInt(screen.uniforms.screenTexture, 0)
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, quad.count())
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+        quad.disable()
+        val buffer = probePixels!!
+        buffer.clear()
+        GLES20.glReadPixels(0, 0, size, size, GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, buffer)
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
+        GLES20.glViewport(viewport[0], viewport[1], viewport[2], viewport[3])
+        if (blending) GLES20.glEnable(GLES20.GL_BLEND)
+        return IntArray(size * size) { i ->
+            val r = buffer.get(i * 4).toInt() and 0xff
+            val g = buffer.get(i * 4 + 1).toInt() and 0xff
+            val b = buffer.get(i * 4 + 2).toInt() and 0xff
+            (r shl 16) or (g shl 8) or b
+        }
     }
 
     private var pixels: ByteBuffer? = null
@@ -213,7 +296,7 @@ class Wc3Watcher(private val xServer: XServer) {
         val field = Wc3Screen.FIELD.map { (x, y) -> picture.colour(x, y, foundWay ?: false) }
         val black = found == null && Wc3Screen.black(field) &&
             Wc3Screen.black(listOf(0.5f to 0.85f, 0.5f to 0.03f, 0.1f to 0.9f, 0.9f to 0.9f).map { (x, y) -> picture.colour(x, y, false) })
-        val orders = if (found == null) null else Wc3Screen.ORDER_POINTS.map { (x, y) -> picture.colour(x, y, foundWay ?: false) }
+        val orders = if (found == null && !inMatch()) null else Wc3Screen.ORDER_POINTS.map { (x, y) -> picture.colour(x, y, foundWay ?: false) }
         return Reading(found, foundWay, field, black, orders, SystemClock.uptimeMillis())
     }
 
@@ -223,7 +306,7 @@ class Wc3Watcher(private val xServer: XServer) {
         orders = reading.orders
         ordersAt = reading.at
         stillSince = when {
-            reading.race == null -> 0L
+            reading.race == null && !inMatch() -> 0L
             Wc3Screen.still(lastField, reading.field) -> if (stillSince == 0L) SystemClock.uptimeMillis() else stillSince
             else -> 0L
         }

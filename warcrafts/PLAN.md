@@ -448,6 +448,37 @@ The user's requirements, what was decided, what's open, and where it stands. The
   video frame (keyframes and frames as ffprobe counts them), the sound ending with the picture. The
   opening film is no longer marked seen. Not known until the phone: the phone's decoder on these
   files, the pause and resume around a film, the game after Escape.
+- **Build 35: the touch controls as a mobile RTS** (the user: "Doesn't work to pick up items by double
+  tap. How about you look at the controls and decide touch controls. Do some really good research.
+  Convert this into a good feeling touch game as though it were a mobile RTS.")
+  - **Why double tap and the kept order did nothing on the phone**: everything in a match hung on
+    recognising the console from its art (`Wc3ScreenData`, Blizzard's tiles), and Classic+ replaces
+    those tiles (`ui/console/<race>/<race>uitile01-06`); not recognised, every tap was a menu click.
+  - **Research** (mobile RTS and PC ports to touch): tap selects, tap the destination orders, the order
+    fitting what's there (Feral's EMPIRE: Total War, Construct's RTS devlog, Iron Marines); a box from
+    a drag that panning doesn't claim (a mode, two fingers, or hold first: C&C Red Alert iPhone,
+    Rusted Warfare, Construct); double tap for every unit of a kind (Iron Marines, CoH); hold for
+    the rest (CoH's command wheel, Rome's positioning); right click is what touch does worst (a
+    two-finger tap, layers: Steam Remote Play). Warcraft III gives items by right-clicking them in
+    the inventory, then left-clicking the unit.
+  - **Found in the game** (1.27 under Wine here): the game draws its own cursor, tinted **green**
+    over the player's units and buildings, **red** over enemies, **yellow** over neutral ones (a gold
+    mine), silver over ground and trees; Classic+ doesn't change cursors (`UI\Cursor\*Cursor.blp`).
+    And while a match is on the game keeps `TempReplay.w3g` open (with the map), in the menus not.
+  - **Built**: `game/Wc3Files` (the game's open files every 400 ms: a match while the replay is open;
+    the films for `Wc3MoviePlayer`); `library/Wc3Cursor` (the picture around the pointer before the
+    cursor comes and after: changed, strongly coloured pixels by hue; on ten real captures, day and
+    night, dirt, grass, trees, own/enemy/neutral, all right); `Wc3Watcher.probe` (a full-size square
+    around a point, on Winlator's drawing thread); `RtsGestures`' `fingerDown`. In a match a finger
+    landing on the battlefield is read (the pointer moved away first if it's close by, so "before"
+    doesn't hold the cursor; read again once if the cursor isn't drawn there yet), and the tap waits
+    for it (at most 380 ms; its 280 ms double-tap wait mostly covers it): **own → left click
+    (select)**, anything else → the right click (or the kept order, the aimed target). Double tap: own
+    unit → double click (all of its kind), hero button → double click (camera), inventory → right
+    click (pick up), elsewhere → attack-move (A, left click). Hold: left click (select anything,
+    shops). The console without its race: the highest panel edge of the four races. Not known until
+    the phone: the cursor's timing there (Winlator's frames), the probe's orientation when the console
+    isn't recognised (taken as found by the watcher, else the picture's bottom first).
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

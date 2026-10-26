@@ -24,6 +24,7 @@ import com.logie.warcrafts.controls.HeldDrag
 import com.logie.warcrafts.controls.Key
 import com.logie.warcrafts.controls.RtsGestures
 import com.logie.warcrafts.library.Title
+import com.logie.warcrafts.library.Wc3Cursor
 import com.logie.warcrafts.library.Wc3Screen
 import com.winlator.core.AppUtils
 import com.winlator.math.XForm
@@ -257,16 +258,21 @@ class GestureView(
         runCatching { java.io.File(context.filesDir, Game.STARTING).delete() }
         // With Winlator's touchpad its pointer is drawn, as Winlator does (the finger moves it from afar).
         if (!touchpad) xServer.renderer.isCursorVisible = false
+        watcher.inMatch = { files.inMatch }
         watcher.start()
         // The game's films, played by the app over the paused game (Wine shows them black).
         if (movies == null) {
             val screen = parent as? ViewGroup
-            if (screen != null) {
-                movies = Wc3MoviePlayer(activity, screen, com.logie.warcrafts.RtsFiles.folder(activity, com.logie.warcrafts.library.Install.WC3)) {
-                    tapKey(XKeycode.KEY_ESC)
-                }.also { it.start() }
+            if (screen != null) movies = Wc3MoviePlayer(activity, screen) { tapKey(XKeycode.KEY_ESC) }
+        }
+        files.listen { found ->
+            movies?.seen(found.film)
+            if (found.inMatch != wasInMatch) {
+                wasInMatch = found.inMatch
+                Wc3Report.note(if (found.inMatch) "a match is on (the game's replay open)" else "no match (menus)")
             }
         }
+        files.start()
         Wc3Report.note("the game's window is up")
         removeCallbacks(skipBlack)
         postDelayed(skipBlack, 1000)
@@ -322,8 +328,10 @@ class GestureView(
         if (width <= 0f || height <= 0f) return false
         val x = pointerX / width
         val y = pointerY / height
-        // No console seen (the menus, or the picture not read yet): the game's menus take left clicks.
-        val race = watcher.race ?: return true
+        // No match (the menus, a loading or score screen): the game's menus take left clicks.
+        if (!inMatch()) return true
+        // The console's art may be another's (Classic+): its race then isn't known, its layout is the same.
+        val race = watcher.race
         val now = SystemClock.uptimeMillis()
         if (Wc3Screen.onHeroButtons(x, y)) return true
         if (Wc3Screen.onConsole(race, x, y)) {
@@ -354,7 +362,7 @@ class GestureView(
     }
 
     /** On a command button or an item: what may wait for a target. */
-    private fun onOrders(x: Float, y: Float): Boolean = watcher.race != null && Wc3Screen.onOrders(x, y)
+    private fun onOrders(x: Float, y: Float): Boolean = inMatch() && Wc3Screen.onOrders(x, y)
 
     /** The shape of the game's mouse pointer now (its picture, hot spot and size), or null. */
     private fun cursorShape(): Long? {
@@ -417,16 +425,27 @@ class GestureView(
                 if (onOrders(x, y)) {
                     aimUntil = now + AIM_MS
                     orderTapped(x, y, now)
-                } else if (watcher.race != null && !Wc3Screen.onMinimap(x, y) && now >= aimUntil) {
+                } else if (inMatch() && !Wc3Screen.onMinimap(x, y) && now >= aimUntil) {
                     // The portraits, the hero buttons, the menu bar: another selection, or a dialog.
                     forgetOrder("a tap on the panel")
                 }
                 why = when {
-                    watcher.race == null -> "tap, no console (menus)"
+                    !inMatch() -> "tap, no match (menus)"
                     Wc3Screen.onHeroButtons(x, y) -> "tap, hero buttons"
-                    Wc3Screen.onConsole(watcher.race!!, x, y) -> "tap, console"
+                    Wc3Screen.onConsole(watcher.race, x, y) -> "tap, console"
                     else -> "tap, dialog"
                 }
+                Button.LEFT
+            }
+            // On the battlefield, the cursor still being read: the tap waits for it (not long).
+            looking?.waiting(pointerX, pointerY, now) == true -> {
+                looking?.then = { click(button) }
+                return
+            }
+            // On the battlefield, the player's own unit or building under the finger: the tap selects it.
+            now >= aimUntil && now >= itemUntil && underHere() == Wc3Cursor.Under.OWN -> {
+                forgetOrder("a selection")
+                why = "tap, your own unit (the cursor green) → selects"
                 Button.LEFT
             }
             // On the battlefield with an item picked up from the inventory (a double tap): it goes down here.
@@ -473,7 +492,7 @@ class GestureView(
                     shapesSeen += it
                     normalShape = it
                 }
-                why = "tap, battlefield"
+                why = "tap, battlefield (${underHere()?.name?.lowercase() ?: "not read"} under it) → order"
                 Button.RIGHT
             }
         }
@@ -518,6 +537,12 @@ class GestureView(
 
     /** The game's films, played by the app ([Wc3MoviePlayer]), once the game's window is up. */
     private var movies: Wc3MoviePlayer? = null
+    /** What the game has open ([Wc3Files]): whether a match is on, the film playing. */
+    private val files = Wc3Files(com.logie.warcrafts.RtsFiles.folder(activity, com.logie.warcrafts.library.Install.WC3))
+    private var wasInMatch = false
+
+    /** Whether a match is on: the game's replay open, or its console recognised. */
+    private fun inMatch(): Boolean = files.inMatch || watcher.race != null
 
     /** A film the game shows black: the picture all black a while after the game had shown something. Escape skips it. */
     private val skipBlack = object : Runnable {
@@ -538,9 +563,9 @@ class GestureView(
 
     /** Held, then moved: a selection box on the battlefield; elsewhere the hold is taken back (slid off a button). */
     override fun heldDrag(x: Float, y: Float): HeldDrag {
-        val race = watcher.race ?: return HeldDrag.CANCEL
+        if (!inMatch()) return HeldDrag.CANCEL
         val (sx, sy) = screenAt(x, y) ?: return HeldDrag.CANCEL
-        if (Wc3Screen.onHeroButtons(sx, sy) || Wc3Screen.onConsole(race, sx, sy)) return HeldDrag.CANCEL
+        if (Wc3Screen.onHeroButtons(sx, sy) || Wc3Screen.onConsole(watcher.race, sx, sy)) return HeldDrag.CANCEL
         return HeldDrag.SELECT
     }
 
@@ -550,10 +575,10 @@ class GestureView(
      * is a double tap ([doubleTap]).
      */
     override fun tapWaits(x: Float, y: Float): Boolean {
-        val race = watcher.race ?: return false
+        if (!inMatch()) return false
         val (sx, sy) = screenAt(x, y) ?: return false
-        if (Wc3Screen.onInventory(sx, sy)) return true
-        return !Wc3Screen.onHeroButtons(sx, sy) && !Wc3Screen.onConsole(race, sx, sy)
+        if (Wc3Screen.onInventory(sx, sy) || Wc3Screen.onHeroButtons(sx, sy)) return true
+        return !Wc3Screen.onConsole(watcher.race, sx, sy)
     }
 
     /**
@@ -563,13 +588,116 @@ class GestureView(
      * (pick up an item on the ground, move, attack), a kept order left as it is.
      */
     override fun doubleTap() {
-        if (SystemClock.uptimeMillis() < busyUntil) return click(Button.RIGHT)
+        val now = SystemClock.uptimeMillis()
+        if (now < busyUntil) return click(Button.RIGHT)
+        // The cursor still being read: the double tap waits for it.
+        looking?.let { if (it.waiting(pointerX, pointerY, now)) { it.then = { doubleTap() }; return } }
         val (x, y) = pointerAt() ?: (0f to 0f)
         aimUntil = 0L
-        // An item picked up: the next tap puts it down (a slot, the ground, a unit), a left click.
-        itemUntil = if (Wc3Screen.onInventory(x, y)) SystemClock.uptimeMillis() + AIM_MS else 0L
-        Wc3Report.tap("%.3f,%.3f double tap → RIGHT".format(x, y))
-        pressHere(Pointer.Button.BUTTON_RIGHT) { postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT) }, CLICK_MS) }
+        itemUntil = 0L
+        when {
+            // An item in the inventory: picked up (the right click); the next tap puts it down (a slot,
+            // the ground, a unit: a left click there).
+            Wc3Screen.onInventory(x, y) -> {
+                itemUntil = now + AIM_MS
+                Wc3Report.tap("%.3f,%.3f double tap, an item → RIGHT (picked up)".format(x, y))
+                pressHere(Pointer.Button.BUTTON_RIGHT) { postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT) }, CLICK_MS) }
+            }
+            // A hero's button (the camera to the hero) or the player's own unit (every unit of its kind on the screen).
+            Wc3Screen.onHeroButtons(x, y) || underHere() == Wc3Cursor.Under.OWN -> doubleClick(Button.LEFT)
+            // Anywhere else on the battlefield: attack-move (A, then the place: fighting all the way there).
+            else -> {
+                forgetOrder("attack-move")
+                Wc3Report.tap("%.3f,%.3f double tap → attack-move (A, LEFT)".format(x, y))
+                tapKey(XKeycode.KEY_A)
+                postDelayed({
+                    pressHere(Pointer.Button.BUTTON_LEFT) { postDelayed({ xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT) }, CLICK_MS) }
+                }, KEY_MS + 30)
+            }
+        }
+    }
+
+    // What's under the finger ([Wc3Cursor]) -----------------------------------------------
+
+    /** A reading of the cursor at a point: what it showed, when, and what waits for it. */
+    private inner class Look(val x: Float, val y: Float, val started: Long) {
+        var under: Wc3Cursor.Under? = null
+        var then: (() -> Unit)? = null
+        /** How long a tap waits for it at most. */
+        val until = started + LOOK_MS
+        fun near(px: Float, py: Float) = kotlin.math.hypot(px - x, py - y) <= LOOK_NEAR * xServer.screenInfo.height / 1080f
+        /** Whether a tap at ([px], [py]) waits for this reading: there, not read yet, not too long. */
+        fun waiting(px: Float, py: Float, now: Long) = under == null && near(px, py) && now < until
+    }
+
+    /** The cursor being read, or its last reading. */
+    private var looking: Look? = null
+
+    /** What the cursor said is under the pointer, if it was read there. */
+    private fun underHere(): Wc3Cursor.Under? = looking?.takeIf { it.near(pointerX, pointerY) }?.under
+
+    /**
+     * A finger landed (on the battlefield, in a match): the pointer goes there and the game's cursor
+     * says what's under it ([Wc3Cursor]): the picture around the spot before the cursor arrives,
+     * then after. When the pointer is close by already, it's moved away first (to the top bar's
+     * middle), so the "before" doesn't hold the cursor.
+     */
+    override fun fingerDown(x: Float, y: Float) {
+        if (touchpad || !inMatch() || !windowShown) return
+        val (sx, sy) = screenAt(x, y) ?: return
+        if (Wc3Screen.onConsole(watcher.race, sx, sy) || Wc3Screen.onHeroButtons(sx, sy)) return
+        val point = XForm.transformPoint(xform, x, y)
+        val px = point[0]
+        val py = point[1]
+        val now = SystemClock.uptimeMillis()
+        // The same spot just read (a double tap's second touch): its reading stands.
+        looking?.let { if (it.near(px, py) && it.under != null && now - it.started < 900) return }
+        val look = Look(px, py, now)
+        looking = look
+        val width = xServer.screenInfo.width.toInt()
+        val height = xServer.screenInfo.height.toInt()
+        val size = (LOOK_SQUARE * height / 1080).coerceAtLeast(48)
+        val close = kotlin.math.hypot(pointerX - px, pointerY - py) < size
+        // The top bar's middle (the clock): on the interface, clear of the edge that scrolls the camera.
+        if (close) xServer.injectPointerMove(width / 2, (height * Wc3Screen.TOP_BAR / 2).toInt())
+        postDelayed({
+            if (looking !== look) return@postDelayed
+            watcher.probe(px.toInt(), py.toInt(), size) { before ->
+                if (looking !== look) return@probe
+                pointerX = px
+                pointerY = py
+                xServer.injectPointerMove(px.toInt(), py.toInt())
+                // The cursor drawn there takes the game a frame or two (more when it runs slowly): read
+                // again a little later while it shows nothing yet.
+                fun after(attempt: Int) {
+                    postDelayed({
+                        if (looking !== look || look.under != null) return@postDelayed
+                        watcher.probe(px.toInt(), py.toInt(), size) { after ->
+                            if (looking !== look || look.under != null) return@probe
+                            val under = if (before != null && after != null) Wc3Cursor.classify(before, after, size, height) else Wc3Cursor.Under.NOTHING
+                            if (under == Wc3Cursor.Under.NOTHING && attempt < 1 && SystemClock.uptimeMillis() + LOOK_AGAIN_MS < look.until) {
+                                after(attempt + 1)
+                                return@probe
+                            }
+                            look.under = under
+                            val waiting = look.then
+                            look.then = null
+                            waiting?.invoke()
+                        }
+                    }, if (attempt == 0) LOOK_SETTLE_MS else LOOK_AGAIN_MS)
+                }
+                after(0)
+            }
+        }, if (close) 40L else 0L)
+        // Not read in time (no picture, a slow frame): what waits goes on without it.
+        postDelayed({
+            if (look.under == null) {
+                look.under = Wc3Cursor.Under.NOTHING
+                val waiting = look.then
+                look.then = null
+                waiting?.invoke()
+            }
+        }, LOOK_MS)
     }
 
     // The kept order --------------------------------------------------------------------------
@@ -661,7 +789,7 @@ class GestureView(
 
     /** A swipe from the minimap moves the camera with it (the left button held), as a mouse would. */
     override fun dragZone(x: Float, y: Float): Boolean {
-        if (watcher.race == null) return false
+        if (!inMatch()) return false
         val (sx, sy) = screenAt(x, y) ?: return false
         return Wc3Screen.onMinimap(sx, sy)
     }
@@ -759,6 +887,7 @@ class GestureView(
         xServer.pointer.removeOnPointerMotionListener(pressWatch)
         removeCallbacks(skipBlack)
         watcher.stop()
+        files.stop()
         movies?.stop()
         Wc3Report.note("the game's screen closed")
         screenUp = false
@@ -795,6 +924,16 @@ class GestureView(
         private const val BLACK_SKIP_MS = 5000L
         /** How long after a command button the next battlefield tap gives its target. */
         private const val AIM_MS = 8000L
+        /** How long a tap waits at most for the cursor's reading ([fingerDown]). */
+        private const val LOOK_MS = 380L
+        /** From the pointer reaching the spot to the cursor's "after": two or three of the game's frames. */
+        private const val LOOK_SETTLE_MS = 110L
+        /** A second look, when the first found the cursor not there yet. */
+        private const val LOOK_AGAIN_MS = 90L
+        /** The square read around the pointer, at 1080 lines. */
+        private const val LOOK_SQUARE = 128
+        /** A tap this close (game pixels at 1080 lines) to where the cursor was read uses that reading. */
+        private const val LOOK_NEAR = 30f
         /** A kept order given again: from its button's release to the target's click, for the game to wait for a target. */
         private const val ORDER_GAP_MS = 90L
         /** A second two-finger tap within this long is Space. */

@@ -26,6 +26,8 @@ class RtsGesturesTest {
         var waits = false
         override fun tapWaits(x: Float, y: Float) = waits
         override fun doubleTap() { events += "double tap" }
+        val landed = mutableListOf<String>()
+        override fun fingerDown(x: Float, y: Float) { landed += "${x.toInt()},${y.toInt()}" }
     }
 
     private val out = Recorder()
@@ -301,5 +303,16 @@ class RtsGesturesTest {
         gestures.down(1, 300f, 300f, 200)
         gestures.move(1, 360f, 302f)
         assertEquals(listOf("move 100,200", "click RIGHT", "down RIGHT"), out.events)
+    }
+
+    @Test
+    fun `the game hears where a finger lands, before the tap is decided`() {
+        gestures.down(0, 100f, 200f, 0)
+        assertEquals(listOf("100,200"), out.landed)
+        gestures.up(0, 100f, 200f, 100)
+        // The finger that taps while another rests is heard too.
+        gestures.down(1, 50f, 50f, 1000)
+        gestures.down(2, 300f, 300f, 1000 + RtsGestures.REST_MS + 10)
+        assertEquals(listOf("100,200", "50,50", "300,300"), out.landed)
     }
 }

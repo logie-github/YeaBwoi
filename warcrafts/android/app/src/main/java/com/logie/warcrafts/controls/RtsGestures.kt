@@ -58,6 +58,12 @@ interface GestureOutput {
      */
     fun tapWaits(x: Float, y: Float): Boolean = false
 
+    /**
+     * A finger landed where it may tap ([x], [y], the view's pixels): the first of a touch, or the
+     * one tapping while another rests. A game can look at what's there before the tap is decided.
+     */
+    fun fingerDown(x: Float, y: Float) {}
+
     /** Two quick taps on the same spot where taps wait ([tapWaits]), the pointer there. */
     fun doubleTap() {
         click(Button.RIGHT)
@@ -103,7 +109,7 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
          * Where taps wait ([GestureOutput.tapWaits]): a touch this soon after a tap lifted that then
          * drags draws a selection box; one that lifts on the same spot is a double tap.
          */
-        const val TAP_WAIT_MS = 250L
+        const val TAP_WAIT_MS = 280L
     }
 
     private val slop = 10f * density
@@ -166,6 +172,7 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
             mode = Mode.PENDING
             firstDownAt = now
             maxFingers = 1
+            out.fingerDown(x, y)
             return
         }
         fingers[id] = finger
@@ -176,12 +183,16 @@ class RtsGestures(private val out: GestureOutput, density: Float) {
                 mode = Mode.SHIFT
                 actor = id
                 holdKeys(setOf(Key.SHIFT))
+                out.fingerDown(x, y)
             } else {
                 mode = Mode.MULTI
                 multi = Multi.UNDECIDED
                 startMulti()
             }
-            Mode.SHIFT -> if (actor == null) actor = id
+            Mode.SHIFT -> if (actor == null) {
+                actor = id
+                out.fingerDown(x, y)
+            }
             Mode.PAN -> {
                 releaseKeys()
                 mode = Mode.DONE

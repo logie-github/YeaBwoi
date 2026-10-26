@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.system.Os
 import android.view.Gravity
 import android.view.SurfaceView
 import android.view.ViewGroup
@@ -28,13 +27,10 @@ import com.logie.warcrafts.library.Wc3Movie
 import com.winlator.core.ProcessHelper
 import java.io.File
 import java.io.RandomAccessFile
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 /**
- * Warcraft III's films, played by the app ([Wc3Movie]: under Wine the game shows them black). A
- * few times a second it looks at which files the game has open (its processes' `/proc/<pid>/fd`,
- * readable for the app's own processes); when the game opens one of its films, the game is paused
+ * Warcraft III's films, played by the app ([Wc3Movie]: under Wine the game shows them black). When
+ * the game opens one of its films (its open files, [Wc3Files]), the game is paused
  * (its processes stopped, as Winlator does when the app goes to the background), the film plays
  * over it with Android's own player (Media3, the phone's MPEG-4 decoder), and when it ends, or is
  * tapped or skipped with Back, the game goes on and is sent Escape, which skips its own (black)
@@ -44,15 +40,11 @@ import java.util.concurrent.TimeUnit
 class Wc3MoviePlayer(
     private val activity: Activity,
     private val parent: ViewGroup,
-    game: File,
     /** The game is to skip its own playing of the film (Escape). */
     private val skipInGame: () -> Unit,
 ) {
     private val main = Handler(Looper.getMainLooper())
-    private val gamePath = runCatching { game.canonicalPath }.getOrDefault(game.path)
-    private val own = android.os.Process.myPid()
-    private val scanner = Executors.newSingleThreadScheduledExecutor()
-    private var running = false
+    private var running = true
 
     private var player: ExoPlayer? = null
     private var screen: FrameLayout? = null
@@ -65,18 +57,8 @@ class Wc3MoviePlayer(
     /** Whether a film is playing (the game paused under it). */
     val active: Boolean get() = playing != null
 
-    fun start() {
-        if (running) return
-        running = true
-        scanner.scheduleWithFixedDelay({
-            val film = runCatching { openFilm() }.getOrNull()
-            main.post { seen(film) }
-        }, POLL_MS, POLL_MS, TimeUnit.MILLISECONDS)
-    }
-
     fun stop() {
         running = false
-        scanner.shutdownNow()
         if (active) finish(skip = false)
     }
 
@@ -85,26 +67,12 @@ class Wc3MoviePlayer(
         if (active) finish(skip = true)
     }
 
-    private fun seen(film: String?) {
+    /** The film the game has open now ([Wc3Files.film]), or null. */
+    fun seen(film: String?) {
         if (!running) return
         if (film != played) played = null
         if (film == null || active || film == played) return
         play(film)
-    }
-
-    /** A film the game has open, from its processes' open files, or null. */
-    private fun openFilm(): String? {
-        for (pid in File("/proc").list().orEmpty().mapNotNull { it.toIntOrNull() }) {
-            if (pid == own) continue
-            val command = runCatching { File("/proc/$pid/cmdline").readText() }.getOrNull() ?: continue
-            // Wine's and the game's (as Winlator tells its own: "wine" or ".exe" in the command line).
-            if (!command.contains(".exe", ignoreCase = true) && !command.contains("wine", ignoreCase = true)) continue
-            for (fd in File("/proc/$pid/fd").list().orEmpty()) {
-                val target = runCatching { Os.readlink("/proc/$pid/fd/$fd") }.getOrNull() ?: continue
-                if (Wc3Movie.isFilm(target, gamePath)) return target
-            }
-        }
-        return null
     }
 
     private fun play(path: String) {
@@ -218,7 +186,4 @@ class Wc3MoviePlayer(
         }
     }
 
-    companion object {
-        private const val POLL_MS = 400L
-    }
 }

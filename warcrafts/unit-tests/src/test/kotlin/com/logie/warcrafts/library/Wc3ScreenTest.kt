@@ -142,4 +142,15 @@ class Wc3ScreenTest {
         assertTrue(Wc3Screen.onOrders(0.69f, 0.9f))
         assertTrue(Wc3Screen.onOrders(0.85f, 0.85f))
     }
+
+    @Test
+    fun `the console's layout without its race (another art) is the highest panel of the four`() {
+        assertTrue(Wc3Screen.onConsole(null, 0.5f, 0.01f))
+        assertTrue(Wc3Screen.onConsole(null, 0.5f, 0.95f))
+        assertFalse(Wc3Screen.onConsole(null, 0.5f, 0.5f))
+        for (race in listOf("Human", "Orc", "NightElf", "Undead")) for (i in 0 until 80) {
+            val x = (i + 0.5f) / 80f
+            for (y in listOf(0.70f, 0.72f, 0.74f, 0.76f, 0.78f)) if (Wc3Screen.onConsole(race, x, y)) assertTrue(Wc3Screen.onConsole(null, x, y))
+        }
+    }
 }

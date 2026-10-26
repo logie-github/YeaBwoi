@@ -62,11 +62,19 @@ object Wc3Screen {
     }
 
     /** Whether ([x], [y]) is on the console of [race]: its top bar, or its panel. */
-    fun onConsole(race: String, x: Float, y: Float): Boolean {
+    fun onConsole(race: String?, x: Float, y: Float): Boolean {
         if (y <= TOP_BAR) return true
-        val tops = Wc3ScreenData.PANEL_TOP[race] ?: return y >= 0.76f
+        val tops = (if (race == null) ANY_PANEL_TOP else Wc3ScreenData.PANEL_TOP[race]) ?: return y >= 0.76f
         val column = (x * tops.size).toInt().coerceIn(0, tops.size - 1)
         return y >= tops[column]
+    }
+
+    /**
+     * Where the bottom panel starts when the race isn't known (another console art, Classic+'s:
+     * the same layout): the highest of the four races' at each point of the width.
+     */
+    private val ANY_PANEL_TOP: FloatArray? = Wc3ScreenData.PANEL_TOP.values.takeIf { it.isNotEmpty() }?.let { all ->
+        FloatArray(all.minOf { it.size }) { i -> all.minOf { it[i] } }
     }
 
     /**
