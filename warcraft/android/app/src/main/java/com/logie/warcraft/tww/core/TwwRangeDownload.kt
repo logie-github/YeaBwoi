@@ -40,8 +40,10 @@ internal class TwwRangeDownload(
     }
 
     // A connection still being set up can make disconnect() throw (the JDK's HttpURLConnection, with no
-    // client yet); the others are still closed, and the aborted flag stops that one when it's up.
-    fun cancel() { aborted.set(true); live.toList().forEach { runCatching { it.disconnect() } } }
+    // client yet); the others are still closed, and the aborted flag stops that one when it's up. The set
+    // is walked as it is (its iterator takes connections leaving meanwhile): toList() reads its size first
+    // and throws when the last one leaves before it's read.
+    fun cancel() { aborted.set(true); for (connection in live) runCatching { connection.disconnect() } }
 
     fun run(check: () -> Unit, progress: (TwwDownload.Progress) -> Unit) {
         require(connections in 2..4 && total > 0 && chunkBytes > 0)

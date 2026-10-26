@@ -371,6 +371,24 @@ EOF
 	[ "$(echo "SELECT AllowableRaces & 131072 FROM quest_template WHERE ID = 747" | CTL sql acore_world)" = 0 ] || fail "The Hunt Begins is open to the Zandalari: only its clone should be"
 	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 960750" | CTL sql acore_world)" = 960747 ] || fail "the clone of The Hunt Continues doesn't follow the clone of The Hunt Begins"
 	[ "$(echo "SELECT PrevQuestID FROM quest_template_addon WHERE ID = 959288" | CTL sql acore_world)" = 959280 ] || fail "a void elf's Hunter Training doesn't follow the clone of the quest before it"
+
+	echo "== WoW: Forever's new quests (mod-forever-quests)"
+	# All in ChromieCraft's world, and the world server
+	# loaded them without a word about any of them (a creature, an item or a quest it couldn't find).
+	forever_ids=$(python3 -c 'import json, sys; print(" ".join(json.load(open(sys.argv[1]))["quests"]))' \
+		"$ROOT/warcraft/modules/mod-forever-quests/data/forever/quests.json")
+	forever=$(echo "SELECT COUNT(*) FROM quest_template WHERE ID IN ($(echo $forever_ids | tr ' ' ','))" | CTL sql acore_world)
+	[ "$forever" = "$(echo $forever_ids | wc -w)" ] || fail "WoW: Forever's quests aren't all in ChromieCraft's world ($forever)"
+	complaints=$(grep -ihwE "quest.*($(echo $forever_ids | tr ' ' '|'))" "$FILES/logs/world.out" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about WoW: Forever's quests"; }
+	# Nor about their new people and creatures (their spawns too) or items.
+	forever_others=$(python3 -c 'import json, sys; d = json.load(open(sys.argv[1])); print("|".join([n for n, v in d["npcs"].items() if v.get("new")] + list(d["items"]) + list(d["rewards"])))' \
+		"$ROOT/warcraft/modules/mod-forever-quests/data/forever/quests.json")
+	complaints=$(grep -ihwE "(creature|item|entry).*($forever_others)" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about WoW: Forever's NPCs or items"; }
+	spawned=$(echo "SELECT COUNT(*) FROM creature WHERE guid BETWEEN 8600000 AND 8699999" | CTL sql acore_world)
+	[ "$spawned" -gt 0 ] || fail "WoW: Forever's new NPCs aren't in ChromieCraft's world"
+	echo "WoW: Forever's quests: $forever in ChromieCraft's world, $spawned spawns of their new NPCs"
 	# A void elf warrior in Ammen Vale, a nightborne warrior in Deathknell, a Lightforged Draenei
 	# warrior in Ammen Vale, a Zandalari warrior at Camp Narache, each with their racials.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Voidtester 15 1 "$FILES/run/skyborne.steps" |
@@ -599,6 +617,28 @@ EOF2
 		echo "The starting areas are in and out again, the game's own world as it was."
 	fi
 
+	# WoW: Forever's new pairs, each at its start with its race's Forever racials, trained by another
+	# class's trainer there as its own class's trainer does; each erased after (room for Remix's
+	# way home).
+	for who in Humhunter:1:3:human_hunter Dwarfshaman:3:7:dwarf_shaman Gnomepriest:7:5:gnome_priest \
+		Orcmage:2:8:orc_mage Trollwarlock:8:9:troll_warlock; do
+		IFS=: read -r name race class file <<EOF
+$who
+EOF
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" "$race" "$class" \
+			"$ROOT/warcraft/server/forever_$file.steps" | tee "$FILES/logs/forever-$file.out" ||
+			fail "$name's racials or trainer weren't Forever's (logs/forever-$file.out)"
+		erase_character "$name" || fail "$name wasn't erased"
+	done
+	echo "Human hunters, dwarf shamans, gnome priests, orc mages and troll warlocks: Forever's racials, trained at their host class's trainers."
+
+	echo "== quest drops (mod-quest-drops): rare quest items drop at 75% (under 25%) or 50% (10% or less)"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 9 \
+		"$ROOT/warcraft/server/quest_drops.steps" | tee "$FILES/logs/quest-drops.out" ||
+		fail "the Rattlecage Skeletons' skulls didn't drop at the raised rate (logs/quest-drops.out)"
+	erase_character Dropper || fail "Dropper wasn't erased"
+	echo "Quest drops roll 75% under 25%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 
@@ -700,6 +740,9 @@ EOF2
 	# ChromieCraft), none of their SQL in Remix's world, its races 15 to 18 the game's own.
 	grep -q "^AlliedRaces.Enable = 0" "$FILES/etc-remix/modules/mod_allied_races.conf" || fail "the allied races aren't off in Wrath Remix's config"
 	grep -q "^AlliedRaces.Enable = 1" "$FILES/etc/modules/mod_allied_races.conf" || fail "the allied races aren't on in ChromieCraft's config"
+	# Quest drops' raised rates too are ChromieCraft's alone.
+	grep -q "^QuestDrops.Enable = 0" "$FILES/etc-remix/modules/mod_quest_drops.conf" || fail "quest drops aren't off in Wrath Remix's config"
+	grep -q "^QuestDrops.Enable = 1" "$FILES/etc/modules/mod_quest_drops.conf" || fail "quest drops aren't on in ChromieCraft's config"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||
@@ -708,6 +751,10 @@ EOF2
 		fail "Wrath Remix's world has the allied races' race rows"
 	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID BETWEEN 950000 AND 979999" | CTL sql acore_world_remix)" = 0 ] ||
 		fail "Wrath Remix's world has the allied races' quests"
+	[ "$(echo "SELECT COUNT(*) FROM quest_template WHERE ID IN (98299, 97558, 86576)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has WoW: Forever's quests"
+	[ "$(echo "SELECT COUNT(*) FROM creature WHERE guid BETWEEN 8600000 AND 8699999" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Wrath Remix's world has WoW: Forever's new NPCs"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world)" -gt 0 ] ||
 		fail "ChromieCraft lost the allied races"
 	# The Worgen and Goblins likewise: their patch set aside, none of mod-worgoblin's SQL or rows in

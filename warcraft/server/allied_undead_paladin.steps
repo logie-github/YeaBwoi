@@ -1,4 +1,4 @@
-# An undead paladin in Deathknell (mod-allied-races; patches/azerothcore/0011, allied_races_priest_trainers.sql).
+# An undead paladin in Deathknell (mod-allied-races; patches/azerothcore/0011, allied_races_class_trainers.sql).
 #
 # Dark Cleric Duesten, the priest trainer, greets them as he greets a priest (text 4442, not 4439's
 # "I can't train you") and offers training.
