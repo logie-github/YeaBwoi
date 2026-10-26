@@ -27,7 +27,7 @@ import java.util.zip.ZipInputStream
  */
 object Imports {
     /** What an import is doing: copying the files, unpacking GOG's installer, converting for Stratagus. */
-    enum class Phase { COPY, UNPACK, CONVERT, DOWNLOAD }
+    enum class Phase { COPY, UNPACK, CONVERT, DOWNLOAD, MOD_DOWNLOAD, MOD_INSTALL }
 
     sealed interface State {
         data object Idle : State

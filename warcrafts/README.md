@@ -104,6 +104,26 @@ Windows holding the pointer, or nowhere), all of them counted. If a run shows on
 If a start never shows the game, the next start makes the games' Windows again from new (about a minute, once);
 it holds none of the game's files, saves or keys, so nothing is lost.
 
+## Classic+ graphics (Warcraft III)
+
+[Classic+](https://kenshin.pl/classicplus/) by Kenshin (Piotr Bednarczuk) gives the units,
+buildings, trees and effects more detailed models and textures in the game's own style. It was
+made for the game's newer versions (1.32.6 and later); the app converts it for 1.27. Campaign-only
+units and heroes keep their own look (the mod covers what melee games use).
+
+Games → Warcraft III → Game files, once the game is installed:
+
+1. **Download and install Classic+** (about 400 MB; the app gets it from the Google Drive link on the
+   mod's page), or **Pick its archive** if you downloaded `kenshin_lab_v1.01.7z` yourself.
+2. The app converts it: its newer-format models become 1.27's, its DDS textures become 1.27's BLP
+   (each mipmap, as Blizzard's own are made), and the files go into the game's folder (about 750 MB).
+   The mod's sounds are left out: they are the game's own sounds in a newer format. A few minutes.
+3. **Use Classic+** switches it on and off (the game reads the files or doesn't; from the next
+   start). **Remove Classic+** takes its files out again; the game's own and your saves stay.
+
+If Google Drive refuses the download (it limits downloads of popular files), download the archive
+in the browser from the mod's page and use **Pick its archive**.
+
 ## Controls
 
 Nothing is drawn over the game. The gestures are the ones you chose, with what Warcraft III needs added.
@@ -144,8 +164,8 @@ says where each press went).
 - **Launcher**: Press start, **What's needed** (the checklist above), and tiles for **Game files**, **Games** (the four games, each by its
   logo, with whether its files are in), **Graphics**, **Controls** (the gestures) and **Updates**.
 - **Game files**: Warcraft I and II: what to import, the import, converting again, deleting.
-  Warcraft III: its setup (download, install each game), **Private** (on: the games' Windows has no
-  network at all), deleting.
+  Warcraft III: its setup (download, install each game), **Classic+** (install, on or off, remove),
+  **Private** (on: the games' Windows has no network at all), deleting.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
   Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong),
   the hold's vibration and, for Warcraft III, Winlator's touchpad in place of the gestures.
@@ -178,7 +198,7 @@ says where each press went).
 | `android/app/` | The app (Kotlin, Jetpack Compose) |
 | `branding/` | The user's art and `make-art.py`, which makes the pictures, logos and launcher icon |
 | `fonts/` | Licenses of the bundled fonts (Cinzel, Jost: SIL OFL) |
-| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads and install lists, the hosts file, resolutions and update picking |
+| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads and install lists, the hosts file, resolutions, update picking, and Classic+'s conversion (models, textures, the archive's paths, the download) |
 
 ```
 scripts/build-stratagus.sh
@@ -195,6 +215,8 @@ CI (`.github/workflows/build-warcrafts.yml`) runs the tests, builds the APK and 
 The app's code is GPL-2.0-or-later; it runs Stratagus, War1gus and Wargus (GPL-2.0), innoextract
 (zlib license, with Boost and liblzma) and Winlator (LGPL-2.1), whose sources are at the commits in
 `stratagus-version.env` and `winlator-version.env`.
-No game files are in the repository, the APK or CI: you bring your own. This project isn't
+No game files are in the repository, the APK or CI: you bring your own. Classic+ is its author's
+work, downloaded from where he publishes it; the app only converts it on the phone. Its model
+conversion follows the 1100 format as war3-model (MIT) reads it. This project isn't
 affiliated with Blizzard Entertainment, GOG, the Stratagus team or Winlator's developers; Warcraft
 is a trademark of Blizzard Entertainment.

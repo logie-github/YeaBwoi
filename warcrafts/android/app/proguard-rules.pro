@@ -11,3 +11,5 @@
 -dontwarn com.github.luben.zstd.**
 # SDL (the native games): its native code calls into its Java classes by name.
 -keep class org.libsdl.app.** { *; }
+# Classic+ (its 7-Zip archive): the 7z coders it reads with, found through a table.
+-keep class org.apache.commons.compress.archivers.sevenz.** { *; }

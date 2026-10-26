@@ -395,6 +395,32 @@ The user's requirements, what was decided, what's open, and where it stands. The
      item on the ground), a kept order left as it is.
   Warcraft I and II keep their gestures (`tapWaits` false). Tested here: compiles, 87 unit tests
   (the gestures and the card logic). Not on the phone.
+- **Build 33: Classic+** (the user: "https://kenshin.pl/classicplus/ implement this"). Classic+ v1.01
+  (`kenshin_lab_v1.01.7z`, 394 MB, Google Drive from the page; for 1.32.6+, loose files read with
+  `Allow Local Files`) holds 609 MDX (487 at 800, 122 at 1100), 936 DDS (DXT5 888, DXT1 48, up to
+  1024), 297 BLP1, 166 FLAC (Reforged's copies of 1.27's own WAVs: same length and rate, left out)
+  and 10 PNG. Checked first on this machine with the real 1.27 under Wine 10.10 (the stopped test
+  agent's install, Xvfb): `Allow Local Files`=1 makes 1.27 read loose files in its folder; converted
+  with Python (Pillow, war3-model), a skirmish showed the mod's art. Two findings:
+  - **BLP1 JPEG** as Blizzard makes it (read from War3.mpq's `Textures\Footman.blp`): 4 components
+    1-4, 1x1 sampling, no Adobe marker, holding blue, green, red and alpha as they are (javax.imageio's
+    raw raster: Footman's alpha averages 239). Pillow reads and writes every 4-component JPEG as
+    Adobe's inverted CMYK, which hid this: written through Pillow without inverting, every
+    converted texture drew white or team-coloured in the game.
+  - **MDX 1100** adds, per layer, a shader type and a texture list (the first the layer's own),
+    as war3-model 4.0.1 (MIT) reads it; mdx-m3-viewer 5.12 doesn't read 1100. Classic+'s 1100
+    models have no skin weights, tangents or HD layers, so 800 draws them.
+  In the app: `library/Mdx` (byte-level 900-1100 → 800: VERS, MTLS, GEOS' LOD fields, CORN/FAFX/BPOS
+  dropped; its 121 outputs read back by war3-model equal war3-model's own conversion, and
+  mdx-m3-viewer reads them as 800), `library/Blp` (DDS DXT1/3/5 → BLP1 with its own baseline JPEG
+  encoder; all 936 of the mod's within 3 on average of the DDS, 18 s here), `library/ClassicPlus` (the archive with commons-compress, the `Classic+` folder's files
+  into the game's folder, folders matched without case, the list written, on/off, removal; the
+  Drive link from the page and Drive's confirm form), `ClassicPlusSetup` (download or picked archive,
+  in `ImportService`), Game files' Classic+ section, `Game` writing `Allow Local Files` 1 when on.
+  The app's Kotlin installer run here on the archive: 609 models (122 converted), 1233 textures
+  (936 converted), nothing failed, 65 s on one core of this machine; installed into 1.27 under Wine
+  here, a skirmish showed the mod's art as the Python version had. Not run on the phone: the time
+  there, and how 1.27 runs with the bigger textures (up to 1024, a 32-bit game).
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

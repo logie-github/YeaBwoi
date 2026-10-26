@@ -378,6 +378,54 @@ private fun fieldColors() = LocalLook.current.let { look ->
 }
 
 /**
+ * Classic+ ([com.logie.warcrafts.library.ClassicPlus]), new art for the units, buildings and trees:
+ * downloaded from where its page links it, or from its archive picked on the phone, then installed
+ * converted for 1.27; on or off (the game reads its files or not), or taken out.
+ */
+@Composable
+private fun ClassicPlusSection(busy: Boolean, refresh: Int, onChange: () -> Unit) {
+    val context = LocalContext.current
+    val look = LocalLook.current
+    val game = RtsFiles.folder(context, Install.WC3)
+    var installed by remember { mutableStateOf(false) }
+    var enabled by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf(false) }
+    LaunchedEffect(refresh, busy) {
+        installed = withContext(Dispatchers.IO) { com.logie.warcrafts.library.ClassicPlus.installed(game) }
+        enabled = withContext(Dispatchers.IO) { com.logie.warcrafts.library.ClassicPlus.enabled(game) }
+    }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri != null) ImportService.installClassicPlus(context, uri)
+    }
+    RtsTitle(stringResource(R.string.rts_classicplus_title), style = MaterialTheme.typography.titleLarge)
+    Text(stringResource(R.string.rts_classicplus_intro), style = MaterialTheme.typography.bodyMedium)
+    if (busy) return
+    if (installed) {
+        RtsSwitchRow(stringResource(R.string.rts_classicplus_on), stringResource(R.string.rts_classicplus_on_summary), enabled) {
+            com.logie.warcrafts.library.ClassicPlus.setEnabled(game, it)
+            enabled = it
+        }
+        if (confirmRemove) {
+            Text(stringResource(R.string.rts_classicplus_remove_confirm), style = MaterialTheme.typography.bodyMedium, color = look.blood)
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                RtsButton(stringResource(R.string.rts_files_delete_yes), primary = false) {
+                    com.logie.warcrafts.library.ClassicPlus.remove(game)
+                    confirmRemove = false
+                    onChange()
+                }
+                RtsButton(stringResource(R.string.rts_files_delete_no)) { confirmRemove = false }
+            }
+        } else {
+            RtsButton(stringResource(R.string.rts_classicplus_remove), primary = false) { confirmRemove = true }
+        }
+    } else {
+        RtsButton(stringResource(R.string.rts_classicplus_download)) { ImportService.installClassicPlus(context) }
+        RtsButton(stringResource(R.string.rts_classicplus_pick), primary = false) { pick.launch(arrayOf("*/*")) }
+        Text(stringResource(R.string.rts_classicplus_how), style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/**
  * Warcraft III, set up in the app ([Wc3Setup]): one button downloads both games from Blizzard and
  * installs them, silently (no installer window, licence page or CD key); then it's ready, and Press
  * start plays it. A stopped setup goes on from where it was with the same button.
@@ -458,6 +506,8 @@ private fun Warcraft3Dialog(onDismiss: () -> Unit) {
             }
             Text(stringResource(R.string.rts_wc3_report_how), style = MaterialTheme.typography.bodySmall)
         }
+
+        if (current == Wc3Setup.Step.READY) ClassicPlusSection(busy = working != null, refresh = refresh) { refresh++ }
 
         RtsTitle(stringResource(R.string.rts_files_private_title), style = MaterialTheme.typography.titleLarge)
         RtsSwitchRow(stringResource(R.string.rts_files_private), stringResource(R.string.rts_files_private_summary), private) {

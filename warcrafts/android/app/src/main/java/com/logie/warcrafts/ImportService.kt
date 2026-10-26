@@ -44,7 +44,8 @@ class ImportService : Service() {
         val installer = intent?.let { IntentCompat.getParcelableArrayListExtra(it, EXTRA_INSTALLER, Uri::class.java) }
         val convertOnly = intent?.getBooleanExtra(EXTRA_CONVERT_ONLY, false) == true
         val wc3Setup = intent?.getBooleanExtra(EXTRA_WC3_SETUP, false) == true
-        if (install == null || (uri == null && installer.isNullOrEmpty() && !convertOnly && !wc3Setup) || Imports.state.value is Imports.State.Working) {
+        val classicPlus = intent?.getBooleanExtra(EXTRA_CLASSICPLUS, false) == true
+        if (install == null || (uri == null && installer.isNullOrEmpty() && !convertOnly && !wc3Setup && !classicPlus) || Imports.state.value is Imports.State.Working) {
             return START_NOT_STICKY
         }
         val folder = intent.getBooleanExtra(EXTRA_FOLDER, false)
@@ -53,6 +54,7 @@ class ImportService : Service() {
         Imports.set(Imports.State.Working(install, phase = when {
             convertOnly -> Imports.Phase.CONVERT
             wc3Setup -> Imports.Phase.DOWNLOAD
+            classicPlus -> Imports.Phase.MOD_DOWNLOAD
             else -> Imports.Phase.COPY
         }))
         startForeground(NOTIFICATION_ID, notification(install, Imports.Phase.COPY, null))
@@ -70,6 +72,8 @@ class ImportService : Service() {
                     convertOnly -> Unit
                     // Warcraft III from Blizzard: both games downloaded and installed, silently.
                     wc3Setup -> Wc3Setup.setUp(this@ImportService, report)
+                    // Classic+ for Warcraft III: downloaded (or the archive picked) and installed, converted for 1.27.
+                    classicPlus -> ClassicPlusSetup.run(this@ImportService, uri, report)
                     !installer.isNullOrEmpty() -> Imports.importInstaller(this@ImportService, install, installer, report)
                     folder -> Imports.importFolder(this@ImportService, install, uri!!, report)
                     else -> Imports.importZip(this@ImportService, install, uri!!, report)
@@ -171,6 +175,7 @@ class ImportService : Service() {
         private const val EXTRA_CONVERT_ONLY = "convert"
         private const val EXTRA_INSTALLER = "installer"
         private const val EXTRA_WC3_SETUP = "wc3setup"
+        private const val EXTRA_CLASSICPLUS = "classicplus"
         private const val ACTION_CANCEL = "com.logie.warcrafts.CANCEL_IMPORT"
 
         fun start(context: Context, install: Install, uri: Uri, isFolder: Boolean) = ContextCompat.startForegroundService(
@@ -193,6 +198,13 @@ class ImportService : Service() {
             Intent(context, ImportService::class.java).putExtra(EXTRA_INSTALL, Install.WC3.key).putExtra(EXTRA_WC3_SETUP, true),
         )
 
+        /** Classic+ for Warcraft III ([ClassicPlusSetup]): downloaded from where its page links it, or from the archive [picked]. */
+        fun installClassicPlus(context: Context, picked: Uri? = null) = ContextCompat.startForegroundService(
+            context,
+            Intent(context, ImportService::class.java).setData(picked)
+                .putExtra(EXTRA_INSTALL, Install.WC3.key).putExtra(EXTRA_CLASSICPLUS, true),
+        )
+
         /** Makes Stratagus's data again from the files already in the app (Warcraft I and II). */
         fun convert(context: Context, install: Install) = ContextCompat.startForegroundService(
             context,
@@ -209,6 +221,8 @@ class ImportService : Service() {
             Imports.Phase.UNPACK -> R.string.rts_unpack_title
             Imports.Phase.CONVERT -> R.string.rts_convert_title
             Imports.Phase.DOWNLOAD -> R.string.rts_setup_download_title
+            Imports.Phase.MOD_DOWNLOAD -> R.string.rts_classicplus_download_title
+            Imports.Phase.MOD_INSTALL -> R.string.rts_classicplus_install_title
         }
 
         /** A game's name, for what's being imported. */

@@ -8,6 +8,7 @@ import com.logie.warcrafts.MainActivity
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
 import com.logie.warcrafts.Wc3Setup
+import com.logie.warcrafts.library.ClassicPlus
 import com.logie.warcrafts.library.Engine
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Needs
@@ -163,7 +164,7 @@ object Game {
         _state.value = State.Preparing(Step.WINDOWS)
         val (width, height) = resolution
         val (container, madeFresh) = container(context, width, height)
-        if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(container, title, width, height) }
+        if (install == Install.WC3) withContext(Dispatchers.IO) { configureWarcraft3(context, container, title, width, height) }
 
         _state.value = State.Preparing(Step.STARTING)
         val leftovers = withContext(Dispatchers.IO) { stopLeftovers(context) }
@@ -313,7 +314,7 @@ object Game {
      * (1.27 fills the screen at it), and Windows' own dialogs in Wine's Light style (it comes with
      * the runtime but is off: without it they're drawn like Windows 95).
      */
-    private fun configureWarcraft3(container: Container, title: Title, width: Int, height: Int) {
+    private fun configureWarcraft3(context: Context, container: Container, title: Title, width: Int, height: Int) {
         val userReg = File(container.rootDir, ".wine/user.reg")
         if (!userReg.isFile) return
         // Where the game is, as Blizzard's installer writes it (F:, the app's Warcraft III folder).
@@ -341,6 +342,8 @@ object Game {
             registry.setStringValue("Software\\Wine\\X11 Driver", "GrabPointer", "N")
             // The opening film is a film like the others (DirectShow): marked seen, the game starts at its menu.
             registry.setDwordValue("Software\\Blizzard Entertainment\\Warcraft III\\Misc", "seenintromovie", 1)
+            // Classic+ ([ClassicPlus]): its files loose in the game's folder, read in place of the game's own.
+            registry.setDwordValue(blizzard, "Allow Local Files", if (ClassicPlus.enabled(RtsFiles.folder(context, Install.WC3))) 1 else 0)
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"
             registry.setDwordValue(video, "reswidth", width)
             registry.setDwordValue(video, "resheight", height)

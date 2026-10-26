@@ -24,6 +24,9 @@ sourceSets {
 }
 
 dependencies {
+    // Classic+'s 7-Zip archive (library/ClassicPlus), as in the app.
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10")
     testImplementation(kotlin("test"))
 }
 
