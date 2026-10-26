@@ -340,8 +340,6 @@ object Game {
             // setting) presses go to the game's window as any click does; the clip itself stays,
             // kept by Wine's server, and on the phone there's nowhere else for the pointer to go.
             registry.setStringValue("Software\\Wine\\X11 Driver", "GrabPointer", "N")
-            // The opening film is a film like the others (DirectShow): marked seen, the game starts at its menu.
-            registry.setDwordValue("Software\\Blizzard Entertainment\\Warcraft III\\Misc", "seenintromovie", 1)
             // Classic+ ([ClassicPlus]): its files loose in the game's folder, read in place of the game's own.
             registry.setDwordValue(blizzard, "Allow Local Files", if (ClassicPlus.enabled(RtsFiles.folder(context, Install.WC3))) 1 else 0)
             val video = "Software\\Blizzard Entertainment\\Warcraft III\\Video"

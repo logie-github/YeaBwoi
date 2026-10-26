@@ -132,4 +132,6 @@ dependencies {
 	implementation 'androidx.preference:preference:1.2.1'
 	implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
 	implementation 'com.github.luben:zstd-jni:1.5.2-3@aar'
+	// Warcraft III's films, played by the app (game/Wc3MoviePlayer): AVI, MPEG-4 video, MP3.
+	implementation 'androidx.media3:media3-exoplayer:1.4.1'
 }

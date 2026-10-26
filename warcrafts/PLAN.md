@@ -421,6 +421,33 @@ The user's requirements, what was decided, what's open, and where it stands. The
   (936 converted), nothing failed, 65 s on one core of this machine; installed into 1.27 under Wine
   here, a skirmish showed the mod's art as the Python version had. Not run on the phone: the time
   there, and how 1.27 runs with the bigger textures (up to 1024, a 32-bit game).
+- **Build 34: the films** (the user: "Movies still don't show up"). Worked out here with the real
+  1.27 under Wine 10.10 (the same black screen, with sound):
+  - The films (`Movies\*.mpq`) are AVI: 800x368 MPEG-4 under Blizzard's tag `BLZ0` (only I and P
+    frames: Simple Profile), constant-rate MP3 (834 or 1044 bytes a chunk). The game plays them with
+    DirectShow and its `blizzard.ax`, DivX 4 ("DivX for Blizzard Decoder Filter", for `BLZ0`/`Blz0`),
+    which the install doesn't register.
+  - Wine's AVI splitter (winegstreamer) has no compressed type for MPEG-4 part 2 (`unixlib.h`,
+    `caps_is_compressed`), so it decodes with GStreamer and offers only I420
+    (`avi_splitter_source_get_media_type`: the current format alone); wined3d has no I420 surface, so
+    the renderer fails (0x80070057) and only the sound plays.
+  - Windows' DirectShow (Winlator's `directshow` part, as build 27 had) with `blizzard.ax`
+    registered: the chain builds, nothing is drawn. Windows' AVI splitter and file reader in Wine's
+    DirectShow (as `nquartz.dll`): the chain builds (splitter, DivX for Blizzard, Wine's renderer,
+    YUY2) and the game crashes in the decoder's copy (an access violation in msvcrt's memcpy under
+    `blizzard.ax`), with Windows' renderer too.
+  So the app plays them (`game/Wc3MoviePlayer`): every 400 ms it reads which files the game's
+  processes (`.exe` or `wine` in their command line, as Winlator tells them) have open (`/proc/<pid>/fd`); a film in the game's
+  `Movies` folder pauses the game (its guest processes stopped, as Winlator does in the background)
+  and plays over it with Media3 (ExoPlayer, Android's AVI reader and MPEG-4 decoder), through a file
+  source that reads it with `library/Wc3Movie`'s changes: `BLZ0` as `XVID` (which Media3's AVI
+  reader takes for MPEG-4), and the sound's header in chunks (Media3 times chunks as duration × i /
+  length, and these count bytes: all the sound fell in the first 0.3 s). At its end, a tap or Back,
+  the game resumes and gets Escape, which skips its own black playing. Checked here: Media3's AVI
+  reader on the JVM over all nine films read the app's way finds the 800x368 MPEG-4 and the MP3, every
+  video frame (keyframes and frames as ffprobe counts them), the sound ending with the picture. The
+  opening film is no longer marked seen. Not known until the phone: the phone's decoder on these
+  files, the pause and resume around a film, the game after Escape.
 - **CD key generation** (asked after build 5): not built in. The app is published as a release, and
   generating or fetching keys from a key generator site for a paid game isn't something it will
   carry. Since build 25 the app asks for the user's own two keys and writes them as the installer does.

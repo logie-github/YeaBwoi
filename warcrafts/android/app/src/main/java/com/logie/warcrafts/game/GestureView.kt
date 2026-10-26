@@ -239,6 +239,11 @@ class GestureView(
 
     /** Back in the game: Escape (cancels an order, closes a menu). */
     fun escape() {
+        // A film playing ([Wc3MoviePlayer]): Back skips it.
+        if (movies?.active == true) {
+            movies?.skip()
+            return
+        }
         aimUntil = 0L
         itemUntil = 0L
         forgetOrder("Escape")
@@ -253,6 +258,15 @@ class GestureView(
         // With Winlator's touchpad its pointer is drawn, as Winlator does (the finger moves it from afar).
         if (!touchpad) xServer.renderer.isCursorVisible = false
         watcher.start()
+        // The game's films, played by the app over the paused game (Wine shows them black).
+        if (movies == null) {
+            val screen = parent as? ViewGroup
+            if (screen != null) {
+                movies = Wc3MoviePlayer(activity, screen, com.logie.warcrafts.RtsFiles.folder(activity, com.logie.warcrafts.library.Install.WC3)) {
+                    tapKey(XKeycode.KEY_ESC)
+                }.also { it.start() }
+            }
+        }
         Wc3Report.note("the game's window is up")
         removeCallbacks(skipBlack)
         postDelayed(skipBlack, 1000)
@@ -502,12 +516,16 @@ class GestureView(
         xServer.injectPointerButtonRelease(button.x)
     }
 
+    /** The game's films, played by the app ([Wc3MoviePlayer]), once the game's window is up. */
+    private var movies: Wc3MoviePlayer? = null
+
     /** A film the game shows black: the picture all black a while after the game had shown something. Escape skips it. */
     private val skipBlack = object : Runnable {
         private var skippedFor = 0L
         override fun run() {
             val since = watcher.blackSince
-            if (since != 0L && since != skippedFor && watcher.shownSomething &&
+            // While the app plays a film the game is paused under it, its picture still.
+            if (movies?.active != true && since != 0L && since != skippedFor && watcher.shownSomething &&
                 SystemClock.uptimeMillis() - since >= BLACK_SKIP_MS
             ) {
                 skippedFor = since
@@ -741,6 +759,7 @@ class GestureView(
         xServer.pointer.removeOnPointerMotionListener(pressWatch)
         removeCallbacks(skipBlack)
         watcher.stop()
+        movies?.stop()
         Wc3Report.note("the game's screen closed")
         screenUp = false
         Wc3Report.finish(watcher.summary())

@@ -97,6 +97,11 @@ on from there. It needs about 2 GB free while it runs, 1.3 GB after.
 **Reign of Chaos or The Frozen Throne**: the launcher's two looks start the same files, Reign of
 Chaos with `Warcraft III.exe`, The Frozen Throne with `Frozen Throne.exe`.
 
+**The films** (the openings, endings and tutorial, in the game's `Movies` folder): the app plays them
+itself. When the game starts one, the game pauses and the film plays over it with the phone's own
+video player, then the game goes on. Tap or Back skips a film. (Under Windows-on-Android the game
+can only show them black: its 2001 DivX decoder and Wine's video parts don't fit together.)
+
 **If something goes wrong in Warcraft III**: Games → Warcraft III → Game files → **Copy report of the last run**
 copies what the last game did: the settings it ran with, Windows' messages (Wine's errors), what the app read from the game's screen (whether it saw a match, all black, and so on), your last
 40 taps with what each was sent as, and the last 40 mouse button presses with where they went (the game's window,
@@ -198,7 +203,7 @@ says where each press went).
 | `android/app/` | The app (Kotlin, Jetpack Compose) |
 | `branding/` | The user's art and `make-art.py`, which makes the pictures, logos and launcher icon |
 | `fonts/` | Licenses of the bundled fonts (Cinzel, Jost: SIL OFL) |
-| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads and install lists, the hosts file, resolutions, update picking, and Classic+'s conversion (models, textures, the archive's paths, the download) |
+| `unit-tests/` | JVM tests of the gestures, finding a game in the files picked, the checklist, Blizzard's installer downloads and install lists, the hosts file, resolutions, update picking, Classic+'s conversion (models, textures, the archive's paths, the download) and the films' headers as the phone reads them |
 
 ```
 scripts/build-stratagus.sh
@@ -213,7 +218,7 @@ CI (`.github/workflows/build-warcrafts.yml`) runs the tests, builds the APK and 
 ## License
 
 The app's code is GPL-2.0-or-later; it runs Stratagus, War1gus and Wargus (GPL-2.0), innoextract
-(zlib license, with Boost and liblzma) and Winlator (LGPL-2.1), whose sources are at the commits in
+(zlib license, with Boost and liblzma), Winlator (LGPL-2.1) and AndroidX Media3 (Apache-2.0, the films), whose sources are at the commits in
 `stratagus-version.env` and `winlator-version.env`.
 No game files are in the repository, the APK or CI: you bring your own. Classic+ is its author's
 work, downloaded from where he publishes it; the app only converts it on the phone. Its model
