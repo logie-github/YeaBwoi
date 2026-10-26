@@ -29,7 +29,7 @@ from items import ItemsMixin  # noqa: E402
 from quests import QuestsMixin  # noqa: E402
 from spells import SpellsMixin  # noqa: E402
 from vehicles import VehiclesMixin  # noqa: E402
-from scripts import ScriptsMixin  # noqa: E402
+from scripts import KILL_CREDITS, VEHICLES, ScriptsMixin  # noqa: E402
 from build_tables import OUT  # noqa: E402
 
 # The starting areas' rows' ranges: ENTRY + Cataclysm's entry (creatures, objects, quests, gossip
@@ -116,6 +116,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         self.creature_queue, self.creatures_seen, self.creatures_done = [], set(), set()
         self.equips = {}             # CPP's creature: its equipment ids
         self.spell_ids = {}          # Cataclysm's spell: the realm's (0: not in it)
+        self.renamed = {}            # a class quest: (its spell's name, its stand-in's: quests.STAND_INS)
         self.object_queue, self.objects_seen, self.objects_done = [], set(), set()
         self.quest_queue, self.quests_seen = [], set()
         self.paths_needed, self.actionlists_needed, self.actionlists_done, self.smart_done = set(), set(), set(), set()
@@ -498,7 +499,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         for e, t in sorted(templates.items()):
             self.sql.add("creature_template", {
                 "entry": ENTRY + e, "difficulty_entry_1": 0, "difficulty_entry_2": 0, "difficulty_entry_3": 0,
-                "KillCredit1": self.creature_entry(t["KillCredit1"]), "KillCredit2": self.creature_entry(t["KillCredit2"]),
+                "KillCredit1": self.creature_entry(int(t["KillCredit1"]) or KILL_CREDITS.get(e, 0)), "KillCredit2": self.creature_entry(t["KillCredit2"]),
                 "name": t["name"], "subname": t["subname"], "IconName": t["IconName"],
                 "gossip_menu_id": self.gossip_menu(gossip.get(e, 0)), "minlevel": num(t["minlevel"]), "maxlevel": num(t["maxlevel"]),
                 "exp": 0, "faction": self.faction_template(t["faction"]), "npcflag": num(t["npcflag"]) & NPCFLAG_MASK,
@@ -511,7 +512,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
                 "type": num(t["type"]), "type_flags": num(t["type_flags"]),
                 "lootid": self.loot("creature_loot_template", t["lootid"]),
                 "pickpocketloot": self.loot("pickpocketing_loot_template", t["pickpocketloot"]),
-                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": self.vehicle(t["VehicleId"]),
+                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": self.vehicle(int(t["VehicleId"]) or VEHICLES.get(e, 0)),
                 "mingold": num(t["mingold"]), "maxgold": num(t["maxgold"]), "AIName": "",
                 "MovementType": num(t["MovementType"]), "HoverHeight": num(t["HoverHeight"]),
                 "HealthModifier": num(t["HealthModifier"]), "ManaModifier": num(t["ManaModifier"]),
@@ -851,6 +852,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         self.graveyards()
         self.area_triggers()
         self.area_spells()
+        self.credits = self.cast_credits()
 
 
 # The columns a starting areas' row is known by, by table (to take exactly their rows out again).
@@ -869,7 +871,7 @@ KEYS = {"creature_template": ["entry"], "creature_template_model": ["CreatureID"
         "vehicle_template_accessory": ["entry"], "npc_spellclick_spells": ["npc_entry"],
         "creature_default_trainer": ["CreatureId"], "creature_equip_template": ["CreatureID"], "game_graveyard": ["ID"], "graveyard_zone": ["ID", "GhostZone"],
         "areatrigger": ["entry"], "areatrigger_involvedrelation": ["id"], "areatrigger_scripts": ["entry"],
-        "spell_area": ["spell", "area"]}
+        "spell_area": ["spell", "area"], "conditions": ["SourceTypeOrReferenceId", "SourceGroup", "SourceEntry"]}
 
 
 def write_world(b):
@@ -919,6 +921,11 @@ def main():
     b.lights()
     b.world_maps()
     b.world()
+    # The two races' intros, Cataclysm's camera flights with their narration.
+    for race, cata_seq in build_tables.INTROS_CATACLYSM.items():
+        b.out.intros[race] = b.cinematic(cata_seq)
+        if b.out.intros[race]:
+            b.out.set("ChrRaces", race, build_tables.CHRRACES_CINEMATIC, b.out.intros[race])
     # The maps' files, the world's, and everything they use; the buildings' rooms.
     start = files.map_files(b.names)
     start.update(b.files)

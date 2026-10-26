@@ -8,6 +8,55 @@ import db
 # The zones' quests by their sort (zone): whose they are (3.3.5a's race bits: the Worgen 12, the Goblins 9).
 WORGEN, GOBLIN = 1 << 11, 1 << 8
 QUEST_ZONES = {4714: WORGEN, 4755: WORGEN, 4737: GOBLIN, 4720: GOBLIN}
+# The class quests' spells a 3.3.5a character hasn't at the start (Cataclysm's trainers taught them at
+# level 1; 3.3.5a's teach them later, or never: Primal Strike): the class's own starting spell in
+# their place, in the quest's texts too. Cataclysm's spell: (3.3.5a's, its name, the stand-in's).
+STAND_INS = {100: (78, "Charge", "Heroic Strike"), 56641: (75, "Steady Shot", "Auto Shot"),
+             2061: (2050, "Flash Heal", "Lesser Heal"), 5143: (133, "Arcane Missiles", "Fireball"),
+             774: (5185, "Rejuvenation", "Healing Touch"), 348: (686, "Immolate", "Shadow Bolt"),
+             73899: (403, "Primal Strike", "Lightning Bolt")}
+# The Lost Isles' phases, which CPP hasn't (its creatures there are in phases 170 to 185, which nothing
+# gave a player): the goblins' camp moving on with the story, each phase Cataclysm's own aura ("Quest
+# Phase 01" to "10") over the zone from the quest that leads into it taken (its ender stands there) until
+# another is rewarded. The quests that bound them are the story's own (where each phase's quest givers
+# and enders stand): (the phase's spell, the quest from whose taking it's there or 0, the quest after
+# whose reward it's gone or 0).
+LOST_ISLES = 4720
+LOST_ISLES_PHASES = [
+    (67851, 0, 14242),        # 170: Shipwreck Shore, the Kaja'mite Cavern, the Vicious Vale (to Precious Cargo)
+    (67852, 14237, 14242),    # 171: the Savage Glen's scouts (Forward Movement to Precious Cargo)
+    (67853, 14241, 14326),    # 172: the Vengeance Wake, the Alliance Beachhead (Get to the Gyrochoppa! to Meet Me Up Top)
+    (67854, 14326, 14245),    # 179: Thrall's camp, the ship's sailors (Meet Me Up Top to It's a Town-In-A-Box)
+    (68750, 14245, 0),        # 180: Town-In-A-Box, Vashj'elan, Raptor Rise (from It's a Town-In-A-Box)
+    (72157, 24897, 24940),    # 181: the town under attack, Oomlot Village (Get Back to Town to Up the Volcano)
+    (72676, 24937, 24958),    # 182: the volcano (Oomlot Dealt With to Volcanoth!)
+    (73065, 24958, 25213),    # 183: the Gallywix Labor Mine (Volcanoth! to The Slave Pits)
+    (73756, 25125, 0),        # 184: the Slave Pits, the oil platform, the docks (from Light at the End of the Tunnel)
+    (74025, 25213, 0),        # 185: the final confrontation (from The Slave Pits)
+]
+# Gilneas's third chapter likewise (CPP's phase auras there end at The King's Observatory, 14466):
+# Cataclysm's "Phase - Quest Zone-Specific 09" to "16", after CPP's 05 to 08 (phases 180 to 183)
+# there, from a quest taken (or rewarded: TAKEN) until another is rewarded, over Gilneas and Gilneas City.
+GILNEAS_ZONES = (4714, 4755)
+GILNEAS_PHASES = [
+    (68483, 14466, 24438),    # 183, on until Exodus (CPP's ends at 14466, before King Genn gives Exodus there)
+    (69077, 14465, 14466),    # 184: Greymane Manor (To Greymane Manor to The King's Observatory)
+    (69484, 24438, 24904),    # 186: Stormglen, Tal'doren, the Blackwald (Exodus to The Battle for Gilneas City)
+    (69485, 24904, 24903),    # 187: the battle in the city (to Vengeance or Survival)
+    (70696, 24903, 24678),    # 190: the cathedral after it (Vengeance or Survival to Knee-Deep)
+    (69486, 24678, 24680),    # 188: the Northern Headlands (Knee-Deep to Keel Harbor)
+    (70695, 24680, 14434),    # 189: the Headlands, Keel Harbor (Keel Harbor to Rut'theran Village)
+    (74093, 24680, 14434),    # 191: Keel Harbor's ships, the same
+]
+# The way out into Wrath's world (stage 5): Warchief's Emissary, which Cataclysm's Kor'kron Loyalist
+# takes in its Orgrimmar, taken by 3.3.5a's Thrall in Grommash Hold (the module's code takes the Goblins
+# there on taking it; the Worgen to Rut'theran Village after Rut'theran Village: WorgenGoblinZones.cpp).
+WAY_OUT = {25266: 4949}
+REWARDED, NOT_REWARDED = 1 << 6, (1 << 0) | (1 << 1) | (1 << 3)    # (AzerothCore's quest status bits)
+TAKEN = (1 << 1) | (1 << 3) | (1 << 6)
+# What the quests say of a Cataclysm spell that is untrue of its stand-in (Arcane Missiles' proc), left out.
+STAND_IN_CUTS = ("$B$BRemember, Arcane Missiles have a chance to activate through the use of other offensive spells. "
+                 "Use your Fireball spell first on the Training Dummy to enable the casting of your Arcane Missiles spell.",)
 # SmartAI: what each parameter names, by event, action and target type (the same numbers in both
 # cores for every type these zones use; CPP's 114, move by an offset, is AzerothCore's 46, forward).
 EVENT_PARAMS = {8: {1: "spell"}, 19: {1: "quest"}, 20: {1: "quest"}, 40: {2: "path"}, 52: {2: "creature"},
@@ -25,24 +74,38 @@ CONDITION_VALUES = {1: [(1, "spell")], 2: [(1, "item")], 5: [(1, "faction")], 8:
                     30: [(1, "object")], 31: [(2, "creature")]}
 
 
+def stand_in_text(text, old, new):
+    """A class quest's text with its spell's stand-in (STAND_INS) named in its place."""
+    for cut in STAND_IN_CUTS:
+        text = text.replace(cut, "")
+    return text.replace(old, new)
+
+
 class QuestsMixin:
     def quest_id(self, cata_id):
+        """A quest of the starting areas as the realm's (0 for one of elsewhere a row names: Icecrown's,
+        Azshara's, the way into Orgrimmar's, which stage 5 brings in as Wrath's own NPCs give it)."""
         cata_id = int(cata_id or 0)
         if cata_id <= 0:
+            return 0
+        if cata_id not in self.local_quests():
+            self.drop("quest outside the starting areas", cata_id)
             return 0
         if cata_id not in self.quests_seen:
             self.quests_seen.add(cata_id)
             self.quest_queue.append(cata_id)
         return self.ENTRY + cata_id
 
-    def quests_in_scope(self):
-        sorts = ", ".join(str(z) for z in QUEST_ZONES)
-        ids = {int(r["ID"]) for r in db.rows(db.CPP_DB, f"SELECT ID FROM quest_template WHERE QuestSortID IN ({sorts})")}
-        for table, column in (("creature_queststarter", "id"), ("creature_questender", "id")):
-            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM {table} WHERE {column} IN ({db.ids_in(self.creatures)})")}
-        for table in ("gameobject_queststarter", "gameobject_questender"):
-            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM {table} WHERE id IN ({db.ids_in(self.objects)})")}
-        return ids
+    def local_quests(self):
+        """The starting areas' quests: their zones' (QuestSortID), and the ones a creature or object
+        that stands on their maps gives."""
+        if "local_quests" not in self.t:
+            sorts = ", ".join(str(z) for z in QUEST_ZONES)
+            ids = {int(r["ID"]) for r in db.rows(db.CPP_DB, f"SELECT ID FROM quest_template WHERE QuestSortID IN ({sorts})")}
+            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM creature_queststarter WHERE id IN ({db.ids_in(self.creatures)})")}
+            ids |= {int(r["quest"]) for r in db.rows(db.CPP_DB, f"SELECT quest FROM gameobject_queststarter WHERE id IN ({db.ids_in(self.objects)})")}
+            self.t["local_quests"] = ids
+        return self.t["local_quests"]
 
     def races_of(self, sort, cpp_mask):
         mine = QUEST_ZONES.get(sort)
@@ -53,7 +116,7 @@ class QuestsMixin:
         return (mask & (WORGEN | GOBLIN)) or (WORGEN | GOBLIN)
 
     def quests(self):
-        for q in sorted(self.quests_in_scope()):
+        for q in sorted(self.local_quests()):
             self.quest_id(q)
         while self.quest_queue:
             batch, self.quest_queue = self.quest_queue, []
@@ -76,6 +139,12 @@ class QuestsMixin:
                 "ObjectiveText1", "ObjectiveText2", "ObjectiveText3", "ObjectiveText4"]
         for c in same:
             v[c] = t[c]
+        stand_in = STAND_INS.get(int(t["RequiredSpell"] or 0))
+        if stand_in:
+            self.renamed[qid] = stand_in[1:]
+            for c in same:
+                if isinstance(v[c], str):
+                    v[c] = stand_in_text(v[c], *stand_in[1:])
         v["ID"] = self.ENTRY + qid
         v["Flags"] = int(t["Flags"]) & 0x000FFFFF
         v["RewardMoneyDifficulty"] = 0
@@ -107,8 +176,8 @@ class QuestsMixin:
         v["AllowableRaces"] = self.races_of(int(t["QuestSortID"]), int(a.get("AllowableRaces", 0) or 0))
         v["Unknown0"] = 0
         v["VerifiedBuild"] = -15595
-        if int(t["RequiredSpell"] or 0):
-            self.drop("quest's required spell", qid)
+        if int(t["RequiredSpell"] or 0) and int(t["RequiredNpcOrGo1"] or 0) <= 0:
+            self.drop("quest's required spell", qid)     # (with a credit creature: the module's code, cast_credits)
         self.sql.add("quest_template", v)
         if a:
             self.sql.add("quest_template_addon", {
@@ -135,6 +204,9 @@ class QuestsMixin:
         for table in ("quest_offer_reward", "quest_request_items", "quest_details"):
             for r in db.rows(db.CPP_DB, f"SELECT * FROM {table} WHERE ID IN ({ids})"):
                 r = dict(r)
+                old, new = self.renamed.get(int(r["ID"]), (None, None))
+                if old:
+                    r = {k: stand_in_text(v, old, new) if isinstance(v, str) else v for k, v in r.items()}
                 r["ID"] = self.ENTRY + int(r["ID"])
                 self.sql.add(table, r)
         for r in db.rows(db.CPP_DB, f"SELECT * FROM quest_poi WHERE QuestID IN ({ids})"):
@@ -166,6 +238,11 @@ class QuestsMixin:
                                      ("gameobject_questender", "object", self.objects_done)):
             for r in db.rows(db.CPP_DB, f"SELECT * FROM {table} WHERE id IN ({db.ids_in(entries)}) AND quest IN ({db.ids_in(self.quests_seen)})"):
                 self.sql.add(table, {"id": self.ENTRY + int(r["id"]), "quest": self.ENTRY + int(r["quest"])})
+        # The way out: a quest Cataclysm ends in a city of its own whose ender 3.3.5a's world hasn't, taken
+        # by that city's own (nothing new stands there: WAY_OUT).
+        for quest, ender in WAY_OUT.items():
+            if quest in self.quests_seen:
+                self.sql.add("creature_questender", {"id": ender, "quest": self.ENTRY + quest})
 
     # --- SmartAI -----------------------------------------------------------------------------------
 
@@ -362,8 +439,22 @@ class QuestsMixin:
             spell = self.spell(r["spell"])
             if not spell:
                 continue
-            self.sql.add("spell_area", {"spell": spell, "area": r["area"], "quest_start": self.quest_id(r["quest_start"]),
+            self.sql.add("spell_area", {"spell": spell, "area": int(r["area"]), "quest_start": self.quest_id(r["quest_start"]),
                                         "quest_end": self.quest_id(r["quest_end"]), "aura_spell": self.spell(r["aura_spell"]) if int(r["aura_spell"]) > 0 else -self.spell(-int(r["aura_spell"])) if int(r["aura_spell"]) < 0 else 0,
                                         "racemask": WORGEN | GOBLIN if not int(r["racemask"]) else self.races_of(0, int(r["racemask"])),
                                         "gender": r["gender"], "autocast": 1 if int(r["flags"]) & 1 else 0,
                                         "quest_start_status": r["quest_start_status"], "quest_end_status": r["quest_end_status"]})
+        for cata_spell, start, end in LOST_ISLES_PHASES:
+            spell = self.spell(cata_spell)
+            if spell:
+                self.sql.add("spell_area", {"spell": spell, "area": LOST_ISLES, "quest_start": self.quest_id(start) if start else 0,
+                                            "quest_end": self.quest_id(end) if end else 0, "aura_spell": 0, "racemask": GOBLIN,
+                                            "gender": 2, "autocast": 1, "quest_start_status": TAKEN if start else 0,
+                                            "quest_end_status": NOT_REWARDED if end else 0})
+        for cata_spell, start, end in GILNEAS_PHASES:
+            spell = self.spell(cata_spell)
+            for zone in GILNEAS_ZONES if spell else ():
+                self.sql.add("spell_area", {"spell": spell, "area": zone, "quest_start": self.quest_id(start),
+                                            "quest_end": self.quest_id(end), "aura_spell": 0, "racemask": WORGEN,
+                                            "gender": 2, "autocast": 1, "quest_start_status": TAKEN,
+                                            "quest_end_status": NOT_REWARDED})

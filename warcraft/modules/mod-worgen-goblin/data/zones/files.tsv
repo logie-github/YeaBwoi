@@ -267,7 +267,6 @@
 124232	creature/goblin/goblinshreddersuit02skin02.blp	texture
 124233	creature/goblin/spark.blp	texture
 124237	creature/golemharvest/harvestgolembitsbrown.blp	texture
-124240	creature/golemharvest/harvestgolemskinbrown.blp	texture
 124244	creature/golemharveststage2/harveststage2chest.blp	texture
 124245	creature/golemharveststage2/harveststage2joint1.blp	texture
 124246	creature/golemharveststage2/harveststage2torso.blp	texture
@@ -671,7 +670,6 @@
 132029	interface/glues/models/ui_scourge/silverpinetree01canopyskin.blp	texture
 132037	interface/glues/models/ui_scourge/warningtreeweb.blp	texture
 132392	interface/icons/inv_axe_01.blp	texture
-132402	interface/icons/inv_axe_11.blp	texture
 132490	interface/icons/inv_belt_01.blp	texture
 132492	interface/icons/inv_belt_03.blp	texture
 132539	interface/icons/inv_boots_05.blp	texture
@@ -826,8 +824,6 @@
 144456	item/objectcomponents/weapon/axe_1h_horde_a_01.m2	model
 144461	item/objectcomponents/weapon/axe_1h_horde_a_01red.blp	texture
 144608	item/objectcomponents/weapon/axe_1h_pick_a_01black.blp	texture
-144776	item/objectcomponents/weapon/axe_2h_horde_a_03.m2	model
-144780	item/objectcomponents/weapon/axe_2h_horde_a_03steel.blp	texture
 144951	item/objectcomponents/weapon/boldreflect.blp	texture
 144954	item/objectcomponents/weapon/bow_1h_advanced_b_01.m2	model
 145112	item/objectcomponents/weapon/bow_1h_standard_b_02white.blp	texture
@@ -922,7 +918,6 @@
 151463	item/texturecomponents/armuppertexture/leather_b_06brown_sleeve_au_f.blp	texture
 151464	item/texturecomponents/armuppertexture/leather_b_06brown_sleeve_au_m.blp	texture
 151472	item/texturecomponents/armuppertexture/leather_blood_b_01black_sleeve_au_u.blp	texture
-151482	item/texturecomponents/armuppertexture/leather_c_02black_sleeve_au_u.blp	texture
 151558	item/texturecomponents/armuppertexture/leather_horde_a_01brown_sleeve_au_u.blp	texture
 151564	item/texturecomponents/armuppertexture/leather_horde_a_03black_sleeve_au_u.blp	texture
 151566	item/texturecomponents/armuppertexture/leather_horde_a_03brown_sleeve_au_u.blp	texture
@@ -932,7 +927,6 @@
 151574	item/texturecomponents/armuppertexture/leather_horde_b_02brown_sleeve_au_u.blp	texture
 151576	item/texturecomponents/armuppertexture/leather_horde_b_02yellow_sleeve_au_u.blp	texture
 151609	item/texturecomponents/armuppertexture/leather_pvpalliance_b_01black_sleeve_au_u.blp	texture
-151785	item/texturecomponents/armuppertexture/mail_c_02brown_sleeve_au_u.blp	texture
 151853	item/texturecomponents/armuppertexture/mail_dungeonshaman_a_01blue_sleeve_au_u.blp	texture
 152034	item/texturecomponents/armuppertexture/plate_c_04purple_sleeve_au_u.blp	texture
 152093	item/texturecomponents/armuppertexture/plate_horde_a_01bronze_sleeve_au_u.blp	texture
@@ -1003,7 +997,6 @@
 157713	item/texturecomponents/leguppertexture/leather_a_05yellow_pant_lu_m.blp	texture
 157732	item/texturecomponents/leguppertexture/leather_b_02mountaineer_belt_lu_u.blp	texture
 157755	item/texturecomponents/leguppertexture/leather_b_06brown_belt_lu_u.blp	texture
-157784	item/texturecomponents/leguppertexture/leather_c_02black_belt_lu_u.blp	texture
 157834	item/texturecomponents/leguppertexture/leather_d_03blackblue_pant_lu_u.blp	texture
 157925	item/texturecomponents/leguppertexture/leather_horde_a_01brown_belt_lu_u.blp	texture
 157939	item/texturecomponents/leguppertexture/leather_horde_a_03black_belt_lu_u.blp	texture
@@ -1016,7 +1009,6 @@
 158210	item/texturecomponents/leguppertexture/mail_a_03gold_pant_lu_u.blp	texture
 158240	item/texturecomponents/leguppertexture/mail_b_01_belt_lu_u.blp	texture
 158260	item/texturecomponents/leguppertexture/mail_b_03bronze_belt_lu_u.blp	texture
-158336	item/texturecomponents/leguppertexture/mail_c_02brown_belt_lu_u.blp	texture
 158446	item/texturecomponents/leguppertexture/mail_dungeonshaman_a_01blue_belt_lu_u.blp	texture
 158447	item/texturecomponents/leguppertexture/mail_dungeonshaman_a_01blue_pant_lu_u.blp	texture
 158477	item/texturecomponents/leguppertexture/mail_horde_a_01_brown_belt_lu_u.blp	texture
@@ -1074,8 +1066,6 @@
 160534	item/texturecomponents/torsolowertexture/leather_b_02brown_chest_tl_u.blp	texture
 160566	item/texturecomponents/torsolowertexture/leather_b_06brown_chest_tl_f.blp	texture
 160567	item/texturecomponents/torsolowertexture/leather_b_06brown_chest_tl_m.blp	texture
-160593	item/texturecomponents/torsolowertexture/leather_c_02black_chest_tl_f.blp	texture
-160594	item/texturecomponents/torsolowertexture/leather_c_02black_chest_tl_m.blp	texture
 160611	item/texturecomponents/torsolowertexture/leather_c_03red_chest_tl_f.blp	texture
 160612	item/texturecomponents/torsolowertexture/leather_c_03red_chest_tl_m.blp	texture
 160713	item/texturecomponents/torsolowertexture/leather_horde_a_01brown_chest_tl_f.blp	texture
@@ -1096,7 +1086,6 @@
 160818	item/texturecomponents/torsolowertexture/leather_pvpalliance_b_01black_chest_tl_m.blp	texture
 161016	item/texturecomponents/torsolowertexture/mail_b_05gold_chest_tl_f.blp	texture
 161017	item/texturecomponents/torsolowertexture/mail_b_05gold_chest_tl_m.blp	texture
-161078	item/texturecomponents/torsolowertexture/mail_c_02brown_chest_tl_u.blp	texture
 161170	item/texturecomponents/torsolowertexture/mail_dungeonshaman_a_01blue_chest_tl_f.blp	texture
 161171	item/texturecomponents/torsolowertexture/mail_dungeonshaman_a_01blue_chest_tl_m.blp	texture
 161186	item/texturecomponents/torsolowertexture/mail_horde_a_01_brown_chest_tl_f.blp	texture
@@ -1164,8 +1153,6 @@
 163183	item/texturecomponents/torsouppertexture/leather_a_05purple_chest_tu_m.blp	texture
 163231	item/texturecomponents/torsouppertexture/leather_b_06brown_chest_tu_f.blp	texture
 163232	item/texturecomponents/torsouppertexture/leather_b_06brown_chest_tu_m.blp	texture
-163260	item/texturecomponents/torsouppertexture/leather_c_02black_chest_tu_f.blp	texture
-163261	item/texturecomponents/torsouppertexture/leather_c_02black_chest_tu_m.blp	texture
 163278	item/texturecomponents/torsouppertexture/leather_c_03red_chest_tu_f.blp	texture
 163279	item/texturecomponents/torsouppertexture/leather_c_03red_chest_tu_m.blp	texture
 163381	item/texturecomponents/torsouppertexture/leather_horde_a_01brown_chest_tu_f.blp	texture
@@ -1186,7 +1173,6 @@
 163496	item/texturecomponents/torsouppertexture/leather_pvpalliance_b_01black_chest_tu_m.blp	texture
 163693	item/texturecomponents/torsouppertexture/mail_b_05gold_chest_tu_f.blp	texture
 163694	item/texturecomponents/torsouppertexture/mail_b_05gold_chest_tu_m.blp	texture
-163754	item/texturecomponents/torsouppertexture/mail_c_02brown_chest_tu_u.blp	texture
 163846	item/texturecomponents/torsouppertexture/mail_dungeonshaman_a_01blue_chest_tu_f.blp	texture
 163847	item/texturecomponents/torsouppertexture/mail_dungeonshaman_a_01blue_chest_tu_m.blp	texture
 164180	item/texturecomponents/torsouppertexture/plate_c_04purple_chest_tu_f.blp	texture
@@ -4429,7 +4415,6 @@
 309750	textures/bakednpctextures/creaturedisplayextra-19605.blp	texture
 309773	world/generic/pvp/oilrigs/bf2_oilalphadrip_01.blp	texture
 309774	world/generic/pvp/oilrigs/bf2_oildrips_01.m2	model
-309827	textures/bakednpctextures/creaturedisplayextra-19619.blp	texture
 309902	tileset/expansion03/vashjir/vj_coral04_s.blp	texture
 309906	world/expansion03/doodads/abyssalmaw/coral/abyssal_purplefish_tex.blp	texture
 309907	world/expansion03/doodads/abyssalmaw/coral/abyssal_blueyellowfish_tex.blp	texture
@@ -4471,8 +4456,6 @@
 310125	dungeons/textures/gilneas/eb_gilcity_prisnplanks.blp	texture
 310126	dungeons/textures/gilneas/gilcity_stoneedge.blp	texture
 310174	dungeons/textures/gilneas/wolfhead2.blp	texture
-310356	textures/bakednpctextures/creaturedisplayextra-19653.blp	texture
-310365	textures/bakednpctextures/creaturedisplayextra-19654.blp	texture
 310382	textures/bakednpctextures/creaturedisplayextra-19656.blp	texture
 310383	textures/bakednpctextures/creaturedisplayextra-19657.blp	texture
 310384	textures/bakednpctextures/creaturedisplayextra-19658.blp	texture
@@ -4485,7 +4468,6 @@
 310391	textures/bakednpctextures/creaturedisplayextra-19665.blp	texture
 310392	textures/bakednpctextures/creaturedisplayextra-19666.blp	texture
 310393	textures/bakednpctextures/creaturedisplayextra-19667.blp	texture
-310423	textures/bakednpctextures/creaturedisplayextra-19668.blp	texture
 310426	world/expansion03/doodads/worgen/walls/worgen_stonewall_06.m2	model
 310428	tileset/expansion03/lostisles/kezan_rock_04_s.blp	texture
 310429	world/expansion03/doodads/worgen/items/worgen_crate_broken_01.m2	model
@@ -6218,7 +6200,6 @@
 368828	world/generic/human/passive doodads/stormwind/stormwind_glass_ref_yellow.blp	texture
 368829	world/generic/human/passive doodads/stormwind/stormwind_streetlamp_02.m2	model
 368916	world/generic/passivedoodads/lights/stormwind_torch.blp	texture
-370211	interface/icons/ability_racial_packhobgoblin.blp	ui
 370242	world/generic/nightelf/passive doodads/ruins/newelfruin06_green.m2	model
 370358	creature/pygmy/pygmybase.m2	model
 370359	creature/pygmy/pygmyhunter.m2	model
@@ -6312,6 +6293,7 @@
 377898	item/objectcomponents/weapon/sword_2h_cataclysm_b_01.m2	model
 377902	item/objectcomponents/weapon/sword_2h_cataclysm_b_01red.blp	texture
 378542	creature/goblinhotrod/t_vfx_water3b.blp	texture
+378600	cameras/flybyworgen.m2	model
 381341	dungeons/textures/goblin boat/ce_goblinboatfloor.blp	texture
 381342	dungeons/textures/goblin boat/goblinfloat.blp	texture
 381945	dungeons/textures/goblin boat/ce_targetbanner.blp	texture
@@ -6441,6 +6423,7 @@
 404761	interface/worldmap/thelostisles_terrain2/thelostisles_terrain27.blp	ui
 404762	interface/worldmap/thelostisles_terrain2/thelostisles_terrain28.blp	ui
 404763	interface/worldmap/thelostisles_terrain2/thelostisles_terrain29.blp	ui
+404865	cameras/flybygoblin.m2	model
 404867	character/worgen/male/worganmaleskin_r.blp	texture
 405140	world/wmo/azeroth/buildings/gilneas/worgen_docks_01_000.wmo	model
 405216	world/wmo/azeroth/buildings/gilneas/gilneas_worgendwellingwmo_000.wmo	model
@@ -7142,6 +7125,8 @@
 455956	world/wmo/azeroth/buildings/gilneas/gilneas_marketquarter_011.wmo	model
 455957	world/wmo/azeroth/buildings/gilneas/gilneas_marketquarter_012.wmo	model
 455958	world/wmo/azeroth/buildings/gilneas/gilneas_marketquarter_013.wmo	model
+456104	sound/cinematicvoices/goblinnarration.mp3	sound
+456105	sound/cinematicvoices/worgennarration.mp3	sound
 456109	world/wmo/azeroth/buildings/gilneas/gilneas_house_e_000.wmo	model
 456110	world/wmo/azeroth/buildings/gilneas/gilneas_house_e_001.wmo	model
 456111	world/wmo/azeroth/buildings/gilneas/gilneas_house_e_002.wmo	model
@@ -7293,7 +7278,9 @@
 468181	textures/bakednpctextures/creaturedisplayextra-24854.blp	texture
 468182	textures/bakednpctextures/creaturedisplayextra-24855.blp	texture
 468498	world/wmo/azeroth/buildings/horde_goblin/kezanshortwalls_07_000.wmo	model
+469772	cameras/flybyworgen00.skin	model
 469780	cameras/flybygilneasshort00.skin	model
+469787	cameras/flybygoblin00.skin	model
 472420	character/worgen/female/worgenfemale00.skin	model
 472457	character/worgen/male/worgenmale00.skin	model
 472731	creature/ancientseaturtlefire/ancientseaturtlefire00.skin	model
@@ -7579,7 +7566,6 @@
 490739	item/objectcomponents/weapon/polearm_2h_trident_b_0100.skin	model
 490800	item/objectcomponents/weapon/sword_2h_cataclysm_b_0100.skin	model
 490828	item/objectcomponents/weapon/axe_1h_goblin_b_0100.skin	model
-490950	item/objectcomponents/weapon/axe_2h_horde_a_0300.skin	model
 491004	item/objectcomponents/weapon/axe_1h_cataclysm_b_0200.skin	model
 491067	item/objectcomponents/weapon/wand_1h_standard_a_0200.skin	model
 491112	item/objectcomponents/weapon/hammer_2h_horde_a_0200.skin	model
@@ -9605,10 +9591,6 @@
 544536	sound/creature/avatarofhakar/avatarofhakarattackc.ogg	sound
 544538	sound/creature/avatarofhakar/avatarofhakarattacka.ogg	sound
 544544	sound/creature/avatarofhakar/avatarofhakarattackd.ogg	sound
-544832	sound/creature/banshee/bansheeaggroa.ogg	sound
-544834	sound/creature/banshee/bansheeattackc.ogg	sound
-544835	sound/creature/banshee/bansheeattackb.ogg	sound
-544839	sound/creature/banshee/bansheeattacka.ogg	sound
 545682	sound/creature/bushchicken/bushchicken_preaggro_06.ogg	sound
 545683	sound/creature/bushchicken/bushchicken_attackcrit_01.ogg	sound
 545684	sound/creature/bushchicken/bushchicken_attackcrit_03.ogg	sound
@@ -10509,13 +10491,6 @@
 553969	sound/creature/liam/vo_gi_liam_woundcrit04.ogg	sound
 553970	sound/creature/liam/vo_gi_liam_attack09.ogg	sound
 553971	sound/creature/liam/vo_gi_liam_sacrifices01.ogg	sound
-554050	sound/creature/lichking/sf_lich king_event01.ogg	sound
-554056	sound/creature/lichking/sf_lich king_event06.ogg	sound
-554076	sound/creature/lichking/sf_lich king_event07.ogg	sound
-554098	sound/creature/lichking/sf_lich king_event02.ogg	sound
-554138	sound/creature/lichking/sf_lich king_event04.ogg	sound
-554157	sound/creature/lichking/sf_lich king_event03.ogg	sound
-554180	sound/creature/lichking/sf_lich king_event05.ogg	sound
 554314	sound/creature/lorna/vo_gi_lorna_attack09.ogg	sound
 554315	sound/creature/lorna/vo_gi_lorna_attack01.ogg	sound
 554316	sound/creature/lorna/vo_gi_lorna_woundcrit04.ogg	sound
@@ -10716,17 +10691,6 @@
 555616	sound/creature/monkey/monkey_wound_03.ogg	sound
 555617	sound/creature/monkey/monkey_wound_02.ogg	sound
 555619	sound/creature/monkey/monkey_aggro_06.ogg	sound
-557937	sound/creature/overthanebalargarde/sf_balargarde_event01.ogg	sound
-557944	sound/creature/overthanebalargarde/sf_balargarde_event05.ogg	sound
-557949	sound/creature/overthanebalargarde/sf_balargarde_event06.ogg	sound
-557951	sound/creature/overthanebalargarde/sf_balargarde_event02.ogg	sound
-557955	sound/creature/overthanebalargarde/sf_balargarde_event03.ogg	sound
-557956	sound/creature/overthanebalargarde/sf_balargarde_event07.ogg	sound
-557968	sound/creature/overthanebalargarde/sf_balargarde_event04.ogg	sound
-558212	sound/creature/possessedvardmadra/sf_vardmadra_event02.ogg	sound
-558217	sound/creature/possessedvardmadra/sf_vardmadra_event01.ogg	sound
-558218	sound/creature/possessedvardmadra/sf_vardmadra_event03.ogg	sound
-558224	sound/creature/possessedvardmadra/sf_vardmadra_event04.ogg	sound
 558495	sound/creature/protodragon/protodragonroar.ogg	sound
 558637	sound/creature/pygmy/pygmy_base_woundcrit_05.ogg	sound
 558638	sound/creature/pygmy/pygmy_base_preaggro_01.ogg	sound
@@ -10929,19 +10893,6 @@
 562730	sound/creature/totemall/totemmonsterlurewoundb.ogg	sound
 562733	sound/creature/totemall/totemmonsterlurewoundc.ogg	sound
 562738	sound/creature/totemall/totemmonsterlurewounda.ogg	sound
-563337	sound/creature/valkier/valkierwound6.ogg	sound
-563338	sound/creature/valkier/valkierwoundcrit1.ogg	sound
-563339	sound/creature/valkier/valkierwound3.ogg	sound
-563341	sound/creature/valkier/valkierwound1.ogg	sound
-563342	sound/creature/valkier/valkierwound7.ogg	sound
-563344	sound/creature/valkier/valkierwound9.ogg	sound
-563348	sound/creature/valkier/valkierwound2.ogg	sound
-563349	sound/creature/valkier/valkierwound8.ogg	sound
-563352	sound/creature/valkier/valkierwoundcrit3.ogg	sound
-563353	sound/creature/valkier/valkierwound4.ogg	sound
-563354	sound/creature/valkier/valkierwound5.ogg	sound
-563355	sound/creature/valkier/valkierwound10.ogg	sound
-563357	sound/creature/valkier/valkierwoundcrit2.ogg	sound
 564214	sound/creature/wolf/bitemediuma.ogg	sound
 564220	sound/creature/wolf/bitemediumb.ogg	sound
 564221	sound/creature/wolf/bitemediumc.ogg	sound
@@ -11245,6 +11196,7 @@
 568843	sound/spells/blizzardimpact1b.ogg	sound
 569145	sound/spells/blizzardimpact1e.ogg	sound
 569304	sound/spells/blizzardimpact1d.ogg	sound
+569413	sound/spells/cycloneofelements.ogg	sound
 569843	sound/vehicles/vehiclemount.ogg	sound
 569844	sound/vehicles/vehicledismount.ogg	sound
 569847	sound/vehicles/vehiclemount_organic.ogg	sound

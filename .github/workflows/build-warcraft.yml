@@ -730,7 +730,7 @@ jobs:
     # The server test (server-test: hours, with Wrath Remix's whole campaign on each side) runs
     # alongside and doesn't hold the release back, at the user's choice: they play the build
     # themselves; its result is on the run. Anything here failed or cancelled stops the APK.
-    needs: [unit-tests, server, windows-tools, turtle-server, felsong-server]
+    needs: [unit-tests, server, windows-tools, turtle-server, felsong-server, zones]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -852,7 +852,11 @@ jobs:
             -PfelsongServerSha256="${{ needs.felsong-server.outputs.sha256 }}" \
             -PfelsongServerSize="${{ needs.felsong-server.outputs.size }}" \
             -PfelsongServerUnpacked="${{ needs.felsong-server.outputs.unpacked }}" \
-            -PfelsongServerCommit="${{ needs.felsong-server.outputs.commit }}"
+            -PfelsongServerCommit="${{ needs.felsong-server.outputs.commit }}" \
+            -PzonesTag="${{ needs.zones.outputs.tag }}" \
+            -PzonesSha256="${{ needs.zones.outputs.sha256 }}" \
+            -PzonesSize="${{ needs.zones.outputs.size }}" \
+            -PzonesUnpacked="${{ needs.zones.outputs.unpacked }}"
 
       - name: Collect APK
         run: |

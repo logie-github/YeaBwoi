@@ -74,6 +74,18 @@ WORLD_MAPS = {
 # Gilneas as it is until quest 14222, map 638 here); without them, mod-worgoblin's (its worgoblin.sql).
 STARTS_ON = {12: (638, 4756, -1451.53, 1403.35, 35.5561, 0.333847), 9: (648, 4765, -8423.81, 1361.3, 104.671, 1.55428)}
 STARTS_OFF = {12: (1, 141, 10311.3, 832.463, 1326.41, 5.69632), 9: (1, 14, -618.518, -4251.67, 38.718, 0.0)}
+# Their intro (the camera flight a new character's first login shows): with the starting areas,
+# Cataclysm's own (ChrRaces' CinematicSequenceID: the flight over Gilneas with the Worgen's narration,
+# over Kezan with the Goblins'), as the rows the build makes of them; without, mod-worgoblin's (the
+# Night Elves' and the Orcs' flights, CinematicSequences 61 and 141 in its chrraces_dbc rows).
+INTROS_CATACLYSM = {12: 170, 9: 172}
+INTROS_OFF = {12: 61, 9: 141}
+CHRRACES_CINEMATIC = 12                        # (ChrRaces' CinematicSequenceID field in 3.3.5a)
+
+
+def intros_sql(intros):
+    return "".join(f"UPDATE `chrraces_dbc` SET `CinematicSequenceID` = {seq} WHERE `ID` = {race};\n"
+                   for race, seq in sorted(intros.items()) if seq)
 
 
 def starts_sql(starts):
@@ -154,6 +166,8 @@ class Tables:
     def __init__(self, dbd):
         self.dbd = dbd
         self.rows = {}
+        self.sets = {}                # table: [(id, field, value)], a change to a row the game has
+        self.intros = {}              # race: its intro's CinematicSequences row (INTROS_CATACLYSM)
 
     def fields(self, table):
         return LIGHT_PARAMS if table == "LightParams" else common.layout(self.dbd, table)
@@ -171,6 +185,10 @@ class Tables:
         self.rows.setdefault(table, []).append(row)
         return row
 
+    def set(self, table, row_id, field, value):
+        """A field of a row the game (or mod-worgoblin's tables) has, changed in the game's patch."""
+        self.sets.setdefault(table, []).append((row_id, field, value))
+
     def write(self, core):
         folder = os.path.join(OUT, "client", "dbc")
         os.makedirs(folder, exist_ok=True)
@@ -179,6 +197,11 @@ class Tables:
         sql = ["-- The starting areas' rows in the world server's tables (tools/zones/build_tables.py): run by",
                "-- src/WorgenGoblin.cpp at every start of ChromieCraft's world server, with the starting areas",
                "-- installed. New rows only (3.3.5a's own are never changed)."]
+        for table, sets in sorted(self.sets.items()):
+            if table not in self.rows:
+                with open(os.path.join(folder, table + ".txt"), "w", newline="\n") as f:
+                    f.write(f"# {table}: the starting areas' changes to rows the game has (tools/zones/build_tables.py)\n")
+                    f.writelines(f"set\t{i}\t{field}\t{value}\n" for i, field, value in sorted(sets))
         for table, rows in sorted(self.rows.items()):
             fields = self.fields(table)
             types = "".join(k for _, k in fields)
@@ -187,6 +210,7 @@ class Tables:
                 f.write(f"# {table}: the starting areas (tools/zones/build_tables.py)\ntypes\t{types}\n")
                 for r in rows:
                     f.write("put\t" + "\t".join(cell(v, k) for v, k in zip(r, types)) + "\n")
+                f.writelines(f"set\t{i}\t{field}\t{value}\n" for i, field, value in sorted(self.sets.get(table, [])))
             if table in SERVER:
                 cols = columns(core, SERVER[table])
                 assert len(cols) == len(fields), (table, len(cols), len(fields))
@@ -209,10 +233,10 @@ class Tables:
                 for i in range(0, len(ids), 500):
                     off.append(f"DELETE FROM `{SERVER[table]}` WHERE `{key}` IN ({', '.join(str(x) for x in ids[i:i + 500])});")
         with open(os.path.join(OUT, "server", "zones_off.sql"), "w", newline="\n") as f:
-            f.write("\n".join(off) + "\n" + starts_sql(STARTS_OFF))
+            f.write("\n".join(off) + "\n" + starts_sql(STARTS_OFF) + intros_sql(INTROS_OFF))
         with open(os.path.join(OUT, "server", "starts_on.sql"), "w", newline="\n") as f:
             f.write("-- The Worgen's and Goblins' new characters start in their starting areas (tools/zones/build_tables.py).\n"
-                    + starts_sql(STARTS_ON))
+                    + starts_sql(STARTS_ON) + intros_sql(self.intros))
 
 
 def cell(v, kind):

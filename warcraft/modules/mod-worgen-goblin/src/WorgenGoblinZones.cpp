@@ -14,11 +14,20 @@
  *    movie (its narration: Cataclysm Classic's game has the Worgen's and Goblins' movies' sound, not
  *    their pictures), the phases updated (the area's phase auras, spell_area), a teleport to the
  *    spell's place (spell_target_position).
+ *  - The way out into Wrath's world: Rut'theran Village turned in, the Worgen sail to Rut'theran Village
+ *    (Darnassus their home); Warchief's Emissary taken, the Goblins are taken to Grommash Hold, where
+ *    3.3.5a's Thrall takes it (Orgrimmar their home).
+ *  - Cataclysm's quests whose objective is casting a spell (its class quests: Charge on a training
+ *    dummy): 3.3.5a's quests haven't the kind, so the cast counts as a kill of the quest's credit
+ *    creature would. A spell the class hasn't at level 1 in 3.3.5a has its starting one in its place
+ *    (tools/zones/quests.py, STAND_INS).
  */
 
 #include "WorgenGoblinZonesIds.h"
+#include "ObjectAccessor.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "Spell.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
@@ -26,6 +35,15 @@
 namespace
 {
     constexpr uint32 QUEST_LAST_STAND = WorgenGoblinZones::Id(14222);
+    // The way out into Wrath's world: the Worgen to Rut'theran Village after Rut'theran Village (Admiral
+    // Nightwind's ship), Darnassus their home; the Goblins to Grommash Hold on taking Warchief's Emissary
+    // (Thrall takes it there), Orgrimmar theirs. (Their places: the world's game_tele.)
+    constexpr uint32 QUEST_RUTTHERAN_VILLAGE = WorgenGoblinZones::Id(14434);
+    constexpr uint32 QUEST_WARCHIEFS_EMISSARY = WorgenGoblinZones::Id(25266);
+    WorldLocation const RUTTHERAN_VILLAGE(1, 8704.53f, 944.683f, 13.5177f, 2.99385f);
+    WorldLocation const DARNASSUS(1, 9949.56f, 2284.21f, 1341.4f, 1.59587f);
+    WorldLocation const GROMMASH_HOLD(1, 1924.94f, -4205.16f, 42.0388f, 1.65038f);
+    WorldLocation const ORGRIMMAR(1, 1629.85f, -4373.64f, 31.5573f, 3.69762f);
     constexpr uint32 QUEST_LEADER_OF_THE_PACK = WorgenGoblinZones::Id(14386);
     constexpr uint32 MAP_GILNEAS = 654, MAP_GILNEAS_CITY = 638, MAP_GILNEAS_BROKEN = 655;
 
@@ -59,6 +77,20 @@ namespace
             player->TeleportTo(map, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation());
     }
 
+    // Out to Wrath's world, a moment after the quest's turned in or taken.
+    void SendOut(Player* player, WorldLocation const& to, WorldLocation const& home, uint32 homeArea)
+    {
+        ObjectGuid guid = player->GetGUID();
+        player->m_Events.AddEventAtOffset([guid, to, home, homeArea]()
+        {
+            if (Player* out = ObjectAccessor::FindPlayer(guid))
+            {
+                out->SetHomebind(home, homeArea);
+                out->TeleportTo(to);
+            }
+        }, 2s);
+    }
+
     bool IsHook(SpellInfo const* spell, SpellEffIndex effect, ZoneHook hook)
     {
         return spell->Effects[effect].Effect == SPELL_EFFECT_DUMMY && spell->Effects[effect].MiscValueB == int32(hook);
@@ -68,7 +100,23 @@ namespace
 class WorgenGoblinZonesPlayer : public PlayerScript
 {
 public:
-    WorgenGoblinZonesPlayer() : PlayerScript("WorgenGoblinZonesPlayer", { PLAYERHOOK_ON_BEFORE_TELEPORT, PLAYERHOOK_ON_LOGIN }) { }
+    WorgenGoblinZonesPlayer() : PlayerScript("WorgenGoblinZonesPlayer", { PLAYERHOOK_ON_BEFORE_TELEPORT, PLAYERHOOK_ON_LOGIN,
+        PLAYERHOOK_ON_SPELL_CAST, PLAYERHOOK_ON_PLAYER_QUEST_ACCEPT }) { }
+
+    void OnPlayerQuestAccept(Player* player, Quest const* quest) override
+    {
+        if (quest->GetQuestId() == QUEST_WARCHIEFS_EMISSARY)
+            SendOut(player, GROMMASH_HOLD, ORGRIMMAR, AREA_ORGRIMMAR);
+    }
+
+    // A quest whose objective is casting a spell (Cataclysm's class quests: CAST_CREDITS): the cast
+    // counts as a kill of the quest's credit creature ("Spell Practice Credit") would.
+    void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
+    {
+        for (WorgenGoblinZones::CastCredit const& credit : WorgenGoblinZones::CAST_CREDITS)
+            if (credit.spell == spell->GetSpellInfo()->Id && player->GetQuestStatus(credit.quest) == QUEST_STATUS_INCOMPLETE)
+                player->KilledMonsterCredit(credit.creature);
+    }
 
     // Onto Gilneas: onto the player's own map of it.
     bool OnPlayerBeforeTeleport(Player* player, uint32 mapid, float x, float y, float z, float orientation, uint32 options, Unit* target) override
@@ -98,6 +146,8 @@ public:
     {
         if (quest->GetQuestId() == QUEST_LAST_STAND || quest->GetQuestId() == QUEST_LEADER_OF_THE_PACK)
             ToGilneasMap(player);
+        else if (quest->GetQuestId() == QUEST_RUTTHERAN_VILLAGE)
+            SendOut(player, RUTTHERAN_VILLAGE, DARNASSUS, AREA_DARNASSUS);
         return false;
     }
 };

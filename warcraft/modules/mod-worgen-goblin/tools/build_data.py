@@ -99,6 +99,16 @@ SERVER = {
 # hair style of none (no hair, the scalp shown, as a bald human's). Fields: (race, sex, variation).
 GAPS = {"CharacterFacialHairStyles": (0, 1, 2), "CharHairGeosets": (1, 2, 3)}
 
+# mod-worgoblin's rows changed for the module's code: Two Forms (68996), which mod-worgoblin has as a
+# lasting transformation into a creature (and leaves ungiven), made Cataclysm's: an instant spell of
+# the player's own, a 1.5 second cooldown, its effect a dummy src/WorgenGoblinForms.cpp answers (the
+# human form). Fields by index (3.3.5a's Spell): Attributes 4, AttributesExC 7, RecoveryTime 29,
+# DurationIndex 40, Effect 71, EffectAuraPeriod 98 to 100, EffectApplyAuraName 95, EffectMiscValue 110.
+ROW_EDITS = {"Spell": {68996: {4: 0, 7: 0, 29: 1500, 40: 0, 71: 3, 95: 0, 100: 0, 110: 0}}}
+# The module's scripts for those (the world database's spell_script_names), put in at every start.
+SCRIPTS_SQL = ("DELETE FROM `spell_script_names` WHERE `spell_id` = 68996;\n"
+               "INSERT INTO `spell_script_names` (`spell_id`, `ScriptName`) VALUES (68996, 'spell_worgen_goblin_two_forms');")
+
 
 def fill_gaps(name, rows, report):
     race_at, sex_at, var_at = GAPS[name]
@@ -288,6 +298,9 @@ def main():
 
         if name in GAPS:
             new_rows += fill_gaps(name, new_rows, report)
+        for v in new_rows:
+            for i, value in ROW_EDITS.get(name, {}).get(v[0], {}).items():
+                v[i] = value
         if name in RENUMBER:
             new_rows.sort(key=lambda v: v[0])
             for n, v in enumerate(new_rows):
@@ -364,7 +377,7 @@ def main():
                 sql.append(f"INSERT INTO `{table}` ({names}) VALUES\n{values}\nON DUPLICATE KEY UPDATE {update};")
     os.makedirs(os.path.join(MODULE, "data", "server"), exist_ok=True)
     with open(os.path.join(MODULE, "data", "server", "worgen_goblin_dbc.sql"), "w", newline="\n") as f:
-        f.write("\n".join(sql) + "\n")
+        f.write("\n".join(sql + ["-- The module's scripts for them (src/WorgenGoblinForms.cpp).", SCRIPTS_SQL]) + "\n")
     print("\n".join(report))
 
 

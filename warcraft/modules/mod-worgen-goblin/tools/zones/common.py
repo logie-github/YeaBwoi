@@ -228,6 +228,17 @@ class Dbc:
         return {struct.unpack_from("<I", r)[0] for r in self.raw}
 
 
+def stock_ids(stock_dir, name):
+    """A 3.3.5a table's ids alone (its records' first field), for one whose layout has fields
+    narrower than four bytes (PowerDisplay's colours), which Dbc doesn't read."""
+    for f in os.listdir(stock_dir):
+        if f.lower() == name.lower() + ".dbc":
+            raw = open(os.path.join(stock_dir, f), "rb").read()
+            _, records, _, size, _ = struct.unpack("<4s4I", raw[:20])
+            return {struct.unpack_from("<I", raw, 20 + i * size)[0] for i in range(records)}
+    raise FileNotFoundError(name)
+
+
 def stock(stock_dir, name, dbd_dir=None):
     for f in os.listdir(stock_dir):
         if f.lower() == name.lower() + ".dbc":

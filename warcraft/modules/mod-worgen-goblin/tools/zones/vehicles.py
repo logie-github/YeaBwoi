@@ -7,6 +7,8 @@ spell clicks (how a player gets on).
 import common
 import db
 
+from scripts import SPELL_CLICKS
+
 # A seat's sounds (Cataclysm's SoundKits, 3.3.5a's SoundEntries).
 SEAT_SOUNDS = ("EnterUISoundID", "ExitUISoundID")
 
@@ -33,9 +35,11 @@ class VehiclesMixin:
         for n in range(8):
             values[f"SeatID_{n}"] = self.vehicle_seat(values[f"SeatID_{n}"])
         # (an indicator or power bar 3.3.5a hasn't: none)
-        for column, table in (("VehicleUIIndicatorID", "VehicleUIIndicator"), ("PowerDisplayID_0", "PowerDisplay"),
-                              ("PowerDisplayID_1", "PowerDisplay"), ("PowerDisplayID_2", "PowerDisplay")):
-            if values.get(column) and values[column] not in self.ids.stock_rows(table):
+        if values.get("VehicleUIIndicatorID") and values["VehicleUIIndicatorID"] not in self.ids.stock_rows("VehicleUIIndicator"):
+            values["VehicleUIIndicatorID"] = 0
+        power_displays = common.stock_ids(self.ids.stock_dir, "PowerDisplay")
+        for column in ("PowerDisplayID_0", "PowerDisplayID_1", "PowerDisplayID_2"):
+            if values.get(column) and values[column] not in power_displays:
                 values[column] = 0
         self.put("Vehicle", values)
         return values["ID"]
@@ -73,6 +77,18 @@ class VehiclesMixin:
                 "entry": self.ENTRY + int(r["entry"]), "accessory_entry": self.creature_entry(r["accessory_entry"]),
                 "seat_id": r["seat_id"], "minion": r["minion"], "description": r["description"],
                 "summontype": r["summontype"], "summontimer": r["summontimer"]})
+        for npc, cata_spell, quests in SPELL_CLICKS:
+            spell = self.spell(cata_spell) if npc in entries else 0
+            if not spell:
+                continue
+            self.sql.add("npc_spellclick_spells", {"npc_entry": self.ENTRY + npc, "spell_id": spell, "cast_flags": 1, "user_type": 0})
+            for group, quest in enumerate(quests):
+                # (CONDITION_SOURCE_TYPE_SPELL_CLICK_EVENT, CONDITION_QUESTTAKEN; one quest of them: an else group each)
+                self.sql.add("conditions", {
+                    "SourceTypeOrReferenceId": 18, "SourceGroup": self.ENTRY + npc, "SourceEntry": spell, "SourceId": 0,
+                    "ElseGroup": group, "ConditionTypeOrReference": 9, "ConditionTarget": 0, "ConditionValue1": self.quest_id(quest),
+                    "ConditionValue2": 0, "ConditionValue3": 0, "NegativeCondition": 0, "ErrorType": 0, "ErrorTextId": 0,
+                    "ScriptName": "", "Comment": "mod-worgen-goblin: the spell click's quest"})
         for r in db.rows(db.CPP_DB, f"SELECT * FROM npc_spellclick_spells WHERE npc_entry IN ({db.ids_in(entries)})"):
             spell = self.spell(r["spell_id"])
             if spell:

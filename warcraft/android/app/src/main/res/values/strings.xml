@@ -141,6 +141,11 @@
     <string name="wow_import_client_progress">Copying the client… %1$d%%</string>
     <string name="wow_import_client_done">The client is added.</string>
     <string name="wow_download_title">Downloading the server data</string>
+    <string name="wow_zones_title">Downloading the Worgen and Goblin starting areas</string>
+    <string name="wow_zones_progress">Downloading the Worgen and Goblin starting areas… %1$d%%</string>
+    <string name="wow_zones_unpack_progress">Unpacking the Worgen and Goblin starting areas… %1$d%%</string>
+    <string name="wow_zones_done">The Worgen and Goblin starting areas are in. New Worgen start in Gilneas, new Goblins in Kezan, from the realm\'s next start.</string>
+    <string name="wow_zones_error_space">Not enough free space for the starting areas: %1$d MB more needed.</string>
     <string name="wow_download_progress">Downloading the server data… %1$d%%</string>
     <string name="wow_download_unpack_progress">Unpacking the server data… %1$d%%</string>
     <string name="wow_download_checking">Checking the download</string>

@@ -86,7 +86,7 @@ class TurtleLayout(val files: File, val dataDir: File = files.parentFile ?: file
             "server", "server.new", "server.old", "etc", "etc-remix", "mysql", "mysql.deleting",
             "data", "data.work", "data.download", "data.import", "data-races", "data-modules", "data-modules.new", "races",
             "client", "client.import", "client-realm", "logs", "run", "addons", "mods", "modules",
-            "zones", "zones.new", "zones.old",
+            "zones", "zones.new", "zones.old", "zones.download",
         )
 
         /** In the app's data folder: the game's Windows runtime (Wine, Box64), shared, read-only here. */

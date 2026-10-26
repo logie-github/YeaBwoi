@@ -99,9 +99,9 @@ same tables and screen, put text an editor damaged into the game (quotes doubled
 
 The user: Gilneas's and Kezan's starting areas from Cataclysm, "a very faithful port that doesn't
 overwrite the old 3.3.5 content", the two races started there and joined to Wrath's world after them;
-"for any other character than worgen or goblin the world and quests and everything stay as is". It's
-being built in stages (`warcraft/PLAN.md`); `WorgenGoblin.StartingAreas` is off until their creatures
-and quests are in. So far:
+"for any other character than worgen or goblin the world and quests and everything stay as is". Built
+in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and the realm has them on
+(`WorgenGoblin.StartingAreas`, set on once by ctl.sh; nothing of it has been played on a phone):
 
 - **Their maps**, from Cataclysm Classic's files (`tools/zones/common.py` names the build, from
   wago.tools), made for 3.3.5a by [wotlkconv](https://github.com/Bar3b0n3s/Converter) (the commit
@@ -174,18 +174,94 @@ and quests are in. So far:
   AzerothCore's own); what the scripts name (their `NPC_`, `SPELL_`, `QUEST_`, `PATH_`, `BROADCAST_`
   and `CINEMATIC_` constants) comes into the world with them, and `src/WorgenGoblinZonesIds.h`
   (written by the build, `tools/zones/scripts.py`) turns Cataclysm's ids into the realm's.
+- **Their quests are their own**: a quest is ported when it's of the starting areas' zones or a
+  creature or object standing on their maps gives it; another zone's quest a row names (Icecrown's,
+  Azshara's, the way on to Orgrimmar's) isn't, and is listed in `left-for-later.txt`.
 - **What 3.3.5a's server doesn't do** (`src/WorgenGoblinZones.cpp`): Gilneas's terrain swaps, the
   player taken to their own map of Gilneas (638 until Last Stand, 14222, is done, then 654, then 655
   once Leader of the Pack, 14386, is), on any teleport there and as either quest is handed in; and
   Cataclysm's spell effects 3.3.5a hasn't (`tools/zones/spells.py`, made dummies, each answered by
   its script in `spell_script_names`): the phases updated, the teleports with their places
   (`spell_target_position`), the two movies as their narration (Cataclysm Classic's game has the
-  Worgen's and Goblins' movies' sound, not their pictures).
+  Worgen's and Goblins' movies' sound, not their pictures); and the quests whose objective is
+  casting a spell (the 14 class quests' "practise on the training dummy": `CAST_CREDITS` in
+  `src/WorgenGoblinZonesIds.h`), which 3.3.5a's quests haven't: the cast counts as a kill would.
+  Where Cataclysm's spell is one a 3.3.5a character of the class hasn't at level 1, the class's
+  starting spell takes its place, in the quest's texts too (`STAND_INS` in `tools/zones/quests.py`):
+  Charge → Heroic Strike, Steady Shot → Auto Shot, Flash Heal → Lesser Heal, Arcane Missiles →
+  Fireball, Rejuvenation → Healing Touch, Immolate → Shadow Bolt, Primal Strike → Lightning Bolt
+  (Eviscerate as it is).
+- Kezan's quests CPP left unscripted (`src/WorgenGoblinKezan.cpp`, after LegionCore 7.3.5's
+  `kezan.cpp` and Cataclysm's spells; what the world needs for them that CPP hasn't is in
+  `tools/zones/scripts.py`: the scripts' names, the vehicles, the Buccaneer's spell clicks, the
+  spells' edits):
+  - Rolling with my Homies: the keys summon the hot rod (Cataclysm's vehicle 467: a driver's seat
+    and the passengers'); driven up to Izzy, Ace or Gobber, each gets in and counts. Hired Looters
+    it runs into are knocked away, their Stolen Loot the player's (Robbing Hoods).
+  - The Great Bank Heist: the vault's door seats the player at the vault, which calls for one of its
+    five tools; the right one fills its bar a tenth (Cataclysm's own instructions on the screen), a
+    wrong one, or none within 8 seconds, takes a tenth off. Full, it counts and gives the Personal
+    Riches.
+  - Necessary Roughness: clicking the Buccaneer on the field puts the player in one; eight sharks run
+    at it, a few steps at a time, and each footbomb goes at the nearest (Cataclysm aims it with an arc
+    and a cursor, which a phone hasn't). One reaching the Buccaneer ends the try.
+  - Fourth and Goal: the Buccaneer again; the kick goes through the uprights and counts (Deathwing's
+    flight over Kezan after it isn't here).
+  - 447: the Gasbot Control Panel sends the Gasbot to the generator in the house, where it blows up
+    and counts.
+  The vehicles CPP has none for are inferred from Cataclysm's tables (SkyFireDB's 5.4.8 world has
+  the hot rod's, a driver's seat alone; the rest by their seats and the vault's power bar), and the
+  Buccaneer's place from SkyFireDB's spawn: none of it has been played.
 
-Next: the generic spell scripts CPP's Gilneas uses (Darkflight, Two Forms, Throw Torch and four
-more), what CPP lacks (Gilneas's last chapter, Kezan and the Lost Isles), and the way into Wrath's
-world after them (Worgen to Darnassus, Goblins to
-Orgrimmar), each with new ids only.
+- **The Lost Isles' and Gilneas's last chapter's phases**, which CPP hasn't (its creatures there stand
+  in phases nothing gave a player): Cataclysm's own phase auras (Quest Phase 01 to 10 on the Lost
+  Isles; Phase - Quest Zone-Specific 09 to 16 in Gilneas, after the 05 to 08 CPP has there) over the
+  zone from the quest that leads into each phase taken until the one after it is rewarded
+  (`tools/zones/quests.py`, `LOST_ISLES_PHASES`, `GILNEAS_PHASES`): the goblins' camp moving on from
+  Shipwreck Shore to the Savage Glen, the ship, Town-In-A-Box, the volcano, the labor mine and the
+  Slave Pits; Gilneas's Greymane Manor, Stormglen and Tal'doren, the battle for the city, the
+  Headlands. The windows are read from where each phase's quest givers and enders stand; Cataclysm's
+  own conditions for them aren't in any source this environment can reach.
+- **The Lost Isles' and Gilneas's last chapter's unscripted quests** (`src/WorgenGoblinLostIsles.cpp`,
+  after LegionCore's `lost_isles.cpp`; `src/WorgenGoblinGilneasEnd.cpp`), with Cataclysm's spells. CPP
+  has next to none of the Lost Isles' vehicles, paths or scripts; where Cataclysm used a vehicle or a
+  flight nobody's data has, the quest keeps its objective more simply, at the user's word ("if it's not
+  crucial to the quest you can skip it or change it"):
+  - the escape pods (a survivor let out of each), the monkeys' bananas, the Frightened Miner (to the
+    four nearest seams of ore), the KTC Snapflash, Thrall below deck, the fireworks on the Wild
+    Cluckers, the pool pony's hatchlings, the Faceless of the Deep, the B.C. Eliminator (its cannon at
+    the nearest Oomlot Warrior), the rocket boots (a minute of zombies run into), the Bootzooka (a fifth
+    of Volcanoth's health a shot), the soulstone thrown down; Free the Captives and Repel the
+    Paratroopers by kill credit;
+  - Warchief's Revenge: the Cyclone of the Elements comes along and strikes the sailors about the
+    player down, then takes them to the Wild Overlook; Up, Up & Away! and the Wild Mine Cart Ride: the
+    flight's end (the landing site, the end of the line) on taking them;
+  - Gilneas: the mountain horses follow the player to Lorna; a crash survivor reached is set on by the
+    crocolisk the quest counts; Belysra's Talisman shows the Dark Scout; the battle for Gilneas City and
+    the hunt for Sylvanas count on reaching where they end; a hippogryph mounted takes the gunship
+    down.
+  Seven of the zones' quests nothing gives (Cataclysm's own leftovers) stay as they are.
+- **Their intros**: a new Worgen's first login shows Cataclysm's camera flight over Gilneas with the
+  Worgen's narration, a Goblin's over Kezan with the Goblins' (ChrRaces 170 and 172: FlyByWorgen,
+  FlyByGoblin, worgennarration.mp3, goblinnarration.mp3); without the areas, mod-worgoblin's Night Elf
+  and Orc flights.
+- **The Worgen's two forms** (`src/WorgenGoblinForms.cpp`, every Worgen, with the areas or without):
+  in human form the game draws race 1 and the human model of their sex, the server keeping them race 12
+  (quests, items, abilities and the saved character the Worgen's); their looks' numbers carry over
+  (every one fits a human's range but the women's markings, shown as none and kept for every save).
+  Two Forms (mod-worgoblin's racial, made Cataclysm's instant spell) turns them into the other form
+  out of combat; entering combat or Darkflight turns them Worgen. In Gilneas the story sets it:
+  human until Last Stand, Worgen until Last Chance at Humanity, which gives Two Forms. The barber's
+  styles in human form are the Human's, which the server doesn't take for a Worgen: looks are changed
+  in Worgen form. Whether the game redraws a character whose race changes while it's seen is for a
+  phone to show.
+- **The way into Wrath's world** (`src/WorgenGoblinZones.cpp`): Rut'theran Village turned in to Admiral
+  Nightwind, the Worgen sail to Rut'theran Village, Darnassus their home; Warchief's Emissary taken, the
+  Goblins are taken to Grommash Hold, Orgrimmar theirs, where 3.3.5a's own Thrall takes it (Cataclysm's
+  Kor'kron Loyalist isn't in 3.3.5a's Orgrimmar; nothing new is spawned there).
+- **In the app** (`ZonesPackage.kt`): with the realm set up and stopped, the app downloads the package
+  this version names (`cata-zones-<hash>`: its size and SHA-256 built in, the download carried on after
+  a dropped connection) into `files/zones`; the realm takes it in at its next start.
 
 ### Making the starting areas' data again
 

@@ -300,8 +300,10 @@ The game learns them from a patch the realm makes in your client's `Data` folder
 
 The Worgen and Goblins of [mod-worgoblin](https://github.com/heyitsbench/mod-worgoblin) (the module most realms use for them) are playable on ChromieCraft's realm, built into it (`modules/mod-worgen-goblin`, its README has the details):
 
-- **Goblins** (Horde) start in the Valley of Trials with the Orcs and Trolls: Warrior, Hunter, Rogue, Priest, Death Knight, Shaman, Mage, Warlock.
-- **Worgen** (Alliance) start in Shadowglen with the Night Elves: Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock, Druid.
+- **Goblins** (Horde): Warrior, Hunter, Rogue, Priest, Death Knight, Shaman, Mage, Warlock. They start in Kezan, Cataclysm's own starting area, then the Lost Isles, and go on to Orgrimmar.
+- **Worgen** (Alliance): Warrior, Hunter, Rogue, Priest, Death Knight, Mage, Warlock, Druid. They start in Gilneas City, as humans until the curse, through Gilneas, and sail on to Rut'theran Village and Darnassus.
+- **Their starting areas** (Gilneas, Kezan and the Lost Isles from Cataclysm Classic, made for 3.3.5a): the app downloads them by itself (about 700 MB) once the server data is in and the realm is stopped, and the realm takes them in at its next start. Until then, or without them, Goblins start in the Valley of Trials and Worgen in Shadowglen. A new Worgen or Goblin sees Cataclysm's intro flight over their home with its narration. No other race's character can go there, and nothing of the game's own world changes. Some of Cataclysm's vehicle rides and flights there are simpler here (the quest still asks the same). Not yet played on a phone.
+- **Two Forms**: Worgen turn into their human form and back out of combat; combat or Darkflight turns them Worgen. Change their looks at the barber in Worgen form.
 - **What they have** is mod-worgoblin's: Cataclysm's models, looks, voices and names, their starting gear, their racials (the Goblins' Best Deals Anywhere, Better Living Through Chemistry, Pack Hobgoblin, Rocket Barrage, Rocket Jump and Time is Money; the Worgen's Darkflight, Viciousness, Aberration, Flayer and Two Forms), their side's language, their start race's quests, their death knights' own quests at Ebon Hold, the Goblins' trike vendor, and their character creation scenes (Gilneas's and Kezan's).
 - The goblins and fel orcs the game already has (in Azeroth's ports, in Outland) look as they always have.
 
