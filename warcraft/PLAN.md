@@ -1656,12 +1656,15 @@ a realm with modules), then stage 3.
      them), 56 area triggers, the areas' phase auras (spell_area). CPP's own coverage of these zones
      is partial (Gilneas's chapters 1 and 2 have C++ scripts; Kezan's is a stub): what it lacks is
      to be written here. `data/zones/left-for-later.txt` lists what isn't in yet.
-  4. Scripts (begun: `src/WorgenGoblinZones.cpp`): the terrain swaps as whole maps the player is
+  4. Scripts (`src/WorgenGoblinZones.cpp`, `src/WorgenGoblinGilneas.cpp`): CPP's Gilneas scripts
+     (chapters 1 and 2: 10 creature, 1 object, 8 spell and 1 area trigger scripts) ported, compiled
+     against the core's headers, not yet run; the vehicles (26, their seats, riders and spell clicks)
+     and the invasion's camera flight in the tables. The terrain swaps as whole maps the player is
      moved between (done: 638 until quest 14222, 654, then 655 from 14386; a loading screen where
      Cataclysm had none), Cataclysm's spell effects 3.3.5a hasn't (done: the phases updated, the
      teleports; the two movies as their narration, the game having their sound and not their
-     pictures). To do: CPP's C++ scripts of Gilneas (chapters 1 and 2), what CPP lacks (Gilneas's
-     chapter 3, Kezan, the Lost Isles), the vehicles (23), the Worgen's human form (they're Worgen
+     pictures). To do: the generic spell scripts Gilneas uses (Darkflight, Two Forms, Throw Torch and
+     four more), what CPP lacks (Gilneas's chapter 3, Kezan, the Lost Isles), the Worgen's human form (they're Worgen
      from the start here, as mod-worgoblin has them). Then the app downloads the package and the
      starts go on.
   5. The way into Wrath's world: Worgen to Darnassus, Goblins to Orgrimmar.

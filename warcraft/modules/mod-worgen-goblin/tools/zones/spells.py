@@ -69,25 +69,39 @@ class SpellsMixin:
         name = names.get(cata_id, {}).get("Name_lang")
         if name is None:
             self.drop("spell (not in Cataclysm's tables)", cata_id)
+            self.spell_ids[cata_id] = 0
             return 0
         if self.stock_spell_names().get(cata_id) == name:
+            self.spell_ids[cata_id] = cata_id
             return cata_id
         key = ("Spell", cata_id)
         if key in self.done:
             return self.done[key]
         our = self.ids.new("Spell", cata_id)
-        self.done[key] = our
+        self.done[key] = self.spell_ids[cata_id] = our
         values = self.spell_values(cata_id, name)
         values["ID"] = our
         self.out.add("Spell", values)
         for what in sorted({h[2] for h in self.spell_hooks if h[0] == cata_id} & SCRIPTED_HOOKS):
             self.sql.add("spell_script_names", {"spell_id": our, "ScriptName": f"spell_worgen_goblin_zones_{what}"})
+        for r in self.cpp_spell_scripts().get(cata_id, []):
+            name = self.script_name(r["ScriptName"], "spell", cata_id)
+            if name:
+                self.sql.add("spell_script_names", {"spell_id": our, "ScriptName": name})
         for r in self.target_positions().get(cata_id, []):
             self.sql.add("spell_target_position", {"ID": our, "EffectIndex": r["EffectIndex"], "MapID": r["MapID"],
                                                    "PositionX": float(r["PositionX"]), "PositionY": float(r["PositionY"]),
                                                    "PositionZ": float(r["PositionZ"]), "Orientation": float(r["Orientation"]),
                                                    "VerifiedBuild": -15595})
         return our
+
+    def cpp_spell_scripts(self):
+        if "cpp_spell_scripts" not in self.t:
+            index = {}
+            for r in db.rows(db.CPP_DB, "SELECT * FROM spell_script_names WHERE spell_id > 0"):
+                index.setdefault(int(r["spell_id"]), []).append(r)
+            self.t["cpp_spell_scripts"] = index
+        return self.t["cpp_spell_scripts"]
 
     def target_positions(self):
         """CPP's spell_target_position, by spell (a teleport's place: on Gilneas's map 654, which the
@@ -244,6 +258,8 @@ class SpellsMixin:
             return self.quest_id(value)
         if kind == "sound":
             return self.sound(value)
+        if kind == "vehicle":
+            return self.vehicle(value)
         if kind == "phase":
             return self.phase_mask(value, 0)
         self.drop(f"spell {kind}", cata_id)

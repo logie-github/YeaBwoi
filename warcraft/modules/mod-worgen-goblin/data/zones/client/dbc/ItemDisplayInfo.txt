@@ -203,6 +203,7 @@ put	62553							0	0	1	0	0	0	0	0						robe_worgen_b_01red_robe_lu	robe_worgen_b_0
 put	62554							0	0	0	0	0	0	0	0			robe_worgen_b_01red_glove_ha						0	0
 put	62570					inv_shirt_07		0	0	0	0	0	7	0	0	leather_goblin_b_01_sleeve_au	leather_goblin_b_01_sleeve_al		leather_goblin_b_01_chest_tu	leather_goblin_b_01_chest_tl				0	0
 put	62572							0	0	0	0	0	0	0	0					leather_goblin_b_01_belt_tl	leather_goblin_b_01_belt_lu			0	0
+put	62576	misc_1h_pygmy_a_03.mdx				inv_staff_09		0	0	0	0	0	13	0	0									0	0
 put	62582							0	0	0	0	0	0	0	0				cloth_kezanslave_a_01 _chest_tu	cloth_kezanslave_a_01 _chest_tl	cloth_kezanslave_a_01 _belt_lu			0	0
 put	62583							0	1	0	0	0	0	0	0				cloth_kezanslave_a_01 _chest_tu	cloth_kezanslave_a_01 _chest_tl				0	0
 put	62584							0	0	0	0	0	0	0	0					cloth_kezanslave_a_01 _chest_tl	cloth_kezanslave_a_01 _belt_lu			0	0
@@ -291,10 +292,33 @@ put	63390							2	0	0	0	0	0	0	0	cloth_gilneasclothes_b_01noblec_sleeve_au	cloth_
 put	63391							0	0	0	0	0	0	0	0					cloth_gilneasclothes_b_01noblec_chest_tl	mail_b_03bronze_belt_lu			0	0
 put	63392							2	0	0	0	0	0	0	0							cloth_gilneasclothes_b_01noblec_boot_ll	cloth_gilneasclothes_b_01noblec_boot_fo	0	0
 put	63429							0	0	0	0	0	0	0	0						leather_goblin_b_01red_belt_lu			0	0
+put	63621	mace_1h_goblin_b_01.mdx		mace_1h_goblin_b_01		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63622	firearm_2h_rifle_goblin_b_01.mdx		firearm_2h_rifle_goblin_b_01orange		inv_weapon_rifle_03		0	0	0	0	224	8	0	0									0	0
+put	63638	mace_1h_goblin_b_01.mdx		mace_1h_goblin_b_01blue		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63639	mace_1h_goblin_b_01.mdx		mace_1h_goblin_b_01green		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63640	mace_1h_goblin_b_01.mdx		mace_1h_goblin_b_01red		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63641	knife_1h_goblin_b_01.mdx		knife_1h_goblin_b_01		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63642	knife_1h_goblin_b_01.mdx		knife_1h_goblin_b_01blue		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63643	knife_1h_goblin_b_01.mdx		knife_1h_goblin_b_01green		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63644	knife_1h_goblin_b_01.mdx		knife_1h_goblin_b_01red		inv_hammer_03		0	0	0	0	0	9	0	0									0	0
+put	63645	axe_1h_goblin_b_01.mdx		axe_1h_goblin_b_01black		inv_axe_01		0	0	0	0	0	9	0	0									0	0
+put	63646	axe_1h_goblin_b_01.mdx		axe_1h_goblin_b_01brown		inv_axe_01		0	0	0	0	0	9	0	0									0	0
+put	63648	axe_1h_goblin_b_01.mdx		axe_1h_goblin_b_01orange		inv_axe_01		0	0	0	0	0	9	0	0									0	0
+put	63654	sword_1h_goblin_b_01.mdx		sword_1h_goblin_b_01blue		inv_sword_04		0	0	0	0	0	9	0	0									0	0
+put	63666	sword_1h_goblin_b_01.mdx		sword_1h_goblin_b_01dark		inv_sword_04		0	0	0	0	0	9	0	0									0	0
+put	63667	sword_1h_goblin_b_01.mdx		sword_1h_goblin_b_01orange		inv_sword_04		0	0	0	0	0	9	0	0									0	0
+put	64019	polearm_2h_trident_b_01.mdx		polearm_2h_trident_b_01gold		inv_weapon_halberd_05		0	0	0	0	0	9	0	0									33	0
 put	64022							0	0	0	0	0	0	0	0	robe_blood_b_01blue_sleeve_au	robe_blood_b_01blue_sleeve_al		robe_blood_b_01blue_chest_tu	robe_blood_b_01blue_chest_tl				0	0
 put	64725							0	0	0	0	0	0	0	0	cloth_gilneasclothes_c_01commonb_sleeve_au	cloth_gilneasclothes_c_01commonb_sleeve_al		cloth_gilneasclothes_c_01commonb_chest_tu	cloth_gilneasclothes_c_01commonb_chest_tl	robe_worgen_b_01brown_belt_lu			0	0
 put	64726							0	0	0	0	0	0	0	0					cloth_gilneasclothes_c_01commonb_chest_tl	robe_worgen_b_01brown_belt_lu			0	0
 put	64727							0	0	1	0	0	0	0	0						cloth_gilneasclothes_c_01commonb_pant_lu	cloth_gilneasclothes_c_01commonb_pant_ll		0	0
+put	65058	firearm_2h_rifle_worgen_b_01.mdx		firearm_2h_rifle_worgen_b_01		inv_weapon_rifle_03		0	0	0	0	224	8	0	0									0	0
+put	65061	misc_1h_worgenpaddle_a_01.mdx		club_1h_torch_a_01		inv_mace_121		0	0	0	0	0	9	0	0									0	0
+put	65092					inv_chest_leather_26v4		0	0	0	0	0	7	0	0	leather_common_a_01red_sleeve_au	leather_common_a_01red_sleeve_al		leather_common_a_01red_chest_tu	leather_common_a_01red_chest_tl				0	0
+put	65093					inv_belt_80v4		0	0	0	0	0	7	0	0						leather_common_a_01red_belt_lu			0	0
+put	65094					inv_pants_leather_38v4		0	0	0	0	0	7	0	0						leather_common_a_01red_pant_lu	leather_common_a_01red_pant_ll		0	0
+put	65095					inv_bracer_74v4		0	0	0	0	0	7	0	0		leather_common_a_01red_bracer_al							0	0
+put	65301					inv_pants_leather_38		0	0	0	0	0	7	0	0						leather_common_a_01blue_pant_lu	leather_common_a_01blue_pant_ll		0	0
 put	65304					inv_pants_leather_38v2		0	0	0	0	0	7	0	0						leather_common_a_01_pant_lu	leather_common_a_01_pant_ll		0	0
 put	65497							0	0	0	0	0	0	0	0	cloth_a_springjacketblack_sleeve_au	cloth_a_springjacketblack_sleeve_al		cloth_a_springjacketblack_chest_tu	cloth_a_springjacketblack_chest_tl				0	0
 put	65506							0	0	0	0	0	0	0	0	leather_pvpalliance_b_01black_sleeve_au			leather_pvpalliance_b_01black_chest_tu	leather_pvpalliance_b_01black_chest_tl	leather_pvpalliance_b_01black_belt_lu			0	0
@@ -303,7 +327,9 @@ put	65542							0	0	0	0	0	0	0	0				robe_goblin_b_01_red_chest_tu	robe_goblin_b_0
 put	65543					inv_belt_01		0	0	0	0	0	7	0	0						robe_goblin_b_01_green_belt_lu			0	0
 put	65544							0	0	1	0	0	0	0	0						robe_goblin_b_01_red_robe_lu	robe_goblin_b_01_red_robe_ll		0	0
 put	65545							0	0	0	0	0	0	0	0		robe_goblin_b_01_red_bracer_al							0	0
+put	65722	knife_1h_worgen_b_01.mdx		knife_1h_worgen_b_01		inv_sword_159		0	0	0	0	0	8	0	0									0	0
 put	65809							0	0	0	0	0	0	0	0	leather_dungeonleather_c_02red_sleeve_au	leather_dungeonleather_c_02red_sleeve_al		leather_dungeonleather_c_02red_chest_tu	leather_dungeonleather_c_02red_chest_tl	leather_dungeonleather_c_02red_belt_lu			0	0
+put	65888	axe_1h_worgen_b_01.mdx		axe_1h_worgen_b_01		inv_axe_118		0	0	0	0	0	9	0	0									0	0
 put	66112					inv_gauntlets_110v3		1	0	0	0	0	7	0	0		leather_common_b_03black_glove_al	leather_common_b_03black_glove_ha						0	0
 put	66113					inv_pants_leather_41v3		0	0	0	0	0	7	0	0						leather_common_b_03black_pant_lu	leather_common_b_03black_pant_ll		0	0
 put	66114					inv_bracer_68v3		0	0	0	0	0	7	0	0		leather_common_b_03black_bracer_al							0	0
@@ -318,6 +344,19 @@ put	66267					inv_chest_plate27v1		0	0	0	0	0	8	0	0	plate_common_b_01red_sleeve_a
 put	66268					inv_belt_86v1		0	0	0	0	0	8	0	0						plate_common_b_01red_belt_lu			0	0
 put	66271					inv_bracer_63v1		0	0	0	0	0	8	0	0		plate_common_b_01red_bracer_al							0	0
 put	66272							0	0	0	0	0	0	0	0		plate_common_b_01red_glove_al	plate_common_b_01red_glove_ha						0	0
+put	66305					inv_belt_84v4		0	0	0	0	0	10	0	0					mail_common_a_01green_belt_tl	mail_common_a_01green_belt_lu			0	0
+put	66308					inv_bracer_61v4		0	0	0	0	0	10	0	0		mail_common_a_01green_bracer_al							0	0
+put	66312					inv_pants_mail_36v4		0	0	0	0	0	10	0	0						mail_common_a_01green_pant_lu	mail_common_a_01green_pant_ll		0	0
+put	66324					inv_boots_mail_11v4		1	0	0	0	0	10	0	0							mail_common_a_01green_boot_ll	mail_common_a_01green_boot_fo	0	0
+put	66325					inv_gauntlets_105		2	0	0	0	0	10	0	0		mail_common_a_01green_glove_al	mail_common_a_01green_glove_ha						0	0
+put	66331					inv_belt_79v3		0	0	0	0	0	7	0	0						robe_common_a_01yellow_belt_lu			0	0
+put	66337					inv_boots_cloth_31v4		0	0	0	0	0	7	0	0								robe_common_a_01green_boot_fo	0	0
+put	66341					inv_belt_79v2		0	0	0	0	0	7	0	0						robe_common_a_01red_belt_lu			0	0
+put	66342					inv_boots_cloth_31v2		0	0	0	0	0	7	0	0								robe_common_a_01red_boot_fo	0	0
+put	66344					inv_boots_leather_10v3		1	0	0	0	0	7	0	0							leather_common_a_01black_boot_ll	leather_common_a_01black_boot_fo	0	0
+put	66345					inv_gauntlets_102v3		1	0	0	0	0	7	0	0		leather_common_a_01black_glove_al	leather_common_a_01black_glove_ha						0	0
+put	66347					inv_bracer_74v3		0	0	0	0	0	7	0	0		leather_common_a_01black_bracer_al							0	0
+put	66351					inv_bracer_61v2		0	0	0	0	0	10	0	0		mail_common_a_01brown_bracer_al							0	0
 put	66439					inv_gauntlets_116v1		1	0	0	0	0	7	0	0		leather_common_b_01black_glove_al	leather_common_b_01black_glove_ha						0	0
 put	66467							0	0	0	0	0	0	0	0							leather_common_b_03black_boot_ll	leather_common_b_03black_boot_fo	0	0
 put	66592	helm_sunglasses_a_01.mdx		helm_sunglasses_a_01red		inv_staff_05		0	0	0	0	0	8	0	0									0	0
@@ -328,19 +367,51 @@ put	66662					inv_gauntlets_109		1	0	0	0	0	10	0	0		mail_common_b_02white_glove_a
 put	66663					inv_pants_mail_37		0	0	0	0	0	10	0	0						mail_common_b_02white_pant_lu	mail_common_b_02white_pant_ll		0	0
 put	66664					inv_bracer_66		0	0	0	0	0	10	0	0		mail_common_b_02white_bracer_al							0	0
 put	66665					inv_chest_mail_17		0	0	0	0	0	10	0	0	mail_common_b_02white_sleeve_au			mail_common_b_02white_chest_tu	mail_common_b_02white_chest_tl				0	0
+put	66870					inv_bracer_73v3		0	0	0	0	0	7	0	0		robe_common_a_01yellow_bracer_al							0	0
+put	66874					inv_pants_cloth_41v4		0	0	0	0	0	7	0	0						robe_common_a_01green_pant_lu	robe_common_a_01green_pant_ll		0	0
+put	66880					inv_bracer_73v2		0	0	0	0	0	7	0	0		robe_common_a_01red_bracer_al							0	0
+put	66881					inv_gauntlets_114v2		0	0	0	0	0	7	0	0		robe_common_a_01red_glove_al	robe_common_a_01red_glove_ha						0	0
+put	66882					inv_pants_cloth_41v2		0	0	0	0	0	7	0	0						robe_common_a_01red_pant_lu	robe_common_a_01red_pant_ll		0	0
+put	66885					inv_boots_cloth_31		0	0	0	0	0	7	0	0								robe_common_a_01blue_boot_fo	0	0
+put	66887					inv_gauntlets_114		0	0	0	0	0	7	0	0		robe_common_a_01blue_glove_al	robe_common_a_01blue_glove_ha						0	0
+put	66888					inv_pants_cloth_41		0	0	0	0	0	7	0	0						robe_common_a_01blue_pant_lu	robe_common_a_01blue_pant_ll		0	0
 put	66990	lshoulder_plate_common_b_01.mdx	rshoulder_plate_common_b_01.mdx	shoulders_plate_common_b_01red	shoulders_plate_common_b_01red	inv_shoulder_135v1		0	0	0	0	0	8	0	0									0	0
+put	67027					inv_bracer_74v2		0	0	0	0	0	7	0	0		leather_common_a_01_bracer_al							0	0
+put	67029					inv_chest_leather_26v2		0	0	0	0	0	7	0	0	leather_common_a_01_sleeve_au	leather_common_a_01_sleeve_al		leather_common_a_01_chest_tu	leather_common_a_01_chest_tl				0	0
+put	67031					inv_gauntlets_102v2		1	0	0	0	0	7	0	0		leather_common_a_01_glove_al	leather_common_a_01_glove_ha						0	0
+put	67035					inv_chest_leather_26		0	0	0	0	0	7	0	0	leather_common_a_01blue_sleeve_au	leather_common_a_01blue_sleeve_al		leather_common_a_01blue_chest_tu	leather_common_a_01blue_chest_tl				0	0
+put	67036					inv_belt_80		0	0	0	0	0	7	0	0						leather_common_a_01blue_belt_lu			0	0
+put	67037					inv_gauntlets_102		1	0	0	0	0	7	0	0		leather_common_a_01blue_glove_al	leather_common_a_01blue_glove_ha						0	0
+put	67043					inv_gauntlets_102v4		1	0	0	0	0	7	0	0		leather_common_a_01red_glove_al	leather_common_a_01red_glove_ha						0	0
+put	67044					inv_boots_leather_10v4		1	0	0	0	0	7	0	0							leather_common_a_01red_boot_ll	leather_common_a_01red_boot_fo	0	0
 put	67052	lshoulder_leather_common_b_03.mdx	rshoulder_leather_common_b_03.mdx	leather_common_b_03black	leather_common_b_03black	inv_shoulder_140v3		0	0	0	0	0	7	0	0									0	0
 put	67293							0	0	0	0	0	0	0	0	leather_common_b_01black_sleeve_au	leather_common_b_01black_sleeve_al		leather_common_b_01black_chest_tu	leather_common_b_01black_chest_tl	leather_common_b_01black_belt_lu			0	0
+put	67341					inv_chest_cloth_84		0	0	1	0	0	7	0	0	robe_common_a_01blue_sleeve_au	robe_common_a_01blue_sleeve_al		robe_common_a_01blue_chest_tu	robe_common_a_01blue_chest_tl	robe_common_a_01blue_robe_lu	robe_common_a_01blue_robe_ll		0	0
 put	67386							0	0	0	0	0	0	0	0					mail_goblin_b_01silver_belt_tl	mail_goblin_b_01silver_belt_lu			0	0
 put	67599							0	0	0	0	0	0	0	0	plate_common_b_01red_sleeve_au	plate_common_b_02red_sleeve_al		plate_common_b_01red_chest_tu	plate_common_b_01red_chest_tl	plate_common_b_01red_belt_lu			0	0
 put	67600							0	0	0	0	0	0	0	0	plate_common_b_01red_sleeve_au	plate_common_b_02red_sleeve_al		plate_common_b_01red_chest_tu	plate_common_b_01red_chest_tl				0	0
 put	67601							0	0	0	0	0	0	0	0					plate_common_b_02red_belt_tl	plate_common_b_01red_belt_lu			0	0
+put	67909	hammer_1h_standard_a_01.mdx		hammer_1h_standard_a_02black		inv_hammer_20		0	0	0	0	0	8	0	0									0	0
+put	68111	firearm_2h_rifle_cataclysm_b_01.mdx		firearm_2h_rifle_cataclysm_b_01		inv_firearm_2h_rifle_cataclysm_b_01		0	0	0	0	224	12	0	0									0	0
+put	68112	sword_2h_cataclysm_b_01.mdx		sword_2h_cataclysm_b_01red		inv_sword_2h_cataclysm_b_01		0	0	0	0	0	9	0	0									0	0
+put	68348	axe_1h_cataclysm_b_02.mdx		axe_1h_cataclysm_b_02red		inv_axe_1h_cataclysm_b_02		0	0	0	0	0	8	0	0									0	0
 put	68659							0	0	0	0	0	0	0	0							leather_dungeonleather_c_02red_boot_ll	leather_dungeonleather_c_02red_boot_fo	0	0
+put	68668	polearm_2h_bladed_a_01.mdx		polearm_2h_bladed_a_01green		inv_spear_05		0	0	0	0	0	13	0	0									0	0
 put	68743					inv_shirt_07		0	0	0	0	0	7	0	0	leather_goblin_b_01red_sleeve_au	leather_goblin_b_01red_sleeve_al		leather_goblin_b_01red_chest_tu	leather_goblin_b_01red_chest_tl				0	0
 put	68744					inv_boots_06		0	0	0	0	0	7	0	0							leather_goblin_b_01red_boot_ll	leather_goblin_b_01red_boot_fo	0	0
 put	68745					inv_pants_02		0	0	0	0	0	7	0	0						leather_goblin_b_01_pant_lu	leather_goblin_b_01_pant_ll		0	0
 put	68746					inv_boots_09		0	0	0	0	0	7	0	0							cloth_gilneasclothes_b_01nobleb_boot_ll	cloth_gilneasclothes_b_01nobleb_boot_fo	0	0
 put	68747					inv_chest_cloth_13		0	0	0	0	0	7	0	0				leather_worgen_b_01grey_chest_tu	leather_worgen_b_01grey_chest_tl				0	0
+put	68767	wand_1h_standard_a_02.mdx		wand_1h_standard_a_02white		inv_staff_17		0	0	0	0	2799	12	0	0									0	0
+put	68791			cape_cloth_a_02orange		inv_misc_cape_18		3	0	0	0	0	7	0	0									0	0
+put	68792			cape_cloth_a_02pink		inv_misc_cape_18		3	0	0	0	0	7	0	0									0	0
+put	68820					inv_chest_cloth_84		0	0	1	0	0	7	0	0	robe_common_a_01green_sleeve_au	robe_common_a_01green_sleeve_al		robe_common_a_01green_chest_tu	robe_common_a_01green_chest_tl	robe_common_a_01green_robe_lu	robe_common_a_01green_robe_ll		0	0
+put	68842					inv_belt_84v3		0	0	0	0	0	10	0	0						mail_common_a_01gray_belt_lu			0	0
+put	68843					inv_gauntlets_105v3		2	0	0	0	0	10	0	0		mail_common_a_01gray_glove_al	mail_common_a_01gray_glove_ha						0	0
+put	68845					inv_chest_mail_16v3		0	0	0	0	0	10	0	0	mail_common_a_01gray_sleeve_au	mail_common_a_01gray_sleeve_al		mail_common_a_01gray_chest_tu	mail_common_a_01gray_chest_tl				0	0
+put	68953					inv_boots_mail_11v3		1	0	0	0	0	10	0	0							mail_common_a_01gray_boot_ll	mail_common_a_01gray_boot_fo	0	0
+put	69049	axe_1h_horde_a_01.mdx		axe_1h_horde_a_01red		inv_throwingaxe_06		0	0	0	0	0	8	0	0									0	0
+put	69303	axe_2h_horde_a_03.mdx		axe_2h_horde_a_03steel		inv_axe_11		0	0	0	0	0	9	0	0									0	0
 put	69854							0	0	0	0	0	0	0	0	mail_common_b_02white_sleeve_au			mail_common_b_02white_chest_tu	mail_common_b_02white_chest_tl	mail_common_b_02white_belt_lu			0	0
 put	69855							0	0	0	0	0	0	0	0					mail_common_b_02white_belt_tl	mail_common_b_02white_belt_lu			0	0
 put	70346							0	0	0	0	0	0	0	0					cloth_gilneasclothes_b_01nobleb_chest_tl	cloth_c_02red_belt_lu			0	0
@@ -351,6 +422,9 @@ put	70572							0	0	1	0	0	0	0	0	cloth_gilneasclothes_b_01noblea_sleeve_au	cloth_
 put	70621							0	0	0	0	0	0	0	0	cloth_a_08blacktie_sleeve_au	cloth_a_08blacktie_sleeve_al		leather_worgen_b_01grey_chest_tu	leather_worgen_b_01grey_chest_tl	leather_worgen_b_01grey_belt_lu			0	0
 put	70622							0	0	0	0	0	0	0	0						leather_worgen_b_01grey_belt_lu			0	0
 put	70623							1	0	0	0	0	0	0	0							leather_worgen_b_01grey_boot_ll	leather_worgen_b_01grey_boot_fo	0	0
+put	70659			cape_cloth_a_02white		inv_misc_cape_11		3	0	0	0	0	7	0	0									0	0
+put	70660			cape_leather_a_02yellow		inv_misc_cape_03		3	0	0	0	0	7	0	0									0	0
+put	70759	helm_cloth_gilneashat_a_01.mdx		helm_cloth_gilneashat_a_01commonb		inv_helmet_51		0	0	0	0	0	7	249	249									0	0
 put	70971							0	0	0	0	0	0	0	0	plate_c_04purple_sleeve_au			plate_c_04purple_chest_tu	plate_c_04purple_chest_tl	plate_c_04purple_belt_lu			0	0
 put	71290							1	0	0	0	0	0	0	0						cloth_a_springjacketblack_pant_lu			0	0
 put	71513							0	0	0	0	0	0	0	0	mail_cataclysm_b_01blue_sleeve_au	mail_cataclysm_b_01blue_sleeve_al		mail_cataclysm_b_01blue_chest_tu	mail_cataclysm_b_01blue_chest_tl	mail_cataclysm_b_01blue_belt_lu			0	0
@@ -358,6 +432,7 @@ put	71514					inv_chest_mail_21		0	0	0	0	0	10	0	0	mail_cataclysm_b_01blue_sleeve
 put	71515					inv_belt_101		0	0	0	0	0	10	0	0						mail_cataclysm_b_01blue_belt_lu			0	0
 put	71516					inv_pants_mail_41		0	0	0	0	0	10	0	0						mail_cataclysm_b_01blue_pant_lu	mail_cataclysm_b_01blue_pant_ll		0	0
 put	71518					inv_bracer_80		0	0	0	0	0	10	0	0		mail_cataclysm_b_01blue_bracer_al							0	0
+put	71809	blowdart_pygmy.mdx		blowdart_pygmy		inv_weapon_bow_52		0	0	0	0	5	12	0	0									0	0
 put	72372	helm_spectacleshat_a_01green.mdx		helm_monocle_a_01silver				0	0	0	0	0	0	366	0									0	0
 put	72628					inv_chest_leather_cataclysm_b_01		0	0	0	0	0	7	0	0	leather_cataclysm_b_01black_sleeve_au	leather_cataclysm_b_01black_sleeve_al		leather_cataclysm_b_01black_chest_tu	leather_cataclysm_b_01black_chest_tl				0	0
 put	72629					inv_boots_leather_cataclysm_b_01		0	0	0	0	0	7	0	0							leather_cataclysm_b_01black_boot_ll	leather_cataclysm_b_01black_boot_fo	0	0
@@ -369,9 +444,15 @@ put	72742							1	0	0	0	0	0	0	0							mail_cataclysm_b_01blue_boot_ll	mail_catac
 put	72787							0	0	0	0	0	0	0	0					leather_cataclysm_b_01black_belt_tl	leather_cataclysm_b_01black_belt_lu			0	0
 put	72788							0	0	0	0	0	0	0	0	leather_cataclysm_b_01black_sleeve_au	leather_cataclysm_b_01black_sleeve_al		leather_cataclysm_b_01black_chest_tu	leather_cataclysm_b_01black_chest_tl	leather_cataclysm_b_01black_belt_lu			0	0
 put	73498							0	0	0	0	0	0	0	0					mail_goblin_b_01silver_belt_tl	leather_goblin_b_01red_belt_lu			0	0
+put	73858					inv_belt_84v2		0	0	0	0	0	10	0	0						mail_common_a_01brown_belt_lu			0	0
+put	73859					inv_boots_mail_11v2		1	0	0	0	0	10	0	0							mail_common_a_01brown_boot_ll	mail_common_a_01brown_boot_fo	0	0
+put	73860					inv_chest_mail_16v2		0	0	0	0	0	10	0	0	mail_common_a_01brown_sleeve_au			mail_common_a_01brown_chest_tu	mail_common_a_01brown_chest_tl				0	0
+put	73861					inv_gauntlets_105v2		2	0	0	0	0	10	0	0		mail_common_a_01brown_glove_al	mail_common_a_01brown_glove_ha						0	0
+put	73862					inv_pants_mail_36v2		0	0	0	0	0	10	0	0						mail_common_a_01brown_pant_lu	mail_common_a_01brown_pant_ll		0	0
 put	74747							0	0	0	0	0	0	0	0	cloth_a_08blacktie_sleeve_au								0	0
 put	74748							1	0	0	0	0	0	0	0	cloth_a_10brown_sleeve_au	cloth_a_08blacktie_sleeve_al		cloth_a_08blacktie_chest_tu	cloth_a_08blacktie_chest_tl				0	0
 put	74750							0	0	0	0	0	0	0	0	cloth_a_10brown_sleeve_au	cloth_a_08blacktie_sleeve_al		cloth_a_08blacktie_chest_tu	cloth_a_08blacktie_chest_tl				0	0
+put	74751	sword_1h_goblin_b_01.mdx		sword_1h_goblin_b_01orange		inv_sword_04		0	0	0	0	0	9	0	0									25	0
 put	74757							0	0	0	0	0	0	0	0					leather_goblin_b_01_belt_tl	leather_goblin_b_01purple_belt_lu			0	0
 put	74825							0	0	0	0	0	0	0	0						cloth_b_07white_pant_lu			0	0
 put	74826							0	0	0	0	0	0	0	0				mail_b_05gold_chest_tu	mail_b_05gold_chest_tl				0	0
@@ -389,4 +470,8 @@ put	75216	helm_mail_cataclysm_b_01.mdx		helm_mail_cataclysm_b_01blue				0	0	0	0	
 put	75223	helm_cloth_gilneashat_a_02.mdx		helm_cloth_gilneashat_a_02noblea				0	0	0	0	0	0	249	305									0	0
 put	75225	helm_cloth_gilneashat_a_02.mdx		helm_cloth_gilneashat_a_01commona				0	0	0	0	0	0	249	305									0	0
 put	75412							3	0	0	0	0	0	0	0		leather_cataclysm_b_01black_glove_al	leather_cataclysm_b_01black_glove_ha						0	0
+put	76958	bow_1h_advanced_b_01.mdx		bow_1h_standard_b_02white		inv_weapon_bow_01		0	0	0	0	5	12	0	0									0	0
+put	77090	stave_2h_worgen_c_01.mdx		stave_2h_worgen_c_01orange		inv_staff_113		0	0	0	0	0	13	0	0									0	0
+put	77092	firearm_2h_rifle_worgen_b_01.mdx		firearm_2h_rifle_worgen_b_01silver		inv_weapon_rifle_40		0	0	0	0	224	8	0	0									0	0
+put	77093	hammer_2h_horde_a_02.mdx		hammer_2h_horde_a_01		inv_mace_19		0	0	0	0	0	9	0	0									0	0
 put	95309							1	0	1	0	0	0	0	0	robe_a_01brown_sleeve_au	robe_a_01brown_sleeve_al							0	0

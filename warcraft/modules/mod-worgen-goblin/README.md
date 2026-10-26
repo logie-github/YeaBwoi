@@ -161,6 +161,18 @@ and quests are in. So far:
   them), area triggers and the areas' phase auras (`spell_area`, as quests are taken and done).
   What they name that isn't in yet (C++ scripts CPP has, vehicles, spell visuals) is listed in
   `data/zones/left-for-later.txt`.
+- **Their vehicles** (`tools/zones/vehicles.py`): Gilneas's horses, the Forsaken's catapults and the
+  rest (26 vehicles, 42 seats as new rows of the game's tables and the server's; a seat's fields as
+  AzerothCore's own layout names them, WoWDBDefs leaving 3.3.5a's unnamed), who rides them and how
+  a player gets on (`vehicle_template_accessory`, `npc_spellclick_spells`).
+- **CPP's scripts of Gilneas** (`src/WorgenGoblinGilneas.cpp`, `.h`: CPP's chapters 1 and 2, made
+  AzerothCore's, under CPP's own names: the evacuation, the worgen runts, Josiah Avery, Greymane's and
+  Crowley's horses, the crows, the Forsaken's invasion and its camera flight, the abominations, the
+  children, the catapults, the attack mastiffs, the drowning watchmen). The world keeps a creature's,
+  object's, spell's or area trigger's script name when there's code for it (this module's or
+  AzerothCore's own); what the scripts name (their `NPC_`, `SPELL_`, `QUEST_`, `PATH_`, `BROADCAST_`
+  and `CINEMATIC_` constants) comes into the world with them, and `src/WorgenGoblinZonesIds.h`
+  (written by the build, `tools/zones/scripts.py`) turns Cataclysm's ids into the realm's.
 - **What 3.3.5a's server doesn't do** (`src/WorgenGoblinZones.cpp`): Gilneas's terrain swaps, the
   player taken to their own map of Gilneas (638 until Last Stand, 14222, is done, then 654, then 655
   once Leader of the Pack, 14386, is), on any teleport there and as either quest is handed in; and
@@ -169,8 +181,9 @@ and quests are in. So far:
   (`spell_target_position`), the two movies as their narration (Cataclysm Classic's game has the
   Worgen's and Goblins' movies' sound, not their pictures).
 
-Next: CPP's C++ scripts of Gilneas, what CPP lacks (Gilneas's last chapter, Kezan and the Lost
-Isles), the vehicles, and the way into Wrath's world after them (Worgen to Darnassus, Goblins to
+Next: the generic spell scripts CPP's Gilneas uses (Darkflight, Two Forms, Throw Torch and four
+more), what CPP lacks (Gilneas's last chapter, Kezan and the Lost Isles), and the way into Wrath's
+world after them (Worgen to Darnassus, Goblins to
 Orgrimmar), each with new ids only.
 
 ### Making the starting areas' data again
@@ -211,8 +224,8 @@ writes `data/zones`. The package is made from that by CI (`scripts/package-zones
   a Worgen and a Goblin warrior at their starts with their racials and their side's language; on
   Wrath Remix, the patch set aside and none of it in its world; back on ChromieCraft, the patch back.
   With the starting areas' package (the zones job's): their maps in the server's data with paths for
-  each, their files in the patch, their seven maps and 92 areas in the world's tables, their spawns'
-  ids under AzerothCore's limit (0xFFFFFF); a Worgen warrior
+  each, their files in the patch, their seven maps and 92 areas in the world's tables, every script their
+  rows name with its code, their spawns' ids under AzerothCore's limit (0xFFFFFF); a Worgen warrior
   starts on map 638 in Gilneas City and a Goblin warrior in Kezan (648), a Human and an Orc where they
   always have; the game's own creatures, objects, quests, items, scripts and other races' starts as
   they were; a Human put on Gilneas's map is taken home as it logs in; off again, their rows gone and

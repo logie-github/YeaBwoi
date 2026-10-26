@@ -529,6 +529,12 @@ EOF
 			fail "the world's tables haven't the starting areas' seven maps"
 		areas=$(echo "SELECT COUNT(*) FROM areatable_dbc WHERE ContinentID IN (648, 654)" | CTL sql acore_world)
 		[ "$areas" = 92 ] || fail "the world's tables have $areas of the starting areas' 92 areas"
+		# Every script their rows name has its code (src/WorgenGoblinGilneas.cpp, WorgenGoblinZones.cpp).
+		names=$(grep -oE "'(npc|go|at|spell)_[a-z_]+'" "$FILES/server/src/modules/mod-worgen-goblin/data/zones/server/zones_world.sql" 2> /dev/null |
+			tr -d "'" | sort -u | paste -sd'|' -)
+		if [ -n "$names" ] && grep -E "Script named '($names)' is assigned in the database, but has no code" "$FILES/logs/Errors.log"; then
+			fail "the starting areas name scripts the world server hasn't"
+		fi
 		# Their spawns' ids under AzerothCore's limit (a new spawn's id is one after the highest, and
 		# the world server stops when it would pass 0xFFFFFF).
 		spawns=$(echo "SELECT GREATEST((SELECT MAX(guid) FROM creature), (SELECT MAX(guid) FROM gameobject))" | CTL sql acore_world)

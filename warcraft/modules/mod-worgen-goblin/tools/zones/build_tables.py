@@ -34,6 +34,8 @@ SERVER = {
     "GameObjectDisplayInfo": "gameobjectdisplayinfo_dbc", "Spell": "spell_dbc", "Item": "item_dbc",
     "ItemDisplayInfo": "itemdisplayinfo_dbc", "SpellCastTimes": "spellcasttimes_dbc", "SpellDuration": "spellduration_dbc",
     "SpellRange": "spellrange_dbc", "SpellRadius": "spellradius_dbc", "SummonProperties": "summonproperties_dbc",
+    "Vehicle": "vehicle_dbc", "VehicleSeat": "vehicleseat_dbc", "CinematicSequences": "cinematicsequences_dbc",
+    "CinematicCamera": "cinematiccamera_dbc",
 }
 # New ids, where Cataclysm's are taken: from just past the highest of 3.3.5a's own (the game sizes some
 # tables' lookups by their highest id), or from here for these.

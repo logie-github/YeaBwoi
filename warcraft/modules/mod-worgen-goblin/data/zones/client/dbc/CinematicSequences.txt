@@ -1,0 +1,3 @@
+# CinematicSequences: the starting areas (tools/zones/build_tables.py)
+types	iiiiiiiiii
+put	168	0	248	0	0	0	0	0	0	0

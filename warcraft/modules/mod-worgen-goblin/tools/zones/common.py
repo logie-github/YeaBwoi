@@ -128,10 +128,32 @@ def listfile(path):
     return by_id, by_path
 
 
+# The tables whose 3.3.5a definition in WoWDBDefs leaves fields unnamed (and so typed float, a seat's
+# flags among them): their fields as AzerothCore's own (DBCfmt.h, its *_dbc tables), named as
+# Cataclysm Classic's columns are; a float's name starts with a dot.
+LAYOUTS = {
+    "VehicleSeat": [(c.lstrip("."), "f" if c[0] == "." else "i") for c in (
+        "ID", "Flags", "AttachmentID", ".AttachmentOffset_0", ".AttachmentOffset_1", ".AttachmentOffset_2",
+        ".EnterPreDelay", ".EnterSpeed", ".EnterGravity", ".EnterMinDuration", ".EnterMaxDuration",
+        ".EnterMinArcHeight", ".EnterMaxArcHeight", "EnterAnimStart", "EnterAnimLoop", "RideAnimStart",
+        "RideAnimLoop", "RideUpperAnimStart", "RideUpperAnimLoop", ".ExitPreDelay", ".ExitSpeed", ".ExitGravity",
+        ".ExitMinDuration", ".ExitMaxDuration", ".ExitMinArcHeight", ".ExitMaxArcHeight", "ExitAnimStart",
+        "ExitAnimLoop", "ExitAnimEnd", ".PassengerYaw", ".PassengerPitch", ".PassengerRoll", "PassengerAttachmentID",
+        "VehicleEnterAnim", "VehicleExitAnim", "VehicleRideAnimLoop", "VehicleEnterAnimBone", "VehicleExitAnimBone",
+        "VehicleRideAnimLoopBone", ".VehicleEnterAnimDelay", ".VehicleExitAnimDelay", "VehicleAbilityDisplay",
+        "EnterUISoundID", "ExitUISoundID", "UiSkin", "FlagsB", ".CameraEnteringDelay", ".CameraEnteringDuration",
+        ".CameraExitingDelay", ".CameraExitingDuration", ".CameraOffset_0", ".CameraOffset_1", ".CameraOffset_2",
+        ".CameraPosChaseRate", ".CameraFacingChaseRate", ".CameraEnteringZoom", ".CameraSeatZoomMin",
+        ".CameraSeatZoomMax")],
+}
+
+
 def layout(dbd_dir, name, build="3.3.5.12340"):
     """A table's fields in 3.3.5a, from its WoWDBDefs definition: [(column, type)], type "i" (32-bit
     integer), "f" (float) or "s" (text); a localized text is its 16 languages' texts and their flags
     (17 fields, the first named after the column), an array one field a value (column_0, column_1...)."""
+    if name in LAYOUTS and build == "3.3.5.12340":
+        return list(LAYOUTS[name])
     text = open(os.path.join(dbd_dir, name + ".dbd"), encoding="utf-8").read()
     kinds = {}
     for m in re.finditer(r"^(int|uint|float|string|locstring)(?:<[^>]*>)?\s+(\w+)", text.split("\n\n")[0], re.M):

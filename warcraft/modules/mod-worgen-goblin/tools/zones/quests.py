@@ -353,8 +353,8 @@ class QuestsMixin:
                     for r in db.rows(db.CPP_DB, f"SELECT * FROM smart_scripts WHERE source_type = 2 AND entryorguid = {cata}"):
                         self.smart_row(r, ours)
                     self.sql.add("areatrigger_scripts", {"entry": ours, "ScriptName": "SmartTrigger"})
-                else:
-                    self.drop(f"area trigger script {scripts[cata]['ScriptName']}", cata)
+                elif self.script_name(scripts[cata]["ScriptName"], "area trigger", cata):
+                    self.sql.add("areatrigger_scripts", {"entry": ours, "ScriptName": scripts[cata]["ScriptName"]})
 
     def area_spells(self):
         areas = {int(r[0]) for r in self.out.rows.get("AreaTable", [])}

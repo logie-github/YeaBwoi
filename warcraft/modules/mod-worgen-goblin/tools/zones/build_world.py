@@ -28,6 +28,8 @@ import files  # noqa: E402
 from items import ItemsMixin  # noqa: E402
 from quests import QuestsMixin  # noqa: E402
 from spells import SpellsMixin  # noqa: E402
+from vehicles import VehiclesMixin  # noqa: E402
+from scripts import ScriptsMixin  # noqa: E402
 from build_tables import OUT  # noqa: E402
 
 # The starting areas' rows' ranges: ENTRY + Cataclysm's entry (creatures, objects, quests, gossip
@@ -106,13 +108,14 @@ class Sql:
             f.write("\n".join(out) + "\n")
 
 
-class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
-    ENTRY, PATH, GILNEAS = ENTRY, PATH, GILNEAS
+class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsMixin, build_tables.Builder):
+    ENTRY, GUID, PATH, GILNEAS = ENTRY, GUID, PATH, GILNEAS
 
     def __init__(self, cache, stock_dir, dbd, listfile, converter_src):
         super().__init__(cache, stock_dir, dbd, listfile)
         self.creature_queue, self.creatures_seen, self.creatures_done = [], set(), set()
         self.equips = {}             # CPP's creature: its equipment ids
+        self.spell_ids = {}          # Cataclysm's spell: the realm's (0: not in it)
         self.object_queue, self.objects_seen, self.objects_done = [], set(), set()
         self.quest_queue, self.quests_seen = [], set()
         self.paths_needed, self.actionlists_needed, self.actionlists_done, self.smart_done = set(), set(), set(), set()
@@ -508,19 +511,16 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
                 "type": num(t["type"]), "type_flags": num(t["type_flags"]),
                 "lootid": self.loot("creature_loot_template", t["lootid"]),
                 "pickpocketloot": self.loot("pickpocketing_loot_template", t["pickpocketloot"]),
-                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": 0,
+                "skinloot": self.loot("skinning_loot_template", t["skinloot"]), "PetSpellDataId": 0, "VehicleId": self.vehicle(t["VehicleId"]),
                 "mingold": num(t["mingold"]), "maxgold": num(t["maxgold"]), "AIName": "",
                 "MovementType": num(t["MovementType"]), "HoverHeight": num(t["HoverHeight"]),
                 "HealthModifier": num(t["HealthModifier"]), "ManaModifier": num(t["ManaModifier"]),
                 "ArmorModifier": num(t["ArmorModifier"]), "ExperienceModifier": num(t["ExperienceModifier"]),
                 "RacialLeader": num(t["RacialLeader"]), "movementId": 0, "RegenHealth": num(t["RegenHealth"]),
-                "CreatureImmunitiesId": 0, "flags_extra": 0, "ScriptName": "", "VerifiedBuild": VERIFIED})
-            if num(t["VehicleId"]):
-                self.drop("vehicle", t["VehicleId"])
+                "CreatureImmunitiesId": 0, "flags_extra": 0, "ScriptName": self.script_name(t["ScriptName"], "creature", e),
+                "VerifiedBuild": VERIFIED})
             if t["AIName"] == "SmartAI":
                 self.ai_templates.append(self.sql.tables["creature_template"][-1])
-            if t["ScriptName"]:
-                self.drop(f"creature script {t['ScriptName']}", e)
         for m in models:
             display = self.display(m["CreatureDisplayID"])
             if display:
@@ -535,6 +535,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
             self.sql.add("creature_template_addon", self.addon(a, "entry", ENTRY + e))
         self.trainers(entries)
         self.equipment(entries)
+        self.vehicle_riders(entries)
         return templates
 
     def equipment(self, entries):
@@ -586,7 +587,8 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
                     "orientation": num(r["orientation"]), "spawntimesecs": num(r["spawntimesecs"]),
                     "wander_distance": num(r["wander_distance"]), "currentwaypoint": 0, "curhealth": num(r["curhealth"]),
                     "curmana": num(r["curmana"]), "MovementType": num(r["MovementType"]), "npcflag": num(r["npcflag"]) & NPCFLAG_MASK,
-                    "unit_flags": num(r["unit_flags"]), "dynamicflags": 0, "ScriptName": "", "VerifiedBuild": VERIFIED,
+                    "unit_flags": num(r["unit_flags"]), "dynamicflags": 0,
+                    "ScriptName": self.script_name(r.get("ScriptName"), "creature spawn", int(r["guid"])), "VerifiedBuild": VERIFIED,
                     "CreateObject": 0, "Comment": None})
                 a = addons.get(int(r["guid"]))
                 if a:
@@ -737,11 +739,9 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
                       "size": num(t["size"])}
             for i in range(24):
                 values[f"Data{i}"] = self.object_data(num(t["type"]), i, num(t[f"Data{i}"]), e)
-            values.update({"AIName": "", "ScriptName": "", "VerifiedBuild": VERIFIED})
+            values.update({"AIName": "", "ScriptName": self.script_name(t["ScriptName"], "object", e), "VerifiedBuild": VERIFIED})
             if t["AIName"] == "SmartGameObjectAI":
                 values["AIName"] = "SmartGameObjectAI"
-            if t["ScriptName"]:
-                self.drop(f"object script {t['ScriptName']}", e)
             self.sql.add("gameobject_template", values)
             a = addons.get(e)
             if a:
@@ -791,7 +791,8 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
                     "position_y": num(r["position_y"]), "position_z": num(r["position_z"]), "orientation": num(r["orientation"]),
                     "rotation0": num(r["rotation0"]), "rotation1": num(r["rotation1"]), "rotation2": num(r["rotation2"]),
                     "rotation3": num(r["rotation3"]), "spawntimesecs": num(r["spawntimesecs"]), "animprogress": num(r["animprogress"]),
-                    "state": num(r["state"]), "ScriptName": "", "VerifiedBuild": VERIFIED, "Comment": None})
+                    "state": num(r["state"]), "ScriptName": self.script_name(r.get("ScriptName"), "object spawn", int(r["guid"])),
+                    "VerifiedBuild": VERIFIED, "Comment": None})
                 a = addons.get(int(r["guid"]))
                 if a:
                     self.sql.add("gameobject_addon", {
@@ -821,6 +822,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, build_tables.Builder):
             self.need_creature(e)
         for e in sorted(self.objects):
             self.need_object(e)
+        self.need_scripted()
         # (creatures, objects, quests and scripts name each other: until nothing new is named)
         while True:
             while self.creature_queue or self.object_queue or self.quest_queue:
@@ -864,6 +866,7 @@ KEYS = {"creature_template": ["entry"], "creature_template_model": ["CreatureID"
         "creature_loot_template": ["Entry"], "pickpocketing_loot_template": ["Entry"], "skinning_loot_template": ["Entry"],
         "reference_loot_template": ["Entry"], "gameobject_loot_template": ["Entry"], "npc_vendor": ["entry"],
         "spell_script_names": ["spell_id", "ScriptName"], "spell_target_position": ["ID", "EffectIndex"],
+        "vehicle_template_accessory": ["entry"], "npc_spellclick_spells": ["npc_entry"],
         "creature_default_trainer": ["CreatureId"], "creature_equip_template": ["CreatureID"], "game_graveyard": ["ID"], "graveyard_zone": ["ID", "GhostZone"],
         "areatrigger": ["entry"], "areatrigger_involvedrelation": ["id"], "areatrigger_scripts": ["entry"],
         "spell_area": ["spell", "area"]}
@@ -910,7 +913,7 @@ def main():
         sys.exit(__doc__)
     cache, stock_dir, dbd, listfile_path, core, converter_src = sys.argv[1:]
     b = WorldBuilder(cache, stock_dir, dbd, listfile_path, converter_src)
-    b.listfile_path = listfile_path
+    b.listfile_path, b.core = listfile_path, core
     b.maps()
     b.areas()
     b.lights()
@@ -926,6 +929,7 @@ def main():
     b.wmo_areas(wmo_ids)
     b.out.write(core)
     write_world(b)
+    b.write_ids_header(PHASES)
     with open(os.path.join(OUT, "files.tsv"), "w", newline="\n") as f:
         f.write("# The game's files the starting areas need (tools/zones/build_world.py): Cataclysm Classic's\n"
                 f"# file id at {common.BUILD}, the path it's put in the game at, and what it is\n")

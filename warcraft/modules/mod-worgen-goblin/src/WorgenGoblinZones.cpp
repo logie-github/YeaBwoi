@@ -16,6 +16,7 @@
  *    spell's place (spell_target_position).
  */
 
+#include "WorgenGoblinZonesIds.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "SpellInfo.h"
@@ -24,9 +25,8 @@
 
 namespace
 {
-    constexpr uint32 ENTRY = 6000000;                     // (tools/zones/build_world.py: Cataclysm's ids from here)
-    constexpr uint32 QUEST_LAST_STAND = ENTRY + 14222;
-    constexpr uint32 QUEST_LEADER_OF_THE_PACK = ENTRY + 14386;
+    constexpr uint32 QUEST_LAST_STAND = WorgenGoblinZones::Id(14222);
+    constexpr uint32 QUEST_LEADER_OF_THE_PACK = WorgenGoblinZones::Id(14386);
     constexpr uint32 MAP_GILNEAS = 654, MAP_GILNEAS_CITY = 638, MAP_GILNEAS_BROKEN = 655;
 
     enum class ZoneHook : int32

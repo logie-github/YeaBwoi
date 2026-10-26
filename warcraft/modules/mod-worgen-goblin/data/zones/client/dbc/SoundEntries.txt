@@ -30,71 +30,75 @@ put	17916	50	Cataclysm17916	amb_industrialmining_day01.ogg										1	0	0	0	0	0	
 put	17917	50	Cataclysm17917	amb_industrialmining_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
 put	17918	50	Cataclysm17918	amb_jungleoasis_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
 put	17919	50	Cataclysm17919	amb_jungleoasis_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	528	8.0	45.0	0	0
-put	18020	1	Cataclysm7	blizzardimpact1a.ogg	blizzardimpact1b.ogg	blizzardimpact1c.ogg	blizzardimpact1d.ogg	blizzardimpact1e.ogg	blizzardimpact1f.ogg					1	1	1	1	1	1	0	0	0	0	sound\\spells	0.60000002384	4096	8.0	45.0	2	0
+put	18020	2	Cataclysm13836	vehiclemount.ogg										1	0	0	0	0	0	0	0	0	0	sound\\vehicles	0.40000000596	4096	8.0	45.0	0	0
 put	18021	50	Cataclysm18021	amb_forestblackwald.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
-put	18022	10	Cataclysm18064	hobgoblin_attack_01.ogg	hobgoblin_attack_02.ogg	hobgoblin_attack_03.ogg	hobgoblin_attack_04.ogg	hobgoblin_attack_05.ogg	hobgoblin_attack_06.ogg	hobgoblin_attack_07.ogg	hobgoblin_attack_08.ogg	hobgoblin_attack_09.ogg	hobgoblin_attack_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18023	10	Cataclysm18065	hobgoblin_attackcrit_01.ogg	hobgoblin_attackcrit_02.ogg	hobgoblin_attackcrit_03.ogg	hobgoblin_attackcrit_04.ogg	hobgoblin_attackcrit_05.ogg	hobgoblin_attackcrit_06.ogg	hobgoblin_attackcrit_07.ogg				1	1	1	1	1	1	1	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18024	10	Cataclysm18068	hobgoblin_wound_01.ogg	hobgoblin_wound_02.ogg	hobgoblin_wound_03.ogg	hobgoblin_wound_04.ogg	hobgoblin_wound_05.ogg	hobgoblin_wound_06.ogg	hobgoblin_wound_07.ogg	hobgoblin_wound_08.ogg	hobgoblin_wound_09.ogg		1	1	1	1	1	1	1	1	1	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18025	10	Cataclysm18069	hobgoblin_woundcrit_01.ogg	hobgoblin_woundcrit_02.ogg	hobgoblin_woundcrit_03.ogg	hobgoblin_woundcrit_04.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18026	10	Cataclysm18066	hobgoblin_death_01.ogg	hobgoblin_death_02.ogg	hobgoblin_death_03.ogg	hobgoblin_death_04.ogg	hobgoblin_death_05.ogg						1	1	1	1	1	0	0	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18027	10	Cataclysm18063	hobgoblin_aggro_01.ogg	hobgoblin_aggro_02.ogg	hobgoblin_aggro_03.ogg	hobgoblin_aggro_04.ogg	hobgoblin_aggro_05.ogg	hobgoblin_aggro_06.ogg	hobgoblin_aggro_07.ogg	hobgoblin_aggro_08.ogg	hobgoblin_aggro_09.ogg	hobgoblin_aggro_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18028	10	Cataclysm18067	hobgoblin_preaggro_01.ogg	hobgoblin_preaggro_02.ogg	hobgoblin_preaggro_03.ogg	hobgoblin_preaggro_04.ogg	hobgoblin_preaggro_05.ogg	hobgoblin_preaggro_06.ogg					1	1	1	1	1	1	0	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
-put	18029	4	Cataclysm137	m2hswordhitmetalshield1a.ogg	m2hswordhitmetalshield1b.ogg	m2hswordhitmetalshield1c.ogg								1	1	1	0	0	0	0	0	0	0	sound\\item\\weapons\\sword2h	0.75	4096	8.0	45.0	2	0
-put	18030	10	Cataclysm1459	seaturtleattacka.ogg	seaturtleattackb.ogg	seaturtleattackc.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
-put	18031	10	Cataclysm1460	seaturtlewounda.ogg	seaturtlewoundb.ogg	seaturtlewoundc.ogg	seaturtlewoundd.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
-put	18032	10	Cataclysm1461	seaturtlewoundcrita.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
-put	18033	10	Cataclysm1462	seaturtledeatha.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
-put	18034	10	Cataclysm1464	seaturtleaggroa.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
-put	18035	10	Cataclysm1463	seaturtlepreaggro.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
-put	18036	10	Cataclysm7374	bitemediuma.ogg	bitemediumc.ogg	bitemediumb.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\wolf	0.69999998808	4096	8.0	45.0	0	0
-put	18037	28	CataclysmMovie22	goblin.mp3										1	0	0	0	0	0	0	0	0	0	interface\\cinematics	1.0	0	8.0	45.0	0	0
-put	18038	28	CataclysmMovie21	worgen.mp3										1	0	0	0	0	0	0	0	0	0	interface\\cinematics	1.0	0	8.0	45.0	0	0
-put	18039	10	Cataclysm7056	avatarofhakarattacka.ogg	avatarofhakarattackb.ogg	avatarofhakarattackc.ogg	avatarofhakarattackd.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\avatarofhakar	1.0	4096	12.0	50.0	0	0
-put	18040	10	Cataclysm1167	bansheeattacka.ogg	bansheeattackb.ogg	bansheeattackc.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\banshee	0.68999999762	4096	8.0	45.0	2	0
-put	18041	10	Cataclysm13824	valkierwound1.ogg	valkierwound2.ogg	valkierwound3.ogg	valkierwound4.ogg	valkierwound5.ogg	valkierwound6.ogg	valkierwound7.ogg	valkierwound8.ogg	valkierwound9.ogg	valkierwound10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\valkier	0.80000001192	4096	8.0	45.0	0	0
-put	18042	10	Cataclysm13825	valkierwoundcrit1.ogg	valkierwoundcrit2.ogg	valkierwoundcrit3.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\valkier	0.80000001192	4096	8.0	45.0	0	0
-put	18043	10	Cataclysm1168	bansheeaggroa.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\banshee	0.68999999762	4096	8.0	45.0	2	0
-put	18044	10	Cataclysm15633	sf_balargarde_event01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18045	10	Cataclysm15634	sf_balargarde_event02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18046	10	Cataclysm15635	sf_balargarde_event03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18047	10	Cataclysm15636	sf_balargarde_event04.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18048	10	Cataclysm15637	sf_balargarde_event05.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18049	10	Cataclysm15638	sf_balargarde_event06.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18050	10	Cataclysm15639	sf_balargarde_event07.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
-put	18051	10	Cataclysm15643	sf_vardmadra_event01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
-put	18052	10	Cataclysm15644	sf_vardmadra_event02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
-put	18053	10	Cataclysm15645	sf_vardmadra_event03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
-put	18054	10	Cataclysm15646	sf_vardmadra_event04.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
-put	18055	10	Cataclysm15600	sf_lich king_event01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
-put	18056	10	Cataclysm15601	sf_lich king_event02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18022	2	Cataclysm13834	vehicledismount.ogg										1	0	0	0	0	0	0	0	0	0	sound\\vehicles	0.40000000596	4096	8.0	45.0	0	0
+put	18023	1	Cataclysm7	blizzardimpact1a.ogg	blizzardimpact1b.ogg	blizzardimpact1c.ogg	blizzardimpact1d.ogg	blizzardimpact1e.ogg	blizzardimpact1f.ogg					1	1	1	1	1	1	0	0	0	0	sound\\spells	0.60000002384	4096	8.0	45.0	2	0
+put	18024	10	Cataclysm18064	hobgoblin_attack_01.ogg	hobgoblin_attack_02.ogg	hobgoblin_attack_03.ogg	hobgoblin_attack_04.ogg	hobgoblin_attack_05.ogg	hobgoblin_attack_06.ogg	hobgoblin_attack_07.ogg	hobgoblin_attack_08.ogg	hobgoblin_attack_09.ogg	hobgoblin_attack_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18025	10	Cataclysm18065	hobgoblin_attackcrit_01.ogg	hobgoblin_attackcrit_02.ogg	hobgoblin_attackcrit_03.ogg	hobgoblin_attackcrit_04.ogg	hobgoblin_attackcrit_05.ogg	hobgoblin_attackcrit_06.ogg	hobgoblin_attackcrit_07.ogg				1	1	1	1	1	1	1	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18026	10	Cataclysm18068	hobgoblin_wound_01.ogg	hobgoblin_wound_02.ogg	hobgoblin_wound_03.ogg	hobgoblin_wound_04.ogg	hobgoblin_wound_05.ogg	hobgoblin_wound_06.ogg	hobgoblin_wound_07.ogg	hobgoblin_wound_08.ogg	hobgoblin_wound_09.ogg		1	1	1	1	1	1	1	1	1	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18027	10	Cataclysm18069	hobgoblin_woundcrit_01.ogg	hobgoblin_woundcrit_02.ogg	hobgoblin_woundcrit_03.ogg	hobgoblin_woundcrit_04.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18028	10	Cataclysm18066	hobgoblin_death_01.ogg	hobgoblin_death_02.ogg	hobgoblin_death_03.ogg	hobgoblin_death_04.ogg	hobgoblin_death_05.ogg						1	1	1	1	1	0	0	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18029	10	Cataclysm18063	hobgoblin_aggro_01.ogg	hobgoblin_aggro_02.ogg	hobgoblin_aggro_03.ogg	hobgoblin_aggro_04.ogg	hobgoblin_aggro_05.ogg	hobgoblin_aggro_06.ogg	hobgoblin_aggro_07.ogg	hobgoblin_aggro_08.ogg	hobgoblin_aggro_09.ogg	hobgoblin_aggro_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18030	10	Cataclysm18067	hobgoblin_preaggro_01.ogg	hobgoblin_preaggro_02.ogg	hobgoblin_preaggro_03.ogg	hobgoblin_preaggro_04.ogg	hobgoblin_preaggro_05.ogg	hobgoblin_preaggro_06.ogg					1	1	1	1	1	1	0	0	0	0	sound\\creature\\hobgoblin	0.60000002384	0	8.0	45.0	0	0
+put	18031	4	Cataclysm137	m2hswordhitmetalshield1a.ogg	m2hswordhitmetalshield1b.ogg	m2hswordhitmetalshield1c.ogg								1	1	1	0	0	0	0	0	0	0	sound\\item\\weapons\\sword2h	0.75	4096	8.0	45.0	2	0
+put	18032	10	Cataclysm1459	seaturtleattacka.ogg	seaturtleattackb.ogg	seaturtleattackc.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
+put	18033	10	Cataclysm1460	seaturtlewounda.ogg	seaturtlewoundb.ogg	seaturtlewoundc.ogg	seaturtlewoundd.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
+put	18034	10	Cataclysm1461	seaturtlewoundcrita.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
+put	18035	10	Cataclysm1462	seaturtledeatha.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
+put	18036	10	Cataclysm1464	seaturtleaggroa.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
+put	18037	10	Cataclysm1463	seaturtlepreaggro.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\seaturtle	0.68999999762	4096	8.0	45.0	2	0
+put	18038	10	Cataclysm7374	bitemediuma.ogg	bitemediumc.ogg	bitemediumb.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\wolf	0.69999998808	4096	8.0	45.0	0	0
+put	18039	28	CataclysmMovie22	goblin.mp3										1	0	0	0	0	0	0	0	0	0	interface\\cinematics	1.0	0	8.0	45.0	0	0
+put	18040	28	CataclysmMovie21	worgen.mp3										1	0	0	0	0	0	0	0	0	0	interface\\cinematics	1.0	0	8.0	45.0	0	0
+put	18041	2	Cataclysm13837	vehiclemount_organic.ogg										1	0	0	0	0	0	0	0	0	0	sound\\vehicles	0.40000000596	4096	8.0	45.0	0	0
+put	18042	2	Cataclysm13835	vehicledismount_organic.ogg										1	0	0	0	0	0	0	0	0	0	sound\\vehicles	0.40000000596	4096	8.0	45.0	0	0
+put	18043	10	Cataclysm7056	avatarofhakarattacka.ogg	avatarofhakarattackb.ogg	avatarofhakarattackc.ogg	avatarofhakarattackd.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\avatarofhakar	1.0	4096	12.0	50.0	0	0
+put	18044	10	Cataclysm1167	bansheeattacka.ogg	bansheeattackb.ogg	bansheeattackc.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\banshee	0.68999999762	4096	8.0	45.0	2	0
+put	18045	10	Cataclysm13824	valkierwound1.ogg	valkierwound2.ogg	valkierwound3.ogg	valkierwound4.ogg	valkierwound5.ogg	valkierwound6.ogg	valkierwound7.ogg	valkierwound8.ogg	valkierwound9.ogg	valkierwound10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\valkier	0.80000001192	4096	8.0	45.0	0	0
+put	18046	10	Cataclysm13825	valkierwoundcrit1.ogg	valkierwoundcrit2.ogg	valkierwoundcrit3.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\valkier	0.80000001192	4096	8.0	45.0	0	0
+put	18047	10	Cataclysm1168	bansheeaggroa.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\banshee	0.68999999762	4096	8.0	45.0	2	0
+put	18048	10	Cataclysm15633	sf_balargarde_event01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18049	10	Cataclysm15634	sf_balargarde_event02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18050	10	Cataclysm15635	sf_balargarde_event03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18051	10	Cataclysm15636	sf_balargarde_event04.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18052	10	Cataclysm15637	sf_balargarde_event05.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18053	10	Cataclysm15638	sf_balargarde_event06.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18054	10	Cataclysm15639	sf_balargarde_event07.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\overthanebalargarde	0.80000001192	4096	100.0	100.0	0	0
+put	18055	10	Cataclysm15643	sf_vardmadra_event01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
+put	18056	10	Cataclysm15644	sf_vardmadra_event02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
 put	18057	10	Cataclysm18057	cataclysmcrocodile_aggro_01.ogg	cataclysmcrocodile_aggro_02.ogg	cataclysmcrocodile_aggro_03.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\cataclysmcrocodile	0.60000002384	0	8.0	45.0	0	0
 put	18058	10	Cataclysm18058	cataclysmcrocodile_attacks_01.ogg	cataclysmcrocodile_attacks_02.ogg	cataclysmcrocodile_attacks_03.ogg	cataclysmcrocodile_attacks_04.ogg	cataclysmcrocodile_attacks_05.ogg	cataclysmcrocodile_attacks_06.ogg					1	1	1	1	1	1	0	0	0	0	sound\\creature\\cataclysmcrocodile	0.40000000596	0	8.0	45.0	0	0
 put	18059	10	Cataclysm18059	cataclysmcrocodile_death_01.ogg	cataclysmcrocodile_death_02.ogg	cataclysmcrocodile_death_03.ogg	cataclysmcrocodile_death_04.ogg	cataclysmcrocodile_death_05.ogg	cataclysmcrocodile_death_06.ogg					1	1	1	1	1	1	0	0	0	0	sound\\creature\\cataclysmcrocodile	0.5	0	8.0	45.0	0	0
 put	18060	10	Cataclysm18060	cataclysmcrocodile_preaggro_01.ogg	cataclysmcrocodile_preaggro_02.ogg	cataclysmcrocodile_preaggro_03.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\cataclysmcrocodile	0.80000001192	0	8.0	45.0	0	0
 put	18061	10	Cataclysm18061	cataclysmcrocodile_wound_01.ogg	cataclysmcrocodile_wound_02.ogg	cataclysmcrocodile_wound_03.ogg	cataclysmcrocodile_wound_04.ogg	cataclysmcrocodile_wound_05.ogg						1	1	1	1	1	0	0	0	0	0	sound\\creature\\cataclysmcrocodile	0.5	0	8.0	45.0	0	0
 put	18062	10	Cataclysm18062	cataclysmcrocodile_woundcrit_01.ogg	cataclysmcrocodile_woundcrit_02.ogg	cataclysmcrocodile_woundcrit_03.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\cataclysmcrocodile	0.5	0	8.0	45.0	0	0
-put	18070	10	Cataclysm15602	sf_lich king_event03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
-put	18071	10	Cataclysm15603	sf_lich king_event04.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
-put	18072	10	Cataclysm15604	sf_lich king_event05.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
-put	18073	10	Cataclysm15605	sf_lich king_event06.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
-put	18074	10	Cataclysm15606	sf_lich king_event07.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
-put	18075	1	Cataclysm14998	arena_crowdwalla_horde.ogg										1	0	0	0	0	0	0	0	0	0	sound\\events	1.0	4096	100.0	200.0	0	0
-put	18076	1	Cataclysm4121	mtigerattacka.ogg	mtigerattackb.ogg	mtigerattackc.ogg	mtigerattackd.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\tiger	0.80000001192	4096	8.0	45.0	0	0
-put	18077	10	Cataclysm1343	orcwarriormale1woundcrit.ogg										1	0	0	0	0	0	0	0	0	0	sound\\character\\orc\\orcmalenpc\\orcmalenpc1	0.68999999762	4096	8.0	45.0	2	0
-put	18078	1	Cataclysm6820	chickenwounda.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\chicken	0.80000001192	4096	8.0	45.0	0	0
-put	18079	10	Cataclysm2304	totemmonsterlurewounda.ogg	totemmonsterlurewoundb.ogg	totemmonsterlurewoundc.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\totemall	0.68999999762	4096	8.0	45.0	2	0
-put	18080	10	Cataclysm15136	facelessone_attack1.ogg	facelessone_attack2.ogg	facelessone_attack3.ogg	facelessone_attack4.ogg	facelessone_attack5.ogg	facelessone_attack6.ogg	facelessone_attack7.ogg	facelessone_attack8.ogg	facelessone_attack9.ogg	facelessone_attack10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\facelessone	0.80000001192	4096	8.0	45.0	0	0
-put	18081	10	Cataclysm15140	facelessone_aggro.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\facelessone	0.80000001192	4096	8.0	45.0	0	0
-put	18082	10	Cataclysm15139	facelessone_preaggro.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\facelessone	0.80000001192	4096	8.0	45.0	0	0
-put	18083	50	Cataclysm4214	largeroomtonenew.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	1.0	4624	8.0	45.0	0	0
-put	18084	50	Cataclysm4168	dungeoncatheadral.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	8.0	45.0	0	0
-put	18085	50	Cataclysm4195	largeroomtone.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
-put	18086	50	Cataclysm4182	minestandarddungeon.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
-put	18087	50	Cataclysm9017	cavesmallwarm02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	7.0	30.0	0	0
+put	18070	10	Cataclysm15645	sf_vardmadra_event03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
+put	18071	10	Cataclysm15646	sf_vardmadra_event04.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\possessedvardmadra	0.80000001192	4096	100.0	100.0	0	0
+put	18072	10	Cataclysm15600	sf_lich king_event01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18073	10	Cataclysm15601	sf_lich king_event02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18074	10	Cataclysm15602	sf_lich king_event03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18075	10	Cataclysm15603	sf_lich king_event04.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18076	10	Cataclysm15604	sf_lich king_event05.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18077	10	Cataclysm15605	sf_lich king_event06.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18078	10	Cataclysm15606	sf_lich king_event07.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\lichking	0.80000001192	4096	100.0	100.0	0	0
+put	18079	1	Cataclysm14998	arena_crowdwalla_horde.ogg										1	0	0	0	0	0	0	0	0	0	sound\\events	1.0	4096	100.0	200.0	0	0
+put	18080	1	Cataclysm4121	mtigerattacka.ogg	mtigerattackb.ogg	mtigerattackc.ogg	mtigerattackd.ogg							1	1	1	1	0	0	0	0	0	0	sound\\creature\\tiger	0.80000001192	4096	8.0	45.0	0	0
+put	18081	10	Cataclysm1343	orcwarriormale1woundcrit.ogg										1	0	0	0	0	0	0	0	0	0	sound\\character\\orc\\orcmalenpc\\orcmalenpc1	0.68999999762	4096	8.0	45.0	2	0
+put	18082	1	Cataclysm6820	chickenwounda.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\chicken	0.80000001192	4096	8.0	45.0	0	0
+put	18083	10	Cataclysm2304	totemmonsterlurewounda.ogg	totemmonsterlurewoundb.ogg	totemmonsterlurewoundc.ogg								1	1	1	0	0	0	0	0	0	0	sound\\creature\\totemall	0.68999999762	4096	8.0	45.0	2	0
+put	18084	10	Cataclysm15136	facelessone_attack1.ogg	facelessone_attack2.ogg	facelessone_attack3.ogg	facelessone_attack4.ogg	facelessone_attack5.ogg	facelessone_attack6.ogg	facelessone_attack7.ogg	facelessone_attack8.ogg	facelessone_attack9.ogg	facelessone_attack10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\facelessone	0.80000001192	4096	8.0	45.0	0	0
+put	18085	10	Cataclysm15140	facelessone_aggro.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\facelessone	0.80000001192	4096	8.0	45.0	0	0
+put	18086	10	Cataclysm15139	facelessone_preaggro.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\facelessone	0.80000001192	4096	8.0	45.0	0	0
+put	18087	50	Cataclysm4214	largeroomtonenew.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	1.0	4624	8.0	45.0	0	0
 put	18088	50	Cataclysm18088	amb_plainsrainy_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
 put	18089	50	Cataclysm18089	amb_plainsrainy_night01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.89999997616	512	8.0	45.0	0	0
-put	18090	50	Cataclysm9004	minestandard02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
-put	18091	50	Cataclysm9023	cavevolcanic.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	7.0	30.0	0	0
+put	18090	50	Cataclysm4168	dungeoncatheadral.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	8.0	45.0	0	0
+put	18091	50	Cataclysm4195	largeroomtone.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
+put	18092	50	Cataclysm4182	minestandarddungeon.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
+put	18093	50	Cataclysm9017	cavesmallwarm02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	7.0	30.0	0	0
+put	18094	50	Cataclysm9004	minestandard02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4112	8.0	45.0	0	0
+put	18095	50	Cataclysm9023	cavevolcanic.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\wmoambience	0.68999999762	4096	7.0	30.0	0	0
 put	18126	50	Cataclysm18126	amb_industrialdocks_day01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\ambience\\zoneambience	0.79000002146	528	8.0	45.0	0	0
 put	18135	10	Cataclysm18135	mistfox_aggro_01.ogg	mistfox_aggro_02.ogg	mistfox_aggro_03.ogg	mistfox_aggro_04.ogg	mistfox_aggro_05.ogg	mistfox_aggro_06.ogg	mistfox_aggro_07.ogg	mistfox_aggro_08.ogg	mistfox_aggro_09.ogg	mistfox_aggro_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\mistfox	0.80000001192	0	8.0	45.0	0	0
 put	18136	10	Cataclysm18136	mistfox_attack_01.ogg	mistfox_attack_02.ogg	mistfox_attack_03.ogg	mistfox_attack_04.ogg	mistfox_attack_05.ogg	mistfox_attack_06.ogg	mistfox_attack_07.ogg	mistfox_attack_08.ogg	mistfox_attack_09.ogg	mistfox_attack_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\mistfox	0.80000001192	0	8.0	45.0	0	0
@@ -233,6 +237,8 @@ put	19498	10	Cataclysm19498	vo_gi_crowley_attackcrit01.ogg	vo_gi_crowley_attackc
 put	19499	10	Cataclysm19499	vo_gi_crowley_battle01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.85000002384	0	100.0	120.0	0	0
 put	19500	10	Cataclysm19500	vo_gi_crowley_battle02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	120.0	155.0	0	0
 put	19501	17	Cataclysm19501	vo_gi_crowley_greeting01.ogg	vo_gi_crowley_greetingwor01.ogg									1	1	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	8.0	45.0	0	0
+put	19505	10	Cataclysm19505	vo_gi_crowley_horse03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	8.0	45.0	0	0
+put	19506	10	Cataclysm19506	vo_gi_crowley_horsestart01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	8.0	45.0	0	0
 put	19507	10	Cataclysm19507	vo_gi_crowley_sacrifices01.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	8.0	45.0	0	0
 put	19508	10	Cataclysm19508	vo_gi_crowley_sacrifices02.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	8.0	45.0	0	0
 put	19509	10	Cataclysm19509	vo_gi_crowley_sacrifices03.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\crowley	0.80000001192	0	8.0	45.0	0	0
@@ -368,6 +374,7 @@ put	22452	10	Cataclysm22452	worgenfemale_wound_01.ogg	worgenfemale_wound_02.ogg	
 put	22453	10	Cataclysm22453	worgenfemale_woundcrit_01.ogg	worgenfemale_woundcrit_02.ogg	worgenfemale_woundcrit_03.ogg	worgenfemale_woundcrit_04.ogg	worgenfemale_woundcrit_05.ogg	worgenfemale_woundcrit_06.ogg					1	1	1	1	1	1	0	0	0	0	sound\\creature\\worgenfemale	0.60000002384	0	8.0	45.0	0	0
 put	22454	10	Cataclysm22454	worgenmale_battleroar_01.ogg	worgenmale_battleroar_02.ogg	worgenmale_battleroar_03.ogg	worgenmale_battleroar_04.ogg	worgenmale_battleroar_05.ogg						1	1	1	1	1	0	0	0	0	0	sound\\creature\\worgenmale	0.80000001192	0	8.0	45.0	0	0
 put	22455	10	Cataclysm22455	worgenmale_death_01.ogg	worgenmale_death_02.ogg	worgenmale_death_03.ogg	worgenmale_death_04.ogg	worgenmale_death_05.ogg	worgenmale_death_06.ogg	worgenmale_death_07.ogg	worgenmale_death_08.ogg	worgenmale_death_09.ogg	worgenmale_death_10.ogg	1	1	1	1	1	1	1	1	1	1	sound\\creature\\worgenmale	0.80000001192	0	8.0	45.0	0	0
+put	22491	1	Cataclysm22491	goblinhotrod_horn.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\goblinhotrod	0.80000001192	0	8.0	45.0	0	0
 put	22513	10	Cataclysm22513	vo_qe_dt_thrall_lievent08.ogg										1	0	0	0	0	0	0	0	0	0	sound\\creature\\thrall	0.80000001192	0	15.0	45.0	0	0
 put	22543	28	Cataclysm22543	mus_goblin_uu04.mp3										1	0	0	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
 put	22544	28	Cataclysm22544	mus_goblin_uu19.mp3	mus_goblin_uu34.mp3	mus_goblin_uu47.mp3								1	1	1	0	0	0	0	0	0	0	sound\\music\\cataclysm	0.68999999762	0	8.0	45.0	0	0
