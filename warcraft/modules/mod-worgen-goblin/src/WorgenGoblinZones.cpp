@@ -14,8 +14,10 @@
  *    movie (its narration: Cataclysm Classic's game has the Worgen's and Goblins' movies' sound, not
  *    their pictures), the phases updated (the area's phase auras, spell_area), a teleport to the
  *    spell's place (spell_target_position).
- *  - Cataclysm's quests whose objective is a spell cast on a creature (its class quests: Charge on a
- *    training dummy): 3.3.5a's quests haven't the kind, so the cast on it counts as a kill would.
+ *  - Cataclysm's quests whose objective is casting a spell (its class quests: Charge on a training
+ *    dummy): 3.3.5a's quests haven't the kind, so the cast counts as a kill of the quest's credit
+ *    creature would. A spell the class hasn't at level 1 in 3.3.5a has its starting one in its place
+ *    (tools/zones/quests.py, STAND_INS).
  */
 
 #include "WorgenGoblinZonesIds.h"
@@ -74,17 +76,13 @@ public:
     WorgenGoblinZonesPlayer() : PlayerScript("WorgenGoblinZonesPlayer", { PLAYERHOOK_ON_BEFORE_TELEPORT, PLAYERHOOK_ON_LOGIN,
         PLAYERHOOK_ON_SPELL_CAST }) { }
 
-    // A quest whose objective is a spell cast on a creature (Cataclysm's class quests: CAST_CREDITS):
-    // the cast on one counts, as 3.3.5a counts a kill.
+    // A quest whose objective is casting a spell (Cataclysm's class quests: CAST_CREDITS): the cast
+    // counts as a kill of the quest's credit creature ("Spell Practice Credit") would.
     void OnPlayerSpellCast(Player* player, Spell* spell, bool /*skipCheck*/) override
     {
-        Unit* target = spell->m_targets.GetUnitTarget();
-        if (!target || !target->IsCreature())
-            return;
         for (WorgenGoblinZones::CastCredit const& credit : WorgenGoblinZones::CAST_CREDITS)
-            if (credit.spell == spell->GetSpellInfo()->Id && credit.creature == target->GetEntry()
-                && player->GetQuestStatus(credit.quest) == QUEST_STATUS_INCOMPLETE)
-                player->KilledMonsterCredit(credit.creature, target->GetGUID());
+            if (credit.spell == spell->GetSpellInfo()->Id && player->GetQuestStatus(credit.quest) == QUEST_STATUS_INCOMPLETE)
+                player->KilledMonsterCredit(credit.creature);
     }
 
     // Onto Gilneas: onto the player's own map of it.

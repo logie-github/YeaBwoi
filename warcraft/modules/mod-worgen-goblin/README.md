@@ -183,9 +183,14 @@ and quests are in. So far:
   Cataclysm's spell effects 3.3.5a hasn't (`tools/zones/spells.py`, made dummies, each answered by
   its script in `spell_script_names`): the phases updated, the teleports with their places
   (`spell_target_position`), the two movies as their narration (Cataclysm Classic's game has the
-  Worgen's and Goblins' movies' sound, not their pictures); and the quests whose objective is a
-  spell cast on a creature (the class quests' "practise on the training dummy": `CAST_CREDITS` in
+  Worgen's and Goblins' movies' sound, not their pictures); and the quests whose objective is
+  casting a spell (the 14 class quests' "practise on the training dummy": `CAST_CREDITS` in
   `src/WorgenGoblinZonesIds.h`), which 3.3.5a's quests haven't: the cast counts as a kill would.
+  Where Cataclysm's spell is one a 3.3.5a character of the class hasn't at level 1, the class's
+  starting spell takes its place, in the quest's texts too (`STAND_INS` in `tools/zones/quests.py`):
+  Charge → Heroic Strike, Steady Shot → Auto Shot, Flash Heal → Lesser Heal, Arcane Missiles →
+  Fireball, Rejuvenation → Healing Touch, Immolate → Shadow Bolt, Primal Strike → Lightning Bolt
+  (Eviscerate as it is).
 
 Next: the generic spell scripts CPP's Gilneas uses (Darkflight, Two Forms, Throw Torch and four
 more), what CPP lacks (Gilneas's last chapter, Kezan and the Lost Isles), and the way into Wrath's

@@ -11,4 +11,3 @@ put	4383	interface\\icons\\inv_weapon_shortblade_21
 put	4384	interface\\icons\\ability_racial_darkflight
 put	4385	interface\\icons\\inv_tradeskillitem_01
 put	4386	interface\\icons\\inv_sword_24
-put	4387	interface\\icons\\spell_shaman_primalstrike

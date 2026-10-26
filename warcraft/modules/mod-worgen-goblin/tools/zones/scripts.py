@@ -10,6 +10,7 @@ import re
 import db
 
 from build_tables import MODULE, game_path
+from quests import STAND_INS
 
 SOURCES = os.path.join(MODULE, "src")
 # The module's files with the starting areas' scripts.
@@ -120,14 +121,17 @@ class ScriptsMixin:
         return our
 
     def cast_credits(self):
-        """The quests whose objective is a spell cast on a creature (Cataclysm's class quests: Charge
-        on a training dummy). 3.3.5a's quests haven't the kind: the module's code counts them.
-        [(quest, creature, spell)], the realm's ids."""
+        """The quests whose objective is casting a spell (Cataclysm's class quests: Charge on a
+        training dummy, a heal on a wounded guard; the objective's creature is the credit's, "Spell
+        Practice Credit"). 3.3.5a's quests haven't the kind: the module's code counts the cast.
+        [(quest, credit creature, spell)], the realm's ids; a spell 3.3.5a's class hasn't at the start,
+        its stand-in (quests.STAND_INS)."""
         rows = db.rows(db.CPP_DB, f"SELECT ID, RequiredSpell, RequiredNpcOrGo1 FROM quest_template "
                                   f"WHERE ID IN ({db.ids_in(self.quests_seen)}) AND RequiredSpell > 0 AND RequiredNpcOrGo1 > 0")
         out = []
         for r in rows:
-            spell = self.spell(r["RequiredSpell"])
+            stand_in = STAND_INS.get(int(r["RequiredSpell"]))
+            spell = stand_in[0] if stand_in else self.spell(r["RequiredSpell"])
             if spell:
                 self.need_creature(r["RequiredNpcOrGo1"])
                 out.append((self.ENTRY + int(r["ID"]), self.creature_entry(r["RequiredNpcOrGo1"]), spell))
@@ -179,7 +183,7 @@ class ScriptsMixin:
             "        }",
             "    }",
             "",
-            "    // A quest whose objective is a spell cast on a creature (WorgenGoblinZones.cpp counts them).",
+            "    // A quest whose objective is casting a spell (WorgenGoblinZones.cpp counts the casts).",
             "    struct CastCredit { uint32 quest, creature, spell; };",
             "    constexpr CastCredit CAST_CREDITS[] =",
             "    {",

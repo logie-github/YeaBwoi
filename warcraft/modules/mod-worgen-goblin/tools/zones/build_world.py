@@ -116,6 +116,7 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         self.creature_queue, self.creatures_seen, self.creatures_done = [], set(), set()
         self.equips = {}             # CPP's creature: its equipment ids
         self.spell_ids = {}          # Cataclysm's spell: the realm's (0: not in it)
+        self.renamed = {}            # a class quest: (its spell's name, its stand-in's: quests.STAND_INS)
         self.object_queue, self.objects_seen, self.objects_done = [], set(), set()
         self.quest_queue, self.quests_seen = [], set()
         self.paths_needed, self.actionlists_needed, self.actionlists_done, self.smart_done = set(), set(), set(), set()

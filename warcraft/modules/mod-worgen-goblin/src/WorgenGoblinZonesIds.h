@@ -394,7 +394,6 @@ namespace WorgenGoblinZones
             case 73852: return 73852;
             case 73871: return 73871;
             case 73892: return 73892;
-            case 73899: return 73899;
             case 73900: return 73900;
             case 73926: return 73926;
             case 73947: return 73947;
@@ -512,24 +511,24 @@ namespace WorgenGoblinZones
         }
     }
 
-    // A quest whose objective is a spell cast on a creature (WorgenGoblinZones.cpp counts them).
+    // A quest whose objective is casting a spell (WorgenGoblinZones.cpp counts the casts).
     struct CastCredit { uint32 quest, creature, spell; };
     constexpr CastCredit CAST_CREDITS[] =
     {
-        { 6014007, 6044175, 56641 },
-        { 6014008, 6044175, 5143 },
-        { 6014009, 6044175, 2061 },
+        { 6014007, 6044175, 75 },
+        { 6014008, 6044175, 133 },
+        { 6014009, 6044175, 2050 },
         { 6014010, 6044175, 2098 },
-        { 6014011, 6044175, 73899 },
-        { 6014012, 6044175, 348 },
-        { 6014013, 6044175, 100 },
-        { 6014266, 6044175, 100 },
+        { 6014011, 6044175, 403 },
+        { 6014012, 6044175, 686 },
+        { 6014013, 6044175, 78 },
+        { 6014266, 6044175, 78 },
         { 6014272, 6044175, 2098 },
-        { 6014274, 6044175, 348 },
-        { 6014276, 6044175, 56641 },
-        { 6014279, 6044175, 2061 },
-        { 6014281, 6044175, 5143 },
-        { 6014283, 6044175, 774 },
+        { 6014274, 6044175, 686 },
+        { 6014276, 6044175, 75 },
+        { 6014279, 6044175, 2050 },
+        { 6014281, 6044175, 133 },
+        { 6014283, 6044175, 5185 },
     };
 
     // A phase of Cataclysm's as its bit in the phase mask (0 for one the starting areas haven't).

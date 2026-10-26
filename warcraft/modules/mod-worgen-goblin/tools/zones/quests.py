@@ -8,6 +8,16 @@ import db
 # The zones' quests by their sort (zone): whose they are (3.3.5a's race bits: the Worgen 12, the Goblins 9).
 WORGEN, GOBLIN = 1 << 11, 1 << 8
 QUEST_ZONES = {4714: WORGEN, 4755: WORGEN, 4737: GOBLIN, 4720: GOBLIN}
+# The class quests' spells a 3.3.5a character hasn't at the start (Cataclysm's trainers taught them at
+# level 1; 3.3.5a's teach them later, or never: Primal Strike): the class's own starting spell in
+# their place, in the quest's texts too. Cataclysm's spell: (3.3.5a's, its name, the stand-in's).
+STAND_INS = {100: (78, "Charge", "Heroic Strike"), 56641: (75, "Steady Shot", "Auto Shot"),
+             2061: (2050, "Flash Heal", "Lesser Heal"), 5143: (133, "Arcane Missiles", "Fireball"),
+             774: (5185, "Rejuvenation", "Healing Touch"), 348: (686, "Immolate", "Shadow Bolt"),
+             73899: (403, "Primal Strike", "Lightning Bolt")}
+# What the quests say of a Cataclysm spell that is untrue of its stand-in (Arcane Missiles' proc), left out.
+STAND_IN_CUTS = ("$B$BRemember, Arcane Missiles have a chance to activate through the use of other offensive spells. "
+                 "Use your Fireball spell first on the Training Dummy to enable the casting of your Arcane Missiles spell.",)
 # SmartAI: what each parameter names, by event, action and target type (the same numbers in both
 # cores for every type these zones use; CPP's 114, move by an offset, is AzerothCore's 46, forward).
 EVENT_PARAMS = {8: {1: "spell"}, 19: {1: "quest"}, 20: {1: "quest"}, 40: {2: "path"}, 52: {2: "creature"},
@@ -23,6 +33,13 @@ TARGET_PARAMS = {9: {1: "creature"}, 10: {1: "guid", 2: "creature"}, 11: {1: "cr
 CONDITION_VALUES = {1: [(1, "spell")], 2: [(1, "item")], 5: [(1, "faction")], 8: [(1, "quest")], 9: [(1, "quest")],
                     14: [(1, "quest")], 28: [(1, "quest")], 43: [(1, "quest")], 47: [(1, "quest")], 29: [(1, "creature")],
                     30: [(1, "object")], 31: [(2, "creature")]}
+
+
+def stand_in_text(text, old, new):
+    """A class quest's text with its spell's stand-in (STAND_INS) named in its place."""
+    for cut in STAND_IN_CUTS:
+        text = text.replace(cut, "")
+    return text.replace(old, new)
 
 
 class QuestsMixin:
@@ -83,6 +100,12 @@ class QuestsMixin:
                 "ObjectiveText1", "ObjectiveText2", "ObjectiveText3", "ObjectiveText4"]
         for c in same:
             v[c] = t[c]
+        stand_in = STAND_INS.get(int(t["RequiredSpell"] or 0))
+        if stand_in:
+            self.renamed[qid] = stand_in[1:]
+            for c in same:
+                if isinstance(v[c], str):
+                    v[c] = stand_in_text(v[c], *stand_in[1:])
         v["ID"] = self.ENTRY + qid
         v["Flags"] = int(t["Flags"]) & 0x000FFFFF
         v["RewardMoneyDifficulty"] = 0
@@ -114,8 +137,8 @@ class QuestsMixin:
         v["AllowableRaces"] = self.races_of(int(t["QuestSortID"]), int(a.get("AllowableRaces", 0) or 0))
         v["Unknown0"] = 0
         v["VerifiedBuild"] = -15595
-        if int(t["RequiredSpell"] or 0):
-            self.drop("quest's required spell", qid)
+        if int(t["RequiredSpell"] or 0) and int(t["RequiredNpcOrGo1"] or 0) <= 0:
+            self.drop("quest's required spell", qid)     # (with a credit creature: the module's code, cast_credits)
         self.sql.add("quest_template", v)
         if a:
             self.sql.add("quest_template_addon", {
@@ -142,6 +165,9 @@ class QuestsMixin:
         for table in ("quest_offer_reward", "quest_request_items", "quest_details"):
             for r in db.rows(db.CPP_DB, f"SELECT * FROM {table} WHERE ID IN ({ids})"):
                 r = dict(r)
+                old, new = self.renamed.get(int(r["ID"]), (None, None))
+                if old:
+                    r = {k: stand_in_text(v, old, new) if isinstance(v, str) else v for k, v in r.items()}
                 r["ID"] = self.ENTRY + int(r["ID"])
                 self.sql.add(table, r)
         for r in db.rows(db.CPP_DB, f"SELECT * FROM quest_poi WHERE QuestID IN ({ids})"):
