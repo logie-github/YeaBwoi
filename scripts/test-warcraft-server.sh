@@ -392,6 +392,17 @@ EOF
 			fail "$name's racials and quests didn't work in the world (logs/allied-$file-world.out)"
 	done
 	echo "Their racials work in the world, their first quests are their own, and Rescue the Survivors! can be done."
+	# An undead paladin (Paladin for the Forsaken) at Deathknell's priest trainer: greeted as a
+	# priest, trained as a paladin.
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Lighttaker 5 2 \
+		"$ROOT/warcraft/server/allied_undead_paladin.steps" | tee "$FILES/logs/allied-undead-paladin.out" ||
+		fail "Deathknell's priest trainer didn't train the undead paladin as a paladin (logs/allied-undead-paladin.out)"
+	echo "An undead paladin trains at the priest trainers."
+	# It goes again: a realm keeps ten characters an account, and Wrath Remix's way home (below)
+	# needs room on ChromieCraft for the Timerunners it brings back.
+	echo "DELETE s, c FROM characters c LEFT JOIN character_skills s ON s.guid = c.guid WHERE c.name = 'Lighttaker'" | CTL sql acore_characters
+	[ "$(echo "SELECT COUNT(*) FROM characters WHERE name = 'Lighttaker'" | CTL sql acore_characters)" = 0 ] ||
+		fail "the undead paladin test character is still there"
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world

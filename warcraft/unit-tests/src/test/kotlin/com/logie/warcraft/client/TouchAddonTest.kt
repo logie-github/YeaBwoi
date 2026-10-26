@@ -565,10 +565,91 @@ class TouchAddonTest {
         assertEquals(3, settled().size)
     }
 
+    /** A frame of an add-on made for a PC (TomTom's arrow, Immersion's parts), placed as it places it. */
+    private fun pcFrame(name: String, vararg point: Any): LuaValue {
+        lua.load("""
+            local frame = CreateFrame("Frame", "$name")
+            frame.userPlaced = false
+            function frame:IsUserPlaced() return self.userPlaced end
+            function frame:SetClampedToScreen(clamped) self.clamped = clamped end
+            function frame:SetClampRectInsets(left, right, top, bottom) self.insets = { left, right, top, bottom } end
+            function frame:GetEffectiveScale() return self.scale or 1 end
+        """.trimIndent()).call()
+        val frame = lua.get(name)
+        frame.get("SetPoint").invoke(LuaValue.varargsOf(arrayOf(frame) + point.map {
+            if (it is Int) LuaValue.valueOf(it) else if (it is LuaValue) it else LuaValue.valueOf(it.toString())
+        }))
+        return frame
+    }
+
+    private fun points(frame: LuaValue): List<String> =
+        (1..frame.get("points").length()).map { frame.get("points").get(it).let { p -> if (p.istable()) "table" else p.tojstring() } }
+
+    @Test
+    fun tomTomsArrowGoesToTheTopOfTheScreenInTheMiddle() {
+        val arrow = pcFrame("TomTomCrazyArrow", "CENTER", 0, 0)
+        event("PLAYER_ENTERING_WORLD")
+        assertEquals(listOf("TOP", "table", "TOP", "0", "-36"), points(arrow))
+        assertEquals(lua.get("UIParent"), arrow.get("points").get(2))
+        assertTrue(arrow.get("clamped").toboolean(), "kept on the screen")
+        // Once: a later loading screen leaves it where it is (the player may have dragged it since).
+        arrow.get("SetPoint").invoke(LuaValue.varargsOf(arrayOf(arrow, LuaValue.valueOf("LEFT"), LuaValue.valueOf(10), LuaValue.valueOf(20))))
+        event("PLAYER_LEAVING_WORLD")
+        event("PLAYER_ENTERING_WORLD")
+        assertEquals(listOf("LEFT", "10", "20"), points(arrow))
+    }
+
+    @Test
+    fun tomTomsArrowStaysWhereThePlayerDraggedIt() {
+        val arrow = pcFrame("TomTomCrazyArrow", "TOPLEFT", 300, -200)
+        arrow.set("userPlaced", LuaValue.TRUE)
+        event("PLAYER_ENTERING_WORLD")
+        assertEquals(listOf("TOPLEFT", "300", "-200"), points(arrow))
+    }
+
+    @Test
+    fun immersionsChoicesAndTalkingBoxStayOnTheScreen() {
+        lua.load("ImmersionSetup = { titleoffset = 500 }").call()
+        val titles = pcFrame("ImmersionTitleButtons", "CENTER", "UIParent", "CENTER", 500, 0)
+        val talkBox = pcFrame("ImmersionTalkBox", "BOTTOM", 0, 150)
+        lua.load("ImmersionFrame = { TitleButtons = ImmersionTitleButtons, TalkBox = ImmersionTalkBox }").call()
+        event("ADDON_LOADED", "Immersion")
+        for (part in listOf(titles, talkBox)) {
+            assertTrue(part.get("clamped").toboolean(), "kept on the screen")
+            // 16 from its edges (the choices are wider than their list)
+            assertEquals(listOf(-16, 16, 16, -16), (1..4).map { part.get("insets").get(it).toint() })
+        }
+        // The choices, 500 right of the middle, come in to 16 from the edge of a screen 1024 wide
+        // (512 - 155 - 16), and Immersion keeps that place.
+        assertEquals(listOf("CENTER", "UIParent", "CENTER", "341", "0"), points(titles))
+        assertEquals(341, lua.get("ImmersionSetup").get("titleoffset").toint())
+    }
+
+    @Test
+    fun immersionsChoicesComeInEachTimeTheyShow() {
+        lua.load("ImmersionSetup = { titleoffset = -100 }").call()
+        val titles = pcFrame("ImmersionTitleButtons", "CENTER", "UIParent", "CENTER", -100, 20)
+        val talkBox = pcFrame("ImmersionTalkBox", "BOTTOM", 0, 150)
+        lua.load("ImmersionFrame = { TitleButtons = ImmersionTitleButtons, TalkBox = ImmersionTalkBox }").call()
+        event("PLAYER_ENTERING_WORLD")
+        // Already on the screen: left where it is.
+        assertEquals(listOf("CENTER", "UIParent", "CENTER", "-100", "20"), points(titles))
+        // Bigger (Immersion's scale), dragged to the left edge: the next time they show, in again.
+        titles.set("scale", LuaValue.valueOf(2))
+        titles.get("SetPoint").invoke(LuaValue.varargsOf(arrayOf(titles, LuaValue.valueOf("CENTER"),
+            lua.get("UIParent"), LuaValue.valueOf("CENTER"), LuaValue.valueOf(-300), LuaValue.valueOf(20))))
+        titles.get("hooks").get(1).call(titles)
+        // 1024 / 2 / 2 - 155 - 16
+        assertEquals(listOf("CENTER", "table", "CENTER", "-85", "20"), points(titles))
+        assertEquals(-85, lua.get("ImmersionSetup").get("titleoffset").toint())
+    }
+
     @Test
     fun theTocLoadsTheScriptForThisGame() {
         val toc = TouchAddon.files.getValue("WowTouch.toc")
         assertEquals(AddonLayout.INTERFACE, AddonLayout.tocFields(toc)["Interface"]?.trim())
         assertTrue(toc.lines().contains("WowTouch.lua"))
+        // After TomTom and Immersion, whose frames it fits to the screen.
+        assertEquals("TomTom, Immersion", AddonLayout.tocFields(toc)["OptionalDeps"]?.trim())
     }
 }

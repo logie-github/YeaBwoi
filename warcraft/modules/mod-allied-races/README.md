@@ -15,8 +15,13 @@ in their own models, looks and voices:
 starts at Deathknell, where their warriors do, with the Blood Elves' paladin gear and action bar
 (without the Blood Elves' racials); the paladin's skills and spells (Holy, Protection,
 Retribution, plate and the paladin's weapons) are open to the Forsaken in the client's tables and
-the server's. Paladin trainers are the Blood Elves': Undercity's Royal Quarter, Silvermoon,
-Orgrimmar.
+the server's. They train at the Blood Elves' paladin trainers (Undercity's Royal Quarter, Silvermoon,
+Orgrimmar) and at every priest trainer, who is a paladin trainer to them: the core gives an undead
+paladin the paladin class trainer whose spells suit them most (the Horde's) wherever a priest class
+trainer is asked for (`warcraft/patches/azerothcore/0011`: its gossip option, its list, buying a
+spell, unlearning talents), and `data/sql/chromiecraft/world/allied_races_priest_trainers.sql` gives
+the priest trainers' greeting and options (training, talents, dual specialization) to undead paladins
+as to priests (a second way through their class conditions), and their "I can't train you" not.
 
 (The classes are today's that 3.3.5 has: no monks, demon hunters or evokers.) Races 15 to 18 were
 the game's Skeleton, Vrykul, Tuskarr and Forest Troll, which only creatures use; in the game's

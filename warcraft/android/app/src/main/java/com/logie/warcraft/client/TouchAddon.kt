@@ -47,6 +47,12 @@ package com.logie.warcraft.client
  * for a while (no frame over a fifth of a second for a second and a half, two seconds in at least),
  * counted from the curtain or from entering the world, whichever came last. The realm lifts the
  * curtain then, and the act begins on a world that has finished appearing.
+ *
+ * Add-ons made for a PC's screen are fitted to the phone's: TomTom's arrow at the top of the screen,
+ * in the middle (TomTom's own place for it is the middle of the screen, over the character), unless
+ * the player has dragged it elsewhere; Immersion's quest and gossip choices and its talking box kept
+ * on the screen (its choices sit 500 right of the middle, past a phone screen's edge: they come in to
+ * 16 from it each time they show, and Immersion keeps that place).
  */
 object TouchAddon {
     const val FOLDER = "WowTouch"
@@ -59,9 +65,10 @@ object TouchAddon {
         "$FOLDER.toc" to """
             ## Interface: ${AddonLayout.INTERFACE}
             ## Title: WowTouch
-            ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix.
+            ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix; TomTom's arrow and Immersion's windows fitted to the phone's screen.
             ## Author: World of Warcraft app
-            ## Version: 7
+            ## Version: 9
+            ## OptionalDeps: TomTom, Immersion
             $FOLDER.lua
         """.trimIndent() + "\n",
         "$FOLDER.lua" to """
@@ -564,6 +571,55 @@ object TouchAddon {
                 frame.lasts = frame.at + seconds
             end
 
+            -- Add-ons made for a PC's screen, fitted to the phone's (they load before this one: the
+            -- .toc's OptionalDeps). TomTom's arrow goes to the top of the screen, in the middle:
+            -- TomTom puts it in the middle of the screen, over the character. Where the player has
+            -- dragged it, it stays (the game keeps that place, and the arrow is then user-placed).
+            -- Immersion's quest and gossip choices and its talking box stay on the screen, 16 from
+            -- its edges: Immersion puts the choices 500 to the right of the middle, which on a
+            -- phone's screen (narrower than a PC's, the interface bigger) is partly past its edge.
+            local ARROW_TOP, EDGE, CHOICE_WIDTH = -36, 16, 310
+
+            -- Immersion's choices sit at an offset from the middle of the screen (its setting
+            -- titleoffset, 500 at first; a drag sets it anew). Where that puts them past the edge,
+            -- they come in to 16 from it, and Immersion keeps that place (its setting): each time
+            -- they show, as the screen's width can change (the Fold opened or closed).
+            local function fitImmersionChoices(titles)
+                local point, to, toPoint, x, y = titles:GetPoint()
+                if type(x) ~= "number" then return end
+                local scale = titles:GetEffectiveScale() / UIParent:GetEffectiveScale()
+                local room = math.max(0, GetScreenWidth() / scale / 2 - CHOICE_WIDTH / 2 - EDGE)
+                if math.abs(x) <= room then return end
+                x = x > 0 and room or -room
+                titles:ClearAllPoints()
+                titles:SetPoint(point, to, toPoint, x, y)
+                if type(ImmersionSetup) == "table" then ImmersionSetup.titleoffset = x end
+            end
+
+            local function fitAddons()
+                local arrow = TomTomCrazyArrow
+                if arrow and not arrow.wowTouchFitted then
+                    arrow.wowTouchFitted = true
+                    arrow:SetClampedToScreen(true)
+                    if not arrow:IsUserPlaced() then
+                        arrow:ClearAllPoints()
+                        arrow:SetPoint("TOP", UIParent, "TOP", 0, ARROW_TOP)
+                    end
+                end
+                local immersion = ImmersionFrame
+                if immersion and not immersion.wowTouchFitted then
+                    immersion.wowTouchFitted = true
+                    for _, part in ipairs({ immersion.TitleButtons, immersion.TalkBox }) do
+                        -- (the choices are 310 wide on a list 300 wide: the margin keeps them in too)
+                        part:SetClampedToScreen(true)
+                        part:SetClampRectInsets(-EDGE, EDGE, EDGE, -EDGE)
+                    end
+                    local titles = immersion.TitleButtons
+                    fitImmersionChoices(titles)
+                    titles:HookScript("OnShow", fitImmersionChoices)
+                end
+            end
+
             watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
             watcher:RegisterEvent("PLAYER_LEAVING_WORLD")
             watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -595,12 +651,14 @@ object TouchAddon {
                 end
                 if event == "ADDON_LOADED" then
                     if name == "Blizzard_TalentUI" then readyTalents() end
+                    if name == "TomTom" or name == "Immersion" then fitAddons() end
                     return
                 end
                 inWorld = event == "PLAYER_ENTERING_WORLD"
                 said = nil
                 tell()
                 if inWorld then
+                    fitAddons()
                     readyBars()
                     readyTalents()
                     watchSettling()
