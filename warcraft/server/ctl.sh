@@ -406,7 +406,8 @@ module_data() {
 	echo "The world server reads $count DBC files of the realm's modules over the game's"
 }
 
-# The starting areas' maps in the world server's data (maps, vmaps, mmaps): their files linked in
+# The starting areas' maps in the world server's data (maps, vmaps, mmaps; and cameras, the race
+# intros' camera flights, which the server follows to send the game what each passes): their files linked in
 # (hard links, or copies where the phone's storage has none), never in place of a file that's there
 # (a building's collision model the game's own data has already is the game's); a file the package
 # has once for several names (a terrain swap's tiles that are its base map's) under each of them
@@ -416,8 +417,10 @@ zones_data() {
 	tag=$(cat "$ZONES/TAG")
 	[ "$(cat "$DATA/.zones" 2> /dev/null)" != "$tag" ] || return 0
 	count=0
-	for part in maps vmaps mmaps; do
+	for part in maps vmaps mmaps cameras; do
 		mkdir -p "$DATA/$part"
+		# (the world server reads $DATA_MODULES' links to the data's folders when it's there)
+		[ ! -d "$DATA_MODULES" ] || [ -e "$DATA_MODULES/$part" ] || ln -s "$DATA/$part" "$DATA_MODULES/$part"
 		for file in "$ZONES/server/$part"/*; do
 			[ -f "$file" ] || continue
 			dest="$DATA/$part/${file##*/}"

@@ -27,6 +27,21 @@ def names(body):
     return [n.decode("latin-1").replace("\\", "/").lower() for n in body.split(b"\0") if n]
 
 
+def plain_twins(ids, by_id, by_path):
+    """The plain diffuse texture beside each terrain texture named by its specular variant
+    (<name>_s.blp, the diffuse with a specular mask in its alpha, which Cataclysm's tiles name):
+    3.3.5a's tiles name the plain one (the converter names it when it's there), and a tile naming
+    the _s file draws its ground flat green."""
+    out = set()
+    for i in ids:
+        path = by_id.get(i, "")
+        if path.startswith("tileset/") and path.endswith("_s.blp"):
+            twin = by_path.get(path[:-len("_s.blp")] + ".blp")
+            if twin:
+                out.add(twin)
+    return out
+
+
 def adt_refs(data, by_path):
     """The file ids an ADT (root, _obj or _tex) names: its models, buildings and textures."""
     found = set()
@@ -132,6 +147,7 @@ def closure(cache, by_id, by_path, start, jobs=8):
                     continue
                 if path.endswith(".adt"):
                     refs = adt_refs(data, by_path)
+                    refs |= plain_twins(refs, by_id, by_path)
                 elif path.endswith((".m2", ".wmo")):
                     refs = model_refs(path, data, by_path)
                     if path.endswith(".wmo") and not re.search(r"_\d{3}\.wmo$", path):

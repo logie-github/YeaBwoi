@@ -20,6 +20,8 @@ package's folder, made empty first:
                         base map's): "path<TAB>the other's path"; the patch keeps such a file once
   client/minimap.txt    the lines for the game's minimap index (textures\\minimap\\md5translate.trs)
   server/maps|vmaps|mmaps/...   the world server's data for the seven maps
+  server/cameras/...    the race intros' camera flights (their models), which the world server follows
+                        to send the game what each passes (ctl.sh puts them in its data's cameras/)
   server/same.txt       the same, for the server's files (a terrain swap's tiles that are its base's)
   VERSION               what it was made from
 
@@ -140,6 +142,32 @@ def convert(converter, stage, conv, listfile):
         os.remove(rep)
     print(json.dumps(report))
     return report
+
+
+def plain_textures(conv):
+    """A terrain texture whose plain diffuse file the build hasn't (the tiles name the plain one:
+    files.plain_twins) has its specular variant (<name>_s.blp, the same diffuse) under that name."""
+    made = 0
+    for root, _, names in os.walk(os.path.join(conv, "tileset")):
+        for name in names:
+            if name.endswith("_s.blp"):
+                plain = os.path.join(root, name[:-len("_s.blp")] + ".blp")
+                if not os.path.exists(plain):
+                    shutil.copyfile(os.path.join(root, name), plain)
+                    made += 1
+    print(f"{made} terrain textures put under their plain name")
+
+
+def cameras(conv, out):
+    """The camera flights' models for the world server (CinematicCamera's Model: cameras\\<name>.mdx,
+    read as <data>/cameras/<name>.m2), as 3.3.5a's map_extractor gives it the game's own."""
+    src, dest = os.path.join(conv, "cameras"), os.path.join(out, "cameras")
+    os.makedirs(dest, exist_ok=True)
+    names = sorted(n for n in os.listdir(src) if n.endswith(".m2")) if os.path.isdir(src) else []
+    for name in names:
+        shutil.copyfile(os.path.join(src, name), os.path.join(dest, name))
+    assert names, "no camera flights converted"
+    print(f"server cameras: {names}")
 
 
 def fix_wdt(path):
@@ -392,10 +420,12 @@ def main():
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             shutil.copyfile(src, dest)
     put_aliases(conv, files, read_aliases())
+    plain_textures(conv)
     tiles, _ = maps(conv, cache)
     client = os.path.join(out, "client", "files")
     minimap = minimaps(conv, client, tiles)
     server_data(tools, conv, server_dbc, work, os.path.join(out, "server"))
+    cameras(conv, os.path.join(out, "server"))
     # The game's files: everything converted (the server's stand-in game made from them, gone).
     for root, _, names in os.walk(conv):
         for name in names:
