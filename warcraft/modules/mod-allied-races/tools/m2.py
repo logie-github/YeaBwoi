@@ -1027,8 +1027,11 @@ def convert(files, policy, out_dir, log=print):
             texture = texture_index[model.texture_lookup[b[9]]]
             shader = 0x10 if textures[texture][0] in (CAPE, 0) and kind != EYES else 0
             flags = b[0] & 0x1F
+            # (a glyph card's texture moves as its glyph's stage does, the second: the band's scroll,
+            # the first, slid the atlas's glyphs across the card)
+            transform = b[12] + 1 if uv_kind == "second" and b[12] + 1 < len(model.transform_lookup) else b[12]
             out_batches.append(struct.pack("<BbHHHhHHHHHHH", flags, b[1], shader, len(out_sections) - 1, len(out_sections) - 1,
-                                           -1, b[6], 0, 1, texture, 0, b[11] if b[11] < len(model.transparency_lookup) else 0, b[12]))
+                                           -1, b[6], 0, 1, texture, 0, b[11] if b[11] < len(model.transparency_lookup) else 0, transform))
     if len(out_vertices) > 65535:
         raise ValueError("%s: too many vertices for one skin (%d)" % (name, len(out_vertices)))
     if len(out_indices) > 65535:

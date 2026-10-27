@@ -128,7 +128,9 @@ facial hair styles and the Skeleton's voice row stayed at 15 to 18 beside the ne
     atlas, a scrolling band of light times the glyph; 3.3.5 draws one texture, and until
     allied-races-12 the card took the band's coordinates and showed as a solid white bar. The
     converter (`tools/m2.py`, `glyph_card`) gives such cards their glyph's coordinates instead, the
-    runes in the men's hair too.
+    runes in the men's hair too. The band's stage scrolls (a texture animation); the glyph's
+    doesn't, and the card takes the glyph's (until allied-races-13 it kept the band's, and the
+    atlas's glyphs slid across the brow).
   - The Lightforged men's forehead and crest (the bony plates over the brow, their "horns", drawn
     with the hair's texture as the Draenei men's are) are their model's geoset 1, which isn't a
     hair style; until allied-races-13 it was left out with the hair styles not chosen, and the men
