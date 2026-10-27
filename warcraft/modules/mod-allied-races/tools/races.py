@@ -64,6 +64,11 @@ FEATURES = {
 # left for them: the Lightforged's forehead rune, the light on their brow (its first choice is none,
 # which took the rune out altogether).
 ALWAYS = {"lightforged": {"Rune": "Righteous"}}
+# Group 0 geosets that are the head itself, not a hair style, kept always (into geoset 0): the
+# Lightforged men's geoset 1 is the skin of the forehead and crown and the bony crest over it (their
+# "horns", drawn with the hair's texture as the Draenei men's are). Taken for an unchosen hair style,
+# it was left out, and their foreheads were missing (the user's screenshots).
+HEAD = {("lightforged", 0): [1]}
 EARS_OPTIONS = ("Ears", "Ear Gauge")
 AVAILABLE = "3"                 # ChrCustomizationReq.ReqType of a choice any player picks
 TARGET_BODY, TARGET_FACE, TARGET_HAIR, TARGET_TENTACLES, TARGET_PELVIS, TARGET_TORSO, TARGET_TATTOO, TARGET_EYES, TARGET_EYE_FACE, TARGET_JEWELRY = \
@@ -405,6 +410,8 @@ def build_model(tables, race_key, race, sex, model_id, model_file_id):
                 for g in tables.choice_geosets(c):
                     geoset_policy[g].append(0)
     geoset_policy[3201].append(0)                          # the mouth, beside the head the Eyes choice picks
+    for g in HEAD.get((race_key, sex), []):
+        geoset_policy[g].append(0)
     geoset_policy[0].append(0)                             # the scalp
     for oname in ("Eyes", "Eyebrows"):
         for c in tables.option_choices(model_id, oname, only_available=False)[:1]:

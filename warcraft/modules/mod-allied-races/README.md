@@ -129,6 +129,10 @@ facial hair styles and the Skeleton's voice row stayed at 15 to 18 beside the ne
     allied-races-12 the card took the band's coordinates and showed as a solid white bar. The
     converter (`tools/m2.py`, `glyph_card`) gives such cards their glyph's coordinates instead, the
     runes in the men's hair too.
+  - The Lightforged men's forehead and crest (the bony plates over the brow, their "horns", drawn
+    with the hair's texture as the Draenei men's are) are their model's geoset 1, which isn't a
+    hair style; until allied-races-13 it was left out with the hair styles not chosen, and the men
+    had no forehead. It's kept always now (`tools/races.py`, HEAD).
   - Left at their first choice (3.3.5 has no slider for them): ears, eyebrows, eye style and
     eyesight, face tattoos, face jewellery, headdresses, hair decorations, luminous hands. Faces
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5
