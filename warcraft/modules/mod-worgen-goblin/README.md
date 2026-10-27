@@ -117,7 +117,10 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   32-bit game on a phone), the interface's as they are; their minimap pictures, world maps and their
   discovered parts, loading screens, music and ambience (Ogg Vorbis, as mod-worgoblin's own voices).
   `data/zones/files.tsv` lists them by Cataclysm Classic's file ids (never the files: those are the
-  game's).
+  game's). Cataclysm's tiles name each ground texture by its specular variant (`<name>_s.blp`); a
+  3.3.5a tile naming one draws that ground flat green (seen on a phone), so the plain texture beside
+  it is listed too (`files.py`, `plain_twins`) and the tiles name it (the converter does when it's
+  there; one the build hasn't is the `_s` file under the plain name: `package.py`).
 - **Their rows in the game's tables and the server's** (`tools/zones/build_world.py`, which runs
   `build_tables.py`,
   `data/zones/client/dbc`, `data/zones/server`): the maps, their 92 areas, lights (3.3.5a's own
@@ -129,7 +132,9 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   3.3.5a's 4096 get free ones.
 - **The package** (`tools/zones/package.py`, `scripts/package-zones.sh`): the converted files, and the
   world server's data for the seven maps (AzerothCore's own map, vmap and mmap tools over a stand-in
-  game of them), published by CI as the release `cata-zones-<hash>`. Files with the same bytes (a terrain
+  game of them; and the intros' camera flights, which the server follows to send the game the
+  creatures each passes, ctl.sh putting them in its data's `cameras`), published by CI as the release
+  `cata-zones-<hash>`. Files with the same bytes (a terrain
   swap's tiles that are its base's) are kept once and named under each path.
 - **In the realm** (`src/WorgenGoblin.cpp`, `src/WorgenGoblinPatch.cpp`, `ctl.sh zones_data`), with
   the package installed (`files/zones`) and `WorgenGoblin.StartingAreas` on: the patch-U the realm
@@ -146,7 +151,9 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   creature and 277 of object on the two maps, 19162 creatures and 3007 objects (Gilneas's on each of
   its maps whose terrain they're seen with), their looks (Cataclysm's new ones as new rows of the
   game's tables and the server's, through the converter's own rules; 3.3.5a's own where it's the same
-  model and textures), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
+  model and textures; each new one with its size and reach in `creature_model_info`, the CPP's,
+  without which the world server loads none of the creatures that look so: seen on a phone as
+  nobody there), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
   gossip and Cataclysm's 31 phases as 3.3.5a's phase mask's bits. All in ranges of their own
   (`zones_world.sql`: creatures', objects', texts' and menus' ids from 6000000, spawns from 10000000
   (under 0xFFFFFF, AzerothCore's limit for spawns),
@@ -243,8 +250,9 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   Seven of the zones' quests nothing gives (Cataclysm's own leftovers) stay as they are.
 - **Their intros**: a new Worgen's first login shows Cataclysm's camera flight over Gilneas with the
   Worgen's narration, a Goblin's over Kezan with the Goblins' (ChrRaces 170 and 172: FlyByWorgen,
-  FlyByGoblin, worgennarration.mp3, goblinnarration.mp3); without the areas, mod-worgoblin's Night Elf
-  and Orc flights.
+  FlyByGoblin, worgennarration.mp3, goblinnarration.mp3), the creatures it passes shown (the server
+  follows the flight with its camera files, in the package); without the areas, mod-worgoblin's Night
+  Elf and Orc flights.
 - **The Worgen's two forms** (`src/WorgenGoblinForms.cpp`, every Worgen, with the areas or without):
   in human form the game draws race 1 and the human model of their sex, the server keeping them race 12
   (quests, items, abilities and the saved character the Worgen's); their looks' numbers carry over

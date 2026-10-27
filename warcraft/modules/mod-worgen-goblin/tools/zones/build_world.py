@@ -299,6 +299,9 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         stock = self.ids.stock_rows("CreatureDisplayInfo").get(cata_id)
         if self.same_display(row, stock, self.stock_models(), path):
             self.done[key] = cata_id
+            # (one of 3.3.5a's the core's own table hasn't)
+            if not db.rows(db.AC_DB, f"SELECT DisplayID FROM creature_model_info WHERE DisplayID = {cata_id}"):
+                self.model_info(cata_id, cata_id)
             return cata_id
         values["ID"] = self.ids.new("CreatureDisplayInfo", cata_id)
         self.done[key] = values["ID"]
@@ -312,7 +315,20 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         for i in range(4):
             self.add_file(cdi.get(f"TextureVariationFileDataID_{i}", 0), "texture")
         self.put("CreatureDisplayInfo", values)
+        self.model_info(cata_id, values["ID"])
         return values["ID"]
+
+    def model_info(self, cata_id, our):
+        """A new display's creature_model_info (its size, reach and gender), the CPP's: the world
+        server loads no creature whose display hasn't one."""
+        info = db.rows(db.CPP_DB, f"SELECT * FROM creature_model_info WHERE DisplayID = {int(cata_id)}")
+        info = info[0] if info else {"BoundingRadius": 0.306, "CombatReach": 1.5, "Gender": 2, "DisplayID_Other_Gender": 0}
+        row = {"DisplayID": our, "BoundingRadius": float(info["BoundingRadius"]), "CombatReach": float(info["CombatReach"]),
+               "Gender": num(info["Gender"]), "DisplayID_Other_Gender": 0, "VerifiedBuild": VERIFIED}
+        self.sql.add("creature_model_info", row)
+        other = num(info["DisplayID_Other_Gender"])
+        if other and other != int(cata_id):
+            row["DisplayID_Other_Gender"] = self.display(other)
 
     def npc_sounds(self, cata_id):
         cata_id = int(cata_id or 0)
@@ -871,7 +887,7 @@ KEYS = {"creature_template": ["entry"], "creature_template_model": ["CreatureID"
         "vehicle_template_accessory": ["entry"], "npc_spellclick_spells": ["npc_entry"],
         "creature_default_trainer": ["CreatureId"], "creature_equip_template": ["CreatureID"], "game_graveyard": ["ID"], "graveyard_zone": ["ID", "GhostZone"],
         "areatrigger": ["entry"], "areatrigger_involvedrelation": ["id"], "areatrigger_scripts": ["entry"],
-        "spell_area": ["spell", "area"], "conditions": ["SourceTypeOrReferenceId", "SourceGroup", "SourceEntry"]}
+        "spell_area": ["spell", "area"], "creature_model_info": ["DisplayID"], "conditions": ["SourceTypeOrReferenceId", "SourceGroup", "SourceEntry"]}
 
 
 def write_world(b):

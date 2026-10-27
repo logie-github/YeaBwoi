@@ -564,6 +564,11 @@ EOF
 		if [ -n "$names" ] && grep -E "Script named '($names)' is assigned in the database, but has no code" "$FILES/logs/Errors.log"; then
 			fail "the starting areas name scripts the world server hasn't"
 		fi
+		# Every one of their creatures and objects loads (a creature whose display has no
+		# creature_model_info row never does: seen on a phone as nobody there).
+		if grep -iE "Creature \(Entry: 6[0-9]{6}\) has no model|gameobject \(GUID: 1[0-9]{7} .*not loaded" "$FILES/logs/Errors.log" | head -5 | grep .; then
+			fail "some of the starting areas' creatures or objects don't load"
+		fi
 		# Their spawns' ids under AzerothCore's limit (a new spawn's id is one after the highest, and
 		# the world server stops when it would pass 0xFFFFFF).
 		spawns=$(echo "SELECT GREATEST((SELECT MAX(guid) FROM creature), (SELECT MAX(guid) FROM gameobject))" | CTL sql acore_world)
