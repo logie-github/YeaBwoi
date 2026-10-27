@@ -120,7 +120,10 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   game's). Cataclysm's tiles name each ground texture by its specular variant (`<name>_s.blp`); a
   3.3.5a tile naming one draws that ground flat green (seen on a phone), so the plain texture beside
   it is listed too (`files.py`, `plain_twins`) and the tiles name it (the converter does when it's
-  there; one the build hasn't is the `_s` file under the plain name: `package.py`).
+  there; one the build hasn't is the `_s` file under the plain name: `package.py`). A model's batch whose Cataclysm shader 3.3.5a hasn't
+  (an `0x8000` shader id, its colour texture with a reflection: 341 of them, Kezan's pipes, the hot rod,
+  the crocolisks) the converter resets to 3.3.5a's default with both textures kept, which 3.3.5a draws
+  black (seen on a phone); `package.py` (`single_textures`) has it drawn with its colour texture alone.
 - **Their rows in the game's tables and the server's** (`tools/zones/build_world.py`, which runs
   `build_tables.py`,
   `data/zones/client/dbc`, `data/zones/server`): the maps, their 92 areas, lights (3.3.5a's own

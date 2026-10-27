@@ -196,6 +196,16 @@ configure_realm() {
 		fi
 	fi
 	[ ! -f "$R_ETC/modules/mod_worgoblin.conf" ] || setkey "$R_ETC/modules/mod_worgoblin.conf" Announce.enable false
+	# Level scaling (mod-level-scaling, each character's choice at their class trainer) is
+	# ChromieCraft's: Wrath Remix has its own Northrend at your level.
+	level_scaling_conf="$R_ETC/modules/mod_level_scaling.conf"
+	if [ -f "$level_scaling_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$level_scaling_conf" LevelScaling.Enable 0
+		else
+			setkey "$level_scaling_conf" LevelScaling.Enable 1
+		fi
+	fi
 	# Quest drops (mod-quest-drops: rare quest items, and epics in dungeons and from rare spawns, drop
 	# more often) on in both realms, set once (a later choice of off is kept: README, Drop rates).
 	quest_drops_conf="$R_ETC/modules/mod_quest_drops.conf"
