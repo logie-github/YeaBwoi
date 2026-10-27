@@ -123,7 +123,13 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   there; one the build hasn't is the `_s` file under the plain name: `package.py`). A model's batch whose Cataclysm shader 3.3.5a hasn't
   (an `0x8000` shader id, its colour texture with a reflection: 341 of them, Kezan's pipes, the hot rod,
   the crocolisks) the converter resets to 3.3.5a's default with both textures kept, which 3.3.5a draws
-  black (seen on a phone); `package.py` (`single_textures`) has it drawn with its colour texture alone.
+  black (seen on a phone); `package.py` (`single_textures`) has it drawn with its colour texture alone. And every converted model is
+  made as 3.3.5a's own are (`package.py`, `fix_models`; seen on a phone: Gilneas's carts, barrels and
+  stalls coming and going and swapping at the least turn of the camera, the game's own models beside
+  them steady): its internal name (the converter leaves it empty, as retail's newer files have it; 3.3.5a
+  takes a model by it), a whole animation lookup, a set of keys a sequence in each track (retail's newer
+  files have one for all), and no texture transform that isn't there. mod-allied-races'
+  `tools/check_m2.py` passes all of them but for what the package's other steps take care of.
 - **Their rows in the game's tables and the server's** (`tools/zones/build_world.py`, which runs
   `build_tables.py`,
   `data/zones/client/dbc`, `data/zones/server`): the maps, their 92 areas, lights (3.3.5a's own
