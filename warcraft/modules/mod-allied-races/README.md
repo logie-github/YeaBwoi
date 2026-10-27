@@ -124,7 +124,11 @@ facial hair styles and the Skeleton's voice row stayed at 15 to 18 beside the ne
     slider is the second row's "Horns"); Zandalari men their tusks x piercings (7 x 6), Zandalari
     women their tusks x earrings x piercings x necklace (7 x 2 x 4 x 2).
   - The Lightforged's forehead rune (today's Rune, whose first choice is None) is always on, as
-    Righteous: the glowing glyph on the brow.
+    Righteous: the glowing glyph on the brow. Today's runes are drawn from two textures of one
+    atlas, a scrolling band of light times the glyph; 3.3.5 draws one texture, and until
+    allied-races-12 the card took the band's coordinates and showed as a solid white bar. The
+    converter (`tools/m2.py`, `glyph_card`) gives such cards their glyph's coordinates instead, the
+    runes in the men's hair too.
   - Left at their first choice (3.3.5 has no slider for them): ears, eyebrows, eye style and
     eyesight, face tattoos, face jewellery, headdresses, hair decorations, luminous hands. Faces
     differ by texture alone (today's faces also reshape the head with bone files, which 3.3.5

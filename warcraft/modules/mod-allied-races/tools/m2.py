@@ -890,12 +890,28 @@ def convert(files, policy, out_dir, log=print):
         key = (index, kind)
         if key not in new_vertex:
             v = bytearray(model.vertices[index])
+            if kind == "second":                  # (a card drawn by its shape's coordinates: glyph_card)
+                struct.pack_into("<ff", v, 32, *struct.unpack_from("<ff", v, 40))
+                new_vertex[key] = (len(new_vertex), bytes(v))
+                return new_vertex[key][0]
             u, vv = struct.unpack_from("<ff", v, 32)
             if kind == "body" and u >= 0.5:
                 kind = "head"
             struct.pack_into("<ff", v, 32, *remap_uv(u, vv, kind, layout))
             new_vertex[key] = (len(new_vertex), bytes(v))
         return new_vertex[key][0]
+
+    def glyph_card(b):
+        """A card today's shader 0x4011 draws from two textures of one file, additively: the
+        Lightforged's runes, a scrolling band of light (its first coordinates, along the atlas's top)
+        times the glyph (its second). 3.3.5 draws a batch's one texture by the first coordinates, which
+        showed the band as a solid bar; the card takes its second, the glyph, which glows on its own.
+        (Shader 0x4014, the eye glow's, has its colour in the first coordinates: it stays.)"""
+        if b[2] != 0x4011 or b[8] != 2 or b[9] + 1 >= len(model.texture_lookup) or model.materials[b[6]][1] not in (3, 4, 7):
+            return False
+        first, second = model.texture_lookup[b[9]], model.texture_lookup[b[9] + 1]
+        ids = model.texture_ids
+        return first == second or (max(first, second) < len(ids) and ids[first] == ids[second] != 0)
 
     sections_by_id = {}
     for s, sec in enumerate(skin.sections):
@@ -963,6 +979,8 @@ def convert(files, policy, out_dir, log=print):
         sec = skin.sections[s]
         kind = texture_types[model.texture_lookup[b[9]]]
         uv_kind = "eyes" if kind == EYES or sec[0] in eye_geosets else ("body" if kind == BODY else "same")
+        if glyph_card(b):
+            uv_kind = "second"
         # Each vertex's bones: the model's bone indices the vertex itself carries (the game,
         # drawing with a section's combo, puts a vertex on the bone its slot names there: the
         # combos made here must name these).
