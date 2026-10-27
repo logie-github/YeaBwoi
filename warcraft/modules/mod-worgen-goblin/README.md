@@ -151,7 +151,9 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   creature and 277 of object on the two maps, 19162 creatures and 3007 objects (Gilneas's on each of
   its maps whose terrain they're seen with), their looks (Cataclysm's new ones as new rows of the
   game's tables and the server's, through the converter's own rules; 3.3.5a's own where it's the same
-  model and textures), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
+  model and textures; each new one with its size and reach in `creature_model_info`, the CPP's,
+  without which the world server loads none of the creatures that look so: seen on a phone as
+  nobody there), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
   gossip and Cataclysm's 31 phases as 3.3.5a's phase mask's bits. All in ranges of their own
   (`zones_world.sql`: creatures', objects', texts' and menus' ids from 6000000, spawns from 10000000
   (under 0xFFFFFF, AzerothCore's limit for spawns),
