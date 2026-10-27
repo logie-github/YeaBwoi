@@ -144,6 +144,45 @@ def convert(converter, stage, conv, listfile):
     return report
 
 
+def skin_batches(data):
+    """A skin's batches: (offset of each 24-byte M2Batch)."""
+    if data[:4] != b"SKIN":
+        return []
+    count, at = struct.unpack_from("<II", data, 36)
+    return [at + 24 * k for k in range(count)] if at + 24 * count <= len(data) else []
+
+
+def single_textures(stage, conv):
+    """A batch whose Cataclysm shader 3.3.5a hasn't (an 0x8000 shader id: its colour texture with an
+    environment reflection, say) the converter resets to 3.3.5a's default with its two or three
+    textures kept, which 3.3.5a draws black (seen on a phone: Kezan's pipes): drawn with its first
+    texture alone, its colour."""
+    fixed = 0
+    for root, _, names in os.walk(conv):
+        for name in names:
+            if not name.endswith(".skin"):
+                continue
+            out_path = os.path.join(root, name)
+            src_path = os.path.join(stage, os.path.relpath(out_path, conv))
+            if not os.path.exists(src_path):
+                continue
+            src, out = open(src_path, "rb").read(), bytearray(open(out_path, "rb").read())
+            a, b = skin_batches(src), skin_batches(out)
+            if not a or len(a) != len(b):
+                continue
+            changed = False
+            for sa, ob in zip(a, b):
+                shader = struct.unpack_from("<H", src, sa + 2)[0]
+                if shader & 0x8000 and struct.unpack_from("<H", out, ob + 2)[0] == 0 and struct.unpack_from("<H", out, ob + 14)[0] > 1:
+                    struct.pack_into("<H", out, ob + 14, 1)
+                    changed = True
+                    fixed += 1
+            if changed:
+                with open(out_path, "wb") as f:
+                    f.write(out)
+    print(f"{fixed} batches drawn with their colour texture alone")
+
+
 def plain_textures(conv):
     """A terrain texture whose plain diffuse file the build hasn't (the tiles name the plain one:
     files.plain_twins) has its specular variant (<name>_s.blp, the same diffuse) under that name."""
@@ -412,6 +451,7 @@ def main():
     with open(listfile, "w", newline="\n") as f:
         f.write("".join(f"{fdid};{path}\n" for fdid, (path, _) in sorted(files.items())))
     report = convert(converter, stage, conv, listfile)
+    single_textures(stage, conv)
     # Sounds aren't the converter's: they're 3.3.5a's as they are (Ogg Vorbis).
     for fdid, (path, kind) in files.items():
         src = os.path.join(stage, path)
