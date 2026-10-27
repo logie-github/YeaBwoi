@@ -183,6 +183,102 @@ def single_textures(stage, conv):
     print(f"{fixed} batches drawn with their colour texture alone")
 
 
+def m2_tracks(m):
+    """The animation tracks of a 3.3.5a model (M2Track: interpolation, global sequence, timestamps,
+    values), by where each starts: the bones', colours', texture weights' and transforms',
+    attachments' and cameras' (each [(offset, has values)])."""
+    def arr(at):
+        return struct.unpack_from("<II", m, at)
+    out = []
+    count, at = arr(44)
+    out += [(at + b * 88 + off, True) for b in range(count) for off in (16, 36, 56)]
+    count, at = arr(72)
+    out += [(at + c * 40 + off, True) for c in range(count) for off in (0, 20)]
+    count, at = arr(88)
+    out += [(at + w * 20, True) for w in range(count)]
+    count, at = arr(96)
+    out += [(at + t * 60 + off, True) for t in range(count) for off in (0, 20, 40)]
+    count, at = arr(240)
+    out += [(at + a * 40 + 20, True) for a in range(count)]
+    count, at = arr(272)
+    out += [(at + c * 100 + off, True) for c in range(count) for off in (16, 48, 80)]
+    return out
+
+
+def fix_models(conv):
+    """Each converted model made as 3.3.5a's own are (seen on a phone: Gilneas's carts, barrels and
+    stalls coming and going and swapping at the least turn of the camera, the game's own models
+    beside them steady; tools/check_m2.py of mod-allied-races finds each of these):
+      - its internal name, its file's (as 3.3.5a's own: Pumpkin01.m2's is "Pumpkin01"): the
+        converter leaves it empty, as retail's newer files have it, and 3.3.5a takes a model by it;
+      - its animation lookup, by which the game finds a sequence by its animation id (from id % size
+        to an empty slot): empty or partial in retail's newer files, made whole;
+      - a track that has one set of keys for every sequence (retail's newer way) given one set a
+        sequence, as 3.3.5a reads it (the game takes the set of the sequence playing: a doodad's
+        stand isn't always its first, and past the one set it read whatever followed);
+      - a texture transform its lookup names that the model hasn't: none."""
+    named = looked = tracks = lookups = 0
+
+    def append(data, block):
+        while len(data) % 16:
+            data.append(0)
+        at = len(data)
+        data += block
+        return at
+
+    for root, _, names in os.walk(conv):
+        for name in names:
+            if not name.lower().endswith(".m2"):
+                continue
+            path = os.path.join(root, name)
+            data = bytearray(open(path, "rb").read())
+            if data[:4] != b"MD20":
+                continue
+            original = bytes(data)
+            length, _ = struct.unpack_from("<II", data, 8)
+            if length <= 1:
+                stem = name[:-3].encode("latin-1") + b"\0"
+                struct.pack_into("<II", data, 8, len(stem), append(data, stem))
+                named += 1
+            sequences, seq_at = struct.unpack_from("<II", data, 28)
+            ids = [struct.unpack_from("<H", data, seq_at + 64 * k)[0] for k in range(sequences)]
+            in_file = [bool(struct.unpack_from("<I", data, seq_at + 64 * k + 16)[0] & 0x20) for k in range(sequences)]
+            if sequences:
+                table = [-1] * (max(ids) + 2)
+                for k, anim in enumerate(ids):
+                    if table[anim] < 0:
+                        table[anim] = k
+                count, at = struct.unpack_from("<II", data, 36)
+                if count != len(table) or list(struct.unpack_from(f"<{count}h", data, at)) != table:
+                    struct.pack_into("<II", data, 36, len(table), append(data, struct.pack(f"<{len(table)}h", *table)))
+                    looked += 1
+            for at, has_values in m2_tracks(data):
+                gseq, count, offset = struct.unpack_from("<hII", data, at + 2)
+                if gseq >= 0 or count != 1 or sequences < 2:
+                    continue
+                stamps = struct.unpack_from("<II", data, offset)
+                vcount, voffset = struct.unpack_from("<II", data, at + 12)
+                values = struct.unpack_from("<II", data, voffset) if vcount == 1 else (0, 0)
+                # (a sequence kept in its own file (.anim) reads its keys there: none for it)
+                tstamps = b"".join(struct.pack("<II", *(stamps if in_file[k] or k == 0 else (0, 0))) for k in range(sequences))
+                tvalues = b"".join(struct.pack("<II", *(values if in_file[k] or k == 0 else (0, 0))) for k in range(sequences))
+                struct.pack_into("<II", data, at + 4, sequences, append(data, tstamps))
+                if has_values and vcount == 1:
+                    struct.pack_into("<II", data, at + 12, sequences, append(data, tvalues))
+                tracks += 1
+            transforms = struct.unpack_from("<I", data, 96)[0]
+            count, at = struct.unpack_from("<II", data, 152)
+            for k in range(count):
+                if struct.unpack_from("<h", data, at + 2 * k)[0] >= transforms:
+                    struct.pack_into("<h", data, at + 2 * k, -1)
+                    lookups += 1
+            if bytes(data) != original:
+                with open(path, "wb") as f:
+                    f.write(data)
+    print(f"{named} models given their names, {looked} their animation lookup, {tracks} tracks a set of keys "
+          f"a sequence, {lookups} texture transform lookups that named none")
+
+
 def plain_textures(conv):
     """A terrain texture whose plain diffuse file the build hasn't (the tiles name the plain one:
     files.plain_twins) has its specular variant (<name>_s.blp, the same diffuse) under that name."""
@@ -452,6 +548,7 @@ def main():
         f.write("".join(f"{fdid};{path}\n" for fdid, (path, _) in sorted(files.items())))
     report = convert(converter, stage, conv, listfile)
     single_textures(stage, conv)
+    fix_models(conv)
     # Sounds aren't the converter's: they're 3.3.5a's as they are (Ogg Vorbis).
     for fdid, (path, kind) in files.items():
         src = os.path.join(stage, path)
