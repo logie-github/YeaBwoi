@@ -196,14 +196,12 @@ configure_realm() {
 		fi
 	fi
 	[ ! -f "$R_ETC/modules/mod_worgoblin.conf" ] || setkey "$R_ETC/modules/mod_worgoblin.conf" Announce.enable false
-	# Quest drops (mod-quest-drops: rare quest items drop more often) are ChromieCraft's alone.
+	# Quest drops (mod-quest-drops: rare quest items, and epics in dungeons and from rare spawns, drop
+	# more often) on in both realms, set once (a later choice of off is kept: README, Drop rates).
 	quest_drops_conf="$R_ETC/modules/mod_quest_drops.conf"
-	if [ -f "$quest_drops_conf" ]; then
-		if [ "$REALM" = remix ]; then
-			setkey "$quest_drops_conf" QuestDrops.Enable 0
-		else
-			setkey "$quest_drops_conf" QuestDrops.Enable 1
-		fi
+	if [ -f "$quest_drops_conf" ] && [ ! -f "$R_ETC/modules/.quest_drops_on" ]; then
+		setkey "$quest_drops_conf" QuestDrops.Enable 1
+		: > "$R_ETC/modules/.quest_drops_on"
 	fi
 	if [ "$REALM" = remix ]; then
 		[ ! -f "$R_ETC/modules/progression_system.conf" ] ||

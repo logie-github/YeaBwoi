@@ -3,7 +3,7 @@
 The user: "if you are doing a collect quest like go and get me 10 bear asses then the bears will
 always drop the item at 100% drop rate rather than you kill 50 bears to get 10 asses"; then: "At ones
 that had ridiculously low drop rates, such as less than 25% chance push the drop rate to 75. For 10%
-or less set it to 50" (for quest items, in place of the 100%; ChromieCraft's realm only).
+or less set it to 50" (for quest items, in place of the 100%).
 
 An item a quest asks for (a quest drop: the loot tables' `QuestRequired`) drops, while the quest needs
 it, 75% of the time where its chance was under 25%, 50% where it was 10% or less, and as it always did
@@ -26,8 +26,8 @@ Left as they are: drops in a loot group (one item of the group drops, by its cha
 higher chance would take from the group's other items. In AzerothCore's base world, of the 5725 quest
 drops, 24 are in groups.
 
-ChromieCraft's realm alone: the app's `ctl.sh` sets `QuestDrops.Enable` (`conf/mod_quest_drops.conf.dist`)
-to 1 for it and 0 for Wrath Remix's as each starts.
+Both realms: the app's `ctl.sh` sets `QuestDrops.Enable` (`conf/mod_quest_drops.conf.dist`) to 1 for each
+once (the user, for Wrath Remix too: "Yes"); a later 0 is kept.
 
 Game masters: `.questdrops chance <percent>` says what a quest drop, an epic in a dungeon or from a rare,
 and any other drop of that chance roll on the realm;

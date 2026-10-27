@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Quest drops (mod-quest-drops), ChromieCraft's realm (ctl.sh sets QuestDrops.Enable for each realm):
+ * Quest drops (mod-quest-drops), both realms (ctl.sh turns QuestDrops.Enable on once for each):
  *
  *  An item a quest asks the player to collect (a quest drop: the loot tables' QuestRequired) drops more
  *  often where its chance was low (the user: "ones that had ridiculously low drop rates, such as less

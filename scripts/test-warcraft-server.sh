@@ -746,7 +746,7 @@ EOF
 	grep -q "^AlliedRaces.Enable = 0" "$FILES/etc-remix/modules/mod_allied_races.conf" || fail "the allied races aren't off in Wrath Remix's config"
 	grep -q "^AlliedRaces.Enable = 1" "$FILES/etc/modules/mod_allied_races.conf" || fail "the allied races aren't on in ChromieCraft's config"
 	# Quest drops' raised rates too are ChromieCraft's alone.
-	grep -q "^QuestDrops.Enable = 0" "$FILES/etc-remix/modules/mod_quest_drops.conf" || fail "quest drops aren't off in Wrath Remix's config"
+	grep -q "^QuestDrops.Enable = 1" "$FILES/etc-remix/modules/mod_quest_drops.conf" || fail "quest drops aren't on in Wrath Remix's config"
 	grep -q "^QuestDrops.Enable = 1" "$FILES/etc/modules/mod_quest_drops.conf" || fail "quest drops aren't on in ChromieCraft's config"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
