@@ -11,8 +11,8 @@
 #                     An epic or better (purple and up) in a dungeon or raid, or from a rare
 #                     spawn, rolls ten times its chance, 10% at least, 100% at most. Every
 #                     other drop keeps the game's own chance. Items in a loot group (one of
-#                     several drops) keep their chances. The app's ctl.sh sets it for each
-#                     realm: on for ChromieCraft, off for Wrath Remix.
+#                     several drops) keep their chances. The app's ctl.sh turns it on once for
+#                     each realm (ChromieCraft and Wrath Remix); a later 0 is kept.
 #        Default:     1
 
 QuestDrops.Enable = 1
