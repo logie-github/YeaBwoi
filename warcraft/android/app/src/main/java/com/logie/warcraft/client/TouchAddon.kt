@@ -23,6 +23,13 @@ package com.logie.warcraft.client
  * A right click on an action bar's button (a hold, from the app) takes its action off the bar, as
  * dragging it away does on a PC, and does nothing else.
  *
+ * The note ends "open 1" while a window the player is using is open (the loot, a talk, a quest, a
+ * vendor, a trainer, the flight master's map, the mail, a trade, Immersion's, the game's questions),
+ * "open 0" otherwise: a double tap then clicks twice and never jumps, which would close it.
+ *
+ * F12 is the game's Target Last Target (an override binding, set out of combat): a double tap's
+ * jump presses it when its first tap's click on the ground cleared the target, which comes back.
+ *
  * A talent's first tap shows what it does (its tooltip) and spends nothing; a second tap on it
  * straight after (a double tap: the app clicks twice on the game's windows) spends the point.
  *
@@ -67,7 +74,7 @@ object TouchAddon {
             ## Title: WowTouch
             ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix; TomTom's arrow and Immersion's windows fitted to the phone's screen.
             ## Author: World of Warcraft app
-            ## Version: 9
+            ## Version: 10
             ## OptionalDeps: TomTom, Immersion
             $FOLDER.lua
         """.trimIndent() + "\n",
@@ -170,9 +177,21 @@ object TouchAddon {
                 return #areas > 0 and table.concat(areas, " ") or "-"
             end
 
+            -- Whether a window the player is using is open (where a double tap's jump would close it):
+            -- the loot, a talk, a quest, a vendor, a trainer, the flight master's map, the mail, a
+            -- trade, Immersion's, the game's questions.
+            local function opened()
+                for _, frame in ipairs({ LootFrame or false, GossipFrame or false, QuestFrame or false,
+                        MerchantFrame or false, ClassTrainerFrame or false, TaxiFrame or false, MailFrame or false,
+                        TradeFrame or false, _G["ImmersionFrame"] or false, StaticPopup1 or false }) do
+                    if frame and frame.IsVisible and frame:IsVisible() then return "1" end
+                end
+                return "0"
+            end
+
             local function tell()
                 if not inWorld then return end
-                local note = "drag " .. drags() .. " hold " .. holds()
+                local note = "drag " .. drags() .. " hold " .. holds() .. " open " .. opened()
                 if note ~= said then
                     said = note
                     SendAddonMessage("$PREFIX", note, "WHISPER", UnitName("player"))
@@ -195,7 +214,18 @@ object TouchAddon {
                 end
             end
 
+            -- F12: the game's Target Last Target, which the app presses after a double tap's jump when
+            -- its first tap's click on the ground cleared the target. An override binding (the
+            -- player's own bindings stay), set out of combat, as the game asks.
+            local retargetReady = false
+            local function readyRetarget()
+                if retargetReady or InCombatLockdown() or not SetOverrideBinding then return end
+                SetOverrideBinding(CreateFrame("Frame"), true, "F12", "TARGETLASTTARGET")
+                retargetReady = true
+            end
+
             local function readyBars()
+                readyRetarget()
                 if barsReady or InCombatLockdown() then return end
                 for _, name in ipairs(barButtons) do
                     for i = 1, 12 do

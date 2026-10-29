@@ -27,6 +27,17 @@ class InterfaceNoteTest {
     }
 
     @Test
+    fun whetherAWindowThePlayerIsUsingIsOpen() {
+        val note = "drag - hold 0 0 10000 900 open 1\n"
+        assertEquals(true, InterfaceNote.windowOpen(note))
+        // (the hold areas end where "open" starts)
+        assertEquals(listOf(InterfaceNote.Area(0f, 1f - 0.09f, 1f, 1f)), InterfaceNote.holdAreas(note))
+        for (closed in listOf(null, "", "drag - hold - open 0", "drag - hold -", "drag - hold - open")) {
+            assertEquals(false, InterfaceNote.windowOpen(closed), closed.toString())
+        }
+    }
+
+    @Test
     fun nothingWhenItsClosedOrTheNoteIsOdd() {
         for (note in listOf(null, "", "-", "drag -", "drag 1000 2000", "drag 5000 2000 1000 9000", "drag 0.1 0.2 0.3 0.4", "drag a b c d", "other 1000 2000 3000 4000")) {
             assertEquals(emptyList(), InterfaceNote.dragAreas(note), note.toString())
