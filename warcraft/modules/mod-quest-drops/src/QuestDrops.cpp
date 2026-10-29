@@ -4,8 +4,9 @@
  *
  *  An item a quest asks the player to collect (a quest drop: the loot tables' QuestRequired) drops more
  *  often where its chance was low (the user: "ones that had ridiculously low drop rates, such as less
- *  than 25% chance push the drop rate to 75. For 10% or less set it to 50"): 75 where it was under 25,
- *  50 where it was 10 or less, its own from 25 up. Each player who needs it sees it in the loot, as
+ *  than 25% chance push the drop rate to 75. For 10% or less set it to 50"; then, of Darkhound Blood at
+ *  35%: "Quests like that need better drop rates", every chance under 75 to 75): 75 where it was under
+ *  75, 50 where it was 10 or less, its own from 75 up. Each player who needs it sees it in the loot, as
  *  before; those who don't, don't.
  *
  *  An epic or better (purple and up) in a dungeon or raid, or from a rare spawn (rare or rare elite),
@@ -56,7 +57,7 @@ namespace
             return chance;
         if (chance <= 10.0f)
             return 50.0f;
-        if (chance < 25.0f)
+        if (chance < 75.0f)
             return 75.0f;
         return chance;
     }

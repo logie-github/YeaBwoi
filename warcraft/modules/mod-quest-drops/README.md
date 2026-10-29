@@ -3,11 +3,12 @@
 The user: "if you are doing a collect quest like go and get me 10 bear asses then the bears will
 always drop the item at 100% drop rate rather than you kill 50 bears to get 10 asses"; then: "At ones
 that had ridiculously low drop rates, such as less than 25% chance push the drop rate to 75. For 10%
-or less set it to 50" (for quest items, in place of the 100%).
+or less set it to 50" (for quest items, in place of the 100%); then, of Decrepit Darkhounds' Darkhound
+Blood at 35%: "Quests like that need better drop rates" (every chance under 75% to 75%).
 
 An item a quest asks for (a quest drop: the loot tables' `QuestRequired`) drops, while the quest needs
-it, 75% of the time where its chance was under 25%, 50% where it was 10% or less, and as it always did
-from 25% up. The core rolls each loot entry's chance; the module's `OnItemRoll` (a `GlobalScript`
+it, 75% of the time where its chance was under 75%, 50% where it was 10% or less, and as it always did
+from 75% up. The core rolls each loot entry's chance; the module's `OnItemRoll` (a `GlobalScript`
 hook) changes a quest drop's chance before the roll. Each player who needs the item sees it in the
 corpse's loot, as before, and those who don't, don't; the number that drops (the loot table's count)
 is unchanged.
