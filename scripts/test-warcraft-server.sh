@@ -637,12 +637,12 @@ EOF
 	done
 	echo "Human hunters, dwarf shamans, gnome priests, orc mages and troll warlocks: Forever's racials, trained at their host class's trainers."
 
-	echo "== quest drops (mod-quest-drops): rare quest items drop at 75% (under 25%) or 50% (10% or less)"
+	echo "== quest drops (mod-quest-drops): rare quest items drop at 75% (under 75%) or 50% (10% or less)"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dropper 5 9 \
 		"$ROOT/warcraft/server/quest_drops.steps" | tee "$FILES/logs/quest-drops.out" ||
 		fail "the Rattlecage Skeletons' skulls didn't drop at the raised rate (logs/quest-drops.out)"
 	erase_character Dropper || fail "Dropper wasn't erased"
-	echo "Quest drops roll 75% under 25%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
+	echo "Quest drops roll 75% under 75%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
 
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
