@@ -625,8 +625,8 @@ class GestureView(
         prompt = GamePrompt.show(
             activity,
             kind,
-            onSend = { text, remember ->
-                send(kind, text)
+            onSend = { text, remember, enter ->
+                send(kind, text, enter)
                 if (kind == GamePrompt.Kind.PASSWORD && remember) remember(text)
             },
             // A chat opened for the prompt closes again.
@@ -638,9 +638,10 @@ class GestureView(
     /**
      * Text from the prompt into the game's text box: the password, then Enter (logs in; on a new
      * account, the name prompt follows once the game is at character creation); a chat line, then
-     * Enter (sends); a name or other text, as it is.
+     * Enter (sends); a name, as it is; other text as it is, or then Enter ([enter]: the prompt's
+     * Send, which sends a chat line or a box's text, or presses Enter alone with nothing typed).
      */
-    private fun send(kind: GamePrompt.Kind, text: String) {
+    private fun send(kind: GamePrompt.Kind, text: String, enter: Boolean) {
         when (kind) {
             GamePrompt.Kind.PASSWORD -> {
                 type(text, enter = true)
@@ -653,7 +654,7 @@ class GestureView(
                 repeat(NAME_CLEAR_KEYS) { press(KeyEvent.KEYCODE_DEL) }
                 type(text, enter = false)
             }
-            GamePrompt.Kind.TEXT -> type(text, enter = false)
+            GamePrompt.Kind.TEXT -> type(text, enter = enter)
         }
     }
 

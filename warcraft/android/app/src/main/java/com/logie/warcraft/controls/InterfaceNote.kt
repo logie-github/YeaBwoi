@@ -21,7 +21,7 @@ object InterfaceNote {
 
     /**
      * The windows whose icons drag, from the note's "drag" part: "<left> <bottom> <right> <top>" for
-     * each (ten-thousandths of the screen from its bottom left, as WoW counts), or "-" for none.
+     * each (thousandths of the screen from its bottom left, as WoW counts), or "-" for none.
      */
     fun dragAreas(note: String?): List<Area> = areas(note, "drag")
 
@@ -43,7 +43,7 @@ object InterfaceNote {
         val start = words.indexOf(section)
         if (start < 0) return emptyList()
         val numbers = words.drop(start + 1).takeWhile { it !in SECTIONS }
-            .map { (it.toIntOrNull() ?: return emptyList()) / 10_000f }
+            .map { (it.toIntOrNull() ?: return emptyList()) / 1_000f }
         return numbers.chunked(4).filter { it.size == 4 }.mapNotNull { (left, bottom, right, top) ->
             if (right <= left || top <= bottom) null else Area(left, 1f - top, right, 1f - bottom)
         }

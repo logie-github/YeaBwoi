@@ -319,37 +319,43 @@ object GamePrompt {
         val password: Boolean = false,
         /** Offers to keep it on the phone and log in by itself next time (the password). */
         val remember: Boolean = false,
+        /**
+         * Besides its own [action] (the text as it is), a Send button that types it and then
+         * presses Enter (the keyboard's own action key sends too): the text box's.
+         */
+        val enter: Boolean = false,
     ) {
         PASSWORD(R.string.wow_prompt_password, R.string.wow_prompt_password_hint, R.string.wow_prompt_login, ImeAction.Go, password = true, remember = true),
         NAME(R.string.wow_prompt_name, R.string.wow_prompt_name_hint, R.string.wow_prompt_type, ImeAction.Done),
         CHAT(R.string.wow_prompt_chat, R.string.wow_prompt_chat_hint, R.string.wow_prompt_send, ImeAction.Send),
-        TEXT(R.string.wow_prompt_text, R.string.wow_prompt_text_hint, R.string.wow_prompt_type, ImeAction.Done),
+        TEXT(R.string.wow_prompt_text, R.string.wow_prompt_text_hint, R.string.wow_prompt_type, ImeAction.Send, enter = true),
     }
 
     /**
-     * Shows the prompt; [onSend] gets the text and whether to remember it ([Kind.remember]),
+     * Shows the prompt; [onSend] gets the text, whether to remember it ([Kind.remember]) and whether
+     * Enter follows it ([Kind.enter]'s Send),
      * [onCancel] runs when it's closed without sending. [onBackspace] deletes a character in the
      * game's own text box: the keyboard's Backspace once the prompt's box is empty, or ⌫.
      */
     fun show(
         activity: Activity,
         kind: Kind,
-        onSend: (String, Boolean) -> Unit,
+        onSend: (String, Boolean, Boolean) -> Unit,
         onCancel: () -> Unit,
         onBackspace: () -> Unit,
     ): ComponentDialog {
         var dialog: ComponentDialog? = null
         var finished = false
-        fun finish(text: String?, remember: Boolean) {
+        fun finish(text: String?, remember: Boolean, enter: Boolean) {
             if (finished) return
             finished = true
             dialog?.dismiss()
-            if (text != null) onSend(text, remember) else onCancel()
+            if (text != null) onSend(text, remember, enter) else onCancel()
         }
         dialog = fullScreenDialog(activity, dim = false) {
-            Prompt(kind, onSend = { text, remember -> finish(text, remember) }, onCancel = { finish(null, false) }, onBackspace = onBackspace)
+            Prompt(kind, onSend = { text, remember, enter -> finish(text, remember, enter) }, onCancel = { finish(null, false, false) }, onBackspace = onBackspace)
         }
-        dialog.setOnCancelListener { finish(null, false) }
+        dialog.setOnCancelListener { finish(null, false, false) }
         // The keyboard comes up over the game without moving or shrinking anything.
         dialog.window?.setSoftInputMode(
             WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
@@ -360,7 +366,7 @@ object GamePrompt {
 }
 
 @Composable
-private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit) {
+private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean, Boolean) -> Unit, onCancel: () -> Unit, onBackspace: () -> Unit) {
     var text by remember { mutableStateOf("") }
     var keep by remember { mutableStateOf(true) }
     val focus = remember { FocusRequester() }
@@ -408,7 +414,7 @@ private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onC
                             autoCorrectEnabled = false,
                             imeAction = kind.imeAction,
                         ),
-                        keyboardActions = KeyboardActions(onAny = { onSend(text, keep) }),
+                        keyboardActions = KeyboardActions(onAny = { onSend(text, keep, kind.enter) }),
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(focus)
@@ -428,7 +434,12 @@ private fun Prompt(kind: GamePrompt.Kind, onSend: (String, Boolean) -> Unit, onC
                         WowButton(stringResource(R.string.wow_prompt_backspace), primary = false, onClick = onBackspace)
                     }
                     WowButton(stringResource(R.string.wow_prompt_cancel), primary = false, onClick = onCancel)
-                    WowButton(stringResource(kind.action)) { onSend(text, keep) }
+                    if (kind.enter) {
+                        WowButton(stringResource(kind.action), primary = false) { onSend(text, keep, false) }
+                        WowButton(stringResource(R.string.wow_prompt_send)) { onSend(text, keep, true) }
+                    } else {
+                        WowButton(stringResource(kind.action)) { onSend(text, keep, false) }
+                    }
                 }
                 if (!kind.password) {
                     Text(stringResource(R.string.wow_prompt_backspace_note), style = MaterialTheme.typography.bodySmall, color = WowColors.Mist)
