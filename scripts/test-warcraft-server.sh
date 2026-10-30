@@ -647,8 +647,6 @@ EOF
 	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
 		fail "the house isn't in ChromieCraft's world"
-	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
-		fail "the house is in Wrath Remix's world"
 	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*9701[0-4][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
 	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the house's rows"; }
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Homesteader 5 1 \
@@ -763,6 +761,11 @@ EOF
 	grep -q "^LevelScaling.Enable = 0" "$FILES/etc-remix/modules/mod_level_scaling.conf" || fail "level scaling isn't off in Wrath Remix's config"
 	grep -q "^LevelScaling.Enable = 1" "$FILES/etc/modules/mod_level_scaling.conf" || fail "level scaling isn't on in ChromieCraft's config"
 	grep -q "^QuestDrops.Enable = 1" "$FILES/etc/modules/mod_quest_drops.conf" || fail "quest drops aren't on in ChromieCraft's config"
+	# A home in Brill (mod-brill-home) is ChromieCraft's alone: off in Remix's config, its rows not in Remix's world.
+	grep -q "^BrillHome.Enable = 0" "$FILES/etc-remix/modules/mod_brill_home.conf" || fail "the Brill home is on in Wrath Remix's config"
+	grep -q "^BrillHome.Enable = 1" "$FILES/etc/modules/mod_brill_home.conf" || fail "the Brill home is off in ChromieCraft's config"
+	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "the house is in Wrath Remix's world"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||
