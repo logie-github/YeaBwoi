@@ -10,7 +10,8 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** The keys the gestures press. */
-enum class Key { W, S, Q, E, B, M, SPACE, ESCAPE, ENTER, TAB }
+/** The keys the gestures press. F12 is the game's Target Last Target (the app's add-on binds it). */
+enum class Key { W, S, Q, E, B, M, SPACE, ESCAPE, ENTER, TAB, F12 }
 
 enum class Button { LEFT, RIGHT, WHEEL_UP, WHEEL_DOWN }
 
@@ -30,7 +31,8 @@ interface GestureOutput {
 
     /**
      * The second tap of a double tap, there: attacks the enemy the first one selected, clicks
-     * again on the game's windows, or jumps (Space) when the first tap wasn't on an enemy.
+     * again on the game's windows and while one the player is using is open (the loot, a talk, a
+     * vendor...), or jumps (Space) when the first tap wasn't on an enemy, keeping the target.
      */
     fun doubleTapAt(x: Float, y: Float)
 

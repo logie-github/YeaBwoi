@@ -12,16 +12,23 @@ package com.logie.warcraft.client
  * An add-on can't reach the app directly, so it says it to the realm on the phone: an add-on
  * message (prefix `WowTouch`) whispered to the player itself, which the realm keeps for the app
  * instead of passing on (patches/azerothcore/0009, `files/run/interface`). It says it again only
- * when it changes: "drag <left> <bottom> <right> <top> hold <left> <bottom> <right> <top> ..." in
- * ten-thousandths of the screen from its bottom left (the spellbook inside its own edges; each
+ * when it changes: "open <0 or 1> drag <left> <bottom> <right> <top> hold <left> <bottom> <right> <top>
+ * ..." in thousandths of the screen from its bottom left (the spellbook inside its own edges; each
  * group of windows as one area: the bags, the bank, the character pane, the talents, the bars at
- * the bottom, the bars on the right), "-" for none.
+ * the bottom, the bars on the right, the portraits), "-" for none.
  *
  * The mounts and companions pane (the character pane's Pet tab) drags too, so a mount or a
  * companion goes onto the action bars as a spell does.
  *
  * A right click on an action bar's button (a hold, from the app) takes its action off the bar, as
  * dragging it away does on a PC, and does nothing else.
+ *
+ * The note starts "open 1" while a window the player is using is open (the loot, a talk, a quest, a
+ * vendor, a trainer, the flight master's map, the mail, a trade, Immersion's, the game's questions),
+ * "open 0" otherwise: a double tap then clicks twice and never jumps, which would close it.
+ *
+ * F12 is the game's Target Last Target (an override binding, set out of combat): a double tap's
+ * jump presses it when its first tap's click on the ground cleared the target, which comes back.
  *
  * A talent's first tap shows what it does (its tooltip) and spends nothing; a second tap on it
  * straight after (a double tap: the app clicks twice on the game's windows) spends the point.
@@ -67,7 +74,7 @@ object TouchAddon {
             ## Title: WowTouch
             ## Notes: The World of Warcraft app's touch controls: where the spellbook and the mounts are, for dragging them; holds as right clicks on items, talents and abilities; a talent's tooltip before its point; Report Time Anomaly and the story's fades to black on Wrath Remix; TomTom's arrow and Immersion's windows fitted to the phone's screen.
             ## Author: World of Warcraft app
-            ## Version: 9
+            ## Version: 10
             ## OptionalDeps: TomTom, Immersion
             $FOLDER.lua
         """.trimIndent() + "\n",
@@ -84,12 +91,12 @@ object TouchAddon {
             local said
             local inWorld = false
 
-            -- A share of the screen, in ten-thousandths.
+            -- A share of the screen, in thousandths.
             local function share(value)
-                return math.floor(value * 10000 + 0.5)
+                return math.floor(value * 1000 + 0.5)
             end
 
-            -- A window's place inside its edges, in ten-thousandths of the screen from its bottom left.
+            -- A window's place inside its edges, in thousandths of the screen from its bottom left.
             local function place(frame)
                 if not frame or not frame:IsVisible() then return "-" end
                 local left, bottom, width, height = frame:GetRect()
@@ -147,12 +154,13 @@ object TouchAddon {
                     local area = frame and place(frame) or "-"
                     if area ~= "-" then table.insert(areas, area) end
                 end
-                return #areas > 0 and table.concat(areas, " ") or "-"
+                return areas
             end
 
             -- Where a hold is a right click (and a double tap two clicks): the bags, the bank, the
             -- character pane, the talents, the report window, the action bars at the bottom and on
-            -- the right.
+            -- the right, and the portraits (the player's and their pet's, the target's, the focus's,
+            -- the party's), whose right click is their menu (trade, inspect, invite, follow...).
             local function holds()
                 local areas = {}
                 for _, list in ipairs({
@@ -163,16 +171,47 @@ object TouchAddon {
                     frames(_G["WowTouchReportFrame"]),
                     frames(MainMenuBar, MultiBarBottomLeft, MultiBarBottomRight, ShapeshiftBarFrame, PetActionBarFrame),
                     frames(MultiBarRight, MultiBarLeft),
+                    frames(PlayerFrame, PetFrame),
+                    frames(TargetFrame, _G["TargetFrameToT"]),
+                    frames(_G["FocusFrame"]),
+                    frames(PartyMemberFrame1, PartyMemberFrame2, PartyMemberFrame3, PartyMemberFrame4),
                 }) do
                     local area = around(list)
                     if area then table.insert(areas, area) end
                 end
+                return areas
+            end
+
+            -- Whether a window the player is using is open (where a double tap's jump would close it):
+            -- the loot, a talk, a quest, a vendor, a trainer, the flight master's map, the mail, a
+            -- trade, Immersion's, the game's questions.
+            local function opened()
+                for _, frame in ipairs({ LootFrame or false, GossipFrame or false, QuestFrame or false,
+                        MerchantFrame or false, ClassTrainerFrame or false, TaxiFrame or false, MailFrame or false,
+                        TradeFrame or false, _G["ImmersionFrame"] or false, StaticPopup1 or false }) do
+                    if frame and frame.IsVisible and frame:IsVisible() then return "1" end
+                end
+                return "0"
+            end
+
+            -- The note: "open", then the areas. The realm keeps its first 200 characters: past that,
+            -- the last hold areas are left out whole (never a number cut short).
+            local NOTE_MOST = 200
+            local function listed(areas)
                 return #areas > 0 and table.concat(areas, " ") or "-"
             end
 
             local function tell()
                 if not inWorld then return end
-                local note = "drag " .. drags() .. " hold " .. holds()
+                local open, dragAreas, holdAreas = opened(), drags(), holds()
+                local function compose()
+                    return "open " .. open .. " drag " .. listed(dragAreas) .. " hold " .. listed(holdAreas)
+                end
+                local note = compose()
+                while #note > NOTE_MOST and #holdAreas > 0 do
+                    table.remove(holdAreas)
+                    note = compose()
+                end
                 if note ~= said then
                     said = note
                     SendAddonMessage("$PREFIX", note, "WHISPER", UnitName("player"))
@@ -195,7 +234,18 @@ object TouchAddon {
                 end
             end
 
+            -- F12: the game's Target Last Target, which the app presses after a double tap's jump when
+            -- its first tap's click on the ground cleared the target. An override binding (the
+            -- player's own bindings stay), set out of combat, as the game asks.
+            local retargetReady = false
+            local function readyRetarget()
+                if retargetReady or InCombatLockdown() or not SetOverrideBinding then return end
+                SetOverrideBinding(CreateFrame("Frame"), true, "F12", "TARGETLASTTARGET")
+                retargetReady = true
+            end
+
             local function readyBars()
+                readyRetarget()
                 if barsReady or InCombatLockdown() then return end
                 for _, name in ipairs(barButtons) do
                     for i = 1, 12 do

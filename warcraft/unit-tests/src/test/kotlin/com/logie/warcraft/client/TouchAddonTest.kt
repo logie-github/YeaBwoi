@@ -200,13 +200,13 @@ class TouchAddonTest {
         update(1.0) // Before the world: nothing.
         assertEquals(emptyList(), sent())
         event("PLAYER_ENTERING_WORLD")
-        assertEquals(listOf("WowTouch|drag - hold -|WHISPER|Testhero"), sent())
+        assertEquals(listOf("WowTouch|open 0 drag - hold -|WHISPER|Testhero"), sent())
         update(1.0) // Nothing changed: nothing said.
         assertEquals(1, sent().size)
 
         lua.get("spellbook").set("shown", LuaValue.TRUE)
         update(1.0)
-        assertEquals("WowTouch|drag 156 2891 3613 8646 hold -|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|open 0 drag 16 289 361 865 hold -|WHISPER|Testhero", sent().last())
 
         // What the app makes of it: the spellbook from the top left, inside its edges.
         val note = sent().last().split('|')[1]
@@ -217,11 +217,11 @@ class TouchAddonTest {
         // Bigger interface: the same place in fractions of the screen moves with it.
         lua.get("spellbook").set("scale", LuaValue.valueOf(1.25))
         update(1.0)
-        assertEquals("WowTouch|drag 195 3613 4517 10807 hold -|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|open 0 drag 20 361 452 1081 hold -|WHISPER|Testhero", sent().last())
 
         lua.get("spellbook").set("shown", LuaValue.FALSE)
         update(1.0)
-        assertEquals("WowTouch|drag - hold -|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|open 0 drag - hold -|WHISPER|Testhero", sent().last())
     }
 
     @Test
@@ -378,7 +378,7 @@ class TouchAddonTest {
         """.trimIndent()).call()
         event("PLAYER_ENTERING_WORLD")
         val alone = sent().last().split('|')[1]
-        assertEquals("drag 156 1979 3379 7448 hold -", alone)
+        assertEquals("open 0 drag 16 198 338 745 hold -", alone)
         // With the spellbook open as well: both.
         lua.get("spellbook").set("shown", LuaValue.TRUE)
         update(1.0)
@@ -387,7 +387,7 @@ class TouchAddonTest {
         // Closed: none.
         lua.load("PetPaperDollFrameCompanionFrame.shown = false; spellbook.shown = false").call()
         update(1.0)
-        assertEquals("WowTouch|drag - hold -|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|open 0 drag - hold -|WHISPER|Testhero", sent().last())
     }
 
     @Test
@@ -401,14 +401,86 @@ class TouchAddonTest {
         """.trimIndent()).call()
         event("PLAYER_ENTERING_WORLD")
         val note = sent().last().split('|')[1]
-        assertEquals("drag - hold 7813 1302 9766 6771 0 0 10000 690 9570 2604 10000 7813", note)
+        assertEquals("open 0 drag - hold 781 130 977 677 0 0 1000 69 957 260 1000 781", note)
         val holds = InterfaceNote.holdAreas(note)
         assertTrue(holds[0].contains(0.85f, 0.5f) && holds[1].contains(0.5f, 0.97f))
 
         // The bag closes: said again.
         lua.load("ContainerFrame1.shown = false; ContainerFrame2.shown = false").call()
         update(1.0)
-        assertEquals("WowTouch|drag - hold 0 0 10000 690 9570 2604 10000 7813|WHISPER|Testhero", sent().last())
+        assertEquals("WowTouch|open 0 drag - hold 0 0 1000 69 957 260 1000 781|WHISPER|Testhero", sent().last())
+    }
+
+    @Test
+    fun itSaysWhenALootOrATalkIsOpen() {
+        // The loot window opens: "open 1" (a double tap clicks twice, never jumps); it closes: "open 0".
+        lua.load("LootFrame = window(16, 400, 240, 300); LootFrame.shown = false").call()
+        event("PLAYER_ENTERING_WORLD")
+        assertEquals("WowTouch|open 0 drag - hold -|WHISPER|Testhero", sent().last())
+        assertTrue(!InterfaceNote.windowOpen(sent().last().split('|')[1]))
+        lua.load("LootFrame.shown = true").call()
+        update(1.0)
+        assertEquals("WowTouch|open 1 drag - hold -|WHISPER|Testhero", sent().last())
+        assertTrue(InterfaceNote.windowOpen(sent().last().split('|')[1]))
+        lua.load("LootFrame.shown = false; GossipFrame = window(16, 400, 340, 420)").call()
+        update(1.0)
+        assertEquals("WowTouch|open 1 drag - hold -|WHISPER|Testhero", sent().last())
+        lua.load("GossipFrame.shown = false").call()
+        update(1.0)
+        assertEquals("WowTouch|open 0 drag - hold -|WHISPER|Testhero", sent().last())
+    }
+
+    @Test
+    fun aHoldOnAPortraitIsARightClick() {
+        // The player's portrait top left, the target's beside it: two hold areas (their menus).
+        lua.load("PlayerFrame = window(0, 668, 232, 100); TargetFrame = window(250, 668, 232, 100)").call()
+        event("PLAYER_ENTERING_WORLD")
+        val note = sent().last().split('|')[1]
+        assertEquals("open 0 drag - hold 0 870 227 1000 244 870 471 1000", note)
+        val holds = InterfaceNote.holdAreas(note)
+        assertTrue(holds[0].contains(0.1f, 0.05f) && holds[1].contains(0.35f, 0.05f))
+        assertTrue(holds.none { it.contains(0.5f, 0.5f) }, "the world between them")
+    }
+
+    @Test
+    fun aLongNoteLeavesOutWholeAreasPastWhatTheRealmKeeps() {
+        // Every window that holds open at once, the spellbook too: more than the realm's 200 characters.
+        lua.load("""
+            spellbook.shown = true
+            for i = 1, 5 do _G["ContainerFrame" .. i] = window(500 + i, 101 + i, 203, 307) end
+            BankFrame = window(11, 113, 397, 509)
+            CharacterFrame = window(13, 117, 389, 503)
+            MainMenuBar = window(0, 0, 1024, 53)
+            MultiBarRight = window(980, 200, 44, 400)
+            PlayerFrame = window(0, 668, 232, 100)
+            TargetFrame = window(250, 668, 232, 100)
+            FocusFrame = window(250, 500, 232, 100)
+            PartyMemberFrame1 = window(10, 400, 120, 50)
+            LootFrame = window(16, 400, 240, 300)
+        """.trimIndent()).call()
+        event("PLAYER_ENTERING_WORLD")
+        val note = sent().last().split('|')[1]
+        assertTrue(note.length <= 200, note)
+        assertTrue(note.startsWith("open 1 drag "), note)
+        assertTrue(InterfaceNote.windowOpen(note))
+        // Whole areas only: four numbers each.
+        val hold = note.substringAfter(" hold ").split(' ')
+        assertEquals(0, hold.size % 4, note)
+        assertTrue(InterfaceNote.holdAreas(note).isNotEmpty())
+    }
+
+    @Test
+    fun f12IsTargetLastTargetOnceOutOfCombat() {
+        lua.load("""
+            bindings = {}
+            function SetOverrideBinding(owner, priority, key, command) bindings[key] = command end
+            inCombat = true
+        """.trimIndent()).call()
+        event("PLAYER_ENTERING_WORLD")
+        assertTrue(lua.get("bindings").get("F12").isnil(), "set in combat")
+        lua.set("inCombat", LuaValue.FALSE)
+        event("PLAYER_REGEN_ENABLED")
+        assertEquals("TARGETLASTTARGET", lua.get("bindings").get("F12").tojstring())
     }
 
     @Test

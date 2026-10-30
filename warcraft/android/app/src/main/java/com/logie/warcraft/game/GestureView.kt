@@ -313,6 +313,7 @@ class GestureView(
             val before = cursorHere()
             val special = cursors.isSpecial(before)
             val selected = selection()?.first
+            tap.selectedBefore = selected
             click(Button.LEFT)
             when {
                 // An enemy: the click selected it; a second tap attacks.
@@ -357,26 +358,52 @@ class GestureView(
         }
     }
 
-    /** The second tap of a double tap: attack the enemy the first one selected; otherwise jump. */
+    /**
+     * The second tap of a double tap: attack the enemy the first one selected; otherwise jump,
+     * keeping the target. While a window the player is using is open (the loot, a talk, a vendor:
+     * a jump would close it), or after a first tap that looted, talked or used something, a tap of
+     * its own.
+     */
     override fun doubleTapAt(x: Float, y: Float) {
         // On the action bars, quick taps are presses of the buttons, as many as there are; on the
         // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
         // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
-        if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat()) || rightClicksAt(x, y)) return tapAt(x, y)
-        val first = lastTap
-        if (first == null || Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density) {
-            tap(Key.SPACE)
-            return
-        }
+        if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat()) || rightClicksAt(x, y) || windowOpen()) return tapAt(x, y)
+        val first = lastTap ?: return jump(null)
+        val far = Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density
         first.whenDone { outcome ->
-            when (outcome) {
-                Outcome.ENEMY -> interactAt(x, y)
-                // The first tap already talked, looted or used: the second is the same tap again.
-                Outcome.INTERACTED -> {}
-                Outcome.PLAIN -> tap(Key.SPACE)
+            when {
+                outcome == Outcome.ENEMY && !far -> interactAt(x, y)
+                // The first tap already talked, looted or used (a window may be opening): the
+                // second is the same tap again, or a tap of its own elsewhere (the loot's item).
+                outcome == Outcome.INTERACTED -> { if (far) tapAt(x, y) }
+                windowOpen() -> tapAt(x, y)
+                // (an enemy the first tap selected elsewhere stays the target)
+                outcome == Outcome.ENEMY -> jump(null)
+                else -> jump(first)
             }
         }
     }
+
+    /**
+     * Space; and when [first]'s click (on the ground, as a double tap's first tap is) changed the
+     * selection, which takes the target away, the game's Target Last Target (F12, the add-on's
+     * binding) brings it back.
+     */
+    private fun jump(first: TapResult?) {
+        tap(Key.SPACE)
+        val before = first?.selectedBefore ?: return
+        val since = SystemClock.uptimeMillis()
+        fun check() {
+            val now = selection()?.first
+            if (now != null && now != before) return tap(Key.F12)
+            if (SystemClock.uptimeMillis() - since < SELECTION_WAIT_MS) postDelayed({ check() }, SELECTION_POLL_MS)
+        }
+        check()
+    }
+
+    /** Whether the add-on says a window the player is using is open (the loot, a talk, a vendor...). */
+    private fun windowOpen(): Boolean = InterfaceNote.windowOpen(runCatching { interfaceFile.readText() }.getOrNull())
 
     /** The realm's latest word on a selection: its count, and whether it was an enemy. */
     private fun selection(): Pair<Int, Boolean>? = runCatching {
@@ -388,6 +415,8 @@ class GestureView(
 
     /** What a tap did, once it's known (its clicks wait for the game and the realm). */
     private class TapResult(val x: Float, val y: Float) {
+        /** The realm's selection count before its click (null: no click, or no word yet). */
+        var selectedBefore: Int? = null
         private var outcome: Outcome? = null
         private var waiting: ((Outcome) -> Unit)? = null
 
@@ -596,8 +625,8 @@ class GestureView(
         prompt = GamePrompt.show(
             activity,
             kind,
-            onSend = { text, remember ->
-                send(kind, text)
+            onSend = { text, remember, enter ->
+                send(kind, text, enter)
                 if (kind == GamePrompt.Kind.PASSWORD && remember) remember(text)
             },
             // A chat opened for the prompt closes again.
@@ -609,9 +638,10 @@ class GestureView(
     /**
      * Text from the prompt into the game's text box: the password, then Enter (logs in; on a new
      * account, the name prompt follows once the game is at character creation); a chat line, then
-     * Enter (sends); a name or other text, as it is.
+     * Enter (sends); a name, as it is; other text as it is, or then Enter ([enter]: the prompt's
+     * Send, which sends a chat line or a box's text, or presses Enter alone with nothing typed).
      */
-    private fun send(kind: GamePrompt.Kind, text: String) {
+    private fun send(kind: GamePrompt.Kind, text: String, enter: Boolean) {
         when (kind) {
             GamePrompt.Kind.PASSWORD -> {
                 type(text, enter = true)
@@ -624,7 +654,7 @@ class GestureView(
                 repeat(NAME_CLEAR_KEYS) { press(KeyEvent.KEYCODE_DEL) }
                 type(text, enter = false)
             }
-            GamePrompt.Kind.TEXT -> type(text, enter = false)
+            GamePrompt.Kind.TEXT -> type(text, enter = enter)
         }
     }
 
@@ -784,6 +814,7 @@ class GestureView(
                 Key.ESCAPE -> XKeycode.KEY_ESC
                 Key.ENTER -> XKeycode.KEY_ENTER
                 Key.TAB -> XKeycode.KEY_TAB
+                Key.F12 -> XKeycode.KEY_F12
             }
     }
 }
