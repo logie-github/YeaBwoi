@@ -1,6 +1,7 @@
 # A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house by Brill's north road,
-# Jamie Nore's welcome and bed, the bed's sleep and the furniture she has carried over.
-cmd .levelup 9
+# Jamie Nore's welcome and bed, the bed's sleep, the mastiff there on waking and made a warrior's hunter pet,
+# and the furniture she has carried over. (Level 12: Mend Pet's first rank comes with the dog.)
+cmd .levelup 11
 cmd .modify money 100000
 # At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
 go 0 2271.0 483.2 34.2
@@ -29,7 +30,30 @@ expect Brill home: sleeping.
 wait 4
 cmd .brillhome state
 has stand 3
+has flags 0x1 pet 0
 expect-not rested 0 stand
+# The mastiff, there after the first night (its phase 0x400 with the bed's): fetch three times, a scratch
+# behind the ears, and it's theirs: a hunter's pet for a warrior, with the pet spells.
+cmd .brillhome state
+expect Brill home: phases 0x601
+talk 970112
+accept 970112 970123
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Scratch behind its ears
+reward 970112 970123
+wait 2
+cmd .brillhome state
+has flags 0x7 pet 970115 kind 1 hunterpets 1 callpet 1 mendpet 1
+expect Brill home: phases 0x201
 # The bed quest done: back to Jamie.
 go 0 2314.0 288.0 37.9
 talk 2310

@@ -59,6 +59,34 @@ Not checked on a phone: the house as a gameobject (the game's own houses are par
 sleeping pose lies on the bed (assumed: lying back along the way the character faces), and the
 furniture's turns (assumed: the models' fronts at their +x).
 
+## The mastiff
+
+The first time the player sleeps in the bed, they wake to a mastiff beside it (Cataclysm's Gilneas dog,
+one of its four coats: gray, black, red, yellow). It doesn't talk; what it does is shown:
+"(The dog looks happy to see you.)". Its quest, **A Visitor in the Night**: throw the stick for it three
+times (it runs out the door after it and brings it back) and scratch it behind the ears. Turned in, the
+dog is the player's pet, made as a hunter's tamed beast is, at their level, for any class:
+
+- the game counts its keeper a hunter wherever it asks about pets (`OnPlayerIsClass`: the pet's kind,
+  the stable master, Tame Beast, a pet's happiness and training), so it works as a hunter's pet does;
+- they learn Call Pet, Dismiss Pet, Revive Pet, Feed Pet and Mend Pet (its ranks at a hunter's levels,
+  learnt as they level), which go under General in their spellbook (not their class's);
+- a player who already has a pet out or kept as their current one (a hunter's own, a warlock's demon)
+  finds the dog waiting by the door: once there's room, "(Whistle for it to follow you.)".
+
+What it changes for classes with their own summons: a warlock, mage, shaman or death knight with the
+dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
+do, and keep their spells' cooldowns when summoned.
+
+The model: `tools/mastiff.py` fetches its files from wago.tools as the server is packaged
+(`scripts/package-azerothcore.sh`; never in this repository) and makes them 3.3.5's with Wrath
+Remix's converter (`mod-wrath-remix/tools/models.py`) and the starting areas' fixes
+(`mod-worgen-goblin/tools/zones/package.py`'s `fix_models`). The world server puts it in the game as
+`Data/patch-W.MPQ` (`src/BrillHomePatch.cpp`), with its CreatureModelData (3970, the wolf's sounds)
+and its coats' CreatureDisplayInfo (39700 to 39703); made from the game with patches U and V in (they're
+made without it), set aside on Wrath Remix's realm. Its own ids, not the starting areas' (3190 and
+30210 to 30213, which go when the starting areas are off).
+
 ## Files
 
 - `data/sql/chromiecraft/world/brill_home_world.sql`: made by `tools/build_sql.py`; don't edit it.
@@ -69,5 +97,5 @@ furniture's turns (assumed: the models' fronts at their +x).
 
 ## Next
 
-The mastiff that's there when the player first wakes (Cataclysm's, backported), its quest, and the dog
-as a hunter's pet for any class: `warcraft/PLAN.md`.
+The hunter trainer teaching a dog's keeper to tame (Tame Beast, Beast Lore), and for hunters the dog
+as an extra pet (a 5th stable slot, the dog out beside their own): `warcraft/PLAN.md`.

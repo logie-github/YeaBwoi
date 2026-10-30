@@ -52,6 +52,24 @@ FURNITURE = [
 ]
 CEDRIC_AT = (0.5, -2.5, 257.5)  # facing the doorway
 
+# The mastiff (there when the player first wakes in the bed; its quest; then the player's pet).
+NPC_DOG, NPC_FETCH_CREDIT, NPC_EARS_CREDIT, NPC_DOG_PET = 970112, 970113, 970114, 970115
+QUEST_DOG = 970123
+TEXT_DOG, TEXT_DOG_WAITING = 970144, 970145
+PHASE_DOG = 0x400
+DOG_AT = (0.6, 0.6, 30)  # beside the bed, looking toward it
+# Its model (tools/mastiff.py, in the game's patch-W) and its four coats: ids clear of the game's and
+# of every module's (the starting areas' own mastiff rows, 3190 and 30210 to 30213, go when they're off).
+MASTIFF_MODEL = 3970
+MASTIFF_COATS = [(39700, "Gray"), (39701, "Black"), (39702, "Red"), (39703, "Yellow")]
+MASTIFF_SCALE = 0.7
+WOLF_SOUNDS = 43   # 3.3.5's wolf's CreatureSoundData (the mastiff's own sounds are the starting areas')
+# CreatureModelData's row for it: the starting areas' (Cataclysm's), with the wolf's sounds.
+MASTIFF_MODEL_ROW = [4096, "creature\\mastiff\\mastiff.mdx", 0, 1.0, 1, 7, 18.0, 12.0, 1.0, 0, 0, 0, WOLF_SOUNDS,
+                     0.6111111044883728, 2.031277894973755, 1.399109959602356, -1.3119957447052002, -0.42800551652908325,
+                     -0.029394155368208885, 1.1700317859649658, 0.4534095823764801, 1.9144073724746704, 1.0, 1.0, 0.0, 0.0, 0.0]
+CLIENT_DBC = os.path.join(HERE, "..", "data", "client", "dbc")
+
 
 def world(lx, ly):
     c, s = math.cos(HOUSE_O), math.sin(HOUSE_O)
@@ -102,6 +120,15 @@ BED_OFFER = (
     "been mended twice.$B$B"
     "Go and try it out. Lie down, get a proper night's sleep, and then come back and tell me I was right.")
 BED_PROGRESS = "Well? Have you tried it yet?"
+DOG_OFFER = (
+    "(A big mastiff is sitting beside your bed, as if it has been waiting a while for you to wake up. A muddy "
+    "stick lies between its front paws.)$B$B"
+    "(It noses the stick toward you. It looks at the door. It looks back at you.)")
+DOG_LOG = "Throw the stick for the mastiff three times, then give it a good scratch behind the ears."
+DOG_PROGRESS = "(The mastiff drops the stick at your feet again and waits, ears up.)"
+DOG_DONE = (
+    "(The mastiff turns three circles on the floor beside your bed and flops down with a long, contented sigh.)$B$B"
+    "(When you step toward the door, it gets up and follows.)")
 BED_DONE = (
     "You look rested. Don't argue; you do.$B$B"
     "Whenever you'd like to make the place more of a home, come and see me. I know a carpenter in the "
@@ -201,6 +228,68 @@ def main():
     w(f"({NPC_CEDRIC}, {QUEST_HOUSE}), ({JAMIE_NORE}, {QUEST_WELCOME}), ({JAMIE_NORE}, {QUEST_BED});")
     w("INSERT INTO `creature_questender` (`id`, `quest`) VALUES")
     w(f"({JAMIE_NORE}, {QUEST_HOUSE}), ({JAMIE_NORE}, {QUEST_WELCOME}), ({JAMIE_NORE}, {QUEST_BED});")
+
+    w("")
+    w("-- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the")
+    w("-- template its pet is made from; the quest's two credits. Its coats are its model's (patch-W).")
+    w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
+      "`speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES")
+    w(f"({NPC_DOG}, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),")
+    w(f"({NPC_DOG_PET}, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),")
+    w(f"({NPC_FETCH_CREDIT}, 'Played fetch with the mastiff', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),")
+    w(f"({NPC_EARS_CREDIT}, 'Scratched the mastiff behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');")
+    w("INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES")
+    rows = []
+    for entry in (NPC_DOG, NPC_DOG_PET):
+        rows += [f"({entry}, {i}, {display}, 1, 1)" for i, (display, _) in enumerate(MASTIFF_COATS)]
+    rows += [f"({NPC_FETCH_CREDIT}, 0, 11686, 1, 1)", f"({NPC_EARS_CREDIT}, 0, 11686, 1, 1)"]
+    w(",\n".join(rows) + ";")
+    dx, dy = world(DOG_AT[0], DOG_AT[1])
+    w("INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, "
+      "`orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES")
+    w(f"(970101, {NPC_DOG}, {MAP}, {ZONE}, {AREA}, 1, {PHASE_DOG}, {dx:.3f}, {dy:.3f}, {FLOOR:.3f}, {turn(DOG_AT[2]):.4f}, 60, 0, 0, 'mod-brill-home');")
+    w("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;")
+    w("INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES")
+    w(",\n".join(f"({display}, 0.7, 1.5, 2, 0)" for display, _ in MASTIFF_COATS) + ";")
+    w("-- The server's copy of the game's rows for it (the client's are in patch-W: data/client/dbc).")
+    w(f"DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = {MASTIFF_MODEL};")
+    w("INSERT INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, "
+      "`FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, "
+      "`DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, "
+      "`GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, "
+      "`MissileCollisionPush`, `MissileCollisionRaise`) VALUES")
+    w("(" + ", ".join([str(MASTIFF_MODEL)] + [q(v.replace("\\\\", "\\")) if isinstance(v, str) else repr(v) for v in MASTIFF_MODEL_ROW]) + ");")
+    w("DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;")
+    w("INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, "
+      "`TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, "
+      "`ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES")
+    w(",\n".join(f"({display}, {MASTIFF_MODEL}, 0, 0, {MASTIFF_SCALE}, 255, 'MastiffDog_{coat}', '', '', '', 0, 0, 0, 0, 0, 0)"
+                  for display, coat in MASTIFF_COATS) + ";")
+    w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
+    w(f"({TEXT_DOG}, {q('(The dog looks happy to see you.)')}, {q('(The dog looks happy to see you.)')}, 1),")
+    w(f"({TEXT_DOG_WAITING}, {q('(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)')}, "
+      f"{q('(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)')}, 1);")
+    w("INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, "
+      "`RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, "
+      "`RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`) VALUES")
+    w(f"({QUEST_DOG}, 2, -1, 5, {AREA}, 8, 1, 0, 0, 'A Visitor in the Night', {q(DOG_LOG)}, {q(DOG_OFFER)}, '', "
+      f"{q('Return to the mastiff.')}, {NPC_FETCH_CREDIT}, 3, 'Played fetch', {NPC_EARS_CREDIT}, 1, 'Scratched behind the ears');")
+    w(f"INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES ({QUEST_DOG}, 0);")
+    w(f"INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES ({QUEST_DOG}, 0, {q(DOG_DONE)});")
+    w(f"INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES ({QUEST_DOG}, 0, 0, {q(DOG_PROGRESS)});")
+    w(f"INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES ({NPC_DOG}, {QUEST_DOG});")
+    w(f"INSERT INTO `creature_questender` (`id`, `quest`) VALUES ({NPC_DOG}, {QUEST_DOG});")
+
+    # The game's own tables for it (patch-W, src/BrillHomePatch.cpp).
+    os.makedirs(CLIENT_DBC, exist_ok=True)
+    with open(os.path.join(CLIENT_DBC, "CreatureModelData.txt"), "w", encoding="utf-8") as f:
+        f.write("# CreatureModelData: the mastiff (tools/build_sql.py)\ntypes\tiisifiiffffiiiffffffffffffff\n")
+        # (a backslash in a change file is written twice, as the other modules' are)
+        f.write("put\t" + "\t".join(str(v).replace("\\", "\\\\") for v in [MASTIFF_MODEL] + MASTIFF_MODEL_ROW) + "\n")
+    with open(os.path.join(CLIENT_DBC, "CreatureDisplayInfo.txt"), "w", encoding="utf-8") as f:
+        f.write("# CreatureDisplayInfo: the mastiff's four coats (tools/build_sql.py)\ntypes\tiiiifissssiiiiii\n")
+        for display, coat in MASTIFF_COATS:
+            f.write(f"put\t{display}\t{MASTIFF_MODEL}\t0\t0\t{MASTIFF_SCALE}\t255\tMastiffDog_{coat}\t\t\t\t0\t0\t0\t0\t0\t0\n")
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:

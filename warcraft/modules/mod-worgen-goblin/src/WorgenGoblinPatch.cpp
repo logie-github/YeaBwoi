@@ -184,7 +184,7 @@ namespace WorgenGoblin
         auto start = std::chrono::steady_clock::now();
         // (the game's tables as the game reads them before this patch: without it and the patches
         // made from the game with it in)
-        Game game(clientData, { "patch-u.mpq", "patch-v.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq",
+        Game game(clientData, { "patch-u.mpq", "patch-v.mpq", "patch-w.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq",
             "patch-dede-y.mpq", "patch-frfr-y.mpq", "patch-eses-y.mpq", "patch-esmx-y.mpq", "patch-ruru-y.mpq", "patch-kokr-y.mpq",
             "patch-zhcn-y.mpq", "patch-zhtw-y.mpq" });
         if (game.archives.empty())

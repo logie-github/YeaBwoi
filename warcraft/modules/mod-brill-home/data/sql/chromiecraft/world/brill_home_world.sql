@@ -71,3 +71,50 @@ INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
 (970110, 970120), (2310, 970121), (2310, 970122);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (2310, 970120), (2310, 970121), (2310, 970122);
+
+-- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the
+-- template its pet is made from; the quest's two credits. Its coats are its model's (patch-W).
+INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES
+(970112, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),
+(970115, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),
+(970113, 'Played fetch with the mastiff', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),
+(970114, 'Scratched the mastiff behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');
+INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
+(970112, 0, 39700, 1, 1),
+(970112, 1, 39701, 1, 1),
+(970112, 2, 39702, 1, 1),
+(970112, 3, 39703, 1, 1),
+(970115, 0, 39700, 1, 1),
+(970115, 1, 39701, 1, 1),
+(970115, 2, 39702, 1, 1),
+(970115, 3, 39703, 1, 1),
+(970113, 0, 11686, 1, 1),
+(970114, 0, 11686, 1, 1);
+INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
+(970101, 970112, 0, 85, 159, 1, 1024, 2280.789, 484.688, 35.200, 5.6453, 60, 0, 0, 'mod-brill-home');
+DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;
+INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES
+(39700, 0.7, 1.5, 2, 0),
+(39701, 0.7, 1.5, 2, 0),
+(39702, 0.7, 1.5, 2, 0),
+(39703, 0.7, 1.5, 2, 0);
+-- The server's copy of the game's rows for it (the client's are in patch-W: data/client/dbc).
+DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;
+INSERT INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, `FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, `DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, `MissileCollisionPush`, `MissileCollisionRaise`) VALUES
+(3970, 4096, 'creature\\mastiff\\mastiff.mdx', 0, 1.0, 1, 7, 18.0, 12.0, 1.0, 0, 0, 0, 43, 0.6111111044883728, 2.031277894973755, 1.399109959602356, -1.3119957447052002, -0.42800551652908325, -0.029394155368208885, 1.1700317859649658, 0.4534095823764801, 1.9144073724746704, 1.0, 1.0, 0.0, 0.0, 0.0);
+DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;
+INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
+(39700, 3970, 0, 0, 0.7, 255, 'MastiffDog_Gray', '', '', '', 0, 0, 0, 0, 0, 0),
+(39701, 3970, 0, 0, 0.7, 255, 'MastiffDog_Black', '', '', '', 0, 0, 0, 0, 0, 0),
+(39702, 3970, 0, 0, 0.7, 255, 'MastiffDog_Red', '', '', '', 0, 0, 0, 0, 0, 0),
+(39703, 3970, 0, 0, 0.7, 255, 'MastiffDog_Yellow', '', '', '', 0, 0, 0, 0, 0, 0);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
+(970144, '(The dog looks happy to see you.)', '(The dog looks happy to see you.)', 1),
+(970145, '(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)', '(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)', 1);
+INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, `RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`) VALUES
+(970123, 2, -1, 5, 159, 8, 1, 0, 0, 'A Visitor in the Night', 'Throw the stick for the mastiff three times, then give it a good scratch behind the ears.', '(A big mastiff is sitting beside your bed, as if it has been waiting a while for you to wake up. A muddy stick lies between its front paws.)$B$B(It noses the stick toward you. It looks at the door. It looks back at you.)', '', 'Return to the mastiff.', 970113, 3, 'Played fetch', 970114, 1, 'Scratched behind the ears');
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970123, 0);
+INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES (970123, 0, '(The mastiff turns three circles on the floor beside your bed and flops down with a long, contented sigh.)$B$B(When you step toward the door, it gets up and follows.)');
+INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES (970123, 0, 0, '(The mastiff drops the stick at your feet again and waits, ears up.)');
+INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (970112, 970123);
+INSERT INTO `creature_questender` (`id`, `quest`) VALUES (970112, 970123);

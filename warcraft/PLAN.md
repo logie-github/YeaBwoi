@@ -1766,9 +1766,11 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
    CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
    gameobject, the sleeping pose on the bed, the furniture's turns.
-2. **The mastiff**: its model and textures from Cataclysm (mod-worgen-goblin's starting areas'
-   converter has it, `creature/mastiff/mastiff.m2`) in a patch of the base game, not the optional
-   starting areas' package; there on the first waking; its quest; the dog as a hunter's pet.
+2. **The mastiff**: built. Its model fetched and converted as the server is packaged
+   (`tools/mastiff.py`: Wrath Remix's converter, the starting areas' fixes), in the game's patch-W;
+   there on the first waking; its quest (fetch, a scratch behind the ears); the dog a hunter's pet for
+   any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through.
+   Not seen on a phone: the model in the game, its coats.
 3. **Pets for every class**: the hunter trainer's pet spells (Tame Beast, Call, Dismiss, Revive, Mend
    and Feed Pet, Beast Training...) for anyone with the dog, under General; the stable for them.
 4. **Hunters**: a 5th stable slot (the add-on adds its button), and the dog out beside their own pet

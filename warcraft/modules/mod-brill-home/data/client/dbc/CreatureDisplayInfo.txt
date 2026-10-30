@@ -1,0 +1,6 @@
+# CreatureDisplayInfo: the mastiff's four coats (tools/build_sql.py)
+types	iiiifissssiiiiii
+put	39700	3970	0	0	0.7	255	MastiffDog_Gray				0	0	0	0	0	0
+put	39701	3970	0	0	0.7	255	MastiffDog_Black				0	0	0	0	0	0
+put	39702	3970	0	0	0.7	255	MastiffDog_Red				0	0	0	0	0	0
+put	39703	3970	0	0	0.7	255	MastiffDog_Yellow				0	0	0	0	0	0
