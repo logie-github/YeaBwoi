@@ -180,7 +180,7 @@ int main(int argc, char** argv)
         Check(patch->Read(name, bytes) && bytes.size() > 1000, std::string(name) + " is in it");
     // The in-game script for add-ons (Questie), where the game has its interface's file list.
     {
-        Game game(data, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq" });
+        Game game(data, { "patch-v.mpq", "patch-w.mpq", "patch-y.mpq", "patch-z.mpq" });
         Bytes toc;
         if (!game.Read("Interface\\FrameXML\\FrameXML.toc", toc))
             std::cout << "  (no FrameXML.toc in this game: the add-ons' script isn't added)\n";
@@ -198,7 +198,7 @@ int main(int argc, char** argv)
     {
         Dbc cinematics;
         Check(patch->Read("DBFilesClient\\CinematicCamera.dbc", bytes) && cinematics.Parse(bytes), "CinematicCamera.dbc is in it");
-        Game game(data, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq" });
+        Game game(data, { "patch-v.mpq", "patch-w.mpq", "patch-y.mpq", "patch-z.mpq" });
         Bytes stock;
         if (!game.Read("Cameras\\FlybyDraenei.m2", stock))
             std::cout << "  (no flybys in this game: the intros' cameras aren't made)\n";

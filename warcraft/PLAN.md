@@ -1752,6 +1752,33 @@ a realm with modules), then stage 3.
   every giver, ender and creature to kill standing somewhere, every item to collect dropping.
   Not seen: the new NPCs' looks and places in the game.
 
+## A home in Brill (ChromieCraft; `modules/mod-brill-home`)
+
+The user's request: a house like Brill's by the road; Cedric Harrow inside leaves it to you; Jamie Nore
+(Brill's town hall) welcomes you, sells upgrades and sends you to try out a starter bed; the bed's rest
+or sleep (a yawn, a fade to black, a quarter level of rested experience, asleep in the bed until you
+move); waking the first time to a mastiff (Cataclysm's, backported) whose quest is shown, not told,
+and which becomes your pet, a hunter's pet in every way for any class; then the hunter trainer
+teaches any class to tame, with the pet's spells under General in the spellbook. For hunters, the dog
+is extra: a 5th stable slot, and the dog out beside their pet (two out; three for Beast Mastery). The
+user chose ChromieCraft only. Jamie Nore may have more quests later.
+
+1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
+   CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
+   gameobject, the sleeping pose on the bed, the furniture's turns.
+2. **The mastiff**: built. Its model fetched and converted as the server is packaged
+   (`tools/mastiff.py`: Wrath Remix's converter, the starting areas' fixes), in the game's patch-W;
+   there on the first waking; its quest (fetch, a scratch behind the ears); the dog a hunter's pet for
+   any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through.
+   Not seen on a phone: the model in the game, its coats.
+3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any
+   hunter trainer teaches Tame Beast and Beast Lore (from level 10); the stable master serves them
+   (the class hook). Under General in the spellbook (the client's own placing; not seen on a phone).
+4. **Hunters**: built. The dog out beside their own pet as a companion that fights with them (a
+   guardian: the core has one pet a player), and a beast master's (Bestial Wrath) first stabled pet as a
+   third. The 5th stable slot isn't made: the game's stable window has four slots and the dog doesn't
+   take one; to do if the user still wants it (a core change and the add-on adding the slot's button).
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made

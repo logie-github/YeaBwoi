@@ -1,0 +1,81 @@
+# A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house by Brill's north road,
+# Jamie Nore's welcome and bed, the bed's sleep, the mastiff there on waking and made a warrior's hunter pet,
+# and the furniture she has carried over. (Level 12: Mend Pet's first rank comes with the dog.)
+cmd .levelup 11
+cmd .modify money 100000
+# At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
+go 0 2271.0 483.2 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x101 upgrades 0x0
+talk 970110
+accept 970110 970120
+# Jamie Nore in the town hall: Cedric's quest turned in, the deed signed (done as it's taken), the bed.
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970120
+talk 2310
+accept 2310 970121
+reward 2310 970121
+talk 2310
+accept 2310 970122
+# Back at the house, inside: Cedric gone for this character, the bed there.
+go 0 2279.3 484.1 35.7
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x201 upgrades 0x0
+# Asleep in it: lying down (stand state 3) on the bed, rested experience given.
+cmd .brillhome sleep
+expect Brill home: sleeping.
+wait 4
+cmd .brillhome state
+has stand 3
+has flags 0x1 pet 0
+expect-not rested 0 stand
+# The mastiff, there after the first night (its phase 0x400 with the bed's): fetch three times, a scratch
+# behind the ears, and it's theirs: a hunter's pet for a warrior, with the pet spells.
+cmd .brillhome state
+expect Brill home: phases 0x601
+talk 970112
+accept 970112 970123
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Throw the stick
+wait 8
+talk 970112
+select 970112 Scratch behind its ears
+reward 970112 970123
+wait 2
+cmd .brillhome state
+has flags 0x7 pet 970115 kind 1 hunterpets 1 callpet 1 mendpet 1 tame 0
+expect Brill home: phases 0x201
+# A hunter trainer (Ormak Grimshot, Orgrimmar) teaches the warrior to tame beasts.
+go 1 2098.0 -4606.0 59.5
+talk 3352
+select 3352 tame beasts
+cmd .brillhome state
+expect tame 1
+# The bed quest done: back to Jamie.
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970122
+cmd .brillhome state
+expect quests 111
+# Her furniture: a bearskin rug, bought, in the house for this character.
+talk 2310
+select 2310 more of a home
+select 2310 bearskin rug
+go 0 2279.3 484.1 35.7
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x4201 upgrades 0x4000
+# Away from the house: the world's phase alone.
+go 0 2314.0 288.0 37.9
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x1 upgrades 0x4000

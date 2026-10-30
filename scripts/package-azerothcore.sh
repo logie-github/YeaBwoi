@@ -152,6 +152,14 @@ if [ -d "$DIST/modules/mod-worgen-goblin" ] && [ -d "$DIST/modules/mod-worgoblin
 		  echo "mod-worgen-goblin" >> "$INCOMPLETE"; }
 fi
 
+# The Brill home's mastiff (mod-brill-home, tools/mastiff.py): Cataclysm's Gilneas dog from the game's
+# files by their ids, made a model 3.3.5 draws (never in the repository); the world server puts it in
+# the game's patch-W with its tables. Its list of files is written last; without it there's no dog.
+if [ -d "$DIST/modules/mod-brill-home" ]; then
+	python3 /repo/warcraft/modules/mod-brill-home/tools/mastiff.py fetch "$pkg/src/modules/mod-brill-home/data/files" ||
+		echo "The mastiff wasn't fetched: the Brill home has no dog" >&2
+fi
+
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
 # Lua (a module's .lua files, but for the game's add-ons it may bring: folders of .toc files, or
 # named client, addon or interface).

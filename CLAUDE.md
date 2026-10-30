@@ -35,6 +35,9 @@ self-updating from this repository's GitHub releases.
   of the others' changes; `tools/build_data.py` makes its data, committed; `tools/package.py` makes
   its files for the game as the server is packaged (never committed). Next: Gilneas's and Kezan's
   starting areas from Cataclysm, joined to Wrath's world after them (`warcraft/PLAN.md`).
+- **A home in Brill** (ChromieCraft's realm only: the house by Brill's road, Cedric Harrow's and Jamie Nore's quests,
+  the bed, the furniture; next the mastiff and pets for every class): `warcraft/modules/mod-brill-home` (its README);
+  `tools/build_sql.py` makes its SQL, committed.
 - **WoW: Forever's quests** (ChromieCraft's realm only): `warcraft/modules/mod-forever-quests` (its
   README); `tools/forever.py` makes its SQL from QuestieDB's Forever data and foreverchanges.pro's
   quest pages (the exact text), committed.

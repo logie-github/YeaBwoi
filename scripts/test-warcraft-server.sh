@@ -644,6 +644,30 @@ EOF
 	erase_character Dropper || fail "Dropper wasn't erased"
 	echo "Quest drops roll 75% under 75%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
 
+	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
+	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
+		fail "the house isn't in ChromieCraft's world"
+	# The mastiff in the game: patch-W, its two tables and its seven files (tools/mastiff.py, as the server
+	# was packaged), made after the allied races' patch-V.
+	grep -E "Brill home: The Brill home's patch is in the game: 2 tables, 7 files" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Brill home's patch (the mastiff)"
+	[ -s "$FILES/client/Data/patch-W.MPQ" ] || fail "the Brill home's patch isn't in the game"
+	brill=$(grep -n -m1 "Brill home: The Brill home's patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	echo "world.out: the Brill home's patch at line ${brill:-?}, the allied races' at line ${allied:-?}"
+	[ -n "$brill" ] && [ -n "$allied" ] && [ "$brill" -gt "$allied" ] || fail "the Brill home's patch was made before the allied races'"
+	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*9701[0-4][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the house's rows"; }
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Homesteader 5 1 \
+		"$ROOT/warcraft/server/brill_home.steps" | tee "$FILES/logs/brill-home.out" ||
+		fail "the house's quests, bed or furniture didn't work (logs/brill-home.out)"
+	erase_character Homesteader || fail "Homesteader wasn't erased"
+	# A hunter's dog: one more out beside their own pet, not in its place (an orc hunter).
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dogkeeper 2 3 \
+		"$ROOT/warcraft/server/brill_home_hunter.steps" | tee "$FILES/logs/brill-home-hunter.out" ||
+		fail "a hunter's dog didn't come out beside them (logs/brill-home-hunter.out)"
+	erase_character Dogkeeper || fail "Dogkeeper wasn't erased"
+	echo "Cedric leaves the house, Jamie Nore's deed and bed, a night's sleep in it with rested experience, a rug bought."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 
@@ -750,6 +774,13 @@ EOF
 	grep -q "^LevelScaling.Enable = 0" "$FILES/etc-remix/modules/mod_level_scaling.conf" || fail "level scaling isn't off in Wrath Remix's config"
 	grep -q "^LevelScaling.Enable = 1" "$FILES/etc/modules/mod_level_scaling.conf" || fail "level scaling isn't on in ChromieCraft's config"
 	grep -q "^QuestDrops.Enable = 1" "$FILES/etc/modules/mod_quest_drops.conf" || fail "quest drops aren't on in ChromieCraft's config"
+	# A home in Brill (mod-brill-home) is ChromieCraft's alone: off in Remix's config, its rows not in Remix's world.
+	grep -q "^BrillHome.Enable = 0" "$FILES/etc-remix/modules/mod_brill_home.conf" || fail "the Brill home is on in Wrath Remix's config"
+	grep -q "^BrillHome.Enable = 1" "$FILES/etc/modules/mod_brill_home.conf" || fail "the Brill home is off in ChromieCraft's config"
+	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "the house is in Wrath Remix's world"
+	[ ! -e "$FILES/client/Data/patch-W.MPQ" ] && [ -e "$FILES/client/Data/patch-W.MPQ.aside" ] ||
+		fail "the Brill home's patch (the mastiff) is in the game on Wrath Remix (or wasn't kept aside)"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||

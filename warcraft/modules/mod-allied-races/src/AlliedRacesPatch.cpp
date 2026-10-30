@@ -349,7 +349,7 @@ namespace AlliedRaces
         auto start = std::chrono::steady_clock::now();
         // (Wrath Remix's patches are its realm's alone, its language folder's too: made from the game as
         // Remix last started, and taken out on ChromieCraft's after this is made, so not read for it)
-        Game game(clientData, { "patch-v.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq", "patch-dede-y.mpq",
+        Game game(clientData, { "patch-v.mpq", "patch-w.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq", "patch-dede-y.mpq",
             "patch-frfr-y.mpq", "patch-eses-y.mpq", "patch-esmx-y.mpq", "patch-ruru-y.mpq", "patch-kokr-y.mpq", "patch-zhcn-y.mpq", "patch-zhtw-y.mpq" });
         if (game.archives.empty())
         {
