@@ -29,6 +29,7 @@
 #include "Pet.h"
 #include "Player.h"
 #include "ScriptMgr.h"
+#include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "Trainer.h"
 #include "StringFormat.h"
@@ -60,6 +61,15 @@ namespace
     // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest
     // done); it's their pet (there was room for it).
     constexpr uint32 FLAG_SLEPT = 0x1, FLAG_DOG_ADOPTED = 0x2, FLAG_DOG_PET = 0x4;
+    // A hunter's dog isn't their pet but one more beside it (the user: "you can have your current pets
+    // out but also the dog. To a limit of 2 for regular hunters and 3 out at a time for beast masters"):
+    // a companion that follows them and fights what they fight; a Beast Mastery hunter's first stabled
+    // pet comes out beside it too.
+    constexpr uint32 FLAG_COMPANION = 0x8;
+    constexpr uint32 NPC_DOG_COMPANION = 970116, NPC_BEAST_COMPANION = 970117;
+    constexpr uint32 SPELL_BESTIAL_WRATH = 19574;          // Beast Mastery's 41-point talent: a beast master
+    constexpr uint32 SUMMON_PROPERTIES_ALLY_GUARDIAN = 61; // (the game's: an ally's guardian)
+    constexpr float COMPANION_LEASH = 60.0f;
     // The hunter's pet spells a dog's keeper learns with it (Call, Dismiss, Revive, Feed Pet), and Mend
     // Pet's ranks by the level they're learnt at.
     constexpr uint32 PET_SPELLS[] = { 883, 2641, 982, 6991 };
@@ -254,6 +264,14 @@ namespace
         Home& home = HomeOf(player);
         if (!(home.flags & FLAG_DOG_ADOPTED) || (home.flags & FLAG_DOG_PET))
             return false;
+        // (a hunter's: one more beside their own, never in its place)
+        if (player->getClass() == CLASS_HUNTER)
+        {
+            home.flags |= FLAG_DOG_PET | FLAG_COMPANION;
+            Save(player);
+            UpdatePhases(player);
+            return true;
+        }
         PetStable& stable = player->GetOrInitPetStable();
         if (player->GetPetGUID() || stable.CurrentPet || stable.GetUnslottedHunterPet())
             return false;
@@ -276,6 +294,80 @@ namespace
         LearnPetSpells(player);
         UpdatePhases(player);
         return true;
+    }
+
+    // A hunter's companions out: the dog, and a beast master's first stabled pet (its looks).
+    struct Companions { ObjectGuid dog, beast; };
+    std::unordered_map<uint32, Companions> companions;   // by the character's guid (low)
+
+    bool CanHaveCompanions(Player* player)
+    {
+        return player->IsInWorld() && player->IsAlive() && !player->IsMounted() && !player->IsInFlight()
+            && !player->GetVehicle() && !player->HasUnitState(UNIT_STATE_IN_FLIGHT);
+    }
+
+    void Unsummon(Player* player, ObjectGuid& guid)
+    {
+        if (guid)
+            if (Creature* c = ObjectAccessor::GetCreature(*player, guid))
+                c->DespawnOrUnsummon();
+        guid.Clear();
+    }
+
+    void Summon(Player* player, ObjectGuid& guid, uint32 entry, uint32 display)
+    {
+        Creature* c = guid ? ObjectAccessor::GetCreature(*player, guid) : nullptr;
+        if (c && c->IsAlive() && c->GetMapId() == player->GetMapId() && c->IsWithinDist(player, COMPANION_LEASH))
+            return;
+        Unsummon(player, guid);
+        SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(SUMMON_PROPERTIES_ALLY_GUARDIAN);
+        Position at = player->GetNearPosition(2.0f, float(M_PI) * (entry == NPC_DOG_COMPANION ? 0.75f : 1.25f));
+        TempSummon* summon = player->SummonCreature(entry, at, TEMPSUMMON_MANUAL_DESPAWN, 0, 0, properties);
+        if (!summon)
+            return;
+        if (display)
+            summon->SetDisplayId(display);
+        guid = summon->GetGUID();
+    }
+
+    void KeepCompanions(Player* player)
+    {
+        Home& home = HomeOf(player);
+        if (!(home.flags & FLAG_COMPANION) || player->getClass() != CLASS_HUNTER)
+            return;
+        Companions& out = companions[player->GetGUID().GetCounter()];
+        if (!CanHaveCompanions(player))
+        {
+            Unsummon(player, out.dog);
+            Unsummon(player, out.beast);
+            return;
+        }
+        Summon(player, out.dog, NPC_DOG_COMPANION, 0);
+        PetStable* stable = player->GetPetStable();
+        PetStable::PetInfo const* stabled = nullptr;
+        if (player->HasSpell(SPELL_BESTIAL_WRATH) && stable)
+            for (auto const& slot : stable->StabledPets)
+                if (slot && slot->Type == HUNTER_PET)
+                {
+                    stabled = &*slot;
+                    break;
+                }
+        if (stabled)
+            Summon(player, out.beast, NPC_BEAST_COMPANION, stabled->DisplayId);
+        else
+            Unsummon(player, out.beast);
+    }
+
+    uint32 CompanionsOut(Player* player)
+    {
+        auto it = companions.find(player->GetGUID().GetCounter());
+        if (it == companions.end())
+            return 0;
+        uint32 n = 0;
+        for (ObjectGuid guid : { it->second.dog, it->second.beast })
+            if (guid && ObjectAccessor::GetCreature(*player, guid))
+                ++n;
+        return n;
     }
 
     // The mastiff's own doings, seen by the player: shown, never said (it doesn't talk).
@@ -445,6 +537,57 @@ public:
     }
 };
 
+// A hunter's companion (the dog, or a beast master's stabled pet beside it): at its keeper's side, and
+// at whatever they fight: their target, or whatever is fighting them.
+struct npc_brill_home_companionAI : public ScriptedAI
+{
+    npc_brill_home_companionAI(Creature* creature) : ScriptedAI(creature) { }
+
+    void Follow()
+    {
+        if (Unit* owner = me->GetOwner())
+            if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() != FOLLOW_MOTION_TYPE)
+                me->GetMotionMaster()->MoveFollow(owner, PET_FOLLOW_DIST,
+                    me->GetEntry() == NPC_DOG_COMPANION ? float(M_PI) * 0.75f : float(M_PI) * 1.25f);
+    }
+
+    void EnterEvadeMode(EvadeReason /*why*/) override
+    {
+        me->CombatStop(true);
+        me->GetThreatMgr().ClearAllThreat();
+        Follow();
+    }
+
+    void UpdateAI(uint32 /*diff*/) override
+    {
+        Unit* owner = me->GetOwner();
+        if (!owner)
+            return;
+        Unit* target = me->GetVictim();
+        if (!target || !target->IsAlive() || !me->IsValidAttackTarget(target))
+        {
+            Unit* wanted = owner->IsInCombat() ? (owner->GetVictim() ? owner->GetVictim() : owner->getAttackerForHelper()) : nullptr;
+            if (wanted && wanted->IsAlive() && me->IsValidAttackTarget(wanted))
+                AttackStart(wanted);
+            else
+            {
+                if (me->GetVictim())
+                    EnterEvadeMode(EVADE_REASON_OTHER);
+                Follow();
+                return;
+            }
+        }
+        DoMeleeAttackIfReady();
+    }
+};
+
+class npc_brill_home_companion : public CreatureScript
+{
+public:
+    npc_brill_home_companion() : CreatureScript("npc_brill_home_companion") { }
+    CreatureAI* GetAI(Creature* creature) const override { return new npc_brill_home_companionAI(creature); }
+};
+
 // The hunter trainers teach a dog's keeper who isn't a hunter to tame beasts, as they do hunters: Tame
 // Beast and Beast Lore (under General in their spellbook), from a hunter's level for it.
 class BrillHomeHunterTrainers : public AllCreatureScript
@@ -539,10 +682,18 @@ public:
             return;
         since = 0;
         UpdatePhases(player);
+        KeepCompanions(player);
     }
 
     void OnPlayerLogout(Player* player) override
     {
+        auto out = companions.find(player->GetGUID().GetCounter());
+        if (out != companions.end())
+        {
+            Unsummon(player, out->second.dog);
+            Unsummon(player, out->second.beast);
+            companions.erase(out);
+        }
         homes.erase(player->GetGUID().GetCounter());
         sinceCheck.erase(player->GetGUID().GetCounter());
     }
@@ -564,6 +715,7 @@ public:
         {
             { "state", HandleState, SEC_GAMEMASTER, Console::No },
             { "sleep", HandleSleep, SEC_GAMEMASTER, Console::No },
+            { "adopt", HandleAdopt, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -584,10 +736,20 @@ public:
         // and the dog: the house's flags, the pet out (its entry, its kind: 1 a hunter's), whether the game
         // counts them a hunter for pets, and whether they have Call Pet and Mend Pet
         Pet* pet = player->GetPet();
-        handler->PSendSysMessage("Brill home: flags 0x{:X} pet {} kind {} hunterpets {} callpet {} mendpet {} tame {}",
+        handler->PSendSysMessage("Brill home: flags 0x{:X} pet {} kind {} hunterpets {} callpet {} mendpet {} tame {} companions {}",
             HomeOf(player).flags, pet ? pet->GetEntry() : 0, pet ? uint32(pet->getPetType()) : 9,
             player->IsClass(CLASS_HUNTER, CLASS_CONTEXT_PET) ? 1 : 0, player->HasSpell(883) ? 1 : 0, player->HasSpell(136) ? 1 : 0,
-            player->HasSpell(SPELL_TAME_BEAST) ? 1 : 0);
+            player->HasSpell(SPELL_TAME_BEAST) ? 1 : 0, CompanionsOut(player));
+        return true;
+    }
+
+    // The dog theirs as its quest's end makes it (without the house's quests before it).
+    static bool HandleAdopt(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        HomeOf(player).flags |= FLAG_SLEPT | FLAG_DOG_ADOPTED;
+        Save(player);
+        handler->PSendSysMessage("Brill home: adopted {}", GiveDog(player) ? 1 : 0);
         return true;
     }
 
@@ -655,4 +817,5 @@ void AddBrillHomeScripts()
     new BrillHomeCommands();
     new npc_brill_home_mastiff();
     new BrillHomeHunterTrainers();
+    new npc_brill_home_companion();
 }

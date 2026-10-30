@@ -661,6 +661,11 @@ EOF
 		"$ROOT/warcraft/server/brill_home.steps" | tee "$FILES/logs/brill-home.out" ||
 		fail "the house's quests, bed or furniture didn't work (logs/brill-home.out)"
 	erase_character Homesteader || fail "Homesteader wasn't erased"
+	# A hunter's dog: one more out beside their own pet, not in its place (an orc hunter).
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Dogkeeper 2 3 \
+		"$ROOT/warcraft/server/brill_home_hunter.steps" | tee "$FILES/logs/brill-home-hunter.out" ||
+		fail "a hunter's dog didn't come out beside them (logs/brill-home-hunter.out)"
+	erase_character Dogkeeper || fail "Dogkeeper wasn't erased"
 	echo "Cedric leaves the house, Jamie Nore's deed and bed, a night's sleep in it with rested experience, a rug bought."
 
 	echo "== world server shutdown, the way the app stops it"

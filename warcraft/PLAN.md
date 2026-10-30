@@ -1774,9 +1774,10 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any
    hunter trainer teaches Tame Beast and Beast Lore (from level 10); the stable master serves them
    (the class hook). Under General in the spellbook (the client's own placing; not seen on a phone).
-4. **Hunters**: a 5th stable slot (the add-on adds its button), and the dog out beside their own pet
-   as a companion that fights with them (the core has one pet a player): two out, three for Beast
-   Mastery hunters.
+4. **Hunters**: built. The dog out beside their own pet as a companion that fights with them (a
+   guardian: the core has one pet a player), and a beast master's (Bestial Wrath) first stabled pet as a
+   third. The 5th stable slot isn't made: the game's stable window has four slots and the dog doesn't
+   take one; to do if the user still wants it (a core change and the add-on adding the slot's button).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

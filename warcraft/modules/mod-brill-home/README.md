@@ -78,6 +78,14 @@ Then any hunter trainer teaches them to tame beasts, as it does a hunter: their 
 tame beasts, as you would a hunter." gives Tame Beast and Beast Lore (from level 10, a hunter's level
 for it), under General too. Taming, the stable, a pet's food and talents are then a hunter's.
 
+A hunter's dog is one more beside their own pet, never in its place (the user: "you can have your
+current pets out but also the dog. To a limit of 2 for regular hunters and 3 out at a time for beast
+masters"): a companion that follows them and fights what they fight (their target, or whatever is
+fighting them), at their level; a beast master's (Bestial Wrath learnt) first stabled pet comes out
+beside the two of them, in its own looks. Companions go while their hunter rides, flies or is dead, and
+come back after; one left behind (more than 60 yards, another map) comes back to their side. They're
+the game's guardians: the pet bar is their own pet's alone.
+
 What it changes for classes with their own summons: a warlock, mage, shaman or death knight with the
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
@@ -101,5 +109,6 @@ made without it), set aside on Wrath Remix's realm. Its own ids, not the startin
 
 ## Next
 
-For hunters, the dog as an extra pet: a 5th stable slot, and the dog out beside their own (two out, three
-for Beast Mastery): `warcraft/PLAN.md`.
+A 5th stable slot for hunters isn't made: the game's stable window has four, and the dog doesn't take
+one (it lives outside the stable, out beside them), which is the hunter's one more pet. Jamie Nore may
+have more quests later: `warcraft/PLAN.md`.
