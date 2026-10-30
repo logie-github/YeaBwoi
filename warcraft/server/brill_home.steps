@@ -52,8 +52,14 @@ select 970112 Scratch behind its ears
 reward 970112 970123
 wait 2
 cmd .brillhome state
-has flags 0x7 pet 970115 kind 1 hunterpets 1 callpet 1 mendpet 1
+has flags 0x7 pet 970115 kind 1 hunterpets 1 callpet 1 mendpet 1 tame 0
 expect Brill home: phases 0x201
+# A hunter trainer (Ormak Grimshot, Orgrimmar) teaches the warrior to tame beasts.
+go 1 2098.0 -4606.0 59.5
+talk 3352
+select 3352 tame beasts
+cmd .brillhome state
+expect tame 1
 # The bed quest done: back to Jamie.
 go 0 2314.0 288.0 37.9
 talk 2310

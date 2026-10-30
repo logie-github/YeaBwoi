@@ -30,6 +30,7 @@
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "ScriptedGossip.h"
+#include "Trainer.h"
 #include "StringFormat.h"
 #include "World.h"
 #include "WorldPacket.h"
@@ -79,6 +80,10 @@ namespace
 
     constexpr uint32 SENDER_UPGRADES = 1, SENDER_BUY = 2, SENDER_REST = 3, SENDER_SLEEP = 4;
     constexpr uint32 SENDER_FETCH = 5, SENDER_EARS = 6, SENDER_BRING = 7;
+    // (a sender none of the game's own menus use: the option this module adds to the hunter trainers')
+    constexpr uint32 SENDER_TAME = 970190;
+    constexpr uint32 SPELL_TAME_BEAST = 1515, SPELL_BEAST_LORE = 1462;
+    constexpr uint8 TAME_LEVEL = 10;   // a hunter's, for Tame Beast
 
     // The bed (the game's duskwoodbed: 4.8 yards along its +x, its headboard there, the mattress 0.86 up).
     constexpr float MATTRESS_HEIGHT = 0.86f;
@@ -440,6 +445,58 @@ public:
     }
 };
 
+// The hunter trainers teach a dog's keeper who isn't a hunter to tame beasts, as they do hunters: Tame
+// Beast and Beast Lore (under General in their spellbook), from a hunter's level for it.
+class BrillHomeHunterTrainers : public AllCreatureScript
+{
+public:
+    BrillHomeHunterTrainers() : AllCreatureScript("BrillHomeHunterTrainers") { }
+
+    static bool HunterTrainer(Creature* creature)
+    {
+        Trainer::Trainer const* trainer = sObjectMgr->GetTrainer(creature->GetEntry());
+        return trainer && trainer->GetTrainerType() == Trainer::Type::Class && trainer->GetTrainerRequirement() == CLASS_HUNTER;
+    }
+
+    static bool Learner(Player* player)
+    {
+        return enabled && player->getClass() != CLASS_HUNTER && (HomeOf(player).flags & FLAG_DOG_PET)
+            && !(player->HasSpell(SPELL_TAME_BEAST) && player->HasSpell(SPELL_BEAST_LORE));
+    }
+
+    // Their own menu, with the module's option at its end.
+    bool CanCreatureGossipHello(Player* player, Creature* creature) override
+    {
+        if (!Learner(player) || !HunterTrainer(creature))
+            return false;
+        player->PrepareGossipMenu(creature, creature->GetCreatureTemplate()->GossipMenuId, true);
+        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Teach me to tame beasts, as you would a hunter.", SENDER_TAME, 0);
+        player->SendPreparedGossip(creature);
+        return true;
+    }
+
+    bool CanCreatureGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
+    {
+        if (sender != SENDER_TAME)
+            return false;
+        CloseGossipMenuFor(player);
+        if (!Learner(player) || !HunterTrainer(creature))
+            return true;
+        if (player->GetLevel() < TAME_LEVEL)
+        {
+            creature->Whisper("Your dog trusts you, I'll grant that. Come back when you've a few more seasons behind you.", LANG_UNIVERSAL, player);
+            return true;
+        }
+        if (!player->HasSpell(SPELL_TAME_BEAST))
+            player->learnSpell(SPELL_TAME_BEAST);
+        if (!player->HasSpell(SPELL_BEAST_LORE))
+            player->learnSpell(SPELL_BEAST_LORE);
+        creature->Whisper("A beast already follows you of its own will: that's the hard part. The rest is patience, a steady hand, and something good to eat in your pack.",
+            LANG_UNIVERSAL, player);
+        return true;
+    }
+};
+
 class BrillHomePlayer : public PlayerScript
 {
 public:
@@ -527,9 +584,10 @@ public:
         // and the dog: the house's flags, the pet out (its entry, its kind: 1 a hunter's), whether the game
         // counts them a hunter for pets, and whether they have Call Pet and Mend Pet
         Pet* pet = player->GetPet();
-        handler->PSendSysMessage("Brill home: flags 0x{:X} pet {} kind {} hunterpets {} callpet {} mendpet {}",
+        handler->PSendSysMessage("Brill home: flags 0x{:X} pet {} kind {} hunterpets {} callpet {} mendpet {} tame {}",
             HomeOf(player).flags, pet ? pet->GetEntry() : 0, pet ? uint32(pet->getPetType()) : 9,
-            player->IsClass(CLASS_HUNTER, CLASS_CONTEXT_PET) ? 1 : 0, player->HasSpell(883) ? 1 : 0, player->HasSpell(136) ? 1 : 0);
+            player->IsClass(CLASS_HUNTER, CLASS_CONTEXT_PET) ? 1 : 0, player->HasSpell(883) ? 1 : 0, player->HasSpell(136) ? 1 : 0,
+            player->HasSpell(SPELL_TAME_BEAST) ? 1 : 0);
         return true;
     }
 
@@ -596,4 +654,5 @@ void AddBrillHomeScripts()
     new BrillHomeWorld();
     new BrillHomeCommands();
     new npc_brill_home_mastiff();
+    new BrillHomeHunterTrainers();
 }

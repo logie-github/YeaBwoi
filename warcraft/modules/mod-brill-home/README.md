@@ -74,6 +74,10 @@ dog is the player's pet, made as a hunter's tamed beast is, at their level, for 
 - a player who already has a pet out or kept as their current one (a hunter's own, a warlock's demon)
   finds the dog waiting by the door: once there's room, "(Whistle for it to follow you.)".
 
+Then any hunter trainer teaches them to tame beasts, as it does a hunter: their menu's "Teach me to
+tame beasts, as you would a hunter." gives Tame Beast and Beast Lore (from level 10, a hunter's level
+for it), under General too. Taming, the stable, a pet's food and talents are then a hunter's.
+
 What it changes for classes with their own summons: a warlock, mage, shaman or death knight with the
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
@@ -97,5 +101,5 @@ made without it), set aside on Wrath Remix's realm. Its own ids, not the startin
 
 ## Next
 
-The hunter trainer teaching a dog's keeper to tame (Tame Beast, Beast Lore), and for hunters the dog
-as an extra pet (a 5th stable slot, the dog out beside their own): `warcraft/PLAN.md`.
+For hunters, the dog as an extra pet: a 5th stable slot, and the dog out beside their own (two out, three
+for Beast Mastery): `warcraft/PLAN.md`.

@@ -1771,8 +1771,9 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
    there on the first waking; its quest (fetch, a scratch behind the ears); the dog a hunter's pet for
    any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through.
    Not seen on a phone: the model in the game, its coats.
-3. **Pets for every class**: the hunter trainer's pet spells (Tame Beast, Call, Dismiss, Revive, Mend
-   and Feed Pet, Beast Training...) for anyone with the dog, under General; the stable for them.
+3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any
+   hunter trainer teaches Tame Beast and Beast Lore (from level 10); the stable master serves them
+   (the class hook). Under General in the spellbook (the client's own placing; not seen on a phone).
 4. **Hunters**: a 5th stable slot (the add-on adds its button), and the dog out beside their own pet
    as a companion that fights with them (the core has one pet a player): two out, three for Beast
    Mastery hunters.
