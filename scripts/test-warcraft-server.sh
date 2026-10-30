@@ -644,6 +644,19 @@ EOF
 	erase_character Dropper || fail "Dropper wasn't erased"
 	echo "Quest drops roll 75% under 75%, 50% at 10% or less; twenty Rattlecage Skeletons dropped their skulls at that rate."
 
+	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
+	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
+		fail "the house isn't in ChromieCraft's world"
+	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "the house is in Wrath Remix's world"
+	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*9701[0-4][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the house's rows"; }
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Homesteader 5 1 \
+		"$ROOT/warcraft/server/brill_home.steps" | tee "$FILES/logs/brill-home.out" ||
+		fail "the house's quests, bed or furniture didn't work (logs/brill-home.out)"
+	erase_character Homesteader || fail "Homesteader wasn't erased"
+	echo "Cedric leaves the house, Jamie Nore's deed and bed, a night's sleep in it with rested experience, a rug bought."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 

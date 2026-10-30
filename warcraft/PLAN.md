@@ -1752,6 +1752,29 @@ a realm with modules), then stage 3.
   every giver, ender and creature to kill standing somewhere, every item to collect dropping.
   Not seen: the new NPCs' looks and places in the game.
 
+## A home in Brill (ChromieCraft; `modules/mod-brill-home`)
+
+The user's request: a house like Brill's by the road; Cedric Harrow inside leaves it to you; Jamie Nore
+(Brill's town hall) welcomes you, sells upgrades and sends you to try out a starter bed; the bed's rest
+or sleep (a yawn, a fade to black, a quarter level of rested experience, asleep in the bed until you
+move); waking the first time to a mastiff (Cataclysm's, backported) whose quest is shown, not told,
+and which becomes your pet, a hunter's pet in every way for any class; then the hunter trainer
+teaches any class to tame, with the pet's spells under General in the spellbook. For hunters, the dog
+is extra: a 5th stable slot, and the dog out beside their pet (two out; three for Beast Mastery). The
+user chose ChromieCraft only. Jamie Nore may have more quests later.
+
+1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
+   CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
+   gameobject, the sleeping pose on the bed, the furniture's turns.
+2. **The mastiff**: its model and textures from Cataclysm (mod-worgen-goblin's starting areas'
+   converter has it, `creature/mastiff/mastiff.m2`) in a patch of the base game, not the optional
+   starting areas' package; there on the first waking; its quest; the dog as a hunter's pet.
+3. **Pets for every class**: the hunter trainer's pet spells (Tame Beast, Call, Dismiss, Revive, Mend
+   and Feed Pet, Beast Training...) for anyone with the dog, under General; the stable for them.
+4. **Hunters**: a 5th stable slot (the add-on adds its button), and the dog out beside their own pet
+   as a companion that fights with them (the core has one pet a player): two out, three for Beast
+   Mastery hunters.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made

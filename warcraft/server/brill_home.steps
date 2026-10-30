@@ -1,0 +1,51 @@
+# A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house by Brill's north road,
+# Jamie Nore's welcome and bed, the bed's sleep and the furniture she has carried over.
+cmd .levelup 9
+cmd .modify money 100000
+# At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
+go 0 2271.0 483.2 34.2
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x101 upgrades 0x0
+talk 970110
+accept 970110 970120
+# Jamie Nore in the town hall: Cedric's quest turned in, the deed signed (done as it's taken), the bed.
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970120
+talk 2310
+accept 2310 970121
+reward 2310 970121
+talk 2310
+accept 2310 970122
+# Back at the house, inside: Cedric gone for this character, the bed there.
+go 0 2279.3 484.1 35.7
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x201 upgrades 0x0
+# Asleep in it: lying down (stand state 3) on the bed, rested experience given.
+cmd .brillhome sleep
+expect Brill home: sleeping.
+wait 4
+cmd .brillhome state
+has stand 3
+expect-not rested 0 stand
+# The bed quest done: back to Jamie.
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970122
+cmd .brillhome state
+expect quests 111
+# Her furniture: a bearskin rug, bought, in the house for this character.
+talk 2310
+select 2310 more of a home
+select 2310 bearskin rug
+go 0 2279.3 484.1 35.7
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x4201 upgrades 0x4000
+# Away from the house: the world's phase alone.
+go 0 2314.0 288.0 37.9
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x1 upgrades 0x4000

@@ -206,6 +206,15 @@ configure_realm() {
 			setkey "$level_scaling_conf" LevelScaling.Enable 1
 		fi
 	fi
+	# A home in Brill (mod-brill-home: the house, its quests and furniture) is ChromieCraft's alone.
+	brill_home_conf="$R_ETC/modules/mod_brill_home.conf"
+	if [ -f "$brill_home_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$brill_home_conf" BrillHome.Enable 0
+		else
+			setkey "$brill_home_conf" BrillHome.Enable 1
+		fi
+	fi
 	# Quest drops (mod-quest-drops: rare quest items, and epics in dungeons and from rare spawns, drop
 	# more often) on in both realms, set once (a later choice of off is kept: README, Drop rates).
 	quest_drops_conf="$R_ETC/modules/mod_quest_drops.conf"
@@ -297,13 +306,16 @@ run_dbimport() {
 # - The Worgen's and Goblins' (mod-worgen-goblin: mod-worgoblin's own SQL, which the package puts
 #   there in place of the module's data/sql), into ChromieCraft's world database.
 # - WoW: Forever's new quests (mod-forever-quests, ChromieCraft's alone): data/sql/chromiecraft.
+# - A home in Brill (mod-brill-home, ChromieCraft's alone): data/sql/chromiecraft, its world and
+#   characters databases.
 realm_sql() {
 	if [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
 			"mod-allied-races/data/sql/remix/world acore_world_remix"
 	else
 		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-worgen-goblin/data/sql/chromiecraft/world acore_world" \
-			"mod-forever-quests/data/sql/chromiecraft/world acore_world"
+			"mod-forever-quests/data/sql/chromiecraft/world acore_world" \
+			"mod-brill-home/data/sql/chromiecraft/world acore_world" "mod-brill-home/data/sql/chromiecraft/characters acore_characters"
 	fi
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }
