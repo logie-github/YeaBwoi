@@ -1,0 +1,4 @@
+# CreatureDisplayInfo: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iiiifissssiiiiii
+put	33101	3701	0	0	1.0	255					0	0	0	0	0	0
+put	33102	3702	0	0	1.0	255					0	0	0	0	0	0

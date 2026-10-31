@@ -691,6 +691,7 @@ jobs:
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-skyborne/tools/test_zoom.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-allied-races/tools/test_screen.py
           "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-worgen-goblin/tools/test_screen.py
+          "$RUNNER_TEMP/lua/bin/python" warcraft/modules/mod-murloc-naga/tools/test_screen.py
 
       # The allied races' tools: the model converter's pieces, the textures' codec, the tables'
       # data, the voices (with ffmpeg), the intros' narrations through a patch, both race patches'
@@ -722,6 +723,16 @@ jobs:
       # against its data.
       - name: WoW Forever's quests
         run: python3 warcraft/modules/mod-forever-quests/tools/test_forever.py
+
+      # The Murlocs and the Naga (mod-murloc-naga): the committed data against itself (the quests'
+      # people and items, the ids, the intros' cameras as the world server reads them); the patch's
+      # pieces built on their own (the game's files aren't here: CI's server test makes the patch).
+      - name: The Murlocs and the Naga
+        run: |
+          python3 -m venv "$RUNNER_TEMP/murlocnaga"
+          "$RUNNER_TEMP/murlocnaga/bin/pip" install --quiet numpy
+          "$RUNNER_TEMP/murlocnaga/bin/python" warcraft/modules/mod-murloc-naga/tools/test_data.py
+          g++ -std=c++17 -O2 -fsyntax-only -Iwarcraft/modules/mod-skyborne/src warcraft/modules/mod-murloc-naga/src/MurlocNagaPatch.cpp
 
       # The DBC checksums the app checks OctoWoW's server data against come from the pinned
       # Tortoise-WoW; they must be the ones at that commit. (The client is checked against OctoWoW's

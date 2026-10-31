@@ -1,0 +1,15 @@
+# GameObjectDisplayInfo: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	isiiiiiiiiiiffffffi
+put	9750	World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9751	World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9752	World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9753	World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9754	World\\GENERIC\\Murloc\\Passive Doodads\\Pearl\\GreatPearl_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9755	World\\GENERIC\\Murloc\\Passive Doodads\\Altars\\MurlocAltar_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9756	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Pagoda\\NagaPagodaHut01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9757	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Banner\\NA_Banner01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9758	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9759	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9760	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Crates\\NA_Crate01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9761	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\WeaponStacks\\NA_WeaponStack01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9762	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Jars\\NA_Jar01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
