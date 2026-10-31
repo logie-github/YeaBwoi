@@ -86,7 +86,11 @@ NPC_TEA_CREDIT, NPC_LOCKET_CREDIT, NPC_LILY_CREDIT, NPC_ANSWER_CREDIT = 970150, 
 GO_LOCKET, GO_LILY = 970108, 970109
 QUEST_TONIC, QUEST_LOCKET, QUEST_GIFT, QUEST_TEA, QUEST_LILY = range(970124, 970129)
 TEXT_CAROLAI_VISIT, TEXT_CAROLAI_HOME, TEXT_CAROLAI_ANSWER, TEXT_CAROLAI_LOVER = 970146, 970147, 970148, 970149
-TEXT_CAROLAI_FRIEND, TEXT_LOCKET, TEXT_LILY = 970150, 970151, 970152
+TEXT_CAROLAI_FRIEND, TEXT_LOCKET, TEXT_LILY, TEXT_CAROLAI_CALLING = 970150, 970151, 970152, 970153
+# Her alchemy table in the house while she lives there (src/BrillHome.cpp: where she works, reads, makes
+# tea and sits with the dog, by turns).
+GO_ALCHEMY = 970110
+ALCHEMY_AT = (2.6, -3.4, 90)
 PHASE_CAROLAI_VISIT, PHASE_CAROLAI_HOME = 0x10000, 0x20000
 CAROLAI_DISPLAY = 1601
 CURSED_DARKHOUND = 1548
@@ -262,11 +266,20 @@ CAROLAI_ANSWER = "(Carolai looks at the lily in your hand, then at you, and wait
 CAROLAI_VISIT = "(Carolai has swept your floor, folded your things and made tea. She's waiting for you to sit.)"
 CAROLAI_LOVER = "There you are. You always come back to me, $n.$B$BI'd know your footsteps anywhere. I listen for them."
 CAROLAI_FRIEND = "Hello, friend.$B$BYou didn't sleep well last night. No, don't tell me. I know you didn't."
+# A friend's call now and then (one day in five she's at the house when they come home).
+CAROLAI_CALLING = [
+    "I let myself in. You don't mind. Friends don't mind. I brought you a tonic for the cough you had on Tuesday.",
+    "I was passing. I'm always passing. Your dog was lonely, so I sat with him. We had a long talk about you.",
+    "Jamie says I shouldn't come in when you're out. Jamie says a great many things.",
+]
 CAROLAI_HOME = [
     "Welcome home, my love. I've warmed the kettle. I warm it every time I hear you on the road.",
     "The dog likes me now. He sleeps across the doorway, so nothing gets in. Or out. Good boy.",
     "I moved your things around a little. You'll get used to it. I got used to everything about you.",
     "Jamie waved at you in the square today. I saw. It's all right. I'm not angry. I'm never angry with you.",
+    "I've set up my bench by the window. The light's better here. And I can see the road, so I know when you're coming.",
+    "I read to the dog while you were out. He likes the sad parts. So do I.",
+    "Tea? I made it the way you like it. I've been watching how you like it.",
 ]
 
 
@@ -276,7 +289,7 @@ def main():
     w("-- mod-brill-home (ChromieCraft's world database alone: ctl.sh realm_sql). Made by tools/build_sql.py;")
     w("-- don't edit by hand. Written to be applied again: its own rows go first.")
     w("")
-    w("DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 970100 AND 970109;")
+    w("DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 970100 AND 970119;")
     w("DELETE FROM `gameobject` WHERE `guid` BETWEEN 970100 AND 970149;")
     w("DELETE FROM `creature_template` WHERE `entry` BETWEEN 970110 AND 970119;")
     w("DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 970110 AND 970119;")
@@ -448,11 +461,13 @@ def main():
     w(",\n".join(rows) + ";")
     w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES")
     w(f"({GO_LOCKET}, 2, 8, 'Old Footlocker', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
-    w(f"({GO_LILY}, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake');")
+    w(f"({GO_LILY}, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
+    w(f"({GO_ALCHEMY}, 5, 4391, 'Carolai\\'s Alchemy Table', 0.8, 0, 0, 0, '');")
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
       "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES")
     w(",\n".join([go_spawn(970120, GO_LOCKET, *LOCKET_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
-                  go_spawn(970121, GO_LILY, *LILY_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,")]) + ";")
+                  go_spawn(970121, GO_LILY, *LILY_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
+                  go_spawn(970122, GO_ALCHEMY, *world(ALCHEMY_AT[0], ALCHEMY_AT[1]), FLOOR, turn(ALCHEMY_AT[2]), PHASE_CAROLAI_HOME)]) + ";")
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
     w(",\n".join(f"({i}, {q(t)}, {q(t)}, 1)" for i, t in (
         (TEXT_CAROLAI_VISIT, CAROLAI_VISIT), (TEXT_CAROLAI_ANSWER, CAROLAI_ANSWER), (TEXT_CAROLAI_LOVER, CAROLAI_LOVER),
@@ -461,6 +476,9 @@ def main():
     cols = ", ".join(f"`text{i}_0`, `text{i}_1`, `Probability{i}`" for i in range(len(CAROLAI_HOME)))
     vals = ", ".join(f"{q(t)}, {q(t)}, {1 / len(CAROLAI_HOME):.2f}" for t in CAROLAI_HOME)
     w(f"INSERT INTO `npc_text` (`ID`, {cols}) VALUES ({TEXT_CAROLAI_HOME}, {vals});")
+    cols = ", ".join(f"`text{i}_0`, `text{i}_1`, `Probability{i}`" for i in range(len(CAROLAI_CALLING)))
+    vals = ", ".join(f"{q(t)}, {q(t)}, {1 / len(CAROLAI_CALLING):.2f}" for t in CAROLAI_CALLING)
+    w(f"INSERT INTO `npc_text` (`ID`, {cols}) VALUES ({TEXT_CAROLAI_CALLING}, {vals});")
     w("INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, "
       "`RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, "
       "`RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`, "

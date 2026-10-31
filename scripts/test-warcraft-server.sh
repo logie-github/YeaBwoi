@@ -668,6 +668,24 @@ EOF
 	erase_character Dogkeeper || fail "Dogkeeper wasn't erased"
 	echo "Cedric leaves the house, Jamie Nore's deed and bed, a night's sleep in it with rested experience, a rug bought."
 
+	echo "== Brill: A Place Among the Forsaken (mod-brill-home's town questlines, tools/town)"
+	grep -E "Brill town: [0-9]+ phase rows" "$FILES/logs/world.out" || fail "the world server didn't read the town's questlines"
+	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*970[2-9][0-9][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the town's rows"; }
+	# Each line played through by its own new character (an undead warrior), erased after.
+	n=0
+	for steps in "$ROOT"/warcraft/server/brill_town_*.steps; do
+		line=$(basename "$steps" .steps)
+		line=${line#brill_town_}
+		n=$((n + 1))
+		# (a name the game takes: twelve letters at most, the first a capital)
+		name="Brill$(echo "$line" | tr -cd 'a-z' | head -c7)"
+		python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 "$name" 5 1 "$steps" |
+			tee "$FILES/logs/brill-town-$line.out" || fail "Brill's $line questline didn't play through (logs/brill-town-$line.out)"
+		erase_character "$name" || fail "$name wasn't erased"
+	done
+	echo "Brill's questlines: $n played through."
+
 	echo "== world server shutdown, the way the app stops it"
 	stop_world
 

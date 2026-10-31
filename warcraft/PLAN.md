@@ -1788,6 +1788,16 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
    ask her to move in (and to go back to her shop). CI's realm test plays it through (lovers, moving in
    and out). Not seen on a phone: her place in the house, the keepsakes' spots (the footlocker beside
    Farmer Solliden, the lily on the shore among the Vile Fins).
+6. **Brill: A Place Among the Forsaken** (the user's design: nine optional questlines, 46 quests, Carolai's
+   the existing five): built. The New House's restoration (Oswin Thatcher), the Gravekeeper's Ledger, the
+   Apothecary's Apprentice, Whispers of the Scarlet, the Last Customer, A Deathguard's Duty, Something in
+   the Well, Beneath the Gallows; Carolai's life at home and as a friend. A questline is data
+   (`tools/town/*.py`, `tools/build_town.py`, `src/BrillTown.cpp`); the town's phases (fourteen) are all
+   used. Each line has a realm test. Not seen in the game or on a phone.
+7. **The Community Projects** (the user's next design: six buildings, 30 quests, opened by a capstone,
+   "Brill Endures", once any three of Brill's lines are done): the Chapel, the Library and the Stillgarden
+   are specified; the Surgeon's Hall, Caravan Office and Old Brewery wait on the rest of the user's text.
+   The town has no phases left: they need more (the game's own 0x2 to 0x80 in Brill, or a visibility hook).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

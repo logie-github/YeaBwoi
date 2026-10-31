@@ -22,6 +22,7 @@
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "GameTime.h"
+#include "BrillHome.h"
 #include "BrillHomePatch.h"
 #include "Log.h"
 #include "MotionMaster.h"
@@ -48,7 +49,8 @@ namespace
     // (tools/build_sql.py)
     constexpr float HOUSE_X = 2289.0f, HOUSE_Y = 352.0f;
     constexpr uint32 HOUSE_MAP = 0;
-    constexpr float NEAR_HOUSE = 50.0f;   // (the town hall, 69 yards off, is outside it)
+    // Brill, where the house's and the town's phases apply (tools/build_town.py: BRILL_*).
+    constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 140.0f;
 
     constexpr uint32 GO_BED = 970101, NPC_BED_CREDIT = 970111;
     constexpr uint32 NPC_DOG = 970112, NPC_FETCH_CREDIT = 970113, NPC_EARS_CREDIT = 970114, NPC_DOG_PET = 970115;
@@ -76,7 +78,7 @@ namespace
     struct Rank { uint8 level; uint32 spell; };
     constexpr Rank MEND_PET[] = { { 12, 136 }, { 20, 3111 }, { 28, 3661 }, { 36, 3662 }, { 44, 13542 }, { 52, 13543 },
                                   { 60, 13544 }, { 68, 27046 }, { 74, 48989 }, { 80, 48990 } };
-    constexpr uint32 PHASES_OURS = 0x3FF00;
+    constexpr uint32 PHASES_OURS = 0xFFFFFF00;   // (the house's to 0x20000, the town's lines' above)
 
     // Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, ending in
     // the player's answer, lovers or friends (the rewards the same: the user's), and as lovers, her
@@ -86,7 +88,10 @@ namespace
     constexpr uint32 GO_LOCKET = 970108, GO_LILY = 970109;
     constexpr uint32 QUEST_TONIC = 970124, QUEST_LOCKET = 970125, QUEST_GIFT = 970126, QUEST_TEA = 970127, QUEST_LILY = 970128;
     constexpr uint32 TEXT_CAROLAI_VISIT = 970146, TEXT_CAROLAI_HOME = 970147, TEXT_CAROLAI_ANSWER = 970148,
-        TEXT_CAROLAI_LOVER = 970149, TEXT_CAROLAI_FRIEND = 970150, TEXT_LOCKET = 970151, TEXT_LILY = 970152;
+        TEXT_CAROLAI_LOVER = 970149, TEXT_CAROLAI_FRIEND = 970150, TEXT_LOCKET = 970151, TEXT_LILY = 970152, TEXT_CAROLAI_CALLING = 970153;
+    // As friends, one day in five she has let herself in when they come home (the house's Carolai, in her
+    // friend's words).
+    constexpr uint32 CAROLAI_CALLS_EVERY = 5;
     constexpr uint32 PHASE_CAROLAI_VISIT = 0x10000, PHASE_CAROLAI_HOME = 0x20000;
     // The player's answer (the lily's quest), and whether she lives in the house.
     constexpr uint32 FLAG_LOVERS = 0x10, FLAG_FRIENDS = 0x20, FLAG_CAROLAI_HOME = 0x40;
@@ -105,6 +110,7 @@ namespace
     constexpr uint32 SENDER_FETCH = 5, SENDER_EARS = 6, SENDER_BRING = 7;
     // (Carolai's: senders the game's own options, all 0, never are)
     constexpr uint32 SENDER_LOVERS = 20, SENDER_FRIENDS = 21, SENDER_MOVE_IN = 22, SENDER_TEA = 23, SENDER_MOVE_OUT = 24, SENDER_HOLD = 25;
+    constexpr uint32 SENDER_ASK_JAMIE = 26, SENDER_ASK_CAROLAI = 27;
     // (a sender none of the game's own menus use: the option this module adds to the hunter trainers')
     constexpr uint32 SENDER_TAME = 970190;
     constexpr uint32 SPELL_TAME_BEAST = 1515, SPELL_BEAST_LORE = 1462;
@@ -150,9 +156,18 @@ namespace
 
     bool OwnsHouse(Player* player) { return player->GetQuestRewardStatus(QUEST_WELCOME); }
 
-    bool NearHouse(Player* player)
+    bool InBrill(Player* player)
     {
-        return player->GetMapId() == HOUSE_MAP && std::hypot(player->GetPositionX() - HOUSE_X, player->GetPositionY() - HOUSE_Y) < NEAR_HOUSE;
+        return player->GetMapId() == HOUSE_MAP && std::hypot(player->GetPositionX() - BRILL_X, player->GetPositionY() - BRILL_Y) < BRILL_RADIUS;
+    }
+
+    // As friends: today's the day she's at the house (by the character and the day).
+    bool FriendCalling(Player* player)
+    {
+        if (!(HomeOf(player).flags & FLAG_FRIENDS) || !OwnsHouse(player))
+            return false;
+        uint32 day = uint32(GameTime::GetGameTime().count() / 86400);
+        return (player->GetGUID().GetCounter() + day) % CAROLAI_CALLS_EVERY == 0;
     }
 
     // The phases that are the player's near the house.
@@ -175,6 +190,8 @@ namespace
             mask |= PHASE_CAROLAI_VISIT;
         if ((home.flags & FLAG_CAROLAI_HOME) && (home.flags & FLAG_LOVERS))
             mask |= PHASE_CAROLAI_HOME;
+        if (FriendCalling(player))
+            mask |= PHASE_CAROLAI_HOME;
         return mask;
     }
 
@@ -186,7 +203,7 @@ namespace
         // (only a phase of the house's own, or the world's: never one something else put them in)
         if ((now & ~(PHASEMASK_NORMAL | PHASES_OURS)) != 0)
             return;
-        uint32 wanted = NearHouse(player) ? HousePhases(player) : PHASEMASK_NORMAL;
+        uint32 wanted = InBrill(player) ? HousePhases(player) | BrillTown::Phases(player) : PHASEMASK_NORMAL;
         if (wanted != now)
             player->SetPhaseMask(wanted, true);
     }
@@ -398,6 +415,58 @@ namespace
     }
 }
 
+namespace BrillHome
+{
+    bool Enabled() { return enabled; }
+    uint32 Flags(Player* player) { return HomeOf(player).flags; }
+    bool OwnsHouse(Player* player) { return ::OwnsHouse(player); }
+    void RefreshPhases(Player* player) { UpdatePhases(player); }
+
+    void SendUpgrades(Player* player, Creature* creature)
+    {
+        Home& home = HomeOf(player);
+        ClearGossipMenuFor(player);
+        for (uint32 i = 0; i < std::size(UPGRADES); ++i)
+            if (!(home.upgrades & UPGRADES[i].phase))
+                AddGossipItemFor(player, GOSSIP_ICON_VENDOR, UPGRADES[i].offer, SENDER_BUY, i,
+                    "Have it carried over to your house?", UPGRADES[i].price, false);
+        SendGossipMenuFor(player, TEXT_UPGRADES, creature->GetGUID());
+    }
+
+    bool HasUpgrade(Player* player, uint32 index)
+    {
+        return index < std::size(UPGRADES) && (HomeOf(player).upgrades & UPGRADES[index].phase);
+    }
+
+    bool GiveUpgrade(Player* player, uint32 index)
+    {
+        if (index >= std::size(UPGRADES) || HasUpgrade(player, index))
+            return false;
+        HomeOf(player).upgrades |= UPGRADES[index].phase;
+        Save(player);
+        UpdatePhases(player);
+        return true;
+    }
+
+    void BuyUpgrade(Player* player, Creature* creature, uint32 index)
+    {
+        Home& home = HomeOf(player);
+        if (index >= std::size(UPGRADES) || !::OwnsHouse(player) || (home.upgrades & UPGRADES[index].phase))
+            return;
+        Upgrade const& upgrade = UPGRADES[index];
+        if (!player->HasEnoughMoney(upgrade.price))
+        {
+            creature->Whisper("You'll need a little more coin than that, I'm afraid.", LANG_UNIVERSAL, player);
+            return;
+        }
+        player->ModifyMoney(-int32(upgrade.price));
+        home.upgrades |= upgrade.phase;
+        Save(player);
+        creature->Whisper(upgrade.done, LANG_UNIVERSAL, player);
+        UpdatePhases(player);
+    }
+}
+
 class go_brill_home_bed : public GameObjectScript
 {
 public:
@@ -441,7 +510,10 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
         if (OwnsHouse(player))
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "I'd like to make my house more of a home.", SENDER_UPGRADES, 0);
-        SendGossipMenuFor(player, TEXT_JAMIE, creature->GetGUID());
+        if (player->GetQuestRewardStatus(QUEST_GIFT))
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Ask her about Carolai Anise.)", SENDER_ASK_CAROLAI, 0);
+        uint32 townText = BrillTown::AddOptions(player, creature);
+        SendGossipMenuFor(player, townText ? townText : TEXT_JAMIE, creature->GetGUID());
         return true;
     }
 
@@ -451,29 +523,35 @@ public:
             return false;
         ClearGossipMenuFor(player);
         Home& home = HomeOf(player);
+        (void)home;
         if (sender == SENDER_UPGRADES)
         {
-            for (uint32 i = 0; i < std::size(UPGRADES); ++i)
-                if (!(home.upgrades & UPGRADES[i].phase))
-                    AddGossipItemFor(player, GOSSIP_ICON_VENDOR, UPGRADES[i].offer, SENDER_BUY, i,
-                        "Have it carried over to your house?", UPGRADES[i].price, false);
-            SendGossipMenuFor(player, TEXT_UPGRADES, creature->GetGUID());
+            BrillHome::SendUpgrades(player, creature);
+            return true;
+        }
+        if (sender == SENDER_ASK_CAROLAI)
+        {
+            CloseGossipMenuFor(player);
+            uint32 flags = home.flags;
+            char const* line = (flags & FLAG_CAROLAI_HOME) && (flags & FLAG_LOVERS)
+                ? "She's moved in with you, then. I saw her carrying her bottles across the square. Well. It's your house, and your life. "
+                  "If you ever want the key back, you know where the records are kept. I'll keep a spare. Just in case."
+                : (flags & FLAG_LOVERS)
+                ? "You and Carolai. I won't pretend I'm not worried, $n. But I've seen her smile at you, and I hadn't seen her smile in six years. "
+                  "Maybe that counts for something. I still check my tea."
+                : (flags & FLAG_FRIENDS)
+                ? "Friends, is it? She still watches your door from her bench, you know. Friends don't usually. But she's been kinder to the "
+                  "rest of us since. Brought me a salve for my hands last week. I had it tested first, of course."
+                : "Carolai? We've an understanding. She doesn't send me any more perfume, and I don't tell the Deathguard about the last one.";
+            std::string text = line;
+            for (size_t at = text.find("$n"); at != std::string::npos; at = text.find("$n"))
+                text.replace(at, 2, player->GetName());
+            creature->Whisper(text, LANG_UNIVERSAL, player);
             return true;
         }
         CloseGossipMenuFor(player);
-        if (sender != SENDER_BUY || action >= std::size(UPGRADES) || !OwnsHouse(player) || (home.upgrades & UPGRADES[action].phase))
-            return true;
-        Upgrade const& upgrade = UPGRADES[action];
-        if (!player->HasEnoughMoney(upgrade.price))
-        {
-            creature->Whisper("You'll need a little more coin than that, I'm afraid.", LANG_UNIVERSAL, player);
-            return true;
-        }
-        player->ModifyMoney(-int32(upgrade.price));
-        home.upgrades |= upgrade.phase;
-        Save(player);
-        creature->Whisper(upgrade.done, LANG_UNIVERSAL, player);
-        UpdatePhases(player);
+        if (sender == SENDER_BUY)
+            BrillHome::BuyUpgrade(player, creature, action);
         return true;
     }
 };
@@ -593,16 +671,32 @@ public:
         }
         else if (home.flags & FLAG_FRIENDS)
             text = TEXT_CAROLAI_FRIEND;
+        if (player->GetQuestRewardStatus(QUEST_GIFT))
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Ask her about Jamie Nore.)", SENDER_ASK_JAMIE, 0);
+        // (the town's lines' options for her; their greetings don't take the place of hers)
+        BrillTown::AddOptions(player, creature);
         SendGossipMenuFor(player, text, creature->GetGUID());
         return true;
     }
 
     bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
     {
-        if (!enabled || (sender != SENDER_LOVERS && sender != SENDER_FRIENDS && sender != SENDER_MOVE_IN))
+        if (!enabled || (sender != SENDER_LOVERS && sender != SENDER_FRIENDS && sender != SENDER_MOVE_IN && sender != SENDER_ASK_JAMIE))
             return false;   // (her training and the game's own options)
         CloseGossipMenuFor(player);
         Home& home = HomeOf(player);
+        if (sender == SENDER_ASK_JAMIE)
+        {
+            // (the gift's still between them, whatever the player answered)
+            char const* line = (home.flags & FLAG_LOVERS)
+                ? "Jamie Nore keeps the town's records. Births, deaths, deeds. She wrote your name in her ledger before I ever said it aloud. "
+                  "I don't like other people having your name written down. That's all. That's all it is."
+                : (home.flags & FLAG_FRIENDS)
+                ? "Jamie and I are... civil. She checks her tea before she drinks it when I'm in the room. I think that's rather rude, don't you?"
+                : "Jamie Nore is a very capable woman with a great many friends. She'd be missed. Everyone says so.";
+            creature->Whisper(line, LANG_UNIVERSAL, player);
+            return true;
+        }
         if (sender == SENDER_MOVE_IN)
         {
             if (!(home.flags & FLAG_LOVERS) || (home.flags & FLAG_CAROLAI_HOME))
@@ -676,20 +770,76 @@ public:
     }
 };
 
-// Carolai living in the house (lovers, asked to move in): a line of hers at random; time at her shop.
+// Carolai in the house: living there (lovers, asked to move in), or calling as a friend now and then. She
+// keeps busy by turns: her alchemy table, tea at the stove, sitting with the dog, reading at the shelf.
+struct npc_brill_home_carolai_homeAI : public ScriptedAI
+{
+    npc_brill_home_carolai_homeAI(Creature* creature) : ScriptedAI(creature) { }
+
+    // (the house's: tools/build_sql.py's places, turned to what she's doing)
+    struct Spot { float x, y, o; uint32 emote; bool sit; };
+    static constexpr float FLOOR = 35.22f;
+    static constexpr Spot SPOTS[] = {
+        { 2286.95f, 354.65f, 2.987f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
+        { 2292.99f, 349.32f, 5.792f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
+        { 2291.85f, 348.89f, 5.582f, 0, true },                           // with the dog, by its bed
+        { 2289.60f, 347.94f, 4.907f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
+    };
+    uint32 next = 5000, spot = 0;
+    bool moving = false;
+
+    void Reset() override { next = urand(5000, 15000); }
+
+    void MovementInform(uint32 type, uint32 id) override
+    {
+        if (type != POINT_MOTION_TYPE || id != 1 || spot >= std::size(SPOTS))
+            return;
+        moving = false;
+        Spot const& s = SPOTS[spot];
+        me->SetFacingTo(s.o);
+        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, s.emote);
+        if (s.sit)
+            me->SetStandState(UNIT_STAND_STATE_SIT);
+    }
+
+    void UpdateAI(uint32 diff) override
+    {
+        if (me->IsInCombat() || moving)
+            return;
+        if (next > diff)
+        {
+            next -= diff;
+            return;
+        }
+        next = urand(45000, 90000);
+        spot = urand(0, std::size(SPOTS) - 1);
+        me->SetUInt32Value(UNIT_NPC_EMOTESTATE, 0);
+        me->SetStandState(UNIT_STAND_STATE_STAND);
+        moving = true;
+        me->GetMotionMaster()->MovePoint(1, SPOTS[spot].x, SPOTS[spot].y, FLOOR);
+    }
+};
+
 class npc_brill_home_carolai_home : public CreatureScript
 {
 public:
     npc_brill_home_carolai_home() : CreatureScript("npc_brill_home_carolai_home") { }
+
+    CreatureAI* GetAI(Creature* creature) const override { return new npc_brill_home_carolai_homeAI(creature); }
 
     bool OnGossipHello(Player* player, Creature* creature) override
     {
         if (!enabled)
             return false;
         ClearGossipMenuFor(player);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Hold her for a while.)", SENDER_HOLD, 0);
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Would you like some time back at your shop?", SENDER_MOVE_OUT, 0);
-        SendGossipMenuFor(player, TEXT_CAROLAI_HOME, creature->GetGUID());
+        Home& home = HomeOf(player);
+        bool lovers = (home.flags & FLAG_LOVERS) && (home.flags & FLAG_CAROLAI_HOME);
+        if (lovers)
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Hold her for a while.)", SENDER_HOLD, 0);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Would you like some time back at your shop?", SENDER_MOVE_OUT, 0);
+        }
+        SendGossipMenuFor(player, lovers ? TEXT_CAROLAI_HOME : TEXT_CAROLAI_CALLING, creature->GetGUID());
         return true;
     }
 
@@ -698,6 +848,9 @@ public:
         if (!enabled)
             return false;
         CloseGossipMenuFor(player);
+        Home& home = HomeOf(player);
+        if (!(home.flags & FLAG_LOVERS) || !(home.flags & FLAG_CAROLAI_HOME))
+            return true;
         if (sender == SENDER_HOLD)
         {
             creature->HandleEmoteCommand(EMOTE_ONESHOT_SHY);
@@ -706,7 +859,7 @@ public:
         }
         else if (sender == SENDER_MOVE_OUT)
         {
-            HomeOf(player).flags &= ~FLAG_CAROLAI_HOME;
+            home.flags &= ~FLAG_CAROLAI_HOME;
             Save(player);
             creature->Whisper("Of course. I'll go. I'll only be across the square. I can see your window from my bench, you know. "
                 "Ask me again whenever you like. I'll be watching for it.", LANG_UNIVERSAL, player);
@@ -896,6 +1049,7 @@ public:
         }
         homes.erase(player->GetGUID().GetCounter());
         sinceCheck.erase(player->GetGUID().GetCounter());
+        BrillTown::Forget(player);
     }
 };
 
@@ -1008,6 +1162,8 @@ public:
     // patch-V are made (as the configuration is read), before the Skyborne's patch-Z.
     void OnLoadCustomDatabaseTable() override
     {
+        if (enabled)
+            BrillTown::Load();
         fs::path data = ClientData();
         if (!enabled || data.empty())
             return;
@@ -1043,4 +1199,5 @@ void AddBrillHomeScripts()
     new npc_brill_home_carolai_visit();
     new npc_brill_home_carolai_home();
     new go_brill_home_keepsake();
+    BrillTown::AddScripts();
 }
