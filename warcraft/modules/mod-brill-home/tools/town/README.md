@@ -87,7 +87,8 @@ A friendly creature with gossip rows (below) shows its own menu (its quests) and
 ```
 
 An object with `use` is clickable (each spawn gives a credit once to a player); without, it's scenery
-(type 5). `"type": 7` makes a chair.
+(type 5). `"type": 7` makes a chair. A spawn gives each quest's credit once (the same object may count
+for two quests).
 
 ### gossip
 

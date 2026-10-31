@@ -58,7 +58,8 @@ namespace
     std::vector<GossipRow> gossip;                                 // (its index is the option's sender, past SENDER_BASE)
     std::unordered_map<uint32, std::vector<uint32>> gossipByNpc;   // a creature's rows, in order
     std::unordered_map<uint32, std::vector<UseRow>> uses;          // an object's
-    std::unordered_map<uint32, std::unordered_set<uint32>> used;   // the object spawns a character has used for credit
+    // the object spawns a character has used for a quest's credit (the quest's and the spawn's ids)
+    std::unordered_map<uint32, std::unordered_set<uint64>> used;
     constexpr uint32 SENDER_BASE = 980000;
 
     Conds Parse(std::string const& text)
@@ -348,9 +349,10 @@ namespace
                     continue;
                 if (u.quest || u.credit)
                 {
-                    if (!Wanted(player, u.quest, u.credit) || mine.count(go->GetSpawnId()))
+                    uint64 key = (uint64(u.quest) << 32) | go->GetSpawnId();
+                    if (!Wanted(player, u.quest, u.credit) || mine.count(key))
                         continue;
-                    mine.insert(go->GetSpawnId());
+                    mine.insert(key);
                     if (u.credit)
                         player->KilledMonsterCredit(u.credit);
                 }
