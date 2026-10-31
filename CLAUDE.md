@@ -48,6 +48,8 @@ self-updating from this repository's GitHub releases.
 - **Ralia's mod** (both realms: the launcher's Game options switch; the user's own zip, picked on the phone, never
   committed): `warcraft/modules/mod-ralia` (its README); `tools/build_data.py` makes `data/client/sources.txt`, committed.
   Its patch is `Data/<locale>/patch-<locale>-Z.MPQ`, made from the client at the realm's start.
+- **Base Model** (both realms: the launcher's Game options switch, live): `warcraft/modules/mod-base-model` (its
+  README): every character's gear left out of sight while `files/base-model/enabled` is there.
 - **WoW: Forever's quests** (ChromieCraft's realm only): `warcraft/modules/mod-forever-quests` (its
   README); `tools/forever.py` makes its SQL from QuestieDB's Forever data and foreverchanges.pro's
   quest pages (the exact text), committed.

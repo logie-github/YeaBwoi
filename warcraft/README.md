@@ -335,6 +335,10 @@ Until this version the Skyborne's and the allied races' changes to the reputatio
 
 It covers the races in the game but the gnomes, the murlocs and the naga: the eight of 1.x, the blood elves, the Draenei, the Worgen and Goblins, the allied races, and the Skyborne (who wear the blood elves'). Colours Ralia's patches don't have take the change of the nearest colour that has one, and the allied races' tattoos stay. How: [mod-ralia's README](modules/mod-ralia/README.md). Not yet seen in the game: nothing here runs the 3.3.5 client.
 
+## Base Model
+
+**Game options → Base Model** draws every character in the realm without its gear (yours, other players' and the random bots'), to see their races, skins, faces and hair; off puts the gear back in sight. It works while the realm runs (within a few seconds). Only the looks: the gear stays on, with its stats. Creatures and the character list's pictures keep theirs. `.basemodel` in the game's chat says whether it's on. How: [mod-base-model's README](modules/mod-base-model/README.md). Both realms. Not yet seen in the game.
+
 ## Modules
 
 **Modules** (a launcher tile) adds [AzerothCore modules](https://github.com/topics/azerothcore-module) to your realm: an auction house bot, transmogrification, solo dungeons and the hundreds more GitHub lists under that topic.
@@ -436,7 +440,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them; **Log in automatically** with one (the game types its password at the login screen; the first account you make here does it from the start). Needs the server running. |
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). And its **HD look** (see below). Takes effect the next time the game starts. |
-| **Game options** | **Ralia's mod**, on or off (see **Ralia's mod**). Takes effect at the realm's next start. |
+| **Game options** | **Ralia's mod** (see **Ralia's mod**; takes effect at the realm's next start) and **Base Model** (see **Base Model**; within a few seconds), each on or off. |
 | **Add-ons** | The add-on manager: browse and search warperia.com's 3.3.5a add-ons, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. |
 | **Modules** | AzerothCore's modules from GitHub: browse them, pick some, have GitHub build the realm with them and put it in (see **Modules**). |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |

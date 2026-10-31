@@ -24,6 +24,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.logie.warcraft.R
 import com.logie.warcraft.WowFiles
+import com.logie.warcraft.client.BaseModelFiles
 import com.logie.warcraft.client.RaliaFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,7 +34,9 @@ private val ZIP_TYPES = arrayOf("application/zip", "application/x-zip-compressed
 
 /**
  * Game options: Ralia's mod, on or off ([RaliaFiles]; the realm's mod-ralia makes the game's patch as it
- * starts). Turning it on the first time asks for the zip of Ralia's patches, whose textures the app keeps.
+ * starts; turning it on the first time asks for the zip of Ralia's patches, whose textures the app keeps),
+ * and Base Model ([BaseModelFiles]; the realm's mod-base-model draws every character without its gear,
+ * within seconds while the realm runs).
  */
 @Composable
 fun GameOptionsDialog(onDismiss: () -> Unit) {
@@ -42,6 +45,7 @@ fun GameOptionsDialog(onDismiss: () -> Unit) {
     val root = remember { WowFiles.root(context) }
     var on by remember { mutableStateOf(RaliaFiles.isOn(root)) }
     var hasFiles by remember { mutableStateOf(RaliaFiles.hasFiles(root)) }
+    var baseModel by remember { mutableStateOf(BaseModelFiles.isOn(root)) }
     var reading by remember { mutableStateOf(false) }
     var problem by remember { mutableStateOf<String?>(null) }
 
@@ -85,6 +89,9 @@ fun GameOptionsDialog(onDismiss: () -> Unit) {
             else -> WowButton(stringResource(R.string.wow_options_ralia_replace), primary = false) { pick.launch(ZIP_TYPES) }
         }
         problem?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = WowColors.Blood) }
+        WowSwitchRow(stringResource(R.string.wow_options_base_model), null, baseModel) { want ->
+            baseModel = runCatching { BaseModelFiles.setOn(root, want) }.isSuccess && want
+        }
     }
 }
 
@@ -93,6 +100,12 @@ private suspend fun readZip(context: Context, uri: Uri): Int = withContext(Dispa
     input.use { RaliaFiles.unpack(WowFiles.root(context), it) }
 }
 
-/** The Game options tile's line: whether Ralia's mod is on. */
-fun gameOptionsSummary(context: Context): String =
-    context.getString(if (RaliaFiles.isOn(WowFiles.root(context))) R.string.wow_tile_game_options_on else R.string.wow_tile_game_options_off)
+/** The Game options tile's line: the options that are on. */
+fun gameOptionsSummary(context: Context): String {
+    val root = WowFiles.root(context)
+    val on = listOfNotNull(
+        context.getString(R.string.wow_options_ralia).takeIf { RaliaFiles.isOn(root) },
+        context.getString(R.string.wow_options_base_model).takeIf { BaseModelFiles.isOn(root) },
+    )
+    return if (on.isEmpty()) context.getString(R.string.wow_tile_game_options_off) else on.joinToString(", ")
+}

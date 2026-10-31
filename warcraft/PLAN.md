@@ -1871,6 +1871,14 @@ Where it stands: built; its tests (the patch from a stand-in game, the app's zip
 table with the user's files (every playable race's textures but the gnomes'; 10 s on a PC). Not seen in the game or on
 a phone (how today's textures sit on the 3.3.5 models without an HD look).
 
+## Base Model (both realms; `modules/mod-base-model`)
+
+The user: "Make a module in game options in the launcher called "Base Model" where it shows the character with no gear.
+That way I can preview them all but turn it off when wanted." Built: a second switch in Game options; the realm sends
+every character's visible item fields empty while `files/base-model/enabled` is there (looked for every two seconds, so it
+works while the realm runs). The gear stays on. Creatures and the character list's pictures keep theirs. Not run in
+the game.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
