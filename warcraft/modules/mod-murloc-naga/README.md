@@ -43,8 +43,8 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
       teal, abyssal, sand, frost) and five made from them (coral, sea green, azure, ebony, bone); the other models'
       fins recoloured to each;
     - **Features** (the facial hair style): none, the demon hunter murloc's horns, the deep sea murloc's lure, the
-      demon hunter's blindfold, the shark-hooded murloc's outfit, the loincloth, and for women Maria's hair and
-      dress (the Darkmoon Faire murloc in a dress).
+      demon hunter's blindfold, the shark-hooded murloc's outfit, the loincloth, and for women Maria's hair, and
+      her dress with her hair (the Darkmoon Faire murloc in a dress).
     The murlocs have no hair: their hair choices are the fins' (the labels set by `MurlocNagaCreate.lua`). The files
     are the game's of today, fetched and made 3.3.5's as the server is packaged (`tools/murloc_model.py`, never in
     this repository); `tools/render_murloc.py` draws every choice to a contact sheet.

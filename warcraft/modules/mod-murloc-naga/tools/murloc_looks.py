@@ -18,7 +18,7 @@ The screen's choices (its labels set by data/client/Interface/GlueXML/MurlocNaga
     murloc's crest and the deep sea murloc's sail; each a geoset of group 0 (CharHairGeosets);
   - Fin Color (the game's Hair Color): the fins of each skin, and a few made from them;
   - Features (the game's Facial Hair): none, the demon horns, the lure, the blindfold, the shark
-    outfit, the loincloth (and for women Maria's hair and dress); each a geoset of group 1
+    outfit, the loincloth (and for women Maria's hair, and her dress with it); each a geoset of group 1
     (CharacterFacialHairStyles).
 
 How the 3.3.5 game draws a character decides where each goes. The body and eyes are drawn with the
@@ -102,7 +102,7 @@ FEATURES = {
     "Male": [("None", []), ("Demon horns", ["Horns", "HornsL"]), ("Lure", ["Lure", "LureBulb"]),
              ("Blindfold", ["Blindfold"]), ("Shark outfit", ["Outfit"]), ("Loincloth", ["Loincloth"])],
     "Female": [("None", []), ("Maria's hair", ["Hair"]), ("Demon horns", ["Horns", "HornsL"]),
-               ("Lure", ["Lure", "LureBulb"]), ("Blindfold", ["Blindfold"]), ("Dress", ["Dress"]),
+               ("Lure", ["Lure", "LureBulb"]), ("Blindfold", ["Blindfold"]), ("Maria's dress", ["Hair", "Dress"]),
                ("Shark outfit", ["Outfit"]), ("Loincloth", ["Loincloth"])],
 }
 
