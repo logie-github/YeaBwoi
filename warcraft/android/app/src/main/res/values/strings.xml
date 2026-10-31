@@ -257,10 +257,11 @@
     <string name="wow_tile_game_options">Game options</string>
     <string name="wow_tile_game_options_off">All off</string>
     <string name="wow_options_title">Game options</string>
-    <string name="wow_options_body">Ralia\'s mod takes effect at the realm\'s next start, Base Model within a few seconds.</string>
+    <string name="wow_options_body">Ralia\'s mod and Alternate Female Options (one at a time) take effect at the realm\'s next start, Base Model within a few seconds.</string>
+    <string name="wow_options_alternate_female">Alternate Female Options</string>
+    <string name="wow_options_set_pick">Turning it on asks for its zip.</string>
     <string name="wow_options_base_model">Base Model</string>
     <string name="wow_options_ralia">Ralia\'s mod</string>
-    <string name="wow_options_ralia_pick">Turning it on asks for the zip of Ralia\'s patches.</string>
     <string name="wow_options_ralia_reading">Reading the zip…</string>
     <string name="wow_options_ralia_replace">Choose the zip again</string>
     <string name="wow_options_ralia_no_textures">That zip has no Character folder of textures.</string>

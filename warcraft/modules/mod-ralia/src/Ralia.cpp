@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Ralia's mod: the character textures of the user's copy of Ralia's patches in the game, while the
- * app's Game options have it on (RaliaPatch.cpp makes the game's patch from them).
+ * The character textures' sets of the app's Game options (Ralia's mod, Alternate Female Options): the
+ * one that's on made the game's (RaliaPatch.cpp), one at a time.
  *
- * The app keeps the textures (the zip's Character folder, picked on the phone) in files/ralia/files,
- * and files/ralia/enabled while the option is on; the world server makes the patch as the world
- * database's own tables are loaded (after the Worgen's and Goblins' and the allied races' patches are
- * made, as the configuration is read, and before the Skyborne's, as the world is made), and takes it
- * out of the game when the option is off. Ralia.Enable = 0 (mod_ralia.conf) turns it off whatever
- * the option says.
+ * The app keeps each set's textures (the Character folder of the zip picked on the phone) in
+ * files/<set>/files, and files/<set>/enabled while its switch is on (files/ralia, files/alternate-female;
+ * the app turns the other off). The world server makes the patch as the world database's own tables are
+ * loaded (after the Worgen's and Goblins' and the allied races' patches are made, as the configuration is
+ * read, and before the Skyborne's, as the world is made), and takes it out of the game while neither is
+ * on. Ralia.Enable = 0 (mod_ralia.conf) keeps both out whatever the switches say.
  */
 
 #include "Config.h"
@@ -20,6 +20,21 @@
 #include <filesystem>
 
 namespace fs = std::filesystem;
+
+namespace
+{
+    struct Choice
+    {
+        char const* folder;
+        Ralia::Set set;
+    };
+
+    // (in this order, should both be on)
+    Choice const SETS[] = {
+        { "ralia", { "Ralia's mod", false } },
+        { "alternate-female", { "Alternate Female Options", true } },
+    };
+}
 
 class RaliaWorld : public WorldScript
 {
@@ -38,18 +53,20 @@ public:
         std::error_code error;
         if (!fs::is_directory(data, error))
             return;
-        // (the app's folder for the mod: beside the game's)
-        fs::path folder = sConfigMgr->GetOption<std::string>("Ralia.Folder", "");
-        if (folder.empty())
-            folder = clientDir.parent_path() / "ralia";
-        auto log = [](std::string const& line) { LOG_INFO("module", "Ralia's mod: {}", line); };
-        if (!sConfigMgr->GetOption<bool>("Ralia.Enable", true) || !fs::exists(folder / "enabled", error))
-        {
-            Ralia::RemovePatch(data, log);
-            return;
-        }
-        fs::path sources = fs::path(sConfigMgr->GetOption<std::string>("SourceDirectory", "")) / "modules" / "mod-ralia" / "data" / "client" / "sources.txt";
-        Ralia::UpdatePatch(folder / "files", sources, data, log);
+        // (the app's files: beside the game's folder)
+        fs::path root = sConfigMgr->GetOption<std::string>("Ralia.Folder", "");
+        if (root.empty())
+            root = clientDir.parent_path();
+        auto log = [](std::string const& line) { LOG_INFO("module", "Character textures: {}", line); };
+        if (sConfigMgr->GetOption<bool>("Ralia.Enable", true))
+            for (Choice const& choice : SETS)
+                if (fs::exists(root / choice.folder / "enabled", error))
+                {
+                    fs::path sources = fs::path(sConfigMgr->GetOption<std::string>("SourceDirectory", "")) / "modules" / "mod-ralia" / "data" / "client" / "sources.txt";
+                    Ralia::UpdatePatch(choice.set, root / choice.folder / "files", sources, data, log);
+                    return;
+                }
+        Ralia::RemovePatch(data, log);
     }
 };
 

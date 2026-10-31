@@ -13,7 +13,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class RaliaFilesTest {
+class TextureSetsTest {
     private fun zip(vararg entries: Pair<String, String>): ByteArray {
         val bytes = ByteArrayOutputStream()
         ZipOutputStream(bytes).use { out ->
@@ -64,7 +64,7 @@ class RaliaFilesTest {
         val root = temp()
         try {
             RaliaFiles.unpack(root, ByteArrayInputStream(zip("Character/Human/Female/a.blp" to "1")))
-            assertFailsWith<RaliaFiles.NoTexturesException> {
+            assertFailsWith<TextureSet.NoTexturesException> {
                 RaliaFiles.unpack(root, ByteArrayInputStream(zip("readme.txt" to "x")))
             }
             assertEquals("1", File(RaliaFiles.files(root), "Character/Human/Female/a.blp").readText())
@@ -78,7 +78,7 @@ class RaliaFilesTest {
         val root = temp()
         val client = File(root, "client")
         try {
-            assertFailsWith<RaliaFiles.NoTexturesException> { RaliaFiles.setOn(root, client, true) }
+            assertFailsWith<TextureSet.NoTexturesException> { RaliaFiles.setOn(root, client, true) }
             assertFalse(RaliaFiles.isOn(root))
             RaliaFiles.unpack(root, ByteArrayInputStream(zip("Character/Human/Female/a.blp" to "1")))
             RaliaFiles.setOn(root, client, true)
@@ -100,6 +100,28 @@ class RaliaFilesTest {
             assertFalse(RaliaFiles.removePatch(client))
             assertTrue(File(locale, "patch-enUS-Z.MPQ").exists())
             assertTrue(RaliaFiles.hasFiles(root))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun oneSetOnAtATime() {
+        val root = temp()
+        val client = File(root, "client")
+        try {
+            RaliaFiles.unpack(root, ByteArrayInputStream(zip("Character/Human/Female/a.blp" to "1")))
+            AlternateFemaleFiles.unpack(root, ByteArrayInputStream(zip("Character/Human/Female/b.blp" to "2")))
+            assertTrue(File(root, "alternate-female/files/Character/Human/Female/b.blp").isFile)
+            RaliaFiles.setOn(root, client, true)
+            AlternateFemaleFiles.setOn(root, client, true)
+            assertTrue(AlternateFemaleFiles.isOn(root))
+            assertFalse(RaliaFiles.isOn(root))
+            assertTrue(File(root, "alternate-female/enabled").isFile)
+            // each keeps its own textures
+            assertTrue(RaliaFiles.hasFiles(root) && AlternateFemaleFiles.hasFiles(root))
+            RaliaFiles.setOn(root, client, true)
+            assertFalse(AlternateFemaleFiles.isOn(root))
         } finally {
             root.deleteRecursively()
         }

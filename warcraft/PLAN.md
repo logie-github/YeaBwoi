@@ -1871,6 +1871,16 @@ Where it stands: built; its tests (the patch from a stand-in game, the app's zip
 table with the user's files (every playable race's textures but the gnomes'; 10 s on a PC). Not seen in the game or on
 a phone (how today's textures sit on the 3.3.5 models without an HD look).
 
+### Alternate Female Options (the same module)
+
+The user: "Can I make another option for the game that uses these textures? [azerothica's Warlords of Draenor
+non-model-change patch] Call it "Alternate Female Options" in the launcher settings. Make sure the textures apply to
+skybourne and also the dark ranger skin." Built: a second set in mod-ralia (`files/alternate-female`), the women's
+textures alone, one set on at a time; where a set has both the older models' and the newer's file, the nearer the game's
+picture. The Skyborne's skins and the Dark Ranger skin are made by the Skyborne's patch from the blood elves' first colour
+with the set's patch in (tested). The zip itself isn't checked yet: the site turns the session's downloads away; the user
+is asked for it.
+
 ## Base Model (both realms; `modules/mod-base-model`)
 
 The user: "Make a module in game options in the launcher called "Base Model" where it shows the character with no gear.
