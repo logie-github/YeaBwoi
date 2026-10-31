@@ -183,6 +183,7 @@ SMSG_QUESTGIVER_QUEST_LIST, SMSG_QUESTGIVER_QUEST_DETAILS = 0x185, 0x188
 AUTH_OK, CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE = 0x0C, 0x2F, 0x31
 CHAT_MSG_SYSTEM, CHAT_MSG_SAY, CHAT_MSG_WHISPER, LANG_COMMON, LANG_ADDON = 0x00, 0x01, 0x07, 7, 0xFFFFFFFF
 LANG_ORCISH = 1
+LANG_NERGLISH, RACE_MURLOC = 9, 19
 HORDE_RACES = (2, 5, 6, 8, 10, 14, 16, 18, 20)  # orc, undead, tauren, troll, blood elf, Skyborne Windshaper, nightborne, Zandalari, naga: they speak Orcish, not Common
 CMSG_QUESTGIVER_HELLO = 0x184
 
@@ -375,7 +376,8 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=Non
         chars = characters()
     guid, name, level, map_id, zone, race, cls = next(c for c in chars if c[1] == character)
     print(f"world: {name}, race {race}, class {cls}, level {level}, map {map_id}, zone {zone}")
-    session.lang = LANG_ORCISH if race in HORDE_RACES else LANG_COMMON
+    # (the murlocs speak Nerglish alone, the game's Titan, until their story's done)
+    session.lang = LANG_NERGLISH if race == RACE_MURLOC else LANG_ORCISH if race in HORDE_RACES else LANG_COMMON
 
     session.send(CMSG_PLAYER_LOGIN, struct.pack("<Q", guid))
     _, body = session.wait_for([SMSG_LOGIN_VERIFY_WORLD], seconds=120)

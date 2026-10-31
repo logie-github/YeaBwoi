@@ -1737,7 +1737,7 @@ UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | 786432 WHERE (`ra
 
 -- Their language: Nerglish (the game's Titan, renamed in the patch), not Common.
 UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` & ~262144 WHERE `skill` = 98;
-REPLACE INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES (262144, 0, 140, 300, 'Murloc - Language: Nerglish');
+REPLACE INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES (262144, 0, 140, 0, 'Murloc - Language: Nerglish');
 
 -- Their racials, learned at creation.
 DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98880 AND 98889;

@@ -257,6 +257,13 @@ class Story:
         self.build_graveyards()
         self.build_start()
         self.build_phases()
+        scripted = {r["entryorguid"] for r in self.tables.get("smart_scripts", []) if r["source_type"] == 0}
+        looted = {r["Entry"] for r in self.tables.get("creature_loot_template", [])}
+        for r in self.tables.get("creature_template", []):
+            if r["AIName"] == "SmartAI" and r["entry"] not in scripted:
+                r["AIName"] = ""
+            if r["lootid"] and r["lootid"] not in looted:
+                r["lootid"] = 0
         finals = [k for k, q in self.quests.items() if q.get("final")]
         if len(finals) > 1:
             self.err("the story", f"more than one final quest: {finals}")
@@ -387,8 +394,7 @@ class Story:
             elif part[0] in ("food", "drink", "bag"):
                 self.consumable_item(row, d, part[0], key)
                 self.row("item_template", **row)
-                self.client.setdefault("Item", []).append([iid, row["class"], row["subclass"], -1, row["Material"], row["displayid"],
-                                                           row["InventoryType"], row["sheath"]])
+                self.item_dbc(iid, row)
                 return
             else:
                 self.err(key, f"no item kind {kind!r}")
@@ -417,8 +423,15 @@ class Story:
             row.update(spellid_1=self.aura(d["aura"], d["chapter"], key), spelltrigger_1=0,
                        spellcharges_1=-1 if d.get("consumed") else 0, spellcooldown_1=-1, spellcategorycooldown_1=-1)
         self.row("item_template", **row)
-        self.client.setdefault("Item", []).append([iid, row["class"], row["subclass"], -1, row["Material"], row["displayid"],
-                                                   row["InventoryType"], row["sheath"]])
+        self.item_dbc(iid, row)
+
+    def item_dbc(self, iid, row):
+        """The item in the game's Item table: the client's (the patch) and the server's (item_dbc: SmartAI's
+        giving and taking check it)."""
+        values = [iid, row["class"], row["subclass"], -1, row["Material"], row["displayid"], row["InventoryType"], row["sheath"]]
+        self.client.setdefault("Item", []).append(values)
+        self.row("item_dbc", ID=iid, ClassID=values[1], SubclassID=values[2], Sound_Override_Subclassid=-1, Material=values[4],
+                 DisplayInfoID=values[5], InventoryType=values[6], SheatheType=values[7])
 
     def consumable_item(self, row, d, kind, key):
         """Food, drink or a bag: like the game's of its level (its spell, its price; a bag its slots)."""
@@ -1288,7 +1301,7 @@ class Story:
             raise StoryError("too many object spawns")
         self.row("gameobject", guid=guid, id=entry, map=m, zoneId=0, areaId=0, spawnMask=1, phaseMask=phase,
                  position_x=round(x, 2), position_y=round(y, 2), position_z=round(z, 2), orientation=round(o, 3),
-                 rotation0=0, rotation1=0, rotation2=round(math.sin(o / 2), 5), rotation3=round(math.cos(o / 2), 5),
+                 rotation0=0, rotation1=0, rotation2=round(math.sin(o / 2), 8), rotation3=round(math.cos(o / 2), 8),
                  spawntimesecs=respawn, animprogress=100, state=1, Comment=f"mod-murloc-naga: {name}")
 
     def build_graveyards(self):
@@ -1443,6 +1456,7 @@ DELETES = [
     ("gameobject_loot_template", f"`Entry` BETWEEN {K.GO_BASE} AND {K.GO_END}"),
     ("creature_loot_template", "`Comment` = 'mod-murloc-naga'"),
     ("item_template", f"`entry` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
+    ("item_dbc", f"`ID` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
     ("quest_template", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
     ("quest_template_addon", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
     ("quest_offer_reward", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),

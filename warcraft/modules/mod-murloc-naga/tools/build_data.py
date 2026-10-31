@@ -929,7 +929,7 @@ def nerglish_language(client, sql, D, common, titan):
     sql.comment("Their language: Nerglish (the game's Titan, renamed in the patch), not Common.")
     sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` & ~{BIT[MURLOC]} WHERE `skill` = {common};")
     sql.raw(f"REPLACE INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES "
-            f"({BIT[MURLOC]}, 0, {titan}, 300, 'Murloc - Language: Nerglish');")
+            f"({BIT[MURLOC]}, 0, {titan}, 0, 'Murloc - Language: Nerglish');")
     import nerglish
     langs = D("Languages")
     row = next(r for r in langs.rows if r[0] == C.NERGLISH_LANGUAGE)
