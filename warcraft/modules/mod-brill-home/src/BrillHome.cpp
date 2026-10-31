@@ -1164,7 +1164,7 @@ class BrillHomeWorld : public WorldScript
 public:
     BrillHomeWorld() : WorldScript("BrillHomeWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
 
-    // (on Wrath Remix's realm the game's patch-W is set aside as the configuration is read, before
+    // (on Wrath Remix's realm the game's patch-<locale>-V is set aside as the configuration is read, before
     // Remix's own patch is made from the game)
     void OnAfterConfigLoad(bool reload) override
     {
@@ -1174,7 +1174,7 @@ public:
             BrillHome::SetPatchAside(data, Log);
     }
 
-    // The mastiff in the game: patch-W, after the Worgen's and Goblins' patch-U and the allied races'
+    // The mastiff in the game: patch-<locale>-V, after the Worgen's and Goblins' patch-U and the allied races'
     // patch-V are made (as the configuration is read), before the Skyborne's patch-Z.
     void OnLoadCustomDatabaseTable() override
     {

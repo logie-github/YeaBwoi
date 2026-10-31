@@ -186,7 +186,9 @@ namespace WorgenGoblin
         // made from the game with it in)
         Game game(clientData, { "patch-u.mpq", "patch-v.mpq", "patch-w.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq",
             "patch-dede-y.mpq", "patch-frfr-y.mpq", "patch-eses-y.mpq", "patch-esmx-y.mpq", "patch-ruru-y.mpq", "patch-kokr-y.mpq",
-            "patch-zhcn-y.mpq", "patch-zhtw-y.mpq" });
+            "patch-zhcn-y.mpq", "patch-zhtw-y.mpq",
+            // (the Brill home's patch: the language folder's V, read after patch-V)
+            "patch-enus-v.mpq", "patch-engb-v.mpq", "patch-dede-v.mpq", "patch-frfr-v.mpq", "patch-eses-v.mpq", "patch-esmx-v.mpq", "patch-ruru-v.mpq", "patch-kokr-v.mpq", "patch-zhcn-v.mpq", "patch-zhtw-v.mpq" });
         if (game.archives.empty())
         {
             log("No game in " + clientData.string());
