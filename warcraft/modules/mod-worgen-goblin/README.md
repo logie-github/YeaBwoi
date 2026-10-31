@@ -162,7 +162,10 @@ in stages (`warcraft/PLAN.md`), now all in: the app downloads their package and 
   game's tables and the server's, through the converter's own rules; 3.3.5a's own where it's the same
   model and textures; each new one with its size and reach in `creature_model_info`, the CPP's,
   without which the world server loads none of the creatures that look so: seen on a phone as
-  nobody there), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
+  nobody there; a humanoid's look (CreatureDisplayInfoExtra) with its race where the realm's game has
+  it, the races only creatures use where the modules moved them (Forest Trolls 27, Naga 22, ...), and
+  its skin, hair and facial hair ones the game has: Cataclysm's 13 and 18 left at 0 crashed the game in
+  KTC Headquarters, crash reports #88, #93, #98, #99), the factions (Gilneas, the Bilgewater Cartel), their paths, formations, texts,
   gossip and Cataclysm's 31 phases as 3.3.5a's phase mask's bits. All in ranges of their own
   (`zones_world.sql`: creatures', objects', texts' and menus' ids from 6000000, spawns from 10000000
   (under 0xFFFFFF, AzerothCore's limit for spawns),
