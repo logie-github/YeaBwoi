@@ -1725,7 +1725,7 @@ UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` & ~262144 WHERE `sk
 REPLACE INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES (262144, 0, 140, 300, 'Murloc - Language: Nerglish');
 
 -- Their racials, learned at creation.
-DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98880 AND 98888;
+DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN 98880 AND 98889;
 INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES
 (262144, 0, 98882, 'Murloc - Amphibious'),
 (262144, 0, 98883, 'Murloc - Mrrgglll!'),
@@ -1733,7 +1733,7 @@ INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `
 (524288, 0, 98885, 'Naga - Serpent\'s Grace'),
 (524288, 0, 98886, 'Naga - Tail Sweep'),
 (524288, 0, 98887, 'Naga - Scales of the Deep');
-DELETE FROM `spell_area` WHERE `spell` IN (98880, 98881);
+DELETE FROM `spell_area` WHERE `spell` IN (98880, 98881, 98889);
 INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, `quest_start_status`, `quest_end_status`) VALUES
 (98880, 148, 0, 0, 0, 262144, 2, 1, 64, 11),
 (98880, 331, 0, 0, 0, 262144, 2, 1, 64, 11),

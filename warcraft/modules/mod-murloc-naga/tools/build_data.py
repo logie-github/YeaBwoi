@@ -91,7 +91,7 @@ VOICED = {"elder": (MURLOC_HELLO, MURLOC_CHEER), "chief": ((416, 417, 414), MURL
           "snatcher": ((1109, 415), MURLOC_CHEER), "oracle": ((415, 414), MURLOC_CHEER), "fishmonger": (MURLOC_HELLO, ()),
           "sloshy": ((8475,), (8475,)), "szaria": ((4024,), ()), "vyssa": ((4024,), ()), "ssaveth": ((3437,), ())}
 SPELLS = {"phase_murloc": 98880, "phase_naga": 98881, "amphibious": 98882, "mrrgglll": 98883, "slippery": 98884,
-          "serpent": 98885, "tail_sweep": 98886, "scales": 98887, "low_profile": 98888}
+          "serpent": 98885, "tail_sweep": 98886, "scales": 98887, "low_profile": 98888, "phase_murloc_alone": 98889}
 # Where a murloc keeps a low profile (Low Profile: creatures notice it at a few yards, their minimum):
 # every town and city (AreaTable's town flag), and the outposts its story goes into.
 TOWN_FLAG = 0x200
@@ -730,6 +730,24 @@ def main():
             spell_rows.append(spell(20550, sid, "Murloc Tidings", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
                                     Effect_1=6, EffectAura_1=261, EffectMiscValue_1=bit, EffectBasePoints_1=0, EffectDieSides_1=1,
                                     Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+        # The story's chapters that show the murlocs' phase alone (no world: the pens): its own phase, no other.
+        spell_rows.append(spell(20550, SPELLS["phase_murloc_alone"], "Murloc Kinship", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
+                                Effect_1=6, EffectAura_1=261, EffectMiscValue_1=C.PHASE[MURLOC], EffectBasePoints_1=0, EffectDieSides_1=1,
+                                Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+        # The story's auras (tools/murloc/: AURAS): a mark on the bar, a disguise, a slow, a stun...
+        durations = [r for r in D("SpellDuration").rows if r[2] == 0 and r[1] == r[3] and 0 < r[1] < 4294967295]
+
+        def duration(seconds):
+            if not seconds:
+                return 21                                       # (until taken off)
+            return min(durations, key=lambda r: (abs(r[1] - seconds * 1000), r[0]))[0]
+        for a in story.spells:
+            icon = by_id[a["icon"]][SC["SpellIconID"]] if a["icon"] in by_id else by_id[20550][SC["SpellIconID"]]
+            spell_rows.append(spell(20550, a["id"], a["name"], "", a["text"], a["text"], Attributes=0, AttributesEx=0,
+                                    Effect_1=6, EffectAura_1=a["aura"], EffectMiscValue_1=a["misc"],
+                                    EffectBasePoints_1=a["amount"] - 1 if a["amount"] else 0, EffectDieSides_1=1, ImplicitTargetA_1=1,
+                                    ImplicitTargetB_1=0, DurationIndex=duration(a["seconds"]), RangeIndex=1, SpellIconID=icon,
+                                    SpellVisualID_1=a["visual"], Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
     # (the language spell's name: Nerglish, as its skill)
     titan = values_of(spells, by_id[816], spt)
     titan[SC["Name_Lang_enUS"]] = "Language Nerglish"
@@ -743,7 +761,7 @@ def main():
     snd_rows = {r[0]: r for r in sounds.rows}
     cams_dbc = D("CinematicCamera")
     narration_rows, cam_sql, seq_sql = [], [], []
-    flights = intro_flights()
+    flights = intro_flights(story)
     for race in RACE_IDS:
         sound = values_of(sounds, snd_rows[3840], snt)      # HumanFlyByNarration
         sound[0], sound[2] = ID_NARRATION[race], f"{NAME[race]}FlyByNarration"
@@ -779,13 +797,16 @@ def main():
     sql.comment("Where they start: on their islands in Darkshore, every class.")
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
     szaria = ground(next(p for p in C.NAGA_PEOPLE if p[0] == "szaria")[4])
-    start = {MURLOC: (elder[0] + 4.0, elder[1], 4.71), NAGA: (szaria[0] - 5.0, szaria[1], 0.0)}
+    start = {MURLOC: (C.MAP, C.DARKSHORE, elder[0] + 4.0, elder[1], None, 4.71), NAGA: (C.MAP, C.DARKSHORE, szaria[0] - 5.0, szaria[1], None, 0.0)}
+    if story and story.tables.get("_start"):              # (the murlocs' story's first chapter's)
+        s_ = story.tables["_start"]
+        start[MURLOC] = (s_["map"], s_["zone"], s_["x"], s_["y"], s_["z"], s_["o"])
     out = []
     for race in RACE_IDS:
-        x, y, o = start[race]
-        z = terrain.height(x, y) + 0.5
+        m, zone, x, y, z, o = start[race]
+        z = terrain.height(x, y, m) + 0.5 if z is None else z
         for cls in CLASSES_OF[race]:
-            out.append(f"({race}, {cls}, {C.MAP}, {C.DARKSHORE}, {x:.2f}, {y:.2f}, {z:.2f}, {o})")
+            out.append(f"({race}, {cls}, {m}, {zone}, {x:.2f}, {y:.2f}, {z:.2f}, {o})")
     sql.raw(f"DELETE FROM `playercreateinfo` WHERE `race` IN ({MURLOC}, {NAGA});")
     sql.raw("INSERT INTO `playercreateinfo` (`race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES\n"
             + ",\n".join(out) + ";")
@@ -827,11 +848,14 @@ def main():
               (BIT[NAGA], SPELLS["scales"], "Naga - Scales of the Deep")]
     sql.raw("INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES\n"
             + ",\n".join(f"({m}, 0, {s}, {q(n)})" for m, s, n in custom) + ";")
-    sql.raw(f"DELETE FROM `spell_area` WHERE `spell` IN ({SPELLS['phase_murloc']}, {SPELLS['phase_naga']});")
+    sql.raw(f"DELETE FROM `spell_area` WHERE `spell` IN ({SPELLS['phase_murloc']}, {SPELLS['phase_naga']}, {SPELLS['phase_murloc_alone']});")
+    # (a zone of the murlocs' story that shows their phase alone until a quest's done: the world's and theirs after)
+    alone = {zone: quest for zones, quest in (story.tables.get("_alone", []) if story else []) for zone in zones}
+    phase_rows = [f"({SPELLS['phase_' + k]}, {area}, {alone.get(area, 0) if race == MURLOC else 0}, 0, 0, {BIT[race]}, 2, 1, 64, 11)"
+                  for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)]
+    phase_rows += [f"({SPELLS['phase_murloc_alone']}, {area}, 0, {quest}, 0, {BIT[MURLOC]}, 2, 1, 64, 64)" for area, quest in sorted(alone.items())]
     sql.raw("INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, "
-            "`quest_start_status`, `quest_end_status`) VALUES\n"
-            + ",\n".join(f"({SPELLS['phase_' + k]}, {area}, 0, 0, 0, {BIT[race]}, 2, 1, 64, 11)"
-                         for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)) + ";")
+            "`quest_start_status`, `quest_end_status`) VALUES\n" + ",\n".join(phase_rows) + ";")
     towns = sorted({r[0] for r in D("AreaTable").rows if r[4] & TOWN_FLAG} | set(LOW_PROFILE_OUTPOSTS))
     sql.comment(f"A murloc keeps a low profile in the {len(towns)} towns and cities (Low Profile): their guards notice it at a few yards.")
     sql.raw(f"DELETE FROM `spell_area` WHERE `spell` = {SPELLS['low_profile']};")
@@ -938,13 +962,17 @@ def murloc_story(D, W):
 
 # The intros ---------------------------------------------------------------------------------------
 
-def intro_flights():
+def intro_flights(story=None):
     """Each race's flight: (origin, [(ms, place, height, target)]): the murlocs' from the open sea
-    over the village to the elder (about 42 s); the naga's (about 61 s, Lady Vashj's words) from the
-    dark water north of Auberdine, along the coast, over the Stormscale's island, and up to the
-    renegades' camp on its hill."""
+    over the pens (their story's start: the old village's elder before it) to where they stand (about
+    42 s); the naga's (about 61 s, Lady Vashj's words) from the dark water north of Auberdine, along
+    the coast, over the Stormscale's island, and up to the renegades' camp on its hill."""
     vx, vy = C.VILLAGE
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
+    if story and story.tables.get("_start") and story.tables["_start"]["map"] == C.MAP:
+        s_ = story.tables["_start"]
+        vx, vy = s_["x"], s_["y"]
+        elder = (s_["x"], s_["y"], s_["z"])
     murloc = [
         (0, (vx - 30, vy + 260), 32.0, (vx, vy)),
         (6000, (vx - 10, vy + 160), 20.0, (vx, vy)),

@@ -117,18 +117,28 @@ What holds the story together (built, its pieces tested; the chapters are being 
   any open to all: a gate the module builds as the world server starts, from every quest the world
   database has (other modules' too): each quest's conditions, and a murloc's alternative with the story
   done. Then the Alliance's are its too.
-- **Hostile towns.** A murloc starts Hostile (-4500) with the Alliance's, the Horde's and the goblins'
-  towns (Stormwind, Ironforge, Darnassus, Gnomeregan, the Exodar; Orgrimmar, Thunder Bluff, the
-  Undercity, the Darkspear, Silvermoon; the Steamwheedle Cartel and its four ports): at war, their guards
-  attack it and it them. Standing earned with sympathizers ends the war (the core's own rule, above
-  Hostile); a menace's deeds cost it. The story's last quest makes the Alliance's towns Neutral.
+- **Hostile towns.** A murloc starts Hostile (-3500) with the Alliance's and the Horde's towns
+  (Stormwind, Ironforge, Darnassus, Gnomeregan, the Exodar; Orgrimmar, Thunder Bluff, the Undercity, the
+  Darkspear, Silvermoon): at war, their guards attack it and it them. The goblins (the Steamwheedle
+  Cartel and its four ports) are mercenary: Unfriendly (-500), they neither trade with it nor attack it.
+  Standing earned with sympathizers ends the war (the core's own rule, above Hostile); a menace's deeds
+  cost it. The story's last quest makes the Alliance's towns Neutral.
 - **Guards.** In every town (AreaTable's town flag) a murloc keeps a Low Profile: creatures notice it at
   5 yards, the game's least. A guard that doesn't like it warns it off first, as it comes within 20
   yards: it turns, points or shouts, in its own people's annoyed voice and language (Darnassian for
   Sentinels, Dwarvish, Gnomish, Orcish, Taurahe, Gutterspeak, Thalassian, Troll, Common...), which a murloc
   can't understand; one that likes it salutes.
 - **Trainers.** The tribe's class trainers and profession trainers teach, in Nerglish (the game's
-  trainers' spell lists); a murloc learns no spells by itself after level 10.
+  trainers' spell lists); a murloc learns no spells by itself after level 10. Each hub has the same
+  people (an innkeeper, a banker in a hollow log, a stable, later an auction house through a goblin
+  fence), and a Current-Caller who takes it to the hubs it has reached.
+- **The tribe's graveyards.** A murloc whose story isn't done wakes as a ghost at the tribe's nearest
+  graveyard (with a spirit healer), never in a town's.
+- **The pens.** Until the breakout, Ashenvale shows a murloc only its own phase: the pens, the naga
+  who keep them, the crabs on the reef; none of the world (its Wrathtail would kill a level-10 slave).
+- **Acting it out.** Quests ask for the player's own emotes (/wave at the slaves), put marks and
+  disguises on it (a Salt-Scar brand, a barrel), stun it with a Lasher's whip as it strays, set props
+  out, take it into visions and across the sea, have the tribe's fry follow it.
 - **Murlocs of the first release** speak Nerglish from their next login, are Hostile with the towns,
   and, if still in Darkshore, go to the story's start.
 

@@ -46,12 +46,46 @@ namespace
     constexpr uint32 MURLOC_RACE_BIT = 1u << (RACE_MURLOC - 1);
 
     // The murlocs' questline (tools/murloc/): its last quest (from the world database's table the
-    // module's SQL makes), and the towns' factions a murloc starts Hostile with (tools/build_data.py's
-    // MURLOC_HOSTILE_FACTIONS): the Alliance's, the Horde's, the goblins'.
-    constexpr int32 MURLOC_START_STANDING = -4500;
+    // module's SQL makes), and the towns' factions a murloc starts with (tools/build_data.py's
+    // MURLOC_HOSTILE_FACTIONS): the Alliance's and the Horde's Hostile (at war: their guards attack it,
+    // and it them), the goblins' Unfriendly (mercenary: they don't trade with it, nor attack it).
+    constexpr int32 MURLOC_START_STANDING = -3500, MURLOC_GOBLIN_STANDING = -500;
     uint32 const MURLOC_HOSTILE_FACTIONS[] = { 469, 72, 47, 69, 54, 930, 67, 76, 81, 68, 530, 911, 169, 21, 369, 470, 577 };
+    uint32 const GOBLIN_FACTIONS[] = { 169, 21, 369, 470, 577 };
     uint32 const ALLIANCE_FACTIONS[] = { 469, 72, 47, 69, 54, 930 };
     uint32 finalQuest = 0;
+
+    int32 StartStanding(uint32 faction)
+    {
+        for (uint32 id : GOBLIN_FACTIONS)
+            if (id == faction)
+                return MURLOC_GOBLIN_STANDING;
+        return MURLOC_START_STANDING;
+    }
+
+    // The tribe's graveyards (the story's: tools/murloc/, the table its SQL makes): where a murloc whose
+    // story isn't done wakes as a ghost, the nearest on its map whose quest rule holds, never a town's.
+    struct TribeGraveyard
+    {
+        uint32 id, map;
+        float x, y, z;
+        uint32 fromQuest, untilQuest;
+    };
+    std::vector<TribeGraveyard> tribeGraveyards;
+
+    void LoadTribeGraveyards()
+    {
+        tribeGraveyards.clear();
+        if (!WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_graveyards'"))
+            return;
+        if (QueryResult r = WorldDatabase.Query("SELECT `id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest` FROM `murloc_naga_graveyards`"))
+            do
+            {
+                Field* f = r->Fetch();
+                tribeGraveyards.push_back({ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<float>(), f[3].Get<float>(), f[4].Get<float>(),
+                    f[5].Get<uint32>(), f[6].Get<uint32>() });
+            } while (r->NextRow());
+    }
 
     uint32 StoryValue(char const* name)
     {
@@ -159,8 +193,10 @@ public:
     void OnLoadCustomDatabaseTable() override
     {
         finalQuest = 0;
+        tribeGraveyards.clear();
         if (!Enabled() || !WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_story'"))
             return;
+        LoadTribeGraveyards();
         finalQuest = StoryValue("final_quest");
         uint32 first = StoryValue("first_quest"), last = StoryValue("last_quest");
         if (!finalQuest || !first || !last)
@@ -322,7 +358,31 @@ class MurlocNagaPlayer : public PlayerScript
 {
 public:
     MurlocNagaPlayer() : PlayerScript("MurlocNagaPlayer", { PLAYERHOOK_ON_FIRST_LOGIN, PLAYERHOOK_ON_LEVEL_CHANGED, PLAYERHOOK_ON_LOGIN,
-                                                            PLAYERHOOK_ON_UPDATE, PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST, PLAYERHOOK_ON_LOGOUT }) { }
+                                                            PLAYERHOOK_ON_UPDATE, PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST, PLAYERHOOK_ON_LOGOUT,
+                                                            PLAYERHOOK_ON_BEFORE_CHOOSE_GRAVEYARD }) { }
+
+    // A murloc whose story isn't done wakes at the tribe's nearest graveyard on its map (one whose
+    // quest rule holds), not a town's; elsewhere, the game's.
+    void OnPlayerBeforeChooseGraveyard(Player* player, TeamId /*teamId*/, bool nearCorpse, uint32& graveyardOverride) override
+    {
+        if (!Murloc(player) || !Enabled() || !finalQuest || tribeGraveyards.empty() || player->GetQuestRewardStatus(finalQuest))
+            return;
+        WorldLocation loc = nearCorpse ? player->GetCorpseLocation() : player->GetWorldLocation();
+        float best = 0.0f;
+        for (TribeGraveyard const& g : tribeGraveyards)
+        {
+            if (g.map != loc.GetMapId() || (g.fromQuest && !player->GetQuestRewardStatus(g.fromQuest))
+                || (g.untilQuest && player->GetQuestRewardStatus(g.untilQuest)))
+                continue;
+            float dx = g.x - loc.GetPositionX(), dy = g.y - loc.GetPositionY();
+            float d = dx * dx + dy * dy;
+            if (!graveyardOverride || d < best)
+            {
+                graveyardOverride = g.id;
+                best = d;
+            }
+        }
+    }
 
     // They start at level 10, with their class's spells to that level, whole. A murloc starts Hostile
     // with the towns of the Alliance, the Horde and the goblins (at war: their guards attack it, and it
@@ -340,7 +400,7 @@ public:
         if (Murloc(player) && finalQuest)
             for (uint32 id : MURLOC_HOSTILE_FACTIONS)
                 if (FactionEntry const* faction = sFactionStore.LookupEntry(id))
-                    player->GetReputationMgr().SetReputation(faction, float(MURLOC_START_STANDING));
+                    player->GetReputationMgr().SetReputation(faction, float(StartStanding(id)));
     }
 
     // The naga learn their class's spells as they come of age for them; the murlocs, from the tribe's
@@ -377,8 +437,8 @@ public:
             player->removeSpell(SPELL_LANG_COMMON, SPEC_MASK_ALL, false);
         for (uint32 id : MURLOC_HOSTILE_FACTIONS)
             if (FactionEntry const* faction = sFactionStore.LookupEntry(id))
-                if (player->GetReputationMgr().GetReputation(faction) > MURLOC_START_STANDING)
-                    player->GetReputationMgr().SetReputation(faction, float(MURLOC_START_STANDING));
+                if (player->GetReputationMgr().GetReputation(faction) > StartStanding(id))
+                    player->GetReputationMgr().SetReputation(faction, float(StartStanding(id)));
         LOG_INFO("module", "Murlocs and Naga: {} (a murloc of an earlier release) speaks Nerglish now, and is Hostile with the towns",
             player->GetName());
         if (player->GetZoneId() == 148)                                     // (Darkshore: the retired village)

@@ -17,7 +17,10 @@ SPAWN_BASE, SPAWN_END = 9760000, 9789999
 GO_SPAWN_BASE, GO_SPAWN_END = 9790000, 9799999
 GO_DISPLAY_BASE, GO_DISPLAY_END = 9800, 9999
 PHASE_SPELL_BASE = 979800
+SPELL_BASE, SPELL_END = 979900, 979999          # the story's auras (AURAS)
 TRAINER_BASE = 976000
+GRAVEYARD_BASE, GRAVEYARD_END = 9760, 9799      # game_graveyard ids (GRAVEYARDS)
+SPIRIT_HEALER = 6491                            # the game's spirit healer, at each of the tribe's graveyards
 
 # The race's own phase (the world's and theirs): spell_area puts it on a murloc in every zone the
 # story goes to. Story phases (an NPC there from a quest on, until one, or while one's in the log)
@@ -81,6 +84,15 @@ EMOTES = {
     "shout": 22, "flex": 23, "shy": 24, "point": 25, "wound": 33, "attack": 36, "attack2h": 37,
     "parry": 39, "spell": 51, "battle_roar": 53, "kick": 60, "throw": 61, "salute": 66, "yes": 273,
     "no": 274, "train": 275, "laugh_nosheathe": 153, "eat_nosheathe": 92, "point_nosheathe": 29,
+}
+# The player's own emotes (EmotesText.dbc), for objectives: /wave at someone (a quest's `emotes`).
+TEXT_EMOTES = {
+    "wave": 101, "bow": 17, "dance": 34, "roar": 75, "cheer": 21, "hug": 56, "kiss": 58, "salute": 78, "cry": 31,
+    "laugh": 60, "beg": 8, "point": 72, "flex": 41, "chicken": 22, "applaud": 5, "greet": 48, "hello": 55, "thank": 97,
+    "shy": 84, "tickle": 142, "pat": 364, "love": 225, "kneel": 59, "sit": 86, "sleep": 87, "rude": 77, "glare": 46,
+    "cower": 28, "pray": 74, "sing": 433, "clap": 24, "hungry": 57, "fart": 39, "train": 264, "burp": 18, "drink": 35,
+    "eat": 37, "plead": 71, "surrender": 92, "comfort": 110, "soothe": 134, "cuddle": 111, "nod": 67, "no": 66,
+    "flee": 306, "charge": 305, "victory": 100, "brandish": 370, "threaten": 98, "follow": 324,
 }
 # States (Emotes.dbc's EMOTE_STATE_*): kept until changed.
 STATES = {

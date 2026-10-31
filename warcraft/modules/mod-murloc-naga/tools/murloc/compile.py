@@ -40,13 +40,15 @@ def load(folder=HERE):
         spec = importlib.util.spec_from_file_location("murloc_" + os.path.basename(path)[:-3], path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        out.append({k: getattr(mod, k) for k in ("CHAPTER", "PLACES", "NPCS", "OBJECTS", "ITEMS", "QUESTS", "TOWNS") if hasattr(mod, k)})
+        out.append({k: getattr(mod, k) for k in ("CHAPTER", "PLACES", "NPCS", "OBJECTS", "ITEMS", "QUESTS", "TOWNS", "AURAS",
+                                                  "SPAWNS", "GRAVEYARDS") if hasattr(mod, k)})
     return out
 
 
 # SmartAI's ids (the core's SmartScriptMgr.h)
 EV_UPDATE_OOC, EV_OOC_LOS, EV_ACCEPTED_QUEST, EV_REWARD_QUEST, EV_DATA_SET, EV_GOSSIP_SELECT = 1, 10, 19, 20, 38, 62
-EV_UPDATE_IC = 0
+EV_UPDATE_IC, EV_RECEIVE_EMOTE, EV_GOSSIP_HELLO = 0, 22, 64
+A_REMOVE_AURA, A_SUMMON_GO, A_ADD_AURA = 28, 50, 75
 A_TALK, A_SOUND, A_EMOTE, A_CAST, A_SUMMON, A_AREA_EXPLORED, A_EMOTE_STATE, A_FOLLOW = 1, 4, 5, 11, 12, 15, 17, 29
 A_KILLED_MONSTER, A_DESPAWN, A_SET_DATA, A_ADD_ITEM, A_REMOVE_ITEM, A_SET_RUN, A_TELEPORT = 33, 41, 45, 56, 57, 59, 62
 A_ORIENTATION, A_MOVE_TO, A_CLOSE_GOSSIP, A_ACTIONLIST, A_JUMP, A_MUSIC = 66, 69, 72, 80, 97, 216
@@ -56,7 +58,12 @@ CHAT = {"say": 12, "yell": 14, "whisper": 15, "emote_text": 16}
 REWARDED, IN_LOG = 1 << 6, (1 << 1) | (1 << 3)
 
 NPCFLAG = {"gossip": 1, "quest": 2, "trainer": 16, "class_trainer": 32, "profession_trainer": 64, "vendor": 128,
-           "repair": 4096, "innkeeper": 65536}
+           "repair": 4096, "innkeeper": 65536, "banker": 131072, "auctioneer": 2097152, "stable": 4194304}
+# Gossip options of a role: (option type, npc flag, icon, what the player says)
+ROLE_OPTIONS = {"banker": (9, 131072, 6, "I want to look in the log."), "auctioneer": (13, 2097152, 6, "Show me what's for sale."),
+                "stable": (14, 4194304, 0, "Look after my animals.")}
+# The story's auras (AURAS): their kinds, as SPELL_AURA_* (tools/build_data.py makes the spells)
+AURA_KINDS = {"mark": 4, "disguise": 56, "slow": 33, "stun": 12, "root": 26, "speed": 31, "sleep": 12}
 STAT = {"agi": 3, "str": 4, "int": 5, "spi": 6, "sta": 7, "def": 12, "dodge": 13, "parry": 14, "hit": 31, "crit": 32,
         "ap": 38, "sp": 45, "mp5": 43, "haste": 36, "expertise": 37, "armor_pen": 44}
 WEAPONS = {  # kind: (subclass, inventory type)
@@ -112,13 +119,19 @@ class Story:
 
     def index(self):
         self.places, self.npcs, self.objects, self.items, self.quests = {}, {}, {}, {}, {}
+        self.auras, self.extra_spawns, self.graveyards = {}, [], []
         self.chapter_of = {}
         for ch in self.chapters:
             c = ch["CHAPTER"]["key"]
             m = ch["CHAPTER"].get("map", K.MAP_KALIMDOR)
             for k, v in ch.get("PLACES", {}).items():
                 self.places[f"{c}:{k}"] = (m, v)
-            for kind, store in (("NPCS", self.npcs), ("OBJECTS", self.objects), ("ITEMS", self.items), ("QUESTS", self.quests)):
+            for d in ch.get("SPAWNS", []):
+                self.extra_spawns.append(dict(d, chapter=c))
+            for d in ch.get("GRAVEYARDS", []):
+                self.graveyards.append(dict(d, chapter=c))
+            for kind, store in (("NPCS", self.npcs), ("OBJECTS", self.objects), ("ITEMS", self.items), ("QUESTS", self.quests),
+                                ("AURAS", self.auras)):
                 for d in ch.get(kind, []):
                     key = f"{c}:{d['key']}"
                     if key in store:
@@ -138,12 +151,14 @@ class Story:
         self.go_id = ids(self.objects, K.GO_BASE, K.GO_END, "objects")
         self.quest_id = ids(self.quests, K.QUEST_BASE, K.QUEST_END, "quests")
         self.item_id = ids(self.items, K.ITEM_BASE, K.ITEM_END, "items")
+        self.aura_id = ids(self.auras, K.SPELL_BASE, K.SPELL_END, "auras")
         self.next_trigger = K.NPC_END - 400 + 1
         self.next_spawn = K.SPAWN_BASE
         self.next_go_spawn = K.GO_SPAWN_BASE
         self.next_display = K.GO_DISPLAY_BASE
         self.next_trainer = K.TRAINER_BASE
         self.lists = {}                 # entry -> number of timed action lists made
+        self.go_entries = set()         # objects with scenes (their lists' owners)
         self.data_fields = {}           # entry -> next data value
         self.script_rows = {}           # (entry, source type) -> next id
         self.texts = {}                 # entry -> next creature_text group
@@ -217,6 +232,9 @@ class Story:
         self.zones = set()
         for ch in self.chapters:
             self.zones.update(ch["CHAPTER"].get("zones", []))
+        self.spells = []                # the story's auras: dicts for tools/build_data.py to make spells of
+        for key, d in self.auras.items():
+            self.build_aura(key, d)
         for key, d in self.items.items():
             self.build_item(key, d)
         # (those one talks to or gives something to for a quest: a gossip menu each)
@@ -233,6 +251,10 @@ class Story:
             self.build_object(key, d)
         for key, d in self.quests.items():
             self.build_quest(key, d)
+        for d in self.extra_spawns:
+            self.build_spawn(d)
+        self.build_graveyards()
+        self.build_start()
         self.build_phases()
         finals = [k for k, q in self.quests.items() if q.get("final")]
         if len(finals) > 1:
@@ -243,6 +265,46 @@ class Story:
         if self.errors:
             raise StoryError("the murlocs' story has problems:\n  " + "\n  ".join(self.errors))
         return self.tables, self.client
+
+    # -- auras ---------------------------------------------------------------------------------
+    def build_aura(self, key, d):
+        """An aura of the story's (a spell tools/build_data.py makes): a mark on the player's bar (a buff with a
+        name and a line of text), a disguise (another look), a slow, a stun, a root, a speed."""
+        kind = d.get("kind", "mark")
+        if kind not in AURA_KINDS:
+            self.err(key, f"no aura kind {kind!r}")
+            return
+        misc, amount = 0, 0
+        if kind == "disguise":
+            misc = self.hidden_creature(d["name"], self.look(d.get("look", "trigger"), key), scale=d.get("scale", 1.0))
+        elif kind in ("slow", "speed"):
+            amount = -abs(d.get("percent", 40)) if kind == "slow" else abs(d.get("percent", 30))
+        self.spells.append(dict(id=self.aura_id[key], name=d["name"], aura=AURA_KINDS[kind], misc=misc, amount=amount,
+                                seconds=d.get("seconds", 0), text=d.get("text", ""), icon=d.get("icon", 0),
+                                visual=d.get("visual", 0), kind=kind))
+
+    def aura(self, ref, chapter, where):
+        if isinstance(ref, int):
+            return ref
+        key = self.qualify(chapter, ref)
+        if key not in self.aura_id:
+            self.err(where, f"no aura {ref!r}")
+            return 0
+        return self.aura_id[key]
+
+    def hidden_creature(self, name, display, scale=1.0, smart=False):
+        """A creature of the story's own that nobody sees as one: an explored place's watcher, a disguise's look."""
+        entry = self.next_trigger
+        self.next_trigger += 1
+        if entry > K.NPC_END:
+            raise StoryError("too many triggers")
+        self.row("creature_template", entry=entry, name=name, subname="", gossip_menu_id=0, minlevel=1, maxlevel=1,
+                 faction=35, npcflag=0, speed_walk=1.0, speed_run=1.14286, unit_class=1, unit_flags=0x02000000 | 0x200,
+                 type=10, flags_extra=128 if smart else 0, rank=0, HealthModifier=1.0, ManaModifier=1.0, ArmorModifier=1.0,
+                 DamageModifier=1.0, BaseAttackTime=2000, RangeAttackTime=2000, lootid=0, mingold=0, maxgold=0,
+                 AIName="SmartAI" if smart else "", ScriptName="", detection_range=20.0)
+        self.row("creature_template_model", CreatureID=entry, Idx=0, CreatureDisplayID=display, DisplayScale=scale, Probability=1)
+        return entry
 
     # -- items ---------------------------------------------------------------------------------
     def icon(self, ref, where):
@@ -327,6 +389,9 @@ class Story:
                     self.err(key, f"no stat {s!r}")
         for i, (t_, v) in enumerate(stats[:10], start=1):
             row[f"stat_type{i}"], row[f"stat_value{i}"] = t_, v
+        if d.get("aura"):                       # used: the aura on the player
+            row.update(spellid_1=self.aura(d["aura"], d["chapter"], key), spelltrigger_1=0,
+                       spellcharges_1=-1 if d.get("consumed") else 0, spellcooldown_1=-1, spellcategorycooldown_1=-1)
         self.row("item_template", **row)
         self.client.setdefault("Item", []).append([iid, row["class"], row["subclass"], -1, row["Material"], row["displayid"],
                                                    row["InventoryType"], row["sheath"]])
@@ -400,26 +465,33 @@ class Story:
     def build_npc(self, key, d):
         entry = self.npc_id[key]
         chapter = d["chapter"]
-        role = d.get("role", "ambient")
+        roles = d.get("role", "ambient")
+        roles = roles.split("+") if isinstance(roles, str) else list(roles)
+        role = next((r for r in roles if r.startswith(("trainer:", "profession:"))), roles[0])
         lo, hi = d["level"] if isinstance(d.get("level"), (tuple, list)) else (d.get("level", 10), d.get("level", 10))
         flags = 0
         menu = 0
         lang = self.language(d)
-        if role in ("quest", "vendor", "innkeeper", "repair", "travel") or role.startswith(("trainer:", "profession:")) or d.get("gossip") \
-                or key in self.talkers:
+        if set(roles) & ({"quest", "vendor", "innkeeper", "repair", "travel"} | set(ROLE_OPTIONS)) \
+                or role.startswith(("trainer:", "profession:")) or d.get("gossip") or key in self.talkers:
             flags |= NPCFLAG["gossip"]
             menu = entry
-        if role == "quest" or self.gives_quests(key):
+        if "quest" in roles or self.gives_quests(key):
             flags |= NPCFLAG["quest"]
         options = []
-        if role in ("vendor", "innkeeper", "repair"):
+        if set(roles) & {"vendor", "innkeeper", "repair"}:
             flags |= NPCFLAG["vendor"]
             options.append((3, NPCFLAG["vendor"], "Let me see what you have."))
             for slot, item in enumerate(d.get("sells", K.VENDOR_FOOD)):
                 self.row("npc_vendor", entry=entry, slot=slot, item=self.item(item, chapter, key))
-        if role == "repair":
+        if "repair" in roles:
             flags |= NPCFLAG["repair"]
-        if role == "innkeeper":
+        for r in roles:
+            if r in ROLE_OPTIONS:
+                kind, nf, icon, text = ROLE_OPTIONS[r]
+                flags |= nf
+                options.append((kind, nf, text))
+        if "innkeeper" in roles:
             flags |= NPCFLAG["innkeeper"]
             options.insert(0, (8, NPCFLAG["innkeeper"], "Make this place your home."))
         if role.startswith(("trainer:", "profession:")):
@@ -440,12 +512,12 @@ class Story:
                     return
                 self.trainer(entry, 2, K.SKILLS[what], key, lang, requirement=0)
                 options.append((5, NPCFLAG["trainer"], "Teach me your trade."))
-        if role == "travel":
+        if "travel" in roles:
             for n, (dest, needs) in enumerate(d.get("travel", [])):
                 m, x, y, z = self.point(dest, chapter, key)
                 options.append(("travel", 1, "Take me to the other place.", (m, x, y, z), needs))
         side = self.side(d)
-        enemy = role == "enemy" or d.get("side") in ("naga", "hostile")
+        enemy = "enemy" in roles or d.get("side") in ("naga", "hostile")
         unit_class = d.get("class", 2 if d.get("caster") else 1)
         self.row("creature_template", entry=entry, name=d["name"], subname=d.get("subname") or "", gossip_menu_id=menu,
                  minlevel=lo, maxlevel=hi, faction=side, npcflag=flags, speed_walk=1.0, speed_run=1.14286, unit_class=unit_class,
@@ -471,12 +543,12 @@ class Story:
                     self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon=2, OptionText=self.words(text, lang),
                              OptionType=1, OptionNpcFlag=1)
                     self.smart(entry, 0, EV_GOSSIP_SELECT, (menu, n), [(A_CLOSE_GOSSIP, (), (T_INVOKER,)),
-                                                                     (A_TELEPORT, (m,), (T_POSITION, 0, 0, 0, x, y, z, 0))])
+                                                                     (A_TELEPORT, (m,), (T_INVOKER, 0, 0, 0, x, y, z, 0))])
                     if needs:
                         self.condition(15, menu, n, 8, self.quest(needs, chapter, key))
                     continue
                 kind, nf, text = opt
-                self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon={3: 1, 5: 3, 8: 5, 16: 3}.get(kind, 0),
+                self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon={3: 1, 5: 3, 8: 5, 9: 6, 13: 6, 16: 3}.get(kind, 0),
                          OptionText=self.words(text, lang), OptionType=kind, OptionNpcFlag=nf)
             self.next_option[entry] = len(options)
         # where
@@ -495,6 +567,11 @@ class Story:
                 lid = self.actionlist(entry, beats, chapter, key)
                 self.smart(entry, 0, EV_UPDATE_OOC, (period // 2, period, period, period + period // 2),
                            [(A_ACTIONLIST, (lid, 0, 0), (T_SELF,))])
+        if d.get("watch"):                      # someone coming near: their scene (a guard's warning, a slave's look)
+            radius, beats = d["watch"][:2]
+            cooldown = d["watch"][2] if len(d["watch"]) > 2 else 15000
+            lid = self.actionlist(entry, beats, chapter, key + " (watch)")
+            self.smart(entry, 0, EV_OOC_LOS, (2, int(radius), cooldown, cooldown, 1), [(A_ACTIONLIST, (lid, 0, 0), (T_SELF,))])
         for spell, every in d.get("abilities", []):
             self.smart(entry, 0, EV_UPDATE_IC, (2000, 5000, every, every + 3000), [(A_CAST, (spell, 0), (2,))])
 
@@ -590,23 +667,25 @@ class Story:
                 data[5] = 1
         elif kind == "chair":
             gtype, data[0], data[1] = 7, 1, 1
+        elif kind == "mailbox":
+            gtype = 19
         else:
             self.err(key, f"no object kind {kind!r}")
             return
         self.row("gameobject_template", entry=entry, type=gtype, displayId=self.display(d.get("model", "crate"), key),
                  name=self.words(d["name"], "nerglish") if d.get("murloc_name") else d["name"], size=d.get("scale", 1.0),
-                 **{f"Data{i}": v for i, v in enumerate(data)})
+                 AIName="SmartGameObjectAI" if d.get("beats") else "", **{f"Data{i}": v for i, v in enumerate(data)})
+        if d.get("beats"):                      # used: a scene (the object's own list; others' by data)
+            if kind != "use":
+                self.err(key, "beats on an object that isn't used (kind 'use')")
+            self.go_entries.add(entry)
+            lid = self.actionlist(entry, d["beats"], chapter, key)
+            self.smart(entry, 1, EV_GOSSIP_HELLO, (1,), [(A_ACTIONLIST, (lid, 0, 0), (T_SELF,))])
         if d.get("at") is not None:
             phase = self.phase_of(d, chapter)
-            for i, (m, x, y, z) in enumerate(self.points(d["at"], chapter, key)):
-                guid = self.next_go_spawn
-                self.next_go_spawn += 1
-                o = d.get("facing", (i * 1.1) % 6.28)
-                self.row("gameobject", guid=guid, id=entry, map=m, zoneId=0, areaId=0, spawnMask=1, phaseMask=phase,
-                         position_x=round(x, 2), position_y=round(y, 2), position_z=round(z, 2), orientation=round(o, 3),
-                         rotation0=0, rotation1=0, rotation2=round(math.sin(o / 2), 5), rotation3=round(math.cos(o / 2), 5),
-                         spawntimesecs=d.get("respawn", 30 if kind in ("loot", "use") else 0), animprogress=100, state=1,
-                         Comment=f"mod-murloc-naga: {d['name']}")
+            for i, pt in enumerate(self.points(d["at"], chapter, key)):
+                self.object_row(entry, pt, d.get("facing", (i * 1.1) % 6.28), phase,
+                                d.get("respawn", 30 if kind in ("loot", "use") else 0), d["name"])
 
     # -- SmartAI -------------------------------------------------------------------------------
     def smart(self, entry, source, event, eparams, actions, chance=100, flags=0):
@@ -711,6 +790,31 @@ class Story:
     def beat(self, owner, beat, chapter, where):
         kind = beat[0]
         who = beat[1] if len(beat) > 1 else None
+        if owner in self.go_entries and who in ("self", None) and kind in ("say", "yell", "whisper", "emote", "state", "move",
+                                                                           "jump", "face", "follow", "cast", "visual"):
+            self.err(where, f"an object can't {kind} (a beat of the object's own scene: give it to someone)")
+            return []
+        if kind == "teleport":
+            if who != "player":
+                self.err(where, "only the player is teleported")
+                return []
+            m, x, y, z = self.point(beat[2], chapter, where)
+            o = beat[3] if len(beat) > 3 else 0.0
+            return [(A_TELEPORT, (m,), (T_INVOKER, 0, 0, 0, x, y, z, o))]
+        if kind in ("aura", "unaura"):
+            e, target = self.actor(who, owner, chapter, where)
+            spell = self.aura(beat[2], chapter, where)
+            if kind == "aura":
+                return [(A_ADD_AURA, (spell,), target)]
+            return [(A_REMOVE_AURA, (spell, 0), target)]
+        if kind == "object":
+            ok = self.qualify(chapter, beat[1])
+            if ok not in self.go_id:
+                self.err(where, f"no object {beat[1]!r}")
+                return []
+            m, x, y, z = self.point(beat[2], chapter, where)
+            secs = beat[3] if len(beat) > 3 else 60
+            return [(A_SUMMON_GO, (self.go_id[ok], secs, 0, 1), (T_POSITION, 0, 0, 0, x, y, z, beat[4] if len(beat) > 4 else 0.0))]
         if kind in ("say", "yell", "whisper"):
             _, who, text = beat[:3]
             emote = self.emote_id(beat[3], where) if len(beat) > 3 and beat[3] else 0
@@ -801,17 +905,7 @@ class Story:
     # -- quests --------------------------------------------------------------------------------
     def trigger(self, place_pt, radius, quest, name):
         """An unseen creature at a place: whoever comes within [radius] on [quest] has explored it."""
-        entry = self.next_trigger
-        self.next_trigger += 1
-        if entry > K.NPC_END:
-            raise StoryError("too many triggers")
-        self.row("creature_template", entry=entry, name=name, subname="", gossip_menu_id=0, minlevel=1, maxlevel=1,
-                 faction=35, npcflag=0, speed_walk=1.0, speed_run=1.14286, unit_class=1, unit_flags=0x02000000 | 0x200,
-                 type=10, flags_extra=128, rank=0, HealthModifier=1.0, ManaModifier=1.0, ArmorModifier=1.0, DamageModifier=1.0,
-                 BaseAttackTime=2000, RangeAttackTime=2000, lootid=0, mingold=0, maxgold=0, AIName="SmartAI", ScriptName="",
-                 detection_range=20.0)
-        self.row("creature_template_model", CreatureID=entry, Idx=0, CreatureDisplayID=K.LOOKS["trigger"], DisplayScale=1.0,
-                 Probability=1)
+        entry = self.hidden_creature(name, K.LOOKS["trigger"], smart=True)
         list(self.spawn(entry, [place_pt], 0.0, K.RACE_PHASE, comment=f"mod-murloc-naga: {name}"))
         self.smart(entry, 0, EV_OOC_LOS, (2, int(radius), 1000, 1000, 1), [(A_AREA_EXPLORED, (quest,), (T_INVOKER,))])
         return entry
@@ -841,6 +935,8 @@ class Story:
             self.interaction(e, npc_key, qid, text, d.get("interact_beats", []), chapter, where)
         for item, target, count in d.get("use", []):
             self.use(qid, item, target, count, req_npc, objective_text, chapter, where)
+        for spec in d.get("emotes", []):
+            self.emote_credit(qid, spec, req_npc, objective_text, chapter, where)
         if d.get("explore"):
             special |= 2
             pt = self.point(d["explore"], chapter, where)
@@ -878,7 +974,7 @@ class Story:
                    AllowableRaces=K.MURLOC_BIT, LogTitle=self.words(d["title"], lang_give),
                    LogDescription=d["goal"], QuestDescription=self.words(d["text"], lang_give), AreaDescription="",
                    QuestCompletionLog=self.completion_log(ender, chapter, where),
-                   StartItem=self.item(d["source"], chapter, where) if d.get("source") else 0)
+                   StartItem=self.item(d["source"], chapter, where) if d.get("source") else 0, TimeAllowed=d.get("time", 0))
         for i, (e, n) in enumerate(req_npc[:4], start=1):
             row[f"RequiredNpcOrGo{i}"], row[f"RequiredNpcOrGoCount{i}"] = e, n
             if objective_text[i - 1]:
@@ -897,12 +993,23 @@ class Story:
         prev = d.get("prev")
         prevs = prev if isinstance(prev, list) else ([prev] if prev else [])
         excl = d.get("exclusive", 0)
+        classes = 0
+        for c in d.get("classes", []):
+            if c not in K.CLASSES:
+                self.err(where, f"no class {c!r}")
+            else:
+                classes |= 1 << (K.CLASSES[c] - 1)
+        if d.get("repeatable"):
+            special |= 1
         self.row("quest_template_addon", ID=qid, PrevQuestID=self.quest(prevs[0], chapter, where) if len(prevs) == 1 else 0,
-                 SpecialFlags=special, ProvidedItemCount=1 if d.get("source") else 0, ExclusiveGroup=excl and (K.QUEST_BASE + excl))
+                 SpecialFlags=special, ProvidedItemCount=1 if d.get("source") else 0, ExclusiveGroup=excl and (K.QUEST_BASE + excl),
+                 AllowableClasses=classes)
         if len(prevs) > 1:
             for p in prevs:
                 self.condition(19, 0, qid, 8, self.quest(p, chapter, where))
-        self.row("quest_offer_reward", ID=qid, Emote1=1, RewardText=self.words(d.get("reward", ""), lang_end))
+        ends = [self.emote_id(e, where) for e in d.get("reward_emotes", ["talk"])][:4]
+        self.row("quest_offer_reward", ID=qid, **{f"Emote{i + 1}": e for i, e in enumerate(ends)},
+                 RewardText=self.words(d.get("reward", ""), lang_end))
         if d.get("progress"):
             self.row("quest_request_items", ID=qid, EmoteOnComplete=1, EmoteOnIncomplete=6,
                      CompletionText=self.words(d["progress"], lang_end))
@@ -956,6 +1063,29 @@ class Story:
         if beats:
             actions.append((A_ACTIONLIST, (self.actionlist(entry, beats, chapter, where), 0, 0), (T_SELF,)))
         self.smart(entry, 0, EV_GOSSIP_SELECT, (menu, opt), actions)
+
+    def emote_credit(self, qid, spec, req_npc, objective_text, chapter, where):
+        """The player's own emote at someone (/wave at a slave) as an objective: each of them answers it once
+        every few seconds (SmartAI's receive-emote), while the quest's in the log and unfinished."""
+        target, emote, count = spec[:3]
+        beats = spec[3] if len(spec) > 3 else []
+        if not isinstance(target, str):
+            self.err(where, "an emote's objective needs one of the story's people, not the game's")
+            return
+        if emote not in K.TEXT_EMOTES:
+            self.err(where, f"no player emote {emote!r} (common.py TEXT_EMOTES)")
+            return
+        e = self.creature(target, chapter, where)
+        actions = [(A_KILLED_MONSTER, (e,), (T_INVOKER,))]
+        if beats:
+            actions.append((A_ACTIONLIST, (self.actionlist(e, beats, chapter, where), 0, 0), (T_SELF,)))
+        first = self.script_rows.get((e, 0), 0)
+        self.smart(e, 0, EV_RECEIVE_EMOTE, (K.TEXT_EMOTES[emote], 6000, 6000), actions)
+        self.condition(22, first + 1, e, 9, qid)
+        self.condition(22, first + 1, e, 28, qid, negative=1)
+        req_npc.append((e, count))
+        npc = self.npcs.get(self.qualify(chapter, target), {})
+        objective_text.append(f"/{emote} at {npc.get('plural') or npc.get('name', 'them')}")
 
     def use(self, qid, item, target, count, req_npc, objective_text, chapter, where):
         """Using a quest item: on someone (a gossip option while you carry it), or at a place (a thing there
@@ -1032,6 +1162,102 @@ class Story:
         pts = [p for p in self._spawns.get(entry, []) if p[2] == mapid and (not zones or p[3] in zones or p[3] == 0)]
         return pts
 
+    # -- spawns, graveyards, the start -----------------------------------------------------------
+    def build_spawn(self, d):
+        """More of someone already made (SPAWNS): a chapter's people at another chapter's hub, or the game's
+        creatures in the murlocs' phase."""
+        if "object" in d:
+            return self.build_object_spawn(d)
+        chapter, ref = d["chapter"], d["npc"]
+        where = f"{chapter}: a spawn of {ref}"
+        entry = self.creature(ref, chapter, where)
+        if not entry:
+            return
+        npc = self.npcs.get(self.qualify(chapter, ref)) if isinstance(ref, str) else None
+        name = npc["name"] if npc else self.world_creatures.get(ref, {}).get("name", str(ref))
+        phase = self.phase_of(dict(d, key=where), chapter)
+        guids = list(self.spawn(entry, self.points(d["at"], chapter, where), d.get("facing"), phase, d.get("wander", 0.0),
+                                d.get("respawn", 120), f"mod-murloc-naga: {name}"))
+        state = d.get("state")
+        if state is None and npc:
+            state = next((b[2] for b in npc.get("idle", []) if b[0] == "state" and b[1] == "self"), None)
+        if state is not None:
+            sid = K.STATES.get(state, state) if isinstance(state, str) else state
+            if isinstance(sid, str):
+                self.err(where, f"no state {state!r}")
+                return
+            for g in guids:
+                self.row("creature_addon", guid=g, emote=sid)
+
+    def build_object_spawn(self, d):
+        chapter, ref = d["chapter"], d["object"]
+        where = f"{chapter}: a spawn of {ref}"
+        key = self.qualify(chapter, ref)
+        if key not in self.go_id:
+            self.err(where, f"no object {ref!r}")
+            return
+        obj = self.objects[key]
+        kind = obj.get("kind", "doodad")
+        phase = self.phase_of(dict(d, key=where), chapter)
+        for i, (m, x, y, z) in enumerate(self.points(d["at"], chapter, where)):
+            self.object_row(self.go_id[key], (m, x, y, z), d.get("facing", (i * 1.1) % 6.28), phase,
+                            d.get("respawn", 30 if kind in ("loot", "use") else 0), obj["name"])
+
+    def object_row(self, entry, pt, o, phase, respawn, name):
+        m, x, y, z = pt
+        guid = self.next_go_spawn
+        self.next_go_spawn += 1
+        if guid > K.GO_SPAWN_END:
+            raise StoryError("too many object spawns")
+        self.row("gameobject", guid=guid, id=entry, map=m, zoneId=0, areaId=0, spawnMask=1, phaseMask=phase,
+                 position_x=round(x, 2), position_y=round(y, 2), position_z=round(z, 2), orientation=round(o, 3),
+                 rotation0=0, rotation1=0, rotation2=round(math.sin(o / 2), 5), rotation3=round(math.cos(o / 2), 5),
+                 spawntimesecs=respawn, animprogress=100, state=1, Comment=f"mod-murloc-naga: {name}")
+
+    def build_graveyards(self):
+        """The tribe's graveyards (GRAVEYARDS): where a murloc whose story isn't done wakes as a ghost (the
+        nearest on its map whose phase rule holds: src/MurlocNaga.cpp), each with the game's spirit healer."""
+        out = []
+        for n, d in enumerate(self.graveyards):
+            gid = K.GRAVEYARD_BASE + n
+            if gid > K.GRAVEYARD_END:
+                raise StoryError("too many graveyards")
+            chapter = d["chapter"]
+            where = f"{chapter}: graveyard {n + 1}"
+            m, x, y, z = self.point(d["at"], chapter, where)
+            self.row("game_graveyard", ID=gid, Map=m, x=round(x, 2), y=round(y, 2), z=round(z + 0.5, 2),
+                     Comment=f"mod-murloc-naga: {d.get('name', 'the tribe')}")
+            rule, frm, until = d.get("phase", "always"), 0, 0
+            if rule != "always":
+                kind, quest = rule
+                qid = self.quest(quest, chapter, where)
+                if kind == "from":
+                    frm = qid
+                elif kind == "until":
+                    until = qid
+                else:
+                    self.err(where, f"a graveyard's phase is from or until a quest, not {kind!r}")
+            out.append(dict(id=gid, map=m, x=round(x, 2), y=round(y, 2), z=round(z + 0.5, 2), from_quest=frm, until_quest=until))
+            phase = self.phase_of(dict(d, key=where), chapter)
+            list(self.spawn(K.SPIRIT_HEALER, self.points(d.get("healer", d["at"]), chapter, where), d.get("facing", 0.0), phase,
+                            comment="mod-murloc-naga: the tribe's spirit healer"))
+        self.tables["_graveyards"] = out
+
+    def build_start(self):
+        """Where a murloc starts (the first chapter's `start`), and the chapters whose zones show the murlocs'
+        phase alone (no world: `alone_until` a quest's reward)."""
+        for ch in self.chapters:
+            c = ch["CHAPTER"]
+            if c.get("start") and "_start" not in self.tables:
+                m, x, y, z = self.point(c["start"], c["key"], "the start")
+                self.tables["_start"] = dict(map=m, zone=c.get("zones", [0])[0], x=round(x, 2), y=round(y, 2),
+                                             z=round(z + 0.5, 2), o=c.get("start_facing", 0.0))
+            if c.get("alone_until"):
+                self.tables.setdefault("_alone", []).append((tuple(c.get("zones", [])), self.quest(c["alone_until"], c["key"], c["key"])))
+
+    def alone_quest(self, zone):
+        return next((q for zones, q in self.tables.get("_alone", []) if zone in zones), 0)
+
     # -- phases --------------------------------------------------------------------------------
     def build_phases(self):
         """A story phase is a spell whose aura is its bit, on a murloc in the chapter's zones by the quest
@@ -1054,13 +1280,14 @@ class Story:
             spell += 1
         if self.race_phase_spell:
             for zone in sorted(self.zones - {148, 331}):        # (those two: tools/build_data.py's)
-                self.row("spell_area", spell=self.race_phase_spell, area=zone, quest_start=0, quest_end=0, aura_spell=0,
-                         racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=64, quest_end_status=11)
+                self.row("spell_area", spell=self.race_phase_spell, area=zone, quest_start=self.alone_quest(zone), quest_end=0,
+                         aura_spell=0, racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=64, quest_end_status=11)
 
 
 # -- lint ---------------------------------------------------------------------------------------------
 
-ACTING = {"say", "yell", "whisper", "emote", "state", "move", "jump", "give", "take", "summon", "visual", "cast", "sound", "music"}
+ACTING = {"say", "yell", "whisper", "emote", "state", "move", "jump", "give", "take", "summon", "visual", "cast", "sound", "music",
+          "aura", "unaura", "teleport", "object", "follow", "face"}
 
 
 def lint(story):
@@ -1118,7 +1345,9 @@ DELETES = [
     ("creature_text", f"`CreatureID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("creature_addon", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
     ("creature", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
-    ("smart_scripts", f"(`source_type` = 0 AND `entryorguid` BETWEEN {K.NPC_BASE} AND {K.NPC_END}) OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.NPC_END * 100 + 99})"),
+    ("smart_scripts", f"(`source_type` = 0 AND `entryorguid` BETWEEN {K.NPC_BASE} AND {K.NPC_END}) OR (`source_type` = 1 AND `entryorguid` "
+                      f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.GO_END * 100 + 99})"),
+    ("game_graveyard", f"`ID` BETWEEN {K.GRAVEYARD_BASE} AND {K.GRAVEYARD_END}"),
     ("npc_text", f"`ID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("gossip_menu", f"`MenuID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("gossip_menu_option", f"`MenuID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
@@ -1172,6 +1401,14 @@ def sql(tables, phase_spells_sql=""):
             out.append(f"INSERT INTO `{table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body};")
     if phase_spells_sql:
         out.append(phase_spells_sql)
+    out.append("-- The tribe's graveyards, as the module (src/MurlocNaga.cpp) chooses them for a murloc whose story isn't done.")
+    out.append("CREATE TABLE IF NOT EXISTS `murloc_naga_graveyards` (`id` INT UNSIGNED NOT NULL PRIMARY KEY, `map` INT UNSIGNED NOT NULL, "
+               "`x` FLOAT NOT NULL, `y` FLOAT NOT NULL, `z` FLOAT NOT NULL, `from_quest` INT UNSIGNED NOT NULL, `until_quest` INT UNSIGNED NOT NULL);")
+    out.append("DELETE FROM `murloc_naga_graveyards`;")
+    if tables.get("_graveyards"):
+        out.append("INSERT INTO `murloc_naga_graveyards` (`id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest`) VALUES "
+                   + ", ".join(f"({g['id']}, {g['map']}, {g['x']}, {g['y']}, {g['z']}, {g['from_quest']}, {g['until_quest']})"
+                               for g in tables["_graveyards"]) + ";")
     story = tables.get("_story")
     if story:
         out.append("-- What the module (src/MurlocNaga.cpp) reads of the story: its quests' range, and the last quest, which opens\n"
@@ -1187,4 +1424,6 @@ DEFAULTS = {
     ("item_template", "description"): "", ("quest_template", "ObjectiveText1"): "", ("quest_template", "ObjectiveText2"): "",
     ("quest_template", "ObjectiveText3"): "", ("quest_template", "ObjectiveText4"): "", ("creature", "Comment"): "",
     ("gameobject", "Comment"): "", ("gameobject_template", "name"): "", ("npc_text", "text0_0"): "", ("npc_text", "text0_1"): "",
+    ("gameobject_template", "AIName"): "", ("creature_template", "AIName"): "",
+    ("item_template", "spellcooldown_1"): -1, ("item_template", "spellcategorycooldown_1"): -1,
 }

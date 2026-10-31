@@ -14,7 +14,10 @@ stage directions are not shown to anyone; don't write them.
 ## The file
 
 ```python
-CHAPTER = dict(key="ch1", title="The Pens", levels=(10, 15), map=1, zones=[331], hub="pens")
+CHAPTER = dict(key="ch1", title="The Pens", levels=(10, 15), map=1, zones=[331], hub="pens",
+               start="first_step", start_facing=1.5,      # (the first chapter's: where a new murloc stands)
+               alone_until="ch1_breakout")                # (its zones show the murlocs' phase alone, no world,
+                                                          #  until that quest's reward)
 
 PLACES = {                      # named points: (x, y) on the ground, or (x, y, z) exactly
     "pens": (4213.0, 1012.5),
@@ -46,7 +49,13 @@ NPCS = [
 - `role`: `quest`, `vendor`, `trainer:<class>` (warrior, hunter, rogue, priest, shaman, mage),
   `profession:<skill>` (first_aid, cooking, fishing, skinning, mining, herbalism, leatherworking,
   tailoring, blacksmithing, alchemy, engineering, enchanting, jewelcrafting, inscription),
-  `innkeeper`, `repair`, `ambient`, `enemy`, `guard`.
+  `innkeeper`, `repair`, `banker`, `stable`, `auctioneer`, `travel`, `ambient`, `enemy`, `guard`; several
+  joined by `+` (`"trainer:rogue+banker"`). A vendor sells `sells=[item entries]` (default: food).
+  `travel`: `travel=[("<place>", "<quest key>" | None)]`, a gossip line each (teleports there; shown
+  once the quest's done).
+- `watch=(yards, [beats], cooldown ms)`: a player coming that near (in sight) starts the beats ("player"
+  is them): a Lasher's hiss, point and lash; a slave hiding. Default cooldown 15000.
+- `plural`: how an emote objective names them ("pen slaves": "/wave at pen slaves 0/5").
 - `at`: a place, a point, or a list of them (one creature at each).
 - `language`: `nerglish` (the default for murlocs: translated), or `common`, `orcish`, `darnassian`,
   `dwarvish`, `gnomish`, `taurahe`, `troll`, `gutterspeak`, `thalassian`, `draenei` (English as
@@ -66,7 +75,10 @@ OBJECTS = [
     dict(key="hut", model="murloc_hut", name="Hut", at=(4210, 1020), kind="doodad", scale=1.1),
 ]
 ```
-`model`: a key of `MODELS` in common.py or a game model path ("World\\...\\X.mdx").
+`model`: a key of `MODELS` in common.py or a game model path ("World\\...\\X.mdx"). Kinds: `loot`,
+`use` (clicked once for a quest's credit; `beats=[...]` a scene it starts: the object's own beats are
+sounds, summons, objects and auras, anyone else's (an NPC key: the nearest of them) anything),
+`doodad`, `chair`, `mailbox`. `phase` as NPCs'.
 
 ```python
 ITEMS = [
@@ -75,7 +87,8 @@ ITEMS = [
          stats=[("str", 3), ("sta", 2)]),                                          # a reward
 ]
 ```
-Kinds: quest items (no `kind`), `weapon:<dagger|sword|axe|mace|spear|staff|fist|bow|gun|wand>`,
+An item with `aura="<aura key>"` puts that aura on the player when used (a disguise in a barrel);
+`consumed=True` uses it up. Kinds: quest items (no `kind`), `weapon:<dagger|sword|axe|mace|spear|staff|fist|bow|gun|wand>`,
 `armor:<cloth|leather|mail|plate>:<head|shoulder|chest|waist|legs|feet|wrist|hands|back>`,
 `ring`, `neck`, `trinket`, `shield`, `offhand`, `food`, `drink`, `bag`. Stats: str, agi, sta, int,
 spi, ap, sp (spell power), hit, crit, dodge, def, mp5, armor.
@@ -106,9 +119,16 @@ Objectives (up to four kinds, four entries each):
 - `explore="<place>"` (with `radius`, default 15 yards): reach the place.
 - `interact=[("<npc key>", "What you do, in English: a gossip line shown as Nerglish")]`: talk to them.
 - `use=[("<item key>", "<npc key>" | "<place>", count)]`: use a quest item on a creature or at a place.
-- `escort=("<npc key>", ["p1", "p2", ...])`: they walk the path; you keep them alive.
+- `escort=("<npc key>", ["p1", "p2", ...])`: they follow you; reach the last place with them.
+- `emotes=[("<npc key>", "wave", count, [beats])]`: the player's own emote at them (/wave, /bow,
+  /dance, /roar, /cheer, /hug, /salute, /cry...: common.py TEXT_EMOTES), each answering with the beats
+  (their own: "self"); one credit per emote, a few seconds apart per creature.
 
 The giver gives a `source` item if the quest needs one (`source="cage_key"`).
+
+More: `time=180` (seconds to finish it), `classes=["warrior"]` (only them), `repeatable=True` (a
+chore), `details=["talk", "point"]` (the giver's emotes as it's offered), `reward_emotes=["cheer"]`
+(the ender's as it's handed in), `exclusive=N` (quests sharing N: taking one closes the others).
 
 `level` is the quest's level; `min` defaults to level - 2. `xp` (1-8) defaults to 7; the last of a
 chapter's chains and set pieces take 8.
@@ -136,11 +156,38 @@ A beat is a tuple. `who` is `"self"` (the giver or ender), an NPC key (the neare
 | `("summon", "<npc key>", "<place>", seconds)` | it appears for a while (with its own idle) |
 | `("despawn", who)` | it goes |
 | `("credit", "<quest key>")` | completes an `event` objective (`event="text"` in the quest) |
+| `("teleport", "player", "<place>", facing?)` | moves the player there (a vision, a crossing) |
+| `("aura", who, "<aura key>")` / `("unaura", who, "<aura key>")` | puts an aura (AURAS) on them / takes it off |
+| `("object", "<object key>", "<place>", seconds)` | an object appears there for a while |
+| `("follow", who)` | they follow the player |
 | `("wait", ms)` | pause before the next beat |
 | `("every", ms, [beats])` | (idle only) repeats beats on that period |
 
 Order matters; each beat follows the last at once unless a `wait` comes between. Keep sequences
 under a minute.
+
+## Auras, more spawns, graveyards
+
+```python
+AURAS = [                       # spells of the story's own, shown on the bar with their name and text
+    dict(key="brand", name="Salt-Scar", kind="mark", text="Branded by the naga.", icon=1126),
+    dict(key="barrel", name="Barrel Disguise", kind="disguise", look=4553, seconds=300),  # another look
+    dict(key="heavy", name="Heavy Coral", kind="slow", percent=40, seconds=60),
+    dict(key="lashed", name="Lashed", kind="stun", seconds=2),
+]   # kinds: mark, disguise (look: a CreatureDisplayInfo id or LOOKS key), slow, speed (percent), stun, root;
+    # seconds: 0 lasts until taken off; icon: a spell id whose icon it shows; visual: a SpellVisual id
+
+SPAWNS = [                      # more of someone already made: the hub's people at a later hub, or the
+                                # game's creatures (an entry) in the murlocs' phase
+    dict(npc="ch1:murlorga", at="hub_pot", phase=("from", "ch3_arrival"), facing=2.0),
+    dict(npc=3711, at=[(4100, 950), (4110, 960)], wander=8, respawn=60),
+    dict(object="ch0:mailbox", at="hub_post", phase=("from", "ch3_arrival")),   # an object likewise
+]
+
+GRAVEYARDS = [                  # where a murloc wakes as a ghost (the nearest on its map), with a spirit healer
+    dict(at="hub_shore", name="the pens", phase=("until", "ch1_breakout")),
+]
+```
 
 ## Finding places
 
