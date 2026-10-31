@@ -1058,6 +1058,48 @@ class Story:
                          racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=64, quest_end_status=11)
 
 
+# -- lint ---------------------------------------------------------------------------------------------
+
+ACTING = {"say", "yell", "whisper", "emote", "state", "move", "jump", "give", "take", "summon", "visual", "cast", "sound", "music"}
+
+
+def lint(story):
+    """What a chapter does that the story's rules frown on (show, don't tell; the right looks for
+    acting), as warnings: [(where, what)]."""
+    out = []
+    emoting = {f"murloc_{n}" for n in K.TRIBE_SKINS}
+    no_emote_murlocs = {"oracle", "tidehunter", "seer", "coastrunner", "netter", "warrior", "hunter", "raider",
+                        "flagglemurk", "murkdeep", "fry_green", "fry_blue", "fry_pink", "fry_purple"}
+    actors = set()
+    for key, q in story.quests.items():
+        for kind in ("accept", "complete"):
+            beats = q.get(kind, [])
+            acts = [b for b in beats if b[0] in ACTING]
+            if len(acts) < 2:
+                out.append((key, f"its {kind} scene does little ({len(acts)} beats that show something)"))
+            for b in beats:
+                if b[0] in ("say", "yell", "emote", "state") and len(b) > 1 and b[1] not in ("self", "player"):
+                    actors.add(story.qualify(q["chapter"], b[1]))
+            if any(b[0] in ("emote", "state") or (b[0] in ("say", "yell") and len(b) > 3 and b[3]) for b in beats):
+                for who in (q.get("giver"), q.get("ender", q.get("giver"))):
+                    if isinstance(who, str) and not who.startswith("object:"):
+                        actors.add(story.qualify(q["chapter"], who))
+        if not q.get("poi") and not q.get("kill") and (q.get("items") or q.get("explore") or q.get("use")):
+            out.append((key, "no map marker (poi) for what it asks"))
+        if len(q.get("text", "")) < 60:
+            out.append((key, "a short quest text"))
+    for key in actors:
+        d = story.npcs.get(key)
+        if d and isinstance(d.get("look"), str) and d["look"] in no_emote_murlocs and d.get("look") not in emoting:
+            out.append((key, f"acts, but its look ({d['look']}) plays no emotes: a murloc_<skin> look does"))
+    for ch in story.chapters:
+        lo, hi = ch["CHAPTER"].get("levels", (1, 80))
+        for q in ch.get("QUESTS", []):
+            if not lo <= q["level"] <= hi + 1:
+                out.append((f"{ch['CHAPTER']['key']}:{q['key']}", f"level {q['level']} outside the chapter's {lo}-{hi}"))
+    return out
+
+
 # -- SQL ---------------------------------------------------------------------------------------------
 
 def q(v):

@@ -1893,6 +1893,21 @@ start from the world database (conditions); the story's last quest makes the All
 Story teams (agents): a gazetteer of the route, a story bible, chapter writers; the naga's research
 alongside.
 
+The naga's research (done; the questline comes after the murlocs'): every Warcraft III mission the naga
+are in, transcribed (warcraft.wiki.gg), Lady Vashj's 53 campaign lines with who she answers; her
+voice: her 21 Warcraft III unit lines (WAVs at warcraft.wiki.gg, 22050 Hz mono, the game's format), her
+14 Serpentshrine lines and grunts in the 3.3.5 client (SoundEntries 11531-11544, 11616-11618); her
+campaign voice-over isn't hosted anywhere (it's in Warcraft III's files alone), so it's text. Her 3.3.5
+model: Creature\LadyVashj (displays 20748, 29545). Hive Workshop and thewowdb.com turned the session
+away (Cloudflare). Corrections: the screenshots' lines are hers to Maiev in The Tomb of Sargeras, over a
+flashback of the Highborne becoming naga; Rise of the Naga is set in Azshara (the port of Nendis, not in
+WoW). A phase can't change the ground: each memory is phased people and things on Azshara's own ground.
+Proposed: 10-14 the Highborne and the change (Ruins of Eldarath); 14-19 Rise of the Naga (Nendis, below
+Forlorn Ridge); 19-24 the Broken Isles and the Tomb of Sargeras (the Temple of Arkkoran); 24-29 Wrath of
+the Betrayer and Balancing the Scales; 29-34 the Ruins of Dalaran and the Brothers Stormrage (Lake
+Mennar); 34-40 Kael'thas, Garithos, the Dungeons of Dalaran, the Crossing; 40-45 Outland; 45-50 Lord of
+Outland; 50-55 the Return to Northrend and A Symphony of Frost and Flame, ending on her own last words.
+
 Where it stands: the systems are built and their pieces tested (the translator against MT19937's and
 Java's references, the compiler against the world database's schema, the gate's SQL on the world
 database: 6936 quests gated); the story is being written. Not in a release yet.

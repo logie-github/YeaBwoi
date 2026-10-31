@@ -88,34 +88,49 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
   and the sirens' hiss. Their people gurgle (or hiss) as they're spoken to, and the murlocs cheer as a quest is handed in.
 - **Add-ons**: Questie's race table gets them as their kin (the murlocs the night elves, the naga the trolls).
 
-## The Murlocs' quests
+## The Murlocs' questline (being written)
 
-Seventeen quests, three levels of them (10 to 13), every giver a murloc of the village, every word murloc. What a
-quest wants is shown, not told: what the murloc does as it gurgles, in brackets ("(Blrrgl looks left. He looks right.
-He leans so close you can smell the fish on his breath.)"). The last sends them to Auberdine's night elves, and on
-into Darkshore's quests.
+The murlocs start at the Zoram Strand (Ashenvale), slaves of the Wrathtail naga, and level from 10 to 55
+through a story of their own: being one murloc of a tribe, not part of the wider world, escaping the
+naga's tyranny, with serious, funny, stupid and boring quests, some a hero's and some a menace's. The
+story is data (`tools/murloc/ch*.py`, written as `tools/murloc/SCHEMA.md` says) that
+`tools/murloc/compile.py` makes the world database's rows (`data/sql/chromiecraft/world/murloc_story.sql`).
+The Darkshore island village of the first release, and its seventeen quests, are retired.
 
-| Quest | Giver | What |
-| --- | --- | --- |
-| Mrrgl? | Elder Mrrglmrgl | Meet Grrmlgrrl the Tidehunter |
-| Snap Snap | Grrmlgrrl | Kill 10 Pygmy Tide Crawlers |
-| Scales in the Water | Grrmlgrrl | Kill 10 Stormscale Raiders on the island to the south |
-| The Tidecaller | Grrmlgrrl | Kill Tidecaller Sssilith, their leader, for his trident |
-| Mussel Memory | Murlorga | 8 Plump Mussels from the shallows |
-| Kelp Wraps | Murlorga | 6 Fresh Kelp from the sea floor |
-| Where's Sloshy? | Murlorga | Find the lost baby murloc under Auberdine's dock |
-| Sloshy Goes Home | Sloshy | Take him home |
-| Shinies! | Blrrgl the Snatcher | Steal 6 Elven Trinkets from Auberdine's crates |
-| The Sweetest Bread | Blrrgl | Steal 5 Sweet Rolls from the baskets by Auberdine's inn |
-| Gubber's Lures | Blrrgl | Steal Gubber Blump's box of lures from his dock |
-| Glow of the Deep | Oracle Glubbub | 6 Glowing Coral from the sea floor |
-| Eyes of the Thresher | Oracle Glubbub | 6 Thresher Eyes from Darkshore's threshers |
-| The Oracle's Vision | Oracle Glubbub | Climb to the island's summit |
-| A Gift from the Deep | Elder Mrrglmrgl | The Glimmering Pearl from the giant clam off the western shore |
-| The Rite of the Pearl | Elder Mrrglmrgl | Place the pearl on the village's altar |
-| Mrgl Mrgl, Land-Walker! | Elder Mrrglmrgl | Take the elder's scroll to Thundris Windweaver in Auberdine |
-
-Rewards: the Tidehunter's Coral Spear, Murlorga's Kelp Wrap and the Elder's Pearl Charm.
+What holds the story together (built, its pieces tested; the chapters are being written):
+- **Nerglish.** Every word a murloc reads is Nerglish: Blizzard's own translator of April 2019 (its
+  script, `assets.webn.mobi/nerglish/nerglish.js`), ported word for word in `tools/nerglish.py` (its
+  Mersenne Twister seeded by each word's hash, its letter chain, its dictionary of real murloc words:
+  "friend" is always "mmmrrglllm"). Only each quest's one-line goal in the log stays English, and the
+  names of what it asks for. Another race's words are garbled as the game garbles a language one doesn't
+  know (`tools/murloc/garble.py`, its LanguageWords).
+- **Their language.** Murlocs speak Nerglish (the game's Titan language, renamed in the patch, its
+  words murloc words) and not Common: what Alliance and Horde people say is gibberish to them, and
+  theirs to everyone else.
+- **Show, don't tell.** Every scene is acted: talk, point, cheer, bow, cry, kneel, beg, laugh, sit,
+  sleep, dance... with sounds, moves, spell visuals and music (SmartAI). The game's murloc models have no
+  emotes; the murloc costume (BlizzCon 2007's) has them all, on a skeleton like murloc2's, and
+  `tools/murloc_anims.py` adds its 32 emotes to murloc2, bone for bone: to the race's models (a
+  murloc player's /talk and /cheer play) and to the tribe's people (`Creature\MurlocTribe`, in each of
+  the 13 skins). Quests mark the map where they want you.
+- **No one else's quests.** Until its story's last quest, a murloc takes no Alliance or Horde quest, nor
+  any open to all: a gate the module builds as the world server starts, from every quest the world
+  database has (other modules' too): each quest's conditions, and a murloc's alternative with the story
+  done. Then the Alliance's are its too.
+- **Hostile towns.** A murloc starts Hostile (-4500) with the Alliance's, the Horde's and the goblins'
+  towns (Stormwind, Ironforge, Darnassus, Gnomeregan, the Exodar; Orgrimmar, Thunder Bluff, the
+  Undercity, the Darkspear, Silvermoon; the Steamwheedle Cartel and its four ports): at war, their guards
+  attack it and it them. Standing earned with sympathizers ends the war (the core's own rule, above
+  Hostile); a menace's deeds cost it. The story's last quest makes the Alliance's towns Neutral.
+- **Guards.** In every town (AreaTable's town flag) a murloc keeps a Low Profile: creatures notice it at
+  5 yards, the game's least. A guard that doesn't like it warns it off first, as it comes within 20
+  yards: it turns, points or shouts, in its own people's annoyed voice and language (Darnassian for
+  Sentinels, Dwarvish, Gnomish, Orcish, Taurahe, Gutterspeak, Thalassian, Troll, Common...), which a murloc
+  can't understand; one that likes it salutes.
+- **Trainers.** The tribe's class trainers and profession trainers teach, in Nerglish (the game's
+  trainers' spell lists); a murloc learns no spells by itself after level 10.
+- **Murlocs of the first release** speak Nerglish from their next login, are Hostile with the towns,
+  and, if still in Darkshore, go to the story's start.
 
 ## The Naga's way
 
