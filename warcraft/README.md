@@ -330,6 +330,12 @@ The first build of them (1.0.430) drew them green on the creation screen and cra
 
 Until this version the Skyborne's and the allied races' changes to the reputations took each other's out, whichever went in last: one side's new races started without their standing with their start race's cities. Both now add their races to those rows, as the Worgen and Goblins do.
 
+## Ralia's mod
+
+**Game options → Ralia's mod** puts Ralia's character textures in the game, from your own copy of Ralia's patches: the first time it's turned on, the app asks for their zip and keeps its `Character` folder (`files/ralia/files`; **Choose the zip again** replaces it). Nothing of Ralia's comes with the app. It takes effect at the realm's next start: the realm makes a patch in your client's language folder from them (`Data/enUS/patch-enUS-Z.MPQ`, the last the game reads; up to a minute the first time, then again only when the zip, the client or the realm changes), and takes it out while the option is off (turning it off takes it out of your client at once too). Both realms.
+
+It covers the races in the game but the gnomes, the murlocs and the naga: the eight of 1.x, the blood elves, the Draenei, the Worgen and Goblins, the allied races, and the Skyborne (who wear the blood elves'). Colours Ralia's patches don't have take the change of the nearest colour that has one, and the allied races' tattoos stay. How: [mod-ralia's README](modules/mod-ralia/README.md). Not yet seen in the game: nothing here runs the 3.3.5 client.
+
 ## Modules
 
 **Modules** (a launcher tile) adds [AzerothCore modules](https://github.com/topics/azerothcore-module) to your realm: an auction house bot, transmogrification, solo dungeons and the hundreds more GitHub lists under that topic.
@@ -431,6 +437,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them; **Log in automatically** with one (the game types its password at the login screen; the first account you make here does it from the start). Needs the server running. |
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). And its **HD look** (see below). Takes effect the next time the game starts. |
+| **Game options** | **Ralia's mod**, on or off (see **Ralia's mod**). Takes effect at the realm's next start. |
 | **Add-ons** | The add-on manager: browse and search warperia.com's 3.3.5a add-ons, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. |
 | **Modules** | AzerothCore's modules from GitHub: browse them, pick some, have GitHub build the realm with them and put it in (see **Modules**). |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |

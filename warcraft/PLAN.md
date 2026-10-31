@@ -1840,6 +1840,30 @@ Where it stands: built, its tools' tests and the screen's pass; CI's server test
 level 10, racials, language, class spells, the murloc's first quests and Auberdine, the naga's quests in Auberdine and
 the way south. Not seen in the game or on a phone (the models, the composed textures, the intros, the screen).
 
+## Ralia's mod (both realms; `modules/mod-ralia`)
+
+The user: "Implement it as a module and also make it so that if we need to disable it later we can. Add a game options
+in he launcher that just says "Ralia's mod" ... The game options can toggle this on or off", then "Also see if you can
+implement it for the new races. Except murloc and naga. But like skybourne uses blood elf textures." Ralia's patches are
+the user's own files (their zip, never in the repository or the app; the site turns the app's downloads away), read on
+the phone: the launcher's **Game options** (a tile of its own) has the one switch; the first time it asks for the zip.
+
+Decided:
+- The textures in `Data/<locale>/patch-<locale>-Z.MPQ`, the last archive the game reads (the only free place after
+  patch-U and patch-V, whose files it must win over), made by the world server as the world database's tables load:
+  after U and V, before the Skyborne's Z, which recolours the blood elves' skins with it in (the Skyborne's "blood
+  elf textures"). U and V leave it out of what they're made from (else each would make the other again every start).
+- Each of `CharSections`' skins and pelvis and torso textures takes Ralia's file of its name (today's, `_hd` for the
+  newer models), its body half at the game's size, palettized; the allied races' through `data/client/sources.txt`
+  (their colours numbered as this game's tables have them). Colours without a file take the nearest colour's change
+  (checked against Ralia's own file for a void elf colour); the allied races' tattoos stay. The gnomes, the murlocs
+  and the naga are left as they are.
+- Off: `Ralia.Enable = 0`, or the switch (which takes the patch out of the client at once).
+
+Where it stands: built; its tests (the patch from a stand-in game, the app's zip reading) and a dry run of the real
+table with the user's files (every playable race's textures but the gnomes'; 10 s on a PC). Not seen in the game or on
+a phone (how today's textures sit on the 3.3.5 models without an HD look).
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made

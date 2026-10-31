@@ -1,0 +1,22 @@
+[worldserver]
+
+########################################
+# Ralia's mod (mod-ralia): both realms
+########################################
+#
+#    Ralia.Enable
+#        Description: Ralia's character textures in the game while the app's Game options have
+#                     "Ralia's mod" on (the textures from the user's own copy of Ralia's patches,
+#                     picked in the app). 0 keeps them out whatever the option says.
+#        Default:     1
+
+Ralia.Enable = 1
+
+#
+#    Ralia.Folder
+#        Description: The folder the app keeps the mod in (files/ralia: its files/Character folder
+#                     and the "enabled" file while the option is on). Empty: beside the game's folder
+#                     (WOW_CLIENT_DIR).
+#        Default:     ""
+
+Ralia.Folder = ""

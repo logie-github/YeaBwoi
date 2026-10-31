@@ -254,6 +254,17 @@
 
     <!-- Graphics (game/GameSettings.kt) -->
     <string name="wow_tile_graphics">Graphics</string>
+    <string name="wow_tile_game_options">Game options</string>
+    <string name="wow_tile_game_options_on">Ralia\'s mod on</string>
+    <string name="wow_tile_game_options_off">Ralia\'s mod off</string>
+    <string name="wow_options_title">Game options</string>
+    <string name="wow_options_body">Takes effect at the realm\'s next start.</string>
+    <string name="wow_options_ralia">Ralia\'s mod</string>
+    <string name="wow_options_ralia_pick">Turning it on asks for the zip of Ralia\'s patches.</string>
+    <string name="wow_options_ralia_reading">Reading the zip…</string>
+    <string name="wow_options_ralia_replace">Choose the zip again</string>
+    <string name="wow_options_ralia_no_textures">That zip has no Character folder of textures.</string>
+    <string name="wow_options_ralia_failed">Couldn\'t read the zip: %1$s</string>
     <string name="wow_tile_graphics_summary">%1$s · %2$d×%3$d</string>
     <string name="wow_graphics_title">Graphics</string>
     <string name="wow_graphics_body">The game\'s resolution, for the screen the phone is showing now (a Fold\'s inside or outside). It takes effect the next time the game starts. Fewer pixels run smoother and keep the phone cooler.</string>
