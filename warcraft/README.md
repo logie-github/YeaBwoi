@@ -334,7 +334,7 @@ Until this version the Skyborne's and the allied races' changes to the reputatio
 
 **Game options → Ralia's mod** puts Ralia's character textures in the game, from your own copy of Ralia's patches: the first time it's turned on, the app asks for their zip and keeps its `Character` folder (`files/ralia/files`; **Choose the zip again** replaces it). Nothing of Ralia's comes with the app. It takes effect at the realm's next start: the realm makes a patch in your client's language folder from them (`Data/enUS/patch-enUS-Z.MPQ`, the last the game reads; up to a minute the first time, then again only when the zip, the client or the realm changes), and takes it out while the option is off (turning it off takes it out of your client at once too). Both realms.
 
-It covers the races in the game but the gnomes, the murlocs and the naga: the eight of 1.x, the blood elves, the Draenei, the Worgen and Goblins, the allied races, and the Skyborne (who wear the blood elves'). Colours Ralia's patches don't have take the change of the nearest colour that has one, and the allied races' tattoos stay. How: [mod-ralia's README](modules/mod-ralia/README.md). Not yet seen in the game: nothing here runs the 3.3.5 client.
+It covers the races in the game, including male and female gnomes, except the murlocs and the naga: the eight of 1.x, the blood elves, the Draenei, the Worgen and Goblins, the allied races, and the Skyborne (who wear the blood elves'). Colours Ralia's patches don't have take the change of the nearest colour that has one, and the allied races' tattoos stay. How: [mod-ralia's README](modules/mod-ralia/README.md). Not yet seen in the game: nothing here runs the 3.3.5 client.
 
 ## Body
 

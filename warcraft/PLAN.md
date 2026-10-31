@@ -1939,3 +1939,7 @@ ghosts automatically use the stock Swift Spectral Gryphon until resurrected; Bod
 Model) affects only female character creation previews, never live characters or male previews.
 The Body preference is kept and applied in the final client patch at realm startup. The older
 requirements and implementation notes above are superseded by these corrections.
+
+Ralia follow-up (2026-10-31): include gnomes too. Removed the explicit gnome texture exclusion,
+bumped the patch version so existing installs rebuild, and added regression checks for both sexes,
+female overlays and a colour with no direct source texture. The user's imported files are retained.
