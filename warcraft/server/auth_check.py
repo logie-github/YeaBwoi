@@ -478,7 +478,9 @@ def run_script(session, player_guid, steps):
         accept ENTRY QUEST            take a quest from it
         reward ENTRY QUEST            turn a quest in to it
         expect TEXT                   something since the last expect had TEXT in it (system
-                                      messages, gossip options and quests, quest updates)
+                                      messages, gossip options and quests, quest updates;
+                                      "complete QUEST", if not heard, is asked of the realm
+                                      with .quest status)
         expect-not TEXT               nothing since the last expect had TEXT
         has TEXT                      as expect, but what was heard is kept for the next (for
                                       several things heard in one step)
@@ -923,6 +925,20 @@ def run_script(session, player_guid, steps):
             continue
         elif word in ("expect", "expect-not", "has"):
             found = any(rest.lower() in h.lower() for h in heard)
+            quest = rest.split()
+            if not found and len(quest) == 2 and quest[0] == "complete" and quest[1].isdigit():
+                # The realm sends a quest's "complete" (SMSG_QUESTUPDATE_COMPLETE) only for an
+                # exploration or event objective (Player::AreaExploredOrEventHappens); a kill or a
+                # credit that completes a quest changes only the quest log's fields. A GM's
+                # .quest status (the character itself: nothing else selected is a player) asks.
+                chunk = []
+                say(session, f".quest status {quest[1]}")
+                session.pump(1.5, chunk)
+                if any("status: complete" in line.lower() for line in system_messages(chunk)):
+                    print(f"script:   quest {quest[1]} complete (.quest status)")
+                    heard.append(f"complete {quest[1]}")
+                    found = True
+                note(chunk)
             if found != (word != "expect-not"):
                 raise RuntimeError(f"{word} \"{rest}\" failed; heard: {heard}")
             if word != "has":
