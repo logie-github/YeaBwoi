@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Ralia's mod's patch made from a stand-in game and stand-in files of Ralia's (no game needed):
+// The character textures' patch (Ralia's mod, Alternate Female Options) made from a stand-in game and
+// stand-in files (no game needed), and the Skyborne's patch made after it:
 //
-//   g++ -std=c++17 -O2 tools/test_patch.cpp src/RaliaPatch.cpp src/RaliaImage.cpp ../mod-skyborne/src/SkyborneFiles.cpp -lz
-//   ./a.out
+//   g++ -std=c++17 -O2 tools/test_patch.cpp src/RaliaPatch.cpp src/RaliaImage.cpp \
+//     ../mod-skyborne/src/SkyborneFiles.cpp ../mod-skyborne/src/SkybornePatch.cpp -lz
+//   ./a.out [SKYBORNE_DATA]          (mod-skyborne's data/client; ../mod-skyborne/data/client)
 //
 // The game: a CharSections with skins and pelvis and torso textures of several races, the textures
 // palettized as the game's are; a patch-Z (the Skyborne's) with a CharSections of its own, which the
@@ -10,11 +12,16 @@
 // a texture with Ralia's file takes its body half at the game's size, palettized; a colour without
 // one takes its nearest colour's change and keeps its own colour (and a tattoo, through sources.txt's
 // "="); one whose nearest file is another picture is left out; sources.txt's named file is used for
-// a colour numbered otherwise; male and female gnome textures are included; the patch isn't made again unchanged; it's
-// taken out with no files, and one that isn't the module's is left alone.
+// a colour numbered otherwise; male and female gnome textures are included; the patch isn't made again
+// unchanged; it's taken out with no files, and one that isn't the module's is left alone. Where a set has
+// a texture as the older models' and the newer's ("_hd"), the one nearer the game's picture is used;
+// Alternate Female Options takes the women's alone, and leaves the gnomes as they are. The Skyborne's
+// patch, made after it, makes the Skyborne's skins and the blood elves' Dark Ranger skin from the set's
+// blood elf skin.
 
 #include "../src/RaliaImage.h"
 #include "../src/RaliaPatch.h"
+#include "../../mod-skyborne/src/SkybornePatch.h"
 
 #include <cmath>
 #include <fstream>
@@ -130,8 +137,10 @@ static std::string Show(Image const& image, uint32_t x, uint32_t y)
     return "(" + std::to_string(p[0]) + "," + std::to_string(p[1]) + "," + std::to_string(p[2]) + "," + std::to_string(p[3]) + ")";
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    fs::path skyborneData = argc > 1 ? fs::path(argv[1]) : fs::path("../mod-skyborne/data/client");
+    Set const ralia { "Ralia's mod", false, {} }, alternate { "Alternate Female Options", true, { "character\\gnome\\" } };
     fs::path root = fs::temp_directory_path() / "ralia-test";
     fs::remove_all(root);
     fs::path data = root / "client" / "Data", common = data / "common.MPQ", files = root / "ralia" / "files";
@@ -182,6 +191,19 @@ int main()
     std::string const W = "Character\\Worgen\\Female\\";
     Row(dbc, 11, 22, 1, 0, W + "WORGENFEMALESKIN00_00.blp", "", 0);
     GameTexture(common, W + "WORGENFEMALESKIN00_00.blp", Flat(64, 64, { 100, 80, 60 }));
+    // A set's texture as the older models' and the newer's: the one nearer the game's own is used.
+    std::string const D = "Character\\Draenei\\Female\\";
+    Row(dbc, 21, 11, 1, 0, D + "DraeneiFemaleSkin00_00.blp", "", 0);
+    Row(dbc, 22, 11, 1, 0, D + "DraeneiFemaleSkin00_01.blp", "", 1);
+    auto stripes = [](uint32_t x, uint32_t) { return (x / 4) % 2 ? Rgb{ 150, 120, 200 } : Rgb{ 110, 90, 170 }; };
+    GameTexture(common, D + "DraeneiFemaleSkin00_00.blp", Make(64, 64, stripes));
+    GameTexture(common, D + "DraeneiFemaleSkin00_01.blp", Flat(64, 64, { 130, 100, 180 }));
+    // A man's, and the blood elves' first colour (the Skyborne's and the Dark Ranger's).
+    std::string const HM = "Character\\Human\\Male\\", B = "Character\\BloodElf\\Female\\";
+    Row(dbc, 23, 1, 0, 0, HM + "HumanMaleSkin00_00.blp", "", 0);
+    GameTexture(common, HM + "HumanMaleSkin00_00.blp", Flat(64, 64, { 190, 150, 130 }));
+    Row(dbc, 24, 10, 1, 0, B + "BloodElfFemaleSkin00_00.blp", "", 0);
+    GameTexture(common, B + "BloodElfFemaleSkin00_00.blp", Flat(64, 64, { 230, 190, 160 }));
     Write(common / "DBFilesClient" / "CharSections.dbc", dbc.Write());
 
     // The Skyborne's patch-Z (read after this one): a table of its own, left out of what it's made from.
@@ -206,6 +228,15 @@ int main()
     RaliaTexture(files, "Character/BloodElf/Female/bloodelffemaleskin00_01_hd.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 240, 200, 170 }; }));
     RaliaTexture(files, "Character/Nightborne/Female/nightbornefemaleskin00_00.blp", today(nightborne, withSquare(nightborne, changed)));
     RaliaTexture(files, "Character/Worgen/Female/worgenfemaleskin00_00.blp", Flat(32, 32, { 50, 40, 30 }));
+    // (draenei 00: the newer is the game's picture changed, the older another; 01: the older is nearer)
+    RaliaTexture(files, "Character/Draenei/Female/draeneifemaleskin00_00.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 250, 20, 20 }; }));
+    RaliaTexture(files, "Character/Draenei/Female/draeneifemaleskin00_00_hd.blp", today({}, [&](uint32_t x, uint32_t y)
+        { return x >= 40 && x < 48 && y >= 10 && y < 18 ? changed : stripes(x, y); }));
+    RaliaTexture(files, "Character/Draenei/Female/draeneifemaleskin00_01.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 132, 102, 182 }; }));
+    RaliaTexture(files, "Character/Draenei/Female/draeneifemaleskin00_01_hd.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 20, 250, 20 }; }));
+    RaliaTexture(files, "Character/Human/Male/humanmaleskin00_00.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 10, 10, 10 }; }));
+    Rgb bloodElf { 230, 190, 160 }, mark { 120, 40, 200 };
+    RaliaTexture(files, "Character/BloodElf/Female/bloodelffemaleskin00_00_hd.blp", today({}, withSquare(bloodElf, mark)));
     fs::path sources = root / "sources.txt";
     WriteText(sources, "# test\n"
         "Character\\VoidElf\\Female\\VoidElfFemaleSkin00_07.blp\tcharacter/bloodelf/female/bloodelffemaleskin00_01_hd.blp\n"
@@ -214,7 +245,7 @@ int main()
 
     auto log = [](std::string const& line) { std::cout << "  | " << line << "\n"; };
     fs::path patch = data / "enUS" / "patch-enUS-Z.MPQ";
-    Check(UpdatePatch(files, sources, data, log), "the patch is made");
+    Check(UpdatePatch(ralia, files, sources, data, log), "the patch is made");
     Check(fs::exists(patch) && fs::exists(fs::path(patch.string() + ".ralia")), "Data/enUS/patch-enUS-Z.MPQ, marked the module's");
 
     auto archive = Skyborne::OpenArchive(patch);
@@ -278,20 +309,57 @@ int main()
     ok = read(W + "WORGENFEMALESKIN00_00.blp", image, encoding, alphaDepth);
     Check(ok && image.width == 64 && Near(image, 10, 10, { 50, 40, 30 }, 6), "a square file (the Worgen's) is all body, at the game's size");
 
+    ok = read(D + "DraeneiFemaleSkin00_00.blp", image, encoding, alphaDepth);
+    Check(ok && Near(image, 44, 14, changed, 8) && !Near(image, 5, 5, { 250, 20, 20 }, 40),
+        "a texture both as the older models' and the newer's: the newer, nearer the game's picture " + Show(image, 44, 14));
+    ok = read(D + "DraeneiFemaleSkin00_01.blp", image, encoding, alphaDepth);
+    Check(ok && Near(image, 5, 5, { 132, 102, 182 }, 6), "  and the older where it's the nearer " + Show(image, 5, 5));
+    Check(archive->Has(HM + "HumanMaleSkin00_00.blp"), "Ralia's mod takes the men's textures it has");
+
+    // The Skyborne's patch, made after this one from the game with it in: their skins and the Dark
+    // Ranger's are the set's blood elf skin recoloured (the square of another colour stays one).
+    archive.reset();
+    fs::remove_all(data / "patch-Z.MPQ");
+    Skyborne::UpdatePatch(skyborneData, data, [](std::string const& line) { std::cout << "  | skyborne: " << line.substr(0, 120) << "\n"; });
+    {
+        auto sky = Skyborne::OpenArchive(data / "patch-Z.MPQ");
+        for (std::string name : { B + "BloodElfFemaleSkin00_19.blp", std::string("Character\\Skyborne\\Female\\SkyborneFemaleSkin00_19.blp") })
+        {
+            Bytes b;
+            Image made;
+            bool decoded = sky->Read(name, b) && Skyborne::Decode(b, made);
+            auto at = [&](uint32_t x, uint32_t y) { uint8_t const* p = &made.rgba[(size_t(y) * made.width + x) * 4]; return std::abs(p[0] - p[2]) + std::abs(p[1] - p[2]); };
+            Check(decoded && made.width == 64 && std::abs(int(at(44, 14)) - int(at(5, 5))) + std::abs(int(made.rgba[(14 * 64 + 44) * 4]) - int(made.rgba[(5 * 64 + 5) * 4])) > 12,
+                name.substr(name.find_last_of('\\') + 1) + ", the Skyborne's patch's, is the set's blood elf skin recoloured: the square is in it (" + (decoded ? Show(made, 44, 14) + " against " + Show(made, 5, 5) : std::string("not made")) + ")");
+        }
+    }
+    fs::remove(data / "patch-Z.MPQ");
+    fs::remove(data / "patch-Z.MPQ.skyborne");
+
+    // Alternate Female Options: the women's textures alone (made again: another set).
+    Check(UpdatePatch(alternate, files, sources, data, log), "Alternate Female Options' patch is made");
+    archive = Skyborne::OpenArchive(patch);
+    Check(!archive->Has(HM + "HumanMaleSkin00_00.blp") && archive->Has(H + "HumanFemaleSkin00_00.blp") && !archive->Has(G + "GnomeFemaleSkin00_00.blp"),
+        "  with the women's textures alone (and still no gnomes)");
+    archive.reset();
+    Check(UpdatePatch(ralia, files, sources, data, log), "Ralia's mod's made again in its place");
+    archive = Skyborne::OpenArchive(patch);
+    Check(archive->Has(HM + "HumanMaleSkin00_00.blp"), "  with the men's again");
+
     archive.reset();
     auto time = fs::last_write_time(patch);
     std::this_thread::sleep_for(std::chrono::milliseconds(1100));
-    Check(UpdatePatch(files, sources, data, log) && fs::last_write_time(patch) == time, "made once: the same files and game make no new patch");
+    Check(UpdatePatch(ralia, files, sources, data, log) && fs::last_write_time(patch) == time, "made once: the same files and game make no new patch");
 
     fs::remove_all(files);
     fs::create_directories(files);
-    Check(!UpdatePatch(files, sources, data, log) && !fs::exists(patch), "with no files it's taken out of the game");
+    Check(!UpdatePatch(ralia, files, sources, data, log) && !fs::exists(patch), "with no files it's taken out of the game");
 
     WriteText(patch, "not the module's");
     RaliaTexture(files, "Character/Human/Female/humanfemaleskin00_00_hd.blp", today(human0, withSquare(human0, changed)));
-    Check(!UpdatePatch(files, sources, data, log) && fs::exists(patch), "a patch-enUS-Z.MPQ that isn't the module's is left alone");
+    Check(!UpdatePatch(ralia, files, sources, data, log) && fs::exists(patch), "a patch-enUS-Z.MPQ that isn't the module's is left alone");
     fs::remove(patch);
-    Check(UpdatePatch(files, sources, data, log) && fs::exists(patch), "made again once it's gone");
+    Check(UpdatePatch(ralia, files, sources, data, log) && fs::exists(patch), "made again once it's gone");
     RemovePatch(data, log);
     Check(!fs::exists(patch) && !fs::exists(fs::path(patch.string() + ".ralia")), "RemovePatch takes it and its mark out");
 

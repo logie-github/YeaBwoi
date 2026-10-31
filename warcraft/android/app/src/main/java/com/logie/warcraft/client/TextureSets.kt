@@ -8,28 +8,37 @@ import java.io.InputStream
 import java.util.zip.ZipInputStream
 
 /**
- * Ralia's mod (the launcher's Game options; the realm's mod-ralia): the textures of the user's zip of
- * Ralia's patches, kept in the app's files (`ralia/files`, the zip's `Character` folder), and whether
- * the option is on (`ralia/enabled`). The world server makes the game's patch from them as it starts
- * (`Data/<locale>/patch-<locale>-Z.MPQ`, with a `.ralia` file beside it) and takes it out while the
- * option is off; the app takes it out at once when the option is turned off.
+ * The character textures of the launcher's Game options (the realm's mod-ralia): [RaliaFiles] (Ralia's
+ * mod) and [AlternateFemaleFiles] (Alternate Female Options), one on at a time. Each set's textures, from
+ * the zip the user picks, are kept in the app's files (`<folder>/files`, the zip's `Character` folder),
+ * and `<folder>/enabled` while it's on. The world server makes the game's patch from the one that's on
+ * as it starts (`Data/<locale>/patch-<locale>-Z.MPQ`, with a `.ralia` file beside it) and takes it out
+ * while neither is; the app takes it out at once when one is turned off.
  */
-object RaliaFiles {
+open class TextureSet(private val folderName: String) {
     class NoTexturesException : IOException("no Character folder of textures in the zip")
 
-    fun folder(root: File) = File(root, "ralia")
+    companion object {
+        val ALL: List<TextureSet> by lazy { listOf(RaliaFiles, AlternateFemaleFiles) }
+    }
+
+    fun folder(root: File) = File(root, folderName)
     fun files(root: File) = File(folder(root), "files")
-    private fun marker(root: File) = File(folder(root), "enabled")
+    internal fun marker(root: File) = File(folder(root), "enabled")
 
     fun isOn(root: File): Boolean = marker(root).isFile
 
     fun hasFiles(root: File): Boolean =
         files(root).walkTopDown().any { it.isFile && it.name.endsWith(".blp", ignoreCase = true) }
 
-    /** On (only with the textures there) or off; off takes the game's patch out of [client] too. */
+    /**
+     * On (only with the textures there; the other set goes off, its patch made again in this one's place
+     * at the realm's next start) or off; off takes the game's patch out of [client] too.
+     */
     fun setOn(root: File, client: File, on: Boolean) {
         if (on) {
             if (!hasFiles(root)) throw NoTexturesException()
+            for (other in ALL) if (other !== this) other.marker(root).delete()
             folder(root).mkdirs()
             marker(root).writeText("on\n")
         } else {
@@ -106,3 +115,9 @@ object RaliaFiles {
         return removed
     }
 }
+
+/** Ralia's mod: Ralia's patches' textures (`files/ralia`). */
+object RaliaFiles : TextureSet("ralia")
+
+/** Alternate Female Options: another set of textures, the women's (`files/alternate-female`). */
+object AlternateFemaleFiles : TextureSet("alternate-female")

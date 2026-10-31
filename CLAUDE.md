@@ -45,8 +45,8 @@ self-updating from this repository's GitHub releases.
   Horde at Zoram'gar): `warcraft/modules/mod-murloc-naga` (its README); `tools/build_data.py` makes its data from
   `tools/content.py`, committed; its patch (`Data/<locale>/patch-<locale>-T.MPQ`) is made at the realm's start from the
   client's own files (never committed).
-- **Ralia's mod** (both realms: the launcher's Game options switch; the user's own zip, picked on the phone, never
-  committed): `warcraft/modules/mod-ralia` (its README); `tools/build_data.py` makes `data/client/sources.txt`, committed.
+- **Ralia's mod and Alternate Female Options** (both realms: the launcher's Game options switches, one at a time;
+  the user's own zips, picked on the phone, never committed): `warcraft/modules/mod-ralia` (its README); `tools/build_data.py` makes `data/client/sources.txt`, committed.
   Its patch is `Data/<locale>/patch-<locale>-Z.MPQ`, made from the client at the realm's start.
 - **Body** (both realms: the launcher's Game options switch, at realm startup): `warcraft/modules/mod-base-model` (its
   README): female character creation previews without starter gear while `files/base-model/enabled` is there. In-game gear is never hidden.

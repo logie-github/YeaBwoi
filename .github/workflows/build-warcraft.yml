@@ -719,7 +719,6 @@ jobs:
             warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-table-moves"
           "$RUNNER_TEMP/test-table-moves" warcraft/modules/mod-skyborne/data/client warcraft/modules/mod-allied-races/data/client
 
-      # Ralia's mod (mod-ralia): its patch made from a stand-in game and stand-in files.
       - name: Body preview and ghost flight
         run: |
           g++ -std=c++17 -O2 warcraft/modules/mod-base-model/tools/test_preview.cpp -o "$RUNNER_TEMP/test-body-preview"
@@ -728,11 +727,14 @@ jobs:
             warcraft/modules/mod-ghost-flight/tools/test_lifecycle.cpp -o "$RUNNER_TEMP/test-ghost-flight"
           "$RUNNER_TEMP/test-ghost-flight"
 
-      - name: Ralia's mod
+      # The character textures (mod-ralia: Ralia's mod, Alternate Female Options): their patch made from a
+      # stand-in game and stand-in files, and the Skyborne's made after it from the set's blood elf skin.
+      - name: Ralia's mod and Alternate Female Options
         run: |
           g++ -std=c++17 -O2 warcraft/modules/mod-ralia/tools/test_patch.cpp warcraft/modules/mod-ralia/src/RaliaPatch.cpp \
-            warcraft/modules/mod-ralia/src/RaliaImage.cpp warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-ralia"
-          "$RUNNER_TEMP/test-ralia"
+            warcraft/modules/mod-ralia/src/RaliaImage.cpp warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp \
+            warcraft/modules/mod-skyborne/src/SkybornePatch.cpp -lz -o "$RUNNER_TEMP/test-ralia"
+          "$RUNNER_TEMP/test-ralia" warcraft/modules/mod-skyborne/data/client
 
       # WoW: Forever's quests (mod-forever-quests): the page reader, the races, the committed SQL
       # against its data.

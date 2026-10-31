@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * Ralia's mod's patch for the game (RaliaPatch.h): the character textures of the user's copy of Ralia's
- * patches (made for the game of today), made the game's.
+ * The character textures' patch for the game (RaliaPatch.h): a set of the user's own, made the game's.
+ * Two sets, one at a time: Ralia's mod (Ralia's patches, made for the game of today), and Alternate
+ * Female Options (another set, the women's textures alone). "Ralia's" below is either set's.
  *
  * It's Data/<locale>/patch-<locale>-Z.MPQ, the last archive the game reads (after the Skyborne's
  * patch-Z.MPQ, the language's patch of a letter coming after the letter's own), so its textures are
@@ -10,8 +11,8 @@
  * patch-Y (made after it as the world starts, from the game with it in: the Skyborne's skins are the
  * blood elves', recoloured, so the Skyborne wear Ralia's blood elf textures), and without itself.
  *
- * Which textures: the game's CharSections names them, each skin (section 0) and underwear (section 4:
- * pelvis and torso) of every race but the murlocs and the naga.
+ * Which textures: the game's CharSections names them, each skin (section 0, and its second texture,
+ * the tauren's fur, when a set has it) and underwear (section 4: pelvis and torso) of every race but the murlocs and the naga.
  * Each takes Ralia's file of the same name (the game's names, without their underscores and their
  * case, are today's, with "_hd" after the newer models'), or for the allied races the one
  * data/client/sources.txt names (tools/build_data.py: their colours are numbered as this game's tables
@@ -24,6 +25,9 @@
  * game's, this colour's picture is changed as much, so its own colour and tattoo stay. Underwear with
  * no file takes the nearest colour's. A skin whose nearest file is another picture altogether (more
  * than a twentieth of it changed: a creature's skin, drawn otherwise) is left as it is.
+ *
+ * Where a set has a texture both as the older models' and as the newer's ("_hd"), the one nearer the
+ * game's own picture is used (the game draws the older models, or an HD look's newer ones).
  *
  * 3.3.5 composes a character's texture from palettized textures (each made here with 256 colours,
  * the skin's alpha the game's own, the underwear's Ralia's). The archive reading and writing and the
@@ -53,7 +57,7 @@ namespace Ralia
     namespace
     {
         constexpr char const* MARK_SUFFIX = ".ralia";
-        constexpr char const* VERSION = "ralia-2";
+        constexpr char const* VERSION = "ralia-3";
         // The races left as they are (their textures' folders).
         constexpr char const* LEFT_OUT[] = { "character\\murloc\\", "character\\naga_\\" };
         // Above this share of a skin changed, the nearest file isn't the same picture changed.
@@ -156,13 +160,14 @@ namespace Ralia
             }
         };
 
-        enum Kind { SKIN, PELVIS, TORSO };
+        enum Kind { SKIN, PELVIS, TORSO, EXTRA };   // (EXTRA: a skin's second texture, the tauren's fur)
 
         struct Target
         {
             std::string path;       // as the game's CharSections names it
             Kind kind = SKIN;
             fs::path source;        // Ralia's file for it, when there's one
+            fs::path other;         // and the newer models' ("_hd"), when there's both: the nearer is used
             std::string like;       // sources.txt's "=": the target (lower case) whose change it takes
             bool missing = false;   // the game hasn't it (or it isn't a texture)
             Image game;             // the game's, while it's needed
@@ -186,10 +191,10 @@ namespace Ralia
             return;
         fs::remove(patch, error);
         fs::remove(With(patch, MARK_SUFFIX), error);
-        log("Ralia's mod is out of the game");
+        log("The character textures' patch is out of the game");
     }
 
-    bool UpdatePatch(fs::path const& files, fs::path const& sources, fs::path const& clientData, Log const& log)
+    bool UpdatePatch(Set const& set, fs::path const& files, fs::path const& sources, fs::path const& clientData, Log const& log)
     {
         std::error_code error;
         std::string locale = Locale(clientData);
@@ -223,7 +228,7 @@ namespace Ralia
         }
         if (ralia.empty())
         {
-            log("No textures in " + files.string() + " (the zip of Ralia's patches, picked in the app's Game options): the patch isn't made");
+            log("No textures in " + files.string() + " (the zip picked in the app's Game options): the patch isn't made");
             RemovePatch(clientData, log);
             return false;
         }
@@ -254,6 +259,9 @@ namespace Ralia
         }
         Stamp stamp;
         stamp.Add(VERSION);
+        stamp.Add(set.name + (set.femaleOnly ? "|women" : ""));
+        for (std::string const& out : set.leftOut)
+            stamp.Add(out);
         stamp.Add(game.Describe());
         stamp.Add(table);
         for (auto const& [name, size] : listing)
@@ -285,9 +293,12 @@ namespace Ralia
         auto add = [&](uint32_t at, Kind kind)
         {
             std::string path = text(at), lower = Lower(path);
-            if (path.empty() || byPath.count(lower))
+            if (path.empty() || byPath.count(lower) || (set.femaleOnly && lower.find("\\female\\") == std::string::npos))
                 return;
             for (char const* out : LEFT_OUT)
+                if (StartsWith(lower, out))
+                    return;
+            for (std::string const& out : set.leftOut)
                 if (StartsWith(lower, out))
                     return;
             byPath[lower] = targets.size();
@@ -300,7 +311,10 @@ namespace Ralia
         {
             uint32_t section = sections.Get(row, 3);
             if (section == 0)
+            {
                 add(sections.Get(row, 4), SKIN);
+                add(sections.Get(row, 5), EXTRA);
+            }
             else if (section == 4)
             {
                 add(sections.Get(row, 4), PELVIS);
@@ -318,11 +332,15 @@ namespace Ralia
                 continue;
             }
             std::string key = Key(t.path);
-            auto file = ralia.find(key);
-            if (file == ralia.end())
-                file = ralia.find(key + "hd");
+            auto file = ralia.find(key), hd = ralia.find(key + "hd");
             if (file != ralia.end())
+            {
                 t.source = file->second;
+                if (hd != ralia.end())
+                    t.other = hd->second;
+            }
+            else if (hd != ralia.end())
+                t.source = hd->second;
         }
 
         auto readGame = [&](Target& t) -> bool
@@ -350,7 +368,7 @@ namespace Ralia
                 Image image;
                 if (!DecodeFull(ReadFile(file), image))
                     return false;
-                if (kind == SKIN)
+                if (kind == SKIN || kind == EXTRA)
                     image = Body(image);
                 it = raliaImages.emplace(file, std::move(image)).first;
             }
@@ -395,7 +413,7 @@ namespace Ralia
         auto sameKind = [&](Target const& t) -> fs::path
         {
             auto it = raliaFolders.find(Folder(t.path));
-            if (it == raliaFolders.end() || t.kind == SKIN)
+            if (it == raliaFolders.end() || t.kind == SKIN || t.kind == EXTRA)
                 return {};
             std::string part = t.kind == PELVIS ? "nakedpelvisskin" : "nakedtorsoskin";
             for (fs::path const& file : it->second)
@@ -404,7 +422,7 @@ namespace Ralia
             return {};
         };
 
-        log("Making Ralia's mod's patch for the game (" + patch.string() + ")");
+        log("Making " + set.name + " for the game (" + patch.string() + ")");
         fs::path part = patch;
         part += ".part";
         MpqWriter writer(part);
@@ -438,13 +456,24 @@ namespace Ralia
                     bool hasFile = !t.source.empty();
                     if (hasFile != (pass == 0))
                         continue;
-                    size_t src = hasFile ? index : donor(index, group, 0);
+                    // (a fur texture is its colour's own: none from another colour's)
+                    size_t src = hasFile ? index : t.kind == EXTRA ? SIZE_MAX : donor(index, group, 0);
                     fs::path file = src != SIZE_MAX ? targets[src].source : sameKind(t);
                     if (file.empty() || !readGame(t))
                     {
                         if (!hasFile)
                             ++kept;
                         continue;
+                    }
+                    if (hasFile && !t.other.empty())
+                    {
+                        // the older models' file or the newer's: the one nearer the game's own picture
+                        Image older, newer;
+                        if (readRalia(t.source, t.kind, older) && readRalia(t.other, t.kind, newer)
+                            && Distance(newer, t.game) < Distance(older, t.game))
+                            t.source = t.other;
+                        t.other.clear();
+                        file = t.source;
                     }
                     Image after;
                     if (!readRalia(file, t.kind, after))
@@ -515,7 +544,7 @@ namespace Ralia
             out << stamp.Hex() << "\n";
         }
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
-        log("Ralia's mod is in the game: " + std::to_string(direct) + " textures from Ralia's files, " + std::to_string(repainted)
+        log(set.name + " is in the game: " + std::to_string(direct) + " textures from its files, " + std::to_string(repainted)
             + " colours changed as their nearest, " + std::to_string(kept) + " left as they are (" + std::to_string(seconds) + " s)");
         return true;
     }
