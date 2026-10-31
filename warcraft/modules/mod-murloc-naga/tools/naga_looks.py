@@ -9,7 +9,8 @@ _na_m and _na_f):
     warlord's helm, for women the sea witch's headdress: geosets 2, 3... of group 0;
   - Headdress color (the hair colour): the headdress's colours (its item displays' textures, the hair
     row's texture: the model's type 6);
-  - Features: none, and each outfit in each of its colours: geosets 102, 103... of group 1.
+  - Features: none (geoset 101, which the model hasn't), and each outfit in each of its colours:
+    geosets 102, 103... of group 1.
 """
 
 # The parts: (model file id, [its colours' texture file ids], name).
@@ -41,8 +42,10 @@ def headdress_texture(sex, style, colour):
 
 
 def hair_geoset(style):
-    return 0 if style == 0 else style + 1
+    return 0 if style == 0 else style + 1          # (group 0: none 0, as the game's own bald styles)
 
 
 def feature_geoset(style):
-    return 0 if style == 0 else style + 1          # (group 1: mesh 100 + this)
+    # Group 1: mesh 100 + this. The game reads a facial style's geoset 0 as "leave the group as it is"
+    # (every outfit shown at once), so none is 1, a mesh the naga hasn't.
+    return style + 1

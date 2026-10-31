@@ -1822,8 +1822,14 @@ Decided (the module's README has why, and what's confirmed in the core's source 
   and warlock; no death knights (they'd start at 55 in Ebon Hold, not at 10 in Darkshore).
 - Their looks from the client's own files at the realm's start (the Alternative HD Patch's when it's in): the naga's
   character model and five colours a sex, four more recoloured toward the game's creature naga; the murloc made a
-  character from the game's murloc (its body read from the composed texture's face region, so armour never paints
-  it), every murloc skin the game has. Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
+  character from the game's newer murloc (its body and eyes read from the composed texture's face region, so armour
+  never paints it), every murloc skin the game has. The user, of the first murloc creator: "Do murlocs have
+  variations in fins across colors etc that I could choose? Also they don't have hair so don't do hair color maybe
+  eye color. You may have to invent somethings and mix some models": the murlocs' hair choices are their fins (six
+  styles: murloc2's crest as it is, short, long, swept back, the classic murloc's, the deep sea murloc's sail) in
+  sixteen colours, the face their eye colour (sixteen); headgear and outfits are features. A facial style's geoset
+  0 shows every feature at once in the game (the user's screenshot: a white murloc in every outfit): none is 1 now,
+  the naga's too; the body is no longer the skin row's "extra" texture, which the game left white. Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
   read after the Alternative HD Patch's patch-S (SoundEntries) and before the other race modules' U, V, Y, Z.
 - Their homes are islands off Auberdine (the murlocs' west of it, the naga's north), seen by their race alone (a phase
   each in Darkshore and Ashenvale, by spell_area); what the murlocs steal in Auberdine is in their phase too.
@@ -1838,7 +1844,8 @@ Decided (the module's README has why, and what's confirmed in the core's source 
 
 Where it stands: built, its tools' tests and the screen's pass; CI's server test checks the patch, the starts at
 level 10, racials, language, class spells, the murloc's first quests and Auberdine, the naga's quests in Auberdine and
-the way south. Not seen in the game or on a phone (the models, the composed textures, the intros, the screen).
+the way south. The user has played the murlocs' first quests on the phone ("I really like the murloc quests"); the
+second murloc creator (fins, fin and eye colours) is drawn by `tools/render_murloc.py` only, not yet seen in the game.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
