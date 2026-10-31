@@ -78,6 +78,10 @@ ID_SEQUENCE = {MURLOC: 9021, NAGA: 9022}
 ID_CAMERA = {MURLOC: 9021, NAGA: 9022}
 ID_NARRATION = {MURLOC: 975001, NAGA: 975002}
 ID_GO_DISPLAY = 9750                            # the game's end at 9624
+ID_VOCAL = 9500                                 # (the Skyborne's 9000 to 9107, the allied races' 9200 on)
+# Their voices: (men's, women's) words, and when pressed: the game's creature murlocs' (fidgets, aggro)
+# and naga's (the naga's and the sirens': their pre-aggro hiss, their aggro).
+VOICES = {MURLOC: ((414, 415), (416, 1109)), NAGA: ((3437, 4024), (3438, 4025))}
 SPELLS = {"phase_murloc": 98880, "phase_naga": 98881, "amphibious": 98882, "mrrgglll": 98883, "slippery": 98884,
           "serpent": 98885, "tail_sweep": 98886, "scales": 98887}
 
@@ -477,6 +481,17 @@ def main():
             client.append_raw("CharacterFacialHairStyles", struct.pack(f"<{facial.fields}I", NAGA, *r[1:]))
     for sex in (0, 1):
         client.append_raw("CharacterFacialHairStyles", struct.pack(f"<{facial.fields}I", MURLOC, sex, *([0] * (facial.fields - 2))))
+    # Their voices at the UI's moments ("not enough mana", "can't do that yet"): the game's own creature
+    # sounds, a row each moment the game's humans have (VocalUISounds: moment, race, the men's and
+    # women's words, then when pressed): the murlocs' fidgets and aggro, the naga's and the sirens'.
+    vocal = D("VocalUISounds")
+    vid = ID_VOCAL
+    for r in vocal.rows:
+        if r[2] == HUMAN:
+            for race, (normal, pissed) in VOICES.items():
+                client.put("VocalUISounds", "iiiiiii", [vid, r[1], race, normal[0], normal[1], pissed[0], pissed[1]])
+                vid += 1
+    assert vid < ID_VOCAL + 400
     nid = ID_NAMEGEN
     for (race, sex), names in NAMES.items():
         for name in names:
@@ -978,8 +993,7 @@ def homes(client, sql, W):
     chest("crates", "Unattended Crate", 2, item_ids["trinket"], murloc_quest_id[3], C.TRINKET_CRATES, MP, 0.8)
     chest("bread", "Basket of Sweet Rolls", 10, item_ids["roll"], murloc_quest_id[4], C.BREAD_BASKETS, MP, 0.6)
     chest("lures", "Box of Shiny Lures", 2, item_ids["lures"], murloc_quest_id[12], [C.LURE_BOX], MP, 0.5)
-    for entry in (C.DARKSHORE_THRESHER, 2187):
-        cr_loot.append((entry, C.THRESHER_EYE, 45))
+    # (Darkshore's threshers drop the Thresher Eye already, for those whose quests need it: Buzzbox 411's)
 
     # The naga's camp.
     gossip.update({
@@ -1083,7 +1097,6 @@ def homes(client, sql, W):
     sql.insert("creature_loot_template", ["Entry", "Item", "Reference", "Chance", "QuestRequired", "LootMode", "GroupId",
                                           "MinCount", "MaxCount", "Comment"],
                [(e, i, 0, c, 1, 1, 0, 1, 1, "mod-murloc-naga") for e, i, c in cr_loot])
-    # (the threshers keep the loot table they have; the eye is added for those on the oracle's quest)
 
     # Their things' looks: the game's models as objects (GameObjectDisplayInfo, the game's and the server's).
     gdt = "isiiiiiiiiiiffffffi"

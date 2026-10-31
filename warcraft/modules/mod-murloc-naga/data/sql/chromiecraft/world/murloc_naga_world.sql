@@ -810,8 +810,6 @@ INSERT INTO `gameobject_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, 
 DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga';
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (975015, 975303, 0, 100, 1, 1, 0, 1, 1, 'mod-murloc-naga'),
-(2185, 5412, 0, 45, 1, 1, 0, 1, 1, 'mod-murloc-naga'),
-(2187, 5412, 0, 45, 1, 1, 0, 1, 1, 'mod-murloc-naga'),
 (975023, 975308, 0, 65, 1, 1, 0, 1, 1, 'mod-murloc-naga');
 DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN 9750 AND 9799;
 INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, `Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES
