@@ -307,6 +307,23 @@ class Story:
         self.row("creature_template_model", CreatureID=entry, Idx=0, CreatureDisplayID=display, DisplayScale=scale, Probability=1)
         return entry
 
+    def resolve(self, text):
+        """[text] with each {chN:key} the id the story gave it (a person's, an object's, a quest's or an
+        item's): the server test's steps (tools/murloc/test.steps) written with the story's names."""
+        def one(m):
+            key = m.group(1)
+            for store in (self.npc_id, self.go_id, self.quest_id, self.item_id, self.aura_id):
+                if key in store:
+                    return str(store[key])
+            raise StoryError(f"the test steps name {key}, which the story hasn't")
+        def height(m):                          # {z:chN:place}: the ground's height there (a GM's .go to it)
+            key = m.group(1)
+            if key not in self.places:
+                raise StoryError(f"the test steps name the place {key}, which the story hasn't")
+            return f"{self.point(key, key.split(':')[0], 'the test steps')[3] + 1.0:.1f}"
+        text = re.sub(r"\{z:(ch\d+:[A-Za-z0-9_]+)\}", height, text)
+        return re.sub(r"\{(ch\d+:[A-Za-z0-9_]+)\}", one, text)
+
     # -- items ---------------------------------------------------------------------------------
     def icon(self, ref, where):
         if isinstance(ref, int):

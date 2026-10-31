@@ -167,6 +167,7 @@ SMSG_LEARNED_SPELL, SMSG_REMOVED_SPELL, SMSG_CAST_FAILED = 0x12B, 0x203, 0x130
 SMSG_SPELLNONMELEEDAMAGELOG, SMSG_SPELLHEALLOG = 0x250, 0x150
 SMSG_NOTIFICATION = 0x1CB
 CMSG_GAMEOBJ_USE = 0x0B1
+CMSG_TEXT_EMOTE = 0x104
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
@@ -472,6 +473,9 @@ def run_script(session, player_guid, steps):
                                       to death (the character's own blow: it gets the kill,
                                       which `.die` doesn't give)
         select ENTRY TEXT             pick the option of its last menu whose text has TEXT
+        select-nth ENTRY N            pick its last menu's Nth option (from 0)
+        emote ENTRY TEXT_EMOTE        the character's own emote (EmotesText.dbc: 101 /wave, 17 /bow...)
+                                      at the nearest creature of that entry, as the game sends one
         buy ENTRY ITEM                buy ITEM from the vendor window it last opened (heard:
                                       "ware ITEM cost N" for each ware a window shows, then
                                       "bought ITEM" or "buy failed REASON")
@@ -797,6 +801,23 @@ def run_script(session, player_guid, steps):
                 raise RuntimeError(f"no object {rest} near the character")
             session.send(CMSG_GAMEOBJ_USE, struct.pack("<Q", guid))
             session.pump(2.0, packets)
+        elif word == "emote":
+            entry, text_emote = (int(v) for v in rest.split())
+            target = creature_guid(entry)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
+            session.pump(0.5, packets)
+            session.send(CMSG_TEXT_EMOTE, struct.pack("<IIQ", text_emote, 0, target))
+            session.pump(2.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
+        elif word == "select-nth":
+            entry, nth = (int(v) for v in rest.split())
+            guid = creature_guid(entry)
+            menu_id, options = menus.get(guid, (0, []))
+            if nth >= len(options):
+                raise RuntimeError(f"no option {nth} in {options}")
+            session.send(CMSG_GOSSIP_SELECT_OPTION, struct.pack("<QII", guid, menu_id, options[nth][0]) + b"\0")
+            session.pump(4.0, packets)
         elif word == "target":
             if rest == "self":
                 session.send(CMSG_SET_SELECTION, struct.pack("<Q", player_guid))

@@ -910,6 +910,11 @@ def main():
                 f"{story_compile.K.GO_DISPLAY_END};\n")
         with open(story_sql, "w", newline="\n") as f:
             f.write(story_compile.sql(story.tables, head + extra))
+        # (the server test's steps for a murloc, written with the story's names: their ids)
+        template = os.path.join(HERE, "murloc", "test.steps")
+        if os.path.exists(template):
+            with open(os.path.join(MODULE, "..", "..", "server", "murloc_naga_murloc.steps"), "w", newline="\n") as f:
+                f.write(story.resolve(open(template).read()))
     elif os.path.exists(story_sql):
         os.remove(story_sql)
     client.write(os.path.join(MODULE, "data", "client", "dbc"))
