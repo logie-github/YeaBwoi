@@ -44,12 +44,14 @@ items = {int(r["entry"]): r for r in rows("item_template")}
 quests = {int(r["ID"]): r for r in rows("quest_template")}
 game_creatures = {C.PYGMY_TIDE_CRAWLER, C.DARKSHORE_THRESHER, 2187, C.WRATHTAIL_MYRMIDON, C.WRATHTAIL_RAZORTAIL,
                   C.THUNDRIS_WINDWEAVER, C.GLYNDA_NALSHEA, C.ONU, C.MARUKAI}
-check(len(quests) == len(C.MURLOC_QUESTS) + len(C.NAGA_QUESTS), f"every quest is there ({len(quests)})")
+# (the murlocs' Darkshore village is retired: their quests are their questline's, tools/murloc/, test_story.py)
+village = C.MURLOC_QUESTS if C.MURLOC_VILLAGE else []
+check(len(quests) == len(village) + len(C.NAGA_QUESTS), f"every quest is there ({len(quests)})")
 check(all(C.QUEST_BASE <= q < C.QUEST_BASE + 100 for q in quests), "the quests' ids are the module's")
 check(all(C.NPC_BASE <= e < C.NPC_BASE + 100 for e in creatures), "the creatures' ids are the module's")
 check(all(C.GO_BASE <= e < C.GO_BASE + 100 for e in gos), "the objects' ids are the module's")
 check(all(C.ITEM_BASE <= e < C.ITEM_BASE + 100 for e in items), "the items' ids are the module's")
-check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 18) == len(C.MURLOC_QUESTS), "the murlocs' quests are theirs alone")
+check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 18) == len(village), "the murlocs' village quests: retired")
 check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 19) == len(C.NAGA_QUESTS), "the naga's quests are theirs alone")
 
 starters = {(int(r["id"]), int(r["quest"])) for r in rows("creature_queststarter")}
@@ -80,7 +82,7 @@ check((C.MARUKAI, C.QUEST_BASE + 34) in enders, "An Unlikely Allegiance: handed 
 spawned = [int(r["id"]) for r in rows("creature")]
 check(all(e in known for e in spawned), f"every creature spawned is there ({len(spawned)} spawns)")
 phases = {int(r["phaseMask"]) for r in rows("creature")} | {int(r["phaseMask"]) for r in rows("gameobject")}
-check(phases == {C.PHASE[C.MURLOC], C.PHASE[C.NAGA]}, f"everything in the races' own phases ({phases})")
+check(phases <= {C.PHASE[C.MURLOC], C.PHASE[C.NAGA]}, f"everything in the races' own phases ({phases})")
 check(all(int(r["id"]) in gos for r in rows("gameobject")), "every object placed is there")
 loot = {int(r["Entry"]) for r in rows("gameobject_loot_template")}
 check(all(int(g["Data1"]) in loot for g in gos.values() if g["type"] == "3"), "every chest has its loot")
