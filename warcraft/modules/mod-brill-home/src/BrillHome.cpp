@@ -41,6 +41,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace fs = std::filesystem;
 
@@ -129,6 +130,7 @@ namespace
     struct Home { uint32 upgrades = 0; uint32 lastRested = 0; uint32 flags = 0; };
     std::unordered_map<uint32, Home> homes;  // by the character's guid (low)
     std::unordered_map<uint32, uint32> sinceCheck;
+    std::unordered_set<uint32> phasedHere;   // the characters Brill has put in its phases
 
     Home& HomeOf(Player* player)
     {
@@ -202,11 +204,18 @@ namespace
         BrillTown::RefreshStages(player, InBrill(player));
         if (player->HasAuraType(SPELL_AURA_PHASE))
             return;
+        uint32 guid = player->GetGUID().GetCounter();
         uint32 now = player->GetPhaseMask();
-        // (only a phase of the house's own, or the world's: never one something else put them in)
-        if ((now & ~(PHASEMASK_NORMAL | PHASES_OURS)) != 0)
+        // Out of Brill, the world's phase again, if it was Brill that phased them: never a phase something
+        // else put them in (another module's, anywhere else in the world).
+        if (!InBrill(player))
+        {
+            if (phasedHere.erase(guid) && (now & ~PHASEMASK_NORMAL) && !(now & ~(PHASEMASK_NORMAL | PHASES_OURS)))
+                player->SetPhaseMask(PHASEMASK_NORMAL, true);
             return;
-        uint32 wanted = InBrill(player) ? HousePhases(player) | BrillTown::Phases(player) : PHASEMASK_NORMAL;
+        }
+        uint32 wanted = HousePhases(player) | BrillTown::Phases(player);
+        phasedHere.insert(guid);
         if (wanted != now)
             player->SetPhaseMask(wanted, true);
     }
@@ -1052,6 +1061,7 @@ public:
         }
         homes.erase(player->GetGUID().GetCounter());
         sinceCheck.erase(player->GetGUID().GetCounter());
+        phasedHere.erase(player->GetGUID().GetCounter());
         BrillTown::Forget(player);
     }
 };
