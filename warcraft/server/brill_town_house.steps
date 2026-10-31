@@ -4,7 +4,7 @@
 # furnishings (two given free) and the housewarming (its guests in the house).
 cmd .levelup 11
 cmd .modify money 100000
-go 0 2277.9 364.9 35.0
+go 0 2265.9 479.2 34.2
 wait 2
 talk 970110
 accept 970110 970120
@@ -15,26 +15,26 @@ talk 2310
 accept 2310 970121
 reward 2310 970121
 # The house is theirs: its debris (the town's first phase, 0x40000) is there for them.
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 wait 2
 cmd .brilltown state
 has [0x40000]
 talk 970200
 accept 970200 970200
 # The inspection: the broken furniture, the floor, the roof and the cellar hatch.
-go 0 2268.5 369.6 36.4
+go 0 2275.8 482.5 34.2
 cmd .brilltown use
 expect Brill town: used 970200
-go 0 2266.1 368.6 36.4
+go 0 2276.8 484.9 34.2
 cmd .brilltown use
 expect Brill town: used 970201
-go 0 2272.8 371.3 36.4
+go 0 2274.0 478.2 34.2
 cmd .brilltown use
 expect Brill town: used 970202
-go 0 2269.3 366.3 36.4
+go 0 2272.9 484.2 34.2
 cmd .brilltown use
 expect Brill town: used 970203
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 talk 970200
 reward 970200 970200
 talk 970200
@@ -53,7 +53,7 @@ cmd .brilltown use
 go 0 2268.0 1306.0 34.0
 cmd .brilltown use
 expect Brill town: used
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 talk 970200
 reward 970200 970201
 # The debris gone with the repairs.
@@ -64,26 +64,26 @@ expect done q970200 q970201
 talk 970200
 accept 970200 970202
 # Cedric's letters, the portrait, the chest.
-go 0 2266.3 371.8 36.4
+go 0 2279.0 482.5 34.2
 cmd .brilltown use
-go 0 2272.9 373.2 36.4
+go 0 2275.3 476.8 34.2
 cmd .brilltown use
-go 0 2271.6 364.8 36.4
+go 0 2270.3 483.7 34.2
 cmd .brilltown use
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 talk 970200
 reward 970200 970202
 talk 970200
 accept 970200 970203
 # The cellar's rats (their phase, 0x80000, while the quest's in the log), then the wall through the hatch.
-go 0 2270.5 370.4 36.4
+go 0 2275.0 480.5 34.2
 wait 2
 cmd .brilltown state
 has [0x80000]
 cmd .quest complete 970203
-go 0 2269.3 366.3 36.4
+go 0 2272.9 484.2 34.2
 cmd .brilltown use
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 talk 970200
 reward 970200 970203
 talk 970200
@@ -98,7 +98,7 @@ select 2134 linens
 go 0 2266.1 320.7 34.4
 talk 10055
 select 10055 clean straw
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 talk 970200
 select 970200 wardrobe
 talk 970200
@@ -124,7 +124,7 @@ select 3547 housewarming
 go 0 2287.7 403.4 34.0
 talk 1496
 select 1496 housewarming
-go 0 2278.3 363.4 34.9
+go 0 2264.5 479.9 34.4
 wait 2
 cmd .brilltown state
 has [0x200000]

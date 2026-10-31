@@ -51,7 +51,7 @@ go 0 2140.0 648.0 34.4
 cmd .brilltown use
 has Brill town: used 971122
 expect credit 971101 971118 1/8
-go 0 2280.0 468.0 34.2
+go 0 2297.0 459.0 34.5
 talk 971000
 select 971000 lantern frames
 expect credit 971101 971120 1/1
