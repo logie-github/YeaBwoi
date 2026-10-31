@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
- * The Brill home's patch for the game (mod-brill-home): the mastiff (Cataclysm's Gilneas dog, made
- * 3.3.5's by tools/mastiff.py as the server was packaged: never in this repository) and its rows in
- * the game's tables (data/client/dbc, made by tools/build_sql.py: its CreatureModelData and its four
- * coats' CreatureDisplayInfo), and the house's cellar and its ladder (GameObjectDisplayInfo, made by
+ * The Brill home's patch for the game (mod-brill-home): Corn, the dog (the game's pug, Cataclysm Classic's
+ * model made 3.3.5's by tools/corn.py as the server was packaged: never in this repository; the user's
+ * Forsaken texture, warcraft/branding/corn-forsaken-pug.png) and its rows in the game's tables
+ * (data/client/dbc, made by tools/build_sql.py: its CreatureModelData and CreatureDisplayInfo), and the house's cellar and its ladder (GameObjectDisplayInfo, made by
  * tools/build_town.py: the game's own models as objects).
  *
  * It's Data/<locale>/patch-<locale>-V.MPQ: read after the Worgen's and Goblins' patch-U and the allied
@@ -41,9 +41,9 @@ namespace BrillHome
     {
         constexpr char const* MARK_SUFFIX = ".brillhome";
         constexpr char const* ASIDE_SUFFIX = ".aside";
-        constexpr char const* MANIFEST = "mastiff.files";
-        constexpr char const* VERSION = "brill-home-2";
-        // (where it was: Data/patch-W.MPQ, and a file of its that tells it's this module's)
+        constexpr char const* MANIFEST = "corn.files";
+        constexpr char const* VERSION = "brill-home-3";
+        // (where it was: Data/patch-W.MPQ, and a file of its that tells it's this module's: the mastiff Corn was before)
         constexpr char const* OLD_PATCH = "patch-W.MPQ";
         constexpr char const* MASTIFF = "Creature\\Mastiff\\Mastiff.m2";
 
@@ -201,7 +201,7 @@ namespace BrillHome
         bool ours = fs::exists(mark, error);
         if (!ours && fs::exists(patch, error))
         {
-            log(patch.string() + " isn't this module's: left alone, so the game won't have the mastiff");
+            log(patch.string() + " isn't this module's: left alone, so the game won't have Corn");
             return false;
         }
         if (ours && !fs::exists(patch, error) && fs::exists(With(patch, ASIDE_SUFFIX), error))
@@ -217,7 +217,7 @@ namespace BrillHome
         std::string manifest = Text(files / MANIFEST);
         if (manifest.empty())
         {
-            log("The mastiff's model and textures aren't in " + files.string() + " (no " + MANIFEST + "): the patch isn't made");
+            log("Corn's model and textures aren't in " + files.string() + " (no " + MANIFEST + "): the patch isn't made");
             RemovePatch(clientData, log);
             return false;
         }

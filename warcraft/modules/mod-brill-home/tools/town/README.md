@@ -129,7 +129,7 @@ their phases; anything elsewhere is everyone's (phase 1).
 ### Conditions
 
 `R:q` rewarded, `!R:q` not, `T:q` taken (ever), `A:q` in the log, `I:q` in the log and not done, `C:q`
-done and not turned in, `M:mark` a mark set, `OWN` the house theirs, `DOG` the mastiff theirs, `LOVERS`,
+done and not turned in, `M:mark` a mark set, `OWN` the house theirs, `DOG` the dog, Corn, theirs, `LOVERS`,
 `FRIENDS` (Carolai), `CAROLAI_HOME` (she lives in the house), `UPG:n` the house has furniture n (its
 index, as `furnish`), `DAY:n` one day in n; `!` before any, not.
 

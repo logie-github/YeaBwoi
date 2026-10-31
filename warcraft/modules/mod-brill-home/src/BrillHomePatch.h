@@ -11,8 +11,8 @@ namespace BrillHome
     namespace fs = std::filesystem;
 
     // Makes Data/<locale>/patch-<locale>-V.MPQ in the client's Data folder [clientData] from the module's table changes
-    // ([moduleData]/dbc: data/client/dbc) and the mastiff's files ([files]: made by tools/mastiff.py as
-    // the server was packaged, listed in mastiff.files there), when the game, those changes or those
+    // ([moduleData]/dbc: data/client/dbc) and Corn's files ([files]: made by tools/corn.py as
+    // the server was packaged, listed in corn.files there), when the game, those changes or those
     // files changed since. True when the patch is in place.
     bool UpdatePatch(fs::path const& moduleData, fs::path const& files, fs::path const& clientData,
                      std::function<void(std::string const&)> const& log);

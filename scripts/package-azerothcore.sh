@@ -152,12 +152,13 @@ if [ -d "$DIST/modules/mod-worgen-goblin" ] && [ -d "$DIST/modules/mod-worgoblin
 		  echo "mod-worgen-goblin" >> "$INCOMPLETE"; }
 fi
 
-# The Brill home's mastiff (mod-brill-home, tools/mastiff.py): Cataclysm's Gilneas dog from the game's
-# files by their ids, made a model 3.3.5 draws (never in the repository); the world server puts it in
-# the game's patch-<locale>-V with its tables. Its list of files is written last; without it there's no dog.
+# The Brill home's dog, Corn (mod-brill-home, tools/corn.py): the game's pug from Cataclysm Classic's
+# files by their ids, made a model 3.3.5 draws (never in the repository), in the user's Forsaken texture;
+# the world server puts it in the game's patch-<locale>-V with its tables. Its list of files is written
+# last; without it there's no dog.
 if [ -d "$DIST/modules/mod-brill-home" ]; then
-	python3 /repo/warcraft/modules/mod-brill-home/tools/mastiff.py fetch "$pkg/src/modules/mod-brill-home/data/files" ||
-		echo "The mastiff wasn't fetched: the Brill home has no dog" >&2
+	python3 /repo/warcraft/modules/mod-brill-home/tools/corn.py fetch "$pkg/src/modules/mod-brill-home/data/files" ||
+		echo "Corn wasn't fetched: the Brill home has no dog" >&2
 fi
 
 # The murlocs' model and textures and the naga's headdresses and outfits (mod-murloc-naga,

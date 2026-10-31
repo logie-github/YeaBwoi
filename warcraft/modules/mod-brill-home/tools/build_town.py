@@ -104,7 +104,7 @@ def cellar_point(lx, ly, deg=0.0):
 
 def write_client_displays():
     """data/client/dbc/GameObjectDisplayInfo.txt: the new looks for the game's own table (src/BrillHomePatch.cpp
-    puts them in the game's patch with the mastiff's tables)."""
+    puts them in the game's patch with Corn's tables)."""
     with open(os.path.join(CLIENT_DBC, "GameObjectDisplayInfo.txt"), "w", encoding="utf-8", newline="\n") as f:
         f.write("# GameObjectDisplayInfo: the house's cellar and its ladder (tools/build_town.py)\n")
         f.write("types\tisiiiiiiiiiiffffffi\n")

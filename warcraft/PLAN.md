@@ -1757,7 +1757,7 @@ a realm with modules), then stage 3.
 The user's request: a house like Brill's by the road; Cedric Harrow inside leaves it to you; Jamie Nore
 (Brill's town hall) welcomes you, sells upgrades and sends you to try out a starter bed; the bed's rest
 or sleep (a yawn, a fade to black, a quarter level of rested experience, asleep in the bed until you
-move); waking the first time to a mastiff (Cataclysm's, backported) whose quest is shown, not told,
+move); waking the first time to a dog (Corn, a Forsaken pug; a mastiff before) whose quest is shown, not told,
 and which becomes your pet, a hunter's pet in every way for any class; then the hunter trainer
 teaches any class to tame, with the pet's spells under General in the spellbook. For hunters, the dog
 is extra: a 5th stable slot, and the dog out beside their pet (two out; three for Beast Mastery). The
@@ -1766,12 +1766,15 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
    CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
    gameobject, the sleeping pose on the bed, the furniture's turns.
-2. **The mastiff**: built. Its model fetched and converted as the server is packaged
-   (`tools/mastiff.py`: Cataclysm Classic's files, Wrath Remix's converter, the starting areas' fixes), in the
-   game's patch-<locale>-V (patch-W was the Alternative HD Patch's water too: the user saw a cube);
-   there on the first waking; its quest (fetch, a scratch behind the ears); the dog a hunter's pet for
-   any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through.
-   Not seen on a phone: the model in the game, its coats.
+2. **The dog, Corn**: built. A Forsaken pug since the user's texture ("Use this texture on the pug dog
+   you get from the quest in brill. Name the dog Corn"; `branding/corn-forsaken-pug.png`); a mastiff
+   before. His model fetched and converted as the server is packaged (`tools/corn.py`: the pug from
+   Cataclysm Classic's files, Wrath Remix's converter, the starting areas' fixes), in the game's
+   patch-<locale>-V (patch-W was the Alternative HD Patch's water too: the user saw a cube); there on the
+   first waking; his quest (fetch, a scratch behind the ears); a hunter's pet for any class
+   (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through. Not seen on
+   a phone: the model in the game (rendered on the desktop from the converted files: the texture sits on
+   the pug as the user's preview shows).
 3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any
    hunter trainer teaches Tame Beast and Beast Lore (from level 10); the stable master serves them
    (the class hook). Under General in the spellbook (the client's own placing; not seen on a phone).

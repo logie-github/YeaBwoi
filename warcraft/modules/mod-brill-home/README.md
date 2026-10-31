@@ -94,12 +94,14 @@ house as a gameobject (the game's own houses are part of the map), how the
 sleeping pose lies on the bed (assumed: lying back along the way the character faces), and the
 furniture's turns (assumed: the models' fronts at their +x).
 
-## The mastiff
+## Corn, the dog
 
-The first time the player sleeps in the bed, they wake to a mastiff beside it (Cataclysm's Gilneas dog,
-one of its four coats: gray, black, red, yellow). It doesn't talk; what it does is shown:
-"(The dog looks happy to see you.)". Its quest, **A Visitor in the Night**: throw the stick for it three
-times (it runs out the door after it and brings it back) and scratch it behind the ears. Turned in, the
+The first time the player sleeps in the bed, they wake to Corn beside it: a Forsaken pug (the game's pug in
+the user's texture, `warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched, glowing yellow eyes,
+his name on his collar's tag; the user: "Use this texture on the pug dog you get from the quest in brill.
+Name the dog Corn"). He doesn't talk; what he does is shown: "(The dog looks happy to see you.)". His
+quest, **A Visitor in the Night**: throw the stick for him three times (he runs out the door after it and
+brings it back) and scratch him behind the ears. Turned in, the
 dog is the player's pet, made as a hunter's tamed beast is, at their level, for any class:
 
 - the game counts its keeper a hunter wherever it asks about pets (`OnPlayerIsClass`: the pet's kind,
@@ -125,18 +127,19 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-The model: `tools/mastiff.py` fetches Cataclysm's files (the Cataclysm Classic client's, build
-4.4.2.60895, from wago.tools; the user: "Completely backport it from cata using wago tools") as the
-server is packaged (`scripts/package-azerothcore.sh`; never in this repository) and makes them 3.3.5's
-with Wrath Remix's converter (`mod-wrath-remix/tools/models.py`) and the starting areas' fixes
-(`mod-worgen-goblin/tools/zones/package.py`'s `fix_models`). The world server puts it in the game as
-`Data/<locale>/patch-<locale>-V.MPQ` (`src/BrillHomePatch.cpp`): it was `Data/patch-W.MPQ` until the
-user saw the mastiff as a cube; the Alternative HD Patch's new water has that name, and with it in the
-mastiff never was. A `patch-W.MPQ` of this module's (the mastiff in it) is taken out; the HD look's is
-left. With its CreatureModelData (3970, the wolf's sounds)
-and its coats' CreatureDisplayInfo (39700 to 39703); made from the game with patches U and V in (they're
-made without it), set aside on Wrath Remix's realm. Its own ids, not the starting areas' (3190 and
-30210 to 30213, which go when the starting areas are off).
+The model: `tools/corn.py` fetches the pug's files (Cataclysm Classic's client, build 4.4.2.60895, from
+wago.tools) as the server is packaged (`scripts/package-azerothcore.sh`; never in this repository), makes
+its coat a texture the display names (its first texture, hard-coded in the game's file, made the
+creature's skin) and makes it 3.3.5's with Wrath Remix's converter (`mod-wrath-remix/tools/models.py`)
+and the starting areas' fixes (`mod-worgen-goblin/tools/zones/package.py`'s `fix_models`), with the user's
+texture (a DXT1 BLP, `Creature\ForsakenPug\ForsakenPug_Corn.blp`). Its CreatureModelData (3970) is the
+game's pug's (3291: its size and collision) and its CreatureDisplayInfo (39700) the game's pug's (31174:
+its sounds, 0.9 of its size). The world server puts it in the game as `Data/<locale>/patch-<locale>-V.MPQ`
+(`src/BrillHomePatch.cpp`), with the cellar's looks. Before, the dog was Cataclysm's mastiff (four
+coats, displays 39700 to 39703): a pet made then is given Corn's looks, and his name where it kept the
+mastiff's, as the realm starts (`data/sql/chromiecraft/characters`). An old `Data/patch-W.MPQ` of this
+module's (the mastiff's first patch) is still taken out; the Alternative HD Patch's is left alone.
+
 
 ## Carolai Anise
 
@@ -146,10 +149,10 @@ anything. Except if you do become romantically involved you can have her move in
 a questline with 5 quests. Don't rush it but make it believable. Not just a mail order bride. And she's a
 yandere. All in universe style dialogue."
 
-Brill's alchemy trainer (by Apothecary Johaan, across the square from the house), once the mastiff's
+Brill's alchemy trainer (by Apothecary Johaan, across the square from the house), once Corn's
 quest is done. She watches the house from her bench; she's sweet, attentive, and a little too much of both.
 
-1. **A Tonic for the Mastiff**: the dog's scratching is blightmange, from the darkhounds. Kill 8 Cursed
+1. **A Tonic for Corn**: the dog's scratching is blightmange, from the darkhounds. Kill 8 Cursed
    Darkhounds north of Brill; she brews the tonic ("I counted the howls from here").
 2. **What Solliden Kept**: her mother's locket, left in the farmhouse at Solliden Farmstead when she died
    (the footlocker beside old Farmer Solliden, who doesn't remember her).

@@ -62,7 +62,7 @@ namespace
     constexpr float STICK_X = 2263.1f, STICK_Y = 478.2f, STICK_Z = 33.9f;
 
     constexpr uint32 PHASE_CEDRIC = 0x100, PHASE_BED = 0x200, PHASE_DOG = 0x400;
-    // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest
+    // A character's state: they've slept in the bed (Corn came); Corn is theirs (its quest
     // done); it's their pet (there was room for it).
     constexpr uint32 FLAG_SLEPT = 0x1, FLAG_DOG_ADOPTED = 0x2, FLAG_DOG_PET = 0x4;
     // A hunter's dog isn't their pet but one more beside it (the user: "you can have your current pets
@@ -82,7 +82,7 @@ namespace
                                   { 60, 13544 }, { 68, 27046 }, { 74, 48989 }, { 80, 48990 } };
     constexpr uint32 PHASES_OURS = 0xFFFFFFFE;   // (the house's 0x100 to 0x20000, the town's lines' above it and 0x2 to 0x80: nothing of the game's in Brill is in those)
 
-    // Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, ending in
+    // Carolai Anise (Brill's alchemy trainer): her five quests once Corn is the player's, ending in
     // the player's answer, lovers or friends (the rewards the same: the user's), and as lovers, her
     // moving into the house if they ask her. She's a yandere (the user's).
     constexpr uint32 CAROLAI = 2132, NPC_CAROLAI_VISIT = 970118, NPC_CAROLAI_HOME = 970119;
@@ -186,7 +186,7 @@ namespace
         Home& home = HomeOf(player);
         if (OwnsHouse(player))
             mask |= home.upgrades;
-        // the mastiff: from the first night in the bed until it's their pet
+        // Corn: from the first night in the bed until it's their pet
         if ((home.flags & FLAG_SLEPT) && !(home.flags & FLAG_DOG_PET))
             mask |= PHASE_DOG;
         // Carolai: in the house the evening after Jamie's gift (until the tea is drunk), and living there
@@ -280,7 +280,7 @@ namespace
             Home& home = HomeOf(sleeper);
             if (!(home.flags & FLAG_SLEPT))
             {
-                // (the first night: they wake to find the mastiff there)
+                // (the first night: they wake to find Corn there)
                 home.flags |= FLAG_SLEPT;
                 Save(sleeper);
             }
@@ -309,7 +309,7 @@ namespace
                 player->learnSpell(rank.spell);
     }
 
-    // The mastiff made the player's pet, as a hunter's tamed beast is: at their level, out beside them,
+    // Corn made the player's pet, as a hunter's tamed beast is: at their level, out beside them,
     // kept as their current pet. Not while they have a pet out or kept as current (a hunter's own, a
     // warlock's demon...): the dog waits in the house until there's room.
     bool GiveDog(Player* player)
@@ -423,7 +423,7 @@ namespace
         return n;
     }
 
-    // The mastiff's own doings, seen by the player: shown, never said (it doesn't talk).
+    // Corn's own doings, seen by the player: shown, never said (it doesn't talk).
     void DogDoes(Creature* dog, Player* player, char const* what)
     {
         dog->TextEmote(what, player);
@@ -606,7 +606,7 @@ public:
         {
             if (creature->HasUnitState(UNIT_STATE_ROAMING_MOVE) || creature->m_Events.HasEvents())
                 return true;
-            DogDoes(creature, player, "(The mastiff's ears go up. It watches the stick sail out the door, then bolts after it.)");
+            DogDoes(creature, player, "(Corn's ears go up. He watches the stick sail out the door, then bolts after it, wheezing.)");
             Position home = creature->GetHomePosition();
             creature->GetMotionMaster()->MovePoint(1, STICK_X, STICK_Y, STICK_Z);
             creature->m_Events.AddEventAtOffset([creature, home]()
@@ -620,21 +620,21 @@ public:
                 if (!thrower)
                     return;
                 uint32 done = thrower->GetReqKillOrCastCurrentCount(QUEST_DOG, NPC_FETCH_CREDIT);
-                DogDoes(creature, thrower, done == 0 ? "(The mastiff trots back and drops the stick at your feet, very pleased with itself.)"
+                DogDoes(creature, thrower, done == 0 ? "(Corn trots back and drops the stick at your feet, very pleased with himself.)"
                     : done == 1 ? "(Back again, tail going like a flag. The stick is a good deal wetter than before.)"
-                    : "(The mastiff brings the stick back, then lies down with it and starts to chew. It seems to think it has won.)");
+                    : "(Corn brings the stick back, then lies down with it and starts to chew. He seems to think he has won.)");
                 thrower->KilledMonsterCredit(NPC_FETCH_CREDIT);
             }, 7000ms);
             return true;
         }
         if (sender == SENDER_EARS)
         {
-            DogDoes(creature, player, "(The mastiff leans its whole weight against your leg, eyes half closed, and groans happily.)");
+            DogDoes(creature, player, "(Corn leans his whole small weight against your leg, glowing eyes half closed, and snorts happily.)");
             player->KilledMonsterCredit(NPC_EARS_CREDIT);
             return true;
         }
         if (sender == SENDER_BRING && !GiveDog(player))
-            DogDoes(creature, player, "(The mastiff looks at whatever is already following you, and sits back down by the door.)");
+            DogDoes(creature, player, "(Corn looks at whatever is already following you, and sits back down by the door.)");
         return true;
     }
 
@@ -646,7 +646,7 @@ public:
         HomeOf(player).flags |= FLAG_DOG_ADOPTED;
         Save(player);
         if (!GiveDog(player))
-            DogDoes(creature, player, "(The mastiff looks at whatever is already following you, and sits back down by the door to wait.)");
+            DogDoes(creature, player, "(Corn looks at whatever is already following you, and sits back down by the door to wait.)");
         return false;
     }
 };
@@ -1178,7 +1178,7 @@ public:
             BrillHome::SetPatchAside(data, Log);
     }
 
-    // The mastiff in the game: patch-<locale>-V, after the Worgen's and Goblins' patch-U and the allied races'
+    // Corn in the game: patch-<locale>-V, after the Worgen's and Goblins' patch-U and the allied races'
     // patch-V are made (as the configuration is read), before the Skyborne's patch-Z.
     void OnLoadCustomDatabaseTable() override
     {

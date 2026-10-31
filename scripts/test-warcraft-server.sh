@@ -712,10 +712,11 @@ EOF
 	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
 		fail "the house isn't in ChromieCraft's world"
-	# The mastiff in the game: the language folder's patch-<locale>-V, its two tables and its seven files
-	# (tools/mastiff.py, as the server was packaged), made after the allied races' patch-V.
-	grep -E "Brill home: The Brill home's patch is in the game: 2 tables, 7 files" "$FILES/logs/world.out" ||
-		fail "the world server didn't make the Brill home's patch (the mastiff)"
+	# Corn and the cellar in the game: the language folder's patch-<locale>-V, its three tables (Corn's
+	# model and display, the cellar's and its ladder's looks) and Corn's four files (tools/corn.py, as the
+	# server was packaged), made after the allied races' patch-V.
+	grep -E "Brill home: The Brill home's patch is in the game: 3 tables, 4 files" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Brill home's patch (Corn, the cellar)"
 	ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 || fail "the Brill home's patch isn't in the game"
 	brill=$(grep -n -m1 "Brill home: The Brill home's patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
 	echo "world.out: the Brill home's patch at line ${brill:-?}, the allied races' at line ${allied:-?}"
@@ -863,7 +864,7 @@ EOF
 	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
 		fail "the house is in Wrath Remix's world"
 	! ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 && ls "$FILES"/client/Data/*/patch-*-V.MPQ.aside > /dev/null 2>&1 ||
-		fail "the Brill home's patch (the mastiff) is in the game on Wrath Remix (or wasn't kept aside)"
+		fail "the Brill home's patch (Corn) is in the game on Wrath Remix (or wasn't kept aside)"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||
