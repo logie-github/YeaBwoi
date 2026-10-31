@@ -34,6 +34,7 @@
 #include "ScriptedGossip.h"
 #include "StringFormat.h"
 #include "WorldSession.h"
+#include <array>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -71,6 +72,8 @@ namespace
     std::vector<StageRow> stages;
     std::unordered_map<uint32, std::vector<Invis>> creatureInvis, objectInvis;   // by spawn id
     uint32 stageTypes = 0;   // the invisibility kinds the projects use (a bit each)
+    // what the town has added to a character's detection of each kind (the stage reached)
+    std::unordered_map<uint32, std::array<int32, TOTAL_INVISIBILITY_TYPES>> detected;
 
     Conds Parse(std::string const& text)
     {
@@ -269,7 +272,11 @@ namespace BrillTown
         return mask;
     }
 
-    void Forget(Player* player) { used.erase(player->GetGUID().GetCounter()); }
+    void Forget(Player* player)
+    {
+        used.erase(player->GetGUID().GetCounter());
+        detected.erase(player->GetGUID().GetCounter());
+    }
 
     // The projects' stages the player has reached, detected in Brill (none outside it).
     void RefreshStages(Player* player, bool inBrill)
@@ -281,26 +288,30 @@ namespace BrillTown
             for (StageRow const& s : stages)
                 if (s.value > reached[s.type] && Holds(player, s.cond))
                     reached[s.type] = s.value;
+        // (added to whatever the game's own detection auras give, as an aura's amount is, and taken back out
+        // by the same amount: never touching what isn't the town's)
+        auto& ours = detected[player->GetGUID().GetCounter()];
         bool changed = false;
         for (uint8 t = 0; t < TOTAL_INVISIBILITY_TYPES; ++t)
         {
             if (!(stageTypes & (1u << t)))
                 continue;
             InvisibilityType type = InvisibilityType(t);
-            bool has = player->m_invisibilityDetect.HasFlag(type);
-            if (reached[t] > 0)
+            if (reached[t] != ours[t])
             {
-                if (!has || player->m_invisibilityDetect.GetValue(type) != reached[t])
-                {
-                    player->m_invisibilityDetect.AddFlag(type);
-                    player->m_invisibilityDetect.SetValue(type, reached[t]);
-                    changed = true;
-                }
+                player->m_invisibilityDetect.AddValue(type, reached[t] - ours[t]);
+                ours[t] = reached[t];
+                changed = true;
             }
-            else if (has)
+            bool has = player->m_invisibilityDetect.HasFlag(type);
+            if (reached[t] > 0 && !has)
+            {
+                player->m_invisibilityDetect.AddFlag(type);
+                changed = true;
+            }
+            else if (reached[t] == 0 && has && !player->HasInvisibilityDetectAura())
             {
                 player->m_invisibilityDetect.DelFlag(type);
-                player->m_invisibilityDetect.SetValue(type, 0);
                 changed = true;
             }
         }
