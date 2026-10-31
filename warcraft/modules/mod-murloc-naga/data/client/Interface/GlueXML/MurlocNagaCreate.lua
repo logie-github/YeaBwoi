@@ -127,6 +127,10 @@ ABILITY_INFO_NAGA_4 = "- Starts at level 10, in the renegades' camp off Darkshor
 -- Maria's hair's.
 HAIR_MURLOC_STYLE = "Headgear";
 HAIR_MURLOC_COLOR = "Hair Color";
+-- The naga's (their hair token NAGA): the naga's own headdresses (a myrmidon's crown, a warlord's helm,
+-- a sea witch's headdress) and their colours.
+HAIR_NAGA_STYLE = "Headdress";
+HAIR_NAGA_COLOR = "Headdress Color";
 
 MURLOC_DISABLED = "Murlocs can't be made on this realm.";
 NAGA__DISABLED = "Naga can't be made on this realm.";

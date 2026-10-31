@@ -41,6 +41,7 @@ sys.path.insert(0, os.path.join(MODULES, "mod-allied-races", "tools"))
 import cameras  # noqa: E402
 import content as C  # noqa: E402
 import murloc_looks as ML  # noqa: E402
+import naga_looks as NL  # noqa: E402
 import sqlrows  # noqa: E402
 import terrain  # noqa: E402
 
@@ -67,7 +68,7 @@ TEMPLATE = {
 NAME = {MURLOC: "Murloc", NAGA: "Naga"}
 PREFIX = {MURLOC: "Mu", NAGA: "Na"}
 FILESTRING = {MURLOC: "Murloc", NAGA: "Naga_"}  # Character\<this>\<Male|Female>\<this><Male|Female>.m2
-FEATURE_LABELS = {MURLOC: ("FEATURES", "FEATURES", "MURLOC"), NAGA: ("NORMAL", "NONE", "NORMAL")}
+FEATURE_LABELS = {MURLOC: ("FEATURES", "FEATURES", "MURLOC"), NAGA: ("FEATURES", "FEATURES", "NAGA")}
 
 # Ids clear of the game's (an HD look's too) and the other modules'.
 ID_SECTIONS = 860000
@@ -448,10 +449,21 @@ def main():
 
     # The naga: the game's own looks of its naga (race 13's rows, an HD look's textures by the same
     # names), and their new colours, made by the patch from the game's.
-    naga_rows = [values_of(sections, r, st) for r in sections.rows if r[1] == 13]
+    # Their skins, faces and underwear are the game's; their hair and facial hair rows (which name
+    # textures the game hasn't) are the headdresses' and the features' (tools/naga_looks.py): a hair
+    # row a headdress style and colour (its texture the headdress's in that colour), a facial hair row
+    # a feature and colour (none: the outfits are their own textures).
+    naga_rows = [values_of(sections, r, st) for r in sections.rows if r[1] == 13 and r[3] in (0, 1, 4)]
     assert naga_rows, "the game's naga looks"
     for r in naga_rows:
         section(NAGA, r[2], r[3], [r[4], r[5], r[6]], r[7], r[8], r[9])
+    for sex, sexname in ((0, "Male"), (1, "Female")):
+        for style in range(len(NL.HEADDRESSES[sexname]) + 1):
+            for c in range(NL.colours(sexname)):
+                section(NAGA, sex, 3, [NL.headdress_texture(sexname, style, c), "", ""], 1, style, c)
+        for feature in range(len(NL.features(sexname)) + 1):
+            for c in range(NL.colours(sexname)):
+                section(NAGA, sex, 2, ["", "", ""], 1, feature, c)
     for sex, sexname in ((0, "Male"), (1, "Female")):
         p = f"Character\\Naga_\\{sexname}\\Naga_{sexname}"
         for n, (name, source, hue, sat, light) in enumerate(NAGA_COLOURS[sex]):
@@ -473,18 +485,19 @@ def main():
     # Hair shapes and features (the game's tables only).
     geo = D("CharHairGeosets")
     gid = ID_HAIRGEO
-    for r in geo.rows:
-        if r[1] == 13:
-            client.put("CharHairGeosets", "iiiiii", [gid, NAGA, r[2], r[3], r[4], r[5]])
+    for sex, sexname in ((0, "Male"), (1, "Female")):
+        for style in range(len(NL.HEADDRESSES[sexname]) + 1):
+            client.put("CharHairGeosets", "iiiiii", [gid, NAGA, sex, style, NL.hair_geoset(style), 0])
             gid += 1
     for sex, sexname in ((0, "Male"), (1, "Female")):
         for style in range(len(ML.HAIR_STYLES[sexname])):
             client.put("CharHairGeosets", "iiiiii", [gid, MURLOC, sex, style, ML.hair_geoset(style), 0])
             gid += 1
     facial = D("CharacterFacialHairStyles")
-    for r in facial.rows:
-        if r[0] == 13:
-            client.append_raw("CharacterFacialHairStyles", struct.pack(f"<{facial.fields}I", NAGA, *r[1:]))
+    for sex, sexname in ((0, "Male"), (1, "Female")):
+        for feature in range(len(NL.features(sexname)) + 1):
+            geosets = [NL.feature_geoset(feature)] + [0] * (facial.fields - 4)
+            client.append_raw("CharacterFacialHairStyles", struct.pack(f"<{facial.fields}I", NAGA, sex, feature, *geosets))
     for sex, sexname in ((0, "Male"), (1, "Female")):
         for feature in range(len(ML.FEATURES[sexname])):
             # (the first geoset: group 1, the model's mesh 100 + it)

@@ -101,6 +101,12 @@ geosets = open(os.path.join(DATA, "client", "dbc", "CharHairGeosets.txt")).read(
 check(sum(len(v) for v in ML.HAIR_STYLES.values()) == len(re.findall(r"^put\t\d+\t19\t", geosets, re.M)), "a hair style row each (murlocs)")
 facial = open(os.path.join(DATA, "client", "dbc", "CharacterFacialHairStyles.txt")).read()
 check(facial.count("appendraw") >= sum(len(v) for v in ML.FEATURES.values()), "a feature row each (murlocs)")
+import naga_looks as NL  # noqa: E402
+naga_hair = len(re.findall(r"^put\t\d+\t20\t", geosets, re.M))
+check(naga_hair == sum(len(NL.HEADDRESSES[s]) + 1 for s in ("Male", "Female")), f"a headdress row each (naga: {naga_hair})")
+check(all(NL.headdress_texture(s, h, c).replace("\\", "\\\\") in sections for s in ("Male", "Female")
+          for h in range(1, len(NL.HEADDRESSES[s]) + 1) for c in range(NL.colours(s))), "the headdresses' colours in CharSections")
+check(not re.search(r"Naga_\\\\(Hair|Scalp|Facial)", sections), "no naga hair, scalp or facial hair texture the game hasn't")
 check(sections.count("put\t") > 100, "the races' looks")
 
 # The cameras, as the world server reads them.

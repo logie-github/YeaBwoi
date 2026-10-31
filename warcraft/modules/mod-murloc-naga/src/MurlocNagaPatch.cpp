@@ -597,6 +597,331 @@ namespace MurlocNaga
         return true;
     }
 
+    namespace
+    {
+        // An array of a model's header (count, offset) and its items, by size.
+        struct Array { uint32_t count, offset; };
+        Array ArrayAt(Bytes const& b, size_t at) { return { U32(b, at), U32(b, at + 4) }; }
+
+        // [payload] at the end of [b], 16-aligned; where it is.
+        uint32_t Append(Bytes& b, Bytes const& payload)
+        {
+            while (b.size() % 16)
+                b.push_back(0);
+            uint32_t at = uint32_t(b.size());
+            b.insert(b.end(), payload.begin(), payload.end());
+            return at;
+        }
+
+        // [array]'s items (of [size] bytes) with [more] after them, at the end of [b], in its header.
+        void Grow(Bytes& b, size_t header, size_t size, Bytes const& more)
+        {
+            Array a = ArrayAt(b, header);
+            Bytes all(b.begin() + a.offset, b.begin() + a.offset + size_t(a.count) * size);
+            all.insert(all.end(), more.begin(), more.end());
+            uint32_t at = Append(b, all);
+            Put32(b, header, uint32_t(all.size() / size));
+            Put32(b, header + 4, at);
+        }
+
+        template <typename T> void Add(Bytes& b, T const& v)
+        {
+            uint8_t const* p = reinterpret_cast<uint8_t const*>(&v);
+            b.insert(b.end(), p, p + sizeof(T));
+        }
+    }
+
+    bool MergeParts(Bytes& m2, Bytes& skin, Bytes const& parts, std::string& why)
+    {
+        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || U32(m2, 4) != 264)
+            return why = "not a 3.3.5 model", false;
+        if (skin.size() < 48 || std::memcmp(skin.data(), "SKIN", 4) != 0)
+            return why = "not a 3.3.5 skin", false;
+        if (parts.size() < 12 || std::memcmp(parts.data(), "NPRT", 4) != 0 || U32(parts, 4) != 2)
+            return why = "not the naga's parts", false;
+        constexpr size_t H_BONES = 0x2C, H_VERTS = 0x3C, H_TEXTURES = 0x50, H_TEX_REPLACE = 0x68, H_RENDER_FLAGS = 0x70,
+            H_BONE_LOOKUP = 0x78, H_TEX_LOOKUP = 0x80, H_TRANSP_LOOKUP = 0x90, H_UV_LOOKUP = 0x98, H_TEX_UNIT_LOOKUP = 0x88,
+            H_BOUNDS = 0xA0;
+        Array bones = ArrayAt(m2, H_BONES);
+        if (bones.count == 0 || bones.offset + size_t(bones.count) * 88 > m2.size())
+            return why = "its bones aren't where its header says", false;
+        if (ArrayAt(m2, H_TRANSP_LOOKUP).count == 0 || ArrayAt(m2, H_TEX_UNIT_LOOKUP).count == 0)
+            return why = "it has no transparency or texture unit look-up to give the parts", false;
+        std::vector<std::array<float, 3>> pivots(bones.count);
+        int head = 0;
+        for (uint32_t i = 0; i < bones.count; ++i)
+        {
+            std::memcpy(pivots[i].data(), &m2[bones.offset + i * 88 + 76], 12);
+            int32_t key;
+            std::memcpy(&key, &m2[bones.offset + i * 88], 4);
+            if (key == 6)
+                head = int(i);
+        }
+        auto nearest = [&](float const* place, float& distance)
+        {
+            int best = head;
+            distance = 1e9f;
+            for (uint32_t i = 0; i < bones.count; ++i)
+            {
+                float dx = pivots[i][0] - place[0], dy = pivots[i][1] - place[1], dz = pivots[i][2] - place[2];
+                float d = std::sqrt(dx * dx + dy * dy + dz * dz);
+                if (d < distance)
+                {
+                    distance = d;
+                    best = int(i);
+                }
+            }
+            return best;
+        };
+
+        // The skin's arrays, to add to.
+        Array sv = ArrayAt(skin, 4), ix = ArrayAt(skin, 12), pr = ArrayAt(skin, 20), se = ArrayAt(skin, 28), ba = ArrayAt(skin, 36);
+        if (sv.offset + size_t(sv.count) * 2 > skin.size() || ix.offset + size_t(ix.count) * 2 > skin.size()
+            || pr.offset + size_t(pr.count) * 4 > skin.size() || se.offset + size_t(se.count) * 48 > skin.size()
+            || ba.offset + size_t(ba.count) * 24 > skin.size())
+            return why = "its skin's arrays aren't where its header says", false;
+        Bytes skinVertices(skin.begin() + sv.offset, skin.begin() + sv.offset + sv.count * 2);
+        Bytes indices(skin.begin() + ix.offset, skin.begin() + ix.offset + ix.count * 2);
+        Bytes props(skin.begin() + pr.offset, skin.begin() + pr.offset + pr.count * 4);
+        Bytes sections(skin.begin() + se.offset, skin.begin() + se.offset + se.count * 48);
+        Bytes batches(skin.begin() + ba.offset, skin.begin() + ba.offset + ba.count * 24);
+        uint32_t boneCountMax = U32(skin, 44);
+
+        Array verts = ArrayAt(m2, H_VERTS), textures = ArrayAt(m2, H_TEXTURES), texLookup = ArrayAt(m2, H_TEX_LOOKUP);
+        Array flags = ArrayAt(m2, H_RENDER_FLAGS), boneLookup = ArrayAt(m2, H_BONE_LOOKUP), uvLookup = ArrayAt(m2, H_UV_LOOKUP);
+        uint32_t vertexCount = verts.count, textureCount = textures.count, lookupCount = texLookup.count;
+        uint32_t flagCount = flags.count, boneLookupCount = boneLookup.count;
+        Bytes newVertices, newTextures, newLookups, newFlags, newBoneLookup;
+        std::vector<std::string> names;                                  // the new textures' names
+        std::map<std::string, uint16_t> lookupOf;                         // a texture (type and name) -> its look-up
+        std::map<uint32_t, uint16_t> flagOf;
+        uint16_t noTransform = uint16_t(uvLookup.count);                  // a new look-up entry: none
+        float lo[3], hi[3];
+        std::memcpy(lo, &m2[H_BOUNDS], 12);
+        std::memcpy(hi, &m2[H_BOUNDS + 12], 12);
+        float worst = 0;
+
+        size_t at = 12;
+        uint32_t partCount = U32(parts, 8);
+        for (uint32_t p = 0; p < partCount; ++p)
+        {
+            // a geometry: its blend, sizes and uses (each a geoset and a texture)
+            if (at + 12 > parts.size())
+                return why = "the parts end early", false;
+            uint16_t blend, useCount;
+            std::memcpy(&blend, &parts[at], 2);
+            uint32_t count = U32(parts, at + 2), triangles = U32(parts, at + 6);
+            std::memcpy(&useCount, &parts[at + 10], 2);
+            at += 12;
+            struct Use { uint16_t geoset, type; std::string name; };
+            std::vector<Use> uses;
+            for (uint16_t u = 0; u < useCount; ++u)
+            {
+                if (at + 6 > parts.size())
+                    return why = "the parts end early", false;
+                Use use;
+                uint16_t nameLength;
+                std::memcpy(&use.geoset, &parts[at], 2);
+                std::memcpy(&use.type, &parts[at + 2], 2);
+                std::memcpy(&nameLength, &parts[at + 4], 2);
+                at += 6;
+                if (at + nameLength > parts.size())
+                    return why = "the parts end early", false;
+                use.name.assign(parts.begin() + at, parts.begin() + at + nameLength);
+                at += nameLength;
+                uses.push_back(use);
+            }
+            constexpr size_t VERTEX = 20 * 4 + 4;
+            if (at + size_t(count) * VERTEX + size_t(triangles) * 6 > parts.size())
+                return why = "the parts end early", false;
+
+            // its bones: the model's at their places
+            std::vector<std::array<uint8_t, 4>> local(count);
+            std::vector<uint16_t> palette;
+            std::vector<std::array<uint8_t, 4>> globals(count);
+            for (uint32_t v = 0; v < count; ++v)
+            {
+                uint8_t const* raw = &parts[at + v * VERTEX];
+                uint8_t const* weights = raw + 80;
+                for (int j = 0; j < 4; ++j)
+                {
+                    float place[3], distance;
+                    std::memcpy(place, raw + 32 + j * 12, 12);
+                    int bone = nearest(place, distance);
+                    if (weights[j])
+                        worst = std::max(worst, distance);
+                    if (bone > 255)
+                        return why = "a bone past the 256th", false;
+                    globals[v][j] = uint8_t(bone);
+                    if (weights[j] && std::find(palette.begin(), palette.end(), uint16_t(bone)) == palette.end())
+                        palette.push_back(uint16_t(bone));
+                }
+            }
+            if (palette.size() > 64)
+                return why = "a part on more than 64 bones", false;
+            if (palette.empty())
+                palette.push_back(uint16_t(head));
+            uint32_t firstVertex = vertexCount + uint32_t(newVertices.size() / 48);
+            for (uint32_t v = 0; v < count; ++v)
+            {
+                uint8_t const* raw = &parts[at + v * VERTEX];
+                uint8_t const* weights = raw + 80;
+                for (int j = 0; j < 4; ++j)
+                    local[v][j] = weights[j] ? uint8_t(std::find(palette.begin(), palette.end(), uint16_t(globals[v][j])) - palette.begin()) : 0;
+                // the model's vertex: position, weights, bones, normal, coordinates (and none second)
+                Bytes vertex(48, 0);
+                std::memcpy(&vertex[0], raw, 12);
+                std::memcpy(&vertex[12], weights, 4);
+                std::memcpy(&vertex[16], globals[v].data(), 4);
+                std::memcpy(&vertex[20], raw + 12, 12);
+                std::memcpy(&vertex[32], raw + 24, 8);
+                newVertices.insert(newVertices.end(), vertex.begin(), vertex.end());
+                float pos[3];
+                std::memcpy(pos, raw, 12);
+                for (int c = 0; c < 3; ++c)
+                {
+                    lo[c] = std::min(lo[c], pos[c]);
+                    hi[c] = std::max(hi[c], pos[c]);
+                }
+            }
+
+            // its triangles in the skin, once
+            uint32_t skinStart = uint32_t(skinVertices.size() / 2), indexStart = uint32_t(indices.size() / 2);
+            if (indexStart > 65535)
+                return why = "the skin's triangles past the 65535th index (the game reads a section's start in 16 bits)", false;
+            for (uint32_t v = 0; v < count; ++v)
+            {
+                Add(skinVertices, uint16_t(firstVertex + v));
+                props.insert(props.end(), local[v].begin(), local[v].end());
+            }
+            float centre[3] = { 0, 0, 0 };
+            for (uint32_t t = 0; t < triangles * 3; ++t)
+            {
+                uint16_t k;
+                std::memcpy(&k, &parts[at + count * VERTEX + t * 2], 2);
+                if (k >= count)
+                    return why = "a triangle names a vertex the part hasn't", false;
+                Add(indices, uint16_t(skinStart + k));
+            }
+            for (uint32_t v = 0; v < count; ++v)
+                for (int c = 0; c < 3; ++c)
+                {
+                    float x;
+                    std::memcpy(&x, &parts[at + v * VERTEX + c * 4], 4);
+                    centre[c] += x / float(std::max(1u, count));
+                }
+            uint16_t combo = uint16_t(boneLookupCount + newBoneLookup.size() / 2);
+            for (uint16_t b : palette)
+                Add(newBoneLookup, b);
+            if (!flagOf.count(blend))
+            {
+                flagOf[blend] = uint16_t(flagCount + newFlags.size() / 4);
+                Add(newFlags, uint16_t(0));
+                Add(newFlags, blend);
+            }
+
+            // each use: a section of its geoset over those triangles, a batch with its texture
+            for (auto const& use : uses)
+            {
+                std::string key = std::to_string(use.type) + ":" + use.name;
+                if (!lookupOf.count(key))
+                {
+                    Add(newTextures, uint32_t(use.type));
+                    Add(newTextures, uint32_t(0));
+                    Add(newTextures, uint32_t(use.name.size() + 1));
+                    Add(newTextures, uint32_t(0));                        // (the name's place, made below)
+                    names.push_back(use.name);
+                    lookupOf[key] = uint16_t(lookupCount + newLookups.size() / 2);
+                    Add(newLookups, int16_t(textureCount + names.size() - 1));
+                }
+                uint16_t section = uint16_t(sections.size() / 48);
+                Add(sections, use.geoset);
+                Add(sections, uint16_t(indexStart >> 16));
+                Add(sections, uint16_t(skinStart));
+                Add(sections, uint16_t(count));
+                Add(sections, uint16_t(indexStart & 0xFFFF));
+                Add(sections, uint16_t(triangles * 3));
+                Add(sections, uint16_t(palette.size()));
+                Add(sections, combo);
+                Add(sections, uint16_t(1));
+                Add(sections, palette[0]);
+                for (int r = 0; r < 2; ++r)
+                    for (int c = 0; c < 3; ++c)
+                        Add(sections, centre[c]);
+                Add(sections, 1.0f);
+                Add(batches, uint8_t(16));
+                Add(batches, int8_t(0));
+                Add(batches, uint16_t(0));
+                Add(batches, section);
+                Add(batches, section);
+                Add(batches, int16_t(-1));
+                Add(batches, flagOf[blend]);
+                Add(batches, uint16_t(0));
+                Add(batches, uint16_t(1));
+                Add(batches, lookupOf[key]);
+                Add(batches, uint16_t(0));
+                Add(batches, uint16_t(0));
+                Add(batches, noTransform);
+            }
+            at += size_t(count) * VERTEX + size_t(triangles) * 6;
+            boneCountMax = std::max<uint32_t>(boneCountMax, uint32_t(palette.size()));
+        }
+        if (worst > 0.15f)
+            return why = "a part's bone is " + std::to_string(worst) + " yards from any of the model's: not this naga", false;
+        if (skinVertices.size() / 2 > 65535)
+            return why = "too many vertices for one skin", false;
+
+        // The model: its arrays grown (the new textures' names made, their places in their entries).
+        for (size_t t = 0; t < names.size(); ++t)
+        {
+            Bytes text(names[t].begin(), names[t].end());
+            text.push_back(0);
+            uint32_t place = Append(m2, text);
+            std::memcpy(&newTextures[t * 16 + 12], &place, 4);
+        }
+        Grow(m2, H_VERTS, 48, newVertices);
+        Grow(m2, H_TEXTURES, 16, newTextures);
+        Grow(m2, H_TEX_LOOKUP, 2, newLookups);
+        Grow(m2, H_RENDER_FLAGS, 4, newFlags);
+        Grow(m2, H_BONE_LOOKUP, 2, newBoneLookup);
+        Bytes none;
+        Add(none, int16_t(-1));
+        Grow(m2, H_UV_LOOKUP, 2, none);
+        // the texture types' look-up: the hair's (6), where the model hadn't one
+        Array replace = ArrayAt(m2, H_TEX_REPLACE);
+        std::vector<int16_t> types(std::max<uint32_t>(replace.count, 7), -1);
+        for (uint32_t i = 0; i < replace.count; ++i)
+            std::memcpy(&types[i], &m2[replace.offset + i * 2], 2);
+        for (size_t t = 0; t < names.size(); ++t)
+        {
+            uint32_t type = U32(newTextures, t * 16);
+            if (type && type < types.size() && types[type] < 0)
+                types[type] = int16_t(textureCount + t);
+        }
+        Bytes typeBytes;
+        for (int16_t v : types)
+            Add(typeBytes, v);
+        Put32(m2, H_TEX_REPLACE, uint32_t(types.size()));
+        Put32(m2, H_TEX_REPLACE + 4, Append(m2, typeBytes));
+        std::memcpy(&m2[H_BOUNDS], lo, 12);
+        std::memcpy(&m2[H_BOUNDS + 12], hi, 12);
+
+        // The skin, made again with its arrays.
+        Bytes out(48, 0);
+        std::memcpy(out.data(), "SKIN", 4);
+        size_t header = 4;
+        for (auto [data, size] : { std::pair<Bytes*, size_t>{ &skinVertices, 2 }, { &indices, 2 }, { &props, 4 }, { &sections, 48 }, { &batches, 24 } })
+        {
+            uint32_t place = Append(out, *data);
+            Put32(out, header, uint32_t(data->size() / size));
+            Put32(out, header + 4, place);
+            header += 8;
+        }
+        Put32(out, 44, boneCountMax);
+        skin = std::move(out);
+        return true;
+    }
+
     Bytes MixNarration(std::vector<std::pair<uint32_t, Bytes>> const& parts)
     {
         std::vector<float> mix;
@@ -727,20 +1052,23 @@ namespace MurlocNaga
             stamp.Add(f.lexically_relative(moduleData).generic_string());
             stamp.Add(Text(f));
         }
-        // The murlocs' model and textures: made as the server was packaged (tools/murloc_model.py, from
-        // the game's files of today) into data/files, their list (murloc.files) written last.
+        // What the server package made from the game's files of today (tools/murloc_model.py: the
+        // murlocs' model and textures; tools/naga_parts.py: the naga's headdresses and outfits) in
+        // data/files, each list (murloc.files, naga.files) written last.
         fs::path packaged = moduleData.parent_path() / "files";
-        std::vector<std::string> murlocFiles;
+        std::map<std::string, std::vector<std::string>> packagedFiles;          // list -> its files
+        for (char const* list : { "murloc.files", "naga.files" })
         {
-            std::istringstream in(Text(packaged / "murloc.files"));
+            std::istringstream in(Text(packaged / list));
             std::string name;
+            stamp.Add(list);
             while (std::getline(in, name))
             {
                 if (!name.empty() && name.back() == '\r')
                     name.pop_back();
                 if (name.empty())
                     continue;
-                murlocFiles.push_back(name);
+                packagedFiles[list].push_back(name);
                 stamp.Add(name);
                 stamp.Add(std::to_string(fs::file_size(packaged / name, error)));
             }
@@ -830,20 +1158,45 @@ namespace MurlocNaga
                 }
             }
         }
-        if (murlocFiles.empty())
-            problems.push_back("the murlocs' model and textures aren't in " + packaged.string()
-                + " (no murloc.files: tools/murloc_model.py makes them as the server is packaged): the game won't draw them");
-        for (auto const& name : murlocFiles)
-        {
-            Bytes data = ReadFile(packaged / name);
-            if (data.empty())
+        for (char const* list : { "murloc.files", "naga.files" })
+            if (packagedFiles[list].empty())
+                problems.push_back(std::string("no ") + list + " in " + packaged.string() + " (the server package makes them): "
+                    + (std::strcmp(list, "murloc.files") == 0 ? "the game won't draw the murlocs" : "the naga have no headdresses or outfits"));
+        for (auto const& [list, names] : packagedFiles)
+            for (auto const& name : names)
             {
-                problems.push_back(name + " isn't in " + packaged.string());
-                continue;
+                if (name.size() > 4 && name.substr(name.size() - 4) == ".dat")
+                    continue;                                              // (the naga's parts: merged below)
+                Bytes data = ReadFile(packaged / name);
+                if (data.empty())
+                {
+                    problems.push_back(name + " isn't in " + packaged.string());
+                    continue;
+                }
+                std::string inGame = name;
+                std::replace(inGame.begin(), inGame.end(), '/', '\\');
+                add(inGame, data);
             }
-            std::string inGame = name;
-            std::replace(inGame.begin(), inGame.end(), '/', '\\');
-            add(inGame, data);
+        // The naga's headdresses and outfits added to the client's own naga models (an HD look's, with
+        // one in): geosets the creation screen picks (tools/naga_parts.py).
+        for (char const* sex : { "Male", "Female" })
+        {
+            std::string partsName = std::string("Character/Naga_/") + sex + "/Naga" + sex + "Parts.dat";
+            auto const& naga = packagedFiles["naga.files"];
+            if (std::find(naga.begin(), naga.end(), partsName) == naga.end())
+                continue;
+            std::string model = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
+            Bytes m2, skin, parts = ReadFile(packaged / partsName);
+            std::string why;
+            if (!game.Read(model + ".m2", m2) || !game.Read(model + "00.skin", skin))
+                problems.push_back(model + ".m2 isn't in the game: the naga have no headdresses or outfits");
+            else if (!MergeParts(m2, skin, parts, why))
+                problems.push_back(model + ".m2: " + why + ": the naga have no headdresses or outfits");
+            else
+            {
+                add(model + ".m2", m2);
+                add(model + "00.skin", skin);
+            }
         }
 
         // Tables. The races' CharSections rows name only textures that are there (in the game or this

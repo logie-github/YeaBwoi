@@ -16,6 +16,8 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <set>
+#include <tuple>
 
 using namespace MurlocNaga;
 using Skyborne::Dbc;
@@ -149,6 +151,28 @@ int main(int argc, char** argv)
             std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocSkin%02d.blp", c);
             Bytes t;
             Check(archive->Read(name, t) && t.size() > 4, name);
+        }
+        // The naga's headdresses and outfits (tools/naga_parts.py's, in ../data/files), added to the
+        // client's naga: their geosets (hair styles 2.., features 102..) in its skin, its own kept.
+        for (auto [sex, hairs, features] : { std::tuple<char const*, int, int>{ "Male", 2, 7 }, { "Female", 1, 4 } })
+        {
+            std::string base = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
+            Bytes m2, skin;
+            bool read = archive->Read(base + ".m2", m2) && archive->Read(base + "00.skin", skin) && skin.size() > 48;
+            std::set<uint16_t> geosets;
+            if (read)
+                for (uint32_t i = 0, n = U32(skin, 28), at = U32(skin, 32); i < n && at + i * 48 + 2 <= skin.size(); ++i)
+                {
+                    uint16_t g;
+                    std::memcpy(&g, &skin[at + i * 48], 2);
+                    geosets.insert(g);
+                }
+            bool all = read && geosets.count(0) && geosets.count(802);
+            for (int h = 1; h <= hairs; ++h)
+                all = all && geosets.count(uint16_t(h + 1));
+            for (int f = 1; f <= features; ++f)
+                all = all && geosets.count(uint16_t(101 + f));
+            Check(all, base + ".m2: its own geosets, " + std::to_string(hairs) + " headdresses and " + std::to_string(features) + " outfits");
         }
         // What the game draws into the composed texture: palettized (its compositing reads only those)
         // at the skin's scale (the stand-in is the HD look's: a 512 skin).

@@ -37,6 +37,11 @@ namespace MurlocNaga
     // [image] as a palettized BLP2 (256 colours by median cut, every mip level; alpha 8 bits when
     // [alpha]), the format of the game's own character textures.
     Bytes EncodePalette(Skyborne::Image const& image, bool alpha);
+    // The naga's parts (tools/naga_parts.py's Naga<Sex>Parts.dat: headdresses and outfits) added to a
+    // naga model ([m2], its [skin]): each part's vertices on the model's bones at their places, its
+    // triangles a section of each of its uses' geosets, with its texture (the hair's, or its own).
+    // False (and [why]) when the parts or the model aren't what this knows, or don't fit it.
+    bool MergeParts(Bytes& m2, Bytes& skin, Bytes const& parts, std::string& why);
     // The narration: the game's sounds ([parts]: when, the sound's WAV), mixed into one WAV, 22050
     // Hz, mono, 16 bits.
     Bytes MixNarration(std::vector<std::pair<uint32_t, Bytes>> const& parts);
