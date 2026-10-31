@@ -35,12 +35,18 @@ namespace MurlocNaga
     // region (FaceUpper over FaceLower: x 0 to 1/2, y 5/8 to 1), which the game draws from the
     // face textures alone, so armour never shows on it. False if [m2] isn't a model this knows.
     bool CharacterModel(Bytes& m2);
-    // A murloc skin (any size) made its face textures: squeezed to 256 x 192, the top quarter of
-    // that FaceUpper (256 x 64), the rest FaceLower (256 x 128), as DXT5.
-    bool FaceTextures(Bytes const& skin, Bytes& upper, Bytes& lower);
+    // A murloc skin (any size) made its face textures for a composed texture [skinWidth] wide (the
+    // skin it's drawn over: 512 in the HD looks): squeezed into the face region (half the width, three
+    // eighths of the height), its top third FaceUpper, the rest FaceLower, palettized and opaque, as the
+    // game's own character textures are (the game composes only those).
+    bool FaceTextures(Bytes const& skin, uint32_t skinWidth, Bytes& upper, Bytes& lower);
     // [blp] recoloured: every colour's hue made [hue] (0 to 1 around the colour wheel; below 0, kept),
-    // its saturation and lightness multiplied (a palette's colours, or a compressed texture's pixels).
+    // its saturation and lightness multiplied (a palette's colours; any other texture's pixels, then
+    // palettized).
     bool Recolour(Bytes& blp, double hue, double saturation, double lightness);
+    // [image] as a palettized BLP2 (256 colours by median cut, every mip level; alpha 8 bits when
+    // [alpha]), the format of the game's own character textures.
+    Bytes EncodePalette(Skyborne::Image const& image, bool alpha);
     // The narration: the game's sounds ([parts]: when, the sound's WAV), mixed into one WAV, 22050
     // Hz, mono, 16 bits.
     Bytes MixNarration(std::vector<std::pair<uint32_t, Bytes>> const& parts);

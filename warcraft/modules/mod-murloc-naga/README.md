@@ -180,7 +180,16 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
   patches, the modules loaded in their folders' order), `src/MurlocNagaPatch.cpp` makes the game's
   `Data/<locale>/patch-<locale>-T.MPQ` from the client's own files: the tables with the rows changed, the murloc's
   model and its face textures from the game's murloc skins, the naga's new colours, the icons, the screen's files, the
-  cameras and the narrations (the game's WAVs mixed, 22050 Hz mono). Read after the HD looks' patches (A, F, 6, E, Q, S:
+  cameras and the narrations (the game's WAVs mixed, 22050 Hz mono).
+  - **What the game draws into a character's composed texture** (the skin, faces, underwear) is made as the game's
+    own character textures are: palettized (256 colours, every mip level) and at the scale of the skin it's drawn
+    over (the HD looks' skins are 512: FaceLower 256 x 128, FaceUpper 256 x 64, underwear 256 x 128). The game's
+    own naga faces and underwear are a quarter that size and compressed (never drawn by the game: the naga were
+    never playable), and the murlocs' faces were compressed: the character creation screen drew them green, and
+    making the character broke the game's memory (crash report #110, at `CreateCharacter`). The game's naga rows
+    also name hair, scalp and facial hair textures it hasn't (`Character\Naga_\Hair00_00.blp`, `ScalpLowerHair`,
+    `ScalpUpperHair`, `FacialLowerHair`, `FacialUpperHair`): every texture the races' rows name that isn't in the game
+    or the patch is left out of their look (the log says which). Read after the HD looks' patches (A, F, 6, E, Q, S:
   the Alternative HD Patch's SoundEntries; ChromieCraft's H, F, G, S, T) and before the Worgen and Goblins' patch-U, the
   allied races' patch-V, Wrath Remix's patch-Y and the Skyborne's patch-Z, which are made from the game with it in and
   carry its rows; it's made from the game without them (they come after it). Made again only when the client or the
@@ -195,7 +204,8 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
 
 - `tools/test_patch.cpp`: the patch made for a game folder and read back (the races, their looks and the creatures'
   races moved, the murloc's model reading the face region alone, its face textures, the naga's colours, the icons,
-  the screen, the cameras, the narrations' lengths; a second start keeping it). Run here on a stand-in of the
+  the screen, the cameras, the narrations' lengths, every composed texture palettized at the skin's scale, every
+  texture the races' rows name there; a second start keeping it). Run here on a stand-in of the
   Alternative HD Patch's client (its files out of its archive).
 - `tools/test_screen.py`: `MurlocNagaCreate.lua` in Lua 5.1 with the Worgen and Goblins', the allied races' and the
   Skyborne's screen code after it: twenty buttons, their icons kept on their buttons, both sides' ten races in two
