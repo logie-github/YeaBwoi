@@ -223,7 +223,7 @@ LINE = {
          "spawns": [["house", -0.6, 4.4, 0, 0]],
          "use": [{"cond": ["I:things"], "quest": "things", "credit": "letters_credit",
                   "text": "(Letters tied with twine, all to Cedric, all from Marta. The early ones are about the harvest and the boys "
-                          "and a dog called Bramble. The last is short:$B$B'They say the grain from Andorhal is bad. Tobias is "
+                          "and a dog called Bramble. The last is short:$B$B'They say the grain from Andorhal is bad. Owen is "
                           "coughing. Come home quickly. I don't like how quiet the road is.'$B$BShe never wrote again.)"},
                  {"text": "(Marta's letters to Cedric, tied with twine.)"}]},
         {"id": "portrait", "name": "Faded Portrait", "display": 6530, "scale": 0.4,

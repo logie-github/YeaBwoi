@@ -512,7 +512,8 @@ public:
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "I'd like to make my house more of a home.", SENDER_UPGRADES, 0);
         if (player->GetQuestRewardStatus(QUEST_GIFT))
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Ask her about Carolai Anise.)", SENDER_ASK_CAROLAI, 0);
-        SendGossipMenuFor(player, TEXT_JAMIE, creature->GetGUID());
+        uint32 townText = BrillTown::AddOptions(player, creature);
+        SendGossipMenuFor(player, townText ? townText : TEXT_JAMIE, creature->GetGUID());
         return true;
     }
 
@@ -672,6 +673,8 @@ public:
             text = TEXT_CAROLAI_FRIEND;
         if (player->GetQuestRewardStatus(QUEST_GIFT))
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Ask her about Jamie Nore.)", SENDER_ASK_JAMIE, 0);
+        // (the town's lines' options for her; their greetings don't take the place of hers)
+        BrillTown::AddOptions(player, creature);
         SendGossipMenuFor(player, text, creature->GetGUID());
         return true;
     }

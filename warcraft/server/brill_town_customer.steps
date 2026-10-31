@@ -11,7 +11,7 @@ cmd .modify money 100000
 go 0 2341.4 279.6 34.9
 wait 2
 cmd .brilltown state
-expect-not [0x400000]
+expect-not [0x4000000]
 talk 970600
 accept 970600 970600
 # Business as Usual: the rug, the crate, the shelf, and the ledger under the counter.
@@ -75,7 +75,7 @@ talk 970600
 reward 970600 970604
 wait 2
 cmd .brilltown state
-has [0x400000]
+has [0x4000000]
 expect q970605
 # Open: his wares for sale.
 talk 970600

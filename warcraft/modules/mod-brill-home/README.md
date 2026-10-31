@@ -137,11 +137,44 @@ Phases: her visit 0x10000 (after Jamie's gift until the tea), living there 0x200
 Not checked on a phone: where she stands in the house, the footlocker's and the lily's spots (the
 footlocker at Farmer Solliden's height, beside him; the lily at the terrain's height on the shore).
 
+## Brill: A Place Among the Forsaken
+
+The user's design: separate, optional questlines that make Brill feel like a town the character lives in;
+any can be started, left half done or ignored for good, none needs another (except where noted), and
+their people keep their own routines. Each is a data file in `tools/town/` (its format:
+`tools/town/README.md`), made into `data/sql/chromiecraft/world/brill_town_world.sql` by
+`tools/build_town.py` and run by `src/BrillTown.cpp`. What a line changes in the town is shown to that
+character alone (the town's phases, anywhere in Brill), or in what people say.
+
+| Line | Quests (ids) | Giver | Choice | What stays changed |
+| --- | --- | --- | --- | --- |
+| The New House | 970200-970205 | Oswin Thatcher, carpenter (outside the house), after the deed | two free furnishings | debris until the timber; lamps, a chest, the dog's straw bed; the housewarming's guests, now and then after |
+| The Gravekeeper's Ledger | 970300-970304 | Mortimer Weller, gravekeeper (Brill's cemetery) | the newcomers walk in by day or by night | Mercy, Gideon, Edith and Walter living in Brill; the clue to Beneath the Gallows |
+| The Apothecary's Apprentice | 970400-970404 | Apothecary Johaan | surrender the Stay, supervise Wendell Crane, or burn it | the yard behind the lab (apparatus, or charred remains); Wendell's, Johaan's and Carolai's words |
+| Whispers of the Scarlet | 970500-970504 | Magistrate Sevren | expose Lowell Marsh, spare him, or let him go | Lowell gone or still lighting the lamps; the Deathguards' and Sevren's words; his letters via Renee |
+| The Last Customer | 970600-970604 | Ambrose Wicke, Candles and Sundries (east of the town hall) | the candlesticks kept lit or sold | his stall's goods out, and his wares; his morbid cheer |
+| A Deathguard's Duty | 970700-970704 | Deathguard Dillinger | Harlan back at his post or reassigned | Harlan on the north road or at the cemetery |
+| Something in the Well | 970800-970804 | Maudie Fenwick, laundress (the square's new well) | none | the well clean, its water drawn; Maudie's washtubs |
+| Beneath the Gallows | 970900-970904 | Deathstalker Isolde Ashcroft (by the mausoleum), once the house's cellar wall or the gravekeeper's passage is found | none | Aldric Croft's skull-candle in the house |
+
+The Gallows' crypt is the game's own Agamand Family Crypt (its sentinels and Croft are everyone's to see);
+the Last Customer's relative is at the Sepulcher in Silverpine. Lines notice each other where it fits (the
+gravekeeper and Oswin's cellar mark; Maudie and Wendell's experiments; Dillinger and Lowell's fate; Oswin
+and Carolai living in the house). Carolai: as lovers she lives in the house by turns at her alchemy table,
+the stove, the dog's bed and the bookshelf; as friends she lets herself in one day in five; she and Jamie
+Nore each have words for the other, and she has some on Wendell and the well.
+
+Every line has a realm test: `warcraft/server/brill_town_<line>.steps` (`.brilltown state`, `.brilltown use`).
+Not seen in the game: any of the new places, models' sizes and turns, the crypt's spawns inside it, the
+new well and stall, the routes. Nothing here has run on a phone.
+
 ## Files
 
 - `data/sql/chromiecraft/world/brill_home_world.sql`: made by `tools/build_sql.py`; don't edit it.
 - `data/sql/chromiecraft/characters/brill_home_characters.sql`: `brill_home` (guid, furniture, last
   rested sleep).
+- `tools/build_town.py`, `tools/town/*.py`, `src/BrillTown.cpp`: Brill's questlines (above);
+  `data/sql/chromiecraft/world/brill_town_world.sql` is made by it; don't edit it.
 - `src/BrillHome.cpp`: the phases, Jamie Nore's menu, the bed, Carolai's menus and keepsakes;
   `.brillhome state`, `.brillhome sleep`, `.brillhome adopt` and `.brillhome use` (the nearest keepsake) for game masters (CI's realm test: `warcraft/server/brill_home.steps`).
 

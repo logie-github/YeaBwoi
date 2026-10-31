@@ -237,6 +237,32 @@ namespace BrillTown
     }
 
     void Forget(Player* player) { used.erase(player->GetGUID().GetCounter()); }
+
+    uint32 AddOptions(Player* player, Creature* creature)
+    {
+        auto it = gossipByNpc.find(creature->GetEntry());
+        if (!BrillHome::Enabled() || it == gossipByNpc.end())
+            return 0;
+        uint32 text = 0;
+        for (uint32 index : it->second)
+        {
+            GossipRow const& g = gossip[index];
+            if (!Holds(player, g.cond))
+                continue;
+            if (g.greet)
+            {
+                if (!text)
+                    text = g.textId;
+                continue;
+            }
+            if ((g.action == "credit" || g.action == "choice" || g.action == "furnish") && g.quest && !Wanted(player, g.quest, g.credit))
+                continue;
+            if (g.marker && player->GetQuestRewardStatus(g.marker))
+                continue;
+            AddGossipItemFor(player, g.icon, g.text, SENDER_BASE + index, 0);
+        }
+        return text;
+    }
 }
 
 namespace
@@ -252,28 +278,12 @@ namespace
         {
             if (!BrillHome::Enabled())
                 return false;
-            auto it = gossipByNpc.find(creature->GetEntry());
-            if (it == gossipByNpc.end())
+            // (one with a script of its own, Jamie Nore's or Carolai's, adds the town's options itself:
+            // BrillTown::AddOptions)
+            if (!gossipByNpc.count(creature->GetEntry()) || creature->GetScriptName().starts_with("npc_brill_home_"))
                 return false;
             player->PrepareGossipMenu(creature, creature->GetCreatureTemplate()->GossipMenuId, true);
-            uint32 text = 0;
-            for (uint32 index : it->second)
-            {
-                GossipRow const& g = gossip[index];
-                if (!Holds(player, g.cond))
-                    continue;
-                if (g.greet)
-                {
-                    if (!text)
-                        text = g.textId;
-                    continue;
-                }
-                if ((g.action == "credit" || g.action == "choice" || g.action == "furnish") && g.quest && !Wanted(player, g.quest, g.credit))
-                    continue;
-                if (g.marker && player->GetQuestRewardStatus(g.marker))
-                    continue;
-                AddGossipItemFor(player, g.icon, g.text, SENDER_BASE + index, 0);
-            }
+            uint32 text = BrillTown::AddOptions(player, creature);
             SendGossipMenuFor(player, text ? text : player->GetGossipTextId(creature), creature->GetGUID());
             return true;
         }

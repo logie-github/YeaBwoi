@@ -90,7 +90,7 @@ LINE = {
             "done": (
                 "Marian first, then Tobias, then the old man. And the grave open.$B$B"
                 "...$B$B"
-                "I sold Wendel Balnir his wife's funeral candles, you know. Plain ones. He wouldn't take the good ones on "
+                "I sold Osric Balnir his wife's funeral candles, you know. Plain ones. He wouldn't take the good ones on "
                 "credit, though I offered.$B$B"
                 "But the girl. Agnes. Her name isn't crossed out. In service in Silverpine, the book says. If she lived, "
                 "or if she did what I did and didn't stay dead, she is the order's next of kin."
@@ -239,10 +239,10 @@ LINE = {
         {"id": "bible", "name": "Scorched Family Book", "display": 470, "spawns": [[0, 1948.0, -442.0, 35.45, 0.3]],
          "use": [
              {"cond": ["I:address"], "quest": "address", "credit": "clue_credit",
-              "text": "(A family book, its cover burnt through at one corner. Inside, the Balnirs: Wendel and Ada, and "
+              "text": "(A family book, its cover burnt through at one corner. Inside, the Balnirs: Osric and Ada, and "
                       "their children Tobias and Agnes. Below Tobias someone has written 'to wed Marian Hale', and the "
                       "date has been scratched out and written again three times. Then the deaths, all one autumn, in "
-                      "Wendel's shaking hand: Marian. Tobias. Ada. The last line is in another hand: Wendel. Agnes's "
+                      "Osric's shaking hand: Marian. Tobias. Ada. The last line is in another hand: Osric. Agnes's "
                       "name alone is not crossed out. Beside it: in service, Silverpine.)"},
              {"text": "(The Balnirs' family book. Every name in it is crossed out but one.)"},
          ]},

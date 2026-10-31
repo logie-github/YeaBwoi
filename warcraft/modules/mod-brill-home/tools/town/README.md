@@ -109,7 +109,9 @@ Nore's furniture list. `furnish` (with `"arg"`: a furniture's index, 0 table and
 4 stove) puts that piece in the player's house free, and counts as `credit`. `reply` is whispered (its $n, $B, $g as quest text). `emote`: an emote id (1 talk,
 2 bow, 3 wave, 4 cheer, 5 exclamation, 6 question, 11 laugh, 18 cry, 20 beg, 23 flex, 273 yes, 274 no).
 
-Don't give rows to Jamie Nore (2310) or Carolai Anise (2132): their menus are `src/BrillHome.cpp`'s.
+Jamie Nore (2310) and Carolai Anise (2132) have menus of their own (`src/BrillHome.cpp`); a line's
+options are added to them, and a greeting takes the place of Jamie's (never Carolai's, whose greeting is
+the romance's).
 
 ### phases
 
