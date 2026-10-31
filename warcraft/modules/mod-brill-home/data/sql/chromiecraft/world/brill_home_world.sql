@@ -16,7 +16,7 @@ DELETE FROM `npc_text` WHERE `ID` BETWEEN 970140 AND 970149;
 
 -- The house (the farmhouse Brill's own are), its furniture (each in its phase).
 INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES
-(970100, 5, 7432, 'Harrow Farmhouse', 1, 0, 0, 0, ''),
+(970100, 33, 7432, 'Harrow Farmhouse', 1, 0, 0, 0, ''),
 (970101, 2, 3471, 'Starter Bed', 1.0, 0, 0, 0, 'go_brill_home_bed'),
 (970102, 5, 234, 'Kitchen Table', 1.0, 0, 0, 0, ''),
 (970103, 7, 39, 'Chair', 1.0, 1, 1, 0, ''),
@@ -24,17 +24,19 @@ INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`,
 (970105, 5, 188, 'Bookshelf', 1.0, 0, 0, 0, ''),
 (970106, 5, 9405, 'Bearskin Rug', 1.0, 0, 0, 0, ''),
 (970107, 5, 348, 'Pot-Bellied Stove', 1.0, 0, 0, 0, '');
+DELETE FROM `gameobject_template_addon` WHERE `entry` = 970100;
+INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`) VALUES (970100, 0, 32);
 
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
-(970100, 970100, 0, 85, 159, 1, 1, 2280.000, 485.000, 31.100, 5.1217, 0, 0, 0.548645, -0.836055, 0, 255, 1, 'mod-brill-home'),
-(970101, 970101, 0, 85, 159, 1, 512, 2284.090, 483.613, 35.200, 5.1217, 0, 0, 0.548645, -0.836055, 0, 255, 1, 'mod-brill-home'),
-(970102, 970102, 0, 85, 159, 1, 2048, 2280.018, 486.970, 35.200, 5.1217, 0, 0, 0.548645, -0.836055, 0, 255, 1, 'mod-brill-home'),
-(970103, 970103, 0, 85, 159, 1, 2048, 2278.825, 486.452, 35.200, 0.4093, 0, 0, 0.203230, 0.979131, 0, 255, 1, 'mod-brill-home'),
-(970104, 970103, 0, 85, 159, 1, 2048, 2281.210, 487.487, 35.200, 3.5509, 0, 0, 0.979131, -0.203230, 0, 255, 1, 'mod-brill-home'),
-(970105, 970104, 0, 85, 159, 1, 4096, 2276.175, 488.791, 35.200, 5.1217, 0, 0, 0.548645, -0.836055, 0, 255, 1, 'mod-brill-home'),
-(970106, 970105, 0, 85, 159, 1, 8192, 2284.758, 486.846, 35.200, 3.5509, 0, 0, 0.979131, -0.203230, 0, 255, 1, 'mod-brill-home'),
-(970107, 970106, 0, 85, 159, 1, 16384, 2278.851, 483.629, 35.200, 5.1217, 0, 0, 0.548645, -0.836055, 0, 255, 1, 'mod-brill-home'),
-(970108, 970107, 0, 85, 159, 1, 32768, 2282.154, 490.840, 35.200, 4.3363, 0, 0, 0.826826, -0.562457, 0, 255, 1, 'mod-brill-home');
+(970100, 970100, 0, 85, 159, 1, 1, 2289.000, 352.000, 31.120, 3.3360, 0, 0, 0.995279, -0.097051, 0, 255, 1, 'mod-brill-home'),
+(970101, 970101, 0, 85, 159, 1, 512, 2286.773, 348.300, 35.220, 3.3360, 0, 0, 0.995279, -0.097051, 0, 255, 1, 'mod-brill-home'),
+(970102, 970102, 0, 85, 159, 1, 2048, 2290.921, 351.563, 35.220, 3.3360, 0, 0, 0.995279, -0.097051, 0, 255, 1, 'mod-brill-home'),
+(970103, 970103, 0, 85, 159, 1, 2048, 2290.669, 352.838, 35.220, 4.9068, 0, 0, 0.635144, -0.772394, 0, 255, 1, 'mod-brill-home'),
+(970104, 970103, 0, 85, 159, 1, 2048, 2291.172, 350.287, 35.220, 1.7652, 0, 0, 0.772394, 0.635144, 0, 255, 1, 'mod-brill-home'),
+(970105, 970104, 0, 85, 159, 1, 4096, 2293.519, 354.928, 35.220, 3.3360, 0, 0, 0.995279, -0.097051, 0, 255, 1, 'mod-brill-home'),
+(970106, 970105, 0, 85, 159, 1, 8192, 2289.789, 346.957, 35.220, 1.7652, 0, 0, 0.772394, 0.635144, 0, 255, 1, 'mod-brill-home'),
+(970107, 970106, 0, 85, 159, 1, 16384, 2287.906, 353.415, 35.220, 3.3360, 0, 0, 0.995279, -0.097051, 0, 255, 1, 'mod-brill-home'),
+(970108, 970107, 0, 85, 159, 1, 32768, 2294.246, 348.650, 35.220, 2.5506, 0, 0, 0.956658, 0.291214, 0, 255, 1, 'mod-brill-home');
 
 -- Cedric Harrow (who leaves the house to the player), and the bed's credit (sleeping in it).
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `ScriptName`) VALUES
@@ -44,7 +46,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970110, 0, 3533, 1, 1),
 (970111, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970100, 970110, 0, 85, 159, 1, 256, 2277.906, 483.546, 35.200, 3.3327, 120, 0, 0, 'mod-brill-home');
+(970100, 970110, 0, 85, 159, 1, 256, 2288.026, 354.356, 35.220, 1.5470, 120, 0, 0, 'mod-brill-home');
 
 -- Jamie Nore (Brill's town hall) gives the quests and the house's upgrades (src/BrillHome.cpp).
 UPDATE `creature_template` SET `npcflag` = `npcflag` | 3, `gossip_menu_id` = 970130, `ScriptName` = 'npc_brill_home_jamie' WHERE `entry` = 2310;
@@ -101,7 +103,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970113, 0, 11686, 1, 1),
 (970114, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970101, 970112, 0, 85, 159, 1, 1024, 2280.789, 484.688, 35.200, 5.6453, 60, 0, 0, 'mod-brill-home');
+(970101, 970112, 0, 85, 159, 1, 1024, 2288.527, 351.295, 35.220, 3.8596, 60, 0, 0, 'mod-brill-home');
 DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES
 (39700, 0.7, 1.5, 2, 0),

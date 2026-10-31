@@ -11,8 +11,10 @@ xp bonus. Like a quarter of a level's worth."
 ## The house
 
 Brill's farmhouse (the game's own `Duskwood_Human_Farm.wmo`, the house at Brill 59.28, 52.29; display
-7432) as a gameobject, at (2280, 485) on the east side of the road north out of Brill, its door toward
-the road. The place was chosen from the server's data (`tools/build_sql.py` says how):
+7432) as a gameobject (type 33, a destructible building, as the game's own world buildings are spawned),
+at (2289, 352) in Brill, map 59.3, 51.4 (the user's 59.35, 51.22, moved 5 yards west to clear the
+field's fence), its door west toward the main road. The place was checked against the server's data
+(`tools/build_sql.py` says how):
 
 - the road from the town guards' patrol paths, which follow it;
 - ground within 2 yards of level under the house (the terrain's heights);

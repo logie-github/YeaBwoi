@@ -46,16 +46,16 @@ namespace fs = std::filesystem;
 namespace
 {
     // (tools/build_sql.py)
-    constexpr float HOUSE_X = 2280.0f, HOUSE_Y = 485.0f;
+    constexpr float HOUSE_X = 2289.0f, HOUSE_Y = 352.0f;
     constexpr uint32 HOUSE_MAP = 0;
-    constexpr float NEAR_HOUSE = 150.0f;
+    constexpr float NEAR_HOUSE = 50.0f;   // (the town hall, 69 yards off, is outside it)
 
     constexpr uint32 GO_BED = 970101, NPC_BED_CREDIT = 970111;
     constexpr uint32 NPC_DOG = 970112, NPC_FETCH_CREDIT = 970113, NPC_EARS_CREDIT = 970114, NPC_DOG_PET = 970115;
     constexpr uint32 QUEST_HOUSE = 970120, QUEST_WELCOME = 970121, QUEST_BED = 970122, QUEST_DOG = 970123;
     constexpr uint32 TEXT_JAMIE = 970140, TEXT_UPGRADES = 970141, TEXT_BED = 970142, TEXT_DOG = 970144, TEXT_DOG_WAITING = 970145;
     // Out the door, where the stick lands (the house's own (-1.9, -12): tools/build_sql.py).
-    constexpr float STICK_X = 2268.2f, STICK_Y = 482.0f, STICK_Z = 33.8f;
+    constexpr float STICK_X = 2288.5f, STICK_Y = 364.1f, STICK_Z = 34.2f;
 
     constexpr uint32 PHASE_CEDRIC = 0x100, PHASE_BED = 0x200, PHASE_DOG = 0x400;
     // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest

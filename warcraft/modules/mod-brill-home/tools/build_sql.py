@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Makes mod-brill-home's world SQL (data/sql/chromiecraft/world/brill_home_world.sql): the house by
-Brill's north road, its furniture, Cedric Harrow, Jamie Nore's part and the quests.
+"""Makes mod-brill-home's world SQL (data/sql/chromiecraft/world/brill_home_world.sql): the house in
+Brill, its furniture, Cedric Harrow, Jamie Nore's part and the quests.
 
 The house is the farmhouse Brill's own houses are (Duskwood_Human_Farm.wmo, the game's display 7432),
-as a gameobject. Its place and turn were worked out from the server's data (data.zip: the terrain's
-heights, the collision models' doorway and the world's other models), see the README:
-- (2280, 485), 19 yards east of the road out of Brill to the north, on ground within 2 yards of
-  level, 18 yards from the nearest spawn (the seasonal camp south of it) and 24 from the nearest tree;
-- turned so its doorway (the model's own side at 257.5 degrees, where its walls open) faces the road;
-- its base 31.1 high: the floor (4.1 above the base) 0.2 above the highest ground under it.
+as a gameobject of the kind the game's own buildings out in the world are (a destructible building,
+never damaged: Light's Point Tower's). Where the user asked for it (Brill 59.35, 51.22, the fenced
+field north of the farmhouse at 59.28, 52.29), worked out from the server's data (data.zip: the
+terrain's heights, the collision models' doorway and the world's other models), see the README:
+- (2289, 352): 5 yards south of the asked spot, so the field's fence to its north stays outside it;
+  ground within a yard of level (the field's Pilgrim's Bounty table and pumpkins are inside it during
+  that event alone);
+- turned so its doorway (the model's own side at 257.5 degrees, where its walls open) faces the road
+  through Brill to the west (the guards' patrols at about (2290, 394));
+- its base 31.12 high: the floor (4.1 above the base) 0.2 above the highest ground under it.
 
 Everything inside is placed in the house's own coordinates (yards from its middle, the doorway's side
 at -y) and turned with it. Run it after changing the layout; the output is committed.
@@ -21,8 +25,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "sql", "chromiecraft", "world", "brill_home_world.sql")
 
 MAP, ZONE, AREA = 0, 85, 159
-HOUSE_X, HOUSE_Y, HOUSE_BASE = 2280.0, 485.0, 31.1
-HOUSE_O = 5.1217  # radians: the doorway (model's 257.5 degrees) toward the road
+HOUSE_X, HOUSE_Y, HOUSE_BASE = 2289.0, 352.0, 31.12
+HOUSE_O = 3.3360  # radians: the doorway (model's 257.5 degrees) toward the road west of it
 FLOOR = HOUSE_BASE + 4.1
 
 # Entries (970100 to 970199: nothing else in the game or the app's modules uses them)
@@ -158,13 +162,17 @@ def main():
 
     w("-- The house (the farmhouse Brill's own are), its furniture (each in its phase).")
     w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES")
-    rows = [f"({GO_HOUSE}, 5, 7432, 'Harrow Farmhouse', 1, 0, 0, 0, '')"]
+    # (a building as the game's own buildings out in the world are: a destructible building that's never
+    # damaged, as Light's Point Tower is; the game draws a building's model for that kind)
+    rows = [f"({GO_HOUSE}, 33, 7432, 'Harrow Farmhouse', 1, 0, 0, 0, '')"]
     for entry, kind, display, scale, name, _, _ in FURNITURE:
         data0, data1 = (1, 1) if kind == 7 else (0, 0)  # a chair: one seat, normal height
         script = "go_brill_home_bed" if entry == GO_BED else ""
         data3 = 0  # (the bed's menu is its script's: src/BrillHome.cpp)
         rows.append(f"({entry}, {kind}, {display}, {q(name)}, {scale}, {data0}, {data1}, {data3}, {q(script)})")
     w(",\n".join(rows) + ";")
+    w(f"DELETE FROM `gameobject_template_addon` WHERE `entry` = {GO_HOUSE};")
+    w(f"INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`) VALUES ({GO_HOUSE}, 0, 32);")
     w("")
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
       "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES")
