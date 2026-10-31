@@ -76,7 +76,20 @@ namespace
     struct Rank { uint8 level; uint32 spell; };
     constexpr Rank MEND_PET[] = { { 12, 136 }, { 20, 3111 }, { 28, 3661 }, { 36, 3662 }, { 44, 13542 }, { 52, 13543 },
                                   { 60, 13544 }, { 68, 27046 }, { 74, 48989 }, { 80, 48990 } };
-    constexpr uint32 PHASES_OURS = 0xFF00;
+    constexpr uint32 PHASES_OURS = 0x3FF00;
+
+    // Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, ending in
+    // the player's answer, lovers or friends (the rewards the same: the user's), and as lovers, her
+    // moving into the house if they ask her. She's a yandere (the user's).
+    constexpr uint32 CAROLAI = 2132, NPC_CAROLAI_VISIT = 970118, NPC_CAROLAI_HOME = 970119;
+    constexpr uint32 NPC_TEA_CREDIT = 970150, NPC_LOCKET_CREDIT = 970151, NPC_LILY_CREDIT = 970152, NPC_ANSWER_CREDIT = 970153;
+    constexpr uint32 GO_LOCKET = 970108, GO_LILY = 970109;
+    constexpr uint32 QUEST_TONIC = 970124, QUEST_LOCKET = 970125, QUEST_GIFT = 970126, QUEST_TEA = 970127, QUEST_LILY = 970128;
+    constexpr uint32 TEXT_CAROLAI_VISIT = 970146, TEXT_CAROLAI_HOME = 970147, TEXT_CAROLAI_ANSWER = 970148,
+        TEXT_CAROLAI_LOVER = 970149, TEXT_CAROLAI_FRIEND = 970150, TEXT_LOCKET = 970151, TEXT_LILY = 970152;
+    constexpr uint32 PHASE_CAROLAI_VISIT = 0x10000, PHASE_CAROLAI_HOME = 0x20000;
+    // The player's answer (the lily's quest), and whether she lives in the house.
+    constexpr uint32 FLAG_LOVERS = 0x10, FLAG_FRIENDS = 0x20, FLAG_CAROLAI_HOME = 0x40;
 
     // The furniture Jamie has carried over: its phase bit, what she offers, its price in copper.
     struct Upgrade { uint32 phase; char const* offer; char const* done; uint32 price; };
@@ -90,6 +103,8 @@ namespace
 
     constexpr uint32 SENDER_UPGRADES = 1, SENDER_BUY = 2, SENDER_REST = 3, SENDER_SLEEP = 4;
     constexpr uint32 SENDER_FETCH = 5, SENDER_EARS = 6, SENDER_BRING = 7;
+    // (Carolai's: senders the game's own options, all 0, never are)
+    constexpr uint32 SENDER_LOVERS = 20, SENDER_FRIENDS = 21, SENDER_MOVE_IN = 22, SENDER_TEA = 23, SENDER_MOVE_OUT = 24, SENDER_HOLD = 25;
     // (a sender none of the game's own menus use: the option this module adds to the hunter trainers')
     constexpr uint32 SENDER_TAME = 970190;
     constexpr uint32 SPELL_TAME_BEAST = 1515, SPELL_BEAST_LORE = 1462;
@@ -154,6 +169,12 @@ namespace
         // the mastiff: from the first night in the bed until it's their pet
         if ((home.flags & FLAG_SLEPT) && !(home.flags & FLAG_DOG_PET))
             mask |= PHASE_DOG;
+        // Carolai: in the house the evening after Jamie's gift (until the tea is drunk), and living there
+        QuestStatus tea = player->GetQuestStatus(QUEST_TEA);
+        if (player->GetQuestRewardStatus(QUEST_GIFT) && tea != QUEST_STATUS_COMPLETE && tea != QUEST_STATUS_REWARDED)
+            mask |= PHASE_CAROLAI_VISIT;
+        if ((home.flags & FLAG_CAROLAI_HOME) && (home.flags & FLAG_LOVERS))
+            mask |= PHASE_CAROLAI_HOME;
         return mask;
     }
 
@@ -537,6 +558,185 @@ public:
     }
 };
 
+// Carolai Anise at her bench: her own menu (her quests, her training), and the player's answer to the
+// lily's question, and as lovers, asking her to move in.
+class npc_brill_home_carolai : public CreatureScript
+{
+public:
+    npc_brill_home_carolai() : CreatureScript("npc_brill_home_carolai") { }
+
+    static bool Answering(Player* player)
+    {
+        return player->GetQuestStatus(QUEST_LILY) == QUEST_STATUS_INCOMPLETE
+            && player->GetReqKillOrCastCurrentCount(QUEST_LILY, NPC_LILY_CREDIT) > 0
+            && player->GetReqKillOrCastCurrentCount(QUEST_LILY, NPC_ANSWER_CREDIT) == 0;
+    }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        if (!enabled)
+            return false;
+        player->PrepareGossipMenu(creature, creature->GetCreatureTemplate()->GossipMenuId, true);
+        Home& home = HomeOf(player);
+        uint32 text = player->GetGossipTextId(creature);
+        if (Answering(player))
+        {
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Give her the lily and take her hand.) I'm keeping it, Carolai. Yes.", SENDER_LOVERS, 0);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Give her the lily.) You mean a great deal to me, Carolai. As a friend.", SENDER_FRIENDS, 0);
+            text = TEXT_CAROLAI_ANSWER;
+        }
+        else if (home.flags & FLAG_LOVERS)
+        {
+            if (!(home.flags & FLAG_CAROLAI_HOME) && OwnsHouse(player))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Would you like to move in with me?", SENDER_MOVE_IN, 0);
+            text = TEXT_CAROLAI_LOVER;
+        }
+        else if (home.flags & FLAG_FRIENDS)
+            text = TEXT_CAROLAI_FRIEND;
+        SendGossipMenuFor(player, text, creature->GetGUID());
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
+    {
+        if (!enabled || (sender != SENDER_LOVERS && sender != SENDER_FRIENDS && sender != SENDER_MOVE_IN))
+            return false;   // (her training and the game's own options)
+        CloseGossipMenuFor(player);
+        Home& home = HomeOf(player);
+        if (sender == SENDER_MOVE_IN)
+        {
+            if (!(home.flags & FLAG_LOVERS) || (home.flags & FLAG_CAROLAI_HOME))
+                return true;
+            home.flags |= FLAG_CAROLAI_HOME;
+            Save(player);
+            creature->HandleEmoteCommand(EMOTE_ONESHOT_YES);
+            creature->Whisper("I've had my things packed since the day you brought my locket home. I'll be there before you are. "
+                "I'll always be there before you are.", LANG_UNIVERSAL, player);
+            return true;
+        }
+        if (!Answering(player))
+            return true;
+        bool lovers = sender == SENDER_LOVERS;
+        home.flags = (home.flags & ~(FLAG_LOVERS | FLAG_FRIENDS)) | (lovers ? FLAG_LOVERS : FLAG_FRIENDS);
+        Save(player);
+        player->KilledMonsterCredit(NPC_ANSWER_CREDIT);
+        if (lovers)
+        {
+            creature->HandleEmoteCommand(EMOTE_ONESHOT_SHY);
+            creature->Whisper("Then you're mine, and I'm yours. Nothing will ever take you from me. Not Jamie. Not the Scourge. "
+                "Not anyone. I'll make sure of it.", LANG_UNIVERSAL, player);
+        }
+        else
+            creature->Whisper("Friends. Of course. Of course we are. Friends look after each other, don't they? I'll go on looking "
+                "after you. You won't even notice.", LANG_UNIVERSAL, player);
+        return true;
+    }
+};
+
+// Carolai in the player's house the evening after Jamie's gift: tea, and the locket opened.
+class npc_brill_home_carolai_visit : public CreatureScript
+{
+public:
+    npc_brill_home_carolai_visit() : CreatureScript("npc_brill_home_carolai_visit") { }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        if (!enabled)
+            return false;
+        ClearGossipMenuFor(player);
+        if (creature->IsQuestGiver())
+            player->PrepareQuestMenu(creature->GetGUID());
+        if (player->GetQuestStatus(QUEST_TEA) == QUEST_STATUS_INCOMPLETE)
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Sit down and drink the tea.)", SENDER_TEA, 0);
+        SendGossipMenuFor(player, TEXT_CAROLAI_VISIT, creature->GetGUID());
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
+    {
+        if (!enabled)
+            return false;
+        CloseGossipMenuFor(player);
+        if (sender != SENDER_TEA || player->GetQuestStatus(QUEST_TEA) != QUEST_STATUS_INCOMPLETE)
+            return true;
+        creature->Whisper("(Carolai watches you drink every sip. Then she opens the locket you brought back from Solliden. On one side, "
+            "her mother's painted face. On the other, coiled neatly under the glass, a lock of hair. Yours.)", LANG_UNIVERSAL, player);
+        creature->Whisper("I took it while you were sleeping. You never stir. Not even when the dog barks. I'm not frightening you, "
+            "am I? Come to the shop when you're ready. There's something I need to say properly, and I won't say it in a kitchen.",
+            LANG_UNIVERSAL, player);
+        creature->HandleEmoteCommand(EMOTE_ONESHOT_BOW);
+        ObjectGuid guid = player->GetGUID();
+        // (she slips out a moment later: the visit's phase goes with the credit)
+        player->m_Events.AddEventAtOffset([guid]()
+        {
+            if (Player* host = ObjectAccessor::FindPlayer(guid))
+                host->KilledMonsterCredit(NPC_TEA_CREDIT);
+        }, 4s);
+        return true;
+    }
+};
+
+// Carolai living in the house (lovers, asked to move in): a line of hers at random; time at her shop.
+class npc_brill_home_carolai_home : public CreatureScript
+{
+public:
+    npc_brill_home_carolai_home() : CreatureScript("npc_brill_home_carolai_home") { }
+
+    bool OnGossipHello(Player* player, Creature* creature) override
+    {
+        if (!enabled)
+            return false;
+        ClearGossipMenuFor(player);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "(Hold her for a while.)", SENDER_HOLD, 0);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Would you like some time back at your shop?", SENDER_MOVE_OUT, 0);
+        SendGossipMenuFor(player, TEXT_CAROLAI_HOME, creature->GetGUID());
+        return true;
+    }
+
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 /*action*/) override
+    {
+        if (!enabled)
+            return false;
+        CloseGossipMenuFor(player);
+        if (sender == SENDER_HOLD)
+        {
+            creature->HandleEmoteCommand(EMOTE_ONESHOT_SHY);
+            creature->Whisper("(She is cold, and very still, and holds on long after you would have let go.) Don't go anywhere. "
+                "Promise me.", LANG_UNIVERSAL, player);
+        }
+        else if (sender == SENDER_MOVE_OUT)
+        {
+            HomeOf(player).flags &= ~FLAG_CAROLAI_HOME;
+            Save(player);
+            creature->Whisper("Of course. I'll go. I'll only be across the square. I can see your window from my bench, you know. "
+                "Ask me again whenever you like. I'll be watching for it.", LANG_UNIVERSAL, player);
+            UpdatePhases(player);
+        }
+        return true;
+    }
+};
+
+// Her keepsakes: her mother's locket at Solliden Farmstead, and the moonpetal lily at Brightwater Lake.
+class go_brill_home_keepsake : public GameObjectScript
+{
+public:
+    go_brill_home_keepsake() : GameObjectScript("go_brill_home_keepsake") { }
+
+    bool OnGossipHello(Player* player, GameObject* go) override
+    {
+        if (!enabled)
+            return false;
+        bool locket = go->GetEntry() == GO_LOCKET;
+        uint32 quest = locket ? QUEST_LOCKET : QUEST_LILY, credit = locket ? NPC_LOCKET_CREDIT : NPC_LILY_CREDIT;
+        if (player->GetQuestStatus(quest) != QUEST_STATUS_INCOMPLETE || player->GetReqKillOrCastCurrentCount(quest, credit) > 0)
+            return true;
+        ClearGossipMenuFor(player);
+        SendGossipMenuFor(player, locket ? TEXT_LOCKET : TEXT_LILY, go->GetGUID());
+        player->KilledMonsterCredit(credit);
+        return true;
+    }
+};
+
 // A hunter's companion (the dog, or a beast master's stabled pet beside it): at its keeper's side, and
 // at whatever they fight: their target, or whatever is fighting them.
 struct npc_brill_home_companionAI : public ScriptedAI
@@ -716,6 +916,7 @@ public:
             { "state", HandleState, SEC_GAMEMASTER, Console::No },
             { "sleep", HandleSleep, SEC_GAMEMASTER, Console::No },
             { "adopt", HandleAdopt, SEC_GAMEMASTER, Console::No },
+            { "use", HandleUse, SEC_GAMEMASTER, Console::No },
         };
         static ChatCommandTable commandTable =
         {
@@ -740,6 +941,26 @@ public:
             HomeOf(player).flags, pet ? pet->GetEntry() : 0, pet ? uint32(pet->getPetType()) : 9,
             player->IsClass(CLASS_HUNTER, CLASS_CONTEXT_PET) ? 1 : 0, player->HasSpell(883) ? 1 : 0, player->HasSpell(136) ? 1 : 0,
             player->HasSpell(SPELL_TAME_BEAST) ? 1 : 0, CompanionsOut(player));
+        handler->PSendSysMessage("Brill home: carolai {}{}{}{}{}", player->GetQuestRewardStatus(QUEST_TONIC) ? 1 : 0,
+            player->GetQuestRewardStatus(QUEST_LOCKET) ? 1 : 0, player->GetQuestRewardStatus(QUEST_GIFT) ? 1 : 0,
+            player->GetQuestRewardStatus(QUEST_TEA) ? 1 : 0, player->GetQuestRewardStatus(QUEST_LILY) ? 1 : 0);
+        return true;
+    }
+
+    // The nearest of Carolai's keepsakes (10 yards) used, as clicking it does.
+    static bool HandleUse(ChatHandler* handler)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        GameObject* go = player->FindNearestGameObject(GO_LOCKET, 10.0f);
+        if (!go)
+            go = player->FindNearestGameObject(GO_LILY, 10.0f);
+        if (!go)
+        {
+            handler->SendSysMessage("Brill home: no keepsake within 10 yards.");
+            return true;
+        }
+        go->Use(player);
+        handler->PSendSysMessage("Brill home: used {}", go->GetEntry());
         return true;
     }
 
@@ -818,4 +1039,8 @@ void AddBrillHomeScripts()
     new npc_brill_home_mastiff();
     new BrillHomeHunterTrainers();
     new npc_brill_home_companion();
+    new npc_brill_home_carolai();
+    new npc_brill_home_carolai_visit();
+    new npc_brill_home_carolai_home();
+    new go_brill_home_keepsake();
 }

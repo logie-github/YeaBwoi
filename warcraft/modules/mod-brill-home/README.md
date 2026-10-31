@@ -101,13 +101,49 @@ and its coats' CreatureDisplayInfo (39700 to 39703); made from the game with pat
 made without it), set aside on Wrath Remix's realm. Its own ids, not the starting areas' (3190 and
 30210 to 30213, which go when the starting areas are off).
 
+## Carolai Anise
+
+The user: "Make one you move in and get the dog that she can give a quest, essentially it's a quest line
+where you can romance her or just say friends. The reward is the same as in you don't miss out on
+anything. Except if you do become romantically involved you can have her move in to your house. Do about
+a questline with 5 quests. Don't rush it but make it believable. Not just a mail order bride. And she's a
+yandere. All in universe style dialogue."
+
+Brill's alchemy trainer (by Apothecary Johaan, across the square from the house), once the mastiff's
+quest is done. She watches the house from her bench; she's sweet, attentive, and a little too much of both.
+
+1. **A Tonic for the Mastiff**: the dog's scratching is blightmange, from the darkhounds. Kill 8 Cursed
+   Darkhounds north of Brill; she brews the tonic ("I counted the howls from here").
+2. **What Solliden Kept**: her mother's locket, left in the farmhouse at Solliden Farmstead when she died
+   (the footlocker beside old Farmer Solliden, who doesn't remember her).
+3. **A Gift for Jamie Nore**: a "perfume" for the woman who found you the house, "and that she needn't
+   trouble herself over you any longer". Jamie smells bitterroot (rat poison), pours it out, and tells you
+   Carolai asked her which key opens your door.
+4. **An Unlocked Door**: she's in your house when you get home ("Your door was open. It was."), has swept,
+   folded your shirts her way and made tea. Drink it: the locket's other side holds a lock of your hair,
+   taken while you slept. Then to her shop, where she says it properly.
+5. **What the Heart Keeps**: a moonpetal lily from Brightwater Lake's shore (east of Brill, among the Vile
+   Fins); kept, in old Tirisfal, it meant yes. Giving it to her, the player answers:
+   - **"I'm keeping it, Carolai. Yes."**: lovers. Her menu then has "Would you like to move in with me?":
+     she's in the house from then on (her own lines at random; "(Hold her for a while.)"), until asked
+     "Would you like some time back at your shop?" (asked again whenever the player likes).
+   - **"You mean a great deal to me, Carolai. As a friend."**: friends ("I'll go on looking after you.
+     You won't even notice.").
+
+Rewards are the same either way (experience, silver, and the last one's 5 Healing Potions and 3 Lesser
+Mana Potions). The answer is `brill_home.flags` (0x10 lovers, 0x20 friends; 0x40 living in the house).
+Phases: her visit 0x10000 (after Jamie's gift until the tea), living there 0x20000.
+
+Not checked on a phone: where she stands in the house, the footlocker's and the lily's spots (the
+footlocker at Farmer Solliden's height, beside him; the lily at the terrain's height on the shore).
+
 ## Files
 
 - `data/sql/chromiecraft/world/brill_home_world.sql`: made by `tools/build_sql.py`; don't edit it.
 - `data/sql/chromiecraft/characters/brill_home_characters.sql`: `brill_home` (guid, furniture, last
   rested sleep).
-- `src/BrillHome.cpp`: the phases, Jamie Nore's menu, the bed; `.brillhome state` and `.brillhome sleep`
-  for game masters (CI's realm test: `warcraft/server/brill_home.steps`).
+- `src/BrillHome.cpp`: the phases, Jamie Nore's menu, the bed, Carolai's menus and keepsakes;
+  `.brillhome state`, `.brillhome sleep`, `.brillhome adopt` and `.brillhome use` (the nearest keepsake) for game masters (CI's realm test: `warcraft/server/brill_home.steps`).
 
 ## Next
 

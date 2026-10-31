@@ -1,6 +1,7 @@
-# A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house by Brill's north road,
-# Jamie Nore's welcome and bed, the bed's sleep, the mastiff there on waking and made a warrior's hunter pet,
-# and the furniture she has carried over. (Level 12: Mend Pet's first rank comes with the dog.)
+# A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house in Brill, Jamie Nore's
+# welcome and bed, the bed's sleep, the mastiff there on waking and made a warrior's hunter pet, and the
+# furniture she has carried over; then Carolai Anise's five quests, as lovers, and her moving in.
+# (Level 12: Mend Pet's first rank comes with the dog.)
 cmd .levelup 11
 cmd .modify money 100000
 # At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
@@ -79,3 +80,63 @@ go 0 2314.0 288.0 37.9
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x1 upgrades 0x4000
+# Carolai Anise's quests (the mastiff theirs): the tonic, her locket from Solliden Farmstead, her gift for
+# Jamie, tea in the house (her visit's phase 0x10000), the lily from Brightwater Lake and the answer.
+go 0 2262.0 347.6 36.1
+talk 2132
+accept 2132 970124
+cmd .quest complete 970124
+talk 2132
+reward 2132 970124
+talk 2132
+accept 2132 970125
+go 0 2266.0 1318.0 34.6
+cmd .brillhome use
+expect Brill home: used 970108
+go 0 2262.0 347.6 36.1
+talk 2132
+reward 2132 970125
+talk 2132
+accept 2132 970126
+go 0 2314.0 288.0 37.9
+talk 2310
+reward 2310 970126
+go 0 2288.3 352.9 35.7
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x14201
+talk 970118
+accept 970118 970127
+talk 970118
+select 970118 drink the tea
+wait 6
+cmd .brillhome state
+expect Brill home: phases 0x4201
+go 0 2262.0 347.6 36.1
+talk 2132
+reward 2132 970127
+talk 2132
+accept 2132 970128
+go 0 2905.0 202.0 8.5
+cmd .brillhome use
+expect Brill home: used 970109
+go 0 2262.0 347.6 36.1
+talk 2132
+select 2132 I'm keeping it
+talk 2132
+reward 2132 970128
+cmd .brillhome state
+has flags 0x17
+expect carolai 11111
+# Lovers: asked to move in, she's in the house (phase 0x20000); given time at her shop, she's gone.
+talk 2132
+select 2132 move in with me
+go 0 2288.3 352.9 35.7
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x24201
+talk 970119
+select 970119 time back at your shop
+wait 2
+cmd .brillhome state
+expect Brill home: phases 0x4201

@@ -1778,6 +1778,16 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
    guardian: the core has one pet a player), and a beast master's (Bestial Wrath) first stabled pet as a
    third. The 5th stable slot isn't made: the game's stable window has four slots and the dog doesn't
    take one; to do if the user still wants it (a core change and the add-on adding the slot's button).
+5. **Carolai Anise** (the user: "a quest line where you can romance her or just say friends. The reward
+   is the same ... if you do become romantically involved you can have her move in to your house ...
+   5 quests. Don't rush it but make it believable. Not just a mail order bride. And she's a yandere.
+   All in universe style dialogue"): built. Brill's alchemy trainer, once the mastiff is yours: a tonic
+   for its blightmange (darkhounds), her mother's locket from Solliden Farmstead, a "perfume" for Jamie
+   Nore (bitterroot), finding her in your house with tea (the locket holds a lock of your hair), and a
+   moonpetal lily from Brightwater Lake with your answer: lovers or friends, the same rewards. Lovers can
+   ask her to move in (and to go back to her shop). CI's realm test plays it through (lovers, moving in
+   and out). Not seen on a phone: her place in the house, the keepsakes' spots (the footlocker beside
+   Farmer Solliden, the lily on the shore among the Vile Fins).
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 

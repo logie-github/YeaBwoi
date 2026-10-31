@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Makes mod-brill-home's world SQL (data/sql/chromiecraft/world/brill_home_world.sql): the house in
-Brill, its furniture, Cedric Harrow, Jamie Nore's part and the quests.
+Brill, its furniture, Cedric Harrow, Jamie Nore's part and the quests, the mastiff, and Carolai Anise's
+quests (her keepsakes: her locket at Solliden Farmstead, a lily on Brightwater Lake's shore).
 
 The house is the farmhouse Brill's own houses are (Duskwood_Human_Farm.wmo, the game's display 7432),
 as a gameobject of the kind the game's own buildings out in the world are (a destructible building,
@@ -77,6 +78,25 @@ MASTIFF_MODEL_ROW = [4096, "creature\\mastiff\\mastiff.mdx", 0, 1.0, 1, 7, 18.0,
                      -0.029394155368208885, 1.1700317859649658, 0.4534095823764801, 1.9144073724746704, 1.0, 1.0, 0.0, 0.0, 0.0]
 CLIENT_DBC = os.path.join(HERE, "..", "data", "client", "dbc")
 
+# Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, a romance or
+# a friendship (the user's choice in the last; the rewards the same), and, as lovers, her moving in.
+CAROLAI = 2132
+NPC_CAROLAI_VISIT, NPC_CAROLAI_HOME = 970118, 970119  # in the house: the evening she lets herself in; living there
+NPC_TEA_CREDIT, NPC_LOCKET_CREDIT, NPC_LILY_CREDIT, NPC_ANSWER_CREDIT = 970150, 970151, 970152, 970153
+GO_LOCKET, GO_LILY = 970108, 970109
+QUEST_TONIC, QUEST_LOCKET, QUEST_GIFT, QUEST_TEA, QUEST_LILY = range(970124, 970129)
+TEXT_CAROLAI_VISIT, TEXT_CAROLAI_HOME, TEXT_CAROLAI_ANSWER, TEXT_CAROLAI_LOVER = 970146, 970147, 970148, 970149
+TEXT_CAROLAI_FRIEND, TEXT_LOCKET, TEXT_LILY = 970150, 970151, 970152
+PHASE_CAROLAI_VISIT, PHASE_CAROLAI_HOME = 0x10000, 0x20000
+CAROLAI_DISPLAY = 1601
+CURSED_DARKHOUND = 1548
+CAROLAI_VISIT_AT = (0.5, -2.5, 257.5)  # where Cedric stood, facing the door as the player comes in
+CAROLAI_HOME_AT = (-3.0, 2.6, 0)
+# Her mother's locket in Solliden Farmstead's farmhouse (beside old Farmer Solliden, who walks it);
+# the lily on Brightwater Lake's shore (among the Vile Fins): heights from the game's terrain.
+LOCKET_AT = (2266.6, 1316.4, 34.1, 1.2)
+LILY_AT = (2905.0, 200.0, 7.86, 0.0)
+
 
 def world(lx, ly):
     c, s = math.cos(HOUSE_O), math.sin(HOUSE_O)
@@ -142,6 +162,114 @@ BED_DONE = (
     "Undercity who owes me even more than the innkeeper did.")
 
 
+# Carolai's words. She's a yandere (the user's): sweet, attentive, and a little too much of both.
+TONIC_OFFER = (
+    "You're the one who took Cedric's house. With the mastiff.$B$B"
+    "Don't look so surprised. Brill is small, and I have a window. I see you leave at first light and I see "
+    "you come home, and I see that dog of yours sitting in your doorway, scratching at its ears.$B$B"
+    "It's blightmange. The darkhounds carry it out of the woods and leave it in the grass for every living "
+    "dog in Tirisfal to roll in. First the fur comes out in clumps, then the skin goes, and then... well. "
+    "You've seen the darkhounds.$B$B"
+    "I can brew something for it. But it's no use treating him while the hills are crawling with the things "
+    "that gave it to him. Thin out the Cursed Darkhounds north of Brill, and the tonic will be ready when you "
+    "come back.$B$BI'll be right here. I'm always right here.")
+TONIC_LOG = "Kill 8 Cursed Darkhounds in the hills north of Brill, then return to Carolai Anise."
+TONIC_PROGRESS = "Has he stopped scratching? He hadn't this morning. Five times before you'd even opened your shutters."
+TONIC_DONE = (
+    "Eight. I counted the howls from here. I thought it might be nine.$B$B"
+    "Here. Rub it into his ears, morning and night. He'll fuss; they always fuss.$B$B"
+    "Don't thank me, $n. It was nothing. I like having a reason to see you.")
+
+LOCKET_OFFER = (
+    "The tonic took. He barely scratched at all today. I watched.$B$B"
+    "May I ask you something? Not as an alchemist.$B$B"
+    "Before the plague I lived at Solliden Farmstead, north of here. My mother gave me a locket the day I was "
+    "sent to Lordaeron to apprentice. When I rose, it was gone. I've never gone back for it. Old Solliden "
+    "still walks his fields, and he doesn't remember me. He doesn't remember anything.$B$B"
+    "I could ask anyone in Brill. I'm asking you. It was in the farmhouse, in the footlocker under the "
+    "window. Will you bring it back to me?")
+LOCKET_LOG = "Recover Carolai's locket from the footlocker in the farmhouse at Solliden Farmstead, then return to Carolai Anise in Brill."
+LOCKET_PROGRESS = "The farmhouse is north, past the mills. Mind Solliden. He was kind, once."
+LOCKET_DONE = (
+    "You found it.$B$B"
+    "(She turns the locket over in her fingers for a long time.)$B$B"
+    "I'd forgotten her face. I'd started to think I had made her up.$B$B"
+    "Thank you, $n. I'll keep it close. I keep everything that matters close.")
+LOCKET_FOUND = (
+    "(Under a moth-eaten quilt in the footlocker lies a small tin locket, its chain knotted. Inside is a faded "
+    "painting of a young woman with Carolai's eyes.)$B$B(You take it.)")
+
+GIFT_OFFER = (
+    "I've been thinking about Jamie Nore.$B$B"
+    "She found you that house. She found you the bed. She's always so helpful, isn't she? Always there, with "
+    "her ledgers and her deeds and her warm, living hands.$B$B"
+    "I should thank her properly, for looking after you before I could. Take her this: a perfume, a very old "
+    "recipe. Tell her it's from me. Tell her I said she's been more than kind, and that she needn't trouble "
+    "herself over you any longer.$B$B"
+    "And $n? Don't open it. It isn't for you.")
+GIFT_LOG = "Take Carolai's perfume to Jamie Nore in the Brill town hall."
+GIFT_DONE = (
+    "From Carolai? How... thoughtful.$B$B"
+    "(Jamie unstoppers the vial, sniffs once, and goes very still.)$B$B"
+    "That's bitterroot, $n. The Apothecaries put it in rat poison. A drop of this on the skin and I'd only "
+    "be sick for a week. Probably.$B$B"
+    "I'm sure it's a mistake. She does work with a great many bottles.$B$B"
+    "(She corks it and drops it into the waste bin all the same.)$B$B"
+    "She's been asking about you, you know. Since the day you signed the deed. Which road you take, when you "
+    "come home, whether you have... company. Last week she asked me which key opens your door.$B$B"
+    "I didn't give it to her. Just lock up tonight, would you?")
+
+TEA_OFFER = (
+    "Oh! You're home. You're early. You're never home this early.$B$B"
+    "Your door was open. It was. I thought something might have happened to you, so I came in to wait, and "
+    "then I couldn't just sit, could I? So I swept. And I washed the cups. And I folded your things. You "
+    "fold your shirts in thirds; I've put them in halves. It's better for the linen.$B$B"
+    "Jamie didn't like her present, did she? I could tell by the way she looked at me in the square. It "
+    "doesn't matter.$B$B"
+    "Sit with me. Please. I made tea. I can't taste it anymore, but I remember how it ought to be made, and I "
+    "made it for you.")
+TEA_LOG = "Sit and drink tea with Carolai in your house, then speak with her at her shop in Brill."
+TEA_PROGRESS = "You came. I wasn't sure you would."
+TEA_DONE = (
+    "You came. I wasn't sure you would.$B$B"
+    "I've stood at this bench for six years mixing tinctures for travelers who never look up. Then you looked "
+    "up.$B$B"
+    "I know what I am, $n. I know what the living say about us, and I know what Jamie says about me. I know I "
+    "don't go about this the way other people do. But I have never wanted anything the way I want to be near "
+    "you.$B$B"
+    "There. It's said. Now I need to know what you'll say back, and I want to hear it properly.")
+
+LILY_OFFER = (
+    "There's a flower that grows on the shore of Brightwater Lake, east of here: the moonpetal lily. Before "
+    "the plague, a girl in Tirisfal gave one to the one she meant to marry. If they kept it, that was yes.$B$B"
+    "I won't ask you a question you aren't ready for. So I'll ask you this instead. Go to the lake and bring "
+    "me one. Then, when you give it to me, tell me what it means.$B$B"
+    "Whatever you say, I'll... I'll understand.$B$B"
+    "I'll be here. Waiting. As I always am.")
+LILY_LOG = "Pick a moonpetal lily on the shore of Brightwater Lake, then give it to Carolai Anise in Brill and tell her what it means."
+LILY_PROGRESS = "(Carolai looks at your hands first, to see if there's a lily in them.)"
+LILY_FOUND = (
+    "(A single pale lily grows where the water laps at the reeds. Its petals are cold, and faintly bright, "
+    "like the moon on Lordamere.)$B$B(You pick it.)")
+LILY_DONE = (
+    "(Carolai threads the lily's stem through the locket's chain and lets it rest against her heart, where it "
+    "will dry, and keep.)$B$B"
+    "Whatever we are to each other, $n, you've given me a reason to keep my shutters open in the morning.$B$B"
+    "Take these. I brewed them for you before you ever walked into my shop. I brew a great many things for "
+    "you.")
+
+CAROLAI_ANSWER = "(Carolai looks at the lily in your hand, then at you, and waits.)"
+CAROLAI_VISIT = "(Carolai has swept your floor, folded your things and made tea. She's waiting for you to sit.)"
+CAROLAI_LOVER = "There you are. You always come back to me, $n.$B$BI'd know your footsteps anywhere. I listen for them."
+CAROLAI_FRIEND = "Hello, friend.$B$BYou didn't sleep well last night. No, don't tell me. I know you didn't."
+CAROLAI_HOME = [
+    "Welcome home, my love. I've warmed the kettle. I warm it every time I hear you on the road.",
+    "The dog likes me now. He sleeps across the doorway, so nothing gets in. Or out. Good boy.",
+    "I moved your things around a little. You'll get used to it. I got used to everything about you.",
+    "Jamie waved at you in the square today. I saw. It's all right. I'm not angry. I'm never angry with you.",
+]
+
+
 def main():
     out = []
     w = out.append
@@ -157,7 +285,9 @@ def main():
         w(f"DELETE FROM `{t}` WHERE `ID` BETWEEN 970120 AND 970129;")
     w("DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 970120 AND 970129;")
     w("DELETE FROM `creature_questender` WHERE `quest` BETWEEN 970120 AND 970129;")
-    w("DELETE FROM `npc_text` WHERE `ID` BETWEEN 970140 AND 970149;")
+    w("DELETE FROM `creature_template` WHERE `entry` BETWEEN 970150 AND 970159;")
+    w("DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 970150 AND 970159;")
+    w("DELETE FROM `npc_text` WHERE `ID` BETWEEN 970140 AND 970159;")
     w("")
 
     w("-- The house (the farmhouse Brill's own are), its furniture (each in its phase).")
@@ -292,6 +422,77 @@ def main():
     w(f"INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES ({QUEST_DOG}, 0, 0, {q(DOG_PROGRESS)});")
     w(f"INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES ({NPC_DOG}, {QUEST_DOG});")
     w(f"INSERT INTO `creature_questender` (`id`, `quest`) VALUES ({NPC_DOG}, {QUEST_DOG});")
+
+    w("")
+    w("-- Carolai Anise: her quests (once the mastiff is the player's), her visit to the house, her living")
+    w("-- there; the keepsakes she sends the player for, and the credits. Her menu is src/BrillHome.cpp's.")
+    w(f"UPDATE `creature_template` SET `npcflag` = `npcflag` | 3, `ScriptName` = 'npc_brill_home_carolai' WHERE `entry` = {CAROLAI};")
+    w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
+      "`speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `ScriptName`) VALUES")
+    w(",\n".join([
+        f"({NPC_CAROLAI_VISIT}, 'Carolai Anise', NULL, 0, 20, 20, 68, 3, 1, 1.14286, 1, 0, 6, 2, 'npc_brill_home_carolai_visit')",
+        f"({NPC_CAROLAI_HOME}, 'Carolai Anise', NULL, 0, 20, 20, 68, 1, 1, 1.14286, 1, 0, 6, 2, 'npc_brill_home_carolai_home')",
+    ] + [f"({e}, {q(n)}, NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 130, '')" for e, n in (
+        (NPC_TEA_CREDIT, "Shared tea with Carolai"), (NPC_LOCKET_CREDIT, "Carolai's locket"),
+        (NPC_LILY_CREDIT, "Moonpetal lily"), (NPC_ANSWER_CREDIT, "Gave Carolai your answer"))]) + ";")
+    w("INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES")
+    w(",\n".join([f"({NPC_CAROLAI_VISIT}, 0, {CAROLAI_DISPLAY}, 1, 1)", f"({NPC_CAROLAI_HOME}, 0, {CAROLAI_DISPLAY}, 1, 1)"]
+                  + [f"({e}, 0, 11686, 1, 1)" for e in (NPC_TEA_CREDIT, NPC_LOCKET_CREDIT, NPC_LILY_CREDIT, NPC_ANSWER_CREDIT)]) + ";")
+    w("INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, "
+      "`orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES")
+    rows = []
+    for guid, entry, phase, (lx, ly, deg) in ((970102, NPC_CAROLAI_VISIT, PHASE_CAROLAI_VISIT, CAROLAI_VISIT_AT),
+                                               (970103, NPC_CAROLAI_HOME, PHASE_CAROLAI_HOME, CAROLAI_HOME_AT)):
+        x, y = world(lx, ly)
+        rows.append(f"({guid}, {entry}, {MAP}, {ZONE}, {AREA}, 1, {phase}, {x:.3f}, {y:.3f}, {FLOOR:.3f}, {turn(deg):.4f}, 60, 0, 0, 'mod-brill-home')")
+    w(",\n".join(rows) + ";")
+    w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES")
+    w(f"({GO_LOCKET}, 2, 8, 'Old Footlocker', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
+    w(f"({GO_LILY}, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake');")
+    w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
+      "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES")
+    w(",\n".join([go_spawn(970120, GO_LOCKET, *LOCKET_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
+                  go_spawn(970121, GO_LILY, *LILY_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,")]) + ";")
+    w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
+    w(",\n".join(f"({i}, {q(t)}, {q(t)}, 1)" for i, t in (
+        (TEXT_CAROLAI_VISIT, CAROLAI_VISIT), (TEXT_CAROLAI_ANSWER, CAROLAI_ANSWER), (TEXT_CAROLAI_LOVER, CAROLAI_LOVER),
+        (TEXT_CAROLAI_FRIEND, CAROLAI_FRIEND), (TEXT_LOCKET, LOCKET_FOUND), (TEXT_LILY, LILY_FOUND))) + ";")
+    # (living together: one of her lines at random each time, the game's way)
+    cols = ", ".join(f"`text{i}_0`, `text{i}_1`, `Probability{i}`" for i in range(len(CAROLAI_HOME)))
+    vals = ", ".join(f"{q(t)}, {q(t)}, {1 / len(CAROLAI_HOME):.2f}" for t in CAROLAI_HOME)
+    w(f"INSERT INTO `npc_text` (`ID`, {cols}) VALUES ({TEXT_CAROLAI_HOME}, {vals});")
+    w("INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, "
+      "`RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, "
+      "`RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`, "
+      "`RewardItem1`, `RewardAmount1`, `RewardItem2`, `RewardAmount2`) VALUES")
+    back = q("Return to Carolai Anise in Brill.")
+    w(",\n".join([
+        f"({QUEST_TONIC}, 2, -1, 5, {AREA}, 0, 4, 2500, 0, 'A Tonic for the Mastiff', {q(TONIC_LOG)}, {q(TONIC_OFFER)}, '', {back}, "
+        f"{CURSED_DARKHOUND}, 8, '', 0, 0, '', 0, 0, 0, 0)",
+        f"({QUEST_LOCKET}, 2, -1, 5, {AREA}, 0, 4, 2500, 0, 'What Solliden Kept', {q(LOCKET_LOG)}, {q(LOCKET_OFFER)}, '', {back}, "
+        f"{NPC_LOCKET_CREDIT}, 1, 'Carolai\\'s locket', 0, 0, '', 0, 0, 0, 0)",
+        f"({QUEST_GIFT}, 2, -1, 5, {AREA}, 0, 2, 2500, 0, 'A Gift for Jamie Nore', {q(GIFT_LOG)}, {q(GIFT_OFFER)}, '', "
+        f"{q('Speak with Jamie Nore in Brill.')}, 0, 0, '', 0, 0, '', 0, 0, 0, 0)",
+        f"({QUEST_TEA}, 2, -1, 5, {AREA}, 0, 3, 2500, 0, 'An Unlocked Door', {q(TEA_LOG)}, {q(TEA_OFFER)}, '', {back}, "
+        f"{NPC_TEA_CREDIT}, 1, 'Shared tea with Carolai', 0, 0, '', 0, 0, 0, 0)",
+        f"({QUEST_LILY}, 2, -1, 5, {AREA}, 0, 5, 10000, 0, 'What the Heart Keeps', {q(LILY_LOG)}, {q(LILY_OFFER)}, '', {back}, "
+        f"{NPC_LILY_CREDIT}, 1, 'Moonpetal lily', {NPC_ANSWER_CREDIT}, 1, 'Gave Carolai your answer', 929, 5, 3385, 3)",
+    ]) + ";")
+    w("INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES")
+    w(f"({QUEST_TONIC}, {QUEST_DOG}), ({QUEST_LOCKET}, {QUEST_TONIC}), ({QUEST_GIFT}, {QUEST_LOCKET}), "
+      f"({QUEST_TEA}, {QUEST_GIFT}), ({QUEST_LILY}, {QUEST_TEA});")
+    w("INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES")
+    w(f"({QUEST_TONIC}, 1, {q(TONIC_DONE)}), ({QUEST_LOCKET}, 0, {q(LOCKET_DONE)}), ({QUEST_GIFT}, 0, {q(GIFT_DONE)}), "
+      f"({QUEST_TEA}, 1, {q(TEA_DONE)}), ({QUEST_LILY}, 0, {q(LILY_DONE)});")
+    w("INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES")
+    w(f"({QUEST_TONIC}, 1, 1, {q(TONIC_PROGRESS)}), ({QUEST_LOCKET}, 1, 1, {q(LOCKET_PROGRESS)}), "
+      f"({QUEST_TEA}, 0, 0, {q(TEA_PROGRESS)}), ({QUEST_LILY}, 0, 0, {q(LILY_PROGRESS)});")
+    w("INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES")
+    w(f"({CAROLAI}, {QUEST_TONIC}), ({CAROLAI}, {QUEST_LOCKET}), ({CAROLAI}, {QUEST_GIFT}), ({NPC_CAROLAI_VISIT}, {QUEST_TEA}), "
+      f"({CAROLAI}, {QUEST_LILY});")
+    w("INSERT INTO `creature_questender` (`id`, `quest`) VALUES")
+    w(f"({CAROLAI}, {QUEST_TONIC}), ({CAROLAI}, {QUEST_LOCKET}), ({JAMIE_NORE}, {QUEST_GIFT}), ({CAROLAI}, {QUEST_TEA}), "
+      f"({CAROLAI}, {QUEST_LILY});")
 
     # The game's own tables for it (patch-W, src/BrillHomePatch.cpp).
     os.makedirs(CLIENT_DBC, exist_ok=True)
