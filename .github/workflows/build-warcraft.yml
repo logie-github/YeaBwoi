@@ -719,6 +719,13 @@ jobs:
             warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-table-moves"
           "$RUNNER_TEMP/test-table-moves" warcraft/modules/mod-skyborne/data/client warcraft/modules/mod-allied-races/data/client
 
+      # Ralia's mod (mod-ralia): its patch made from a stand-in game and stand-in files.
+      - name: Ralia's mod
+        run: |
+          g++ -std=c++17 -O2 warcraft/modules/mod-ralia/tools/test_patch.cpp warcraft/modules/mod-ralia/src/RaliaPatch.cpp \
+            warcraft/modules/mod-ralia/src/RaliaImage.cpp warcraft/modules/mod-skyborne/src/SkyborneFiles.cpp -lz -o "$RUNNER_TEMP/test-ralia"
+          "$RUNNER_TEMP/test-ralia"
+
       # WoW: Forever's quests (mod-forever-quests): the page reader, the races, the committed SQL
       # against its data.
       - name: WoW Forever's quests

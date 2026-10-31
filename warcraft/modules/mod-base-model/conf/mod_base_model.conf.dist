@@ -1,0 +1,21 @@
+[worldserver]
+
+########################################
+# Base Model (mod-base-model): both realms
+########################################
+#
+#    BaseModel.Enable
+#        Description: Every character drawn without its gear while the app's Game options have
+#                     "Base Model" on (the gear stays on, with its stats). 0 keeps it off whatever
+#                     the switch says.
+#        Default:     1
+
+BaseModel.Enable = 1
+
+#
+#    BaseModel.Folder
+#        Description: The folder the app keeps the switch in (files/base-model: the "enabled" file
+#                     while it's on). Empty: beside the game's folder (WOW_CLIENT_DIR).
+#        Default:     ""
+
+BaseModel.Folder = ""

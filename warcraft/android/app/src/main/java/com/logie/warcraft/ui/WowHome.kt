@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.MusicOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tune
 // Turtle WoW's game switch (out of order: kept apart from the Wrath Remix line's import above).
@@ -260,6 +261,7 @@ private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             HomeDialog.ICON -> AppIconDialog(onDismiss = { dialog = null })
             HomeDialog.REALM -> RealmDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
+            HomeDialog.GAME_OPTIONS -> GameOptionsDialog(onDismiss = { dialog = null; refresh++ })
             // Over the whole screen, in the box above.
             HomeDialog.ADDONS, HomeDialog.MODULES -> {}
             null -> {}
@@ -267,7 +269,7 @@ private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, ADDONS, MODULES, ICON, REALM }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, GAME_OPTIONS, ADDONS, MODULES, ICON, REALM }
 
 /** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
 private var modsDialog = HomeDialog.GRAPHICS
@@ -357,6 +359,9 @@ internal fun HomeScreen(
                     HomeTile(Icons.Default.Tune, stringResource(R.string.wow_tile_graphics), graphicsSummary(context)) {
                         modsDialog = HomeDialog.GRAPHICS
                         onDialog(HomeDialog.GRAPHICS)
+                    },
+                    HomeTile(Icons.Default.Settings, stringResource(R.string.wow_tile_game_options), gameOptionsSummary(context)) {
+                        onDialog(HomeDialog.GAME_OPTIONS)
                     },
                     HomeTile(Icons.Default.Extension, stringResource(R.string.wow_tile_addons), addonsSummary(context, facts)) {
                         onDialog(HomeDialog.ADDONS)
