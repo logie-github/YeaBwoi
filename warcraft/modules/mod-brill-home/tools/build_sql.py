@@ -122,7 +122,7 @@ def go_spawn(guid, entry, x, y, z, o, phase):
 
 CEDRIC_OFFER = (
     "You've the look of someone who keeps their word, $n. Brill could use more of those.$B$B"
-    "I built this house before the plague, for Marta and our two boys. When I rose again my feet carried "
+    "I built this house before the plague, for Elinor and our two boys. When I rose again my feet carried "
     "me back here before my mind knew where it was going. I put the roof back on board by board. Thought it "
     "would help me remember who I was.$B$B"
     "It didn't. It only reminds me who isn't here.$B$B"

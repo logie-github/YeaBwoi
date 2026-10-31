@@ -50,7 +50,7 @@ namespace
     constexpr float HOUSE_X = 2289.0f, HOUSE_Y = 352.0f;
     constexpr uint32 HOUSE_MAP = 0;
     // Brill, where the house's and the town's phases apply (tools/build_town.py: BRILL_*).
-    constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 140.0f;
+    constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 165.0f;
 
     constexpr uint32 GO_BED = 970101, NPC_BED_CREDIT = 970111;
     constexpr uint32 NPC_DOG = 970112, NPC_FETCH_CREDIT = 970113, NPC_EARS_CREDIT = 970114, NPC_DOG_PET = 970115;
@@ -78,7 +78,7 @@ namespace
     struct Rank { uint8 level; uint32 spell; };
     constexpr Rank MEND_PET[] = { { 12, 136 }, { 20, 3111 }, { 28, 3661 }, { 36, 3662 }, { 44, 13542 }, { 52, 13543 },
                                   { 60, 13544 }, { 68, 27046 }, { 74, 48989 }, { 80, 48990 } };
-    constexpr uint32 PHASES_OURS = 0xFFFFFF00;   // (the house's to 0x20000, the town's lines' above)
+    constexpr uint32 PHASES_OURS = 0xFFFFFFFE;   // (the house's 0x100 to 0x20000, the town's lines' above it and 0x2 to 0x80: nothing of the game's in Brill is in those)
 
     // Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, ending in
     // the player's answer, lovers or friends (the rewards the same: the user's), and as lovers, her
@@ -197,7 +197,10 @@ namespace
 
     void UpdatePhases(Player* player)
     {
-        if (!enabled || player->HasAuraType(SPELL_AURA_PHASE))
+        if (!enabled)
+            return;
+        BrillTown::RefreshStages(player, InBrill(player));
+        if (player->HasAuraType(SPELL_AURA_PHASE))
             return;
         uint32 now = player->GetPhaseMask();
         // (only a phase of the house's own, or the world's: never one something else put them in)

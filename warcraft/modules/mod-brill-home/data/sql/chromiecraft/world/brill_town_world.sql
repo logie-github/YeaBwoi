@@ -4,23 +4,40 @@
 
 CREATE TABLE IF NOT EXISTS `brill_town_phase` (`bit` INT UNSIGNED NOT NULL, `ord` INT UNSIGNED NOT NULL, `cond` VARCHAR(255) NOT NULL DEFAULT '', PRIMARY KEY (`bit`, `ord`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 CREATE TABLE IF NOT EXISTS `brill_town_gossip` (`npc` INT UNSIGNED NOT NULL, `ord` INT UNSIGNED NOT NULL, `kind` VARCHAR(8) NOT NULL, `cond` VARCHAR(255) NOT NULL DEFAULT '', `icon` TINYINT UNSIGNED NOT NULL DEFAULT 0, `text` TEXT, `text_id` INT UNSIGNED NOT NULL DEFAULT 0, `action` VARCHAR(16) NOT NULL DEFAULT '', `quest` INT UNSIGNED NOT NULL DEFAULT 0, `credit` INT UNSIGNED NOT NULL DEFAULT 0, `marker` INT UNSIGNED NOT NULL DEFAULT 0, `emote` INT UNSIGNED NOT NULL DEFAULT 0, `reply` TEXT, `arg` INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (`npc`, `ord`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS `brill_town_stage` (`type` TINYINT UNSIGNED NOT NULL, `value` INT NOT NULL, `ord` INT UNSIGNED NOT NULL, `cond` VARCHAR(255) NOT NULL DEFAULT '', PRIMARY KEY (`type`, `value`, `ord`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS `brill_town_invis` (`kind` CHAR(1) NOT NULL, `guid` INT UNSIGNED NOT NULL, `type` TINYINT UNSIGNED NOT NULL, `value` INT NOT NULL, PRIMARY KEY (`kind`, `guid`, `type`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+DELETE FROM `brill_town_stage`;
+DELETE FROM `brill_town_invis`;
 CREATE TABLE IF NOT EXISTS `brill_town_use` (`go` INT UNSIGNED NOT NULL, `ord` INT UNSIGNED NOT NULL, `cond` VARCHAR(255) NOT NULL DEFAULT '', `quest` INT UNSIGNED NOT NULL DEFAULT 0, `credit` INT UNSIGNED NOT NULL DEFAULT 0, `text_id` INT UNSIGNED NOT NULL DEFAULT 0, `marker` INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (`go`, `ord`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 DELETE FROM `brill_town_phase`;
 DELETE FROM `brill_town_gossip`;
 DELETE FROM `brill_town_use`;
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 970200 AND 970999;
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 970200 AND 970999;
-DELETE FROM `creature` WHERE `guid` BETWEEN 970200 AND 970999;
-DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 970200 AND 970999;
-DELETE FROM `gameobject` WHERE `guid` BETWEEN 970200 AND 970999;
-DELETE FROM `npc_text` WHERE `ID` BETWEEN 970200 AND 970999;
-DELETE FROM `quest_template` WHERE `ID` BETWEEN 970200 AND 970999;
-DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 970200 AND 970999;
-DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 970200 AND 970999;
-DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 970200 AND 970999;
-DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 970200 AND 970999;
-DELETE FROM `creature_questender` WHERE `quest` BETWEEN 970200 AND 970999;
-DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 970200 AND 970999 AND `source_type` = 0;
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 970200 AND 971699;
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 970200 AND 971699;
+DELETE FROM `creature` WHERE `guid` BETWEEN 970200 AND 971699;
+DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 970200 AND 971699;
+DELETE FROM `gameobject` WHERE `guid` BETWEEN 970200 AND 971699;
+DELETE FROM `npc_text` WHERE `ID` BETWEEN 970200 AND 971699;
+DELETE FROM `quest_template` WHERE `ID` BETWEEN 970200 AND 971699;
+DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 970200 AND 971699;
+DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 970200 AND 971699;
+DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 970200 AND 971699;
+DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 970200 AND 971699;
+DELETE FROM `creature_questender` WHERE `quest` BETWEEN 970200 AND 971699;
+DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 970200 AND 971699 AND `source_type` = 0;
+DELETE FROM `gameobject_template_addon` WHERE `entry` BETWEEN 970200 AND 971699;
+DELETE FROM `npc_vendor` WHERE `entry` BETWEEN 970200 AND 971699;
+DELETE FROM `game_event_creature` WHERE `guid` BETWEEN 970200 AND 971699;
+DELETE FROM `game_event_gameobject` WHERE `guid` BETWEEN 970200 AND 971699;
+DELETE FROM `creature_default_trainer` WHERE `CreatureId` BETWEEN 970200 AND 971699;
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` BETWEEN 970200 AND 971699;
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` BETWEEN 970200 AND 971699;
+DELETE FROM `game_event` WHERE `eventEntry` IN (230, 231, 232, 233);
+INSERT INTO `game_event` (`eventEntry`, `start_time`, `end_time`, `occurence`, `length`, `holiday`, `description`, `world_event`, `announce`) VALUES
+(230, '2020-01-01 06:00:00', '2037-12-31 00:00:00', 1440, 240, 0, 'Brill: morning', 0, 0),
+(231, '2020-01-01 10:00:00', '2037-12-31 00:00:00', 1440, 480, 0, 'Brill: day', 0, 0),
+(232, '2020-01-01 18:00:00', '2037-12-31 00:00:00', 1440, 240, 0, 'Brill: evening', 0, 0),
+(233, '2020-01-01 22:00:00', '2037-12-31 00:00:00', 1440, 480, 0, 'Brill: night', 0, 0);
 
 -- The New House
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `rank`, `HealthModifier`, `DamageModifier`, `mingold`, `maxgold`, `flags_extra`, `AIName`, `ScriptName`) VALUES
@@ -180,7 +197,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970207, 2, 1, 1, -1, 0, 0, 0, 0, '[invited_johaan]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970208, 2, 1, 1, -1, 0, 0, 0, 0, '[invited_hamlin]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970209, 2, 1, 1, -1, 0, 0, 0, 0, '[invited_dillinger]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970200, 970121), (970201, 970200), (970202, 970201), (970203, 970202), (970204, 970203), (970205, 970204);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970200, 970121, 0), (970201, 970200, 0), (970202, 970201, 0), (970203, 970202, 0), (970204, 970203, 0), (970205, 970204, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970200, 1, 'So. A cellar that groans at night, a roof like a sieve, and furniture fit for kindling. I\'ve rebuilt houses for worse owners in worse towns.$B$BThe roof first, then the door, then the floor. Everything else can wait. Nothing in Tirisfal is in a hurry, least of all the people in it.'),
 (970201, 1, 'Good oak. Dry, straight, and only a little bloodstained.$B$B(Over the next hours Oswin works without stopping. The broken furniture goes out the door as kindling, the rotten boards come up, the gap in the roof closes, and the door finally shuts the way a door should.)$B$BThere. It\'s a house again, $n. Not a home, not yet. But the rain stays outside, which is a start.'),
@@ -351,7 +368,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970304, 2, -1, 5, 159, 0, 5, 4000, 0, 'The Last Bell', 'Ask Magistrate Sevren in Brill\'s town hall to enter the four names on Brill\'s rolls, then ring the cemetery bell with Gravekeeper Mortimer Weller.', 'There\'s a custom in Brill. There was, anyway. When someone was laid in the ground, the clerk rang the bell over the lychgate, once, so the whole parish knew a life was finished. In the plague year it rang so often they stopped ringing it at all.$B$BMortimer told me, through you, that he\'d like to ring it once more for the four of us. The other way round. Not a life finished; a death.$B$BBut a bell\'s only a bell. The Magistrate keeps the rolls of who lives in Brill, and who the Deathguard are to leave alone. Our names need to be on them, $n, or we\'re only corpses with opinions. Go to Sevren in the town hall, and then to Mortimer. We\'ll be watching from the wall.', '', 'Return to Gravekeeper Mortimer Weller in Brill\'s cemetery.', 970316, 1, 'Names entered on Brill\'s rolls', 970317, 1, 'The last bell rung', 0, 0, '', 0, 0, '', 1930, 1, 0, 0, 0, 0, 0, 0),
 (970305, 2, 1, 1, -1, 0, 0, 0, 0, '[openly]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970306, 2, 1, 1, -1, 0, 0, 0, 0, '[quietly]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970300, 0), (970301, 970300), (970302, 970301), (970303, 970302), (970304, 970303);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970300, 0, 0), (970301, 970300, 0), (970302, 970301, 0), (970303, 970302, 0), (970304, 970303, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970300, 1, 'Hollin, Hale, Fairweather, Shaw. Every one of them twice.$B$BThe first entry\'s mine: buried in the plague year. The second is in a Deathguard\'s square hand, two years on. \'Remains found walking. Put down. Returned to plot.\'$B$BSo they were Scourge, once, after they died. The Deathguard cut them down and gave them back to the earth. I\'d have called that the end of the matter. It seems the earth didn\'t agree.'),
 (970301, 1, 'My own spade. I wondered where that went.$B$BAnd this lid: scored on the inside, as if someone woke and clawed at it. But the nails were drawn from the outside, one by one, by somebody who knew what they were doing.$B$BNo one is stealing the dead, $n. Someone is letting them out.'),
@@ -472,7 +489,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970405, 2, 1, 1, -1, 0, 0, 0, 0, '[surrendered]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970406, 2, 1, 1, -1, 0, 0, 0, 0, '[supervised]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970407, 2, 1, 1, -1, 0, 0, 0, 0, '[destroyed]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970400, 0), (970401, 970400), (970402, 970401), (970403, 970402), (970404, 970403);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970400, 0, 0), (970401, 970400, 0), (970402, 970401, 0), (970403, 970402, 0), (970404, 970403, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970400, 1, 'A still. In my shed. With my salts in it.$B$B(Johaan pinches the bridge of his nose. A flake of skin comes away; he flicks it aside.)$B$BAnd crates bound for Solliden Farmstead. Someone is carting my reagents out of Brill and brewing with whatever is left behind my back. One of my apprentices, then. I have two, and I trust neither of them, which is the proper relationship.$B$BWell. At least they label their crates.'),
 (970401, 1, 'Crane.$B$B(Johaan is silent for a long moment.)$B$BWendell Crane has been my apprentice for three years. He scrubs my glassware. He sweeps my floor. He has never once spoken out of turn, which I took for respect and ought to have taken for concealment.$B$BI won\'t question him. If I question him, I shall have to report whatever he says to the Society, and the Society does not believe in second chances. Or, in my experience, in first ones.'),
@@ -581,7 +598,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970505, 2, 1, 1, -1, 0, 0, 0, 0, '[exposed]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970506, 2, 1, 1, -1, 0, 0, 0, 0, '[spared]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970507, 2, 1, 1, -1, 0, 0, 0, 0, '[escaped]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970500, 0), (970501, 970500), (970502, 970501), (970503, 970502), (970504, 970503);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970500, 0, 0), (970501, 970500, 0), (970502, 970501, 0), (970503, 970502, 0), (970504, 970503, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970500, 1, '(Sevren lays the blackened pages on his desk and smooths them flat with a careful finger.)$B$B"...the eastern escort changes at the second bell, and the north road stands empty until the lamps are lit..." They know when the lamps are lit. Of course they do.$B$BThis wasn\'t written by a Crusader, $n. Look at the hand: it shakes. Whoever wrote this has been dead a long time and still remembers his letters. One of ours.'),
 (970501, 1, 'A chalk mark behind the tavern and a hollow under the well\'s stones, and three good women who all mention, without being asked, the man who\'s always about when the patrols change.$B$B(Sevren closes his eyes.)$B$BNo. Don\'t say the name yet. I want to be certain before I let myself think it.'),
@@ -598,7 +615,6 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES (1499, 970500), (1499, 
 UPDATE `creature_template` SET `npcflag` = `npcflag` | 3 WHERE `entry` IN (1499);
 
 -- The Last Customer
-DELETE FROM `npc_vendor` WHERE `entry` = 970600;
 INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`) VALUES (970600, 0, 755, 0, 0, 0), (970600, 1, 17027, 0, 0, 0), (970600, 2, 5042, 0, 0, 0), (970600, 3, 5048, 0, 0, 0), (970600, 4, 3419, 0, 0, 0), (970600, 5, 3420, 0, 0, 0), (970600, 6, 5363, 0, 0, 0), (970600, 7, 18233, 0, 0, 0), (970600, 8, 5374, 0, 0, 0), (970600, 9, 5115, 0, 0, 0), (970600, 10, 5376, 0, 0, 0), (970600, 11, 3300, 0, 0, 0), (970600, 12, 5373, 0, 0, 0), (970600, 13, 5433, 0, 0, 0), (970600, 14, 11940, 0, 0, 0), (970600, 15, 6297, 0, 0, 0);
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `rank`, `HealthModifier`, `DamageModifier`, `mingold`, `maxgold`, `flags_extra`, `AIName`, `ScriptName`) VALUES
 (970600, 'Ambrose Wicke', 'Candles and Sundries', 0, 22, 22, 68, 131, 1, 1.14286, 1, 0, 6, 0, 1, 1, 0, 0, 2, '', ''),
@@ -714,7 +730,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970604, 2, -1, 9, 159, 0, 4, 2500, 0, 'Closing the Ledger', 'Take Agnes Balnir\'s letter to Ambrose Wicke in Brill and decide what becomes of the candlesticks.', 'I\'ve written to him. It\'s short. I was never one for letters; Tobias wrote them for both of us.$B$BI can\'t say what\'s to be done with them, $n. If I say keep them, I\'m keeping a wedding that never came. If I say sell them, I\'m selling my brother\'s last good idea. So I\'ve told old Wicke the order is yours to settle. You found the farm. You saw the grave. You choose.$B$BTell him one more thing for me, would you? Tell him Tobias isn\'t coming. Not because he doesn\'t care. Whatever climbed out of that grave wasn\'t my brother, and it didn\'t come to me, or to Marian, and it won\'t come to a candle shop. Tell him to open the shutters.', '', 'Return to Ambrose Wicke in Brill.', 970608, 1, 'The candlesticks settled', 0, 0, '', 0, 0, '', 0, 0, '', 7338, 1, 0, 0, 0, 0, 0, 0),
 (970605, 2, 1, 1, -1, 0, 0, 0, 0, '[lit]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970606, 2, 1, 1, -1, 0, 0, 0, 0, '[sold]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970600, 0), (970601, 970600), (970602, 970601), (970603, 970602), (970604, 970603);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970600, 0, 0), (970601, 970600, 0), (970602, 970601, 0), (970603, 970602, 0), (970604, 970603, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970600, 1, 'There it is. The binding\'s gone grey, but then so have I.$B$BAnd the stall looks very nearly like a place someone might buy something. Not that they may. Take this for your trouble: it\'s payment, not a sale, and I\'ll thank you not to confuse the two.'),
 (970601, 1, 'Quarantined. By the Crown.$B$BI remember the soldiers on the road. I remember thinking it was a great deal of fuss over grain.$B$BAnd the date. Eleven years. I\'d have sworn it was last spring. You lose the count, standing still; the days don\'t come in and buy anything, so you don\'t notice them. Still. A farm doesn\'t move, $n. Someone there will know where he went.'),
@@ -850,7 +866,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970704, 2, -1, 5, 159, 0, 5, 3500, 0, 'Duty and Memory', 'Help Deathguard Harlan decide: return to his post on the north road, or ask for a post away from his old home. Then return to Deathguard Dillinger.', 'There are two ways this goes. I\'ve had seven years to think them through, and I still can\'t pick one on my own.$B$BI go back to my post on the north road. I stand my watch, every hour of it. It\'s the road that runs toward this place; I\'d keep the ghouls off it and off them, and on my free days... I\'d come here, and stand in the trees, and go home again before the bell. Once a week. No more.$B$BOr I ask Dillinger for a post on the other side of Brill. The cemetery, say. Facing east, my back to all this. I\'d never see the lamp in that window again. Maybe that\'s what lets a man rest.$B$BYou\'ve seen them now. You\'ve seen me. Tell me which, $n. I\'ll do it.', '', 'Return to Deathguard Dillinger on Brill\'s north road.', 970718, 1, 'Deathguard Harlan\'s choice made', 0, 0, '', 0, 0, '', 0, 0, '', 858, 3, 0, 0, 0, 0, 0, 0),
 (970705, 2, 1, 1, -1, 0, 0, 0, 0, '[returned]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970706, 2, 1, 1, -1, 0, 0, 0, 0, '[reassigned]', '', '', '', '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970700, 0), (970701, 970700), (970702, 970701), (970703, 970702), (970704, 970703);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970700, 0, 0), (970701, 970700, 0), (970702, 970701, 0), (970703, 970702, 0), (970704, 970703, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970700, 1, 'Abraham says thank you. Terrence says nothing, which for Terrence is thank you. Linnea says she\'s been asking for whetstones since the Third War.$B$BThat\'s one night covered. Brill has a lot of nights, $n.'),
 (970701, 1, 'Gnawbone. Fitting. The survivors always have a way with names.$B$BThe north road\'s clear for now. Which brings me to the thing I didn\'t want to say: that road was only open to the ghouls because there was no one on it. Harlan\'s missed four patrols this month. He comes back before the bell, says nothing, stands his post like nothing happened. Then he\'s gone again.'),
@@ -964,7 +980,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970802, 2, -1, 5, 159, 0, 4, 2500, 0, 'The Source of the Rot', 'Follow the fouled runoff west of Brill: examine 3 patches of gray bloom and find where the old drainage channel runs under the covered bridge, then return to Junior Apothecary Holland.', 'Water runs downhill, and so does everything in it. Brill\'s ground water drains west, under the hill, toward the channel the Lordaeron engineers cut to keep the fields from flooding. It\'s been dry since the plague. Nobody tends the sluices now.$B$BFollow the runoff. Where the larvae are thick, the ground will show it: a gray bloom, like mold on bread, wherever the water seeps out. Find three patches, then find where it all comes from. My guess is the channel itself, where it passes under the covered bridge on the Deathknell road.$B$BDon\'t touch the bloom with bare skin. Or with skin of any kind, really.', '', 'Return to Junior Apothecary Holland in Brill.', 970804, 3, 'Gray bloom examined', 970805, 1, 'The culvert under the bridge found', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970803, 2, -1, 5, 159, 0, 5, 4000, 0, 'A Nest Below', 'Kill the Culvert Broodmother under the covered bridge west of Brill and burst 4 of its egg sacs, then return to Junior Apothecary Holland.', 'I\'d send for the Deathguard, but Executor Zygand would want it in writing, and then he\'d want to know why the Society didn\'t notice sooner, and then I\'d be writing for a month.$B$BYou go. Get under that bridge and kill whatever is laying those eggs. Burst the sacs too, every one you find. If even a few hatch, the whole thing starts over in a season.$B$BI\'ve no idea what it will be. A broodmother of some kind. Something the plague made, or something the plague made worse. Either way, it\'s grown fat on our water, and I would like it to stop.', '', 'Return to Junior Apothecary Holland in Brill.', 970801, 1, '', 970806, 4, 'Egg sacs burst', 0, 0, '', 0, 0, '', 858, 3, 0, 0, 0, 0, 0, 0),
 (970804, 2, -1, 5, 159, 0, 5, 5000, 0, 'Clear Waters, Dark Memories', 'Search the broodmother\'s nest under the covered bridge, cleanse Brill\'s well with Holland\'s quicklime, then speak with Maudie Fenwick in Brill.', 'A broodmother that size doesn\'t grow on runoff alone, not in a few years. Something fed it. Something rich.$B$BGo back to the nest and search it, properly, now that nothing in it is trying to eat you. If anything was dumped there, a cask, a crate, anything with a label, I want to know what was in it.$B$BAnd take this.$B$B(He hands you a heavy sack of gray powder.)$B$BQuicklime and bitterroot ash. Tip it down Brill\'s well; it\'ll kill whatever larvae are left and won\'t harm anyone who\'s already dead. The living may want to boil their water for a week. Then tell Maudie she can have her well back.', '', 'Return to Maudie Fenwick at the well in Brill.', 970807, 1, 'The nest searched', 970808, 1, 'Brill\'s well cleansed', 0, 0, '', 0, 0, '', 2459, 1, 858, 2, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970800, 0), (970801, 970800), (970802, 970801), (970803, 970802), (970804, 970803);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970800, 0, 0), (970801, 970800, 0), (970802, 970801, 0), (970803, 970802, 0), (970804, 970803, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970800, 1, 'Look at that. Look at it moving.$B$BI\'ve washed blood, bile and the inside of a ghoul\'s mouth out of good linen and never once felt queasy. But that... that turns what\'s left of my stomach.$B$BIt\'s in the stream too. So it isn\'t my well. It\'s under all of us.'),
 (970801, 1, 'Maudie sent you? I don\'t know any Maudie.$B$B(Holland uncorks the first jar, sniffs, and stops pretending.)$B$BOh, that\'s lovely. Look here, under the glass. These threads aren\'t weed. They\'re larvae: a parasite, a fluke of some kind, feeding on whatever\'s dissolved in the water. On us, in a manner of speaking. The runoff from a town of the dead is very rich.$B$BThey don\'t breed in open water. Something is laying them. Somewhere close, and dark, and wet.'),
@@ -1079,7 +1095,7 @@ INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `Ques
 (970902, 2, -1, 10, 159, 0, 5, 4000, 0, 'The Unquiet Dead', 'Destroy 6 Bound Sentinels in the Agamand Family Crypt.', 'You\'ll have seen them down there: the ones in rags, standing their posts in the dark, who don\'t moan the way the Agamands do. They don\'t make any sound at all.$B$BThose are Croft\'s refugees. Hester Lyle and her children, the baker, the boy who wrote. He raised them and bound them to guard his door, and they\'ve stood there for years without a single thought of their own. Not like us. Nothing woke in them. Nothing is going to.$B$BI\'ve been free six years and I still don\'t know how to feel about doing this. Do it anyway. Put them down, $n, gently if you can. It\'s the only kindness left to give them.', '', 'Return to Deathstalker Isolde Ashcroft outside the Agamand Family Crypt.', 970902, 6, '', 0, 0, '', 0, 0, '', 0, 0, '', 0, 0, 0, 0, 0, 0, 0, 0),
 (970903, 2, -1, 10, 159, 0, 5, 4000, 0, 'A Master Without a Kingdom', 'Find the warded door deep in the Agamand Family Crypt and hear out whoever is behind it, and read the letters left beside it.', 'He\'s still down there. Croft. Twenty years and a war later.$B$BI could take you straight to him and we could be done. But I want to know what we\'re dealing with: whether he\'s mad, or waiting for something, or someone. A Cult necromancer who\'s sat in the dark this long has either forgotten the world or is very sure it will come back to him.$B$BGo to the bottom of the crypt. There\'ll be a door he\'s warded. Talk to it. Listen. And look about you: a man like that keeps records. He can\'t help himself.', '', 'Return to Deathstalker Isolde Ashcroft outside the Agamand Family Crypt.', 970906, 1, 'The warded door listened at', 970907, 1, 'Croft\'s letters read', 0, 0, '', 0, 0, '', 2455, 2, 0, 0, 0, 0, 0, 0),
 (970904, 2, -1, 10, 159, 0, 6, 6000, 0, 'No Masters but Ourselves', 'Slay Aldric Croft in the depths of the Agamand Family Crypt and take his Roll of the Raised to Gravekeeper Mortimer Weller in Brill.', 'His ward is weaker for the sentinels being gone. It\'ll break if you put your shoulder to it, and then it\'s you and him.$B$BHe\'s a necromancer of the old Cult: shadow, curses, the slow drain. He\'s had twenty years to prepare and no one to practise on, so he\'ll be sharp in his spells and soft everywhere else. Close quickly.$B$BWhen he\'s down, find his register. Every name he raised, he\'ll have written down: it\'s how they thought, the Cult, like stewards counting sheep. Those names belong to Brill. Take them to the gravekeeper. I\'ll stay and see the crypt sealed properly this time. My way.', '', 'Bring Croft\'s Roll of the Raised to Gravekeeper Mortimer Weller in Brill\'s cemetery.', 970903, 1, '', 970908, 1, 'Croft\'s Roll of the Raised', 0, 0, '', 0, 0, '', 929, 2, 14123, 1, 0, 0, 0, 0);
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970900, 0), (970901, 970900), (970902, 970901), (970903, 970902), (970904, 970903);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (970900, 0, 0), (970901, 970900, 0), (970902, 970901, 0), (970903, 970902, 0), (970904, 970903, 0);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
 (970900, 1, 'North. All three of them, north, toward Agamand Mills.$B$BThe Agamands had vaults under their family crypt, deep and dry. If the tunnels ran there, the people of Brill who went below to hide from the plague went there too. And the man who walled them in knew it.$B$BHis name was Aldric Croft. Brill remembers him fondly. He paid for the well, the bell rope, the orphans\' bread. He was also a necromancer of the Cult, and he was never found.'),
 (970901, 1, '(Isolde reads by the last of the light, slowly, the way you\'d read a list of the dead. Which it is.)$B$B\'Master Croft says the air below is clean.\' \'Master Croft brought bread again.\' And then, near the end, in the boy\'s hand: \'Mother says the doors are bricked. Master Croft says it is for our own good. Mother has stopped answering.\'$B$BHe didn\'t hide them from the plague, $n. He kept them for it.'),
@@ -1095,6 +1111,336 @@ INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`,
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (970900, 970900), (970900, 970901), (970901, 970902), (970901, 970903), (970901, 970904);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES (970900, 970900), (970901, 970901), (970901, 970902), (970901, 970903), (970300, 970904);
 
+-- Brill Endures
+INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `rank`, `HealthModifier`, `DamageModifier`, `mingold`, `maxgold`, `flags_extra`, `AIName`, `ScriptName`) VALUES
+(971000, 'Rudd Carver', 'Builder\'s Yard Foreman', 0, 25, 25, 68, 1, 1, 1.14286, 1, 0, 6, 0, 1, 1, 0, 0, 2, '', ''),
+(971001, 'Builder\'s Yard Laborer', NULL, 0, 15, 15, 68, 0, 1, 1.14286, 1, 0, 6, 0, 1, 1, 0, 0, 2, '', ''),
+(971002, 'Executor Zygand told', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 1, 1, 0, 0, 130, '', ''),
+(971003, 'Jamie Nore told', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 1, 1, 0, 0, 130, '', ''),
+(971004, 'The town bell rung', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 1, 1, 0, 0, 130, '', ''),
+(971005, 'Builders spoken with', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 1, 1, 0, 0, 130, '', '');
+INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
+(971000, 0, 1631, 1, 1),
+(971001, 0, 3516, 1, 1),
+(971001, 1, 1638, 1, 1),
+(971001, 2, 1604, 1, 1),
+(971002, 0, 11686, 1, 1),
+(971003, 0, 11686, 1, 1),
+(971004, 0, 11686, 1, 1),
+(971005, 0, 11686, 1, 1);
+INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
+(971000, 971000, 0, 85, 0, 1, 1, 2280.000, 470.000, 33.700, 3.1000, 60, 0, 0, 'mod-brill-home town'),
+(971001, 971001, 0, 85, 0, 1, 1, 2284.000, 476.000, 33.700, 2.0000, 60, 4, 1, 'mod-brill-home town'),
+(971002, 971001, 0, 85, 0, 1, 1, 2276.000, 464.000, 33.700, 4.5000, 60, 4, 1, 'mod-brill-home town');
+INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `ScriptName`) VALUES
+(971000, 2, 5743, 'Town Bell Rope', 0.3, 0, 0, 'go_brill_town'),
+(971001, 2, 17, 'Town Improvement Board', 1.2, 0, 0, 'go_brill_town'),
+(971002, 5, 1248, 'Lumber Stack', 1, 0, 0, ''),
+(971003, 5, 335, 'Builder\'s Crates', 1, 0, 0, ''),
+(971004, 5, 2891, 'Tool Bucket', 1, 0, 0, '');
+INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
+(971000, 971000, 0, 85, 0, 1, 1, 2299.000, 292.500, 35.200, 0.0000, 0, 0, 0.000000, 1.000000, 0, 255, 1, 'mod-brill-home town'),
+(971001, 971001, 0, 85, 0, 1, 1, 2298.000, 300.000, 35.200, 3.6000, 0, 0, 0.973848, -0.227202, 0, 255, 1, 'mod-brill-home town'),
+(971002, 971002, 0, 85, 0, 1, 1, 2286.000, 466.000, 33.700, 0.4000, 0, 0, 0.198669, 0.980067, 0, 255, 1, 'mod-brill-home town'),
+(971003, 971002, 0, 85, 0, 1, 1, 2274.000, 474.000, 33.800, 1.9000, 0, 0, 0.813416, 0.581683, 0, 255, 1, 'mod-brill-home town'),
+(971004, 971003, 0, 85, 0, 1, 1, 2288.000, 472.000, 33.700, 0.0000, 0, 0, 0.000000, 1.000000, 0, 255, 1, 'mod-brill-home town'),
+(971005, 971003, 0, 85, 0, 1, 1, 2272.000, 468.000, 33.700, 2.2000, 0, 0, 0.891207, 0.453596, 0, 255, 1, 'mod-brill-home town'),
+(971006, 971004, 0, 85, 0, 1, 1, 2281.000, 467.000, 33.700, 0.0000, 0, 0, 0.000000, 1.000000, 0, 255, 1, 'mod-brill-home town');
+INSERT INTO `brill_town_use` (`go`, `ord`, `cond`, `quest`, `credit`, `text_id`, `marker`) VALUES
+(971000, 0, 'I971000', 971000, 971004, 971000, 0),
+(971000, 1, '', 0, 0, 971001, 0),
+(971001, 0, '', 0, 0, 971002, 0);
+INSERT INTO `brill_town_gossip` (`npc`, `ord`, `kind`, `cond`, `icon`, `text`, `text_id`, `action`, `quest`, `credit`, `marker`, `emote`, `reply`, `arg`) VALUES
+(1515, 8000, 'option', 'I971000', 0, 'The Magistrate is calling the town together. He asks the Deathguard to stand in the square.', 0, 'credit', 971000, 971002, 0, 0, 'Without blades. He said that, didn\'t he. ...Very well. We\'ll stand. Mostly so we can see who doesn\'t.', 0),
+(2310, 8001, 'option', 'I971000', 0, 'Magistrate Sevren is calling the town together. Bring the ledgers.', 0, 'credit', 971000, 971003, 0, 0, 'The ledgers! All of them? ...Of course all of them. Give me an hour. Some of them have to be dusted. Some of them have to be found.', 0),
+(1499, 8002, 'greet', 'R971001', 0, NULL, 971003, '', 0, 0, 0, 0, NULL, 0),
+(1499, 8003, 'greet', 'R971000', 0, NULL, 971004, '', 0, 0, 0, 0, NULL, 0),
+(971000, 8004, 'greet', 'R971001', 0, NULL, 971005, '', 0, 0, 0, 0, NULL, 0),
+(971000, 8005, 'greet', '', 0, NULL, 971006, '', 0, 0, 0, 0, NULL, 0);
+UPDATE `creature_template` SET `npcflag` = `npcflag` | 1 WHERE `entry` IN (1499, 1515, 2310);
+INSERT INTO `brill_town_stage` (`type`, `value`, `ord`, `cond`) VALUES
+(1, 1, 0, 'R971000'),
+(1, 2, 0, 'R971001');
+INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, `RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`, `RequiredNpcOrGo3`, `RequiredNpcOrGoCount3`, `ObjectiveText3`, `RequiredNpcOrGo4`, `RequiredNpcOrGoCount4`, `ObjectiveText4`, `RewardItem1`, `RewardAmount1`, `RewardItem2`, `RewardAmount2`, `RewardItem3`, `RewardAmount3`, `RewardItem4`, `RewardAmount4`) VALUES
+(971000, 2, -1, 5, 159, 0, 5, 5000, 0, 'Brill Endures', 'Speak with Executor Zygand and Jamie Nore, ring the town bell in the square, then return to Magistrate Sevren.', 'Sit down, $n. No, not there; that chair belonged to the last magistrate, and he hasn\'t quite left it.$B$BI keep the town\'s accounts. Not just the coin: the people. Who arrived, who stayed, who walked into the Glades one night and didn\'t come back. For years the numbers only went one way.$B$BThey\'ve turned. A carpenter putting roofs back on. A gravekeeper who knows the names. Lamps lit on the right hours. A shop open again. You\'ve had a hand in more of that than I\'d like to admit to the Undercity, who\'d want to know why a magistrate needed a stranger to do his work.$B$BI mean to call the town together. Tell Executor Zygand his Deathguard will stand in the square without their blades out, for once. Tell Jamie Nore to bring the ledgers. Then ring the bell. Brill hasn\'t heard it rung for a gathering since before the plague.', '', 'Return to Magistrate Sevren in the Brill town hall.', 971002, 1, 'Executor Zygand told', 971003, 1, 'Jamie Nore told', 971004, 1, 'The town bell rung', 0, 0, '', 929, 3, 0, 0, 0, 0, 0, 0),
+(971001, 2, -1, 5, 159, 0, 6, 10000, 0, 'The Town We Made', 'Walk through Brill and speak with Mirelle Vane, Edmund Rook, Edda Graves, Elspeth Rane, Irena Sable and Oren Blackbarrel, then return to Magistrate Sevren.', 'Six. A chapel, a library, a garden, a hall for the broken, an office for the road, and a brewery, Light help us. I\'ve stopped counting the people who\'ve moved here because of them; Jamie keeps losing her place.$B$BThere\'s nothing left on the board, $n. No more projects. No more requests. That\'s not why I called you in.$B$BWalk the town. Not to fix anything. Just walk it, and speak to the people who built it with you. Then come back and tell me what you saw. I\'d go myself, but they all stop being honest when the magistrate arrives.', '', 'Return to Magistrate Sevren in the Brill town hall.', 971005, 6, 'Builders spoken with', 0, 0, '', 0, 0, '', 0, 0, '', 929, 5, 0, 0, 0, 0, 0, 0);
+INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES (971000, 0, 0), (971001, 971000, 0);
+INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
+(971000, 1, '(The square fills slowly: the Deathguard, the apothecaries, the innkeeper, the farmers, the ones who only come out after dark. Sevren reads the names of what\'s been mended, one by one.)$B$BBrill endures. It has always endured; that\'s the trouble with it. Endurance is what you do when you can\'t do anything else. I\'d like it to do something else now.$B$BI\'ve put a board up outside the hall: the Town Improvement Board. A chapel by the cemetery. A library. A garden. A surgeon\'s hall. A caravan office on the Undercity road. Somebody even wants the old brewery back. Each one has someone willing to see it through. None of them can do it alone.$B$BHelp whichever you like. Help none. The board will be there either way.'),
+(971001, 1, '(Sevren listens without writing anything down, which is the first time you have ever seen him not write something down.)$B$BWhen I came here, Brill was a waystation. A place the dead passed through on their way to somewhere they could pretend they were alive. Now people come here to stay.$B$BYou didn\'t do it alone, and you won\'t let me pretend you did. But you did it, $n. Whatever you were before, you\'re a citizen of Brill now. The ledger says so. I wrote it myself.');
+INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES
+(971000, 1, 1, 'The bell, $n. Brill won\'t come for a magistrate. It might come for a bell.'),
+(971001, 1, 1, 'Have you walked it all? The garden takes longest. Edda will want to show you every bed.');
+INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (1499, 971000), (1499, 971001);
+INSERT INTO `creature_questender` (`id`, `quest`) VALUES (1499, 971000), (1499, 971001);
+UPDATE `creature_template` SET `npcflag` = `npcflag` | 3 WHERE `entry` IN (1499);
+
+-- The projects' spawns that show from a stage.
+INSERT INTO `brill_town_invis` (`kind`, `guid`, `type`, `value`) VALUES
+('c', 971000, 1, 1),
+('c', 971001, 1, 1),
+('c', 971002, 1, 1),
+('g', 971001, 1, 1),
+('g', 971002, 1, 1),
+('g', 971003, 1, 1),
+('g', 971004, 1, 1),
+('g', 971005, 1, 1),
+('g', 971006, 1, 1);
+INSERT INTO `game_event_creature` (`eventEntry`, `guid`) VALUES (231, 971001), (231, 971002);
+INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `Comment`) VALUES
+(19, 0, 971000, 0, 0, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 0, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 0, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 1, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 1, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 1, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 2, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 2, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 2, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 3, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 3, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 3, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 4, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 4, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 4, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 5, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 5, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 5, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 6, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 6, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 6, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 7, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 7, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 7, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 8, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 8, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 8, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 9, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 9, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 9, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 10, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 10, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 10, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 11, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 11, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 11, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 12, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 12, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 12, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 13, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 13, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 13, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 14, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 14, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 14, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 15, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 15, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 15, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 16, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 16, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 16, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 17, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 17, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 17, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 18, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 18, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 18, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 19, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 19, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 19, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 20, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 20, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 20, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 21, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 21, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 21, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 22, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 22, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 22, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 23, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 23, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 23, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 24, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 24, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 24, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 25, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 25, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 25, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 26, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 26, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 26, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 27, 8, 0, 970205, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 27, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 27, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 28, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 28, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 28, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 29, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 29, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 29, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 30, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 30, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 30, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 31, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 31, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 31, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 32, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 32, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 32, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 33, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 33, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 33, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 34, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 34, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 34, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 35, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 35, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 35, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 36, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 36, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 36, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 37, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 37, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 37, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 38, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 38, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 38, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 39, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 39, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 39, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 40, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 40, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 40, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 41, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 41, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 41, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 42, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 42, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 42, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 43, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 43, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 43, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 44, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 44, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 44, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 45, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 45, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 45, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 46, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 46, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 46, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 47, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 47, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 47, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 48, 8, 0, 970128, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 48, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 48, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 49, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 49, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 49, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 50, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 50, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 50, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 51, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 51, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 51, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 52, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 52, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 52, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 53, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 53, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 53, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 54, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 54, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 54, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 55, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 55, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 55, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 56, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 56, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 56, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 57, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 57, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 57, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 58, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 58, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 58, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 59, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 59, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 59, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 60, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 60, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 60, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 61, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 61, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 61, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 62, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 62, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 62, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 63, 8, 0, 970304, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 63, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 63, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 64, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 64, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 64, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 65, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 65, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 65, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 66, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 66, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 66, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 67, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 67, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 67, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 68, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 68, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 68, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 69, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 69, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 69, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 70, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 70, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 70, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 71, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 71, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 71, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 72, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 72, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 72, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 73, 8, 0, 970404, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 73, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 73, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 74, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 74, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 74, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 75, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 75, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 75, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 76, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 76, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 76, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 77, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 77, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 77, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 78, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 78, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 78, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 79, 8, 0, 970504, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 79, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 79, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 80, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 80, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 80, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 81, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 81, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 81, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 82, 8, 0, 970604, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 82, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 82, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 83, 8, 0, 970704, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 83, 8, 0, 970804, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971000, 0, 83, 8, 0, 970904, 0, 0, 0, 'mod-brill-home town: endures'),
+(19, 0, 971001, 0, 0, 8, 0, 971000, 0, 0, 0, 'mod-brill-home town: town');
 -- The words.
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970200, '(A table with two legs, a chair with none, and a dresser the woodworm got to first. Kindling, most of it.)', '(A table with two legs, a chair with none, and a dresser the woodworm got to first. Kindling, most of it.)', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970201, '(Furniture, once. Kindling, now.)', '(Furniture, once. Kindling, now.)', 1);
@@ -1106,7 +1452,7 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (9702
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970207, '(At the back of the cellar, behind the rats\' nest, the earth wall gives way to brick: newer brick, laid in a hurry. Scratched into the mortar is a sign you half recognize, a circle bound in thorned lines, the kind painted on the doors of the Cult of the Damned. The air coming through the gaps is colder than the cellar\'s.)', '(At the back of the cellar, behind the rats\' nest, the earth wall gives way to brick: newer brick, laid in a hurry. Scratched into the mortar is a sign you half recognize, a circle bound in thorned lines, the kind painted on the doors of the Cult of the Damned. The air coming through the gaps is colder than the cellar\'s.)', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970208, '(Steps down into the cellar. At the back, the bricked-up wall and its mark.)', '(Steps down into the cellar. At the back, the bricked-up wall and its mark.)', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970209, '(Steps down into a damp cellar.)', '(Steps down into a damp cellar.)', 1);
-INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970210, '(Letters tied with twine, all to Cedric, all from Marta. The early ones are about the harvest and the boys and a dog called Bramble. The last is short:$B$B\'They say the grain from Andorhal is bad. Tobias is coughing. Come home quickly. I don\'t like how quiet the road is.\'$B$BShe never wrote again.)', '(Letters tied with twine, all to Cedric, all from Marta. The early ones are about the harvest and the boys and a dog called Bramble. The last is short:$B$B\'They say the grain from Andorhal is bad. Tobias is coughing. Come home quickly. I don\'t like how quiet the road is.\'$B$BShe never wrote again.)', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970210, '(Letters tied with twine, all to Cedric, all from Marta. The early ones are about the harvest and the boys and a dog called Bramble. The last is short:$B$B\'They say the grain from Andorhal is bad. Owen is coughing. Come home quickly. I don\'t like how quiet the road is.\'$B$BShe never wrote again.)', '(Letters tied with twine, all to Cedric, all from Marta. The early ones are about the harvest and the boys and a dog called Bramble. The last is short:$B$B\'They say the grain from Andorhal is bad. Owen is coughing. Come home quickly. I don\'t like how quiet the road is.\'$B$BShe never wrote again.)', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970211, '(Marta\'s letters to Cedric, tied with twine.)', '(Marta\'s letters to Cedric, tied with twine.)', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970212, '(A painted family in a farmhouse doorway: a broad, smiling man you\'d never guess was Cedric, a woman with flour on her apron, two boys, one missing a front tooth, and a shaggy gray dog sitting on everyone\'s feet. The doorway is this one.)', '(A painted family in a farmhouse doorway: a broad, smiling man you\'d never guess was Cedric, a woman with flour on her apron, two boys, one missing a front tooth, and a shaggy gray dog sitting on everyone\'s feet. The doorway is this one.)', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970213, '(The Harrows, in this doorway, before.)', '(The Harrows, in this doorway, before.)', 1);
@@ -1346,4 +1692,11 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (9709
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970922, 'Sealed. My way. Go home, $n. Light a candle. Not his.', 'Sealed. My way. Go home, $n. Light a candle. Not his.', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970923, 'Mind the Agamands on the stair. They\'re only angry; they don\'t know any better.', 'Mind the Agamands on the stair. They\'re only angry; they don\'t know any better.', 1);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (970924, 'This crypt belongs to the Agamands. I\'m only resting. You\'ll want to keep walking.', 'This crypt belongs to the Agamands. I\'m only resting. You\'ll want to keep walking.', 1);
--- (14 of the town's 14 phases used)
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (971000, '(You haul on the rope. The bell above the square speaks for the first time in years, a long, cracked note that rolls out over the rooftops. Doors open. Shutters open. Brill comes to see.)', '(You haul on the rope. The bell above the square speaks for the first time in years, a long, cracked note that rolls out over the rooftops. Doors open. Shutters open. Brill comes to see.)', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (971001, '(The rope to the square\'s bell.)', '(The rope to the square\'s bell.)', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (971002, '(TOWN IMPROVEMENT BOARD, by order of Magistrate Sevren.$B$BA CHAPEL beside the cemetery: see Dark Cleric Mirelle Vane.$BA LIBRARY on Stillhome Lane: see Edmund Rook.$BA GARDEN at the eastern edge: see Edda Graves.$BA SURGEON\'S HALL by the apothecaries: see Surgeon Elspeth Rane.$BA CARAVAN OFFICE on the Undercity road: see Quartermaster Irena Sable.$BThe OLD BREWERY by the Gallows\' End: see Brewmaster Oren Blackbarrel.$B$BMaterials to the builder\'s yard, north road. Volunteers welcome. Complaints to the Magistrate, who will file them.)', '(TOWN IMPROVEMENT BOARD, by order of Magistrate Sevren.$B$BA CHAPEL beside the cemetery: see Dark Cleric Mirelle Vane.$BA LIBRARY on Stillhome Lane: see Edmund Rook.$BA GARDEN at the eastern edge: see Edda Graves.$BA SURGEON\'S HALL by the apothecaries: see Surgeon Elspeth Rane.$BA CARAVAN OFFICE on the Undercity road: see Quartermaster Irena Sable.$BThe OLD BREWERY by the Gallows\' End: see Brewmaster Oren Blackbarrel.$B$BMaterials to the builder\'s yard, north road. Volunteers welcome. Complaints to the Magistrate, who will file them.)', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (971003, 'Citizen $n. I do enjoy writing that. Is there something the town can do for you, for a change?', 'Citizen $n. I do enjoy writing that. Is there something the town can do for you, for a change?', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (971004, 'The board\'s still up, $n. Some days I stand at the window and watch people read it. Nobody read anything in Brill for years.', 'The board\'s still up, $n. Some days I stand at the window and watch people read it. Nobody read anything in Brill for years.', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (971005, 'Six jobs, six openings, and not one roof fell on anybody. I\'ve built for kings, $n. Kings were easier. Kings didn\'t argue about the color of a chapel door.', 'Six jobs, six openings, and not one roof fell on anybody. I\'ve built for kings, $n. Kings were easier. Kings didn\'t argue about the color of a chapel door.', 1);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`, `text1_0`, `text1_1`, `Probability1`, `text2_0`, `text2_1`, `Probability2`) VALUES (971006, 'Rudd Carver, builder\'s yard. You bring it, we build it. You don\'t bring it, we stand here looking at the road.', 'Rudd Carver, builder\'s yard. You bring it, we build it. You don\'t bring it, we stand here looking at the road.', 0.333, 'Oswin Thatcher keeps coming round to tell my lads they\'re doing it wrong. He\'s usually right. Don\'t tell him.', 'Oswin Thatcher keeps coming round to tell my lads they\'re doing it wrong. He\'s usually right. Don\'t tell him.', 0.333, 'Materials go on the left. Tools on the right. The pile in the middle is somebody\'s lunch from the plague year; nobody touch it.', 'Materials go on the left. Tools on the right. The pile in the middle is somebody\'s lunch from the plague year; nobody touch it.', 0.333);
+-- (14 of the town's 21 phases used)

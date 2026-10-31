@@ -70,7 +70,7 @@ LINE = {
                 "Northrend, you're the one who ought to decide."),
             "progress": "Found anything? You've got the look of someone reading something they shouldn't.",
             "done": (
-                "Marta, two boys, and a dog called Bramble. And the last letter dated the week the grain came in from "
+                "Elinor, two boys, and a dog called Bramble. And the last letter dated the week the grain came in from "
                 "Andorhal.$B$B"
                 "(Oswin is quiet a while.)$B$B"
                 "I'll send the ring to Vengeance Landing with the next ship. Cedric should have it. The toy soldiers... "
@@ -222,10 +222,10 @@ LINE = {
         {"id": "letters", "name": "Bundle of Letters", "display": 220,
          "spawns": [["house", -0.6, 4.4, 0, 0]],
          "use": [{"cond": ["I:things"], "quest": "things", "credit": "letters_credit",
-                  "text": "(Letters tied with twine, all to Cedric, all from Marta. The early ones are about the harvest and the boys "
+                  "text": "(Letters tied with twine, all to Cedric, all from Elinor. The early ones are about the harvest and the boys "
                           "and a dog called Bramble. The last is short:$B$B'They say the grain from Andorhal is bad. Owen is "
                           "coughing. Come home quickly. I don't like how quiet the road is.'$B$BShe never wrote again.)"},
-                 {"text": "(Marta's letters to Cedric, tied with twine.)"}]},
+                 {"text": "(Elinor's letters to Cedric, tied with twine.)"}]},
         {"id": "portrait", "name": "Faded Portrait", "display": 6530, "scale": 0.4,
          "spawns": [["house", 3.6, -1.0, 0.9, 180]],
          "use": [{"cond": ["I:things"], "quest": "things", "credit": "portrait_credit",
