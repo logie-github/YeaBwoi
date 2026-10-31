@@ -555,10 +555,11 @@ jobs:
         id: key
         shell: bash
         run: |
-          # Patches 0007 to 0011 change the game server only (selections, cutscenes and the
+          # Patches 0007 to 0012 change the game server only (selections, cutscenes and the
           # spellbook for the app's touch controls, the realms' module configs, the undead
-          # paladins' trainers), not the data tools: they don't make them again.
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', '!warcraft/patches/azerothcore/0011-*', 'scripts/fetch-azerothcore.sh') }}"
+          # paladins' trainers, Brill's staged buildings), not the data tools: they don't make
+          # them again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', '!warcraft/patches/azerothcore/0011-*', '!warcraft/patches/azerothcore/0012-*', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
