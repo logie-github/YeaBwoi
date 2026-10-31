@@ -1146,7 +1146,16 @@ def homes(client, sql, W):
         "sloshy": "(Sloshy hiccups.)",
     }
     roles = {"quest": 2, "vendor": 128 | 1, "ambient": 0, "fry": 0}
-    if C.MURLOC_VILLAGE:
+    # The retired village (MURLOC_VILLAGE False) is still made, then its rows are taken out: its ids
+    # stay taken, so the naga's people and things after it keep the ids they've always had.
+    village_lists = (creatures, models, spawns, menus, vendor, gos, go_spawns, go_loot, cr_loot)
+    village_at = [len(lst) for lst in village_lists]
+
+    def retire_village():
+        if not C.MURLOC_VILLAGE:
+            for lst, n in zip(village_lists, village_at):
+                del lst[n:]
+    if True:
         for key, name, sub, look, where, o, role in C.MURLOC_PEOPLE + [C.SLOSHY]:
             flag = roles[role] | (1 if key in gossip else 0)
             e = npc(key, name, sub, look, (1, 1) if role == "fry" else (12, 13), 35, flag, unit_class=2 if key in ("elder", "oracle", "cook") else 1,
@@ -1172,6 +1181,7 @@ def homes(client, sql, W):
         altar_path, altar_name, altar_where, altar_o, altar_scale = C.ALTAR
         altar = go_template("altar", 2, go_display(altar_path), altar_name, altar_scale, [0, 0, 0, 0, 0, 0])
         go_place(altar, ground(altar_where), altar_o, MP, respawn=0, comment="mod-murloc-naga: the Murloc Altar")
+    retire_village()
 
     def chest(key, name, display, item, quest, places, phase, size=1.0):
         entry = go_template(key, 3, display, name, size, [259, 0, 0, 1, 0, 0, 0, 0, quest])
@@ -1183,7 +1193,8 @@ def homes(client, sql, W):
 
     murloc_quest_id = {qd["n"]: C.QUEST_BASE + qd["n"] for qd in C.MURLOC_QUESTS}
     naga_quest_id = {qd["n"]: C.QUEST_BASE + qd["n"] for qd in C.NAGA_QUESTS}
-    if C.MURLOC_VILLAGE:
+    village_at = [len(lst) for lst in village_lists]
+    if True:
         shore = sea_floor_ring(C.VILLAGE, 16, 48, 0.4, 6.0, 12, 0.3)
         deep = sea_floor_ring(C.VILLAGE, 25, 85, 4.0, 16.0, 18, 1.1)
         chest("mussels", "Mussel Cluster", 261, item_ids["mussel"], murloc_quest_id[2], shore, MP, 0.6)
@@ -1194,6 +1205,7 @@ def homes(client, sql, W):
         chest("crates", "Unattended Crate", 2, item_ids["trinket"], murloc_quest_id[3], C.TRINKET_CRATES, MP, 0.8)
         chest("bread", "Basket of Sweet Rolls", 10, item_ids["roll"], murloc_quest_id[4], C.BREAD_BASKETS, MP, 0.6)
         chest("lures", "Box of Shiny Lures", 2, item_ids["lures"], murloc_quest_id[12], [C.LURE_BOX], MP, 0.5)
+    retire_village()
         # (Darkshore's threshers drop the Thresher Eye already, for those whose quests need it: Buzzbox 411's)
 
     # The naga's camp.

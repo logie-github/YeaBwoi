@@ -1496,94 +1496,107 @@ REPLACE INTO `cinematicsequences_dbc` (`ID`, `SoundID`, `Camera_1`, `Camera_2`, 
 DELETE FROM `creature_template` WHERE `entry` BETWEEN 975000 AND 975099;
 DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 975000 AND 975099;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `speed_swim`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `rank`, `HealthModifier`, `ManaModifier`, `ArmorModifier`, `DamageModifier`, `BaseAttackTime`, `RangeAttackTime`, `lootid`, `RegenHealth`, `AIName`, `ScriptName`) VALUES
-(975000, 'Lady Szaria', 'The Tide-Broken', 975000, 14, 15, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975001, 'Myrmidon Ssaveth', '', 975001, 12, 13, 35, 1, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975002, 'Vyssa the Coral-Keeper', 'Provisions', 975002, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975003, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975004, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975005, 'Renegade Siren', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975006, 'Stormscale Infiltrator', '', 0, 10, 11, 74, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 975006, 1, '', ''),
-(975007, 'Scout Zun\'jin', 'Darkspear Trolls', 975007, 30, 30, 126, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', '');
+(975017, 'Lady Szaria', 'The Tide-Broken', 975017, 14, 15, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975018, 'Myrmidon Ssaveth', '', 975018, 12, 13, 35, 1, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975019, 'Vyssa the Coral-Keeper', 'Provisions', 975019, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975020, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
+(975021, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
+(975022, 'Renegade Siren', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
+(975023, 'Stormscale Infiltrator', '', 0, 10, 11, 74, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 975023, 1, '', ''),
+(975024, 'Scout Zun\'jin', 'Darkspear Trolls', 975024, 30, 30, 126, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', '');
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
-(975000, 0, 4980, 1.0, 1),
-(975001, 0, 11269, 1.0, 1),
-(975002, 0, 4973, 1.0, 1),
-(975003, 0, 4036, 1.0, 1),
-(975004, 0, 4036, 1.0, 1),
-(975005, 0, 4981, 1.0, 1),
-(975006, 0, 4036, 1.0, 1),
-(975006, 1, 4980, 1.0, 1),
-(975007, 0, 31737, 1.0, 1);
+(975017, 0, 4980, 1.0, 1),
+(975018, 0, 11269, 1.0, 1),
+(975019, 0, 4973, 1.0, 1),
+(975020, 0, 4036, 1.0, 1),
+(975021, 0, 4036, 1.0, 1),
+(975022, 0, 4981, 1.0, 1),
+(975023, 0, 4036, 1.0, 1),
+(975023, 1, 4980, 1.0, 1),
+(975024, 0, 31737, 1.0, 1);
 DELETE FROM `creature` WHERE `guid` BETWEEN 9750000 AND 9750999;
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(9750000, 975000, 1, 0, 0, 1, 2048, 6705.0, 801.0, 31.02, 4.71, 300, 0.0, 0, 'mod-murloc-naga: Lady Szaria'),
-(9750001, 975001, 1, 0, 0, 1, 2048, 6713.0, 793.0, 29.75, 4.3, 300, 0.0, 0, 'mod-murloc-naga: Myrmidon Ssaveth'),
-(9750002, 975002, 1, 0, 0, 1, 2048, 6699.0, 809.0, 26.88, 5.5, 300, 0.0, 0, 'mod-murloc-naga: Vyssa the Coral-Keeper'),
-(9750003, 975003, 1, 0, 0, 1, 2048, 6716.0, 806.0, 30.54, 4.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Myrmidon'),
-(9750004, 975004, 1, 0, 0, 1, 2048, 6695.0, 792.0, 24.26, 5.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Myrmidon'),
-(9750005, 975005, 1, 0, 0, 1, 2048, 6709.0, 812.0, 32.73, 2.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Siren'),
-(9750006, 975006, 1, 0, 0, 1, 2048, 6975.0, 805.0, 23.36, 0.0, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750007, 975006, 1, 0, 0, 1, 2048, 6988.0, 815.0, 45.82, 1.7, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750008, 975006, 1, 0, 0, 1, 2048, 6970.0, 820.0, 30.06, 3.4, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750009, 975006, 1, 0, 0, 1, 2048, 6995.0, 800.0, 19.74, 5.1, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750010, 975006, 1, 0, 0, 1, 2048, 6982.0, 828.0, 21.9, 0.52, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750011, 975006, 1, 0, 0, 1, 2048, 6965.0, 810.0, 24.72, 2.22, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750012, 975006, 1, 0, 0, 1, 2048, 6998.0, 822.0, 22.92, 3.92, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750013, 975006, 1, 0, 0, 1, 2048, 6978.0, 795.0, 13.93, 5.62, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750014, 975006, 1, 0, 0, 1, 2048, 6990.0, 808.0, 43.76, 1.04, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750015, 975006, 1, 0, 0, 1, 2048, 6969.0, 828.0, 19.79, 2.74, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750016, 975007, 1, 0, 0, 1, 2048, 4176.0, 880.0, 11.77, 3.6, 300, 0.0, 0, 'mod-murloc-naga: the Darkspear scout at the Zoram Strand');
+(9750036, 975017, 1, 0, 0, 1, 2048, 6705.0, 801.0, 31.02, 4.71, 300, 0.0, 0, 'mod-murloc-naga: Lady Szaria'),
+(9750037, 975018, 1, 0, 0, 1, 2048, 6713.0, 793.0, 29.75, 4.3, 300, 0.0, 0, 'mod-murloc-naga: Myrmidon Ssaveth'),
+(9750038, 975019, 1, 0, 0, 1, 2048, 6699.0, 809.0, 26.88, 5.5, 300, 0.0, 0, 'mod-murloc-naga: Vyssa the Coral-Keeper'),
+(9750039, 975020, 1, 0, 0, 1, 2048, 6716.0, 806.0, 30.54, 4.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Myrmidon'),
+(9750040, 975021, 1, 0, 0, 1, 2048, 6695.0, 792.0, 24.26, 5.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Myrmidon'),
+(9750041, 975022, 1, 0, 0, 1, 2048, 6709.0, 812.0, 32.73, 2.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Siren'),
+(9750042, 975023, 1, 0, 0, 1, 2048, 6975.0, 805.0, 23.36, 0.0, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750043, 975023, 1, 0, 0, 1, 2048, 6988.0, 815.0, 45.82, 1.7, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750044, 975023, 1, 0, 0, 1, 2048, 6970.0, 820.0, 30.06, 3.4, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750045, 975023, 1, 0, 0, 1, 2048, 6995.0, 800.0, 19.74, 5.1, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750046, 975023, 1, 0, 0, 1, 2048, 6982.0, 828.0, 21.9, 0.52, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750047, 975023, 1, 0, 0, 1, 2048, 6965.0, 810.0, 24.72, 2.22, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750048, 975023, 1, 0, 0, 1, 2048, 6998.0, 822.0, 22.92, 3.92, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750049, 975023, 1, 0, 0, 1, 2048, 6978.0, 795.0, 13.93, 5.62, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750050, 975023, 1, 0, 0, 1, 2048, 6990.0, 808.0, 43.76, 1.04, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750051, 975023, 1, 0, 0, 1, 2048, 6969.0, 828.0, 19.79, 2.74, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
+(9750052, 975024, 1, 0, 0, 1, 2048, 4176.0, 880.0, 11.77, 3.6, 300, 0.0, 0, 'mod-murloc-naga: the Darkspear scout at the Zoram Strand');
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 975400 AND 975499;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
-(975400, 'We were the Stormscale\'s, once, and before that Queen Azshara\'s. Now we are no one\'s but our own.$B$BThe night elves across the water have no reason to trust us. Give them one. And when they have taught you all they will, go south to the Grove of the Ancients: the old one there, Onu, hears what the sea says. He will know where your path goes next.', 'We were the Stormscale\'s, once, and before that Queen Azshara\'s. Now we are no one\'s but our own.$B$BThe night elves across the water have no reason to trust us. Give them one. And when they have taught you all they will, go south to the Grove of the Ancients: the old one there, Onu, hears what the sea says. He will know where your path goes next.', 1),
-(975401, 'I watch the north. They will come from the north.', 'I watch the north. They will come from the north.', 1),
-(975402, 'Coral, kelp, fresh water from the island\'s spring. It is not the palaces of Zin-Azshari. It will do.', 'Coral, kelp, fresh water from the island\'s spring. It is not the palaces of Zin-Azshari. It will do.', 1),
-(975403, 'Keep your head down, mon. Dem Wrathtail got eyes all over dis beach.', 'Keep your head down, mon. Dem Wrathtail got eyes all over dis beach.', 1);
+(975400, 'Mrrgl. Mrgl mrgl mrrrrgl.$B$B(The elder leans on his staff and watches the elves\' lights across the water.)', 'Mrrgl. Mrgl mrgl mrrrrgl.$B$B(The elder leans on his staff and watches the elves\' lights across the water.)', 1),
+(975401, '(Grrmlgrrl doesn\'t look up from his spear. He grunts.)', '(Grrmlgrrl doesn\'t look up from his spear. He grunts.)', 1),
+(975402, '(Murlorga offers you a ladle of something grey. It moves.)$B$BMrgl?', '(Murlorga offers you a ladle of something grey. It moves.)$B$BMrgl?', 1),
+(975403, '(Blrrgl hides something behind his back, very fast.)$B$Bmrgl...', '(Blrrgl hides something behind his back, very fast.)$B$Bmrgl...', 1),
+(975404, 'Mmmmrrrrgllll...$B$B(Oracle Glubbub stares straight through you, at something far out at sea.)', 'Mmmmrrrrgllll...$B$B(Oracle Glubbub stares straight through you, at something far out at sea.)', 1),
+(975405, '(Mrrlglr slaps a fish on the counter and points at it, then at your coin pouch.)$B$BMrgl!', '(Mrrlglr slaps a fish on the counter and points at it, then at your coin pouch.)$B$BMrgl!', 1),
+(975406, '(Sloshy hiccups.)', '(Sloshy hiccups.)', 1),
+(975407, 'We were the Stormscale\'s, once, and before that Queen Azshara\'s. Now we are no one\'s but our own.$B$BThe night elves across the water have no reason to trust us. Give them one. And when they have taught you all they will, go south to the Grove of the Ancients: the old one there, Onu, hears what the sea says. He will know where your path goes next.', 'We were the Stormscale\'s, once, and before that Queen Azshara\'s. Now we are no one\'s but our own.$B$BThe night elves across the water have no reason to trust us. Give them one. And when they have taught you all they will, go south to the Grove of the Ancients: the old one there, Onu, hears what the sea says. He will know where your path goes next.', 1),
+(975408, 'I watch the north. They will come from the north.', 'I watch the north. They will come from the north.', 1),
+(975409, 'Coral, kelp, fresh water from the island\'s spring. It is not the palaces of Zin-Azshari. It will do.', 'Coral, kelp, fresh water from the island\'s spring. It is not the palaces of Zin-Azshari. It will do.', 1),
+(975410, 'Keep your head down, mon. Dem Wrathtail got eyes all over dis beach.', 'Keep your head down, mon. Dem Wrathtail got eyes all over dis beach.', 1);
 DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN 975000 AND 975099;
 INSERT INTO `gossip_menu` (`MenuID`, `TextID`) VALUES
-(975000, 975400),
-(975001, 975401),
-(975002, 975402),
-(975007, 975403);
+(975017, 975407),
+(975018, 975408),
+(975019, 975409),
+(975024, 975410);
 DELETE FROM `npc_vendor` WHERE `entry` BETWEEN 975000 AND 975099;
 INSERT INTO `npc_vendor` (`entry`, `slot`, `item`) VALUES
-(975002, 0, 159),
-(975002, 1, 1179),
-(975002, 2, 787),
-(975002, 3, 4592),
-(975002, 4, 4593),
-(975002, 5, 4540);
+(975019, 0, 159),
+(975019, 1, 1179),
+(975019, 2, 787),
+(975019, 3, 4592),
+(975019, 4, 4593),
+(975019, 5, 4540);
 DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 975100 AND 975199;
 INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `Data6`, `Data7`, `Data8`, `Data9`, `Data10`, `Data11`, `Data12`, `Data13`, `Data14`, `Data15`, `Data16`, `Data17`, `Data18`, `Data19`, `Data20`, `Data21`, `Data22`, `Data23`) VALUES
-(975100, 5, 9750, 'Naga Pagoda', 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975101, 5, 9751, 'Renegade Banner', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975102, 5, 9752, 'Naga Torch', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975103, 5, 9753, 'Naga Torch', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975104, 5, 9754, 'Naga Crate', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975105, 5, 9755, 'Naga Weapons', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975106, 5, 9756, 'Naga Jar', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+(975113, 5, 9756, 'Naga Pagoda', 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975114, 5, 9757, 'Renegade Banner', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975115, 5, 9758, 'Naga Torch', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975116, 5, 9759, 'Naga Torch', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975117, 5, 9760, 'Naga Crate', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975118, 5, 9761, 'Naga Weapons', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975119, 5, 9762, 'Naga Jar', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 DELETE FROM `gameobject` WHERE `guid` BETWEEN 9751000 AND 9751999;
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
-(9751000, 975100, 1, 0, 0, 1, 2048, 6712.0, 812.0, 32.62, 4.0, 0.0, 0.0, 0.9093, -0.4161, 0, 100, 1, 'mod-murloc-naga: Naga Pagoda'),
-(9751001, 975101, 1, 0, 0, 1, 2048, 6700.0, 797.0, 26.56, 4.71, 0.0, 0.0, 0.708, -0.7063, 0, 100, 1, 'mod-murloc-naga: Renegade Banner'),
-(9751002, 975102, 1, 0, 0, 1, 2048, 6710.0, 796.0, 31.14, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Torch'),
-(9751003, 975103, 1, 0, 0, 1, 2048, 6698.0, 806.0, 28.06, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Torch'),
-(9751004, 975104, 1, 0, 0, 1, 2048, 6702.0, 812.0, 26.38, 1.0, 0.0, 0.0, 0.4794, 0.8776, 0, 100, 1, 'mod-murloc-naga: Naga Crate'),
-(9751005, 975105, 1, 0, 0, 1, 2048, 6717.0, 799.0, 30.2, 3.5, 0.0, 0.0, 0.984, -0.1782, 0, 100, 1, 'mod-murloc-naga: Naga Weapons'),
-(9751006, 975106, 1, 0, 0, 1, 2048, 6694.0, 802.0, 27.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Jar');
+(9751051, 975113, 1, 0, 0, 1, 2048, 6712.0, 812.0, 32.62, 4.0, 0.0, 0.0, 0.9093, -0.4161, 0, 100, 1, 'mod-murloc-naga: Naga Pagoda'),
+(9751052, 975114, 1, 0, 0, 1, 2048, 6700.0, 797.0, 26.56, 4.71, 0.0, 0.0, 0.708, -0.7063, 0, 100, 1, 'mod-murloc-naga: Renegade Banner'),
+(9751053, 975115, 1, 0, 0, 1, 2048, 6710.0, 796.0, 31.14, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Torch'),
+(9751054, 975116, 1, 0, 0, 1, 2048, 6698.0, 806.0, 28.06, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Torch'),
+(9751055, 975117, 1, 0, 0, 1, 2048, 6702.0, 812.0, 26.38, 1.0, 0.0, 0.0, 0.4794, 0.8776, 0, 100, 1, 'mod-murloc-naga: Naga Crate'),
+(9751056, 975118, 1, 0, 0, 1, 2048, 6717.0, 799.0, 30.2, 3.5, 0.0, 0.0, 0.984, -0.1782, 0, 100, 1, 'mod-murloc-naga: Naga Weapons'),
+(9751057, 975119, 1, 0, 0, 1, 2048, 6694.0, 802.0, 27.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Jar');
 DELETE FROM `gameobject_loot_template` WHERE `Entry` BETWEEN 975100 AND 975199;
 DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga';
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(975006, 975308, 0, 65, 1, 1, 0, 1, 1, 'mod-murloc-naga');
+(975023, 975308, 0, 65, 1, 1, 0, 1, 1, 'mod-murloc-naga');
 DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN 9750 AND 9799;
 INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, `Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES
-(9750, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Pagoda\\NagaPagodaHut01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
-(9751, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Banner\\NA_Banner01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
-(9752, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
-(9753, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
-(9754, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Crates\\NA_Crate01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
-(9755, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\WeaponStacks\\NA_WeaponStack01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
-(9756, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Jars\\NA_Jar01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0);
+(9750, 'World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9751, 'World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut02.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9752, 'World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9753, 'World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut02.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9754, 'World\\GENERIC\\Murloc\\Passive Doodads\\Pearl\\GreatPearl_01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9755, 'World\\GENERIC\\Murloc\\Passive Doodads\\Altars\\MurlocAltar_01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9756, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Pagoda\\NagaPagodaHut01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9757, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Banner\\NA_Banner01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9758, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9759, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9760, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Crates\\NA_Crate01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9761, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\WeaponStacks\\NA_WeaponStack01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
+(9762, 'World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Jars\\NA_Jar01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0);
 
 -- Their quest items and rewards.
 DELETE FROM `item_template` WHERE `entry` BETWEEN 975300 AND 975399;
@@ -1608,7 +1621,7 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 -- Zoram'gar, whose Naga at the Zoram Strand (6442) is the Horde's own).
 DELETE FROM `quest_template` WHERE `ID` BETWEEN 975200 AND 975299;
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, `RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, `StartItem`, `RequiredNpcOrGo1`, `RequiredNpcOrGo2`, `RequiredNpcOrGo3`, `RequiredNpcOrGo4`, `RequiredNpcOrGoCount1`, `RequiredNpcOrGoCount2`, `RequiredNpcOrGoCount3`, `RequiredNpcOrGoCount4`, `RequiredItemId1`, `RequiredItemId2`, `RequiredItemId3`, `RequiredItemId4`, `RequiredItemId5`, `RequiredItemId6`, `RequiredItemCount1`, `RequiredItemCount2`, `RequiredItemCount3`, `RequiredItemCount4`, `RequiredItemCount5`, `RequiredItemCount6`, `RewardChoiceItemID1`, `RewardChoiceItemID2`, `RewardChoiceItemID3`, `RewardChoiceItemID4`, `RewardChoiceItemID5`, `RewardChoiceItemID6`, `RewardChoiceItemQuantity1`, `RewardChoiceItemQuantity2`, `RewardChoiceItemQuantity3`, `RewardChoiceItemQuantity4`, `RewardChoiceItemQuantity5`, `RewardChoiceItemQuantity6`, `RewardFactionID1`, `RewardFactionID2`, `RewardFactionValue1`, `RewardFactionValue2`) VALUES
-(975230, 2, 10, 10, 148, 8, 7, 1500, 524288, 'Blood in the Water', 'Kill 6 Stormscale Infiltrators on the island to the north.', 'You came to us out of the deep, like the rest of us. Good. Then you know what follows us.$B$BThe Stormscale do not let their deserters go. They have sent hunters after us, and they wait on the island to the north for the night we sleep too soundly. Go there first. Remind them what we were trained to do.', '', '', 0, 975006, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+(975230, 2, 10, 10, 148, 8, 7, 1500, 524288, 'Blood in the Water', 'Kill 6 Stormscale Infiltrators on the island to the north.', 'You came to us out of the deep, like the rest of us. Good. Then you know what follows us.$B$BThe Stormscale do not let their deserters go. They have sent hunters after us, and they wait on the island to the north for the night we sleep too soundly. Go there first. Remind them what we were trained to do.', '', '', 0, 975023, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 (975231, 2, 11, 10, 148, 8, 7, 1650, 524288, 'Sealed Orders', 'Take 4 Stormscale Orders from the infiltrators and bring them to Sentinel Glynda Nal\'Shea in Auberdine.', 'The hunters carry orders, sealed in the old way. What the Stormscale plan, the night elves of Auberdine will want to know.$B$BI know what they will think when one of us walks into their town. Go anyway. Give the orders to the sentinel who commands there. If we are to live on this coast, we must be worth more to them alive than dead.', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 975308, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 69, 0, 5, 0),
 (975232, 2, 18, 17, 331, 8, 5, 2700, 524288, 'The Tide Turns', 'Travel south along the coast to the Zoram Strand in Ashenvale and find out what stirs the Wrathtail naga.', 'The Wrathtail stir in the south, young one, on the shore the elves call the Zoram Strand. I hear the sea grow restless there, and I hear in it voices like yours: naga voices, singing to something in the deep.$B$BYou have done much for the forest of Darkshore. Go now, and see what the Wrathtail are about. Whatever you find there, I suspect it is your own path, and not ours.', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
 (975233, 2, 18, 17, 331, 8, 6, 2700, 524288, 'Strangers on the Shore', 'Kill 4 Wrathtail Myrmidons and 4 Wrathtail Razortails on the Zoram Strand.', 'Dem Wrathtail been pushin\' me up dis beach all mornin\'. Too many of dem for one troll, even a good one.$B$BYou wanna prove you ain\'t one of dem? Easy. Thin \'em out. Myrmidons and Razortails, the ones closest to my hidin\' spot. Then we talk.', '', '', 0, 3711, 3712, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
@@ -1634,24 +1647,37 @@ INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`,
 (975233, 6, 6, 'Still hearin\' dem hiss out dere.');
 DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 975200 AND 975299;
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
-(975000, 975230),
-(975000, 975231),
+(975017, 975230),
+(975017, 975231),
 (3616, 975232),
-(975007, 975233),
-(975007, 975234);
+(975024, 975233),
+(975024, 975234);
 DELETE FROM `creature_questender` WHERE `quest` BETWEEN 975200 AND 975299;
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
-(975000, 975230),
+(975017, 975230),
 (2930, 975231),
-(975007, 975232),
-(975007, 975233),
+(975024, 975232),
+(975024, 975233),
 (12719, 975234);
 DELETE FROM `gameobject_questender` WHERE `quest` BETWEEN 975200 AND 975299;
 DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 975000 AND 975099 AND `source_type` = 0;
 INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES
-(975000, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: szaria\'s voice'),
-(975002, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: vyssa\'s voice'),
-(975001, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 3437, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: ssaveth\'s voice');
+(975000, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
+(975000, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
+(975001, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 414, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
+(975001, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
+(975002, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
+(975002, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
+(975003, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 1109, 415, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
+(975003, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
+(975004, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 415, 414, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
+(975004, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
+(975005, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: fishmonger\'s voice'),
+(975013, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
+(975013, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
+(975017, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: szaria\'s voice'),
+(975019, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: vyssa\'s voice'),
+(975018, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 3437, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: ssaveth\'s voice');
 
 -- Where they start: on their islands in Darkshore, every class.
 DELETE FROM `playercreateinfo` WHERE `race` IN (19, 20);
