@@ -1799,6 +1799,42 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
    are specified; the Surgeon's Hall, Caravan Office and Old Brewery wait on the rest of the user's text.
    The town has no phases left: they need more (the game's own 0x2 to 0x80 in Brill, or a visibility hook).
 
+## The Murlocs and the Naga (ChromieCraft; `modules/mod-murloc-naga`)
+
+The user: "implement a murloc and naga races ... Murloc to alliance and naga to horde. Fully customizable male
+and female according to what's already in the game files", then "Using the ChromieCraft alternate HD patch. Also I
+trust you to make the decisions": both start in Darkshore at level 10; the murlocs with three levels of quests of
+their own, murloc words alone ("Mrrrggggglee"), show don't tell ("(The murloc motions for you to follow.)"),
+"go steal from the local town. Go kill naga"; intros showing their homes, murloc sounds for the murlocs, Lady Vashj's
+lines (thewowdb.com's page of her) "enough to fill a minute long cutscene intro ... a coherent intro" for the naga;
+the naga renegades doing Darkshore's night elf quests (and the Horde's) "unless they conflict", joining the Horde at
+Zoram'gar through three quests to Marukai's Naga at the Zoram Strand (6442), reusing the game's content and touching
+nobody else's game (the user's brief: analysis of the core's teams, race masks, factions and quest eligibility first).
+
+Decided (the module's README has why, and what's confirmed in the core's source and data):
+- Races 19 (Murloc, Alliance, the night elves' standing and quests) and 20 (Naga, Horde, the trolls'); the game's Taunka
+  and Northrend Skeleton moved to 30 and 31. Classes: murloc warrior, hunter, rogue, priest, shaman, mage; naga those
+  and warlock; no death knights (they'd start at 55 in Ebon Hold, not at 10 in Darkshore).
+- Their looks from the client's own files at the realm's start (the Alternative HD Patch's when it's in): the naga's
+  character model and five colours a sex, four more recoloured toward the game's creature naga; the murloc made a
+  character from the game's murloc (its body read from the composed texture's face region, so armour never paints
+  it), every murloc skin the game has. Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
+  read after the Alternative HD Patch's patch-S (SoundEntries) and before the other race modules' U, V, Y, Z.
+- Their homes are islands off Auberdine (the murlocs' west of it, the naga's north), seen by their race alone (a phase
+  each in Darkshore and Ashenvale, by spell_area); what the murlocs steal in Auberdine is in their phase too.
+- The naga are neutral to Darnassus, Ironforge and the Gnomeregan Exiles (the last slot of those factions in
+  Faction.dbc): the core takes a reputation faction's people's reaction from the player's standing, so Darkshore's
+  people talk to the naga alone of the Horde. Quests leading off to the Alliance's cities and camps are closed to them.
+- The transition: Onu (the Grove of the Ancients, level 17 on) → Scout Zun'jin of the Darkspear at the Zoram Strand →
+  Marukai at Zoram'gar → 6442.
+- They learn their class's trainer spells as they level (they start at 10, far from their kin's trainers).
+- Lady Vashj's intro: the game's fourteen lines of hers (thewowdb.com turned the session's program away; the page
+  lists her lines, and the game's files have them), eight of them in story order over a 61 second flight.
+
+Where it stands: built, its tools' tests and the screen's pass; CI's server test checks the patch, the starts at
+level 10, racials, language, class spells, the murloc's first quests and Auberdine, the naga's quests in Auberdine and
+the way south. Not seen in the game or on a phone (the models, the composed textures, the intros, the screen).
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made

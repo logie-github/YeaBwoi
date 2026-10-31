@@ -40,6 +40,11 @@ self-updating from this repository's GitHub releases.
   as lovers her moving in; and Brill: A Place Among the Forsaken, the town's optional questlines: `tools/town/*.py`, made by
   `tools/build_town.py`, run by `src/BrillTown.cpp`): `warcraft/modules/mod-brill-home` (its README);
   `tools/build_sql.py` makes its SQL, committed.
+- **The Murlocs and the Naga** (ChromieCraft's realm only: races 19, Alliance, and 20, Horde, both starting in Darkshore
+  at level 10, the murlocs with their own murloc-speaking questline, the naga through Darkshore's night elf quests to the
+  Horde at Zoram'gar): `warcraft/modules/mod-murloc-naga` (its README); `tools/build_data.py` makes its data from
+  `tools/content.py`, committed; its patch (`Data/<locale>/patch-<locale>-T.MPQ`) is made at the realm's start from the
+  client's own files (never committed).
 - **WoW: Forever's quests** (ChromieCraft's realm only): `warcraft/modules/mod-forever-quests` (its
   README); `tools/forever.py` makes its SQL from QuestieDB's Forever data and foreverchanges.pro's
   quest pages (the exact text), committed.
