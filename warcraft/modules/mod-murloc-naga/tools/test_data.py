@@ -85,14 +85,28 @@ check(all(int(r["id"]) in gos for r in rows("gameobject")), "every object placed
 loot = {int(r["Entry"]) for r in rows("gameobject_loot_template")}
 check(all(int(g["Data1"]) in loot for g in gos.values() if g["type"] == "3"), "every chest has its loot")
 
-# The looks' textures: the patch makes those of the murlocs and the naga's new colours (looks.txt).
+# The looks' textures: the murlocs' are tools/murloc_model.py's (named by tools/murloc_looks.py), the
+# naga's new colours the patch's (looks.txt).
+import murloc_looks as ML  # noqa: E402
 looks = [l.rstrip("\n").split("\t") for l in open(os.path.join(DATA, "client", "looks.txt")) if not l.startswith("#")]
-skins = [l for l in looks if l[0] == "murloc_skin"]
-check(len(skins) == 10, "ten murloc skins")
+check(len([l for l in looks if l[0] == "naga_colour"]) == 8, "the naga's four new colours a sex")
 sections = open(os.path.join(DATA, "client", "dbc", "CharSections.txt")).read()
-for sex in ("Male", "Female"):
-    for c in range(10):
-        check(f"Character\\\\Murloc\\\\{sex}\\\\Murloc{sex}FaceLower00_{c:02d}.blp" in sections, f"the murlocs' face {sex} {c} in CharSections")
+made = {"MurlocBase"} | {"MurlocSkin%02d" % i for i in range(len(ML.SKINS))} | {"MurlocEyes%02d" % i for i in range(len(ML.SKINS))} \
+    | {"MurlocHair%02d" % i for i in range(len(ML.HAIR_COLOURS))}
+named = set(re.findall(r"Character\\\\Murloc\\\\([A-Za-z0-9]+)\.blp", sections))
+check(named and named <= made, f"every murloc texture the looks name is one tools/murloc_model.py makes ({sorted(named - made)})")
+check(all("MurlocSkin%02d" % i in named and "MurlocEyes%02d" % i in named for i in range(len(ML.SKINS))),
+      f"the murlocs' {len(ML.SKINS)} skins and eye colours")
+geosets = open(os.path.join(DATA, "client", "dbc", "CharHairGeosets.txt")).read()
+check(sum(len(v) for v in ML.HAIR_STYLES.values()) == len(re.findall(r"^put\t\d+\t19\t", geosets, re.M)), "a hair style row each (murlocs)")
+facial = open(os.path.join(DATA, "client", "dbc", "CharacterFacialHairStyles.txt")).read()
+check(facial.count("appendraw") >= sum(len(v) for v in ML.FEATURES.values()), "a feature row each (murlocs)")
+import naga_looks as NL  # noqa: E402
+naga_hair = len(re.findall(r"^put\t\d+\t20\t", geosets, re.M))
+check(naga_hair == sum(len(NL.HEADDRESSES[s]) + 1 for s in ("Male", "Female")), f"a headdress row each (naga: {naga_hair})")
+check(all(NL.headdress_texture(s, h, c).replace("\\", "\\\\") in sections for s in ("Male", "Female")
+          for h in range(1, len(NL.HEADDRESSES[s]) + 1) for c in range(NL.colours(s))), "the headdresses' colours in CharSections")
+check(not re.search(r"Naga_\\\\(Hair|Scalp|Facial)", sections), "no naga hair, scalp or facial hair texture the game hasn't")
 check(sections.count("put\t") > 100, "the races' looks")
 
 # The cameras, as the world server reads them.
