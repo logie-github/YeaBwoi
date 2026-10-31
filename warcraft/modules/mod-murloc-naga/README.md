@@ -18,15 +18,36 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
 - **Models and looks**, from the game's own files (the Alternative HD Patch's when it's in: the user's look):
   - *Naga*: the game's naga character model (`Character\Naga_\`, men and women; the HD look has its own of both),
     its five skin colours a sex, and four more made from them (the colours of the game's creature naga: the naga
-    lords' crimson, the sirens' gold and violet, and a grey for the men, silver for the women).
-    The naga's one face, hair texture and the men's one facial hair are the game's.
-  - *Murloc*: the game's murloc (`Creature\Murloc\Murloc.m2`) made a character's model (men and women: the same
-    body; the game has no other murloc), every murloc skin the game has as a skin colour (10: the five its murlocs
-    wear and the rest of their colours in the same folder, the HD look's two `murloc2` among them).
+    lords' crimson, the sirens' gold and violet, and a grey for the men, silver for the women). The naga's one face
+    is the game's. Added to that model as the realm makes the patch (`tools/naga_looks.py`): Blizzard's own naga
+    headdresses and outfits (Battle for Azeroth's Nazjatar naga wear them; made for the naga's body, `_na_m` and
+    `_na_f`):
+    - **Headdress** (the hair style): none, and for men the myrmidon's crown and the warlord's helm, for women the
+      sea witch's headdress (on the head's bone, where the newer naga's helm attachment is);
+    - **Headdress color**: each headdress's colours (three or four, its item displays' textures);
+    - **Features**: none, and each outfit in each of its colours (men: the myrmidon's harness in three, the warlord's
+      plate in four; women: the sea witch's regalia in four), on the naga's own bones.
+    The game's naga have no hair or facial hair of their own: their rows named textures the game hasn't, and are the
+    headdresses' and the features' now.
+  - *Murloc*: Blizzard's newer murloc (`creature/murloc2/murloc2.m2`, the murlocs of Cataclysm on) made a character's
+    model, with its kin's parts (the murlocs built on the same skeleton: every bone of theirs at one of its bones'
+    places) as geosets the creation screen picks (`tools/murloc_looks.py` says what each choice is):
+    - **Skin color** (13): every skin the game gives that model and its re-skinned kin (grey, blue, green, pale,
+      orange, gold, fel, red, purple, slate, abyssal, bronze, ice), whole on the body (the skin row's "extra"
+      texture, the model's type 8);
+    - **Face** (13): the eyes of each of those skins (the eyes are a mesh of their own, read from the composed
+      texture's face region);
+    - **Headgear** (the hair style): none, the shark-hooded murloc's hood, the demon hunter murloc's horns, the deep
+      sea murloc's lure, and for women Maria's hair (the Darkmoon Faire murloc in a dress);
+    - **Hair color** (women): Maria's hair in seven colours;
+    - **Features**: none, the demon hunter's blindfold, the shark-hooded murloc's outfit, the loincloth, and for
+      women Maria's dress.
+    The files are the game's of today, fetched and made 3.3.5's as the server is packaged (`tools/murloc_model.py`,
+    never in this repository); `tools/render_murloc.py` draws every choice to a contact sheet.
 - **Armour** on a murloc: the game paints armour into a character's composed texture, in its regions for arms, chest
-  and legs; the murloc's model reads only that texture's face region (its texture coordinates moved there), which
-  armour never paints, so a murloc stays a murloc in any armour. Helmets, shoulders and gear models need places on the
-  model a creature hasn't: they don't show. Weapons in hand do.
+  and legs; the murloc's body is its own texture and its eyes read the face region, which armour never paints, so a
+  murloc stays a murloc in any armour. Helmets, shoulders and gear models need places on the model a creature hasn't:
+  they don't show. Weapons in hand do.
 - **Racials** (learned at creation from `playercreateinfo_spell_custom`):
   - Murloc: **Amphibious** (breathe underwater, swim 50% faster), **Mrrgglll!** (a war-gurgle: enemies within 8
     yards stunned for 2 sec, 2 min cooldown), **Slippery** (dodge +1%).
@@ -178,9 +199,26 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
   cameras, `tools/cameras.py`). Committed; run it again after changing it.
 - As the world server starts, as the configuration is about to be read (`src/MurlocNaga.cpp`: first of the race modules'
   patches, the modules loaded in their folders' order), `src/MurlocNagaPatch.cpp` makes the game's
-  `Data/<locale>/patch-<locale>-T.MPQ` from the client's own files: the tables with the rows changed, the murloc's
-  model and its face textures from the game's murloc skins, the naga's new colours, the icons, the screen's files, the
-  cameras and the narrations (the game's WAVs mixed, 22050 Hz mono).
+  `Data/<locale>/patch-<locale>-T.MPQ` from the client's own files: the tables with the rows changed, the naga's new
+  colours, the icons, the screen's files, the cameras and the narrations (the game's WAVs mixed, 22050 Hz mono); and
+  the murlocs' model and textures the server package brought (`data/files`, `murloc.files`: below).
+- **`tools/murloc_model.py fetch DIR`** (run by `scripts/package-azerothcore.sh` as the server is packaged) fetches
+  murloc2, its kin (`murloc2shark`, `murloc2maria`, `dhmurloc`, `murlocdeepsea`), their skins and parts' textures
+  from wago.tools by their file ids and writes the murlocs' files: murloc2 converted by Wrath Remix's converter
+  (`mod-wrath-remix/tools/models.py`), its body drawn with the skin's extra texture and its eyes' texture coordinates
+  moved into FaceLower's region, each part's triangles (the pieces of a batch's mesh by where they are, or a head's
+  bones alone, or the bones murloc2 hasn't) added with its bones taken to murloc2's at the same places (a bone it
+  hasn't, to its nearest parent it has), every section at most 64 bones; a track with one set of keys for every
+  sequence given one a sequence (none for a sequence kept in its own .anim: its flag at byte 12). Its list,
+  `murloc.files`, is written last; without it the patch says so and the murlocs aren't drawn.
+- **`tools/naga_parts.py fetch DIR`** (run with it) fetches the naga's headdresses and outfits (`helm_*_na_m/_na_f`,
+  `collections_*_na_m/_na_f`), their colours' textures (from their item displays) and the newer naga's skeleton, and
+  writes each sex's parts (`Character/Naga_/<Sex>/Naga<Sex>Parts.dat`: each geometry's vertices with their bones'
+  places, its triangles, the geosets and textures that draw it: an outfit's colours share its triangles, as the
+  game reads a section's start in 16 bits) and textures, its list `naga.files` last. As the patch is made,
+  `MergeParts` (`src/MurlocNagaPatch.cpp`) adds them to the client's own naga models (an HD look's, with one in):
+  each vertex on the model's bone at its place (within 15 cm, or the parts aren't added), its triangles a section
+  of each use's geoset, their textures its own (type 0) or the hair's (type 6, the headdress's colour).
   - **What the game draws into a character's composed texture** (the skin, faces, underwear) is made as the game's
     own character textures are: palettized (256 colours, every mip level) and at the scale of the skin it's drawn
     over (the HD looks' skins are 512: FaceLower 256 x 128, FaceUpper 256 x 64, underwear 256 x 128). The game's

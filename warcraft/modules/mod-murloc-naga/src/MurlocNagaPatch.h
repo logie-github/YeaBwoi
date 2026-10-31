@@ -30,16 +30,6 @@ namespace MurlocNaga
     void PutCameras(fs::path const& moduleData, fs::path const& serverData, Log const& log);
 
     // The pieces, for the test (tools/test_patch.cpp).
-    // A creature's model made a character's: its body texture (the first, a creature's skin) the
-    // character's composed texture, and its texture coordinates moved into that texture's face
-    // region (FaceUpper over FaceLower: x 0 to 1/2, y 5/8 to 1), which the game draws from the
-    // face textures alone, so armour never shows on it. False if [m2] isn't a model this knows.
-    bool CharacterModel(Bytes& m2);
-    // A murloc skin (any size) made its face textures for a composed texture [skinWidth] wide (the
-    // skin it's drawn over: 512 in the HD looks): squeezed into the face region (half the width, three
-    // eighths of the height), its top third FaceUpper, the rest FaceLower, palettized and opaque, as the
-    // game's own character textures are (the game composes only those).
-    bool FaceTextures(Bytes const& skin, uint32_t skinWidth, Bytes& upper, Bytes& lower);
     // [blp] recoloured: every colour's hue made [hue] (0 to 1 around the colour wheel; below 0, kept),
     // its saturation and lightness multiplied (a palette's colours; any other texture's pixels, then
     // palettized).
@@ -47,6 +37,11 @@ namespace MurlocNaga
     // [image] as a palettized BLP2 (256 colours by median cut, every mip level; alpha 8 bits when
     // [alpha]), the format of the game's own character textures.
     Bytes EncodePalette(Skyborne::Image const& image, bool alpha);
+    // The naga's parts (tools/naga_parts.py's Naga<Sex>Parts.dat: headdresses and outfits) added to a
+    // naga model ([m2], its [skin]): each part's vertices on the model's bones at their places, its
+    // triangles a section of each of its uses' geosets, with its texture (the hair's, or its own).
+    // False (and [why]) when the parts or the model aren't what this knows, or don't fit it.
+    bool MergeParts(Bytes& m2, Bytes& skin, Bytes const& parts, std::string& why);
     // The narration: the game's sounds ([parts]: when, the sound's WAV), mixed into one WAV, 22050
     // Hz, mono, 16 bits.
     Bytes MixNarration(std::vector<std::pair<uint32_t, Bytes>> const& parts);

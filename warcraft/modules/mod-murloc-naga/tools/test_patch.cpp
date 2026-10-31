@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The Murlocs' and the Naga's patch made for a game folder, and read back: the tables (the races,
-// their looks, the creatures' races moved), the murloc's character model (its skin the composed
-// texture, its texture coordinates in the face region) and skins, the naga's new colours, the
+// their looks, the creatures' races moved), the murlocs' model and textures (tools/murloc_model.py's,
+// in ../data/files: made there first), the naga's colours, every composed texture palettized, the
 // icons, the screen's files, the intros (cameras, narrations); a second start keeping it.
 //
 //   g++ -std=c++17 -O2 -DSKYBORNE_BZIP2 -I../src -I../../mod-skyborne/src test_patch.cpp
@@ -16,6 +16,8 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <set>
+#include <tuple>
 
 using namespace MurlocNaga;
 using Skyborne::Dbc;
@@ -97,7 +99,7 @@ int main(int argc, char** argv)
         if ((race == 19 || race == 20) && tex.find("Character\\Murloc\\") != 0 && tex.find("Character\\Naga_\\") != 0 && !tex.empty())
             ++leftAt19;
     }
-    Check(murlocFaces == 20, "the murlocs' faces: 10 skins a sex (" + std::to_string(murlocFaces) + ")");
+    Check(murlocFaces == 13 * 13 * 2, "the murlocs' faces: 13 eye colours for each of 13 skins, a sex (" + std::to_string(murlocFaces) + ")");
     Check(nagaSkins == 18, "the naga's skins: 9 a sex (" + std::to_string(nagaSkins) + ")");
     Check(nagaNew == 8, "the naga's new colours: 4 a sex (" + std::to_string(nagaNew) + ")");
     Check(leftAt19 == 0, "no creature's look left at races 19 and 20 (" + std::to_string(leftAt19) + ")");
@@ -124,6 +126,7 @@ int main(int argc, char** argv)
 
     if (textures)
     {
+        // The murlocs' model and textures: tools/murloc_model.py's (data/files), in the patch.
         Bytes model;
         Check(archive->Read("Character\\Murloc\\Male\\MurlocMale.m2", model), "the murlocs' model (men)");
         Bytes female;
@@ -132,17 +135,44 @@ int main(int argc, char** argv)
         Check(archive->Read("Character\\Murloc\\Male\\MurlocMale00.skin", skin), "its 00.skin");
         if (model.size() > 0x130)
         {
-            uint32_t textures = U32(model, 0x50), at = U32(model, 0x54);
-            Check(textures > 0 && U32(model, at) == 1, "its body texture is the character's");
-            uint32_t vertices = U32(model, 0x3C), vat = U32(model, 0x40);
-            bool inside = vertices > 0;
-            for (uint32_t i = 0; i < vertices; ++i)
+            uint32_t count = U32(model, 0x50), at = U32(model, 0x54);
+            bool extra = false, composed = false, hair = false;
+            for (uint32_t i = 0; i < count; ++i)
             {
-                float uv[2];
-                std::memcpy(uv, &model[vat + i * 48 + 32], 8);
-                inside &= uv[0] >= 0.0f && uv[0] <= 0.5f && uv[1] >= 0.625f && uv[1] <= 1.0f;
+                extra |= U32(model, at + i * 16) == 8;
+                composed |= U32(model, at + i * 16) == 1;
+                hair |= U32(model, at + i * 16) == 6;
             }
-            Check(inside, "every vertex reads the face region (" + std::to_string(vertices) + " vertices)");
+            Check(extra && composed && hair, "its body the skin's extra texture, its eyes the composed one, the hair the hair's");
+        }
+        for (int c : { 0, 12 })
+        {
+            char name[96];
+            std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocSkin%02d.blp", c);
+            Bytes t;
+            Check(archive->Read(name, t) && t.size() > 4, name);
+        }
+        // The naga's headdresses and outfits (tools/naga_parts.py's, in ../data/files), added to the
+        // client's naga: their geosets (hair styles 2.., features 102..) in its skin, its own kept.
+        for (auto [sex, hairs, features] : { std::tuple<char const*, int, int>{ "Male", 2, 7 }, { "Female", 1, 4 } })
+        {
+            std::string base = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
+            Bytes m2, skin;
+            bool read = archive->Read(base + ".m2", m2) && archive->Read(base + "00.skin", skin) && skin.size() > 48;
+            std::set<uint16_t> geosets;
+            if (read)
+                for (uint32_t i = 0, n = U32(skin, 28), at = U32(skin, 32); i < n && at + i * 48 + 2 <= skin.size(); ++i)
+                {
+                    uint16_t g;
+                    std::memcpy(&g, &skin[at + i * 48], 2);
+                    geosets.insert(g);
+                }
+            bool all = read && geosets.count(0) && geosets.count(802);
+            for (int h = 1; h <= hairs; ++h)
+                all = all && geosets.count(uint16_t(h + 1));
+            for (int f = 1; f <= features; ++f)
+                all = all && geosets.count(uint16_t(101 + f));
+            Check(all, base + ".m2: its own geosets, " + std::to_string(hairs) + " headdresses and " + std::to_string(features) + " outfits");
         }
         // What the game draws into the composed texture: palettized (its compositing reads only those)
         // at the skin's scale (the stand-in is the HD look's: a 512 skin).
@@ -153,15 +183,13 @@ int main(int argc, char** argv)
             bool ok = archive->Read(name, t) && t.size() > 12 && t[8] == 1 && Skyborne::Decode(t, image) && image.width == w && image.height == h;
             Check(ok, name + " (palettized, " + std::to_string(w) + " x " + std::to_string(h) + ")");
         };
-        for (char const* sex : { "Male", "Female" })
-            for (int c : { 0, 9 })
-            {
-                char name[96];
-                std::snprintf(name, sizeof(name), "Character\\Murloc\\%s\\Murloc%sFaceLower00_%02d.blp", sex, sex, c);
-                composited(name, 256, 128);
-                std::snprintf(name, sizeof(name), "Character\\Murloc\\%s\\Murloc%sFaceUpper00_%02d.blp", sex, sex, c);
-                composited(name, 256, 64);
-            }
+        composited("Character\\Murloc\\MurlocBase.blp", 512, 512);
+        for (int c : { 0, 12 })
+        {
+            char name[96];
+            std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocEyes%02d.blp", c);
+            composited(name, 256, 128);
+        }
         for (char const* sex : { "Male", "Female" })
             for (int c : { 0, 4, 5, 8 })
             {
