@@ -120,7 +120,7 @@ INSERT INTO `creature_template` (`entry`, `difficulty_entry_1`, `difficulty_entr
 (248299, 0, 0, 0, 0, 0, 'Elmpaw', '', '', 0, 12, 12, '0', 44, 0, '1', '0.85714', '1', '1', '18', 1, '0', '1', '2500', '2000', '1', '1', '1', '0', '2048', '0', '4', '1', '1', 248299, 0, '100002', 0, 0, '0', '0', '', '1', '1', 3.75, '1', '1', '1', '0', '100', '1', '0', '0', '', 0),
 (248362, 0, 0, 0, 0, 0, 'Shinyfinder Narf', '', '', 0, 3, 3, '0', 25, 0, '1', '0.85714', '1', '1', '10', 1, '0', '1', '2000', '2000', '1', '1', '1', '0', '2048', '0', '0', '7', '0', 248362, 0, '0', 0, 0, '1', '5', '', '1', '1', 3.0, '1', '1', '1', '0', '100', '1', '0', '2', '', 0),
 (248415, 0, 0, 0, 0, 0, 'Tordrin Sternblade', 'Hunter Trainer', '', 0, 5, 5, '0', 12, 3, '1', '1.14286', '1', '1', '18', 0, '0', '1', '1500', '2000', '1', '1', '1', '768', '2048', '0', '0', '7', '0', 0, 0, '0', 0, 0, '0', '0', '', '0', '1', 1.0, '1', '1', '1', '0', '0', '1', '0', '2', '', 0),
-(251001, 0, 0, 0, 0, 0, 'Deathguard Kristof', '', '', 0, 55, 55, '2', 14, 0, '1', '1.14286', '1', '1', '18', 0, '0', '1', '2000', '2000', '1', '1', '1', '32768', '2048', '0', '0', '7', '0', 251001, 0, '0', 0, 0, '0', '0', '', '0', '1', 2.0, '1', '1', '1', '0', '0', '1', '0', '98304', '', 0),
+(251001, 0, 0, 0, 0, 0, 'Deathguard Kristof', '', '', 0, 55, 55, '2', 71, 1, '1', '1.14286', '1', '1', '18', 0, '0', '1', '2000', '2000', '1', '1', '1', '32768', '2048', '0', '0', '7', '0', 251001, 0, '0', 0, 0, '0', '0', '', '0', '1', 2.0, '1', '1', '1', '0', '0', '1', '0', '98304', '', 0),
 (251493, 0, 0, 0, 0, 0, 'Captain McManus', '', '', 0, 55, 55, '0', 1217, 3, '1', '1.14286', '1', '1', '20', 1, '0', '4.6', '2000', '2000', '1', '1', '1', '32768', '2048', '0', '0', '7', '0', 0, 0, '0', 0, 0, '0', '0', '', '1', '1', 15.0, '1', '1', '1', '0', '0', '1', '0', '0', '', 0),
 (252085, 0, 0, 0, 0, 0, 'Archmage Celindra', 'Kirin Tor', '', 0, 40, 40, '0', 76, 3, '1', '1.14286', '1', '1', '18', 0, '0', '1', '2000', '2000', '1', '1', '8', '0', '2048', '0', '0', '7', '0', 0, 0, '0', 0, 0, '0', '0', '', '0', '1', 1.15, '1', '1', '1', '0', '0', '1', '0', '2', '', 0),
 (253092, 0, 0, 0, 0, 0, 'Alba Fairmoon', '', '', 0, 24, 24, '0', 12, 3, '1', '1.14286', '1', '1', '18', 0, '0', '1', '2000', '2000', '1', '1', '1', '512', '2048', '0', '0', '7', '0', 0, 0, '0', 0, 0, '0', '0', '', '0', '1', 1.05, '1', '1', '1', '0', '0', '1', '0', '2', '', 0),
@@ -364,7 +364,7 @@ INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `p
 (8600010, 248299, 0, 0, 0, 1, 1, 0, -8983.0, -1076.39, 60.86, 5.469, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', 0, 0, 'Elmpaw (WoW: Forever, mod-forever-quests)'),
 (8600011, 248362, 0, 0, 0, 1, 1, 1, -8587.9, -172.93, 91.03, 1.586, 300, 5, 0, 1, 0, 1, 0, 0, 0, '', 0, 0, 'Shinyfinder Narf (WoW: Forever, mod-forever-quests)'),
 (8600012, 248415, 0, 0, 0, 1, 1, 1, -8883.93, -242.0, 81.01, 3.986, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', 0, 0, 'Tordrin Sternblade (WoW: Forever, mod-forever-quests)'),
-(8600013, 251001, 0, 0, 0, 1, 1, 1, 2023.97, 84.85, 36.03, 0.103, 300, 5, 0, 1, 0, 1, 0, 0, 0, '', 0, 0, 'Deathguard Kristof (WoW: Forever, mod-forever-quests)'),
+(8600013, 251001, 0, 0, 0, 1, 1, 1, 2023.97, 84.85, 36.03, 0.103, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', 0, 0, 'Deathguard Kristof (WoW: Forever, mod-forever-quests)'),
 (8600014, 251493, 0, 0, 0, 1, 1, 1, -670.93, -419.09, 66.83, 2.502, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', 0, 0, 'Captain McManus (WoW: Forever, mod-forever-quests)'),
 (8600015, 252085, 0, 0, 0, 1, 1, 1, 379.07, 387.13, -13.73, 4.902, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', 0, 0, 'Archmage Celindra (WoW: Forever, mod-forever-quests)'),
 (8600016, 253092, 0, 0, 0, 1, 1, 1, -10635.97, 1179.87, 47.52, 1.019, 300, 0, 0, 1, 0, 0, 0, 0, 0, '', 0, 0, 'Alba Fairmoon (WoW: Forever, mod-forever-quests)'),
@@ -1851,8 +1851,6 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 
 -- Who drops them
 DELETE FROM `creature_loot_template` WHERE `Item` IN (247826, 247834, 247839, 247857, 247862, 247886, 248930, 251961, 253247, 253710, 254432, 254548, 255007, 255010, 257685, 267414, 267415, 268548, 268812, 269715, 269718, 270151, 274268, 275722, 275723, 275851, 276070, 277128, 277190, 277277, 277284, 277566, 277661, 277665, 277915, 277917, 277936, 278242, 278243, 278244, 279020, 279045, 279048, 279186, 279275, 279279, 279291, 279331, 279385, 279386, 279394, 279395, 279472, 279505, 279507, 279589, 279591, 279924, 279993, 279996, 280087, 280099, 280103, 280319, 280330, 280331, 280375, 280392, 280394, 280395, 280396, 280397, 280398, 280403, 280426, 280686, 280831, 280832, 280834, 280911, 281023, 281038, 281139, 281142, 281143, 281240, 281243, 282065, 284151, 286017, 286069, 286200, 286201, 286202, 286259, 286326, 286355);
-UPDATE `creature_template` SET `lootid` = `entry` WHERE `entry` = 1496 AND `lootid` = 0;
-UPDATE `creature_template` SET `lootid` = `entry` WHERE `entry` = 10666 AND `lootid` = 0;
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
 (209797, '1', '1000015', '0', '0', '1', '5', '1', '1', 'Hecklefang Hyena (as Bruuz\'s, mod-forever-quests)'),
 (209797, '2', '1000016', '0', '0', '1', '5', '1', '1', 'Hecklefang Hyena (as Bruuz\'s, mod-forever-quests)'),
@@ -2431,10 +2429,39 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 (275703, 286017, 0, 35, 1, 1, 0, 1, 1, 'Lasher Sproutling - Dewy Lasher Frond (mod-forever-quests)'),
 (275708, 286017, 0, 35, 1, 1, 0, 1, 1, 'Blooming Lasher - Dewy Lasher Frond (mod-forever-quests)'),
 (276099, 286017, 0, 35, 1, 1, 0, 1, 1, 'Wrathvine - Dewy Lasher Frond (mod-forever-quests)'),
-(1496, 286200, 0, 60, 1, 1, 0, 1, 1, 'Deathguard Dillinger - Dillinger\'s Report (mod-forever-quests)'),
-(251001, 286201, 0, 60, 1, 1, 0, 1, 1, 'Deathguard Kristof - Kristof\'s Report (mod-forever-quests)'),
-(10666, 286202, 0, 60, 1, 1, 0, 1, 1, 'Gordo - Gordo\'s Report (mod-forever-quests)'),
 (260428, 286259, 0, 35, 1, 1, 0, 1, 1, 'Shadowvale Lurcher - Faintly Glowing Bone (mod-forever-quests)'),
 (260430, 286259, 0, 35, 1, 1, 0, 1, 1, 'Shadowvale Mystic - Faintly Glowing Bone (mod-forever-quests)'),
 (260432, 286259, 0, 35, 1, 1, 0, 1, 1, 'Shadowvale Mystic - Faintly Glowing Bone (mod-forever-quests)'),
 (276020, 286326, 0, 60, 1, 1, 0, 1, 1, 'Riptear - Riptear\'s Heart (mod-forever-quests)');
+
+-- Asked of the friendly: an item Forever's data has them "drop", given when asked
+DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN 8600000 AND 8600099;
+DELETE FROM `npc_text` WHERE `ID` BETWEEN 8600000 AND 8600099;
+DELETE FROM `gossip_menu_option` WHERE `OptionID` BETWEEN 860 AND 899;
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 15 AND `SourceEntry` BETWEEN 860 AND 899;
+DELETE FROM `smart_scripts` WHERE `source_type` = 0 AND `id` BETWEEN 860 AND 939;
+INSERT INTO `gossip_menu` (`MenuID`, `TextID`) VALUES (8600000, 8600000);
+INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES (8600000, 'What is it, $c?', 'What is it, $c?', 1);
+UPDATE `creature_template` SET `gossip_menu_id` = 8600000, `npcflag` = `npcflag` | 1 WHERE `entry` = 251001;
+INSERT INTO `gossip_menu_option` (`MenuID`, `OptionID`, `OptionIcon`, `OptionText`, `OptionBroadcastTextID`, `OptionType`, `OptionNpcFlag`, `ActionMenuID`, `ActionPoiID`, `BoxCoded`, `BoxMoney`, `BoxText`, `BoxBroadcastTextID`) VALUES
+(3356, 860, 0, 'I\'m here for your report.', 0, 1, 1, 0, 0, 0, 0, '', 0),
+(8600000, 861, 0, 'I\'m here for your report.', 0, 1, 1, 0, 0, 0, 0, '', 0),
+(11159, 862, 0, 'I\'m here for your report.', 0, 1, 1, 0, 0, 0, 0, '', 0);
+INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `Comment`) VALUES
+(15, 3356, 860, 0, 0, 9, 0, 99141, 0, 0, 0, 'Deathguard Dillinger gives Dillinger\'s Report (mod-forever-quests)'),
+(15, 3356, 860, 0, 0, 2, 0, 286200, 1, 0, 1, 'Deathguard Dillinger gives Dillinger\'s Report (mod-forever-quests)'),
+(15, 3356, 860, 0, 0, 31, 1, 3, 1496, 0, 0, 'Deathguard Dillinger gives Dillinger\'s Report (mod-forever-quests)'),
+(15, 8600000, 861, 0, 0, 9, 0, 99141, 0, 0, 0, 'Deathguard Kristof gives Kristof\'s Report (mod-forever-quests)'),
+(15, 8600000, 861, 0, 0, 2, 0, 286201, 1, 0, 1, 'Deathguard Kristof gives Kristof\'s Report (mod-forever-quests)'),
+(15, 8600000, 861, 0, 0, 31, 1, 3, 251001, 0, 0, 'Deathguard Kristof gives Kristof\'s Report (mod-forever-quests)'),
+(15, 11159, 862, 0, 0, 9, 0, 99141, 0, 0, 0, 'Gordo gives Gordo\'s Report (mod-forever-quests)'),
+(15, 11159, 862, 0, 0, 2, 0, 286202, 1, 0, 1, 'Gordo gives Gordo\'s Report (mod-forever-quests)'),
+(15, 11159, 862, 0, 0, 31, 1, 3, 10666, 0, 0, 'Gordo gives Gordo\'s Report (mod-forever-quests)');
+UPDATE `creature_template` SET `AIName` = 'SmartAI' WHERE `entry` IN (1496, 10666, 251001) AND `ScriptName` = '';
+INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES
+(1496, 0, 860, 861, 62, 0, 100, 0, 3356, 860, 0, 0, 0, 0, 56, 286200, 1, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'Deathguard Dillinger - gives Dillinger\'s Report'),
+(1496, 0, 861, 0, 61, 0, 100, 0, 0, 0, 0, 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'Deathguard Dillinger - closes the menu'),
+(251001, 0, 862, 863, 62, 0, 100, 0, 8600000, 861, 0, 0, 0, 0, 56, 286201, 1, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'Deathguard Kristof - gives Kristof\'s Report'),
+(251001, 0, 863, 0, 61, 0, 100, 0, 0, 0, 0, 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'Deathguard Kristof - closes the menu'),
+(10666, 0, 864, 865, 62, 0, 100, 0, 11159, 862, 0, 0, 0, 0, 56, 286202, 1, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'Gordo - gives Gordo\'s Report'),
+(10666, 0, 865, 0, 61, 0, 100, 0, 0, 0, 0, 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'Gordo - closes the menu');

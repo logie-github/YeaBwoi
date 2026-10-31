@@ -290,6 +290,13 @@ it's "Hand in the quest." (the user: "just make something simple up").
 - **Drop chances**: not in any source. A quest item drops at 60% from one or two kinds of creature
   and 35% from more; an item that starts a quest drops for anyone who hasn't taken it, always from
   a single creature, 8% from several.
+- **What a friendly person "drops"**: QuestieDB lists an item handed over as a drop (Patience's
+  reports from Deathguard Dillinger, Deathguard Kristof and Gordo); they can't be killed for it, so
+  it's asked of them: "I'm here for your report." in their menu while the quest is in the log and
+  the item isn't in the bags (the option's conditions; their SmartAI hands it over).
+- **A new person the data gives no side**: drawn as one of a side's own (a guard) and no quest's to
+  kill, they're that side's, as they look: Deathguard Kristof at the waystation on the Undercity
+  road is the Deathguard's (his look's, level 55), not a monster.
 
 ## What isn't here, and why
 

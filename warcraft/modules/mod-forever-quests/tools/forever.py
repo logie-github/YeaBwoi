@@ -94,6 +94,13 @@ ITEM_BIND_PICKUP, ITEM_BIND_QUEST = 1, 4
 # Who a new NPC's faction is friendly to (QuestieDB: friendlyToFaction), where the look it takes
 # after isn't: Stormwind's, Orgrimmar's, everyone's; and a monster's for the hostile.
 FACTIONS = {"A": 12, "H": 29, "AH": 35, "": 14}
+# What a friendly person "drops" in Forever's data (QuestieDB lists an item handed over as a drop: Executor
+# Zygand's reports from Deathguard Dillinger, Deathguard Kristof and Gordo) is asked of them instead: an
+# option in their menu while the quest is in the log and the item isn't in the bags (the gossip menus and
+# options, their conditions, and the creature's SmartAI giving it: ids from these).
+GIVE_MENU = 8600000             # a menu (and its words) for one who has none
+GIVE_OPTION = 860               # the options' ids in any menu (the core's own go to 37476 in other numbers)
+GIVE_EVENT = 860                # the SmartAI events' ids
 # The hand-in words for a quest whose data has none (the user: "just make something simple up").
 NO_HAND_IN = "Hand in the quest."
 
@@ -609,19 +616,25 @@ def build(server_data, world):
     for e, ss in looks.spawns.items():
         for m, x, y, z in ss:
             near_z.setdefault((m, int(x // 20), int(y // 20)), []).append((x, y, z))
-    look_of = {}
+    look_of, friendly_of = {}, {}
+    kill_targets = {c for q in Q.values() for c in first_ids(group(q.get("objectives") or [], 0))}
     for n in new_npcs:
         npc = dict(NPCS[n], giver=n in givers)
         source = looks.pick(npc)
         look_of[n] = source
         t = dict(looks.templates[source])
         their_side = looks.side.get(int(t["faction"]), "")
+        # (one the data gives no side, drawn as one of a side's own, a guard say, and no quest's to kill:
+        # that side's, as they look: Deathguard Kristof, at the waystation, isn't a monster)
+        if npc["friendly"] == "" and their_side and n not in kill_targets:
+            npc["friendly"] = their_side
+        friendly_of[n] = npc["friendly"]
         rank = npc["rank"]
         t.update({"entry": n, "name": npc["name"], "subname": npc["subName"], "IconName": "", "gossip_menu_id": 0,
                   "minlevel": npc["level"][0], "maxlevel": npc["level"][1], "KillCredit1": 0, "KillCredit2": 0,
                   "difficulty_entry_1": 0, "difficulty_entry_2": 0, "difficulty_entry_3": 0,
                   "faction": int(t["faction"]) if their_side == npc["friendly"] else FACTIONS[npc["friendly"]],
-                  "npcflag": 3 if n in givers else 0, "rank": rank,
+                  "npcflag": 3 if n in givers else (1 if npc["friendly"] else 0), "rank": rank,
                   "HealthModifier": float(t["HealthModifier"]) * (3 if rank in (1, 2) and int(t["rank"]) not in (1, 2, 3) else 1),
                   "lootid": n if droppers[n] or lootid.get(source) else 0, "pickpocketloot": 0,
                   "AIName": "", "ScriptName": "", "VehicleId": 0, "PetSpellDataId": 0, "VerifiedBuild": 0})
@@ -820,8 +833,18 @@ def build(server_data, world):
     insert("item_template", icols, items)
 
     # Who drops them: Forever's own sources (QuestieDB's npcDrops); the chances aren't known, so a
-    # quest item drops as often as the core's quest items commonly do.
-    loot_rows, creature_updates = [], set()
+    # quest item drops as often as the core's quest items commonly do. A friendly person's is asked of
+    # them instead (GIVE_MENU).
+    def friendly(c):
+        if c in NPCS and NPCS[c].get("new"):
+            return friendly_of.get(c, "") != ""
+        t = looks.templates.get(c)
+        return bool(t and looks.side.get(int(t["faction"]), ""))
+    collected_by = {}
+    for qid in ids:
+        for i in first_ids(group(Q[qid].get("objectives") or [], 2)):
+            collected_by.setdefault(i, []).append(qid)
+    loot_rows, creature_updates, gives = [], set(), []
     for i in sorted(ITEMS):
         g = ITEMS[i]
         drops = [d for d in g.get("drops") or [] if d in lootid or d in NPCS]
@@ -830,6 +853,9 @@ def build(server_data, world):
         # an item that starts a quest drops for anyone who hasn't taken it (the core leaves it out after),
         # and seldom where many creatures carry it
         starts = bool(g.get("startQuest"))
+        for c in [d for d in drops if not starts and friendly(d) and collected_by.get(i)]:
+            gives.append((c, i, collected_by[i]))
+        drops = [d for d in drops if not any(c == d and gi == i for c, gi, _ in gives)]
         for c in drops:
             new = c in NPCS and NPCS[c].get("new")
             entry = c if new else (lootid.get(c) or c)
@@ -844,6 +870,60 @@ def build(server_data, world):
     for c in sorted(creature_updates):
         out.append("UPDATE `creature_template` SET `lootid` = `entry` WHERE `entry` = %d AND `lootid` = 0;" % c)
     insert("creature_loot_template", lcols, own_loot + loot_rows)
+
+    # Asked of them: an option in their menu (theirs, or one made for them), shown to one with the quest in
+    # the log and without the item; their SmartAI hands it over.
+    out.append("\n-- Asked of the friendly: an item Forever's data has them \"drop\", given when asked")
+    out.append("DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN %d AND %d;" % (GIVE_MENU, GIVE_MENU + 99))
+    out.append("DELETE FROM `npc_text` WHERE `ID` BETWEEN %d AND %d;" % (GIVE_MENU, GIVE_MENU + 99))
+    out.append("DELETE FROM `gossip_menu_option` WHERE `OptionID` BETWEEN %d AND %d;" % (GIVE_OPTION, GIVE_OPTION + 39))
+    out.append("DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 15 AND `SourceEntry` BETWEEN %d AND %d;" % (GIVE_OPTION, GIVE_OPTION + 39))
+    out.append("DELETE FROM `smart_scripts` WHERE `source_type` = 0 AND `id` BETWEEN %d AND %d;" % (GIVE_EVENT, GIVE_EVENT + 79))
+    new_templates = {int(t["entry"]): t for t in templates}
+    menus, texts, options, conds, smart = [], [], [], [], []
+    menu_of = {}
+    for n, (c, i, quests) in enumerate(gives):
+        option = GIVE_OPTION + n
+        menu = int(new_templates[c]["gossip_menu_id"]) if c in new_templates else int(looks.templates[c]["gossip_menu_id"])
+        if not menu:
+            menu = menu_of.get(c) or GIVE_MENU + len(menu_of)
+            if c not in menu_of:
+                menu_of[c] = menu
+                menus.append("(%d, %d)" % (menu, menu))
+                texts.append("(%d, %s, %s, 1)" % (menu, sqlrows.quote("What is it, $c?"), sqlrows.quote("What is it, $c?")))
+        holder = NPCS[c]["name"] if c in NPCS else names.get(c, str(c))
+        # ("Kristof's Report" asked of Deathguard Kristof: "your report")
+        asked = ITEMS[i]["name"].replace(holder.split()[-1] + "'s", "your")
+        asked = asked[:5] + asked[5:].lower() if asked.startswith("your ") else asked
+        options.append("(%d, %d, 0, %s, 0, 1, 1, 0, 0, 0, 0, '', 0)" % (menu, option, sqlrows.quote("I'm here for %s." % asked)))
+        for g_, qid in enumerate(quests):
+            note = sqlrows.quote("%s gives %s (mod-forever-quests)" % (holder, ITEMS[i]["name"]))
+            conds.append("(15, %d, %d, 0, %d, 9, 0, %d, 0, 0, 0, %s)" % (menu, option, g_, qid, note))
+            conds.append("(15, %d, %d, 0, %d, 2, 0, %d, 1, 0, 1, %s)" % (menu, option, g_, i, note))
+            conds.append("(15, %d, %d, 0, %d, 31, 1, 3, %d, 0, 0, %s)" % (menu, option, g_, c, note))
+        smart.append("(%d, 0, %d, %d, 62, 0, 100, 0, %d, %d, 0, 0, 0, 0, 56, %d, 1, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, %s)"
+                     % (c, GIVE_EVENT + 2 * n, GIVE_EVENT + 2 * n + 1, menu, option, i, sqlrows.quote("%s - gives %s" % (holder, ITEMS[i]["name"]))))
+        smart.append("(%d, 0, %d, 0, 61, 0, 100, 0, 0, 0, 0, 0, 0, 0, 72, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, %s)"
+                     % (c, GIVE_EVENT + 2 * n + 1, sqlrows.quote("%s - closes the menu" % holder)))
+    if gives:
+        if menus:
+            out.append("INSERT INTO `gossip_menu` (`MenuID`, `TextID`) VALUES %s;" % ", ".join(menus))
+            out.append("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES %s;" % ", ".join(texts))
+            for c, menu in sorted(menu_of.items()):
+                out.append("UPDATE `creature_template` SET `gossip_menu_id` = %d, `npcflag` = `npcflag` | 1 WHERE `entry` = %d;" % (menu, c))
+        out.append("INSERT INTO `gossip_menu_option` (`MenuID`, `OptionID`, `OptionIcon`, `OptionText`, `OptionBroadcastTextID`, "
+                   "`OptionType`, `OptionNpcFlag`, `ActionMenuID`, `ActionPoiID`, `BoxCoded`, `BoxMoney`, `BoxText`, "
+                   "`BoxBroadcastTextID`) VALUES\n%s;" % ",\n".join(options))
+        out.append("INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, "
+                   "`ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, "
+                   "`NegativeCondition`, `Comment`) VALUES\n%s;" % ",\n".join(conds))
+        out.append("UPDATE `creature_template` SET `AIName` = 'SmartAI' WHERE `entry` IN (%s) AND `ScriptName` = '';"
+                   % ", ".join(str(c) for c in sorted({c for c, _, _ in gives})))
+        out.append("INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, "
+                   "`event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, "
+                   "`event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, "
+                   "`action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, "
+                   "`target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES\n%s;" % ",\n".join(smart))
     os.makedirs(os.path.dirname(SQL_OUT), exist_ok=True)
     with open(SQL_OUT, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out) + "\n")
