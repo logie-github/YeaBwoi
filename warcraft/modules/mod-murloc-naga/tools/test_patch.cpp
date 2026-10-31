@@ -60,6 +60,7 @@ int main(int argc, char** argv)
         return 1;
 
     auto table = [&](std::string const& name, Dbc& dbc) { Bytes b; return archive->Read("DBFilesClient\\" + name + ".dbc", b) && dbc.Parse(b); };
+    Skyborne::Game game(data, { "patch-enus-t.mpq" });                // the game without the patch
     auto str = [](Dbc const& dbc, uint32_t at) { return std::string(reinterpret_cast<char const*>(&dbc.strings[at])); };
 
     Dbc races;
@@ -143,24 +144,57 @@ int main(int argc, char** argv)
             }
             Check(inside, "every vertex reads the face region (" + std::to_string(vertices) + " vertices)");
         }
+        // What the game draws into the composed texture: palettized (its compositing reads only those)
+        // at the skin's scale (the stand-in is the HD look's: a 512 skin).
+        auto composited = [&](std::string const& name, uint32_t w, uint32_t h)
+        {
+            Bytes t;
+            Skyborne::Image image;
+            bool ok = archive->Read(name, t) && t.size() > 12 && t[8] == 1 && Skyborne::Decode(t, image) && image.width == w && image.height == h;
+            Check(ok, name + " (palettized, " + std::to_string(w) + " x " + std::to_string(h) + ")");
+        };
         for (char const* sex : { "Male", "Female" })
             for (int c : { 0, 9 })
             {
                 char name[96];
                 std::snprintf(name, sizeof(name), "Character\\Murloc\\%s\\Murloc%sFaceLower00_%02d.blp", sex, sex, c);
-                Bytes face;
-                Skyborne::Image image;
-                Check(archive->Read(name, face) && Skyborne::Decode(face, image) && image.width == 256 && image.height == 128, name);
+                composited(name, 256, 128);
                 std::snprintf(name, sizeof(name), "Character\\Murloc\\%s\\Murloc%sFaceUpper00_%02d.blp", sex, sex, c);
-                Check(archive->Read(name, face) && Skyborne::Decode(face, image) && image.width == 256 && image.height == 64, name);
+                composited(name, 256, 64);
             }
-        for (char const* name : { "Character\\Naga_\\Male\\Naga_MaleSkin00_05.blp", "Character\\Naga_\\Male\\Naga_MaleSkin00_08_Extra.blp",
-                                  "Character\\Naga_\\Female\\Naga_FemaleFaceLower00_06.blp", "Character\\Naga_\\Female\\Naga_FemaleNakedTorsoSkin00_07.blp" })
+        for (char const* sex : { "Male", "Female" })
+            for (int c : { 0, 4, 5, 8 })
+            {
+                std::string p = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
+                char colour[8];
+                std::snprintf(colour, sizeof(colour), "00_%02d", c);
+                composited(p + "FaceLower" + colour + ".blp", 256, 128);
+                composited(p + "FaceUpper" + colour + ".blp", 256, 64);
+                composited(p + "NakedPelvisSkin" + colour + ".blp", 256, 128);
+                composited(p + "NakedTorsoSkin" + colour + ".blp", 256, 128);
+            }
+        for (char const* name : { "Character\\Naga_\\Male\\Naga_MaleSkin00_05.blp", "Character\\Naga_\\Male\\Naga_MaleSkin00_08_Extra.blp" })
+            composited(name, 512, 512);
+        // Every texture the races' rows name is in the game or the patch (the game draws a missing one
+        // green): the naga's hair and facial hair textures the game hasn't are left out.
+        size_t missing = 0;
+        for (size_t i = 0; i < sections.records.size(); ++i)
         {
-            Bytes t;
-            Skyborne::Image image;
-            Check(archive->Read(name, t) && Skyborne::Decode(t, image), name);
+            uint32_t race = sections.Get(i, 1);
+            if (race != 19 && race != 20)
+                continue;
+            for (uint32_t f : { 4u, 5u, 6u })
+            {
+                std::string tex = str(sections, sections.Get(i, f));
+                Bytes t;
+                if (!tex.empty() && !archive->Read(tex, t) && !game.Has(tex))
+                {
+                    std::cout << "     missing: " << tex << "\n";
+                    ++missing;
+                }
+            }
         }
+        Check(missing == 0, "every texture the races' looks name is there (" + std::to_string(missing) + " missing)");
         for (auto [name, least] : { std::pair<char const*, double>{ "Sound\\CinematicVoices\\NagaNarration.wav", 58.0 },
                                     std::pair<char const*, double>{ "Sound\\CinematicVoices\\MurlocNarration.wav", 39.0 } })
         {

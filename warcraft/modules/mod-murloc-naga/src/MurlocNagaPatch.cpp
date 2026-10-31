@@ -25,7 +25,9 @@
 
 #include "MurlocNagaPatch.h"
 #include <algorithm>
+#include <array>
 #include <cctype>
+#include <climits>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -33,6 +35,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <tuple>
 
 namespace MurlocNaga
 {
@@ -43,7 +46,7 @@ namespace MurlocNaga
 
     namespace
     {
-        constexpr char const* VERSION = "murloc-naga-1";
+        constexpr char const* VERSION = "murloc-naga-2";
         constexpr char const* MARK_SUFFIX = ".murlocnaga";
         constexpr char const* ASIDE_SUFFIX = ".aside";
 
@@ -240,6 +243,196 @@ namespace MurlocNaga
             out.height = count;
             out.rgba.assign(in.rgba.begin() + size_t(from) * in.width * 4, in.rgba.begin() + size_t(from + count) * in.width * 4);
             return out;
+        }
+
+        // [in] a mip level down (each 2 x 2 pixels averaged; a side of 1 kept).
+        Image Halved(Image const& in)
+        {
+            Image out;
+            out.width = std::max(1u, in.width / 2);
+            out.height = std::max(1u, in.height / 2);
+            out.rgba.resize(size_t(out.width) * out.height * 4);
+            for (uint32_t y = 0; y < out.height; ++y)
+                for (uint32_t x = 0; x < out.width; ++x)
+                    for (int c = 0; c < 4; ++c)
+                    {
+                        uint32_t sum = 0, n = 0;
+                        for (uint32_t dy = 0; dy < 2; ++dy)
+                            for (uint32_t dx = 0; dx < 2; ++dx)
+                            {
+                                uint32_t sx = std::min(in.width - 1, x * 2 + dx), sy = std::min(in.height - 1, y * 2 + dy);
+                                sum += in.rgba[(size_t(sy) * in.width + sx) * 4 + c];
+                                ++n;
+                            }
+                        out.rgba[(size_t(y) * out.width + x) * 4 + c] = uint8_t((sum + n / 2) / n);
+                    }
+            return out;
+        }
+
+        bool Translucent(Image const& image)
+        {
+            for (size_t i = 3; i < image.rgba.size(); i += 4)
+                if (image.rgba[i] != 255)
+                    return true;
+            return false;
+        }
+
+        std::string StringOf(Dbc const& dbc, uint32_t at)
+        {
+            if (at >= dbc.strings.size())
+                return "";
+            auto begin = dbc.strings.begin() + at;
+            return std::string(begin, std::find(begin, dbc.strings.end(), uint8_t(0)));
+        }
+
+        uint32_t BlpWidth(Bytes const& blp)
+        {
+            return blp.size() >= 20 && std::memcmp(blp.data(), "BLP2", 4) == 0 ? U32(blp, 12) : 0;
+        }
+    }
+
+    Bytes EncodePalette(Image const& image, bool alpha)
+    {
+        // The palette: the image's colours split by median cut (the box with the widest spread of a
+        // colour channel halved at its median) into at most 256, each its box's average.
+        size_t count = size_t(image.width) * image.height;
+        std::vector<uint32_t> pixels(count);
+        for (size_t i = 0; i < count; ++i)
+            pixels[i] = uint32_t(image.rgba[i * 4]) | uint32_t(image.rgba[i * 4 + 1]) << 8 | uint32_t(image.rgba[i * 4 + 2]) << 16;
+        struct Box { size_t begin, end; int channel; int spread; };
+        auto measure = [&](Box& box)
+        {
+            int lo[3] = { 255, 255, 255 }, hi[3] = { 0, 0, 0 };
+            for (size_t i = box.begin; i < box.end; ++i)
+                for (int c = 0; c < 3; ++c)
+                {
+                    int v = (pixels[i] >> (8 * c)) & 0xFF;
+                    lo[c] = std::min(lo[c], v);
+                    hi[c] = std::max(hi[c], v);
+                }
+            box.channel = 0;
+            for (int c = 1; c < 3; ++c)
+                if (hi[c] - lo[c] > hi[box.channel] - lo[box.channel])
+                    box.channel = c;
+            box.spread = box.end - box.begin > 1 ? hi[box.channel] - lo[box.channel] : 0;
+        };
+        std::vector<Box> boxes;
+        if (count)
+        {
+            boxes.push_back({ 0, count, 0, 0 });
+            measure(boxes[0]);
+        }
+        while (boxes.size() < 256)
+        {
+            size_t widest = boxes.size();
+            for (size_t b = 0; b < boxes.size(); ++b)
+                if (boxes[b].spread > 0 && (widest == boxes.size() || boxes[b].spread > boxes[widest].spread))
+                    widest = b;
+            if (widest == boxes.size())
+                break;
+            Box box = boxes[widest];
+            int shift = 8 * box.channel;
+            size_t middle = box.begin + (box.end - box.begin) / 2;
+            std::nth_element(pixels.begin() + box.begin, pixels.begin() + middle, pixels.begin() + box.end,
+                [shift](uint32_t a, uint32_t b) { return ((a >> shift) & 0xFF) < ((b >> shift) & 0xFF); });
+            Box first = { box.begin, middle, 0, 0 }, second = { middle, box.end, 0, 0 };
+            measure(first);
+            measure(second);
+            boxes[widest] = first;
+            boxes.push_back(second);
+        }
+        std::vector<std::array<int, 3>> palette;
+        for (auto const& box : boxes)
+        {
+            uint64_t sum[3] = { 0, 0, 0 };
+            for (size_t i = box.begin; i < box.end; ++i)
+                for (int c = 0; c < 3; ++c)
+                    sum[c] += (pixels[i] >> (8 * c)) & 0xFF;
+            size_t n = std::max<size_t>(1, box.end - box.begin);
+            palette.push_back({ int(sum[0] / n), int(sum[1] / n), int(sum[2] / n) });
+        }
+        if (palette.empty())
+            palette.push_back({ 0, 0, 0 });
+
+        auto nearest = [&](uint8_t const* rgb)
+        {
+            int best = 0, bestDistance = INT32_MAX;
+            for (size_t p = 0; p < palette.size(); ++p)
+            {
+                int dr = rgb[0] - palette[p][0], dg = rgb[1] - palette[p][1], db = rgb[2] - palette[p][2];
+                int d = dr * dr + dg * dg + db * db;
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    best = int(p);
+                    if (d == 0)
+                        break;
+                }
+            }
+            return uint8_t(best);
+        };
+
+        // Every mip level (the game's character textures have them all), each as indices into the
+        // palette then its alpha, 8 bits a pixel.
+        std::vector<Bytes> levels;
+        Image level = image;
+        while (true)
+        {
+            Bytes data(size_t(level.width) * level.height * (alpha ? 2 : 1));
+            size_t pixelsHere = size_t(level.width) * level.height;
+            for (size_t i = 0; i < pixelsHere; ++i)
+            {
+                data[i] = nearest(&level.rgba[i * 4]);
+                if (alpha)
+                    data[pixelsHere + i] = level.rgba[i * 4 + 3];
+            }
+            levels.push_back(std::move(data));
+            if ((level.width == 1 && level.height == 1) || levels.size() == 16)
+                break;
+            level = Halved(level);
+        }
+
+        Bytes out(148 + 1024);
+        std::memcpy(out.data(), "BLP2", 4);
+        Put32(out, 4, 1);
+        out[8] = 1;                                                 // a palette
+        out[9] = alpha ? 8 : 0;                                     // alpha bits
+        out[10] = alpha ? 8 : 0;
+        out[11] = 1;                                                // mip levels
+        Put32(out, 12, image.width);
+        Put32(out, 16, image.height);
+        uint32_t at = 148 + 1024;
+        for (size_t i = 0; i < levels.size(); ++i)
+        {
+            Put32(out, 20 + i * 4, at);
+            Put32(out, 84 + i * 4, uint32_t(levels[i].size()));
+            at += uint32_t(levels[i].size());
+        }
+        for (size_t p = 0; p < palette.size(); ++p)
+        {
+            out[148 + p * 4] = uint8_t(palette[p][2]);              // B, G, R, A
+            out[148 + p * 4 + 1] = uint8_t(palette[p][1]);
+            out[148 + p * 4 + 2] = uint8_t(palette[p][0]);
+            out[148 + p * 4 + 3] = 255;
+        }
+        for (auto const& data : levels)
+            out.insert(out.end(), data.begin(), data.end());
+        return out;
+    }
+
+    namespace
+    {
+        // A texture the game draws into a character's composed texture (a face, underwear), made as the
+        // game's own are: palettized, and sized for a skin [skinWidth] wide (the composed texture's size:
+        // the HD looks' 512, the game's 256): [w] x [h] of a 256 one, scaled. [recipe]: its colours
+        // changed first (a naga colour of the game's that's made from another), or not.
+        Bytes Composited(Image const& source, uint32_t skinWidth, uint32_t w, uint32_t h, double const* recipe)
+        {
+            Image image = Resized(source, w * skinWidth / 256, h * skinWidth / 256);
+            if (recipe)
+                for (size_t i = 0; i + 3 < image.rgba.size(); i += 4)
+                    RecolourRgb(image.rgba[i], image.rgba[i + 1], image.rgba[i + 2], recipe[0], recipe[1], recipe[2]);
+            return EncodePalette(image, Translucent(image));
         }
 
         // The races' icons for the character creation screen, a sheet of their own (one column:
@@ -484,16 +677,19 @@ namespace MurlocNaga
         return true;
     }
 
-    bool FaceTextures(Bytes const& skin, Bytes& upper, Bytes& lower)
+    bool FaceTextures(Bytes const& skin, uint32_t skinWidth, Bytes& upper, Bytes& lower)
     {
         Image image;
-        if (!Skyborne::Decode(skin, image) || image.width == 0 || image.height == 0)
+        if (!Skyborne::Decode(skin, image) || image.width == 0 || image.height == 0 || skinWidth < 64)
             return false;
-        Image face = Resized(image, 256, 192);
+        // The face region of a composed texture [skinWidth] wide: half its width, the lower three
+        // eighths of its height (FaceUpper an eighth over FaceLower's quarter).
+        uint32_t w = skinWidth / 2, upperRows = skinWidth / 8, lowerRows = skinWidth / 4;
+        Image face = Resized(image, w, upperRows + lowerRows);
         for (size_t i = 3; i < face.rgba.size(); i += 4)
             face.rgba[i] = 255;                                     // opaque: nothing of the skin under it shows
-        upper = Skyborne::EncodeDxt5(Rows(face, 0, 64));
-        lower = Skyborne::EncodeDxt5(Rows(face, 64, 128));
+        upper = EncodePalette(Rows(face, 0, upperRows), false);
+        lower = EncodePalette(Rows(face, upperRows, lowerRows), false);
         return true;
     }
 
@@ -515,7 +711,7 @@ namespace MurlocNaga
             return false;
         for (size_t i = 0; i + 3 < image.rgba.size(); i += 4)
             RecolourRgb(image.rgba[i], image.rgba[i + 1], image.rgba[i + 2], hue, saturation, lightness);
-        blp = Skyborne::EncodeDxt5(image);
+        blp = EncodePalette(image, Translucent(image));             // as the game's character textures are
         return true;
     }
 
@@ -658,7 +854,133 @@ namespace MurlocNaga
         size_t tables = 0, files = 0;
         std::vector<std::string> problems;
 
-        // Tables.
+        // Every texture the patch writes (lower case), so the tables name only textures that are there.
+        std::set<std::string> written;
+        auto add = [&](std::string const& name, Bytes const& data)
+        {
+            writer.Add(name, data);
+            written.insert(Lower(name));
+            ++files;
+        };
+
+        // The murloc's model and skins, the naga's colours (data/client/looks.txt). What the game draws
+        // into a character's composed texture (its skin, faces and underwear) is made as the game's
+        // own character textures are, palettized and at the scale of the skin it's drawn over: the
+        // game reads only those there (a compressed or missing one was drawn green, and broke the
+        // game's memory as the character was made: crash report #110).
+        std::string murlocModel;
+        std::map<uint32_t, std::string> murlocSkins;
+        struct Colour { uint32_t source; double recipe[3]; bool changed; };
+        std::map<std::string, std::map<uint32_t, Colour>> nagaColours;       // sex, colour
+        for (char const* sex : { "Male", "Female" })
+            for (uint32_t c = 0; c < 5; ++c)
+                nagaColours[sex][c] = { c, { -1, 1, 1 }, false };          // the game's five
+        for (auto const& line : Lines(Text(moduleData / "looks.txt")))
+        {
+            if (line[0] == "murloc_model" && line.size() == 2)
+                murlocModel = line[1];
+            else if (line[0] == "murloc_skin" && line.size() == 3)
+                murlocSkins[uint32_t(std::stoul(line[1]))] = line[2];
+            else if (line[0] == "naga_colour" && line.size() == 7)
+                nagaColours[line[1] == "0" ? "Male" : "Female"][uint32_t(std::stoul(line[2]))]
+                    = { uint32_t(std::stoul(line[3])), { std::stod(line[4]), std::stod(line[5]), std::stod(line[6]) }, true };
+        }
+        for (auto const& [sex, colours] : nagaColours)
+        {
+            std::string p = "Character\\Naga_\\" + sex + "\\Naga_" + sex;
+            for (auto const& [colour, how] : colours)
+            {
+                char from[8], to[8];
+                std::snprintf(from, sizeof(from), "00_%02u", how.source);
+                std::snprintf(to, sizeof(to), "00_%02u", colour);
+                // The skin and its extra (the fins and face the model draws as they are): the game's,
+                // recoloured for a new colour.
+                uint32_t skinWidth = 0;
+                for (char const* extra : { "", "_Extra" })
+                {
+                    Bytes texture;
+                    std::string name = p + "Skin" + from + extra + ".blp";
+                    if (!game.Read(name, texture))
+                    {
+                        problems.push_back(name + " isn't in the game");
+                        continue;
+                    }
+                    if (!*extra)
+                        skinWidth = BlpWidth(texture);
+                    if (how.changed || (!*extra && texture.size() > 8 && texture[8] != 1))
+                    {
+                        if (!Recolour(texture, how.changed ? how.recipe[0] : -1, how.changed ? how.recipe[1] : 1, how.changed ? how.recipe[2] : 1))
+                        {
+                            problems.push_back(name + " isn't a texture this knows");
+                            continue;
+                        }
+                        add(p + "Skin" + to + extra + ".blp", texture);
+                    }
+                }
+                if (!skinWidth)
+                    continue;
+                // The faces and underwear (the game's own are a quarter the size and compressed): made
+                // the skin's scale, palettized, under the colour's own names.
+                for (auto [kind, w, h] : { std::tuple<char const*, uint32_t, uint32_t>{ "FaceLower", 128, 64 }, { "FaceUpper", 128, 32 },
+                                           { "NakedPelvisSkin", 128, 64 }, { "NakedTorsoSkin", 128, 64 } })
+                {
+                    Bytes texture;
+                    Image image;
+                    std::string name = p + kind + from + ".blp";
+                    if (!game.Read(name, texture) || !Skyborne::Decode(texture, image) || !image.width || !image.height)
+                    {
+                        problems.push_back(name + " isn't in the game");
+                        continue;
+                    }
+                    add(p + kind + to + ".blp", Composited(image, skinWidth, w, h, how.changed ? how.recipe : nullptr));
+                }
+            }
+        }
+        if (!murlocModel.empty() && MurlocModel(game, murlocModel, writer, problems))
+        {
+            files += 1;
+            // The murloc's composed texture is drawn over the naga's skin (its CharSections rows): the
+            // faces are made at its scale.
+            Bytes base;
+            uint32_t skinWidth = game.Read("Character\\Naga_\\Male\\Naga_MaleSkin00_00.blp", base) ? BlpWidth(base) : 0;
+            if (!skinWidth)
+            {
+                problems.push_back("Character\\Naga_\\Male\\Naga_MaleSkin00_00.blp isn't in the game: the murlocs' faces are made for a 256 skin");
+                skinWidth = 256;
+            }
+            Bytes first;
+            for (auto const& [colour, source] : murlocSkins)
+            {
+                Bytes skin;
+                if (!game.Read(source, skin))
+                {
+                    // (a colour the client hasn't: the first's, so every colour on the slider draws)
+                    problems.push_back(source + " isn't in the game" + (first.empty() ? "" : ": its colour is the first's"));
+                    if (first.empty())
+                        continue;
+                    skin = first;
+                }
+                if (first.empty())
+                    first = skin;
+                Bytes upper, lower;
+                if (!FaceTextures(skin, skinWidth, upper, lower))
+                {
+                    problems.push_back(source + " isn't a texture this knows");
+                    continue;
+                }
+                char suffix[16];
+                std::snprintf(suffix, sizeof(suffix), "00_%02u.blp", colour);
+                for (char const* sex : { "Male", "Female" })
+                {
+                    std::string p = std::string("Character\\Murloc\\") + sex + "\\Murloc" + sex;
+                    add(p + "FaceUpper" + suffix, upper);
+                    add(p + "FaceLower" + suffix, lower);
+                }
+            }
+        }
+
+        // Tables. The races' CharSections rows name only textures that are there (in the game or this
+        // patch): the game's own rows for the naga name a hair and a facial hair texture it hasn't.
         for (auto it = fs::directory_iterator(moduleData / "dbc", error); !error && it != fs::directory_iterator(); it.increment(error))
         {
             if (it->path().extension() != ".txt")
@@ -677,84 +999,27 @@ namespace MurlocNaga
                 problems.push_back(name + ".dbc: " + problem);
                 continue;
             }
+            if (name == "CharSections")
+            {
+                uint32_t empty = dbc.String("");
+                for (size_t r = 0; r < dbc.records.size(); ++r)
+                {
+                    uint32_t race = dbc.Get(r, 1);
+                    if (race != 19 && race != 20)
+                        continue;
+                    for (uint32_t field : { 4u, 5u, 6u })
+                    {
+                        std::string texture = StringOf(dbc, dbc.Get(r, field));
+                        if (texture.empty() || written.count(Lower(texture)) || game.Has(texture))
+                            continue;
+                        problems.push_back(texture + " isn't in the game: left out of its look");
+                        dbc.Set(r, field, empty);
+                    }
+                }
+            }
             Skyborne::SortCharacterTable(dbc, name);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;
-        }
-
-        // The murloc's model and skins, the naga's new colours (data/client/looks.txt).
-        std::string murlocModel;
-        std::map<uint32_t, std::string> murlocSkins;
-        for (auto const& line : Lines(Text(moduleData / "looks.txt")))
-        {
-            if (line[0] == "murloc_model" && line.size() == 2)
-                murlocModel = line[1];
-            else if (line[0] == "murloc_skin" && line.size() == 3)
-                murlocSkins[uint32_t(std::stoul(line[1]))] = line[2];
-            else if (line[0] == "naga_colour" && line.size() == 7)
-            {
-                char const* sex = line[1] == "0" ? "Male" : "Female";
-                uint32_t colour = std::stoul(line[2]), source = std::stoul(line[3]);
-                double hue = std::stod(line[4]), saturation = std::stod(line[5]), lightness = std::stod(line[6]);
-                std::string p = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
-                char from[8], to[8];
-                std::snprintf(from, sizeof(from), "00_%02u", source);
-                std::snprintf(to, sizeof(to), "00_%02u", colour);
-                for (char const* kind : { "Skin", "FaceLower", "FaceUpper", "NakedPelvisSkin", "NakedTorsoSkin" })
-                    for (char const* extra : { "", "_Extra" })
-                    {
-                        if (*extra && std::strcmp(kind, "Skin") != 0)
-                            continue;
-                        Bytes texture;
-                        std::string name = p + kind + from + extra + ".blp";
-                        if (!game.Read(name, texture))
-                        {
-                            problems.push_back(name + " isn't in the game");
-                            continue;
-                        }
-                        if (!Recolour(texture, hue, saturation, lightness))
-                        {
-                            problems.push_back(name + " isn't a texture this knows");
-                            continue;
-                        }
-                        writer.Add(p + kind + to + extra + ".blp", texture);
-                        ++files;
-                    }
-            }
-        }
-        if (!murlocModel.empty() && MurlocModel(game, murlocModel, writer, problems))
-        {
-            files += 1;
-            Bytes first;
-            for (auto const& [colour, source] : murlocSkins)
-            {
-                Bytes skin;
-                if (!game.Read(source, skin))
-                {
-                    // (a colour the client hasn't: the first's, so every colour on the slider draws)
-                    problems.push_back(source + " isn't in the game" + (first.empty() ? "" : ": its colour is the first's"));
-                    if (first.empty())
-                        continue;
-                    skin = first;
-                }
-                if (first.empty())
-                    first = skin;
-                Bytes upper, lower;
-                if (!FaceTextures(skin, upper, lower))
-                {
-                    problems.push_back(source + " isn't a texture this knows");
-                    continue;
-                }
-                char suffix[16];
-                std::snprintf(suffix, sizeof(suffix), "00_%02u.blp", colour);
-                for (char const* sex : { "Male", "Female" })
-                {
-                    std::string p = std::string("Character\\Murloc\\") + sex + "\\Murloc" + sex;
-                    writer.Add(p + "FaceUpper" + suffix, upper);
-                    writer.Add(p + "FaceLower" + suffix, lower);
-                    files += 2;
-                }
-            }
         }
 
         // The character creation screen: the races' icons, the screen's own file list with theirs; the
