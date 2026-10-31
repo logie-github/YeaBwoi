@@ -313,7 +313,6 @@ class GestureView(
             val before = cursorHere()
             val special = cursors.isSpecial(before)
             val selected = selection()?.first
-            tap.selectedBefore = selected
             click(Button.LEFT)
             when {
                 // An enemy: the click selected it; a second tap attacks.
@@ -369,7 +368,7 @@ class GestureView(
         // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
         // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
         if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat()) || rightClicksAt(x, y) || windowOpen()) return tapAt(x, y)
-        val first = lastTap ?: return jump(null)
+        val first = lastTap ?: return jump()
         val far = Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density
         first.whenDone { outcome ->
             when {
@@ -378,29 +377,13 @@ class GestureView(
                 // second is the same tap again, or a tap of its own elsewhere (the loot's item).
                 outcome == Outcome.INTERACTED -> { if (far) tapAt(x, y) }
                 windowOpen() -> tapAt(x, y)
-                // (an enemy the first tap selected elsewhere stays the target)
-                outcome == Outcome.ENEMY -> jump(null)
-                else -> jump(first)
+                else -> jump()
             }
         }
     }
 
-    /**
-     * Space; and when [first]'s click (on the ground, as a double tap's first tap is) changed the
-     * selection, which takes the target away, the game's Target Last Target (F12, the add-on's
-     * binding) brings it back.
-     */
-    private fun jump(first: TapResult?) {
-        tap(Key.SPACE)
-        val before = first?.selectedBefore ?: return
-        val since = SystemClock.uptimeMillis()
-        fun check() {
-            val now = selection()?.first
-            if (now != null && now != before) return tap(Key.F12)
-            if (SystemClock.uptimeMillis() - since < SELECTION_WAIT_MS) postDelayed({ check() }, SELECTION_POLL_MS)
-        }
-        check()
-    }
+    /** Sticky targeting keeps a ground click from clearing the target; jumping sends only Space. */
+    private fun jump() = tap(Key.SPACE)
 
     /** Whether the add-on says a window the player is using is open (the loot, a talk, a vendor...). */
     private fun windowOpen(): Boolean = InterfaceNote.windowOpen(runCatching { interfaceFile.readText() }.getOrNull())
@@ -415,8 +398,6 @@ class GestureView(
 
     /** What a tap did, once it's known (its clicks wait for the game and the realm). */
     private class TapResult(val x: Float, val y: Float) {
-        /** The realm's selection count before its click (null: no click, or no word yet). */
-        var selectedBefore: Int? = null
         private var outcome: Outcome? = null
         private var waiting: ((Outcome) -> Unit)? = null
 
@@ -814,7 +795,6 @@ class GestureView(
                 Key.ESCAPE -> XKeycode.KEY_ESC
                 Key.ENTER -> XKeycode.KEY_ENTER
                 Key.TAB -> XKeycode.KEY_TAB
-                Key.F12 -> XKeycode.KEY_F12
             }
     }
 }

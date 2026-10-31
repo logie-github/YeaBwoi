@@ -14,6 +14,7 @@
 
 #include "SkybornePatch.h"
 #include "SkyborneFiles.h"
+#include "../../mod-base-model/src/BodyPreview.h"
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -27,7 +28,7 @@ namespace Skyborne
 {
     namespace
     {
-        constexpr char const* VERSION = "skyborne-15";   // 15: the creatures' races moved in the client's own rows (their beards and voice rows too), the selection screen's music
+        constexpr char const* VERSION = "skyborne-16";   // 15: the creatures' races moved in the client's own rows (their beards and voice rows too), the selection screen's music
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -233,7 +234,7 @@ namespace Skyborne
         log("The Skyborne's patch is out of the game");
     }
 
-    bool UpdatePatch(fs::path const& moduleData, fs::path const& clientData, std::function<void(std::string const&)> const& log)
+    bool UpdatePatch(fs::path const& moduleData, fs::path const& clientData, std::function<void(std::string const&)> const& log, bool femaleBodyPreview)
     {
         std::error_code error;
         fs::path patch = clientData / PATCH, mark = clientData / MARK;
@@ -254,6 +255,7 @@ namespace Skyborne
         // What it's made from: the module's files and the game's archives.
         Stamp stamp;
         stamp.Add(VERSION);
+        stamp.Add(femaleBodyPreview ? "female-body-preview" : "dressed-preview");
         stamp.Add(game.Describe());
         std::vector<fs::path> files;
         for (auto it = fs::recursive_directory_iterator(moduleData, error); !error && it != fs::recursive_directory_iterator(); it.increment(error))
@@ -341,6 +343,9 @@ namespace Skyborne
                 FillSkinHoles(dbc);
             if (Lower(name) == "charsections")
                 CompleteSkins(dbc);
+            if (femaleBodyPreview && Lower(name) == "charstartoutfit")
+                for (auto& row : dbc.records)
+                    BodyPreview::Apply(row);
             SortCharacterTable(dbc, name);
             writer.Add("DBFilesClient\\" + name + ".dbc", dbc.Write());
             ++tables;

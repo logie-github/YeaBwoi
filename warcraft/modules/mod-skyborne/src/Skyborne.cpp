@@ -44,7 +44,14 @@ public:
             LOG_ERROR("module", "Skyborne: the module's files for the game aren't in {}", module.string());
             return;
         }
-        Skyborne::UpdatePatch(module, data, log);
+        fs::path clientDir = fs::path(client).lexically_normal();
+        if (clientDir.filename().empty())
+            clientDir = clientDir.parent_path();
+        fs::path bodyFolder = sConfigMgr->GetOption<std::string>("BaseModel.Folder", "");
+        if (bodyFolder.empty())
+            bodyFolder = clientDir.parent_path() / "base-model";
+        bool body = sConfigMgr->GetOption<bool>("BaseModel.Enable", true) && fs::is_regular_file(bodyFolder / "enabled", error);
+        Skyborne::UpdatePatch(module, data, log, body);
     }
 };
 

@@ -1927,6 +1927,50 @@ database: 6936 quests gated; the tribe's graveyards, the pens' phase alone, emot
 disguises, object scenes); the story is being written (chapter 1 first); the naga's story bible is
 being written alongside. Not in a release yet.
 
+## Ralia's mod (both realms; `modules/mod-ralia`)
+
+The user: "Implement it as a module and also make it so that if we need to disable it later we can. Add a game options
+in he launcher that just says "Ralia's mod" ... The game options can toggle this on or off", then "Also see if you can
+implement it for the new races. Except murloc and naga. But like skybourne uses blood elf textures." Ralia's patches are
+the user's own files (their zip, never in the repository or the app; the site turns the app's downloads away), read on
+the phone: the launcher's **Game options** (a tile of its own) has the one switch; the first time it asks for the zip.
+
+Decided:
+- The textures in `Data/<locale>/patch-<locale>-Z.MPQ`, the last archive the game reads (the only free place after
+  patch-U and patch-V, whose files it must win over), made by the world server as the world database's tables load:
+  after U and V, before the Skyborne's Z, which recolours the blood elves' skins with it in (the Skyborne's "blood
+  elf textures"). U and V leave it out of what they're made from (else each would make the other again every start).
+- Each of `CharSections`' skins and pelvis and torso textures takes Ralia's file of its name (today's, `_hd` for the
+  newer models), its body half at the game's size, palettized; the allied races' through `data/client/sources.txt`
+  (their colours numbered as this game's tables have them). Colours without a file take the nearest colour's change
+  (checked against Ralia's own file for a void elf colour); the allied races' tattoos stay. The gnomes, the murlocs
+  and the naga are left as they are.
+- Off: `Ralia.Enable = 0`, or the switch (which takes the patch out of the client at once).
+
+Where it stands: built; its tests (the patch from a stand-in game, the app's zip reading) and a dry run of the real
+table with the user's files (every playable race's textures but the gnomes'; 10 s on a PC). Not seen in the game or on
+a phone (how today's textures sit on the 3.3.5 models without an HD look).
+
+### Alternate Female Options (the same module)
+
+The user: "Can I make another option for the game that uses these textures? [azerothica's Warlords of Draenor
+non-model-change patch] Call it "Alternate Female Options" in the launcher settings. Make sure the textures apply to
+skybourne and also the dark ranger skin." Built: a second set in mod-ralia (`files/alternate-female`), the women's
+textures alone (the gnomes, murlocs and naga as they are), one set on at a time; where a set has both the older models' and the newer's file, the nearer the game's
+picture; a set's tauren fur textures too. The Skyborne's skins and the Dark Ranger skin are made by the Skyborne's patch
+from the blood elves' first colour with the set's patch in (tested). The user's zip (the site's "BFA Non Model Change"
+patch, sent by the user: loose Character textures, the older models' and the newer's) in a dry run of the real table:
+every playable race's women's textures but the gnomes', 738 from its files and 124 colours from their nearest, 10 s on
+a PC; the older or newer file follows the models the game draws (24 of 24 each way).
+
+## Base Model (both realms; `modules/mod-base-model`)
+
+The user: "Make a module in game options in the launcher called "Base Model" where it shows the character with no gear.
+That way I can preview them all but turn it off when wanted." Built: a second switch in Game options; the realm sends
+every character's visible item fields empty while `files/base-model/enabled` is there (looked for every two seconds, so it
+works while the realm runs). The gear stays on. Creatures and the character list's pictures keep theirs. Not run in
+the game.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
@@ -1977,3 +2021,17 @@ without it. Each is small on its own.
 - Playerbots: https://github.com/mod-playerbots/mod-playerbots (its core:
   https://github.com/mod-playerbots/azerothcore-wotlk, branch `Playerbot`); version-mismatch reports:
   https://www.linux.org.ru/articles/games/18260586
+
+## Warcraft fixes, 2026-10-31
+
+User corrections: the Brill quest dog uses the stock pug model, including existing adopted pets;
+hold still and release is right click everywhere, hold then drag holds the left mouse button;
+double-tap jumping retains the target with sticky targeting and never sends Target Last Target;
+ghosts automatically use the stock Swift Spectral Gryphon until resurrected; Body (formerly Base
+Model) affects only female character creation previews, never live characters or male previews.
+The Body preference is kept and applied in the final client patch at realm startup. The older
+requirements and implementation notes above are superseded by these corrections.
+
+Ralia follow-up (2026-10-31): include gnomes too. Removed the explicit gnome texture exclusion,
+bumped the patch version so existing installs rebuild, and added regression checks for both sexes,
+female overlays and a colour with no direct source texture. The user's imported files are retained.

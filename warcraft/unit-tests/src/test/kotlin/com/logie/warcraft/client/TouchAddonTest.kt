@@ -470,17 +470,20 @@ class TouchAddonTest {
     }
 
     @Test
-    fun f12IsTargetLastTargetOnceOutOfCombat() {
+    fun groundClicksKeepTheTargetWithoutAnF12Binding() {
         lua.load("""
+            cvars = {}
             bindings = {}
+            function SetCVar(name, value) cvars[name] = value end
             function SetOverrideBinding(owner, priority, key, command) bindings[key] = command end
             inCombat = true
         """.trimIndent()).call()
         event("PLAYER_ENTERING_WORLD")
-        assertTrue(lua.get("bindings").get("F12").isnil(), "set in combat")
+        assertEquals("1", lua.get("cvars").get("stickyTargeting").tojstring())
+        assertTrue(lua.get("bindings").get("F12").isnil())
         lua.set("inCombat", LuaValue.FALSE)
         event("PLAYER_REGEN_ENABLED")
-        assertEquals("TARGETLASTTARGET", lua.get("bindings").get("F12").tojstring())
+        assertTrue(lua.get("bindings").get("F12").isnil())
     }
 
     @Test

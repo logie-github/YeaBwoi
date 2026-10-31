@@ -9,3 +9,6 @@ CREATE TABLE IF NOT EXISTS `brill_home` (
     `flags` INT UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (`guid`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+-- Previously adopted dogs keep a saved display in character_pet, even in the stable.
+UPDATE `character_pet` SET `modelid` = 31174 WHERE `entry` = 970115 AND `modelid` BETWEEN 39700 AND 39703;

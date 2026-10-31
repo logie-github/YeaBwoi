@@ -188,7 +188,9 @@ namespace WorgenGoblin
             "patch-dede-y.mpq", "patch-frfr-y.mpq", "patch-eses-y.mpq", "patch-esmx-y.mpq", "patch-ruru-y.mpq", "patch-kokr-y.mpq",
             "patch-zhcn-y.mpq", "patch-zhtw-y.mpq",
             // (the Brill home's patch: the language folder's V, read after patch-V)
-            "patch-enus-v.mpq", "patch-engb-v.mpq", "patch-dede-v.mpq", "patch-frfr-v.mpq", "patch-eses-v.mpq", "patch-esmx-v.mpq", "patch-ruru-v.mpq", "patch-kokr-v.mpq", "patch-zhcn-v.mpq", "patch-zhtw-v.mpq" });
+            "patch-enus-v.mpq", "patch-engb-v.mpq", "patch-dede-v.mpq", "patch-frfr-v.mpq", "patch-eses-v.mpq", "patch-esmx-v.mpq", "patch-ruru-v.mpq", "patch-kokr-v.mpq", "patch-zhcn-v.mpq", "patch-zhtw-v.mpq",
+            // (Ralia's mod's patch: the language folder's Z, made from the game with this one in)
+            "patch-enus-z.mpq", "patch-engb-z.mpq", "patch-dede-z.mpq", "patch-frfr-z.mpq", "patch-eses-z.mpq", "patch-esmx-z.mpq", "patch-ruru-z.mpq", "patch-kokr-z.mpq", "patch-zhcn-z.mpq", "patch-zhtw-z.mpq" });
         if (game.archives.empty())
         {
             log("No game in " + clientData.string());

@@ -1051,6 +1051,13 @@ public:
         since = 0;
         UpdatePhases(player);
         KeepCompanions(player);
+        // Already-adopted dogs keep their saved pet model across app updates.
+        if (Pet* dog = player->GetPet(); dog && dog->GetEntry() == NPC_DOG_PET && dog->GetNativeDisplayId() != 31174)
+        {
+            dog->SetNativeDisplayId(31174);
+            dog->SetDisplayId(31174);
+            dog->SavePetToDB(PET_SAVE_AS_CURRENT);
+        }
     }
 
     void OnPlayerLogout(Player* player) override
@@ -1164,18 +1171,16 @@ class BrillHomeWorld : public WorldScript
 public:
     BrillHomeWorld() : WorldScript("BrillHomeWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
 
-    // (on Wrath Remix's realm the game's patch-<locale>-V is set aside as the configuration is read, before
-    // Remix's own patch is made from the game)
+    // Remove the retired mastiff patch on either realm, before other patches read the client.
     void OnAfterConfigLoad(bool reload) override
     {
         enabled = sConfigMgr->GetOption<bool>("BrillHome.Enable", true);
         fs::path data = ClientData();
-        if (!reload && !enabled && !data.empty())
-            BrillHome::SetPatchAside(data, Log);
+        if (!reload && !data.empty())
+            BrillHome::RemovePatch(data, Log);
     }
 
-    // The mastiff in the game: patch-<locale>-V, after the Worgen's and Goblins' patch-U and the allied races'
-    // patch-V are made (as the configuration is read), before the Skyborne's patch-Z.
+    // Load the town's questlines after its database tables are available.
     void OnLoadCustomDatabaseTable() override
     {
         if (enabled)
@@ -1183,8 +1188,8 @@ public:
         fs::path data = ClientData();
         if (!enabled || data.empty())
             return;
-        fs::path module = fs::path(sConfigMgr->GetOption<std::string>("SourceDirectory", "")) / "modules" / "mod-brill-home" / "data";
-        BrillHome::UpdatePatch(module / "client", module / "files", data, Log);
+        // The pug is in the stock client. Remove archives made by earlier mastiff versions.
+        BrillHome::RemovePatch(data, Log);
     }
 
 private:
