@@ -17,6 +17,7 @@ build_tables.py does, and data/zones/server/zones_world.sql (and zones_world_off
 """
 import os
 import shutil
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -51,8 +52,16 @@ VERIFIED = -15595                     # (the starting areas' rows' own mark: 4.3
 PHASES = [169, 105, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187,
           188, 189, 190, 191, 194, 379, 380, 381, 382, 383, 384]
 # Cataclysm's races in 3.3.5a's race masks: the Worgen are 22 there and 12 here, the Goblins 9 both.
+# Cataclysm's races as the realm's game has them: the playable ones as they are, the Worgen (22) at
+# 12 (mod-worgoblin's), and the races only creatures use where the realm's modules moved them (the
+# Skyborne's 13 and 14 to 22 and 23, the allied races' 15 to 18 to 24 to 27, mod-worgoblin's fel orcs
+# to 29: their tools/build_data.py, MOVED). A race the game hasn't (Cataclysm's 0, once given to
+# Forest Trolls and Naga here) is a look-up it crashes on (crash reports #88, #93, #98, #99: KTC
+# Headquarters' Forest Troll servant).
 RACES = {r: r for r in range(1, 12)}
-RACES[22] = 12
+RACES.update({12: 29, 13: 22, 14: 23, 15: 24, 16: 25, 17: 26, 18: 27, 19: 19, 20: 20, 21: 21, 22: 12})
+# The creatures' races the modules moved (the game's own rows of theirs go with them).
+MOVED_RACES = {9: 28, 12: 29, 13: 22, 14: 23, 15: 24, 16: 25, 17: 26, 18: 27}
 # 3.3.5a's npcflag, unit_flags2 and creature type flags: Cataclysm's bits past these mean nothing here.
 NPCFLAG_MASK = 0x03FFFFFF
 UNIT_FLAGS2_MASK = 0x0003FFFF
@@ -82,6 +91,57 @@ def sqlv(v):
     if isinstance(v, float):
         return repr(v)
     return str(v)
+
+
+MODULE_DATA = os.path.join(os.path.dirname(os.path.dirname(HERE)), "data")
+
+
+class Looks:
+    """What an NPC's look can name and the game has (CharSections' skins, CharHairGeosets' hair styles,
+    CharacterFacialHairStyles' facial hair), by race and sex; one it hasn't is a look-up the game
+    crashes on."""
+
+    def __init__(self, stock_dir, module_dbc):
+        def stock(table):
+            return [list(r) for r in common.Dbc(os.path.join(stock_dir, table + ".dbc")).rows()]
+
+        def module(table):
+            out = []
+            for line in open(os.path.join(module_dbc, table + ".txt"), encoding="utf-8"):
+                f = line.rstrip("\n").split("\t")
+                if f[0] == "put":
+                    out.append([int(x) if x.lstrip("-").isdigit() else x for x in f[1:]])
+                elif f[0] == "appendraw":
+                    raw = bytes.fromhex(f[1])
+                    out.append(list(struct.unpack(f"<{len(raw) // 4}I", raw)))
+            return out
+
+        hair, facial, skin = stock("CharHairGeosets"), stock("CharacterFacialHairStyles"), stock("CharSections")
+        for r in hair:
+            r[1] = MOVED_RACES.get(r[1], r[1])
+        for r in facial:
+            r[0] = MOVED_RACES.get(r[0], r[0])
+        for r in skin:
+            r[1] = MOVED_RACES.get(r[1], r[1])
+        hair += module("CharHairGeosets")
+        facial += module("CharacterFacialHairStyles")
+        skin += module("CharSections")
+        self.have = {"hair": {}, "facial": {}, "skin": {}}
+        for r in hair:
+            self.have["hair"].setdefault((r[1], r[2]), set()).add(r[3])
+        for r in facial:
+            self.have["facial"].setdefault((r[0], r[1]), set()).add(r[2])
+        for r in skin:
+            if r[3] == 0:
+                self.have["skin"].setdefault((r[1], r[2]), set()).add(r[9])
+
+    def pick(self, kind, race, sex, value):
+        """[value] if the game has it for the race and sex, else the nearest it has below it (0 if none)."""
+        have = self.have[kind].get((race, sex), set())
+        if value in have or not have:
+            return value
+        below = [v for v in have if v < value]
+        return max(below) if below else min(have)
 
 
 class Sql:
@@ -360,11 +420,19 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         if r is None:
             self.done[key] = 0
             return 0
-        race = RACES.get(int(r["DisplayRaceID"]), 0)
+        race = RACES.get(int(r["DisplayRaceID"]))
+        sex = int(r["DisplaySexID"])
+        if race is None:
+            self.drop("npc look's race", int(r["DisplayRaceID"]))
+            self.done[key] = 0
+            return 0
+        looks = self.looks()
         values = {"ID": self.ids.new("CreatureDisplayInfoExtra", cata_id), "DisplayRaceID": race,
-                  "DisplaySexID": int(r["DisplaySexID"]), "SkinID": int(r["SkinID"]), "FaceID": int(r["FaceID"]),
-                  "HairStyleID": int(r["HairStyleID"]), "HairColorID": int(r["HairColorID"]),
-                  "FacialHairID": int(r["FacialHairID"]), "Flags": int(r.get("Flags", 0)) & 0x3}
+                  "DisplaySexID": sex, "SkinID": looks.pick("skin", race, sex, int(r["SkinID"])),
+                  "FaceID": int(r["FaceID"]), "HairStyleID": looks.pick("hair", race, sex, int(r["HairStyleID"])),
+                  "HairColorID": int(r["HairColorID"]),
+                  "FacialHairID": looks.pick("facial", race, sex, int(r["FacialHairID"])),
+                  "Flags": int(r.get("Flags", 0)) & 0x3}
         for slot in self.slots().get(cata_id, {}).items():
             index, item_display = slot
             if 0 <= index < ITEM_SLOTS:
@@ -378,6 +446,13 @@ class WorldBuilder(SpellsMixin, ItemsMixin, QuestsMixin, VehiclesMixin, ScriptsM
         self.out.add("CreatureDisplayInfoExtra", values)
         self.done[key] = values["ID"]
         return values["ID"]
+
+    def looks(self):
+        """The skins, hair styles and facial hair the realm's game has for each race and sex (3.3.5a's
+        own, their races moved as the modules move them, and mod-worgoblin's: data/client/dbc)."""
+        if not hasattr(self, "_looks"):
+            self._looks = Looks(self.stock_dir, os.path.join(MODULE_DATA, "client", "dbc"))
+        return self._looks
 
     def slots(self):
         if not hasattr(self, "_slots"):
