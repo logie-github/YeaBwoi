@@ -368,7 +368,7 @@ class GestureView(
         // game's windows (the talents, the bags, the character pane: where a hold right-clicks), two
         // clicks, as a mouse's double click (a talent's second spends its point: the app's add-on).
         if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat()) || rightClicksAt(x, y) || windowOpen()) return tapAt(x, y)
-        val first = lastTap ?: return jump(null)
+        val first = lastTap ?: return jump()
         val far = Math.hypot((first.x - x).toDouble(), (first.y - y).toDouble()) > AGAIN_SLOP_DP * density
         first.whenDone { outcome ->
             when {
