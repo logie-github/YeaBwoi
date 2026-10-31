@@ -735,7 +735,7 @@ EOF
 
 	echo "== Brill: A Place Among the Forsaken (mod-brill-home's town questlines, tools/town)"
 	grep -E "Brill town: [0-9]+ phase rows" "$FILES/logs/world.out" || fail "the world server didn't read the town's questlines"
-	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*970[2-9][0-9][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
+	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*(970[2-9][0-9][0-9]|971[0-6][0-9][0-9])" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
 	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the town's rows"; }
 	# Each line played through by its own new character (an undead warrior), erased after.
 	n=0

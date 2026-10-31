@@ -193,10 +193,12 @@ LINE = {
                 "Innkeeper Renee is expecting candles and a barrel tap. Apothecary Johaan's is a crate of empty vials, which "
                 "he will count in front of you, so let him. Hamlin Atkins has a sack of something for his mushroom beds that "
                 "I've declined to examine; carry it at arm's length.$B$B"
-                "Bring back the signatures. Brill runs on trust, $n. The caravan office runs on receipts."),
+                "Some days it's three parcels and some days it's thirty; today, mercifully, it's three. Bring back the "
+                "signatures. Brill runs on trust, $n. The caravan office runs on receipts."),
             "progress": "Signatures, $n. A delivery without a signature is just a walk.",
             "done": (
                 "Three signatures, in three inks, one of them possibly not ink. All valid. Here's your fee.$B$B"
+                "If Renee told you I owe her for a bottle of port, I don't. I have the receipt. I always have the receipt.$B$B"
                 "Same time tomorrow? Brill will still be here. So, regrettably, will the paperwork."),
             "return": "Return to Quartermaster Irena Sable at the Brill Caravan Office.",
             "objectives": [("credit", "d_renee", 1, "Parcel signed for by Innkeeper Renee"),

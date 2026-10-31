@@ -166,8 +166,34 @@ and Carolai living in the house). Carolai: as lovers she lives in the house by t
 the stove, the dog's bed and the bookshelf; as friends she lets herself in one day in five; she and Jamie
 Nore each have words for the other, and she has some on Wendell and the well.
 
+### The Community Projects
+
+The user's next design: once any three of the lines above (or Carolai's) are done, Magistrate Sevren's
+**Brill Endures** (971000: tell Executor Zygand and Jamie Nore, ring the square's bell) puts up the Town
+Improvement Board outside the town hall and opens the builder's yard on the north road (Rudd Carver).
+Six projects then open at once, each optional, each its own:
+
+| Project | Quests | Leader | Where | Choices (words only) |
+| --- | --- | --- | --- | --- |
+| The Forgotten Shadow Chapel | 971100-971104, daily Names to Remember | Dark Cleric Mirelle Vane | east of the cemetery | Willem Vale's name added or the wall kept; Corven's answer |
+| The Reclamation Library | 971200-971204, daily Lost Pages | Edmund Rook | Stillhome Lane, west edge | the artifact donated |
+| The Stillgarden | 971300-971304, daily A Garden Is Kept | Edda Graves | Holt's Rise, the eastern edge | herbs or flowers to the front |
+| The Surgeon's Hall | 971400-971404, daily Repairs Required | Surgeon Elspeth Rane | by Junior Apothecary Holland | a clinical charter or supervised research |
+| The Caravan Office | 971500-971504, daily Brill Deliveries, Somewhere to Stay | Quartermaster Irena Sable | the Undercity road | Selwyn exposed or supervised; the first road |
+| The Old Brewery | 971600-971604, weekly Brewer's Special | Brewmaster Oren Blackbarrel | beside the Gallows' End | the recipe; the signature drink's name |
+
+Each goes Survey, Construction, Opening, Established, for each character as far as they've taken it: the
+building, scaffolding, workers, its people and their wares show from the stage reached (the game's own
+invisibility carries a project's stages: no phases needed; core patch 0012 lets a building be hidden so).
+Established, each has its vendor (and a priest, herbalism or first-aid trainer), daily routines (the
+town's day: morning, day, evening, night, as game events 230 to 233), visits to the other projects, and a
+set of furnishings for the player's house, bought from its people. **The Town We Made** (971001), once all
+six are open: a walk past the six leaders.
+
 Every line has a realm test: `warcraft/server/brill_town_<line>.steps` (`.brilltown state`, `.brilltown use`).
-Not seen in the game: any of the new places, models' sizes and turns, the crypt's spawns inside it, the
+Not seen in the game: any of the new places, the projects' buildings (placed by the game's collision
+models: the chapel 30 yards east of its planned spot to clear the graves, the brewery a farmhouse, not a
+barn, which fit nowhere by the Gallows' End), models' sizes and turns, the crypt's spawns inside it, the
 new well and stall, the routes. Nothing here has run on a phone.
 
 ## Files

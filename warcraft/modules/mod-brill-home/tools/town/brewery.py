@@ -198,7 +198,8 @@ LINE = {
             "done": (
                 "(Oren reads the verdicts and grunts.)$B$B"
                 "\"Interesting.\" \"Interesting.\" \"I can see sounds.\" Calla will call that a triumph. I'll call it a "
-                "week. Here's your fee. Come back next week and we'll do it all again with something worse."),
+                "week. She's already planning the next one; I saw her eyeing a coffin at the undertaker's.$B$B"
+                "Here's your fee. Come back next week and we'll do it all again with something worse."),
             "return": "Return to Brewmaster Oren Blackbarrel at the Old Brewery in Brill.",
             "objectives": [("credit", "sp_herb", 3, "Fresh bitterroot cut"),
                            ("credit", "sp_renee", 1, "Innkeeper Renee's verdict"),
