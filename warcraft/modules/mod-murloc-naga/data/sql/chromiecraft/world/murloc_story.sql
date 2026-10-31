@@ -2572,8 +2572,8 @@ INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `Q
 INSERT INTO `game_graveyard` (`ID`, `Map`, `x`, `y`, `z`, `Comment`) VALUES
 (9760, 1, 4090.0, 1114.0, 2.08, 'mod-murloc-naga: the pens');
 INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, `quest_start_status`, `quest_end_status`) VALUES
-(979800, 331, 0, 978528, 0, 262144, 2, 1, 0, 64),
-(979801, 331, 0, 978510, 0, 262144, 2, 1, 0, 64),
+(979800, 331, 0, 978528, 0, 262144, 2, 1, 0, 63),
+(979801, 331, 0, 978510, 0, 262144, 2, 1, 0, 63),
 (979802, 331, 978520, 0, 0, 262144, 2, 1, 10, 0),
 (979803, 331, 978512, 0, 0, 262144, 2, 1, 10, 0),
 (979804, 331, 978513, 0, 0, 262144, 2, 1, 10, 0),

@@ -1754,7 +1754,7 @@ INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spe
 (98880, 331, 978528, 0, 0, 262144, 2, 1, 64, 11),
 (98881, 148, 0, 0, 0, 524288, 2, 1, 64, 11),
 (98881, 331, 0, 0, 0, 524288, 2, 1, 64, 11),
-(98889, 331, 0, 978528, 0, 262144, 2, 1, 64, 64);
+(98889, 331, 0, 978528, 0, 262144, 2, 1, 64, 63);
 
 -- A murloc keeps a low profile in the 2 towns and cities (Low Profile): their guards notice it at a few yards.
 DELETE FROM `spell_area` WHERE `spell` = 98888;

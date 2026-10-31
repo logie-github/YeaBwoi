@@ -854,7 +854,8 @@ def main():
     alone = {zone: quest for zones, quest in (story.tables.get("_alone", []) if story else []) for zone in zones}
     phase_rows = [f"({SPELLS['phase_' + k]}, {area}, {alone.get(area, 0) if race == MURLOC else 0}, 0, 0, {BIT[race]}, 2, 1, 64, 11)"
                   for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)]
-    phase_rows += [f"({SPELLS['phase_murloc_alone']}, {area}, 0, {quest}, 0, {BIT[MURLOC]}, 2, 1, 64, 64)" for area, quest in sorted(alone.items())]
+    # (the end quest's status: the spell is given while it's one of these: not yet rewarded)
+    phase_rows += [f"({SPELLS['phase_murloc_alone']}, {area}, 0, {quest}, 0, {BIT[MURLOC]}, 2, 1, 64, 63)" for area, quest in sorted(alone.items())]
     sql.raw("INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, "
             "`quest_start_status`, `quest_end_status`) VALUES\n" + ",\n".join(phase_rows) + ";")
     towns = sorted({r[0] for r in D("AreaTable").rows if r[4] & TOWN_FLAG} | set(LOW_PROFILE_OUTPOSTS))

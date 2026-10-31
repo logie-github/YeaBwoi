@@ -54,8 +54,10 @@ A_KILLED_MONSTER, A_DESPAWN, A_SET_DATA, A_ADD_ITEM, A_REMOVE_ITEM, A_SET_RUN, A
 A_ORIENTATION, A_MOVE_TO, A_CLOSE_GOSSIP, A_ACTIONLIST, A_JUMP, A_MUSIC = 66, 69, 72, 80, 97, 216
 T_SELF, T_INVOKER, T_POSITION, T_CLOSEST_CREATURE = 1, 7, 8, 19
 CHAT = {"say": 12, "yell": 14, "whisper": 15, "emote_text": 16}
-# Quest statuses as bits (spell_area's quest_start_status / quest_end_status)
+# Quest statuses as bits (spell_area's quest_start_status / quest_end_status: the core gives the spell
+# while the quest's status is one of them, for the end quest too: SpellArea::IsFitToRequirements)
 REWARDED, IN_LOG = 1 << 6, (1 << 1) | (1 << 3)
+NOT_REWARDED = (1 << 6) - 1             # none, complete, unavailable, incomplete, available, failed
 
 NPCFLAG = {"gossip": 1, "quest": 2, "trainer": 16, "class_trainer": 32, "profession_trainer": 64, "vendor": 128,
            "repair": 4096, "innkeeper": 65536, "banker": 131072, "auctioneer": 2097152, "stable": 4194304}
@@ -1364,10 +1366,10 @@ class Story:
                              racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=REWARDED, quest_end_status=0)
                 elif kind == "until":
                     self.row("spell_area", spell=spell, area=zone, quest_start=0, quest_end=quest, aura_spell=0,
-                             racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=0, quest_end_status=REWARDED)
+                             racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=0, quest_end_status=NOT_REWARDED)
                 elif kind == "between":
                     self.row("spell_area", spell=spell, area=zone, quest_start=quest[0], quest_end=quest[1], aura_spell=0,
-                             racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=REWARDED, quest_end_status=REWARDED)
+                             racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=REWARDED, quest_end_status=NOT_REWARDED)
                 elif kind == "during":
                     self.row("spell_area", spell=spell, area=zone, quest_start=quest, quest_end=0, aura_spell=0,
                              racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=IN_LOG, quest_end_status=0)
