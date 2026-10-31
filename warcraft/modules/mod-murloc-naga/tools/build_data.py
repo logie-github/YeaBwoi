@@ -82,6 +82,11 @@ ID_VOCAL = 9500                                 # (the Skyborne's 9000 to 9107, 
 # Their voices: (men's, women's) words, and when pressed: the game's creature murlocs' (fidgets, aggro)
 # and naga's (the naga's and the sirens': their pre-aggro hiss, their aggro).
 VOICES = {MURLOC: ((414, 415), (416, 1109)), NAGA: ((3437, 4024), (3438, 4025))}
+# The people's voices (the game's creature sounds): as they're spoken to, as a quest is handed in.
+MURLOC_HELLO, MURLOC_CHEER = (414, 415, 1109), (416, 417)
+VOICED = {"elder": (MURLOC_HELLO, MURLOC_CHEER), "chief": ((416, 417, 414), MURLOC_CHEER), "cook": (MURLOC_HELLO, MURLOC_CHEER),
+          "snatcher": ((1109, 415), MURLOC_CHEER), "oracle": ((415, 414), MURLOC_CHEER), "fishmonger": (MURLOC_HELLO, ()),
+          "sloshy": ((8475,), (8475,)), "szaria": ((4024,), ()), "vyssa": ((4024,), ()), "ssaveth": ((3437,), ())}
 SPELLS = {"phase_murloc": 98880, "phase_naga": 98881, "amphibious": 98882, "mrrgglll": 98883, "slippery": 98884,
           "serpent": 98885, "tail_sweep": 98886, "scales": 98887}
 
@@ -950,7 +955,7 @@ def homes(client, sql, W):
     for key, name, sub, look, where, o, role in C.MURLOC_PEOPLE + [C.SLOSHY]:
         flag = roles[role] | (1 if key in gossip else 0)
         e = npc(key, name, sub, look, (1, 1) if role == "fry" else (12, 13), 35, flag, unit_class=2 if key in ("elder", "oracle", "cook") else 1,
-                gossip=gossip.get(key), scale=0.5 if role == "fry" else 1.0)
+                gossip=gossip.get(key), scale=0.5 if role == "fry" else 1.0, ai="SmartAI" if key in VOICED else "")
         place(e, where, o, MP, wander=4.0 if role in ("ambient", "fry") else 0.0, comment=f"mod-murloc-naga: {name}")
     vendor += [(npc_ids["fishmonger"], i, item) for i, item in enumerate((787, 4592, 4593, 4594, 159, 1179))]
     raider = npc("raider", "Stormscale Raider", None, "naga_male", (11, 12), 74, unit_class=1)
@@ -1005,7 +1010,7 @@ def homes(client, sql, W):
     for key, name, sub, look, where, o, role in C.NAGA_PEOPLE:
         flag = roles[role] | (1 if key in gossip else 0)
         e = npc(key, name, sub, look, (14, 15) if role == "quest" else (12, 13), 35, flag, unit_class=2 if look in ("siren", "sorceress", "sea_witch") else 1,
-                gossip=gossip.get(key))
+                gossip=gossip.get(key), ai="SmartAI" if key in VOICED else "")
         place(e, where, o, NP, comment=f"mod-murloc-naga: {name}")
     vendor += [(npc_ids["vyssa"], i, item) for i, item in enumerate((159, 1179, 787, 4592, 4593, 4540))]
     infiltrator = npc("infiltrator", "Stormscale Infiltrator", None, "naga_male", (10, 11), 74, unit_class=1, loot=True)
@@ -1155,14 +1160,26 @@ def homes(client, sql, W):
     for table, rows_ in (("creature_queststarter", starters), ("creature_questender", enders), ("gameobject_questender", go_enders)):
         sql.raw(f"DELETE FROM `{table}` WHERE `quest` BETWEEN {C.QUEST_BASE} AND {C.QUEST_BASE + 99};")
         sql.insert(table, ["id", "quest"], rows_)
-    sql.raw(f"DELETE FROM `smart_scripts` WHERE `entryorguid` = {trigger} AND `source_type` = 0;")
+    # Their voices as they're spoken to (the game's creature sounds, a random one of those given) and as
+    # a quest is handed in to them: the murlocs' gurgles and cheer, Sloshy's baby burbles, the naga's
+    # and the sirens' hiss.
+    smart_rows = [(t, 0, i, 0, 10, 0, 100, 0, 2, 12, 1000, 1000, 1, 0, 15, qid, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0,
+                   "mod-murloc-naga: the island's summit, for the oracle's vision") for i, (t, qid) in enumerate(smart)]
+    for key, (hello, reward) in VOICED.items():
+        entry = npc_ids[key]
+        for i, (event, sounds) in enumerate(((64, hello), (20, reward))):
+            if not sounds:
+                continue
+            sounds = (list(sounds) + [0, 0, 0, 0])[:4]
+            smart_rows.append((entry, 0, i, 0, event, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, sounds[0], sounds[1], sounds[2], sounds[3], 0, 0,
+                               1, 0, 0, 0, 0, 0, 0, 0, 0, f"mod-murloc-naga: {key}'s voice"))
+    sql.raw(f"DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99} AND `source_type` = 0;")
     sql.insert("smart_scripts", ["entryorguid", "source_type", "id", "link", "event_type", "event_phase_mask", "event_chance",
                                  "event_flags", "event_param1", "event_param2", "event_param3", "event_param4", "event_param5",
                                  "event_param6", "action_type", "action_param1", "action_param2", "action_param3", "action_param4",
                                  "action_param5", "action_param6", "target_type", "target_param1", "target_param2", "target_param3",
                                  "target_param4", "target_x", "target_y", "target_z", "target_o", "comment"],
-               [(t, 0, i, 0, 10, 0, 100, 0, 2, 12, 1000, 1000, 1, 0, 15, qid, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0,
-                 "mod-murloc-naga: the island's summit, for the oracle's vision") for i, (t, qid) in enumerate(smart)])
+               smart_rows)
 
 
 if __name__ == "__main__":

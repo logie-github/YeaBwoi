@@ -50,6 +50,8 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
 - **Character creation**: twenty races, each side's ten in two columns (the allied races' and the Skyborne's layout),
   their icons (the game's murloc head and murloc oracle, Warlord Kalithresh and Lady Vashj), the Dwarves' scene for
   the murlocs and the Tauren's for the naga (framed for their height), their texts.
+- **Voices**: at the UI's moments ("not enough mana"), the game's own creature sounds: the murlocs' gurgles, the naga's
+  and the sirens' hiss. Their people gurgle (or hiss) as they're spoken to, and the murlocs cheer as a quest is handed in.
 - **Add-ons**: Questie's race table gets them as their kin (the murlocs the night elves, the naga the trolls).
 
 ## The Murlocs' quests

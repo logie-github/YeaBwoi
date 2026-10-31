@@ -568,12 +568,12 @@ REPLACE INTO `cinematicsequences_dbc` (`ID`, `SoundID`, `Camera_1`, `Camera_2`, 
 DELETE FROM `creature_template` WHERE `entry` BETWEEN 975000 AND 975099;
 DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 975000 AND 975099;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `speed_swim`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `rank`, `HealthModifier`, `ManaModifier`, `ArmorModifier`, `DamageModifier`, `BaseAttackTime`, `RangeAttackTime`, `lootid`, `RegenHealth`, `AIName`, `ScriptName`) VALUES
-(975000, 'Elder Mrrglmrgl', 'Village Elder', 975000, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975001, 'Grrmlgrrl the Tidehunter', '', 975001, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975002, 'Murlorga', 'Village Cook', 975002, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975003, 'Blrrgl the Snatcher', '', 975003, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975004, 'Oracle Glubbub', '', 975004, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975005, 'Mrrlglr', 'Fishmonger', 975005, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
+(975000, 'Elder Mrrglmrgl', 'Village Elder', 975000, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975001, 'Grrmlgrrl the Tidehunter', '', 975001, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975002, 'Murlorga', 'Village Cook', 975002, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975003, 'Blrrgl the Snatcher', '', 975003, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975004, 'Oracle Glubbub', '', 975004, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975005, 'Mrrlglr', 'Fishmonger', 975005, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
 (975006, 'Murloc Villager', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975007, 'Murloc Villager', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975008, 'Murloc Villager', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
@@ -581,13 +581,13 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `
 (975010, 'Murloc Fry', '', 0, 1, 1, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975011, 'Murloc Fry', '', 0, 1, 1, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975012, 'Murloc Fry', '', 0, 1, 1, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975013, 'Sloshy', '', 975013, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
+(975013, 'Sloshy', '', 975013, 12, 13, 35, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
 (975014, 'Stormscale Raider', '', 0, 11, 12, 74, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975015, 'Tidecaller Sssilith', '', 0, 13, 13, 74, 0, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 3.0, 1.0, 1.0, 1.5, 2000, 2000, 975015, 1, '', ''),
 (975016, 'Island Summit', '', 0, 1, 1, 35, 0, 1.0, 1.1429, 1.0, 1, 33554944, 7, 128, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975017, 'Lady Szaria', 'The Tide-Broken', 975017, 14, 15, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975018, 'Myrmidon Ssaveth', '', 975018, 12, 13, 35, 1, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975019, 'Vyssa the Coral-Keeper', 'Provisions', 975019, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
+(975017, 'Lady Szaria', 'The Tide-Broken', 975017, 14, 15, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975018, 'Myrmidon Ssaveth', '', 975018, 12, 13, 35, 1, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
+(975019, 'Vyssa the Coral-Keeper', 'Provisions', 975019, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
 (975020, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975021, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
 (975022, 'Renegade Siren', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
@@ -989,9 +989,25 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 DELETE FROM `gameobject_questender` WHERE `quest` BETWEEN 975200 AND 975299;
 INSERT INTO `gameobject_questender` (`id`, `quest`) VALUES
 (975105, 975215);
-DELETE FROM `smart_scripts` WHERE `entryorguid` = 975016 AND `source_type` = 0;
+DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 975000 AND 975099 AND `source_type` = 0;
 INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES
-(975016, 0, 0, 0, 10, 0, 100, 0, 2, 12, 1000, 1000, 1, 0, 15, 975214, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: the island\'s summit, for the oracle\'s vision');
+(975016, 0, 0, 0, 10, 0, 100, 0, 2, 12, 1000, 1000, 1, 0, 15, 975214, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: the island\'s summit, for the oracle\'s vision'),
+(975000, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
+(975000, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
+(975001, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 414, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
+(975001, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
+(975002, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
+(975002, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
+(975003, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 1109, 415, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
+(975003, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
+(975004, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 415, 414, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
+(975004, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
+(975005, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: fishmonger\'s voice'),
+(975013, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
+(975013, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
+(975017, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: szaria\'s voice'),
+(975019, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: vyssa\'s voice'),
+(975018, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 3437, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: ssaveth\'s voice');
 
 -- Where they start: on their islands in Darkshore, every class.
 DELETE FROM `playercreateinfo` WHERE `race` IN (19, 20);
