@@ -1885,13 +1885,26 @@ Decided here: about 250 murloc quests (10 to 55 is 2.55 million experience: abou
 game's usual quest experience, with kills); the story's data in `modules/mod-murloc-naga/tools/murloc/`
 (chapters as data, `SCHEMA.md`), compiled to SQL and SmartAI scenes; murlocs speak Nerglish (the
 game's Titan language, renamed), not Common, so every other race's words are garbled to them, and theirs
-to everyone else; they start Hostile (-4500) with the Alliance's, the Horde's and the goblins' towns,
-which the core takes out of war once standing rises above Hostile; Low Profile in every town (detected
+to everyone else; they start Hostile (-3500) with the Alliance's and the Horde's towns and Unfriendly
+(-500) with the goblins', which the core takes out of war once standing rises above Hostile; Low Profile in every town (detected
 at 5 yards, the game's minimum); guards warn in their own language; the tribe's trainers and
 profession trainers teach (the game's spell lists); the gate on every other quest is built at each
 start from the world database (conditions); the story's last quest makes the Alliance's towns Neutral.
 Story teams (agents): a gazetteer of the route, a story bible, chapter writers; the naga's research
 alongside.
+
+The murlocs' story bible (scratchpad, the writers' brief): the Saltscar, slaves of the Wrathtail at the
+Zoram Strand, ten chapters (the Pens 10-14, the Free Shore 14-19, Saltscar 19-24, the Long Swim 24-29,
+Torn Fins 29-33, the Stone City 33-36, Brokenchain 36-40, Red Sails 40-44, the Last Walk 44-48, the
+Storm Bay 48-55), 264 quests to complete (278 with both sides of the hero/menace pairs); the old
+village's six murlocs are its core cast; Sea Witch Ilyssa steals the tribe's clutch and is followed to
+Azshara. Its open questions, answered with the defaults (the user: "defaults are fine"): the last quest's
+reward text is plain English and finishing it teaches Common; item names English; at 55 the Alliance's
+quests open (not the Horde's); murlocs of the first release start the new story; reputation spillover
+kept; mage city teleports left as they are; Theramore (no reputation of its own: its people would be
+friendly to a murloc) only escaped from its docks; the old cast confirmed. Chapter 1 is written first,
+then the other nine in parallel (agents), each against placeholders of the others; a shared cast file
+(`ch0_tribe.py`: the hub's trades and the friends met more than once).
 
 The naga's research (done; the questline comes after the murlocs'): every Warcraft III mission the naga
 are in, transcribed (warcraft.wiki.gg), Lady Vashj's 53 campaign lines with who she answers; her
@@ -1910,7 +1923,9 @@ Outland; 50-55 the Return to Northrend and A Symphony of Frost and Flame, ending
 
 Where it stands: the systems are built and their pieces tested (the translator against MT19937's and
 Java's references, the compiler against the world database's schema, the gate's SQL on the world
-database: 6936 quests gated); the story is being written. Not in a release yet.
+database: 6936 quests gated; the tribe's graveyards, the pens' phase alone, emote objectives, auras and
+disguises, object scenes); the story is being written (chapter 1 first); the naga's story bible is
+being written alongside. Not in a release yet.
 
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
