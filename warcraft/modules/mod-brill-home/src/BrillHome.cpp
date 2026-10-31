@@ -47,17 +47,17 @@ namespace fs = std::filesystem;
 namespace
 {
     // (tools/build_sql.py)
-    constexpr float HOUSE_X = 2289.0f, HOUSE_Y = 352.0f;
+    constexpr float HOUSE_X = 2274.0f, HOUSE_Y = 370.4f;
     constexpr uint32 HOUSE_MAP = 0;
     // Brill, where the house's and the town's phases apply (tools/build_town.py: BRILL_*).
-    constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 140.0f;
+    constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 165.0f;
 
     constexpr uint32 GO_BED = 970101, NPC_BED_CREDIT = 970111;
     constexpr uint32 NPC_DOG = 970112, NPC_FETCH_CREDIT = 970113, NPC_EARS_CREDIT = 970114, NPC_DOG_PET = 970115;
     constexpr uint32 QUEST_HOUSE = 970120, QUEST_WELCOME = 970121, QUEST_BED = 970122, QUEST_DOG = 970123;
     constexpr uint32 TEXT_JAMIE = 970140, TEXT_UPGRADES = 970141, TEXT_BED = 970142, TEXT_DOG = 970144, TEXT_DOG_WAITING = 970145;
     // Out the door, where the stick lands (the house's own (-1.9, -12): tools/build_sql.py).
-    constexpr float STICK_X = 2288.5f, STICK_Y = 364.1f, STICK_Z = 34.2f;
+    constexpr float STICK_X = 2286.1f, STICK_Y = 371.1f, STICK_Z = 34.2f;
 
     constexpr uint32 PHASE_CEDRIC = 0x100, PHASE_BED = 0x200, PHASE_DOG = 0x400;
     // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest
@@ -78,7 +78,7 @@ namespace
     struct Rank { uint8 level; uint32 spell; };
     constexpr Rank MEND_PET[] = { { 12, 136 }, { 20, 3111 }, { 28, 3661 }, { 36, 3662 }, { 44, 13542 }, { 52, 13543 },
                                   { 60, 13544 }, { 68, 27046 }, { 74, 48989 }, { 80, 48990 } };
-    constexpr uint32 PHASES_OURS = 0xFFFFFF00;   // (the house's to 0x20000, the town's lines' above)
+    constexpr uint32 PHASES_OURS = 0xFFFFFFFE;   // (the house's 0x100 to 0x20000, the town's lines' above it and 0x2 to 0x80: nothing of the game's in Brill is in those)
 
     // Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, ending in
     // the player's answer, lovers or friends (the rewards the same: the user's), and as lovers, her
@@ -197,7 +197,10 @@ namespace
 
     void UpdatePhases(Player* player)
     {
-        if (!enabled || player->HasAuraType(SPELL_AURA_PHASE))
+        if (!enabled)
+            return;
+        BrillTown::RefreshStages(player, InBrill(player));
+        if (player->HasAuraType(SPELL_AURA_PHASE))
             return;
         uint32 now = player->GetPhaseMask();
         // (only a phase of the house's own, or the world's: never one something else put them in)
@@ -778,12 +781,12 @@ struct npc_brill_home_carolai_homeAI : public ScriptedAI
 
     // (the house's: tools/build_sql.py's places, turned to what she's doing)
     struct Spot { float x, y, o; uint32 emote; bool sit; };
-    static constexpr float FLOOR = 35.22f;
+    static constexpr float FLOOR = 35.80f;
     static constexpr Spot SPOTS[] = {
-        { 2286.95f, 354.65f, 2.987f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
-        { 2292.99f, 349.32f, 5.792f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
-        { 2291.85f, 348.89f, 5.582f, 0, true },                           // with the dog, by its bed
-        { 2289.60f, 347.94f, 4.907f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
+        { 2276.60f, 372.51f, 1.440f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
+        { 2271.42f, 366.34f, 4.245f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
+        { 2270.96f, 367.47f, 4.035f, 0, true },                           // with the dog, by its bed
+        { 2269.95f, 369.71f, 3.360f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
     };
     uint32 next = 5000, spot = 0;
     bool moving = false;

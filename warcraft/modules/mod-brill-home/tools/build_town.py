@@ -25,7 +25,9 @@ TOWN = os.path.join(HERE, "town")
 
 # The questlines, in order, and the ids each has (a hundred of each kind from its base: quests, creature
 # entries, objects, words, and the spawns' guids).
-LINES = ["house", "grave", "apprentice", "scarlet", "customer", "deathguard", "well", "gallows"]
+LINES = ["house", "grave", "apprentice", "scarlet", "customer", "deathguard", "well", "gallows",
+         # the Community Projects (opened by Brill Endures)
+         "endures", "chapel", "library", "garden", "surgeon", "caravan", "brewery"]
 BASE = {key: 970200 + 100 * i for i, key in enumerate(LINES)}
 
 # The mod-brill-home ids a line may name (tools/build_sql.py).
@@ -37,12 +39,19 @@ KNOWN = {
 # The house's own flags (brill_home.flags: src/BrillHome.cpp) a condition may ask about.
 FLAGS = {"DOG": 0x2, "LOVERS": 0x10, "FRIENDS": 0x20, "CAROLAI_HOME": 0x50}
 # The phases the town's lines share out (the house's are 0x100 to 0x20000).
-FREE_PHASES = [1 << b for b in range(18, 32)]
+# (then 0x2 to 0x80: in Brill nothing of the game's own is in those)
+FREE_PHASES = [1 << b for b in range(18, 32)] + [1 << b for b in range(1, 8)]
+# A project's stages: the game's invisibility kinds (not 0, the general one, 3 traps', 6 drunkenness').
+STAGE_TYPES = [1, 2, 4, 5, 7, 8, 9, 10, 11]
+# The town's day (game events: their entries, when they start, how long, in minutes). A spawn "when" one is
+# there only then.
+SCHEDULES = {"morning": (230, 6 * 60, 4 * 60), "day": (231, 10 * 60, 8 * 60), "evening": (232, 18 * 60, 4 * 60),
+             "night": (233, 22 * 60, 8 * 60)}
 
 # The house (tools/build_sql.py): a line may place things in it by the house's own coordinates.
-HOUSE_X, HOUSE_Y, HOUSE_O, FLOOR = 2289.0, 352.0, 3.3360, 31.12 + 4.1
+HOUSE_X, HOUSE_Y, HOUSE_O, FLOOR = 2274.0, 370.4, 1.7890, 31.70 + 4.1
 # Brill, where the town's phases apply (src/BrillTown.cpp): a spawn in a phase must be in it.
-BRILL_X, BRILL_Y, BRILL_RADIUS = 2275.0, 330.0, 140.0
+BRILL_X, BRILL_Y, BRILL_RADIUS = 2275.0, 330.0, 165.0
 
 MAP_ZONE = {0: 85}
 
@@ -89,6 +98,8 @@ def main():
     quests, npcs, objects, texts, phases = {}, {}, {}, {}, {}
     ids = {key: Ids(key, BASE[key]) for key, _ in lines}
     free = list(FREE_PHASES)
+    stage_type, stage_count = {}, {}
+    free_types = list(STAGE_TYPES)
 
     # First every line's names, so a line may name another's.
     for key, line in lines:
@@ -105,8 +116,20 @@ def main():
             objects[f"{key}.{obj['id']}"] = i.take("object", obj["id"])
         for name in line.get("phases", {}):
             if not free:
-                die(key, "the town has no more phases to give (fourteen in all)")
+                die(key, f"the town has no more phases to give ({len(FREE_PHASES)} in all)")
             phases[f"{key}.{name}"] = free.pop(0)
+        if line.get("stages"):
+            if not free_types:
+                die(key, "no invisibility kind left for its stages")
+            stage_type[key] = free_types.pop(0)
+            stage_count[key] = len(line["stages"])
+        # (a phase for each stage a line's spawns go at: they're there until it's reached)
+        for k in sorted({t.get("until") for t in line.get("npcs", []) + line.get("objects", []) if t.get("until")}):
+            if not line.get("stages") or not 1 <= k <= len(line["stages"]):
+                die(key, f"\"until\": {k} isn't one of its stages")
+            if not free:
+                die(key, f"the town has no more phases to give ({len(FREE_PHASES)} in all)")
+            phases[f"{key}.__until{k}"] = free.pop(0)
 
     def ref(key, table, name, what):
         if isinstance(name, int):
@@ -150,6 +173,10 @@ def main():
 
     def phase_of(key, thing):
         name = thing.get("phase")
+        if thing.get("until"):
+            if name:
+                die(key, f"{thing['id']} has both a phase and \"until\"")
+            name = f"__until{thing['until']}"
         if not name:
             return 1
         full = name if "." in name else f"{key}.{name}"
@@ -159,6 +186,34 @@ def main():
 
     def in_brill(m, x, y):
         return m == 0 and math.hypot(x - BRILL_X, y - BRILL_Y) < BRILL_RADIUS
+
+    def needs(key, thing):
+        """The stages a spawn shows from: [(invisibility kind, stage)]: its own line's "from", others' "needs"."""
+        out = []
+        want = dict(thing.get("needs", {}))
+        if thing.get("from"):
+            want[key] = thing["from"]
+        for other, k in want.items():
+            if other not in stage_type:
+                die(key, f"{thing['id']} needs {other}'s stages, which it hasn't")
+            if not 1 <= k <= stage_count[other]:
+                die(key, f"{thing['id']}: {other} has no stage {k}")
+            out.append((stage_type[other], k))
+        return out
+
+    invis, events, conditions, trainer_of = [], [], [], []
+
+    def spawned(key, thing, kind, guid, m, x, y):
+        staged = needs(key, thing)
+        if staged and not in_brill(m, x, y):
+            die(key, f"{thing['id']} shows from a stage but is outside Brill, where no one would see it")
+        for t, k in staged:
+            invis.append(f"('{kind}', {guid}, {t}, {k})")
+        when = thing.get("when")
+        if when:
+            if when not in SCHEDULES:
+                die(key, f"{thing['id']}: no time of day called {when}")
+            events.append((kind, SCHEDULES[when][0], guid))
 
     out = []
     w = out.append
@@ -174,6 +229,12 @@ def main():
       "`quest` INT UNSIGNED NOT NULL DEFAULT 0, `credit` INT UNSIGNED NOT NULL DEFAULT 0, `marker` INT UNSIGNED NOT NULL DEFAULT 0, "
       "`emote` INT UNSIGNED NOT NULL DEFAULT 0, `reply` TEXT, `arg` INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (`npc`, `ord`)) "
       "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+    w("CREATE TABLE IF NOT EXISTS `brill_town_stage` (`type` TINYINT UNSIGNED NOT NULL, `value` INT NOT NULL, `ord` INT UNSIGNED NOT NULL, "
+      "`cond` VARCHAR(255) NOT NULL DEFAULT '', PRIMARY KEY (`type`, `value`, `ord`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+    w("CREATE TABLE IF NOT EXISTS `brill_town_invis` (`kind` CHAR(1) NOT NULL, `guid` INT UNSIGNED NOT NULL, `type` TINYINT UNSIGNED NOT NULL, "
+      "`value` INT NOT NULL, PRIMARY KEY (`kind`, `guid`, `type`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
+    w("DELETE FROM `brill_town_stage`;")
+    w("DELETE FROM `brill_town_invis`;")
     w("CREATE TABLE IF NOT EXISTS `brill_town_use` (`go` INT UNSIGNED NOT NULL, `ord` INT UNSIGNED NOT NULL, "
       "`cond` VARCHAR(255) NOT NULL DEFAULT '', `quest` INT UNSIGNED NOT NULL DEFAULT 0, `credit` INT UNSIGNED NOT NULL DEFAULT 0, "
       "`text_id` INT UNSIGNED NOT NULL DEFAULT 0, `marker` INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (`go`, `ord`)) "
@@ -186,9 +247,18 @@ def main():
                           ("gameobject_template", "entry"), ("gameobject", "guid"), ("npc_text", "ID"),
                           ("quest_template", "ID"), ("quest_template_addon", "ID"), ("quest_offer_reward", "ID"),
                           ("quest_request_items", "ID"), ("creature_queststarter", "quest"), ("creature_questender", "quest"),
-                          ("smart_scripts", "entryorguid")):
+                          ("smart_scripts", "entryorguid"), ("gameobject_template_addon", "entry"), ("npc_vendor", "entry"),
+                          ("game_event_creature", "guid"), ("game_event_gameobject", "guid"),
+                          ("creature_default_trainer", "CreatureId")):
         extra = " AND `source_type` = 0" if table == "smart_scripts" else ""
         w(f"DELETE FROM `{table}` WHERE `{column}` BETWEEN {lo} AND {hi}{extra};")
+    w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` BETWEEN {lo} AND {hi};")
+    w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` BETWEEN {lo} AND {hi};")
+    entries = ", ".join(str(e) for e, _, _ in SCHEDULES.values())
+    w(f"DELETE FROM `game_event` WHERE `eventEntry` IN ({entries});")
+    w("INSERT INTO `game_event` (`eventEntry`, `start_time`, `end_time`, `occurence`, `length`, `holiday`, `description`, `world_event`, `announce`) VALUES")
+    w(",\n".join(f"({e}, '2020-01-01 {start // 60:02d}:{start % 60:02d}:00', '2037-12-31 00:00:00', 1440, {length}, 0, "
+                  f"{q('Brill: ' + name)}, 0, 0)" for name, (e, start, length) in SCHEDULES.items()) + ";")
     w("")
 
     for key, line in lines:
@@ -212,6 +282,9 @@ def main():
             flags = 0
             for f in npc.get("flags", ["gossip", "quest"]):
                 flags |= {"gossip": 1, "quest": 2, "vendor": 128, "repair": 4096}[f]
+            # (a trainer as one of the game's is: its training, and its trainer flags)
+            if npc.get("trainer"):
+                trainer_of.append((entry, npc["trainer"]))
             hostile = npc.get("hostile", False)
             faction = npc.get("faction", 14 if hostile else 68)
             level = npc.get("level", 20)
@@ -232,6 +305,7 @@ def main():
                 if ph != 1 and not in_brill(m, x, y):
                     die(key, f"{npc['id']} is in a phase but outside Brill, where no one would see it")
                 guid = i.take("cguid", f"{npc['id']}{len(spawns)}")
+                spawned(key, npc, "c", guid, m, x, y)
                 spawns.append(f"({guid}, {entry}, {m}, {MAP_ZONE.get(m, 0)}, 0, 1, {ph}, {x:.3f}, {y:.3f}, {z:.3f}, {o:.4f}, "
                               f"{npc.get('respawn', 120 if hostile else 60)}, {npc.get('wander', 0)}, {1 if npc.get('wander') else 0}, "
                               f"{q('mod-brill-home town')})")
@@ -239,9 +313,18 @@ def main():
                 smart.append(f"({entry}, 0, {n}, 0, 0, 0, 100, 0, {first[0]}, {first[1]}, {every[0]}, {every[1]}, 0, 0, 11, {spell}, "
                              f"0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, {q(npc['name'] + ' casts ' + str(spell))})")
             if npc.get("vendor"):
-                w(f"DELETE FROM `npc_vendor` WHERE `entry` = {entry};")
+                # (an item may be sold only to some: {"item": entry, "cond": ["R:quest"]})
+                items = [v if isinstance(v, dict) else {"item": v} for v in npc["vendor"]]
                 w("INSERT INTO `npc_vendor` (`entry`, `slot`, `item`, `maxcount`, `incrtime`, `ExtendedCost`) VALUES " +
-                  ", ".join(f"({entry}, {n}, {item}, 0, 0, 0)" for n, item in enumerate(npc["vendor"])) + ";")
+                  ", ".join(f"({entry}, {n}, {v['item']}, 0, 0, 0)" for n, v in enumerate(items)) + ";")
+                for v in items:
+                    for c in v.get("cond", []):
+                        neg = c.startswith("!")
+                        body = c[1:] if neg else c
+                        if body[:2] not in ("R:", "M:"):
+                            die(key, f"a ware's condition must be R: or M: (rewarded), not {c}")
+                        conditions.append(f"(23, {entry}, {v['item']}, 0, 0, 8, 0, {ref(key, quests, body[2:], 'quest')}, 0, 0, {1 if neg else 0}, "
+                                          f"{q('mod-brill-home town: ' + npc['id'])})")
         for credit in line.get("credits", []):
             entry = npcs[f"{key}.{credit['id']}"]
             rows.append(f"({entry}, {q(credit['name'])}, NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 1, 1, 0, 0, 130, '', '')")
@@ -281,6 +364,7 @@ def main():
                 if ph != 1 and not in_brill(m, x, y):
                     die(key, f"{obj['id']} is in a phase but outside Brill, where no one would see it")
                 guid = i.take("gguid", f"{obj['id']}{len(spawns)}")
+                spawned(key, obj, "g", guid, m, x, y)
                 spawns.append(f"({guid}, {entry}, {m}, {MAP_ZONE.get(m, 0)}, 0, 1, {ph}, {x:.3f}, {y:.3f}, {z:.3f}, {o:.4f}, "
                               f"0, 0, {math.sin(o / 2):.6f}, {math.cos(o / 2):.6f}, 0, 255, 1, {q('mod-brill-home town')})")
             for n, use in enumerate(obj.get("use", [])):
@@ -292,6 +376,11 @@ def main():
         if rows:
             w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `ScriptName`) VALUES")
             w(",\n".join(rows) + ";")
+            # (a building: drawn as the game's own buildings out in the world are, never damaged: the house's kind)
+            buildings = [objects[f"{key}.{o['id']}"] for o in line.get("objects", []) if o.get("type") == 33]
+            if buildings:
+                w("INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`) VALUES " +
+                  ", ".join(f"({e}, 0, 32)" for e in buildings) + ";")
         if spawns:
             w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
               "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, "
@@ -310,12 +399,14 @@ def main():
                 rows.append((npc, f"'greet', {q(cond(key, g.get('cond')))}, 0, NULL, {tid}, '', 0, 0, 0, 0, NULL, 0"))
             else:
                 action = g["action"]
-                if action not in ("credit", "choice", "say", "vendor", "upgrades", "furnish"):
+                if action not in ("credit", "choice", "say", "vendor", "upgrades", "furnish", "buy"):
                     die(key, f"an option's action I don't know: {action}")
                 quest = ref(key, quests, g["quest"], "quest") if g.get("quest") else 0
                 credit = ref(key, npcs, g["credit"], "credit") if g.get("credit") else 0
                 marker = ref(key, quests, g["marker"], "marker") if g.get("marker") else 0
-                icon = {"vendor": 1, "upgrades": 1}.get(action, 0)
+                if action == "buy" and not (g.get("marker") and g.get("arg")):
+                    die(key, "a purchase (\"buy\") needs its price (\"arg\", copper) and a marker")
+                icon = {"vendor": 1, "upgrades": 1, "buy": 1}.get(action, 0)
                 rows.append((npc, f"'option', {q(cond(key, g.get('cond')))}, {icon}, {q(g['text'])}, 0, {q(action)}, {quest}, {credit}, "
                                   f"{marker}, {g.get('emote', 0)}, {q(g['reply']) if g.get('reply') else 'NULL'}, {g.get('arg', 0)}"))
         if rows:
@@ -334,9 +425,19 @@ def main():
             bit = phases[f"{key}.{name}"]
             for n, alt in enumerate(alternatives):
                 rows.append(f"({bit}, {n}, {q(cond(key, alt))})")
+        # (a stage's "until" phase: there while the stage isn't reached: any of its conditions not holding)
+        for name, bit in phases.items():
+            if name.startswith(f"{key}.__until"):
+                k = int(name.split("__until")[1])
+                for n, c in enumerate(line["stages"][k - 1]):
+                    rows.append(f"({bit}, {n}, {q(cond(key, [c[1:] if c.startswith('!') else '!' + c]))})")
         if rows:
             w("INSERT INTO `brill_town_phase` (`bit`, `ord`, `cond`) VALUES")
             w(",\n".join(rows) + ";")
+        # Its stages (a project's: how far it's come for a player).
+        if line.get("stages"):
+            w("INSERT INTO `brill_town_stage` (`type`, `value`, `ord`, `cond`) VALUES")
+            w(",\n".join(f"({stage_type[key]}, {k + 1}, 0, {q(cond(key, c))})" for k, c in enumerate(line["stages"])) + ";")
 
         # Quests.
         rows, addons, offers, requests, starters, enders = [], [], [], [], [], []
@@ -355,12 +456,28 @@ def main():
                     cols.append("0, 0, ''")
             items = quest.get("items", []) + [(0, 0)] * (4 - len(quest.get("items", [])))
             sort = quest.get("sort", 159)
-            flags = quest.get("flags", 0) | (0x10000 if quest.get("auto_complete") else 0)
+            repeat = quest.get("repeat")
+            if repeat not in (None, "daily", "weekly", "repeatable"):
+                die(key, f"{quest['id']}: \"repeat\" is daily, weekly or repeatable")
+            flags = (quest.get("flags", 0) | (0x10000 if quest.get("auto_complete") else 0)
+                     | {"daily": 0x1000, "weekly": 0x8000}.get(repeat, 0))
             rows.append(f"({qid}, 2, -1, {quest.get('min_level', 5)}, {sort}, {flags}, {quest.get('xp', 3)}, {quest.get('money', 2500)}, 0, "
                         f"{q(quest['title'])}, {q(quest['log'])}, {q(quest['offer'])}, '', {q(quest.get('return', 'Return to ' + quest.get('ender_name', 'the quest giver') + '.'))}, "
                         + ", ".join(cols) + ", " + ", ".join(f"{a}, {b}" for a, b in items) + ")")
             prev = ref(key, quests, quest["prev"], "quest") if quest.get("prev") else 0
-            addons.append(f"({qid}, {prev})")
+            addons.append(f"({qid}, {prev}, {1 if repeat else 0})")
+            # (taken only once others are done: any n of some, or all of them)
+            avail = quest.get("available")
+            if avail:
+                import itertools
+                if "all" in avail:
+                    groups = [avail["all"]]
+                else:
+                    groups = list(itertools.combinations(avail["of"], avail["any"]))
+                for g, group in enumerate(groups):
+                    for other in group:
+                        conditions.append(f"(19, 0, {qid}, 0, {g}, 8, 0, {ref(key, quests, other, 'quest')}, 0, 0, 0, "
+                                          f"{q('mod-brill-home town: ' + quest['id'])})")
             offers.append(f"({qid}, {quest.get('done_emote', 1)}, {q(quest['done'])})")
             if quest.get("progress"):
                 requests.append(f"({qid}, 1, 1, {q(quest['progress'])})")
@@ -381,7 +498,7 @@ def main():
               "`RewardItem1`, `RewardAmount1`, `RewardItem2`, `RewardAmount2`, `RewardItem3`, `RewardAmount3`, `RewardItem4`, `RewardAmount4`) VALUES")
             w(",\n".join(rows) + ";")
         if addons:
-            w("INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES " + ", ".join(addons) + ";")
+            w("INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`) VALUES " + ", ".join(addons) + ";")
             w("INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES\n" + ",\n".join(offers) + ";")
             if requests:
                 w("INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES\n"
@@ -393,6 +510,24 @@ def main():
                 w("UPDATE `creature_template` SET `npcflag` = `npcflag` | 3 WHERE `entry` IN (" + ", ".join(map(str, own)) + ");")
         w("")
 
+    if trainer_of:
+        w("-- Trainers: the training and the trainer flags of a creature of the game's own.")
+        for entry, source in trainer_of:
+            w(f"INSERT INTO `creature_default_trainer` (`CreatureId`, `TrainerId`) SELECT {entry}, `TrainerId` FROM `creature_default_trainer` "
+              f"WHERE `CreatureId` = {source};")
+            w(f"UPDATE `creature_template` SET `npcflag` = `npcflag` | ((SELECT `npcflag` FROM (SELECT `npcflag` FROM `creature_template` "
+              f"WHERE `entry` = {source}) AS t) & 112) WHERE `entry` = {entry};")
+    if invis:
+        w("-- The projects' spawns that show from a stage.")
+        w("INSERT INTO `brill_town_invis` (`kind`, `guid`, `type`, `value`) VALUES\n" + ",\n".join(invis) + ";")
+    for kind, table in (("c", "game_event_creature"), ("g", "game_event_gameobject")):
+        rows = [f"({e}, {guid})" for k, e, guid in events if k == kind]
+        if rows:
+            w(f"INSERT INTO `{table}` (`eventEntry`, `guid`) VALUES " + ", ".join(rows) + ";")
+    if conditions:
+        w("INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, "
+          "`ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, "
+          "`Comment`) VALUES\n" + ",\n".join(conditions) + ";")
     if texts:
         w("-- The words.")
         for tid in sorted(texts):

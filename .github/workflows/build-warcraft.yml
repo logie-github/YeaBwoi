@@ -50,6 +50,11 @@ on:
       - "scripts/felsong-server-hash.sh"
       - ".github/workflows/build-warcraft.yml"
   workflow_dispatch:
+    inputs:
+      realm_test:
+        description: "Play the realm test (about two hours): the Server for arm64 (test) job"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -170,10 +175,12 @@ jobs:
   # package as the phone unpacks it, with every system call checked against Android's seccomp
   # policy for apps. Runs once for each package, server data and test script: a build that changes
   # none of them (the app alone) uses the result of the run that tested them.
+  # (only when asked for: a run started by hand with realm_test on. The user: "Don't test the realm
+  # for 2 hours". Releases don't wait for it.)
   server-test:
     name: Server for arm64 (test)
     needs: [server, zones]
-    if: needs.server.outputs.tested != 'true'
+    if: github.event_name == 'workflow_dispatch' && inputs.realm_test && needs.server.outputs.tested != 'true'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 240
     steps:
@@ -555,10 +562,11 @@ jobs:
         id: key
         shell: bash
         run: |
-          # Patches 0007 to 0011 change the game server only (selections, cutscenes and the
+          # Patches 0007 to 0012 change the game server only (selections, cutscenes and the
           # spellbook for the app's touch controls, the realms' module configs, the undead
-          # paladins' trainers), not the data tools: they don't make them again.
-          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', '!warcraft/patches/azerothcore/0011-*', 'scripts/fetch-azerothcore.sh') }}"
+          # paladins' trainers, Brill's staged buildings), not the data tools: they don't make
+          # them again.
+          key="warcraft-tools-windows-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/windows/**', 'warcraft/patches/azerothcore/**', '!warcraft/patches/azerothcore/0007-*', '!warcraft/patches/azerothcore/0008-*', '!warcraft/patches/azerothcore/0009-*', '!warcraft/patches/azerothcore/0010-*', '!warcraft/patches/azerothcore/0011-*', '!warcraft/patches/azerothcore/0012-*', 'scripts/fetch-azerothcore.sh') }}"
           echo "TOOLS_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
@@ -727,9 +735,9 @@ jobs:
   # account's artifact storage is full, and releases are what the phone downloads anyway).
   apk:
     name: Build World of Warcraft APK
-    # The server test (server-test: hours, with Wrath Remix's whole campaign on each side) runs
-    # alongside and doesn't hold the release back, at the user's choice: they play the build
-    # themselves; its result is on the run. Anything here failed or cancelled stops the APK.
+    # The server test (server-test: hours, with Wrath Remix's whole campaign on each side) runs only
+    # when a run is started by hand with realm_test on, and never holds the release back, at the
+    # user's choice: they play the build themselves. Anything here failed or cancelled stops the APK.
     needs: [unit-tests, server, windows-tools, turtle-server, felsong-server, zones]
     if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-24.04

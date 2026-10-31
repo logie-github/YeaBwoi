@@ -120,9 +120,9 @@ the romance's).
            "unrest": [["T:names", "!R:last_bell"], ["OWN"]]}
 ```
 
-Fourteen phases for all the lines together (the house's own take the rest): use them only for what must
+Twenty-one phases for all the lines together (fourteen of them the first eight lines') (the house's own take the rest): use them only for what must
 look different to one player and not another (someone who has moved in, a shop's goods out). A phased
-creature or object must be in Brill (within 140 yards of 2275, 330), where the module puts players in
+creature or object must be in Brill (within 165 yards of 2275, 330), where the module puts players in
 their phases; anything elsewhere is everyone's (phase 1).
 
 ### Conditions
@@ -131,3 +131,32 @@ their phases; anything elsewhere is everyone's (phase 1).
 done and not turned in, `M:mark` a mark set, `OWN` the house theirs, `DOG` the mastiff theirs, `LOVERS`,
 `FRIENDS` (Carolai), `CAROLAI_HOME` (she lives in the house), `UPG:n` the house has furniture n (its
 index, as `furnish`), `DAY:n` one day in n; `!` before any, not.
+
+## Projects: stages, schedules and the rest
+
+The Community Projects (chapel, library, garden, surgeon, caravan, brewery; opened by the `endures` line)
+change Brill a stage at a time, for each player as far as they've taken them.
+
+```python
+"stages": [["R:endures.endures"],   # 1: open (the Board's up): the giver at a temporary spot
+           ["R:q1"], ["R:q2"], ["R:q3"], ["R:q4"],
+           ["R:q5"],                # 6: established
+           ["M:house_set"]],        # 7: the furnishings for the player's house bought
+```
+
+A spawn (any npc or object) with `"from": k` shows from the line's stage k on; `"needs": {"chapel": 6}` from
+another line's (both: all of them). `"until": k` takes it away once stage k is reached (a phase: at most
+one `until` stage a line). Staged spawns must be in Brill (within 165 yards of 2275, 330). The game's own
+invisibility carries the stages (a kind for each project: `src/BrillTown.cpp`), so they cost no phases.
+
+`"when": "morning" | "day" | "evening" | "night"` (6-10, 10-18, 18-22, 22-6, server time): a spawn there
+only then (the game's events 230 to 233).
+
+Quests: `"repeat": "daily" | "weekly" | "repeatable"`; `"available": {"any": 3, "of": [...]}` or
+`{"all": [...]}` (taken only once those are rewarded; with `prev` too, both).
+
+An npc's `"vendor"` items may be `{"item": entry, "cond": ["R:q5"]}` (sold only to those: R: or M:, or
+`!`). `"trainer": <a creature of the game's>` trains as it does. An object's `"type": 33` is a building
+(a WMO display, drawn as the game's own buildings in the world are).
+
+Option `"action": "buy"` with `"arg"` (its price in copper) and `"marker"`: a purchase, once.

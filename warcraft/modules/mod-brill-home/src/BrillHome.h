@@ -35,6 +35,8 @@ namespace BrillTown
     // The town's options for a creature added to the menu being made (one with a script of its own calls
     // it); its greeting for the player, if a line has one (0: none). The options' choosing is the town's.
     uint32 AddOptions(Player* player, Creature* creature);
+    // The projects' stages detected: those reached in Brill, none outside it.
+    void RefreshStages(Player* player, bool inBrill);
     void AddScripts();
 }
 
