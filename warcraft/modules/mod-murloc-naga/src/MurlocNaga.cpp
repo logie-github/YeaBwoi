@@ -72,10 +72,18 @@ namespace
         uint32 fromQuest, untilQuest;
     };
     std::vector<TribeGraveyard> tribeGraveyards;
+    // Spells the story's quests teach as they're handed in (the class quests' stances and pets).
+    std::unordered_map<uint32, std::vector<uint32>> storyLearn;
 
     void LoadTribeGraveyards()
     {
         tribeGraveyards.clear();
+        storyLearn.clear();
+        if (WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_story_learn'"))
+            if (QueryResult r = WorldDatabase.Query("SELECT `quest`, `spell` FROM `murloc_naga_story_learn`"))
+                do
+                    storyLearn[r->Fetch()[0].Get<uint32>()].push_back(r->Fetch()[1].Get<uint32>());
+                while (r->NextRow());
         if (!WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_graveyards'"))
             return;
         if (QueryResult r = WorldDatabase.Query("SELECT `id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest` FROM `murloc_naga_graveyards`"))
@@ -455,7 +463,14 @@ public:
     // murloc understands them at last (Common, beside Nerglish).
     void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
     {
-        if (!Murloc(player) || !finalQuest || quest->GetQuestId() != finalQuest)
+        if (!Murloc(player) || !finalQuest)
+            return;
+        auto learn = storyLearn.find(quest->GetQuestId());
+        if (learn != storyLearn.end())
+            for (uint32 spell : learn->second)
+                if (!player->HasSpell(spell) && sSpellMgr->GetSpellInfo(spell))
+                    player->learnSpell(spell);
+        if (quest->GetQuestId() != finalQuest)
             return;
         player->SetSkill(SKILL_LANG_COMMON_ID, 0, 300, 300);
         if (!player->HasSpell(SPELL_LANG_COMMON))

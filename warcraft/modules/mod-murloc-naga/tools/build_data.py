@@ -744,6 +744,7 @@ def main():
         for a in story.spells:
             icon = by_id[a["icon"]][SC["SpellIconID"]] if a["icon"] in by_id else by_id[20550][SC["SpellIconID"]]
             spell_rows.append(spell(20550, a["id"], a["name"], "", a["text"], a["text"], Attributes=0, AttributesEx=0,
+                                    AttributesEx3=0x100000 if a["kind"] == "mark" else 0,      # (a mark: kept through death)
                                     Effect_1=6, EffectAura_1=a["aura"], EffectMiscValue_1=a["misc"],
                                     EffectBasePoints_1=a["amount"] - 1 if a["amount"] else 0, EffectDieSides_1=1, ImplicitTargetA_1=1,
                                     ImplicitTargetB_1=0, DurationIndex=duration(a["seconds"]), RangeIndex=1, SpellIconID=icon,
@@ -955,7 +956,7 @@ def murloc_story(D, W):
             cache[name] = W(name)
         return cache[name]
     story = story_compile.Story(chapters, world, D, lambda m, x, y: terrain.height(x, y, m),
-                                race_phase_spell=SPELLS["phase_murloc"])
+                                race_phase_spell=SPELLS["phase_murloc"], area=lambda m, x, y: terrain.area(x, y, m))
     story.tables, story.client = story.build()
     return story
 
@@ -969,11 +970,27 @@ def intro_flights(story=None):
     the coast, over the Stormscale's island, and up to the renegades' camp on its hill."""
     vx, vy = C.VILLAGE
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
-    if story and story.tables.get("_start") and story.tables["_start"]["map"] == C.MAP:
+    pens = story and story.tables.get("_start") and story.tables["_start"]["map"] == C.MAP
+    if pens:
         s_ = story.tables["_start"]
         vx, vy = s_["x"], s_["y"]
         elder = (s_["x"], s_["y"], s_["z"])
-    murloc = [
+        # the pens: in from the sea to the west, high over the stockade, round it, down into the line of slaves
+        murloc = [
+            (0, (vx - 30, vy + 260), 34.0, (vx, vy)),
+            (6000, (vx - 10, vy + 160), 24.0, (vx, vy)),
+            (12000, (vx + 5, vy + 70), 16.0, (vx, vy)),
+            (17000, (vx + 40, vy + 35), 16.0, (vx - 5, vy + 10)),
+            (22000, (vx + 55, vy - 10), 18.0, (vx, vy + 5)),
+            (27000, (vx + 30, vy - 50), 30.0, (vx - 5, vy + 10)),
+            (31000, (vx - 25, vy - 45), 30.0, (vx, vy + 10)),
+            (35000, (vx - 50, vy), 14.0, (vx, vy + 5)),
+            (39000, (elder[0] - 12, elder[1] + 6), 5.0, (elder[0], elder[1], elder[2] + 1.0)),
+            (42000, (elder[0] - 7, elder[1] + 3), 3.5, (elder[0], elder[1], elder[2] + 1.0)),
+        ]
+    else:
+        murloc = None
+    murloc = murloc or [
         (0, (vx - 30, vy + 260), 32.0, (vx, vy)),
         (6000, (vx - 10, vy + 160), 20.0, (vx, vy)),
         (12000, (vx + 5, vy + 70), 8.0, (vx, vy)),

@@ -88,9 +88,10 @@ ITEMS = [
 ]
 ```
 An item with `aura="<aura key>"` puts that aura on the player when used (a disguise in a barrel);
-`consumed=True` uses it up. Kinds: quest items (no `kind`), `weapon:<dagger|sword|axe|mace|spear|staff|fist|bow|gun|wand>`,
+`consumed=True` uses it up. Kinds: quest items (no `kind`), `food` and `drink` (like the game's of their `level`: its spell and
+price), `bag` (`slots=8`), `weapon:<dagger|sword|axe|mace|spear|staff|fist|bow|gun|wand>`,
 `armor:<cloth|leather|mail|plate>:<head|shoulder|chest|waist|legs|feet|wrist|hands|back>`,
-`ring`, `neck`, `trinket`, `shield`, `offhand`, `food`, `drink`, `bag`. Stats: str, agi, sta, int,
+`ring`, `neck`, `trinket`, `shield`, `offhand`. Stats: str, agi, sta, int,
 spi, ap, sp (spell power), hit, crit, dodge, def, mp5, armor.
 
 ## Quests
@@ -126,7 +127,8 @@ Objectives (up to four kinds, four entries each):
 
 The giver gives a `source` item if the quest needs one (`source="cage_key"`).
 
-More: `time=180` (seconds to finish it), `classes=["warrior"]` (only them), `repeatable=True` (a
+More: `learn=[spell ids]` (taught as it's handed in: a class quest's stance, Tame Beast...),
+`reward_spell=<id>` (cast on the player as it's handed in), `time=180` (seconds to finish it), `classes=["warrior"]` (only them), `repeatable=True` (a
 chore), `details=["talk", "point"]` (the giver's emotes as it's offered), `reward_emotes=["cheer"]`
 (the ender's as it's handed in), `plain_reward=True` (the reward text as written: the story's last
 quest alone, the first words a murloc can read; finishing it teaches the murloc Common), `exclusive=N` (quests sharing N: taking one closes the others).
@@ -165,7 +167,16 @@ A beat is a tuple. `who` is `"self"` (the giver or ender), an NPC key (the neare
 | `("every", ms, [beats])` | (idle only) repeats beats on that period |
 
 Order matters; each beat follows the last at once unless a `wait` comes between. Keep sequences
-under a minute.
+under a minute. A beat given to someone else (an NPC key) is theirs to do, the player still the one
+it's for ("player" in it is the player: Sloshy following, a sentinel facing them); they must be
+within 80 yards of whoever runs the scene. A quest's scene interrupts a person's idle; an idle never
+interrupts a scene. An object's own scene (`beats` on an object) can summon, set out objects, give
+auras and items, and hand beats to people; it can't speak, emote or play a sound itself.
+Emotes once: `dance`, `work` too (EMOTES); for a lasting dance or work, `state`.
+
+Phases: a story phase (`from`, `until`, `between`, `during`) is given in the zones its people and
+things stand in, wherever that is; someone "always" there is seen by every murloc and can find any
+story-phased person for a scene.
 
 ## Auras, more spawns, graveyards
 

@@ -27,6 +27,7 @@ SPIRIT_HEALER = 6491                            # the game's spirit healer, at e
 # take bits of their own, zone by zone.
 RACE_PHASE = 1024
 STORY_PHASE_BITS = [1 << b for b in range(12, 31) if (1 << b) not in (32768, 65536, 131072)]
+STORY_PHASE_MASK = sum(STORY_PHASE_BITS)
 
 # Who people are to a murloc: FactionTemplate ids.
 SIDES = {
@@ -65,9 +66,11 @@ MODELS = {
     "naga_crate": "World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Crates\\NA_Crate01.mdx",
     "naga_weapons": "World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\WeaponStacks\\NA_WeaponStack01.mdx",
     "naga_jar": "World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Jars\\NA_Jar01.mdx",
-    # the game's object looks
-    "crate": 2, "chest": 10, "barrel": 259, "basket": 10, "kelp": 267, "clam": 261, "coral": 887,
-    "sack": 32, "cage": 3854, "bonfire": 192,
+    # the game's object looks (GameObjectDisplayInfo)
+    "crate": 275, "crate_grain": 347, "chest": 10, "treasure_chest": 259, "barrel": 32, "barrel_broken": 9,
+    "basket": 468, "crab_basket": 7759, "kelp": 6322, "seaweed": 6316, "clam": 261, "coral": 887, "coral_small": 2251,
+    "sack": 5511, "cage": 6858, "cage_hanging": 7982, "bonfire": 200, "campfire": 192, "driftwood": 627,
+    "fishing_pole": 6324, "bottle": 225, "mailbox": 7815,
 }
 
 # Item icons (ItemDisplayInfo ids, or "item:<entry>" for an item of the game's look).
@@ -79,7 +82,7 @@ ICONS = {
 
 # Emotes (Emotes.dbc): one-off by name.
 EMOTES = {
-    "talk": 1, "bow": 2, "wave": 3, "cheer": 4, "exclamation": 5, "question": 6, "eat": 7, "laugh": 11,
+    "talk": 1, "bow": 2, "wave": 3, "dance": 94, "work": 467, "cheer": 4, "exclamation": 5, "question": 6, "eat": 7, "laugh": 11,
     "rude": 14, "roar": 15, "kneel": 16, "kiss": 17, "cry": 18, "chicken": 19, "beg": 20, "applaud": 21,
     "shout": 22, "flex": 23, "shy": 24, "point": 25, "wound": 33, "attack": 36, "attack2h": 37,
     "parry": 39, "spell": 51, "battle_roar": 53, "kick": 60, "throw": 61, "salute": 66, "yes": 273,
@@ -141,6 +144,11 @@ SKILLS = {
     "leatherworking": 165, "tailoring": 197, "blacksmithing": 164, "alchemy": 171, "engineering": 202,
     "enchanting": 333, "jewelcrafting": 755, "inscription": 773,
 }
+
+# Food, drink and bags (ITEMS kinds food, drink, bag) are made like the game's of their level: these.
+FOOD = [(1, 787), (5, 4592), (15, 4593), (25, 4594), (35, 6887), (45, 8957)]
+DRINK = [(1, 159), (5, 1179), (15, 1205), (25, 1708), (35, 1645), (45, 8766)]
+BAGS = [(6, 4496), (8, 4498), (10, 4497), (12, 4499), (14, 4245), (16, 1725)]
 
 # What a vendor sells by default (the game's items): the murlocs' food and drink.
 VENDOR_FOOD = [787, 4592, 4593, 4594, 8957, 21552, 159, 1179, 1205, 1708, 1645, 8766]
