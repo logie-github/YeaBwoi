@@ -141,6 +141,22 @@ Confirmed in the core's source and the world database it ships (`data/sql/base/d
   border, whose own quests are levels 17 to 20; The Tide Turns is offered there to a naga of level 17 and up, and
   Lady Szaria tells them to go to him.
 
+What SQL alone can't do here, and what does it instead:
+
+- **A race the game knows**: the client has its own ChrRaces, CharSections, CharBaseInfo... and can't make a race the
+  server's tables alone have; the module's patch for the game (below) gives it the rows, the murloc's model and skins.
+- **A Horde race some Alliance people talk to**: possible in SQL only through reputation (above). People of a faction
+  without reputation (the Alliance's generic templates) react by the two sides' faction templates, the same for every
+  race of a side; changing that for one race would need a player faction template of its own in the client too (and
+  the core's `IfNormalReaction` hook changes the server's mind alone: the game would still show them hostile). None of
+  Darkshore's friendly people are such, so none of that is needed.
+- **Level 10 at creation, and their class's spells as they level**: the core's start level is one setting for every
+  race (`StartPlayerLevel`); the module's script makes theirs 10 at the first login and teaches the trainers' spells.
+- **Their homes seen by them alone**: a phase is an aura's; `spell_area` gives it by race and zone, in SQL, but the
+  aura is a spell the client must know too (the patch's Spell rows).
+- **The intros**: a flight is a camera the client plays (its file in the patch) and the world server follows (the
+  same file in its data folder).
+
 Assumed, not seen in the game (nothing here runs the 3.3.5 client):
 
 - That the client draws a player of race 19 and 20 from the model its ChrRaces row names
