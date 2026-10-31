@@ -67,17 +67,8 @@ QUEST_DOG = 970123
 TEXT_DOG, TEXT_DOG_WAITING = 970144, 970145
 PHASE_DOG = 0x400
 DOG_AT = (0.6, 0.6, 30)  # beside the bed, looking toward it
-# Its model (tools/mastiff.py, in the game's patch-<locale>-V) and its four coats: ids clear of the game's and
-# of every module's (the starting areas' own mastiff rows, 3190 and 30210 to 30213, go when they're off).
-MASTIFF_MODEL = 3970
-MASTIFF_COATS = [(39700, "Gray"), (39701, "Black"), (39702, "Red"), (39703, "Yellow")]
-MASTIFF_SCALE = 0.7
-WOLF_SOUNDS = 43   # 3.3.5's wolf's CreatureSoundData (the mastiff's own sounds are the starting areas')
-# CreatureModelData's row for it: the starting areas' (Cataclysm's), with the wolf's sounds.
-MASTIFF_MODEL_ROW = [4096, "creature\\mastiff\\mastiff.mdx", 0, 1.0, 1, 7, 18.0, 12.0, 1.0, 0, 0, 0, WOLF_SOUNDS,
-                     0.6111111044883728, 2.031277894973755, 1.399109959602356, -1.3119957447052002, -0.42800551652908325,
-                     -0.029394155368208885, 1.1700317859649658, 0.4534095823764801, 1.9144073724746704, 1.0, 1.0, 0.0, 0.0, 0.0]
-CLIENT_DBC = os.path.join(HERE, "..", "data", "client", "dbc")
+# Perky Pug: a model already present in the unmodified 3.3.5a client.
+DOG_DISPLAY = 31174
 
 # Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, a romance or
 # a friendship (the user's choice in the last; the rewards the same), and, as lovers, her moving in.
@@ -386,7 +377,7 @@ def main():
 
     w("")
     w("-- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the")
-    w("-- template its pet is made from; the quest's two credits. Its coats are its model's (patch-<locale>-V).")
+    w("-- template its pet is made from; the quest's two credits. Uses the stock pug model.")
     w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
       "`speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES")
     w(f"({NPC_DOG}, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),")
@@ -398,30 +389,17 @@ def main():
     w("INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES")
     rows = []
     for entry in (NPC_DOG, NPC_DOG_PET, NPC_DOG_COMPANION, NPC_BEAST_COMPANION):
-        rows += [f"({entry}, {i}, {display}, 1, 1)" for i, (display, _) in enumerate(MASTIFF_COATS)]
+        rows += [f"({entry}, {i}, {display}, 1, 1)" for i, display in enumerate([DOG_DISPLAY])]
     rows += [f"({NPC_FETCH_CREDIT}, 0, 11686, 1, 1)", f"({NPC_EARS_CREDIT}, 0, 11686, 1, 1)"]
     w(",\n".join(rows) + ";")
     dx, dy = world(DOG_AT[0], DOG_AT[1])
     w("INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, "
       "`orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES")
     w(f"(970101, {NPC_DOG}, {MAP}, {ZONE}, {AREA}, 1, {PHASE_DOG}, {dx:.3f}, {dy:.3f}, {FLOOR:.3f}, {turn(DOG_AT[2]):.4f}, 60, 0, 0, 'mod-brill-home');")
+    # Stock pug model metadata is already in the core. Remove only our old overrides.
     w("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;")
-    w("INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES")
-    w(",\n".join(f"({display}, 0.7, 1.5, 2, 0)" for display, _ in MASTIFF_COATS) + ";")
-    w("-- The server's copy of the game's rows for it (the client's are in patch-<locale>-V: data/client/dbc).")
-    w(f"DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = {MASTIFF_MODEL};")
-    w("INSERT INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, "
-      "`FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, "
-      "`DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, "
-      "`GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, "
-      "`MissileCollisionPush`, `MissileCollisionRaise`) VALUES")
-    w("(" + ", ".join([str(MASTIFF_MODEL)] + [q(v.replace("\\\\", "\\")) if isinstance(v, str) else repr(v) for v in MASTIFF_MODEL_ROW]) + ");")
+    w("DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;")
     w("DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;")
-    w("INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, "
-      "`TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, "
-      "`ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES")
-    w(",\n".join(f"({display}, {MASTIFF_MODEL}, 0, 0, {MASTIFF_SCALE}, 255, 'MastiffDog_{coat}', '', '', '', 0, 0, 0, 0, 0, 0)"
-                  for display, coat in MASTIFF_COATS) + ";")
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
     w(f"({TEXT_DOG}, {q('(The dog looks happy to see you.)')}, {q('(The dog looks happy to see you.)')}, 1),")
     w(f"({TEXT_DOG_WAITING}, {q('(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)')}, "
@@ -512,17 +490,6 @@ def main():
     w("INSERT INTO `creature_questender` (`id`, `quest`) VALUES")
     w(f"({CAROLAI}, {QUEST_TONIC}), ({CAROLAI}, {QUEST_LOCKET}), ({JAMIE_NORE}, {QUEST_GIFT}), ({CAROLAI}, {QUEST_TEA}), "
       f"({CAROLAI}, {QUEST_LILY});")
-
-    # The game's own tables for it (patch-<locale>-V, src/BrillHomePatch.cpp).
-    os.makedirs(CLIENT_DBC, exist_ok=True)
-    with open(os.path.join(CLIENT_DBC, "CreatureModelData.txt"), "w", encoding="utf-8") as f:
-        f.write("# CreatureModelData: the mastiff (tools/build_sql.py)\ntypes\tiisifiiffffiiiffffffffffffff\n")
-        # (a backslash in a change file is written twice, as the other modules' are)
-        f.write("put\t" + "\t".join(str(v).replace("\\", "\\\\") for v in [MASTIFF_MODEL] + MASTIFF_MODEL_ROW) + "\n")
-    with open(os.path.join(CLIENT_DBC, "CreatureDisplayInfo.txt"), "w", encoding="utf-8") as f:
-        f.write("# CreatureDisplayInfo: the mastiff's four coats (tools/build_sql.py)\ntypes\tiiiifissssiiiiii\n")
-        for display, coat in MASTIFF_COATS:
-            f.write(f"put\t{display}\t{MASTIFF_MODEL}\t0\t0\t{MASTIFF_SCALE}\t255\tMastiffDog_{coat}\t\t\t\t0\t0\t0\t0\t0\t0\n")
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:

@@ -258,7 +258,8 @@
     <string name="wow_tile_game_options_off">All off</string>
     <string name="wow_options_title">Game options</string>
     <string name="wow_options_body">Ralia\'s mod takes effect at the realm\'s next start, Base Model within a few seconds.</string>
-    <string name="wow_options_base_model">Base Model</string>
+    <string name="wow_options_base_model">Body</string>
+    <string name="wow_options_base_model_hint">Female character creation previews only. Takes effect after restarting the realm and game.</string>
     <string name="wow_options_ralia">Ralia\'s mod</string>
     <string name="wow_options_ralia_pick">Turning it on asks for the zip of Ralia\'s patches.</string>
     <string name="wow_options_ralia_reading">Reading the zip…</string>

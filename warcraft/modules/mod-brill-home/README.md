@@ -69,8 +69,8 @@ furniture's turns (assumed: the models' fronts at their +x).
 
 ## The mastiff
 
-The first time the player sleeps in the bed, they wake to a mastiff beside it (Cataclysm's Gilneas dog,
-one of its four coats: gray, black, red, yellow). It doesn't talk; what it does is shown:
+The first time the player sleeps in the bed, they wake to the quest dog beside it, now drawn with
+the client's pug model. It doesn't talk; what it does is shown:
 "(The dog looks happy to see you.)". Its quest, **A Visitor in the Night**: throw the stick for it three
 times (it runs out the door after it and brings it back) and scratch it behind the ears. Turned in, the
 dog is the player's pet, made as a hunter's tamed beast is, at their level, for any class:
@@ -98,18 +98,10 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-The model: `tools/mastiff.py` fetches Cataclysm's files (the Cataclysm Classic client's, build
-4.4.2.60895, from wago.tools; the user: "Completely backport it from cata using wago tools") as the
-server is packaged (`scripts/package-azerothcore.sh`; never in this repository) and makes them 3.3.5's
-with Wrath Remix's converter (`mod-wrath-remix/tools/models.py`) and the starting areas' fixes
-(`mod-worgen-goblin/tools/zones/package.py`'s `fix_models`). The world server puts it in the game as
-`Data/<locale>/patch-<locale>-V.MPQ` (`src/BrillHomePatch.cpp`): it was `Data/patch-W.MPQ` until the
-user saw the mastiff as a cube; the Alternative HD Patch's new water has that name, and with it in the
-mastiff never was. A `patch-W.MPQ` of this module's (the mastiff in it) is taken out; the HD look's is
-left. With its CreatureModelData (3970, the wolf's sounds)
-and its coats' CreatureDisplayInfo (39700 to 39703); made from the game with patches U and V in (they're
-made without it), set aside on Wrath Remix's realm. Its own ids, not the starting areas' (3190 and
-30210 to 30213, which go when the starting areas are off).
+The dog now uses the 3.3.5a client's Perky Pug model (display 31174), including the quest NPC,
+adopted pets and hunters' companions. Existing pets in the stable are migrated too. No model download
+or backport patch is needed. Earlier managed mastiff archives are removed on realm startup; the
+Alternative HD Patch's water archive is left alone. Quest progress and pet ownership are preserved.
 
 ## Carolai Anise
 

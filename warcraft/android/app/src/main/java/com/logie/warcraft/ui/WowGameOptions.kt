@@ -35,8 +35,7 @@ private val ZIP_TYPES = arrayOf("application/zip", "application/x-zip-compressed
 /**
  * Game options: Ralia's mod, on or off ([RaliaFiles]; the realm's mod-ralia makes the game's patch as it
  * starts; turning it on the first time asks for the zip of Ralia's patches, whose textures the app keeps),
- * and Base Model ([BaseModelFiles]; the realm's mod-base-model draws every character without its gear,
- * within seconds while the realm runs).
+ * and Body ([BaseModelFiles]; female creation previews without starter gear, at the realm's next start).
  */
 @Composable
 fun GameOptionsDialog(onDismiss: () -> Unit) {
@@ -89,7 +88,7 @@ fun GameOptionsDialog(onDismiss: () -> Unit) {
             else -> WowButton(stringResource(R.string.wow_options_ralia_replace), primary = false) { pick.launch(ZIP_TYPES) }
         }
         problem?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = WowColors.Blood) }
-        WowSwitchRow(stringResource(R.string.wow_options_base_model), null, baseModel) { want ->
+        WowSwitchRow(stringResource(R.string.wow_options_base_model), stringResource(R.string.wow_options_base_model_hint), baseModel) { want ->
             baseModel = runCatching { BaseModelFiles.setOn(root, want) }.isSuccess && want
         }
     }

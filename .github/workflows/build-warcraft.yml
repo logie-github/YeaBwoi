@@ -720,6 +720,14 @@ jobs:
           "$RUNNER_TEMP/test-table-moves" warcraft/modules/mod-skyborne/data/client warcraft/modules/mod-allied-races/data/client
 
       # Ralia's mod (mod-ralia): its patch made from a stand-in game and stand-in files.
+      - name: Body preview and ghost flight
+        run: |
+          g++ -std=c++17 -O2 warcraft/modules/mod-base-model/tools/test_preview.cpp -o "$RUNNER_TEMP/test-body-preview"
+          "$RUNNER_TEMP/test-body-preview"
+          g++ -std=c++17 -O2 -Iwarcraft/modules/mod-ghost-flight/tools/stubs \
+            warcraft/modules/mod-ghost-flight/tools/test_lifecycle.cpp -o "$RUNNER_TEMP/test-ghost-flight"
+          "$RUNNER_TEMP/test-ghost-flight"
+
       - name: Ralia's mod
         run: |
           g++ -std=c++17 -O2 warcraft/modules/mod-ralia/tools/test_patch.cpp warcraft/modules/mod-ralia/src/RaliaPatch.cpp \

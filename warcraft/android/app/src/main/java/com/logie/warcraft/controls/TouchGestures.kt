@@ -10,8 +10,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 /** The keys the gestures press. */
-/** The keys the gestures press. F12 is the game's Target Last Target (the app's add-on binds it). */
-enum class Key { W, S, Q, E, B, M, SPACE, ESCAPE, ENTER, TAB, F12 }
+enum class Key { W, S, Q, E, B, M, SPACE, ESCAPE, ENTER, TAB }
 
 enum class Button { LEFT, RIGHT, WHEEL_UP, WHEEL_DOWN }
 
@@ -94,12 +93,9 @@ interface GestureOutput {
  *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
  *   = attack it, on the action bars = two presses, on the game's windows of items, talents and
  *   abilities = two clicks (a talent's first tap shows it, the second spends the point: the app's
- *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt]); hold still = a right click on an item, a talent or an ability
- *   (on the bags, the bank, the character pane, the talents, the spellbook or the action bars,
- *   where the app's add-on takes a right-clicked action off its bar:
- *   [GestureOutput.rightClicksAt]), elsewhere, lifted still, bags (B), or after a tap the map (M);
- *   held, then moved: the left button down where it was held and along with the finger, as the
- *   mouse drags the game's and add-ons' movable frames (Immersion's dialog, TomTom's arrow).
+ *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt]); hold still, then lift = a
+ *   right click anywhere; hold, then move = the left button down where it was held, dragging
+ *   an item or a movable frame with the finger.
  * - **On the spellbook, while it's open:** a finger that moves is the mouse with its left button
  *   down where it came, so a spell drags onto the action bars as on a PC; a tap clicks, a hold
  *   right-clicks ([GestureOutput.dragsAt]).
@@ -153,7 +149,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
 
     /**
      * ICON: on a window whose icons drag, until the finger shows a tap, a drag or a hold. HOLDING:
-     * held still elsewhere, until it lifts (the bags, or the map) or moves (a drag, as the mouse
+     * held still elsewhere, until it lifts (a right click) or moves (a drag, as the mouse
      * moves the game's and add-ons' movable frames).
      */
     private enum class Role { NEW, STICK, LOOK, TURN, ICON, DRAG, HOLDING, HELD, PAIR, GROUP, DONE }
@@ -337,7 +333,10 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
             }
             Role.ICON -> if (tap) out.click(Button.LEFT)
             Role.DRAG -> out.release(Button.LEFT)
-            Role.HOLDING -> out.tap(if (finger.secondTap) Key.M else Key.B)
+            Role.HOLDING -> {
+                out.pointerTo(finger.holdX, finger.holdY)
+                out.click(Button.RIGHT)
+            }
             Role.PAIR -> pairUp(finger, tap)
             Role.GROUP -> {
                 if (!tap) groupAllTaps = false
@@ -353,24 +352,19 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
     }
 
     /**
-     * [HOLD_MS] after a finger came down: one still there, not moved and on its own, is a hold. On
-     * an item, a talent or an ability, a right click there; elsewhere it waits: lifted, the bags (or
-     * the map after a tap); moved, a drag with the left button ([Role.HOLDING]).
+     * [HOLD_MS] after a finger came down: a still finger waits for release (right click) or
+     * movement (left-button drag from the held position), including on items and spells.
      */
     fun onHold(now: Long) {
         for (finger in fingers.values) {
             if ((finger.role != Role.NEW && finger.role != Role.ICON) || finger.moved || now - finger.downAt < HOLD_MS) continue
-            when {
-                finger.role == Role.ICON || out.rightClicksAt(finger.x, finger.y) -> {
-                    out.pointerTo(finger.x, finger.y)
-                    out.click(Button.RIGHT)
-                }
-                !out.turnsModel() -> {
-                    finger.role = Role.HOLDING
-                    finger.holdX = finger.x
-                    finger.holdY = finger.y
-                    continue
-                }
+            // Decide on release: a still hold right-clicks, a moved hold left-drags from its origin.
+            // This includes items and spells, so a right click cannot consume the intended drag.
+            if (!out.turnsModel()) {
+                finger.role = Role.HOLDING
+                finger.holdX = finger.x
+                finger.holdY = finger.y
+                continue
             }
             finger.role = Role.HELD
         }

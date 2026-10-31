@@ -1929,3 +1929,13 @@ without it. Each is small on its own.
 - Playerbots: https://github.com/mod-playerbots/mod-playerbots (its core:
   https://github.com/mod-playerbots/azerothcore-wotlk, branch `Playerbot`); version-mismatch reports:
   https://www.linux.org.ru/articles/games/18260586
+
+## Warcraft fixes, 2026-10-31
+
+User corrections: the Brill quest dog uses the stock pug model, including existing adopted pets;
+hold still and release is right click everywhere, hold then drag holds the left mouse button;
+double-tap jumping retains the target with sticky targeting and never sends Target Last Target;
+ghosts automatically use the stock Swift Spectral Gryphon until resurrected; Body (formerly Base
+Model) affects only female character creation previews, never live characters or male previews.
+The Body preference is kept and applied in the final client patch at realm startup. The older
+requirements and implementation notes above are superseded by these corrections.
