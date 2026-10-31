@@ -98,11 +98,15 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-The model: `tools/mastiff.py` fetches its files from wago.tools as the server is packaged
-(`scripts/package-azerothcore.sh`; never in this repository) and makes them 3.3.5's with Wrath
-Remix's converter (`mod-wrath-remix/tools/models.py`) and the starting areas' fixes
+The model: `tools/mastiff.py` fetches Cataclysm's files (the Cataclysm Classic client's, build
+4.4.2.60895, from wago.tools; the user: "Completely backport it from cata using wago tools") as the
+server is packaged (`scripts/package-azerothcore.sh`; never in this repository) and makes them 3.3.5's
+with Wrath Remix's converter (`mod-wrath-remix/tools/models.py`) and the starting areas' fixes
 (`mod-worgen-goblin/tools/zones/package.py`'s `fix_models`). The world server puts it in the game as
-`Data/patch-W.MPQ` (`src/BrillHomePatch.cpp`), with its CreatureModelData (3970, the wolf's sounds)
+`Data/<locale>/patch-<locale>-V.MPQ` (`src/BrillHomePatch.cpp`): it was `Data/patch-W.MPQ` until the
+user saw the mastiff as a cube; the Alternative HD Patch's new water has that name, and with it in the
+mastiff never was. A `patch-W.MPQ` of this module's (the mastiff in it) is taken out; the HD look's is
+left. With its CreatureModelData (3970, the wolf's sounds)
 and its coats' CreatureDisplayInfo (39700 to 39703); made from the game with patches U and V in (they're
 made without it), set aside on Wrath Remix's realm. Its own ids, not the starting areas' (3190 and
 30210 to 30213, which go when the starting areas are off).

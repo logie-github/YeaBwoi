@@ -67,7 +67,7 @@ QUEST_DOG = 970123
 TEXT_DOG, TEXT_DOG_WAITING = 970144, 970145
 PHASE_DOG = 0x400
 DOG_AT = (0.6, 0.6, 30)  # beside the bed, looking toward it
-# Its model (tools/mastiff.py, in the game's patch-W) and its four coats: ids clear of the game's and
+# Its model (tools/mastiff.py, in the game's patch-<locale>-V) and its four coats: ids clear of the game's and
 # of every module's (the starting areas' own mastiff rows, 3190 and 30210 to 30213, go when they're off).
 MASTIFF_MODEL = 3970
 MASTIFF_COATS = [(39700, "Gray"), (39701, "Black"), (39702, "Red"), (39703, "Yellow")]
@@ -386,7 +386,7 @@ def main():
 
     w("")
     w("-- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the")
-    w("-- template its pet is made from; the quest's two credits. Its coats are its model's (patch-W).")
+    w("-- template its pet is made from; the quest's two credits. Its coats are its model's (patch-<locale>-V).")
     w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
       "`speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES")
     w(f"({NPC_DOG}, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),")
@@ -408,7 +408,7 @@ def main():
     w("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;")
     w("INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES")
     w(",\n".join(f"({display}, 0.7, 1.5, 2, 0)" for display, _ in MASTIFF_COATS) + ";")
-    w("-- The server's copy of the game's rows for it (the client's are in patch-W: data/client/dbc).")
+    w("-- The server's copy of the game's rows for it (the client's are in patch-<locale>-V: data/client/dbc).")
     w(f"DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = {MASTIFF_MODEL};")
     w("INSERT INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, "
       "`FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, "
@@ -513,7 +513,7 @@ def main():
     w(f"({CAROLAI}, {QUEST_TONIC}), ({CAROLAI}, {QUEST_LOCKET}), ({JAMIE_NORE}, {QUEST_GIFT}), ({CAROLAI}, {QUEST_TEA}), "
       f"({CAROLAI}, {QUEST_LILY});")
 
-    # The game's own tables for it (patch-W, src/BrillHomePatch.cpp).
+    # The game's own tables for it (patch-<locale>-V, src/BrillHomePatch.cpp).
     os.makedirs(CLIENT_DBC, exist_ok=True)
     with open(os.path.join(CLIENT_DBC, "CreatureModelData.txt"), "w", encoding="utf-8") as f:
         f.write("# CreatureModelData: the mastiff (tools/build_sql.py)\ntypes\tiisifiiffffiiiffffffffffffff\n")

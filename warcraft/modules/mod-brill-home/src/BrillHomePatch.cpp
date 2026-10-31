@@ -5,11 +5,17 @@
  * the game's tables (data/client/dbc, made by tools/build_sql.py: its CreatureModelData and its four
  * coats' CreatureDisplayInfo).
  *
- * It's Data/patch-W.MPQ: read after the Worgen's and Goblins' patch-U and the allied races' patch-V,
- * and made from the game with them in (so the tables it writes carry their rows), as the world
- * database's own tables are loaded (after those two are made, as the configuration is read); before
- * the Skyborne's patch-Z, which writes neither of these tables. Patches U and V are made from the game
- * without this one, as they are without Y and Z.
+ * It's Data/<locale>/patch-<locale>-V.MPQ: read after the Worgen's and Goblins' patch-U and the allied
+ * races' patch-V (the game reads a letter's language patch after its own), and made from the game with
+ * them in (so the tables it writes carry their rows), as the world database's own tables are loaded
+ * (after those two are made, as the configuration is read); before the Alternative HD Patch's W and X
+ * (water and sky) and the Skyborne's Y and Z, which write neither of these tables. Patches U and V are
+ * made from the game without this one, as they are without Y and Z.
+ *
+ * It was Data/patch-W.MPQ until the user's mastiff showed as a cube: the Alternative HD Patch's new
+ * water is patch-W.MPQ too, and with it in, the mastiff never was. The language folder's V is free in
+ * both HD looks. A patch-W.MPQ of this module's (one with the mastiff in it) is taken out; the HD look's
+ * is left as it is.
  *
  * The archive reading and writing and the tables are the Skyborne's (SkyborneFiles).
  */
@@ -17,6 +23,7 @@
 #include "BrillHomePatch.h"
 #include "../../mod-skyborne/src/SkyborneFiles.h"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <fstream>
@@ -31,11 +38,76 @@ namespace BrillHome
 
     namespace
     {
-        constexpr char const* PATCH = "patch-W.MPQ";
-        constexpr char const* MARK = "patch-W.MPQ.brillhome";
-        constexpr char const* ASIDE = "patch-W.MPQ.aside";
+        constexpr char const* MARK_SUFFIX = ".brillhome";
+        constexpr char const* ASIDE_SUFFIX = ".aside";
         constexpr char const* MANIFEST = "mastiff.files";
-        constexpr char const* VERSION = "brill-home-1";
+        constexpr char const* VERSION = "brill-home-2";
+        // (where it was: Data/patch-W.MPQ, and a file of its that tells it's this module's)
+        constexpr char const* OLD_PATCH = "patch-W.MPQ";
+        constexpr char const* MASTIFF = "Creature\\Mastiff\\Mastiff.m2";
+
+        std::string Lower(std::string text)
+        {
+            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return std::tolower(c); });
+            return text;
+        }
+
+        // The client's language: the folder in Data with its locale-<name>.MPQ.
+        std::string Locale(fs::path const& clientData)
+        {
+            std::error_code error;
+            for (auto it = fs::directory_iterator(clientData, error); !error && it != fs::directory_iterator(); it.increment(error))
+            {
+                std::string name = it->path().filename().string();
+                if (name.size() != 4 || !it->is_directory(error))
+                    continue;
+                for (auto in = fs::directory_iterator(it->path(), error); !error && in != fs::directory_iterator(); in.increment(error))
+                    if (Lower(in->path().filename().string()) == Lower("locale-" + name + ".mpq"))
+                        return name;
+            }
+            return "";
+        }
+
+        fs::path PatchPath(fs::path const& clientData, std::string const& locale)
+        {
+            return clientData / locale / ("patch-" + locale + "-V.MPQ");
+        }
+
+        fs::path With(fs::path path, char const* suffix)
+        {
+            path += suffix;
+            return path;
+        }
+
+        // The archives read after this one, and this one: left out of what it's made from.
+        std::vector<std::string> Skip(std::string const& locale)
+        {
+            std::string loc = Lower(locale);
+            std::vector<std::string> skip = { "patch-" + loc + "-v.mpq" };
+            for (char c = 'w'; c <= 'z'; ++c)
+            {
+                skip.push_back(std::string("patch-") + c + ".mpq");
+                skip.push_back("patch-" + loc + "-" + c + ".mpq");
+            }
+            return skip;
+        }
+
+        // The patch where it was (Data/patch-W.MPQ), out of the game if it's this module's (the mastiff in
+        // it); the Alternative HD Patch's water, which has the same name, left alone.
+        void RemoveOldPatch(fs::path const& clientData, std::function<void(std::string const&)> const& log)
+        {
+            std::error_code error;
+            fs::path old = clientData / OLD_PATCH;
+            if (!fs::exists(With(old, MARK_SUFFIX), error))
+                return;
+            for (fs::path const& file : { old, With(old, ASIDE_SUFFIX) })
+                if (fs::exists(file, error) && Skyborne::OpenArchive(file)->Has(MASTIFF))
+                {
+                    fs::remove(file, error);
+                    log("Took the Brill home's old patch out of the game (" + file.string() + ")");
+                }
+            fs::remove(With(old, MARK_SUFFIX), error);
+        }
 
         Bytes ReadFile(fs::path const& path)
         {
@@ -82,21 +154,31 @@ namespace BrillHome
     void RemovePatch(fs::path const& clientData, std::function<void(std::string const&)> const& log)
     {
         std::error_code error;
-        if (!fs::exists(clientData / MARK, error))
+        RemoveOldPatch(clientData, log);
+        std::string locale = Locale(clientData);
+        if (locale.empty())
             return;
-        fs::remove(clientData / PATCH, error);
-        fs::remove(clientData / ASIDE, error);
-        fs::remove(clientData / MARK, error);
+        fs::path patch = PatchPath(clientData, locale);
+        if (!fs::exists(With(patch, MARK_SUFFIX), error))
+            return;
+        fs::remove(patch, error);
+        fs::remove(With(patch, ASIDE_SUFFIX), error);
+        fs::remove(With(patch, MARK_SUFFIX), error);
         log("The Brill home's patch is out of the game");
     }
 
     void SetPatchAside(fs::path const& clientData, std::function<void(std::string const&)> const& log)
     {
         std::error_code error;
-        if (!fs::exists(clientData / MARK, error) || !fs::exists(clientData / PATCH, error))
+        RemoveOldPatch(clientData, log);
+        std::string locale = Locale(clientData);
+        if (locale.empty())
             return;
-        fs::remove(clientData / ASIDE, error);
-        fs::rename(clientData / PATCH, clientData / ASIDE, error);
+        fs::path patch = PatchPath(clientData, locale);
+        if (!fs::exists(With(patch, MARK_SUFFIX), error) || !fs::exists(patch, error))
+            return;
+        fs::remove(With(patch, ASIDE_SUFFIX), error);
+        fs::rename(patch, With(patch, ASIDE_SUFFIX), error);
         if (error)
             log("The Brill home's patch couldn't be set aside: " + error.message());
         else
@@ -107,19 +189,25 @@ namespace BrillHome
                      std::function<void(std::string const&)> const& log)
     {
         std::error_code error;
-        fs::path patch = clientData / PATCH, mark = clientData / MARK;
+        RemoveOldPatch(clientData, log);
+        std::string locale = Locale(clientData);
+        if (locale.empty())
+        {
+            log("No language folder in " + clientData.string() + ": the patch isn't made");
+            return false;
+        }
+        fs::path patch = PatchPath(clientData, locale), mark = With(patch, MARK_SUFFIX);
         bool ours = fs::exists(mark, error);
         if (!ours && fs::exists(patch, error))
         {
             log(patch.string() + " isn't this module's: left alone, so the game won't have the mastiff");
             return false;
         }
-        if (ours && !fs::exists(patch, error) && fs::exists(clientData / ASIDE, error))
-            fs::rename(clientData / ASIDE, patch, error);
+        if (ours && !fs::exists(patch, error) && fs::exists(With(patch, ASIDE_SUFFIX), error))
+            fs::rename(With(patch, ASIDE_SUFFIX), patch, error);
         auto start = std::chrono::steady_clock::now();
         // (the game as patches U and V leave it: this one, and those read after it, left out)
-        Game game(clientData, { "patch-w.mpq", "patch-y.mpq", "patch-z.mpq", "patch-enus-y.mpq", "patch-engb-y.mpq", "patch-dede-y.mpq",
-            "patch-frfr-y.mpq", "patch-eses-y.mpq", "patch-esmx-y.mpq", "patch-ruru-y.mpq", "patch-kokr-y.mpq", "patch-zhcn-y.mpq", "patch-zhtw-y.mpq" });
+        Game game(clientData, Skip(locale));
         if (game.archives.empty())
         {
             log("No game in " + clientData.string());

@@ -10,7 +10,7 @@ namespace BrillHome
 {
     namespace fs = std::filesystem;
 
-    // Makes Data/patch-W.MPQ in the client's Data folder [clientData] from the module's table changes
+    // Makes Data/<locale>/patch-<locale>-V.MPQ in the client's Data folder [clientData] from the module's table changes
     // ([moduleData]/dbc: data/client/dbc) and the mastiff's files ([files]: made by tools/mastiff.py as
     // the server was packaged, listed in mastiff.files there), when the game, those changes or those
     // files changed since. True when the patch is in place.

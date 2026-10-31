@@ -77,7 +77,7 @@ INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (2310, 970120), (2310, 970121), (2310, 970122);
 
 -- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the
--- template its pet is made from; the quest's two credits. Its coats are its model's (patch-W).
+-- template its pet is made from; the quest's two credits. Its coats are its model's (patch-<locale>-V).
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES
 (970112, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),
 (970115, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),
@@ -112,7 +112,7 @@ INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`,
 (39701, 0.7, 1.5, 2, 0),
 (39702, 0.7, 1.5, 2, 0),
 (39703, 0.7, 1.5, 2, 0);
--- The server's copy of the game's rows for it (the client's are in patch-W: data/client/dbc).
+-- The server's copy of the game's rows for it (the client's are in patch-<locale>-V: data/client/dbc).
 DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;
 INSERT INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, `FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, `DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, `MissileCollisionPush`, `MissileCollisionRaise`) VALUES
 (3970, 4096, 'creature\\mastiff\\mastiff.mdx', 0, 1.0, 1, 7, 18.0, 12.0, 1.0, 0, 0, 0, 43, 0.6111111044883728, 2.031277894973755, 1.399109959602356, -1.3119957447052002, -0.42800551652908325, -0.029394155368208885, 1.1700317859649658, 0.4534095823764801, 1.9144073724746704, 1.0, 1.0, 0.0, 0.0, 0.0);

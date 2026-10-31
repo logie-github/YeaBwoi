@@ -1767,7 +1767,8 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
    CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
    gameobject, the sleeping pose on the bed, the furniture's turns.
 2. **The mastiff**: built. Its model fetched and converted as the server is packaged
-   (`tools/mastiff.py`: Wrath Remix's converter, the starting areas' fixes), in the game's patch-W;
+   (`tools/mastiff.py`: Cataclysm Classic's files, Wrath Remix's converter, the starting areas' fixes), in the
+   game's patch-<locale>-V (patch-W was the Alternative HD Patch's water too: the user saw a cube);
    there on the first waking; its quest (fetch, a scratch behind the ears); the dog a hunter's pet for
    any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through.
    Not seen on a phone: the model in the game, its coats.
