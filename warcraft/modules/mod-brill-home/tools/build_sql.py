@@ -47,16 +47,25 @@ PHASE_CEDRIC, PHASE_BED, PHASE_TABLE, PHASE_WARDROBE, PHASE_BOOKSHELF, PHASE_RUG
 
 # The furniture: (entry, type, display, scale, name, phase, [(x, y, z, turn in degrees)]) in the
 # house's coordinates; turn 0 faces the house's +x. Chairs are the game's chair kind (sitting works).
+# Laid out against the farmhouse's own walls (its collision model in the server's vmaps,
+# Duskwood_Human_Farm.wmo.vmo: the room inside is x -5.25 to 5.5, y -5.75 to 5.5; the hearth stands out
+# from the north wall between x -1.0 and 3.5 to y 4.6, its mantel 2.1 up; the door is x -3.0 to -0.25
+# in the south wall; braces fill the north corners (x below -3.25 and above 4.5, y above 4.25) and posts
+# the south ones; the loft is over y below -3, 4.1 up) and each model's own size (the game's files), so
+# nothing stands in a wall, in the hearth, in the doorway or in another piece. The bed under the loft in
+# the south-east corner, its headboard to the east wall; the table and chairs on the west side; the
+# wardrobe on the west wall; the bookshelf on the east wall; the rug before the hearth; the stove
+# between the hearth and the north-east brace.
 FURNITURE = [
-    (GO_BED, 2, 3471, 1.0, "Starter Bed", PHASE_BED, [(2.9, 3.2, 0, 0)]),
-    (GO_TABLE, 5, 234, 1.0, "Kitchen Table", PHASE_TABLE, [(-1.8, 0.8, 0, 0)]),
-    (GO_CHAIR, 7, 39, 1.0, "Chair", PHASE_TABLE, [(-1.8, -0.5, 0, 90), (-1.8, 2.1, 0, -90)]),
-    (GO_WARDROBE, 5, 4, 1.0, "Wardrobe", PHASE_WARDROBE, [(-5.0, -2.0, 0, 0)]),
-    (GO_BOOKSHELF, 5, 188, 1.0, "Bookshelf", PHASE_BOOKSHELF, [(0.2, 5.1, 0, -90)]),
-    (GO_RUG, 5, 9405, 1.0, "Bearskin Rug", PHASE_RUG, [(0.8, -1.6, 0, 0)]),
-    (GO_STOVE, 5, 348, 1.0, "Pot-Bellied Stove", PHASE_STOVE, [(-4.5, 4.3, 0, -45)]),
+    (GO_BED, 2, 3471, 1.0, "Starter Bed", PHASE_BED, [(2.98, -3.42, 0, 0)]),
+    (GO_TABLE, 5, 234, 1.0, "Kitchen Table", PHASE_TABLE, [(-2.1, 2.3, 0, 90)]),
+    (GO_CHAIR, 7, 39, 1.0, "Chair", PHASE_TABLE, [(-2.1, 0.85, 0, 90), (0.15, 2.3, 0, 180)]),
+    (GO_WARDROBE, 5, 4, 1.0, "Wardrobe", PHASE_WARDROBE, [(-4.93, -3.6, 0, 0)]),
+    (GO_BOOKSHELF, 5, 188, 1.0, "Bookshelf", PHASE_BOOKSHELF, [(5.13, 2.8, 0, 180)]),
+    (GO_RUG, 5, 9405, 0.65, "Bearskin Rug", PHASE_RUG, [(1.9, 2.5, 0, 90)]),
+    (GO_STOVE, 5, 348, 1.0, "Pot-Bellied Stove", PHASE_STOVE, [(3.98, 4.42, 0, -90)]),
 ]
-CEDRIC_AT = (0.5, -2.5, 257.5)  # facing the doorway
+CEDRIC_AT = (-1.0, -3.3, 257.5)  # inside the door, facing it
 
 # The mastiff (there when the player first wakes in the bed; its quest; then the player's pet).
 NPC_DOG, NPC_FETCH_CREDIT, NPC_EARS_CREDIT, NPC_DOG_PET = 970112, 970113, 970114, 970115
@@ -66,7 +75,7 @@ NPC_DOG_COMPANION, NPC_BEAST_COMPANION = 970116, 970117
 QUEST_DOG = 970123
 TEXT_DOG, TEXT_DOG_WAITING = 970144, 970145
 PHASE_DOG = 0x400
-DOG_AT = (0.6, 0.6, 30)  # beside the bed, looking toward it
+DOG_AT = (-0.1, -1.9, -35)  # by the foot of the bed, looking toward it
 # Its model (tools/mastiff.py, in the game's patch-<locale>-V) and its four coats: ids clear of the game's and
 # of every module's (the starting areas' own mastiff rows, 3190 and 30210 to 30213, go when they're off).
 MASTIFF_MODEL = 3970
@@ -91,12 +100,12 @@ TEXT_CAROLAI_FRIEND, TEXT_LOCKET, TEXT_LILY, TEXT_CAROLAI_CALLING = 970150, 9701
 # Her alchemy table in the house while she lives there (src/BrillHome.cpp: where she works, reads, makes
 # tea and sits with the dog, by turns).
 GO_ALCHEMY = 970110
-ALCHEMY_AT = (2.6, -3.4, 90)
+ALCHEMY_AT = (-4.47, -1.0, 0)  # against the west wall
 PHASE_CAROLAI_VISIT, PHASE_CAROLAI_HOME = 0x10000, 0x20000
 CAROLAI_DISPLAY = 1601
 CURSED_DARKHOUND = 1548
-CAROLAI_VISIT_AT = (0.5, -2.5, 257.5)  # where Cedric stood, facing the door as the player comes in
-CAROLAI_HOME_AT = (-3.0, 2.6, 0)
+CAROLAI_VISIT_AT = (-1.0, -3.3, 257.5)  # where Cedric stood, facing the door as the player comes in
+CAROLAI_HOME_AT = (-3.3, -1.0, 180)  # at her alchemy table
 # Her mother's locket in Solliden Farmstead's farmhouse (beside old Farmer Solliden, who walks it);
 # the lily on Brightwater Lake's shore (among the Vile Fins): heights from the game's terrain.
 LOCKET_AT = (2266.6, 1316.4, 34.1, 1.2)

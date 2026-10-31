@@ -63,7 +63,34 @@ until the player moves. Sleeping gives a quarter of the level's experience as re
 game's cap of a level and a half stays), at most once every six hours (`brill_home.last_rested`), and
 the bed quest's credit.
 
-Not checked on a phone: the house as a gameobject (the game's own houses are part of the map), how the
+### Inside the house, and the cellar
+
+Everything in the house is placed against the farmhouse's own walls, measured from its collision model
+(the server's `vmaps/Duskwood_Human_Farm.wmo.vmo`) and each model's own size (the game's files): the room
+inside is x -5.25 to 5.5, y -5.75 to 5.5 in the house's coordinates; the hearth stands out from the north
+wall (x -1.0 to 3.5, to y 4.6; its mantel 2.1 up); the door is x -3.0 to -0.25 in the south wall; braces
+fill the north corners and posts the south ones; the loft is over the south third. The bed is in the
+south-east corner under the loft, the table, chairs and wardrobe on the west side, the bookshelf and the
+chests on the east wall, the rug and the dog's bed before the hearth, the stove beside it, the family
+portrait over the mantel, and the projects' furnishings in the gaps (books and Croft's skull-candle on
+the mantel). The house's model draws only its own loft barrels. No piece overlaps another, a wall, the
+hearth or the doorway (the rug lies under a chair and the dog's bed).
+
+The cellar hatch (boards in the floor by the rug) takes the house's owner down to the cellar: the game's
+own cellar of a Duskwood-style inn (Brill's tavern is one: stone, barrels, kegs, crates and cobwebs, the
+model's own), placed as an object (display 9700: the client's table in the module's patch, the server's
+`gameobjectdisplayinfo_dbc`) 37 yards under the house, its top 6 yards under the lowest ground over it so
+nothing shows above. In it: the ladder back up (display 9701, the game's Northrend human ladder), the
+rats of Beneath the Floorboards (they run straight at what they fight: the server's paths don't know the
+cellar's floor) and, behind their nest, the old stair bricked shut with the Cult's mark (the quest's
+wall). A player in the cellar who falls through its floor (a game without the module's patch) or logs in
+down there is put back in the house by the hatch. Before, the hatch was Gundrak's trapdoor scaled down,
+still 10 by 15 yards with its collision, standing through half the house and blocking it, and there was
+no cellar (the rats were on the house's floor). The Reclamation Library's flooded hatch was the same
+trapdoor; it is boards now too.
+
+Not checked on a phone: the cellar (how it looks from inside, its stair seen past the bricked-up wall), the
+house as a gameobject (the game's own houses are part of the map), how the
 sleeping pose lies on the bed (assumed: lying back along the way the character faces), and the
 furniture's turns (assumed: the models' fronts at their +x).
 
@@ -158,7 +185,7 @@ character alone (the town's phases, anywhere in Brill), or in what people say.
 
 | Line | Quests (ids) | Giver | Choice | What stays changed |
 | --- | --- | --- | --- | --- |
-| The New House | 970200-970205 | Oswin Thatcher, carpenter (outside the house), after the deed | two free furnishings | debris until the timber; lamps, a chest, the dog's straw bed; the housewarming's guests, now and then after |
+| The New House | 970200-970205 | Oswin Thatcher, carpenter (outside the house), after the deed | two free furnishings | debris until the timber; the cellar's rats while Beneath the Floorboards is on; lamps, a chest, the dog's straw bed; the housewarming's guests, now and then after |
 | The Gravekeeper's Ledger | 970300-970304 | Mortimer Weller, gravekeeper (Brill's cemetery) | the newcomers walk in by day or by night | Mercy, Gideon, Edith and Walter living in Brill; the clue to Beneath the Gallows |
 | The Apothecary's Apprentice | 970400-970404 | Apothecary Johaan | surrender the Stay, supervise Wendell Crane, or burn it | the yard behind the lab (apparatus, or charred remains); Wendell's, Johaan's and Carolai's words |
 | Whispers of the Scarlet | 970500-970504 | Magistrate Sevren | expose Lowell Marsh, spare him, or let him go | Lowell gone or still lighting the lamps; the Deathguards' and Sevren's words; his letters via Renee |

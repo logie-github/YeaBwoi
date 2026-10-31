@@ -568,9 +568,9 @@ LINE = {
 
         # 7: the house's delivery (design: storage chests, imported furniture, parcels), in the house's own coordinates.
         {"id": "house_chest", "name": "Sea Chest from the Sepulcher", "display": 8, "from": 7,
-         "spawns": [["house", 4.0, -0.2, 0, 90]]},
+         "spawns": [["house", 0.25, -3.42, 0, 0]]},
         {"id": "house_parcels", "name": "Delivery Parcels", "display": 287, "scale": 0.7, "from": 7,
-         "spawns": [["house", -1.0, 3.8, 0, 20]],
+         "spawns": [["house", -0.6, 4.1, 0, 20]],
          "use": [{"text": "(Parcels from the caravan office, addressed in Irena's square capitals: TO THE HOUSE BY THE ROAD. "
                           "One is a crate of candles. One rattles. One has DO NOT OPEN UNTIL WINTER'S VEIL on it, in Dren's "
                           "hand, and has clearly been opened and closed again.)"}]},

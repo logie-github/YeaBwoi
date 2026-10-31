@@ -795,10 +795,10 @@ struct npc_brill_home_carolai_homeAI : public ScriptedAI
     struct Spot { float x, y, o; uint32 emote; bool sit; };
     static constexpr float FLOOR = 34.06f;
     static constexpr Spot SPOTS[] = {
-        { 2272.69f, 478.06f, 4.713f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
-        { 2277.03f, 484.86f, 1.234f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
-        { 2277.63f, 483.80f, 1.024f, 0, true },                           // with the dog, by its bed
-        { 2278.92f, 481.71f, 0.349f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
+        { 2272.91f, 483.31f, 1.920f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table (the house's -3.35, -1.0)
+        { 2279.47f, 477.87f, 0.349f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove (the house's 4.0, 3.3)
+        { 2277.82f, 480.20f, 0.349f, 0, true },                           // with the dog, by its bed (the house's 1.25, 2.55)
+        { 2278.97f, 477.79f, 5.061f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf (the house's 3.9, 2.8)
     };
     uint32 next = 5000, spot = 0;
     bool moving = false;
@@ -1019,6 +1019,8 @@ public:
     {
         if (enabled && (HomeOf(player).flags & FLAG_DOG_PET))
             LearnPetSpells(player);
+        if (enabled)
+            BrillTown::KeepOutOfTheGround(player, true);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override
@@ -1049,6 +1051,8 @@ public:
         if (since < 1000)
             return;
         since = 0;
+        if (BrillTown::KeepOutOfTheGround(player, false))
+            return;
         UpdatePhases(player);
         KeepCompanions(player);
     }

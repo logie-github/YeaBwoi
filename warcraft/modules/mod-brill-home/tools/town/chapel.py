@@ -536,17 +536,17 @@ LINE = {
          "spawns": [C(27.0, 2.2, FLOOR), C(27.0, -2.2, FLOOR)]},
         # ---- The house's chapel set (bought from Halden): a candle and a book on a little table, a Shadow hanging ----
         {"id": "house_table", "name": "Devotional Table", "display": 581, "scale": 0.6, "from": 7,
-         "spawns": [["house", -5.3, 0.4, 0, 0]]},
+         "spawns": [["house", -4.75, 1.55, 0, 0]]},
         {"id": "house_candle", "name": "Memorial Candle", "display": 4152, "scale": 1.3, "from": 7,
-         "spawns": [["house", -5.45, 0.15, 0.68, 0]],
+         "spawns": [["house", -4.9, 1.35, 0.68, 0]],
          "use": [{"text": "(A memorial candle from the Forgotten Shadow Chapel, black wax in an iron cup. Halden says you light it "
                           "for whoever you like, and you don't have to tell anybody who.)"}]},
         {"id": "house_book", "name": "Book of Reflections", "display": 254, "scale": 0.6, "from": 7,
-         "spawns": [["house", -5.2, 0.6, 0.68, 0]],
+         "spawns": [["house", -4.6, 1.75, 0.68, 0]],
          "use": [{"text": "(A small book of reflections, bound by the chapel. The first page has a line in Mirelle's hand: \"For "
                           "the quiet hours. Write what you like; nobody is grading.\" The rest of the pages are yours.)"}]},
         {"id": "house_hanging", "name": "Shadow Hanging", "display": 7979, "scale": 0.4, "from": 7,
-         "spawns": [["house", -5.6, 0.4, 1.6, 0]]},
+         "spawns": [["house", -4.97, 1.55, 1.6, 0]]},
     ],
     "gossip": [
         # ---- Mirelle at the meeting house ----

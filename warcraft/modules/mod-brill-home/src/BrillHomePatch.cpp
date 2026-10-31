@@ -3,7 +3,8 @@
  * The Brill home's patch for the game (mod-brill-home): the mastiff (Cataclysm's Gilneas dog, made
  * 3.3.5's by tools/mastiff.py as the server was packaged: never in this repository) and its rows in
  * the game's tables (data/client/dbc, made by tools/build_sql.py: its CreatureModelData and its four
- * coats' CreatureDisplayInfo).
+ * coats' CreatureDisplayInfo), and the house's cellar and its ladder (GameObjectDisplayInfo, made by
+ * tools/build_town.py: the game's own models as objects).
  *
  * It's Data/<locale>/patch-<locale>-V.MPQ: read after the Worgen's and Goblins' patch-U and the allied
  * races' patch-V (the game reads a letter's language patch after its own), and made from the game with
