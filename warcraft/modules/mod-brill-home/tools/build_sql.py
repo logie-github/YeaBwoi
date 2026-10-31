@@ -9,12 +9,15 @@ as a gameobject of the kind the game's own buildings out in the world are (a des
 never damaged: Light's Point Tower's). Where the user stood and asked for it (Brill 58.93, 51.90: "Put
 it here instead", after the last place turned out to be on the road), worked out from the server's data
 (data.zip: the terrain's heights and the world's other models), see the README:
-- (2274.0, 370.4): south of the road through Brill (its patrols walk it at x 2282 to 2285), clear of
-  the trees and of the apothecary's farmhouse (2262, 345);
-- turned so its doorway (the model's own side at 257.5 degrees, where its walls open) faces the road,
-  north; its front wall at the road's edge;
-- its base 31.70 high: the floor (4.1 above the base) 0.2 above the highest ground under it (the ground
-  falls 1.4 yards toward the road; the model's foundation covers it).
+- (2270.5, 370.4): 3.5 yards south of the spot, so the whole model (19 by 18 yards) stays off the road
+  through Brill (its patrols walk it at x 2282 to 2285); clear of the trees and of the apothecary's
+  farmhouse (2262, 345);
+- turned the same way as that farmhouse, Brill's own (the user: "Be sure its oriented the same way as the
+  other house"): the map places it at 245 degrees, which the game draws turned a half turn more (the
+  map's coordinates run the other way), so 65 degrees as a gameobject; its doorway (the model's own side
+  at 257.5 degrees) faces the road, north-east;
+- its base 32.22 high: the floor (4.1 above the base) 0.2 above the highest ground under it (the ground
+  falls 1.8 yards toward the road; the model's foundation covers it).
 
 Everything inside is placed in the house's own coordinates (yards from its middle, the doorway's side
 at -y) and turned with it. Run it after changing the layout; the output is committed.
@@ -26,8 +29,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "sql", "chromiecraft", "world", "brill_home_world.sql")
 
 MAP, ZONE, AREA = 0, 85, 159
-HOUSE_X, HOUSE_Y, HOUSE_BASE = 2274.0, 370.4, 31.70
-HOUSE_O = 1.7890  # radians: the doorway (model's 257.5 degrees) toward the road, north of it
+HOUSE_X, HOUSE_Y, HOUSE_BASE = 2270.5, 370.4, 32.22
+HOUSE_O = 1.1345  # radians (65 degrees): as Brill's own farmhouse is turned; the doorway toward the road
 FLOOR = HOUSE_BASE + 4.1
 
 # Entries (970100 to 970199: nothing else in the game or the app's modules uses them)

@@ -49,7 +49,7 @@ SCHEDULES = {"morning": (230, 6 * 60, 4 * 60), "day": (231, 10 * 60, 8 * 60), "e
              "night": (233, 22 * 60, 8 * 60)}
 
 # The house (tools/build_sql.py): a line may place things in it by the house's own coordinates.
-HOUSE_X, HOUSE_Y, HOUSE_O, FLOOR = 2274.0, 370.4, 1.7890, 31.70 + 4.1
+HOUSE_X, HOUSE_Y, HOUSE_O, FLOOR = 2270.5, 370.4, 1.1345, 32.22 + 4.1
 # Brill, where the town's phases apply (src/BrillTown.cpp): a spawn in a phase must be in it.
 BRILL_X, BRILL_Y, BRILL_RADIUS = 2275.0, 330.0, 165.0
 

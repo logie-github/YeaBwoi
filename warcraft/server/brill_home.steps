@@ -7,7 +7,7 @@
 cmd .levelup 11
 cmd .modify money 100000
 # At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
-go 0 2283.2 370.5 34.7
+go 0 2277.9 364.9 35.0
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x2000101 upgrades 0x0
@@ -23,7 +23,7 @@ reward 2310 970121
 talk 2310
 accept 2310 970122
 # Back at the house, inside: Cedric gone for this character, the bed there.
-go 0 2274.9 371.1 36.3
+go 0 2271.6 370.4 36.8
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x2040201 upgrades 0x0
@@ -73,7 +73,7 @@ expect quests 111
 talk 2310
 select 2310 more of a home
 select 2310 bearskin rug
-go 0 2274.9 371.1 36.3
+go 0 2271.6 370.4 36.8
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x2044201 upgrades 0x4000
@@ -103,7 +103,7 @@ accept 2132 970126
 go 0 2314.0 288.0 37.9
 talk 2310
 reward 2310 970126
-go 0 2274.9 371.1 36.3
+go 0 2271.6 370.4 36.8
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x2054201
@@ -133,7 +133,7 @@ expect carolai 11111
 # Lovers: asked to move in, she's in the house (phase 0x20000); given time at her shop, she's gone.
 talk 2132
 select 2132 move in with me
-go 0 2274.9 371.1 36.3
+go 0 2271.6 370.4 36.8
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x2064201
