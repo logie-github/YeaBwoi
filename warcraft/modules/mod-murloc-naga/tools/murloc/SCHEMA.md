@@ -64,7 +64,7 @@ NPCS = [
 - `idle`: beats it repeats when nobody's doing anything with it (see `every`).
 - `phase`: when it's there: `always` (the default), `("from", "<quest>")` (from that quest's
   reward on), `("until", "<quest>")` (until that quest's reward), `("during", "<quest>")` (while it's
-  in the log).
+  in the log), `("between", "<quest>", "<quest>")` (from the first's reward until the second's).
 
 ```python
 OBJECTS = [
@@ -128,7 +128,8 @@ The giver gives a `source` item if the quest needs one (`source="cage_key"`).
 
 More: `time=180` (seconds to finish it), `classes=["warrior"]` (only them), `repeatable=True` (a
 chore), `details=["talk", "point"]` (the giver's emotes as it's offered), `reward_emotes=["cheer"]`
-(the ender's as it's handed in), `exclusive=N` (quests sharing N: taking one closes the others).
+(the ender's as it's handed in), `plain_reward=True` (the reward text as written: the story's last
+quest alone, the first words a murloc can read; finishing it teaches the murloc Common), `exclusive=N` (quests sharing N: taking one closes the others).
 
 `level` is the quest's level; `min` defaults to level - 2. `xp` (1-8) defaults to 7; the last of a
 chapter's chains and set pieces take 8.

@@ -451,11 +451,15 @@ public:
         sinceCheck.erase(player->GetGUID().GetCounter());
     }
 
-    // The murlocs' story done: the Alliance takes them in (its towns' standing Neutral at least).
+    // The murlocs' story done: the Alliance takes them in (its towns' standing Neutral at least), and the
+    // murloc understands them at last (Common, beside Nerglish).
     void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
     {
         if (!Murloc(player) || !finalQuest || quest->GetQuestId() != finalQuest)
             return;
+        player->SetSkill(SKILL_LANG_COMMON_ID, 0, 300, 300);
+        if (!player->HasSpell(SPELL_LANG_COMMON))
+            player->learnSpell(SPELL_LANG_COMMON);
         for (uint32 id : ALLIANCE_FACTIONS)
             if (FactionEntry const* faction = sFactionStore.LookupEntry(id))
                 if (player->GetReputationMgr().GetReputation(faction) < 0)

@@ -1011,14 +1011,17 @@ NARRATION = {
     "Naga": [(500, VASHJ + "Intro01.wav"), (20500, VASHJ + "Phase01.wav"), (30000, VASHJ + "Aggro04.wav"),
              (33500, VASHJ + "Phase02.wav"), (38500, VASHJ + "BowShot02.wav"), (42500, VASHJ + "Aggro02.wav"),
              (47500, VASHJ + "Death01.wav"), (55500, VASHJ + "Slay03.wav")],
-    # The murlocs' own voices: a village waking, a fry's dance, a warning, a war-gurgle, a cheer.
-    "Murloc": [(800, "Sound\\Creature\\Murloc\\mMurlocFidget2a.wav"), (4000, "Sound\\Creature\\Murloc\\mMurlocFidget2b.wav"),
-               (7500, "Sound\\Creature\\Murloc\\mMurlocFidget3a.wav"), (11000, "Sound\\Creature\\BabyMurloc\\BabyMurlocA.wav"),
-               (13000, "Sound\\Creature\\BabyMurloc\\BabyMurlocDance.wav"), (19500, "Sound\\Creature\\Murloc\\mMurlocPreAggroA.wav"),
-               (22500, "Sound\\Creature\\Murloc\\mMurlocAggroA.wav"), (25000, "Sound\\Creature\\Murloc\\mMurlocAttackB.wav"),
-               (27500, "Sound\\Creature\\Murloc\\mMurlocAggroOld.wav"), (31000, "Sound\\Creature\\BabyMurloc\\BabyMurlocB.wav"),
-               (33500, "Sound\\Creature\\Murloc\\mMurlocFidget2a.wav"), (36500, "Sound\\Creature\\Murloc\\mMurlocAggroC.wav"),
-               (39000, "Sound\\Creature\\BabyMurloc\\BabyMurlocC.wav")],
+    # The pens at the Zoram Strand (the murlocs' story's start): the sea, chains, the count gong, a whip and
+    # a slave's yelp, a fry, the sea witch's hiss, the gong again; and at the very end, far off, one murloc's
+    # war-gurgle (the cry the naga lash singers for).
+    "Murloc": [(300, "Sound\\Ambience\\Water\\OceanA.wav"), (3500, "Sound\\Item\\FoleySounds\\ChainFoley01.wav"),
+               (7000, "Sound\\Doodad\\G_GongTroll01.wav"), (11000, "Sound\\Item\\Weapons\\Whip\\BullWhipHit1.wav"),
+               (11600, "Sound\\Creature\\Murloc\\mMurlocWoundA.wav"),
+               (15500, "Sound\\Creature\\BabyMurloc\\BabyMurlocA.wav"), (19000, "Sound\\Item\\FoleySounds\\ChainFoley01.wav"),
+               (22500, "Sound\\Creature\\NagaFemale\\NagaFemalePreAggro.wav"), (26500, "Sound\\Item\\Weapons\\Whip\\BullWhipHit1.wav"),
+               (27200, "Sound\\Creature\\Murloc\\mMurlocWoundB.wav"), (24000, "Sound\\Ambience\\Water\\OceanA.wav"),
+               (31500, "Sound\\Creature\\BabyMurloc\\BabyMurlocC.wav"), (34000, "Sound\\Doodad\\G_GongTroll01.wav"),
+               (38500, "Sound\\Creature\\Murloc\\mMurlocAggroOld.wav")],
 }
 
 

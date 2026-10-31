@@ -446,6 +446,9 @@ class Story:
         p = d.get("phase", "always")
         if p == "always":
             return K.RACE_PHASE
+        if p[0] == "between":                   # ("between", from quest, until quest)
+            _, a, b = p
+            return self.phase_bit(chapter, "between", (self.quest(a, chapter, d["key"]), self.quest(b, chapter, d["key"])))
         kind, quest = p
         return self.phase_bit(chapter, kind, self.quest(quest, chapter, d["key"]))
 
@@ -1009,7 +1012,7 @@ class Story:
                 self.condition(19, 0, qid, 8, self.quest(p, chapter, where))
         ends = [self.emote_id(e, where) for e in d.get("reward_emotes", ["talk"])][:4]
         self.row("quest_offer_reward", ID=qid, **{f"Emote{i + 1}": e for i, e in enumerate(ends)},
-                 RewardText=self.words(d.get("reward", ""), lang_end))
+                 RewardText=d.get("reward", "") if d.get("plain_reward") else self.words(d.get("reward", ""), lang_end))
         if d.get("progress"):
             self.row("quest_request_items", ID=qid, EmoteOnComplete=1, EmoteOnIncomplete=6,
                      CompletionText=self.words(d["progress"], lang_end))
@@ -1229,14 +1232,16 @@ class Story:
                      Comment=f"mod-murloc-naga: {d.get('name', 'the tribe')}")
             rule, frm, until = d.get("phase", "always"), 0, 0
             if rule != "always":
-                kind, quest = rule
+                kind, quest = rule[:2]
                 qid = self.quest(quest, chapter, where)
                 if kind == "from":
                     frm = qid
                 elif kind == "until":
                     until = qid
+                elif kind == "between":
+                    frm, until = qid, self.quest(rule[2], chapter, where)
                 else:
-                    self.err(where, f"a graveyard's phase is from or until a quest, not {kind!r}")
+                    self.err(where, f"a graveyard's phase is from, until or between quests, not {kind!r}")
             out.append(dict(id=gid, map=m, x=round(x, 2), y=round(y, 2), z=round(z + 0.5, 2), from_quest=frm, until_quest=until))
             phase = self.phase_of(dict(d, key=where), chapter)
             list(self.spawn(K.SPIRIT_HEALER, self.points(d.get("healer", d["at"]), chapter, where), d.get("facing", 0.0), phase,
@@ -1272,6 +1277,9 @@ class Story:
                 elif kind == "until":
                     self.row("spell_area", spell=spell, area=zone, quest_start=0, quest_end=quest, aura_spell=0,
                              racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=0, quest_end_status=REWARDED)
+                elif kind == "between":
+                    self.row("spell_area", spell=spell, area=zone, quest_start=quest[0], quest_end=quest[1], aura_spell=0,
+                             racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=REWARDED, quest_end_status=REWARDED)
                 elif kind == "during":
                     self.row("spell_area", spell=spell, area=zone, quest_start=quest, quest_end=0, aura_spell=0,
                              racemask=K.MURLOC_BIT, gender=2, autocast=1, quest_start_status=IN_LOG, quest_end_status=0)
