@@ -63,16 +63,46 @@ until the player moves. Sleeping gives a quarter of the level's experience as re
 game's cap of a level and a half stays), at most once every six hours (`brill_home.last_rested`), and
 the bed quest's credit.
 
-Not checked on a phone: the house as a gameobject (the game's own houses are part of the map), how the
+### Inside the house, and the cellar
+
+Everything in the house is placed against the farmhouse's own walls, measured from its collision model
+(the server's `vmaps/Duskwood_Human_Farm.wmo.vmo`) and each model's own size (the game's files): the room
+inside is x -5.25 to 5.5, y -5.75 to 5.5 in the house's coordinates; the hearth stands out from the north
+wall (x -1.0 to 3.5, to y 4.6; its mantel 2.1 up); the door is x -3.0 to -0.25 in the south wall; braces
+fill the north corners and posts the south ones; the loft is over the south third. The bed is in the
+south-east corner under the loft, the table, chairs and wardrobe on the west side, the bookshelf and the
+chests on the east wall, the rug and the dog's bed before the hearth, the stove beside it, the family
+portrait over the mantel, and the projects' furnishings in the gaps (books and Croft's skull-candle on
+the mantel). The house's model draws only its own loft barrels. No piece overlaps another, a wall, the
+hearth or the doorway (the rug lies under a chair and the dog's bed).
+
+The cellar hatch (boards in the floor by the rug) takes the house's owner down to the cellar: the game's
+own cellar of a Duskwood-style inn (Brill's tavern is one: stone, barrels, kegs, crates and cobwebs, the
+model's own), placed as an object (display 9700: the client's table in the module's patch, the server's
+`gameobjectdisplayinfo_dbc`) 37 yards under the house, its top 6 yards under the lowest ground over it so
+nothing shows above. In it: the ladder back up (display 9701, the game's Northrend human ladder), the
+rats of Beneath the Floorboards (they run straight at what they fight: the server's paths don't know the
+cellar's floor) and, behind their nest, the old stair bricked shut with the Cult's mark (the quest's
+wall). A player in the cellar who falls through its floor (a game without the module's patch) or logs in
+down there is put back in the house by the hatch. Before, the hatch was Gundrak's trapdoor scaled down,
+still 10 by 15 yards with its collision, standing through half the house and blocking it, and there was
+no cellar (the rats were on the house's floor). The Reclamation Library's flooded hatch was the same
+trapdoor; it is boards now too.
+
+Not checked on a phone: the cellar (how it looks from inside, its stair seen past the bricked-up wall), the
+house as a gameobject (the game's own houses are part of the map), how the
 sleeping pose lies on the bed (assumed: lying back along the way the character faces), and the
 furniture's turns (assumed: the models' fronts at their +x).
 
-## The mastiff
+## Corn, the dog
 
-The first time the player sleeps in the bed, they wake to the quest dog beside it, now drawn with
-the client's pug model. It doesn't talk; what it does is shown:
-"(The dog looks happy to see you.)". Its quest, **A Visitor in the Night**: throw the stick for it three
-times (it runs out the door after it and brings it back) and scratch it behind the ears. Turned in, the
+The first time the player sleeps in the bed, they wake to Corn beside it: a zombified pug, the game's own
+pug in the user's Forsaken texture (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
+glowing yellow eyes, his name on his collar's tag; the user: "Use this texture on the pug dog you get from
+the quest in brill. Name the dog Corn", then "my pug is supposed to be zombified"). He doesn't talk; what
+he does is shown: "(The dog looks happy to see you.)". His quest, **A Visitor in the Night**: throw the
+stick for him three times (he runs out the door after it and brings it back) and scratch him behind the
+ears. Turned in, the
 dog is the player's pet, made as a hunter's tamed beast is, at their level, for any class:
 
 - the game counts its keeper a hunter wherever it asks about pets (`OnPlayerIsClass`: the pet's kind,
@@ -98,10 +128,19 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-The dog now uses the 3.3.5a client's Perky Pug model (display 31174), including the quest NPC,
-adopted pets and hunters' companions. Existing pets in the stable are migrated too. No model download
-or backport patch is needed. Earlier managed mastiff archives are removed on realm startup; the
-Alternative HD Patch's water archive is left alone. Quest progress and pet ownership are preserved.
+His looks: display 39700, the 3.3.5a client's own Perky Pug model (CreatureModelData 3291) with the
+user's coat. Nothing is downloaded or converted (the Cataclysm mastiff before him, a converted model,
+once showed as a cube; then the plain pug, display 31174). The world server makes the module's patch for
+the game (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`) from the client's own files:
+the pug model as it is but for its coat, made a texture a display names (a creature's skin, kind 11, and
+the model's replaceable texture lookup), the tan coat named for the game's own pug display (31174 looks as
+it did), Corn's display row and his coat (`data/client/files/Creature/Pug/ForsakenPug_Corn.blp`, a DXT1
+BLP `tools/build_sql.py` makes from the user's texture), with the cellar's looks. Where the patch isn't in
+the game (no client on the machine, or its pug not as expected), Corn is the plain pug: the dog, his pet
+and the companion are given 31174 (`src/BrillHome.cpp`), so he's never a display the game hasn't. The
+quest dog, adopted pets (in the stable too) and hunters' companions all take his looks; quest progress
+and pet ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken
+out; the Alternative HD Patch's water, which has the same name, is left alone.
 
 ## Carolai Anise
 
@@ -111,10 +150,10 @@ anything. Except if you do become romantically involved you can have her move in
 a questline with 5 quests. Don't rush it but make it believable. Not just a mail order bride. And she's a
 yandere. All in universe style dialogue."
 
-Brill's alchemy trainer (by Apothecary Johaan, across the square from the house), once the mastiff's
+Brill's alchemy trainer (by Apothecary Johaan, across the square from the house), once Corn's
 quest is done. She watches the house from her bench; she's sweet, attentive, and a little too much of both.
 
-1. **A Tonic for the Mastiff**: the dog's scratching is blightmange, from the darkhounds. Kill 8 Cursed
+1. **A Tonic for Corn**: the dog's scratching is blightmange, from the darkhounds. Kill 8 Cursed
    Darkhounds north of Brill; she brews the tonic ("I counted the howls from here").
 2. **What Solliden Kept**: her mother's locket, left in the farmhouse at Solliden Farmstead when she died
    (the footlocker beside old Farmer Solliden, who doesn't remember her).
@@ -150,7 +189,7 @@ character alone (the town's phases, anywhere in Brill), or in what people say.
 
 | Line | Quests (ids) | Giver | Choice | What stays changed |
 | --- | --- | --- | --- | --- |
-| The New House | 970200-970205 | Oswin Thatcher, carpenter (outside the house), after the deed | two free furnishings | debris until the timber; lamps, a chest, the dog's straw bed; the housewarming's guests, now and then after |
+| The New House | 970200-970205 | Oswin Thatcher, carpenter (outside the house), after the deed | two free furnishings | debris until the timber; the cellar's rats while Beneath the Floorboards is on; lamps, a chest, the dog's straw bed; the housewarming's guests, now and then after |
 | The Gravekeeper's Ledger | 970300-970304 | Mortimer Weller, gravekeeper (Brill's cemetery) | the newcomers walk in by day or by night | Mercy, Gideon, Edith and Walter living in Brill; the clue to Beneath the Gallows |
 | The Apothecary's Apprentice | 970400-970404 | Apothecary Johaan | surrender the Stay, supervise Wendell Crane, or burn it | the yard behind the lab (apparatus, or charred remains); Wendell's, Johaan's and Carolai's words |
 | Whispers of the Scarlet | 970500-970504 | Magistrate Sevren | expose Lowell Marsh, spare him, or let him go | Lowell gone or still lighting the lamps; the Deathguards' and Sevren's words; his letters via Renee |

@@ -21,17 +21,17 @@ cmd .brilltown state
 has [0x40000]
 talk 970200
 accept 970200 970200
-# The inspection: the broken furniture, the floor, the roof and the cellar hatch.
-go 0 2275.8 482.5 34.2
+# The inspection: the broken furniture, the floor, the roof and the cellar hatch (looked into, not gone down).
+go 0 2274.3 480.6 34.2
 cmd .brilltown use
 expect Brill town: used 970200
-go 0 2276.8 484.9 34.2
+go 0 2279.1 480.7 34.2
 cmd .brilltown use
 expect Brill town: used 970201
-go 0 2274.0 478.2 34.2
+go 0 2272.1 480.9 34.2
 cmd .brilltown use
 expect Brill town: used 970202
-go 0 2272.9 484.2 34.2
+go 0 2275.2 477.8 34.2
 cmd .brilltown use
 expect Brill town: used 970203
 go 0 2264.5 479.9 34.4
@@ -63,26 +63,42 @@ expect-not [0x40000]
 expect done q970200 q970201
 talk 970200
 accept 970200 970202
-# Cedric's letters, the portrait, the chest.
-go 0 2279.0 482.5 34.2
+# Cedric's letters, the portrait (over the mantel), the chest.
+go 0 2275.5 476.0 34.2
 cmd .brilltown use
-go 0 2275.3 476.8 34.2
+expect Brill town: used 970208
+go 0 2279.6 480.8 34.2
 cmd .brilltown use
-go 0 2270.3 483.7 34.2
+expect Brill town: used 970209
+go 0 2275.8 475.3 34.2
 cmd .brilltown use
+expect Brill town: used 970210
 go 0 2264.5 479.9 34.4
 talk 970200
 reward 970200 970202
 talk 970200
 accept 970200 970203
-# The cellar's rats (their phase, 0x80000, while the quest's in the log), then the wall through the hatch.
-go 0 2275.0 480.5 34.2
+# Down the hatch to the cellar (deep under the house); its rats (their phase, 0x80000, while the quest's in
+# the log), the bricked-up stair behind their nest, then up the ladder to the house by the hatch.
+go 0 2275.2 477.8 34.2
 wait 2
+cmd .brilltown use
+expect Brill town: used 970203
+wait 2
+cmd .brillhome state
+expect at 2268.4 486.8 -2.4
 cmd .brilltown state
 has [0x80000]
-cmd .quest complete 970203
-go 0 2272.9 484.2 34.2
+go 0 2265.7 484.1 -2.4
 cmd .brilltown use
+expect Brill town: used 970207
+cmd .quest complete 970203
+go 0 2268.4 486.8 -2.4
+cmd .brilltown use
+expect Brill town: used 970205
+wait 2
+cmd .brillhome state
+expect at 2276.7 478.4 34.3
 go 0 2264.5 479.9 34.4
 talk 970200
 reward 970200 970203

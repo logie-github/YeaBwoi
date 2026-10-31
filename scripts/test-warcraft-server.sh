@@ -712,10 +712,18 @@ EOF
 	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
 		fail "the house isn't in ChromieCraft's world"
-	# The quest dog, pet and hunter companion all use Perky Pug's stock display.
-	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 31174" | CTL sql acore_world)" = 3 ] ||
-		fail "the Brill dog isn't using the stock pug model"
-	! ls "$FILES"/client/Data/*/patch-*-V.MPQ.brillhome > /dev/null 2>&1 || fail "the retired mastiff patch remains"
+	# Corn (the quest dog, his pet and a hunter's companion): Corn's display, the game's pug in the user's coat.
+	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 39700" | CTL sql acore_world)" = 3 ] ||
+		fail "the Brill dog isn't Corn's display"
+	# The module's patch in the game: the language folder's patch-<locale>-V, its two tables (Corn's display,
+	# the cellar's looks) and its files (Corn's coat, the game's pug made his), made after the allied races'.
+	grep -E "Brill home: The Brill home's patch is in the game: 2 tables" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Brill home's patch (Corn, the cellar)"
+	grep -E "Brill home: The Brill home's patch is in the game: .*Corn the (Forsaken|plain) pug" "$FILES/logs/world.out" || true
+	ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 || fail "the Brill home's patch isn't in the game"
+	brill=$(grep -n -m1 "Brill home: The Brill home's patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	echo "world.out: the Brill home's patch at line ${brill:-?}, the allied races' at line ${allied:-?}"
+	[ -n "$brill" ] && [ -n "$allied" ] && [ "$brill" -gt "$allied" ] || fail "the Brill home's patch was made before the allied races'"
 	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*9701[0-4][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
 	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the house's rows"; }
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Homesteader 5 1 \
@@ -858,8 +866,8 @@ EOF
 	grep -q "^BrillHome.Enable = 1" "$FILES/etc/modules/mod_brill_home.conf" || fail "the Brill home is off in ChromieCraft's config"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
 		fail "the house is in Wrath Remix's world"
-	! ls "$FILES"/client/Data/*/patch-*-V.MPQ.brillhome > /dev/null 2>&1 ||
-		fail "the retired mastiff patch remains in the game"
+	! ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 && ls "$FILES"/client/Data/*/patch-*-V.MPQ.aside > /dev/null 2>&1 ||
+		fail "the Brill home's patch (Corn, the cellar) is in the game on Wrath Remix (or wasn't kept aside)"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||

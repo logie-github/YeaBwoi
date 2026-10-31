@@ -32,6 +32,9 @@ namespace BrillTown
     // The town's phases that are this player's (any of a phase's rows whose conditions all hold).
     uint32 Phases(Player* player);
     void Forget(Player* player);
+    // A player in the house's cellar who has fallen through its floor, or (login) comes into the game in
+    // it, put back in the house by the hatch; true if they were.
+    bool KeepOutOfTheGround(Player* player, bool login);
     // The town's options for a creature added to the menu being made (one with a script of its own calls
     // it); its greeting for the player, if a line has one (0: none). The options' choosing is the town's.
     uint32 AddOptions(Player* player, Creature* creature);

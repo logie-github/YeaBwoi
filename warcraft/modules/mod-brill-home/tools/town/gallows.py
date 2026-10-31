@@ -236,7 +236,7 @@ LINE = {
                  {"text": "(A roll of vellum, names in a fine and careful hand.)"}]},
         # The relic, in the house of a player who owns it, once Croft is dead.
         {"id": "relic", "name": "Croft's Skull-Candle, Snuffed", "display": 6406, "phase": "relic",
-         "spawns": [["house", 3.5, -1.0, 0, 180]]},
+         "spawns": [["house", 2.3, 4.97, 2.12, -90]]},
     ],
     "gossip": [
         # Isolde by Brill's mausoleum.
