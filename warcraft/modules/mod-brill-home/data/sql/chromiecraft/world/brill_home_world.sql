@@ -30,15 +30,15 @@ DELETE FROM `gameobject_template_addon` WHERE `entry` = 970100;
 INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`) VALUES (970100, 0, 32);
 
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
-(970100, 970100, 0, 85, 159, 1, 1, 2274.000, 370.400, 31.700, 1.7890, 0, 0, 0.779896, 0.625909, 0, 255, 1, 'mod-brill-home'),
-(970101, 970101, 0, 85, 159, 1, 512, 2270.248, 372.539, 35.800, 1.7890, 0, 0, 0.779896, 0.625909, 0, 255, 1, 'mod-brill-home'),
-(970102, 970102, 0, 85, 159, 1, 2048, 2273.609, 368.470, 35.800, 1.7890, 0, 0, 0.779896, 0.625909, 0, 255, 1, 'mod-brill-home'),
-(970103, 970103, 0, 85, 159, 1, 2048, 2274.878, 368.751, 35.800, 3.3598, 0, 0, 0.994054, -0.108886, 0, 255, 1, 'mod-brill-home'),
-(970104, 970103, 0, 85, 159, 1, 2048, 2272.339, 368.188, 35.800, 0.2182, 0, 0, 0.108886, 0.994054, 0, 255, 1, 'mod-brill-home'),
-(970105, 970104, 0, 85, 159, 1, 4096, 2277.035, 365.952, 35.800, 1.7890, 0, 0, 0.779896, 0.625909, 0, 255, 1, 'mod-brill-home'),
-(970106, 970105, 0, 85, 159, 1, 8192, 2268.978, 369.491, 35.800, 0.2182, 0, 0, 0.108886, 0.994054, 0, 255, 1, 'mod-brill-home'),
-(970107, 970106, 0, 85, 159, 1, 16384, 2275.389, 371.527, 35.800, 1.7890, 0, 0, 0.779896, 0.625909, 0, 255, 1, 'mod-brill-home'),
-(970108, 970107, 0, 85, 159, 1, 32768, 2270.776, 365.076, 35.800, 1.0036, 0, 0, 0.481005, 0.876718, 0, 255, 1, 'mod-brill-home');
+(970100, 970100, 0, 85, 159, 1, 1, 2270.500, 370.400, 32.220, 1.1345, 0, 0, 0.537315, 0.843382, 0, 255, 1, 'mod-brill-home'),
+(970101, 970101, 0, 85, 159, 1, 512, 2268.825, 374.381, 36.320, 1.1345, 0, 0, 0.537315, 0.843382, 0, 255, 1, 'mod-brill-home'),
+(970102, 970102, 0, 85, 159, 1, 2048, 2269.014, 369.107, 36.320, 1.1345, 0, 0, 0.537315, 0.843382, 0, 255, 1, 'mod-brill-home'),
+(970103, 970103, 0, 85, 159, 1, 2048, 2270.193, 368.557, 36.320, 2.7053, 0, 0, 0.976300, 0.216422, 0, 255, 1, 'mod-brill-home'),
+(970104, 970103, 0, 85, 159, 1, 2048, 2267.836, 369.656, 36.320, 5.8469, 0, 0, 0.216422, -0.976300, 0, 255, 1, 'mod-brill-home'),
+(970105, 970104, 0, 85, 159, 1, 4096, 2270.200, 365.023, 36.320, 1.1345, 0, 0, 0.537315, 0.843382, 0, 255, 1, 'mod-brill-home'),
+(970106, 970105, 0, 85, 159, 1, 8192, 2265.962, 372.736, 36.320, 5.8469, 0, 0, 0.216422, -0.976300, 0, 255, 1, 'mod-brill-home'),
+(970107, 970106, 0, 85, 159, 1, 16384, 2272.288, 370.449, 36.320, 1.1345, 0, 0, 0.537315, 0.843382, 0, 255, 1, 'mod-brill-home'),
+(970108, 970107, 0, 85, 159, 1, 32768, 2264.701, 368.139, 36.320, 0.3491, 0, 0, 0.173666, 0.984805, 0, 255, 1, 'mod-brill-home');
 
 -- Cedric Harrow (who leaves the house to the player), and the bed's credit (sleeping in it).
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `ScriptName`) VALUES
@@ -48,7 +48,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970110, 0, 3533, 1, 1),
 (970111, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970100, 970110, 0, 85, 159, 1, 256, 2276.332, 371.429, 35.800, 0.0000, 120, 0, 0, 'mod-brill-home');
+(970100, 970110, 0, 85, 159, 1, 256, 2272.977, 369.797, 36.320, 5.6287, 120, 0, 0, 'mod-brill-home');
 
 -- Jamie Nore (Brill's town hall) gives the quests and the house's upgrades (src/BrillHome.cpp).
 UPDATE `creature_template` SET `npcflag` = `npcflag` | 3, `gossip_menu_id` = 970130, `ScriptName` = 'npc_brill_home_jamie' WHERE `entry` = 2310;
@@ -105,7 +105,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970113, 0, 11686, 1, 1),
 (970114, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970101, 970112, 0, 85, 159, 1, 1024, 2273.284, 370.856, 35.800, 2.3126, 60, 0, 0, 'mod-brill-home');
+(970101, 970112, 0, 85, 159, 1, 1024, 2270.210, 371.197, 36.320, 1.6581, 60, 0, 0, 'mod-brill-home');
 DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;
 INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES
 (39700, 0.7, 1.5, 2, 0),
@@ -151,8 +151,8 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970152, 0, 11686, 1, 1),
 (970153, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970102, 970118, 0, 85, 159, 1, 65536, 2276.332, 371.429, 35.800, 0.0000, 60, 0, 0, 'mod-brill-home'),
-(970103, 970119, 0, 85, 159, 1, 131072, 2272.111, 366.908, 35.800, 1.7890, 60, 0, 0, 'mod-brill-home');
+(970102, 970118, 0, 85, 159, 1, 65536, 2272.977, 369.797, 36.320, 5.6287, 60, 0, 0, 'mod-brill-home'),
+(970103, 970119, 0, 85, 159, 1, 131072, 2266.876, 368.780, 36.320, 1.1345, 60, 0, 0, 'mod-brill-home');
 INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES
 (970108, 2, 8, 'Old Footlocker', 1, 0, 0, 0, 'go_brill_home_keepsake'),
 (970109, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake'),
@@ -160,7 +160,7 @@ INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`,
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
 (970120, 970108, 0, 85, 0, 1, 1, 2266.600, 1316.400, 34.100, 1.2000, 0, 0, 0.564642, 0.825336, 0, 255, 1, 'mod-brill-home'),
 (970121, 970109, 0, 85, 0, 1, 1, 2905.000, 200.000, 7.860, 0.0000, 0, 0, 0.000000, 1.000000, 0, 255, 1, 'mod-brill-home'),
-(970122, 970110, 0, 85, 159, 1, 131072, 2276.757, 373.674, 35.800, 3.3598, 0, 0, 0.994054, -0.108886, 0, 255, 1, 'mod-brill-home');
+(970122, 970110, 0, 85, 159, 1, 131072, 2274.680, 371.320, 36.320, 2.7053, 0, 0, 0.976300, 0.216422, 0, 255, 1, 'mod-brill-home');
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (970146, '(Carolai has swept your floor, folded your things and made tea. She\'s waiting for you to sit.)', '(Carolai has swept your floor, folded your things and made tea. She\'s waiting for you to sit.)', 1),
 (970148, '(Carolai looks at the lily in your hand, then at you, and waits.)', '(Carolai looks at the lily in your hand, then at you, and waits.)', 1),
