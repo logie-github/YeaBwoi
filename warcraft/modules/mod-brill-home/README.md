@@ -12,16 +12,17 @@ xp bonus. Like a quarter of a level's worth."
 
 Brill's farmhouse (the game's own `Duskwood_Human_Farm.wmo`, the house at Brill 59.28, 52.29; display
 7432) as a gameobject (type 33, a destructible building, as the game's own world buildings are spawned),
-at (2289, 352) in Brill, map 59.3, 51.4 (the user's 59.35, 51.22, moved 5 yards west to clear the
-field's fence), its door west toward the main road. The place was checked against the server's data
-(`tools/build_sql.py` says how):
+at (2274.0, 370.4) in Brill, map 58.93, 51.90 (where the user stood: "Put it here instead", the last
+place having turned out to be on the road), its door north onto the road through Brill. The place was
+checked against the server's data (`tools/build_sql.py` says how):
 
-- the road from the town guards' patrol paths, which follow it;
-- ground within 2 yards of level under the house (the terrain's heights);
-- 18 yards from the nearest spawn (the seasonal camp: Midsummer's bonfire, Pilgrim's Bounty's turkeys)
-  and 24 from the nearest tree;
+- the road from the town guards' patrol paths, which follow it (x 2282 to 2285): the house's front wall at
+  its edge;
+- no spawn within 10 yards; the nearest tree 15 yards off; the apothecary's farmhouse 28 yards off;
 - the doorway from the model's collision mesh (where its walls open, at 257.5 degrees of its own turn),
-  turned to face the road; the floor (4.1 above the model's base) 0.2 above the highest ground under it.
+  turned to face the road; the floor (4.1 above the model's base) 0.2 above the highest ground under it
+  (the ground falls 1.4 yards toward the road: the floor is about 1.6 yards above the road at the door,
+  the model's foundation below it).
 
 Everyone sees the house. What's in it is each player's own, by phases: near the house (150 yards) the
 module puts a player in the world's phase and the ones that are theirs; away from it, the world's alone.

@@ -6,7 +6,7 @@ the player's all along, restored or not."""
 
 # Out the door, where Oswin works (the house's own coordinates: the doorway's side is -y; the ground
 # there is about a yard below the floor).
-OSWIN_AT = ["house", -3.0, -10.0, -1.0, 90]
+OSWIN_AT = ["house", -3.0, -10.0, -1.6, 90]
 INSPECT = "The house's state: "
 
 LINE = {

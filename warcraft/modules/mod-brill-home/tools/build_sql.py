@@ -6,15 +6,15 @@ quests (her keepsakes: her locket at Solliden Farmstead, a lily on Brightwater L
 
 The house is the farmhouse Brill's own houses are (Duskwood_Human_Farm.wmo, the game's display 7432),
 as a gameobject of the kind the game's own buildings out in the world are (a destructible building,
-never damaged: Light's Point Tower's). Where the user asked for it (Brill 59.35, 51.22, the fenced
-field north of the farmhouse at 59.28, 52.29), worked out from the server's data (data.zip: the
-terrain's heights, the collision models' doorway and the world's other models), see the README:
-- (2289, 352): 5 yards south of the asked spot, so the field's fence to its north stays outside it;
-  ground within a yard of level (the field's Pilgrim's Bounty table and pumpkins are inside it during
-  that event alone);
-- turned so its doorway (the model's own side at 257.5 degrees, where its walls open) faces the road
-  through Brill to the west (the guards' patrols at about (2290, 394));
-- its base 31.12 high: the floor (4.1 above the base) 0.2 above the highest ground under it.
+never damaged: Light's Point Tower's). Where the user stood and asked for it (Brill 58.93, 51.90: "Put
+it here instead", after the last place turned out to be on the road), worked out from the server's data
+(data.zip: the terrain's heights and the world's other models), see the README:
+- (2274.0, 370.4): south of the road through Brill (its patrols walk it at x 2282 to 2285), clear of
+  the trees and of the apothecary's farmhouse (2262, 345);
+- turned so its doorway (the model's own side at 257.5 degrees, where its walls open) faces the road,
+  north; its front wall at the road's edge;
+- its base 31.70 high: the floor (4.1 above the base) 0.2 above the highest ground under it (the ground
+  falls 1.4 yards toward the road; the model's foundation covers it).
 
 Everything inside is placed in the house's own coordinates (yards from its middle, the doorway's side
 at -y) and turned with it. Run it after changing the layout; the output is committed.
@@ -26,8 +26,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "sql", "chromiecraft", "world", "brill_home_world.sql")
 
 MAP, ZONE, AREA = 0, 85, 159
-HOUSE_X, HOUSE_Y, HOUSE_BASE = 2289.0, 352.0, 31.12
-HOUSE_O = 3.3360  # radians: the doorway (model's 257.5 degrees) toward the road west of it
+HOUSE_X, HOUSE_Y, HOUSE_BASE = 2274.0, 370.4, 31.70
+HOUSE_O = 1.7890  # radians: the doorway (model's 257.5 degrees) toward the road, north of it
 FLOOR = HOUSE_BASE + 4.1
 
 # Entries (970100 to 970199: nothing else in the game or the app's modules uses them)

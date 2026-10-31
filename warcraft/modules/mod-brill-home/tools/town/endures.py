@@ -151,8 +151,12 @@ LINE = {
     ],
 }
 
+# (Brill Endures goes in with its six projects: until they're all written, the line is left out.)
+if len(PROJECTS) < 6:
+    LINE = {"title": "Brill Endures (waiting for its projects)"}
+
 # The Town We Made: a word with each project's leader (each once).
-for project in PROJECTS:
+for project in (PROJECTS if "quests" in LINE else []):
     npc, name = LEADERS[project]
     LINE.setdefault("markers", []).append(f"walked_{project}")
     LINE["gossip"].append({"npc": f"{project}.{npc}", "kind": "option", "cond": ["I:town"],

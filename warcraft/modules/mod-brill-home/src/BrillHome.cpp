@@ -47,7 +47,7 @@ namespace fs = std::filesystem;
 namespace
 {
     // (tools/build_sql.py)
-    constexpr float HOUSE_X = 2289.0f, HOUSE_Y = 352.0f;
+    constexpr float HOUSE_X = 2274.0f, HOUSE_Y = 370.4f;
     constexpr uint32 HOUSE_MAP = 0;
     // Brill, where the house's and the town's phases apply (tools/build_town.py: BRILL_*).
     constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 165.0f;
@@ -57,7 +57,7 @@ namespace
     constexpr uint32 QUEST_HOUSE = 970120, QUEST_WELCOME = 970121, QUEST_BED = 970122, QUEST_DOG = 970123;
     constexpr uint32 TEXT_JAMIE = 970140, TEXT_UPGRADES = 970141, TEXT_BED = 970142, TEXT_DOG = 970144, TEXT_DOG_WAITING = 970145;
     // Out the door, where the stick lands (the house's own (-1.9, -12): tools/build_sql.py).
-    constexpr float STICK_X = 2288.5f, STICK_Y = 364.1f, STICK_Z = 34.2f;
+    constexpr float STICK_X = 2286.1f, STICK_Y = 371.1f, STICK_Z = 34.2f;
 
     constexpr uint32 PHASE_CEDRIC = 0x100, PHASE_BED = 0x200, PHASE_DOG = 0x400;
     // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest
@@ -781,12 +781,12 @@ struct npc_brill_home_carolai_homeAI : public ScriptedAI
 
     // (the house's: tools/build_sql.py's places, turned to what she's doing)
     struct Spot { float x, y, o; uint32 emote; bool sit; };
-    static constexpr float FLOOR = 35.22f;
+    static constexpr float FLOOR = 35.80f;
     static constexpr Spot SPOTS[] = {
-        { 2286.95f, 354.65f, 2.987f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
-        { 2292.99f, 349.32f, 5.792f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
-        { 2291.85f, 348.89f, 5.582f, 0, true },                           // with the dog, by its bed
-        { 2289.60f, 347.94f, 4.907f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
+        { 2276.60f, 372.51f, 1.440f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
+        { 2271.42f, 366.34f, 4.245f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
+        { 2270.96f, 367.47f, 4.035f, 0, true },                           // with the dog, by its bed
+        { 2269.95f, 369.71f, 3.360f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
     };
     uint32 next = 5000, spot = 0;
     bool moving = false;
