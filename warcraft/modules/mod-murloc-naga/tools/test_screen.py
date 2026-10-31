@@ -96,6 +96,22 @@ GlueAmbienceTracks = { HUMAN = "GlueScreenHuman", ORC = "GlueScreenOrcTroll",
   DARKPORTAL = "GlueScreenIntro", DEATHKNIGHT = "GlueScreenIntro", CHARACTERSELECT = "GlueScreenIntro" }
 CharModelGlowInfo = { DWARF = 0.2 }
 RaceLights = { TAUREN = { "tauren's lights" } }
+local function Label(text)
+  local l = { text = text }
+  function l:SetText(t) self.text = t end
+  function l:GetText() return self.text end
+  return l
+end
+CharacterCustomizationButtonFrame2Text = Label("Face")
+CharacterCustomizationButtonFrame3Text = Label("Hair Style")
+CharacterCustomizationButtonFrame4Text = Label("Hair Color")
+HAIR_NORMAL_STYLE, HAIR_NORMAL_COLOR = "Hair Style", "Hair Color"
+TOKENS = { [19] = "MURLOC", [20] = "NAGA" }
+function GetHairCustomization() return TOKENS[selected] or "NORMAL" end
+function CharacterCreate_UpdateHairCustomization()
+  CharacterCustomizationButtonFrame3Text:SetText(_G["HAIR_"..GetHairCustomization().."_STYLE"])
+  CharacterCustomizationButtonFrame4Text:SetText(_G["HAIR_"..GetHairCustomization().."_COLOR"])
+end
 """
 failures = 0
 
@@ -172,6 +188,15 @@ lua.execute('SetBackgroundModel("m", "VoidElf")')
 check(g.BACKGROUND == "BloodElf", "the others' scenes stay theirs")
 check(g.GlueAmbienceTracks.MURLOC == "GlueScreenDwarfGnome" and g.GlueAmbienceTracks.NAGA_ == "GlueScreenTauren", "their scenes' music on the selection screen")
 check(g.CharModelGlowInfo.MURLOC == 0.2 and g.RaceLights.NAGA_ is not None, "their scenes' glow and lights")
+def labels(race):
+    lua.eval("SetCharacterRace")(race)
+    g.CharacterCreate_UpdateHairCustomization()
+    return tuple(g[f"CharacterCustomizationButtonFrame{i}Text"].text for i in (2, 3, 4))
+
+
+check(labels(murloc) == ("Eye Color", "Fins", "Fin Color"), "the Murlocs' choices: Eye Color, Fins, Fin Color")
+check(labels(naga) == ("Face", "Headdress", "Headdress Color"), "the Naga's: Face, Headdress, Headdress Color")
+check(labels(1) == ("Face", "Hair Style", "Hair Color"), "...and every other race's the game's own")
 check(g.RACE_INFO_MURLOC and g.RACE_INFO_NAGA_ and g.ABILITY_INFO_MURLOC4 and g.ABILITY_INFO_NAGA_4 and g.NAGA__DISABLED, "their texts")
 
 ADDONS = open(os.path.join(HERE, "..", "data", "client", "Interface", "FrameXML", "MurlocNagaAddons.lua")).read()
@@ -188,6 +213,7 @@ lua.execute(ADDONS)
 lua.execute('QuestieCompat = { ChrRaces = { Human = 1, NightElf = 4, Troll = 8 } }; Fire("ADDON_LOADED", "Questie-335")')
 r = lua.globals().QuestieCompat.ChrRaces
 check(r.Murloc == 4 and r.Naga_ == 8 and r.Human == 1, "Questie's race table: the murlocs the night elves, the naga the trolls")
+check(lua.globals().HAIR_MURLOC_STYLE == "Fins" and lua.globals().HAIR_MURLOC_COLOR == "Fin Color", "the barber shop's names for the murlocs' fins")
 
 print("PASSED" if not failures else f"FAILED ({failures})")
 sys.exit(1 if failures else 0)

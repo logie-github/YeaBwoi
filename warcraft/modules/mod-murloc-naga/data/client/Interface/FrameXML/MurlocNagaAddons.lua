@@ -5,6 +5,13 @@
 --  * Questie's 3.3.5 port reads the player's race id from the race's file name (QuestieCompat.ChrRaces,
 --    the game's races alone), and stops at login on a race it hasn't. Each is its kin there, whose
 --    quests are theirs on this realm: the night elves' for the murlocs, the trolls' for the naga.
+--  * The barber shop's names for their hair choices (by their ChrRaces hair token, as the creation
+--    screen's): the murlocs' fins, the naga's headdresses.
+
+HAIR_MURLOC_STYLE = "Fins";
+HAIR_MURLOC_COLOR = "Fin Color";
+HAIR_NAGA_STYLE = "Headdress";
+HAIR_NAGA_COLOR = "Headdress Color";
 
 local KIN = { Murloc = 4, Naga_ = 8 };
 

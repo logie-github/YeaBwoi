@@ -99,7 +99,7 @@ int main(int argc, char** argv)
         if ((race == 19 || race == 20) && tex.find("Character\\Murloc\\") != 0 && tex.find("Character\\Naga_\\") != 0 && !tex.empty())
             ++leftAt19;
     }
-    Check(murlocFaces == 13 * 13 * 2, "the murlocs' faces: 13 eye colours for each of 13 skins, a sex (" + std::to_string(murlocFaces) + ")");
+    Check(murlocFaces == 16 * 13 * 2, "the murlocs' faces: 16 eye colours for each of 13 skins, a sex (" + std::to_string(murlocFaces) + ")");
     Check(nagaSkins == 18, "the naga's skins: 9 a sex (" + std::to_string(nagaSkins) + ")");
     Check(nagaNew == 8, "the naga's new colours: 4 a sex (" + std::to_string(nagaNew) + ")");
     Check(leftAt19 == 0, "no creature's look left at races 19 and 20 (" + std::to_string(leftAt19) + ")");
@@ -143,12 +143,30 @@ int main(int argc, char** argv)
                 composed |= U32(model, at + i * 16) == 1;
                 hair |= U32(model, at + i * 16) == 6;
             }
-            Check(extra && composed && hair, "its body the skin's extra texture, its eyes the composed one, the hair the hair's");
+            Check(!extra && composed && hair, "its body and eyes the composed texture, its fins the hair's (no skin \"extra\": the game draws none for it)");
         }
-        for (int c : { 0, 12 })
+        // Its geosets: the body (0), the fin styles (2..7), the features (102..; none is 101, which it hasn't).
+        for (auto [sex, features] : { std::pair<char const*, int>{ "Male", 5 }, { "Female", 7 } })
         {
-            char name[96];
-            std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocSkin%02d.blp", c);
+            Bytes s;
+            std::set<uint16_t> geosets;
+            if (archive->Read(std::string("Character\\Murloc\\") + sex + "\\Murloc" + sex + "00.skin", s) && s.size() > 48)
+                for (uint32_t i = 0, n = U32(s, 28), at = U32(s, 32); i < n && at + i * 48 + 2 <= s.size(); ++i)
+                {
+                    uint16_t g;
+                    std::memcpy(&g, &s[at + i * 48], 2);
+                    geosets.insert(g);
+                }
+            std::set<uint16_t> want = { 0 };
+            for (int f = 2; f <= 7; ++f)
+                want.insert(uint16_t(f));
+            for (int f = 1; f <= features; ++f)
+                want.insert(uint16_t(101 + f));
+            Check(geosets == want, std::string("the murloc's geosets (") + sex + "): its body, 6 fin styles, " + std::to_string(features) + " features");
+        }
+        for (char const* name : { "Character\\Murloc\\MurlocFins00.blp", "Character\\Murloc\\MurlocFins15.blp",
+                                  "Character\\Murloc\\MurlocFinsClassic07.blp", "Character\\Murloc\\MurlocFinsSail15.blp" })
+        {
             Bytes t;
             Check(archive->Read(name, t) && t.size() > 4, name);
         }
@@ -187,8 +205,13 @@ int main(int argc, char** argv)
         for (int c : { 0, 12 })
         {
             char name[96];
-            std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocEyes%02d.blp", c);
+            std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocBody%02d.blp", c);
             composited(name, 256, 128);
+            for (int f : { 0, 15 })
+            {
+                std::snprintf(name, sizeof(name), "Character\\Murloc\\MurlocEyes%02d_%02d.blp", f, c);
+                composited(name, 256, 64);
+            }
         }
         for (char const* sex : { "Male", "Female" })
             for (int c : { 0, 4, 5, 8 })

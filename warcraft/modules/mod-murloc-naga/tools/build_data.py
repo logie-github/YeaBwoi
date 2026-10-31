@@ -424,26 +424,26 @@ def main():
         new_sections.append(v)
 
     # The murlocs (tools/murloc_looks.py; their model and textures made by tools/murloc_model.py as the
-    # server is packaged): a skin colour is the body's whole texture (the skin row's second texture,
-    # the model's "extra"), over a composed texture (MurlocBase: what the game composes is palettized)
-    # whose face region the eyes read: each face an eye colour. Hair styles and features are the
-    # model's geosets; Maria's hair takes the hair colours (the hair row's texture). Every run the
-    # game sizes its choices by is whole: a face a skin colour, a feature and a hair style a hair colour.
+    # server is packaged). The body and eyes are drawn with the composed texture's face region, which
+    # the face rows fill: a face is an eye colour, each in every skin colour (FaceLower the skin's body,
+    # FaceUpper the eyes beside it); the skin rows' base (one colour) is under it. A hair style is a fin
+    # style, its colour the fins' (the hair row's texture); a facial hair style a feature (geosets
+    # only). Every run the game sizes its choices by is whole: a face a skin colour, a feature and a
+    # fin style a fin colour.
     looks = ["# The textures the patch makes from the game's own (tools/build_data.py): the naga's new colours.",
              "# naga_colour\t<sex>\t<new colour>\t<the colour it's made from>\t<hue (-1: kept)>\t<saturation x>\t<lightness x>"]
     for sex, sexname in ((0, "Male"), (1, "Female")):
-        hair_colours = len(ML.HAIR_COLOURS) if any("Hair" in parts for parts in ML.HAIR_STYLES[sexname]) else 1
         for c in range(len(ML.SKINS)):
-            section(MURLOC, sex, 0, ["Character\\Murloc\\MurlocBase.blp", f"Character\\Murloc\\MurlocSkin{c:02d}.blp", ""], 1, 0, c)
-        for face in range(len(ML.SKINS)):
+            section(MURLOC, sex, 0, ["Character\\Murloc\\MurlocBase.blp", "", ""], 1, 0, c)
+        for face in range(len(ML.EYE_COLOURS)):
             for c in range(len(ML.SKINS)):
-                section(MURLOC, sex, 1, [f"Character\\Murloc\\MurlocEyes{face:02d}.blp", "", ""], 1, face, c)
+                section(MURLOC, sex, 1, [ML.face_lower(c), ML.face_upper(face, c), ""], 1, face, c)
         for feature in range(len(ML.FEATURES[sexname])):
-            for h in range(hair_colours):
+            for h in range(len(ML.FIN_COLOURS)):
                 section(MURLOC, sex, 2, ["", "", ""], 1, feature, h)
-        for style in range(len(ML.HAIR_STYLES[sexname])):
-            for h in range(hair_colours):
-                section(MURLOC, sex, 3, [f"Character\\Murloc\\MurlocHair{h:02d}.blp", "", ""], 1, style, h)
+        for style in range(len(ML.FIN_STYLES)):
+            for h in range(len(ML.FIN_COLOURS)):
+                section(MURLOC, sex, 3, [ML.fin_texture(style, h), "", ""], 1, style, h)
         for c in range(len(ML.SKINS)):
             section(MURLOC, sex, 4, ["", "", ""], 1, 0, c)
 
@@ -490,8 +490,8 @@ def main():
             client.put("CharHairGeosets", "iiiiii", [gid, NAGA, sex, style, NL.hair_geoset(style), 0])
             gid += 1
     for sex, sexname in ((0, "Male"), (1, "Female")):
-        for style in range(len(ML.HAIR_STYLES[sexname])):
-            client.put("CharHairGeosets", "iiiiii", [gid, MURLOC, sex, style, ML.hair_geoset(style), 0])
+        for style in range(len(ML.FIN_STYLES)):
+            client.put("CharHairGeosets", "iiiiii", [gid, MURLOC, sex, style, ML.fin_geoset(style), 0])
             gid += 1
     facial = D("CharacterFacialHairStyles")
     for sex, sexname in ((0, "Male"), (1, "Female")):
