@@ -161,8 +161,8 @@ if [ -d "$DIST/modules/mod-brill-home" ]; then
 fi
 
 # The murlocs' model and textures and the naga's headdresses and outfits (mod-murloc-naga,
-# tools/murloc_model.py and tools/naga_parts.py): Blizzard's newer murloc with its kin's parts (hood,
-# horns, lure, Maria's hair and dress...) made a 3.3.5 character's, and the naga's own crowns, helms and
+# tools/murloc_model.py and tools/naga_parts.py): Blizzard's newer murloc with its fins in styles and
+# colours and its kin's parts (horns, lure, Maria's hair and dress...) made a 3.3.5 character's, and the naga's own crowns, helms and
 # outfits as parts, from the game's files by their ids (never in the repository; what was fetched is
 # kept with the allied races' cache); the world server puts them in the game's patch-<locale>-T with the
 # module's tables, the naga's parts added to the client's own naga. Each list of files is written last;

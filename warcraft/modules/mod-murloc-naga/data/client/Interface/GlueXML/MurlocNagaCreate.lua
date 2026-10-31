@@ -123,14 +123,35 @@ ABILITY_INFO_NAGA_3 = "- Scales of the Deep: Increases the armor you get from it
 ABILITY_INFO_NAGA_4 = "- Starts at level 10, in the renegades' camp off Darkshore.";
 
 -- The murlocs' choices' names (their ChrRaces row's hair token MURLOC; features, the game's FEATURES):
--- their hair styles are headgear (a shark hood, demon horns, a lure, Maria's hair), their hair colour
--- Maria's hair's.
-HAIR_MURLOC_STYLE = "Headgear";
-HAIR_MURLOC_COLOR = "Hair Color";
+-- their hair styles are their fins' shapes, their hair colour the fins' colour, their faces their eyes'
+-- colours (the face's label, the game's own for every other race, is set by race below).
+HAIR_MURLOC_STYLE = "Fins";
+HAIR_MURLOC_COLOR = "Fin Color";
+MURLOC_FACE = "Eye Color";
 -- The naga's (their hair token NAGA): the naga's own headdresses (a myrmidon's crown, a warlord's helm,
 -- a sea witch's headdress) and their colours.
 HAIR_NAGA_STYLE = "Headdress";
 HAIR_NAGA_COLOR = "Headdress Color";
+
+-- The face's label, "Eye Color" for a murloc: set where the game sets the hair's (each time the race,
+-- the sex or the screen changes), the game's own put back for every other race.
+local faceLabel;
+local updateHairCustomization = CharacterCreate_UpdateHairCustomization;
+function CharacterCreate_UpdateHairCustomization(...)
+	if ( updateHairCustomization ) then
+		updateHairCustomization(...);
+	end
+	local label = CharacterCustomizationButtonFrame2Text;
+	if ( not label or not label.SetText or not GetHairCustomization ) then
+		return;
+	end
+	faceLabel = faceLabel or label:GetText();
+	if ( GetHairCustomization() == "MURLOC" ) then
+		label:SetText(MURLOC_FACE);
+	elseif ( faceLabel ) then
+		label:SetText(faceLabel);
+	end
+end
 
 MURLOC_DISABLED = "Murlocs can't be made on this realm.";
 NAGA__DISABLED = "Naga can't be made on this realm.";

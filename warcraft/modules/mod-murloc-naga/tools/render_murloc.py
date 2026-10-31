@@ -28,23 +28,21 @@ def texture(files, name):
     return np.asarray(blp.read(open(os.path.join(files, *name.split("/")), "rb").read()))
 
 
-def composed(files, eyes):
-    """The composed texture: the base, the eyes' FaceLower in its region (0, 384)-(256, 512)."""
-    out = np.array(Image.fromarray(texture(files, "Character/Murloc/MurlocBase.blp")).convert("RGBA").resize((COMPOSED, COMPOSED)))
-    face = np.asarray(Image.fromarray(texture(files, "Character/Murloc/MurlocEyes%02d.blp" % eyes)).convert("RGBA").resize((256, 128)))
-    out[384:512, 0:256] = face
+def composed(files, eyes, skin):
+    """The composed texture: the base, then the face row's FaceUpper and FaceLower in their regions."""
+    out = np.array(Image.fromarray(texture(files, "Character/Murloc/MurlocBase.blp")).convert("RGBA").resize((L.COMPOSED, L.COMPOSED)))
+    for name, (x0, y0, x1, y1) in ((L.face_lower(skin), L.FACE_LOWER), (L.face_upper(eyes, skin), L.FACE_UPPER)):
+        out[y0:y1, x0:x1] = np.asarray(Image.fromarray(texture(files, name.replace("\\", "/"))).convert("RGBA"))
     return out
 
 
-def draw(files, sex, skin, eyes, hair_style, feature, hair_colour=0, size=(220, 300), yaw=0.0):
+def draw(files, sex, skin, eyes, fins, feature, fin_colour=0, size=(220, 300), yaw=0.0):
     path = os.path.join(files, "Character", "Murloc", sex, "Murloc%s.m2" % sex)
     model = R.Model(path)
     skin_file = R.Skin(os.path.join(os.path.dirname(path), "Murloc%s00.skin" % sex))
-    # the skin "extra" (type 8) as the game draws it: the skin colour's texture, as it is
-    model.textures = [(0, "Character\\Murloc\\MurlocSkin%02d.blp" % skin) if kind == 8 else (kind, name) for kind, name in model.textures]
     seq = next((i for i, s in enumerate(model.seqs) if s[0] == 0), 0)
     world = model.bone_matrices(seq, 400)
-    shown = {0, L.hair_geoset(hair_style), 100 + L.feature_geoset(feature)}
+    shown = {0, L.fin_geoset(fins), 100 + L.feature_geoset(feature)}
     cam = model.camera(1, seq, 400) or model.camera(0, seq, 400)
     if yaw:
         import math
@@ -55,21 +53,22 @@ def draw(files, sex, skin, eyes, hair_style, feature, hair_colour=0, size=(220, 
         cam = (fov, near, far, tuple(np.array(target) + e), target)
     light = np.array([1.0, 0.6, 1.2])
     light /= np.linalg.norm(light)
-    hair = texture(files, "Character/Murloc/MurlocHair%02d.blp" % hair_colour)
-    image, drawn = R.render(model, skin_file, composed(files, eyes), hair, files, shown, world, cam, size, light)
+    hair = texture(files, L.fin_texture(fins, fin_colour).replace("\\", "/"))
+    image, drawn = R.render(model, skin_file, composed(files, eyes, skin), hair, files, shown, world, cam, size, light)
     return image
 
 
 def main():
     files, out = sys.argv[1], sys.argv[2]
+    small = (150, 200)
     rows = []
+    # each fin style, front and side; each feature (a woman's)
+    rows.append(np.concatenate([draw(files, "Male", 1, 1, s, 0, 0, yaw=y) for s in range(len(L.FIN_STYLES)) for y in (0, 70)], axis=1))
     for sex in ("Male", "Female"):
-        tiles = [draw(files, sex, 0, 0, h, 0) for h in range(len(L.HAIR_STYLES[sex]))]
-        tiles += [draw(files, sex, 1, 0, 0, f) for f in range(1, len(L.FEATURES[sex]))]
-        rows.append(np.concatenate(tiles, axis=1))
-    rows.append(np.concatenate([draw(files, "Male", s, s, 0, 0, size=(150, 200)) for s in range(len(L.SKINS))], axis=1))
-    rows.append(np.concatenate([draw(files, "Female", 2, 2, 1, 2, c, size=(150, 200)) for c in range(len(L.HAIR_COLOURS))]
-                               + [draw(files, "Female", 2, 2, 1, 2, 0, size=(150, 200), yaw=y) for y in (90, 180)], axis=1))
+        rows.append(np.concatenate([draw(files, sex, 2, 4, 0, f, 1, size=small) for f in range(len(L.FEATURES[sex]))], axis=1))
+    rows.append(np.concatenate([draw(files, "Male", s, 1, 0, 0, 0, size=small) for s in range(len(L.SKINS))], axis=1))
+    rows.append(np.concatenate([draw(files, "Female", 3, 0, 4, 0, c, size=small, yaw=40) for c in range(len(L.FIN_COLOURS))], axis=1))
+    rows.append(np.concatenate([draw(files, "Male", 1, e, 0, 0, 0, size=(110, 150))[:75] for e in range(len(L.EYE_COLOURS))], axis=1))
     width = max(r.shape[1] for r in rows)
     sheet = np.concatenate([np.pad(r, ((0, 0), (0, width - r.shape[1]), (0, 0))) for r in rows], axis=0)
     Image.fromarray(sheet).save(out)

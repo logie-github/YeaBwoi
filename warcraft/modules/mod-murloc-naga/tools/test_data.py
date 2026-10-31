@@ -91,16 +91,23 @@ import murloc_looks as ML  # noqa: E402
 looks = [l.rstrip("\n").split("\t") for l in open(os.path.join(DATA, "client", "looks.txt")) if not l.startswith("#")]
 check(len([l for l in looks if l[0] == "naga_colour"]) == 8, "the naga's four new colours a sex")
 sections = open(os.path.join(DATA, "client", "dbc", "CharSections.txt")).read()
-made = {"MurlocBase"} | {"MurlocSkin%02d" % i for i in range(len(ML.SKINS))} | {"MurlocEyes%02d" % i for i in range(len(ML.SKINS))} \
-    | {"MurlocHair%02d" % i for i in range(len(ML.HAIR_COLOURS))}
-named = set(re.findall(r"Character\\\\Murloc\\\\([A-Za-z0-9]+)\.blp", sections))
+made = {"MurlocBase"} | {"MurlocBody%02d" % c for c in range(len(ML.SKINS))} \
+    | {"MurlocEyes%02d_%02d" % (f, c) for f in range(len(ML.EYE_COLOURS)) for c in range(len(ML.SKINS))} \
+    | {ML.fin_texture(s, h).split("\\")[-1][:-4] for s in range(len(ML.FIN_STYLES)) for h in range(len(ML.FIN_COLOURS))}
+named = set(re.findall(r"Character\\\\Murloc\\\\([A-Za-z0-9_]+)\.blp", sections))
 check(named and named <= made, f"every murloc texture the looks name is one tools/murloc_model.py makes ({sorted(named - made)})")
-check(all("MurlocSkin%02d" % i in named and "MurlocEyes%02d" % i in named for i in range(len(ML.SKINS))),
-      f"the murlocs' {len(ML.SKINS)} skins and eye colours")
+check(named == made, f"the murlocs' {len(ML.SKINS)} skin colours, {len(ML.EYE_COLOURS)} eye colours, "
+      f"{len(ML.FIN_STYLES)} fin styles in {len(ML.FIN_COLOURS)} colours ({sorted(made - named)[:4]})")
+check(not re.search(r"Murloc(Skin|Hair)", sections), "no skin \"extra\" or hair texture for the murlocs (the game draws neither for them)")
 geosets = open(os.path.join(DATA, "client", "dbc", "CharHairGeosets.txt")).read()
-check(sum(len(v) for v in ML.HAIR_STYLES.values()) == len(re.findall(r"^put\t\d+\t19\t", geosets, re.M)), "a hair style row each (murlocs)")
+murloc_hair = [l.split("\t") for l in geosets.splitlines() if re.match(r"^put\t\d+\t19\t", l)]
+check(len(murloc_hair) == 2 * len(ML.FIN_STYLES), "a fin style row each (murlocs)")
+check(all(int(r[5]) >= 2 for r in murloc_hair), "...each a geoset of its own (2 and up)")
 facial = open(os.path.join(DATA, "client", "dbc", "CharacterFacialHairStyles.txt")).read()
-check(facial.count("appendraw") >= sum(len(v) for v in ML.FEATURES.values()), "a feature row each (murlocs)")
+styles = [bytes.fromhex(l.split("\t")[1]) for l in facial.splitlines() if l.startswith("appendraw")]
+styles = [struct.unpack("<%dI" % (len(b) // 4), b) for b in styles]
+check(len([r for r in styles if r[0] == 19]) == sum(len(v) for v in ML.FEATURES.values()), "a feature row each (murlocs)")
+check(all(r[3] >= 1 for r in styles if r[0] in (19, 20)), "no feature's geoset 0 (the game shows every one of the group's meshes for it)")
 import naga_looks as NL  # noqa: E402
 naga_hair = len(re.findall(r"^put\t\d+\t20\t", geosets, re.M))
 check(naga_hair == sum(len(NL.HEADDRESSES[s]) + 1 for s in ("Male", "Female")), f"a headdress row each (naga: {naga_hair})")
