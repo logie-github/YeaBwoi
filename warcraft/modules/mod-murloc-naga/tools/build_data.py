@@ -76,6 +76,7 @@ ID_SECTIONS_END = 869999
 ID_OUTFIT, ID_HAIRGEO, ID_NAMEGEN = 9300, 9300, 93000
 ID_DISPLAY = {MURLOC: (33101, 33102)}           # the naga wear the game's own (17402, 17403)
 ID_MODEL = {MURLOC: (3701, 3702)}
+ID_TRIBE_MODEL, ID_TRIBE_DISPLAY = 3703, 33103   # the tribe's people's murloc, a look a skin (33103-33115)
 ID_SEQUENCE = {MURLOC: 9021, NAGA: 9022}
 ID_CAMERA = {MURLOC: 9021, NAGA: 9022}
 ID_NARRATION = {MURLOC: 975001, NAGA: 975002}
@@ -381,13 +382,31 @@ def main():
         d[12] = 0
         client.put("CreatureDisplayInfo", dt, d)
         display_sql.append(d)
-    sql.comment("The murlocs' models (CreatureModelData) and looks (CreatureDisplayInfo); the naga wear the game's own.")
+    # The tribe's people (tools/murloc/): murloc2 as a creature's model, with the costume's emotes
+    # (tools/murloc_model.py), a look for each of its skins.
+    m = values_of(model_data, murloc_model, mt)
+    m[0], m[2] = ID_TRIBE_MODEL, "Creature\\MurlocTribe\\MurlocTribe.mdx"
+    client.put("CreatureModelData", mt, m)
+    model_sql.append(m)
+    murloc_look = display_rows[next(r[0] for r in displays.rows if r[1] == murloc_model[0])]
+    for n in range(len(ML.SKINS)):
+        d = values_of(displays, murloc_look, dt)
+        d[0], d[1], d[2], d[3], d[4] = ID_TRIBE_DISPLAY + n, ID_TRIBE_MODEL, d[2], 0, 1.0
+        d[6], d[7], d[8], d[9] = f"MurlocTribeSkin{n:02d}", "", "", ""     # (the murloc's sounds, kept)
+        client.put("CreatureDisplayInfo", dt, d)
+        display_sql.append(d)
+    sql.comment("The murlocs' models (CreatureModelData) and looks (CreatureDisplayInfo): the race's, and its tribe's people's\n"
+                "(murloc2 in each of its skins, with emotes); the naga wear the game's own.")
     sql.raw("REPLACE INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, "
             "`FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, "
             "`DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, "
             "`GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, "
             "`MissileCollisionPush`, `MissileCollisionRaise`) VALUES\n"
             + ",\n".join("(" + ", ".join(sql_value(v, t) for v, t in zip(r, mt)) + ")" for r in model_sql) + ";")
+    sql.raw(f"REPLACE INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) "
+            f"SELECT n.`id`, i.`BoundingRadius`, i.`CombatReach`, 2, 0 FROM `creature_model_info` i JOIN (SELECT "
+            + " UNION SELECT ".join(str(ID_TRIBE_DISPLAY + n) + (" AS `id`" if n == 0 else "") for n in range(len(ML.SKINS)))
+            + ") n WHERE i.`DisplayID` = 478;")                       # (a murloc of the game's: its size)
     sql.raw("REPLACE INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, "
             "`CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, "
             "`BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES\n"

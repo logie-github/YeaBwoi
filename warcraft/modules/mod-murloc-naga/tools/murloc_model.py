@@ -49,6 +49,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "..", "mod-wrath-remix", "tools"))
 sys.path.insert(0, os.path.join(HERE, "..", "..", "mod-allied-races", "tools"))
+import murloc_anims  # noqa: E402
 import murloc_looks as L  # noqa: E402
 import models  # noqa: E402
 import blp  # noqa: E402
@@ -98,7 +99,8 @@ MAX_BONES = 64
 # the 3.3.5 header's arrays
 H_VERTS, H_TEXTURES, H_TEX_REPLACE, H_RENDER_FLAGS, H_BONE_LOOKUP, H_TEX_LOOKUP = 0x3C, 0x50, 0x68, 0x70, 0x78, 0x80
 H_TEX_UNIT_LOOKUP, H_TRANSP_LOOKUP, H_UV_LOOKUP, H_BOUNDS, H_BONES = 0x88, 0x90, 0x98, 0xA0, 0x2C
-TYPE_HARDCODED, TYPE_SKIN, TYPE_HAIR = 0, 1, 6
+TYPE_HARDCODED, TYPE_SKIN, TYPE_HAIR, TYPE_CREATURE = 0, 1, 6, 11
+CREATURE_FOLDER = "Creature/MurlocTribe"
 
 
 def wago(file_id):
@@ -385,10 +387,12 @@ def reshaped(pos, roots, scale, sweep):
     return out
 
 
-def make_model(read, sex):
-    """The murloc's model for [sex] (its skin, .anim files and the parts' texture ids by name)."""
-    name = "Murloc" + sex
-    folder = "%s/%s" % (FOLDER, sex)
+def make_model(read, sex, creature=False):
+    """The murloc's model for [sex] (its skin, .anim files and the parts' texture ids by name); or, with
+    [creature], the tribe's people's: murloc2 whole, drawn with a creature's skin (its look's texture:
+    every skin of the game's, as it is), with the same eyes and emotes."""
+    name = "MurlocTribe" if creature else "Murloc" + sex
+    folder = CREATURE_FOLDER if creature else "%s/%s" % (FOLDER, sex)
     models.NAME, models.FOLDER = name, folder
     base = Source(read, L.BASE_MODEL)
     models.SHOWN_GEOSETS = {s[0] for s in base.sections}
@@ -399,7 +403,7 @@ def make_model(read, sex):
     # The base's own triangles: the eyes (the smaller batch) and the body, its fins cut from it.
     own = sorted((base.batch_triangles(i) for i in range(len(base.batches))), key=lambda tb: len(tb[0]))
     eyes, body = own[0], own[-1]
-    fin = fin_triangles(base, body[0], rgba(read, L.SKINS[L.FIN_SKIN][0]))
+    fin = fin_triangles(base, body[0], rgba(read, L.SKINS[L.FIN_SKIN][0])) if not creature else np.zeros(len(body[0]), dtype=bool)
     body_triangles, fin_tris = body[0][~fin], body[0][fin]
 
     # The eyes' own bones (the eyeballs' and the lids'): their animations draw the eyes back into the
@@ -427,6 +431,8 @@ def make_model(read, sex):
     # into the block, a texel in from its edges).
     x0, y0, x1, y1 = L.BODY_BLOCK
     body_vertices = np.unique(body_triangles)
+    if creature:
+        return creature_model(blob, base, raw, vbones, eye_bones, head, body, eyes, read, needed, anims)
     block = np.empty((len(body_vertices), 2))
     block[:, 0] = (x0 + 0.5 + np.clip(uv[body_vertices, 0], 0, 1) * (x1 - x0 - 1)) / L.COMPOSED
     block[:, 1] = (y0 + 0.5 + np.clip(uv[body_vertices, 1], 0, 1) * (y1 - y0 - 1)) / L.COMPOSED
@@ -541,7 +547,44 @@ def make_model(read, sex):
     lo, hi = pos.min(axis=0), pos.max(axis=0)
     struct.pack_into("<6ff", blob.data, H_BOUNDS, *lo, *hi, float(np.linalg.norm(hi - lo) / 2))
     one_set_a_sequence(blob.data)
+    add_emotes(blob.data, read)
     return bytes(blob.data), skin, anims, needed, part_textures
+
+
+def add_emotes(data, read):
+    """The costume's emotes on murloc2 (tools/murloc_anims.py), their moves at murloc2's height."""
+    costume = models.chunks_of(read(L.COSTUME_MODEL))["MD21"]
+    nb, ob = struct.unpack_from("<II", costume, H_BONES)
+    tall = max(struct.unpack_from("<f", costume, ob + 88 * i + 84)[0] for i in range(nb))
+    nb, ob = struct.unpack_from("<II", data, H_BONES)
+    ours = max(struct.unpack_from("<f", data, ob + 88 * i + 84)[0] for i in range(nb))
+    added, sets = murloc_anims.add_emotes(data, costume, scale=ours / tall)
+    if len(added) < 20 or sets < 200:
+        raise ValueError(f"the costume's emotes didn't take ({len(added)} sequences, {sets} sets)")
+
+
+def creature_model(blob, base, raw, vbones, eye_bones, head, body, eyes, read, needed, anims):
+    """The tribe's people's murloc: the body and eyes with the creature's skin (its own coordinates)."""
+    parts = [(0, body[0], 0, body[1][6], 0), (0, eyes[0], 0, eyes[1][6], 0)]
+    vbones[np.isin(vbones, sorted(eye_bones))] = head
+    if vbones.max() < 256:
+        raw[:, 16:20] = np.where(raw[:, 12:16] > 0, vbones, 0).astype(np.uint8)
+    blob.set_array(H_VERTS, len(raw), blob.append(raw.tobytes()))
+    names = {"": blob.append(b"\0")}
+    blob.set_array(H_TEXTURES, 1, blob.append(struct.pack("<IIII", TYPE_CREATURE, 0, 1, names[""])))
+    blob.set_array(H_TEX_LOOKUP, 1, blob.append(struct.pack("<h", 0)))
+    replace = [-1] * (TYPE_CREATURE + 1)
+    replace[TYPE_CREATURE] = 0
+    blob.set_array(H_TEX_REPLACE, len(replace), blob.append(struct.pack("<%dh" % len(replace), *replace)))
+    blob.set_array(H_RENDER_FLAGS, len(base.materials), blob.append(b"".join(base.materials)))
+    count, _ = blob.array(H_TRANSP_LOOKUP)
+    if count == 0:
+        blob.set_array(H_TRANSP_LOOKUP, 1, blob.append(struct.pack("<h", 0)))
+    blob.set_array(H_UV_LOOKUP, 1, blob.append(struct.pack("<h", -1)))
+    skin = build_skin(blob, raw, vbones, parts)
+    one_set_a_sequence(blob.data)
+    add_emotes(blob.data, read)
+    return bytes(blob.data), skin, anims, needed, {}
 
 
 # The textures ------------------------------------------------------------------------------------
@@ -681,6 +724,14 @@ def convert(read, folder):
         files["%s/%s/Murloc%s00.skin" % (FOLDER, sex, sex)] = skin
         for file_id, name in anims.items():
             files[name] = models.anim_payload(read(file_id))
+    # the tribe's people's murloc (a creature's model: its looks' textures the game's skins)
+    model, skin, anims, _, _ = make_model(read, "Male", creature=True)
+    files["%s/MurlocTribe.m2" % CREATURE_FOLDER] = model
+    files["%s/MurlocTribe00.skin" % CREATURE_FOLDER] = skin
+    for file_id, name in anims.items():
+        files[name] = models.anim_payload(read(file_id))
+    for i, (file_id, _) in enumerate(L.SKINS):
+        files["%s/MurlocTribeSkin%02d.blp" % (CREATURE_FOLDER, i)] = read(file_id)
     for file_id, name in L.TEXTURE_NAMES.items():
         files["%s/Murloc%s.blp" % (FOLDER, name)] = read(file_id)
     for name, data in list(face_textures(read).items()) + list(fin_textures(read).items()):

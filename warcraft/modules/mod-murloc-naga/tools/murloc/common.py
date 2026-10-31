@@ -45,6 +45,10 @@ LOOKS = {
     # others
     "troll_scout": 31737, "trigger": 11686,
 }
+# The tribe's people: murloc2 (the race's own murloc) with emotes, in each skin (tools/build_data.py's
+# ID_TRIBE_DISPLAY on): talk, point, cheer, bow, cry, wave, laugh, beg, applaud... all play on them.
+TRIBE_SKINS = ["grey", "blue", "green", "pale", "orange", "gold", "fel", "red", "purple", "slate", "abyssal", "bronze", "ice"]
+LOOKS.update({f"murloc_{name}": 33103 + n for n, name in enumerate(TRIBE_SKINS)})
 
 # Object models: a GameObjectDisplayInfo id, or a game model path (a look of its own is made).
 MODELS = {
@@ -85,8 +89,27 @@ STATES = {
     "read": 483, "eat": 422, "talk": 469,
 }
 
-# Sounds (SoundEntries ids) by name.
-SOUNDS = {}
+# Sounds (SoundEntries ids) by name (more, with every id: the research's effects.md; any id works).
+SOUNDS = {
+    # murlocs
+    "murloc_aggro": 416, "murloc_alert": 1109, "murloc_fidget": 414, "murloc_fidget2": 415, "murloc_attack": 417,
+    "murloc_wound": 418, "murloc_wound_crit": 419, "murloc_death": 420, "murloc_aggro_old": 11802, "murloc_preaggro": 15995,
+    "baby_murloc": 8475, "baby_murloc_dance": 8485, "marine_murloc_click": 15933,
+    # naga
+    "naga_attack": 3433, "naga_wound": 3434, "naga_death": 3436, "naga_aggro": 3438, "naga_hiss": 3437,
+    "siren_attack": 4020, "siren_death": 4023, "siren_aggro": 4025, "siren_hiss": 4024,
+    "naga_lord_aggro": 11695, "naga_lord_hiss": 11694, "naga_lord_death": 11693,
+    # water
+    "splash_small": 1090, "splash": 1096, "splash_big": 1097, "thud_water": 1267, "drowning": 5736,
+    "pickup_water": 1197, "water_elemental": 10012,
+    # places
+    "ocean": 1114, "beach_day": 4164, "beach_night": 4165, "ship": 4215, "ship_docked": 5154, "sail": 5454,
+    "dock_bell": 5495, "underwater": 4123, "waterfall": 3791, "stormwind": 4198, "swamp": 4200, "westfall": 4207,
+    "tavern": 4394, "tavern_crowded": 7359, "campfire": 3240,
+    # guards' voices (hello, goodbye, annoyed)
+    "human_guard_pissed": 5973, "human_guard_hello": 5971, "dwarf_guard_pissed": 5912, "sentinel_pissed": 6007,
+    "goblin_guard_pissed": 5963, "orc_guard_pissed": 6020, "undead_guard_pissed": 6041, "tauren_guard_pissed": 6010,
+}
 
 # Spells for looks alone (cosmetic), by name.
 VISUALS = {}

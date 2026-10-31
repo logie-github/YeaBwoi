@@ -32,8 +32,13 @@ NPCS = [
 ]
 ```
 
-- `look`: a key of `LOOKS` in `tools/murloc/common.py` (murloc and naga looks, sympathizers'), or a
-  CreatureDisplayInfo id.
+- `look`: a key of `LOOKS` in `tools/murloc/common.py`, or a CreatureDisplayInfo id. The tribe's
+  murlocs are `murloc_<skin>` (grey, blue, green, pale, orange, gold, fel, red, purple, slate, abyssal,
+  bronze, ice): the race's own murloc with emotes (talk, point, cheer, bow, wave, cry, laugh, beg,
+  applaud, kneel, rude, kiss, flex, eat, question, exclamation, yes, no, sit, sleep, work, dance all
+  play). The game's other murloc looks (`oracle`, `tidehunter`...) play no emote but attacks, spell
+  casts, stun, cower and swimming: use them for enemies and crowds, never for someone who acts. Naga
+  looks play talk, work, roar, battle roar and casts; people of the other races play everything.
 - `level`: a number or (min, max).
 - `side`: `tribe` (friendly to murlocs, can't be attacked), `naga` (hostile), `hostile` (hostile to
   murlocs, an enemy), `neutral` (yellow), or a FactionTemplate id; a sympathizer in a town is
@@ -136,6 +141,24 @@ A beat is a tuple. `who` is `"self"` (the giver or ender), an NPC key (the neare
 
 Order matters; each beat follows the last at once unless a `wait` comes between. Keep sequences
 under a minute.
+
+## Finding places
+
+Positions come from the world: the research's gazetteer (`scratchpad/murloc/gazetteer.md`) and
+`tools/murloc/where.py`, which says what's at a spot (land, shallows or deep water; the game's creatures
+and objects nearest) and finds the game's creatures by name:
+
+    WOW_SERVER_MAPS=... WOW_WORLD_SQL=... python3 tools/murloc/where.py 1 4213 1012
+    WOW_SERVER_MAPS=... WOW_WORLD_SQL=... python3 tools/murloc/where.py find "Wrathtail" 1
+
+Someone standing needs land (or a building's floor: give z, as a creature of the game's stands there);
+an (x, y) is put on the ground, which under water is the sea floor (fine for murlocs and naga).
+
+## Sounds, visuals
+
+`common.py` names the usual sounds (`murloc_aggro`, `naga_hiss`, `splash`, `tavern`...); any
+SoundEntries id works, and the research's `effects.md` lists them by kind, with ~140 spells NPCs can
+cast for their look alone (bubbles, sparkles, frost, smoke, summons...) by id.
 
 ## Guards and towns
 

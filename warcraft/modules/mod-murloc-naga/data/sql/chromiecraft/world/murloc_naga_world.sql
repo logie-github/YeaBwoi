@@ -2,13 +2,29 @@
 -- the core's world SQL, the server's maps and tools/content.py; edit those, not this. Safe to run again:
 -- every row is replaced, every mask OR'd, every id the module's own.
 
--- The murlocs' models (CreatureModelData) and looks (CreatureDisplayInfo); the naga wear the game's own.
+-- The murlocs' models (CreatureModelData) and looks (CreatureDisplayInfo): the race's, and its tribe's people's
+-- (murloc2 in each of its skins, with emotes); the naga wear the game's own.
 REPLACE INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, `FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, `DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, `MissileCollisionPush`, `MissileCollisionRaise`) VALUES
 (3701, 0, 'Character\\Murloc\\Male\\MurlocMale.mdx', 1, 1.0, 1, 4, 18.0, 12.0, 1.0, 0.0, 0, 0, 31, 0.6111000180244446, 2.0309998989105225, 0.38719600439071655, -0.6040779948234558, -0.49666500091552734, -0.0019519999623298645, 0.43318599462509155, 0.4934160113334656, 1.285220980644226, 1.0, 1.0, 0.0, 0.0, 0.0),
-(3702, 0, 'Character\\Murloc\\Female\\MurlocFemale.mdx', 1, 1.0, 1, 4, 18.0, 12.0, 1.0, 0.0, 0, 0, 31, 0.6111000180244446, 2.0309998989105225, 0.38719600439071655, -0.6040779948234558, -0.49666500091552734, -0.0019519999623298645, 0.43318599462509155, 0.4934160113334656, 1.285220980644226, 1.0, 1.0, 0.0, 0.0, 0.0);
+(3702, 0, 'Character\\Murloc\\Female\\MurlocFemale.mdx', 1, 1.0, 1, 4, 18.0, 12.0, 1.0, 0.0, 0, 0, 31, 0.6111000180244446, 2.0309998989105225, 0.38719600439071655, -0.6040779948234558, -0.49666500091552734, -0.0019519999623298645, 0.43318599462509155, 0.4934160113334656, 1.285220980644226, 1.0, 1.0, 0.0, 0.0, 0.0),
+(3703, 0, 'Creature\\MurlocTribe\\MurlocTribe.mdx', 1, 1.0, 1, 4, 18.0, 12.0, 1.0, 0.0, 0, 0, 31, 0.6111000180244446, 2.0309998989105225, 0.38719600439071655, -0.6040779948234558, -0.49666500091552734, -0.0019519999623298645, 0.43318599462509155, 0.4934160113334656, 1.285220980644226, 1.0, 1.0, 0.0, 0.0, 0.0);
+REPLACE INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) SELECT n.`id`, i.`BoundingRadius`, i.`CombatReach`, 2, 0 FROM `creature_model_info` i JOIN (SELECT 33103 AS `id` UNION SELECT 33104 UNION SELECT 33105 UNION SELECT 33106 UNION SELECT 33107 UNION SELECT 33108 UNION SELECT 33109 UNION SELECT 33110 UNION SELECT 33111 UNION SELECT 33112 UNION SELECT 33113 UNION SELECT 33114 UNION SELECT 33115) n WHERE i.`DisplayID` = 478;
 REPLACE INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
 (33101, 3701, 0, 0, 1.0, 255, '', '', '', '', 0, 0, 0, 0, 0, 0),
-(33102, 3702, 0, 0, 1.0, 255, '', '', '', '', 0, 0, 0, 0, 0, 0);
+(33102, 3702, 0, 0, 1.0, 255, '', '', '', '', 0, 0, 0, 0, 0, 0),
+(33103, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin00', '', '', '', 1, 0, 0, 0, 0, 0),
+(33104, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin01', '', '', '', 1, 0, 0, 0, 0, 0),
+(33105, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin02', '', '', '', 1, 0, 0, 0, 0, 0),
+(33106, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin03', '', '', '', 1, 0, 0, 0, 0, 0),
+(33107, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin04', '', '', '', 1, 0, 0, 0, 0, 0),
+(33108, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin05', '', '', '', 1, 0, 0, 0, 0, 0),
+(33109, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin06', '', '', '', 1, 0, 0, 0, 0, 0),
+(33110, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin07', '', '', '', 1, 0, 0, 0, 0, 0),
+(33111, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin08', '', '', '', 1, 0, 0, 0, 0, 0),
+(33112, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin09', '', '', '', 1, 0, 0, 0, 0, 0),
+(33113, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin10', '', '', '', 1, 0, 0, 0, 0, 0),
+(33114, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin11', '', '', '', 1, 0, 0, 0, 0, 0),
+(33115, 3703, 0, 0, 1.0, 255, 'MurlocTribeSkin12', '', '', '', 1, 0, 0, 0, 0, 0);
 
 -- The races: Murloc (19, the Alliance's, the night elves' standing) and Naga (20, the Horde's, the trolls'); the
 -- game's Taunka and Northrend Skeleton, which only creatures are, moved to 30 and 31.

@@ -265,6 +265,24 @@ namespace
         "Keep out of trouble, eh?",
     };
 
+    // The guard's own annoyed voice (the game's NPC voices: its people's guards').
+    uint32 GuardVoice(Creature const* guard)
+    {
+        FactionTemplateEntry const* ft = guard->GetFactionTemplateEntry();
+        switch (ft ? ft->faction : 0)
+        {
+            case 47: case 54: return 5912;                                   // dwarf guard
+            case 69: return 6007;                                            // Sentinel
+            case 930: return 5973;
+            case 21: case 369: case 470: case 577: case 169: return 5963;  // goblin bruiser
+            case 68: return 6041;                                            // Deathguard
+            case 81: return 6010;                                            // tauren
+            case 67: case 76: case 530: case 911: return 6020;               // grunt
+            default: break;
+        }
+        return (ft && (ft->ourMask & FACTION_MASK_HORDE)) ? 6020 : 5973;
+    }
+
     Language GuardLanguage(Creature const* guard)
     {
         FactionTemplateEntry const* ft = guard->GetFactionTemplateEntry();
@@ -414,6 +432,7 @@ public:
             if (hostile)
             {
                 guard->HandleEmoteCommand(urand(0, 1) ? EMOTE_ONESHOT_POINT : EMOTE_ONESHOT_SHOUT);
+                guard->PlayDirectSound(GuardVoice(guard), player);
                 guard->Say(WARNINGS[urand(0, std::size(WARNINGS) - 1)], GuardLanguage(guard), player);
             }
             else

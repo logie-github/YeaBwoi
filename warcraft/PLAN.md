@@ -1847,6 +1847,56 @@ level 10, racials, language, class spells, the murloc's first quests and Auberdi
 the way south. The user has played the murlocs' first quests on the phone ("I really like the murloc quests"); the
 second murloc creator (fins, fin and eye colours) is drawn by `tools/render_murloc.py` only, not yet seen in the game.
 
+### The murlocs' and the naga's questlines to 55 (in progress)
+
+The user (with screenshots of Warcraft III's naga opening and the Azshara map): "reinvent these
+starting areas for murlocs in the prexisting Naga in the strand area in ashenvale. Give enough quests
+that I can level to 55. ... Literally it should be like being part of a murloc tribe and just another
+guy not part of the big world. So you can no longer do the alliance or horde quests until you finish
+the questline. They should be all in nerglish using official blizzard translator ... Come up with
+serious ones. Funny ones. Stupid ones. Boring ones. But all of them should be show not tell. This will
+get very boring very quick if you don't use sound effects, animations, emotes, etc. It needs
+professions and class trainers but all the text should be run through the nerglish translator just
+for murlocs not affecting the actual main talent or ability text. Some ones will let you be a hero,
+some a menace. Ideally it revolves around the central theme of being a murloc but also escaping the
+tyranny of the naga. Also you can gain reputation and make friends among the horde and alliance but
+you can't understand them as they use their races language. Also if you don't have great reputation
+and you aggro in a town, it would be the same as though you were in your opposite faction where you
+can be attacked and also attack them. If you aren't on good terms you can be attacked on sight by
+guards. Make the aggro circle not very large so you have to be within a few feet to actually aggro.
+Guards will give a warning in their native language if they see you approaching but won't attack
+until you are basically right up on them. Some quests will involve going into towns like stormwind or
+also maybe other smaller towns. You will have to steal and loot and maybe do morally ambiguous things
+to survive. You will also come across murloc sympathisers. Create several teams for story writing etc
+with agents." And for the naga: "use the azshara zone for the naga. Give enough quests to level from 10
+to 55. This will be a huge questline. But draw inspiration from Lady V and the Warcraft 3 storyline. Do
+huge research on that, be lore accurate, even feel free to translate the Warcraft 3 story into a wow
+format where you play through it. Include lady V's lines and voices, if there's a wow model for her
+use it but if not pull it from Warcraft 3. Use wago tools for what you can. Come up with a questline to
+take you all the way through 55 and don't cut corners." Murlocs first.
+
+Decided with the user: every murloc word Nerglish (Blizzard's 2019 translator, ported exactly: its
+script survives at assets.webn.mobi/nerglish/nerglish.js, read over plain HTTP), the quest log's
+one-line goal English; the Darkshore island village retired; the naga's story told as "living
+memory" (present-day Azshara, Warcraft III's campaign as playable flashbacks); Vashj's voice from
+Hive Workshop and thewowdb.com, nothing from the user.
+
+Decided here: about 250 murloc quests (10 to 55 is 2.55 million experience: about that many at the
+game's usual quest experience, with kills); the story's data in `modules/mod-murloc-naga/tools/murloc/`
+(chapters as data, `SCHEMA.md`), compiled to SQL and SmartAI scenes; murlocs speak Nerglish (the
+game's Titan language, renamed), not Common, so every other race's words are garbled to them, and theirs
+to everyone else; they start Hostile (-4500) with the Alliance's, the Horde's and the goblins' towns,
+which the core takes out of war once standing rises above Hostile; Low Profile in every town (detected
+at 5 yards, the game's minimum); guards warn in their own language; the tribe's trainers and
+profession trainers teach (the game's spell lists); the gate on every other quest is built at each
+start from the world database (conditions); the story's last quest makes the Alliance's towns Neutral.
+Story teams (agents): a gazetteer of the route, a story bible, chapter writers; the naga's research
+alongside.
+
+Where it stands: the systems are built and their pieces tested (the translator against MT19937's and
+Java's references, the compiler against the world database's schema, the gate's SQL on the world
+database: 6936 quests gated); the story is being written. Not in a release yet.
+
 ## Not sure (the user: "make a list of things you aren't sure about and we'll do them later")
 
 Nothing here runs on a phone; these are the things only the phone can settle, and the calls made
