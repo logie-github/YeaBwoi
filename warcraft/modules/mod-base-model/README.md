@@ -1,6 +1,6 @@
-# Body (mod-base-model)
+# No Gear (mod-base-model)
 
-**Game options → Body** previews female characters without starter gear in the character creation
+**Game options → No Gear** (named Body before) previews female characters without starter gear in the character creation
 menu. Male previews, the character list and characters in the world keep their equipment visible.
 Both 3.3.5a realms support it. Restart the realm and game after changing the option.
 

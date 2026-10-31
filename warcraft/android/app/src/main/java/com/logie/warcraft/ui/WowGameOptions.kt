@@ -6,9 +6,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,8 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -38,8 +33,9 @@ private val ZIP_TYPES = arrayOf("application/zip", "application/x-zip-compressed
 /**
  * Game options: the character textures, Ralia's mod ([RaliaFiles]) or Alternate Female Options
  * ([AlternateFemaleFiles]), one on at a time (the realm's mod-ralia makes the game's patch as it starts;
- * turning one on the first time asks for its zip, whose textures the app keeps), and Body
+ * turning one on the first time asks for its zip, whose textures the app keeps), and No Gear
  * ([BaseModelFiles]; female creation previews without starter gear, at the realm's next start).
+ * The menu has the switches alone (the user's choice: no explanations).
  */
 @Composable
 fun GameOptionsDialog(onDismiss: () -> Unit) {
@@ -50,10 +46,9 @@ fun GameOptionsDialog(onDismiss: () -> Unit) {
     var changed by remember { mutableIntStateOf(0) }
 
     WowDialog(title = stringResource(R.string.wow_options_title), onDismiss = onDismiss) {
-        Text(stringResource(R.string.wow_options_body), style = MaterialTheme.typography.bodySmall)
         TextureSetOption(RaliaFiles, stringResource(R.string.wow_options_ralia), changed) { changed++ }
         TextureSetOption(AlternateFemaleFiles, stringResource(R.string.wow_options_alternate_female), changed) { changed++ }
-        WowSwitchRow(stringResource(R.string.wow_options_base_model), stringResource(R.string.wow_options_base_model_hint), baseModel) { want ->
+        WowSwitchRow(stringResource(R.string.wow_options_base_model), null, baseModel) { want ->
             baseModel = runCatching { BaseModelFiles.setOn(root, want) }.isSuccess && want
         }
     }
@@ -101,13 +96,8 @@ private fun TextureSetOption(set: TextureSet, title: String, changed: Int, onCha
         onChanged()
     }
     when {
-        reading -> Row(verticalAlignment = Alignment.CenterVertically) {
-            WowSpinner(24.dp)
-            Spacer(Modifier.width(10.dp))
-            Text(stringResource(R.string.wow_options_ralia_reading), style = MaterialTheme.typography.bodySmall)
-        }
-        !hasFiles -> Text(stringResource(R.string.wow_options_set_pick), style = MaterialTheme.typography.bodySmall)
-        else -> WowButton(stringResource(R.string.wow_options_ralia_replace), primary = false) { pick.launch(ZIP_TYPES) }
+        reading -> WowSpinner(24.dp)
+        hasFiles -> WowButton(stringResource(R.string.wow_options_ralia_replace), primary = false) { pick.launch(ZIP_TYPES) }
     }
     problem?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = WowColors.Blood) }
 }
