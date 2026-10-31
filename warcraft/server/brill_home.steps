@@ -4,7 +4,7 @@
 cmd .levelup 11
 cmd .modify money 100000
 # At the house's door: Cedric is there for this character (phase 0x100 with the world's 1).
-go 0 2271.0 483.2 34.2
+go 0 2289.1 361.2 34.7
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x101 upgrades 0x0
@@ -20,7 +20,7 @@ reward 2310 970121
 talk 2310
 accept 2310 970122
 # Back at the house, inside: Cedric gone for this character, the bed there.
-go 0 2279.3 484.1 35.7
+go 0 2288.3 352.9 35.7
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x201 upgrades 0x0
@@ -70,7 +70,7 @@ expect quests 111
 talk 2310
 select 2310 more of a home
 select 2310 bearskin rug
-go 0 2279.3 484.1 35.7
+go 0 2288.3 352.9 35.7
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x4201 upgrades 0x4000
