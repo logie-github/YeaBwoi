@@ -1,0 +1,24 @@
+# A murloc warrior in its village (mod-murloc-naga), after its start was checked: the village's
+# people seen (its phase in Darkshore), the elder's first quest offered and the others' not yet,
+# handed in to Grrmlgrrl, his first quest next; Blrrgl's theft of Auberdine's trinkets taken, and
+# Auberdine's people friendly to it (Thundris Windweaver's quest list).
+wait 3
+# Elder Mrrglmrgl (975000) and his quest; Grrmlgrrl's (975201) not before it.
+talk 975000
+has quest 975200:
+expect-not quest 975201:
+accept 975000 975200
+talk 975001
+reward 975001 975200
+expect rewarded 975200
+talk 975001
+expect quest 975201:
+accept 975001 975201
+# Blrrgl the Snatcher's first theft.
+talk 975003
+expect quest 975203:
+accept 975003 975203
+# In Auberdine: the town talks to it (Thundris Windweaver's quests are the Alliance's).
+go 1 6581.0 492.0 8.3
+talk 3649
+expect quest 954:

@@ -508,6 +508,71 @@ EOF
 		erase_character "$name" || fail "$name wasn't erased"
 	done
 
+	echo "== the Murlocs and the Naga (mod-murloc-naga)"
+	grep -E "Murlocs and Naga: The races' patch is in the game: [0-9]+ tables, [0-9]+ files" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Murlocs' and the Naga's patch"
+	[ -s "$FILES/client/Data/enUS/patch-enUS-T.MPQ" ] && [ -s "$FILES/client/Data/enUS/patch-enUS-T.MPQ.murlocnaga" ] ||
+		fail "the Murlocs' and the Naga's patch isn't in the game"
+	# Made before the other race modules' patches, which the game reads after it and which are made
+	# from the game with it in, carrying its rows.
+	murloc_naga=$(grep -n -m1 "Murlocs and Naga: The races' patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	for later in "Worgen and Goblins: The Worgen's and Goblins' patch is in the game" "Allied races: The races' patch is in the game" \
+			"Skyborne: The Skyborne's patch is in the game"; do
+		at=$(grep -n -m1 "$later" "$FILES/logs/world.out" | cut -d: -f1 || true)
+		echo "world.out: the Murlocs' and the Naga's patch at line ${murloc_naga:-?}, '$later' at line ${at:-none}"
+		[ -z "$at" ] || [ "$murloc_naga" -lt "$at" ] || fail "the Murlocs' and the Naga's patch was made after one read over it ($later)"
+	done
+	for race in 19 20; do
+		[ "$(echo "SELECT Flags & 1 FROM chrraces_dbc WHERE ID = $race" | CTL sql acore_world)" = 0 ] || fail "race $race isn't playable"
+	done
+	[ "$(echo "SELECT ClientFilestring FROM chrraces_dbc WHERE ID = 30" | CTL sql acore_world)" = Taunka ] || fail "the Taunka aren't at race 30"
+	# The naga's standing: neutral with Darnassus, Ironforge and the Gnomeregan Exiles (their last slot),
+	# hated by the rest of the Horde.
+	for faction in 69 47 54; do
+		[ "$(echo "SELECT CONCAT(ReputationRaceMask_4 & 524288, ' ', ReputationBase_4) FROM faction_dbc WHERE ID = $faction" | CTL sql acore_world)" = "524288 0" ] ||
+			fail "the naga aren't neutral to faction $faction"
+	done
+	# A murloc warrior and a naga shaman: on their islands off Darkshore at level 10, with their racials,
+	# their side's language and their class's spells to level 10.
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Murloctester 19 1 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/murloc.out" || fail "the murloc warrior didn't get into the world"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nagatester 20 7 "$FILES/run/skyborne.steps" |
+		tee "$FILES/logs/naga.out" || fail "the naga shaman didn't get into the world"
+	for who in "Murloctester:19:1:the murlocs' village" "Nagatester:20:7:the renegades' camp"; do
+		name=${who%%:*} rest=${who#*:} race=${rest%%:*} rest=${rest#*:} class=${rest%%:*} place=${rest#*:}
+		at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
+		echo "$name at $at, $place's start $start"
+		[ -n "$at" ] && [ "$at" = "$start" ] || fail "$name didn't start in $place ($at, not $start)"
+		level=$(echo "SELECT level FROM characters WHERE name = '$name'" | CTL sql acore_characters)
+		[ "$level" = 10 ] || fail "$name is level $level, not 10"
+		spells=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN
+			(SELECT ts.SpellId FROM acore_world.trainer_spell ts JOIN acore_world.trainer t ON t.Id = ts.TrainerId
+			 WHERE t.Type = 0 AND t.Requirement = $class AND ts.ReqLevel BETWEEN 2 AND 10)" | CTL sql acore_characters)
+		[ "$spells" -ge 3 ] || fail "$name hasn't its class's spells to level 10 ($spells)"
+	done
+	for who in Murloctester:98882,98883,98884:3 Nagatester:98885,98886,98887:3; do
+		name=${who%%:*} rest=${who#*:} spells=${rest%%:*} count=${rest#*:}
+		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
+		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
+	done
+	for who in Murloctester:98 Nagatester:109; do
+		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
+	done
+	# In the world: their homes seen (their phases), their first quests; the night elves of Auberdine
+	# talk to the naga (and give it The Red Crystal, the Alliance's alone in the game's tables), Onu
+	# sends it south at level 17, and the Darkspear scout at the Zoram Strand takes it.
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Murloctester 19 1 \
+		"$ROOT/warcraft/server/murloc_naga_murloc.steps" | tee "$FILES/logs/murloc-world.out" ||
+		fail "the murloc's village and quests didn't work in the world (logs/murloc-world.out)"
+	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nagatester 20 7 \
+		"$ROOT/warcraft/server/murloc_naga_naga.steps" | tee "$FILES/logs/naga-world.out" ||
+		fail "the naga's camp, Auberdine and the way to the Horde didn't work in the world (logs/naga-world.out)"
+	echo "The murlocs and the naga start at level 10 on their islands off Darkshore, with their racials, language and class spells."
+	for name in Murloctester Nagatester; do
+		erase_character "$name" || fail "$name wasn't erased"
+	done
+
 	# The starting areas (mod-worgen-goblin's data/zones, the zones job's package): installed the way
 	# the app installs it and turned on, the two races' new characters start in Gilneas and Kezan;
 	# nothing of the game's own world changes for anyone else (the Humans and Orcs start where they
@@ -813,6 +878,12 @@ EOF
 		fail "Wrath Remix's world has WoW: Forever's new NPCs"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world)" -gt 0 ] ||
 		fail "ChromieCraft lost the allied races"
+	# The Murlocs and the Naga likewise: their patch set aside, none of their rows in Remix's world.
+	grep -q "^MurlocNaga.Enable = 0" "$FILES/etc-remix/modules/mod_murloc_naga.conf" || fail "the Murlocs and the Naga aren't off in Wrath Remix's config"
+	[ ! -e "$FILES/client/Data/enUS/patch-enUS-T.MPQ" ] && [ -e "$FILES/client/Data/enUS/patch-enUS-T.MPQ.aside" ] ||
+		fail "the Murlocs' and the Naga's patch is in the game on Wrath Remix (or wasn't kept aside)"
+	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (19, 20)" | CTL sql acore_world_remix)" = 0 ] ||
+		fail "Murlocs or Naga can be made on Wrath Remix"
 	# The Worgen and Goblins likewise: their patch set aside, none of mod-worgoblin's SQL or rows in
 	# Remix's world.
 	grep -q "^WorgenGoblin.Enable = 0" "$FILES/etc-remix/modules/mod_worgen_goblin.conf" || fail "the Worgen and Goblins aren't off in Wrath Remix's config"

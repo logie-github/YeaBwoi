@@ -1,0 +1,8 @@
+# CharHairGeosets: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iiiiii
+remapfield	1	19	30
+remapfield	1	20	31
+put	9300	20	0	0	0	0
+put	9301	20	1	0	0	0
+put	9302	19	0	0	0	0
+put	9303	19	1	0	0	0

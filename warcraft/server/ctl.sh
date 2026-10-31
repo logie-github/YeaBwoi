@@ -206,6 +206,16 @@ configure_realm() {
 			setkey "$level_scaling_conf" LevelScaling.Enable 1
 		fi
 	fi
+	# The Murlocs and the Naga (mod-murloc-naga) are ChromieCraft's alone: off on Wrath Remix's realm,
+	# where the module sets its patch aside out of the game (and realm_sql keeps its SQL out).
+	murloc_naga_conf="$R_ETC/modules/mod_murloc_naga.conf"
+	if [ -f "$murloc_naga_conf" ]; then
+		if [ "$REALM" = remix ]; then
+			setkey "$murloc_naga_conf" MurlocNaga.Enable 0
+		else
+			setkey "$murloc_naga_conf" MurlocNaga.Enable 1
+		fi
+	fi
 	# A home in Brill (mod-brill-home: the house, its quests and furniture) is ChromieCraft's alone.
 	brill_home_conf="$R_ETC/modules/mod_brill_home.conf"
 	if [ -f "$brill_home_conf" ]; then
@@ -308,6 +318,8 @@ run_dbimport() {
 # - WoW: Forever's new quests (mod-forever-quests, ChromieCraft's alone): data/sql/chromiecraft.
 # - A home in Brill (mod-brill-home, ChromieCraft's alone): data/sql/chromiecraft, its world and
 #   characters databases.
+# - The Murlocs and the Naga (mod-murloc-naga, ChromieCraft's alone): data/sql/chromiecraft, last (its
+#   rows OR its races' bits into the rows the other race modules' SQL puts in).
 realm_sql() {
 	if [ "$REALM" = remix ]; then
 		set -- "mod-wrath-remix/data/sql/remix/world acore_world_remix" "mod-wrath-remix/data/sql/remix/characters acore_characters_remix" \
@@ -315,7 +327,8 @@ realm_sql() {
 	else
 		set -- "mod-allied-races/data/sql/chromiecraft/world acore_world" "mod-worgen-goblin/data/sql/chromiecraft/world acore_world" \
 			"mod-forever-quests/data/sql/chromiecraft/world acore_world" \
-			"mod-brill-home/data/sql/chromiecraft/world acore_world" "mod-brill-home/data/sql/chromiecraft/characters acore_characters"
+			"mod-brill-home/data/sql/chromiecraft/world acore_world" "mod-brill-home/data/sql/chromiecraft/characters acore_characters" \
+			"mod-murloc-naga/data/sql/chromiecraft/world acore_world"
 	fi
 	for entry in "$@"; do
 		folder=${entry% *} db=${entry##* }

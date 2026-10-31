@@ -1,0 +1,4 @@
+# SoundEntries: the Murlocs' and the Naga's changes (tools/build_data.py)
+types	iisssssssssssiiiiiiiiiisfiffii
+put	975001	31	MurlocFlyByNarration	MurlocNarration.wav										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0
+put	975002	31	NagaFlyByNarration	NagaNarration.wav										1	0	0	0	0	0	0	0	0	0	Sound\\CinematicVoices	0.6899999976158142	0	8.0	45.0	0	0

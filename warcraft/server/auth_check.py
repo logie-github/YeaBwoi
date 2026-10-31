@@ -182,7 +182,7 @@ SMSG_QUESTGIVER_QUEST_LIST, SMSG_QUESTGIVER_QUEST_DETAILS = 0x185, 0x188
 AUTH_OK, CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE = 0x0C, 0x2F, 0x31
 CHAT_MSG_SYSTEM, CHAT_MSG_SAY, CHAT_MSG_WHISPER, LANG_COMMON, LANG_ADDON = 0x00, 0x01, 0x07, 7, 0xFFFFFFFF
 LANG_ORCISH = 1
-HORDE_RACES = (2, 5, 6, 8, 10, 14, 16, 18)  # orc, undead, tauren, troll, blood elf, Skyborne Windshaper, nightborne, Zandalari: they speak Orcish, not Common
+HORDE_RACES = (2, 5, 6, 8, 10, 14, 16, 18, 20)  # orc, undead, tauren, troll, blood elf, Skyborne Windshaper, nightborne, Zandalari, naga: they speak Orcish, not Common
 CMSG_QUESTGIVER_HELLO = 0x184
 
 # The header keys (AzerothCore's AuthCrypt.cpp): RC4 keyed with HMAC-SHA1(key, session key),

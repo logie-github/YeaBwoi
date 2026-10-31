@@ -1,0 +1,28 @@
+# A naga shaman at the renegades' camp (mod-murloc-naga), after its start was checked: Lady Szaria's
+# first quest (her camp seen: its phase in Darkshore); in Auberdine, the night elves talk to it (a
+# Horde character, neutral to Darnassus alone of the Horde's: Sentinel Glynda Nal'Shea and Thundris
+# Windweaver answer, their guards leave it be); at level 17, Onu at the Grove of the Ancients
+# offers The Tide Turns, the way to the Horde; the Zoram Strand's Darkspear scout takes it.
+wait 3
+talk 975017
+has quest 975230:
+accept 975017 975230
+# (level 12: The Red Crystal, the Alliance's alone in the game's tables, opened to the naga)
+cmd .levelup 2
+go 1 6439.0 472.0 8.1
+talk 2930
+expect quest 4811:
+go 1 6581.0 492.0 8.3
+talk 3649
+expect quest 954:
+cmd .levelup 5
+go 1 5002.0 89.0 53.0
+talk 3616
+expect quest 975232:
+accept 3616 975232
+go 1 4176.0 880.0 12.5
+talk 975024
+reward 975024 975232
+expect rewarded 975232
+talk 975024
+expect quest 975233:
