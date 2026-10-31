@@ -37,8 +37,8 @@ self-updating from this repository's GitHub releases.
   starting areas from Cataclysm, joined to Wrath's world after them (`warcraft/PLAN.md`).
 - **A home in Brill** (ChromieCraft's realm only: the house by Brill's road, Cedric Harrow's and Jamie Nore's quests,
   the bed, the furniture, the mastiff and pets for every class, Carolai Anise's five quests: a yandere romance or a friendship, and
-  as lovers her moving in; and Brill: A Place Among the Forsaken, the town's optional questlines: `tools/town/*.py`, made by
-  `tools/build_town.py`, run by `src/BrillTown.cpp`): `warcraft/modules/mod-brill-home` (its README);
+  as lovers her moving in; and Brill: A Place Among the Forsaken, the town's optional questlines and its six Community Projects:
+  `tools/town/*.py`, made by `tools/build_town.py`, run by `src/BrillTown.cpp`): `warcraft/modules/mod-brill-home` (its README);
   `tools/build_sql.py` makes its SQL, committed.
 - **The Murlocs and the Naga** (ChromieCraft's realm only: races 19, Alliance, and 20, Horde, both starting in Darkshore
   at level 10, the murlocs with their own murloc-speaking questline, the naga through Darkshore's night elf quests to the

@@ -1794,10 +1794,14 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
    the Well, Beneath the Gallows; Carolai's life at home and as a friend. A questline is data
    (`tools/town/*.py`, `tools/build_town.py`, `src/BrillTown.cpp`); the town's phases (fourteen) are all
    used. Each line has a realm test. Not seen in the game or on a phone.
-7. **The Community Projects** (the user's next design: six buildings, 30 quests, opened by a capstone,
-   "Brill Endures", once any three of Brill's lines are done): the Chapel, the Library and the Stillgarden
-   are specified; the Surgeon's Hall, Caravan Office and Old Brewery wait on the rest of the user's text.
-   The town has no phases left: they need more (the game's own 0x2 to 0x80 in Brill, or a visibility hook).
+7. **The Community Projects** (the user's design, `Brill_Six_Community_Projects.txt`: six buildings, 30
+   quests, opened by "Brill Endures" once any three of Brill's lines are done, the user's choice): built.
+   The Chapel, Library, Stillgarden, Surgeon's Hall, Caravan Office and Old Brewery, each five quests, a
+   repeatable activity, vendors and trainers, routines by the time of day, visits across projects, house
+   furnishings; The Town We Made with all six. Stages carried by the game's invisibility (core patch 0012
+   for buildings); the town's phases 0x2 to 0x40 for what goes when a building opens. Each has a realm
+   test (not run: the realm test runs only by hand now). Not seen in the game: the buildings' places and
+   fit (from the collision models), the props, the routines.
 
 ## The Murlocs and the Naga (ChromieCraft; `modules/mod-murloc-naga`)
 

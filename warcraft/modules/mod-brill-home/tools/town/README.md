@@ -20,7 +20,8 @@ LINE = {
 ```
 
 Names (an `id`) are the line's own; another line's are `"<line>.<id>"` (lines: house, grave, apprentice,
-scarlet, customer, deathguard, well, gallows), the house's own quests `home.house`, `home.welcome`,
+scarlet, customer, deathguard, well, gallows; endures and the projects chapel, library, garden, surgeon,
+caravan, brewery), the house's own quests `home.house`, `home.welcome`,
 `home.bed`, `home.dog` and Carolai's `carolai.tonic` ... `carolai.lily`. A creature of the game's own is
 its entry (an int). Ids are given out by the generator (a hundred of each kind for each line).
 
