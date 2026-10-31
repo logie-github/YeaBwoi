@@ -12,20 +12,24 @@ xp bonus. Like a quarter of a level's worth."
 
 Brill's farmhouse (the game's own `Duskwood_Human_Farm.wmo`, the house at Brill 59.28, 52.29; display
 7432) as a gameobject (type 33, a destructible building, as the game's own world buildings are spawned),
-at (2270.5, 370.4) in Brill, map 58.93, 51.90 (where the user stood: "Put it here instead", the last
-place having turned out to be on the road; 3.5 yards south of it so the whole model stays off the road),
-turned the same way as Brill's own farmhouse ("Be sure its oriented the same way as the other house"),
-its door toward the road. The place was checked against the server's data (`tools/build_sql.py` says how):
+beside the road north out of Brill, at (2275.0, 480.5), map 56.5, 51.9, its door onto the road. The
+user, after four places: "The best place you think that doesn't look stupid and looks like a natural place
+to put it". It was found by searching Brill (every spot and every turn) against the server's data
+(`tools/build_sql.py` says how) for ground that holds the whole model level, beside a road, its door
+onto it, with nothing in the way:
 
-- the road from the town guards' patrol paths, which follow it (x 2282 to 2285): the house's front wall at
-  its edge;
-- no spawn within 10 yards; the nearest tree 15 yards off; the apothecary's farmhouse 28 yards off;
-- its turn: Brill's farmhouse's from the map (245 degrees there, a half turn more as a gameobject: 65);
-  the floor (4.1 above the model's base) 0.2 above the highest ground under it (the ground falls 1.8
-  yards toward the road: the floor is about 2 yards above the road at the door, the model's foundation
-  below it).
+- the ground under the house level to 0.4 yards; the floor (4.1 above the model's base) 0.2 above its
+  highest point, so the doorstep stands a quarter yard above the ground outside, as Brill's own
+  farmhouse does (the earlier spots sloped 1.8 to 2.3 yards);
+- the road (the town guards' patrol path follows it) 15 yards from the house's middle, the door turned
+  to face it (290 degrees);
+- no tree, doodad or spawn of the game's within the model's 19 by 18 yards; the Community Projects'
+  builder's yard moved east of it to make room.
 
-Everyone sees the house. What's in it is each player's own, by phases: near the house (150 yards) the
+The house stands at Brill's north edge: the module's phases and the projects' stages apply in Brill and
+within 35 yards of the house.
+
+Everyone sees the house. What's in it is each player's own, by phases: in Brill (and by the house) the
 module puts a player in the world's phase and the ones that are theirs; away from it, the world's alone.
 A player under one of the game's own phasing spells is left as the spell has them.
 

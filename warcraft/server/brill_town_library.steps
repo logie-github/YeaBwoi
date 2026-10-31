@@ -56,7 +56,7 @@ go 0 2112.0 352.0 48.6
 cmd .brilltown use
 has Brill town: used 971221
 expect credit 971201 971218 1/8
-go 0 2280.0 468.0 34.2
+go 0 2297.0 459.0 34.5
 talk 971000
 select 971000 hinges and brackets
 expect credit 971201 971219 1/1

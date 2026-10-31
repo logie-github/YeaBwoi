@@ -6,18 +6,16 @@ quests (her keepsakes: her locket at Solliden Farmstead, a lily on Brightwater L
 
 The house is the farmhouse Brill's own houses are (Duskwood_Human_Farm.wmo, the game's display 7432),
 as a gameobject of the kind the game's own buildings out in the world are (a destructible building,
-never damaged: Light's Point Tower's). Where the user stood and asked for it (Brill 58.93, 51.90: "Put
-it here instead", after the last place turned out to be on the road), worked out from the server's data
-(data.zip: the terrain's heights and the world's other models), see the README:
-- (2270.5, 370.4): 3.5 yards south of the spot, so the whole model (19 by 18 yards) stays off the road
-  through Brill (its patrols walk it at x 2282 to 2285); clear of the trees and of the apothecary's
-  farmhouse (2262, 345);
-- turned the same way as that farmhouse, Brill's own (the user: "Be sure its oriented the same way as the
-  other house"): the map places it at 245 degrees, which the game draws turned a half turn more (the
-  map's coordinates run the other way), so 65 degrees as a gameobject; its doorway (the model's own side
-  at 257.5 degrees) faces the road, north-east;
-- its base 32.22 high: the floor (4.1 above the base) 0.2 above the highest ground under it (the ground
-  falls 1.8 yards toward the road; the model's foundation covers it).
+never damaged: Light's Point Tower's). Where it stands (the user, after four places: "The best place you
+think that doesn't look stupid and looks like a natural place to put it"), found from the server's data
+(data.zip: the terrain's heights, the world's models; the guards' paths for the roads; every spawn),
+searching Brill for the ground that holds the whole model level, beside a road, its door onto it:
+- (2275.0, 480.5), map 56.5, 51.9: beside the road north out of Brill, 15 yards off it, nothing within the
+  model's 19 by 18 yards (the builder's yard of the Community Projects moved for it);
+- turned 290 degrees: its doorway (the model's own side at 257.5 degrees) faces the road, south;
+- its base 29.96 high: the floor (4.1 above the base) 0.2 above the highest ground under it; the ground
+  under it is level to 0.4 yards and the doorstep 0.25 above the ground outside, as Brill's own farmhouse
+  stands.
 
 Everything inside is placed in the house's own coordinates (yards from its middle, the doorway's side
 at -y) and turned with it. Run it after changing the layout; the output is committed.
@@ -29,8 +27,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "sql", "chromiecraft", "world", "brill_home_world.sql")
 
 MAP, ZONE, AREA = 0, 85, 159
-HOUSE_X, HOUSE_Y, HOUSE_BASE = 2270.5, 370.4, 32.22
-HOUSE_O = 1.1345  # radians (65 degrees): as Brill's own farmhouse is turned; the doorway toward the road
+HOUSE_X, HOUSE_Y, HOUSE_BASE = 2275.0, 480.5, 29.96
+HOUSE_O = 5.0615  # radians (290 degrees): the doorway toward the road, south of it
 FLOOR = HOUSE_BASE + 4.1
 
 # Entries (970100 to 970199: nothing else in the game or the app's modules uses them)

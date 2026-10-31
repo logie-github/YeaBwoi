@@ -92,10 +92,10 @@ LINE = {
     "stages": [["R:endures"], ["R:town"]],
     "npcs": [
         {"id": "foreman", "name": "Rudd Carver", "subname": "Builder's Yard Foreman", "display": 1631, "level": 25,
-         "flags": ["gossip"], "from": 1, "spawns": [[0, 2280.0, 470.0, 33.7, 3.1]]},
+         "flags": ["gossip"], "from": 1, "spawns": [[0, 2297.0, 461.0, 33.9, 3.1]]},
         {"id": "laborer", "name": "Builder's Yard Laborer", "display": [3516, 1638, 1604], "level": 15, "flags": [],
          "from": 1, "when": "day", "wander": 4,
-         "spawns": [[0, 2284.0, 476.0, 33.7, 2.0], [0, 2276.0, 464.0, 33.7, 4.5]]},
+         "spawns": [[0, 2301.0, 467.0, 34.5, 2.0], [0, 2293.0, 455.0, 34.4, 4.5]]},
     ],
     "credits": [
         {"id": "zygand_credit", "name": "Executor Zygand told"},
@@ -124,11 +124,11 @@ LINE = {
                           "will file them.)"}]},
         # The builder's yard on the north road.
         {"id": "yard_lumber", "name": "Lumber Stack", "display": 1248, "from": 1,
-         "spawns": [[0, 2286.0, 466.0, 33.7, 0.4], [0, 2274.0, 474.0, 33.8, 1.9]]},
+         "spawns": [[0, 2303.0, 457.0, 34.0, 0.4], [0, 2291.0, 465.0, 33.9, 1.9]]},
         {"id": "yard_crates", "name": "Builder's Crates", "display": 335, "from": 1,
-         "spawns": [[0, 2288.0, 472.0, 33.7, 0.0], [0, 2272.0, 468.0, 33.7, 2.2]]},
+         "spawns": [[0, 2305.0, 463.0, 34.0, 0.0], [0, 2289.0, 459.0, 33.9, 2.2]]},
         {"id": "yard_tools", "name": "Tool Bucket", "display": 2891, "from": 1,
-         "spawns": [[0, 2281.0, 467.0, 33.7, 0.0]]},
+         "spawns": [[0, 2298.0, 458.0, 34.0, 0.0]]},
     ],
     "gossip": [
         {"npc": 1515, "kind": "option", "cond": ["I:endures"], "text": "The Magistrate is calling the town together. He asks the Deathguard to stand in the square.",

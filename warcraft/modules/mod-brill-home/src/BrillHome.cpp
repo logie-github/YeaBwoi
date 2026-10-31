@@ -48,17 +48,18 @@ namespace fs = std::filesystem;
 namespace
 {
     // (tools/build_sql.py)
-    constexpr float HOUSE_X = 2270.5f, HOUSE_Y = 370.4f;
+    constexpr float HOUSE_X = 2275.0f, HOUSE_Y = 480.5f;
     constexpr uint32 HOUSE_MAP = 0;
     // Brill, where the house's and the town's phases apply (tools/build_town.py: BRILL_*).
     constexpr float BRILL_X = 2275.0f, BRILL_Y = 330.0f, BRILL_RADIUS = 165.0f;
+    constexpr float NEAR_HOUSE = 35.0f;   // (Brill, and by the house at its north edge: tools/build_town.py)
 
     constexpr uint32 GO_BED = 970101, NPC_BED_CREDIT = 970111;
     constexpr uint32 NPC_DOG = 970112, NPC_FETCH_CREDIT = 970113, NPC_EARS_CREDIT = 970114, NPC_DOG_PET = 970115;
     constexpr uint32 QUEST_HOUSE = 970120, QUEST_WELCOME = 970121, QUEST_BED = 970122, QUEST_DOG = 970123;
     constexpr uint32 TEXT_JAMIE = 970140, TEXT_UPGRADES = 970141, TEXT_BED = 970142, TEXT_DOG = 970144, TEXT_DOG_WAITING = 970145;
     // Out the door, where the stick lands (the house's own (-1.9, -12): tools/build_sql.py).
-    constexpr float STICK_X = 2280.6f, STICK_Y = 363.6f, STICK_Z = 34.2f;
+    constexpr float STICK_X = 2263.1f, STICK_Y = 478.2f, STICK_Z = 33.9f;
 
     constexpr uint32 PHASE_CEDRIC = 0x100, PHASE_BED = 0x200, PHASE_DOG = 0x400;
     // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest
@@ -160,7 +161,9 @@ namespace
 
     bool InBrill(Player* player)
     {
-        return player->GetMapId() == HOUSE_MAP && std::hypot(player->GetPositionX() - BRILL_X, player->GetPositionY() - BRILL_Y) < BRILL_RADIUS;
+        return player->GetMapId() == HOUSE_MAP
+            && (std::hypot(player->GetPositionX() - BRILL_X, player->GetPositionY() - BRILL_Y) < BRILL_RADIUS
+                || std::hypot(player->GetPositionX() - HOUSE_X, player->GetPositionY() - HOUSE_Y) < NEAR_HOUSE);
     }
 
     // As friends: today's the day she's at the house (by the character and the day).
@@ -790,12 +793,12 @@ struct npc_brill_home_carolai_homeAI : public ScriptedAI
 
     // (the house's: tools/build_sql.py's places, turned to what she's doing)
     struct Spot { float x, y, o; uint32 emote; bool sit; };
-    static constexpr float FLOOR = 36.32f;
+    static constexpr float FLOOR = 34.06f;
     static constexpr Spot SPOTS[] = {
-        { 2273.85f, 370.49f, 0.786f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
-        { 2265.98f, 368.76f, 3.590f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
-        { 2266.31f, 369.93f, 3.380f, 0, true },                           // with the dog, by its bed
-        { 2266.87f, 372.31f, 2.705f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
+        { 2272.69f, 478.06f, 4.713f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
+        { 2277.03f, 484.86f, 1.234f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
+        { 2277.63f, 483.80f, 1.024f, 0, true },                           // with the dog, by its bed
+        { 2278.92f, 481.71f, 0.349f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
     };
     uint32 next = 5000, spot = 0;
     bool moving = false;

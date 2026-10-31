@@ -86,11 +86,11 @@ go 0 2071.5 160.5 35.1
 cmd .brilltown use
 expect credit 971501 971535 6/6
 # Rudd Carver's winch and the yard's timber; Abe Winters's iron.
-go 0 2280.0 468.0 34.2
+go 0 2297.0 459.0 34.5
 talk 971000
 select 971000 owes him a loading winch
 expect credit 971501 971536 1/1
-go 0 2268.0 461.0 34.2
+go 0 2307.0 466.0 34.9
 cmd .brilltown use
 has Brill town: used 971515
 expect credit 971501 971537 1/2

@@ -415,7 +415,7 @@ LINE = {
         {"id": "temp_tent", "name": "Temporary Warehouse", "display": 7195, "from": 2, "until": 6,
          "spawns": [[0, 2164.89, 244.59, 42.59, 5.41]]},
         {"id": "timber", "name": "Timber Chalked \"Caravan\"", "display": 1108, "from": 2, "until": 6,
-         "spawns": [[0, 2268.0, 461.0, 33.95, 1.0]],
+         "spawns": [[0, 2307.0, 468.0, 34.4, 1.0]],
          "use": [
              {"cond": ["I:q2"], "quest": "q2", "credit": "iron_credit",
               "text": "(Rudd's lads have chalked CARAVAN on the end of every board. You load what Dren asked for onto a handcart "
