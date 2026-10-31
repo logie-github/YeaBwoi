@@ -251,6 +251,8 @@ object Game {
             // The game's own cursor shown by the system (not drawn in the picture): taps read it to tell
             // what a click there would do (GestureView).
             put("gxCursor", "1")
+            // Ground taps used for jumping must keep the current target throughout.
+            put("stickyTargeting", "1")
             // Add-ons load whatever version of the game they say they're for (Add-ons, in the launcher).
             put("checkAddonVersion", "0")
             if (accountName != null) put("accountName", accountName)

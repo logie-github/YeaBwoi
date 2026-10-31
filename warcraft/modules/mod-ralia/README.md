@@ -13,8 +13,10 @@ the app keeps the zip's `Character` folder (`files/ralia/files`, `files/alternat
 nothing else from it. **Choose the zip again** replaces them. Turning one on turns the other off (its
 textures are kept). It takes effect at the realm's next start: the world server makes the game's patch as it
 starts (a few seconds to a minute the first time; again only when the zip, the client or the realm
-changes, or the other set is turned on), and takes it out while neither is on. Turning one off also
-takes the patch out of your client at once.
+changes, or the other set is turned on), and takes it out while neither is on. Existing installs rebuild
+the patch after the gnome support update. If your imported zip has no gnome textures, use **Choose the
+zip again** with a copy that includes them. Turning one off also takes the patch out of your client at
+once.
 
 `Ralia.Enable = 0` in the realm's `modules/mod_ralia.conf` keeps both out whatever the switches say. To take
 the module out of the realm altogether, delete this folder: nothing else needs it (the other race
@@ -23,12 +25,13 @@ modules only leave its patch out of what they're made from).
 ## What it changes
 
 The skin and the pelvis and torso textures of the game's character table (`CharSections`, sections 0
-and 4) for the races in the game: the eight of 1.x but the gnomes, the blood elves, the Draenei, the
+and 4) for the races in the game: all eight races of 1.x, including gnomes, the blood elves, the Draenei, the
 Worgen and Goblins (`mod-worgen-goblin`), and the allied races (`mod-allied-races`: void elves,
 nightborne, Lightforged Draenei, Zandalari Trolls). The Skyborne (`mod-skyborne`) take the blood elves':
 their skins, and the blood elves' Dark Ranger skin, are the blood elves' first colour recoloured, made
 after this patch from the game with it in (tested: the set's blood elf texture shows through both). The
-gnomes, the murlocs and the naga are left as they are, as are the races Ralia's patches have that the
+murlocs and the naga are left as they are (and with Alternate Female Options, the gnomes), as are the
+races Ralia's patches have that the
 game doesn't (Pandaren, Kul Tirans, Dark Iron dwarves, Highmountain Tauren, the orcs' clan skins).
 
 - **Each texture takes Ralia's file of the same name**: the game's names without their underscores or
@@ -74,5 +77,5 @@ is read), and before the Skyborne's `patch-Z` and Wrath Remix's `patch-Y`, which
 
 Tested: the patch's pieces against stand-ins (`tools/test_patch.cpp`), the change carried to another
 colour against Ralia's own file for it (a void elf colour: within 6 levels a channel where Ralia's
-changes are), and a dry run of the real table and files (all the playable races' textures but the
-gnomes'; about 10 seconds on a PC). Not seen in the game: nothing here runs the 3.3.5 client.
+changes are). Gnome regression checks cover male and female skins, a colour without its own file,
+and the pelvis and torso overlays. Not seen in the game: nothing here runs the 3.3.5 client.

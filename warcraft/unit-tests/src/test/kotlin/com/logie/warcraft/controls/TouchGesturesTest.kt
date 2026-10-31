@@ -57,7 +57,7 @@ class TouchGesturesTest {
     }
 
     @Test
-    fun holdOpensTheBagsAndTapThenHoldTheMap() {
+    fun aStillHoldRightClicksEvenAfterATap() {
         gestures.down(0, 100f, 200f, 0)
         gestures.onHold(TouchGestures.HOLD_MS)
         gestures.up(0, 100f, 200f, 900)
@@ -66,18 +66,18 @@ class TouchGesturesTest {
         gestures.down(0, 600f, 300f, 2200)
         gestures.onHold(2200 + TouchGestures.HOLD_MS)
         gestures.up(0, 600f, 300f, 2900)
-        assertEquals(listOf("tap B", "tap at 600,300", "tap M"), log.events)
+        assertEquals(listOf("to 100,200", "click RIGHT", "tap at 600,300", "to 600,300", "click RIGHT"), log.events)
     }
 
     @Test
     fun aHoldThatDriftsStaysAHold() {
-        // (a finger settling after the hold, up to 30 px: no drag, the bags as it lifts)
+        // A finger settling after the hold, up to 30 px: right click at its held origin.
         gestures.down(0, 600f, 300f, 0)
         gestures.onHold(TouchGestures.HOLD_MS)
         gestures.move(0, 615f, 310f)
         gestures.move(0, 625f, 315f)
         gestures.up(0, 625f, 315f, 1500)
-        assertEquals(listOf("tap B"), log.events)
+        assertEquals(listOf("to 600,300", "click RIGHT"), log.events)
     }
 
     @Test
@@ -270,11 +270,30 @@ class TouchGesturesTest {
         gestures.down(0, 300f, 570f, 2000)
         gestures.onHold(2000 + TouchGestures.HOLD_MS)
         gestures.up(0, 300f, 570f, 2900)
-        // Elsewhere, still the bags.
+        // Elsewhere, the same right click.
         gestures.down(0, 400f, 200f, 4000)
         gestures.onHold(4000 + TouchGestures.HOLD_MS)
         gestures.up(0, 400f, 200f, 4900)
-        assertEquals(listOf("to 800,300", "click RIGHT", "to 300,570", "click RIGHT", "tap B"), log.events)
+        assertEquals(listOf("to 800,300", "click RIGHT", "to 300,570", "click RIGHT", "to 400,200", "click RIGHT"), log.events)
+    }
+
+    @Test
+    fun holdingAnItemThenDraggingNeverRightClicksIt() {
+        log.rightClickArea = { _, _ -> true }
+        gestures.down(0, 800f, 300f, 0)
+        gestures.onHold(TouchGestures.HOLD_MS)
+        assertTrue(log.events.isEmpty(), "a hold must wait to distinguish use from drag")
+        gestures.move(0, 850f, 350f)
+        gestures.up(0, 900f, 400f, 1000)
+        assertEquals(listOf("to 800,300", "press LEFT", "to 850,350", "to 900,400", "release LEFT"), log.events)
+    }
+
+    @Test
+    fun cancellingAHoldDoesNotClickOrOpenInventory() {
+        gestures.down(0, 800f, 300f, 0)
+        gestures.onHold(TouchGestures.HOLD_MS)
+        gestures.cancel()
+        assertTrue(log.events.isEmpty())
     }
 
     @Test

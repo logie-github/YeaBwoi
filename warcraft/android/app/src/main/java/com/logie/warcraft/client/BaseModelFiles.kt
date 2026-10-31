@@ -4,10 +4,8 @@ package com.logie.warcraft.client
 
 import java.io.File
 
-/**
- * Base Model (the launcher's Game options; the realm's mod-base-model): every character drawn without its
- * gear while it's on. The switch is a file in the app's files (`base-model/enabled`), which the world
- * server looks for every two seconds, so it works while the realm runs.
+/** Body: female character creation previews without starter gear, applied at the realm's next start.
+ * The marker keeps the old name so existing launcher preferences carry over.
  */
 object BaseModelFiles {
     private fun marker(root: File) = File(File(root, "base-model"), "enabled")

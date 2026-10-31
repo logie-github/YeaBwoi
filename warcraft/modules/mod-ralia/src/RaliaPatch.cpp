@@ -12,7 +12,7 @@
  * blood elves', recoloured, so the Skyborne wear Ralia's blood elf textures), and without itself.
  *
  * Which textures: the game's CharSections names them, each skin (section 0) and underwear (section 4:
- * pelvis and torso) of every race but the gnomes, the murlocs and the naga.
+ * pelvis and torso) of every race but the murlocs and the naga.
  * Each takes Ralia's file of the same name (the game's names, without their underscores and their
  * case, are today's, with "_hd" after the newer models'), or for the allied races the one
  * data/client/sources.txt names (tools/build_data.py: their colours are numbered as this game's tables
@@ -57,9 +57,9 @@ namespace Ralia
     namespace
     {
         constexpr char const* MARK_SUFFIX = ".ralia";
-        constexpr char const* VERSION = "ralia-1";
+        constexpr char const* VERSION = "ralia-2";
         // The races left as they are (their textures' folders).
-        constexpr char const* LEFT_OUT[] = { "character\\gnome\\", "character\\murloc\\", "character\\naga_\\" };
+        constexpr char const* LEFT_OUT[] = { "character\\murloc\\", "character\\naga_\\" };
         // Above this share of a skin changed, the nearest file isn't the same picture changed.
         constexpr double MOST_CHANGED = 0.05;
 
@@ -260,6 +260,8 @@ namespace Ralia
         Stamp stamp;
         stamp.Add(VERSION);
         stamp.Add(set.name + (set.femaleOnly ? "|women" : ""));
+        for (std::string const& out : set.leftOut)
+            stamp.Add(out);
         stamp.Add(game.Describe());
         stamp.Add(table);
         for (auto const& [name, size] : listing)
@@ -294,6 +296,9 @@ namespace Ralia
             if (path.empty() || byPath.count(lower) || (set.femaleOnly && lower.find("\\female\\") == std::string::npos))
                 return;
             for (char const* out : LEFT_OUT)
+                if (StartsWith(lower, out))
+                    return;
+            for (std::string const& out : set.leftOut)
                 if (StartsWith(lower, out))
                     return;
             byPath[lower] = targets.size();

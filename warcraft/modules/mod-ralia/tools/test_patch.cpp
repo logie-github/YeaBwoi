@@ -12,11 +12,12 @@
 // a texture with Ralia's file takes its body half at the game's size, palettized; a colour without
 // one takes its nearest colour's change and keeps its own colour (and a tattoo, through sources.txt's
 // "="); one whose nearest file is another picture is left out; sources.txt's named file is used for
-// a colour numbered otherwise; the gnomes are left out; the patch isn't made again unchanged; it's
-// taken out with no files, and one that isn't the module's is left alone. Where a set has a texture as
-// the older models' and the newer's ("_hd"), the one nearer the game's picture is used; Alternate Female
-// Options takes the women's alone. The Skyborne's patch, made after it, makes the Skyborne's skins and
-// the blood elves' Dark Ranger skin from the set's blood elf skin.
+// a colour numbered otherwise; male and female gnome textures are included; the patch isn't made again
+// unchanged; it's taken out with no files, and one that isn't the module's is left alone. Where a set has
+// a texture as the older models' and the newer's ("_hd"), the one nearer the game's picture is used;
+// Alternate Female Options takes the women's alone, and leaves the gnomes as they are. The Skyborne's
+// patch, made after it, makes the Skyborne's skins and the blood elves' Dark Ranger skin from the set's
+// blood elf skin.
 
 #include "../src/RaliaImage.h"
 #include "../src/RaliaPatch.h"
@@ -139,7 +140,7 @@ static std::string Show(Image const& image, uint32_t x, uint32_t y)
 int main(int argc, char** argv)
 {
     fs::path skyborneData = argc > 1 ? fs::path(argv[1]) : fs::path("../mod-skyborne/data/client");
-    Set const ralia { "Ralia's mod", false }, alternate { "Alternate Female Options", true };
+    Set const ralia { "Ralia's mod", false, {} }, alternate { "Alternate Female Options", true, { "character\\gnome\\" } };
     fs::path root = fs::temp_directory_path() / "ralia-test";
     fs::remove_all(root);
     fs::path data = root / "client" / "Data", common = data / "common.MPQ", files = root / "ralia" / "files";
@@ -170,6 +171,14 @@ int main(int argc, char** argv)
     std::string const G = "Character\\Gnome\\Female\\";
     Row(dbc, 7, 7, 1, 0, G + "GnomeFemaleSkin00_00.blp", "", 0);
     GameTexture(common, G + "GnomeFemaleSkin00_00.blp", Flat(64, 64, human0));
+    Row(dbc, 12, 7, 1, 0, G + "GnomeFemaleSkin00_01.blp", "", 1);
+    GameTexture(common, G + "GnomeFemaleSkin00_01.blp", Flat(64, 64, human1));
+    Row(dbc, 13, 7, 1, 4, G + "GnomeFemaleNakedPelvisSkin00_00.blp", G + "GnomeFemaleNakedTorsoSkin00_00.blp", 0);
+    for (std::string part : { "Pelvis", "Torso" })
+        GameTexture(common, G + "GnomeFemaleNaked" + part + "Skin00_00.blp", Flat(32, 16, { 250, 250, 250 }), true);
+    std::string const GM = "Character\\Gnome\\Male\\";
+    Row(dbc, 14, 7, 0, 0, GM + "GnomeMaleSkin00_00.blp", "", 0);
+    GameTexture(common, GM + "GnomeMaleSkin00_00.blp", Flat(64, 64, human0));
     std::string const V = "Character\\VoidElf\\Female\\";
     Row(dbc, 8, 29, 1, 0, V + "VoidElfFemaleSkin00_07.blp", "", 7);
     GameTexture(common, V + "VoidElfFemaleSkin00_07.blp", Flat(64, 64, { 180, 170, 220 }));
@@ -184,16 +193,16 @@ int main(int argc, char** argv)
     GameTexture(common, W + "WORGENFEMALESKIN00_00.blp", Flat(64, 64, { 100, 80, 60 }));
     // A set's texture as the older models' and the newer's: the one nearer the game's own is used.
     std::string const D = "Character\\Draenei\\Female\\";
-    Row(dbc, 12, 11, 1, 0, D + "DraeneiFemaleSkin00_00.blp", "", 0);
-    Row(dbc, 13, 11, 1, 0, D + "DraeneiFemaleSkin00_01.blp", "", 1);
+    Row(dbc, 21, 11, 1, 0, D + "DraeneiFemaleSkin00_00.blp", "", 0);
+    Row(dbc, 22, 11, 1, 0, D + "DraeneiFemaleSkin00_01.blp", "", 1);
     auto stripes = [](uint32_t x, uint32_t) { return (x / 4) % 2 ? Rgb{ 150, 120, 200 } : Rgb{ 110, 90, 170 }; };
     GameTexture(common, D + "DraeneiFemaleSkin00_00.blp", Make(64, 64, stripes));
     GameTexture(common, D + "DraeneiFemaleSkin00_01.blp", Flat(64, 64, { 130, 100, 180 }));
     // A man's, and the blood elves' first colour (the Skyborne's and the Dark Ranger's).
     std::string const HM = "Character\\Human\\Male\\", B = "Character\\BloodElf\\Female\\";
-    Row(dbc, 14, 1, 0, 0, HM + "HumanMaleSkin00_00.blp", "", 0);
+    Row(dbc, 23, 1, 0, 0, HM + "HumanMaleSkin00_00.blp", "", 0);
     GameTexture(common, HM + "HumanMaleSkin00_00.blp", Flat(64, 64, { 190, 150, 130 }));
-    Row(dbc, 15, 10, 1, 0, B + "BloodElfFemaleSkin00_00.blp", "", 0);
+    Row(dbc, 24, 10, 1, 0, B + "BloodElfFemaleSkin00_00.blp", "", 0);
     GameTexture(common, B + "BloodElfFemaleSkin00_00.blp", Flat(64, 64, { 230, 190, 160 }));
     Write(common / "DBFilesClient" / "CharSections.dbc", dbc.Write());
 
@@ -213,6 +222,9 @@ int main(int argc, char** argv)
     RaliaTexture(files, "Character/Orc/Female/orcfemaleskin00_00_hd.blp",
         today({}, [](uint32_t x, uint32_t) { return Rgb{ int(x * 3), 100, 50 }; }));
     RaliaTexture(files, "Character/Gnome/Female/gnomefemaleskin00_00_hd.blp", today(human0, withSquare(human0, changed)));
+    RaliaTexture(files, "Character/Gnome/Male/gnomemaleskin00_00_hd.blp", today(human0, withSquare(human0, changed)));
+    RaliaTexture(files, "Character/Gnome/Female/gnomefemalenakedpelvisskin00_00_hd.blp", Flat(64, 32, { 0, 0, 0 }, 0));
+    RaliaTexture(files, "Character/Gnome/Female/gnomefemalenakedtorsoskin00_00_hd.blp", Flat(64, 32, { 0, 0, 0 }, 0));
     RaliaTexture(files, "Character/BloodElf/Female/bloodelffemaleskin00_01_hd.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 240, 200, 170 }; }));
     RaliaTexture(files, "Character/Nightborne/Female/nightbornefemaleskin00_00.blp", today(nightborne, withSquare(nightborne, changed)));
     RaliaTexture(files, "Character/Worgen/Female/worgenfemaleskin00_00.blp", Flat(32, 32, { 50, 40, 30 }));
@@ -271,7 +283,18 @@ int main(int argc, char** argv)
     ok = read(O + "OrcFemaleSkin00_00.blp", image, encoding, alphaDepth);
     Check(ok && Near(image, 60, 30, { 180, 100, 50 }, 12), "Ralia's file is used even when it's another picture than the game's " + Show(image, 60, 30));
     Check(!archive->Has(O + "OrcFemaleSkin00_01.blp"), "a colour whose nearest file is another picture is left as it is");
-    Check(!archive->Has(G + "GnomeFemaleSkin00_00.blp"), "the gnomes are left out");
+    ok = read(G + "GnomeFemaleSkin00_00.blp", image, encoding, alphaDepth);
+    Check(ok && image.width == 64 && encoding == 1 && Near(image, 44, 14, changed, 8), "female gnome skin takes Ralia's body half, palettized at the game's size");
+    ok = read(GM + "GnomeMaleSkin00_00.blp", image, encoding, alphaDepth);
+    Check(ok && Near(image, 44, 14, changed, 8), "male gnome skin takes its matching Ralia texture");
+    ok = read(G + "GnomeFemaleSkin00_01.blp", image, encoding, alphaDepth);
+    Rgb gnomeChanged { human1.r * (changed.r + 8) / (human0.r + 8), human1.g * (changed.g + 8) / (human0.g + 8), human1.b * (changed.b + 8) / (human0.b + 8) };
+    Check(ok && Near(image, 5, 5, human1, 6) && Near(image, 44, 14, gnomeChanged, 8), "a gnome colour without a file keeps its own colour and takes the nearest change");
+    for (std::string part : { "Pelvis", "Torso" })
+    {
+        ok = read(G + "GnomeFemaleNaked" + part + "Skin00_00.blp", image, encoding, alphaDepth);
+        Check(ok && image.width == 32 && image.height == 16 && image.rgba[3] == 0, "female gnome " + part + " uses Ralia's overlay and alpha");
+    }
 
     ok = read(V + "VoidElfFemaleSkin00_07.blp", image, encoding, alphaDepth);
     Check(ok && Near(image, 30, 30, { 240, 200, 170 }, 6), "sources.txt's file for a colour numbered otherwise " + Show(image, 30, 30));

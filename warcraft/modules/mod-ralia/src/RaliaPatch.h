@@ -11,17 +11,20 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace Ralia
 {
     namespace fs = std::filesystem;
     using Log = std::function<void(std::string const&)>;
 
-    // A set of character textures: its name (the app's, for the log), and whether it's women's alone.
+    // A set of character textures: its name (the app's, for the log), whether it's women's alone, and
+    // the races it leaves as they are besides the module's own (their textures' folders, lower case).
     struct Set
     {
         std::string name;
         bool femaleOnly = false;
+        std::vector<std::string> leftOut;
     };
 
     // Makes the patch (again, when what it's made from changed) from [set]'s textures in [files] (a

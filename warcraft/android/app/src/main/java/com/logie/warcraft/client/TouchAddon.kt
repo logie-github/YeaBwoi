@@ -27,8 +27,8 @@ package com.logie.warcraft.client
  * vendor, a trainer, the flight master's map, the mail, a trade, Immersion's, the game's questions),
  * "open 0" otherwise: a double tap then clicks twice and never jumps, which would close it.
  *
- * F12 is the game's Target Last Target (an override binding, set out of combat): a double tap's
- * jump presses it when its first tap's click on the ground cleared the target, which comes back.
+ * Sticky targeting keeps a double tap's first ground click from clearing the current target.
+ * Jumping never clears and restores the target or changes the player's bindings.
  *
  * A talent's first tap shows what it does (its tooltip) and spends nothing; a second tap on it
  * straight after (a double tap: the app clicks twice on the game's windows) spends the point.
@@ -234,18 +234,8 @@ object TouchAddon {
                 end
             end
 
-            -- F12: the game's Target Last Target, which the app presses after a double tap's jump when
-            -- its first tap's click on the ground cleared the target. An override binding (the
-            -- player's own bindings stay), set out of combat, as the game asks.
-            local retargetReady = false
-            local function readyRetarget()
-                if retargetReady or InCombatLockdown() or not SetOverrideBinding then return end
-                SetOverrideBinding(CreateFrame("Frame"), true, "F12", "TARGETLASTTARGET")
-                retargetReady = true
-            end
-
             local function readyBars()
-                readyRetarget()
+                if SetCVar then SetCVar("stickyTargeting", "1") end
                 if barsReady or InCombatLockdown() then return end
                 for _, name in ipairs(barButtons) do
                     for i = 1, 12 do

@@ -1,13 +1,13 @@
 [worldserver]
 
 ########################################
-# Base Model (mod-base-model): both realms
+# Body (mod-base-model): female creation previews, both realms
 ########################################
 #
 #    BaseModel.Enable
-#        Description: Every character drawn without its gear while the app's Game options have
-#                     "Base Model" on (the gear stays on, with its stats). 0 keeps it off whatever
-#                     the switch says.
+#        Description: Female character creation previews without starter gear when Body is on.
+#                     Applied to the client patch at realm startup; never changes in-game gear.
+#                     0 keeps it off whatever the launcher switch says.
 #        Default:     1
 
 BaseModel.Enable = 1

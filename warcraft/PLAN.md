@@ -1876,7 +1876,7 @@ a phone (how today's textures sit on the 3.3.5 models without an HD look).
 The user: "Can I make another option for the game that uses these textures? [azerothica's Warlords of Draenor
 non-model-change patch] Call it "Alternate Female Options" in the launcher settings. Make sure the textures apply to
 skybourne and also the dark ranger skin." Built: a second set in mod-ralia (`files/alternate-female`), the women's
-textures alone, one set on at a time; where a set has both the older models' and the newer's file, the nearer the game's
+textures alone (the gnomes, murlocs and naga as they are), one set on at a time; where a set has both the older models' and the newer's file, the nearer the game's
 picture. The Skyborne's skins and the Dark Ranger skin are made by the Skyborne's patch from the blood elves' first colour
 with the set's patch in (tested). The zip itself isn't checked yet: the site turns the session's downloads away; the user
 is asked for it.
@@ -1939,3 +1939,17 @@ without it. Each is small on its own.
 - Playerbots: https://github.com/mod-playerbots/mod-playerbots (its core:
   https://github.com/mod-playerbots/azerothcore-wotlk, branch `Playerbot`); version-mismatch reports:
   https://www.linux.org.ru/articles/games/18260586
+
+## Warcraft fixes, 2026-10-31
+
+User corrections: the Brill quest dog uses the stock pug model, including existing adopted pets;
+hold still and release is right click everywhere, hold then drag holds the left mouse button;
+double-tap jumping retains the target with sticky targeting and never sends Target Last Target;
+ghosts automatically use the stock Swift Spectral Gryphon until resurrected; Body (formerly Base
+Model) affects only female character creation previews, never live characters or male previews.
+The Body preference is kept and applied in the final client patch at realm startup. The older
+requirements and implementation notes above are superseded by these corrections.
+
+Ralia follow-up (2026-10-31): include gnomes too. Removed the explicit gnome texture exclusion,
+bumped the patch version so existing installs rebuild, and added regression checks for both sexes,
+female overlays and a colour with no direct source texture. The user's imported files are retained.

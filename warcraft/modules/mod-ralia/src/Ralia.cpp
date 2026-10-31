@@ -32,7 +32,7 @@ namespace
     // (in this order, should both be on)
     Choice const SETS[] = {
         { "ralia", { "Ralia's mod", false } },
-        { "alternate-female", { "Alternate Female Options", true } },
+        { "alternate-female", { "Alternate Female Options", true, { "character\\gnome\\" } } },
     };
 }
 
