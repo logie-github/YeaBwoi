@@ -1877,9 +1877,11 @@ The user: "Can I make another option for the game that uses these textures? [aze
 non-model-change patch] Call it "Alternate Female Options" in the launcher settings. Make sure the textures apply to
 skybourne and also the dark ranger skin." Built: a second set in mod-ralia (`files/alternate-female`), the women's
 textures alone (the gnomes, murlocs and naga as they are), one set on at a time; where a set has both the older models' and the newer's file, the nearer the game's
-picture. The Skyborne's skins and the Dark Ranger skin are made by the Skyborne's patch from the blood elves' first colour
-with the set's patch in (tested). The zip itself isn't checked yet: the site turns the session's downloads away; the user
-is asked for it.
+picture; a set's tauren fur textures too. The Skyborne's skins and the Dark Ranger skin are made by the Skyborne's patch
+from the blood elves' first colour with the set's patch in (tested). The user's zip (the site's "BFA Non Model Change"
+patch, sent by the user: loose Character textures, the older models' and the newer's) in a dry run of the real table:
+every playable race's women's textures but the gnomes', 738 from its files and 124 colours from their nearest, 10 s on
+a PC; the older or newer file follows the models the game draws (24 of 24 each way).
 
 ## Base Model (both realms; `modules/mod-base-model`)
 

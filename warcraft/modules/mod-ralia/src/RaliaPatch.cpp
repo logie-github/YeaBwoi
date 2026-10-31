@@ -11,8 +11,8 @@
  * patch-Y (made after it as the world starts, from the game with it in: the Skyborne's skins are the
  * blood elves', recoloured, so the Skyborne wear Ralia's blood elf textures), and without itself.
  *
- * Which textures: the game's CharSections names them, each skin (section 0) and underwear (section 4:
- * pelvis and torso) of every race but the murlocs and the naga.
+ * Which textures: the game's CharSections names them, each skin (section 0, and its second texture,
+ * the tauren's fur, when a set has it) and underwear (section 4: pelvis and torso) of every race but the murlocs and the naga.
  * Each takes Ralia's file of the same name (the game's names, without their underscores and their
  * case, are today's, with "_hd" after the newer models'), or for the allied races the one
  * data/client/sources.txt names (tools/build_data.py: their colours are numbered as this game's tables
@@ -57,7 +57,7 @@ namespace Ralia
     namespace
     {
         constexpr char const* MARK_SUFFIX = ".ralia";
-        constexpr char const* VERSION = "ralia-2";
+        constexpr char const* VERSION = "ralia-3";
         // The races left as they are (their textures' folders).
         constexpr char const* LEFT_OUT[] = { "character\\murloc\\", "character\\naga_\\" };
         // Above this share of a skin changed, the nearest file isn't the same picture changed.
@@ -160,7 +160,7 @@ namespace Ralia
             }
         };
 
-        enum Kind { SKIN, PELVIS, TORSO };
+        enum Kind { SKIN, PELVIS, TORSO, EXTRA };   // (EXTRA: a skin's second texture, the tauren's fur)
 
         struct Target
         {
@@ -311,7 +311,10 @@ namespace Ralia
         {
             uint32_t section = sections.Get(row, 3);
             if (section == 0)
+            {
                 add(sections.Get(row, 4), SKIN);
+                add(sections.Get(row, 5), EXTRA);
+            }
             else if (section == 4)
             {
                 add(sections.Get(row, 4), PELVIS);
@@ -365,7 +368,7 @@ namespace Ralia
                 Image image;
                 if (!DecodeFull(ReadFile(file), image))
                     return false;
-                if (kind == SKIN)
+                if (kind == SKIN || kind == EXTRA)
                     image = Body(image);
                 it = raliaImages.emplace(file, std::move(image)).first;
             }
@@ -410,7 +413,7 @@ namespace Ralia
         auto sameKind = [&](Target const& t) -> fs::path
         {
             auto it = raliaFolders.find(Folder(t.path));
-            if (it == raliaFolders.end() || t.kind == SKIN)
+            if (it == raliaFolders.end() || t.kind == SKIN || t.kind == EXTRA)
                 return {};
             std::string part = t.kind == PELVIS ? "nakedpelvisskin" : "nakedtorsoskin";
             for (fs::path const& file : it->second)
@@ -453,7 +456,8 @@ namespace Ralia
                     bool hasFile = !t.source.empty();
                     if (hasFile != (pass == 0))
                         continue;
-                    size_t src = hasFile ? index : donor(index, group, 0);
+                    // (a fur texture is its colour's own: none from another colour's)
+                    size_t src = hasFile ? index : t.kind == EXTRA ? SIZE_MAX : donor(index, group, 0);
                     fs::path file = src != SIZE_MAX ? targets[src].source : sameKind(t);
                     if (file.empty() || !readGame(t))
                     {

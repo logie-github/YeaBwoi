@@ -42,6 +42,8 @@ game doesn't (Pandaren, Kul Tirans, Dark Iron dwarves, Highmountain Tauren, the 
   file each takes. The Worgen's pelvis and torso textures (named `_regular` and `_dk`) take Ralia's of
   their kind.
 - **Alternate Female Options takes the women's textures alone** (`\Female\` in their path).
+- **The tauren's fur** (a skin's second texture, `_Extra`): a set's file of the same name, when it has
+  one; a colour without one keeps the game's.
 - **The older models' file or the newer's**: where a set has a texture both as the older models' and as
   the newer's (`_hd`), the one nearer the game's own picture is used (the game draws the older models,
   or an HD look's newer ones).
