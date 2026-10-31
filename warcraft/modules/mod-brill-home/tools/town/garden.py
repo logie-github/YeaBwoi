@@ -271,12 +271,14 @@ LINE = {
                 "A garden isn't made, it's kept. Pull what's crept back into the beds, pinch the dead heads off the "
                 "gravebloom, and see what's ripe under the glass. Not too much, mind. We take a little and leave the "
                 "rest, or there's nothing next week. That's gardening, and good husbandry, and most of what I know about "
-                "people as well."),
+                "people as well.$B$B"
+                "Odo will tell you which beds want you. He talks to them, and they answer him, he says. I don't argue with "
+                "Odo before noon."),
             "progress": "Four beds, three herbs. The gravebloom will try to nip you. It's affectionate.",
             "done": (
                 "Lovely. You've a gardener's hands, $n, whatever else you've done with them.$B$B"
                 "Take a share of the harvest. It's yours; you grew it, in a manner of speaking. In a manner of speaking, "
-                "I'm still a florist."),
+                "I'm still a florist. Pellen will want to weigh it first. Let him. It makes him happy, in his way."),
             "objectives": [("credit", "tend_credit", 4, "Beds tended"),
                            ("credit", "harvest_credit", 3, "Ripe herbs cut")],
             "return": "Return to Edda Graves in the Stillgarden.",

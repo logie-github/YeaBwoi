@@ -365,7 +365,7 @@ LINE = {
          "spawns": [[0, 2198.0, 300.0, 32.39, 0.524]]},
 
         # 1: Irena's field desk by the road (until the office opens).
-        {"id": "desk_tent", "name": "Quartermaster's Tent", "display": 7194, "from": 1, "until": 6,
+        {"id": "desk_tent", "name": "Quartermaster's Awning", "display": 6738, "scale": 0.7, "from": 1, "until": 6,
          "spawns": [[0, 2196.2, 264.6, 38.33, 5.34]]},
         {"id": "desk", "name": "Field Desk", "display": 234, "from": 1, "until": 6, "spawns": [[0, 2201.3, 259.4, 35.9, 5.34]]},
         {"id": "desk_box", "name": "Quartermaster's Strongbox", "display": 8, "from": 1, "until": 6,
@@ -376,8 +376,6 @@ LINE = {
          "use": [{"text": "(PROVISIONAL CARAVAN REGISTRY. ALL ARRIVALS TO REPORT TO THE QUARTERMASTER WITH MANIFEST, SEAL AND "
                           "PURPOSE. Below, smaller: Purpose is not optional. Below that, in another hand: \"To sell things.\" "
                           "Below that, in the first hand: Acceptable.)"}]},
-        {"id": "selwyn_wagon", "name": "Selwyn's Wagon", "display": 5392, "from": 1, "until": 6,
-         "spawns": [[0, 2192.0, 262.5, 38.68, 1.0]]},
         # The Road Isn't Empty: the drivers' wagons on the verge, the road's ruts, the two broken wagons, the stakes.
         {"id": "drivers_wagon", "name": "Stalled Supply Wagon", "display": 3678, "from": 1, "until": 6,
          "spawns": [[0, 2186.0, 224.0, 37.1, 0.5], [0, 2194.5, 228.5, 34.99, 0.5], [0, 2202.5, 233.0, 34.16, 0.5]]},
@@ -411,7 +409,7 @@ LINE = {
         {"id": "stakes", "name": "Survey Marker", "display": 2270, "from": 2, "until": 6,
          "spawns": [[0, 2186.0, 267.15, 40.7, 0.79], [0, 2200.85, 282.0, 37.99, 0.79], [0, 2186.0, 296.85, 37.66, 0.79],
                     [0, 2171.15, 282.0, 42.77, 0.79], [0, 2171.55, 243.65, 39.63, 5.41], [0, 2189.17, 258.43, 39.11, 5.41]]},
-        {"id": "dren_wagon", "name": "Dren's Wagon", "display": 6952, "from": 2, "spawns": [[0, 2186.0, 249.5, 37.37, 0.55]]},
+        {"id": "dren_wagon", "name": "Dren's Wagon", "display": 3678, "from": 2, "spawns": [[0, 2186.0, 249.5, 37.37, 0.55]]},
         {"id": "temp_tent", "name": "Temporary Warehouse", "display": 7195, "from": 2, "until": 6,
          "spawns": [[0, 2164.89, 244.59, 42.59, 5.41]]},
         {"id": "timber", "name": "Timber Chalked \"Caravan\"", "display": 1108, "from": 2, "until": 6,
@@ -451,10 +449,10 @@ LINE = {
          ]},
 
         # 3: the warehouse's dock, crates and a wagon in the yard.
-        {"id": "dock", "name": "Loading Dock", "display": 7439, "from": 3, "spawns": [[0, 2180.68, 250.66, 38.73, 5.41]]},
+        {"id": "dock", "name": "Loading Platform", "display": 7413, "scale": 2.0, "from": 3, "spawns": [[0, 2180.68, 250.66, 38.73, 5.41]]},
         {"id": "yard_crates", "name": "Stacked Freight", "display": 31, "from": 3,
          "spawns": [[0, 2174.67, 246.92, 39.1, 5.76], [0, 2186.36, 254.77, 38.9, 0.35], [0, 2187.36, 262.14, 39.95, 5.41]]},
-        {"id": "yard_wagon", "name": "Freight Wagon", "display": 7184, "from": 3, "spawns": [[0, 2157.42, 256.6, 42.93, 5.41]]},
+        {"id": "yard_wagon", "name": "Freight Wagon", "display": 3678, "from": 3, "spawns": [[0, 2157.42, 256.6, 42.93, 5.41]]},
 
         # The Missing Manifest: the wagon by the road, the records on the trail, the camp.
         {"id": "q3_wagon", "name": "Abandoned Supply Wagon", "display": 7025,
@@ -541,19 +539,19 @@ LINE = {
         # bringing goods to the market and to the brewery once it's open.
         {"id": "bag_sign", "name": "Caravan Office", "display": 745, "from": 6, "spawns": [[0, 2194.2, 275.49, 40.89, 5.5]]},
         {"id": "brazier", "name": "Yard Brazier", "display": 754, "from": 6, "spawns": [[0, 2192.96, 253.13, 36.99, 5.41]]},
-        {"id": "uc_wagon", "name": "Undercity Caravan Wagon", "display": 7184, "from": 6, "when": "day",
+        {"id": "uc_wagon", "name": "Undercity Caravan Wagon", "display": 3678, "from": 6, "when": "day",
          "spawns": [[0, 2178.91, 242.65, 37.17, 5.41]]},
-        {"id": "sp_wagon", "name": "Silverpine Caravan Wagon", "display": 6952, "from": 6, "when": "evening",
+        {"id": "sp_wagon", "name": "Silverpine Caravan Wagon", "display": 6952, "scale": 0.75, "from": 6, "when": "evening",
          "spawns": [[0, 2178.91, 242.65, 37.17, 5.41]]},
-        {"id": "selwyn_cart", "name": "Selwyn's Wagon", "display": 5392, "from": 6, "when": "day",
+        {"id": "selwyn_cart", "name": "Selwyn's Wagon", "display": 5392, "scale": 0.75, "from": 6, "when": "day",
          "spawns": [[0, 2199.0, 263.5, 37.35, 1.0]]},
         {"id": "rest_table", "name": "Table", "display": 221, "from": 6,
-         "spawns": [[0, 2196.83, 297.02, REST_FLOOR, 0.52], [0, 2197.98, 304.03, REST_FLOOR, 0.52]]},
+         "spawns": [[0, 2196.83, 297.02, REST_FLOOR, 0.52], [0, 2202.53, 299.15, REST_FLOOR, 0.52]]},
         {"id": "rest_bench", "name": "Bench", "display": 603, "from": 6,
          "spawns": [[0, 2197.63, 295.63, REST_FLOOR, 0.52], [0, 2196.03, 298.4, REST_FLOOR, 3.67]]},
-        {"id": "market_wagon", "name": "Caravan Office Delivery Cart", "display": 7524, "from": 6, "when": "day",
+        {"id": "market_wagon", "name": "Caravan Office Delivery Cart", "display": 3678, "scale": 0.7, "from": 6, "when": "day",
          "spawns": [[0, 2246.0, 263.0, 34.17, 2.6]]},
-        {"id": "brewery_wagon", "name": "Caravan Office Delivery Cart", "display": 7524, "from": 6, "needs": {"brewery": 6},
+        {"id": "brewery_wagon", "name": "Caravan Office Delivery Cart", "display": 3678, "scale": 0.7, "from": 6, "needs": {"brewery": 6},
          "when": "morning", "spawns": [[0, 2210.5, 261.18, 34.89, 0.44]]},
         # The Wayfarer's Rest: its sign by the road, and Marta Greaves's tent on its ground until it's built.
         {"id": "rest_sign", "name": "Wayfarer's Rest", "display": 727, "from": 1, "spawns": [[0, 2206.53, 292.22, 34.29, 5.24]],

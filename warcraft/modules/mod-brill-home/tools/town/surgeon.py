@@ -264,7 +264,8 @@ LINE = {
             "progress": "Linen, thread, a shoulder, a hand. In that order, if you can manage it.",
             "done": (
                 "Good. Every stitch you put in today is one I don't have to put in tomorrow. That isn't gratitude, $n, "
-                "it's arithmetic.$B$B...Fine. It's a little gratitude."),
+                "it's arithmetic.$B$B...Fine. It's a little gratitude. Take the bandages, and use them on yourself before "
+                "you come to me. I'd like one person in Brill to arrive already mended."),
             "objectives": [("credit", "linen_credit", 1, "Linen from Mrs. Winters"),
                            ("credit", "thread_credit", 1, "Thread from Abigail Shiel"),
                            ("credit", "dillinger_credit", 1, "Deathguard Dillinger's shoulder closed"),

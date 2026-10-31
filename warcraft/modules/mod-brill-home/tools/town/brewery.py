@@ -12,7 +12,7 @@ and the house's barrel stand and drinks cabinet.
 
 The town changes a stage at a time (tools/town/README.md, "Projects"): the boarded brewhouse (a closed Duskwood
 farmhouse) and Oren at its door (1); barriers, Bram's cooperage (2); the vats, the furnace and shelves in the yard,
-the chimney smoking by day (3); the tasting counter and the beer garden, Calla's tables (4); the cellar's vent and
+the chimney smoking by day (3); the tasting counter, the beer garden and a pavilion over Calla's tubs (4); the cellar's vent and
 racks, sample barrels at the market (5); the brewhouse open (the farmhouse, its counter and kegs), its people's day,
 Oren's deliveries to the Gallows' End and his quarrels at the caravan office (6); the house's furnishings (7).
 
@@ -218,7 +218,7 @@ LINE = {
         {"id": "oren_yard", "name": "Brewmaster Oren Blackbarrel", "display": 3652, "level": 25,
          "from": 1, "until": 6, "spawns": [[0, 2220.12, 267.76, 34.77, 5.15]]},
         {"id": "oren", "name": "Brewmaster Oren Blackbarrel", "subname": "The Old Brewery", "display": 3652, "level": 25,
-         "flags": ["gossip", "quest", "vendor"], "from": 6, "spawns": [[0, 2218.24, 282.44, FLOOR, 4.75]],
+         "flags": ["gossip", "quest", "vendor"], "from": 6, "spawns": [[0, 2222.01, 279.79, FLOOR, 3.578]],
          # Drinks; the signature (the player's choice) among them.
          "vendor": [159, 1179, 2723, 2593, 2594, 2894, 4600, {"item": 2596, "cond": ["M:stout"]},
                     {"item": 2686, "cond": ["M:reserve"]}, {"item": 18287, "cond": ["M:bitter"]}]},
@@ -247,7 +247,7 @@ LINE = {
         {"id": "bram_evening", "name": "Bram Lusk", "subname": "Cooper", "display": 2615, "level": 20, "flags": ["gossip"],
          "from": 6, "when": "evening", "spawns": [[0, 2215.88, 274.5, FLOOR, 5.15]]},
         {"id": "calla_day", "name": "Calla Fenn", "subname": "Brewing Ingredients", "display": 4528, "level": 12,
-         "flags": ["gossip", "vendor"], "from": 6, "when": "day", "spawns": [[0, 2212.59, 280.36, FLOOR, 3.58]],
+         "flags": ["gossip", "vendor"], "from": 6, "when": "day", "spawns": [[0, 2214.37, 280.08, FLOOR, 3.578]],
          "vendor": [2678, 2692, 3713, 2665, 30817, 4604, 4605, 4606, 4607, 159]},
         {"id": "calla_evening", "name": "Calla Fenn", "subname": "Brewing Ingredients", "display": 4528, "level": 12,
          "flags": ["gossip", "vendor"], "from": 6, "when": "evening", "spawns": [[0, 2232.46, 270.87, 34.45, 5.15]],
@@ -268,7 +268,7 @@ LINE = {
          "from": 2, "until": 6, "when": "day", "spawns": [[0, 2217.87, 260.75, 34.41, 1.45]]},
         {"id": "laborer", "name": "Builder's Yard Laborer", "display": [3516, 1638, 1604], "level": 15, "flags": [],
          "from": 2, "until": 6, "when": "day", "wander": 3,
-         "spawns": [[0, 2214.4, 264.65, 35.0, 0.96], [0, 2220.05, 291.56, 35.18, 3.93]]},
+         "spawns": [[0, 2215.15, 267.76, 35.15, 0.96], [0, 2220.05, 291.56, 35.18, 3.93]]},
     ],
     "credits": [
         {"id": "hall_credit", "name": "The old brewhouse looked into"},
@@ -350,7 +350,7 @@ LINE = {
          "spawns": [[0, 2213.58, 259.3, 34.54, 1.484], [0, 2236.21, 268.75, 34.16, 6.196], [0, 2201.72, 283.56, 37.27, 0.436],
                     [0, 2225.64, 291.41, 35.19, 2.007]]},
         {"id": "construction_sign", "name": "Under Construction", "display": 7416, "from": 2, "until": 6,
-         "spawns": [[0, 2216.98, 267.4, 34.96, 5.149]]},
+         "spawns": [[0, 2214.1, 261.75, 34.76, 5.149]]},
         {"id": "cooper_bench", "name": "Cooper's Bench", "display": 234, "from": 2, "spawns": [[0, 2208.42, 266.83, 35.84, 2.01]]},
         {"id": "staves", "name": "Cask Staves", "display": 1108, "from": 2, "spawns": [[0, 2205.55, 268.25, 36.73, 0.96]]},
         {"id": "vats", "name": "Fermentation Vat", "display": 7992, "from": 2,
@@ -394,7 +394,7 @@ LINE = {
         {"id": "shelf", "name": "Brewing Shelves", "display": 189, "from": 3, "spawns": [[0, 2201.32, 277.31, 38.82, 2.01]]},
         {"id": "yard_barrels", "name": "New Cask", "display": 6036, "from": 3,
          "spawns": [[0, 2201.68, 274.17, 38.76, 0.44], [0, 2204.46, 269.39, 37.21, 0.44]]},
-        {"id": "smoke", "name": "Chimney Smoke", "display": 95, "from": 3, "when": "day", "spawns": [[0, 2223.13, 281.41, 48.98, 0.44]]},
+        {"id": "smoke", "name": "Chimney Smoke", "display": 95, "from": 3, "when": "day", "spawns": [[0, 2215.27, 285.25, 48.98, 0.44]]},
         # Taste of the Living: the bitterroot on the hillside west of town (cut again for the weekly special), the
         # experimental batches.
         {"id": "bitterroot", "name": "Bitterroot", "display": 301, "scale": 0.8,
@@ -425,11 +425,10 @@ LINE = {
                   "text": "(The third tub, chalked ROOT: barley and a great fistful of bitterroot, bruised. Your eyes water. "
                           "You didn't know they still did that.)"}]},
 
-        # 4: the beer garden and the tasting counter; Calla's table under the pavilion; the spoiled barrels, the wall-rot
+        # 4: the beer garden and the tasting counter; a pavilion over Calla's tubs; the spoiled barrels, the wall-rot
         # and the vent (A Bitter Batch).
         {"id": "pavilion", "name": "Brewery Pavilion", "display": 6738, "scale": 0.85, "from": 4,
          "spawns": [[0, 2230.2, 269.81, 34.52, 0.436]]},
-        {"id": "calla_table", "name": "Calla's Brewing Table", "display": 234, "from": 4, "spawns": [[0, 2233.52, 268.6, 34.24, 0.436]]},
         {"id": "tasting_counter", "name": "Tasting Counter", "display": 7732, "from": 4,
          "spawns": [[0, 2233.4, 272.41, 34.52, 2.007]]},
         {"id": "garden_table", "name": "Table", "display": 221, "from": 4,
@@ -483,11 +482,11 @@ LINE = {
 
         # 6: the brewhouse open: its counter, kegs, a vat, tables and benches; the slate by the door with the signature
         # drink; the brewery's dray at the Gallows' End of a morning.
-        {"id": "bar", "name": "Brewery Counter", "display": 7732, "from": 6, "spawns": [[0, 2217.96, 280.21, FLOOR, 4.75]]},
+        {"id": "bar", "name": "Brewery Counter", "display": 7732, "from": 6, "spawns": [[0, 2220.38, 279.03, FLOOR, 0.436]]},
         {"id": "kegs", "name": "Ale Keg", "display": 7415, "from": 6,
-         "spawns": [[0, 2218.8, 285.02, FLOOR + 0.88, 4.75], [0, 2215.46, 283.68, FLOOR + 0.88, 4.75]]},
+         "spawns": [[0, 2224.1, 277.45, FLOOR + 0.88, 3.578], [0, 2221.56, 282.89, FLOOR + 0.88, 3.578]]},
         {"id": "inside_vat", "name": "Fermentation Vat", "display": 7992, "scale": 0.8, "from": 6,
-         "spawns": [[0, 2211.5, 279.85, FLOOR, 0.44]]},
+         "spawns": [[0, 2211.29, 280.3, FLOOR, 0.44]]},
         {"id": "inside_table", "name": "Table", "display": 221, "from": 6,
          "spawns": [[0, 2216.21, 273.77, FLOOR, 0.44], [0, 2220.96, 275.43, FLOOR, 0.44]]},
         {"id": "inside_bench", "name": "Bench", "display": 603, "from": 6,
