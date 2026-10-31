@@ -6,12 +6,12 @@
  * naga's new skin colours, their place on the character creation screen, their intros (the
  * cameras, the narrations) and their homes' things (GameObjectDisplayInfo).
  *
- * All of it is made here from the client's own files (WOW_CLIENT_DIR: an HD look's, when one is
- * in), so nothing of the game's is in this repository or the server package: the murloc's model
- * is the game's murloc (Creature\Murloc\Murloc.m2) made a character's; its skins the game's
- * murloc skins, moved where the model now reads them; the naga's colours the game's naga skins
- * recoloured; the narrations the game's own sounds, mixed (Lady Vashj's words for the naga, the
- * murlocs' own voices for the murlocs).
+ * The tables, the naga's colours, the screen's files and the intros are made here from the client's
+ * own files (WOW_CLIENT_DIR: an HD look's, when one is in): the naga's looks are the game's naga
+ * (Character\Naga_), its new colours the game's naga skins recoloured; the narrations the game's own
+ * sounds, mixed (Lady Vashj's words for the naga, the murlocs' own voices for the murlocs). The
+ * murlocs' model and textures are Blizzard's newer murloc and its kin's parts, made 3.3.5's as the
+ * server is packaged (tools/murloc_model.py: data/files, never in this repository).
  *
  * It's Data/<locale>/patch-<locale>-T.MPQ: read after the HD looks' patches (A, F, 6, E, Q, the
  * Alternative HD Patch's S with its SoundEntries; ChromieCraft's H, F, G, S, T), whose tables it
@@ -233,15 +233,6 @@ namespace MurlocNaga
                         out.rgba[(size_t(y) * w + x) * 4 + c] = uint8_t(std::clamp(v + 0.5, 0.0, 255.0));
                     }
                 }
-            return out;
-        }
-
-        Image Rows(Image const& in, uint32_t from, uint32_t count)
-        {
-            Image out;
-            out.width = in.width;
-            out.height = count;
-            out.rgba.assign(in.rgba.begin() + size_t(from) * in.width * 4, in.rgba.begin() + size_t(from + count) * in.width * 4);
             return out;
         }
 
@@ -548,63 +539,6 @@ namespace MurlocNaga
             return true;
         }
 
-        // The murloc: the game's model made a character's, for each sex (the same body), with its
-        // skins (00.skin...) and animations kept outside the model, by the character's names.
-        size_t MurlocModel(Game const& game, std::string const& source, MpqWriter& writer, std::vector<std::string>& problems)
-        {
-            Bytes m2;
-            if (!game.Read(source, m2))
-            {
-                problems.push_back(source + " isn't in the game: no murloc model");
-                return 0;
-            }
-            Bytes model = m2;
-            if (!CharacterModel(model))
-            {
-                problems.push_back(source + " isn't a model this knows (3.3.5's, with a creature's skin): no murloc model");
-                return 0;
-            }
-            std::string base = source.substr(0, source.size() - 3);           // Creature\Murloc\Murloc
-            size_t made = 0;
-            for (char const* sex : { "Male", "Female" })
-            {
-                std::string ours = std::string("Character\\Murloc\\") + sex + "\\Murloc" + sex;
-                writer.Add(ours + ".m2", model);
-                ++made;
-                for (uint32_t view = 0; view < U32(m2, 0x44) && view < 4; ++view)
-                {
-                    char suffix[8];
-                    std::snprintf(suffix, sizeof(suffix), "%02u.skin", view);
-                    Bytes skin;
-                    if (game.Read(base + suffix, skin))
-                    {
-                        writer.Add(ours + suffix, skin);
-                        ++made;
-                    }
-                    else
-                        problems.push_back(base + suffix + " isn't in the game");
-                }
-                uint32_t sequences = U32(m2, 0x1C), at = U32(m2, 0x20);
-                for (uint32_t i = 0; i < sequences && at + (i + 1) * 64 <= m2.size(); ++i)
-                {
-                    uint16_t id, variation;
-                    std::memcpy(&id, &m2[at + i * 64], 2);
-                    std::memcpy(&variation, &m2[at + i * 64 + 2], 2);
-                    if (U32(m2, at + i * 64 + 12) & 0x20)
-                        continue;                                          // (its keys in the model)
-                    char suffix[24];
-                    std::snprintf(suffix, sizeof(suffix), "%04u-%02u.anim", unsigned(id), unsigned(variation));
-                    Bytes anim;
-                    if (game.Read(base + suffix, anim))
-                    {
-                        writer.Add(ours + suffix, anim);
-                        ++made;
-                    }
-                }
-            }
-            return made;
-        }
-
         std::vector<std::vector<std::string>> Lines(std::string const& text)
         {
             std::vector<std::vector<std::string>> out;
@@ -639,58 +573,6 @@ namespace MurlocNaga
                 }
             return Bytes(text.begin(), text.end());
         }
-    }
-
-    bool CharacterModel(Bytes& m2)
-    {
-        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || U32(m2, 4) != 264)
-            return false;
-        uint32_t textures = U32(m2, 0x50), texturesAt = U32(m2, 0x54);
-        if (textures == 0 || textures > 64 || texturesAt + textures * 16 > m2.size())
-            return false;
-        bool skin = false;
-        for (uint32_t i = 0; i < textures && !skin; ++i)
-        {
-            uint32_t type = U32(m2, texturesAt + i * 16);
-            if (type == 11 || type == 12 || type == 13 || type == 1)
-            {
-                Put32(m2, texturesAt + i * 16, 1);                  // the character's composed texture
-                skin = true;
-            }
-        }
-        if (!skin)
-            return false;
-        uint32_t vertices = U32(m2, 0x3C), verticesAt = U32(m2, 0x40);
-        if (verticesAt + uint64_t(vertices) * 48 > m2.size())
-            return false;
-        // The face region, a texel in from its edges (so the game's filtering never reaches the
-        // regions armour is painted into).
-        constexpr float U0 = 0.004f, U1 = 0.496f, V0 = 0.629f, V1 = 0.996f;
-        for (uint32_t i = 0; i < vertices; ++i)
-        {
-            float uv[2];
-            std::memcpy(uv, &m2[verticesAt + i * 48 + 32], 8);
-            uv[0] = U0 + std::clamp(uv[0], 0.0f, 1.0f) * (U1 - U0);
-            uv[1] = V0 + std::clamp(uv[1], 0.0f, 1.0f) * (V1 - V0);
-            std::memcpy(&m2[verticesAt + i * 48 + 32], uv, 8);
-        }
-        return true;
-    }
-
-    bool FaceTextures(Bytes const& skin, uint32_t skinWidth, Bytes& upper, Bytes& lower)
-    {
-        Image image;
-        if (!Skyborne::Decode(skin, image) || image.width == 0 || image.height == 0 || skinWidth < 64)
-            return false;
-        // The face region of a composed texture [skinWidth] wide: half its width, the lower three
-        // eighths of its height (FaceUpper an eighth over FaceLower's quarter).
-        uint32_t w = skinWidth / 2, upperRows = skinWidth / 8, lowerRows = skinWidth / 4;
-        Image face = Resized(image, w, upperRows + lowerRows);
-        for (size_t i = 3; i < face.rgba.size(); i += 4)
-            face.rgba[i] = 255;                                     // opaque: nothing of the skin under it shows
-        upper = EncodePalette(Rows(face, 0, upperRows), false);
-        lower = EncodePalette(Rows(face, upperRows, lowerRows), false);
-        return true;
     }
 
     bool Recolour(Bytes& blp, double hue, double saturation, double lightness)
@@ -845,6 +727,24 @@ namespace MurlocNaga
             stamp.Add(f.lexically_relative(moduleData).generic_string());
             stamp.Add(Text(f));
         }
+        // The murlocs' model and textures: made as the server was packaged (tools/murloc_model.py, from
+        // the game's files of today) into data/files, their list (murloc.files) written last.
+        fs::path packaged = moduleData.parent_path() / "files";
+        std::vector<std::string> murlocFiles;
+        {
+            std::istringstream in(Text(packaged / "murloc.files"));
+            std::string name;
+            while (std::getline(in, name))
+            {
+                if (!name.empty() && name.back() == '\r')
+                    name.pop_back();
+                if (name.empty())
+                    continue;
+                murlocFiles.push_back(name);
+                stamp.Add(name);
+                stamp.Add(std::to_string(fs::file_size(packaged / name, error)));
+            }
+        }
         if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
             return true;
 
@@ -863,13 +763,11 @@ namespace MurlocNaga
             ++files;
         };
 
-        // The murloc's model and skins, the naga's colours (data/client/looks.txt). What the game draws
+        // The naga's colours (data/client/looks.txt), then the murlocs' packaged files. What the game draws
         // into a character's composed texture (its skin, faces and underwear) is made as the game's
         // own character textures are, palettized and at the scale of the skin it's drawn over: the
         // game reads only those there (a compressed or missing one was drawn green, and broke the
         // game's memory as the character was made: crash report #110).
-        std::string murlocModel;
-        std::map<uint32_t, std::string> murlocSkins;
         struct Colour { uint32_t source; double recipe[3]; bool changed; };
         std::map<std::string, std::map<uint32_t, Colour>> nagaColours;       // sex, colour
         for (char const* sex : { "Male", "Female" })
@@ -877,11 +775,7 @@ namespace MurlocNaga
                 nagaColours[sex][c] = { c, { -1, 1, 1 }, false };          // the game's five
         for (auto const& line : Lines(Text(moduleData / "looks.txt")))
         {
-            if (line[0] == "murloc_model" && line.size() == 2)
-                murlocModel = line[1];
-            else if (line[0] == "murloc_skin" && line.size() == 3)
-                murlocSkins[uint32_t(std::stoul(line[1]))] = line[2];
-            else if (line[0] == "naga_colour" && line.size() == 7)
+            if (line[0] == "naga_colour" && line.size() == 7)
                 nagaColours[line[1] == "0" ? "Male" : "Female"][uint32_t(std::stoul(line[2]))]
                     = { uint32_t(std::stoul(line[3])), { std::stod(line[4]), std::stod(line[5]), std::stod(line[6]) }, true };
         }
@@ -936,47 +830,20 @@ namespace MurlocNaga
                 }
             }
         }
-        if (!murlocModel.empty() && MurlocModel(game, murlocModel, writer, problems))
+        if (murlocFiles.empty())
+            problems.push_back("the murlocs' model and textures aren't in " + packaged.string()
+                + " (no murloc.files: tools/murloc_model.py makes them as the server is packaged): the game won't draw them");
+        for (auto const& name : murlocFiles)
         {
-            files += 1;
-            // The murloc's composed texture is drawn over the naga's skin (its CharSections rows): the
-            // faces are made at its scale.
-            Bytes base;
-            uint32_t skinWidth = game.Read("Character\\Naga_\\Male\\Naga_MaleSkin00_00.blp", base) ? BlpWidth(base) : 0;
-            if (!skinWidth)
+            Bytes data = ReadFile(packaged / name);
+            if (data.empty())
             {
-                problems.push_back("Character\\Naga_\\Male\\Naga_MaleSkin00_00.blp isn't in the game: the murlocs' faces are made for a 256 skin");
-                skinWidth = 256;
+                problems.push_back(name + " isn't in " + packaged.string());
+                continue;
             }
-            Bytes first;
-            for (auto const& [colour, source] : murlocSkins)
-            {
-                Bytes skin;
-                if (!game.Read(source, skin))
-                {
-                    // (a colour the client hasn't: the first's, so every colour on the slider draws)
-                    problems.push_back(source + " isn't in the game" + (first.empty() ? "" : ": its colour is the first's"));
-                    if (first.empty())
-                        continue;
-                    skin = first;
-                }
-                if (first.empty())
-                    first = skin;
-                Bytes upper, lower;
-                if (!FaceTextures(skin, skinWidth, upper, lower))
-                {
-                    problems.push_back(source + " isn't a texture this knows");
-                    continue;
-                }
-                char suffix[16];
-                std::snprintf(suffix, sizeof(suffix), "00_%02u.blp", colour);
-                for (char const* sex : { "Male", "Female" })
-                {
-                    std::string p = std::string("Character\\Murloc\\") + sex + "\\Murloc" + sex;
-                    add(p + "FaceUpper" + suffix, upper);
-                    add(p + "FaceLower" + suffix, lower);
-                }
-            }
+            std::string inGame = name;
+            std::replace(inGame.begin(), inGame.end(), '/', '\\');
+            add(inGame, data);
         }
 
         // Tables. The races' CharSections rows name only textures that are there (in the game or this

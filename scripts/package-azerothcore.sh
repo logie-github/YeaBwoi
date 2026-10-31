@@ -160,6 +160,19 @@ if [ -d "$DIST/modules/mod-brill-home" ]; then
 		echo "The mastiff wasn't fetched: the Brill home has no dog" >&2
 fi
 
+# The murlocs' model and textures (mod-murloc-naga, tools/murloc_model.py): Blizzard's newer murloc and
+# its kin's parts (hood, horns, lure, Maria's hair and dress...) from the game's files by their ids, made
+# a 3.3.5 character's (never in the repository; build/murloc-cache keeps what was fetched, with the
+# allied races' cache); the world server puts them in the game's patch-<locale>-T with the module's
+# tables. Its list of files is written last; without them the murlocs aren't drawn.
+if [ -d "$DIST/modules/mod-murloc-naga" ]; then
+	apk add -q --no-progress py3-numpy py3-pillow
+	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/murloc_model.py fetch \
+		"$pkg/src/modules/mod-murloc-naga/data/files" ||
+		{ echo "The murlocs' model wasn't made (tools/murloc_model.py says why): the murlocs aren't drawn" >&2
+		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
+fi
+
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
 # Lua (a module's .lua files, but for the game's add-ons it may bring: folders of .toc files, or
 # named client, addon or interface).

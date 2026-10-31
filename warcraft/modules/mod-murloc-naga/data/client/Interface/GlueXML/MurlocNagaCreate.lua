@@ -122,5 +122,11 @@ ABILITY_INFO_NAGA_2 = "- Tail Sweep: Stuns nearby enemies for 2 sec.";
 ABILITY_INFO_NAGA_3 = "- Scales of the Deep: Increases the armor you get from items by 5%.";
 ABILITY_INFO_NAGA_4 = "- Starts at level 10, in the renegades' camp off Darkshore.";
 
+-- The murlocs' choices' names (their ChrRaces row's hair token MURLOC; features, the game's FEATURES):
+-- their hair styles are headgear (a shark hood, demon horns, a lure, Maria's hair), their hair colour
+-- Maria's hair's.
+HAIR_MURLOC_STYLE = "Headgear";
+HAIR_MURLOC_COLOR = "Hair Color";
+
 MURLOC_DISABLED = "Murlocs can't be made on this realm.";
 NAGA__DISABLED = "Naga can't be made on this realm.";

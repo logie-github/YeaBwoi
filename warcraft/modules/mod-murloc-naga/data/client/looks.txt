@@ -1,18 +1,5 @@
-# The textures and the model the patch makes from the game's own (tools/build_data.py).
-# murloc_model	<the game's murloc>
-# murloc_skin	<colour>	<the game's murloc skin it's made from>
+# The textures the patch makes from the game's own (tools/build_data.py): the naga's new colours.
 # naga_colour	<sex>	<new colour>	<the colour it's made from>	<hue (-1: kept)>	<saturation x>	<lightness x>
-murloc_model	Creature\Murloc\Murloc.m2
-murloc_skin	0	Creature\Murloc\Sahauginskin.blp
-murloc_skin	1	Creature\Murloc\SahauginskinGreen.blp
-murloc_skin	2	Creature\Murloc\SahauginskinBlue.blp
-murloc_skin	3	Creature\Murloc\SahauginskinGray.blp
-murloc_skin	4	Creature\Murloc\SahauginskinWhite.blp
-murloc_skin	5	Creature\Murloc\SahauginskinOrange.blp
-murloc_skin	6	Creature\Murloc\SahauginskinYellow.blp
-murloc_skin	7	Creature\Murloc\Sahauginskinpurple.blp
-murloc_skin	8	Creature\Murloc\murloc2_red.blp
-murloc_skin	9	Creature\Murloc\murloc2_darkpurple.blp
 naga_colour	0	5	0	0.99	1.4	1.1
 naga_colour	0	6	0	0.11	1.5	1.25
 naga_colour	0	7	0	0.77	1.3	1.1

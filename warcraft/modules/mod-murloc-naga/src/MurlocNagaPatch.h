@@ -30,16 +30,6 @@ namespace MurlocNaga
     void PutCameras(fs::path const& moduleData, fs::path const& serverData, Log const& log);
 
     // The pieces, for the test (tools/test_patch.cpp).
-    // A creature's model made a character's: its body texture (the first, a creature's skin) the
-    // character's composed texture, and its texture coordinates moved into that texture's face
-    // region (FaceUpper over FaceLower: x 0 to 1/2, y 5/8 to 1), which the game draws from the
-    // face textures alone, so armour never shows on it. False if [m2] isn't a model this knows.
-    bool CharacterModel(Bytes& m2);
-    // A murloc skin (any size) made its face textures for a composed texture [skinWidth] wide (the
-    // skin it's drawn over: 512 in the HD looks): squeezed into the face region (half the width, three
-    // eighths of the height), its top third FaceUpper, the rest FaceLower, palettized and opaque, as the
-    // game's own character textures are (the game composes only those).
-    bool FaceTextures(Bytes const& skin, uint32_t skinWidth, Bytes& upper, Bytes& lower);
     // [blp] recoloured: every colour's hue made [hue] (0 to 1 around the colour wheel; below 0, kept),
     // its saturation and lightness multiplied (a palette's colours; any other texture's pixels, then
     // palettized).
