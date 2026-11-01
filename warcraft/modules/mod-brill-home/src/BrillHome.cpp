@@ -22,6 +22,7 @@
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "GameTime.h"
+#include "Group.h"
 #include "BrillHome.h"
 #include "BrillHomePatch.h"
 #include "Log.h"
@@ -901,11 +902,28 @@ public:
             return false;
         bool locket = go->GetEntry() == GO_LOCKET;
         uint32 quest = locket ? QUEST_LOCKET : QUEST_LILY, credit = locket ? NPC_LOCKET_CREDIT : NPC_LILY_CREDIT;
-        if (player->GetQuestStatus(quest) != QUEST_STATUS_INCOMPLETE || player->GetReqKillOrCastCurrentCount(quest, credit) > 0)
+        ChatHandler chat(player->GetSession());
+        // (said, so a click is never answered by nothing: the user clicked the lily and nothing happened)
+        if (player->GetQuestStatus(quest) != QUEST_STATUS_INCOMPLETE)
+        {
+            chat.SendSysMessage(locket ? "An old footlocker. Whatever was in it isn't yours to take."
+                                       : "A moonpetal lily, pale and faintly bright. You leave it where it grows.");
             return true;
+        }
+        if (player->GetReqKillOrCastCurrentCount(quest, credit) > 0)
+        {
+            chat.SendSysMessage(locket ? "You have Carolai's locket already. Bring it to her in Brill."
+                                       : "You have a lily already. Bring it to Carolai in Brill.");
+            return true;
+        }
         ClearGossipMenuFor(player);
         SendGossipMenuFor(player, locket ? TEXT_LOCKET : TEXT_LILY, go->GetGUID());
         player->KilledMonsterCredit(credit);
+        // (the game gives no quest credit in a raid group: a party of the realm's bots made a raid)
+        if (player->GetReqKillOrCastCurrentCount(quest, credit) == 0)
+            chat.SendSysMessage(player->GetGroup() && player->GetGroup()->isRaidGroup()
+                ? "The game doesn't count this in a raid group: leave the raid (or make it a party) and try again."
+                : "This didn't count for the quest: try again in a moment.");
         return true;
     }
 };
