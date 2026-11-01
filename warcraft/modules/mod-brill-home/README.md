@@ -128,19 +128,17 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-His looks: display 39700, the 3.3.5a client's own Perky Pug model (CreatureModelData 3291) with the
-user's coat. Nothing is downloaded or converted (the Cataclysm mastiff before him, a converted model,
-once showed as a cube; then the plain pug, display 31174). The world server makes the module's patch for
-the game (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`) from the client's own files:
-the pug model as it is but for its coat, made a texture a display names (a creature's skin, kind 11, and
-the model's replaceable texture lookup), the tan coat named for the game's own pug display (31174 looks as
-it did), Corn's display row and his coat (`data/client/files/Creature/Pug/ForsakenPug_Corn.blp`, a DXT1
-BLP `tools/build_sql.py` makes from the user's texture), with the cellar's looks. Where the patch isn't in
-the game (no client on the machine, or its pug not as expected), Corn is the plain pug: the dog, his pet
-and the companion are given 31174 (`src/BrillHome.cpp`), so he's never a display the game hasn't. The
-quest dog, adopted pets (in the stable too) and hunters' companions all take his looks; quest progress
-and pet ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken
-out; the Alternative HD Patch's water, which has the same name, is left alone.
+His looks: the 3.3.5a client's own Perky Pug (display 31174, model 3291) in the user's coat. The world
+server makes the module's patch for the game (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`)
+at the realm's start: the user's coat (`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py`
+makes from the user's texture, keeping the coat's alpha) at the path of the pug's own coat, which the client's
+pug model names, with the cellar's looks. No model and no table of the game's is changed for him, so nothing
+can hide it: a display of his own (39700) showed as the game's blue and white cube, the look the game
+shows for a display it hasn't, as the Cataclysm mastiff before him had. Every pug in the game wears his
+coat (Perky Pug is the only other). Without the patch in the game he's the plain tan pug. The quest dog,
+adopted pets (in the stable too) and hunters' companions are all the pug's display; quest progress and pet
+ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken out; the
+Alternative HD Patch's water, which has the same name, is left alone.
 
 ## Carolai Anise
 

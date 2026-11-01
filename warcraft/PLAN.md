@@ -1766,14 +1766,13 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
    CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
    gameobject, the sleeping pose on the bed, the furniture's turns.
-2. **The dog, Corn**: built. The game's own pug (Perky Pug's model) zombified in the user's texture
-   (`branding/corn-forsaken-pug.png`; "Use this texture on the pug dog you get from the quest in brill. Name
-   the dog Corn", "my pug is supposed to be zombified"), in the module's patch-<locale>-V made from the
-   client's own files (the pug's coat made a display's texture; nothing downloaded or converted: the
-   Cataclysm mastiff before, a converted model, once showed as a cube); the plain pug where the patch
-   isn't in the game. There on the first waking; his quest (fetch, a scratch behind the ears); a hunter's
-   pet for any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it
-   through. Not seen on a phone: Corn in the game.
+2. **The dog, Corn**: built. The game's own pug (Perky Pug's model and display) zombified in the user's
+   texture (`branding/corn-forsaken-pug.png`; "Use this texture on the pug dog you get from the quest in
+   brill. Name the dog Corn", "my pug is supposed to be zombified"): the module's patch-<locale>-V puts the
+   user's coat where the pug's own coat is, no table or model changed (a display of his own, 39700, showed
+   as the game's cube on the phone, as the mastiff had). There on the first waking; his quest (fetch, a
+   scratch behind the ears); a hunter's pet for any class (`OnPlayerIsClass`), with the pet spells under
+   General. Not seen on a phone yet: the coat on him.
 3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any
    hunter trainer teaches Tame Beast and Beast Lore (from level 10); the stable master serves them
    (the class hook). Under General in the spellbook (the client's own placing; not seen on a phone).

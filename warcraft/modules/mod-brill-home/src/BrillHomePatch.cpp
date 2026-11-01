@@ -2,15 +2,13 @@
 /*
  * The Brill home's patch for the game (mod-brill-home): Corn, the house's dog, and the house's cellar.
  *
- * Corn is the game's own pug (the client's Creature\Pug\Pug.m2, Perky Pug's, display 31174) in the user's
- * Forsaken texture (the user: "Use this texture on the pug dog you get from the quest in brill. Name the
- * dog Corn"; "my pug is supposed to be zombified"). Nothing is downloaded or converted: the patch carries
- * the client's own pug model with its coat made a texture its display names (a creature's skin, texture
- * kind 11, and the model's replaceable texture lookup saying so), the tan coat named for the game's own
- * pug display (31174 looks as it did), and the user's coat for Corn's display (39700:
- * Creature\Pug\ForsakenPug_Corn.blp, data/client/files, made from warcraft/branding/corn-forsaken-pug.png
- * by tools/build_sql.py). Its geometry, bones and animations are the client's, untouched (the
- * Cataclysm mastiff before it, a converted model, once showed as a cube).
+ * Corn is the game's own pug (Perky Pug's model and display, 31174) in the user's Forsaken texture (the user:
+ * "Use this texture on the pug dog you get from the quest in brill. Name the dog Corn"; "my pug is supposed
+ * to be zombified"). The patch carries the user's coat (data/client/corn/ForsakenPug_Corn.blp, made from
+ * warcraft/branding/corn-forsaken-pug.png by tools/build_sql.py) at the path of the pug's own coat, which
+ * the client's pug model names: no table and no model is changed for him. (A display of his own, 39700,
+ * showed as the game's cube, as the Cataclysm mastiff's had: the game never had that row. Every pug in
+ * the game wears Corn's coat now; Perky Pug is the only other.)
  *
  * The cellar is the game's own models as objects (GameObjectDisplayInfo 9700 and 9701, made by
  * tools/build_town.py).
@@ -52,7 +50,8 @@ namespace BrillHome
         constexpr char const* VERSION = "brill-home-4";
         // Corn: the game's pug, its coat a display's (tools/build_sql.py: DOG_*)
         constexpr char const* PUG = "Creature\\Pug\\Pug.m2";
-        constexpr uint32_t PUG_DISPLAY = 31174, CORN_DISPLAY = 39700, CORN_SKIN_KIND = 11;
+        // (data/client/corn: the user's coat, tools/build_sql.py)
+        constexpr char const* CORN_COAT = "ForsakenPug_Corn.blp";
         // (where it was: Data/patch-W.MPQ, and a file of its that tells it's this module's)
         constexpr char const* OLD_PATCH = "patch-W.MPQ";
         constexpr char const* MASTIFF = "Creature\\Mastiff\\Mastiff.m2";
@@ -189,14 +188,11 @@ namespace BrillHome
             log("The Brill home's patch is out of the game, kept beside it for ChromieCraft");
     }
 
-    // The game's pug with its coat (the first hard-coded texture in the model's own folder or anywhere)
-    // made the creature's skin: the model's bytes, and the coat's name (without its folder or .blp), or
-    // an empty name if the model isn't as expected.
-    static std::string SkinnedPug(Bytes& m2, Bytes& coat, Game const& game, std::string& coatPath)
+    // The game's pug's coat: the first texture the model names (hard-coded) that is a pug's, or "".
+    static std::string PugCoat(Bytes const& m2)
     {
         auto u32 = [&](size_t at) { uint32_t v; std::memcpy(&v, &m2[at], 4); return v; };
-        auto put = [&](size_t at, uint32_t v) { std::memcpy(&m2[at], &v, 4); };
-        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || u32(4) != 264)
+        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0)
             return "";
         uint32_t count = u32(0x50), offset = u32(0x54);
         if (offset + uint64_t(count) * 16 > m2.size())
@@ -210,30 +206,8 @@ namespace BrillHome
             std::string path(reinterpret_cast<char const*>(&m2[name]), length);
             path = path.c_str();
             std::string low = Lower(path);
-            if (low.size() < 5 || low.substr(low.size() - 4) != ".blp" || low.find("pug") == std::string::npos)
-                continue;
-            if (!game.Read(path, coat))
-                return "";
-            put(at, CORN_SKIN_KIND);
-            // the replaceable texture lookup (kind -> texture): the skin's slot made this texture
-            uint32_t lookups = u32(0x68), lookupAt = u32(0x6C);
-            std::vector<int16_t> table(std::max<uint32_t>(lookups, CORN_SKIN_KIND + 1), -1);
-            for (uint32_t k = 0; k < lookups && lookupAt + k * 2 + 2 <= m2.size(); ++k)
-                std::memcpy(&table[k], &m2[lookupAt + k * 2], 2);
-            table[CORN_SKIN_KIND] = int16_t(i);
-            while (m2.size() % 16)
-                m2.push_back(0);
-            put(0x68, uint32_t(table.size()));
-            put(0x6C, uint32_t(m2.size()));
-            for (int16_t v : table)
-            {
-                m2.push_back(uint8_t(v & 0xFF));
-                m2.push_back(uint8_t((v >> 8) & 0xFF));
-            }
-            size_t slash = path.find_last_of("\\/");
-            coatPath = path;
-            std::string base = path.substr(slash == std::string::npos ? 0 : slash + 1);
-            return base.substr(0, base.size() - 4);
+            if (low.size() > 4 && low.substr(low.size() - 4) == ".blp" && low.find("pug") != std::string::npos)
+                return path;
         }
         return "";
     }
@@ -280,13 +254,16 @@ namespace BrillHome
                 }
         std::sort(own.begin(), own.end());
 
-        // Corn: the game's pug, its coat a display's.
-        Bytes pug, coat;
-        std::string coatPath, coatName;
+        // Corn: the user's coat put where the game's pug's own coat is (the pug's model names it). No table
+        // and no model of the game's is changed for him, so nothing in the game can stand in front of it:
+        // the mastiff and then the pug with a display of its own (39700) both showed as the game's cube
+        // for a look it hasn't.
+        Bytes pug, cornCoat = ReadFile(moduleData / "corn" / CORN_COAT);
+        std::string coatPath;
         if (game.Read(PUG, pug))
-            coatName = SkinnedPug(pug, coat, game, coatPath);
-        if (coatName.empty())
-            log("The game's pug (" + std::string(PUG) + ") isn't as expected: Corn is the plain pug");
+            coatPath = PugCoat(pug);
+        if (coatPath.empty() || cornCoat.empty())
+            log("The game's pug (" + std::string(PUG) + ") or Corn's coat isn't as expected: Corn is the plain pug");
 
         Stamp stamp;
         stamp.Add(VERSION);
@@ -306,10 +283,12 @@ namespace BrillHome
             stamp.Add(name);
             stamp.Add(std::to_string(fs::file_size(path, error)));
         }
-        stamp.Add(coatName);
+        stamp.Add(coatPath);
+        stamp.Add(std::to_string(cornCoat.size()));
+        bool corn = !coatPath.empty() && !cornCoat.empty();
         if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
         {
-            cornReady = !coatName.empty();
+            cornReady = corn;
             return true;
         }
 
@@ -330,20 +309,10 @@ namespace BrillHome
             writer.Add(name, data);
             ++packed;
         }
-        // (the tan coat by its name in the model's own folder, where a display's names are looked for)
-        std::string pugDisplays;
-        if (!coatName.empty())
+        if (corn)
         {
-            writer.Add(PUG, pug);
+            writer.Add(coatPath, cornCoat);
             ++packed;
-            std::string folderCoat = "Creature\\Pug\\" + coatName + ".blp";
-            if (Lower(coatPath) != Lower(folderCoat))
-            {
-                writer.Add(folderCoat, coat);
-                ++packed;
-            }
-            // the game's own pug display, its coat now named; Corn's (its row in CreatureDisplayInfo.txt)
-            pugDisplays = "put\t" + std::to_string(PUG_DISPLAY) + "\t3291\t3100\t0\t0.9\t255\t" + coatName + "\t\t\t\t0\t0\t332\t0\t0\t0\n";
         }
         for (auto const& t : tables)
         {
@@ -355,14 +324,7 @@ namespace BrillHome
                 problems.push_back(name + ".dbc isn't in the game");
                 continue;
             }
-            std::string changes = Text(t);
-            if (name == "CreatureDisplayInfo")
-            {
-                if (coatName.empty())
-                    continue;      // (Corn's display needs the skinned pug)
-                changes += "types\tiiiifissssiiiiii\n" + pugDisplays;
-            }
-            std::string problem = Skyborne::ApplyChanges(dbc, changes);
+            std::string problem = Skyborne::ApplyChanges(dbc, Text(t));
             if (!problem.empty())
             {
                 problems.push_back(name + ".dbc: " + problem);
@@ -390,7 +352,7 @@ namespace BrillHome
         }
         for (auto const& p : problems)
             log("  " + p);
-        cornReady = !coatName.empty() && problems.empty();
+        cornReady = corn;
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
         log("The Brill home's patch is in the game: " + std::to_string(written) + " tables, " + std::to_string(packed) + " files ("
             + std::to_string(seconds) + " s)" + (cornReady ? ", Corn the Forsaken pug" : ", Corn the plain pug"));
