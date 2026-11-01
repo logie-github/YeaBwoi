@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 1 Nov 2026 12:51:41 +0000
+Subject: [PATCH] A player script hook for the most rested experience a player
+ may hold
+
+OnPlayerGetRestBonusMax (PLAYERHOOK_ON_GET_REST_BONUS_MAX), called from Player::SetRestBonus with
+the cap it works out, which a script may change (never below 0). Every change of the rest pool goes
+through SetRestBonus: an inn, time offline, a module's rest perk. wow-mod-challenges' Exhaustion
+challenge sets it to 0 (the Evermore realm's core has this hook; AzerothCore doesn't).
+---
+ src/server/game/Entities/Player/Player.cpp               | 3 +++
+ src/server/game/Scripting/ScriptDefines/PlayerScript.cpp | 5 +++++
+ src/server/game/Scripting/ScriptDefines/PlayerScript.h   | 9 +++++++++
+ src/server/game/Scripting/ScriptMgr.h                    | 1 +
+ 4 files changed, 18 insertions(+)
+
+diff --git a/src/server/game/Entities/Player/Player.cpp b/src/server/game/Entities/Player/Player.cpp
+index d7fd3e4910..48bcbc2e3c 100644
+--- a/src/server/game/Entities/Player/Player.cpp
++++ b/src/server/game/Entities/Player/Player.cpp
+@@ -10395,6 +10395,9 @@ void Player::SetRestBonus(float restBonusNew)
+ 
+     // Calculate rest bonus max using the multiplier
+     float restBonusMax = (float)GetUInt32Value(PLAYER_NEXT_LEVEL_XP) * restBonusMultiplier / 2;
++    sScriptMgr->OnPlayerGetRestBonusMax(this, restBonusMax);
++    if (restBonusMax < 0)
++        restBonusMax = 0;
+ 
+     if (restBonusNew > restBonusMax)
+         _restBonus = restBonusMax;
+diff --git a/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp b/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp
+index 4ac4571a3d..50249c360a 100644
+--- a/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp
++++ b/src/server/game/Scripting/ScriptDefines/PlayerScript.cpp
+@@ -1004,6 +1004,11 @@ void ScriptMgr::OnPlayerAfterTrainSpell(Player* player, Creature* trainer, uint3
+     CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_AFTER_TRAIN_SPELL, script->OnPlayerAfterTrainSpell(player, trainer, spellId));
+ }
+ 
++void ScriptMgr::OnPlayerGetRestBonusMax(Player* player, float& restBonusMax)
++{
++    CALL_ENABLED_HOOKS(PlayerScript, PLAYERHOOK_ON_GET_REST_BONUS_MAX, script->OnPlayerGetRestBonusMax(player, restBonusMax));
++}
++
+ PlayerScript::PlayerScript(char const* name, std::vector<uint16> enabledHooks)
+     : ScriptObject(name, PLAYERHOOK_END)
+ {
+diff --git a/src/server/game/Scripting/ScriptDefines/PlayerScript.h b/src/server/game/Scripting/ScriptDefines/PlayerScript.h
+index 0d2314edf7..ad5ab574bc 100644
+--- a/src/server/game/Scripting/ScriptDefines/PlayerScript.h
++++ b/src/server/game/Scripting/ScriptDefines/PlayerScript.h
+@@ -235,6 +235,7 @@ enum PlayerHook
+     PLAYERHOOK_ON_BEFORE_RECEIVE_SPELL_LIST_FROM_TRAINER,
+     PLAYERHOOK_ON_GET_TRAINER_SPELL_STATE,
+     PLAYERHOOK_ON_AFTER_TRAIN_SPELL,
++    PLAYERHOOK_ON_GET_REST_BONUS_MAX,
+     PLAYERHOOK_END
+ };
+ 
+@@ -966,6 +967,14 @@ public:
+      * @param spellId The id of the trainer spell that was bought
+      */
+     virtual void OnPlayerAfterTrainSpell(Player* /*player*/, Creature* /*trainer*/, uint32 /*spellId*/) {}
++
++    /**
++     * @brief This hook is called when the most rested experience a player can hold is worked out (Player::SetRestBonus)
++     *
++     * @param player Contains information about the Player
++     * @param restBonusMax The most rest the player may hold; a script may lower or raise it
++     */
++    virtual void OnPlayerGetRestBonusMax(Player* /*player*/, float& /*restBonusMax*/) { }
+ };
+ 
+ #endif
+diff --git a/src/server/game/Scripting/ScriptMgr.h b/src/server/game/Scripting/ScriptMgr.h
+index 7f0f30d3ca..d4c5653f64 100644
+--- a/src/server/game/Scripting/ScriptMgr.h
++++ b/src/server/game/Scripting/ScriptMgr.h
+@@ -484,6 +484,7 @@ public: /* PlayerScript */
+     void OnPlayerBeforeReceiveSpellListFromTrainer(Player* player, Creature* trainer, WorldPackets::NPC::TrainerList& trainerList);
+     void OnPlayerGetTrainerSpellState(Player const* player, uint32 trainerId, uint32 spellId, Trainer::SpellState& state);
+     void OnPlayerAfterTrainSpell(Player* player, Creature* trainer, uint32 spellId);
++    void OnPlayerGetRestBonusMax(Player* player, float& restBonusMax);
+ 
+     // Anti cheat
+     void AnticheatSetCanFlybyServer(Player* player, bool apply);
