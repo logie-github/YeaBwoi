@@ -4,7 +4,7 @@
 # road (the "escaped" mark, 970507): gone from Brill for this character, Sevren's greeting changed.
 cmd .levelup 11
 cmd .modify money 100000
-# Lowell Marsh is by the market well for a character who hasn't decided his fate (the line's phase).
+# Lowell Marsh is in the square for a character who hasn't decided his fate (the line's phase).
 go 0 2237.5 287.0 35.2
 wait 2
 cmd .remix guid 970500
@@ -32,8 +32,8 @@ go 0 2304.0 267.0 38.8
 talk 1499
 reward 1499 970500
 expect rewarded 970500
-# Eyes Among Us: Innkeeper Renee, Mrs. Winters and Abigail Shiel questioned; the well's cobbles and the
-# chalk-marked crate behind the tavern.
+# Eyes Among Us: Innkeeper Renee, Mrs. Winters and Abigail Shiel questioned; the cistern's loose stones and
+# the chalk-marked crate behind the tavern.
 talk 1499
 accept 1499 970501
 go 0 2268.0 247.0 34.3
@@ -48,7 +48,7 @@ go 0 2258.5 277.0 34.9
 talk 2118
 select 2118 by the well after dark
 expect credit 970501 970505 1/1
-go 0 2233.0 284.5 35.2
+go 0 2292.3 314.3 35.6
 cmd .brilltown use
 expect Brill town: used 970501
 go 0 2282.5 258.5 34.5
@@ -57,16 +57,16 @@ expect complete 970501
 go 0 2304.0 267.0 38.8
 talk 1499
 reward 1499 970501
-# The Scarlet Informant: the three street lamps, and the Captured Scarlet Zealot in the tavern's cellar.
+# The Scarlet Informant: the notes at three street lamps, and the Captured Scarlet Zealot in the tavern's cellar.
 talk 1499
 accept 1499 970502
-go 0 2245.5 301.0 35.2
+go 0 2270.5 327.3 34.8
 cmd .brilltown use
 expect Brill town: used 970503
-go 0 2277.5 273.0 35.2
+go 0 2225.4 252.4 33.9
 cmd .brilltown use
 expect Brill town: used 970503
-go 0 2267.5 313.0 34.2
+go 0 2280.6 434.3 34.3
 cmd .brilltown use
 expect Brill town: used 970503
 go 0 2290.5 236.0 27.3

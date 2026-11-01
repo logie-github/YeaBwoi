@@ -4,7 +4,7 @@ has been stealing the laboratory's reagents to brew "the Stay", a tincture meant
 Forsaken flesh. It ends with the player's judgment, on Johaan: the notes surrendered to the Royal
 Apothecary Society, the work allowed to go on under Johaan's eye, or the notes burned. The rewards are the
 same; the yard behind the laboratory changes (a phase each for "supervised" and "destroyed") and Johaan's
-and Wendell's words follow the choice. Stands alone; acknowledges the well's line where it fits."""
+and Wendell's words follow the choice. Stands alone; acknowledges the cistern's line where it fits."""
 
 # The yard behind Johaan's laboratory (the farmhouse WMO at 2261.9, 345.1, its door to the north-east):
 # open ground at 35.2, by the game's terrain.
@@ -158,63 +158,27 @@ LINE = {
     "objects": [
         # The shed behind the laboratory (everyone's; its words follow the line and the choice).
         {"id": "shed", "name": "Locked Storage Shed", "display": 662, "spawns": [SHED_AT],
-         "use": [{"cond": ["I:odor"], "quest": "odor", "credit": "shed_credit",
-                  "text": "(The padlock is new, and the hasp has been oiled. Through a gap between the boards you make out a small copper "
-                          "still, a row of stoppered jars, and a slate covered in chalk figures. The smell is embalming salts, and under "
-                          "it something sweet and cloying, like lilies left too long on a coffin.$B$BBeside the door, empty crates are "
-                          "stacked, a carter's tag still tied to one: 'Solliden. Leave by the trough. No questions.')"},
-                 {"cond": ["M:destroyed"],
-                  "text": "(The shed is empty and scrubbed. The boards nearest the door are scorched black, and the still is gone.)"},
-                 {"cond": ["M:supervised"],
-                  "text": "(The padlock is gone. Inside, the still has been cleaned and labeled in two hands: one small and careful, one "
-                          "sharp and impatient. A ledger hangs from a nail, every dose initialed twice.)"},
-                 {"cond": ["M:surrendered"],
-                  "text": "(The shed is bare. The still, the jars and the slate have been crated and carted to the Undercity under the "
-                          "Royal Apothecary Society's seal. Only the smell of lilies remains.)"},
-                 {"text": "(A storage shed, padlocked. A faint smell seeps between the boards: embalming salts, and something sweet.)"}]},
+         "use": [{"cond": ["I:odor"], "quest": "odor", "credit": "shed_credit"}]},
         # Wendell's washing, in the yard (everyone's).
         {"id": "basin", "name": "Washbasin", "display": 7485, "spawns": [[0, 2247.6, 344.6, 35.2, 1.6]]},
         {"id": "glassware", "name": "Dirty Glassware", "display": 4073, "spawns": [[0, 2247.4, 342.4, 35.2, 4.0]]},
         # Johaan's reagents at Solliden Farmstead, and the cart they came on.
-        {"id": "crate", "name": "Pilfered Reagent Crate", "display": 335,
+        {"id": "crate", "name": "Pilfered Reagent Crate", "quest_only": True, "display": 335,
          "spawns": [[0, 2286.0, 1298.0, 32.2, 1.0], [0, 2294.0, 1322.0, 31.5, 2.2], [0, 2276.0, 1334.0, 33.5, 4.1],
                     [0, 2300.0, 1305.0, 31.4, 0.4]],
-         "use": [{"cond": ["I:reagents"], "quest": "reagents", "credit": "crate_credit",
-                  "text": "(A crate stamped with the Royal Apothecary Society's seal, its lid pried off and nailed back down. Inside are "
-                          "embalming salts, a jar of grave moss, and flasks of bile packed in straw, every one with Johaan's inventory "
-                          "mark. You take it.)"},
-                 {"text": "(An empty crate with the Royal Apothecary Society's seal.)"}]},
-        {"id": "cart", "name": "Abandoned Handcart", "display": 6961, "spawns": [[0, 2280.0, 1288.0, 31.5, 0.8]],
-         "use": [{"cond": ["I:reagents"], "quest": "reagents", "credit": "delivery_credit",
-                  "text": "(A handcart under an oilcloth, one wheel sunk in the mud. In it are two crates, already empty, and a bundle "
-                          "of delivery slips tied with string. Every slip is for the same order: salts, moss, bile, and a quantity "
-                          "of lily oil, 'for the smell.' Each is signed in a small, careful hand, the letters leaning as if the "
-                          "writer's fingers did not quite close:$B$BW. Crane.)"},
-                 {"text": "(A handcart, sunk in the mud. Nobody has come back for it.)"}]},
+         "use": [{"cond": ["I:reagents"], "quest": "reagents", "credit": "crate_credit"}]},
+        {"id": "cart", "name": "Abandoned Handcart", "quest_only": True, "display": 7524, "spawns": [[0, 2280.0, 1288.0, 31.5, 0.8]],
+         "use": [{"cond": ["I:reagents"], "quest": "reagents", "credit": "delivery_credit"}]},
         # Wendell's caged darkhounds in the hills north-east of Brill: one healed, one set stiff, one gone.
         {"id": "cage_healed", "name": "Wendell's Cage", "display": 4151, "scale": 0.7,
          "spawns": [[0, 2450.0, 200.0, 37.5, 1.0]],
-         "use": [{"cond": ["I:question"], "quest": "question", "credit": "specimen_credit",
-                  "text": "(The darkhound in this cage lifts its head as you come near. Where the wasting sickness ought to have eaten "
-                          "its flank, the skin has closed over, pale and smooth as candle wax. Its fur has stopped falling. It whines "
-                          "and pushes its muzzle through the bars, looking for more of the meat.$B$BIt is the healthiest diseased "
-                          "animal you have ever seen.)"},
-                 {"text": "(A cage, empty now. Someone has left a bowl of clean water in it.)"}]},
+         "use": [{"cond": ["I:question"], "quest": "question", "credit": "specimen_credit"}]},
         {"id": "cage_stiff", "name": "Wendell's Cage", "display": 4151, "scale": 0.7,
          "spawns": [[0, 2522.0, 252.0, 47.0, 3.0]],
-         "use": [{"cond": ["I:question"], "quest": "question", "credit": "specimen_credit",
-                  "text": "(This darkhound is alive, but it barely moves. Its sores are gone, and so is any give in its flesh: the "
-                          "muscles of its legs have set as hard as cured leather, and its joints creak when it tries to rise. It "
-                          "manages a single step, then lies down again, panting, its eyes following you.$B$BPreserved, you think. "
-                          "Like meat in salt.)"},
-                 {"text": "(A cage, empty now.)"}]},
+         "use": [{"cond": ["I:question"], "quest": "question", "credit": "specimen_credit"}]},
         {"id": "cage_broken", "name": "Wendell's Cage", "display": 4151, "scale": 0.7,
          "spawns": [[0, 2602.0, 182.0, 34.0, 5.0]],
-         "use": [{"cond": ["I:question"], "quest": "question", "credit": "specimen_credit",
-                  "text": "(The third cage has been torn open from the inside. The bars are bent outward and smeared with dark, waxy "
-                          "blood. Tracks lead off into the brush. Close by, something snarls, too loud and too long, as if it has "
-                          "forgotten how to stop.)"},
-                 {"text": "(A cage with its bars bent outward.)"}]},
+         "use": [{"cond": ["I:question"], "quest": "question", "credit": "specimen_credit"}]},
         # The yard after the judgment. Supervised: Wendell's own bench, the still brought out into the open.
         {"id": "apparatus", "name": "Crane's Apparatus", "display": 4391, "phase": "supervised",
          "spawns": [[0, 2246.6, 340.4, 35.2, 3.3]]},
@@ -223,7 +187,7 @@ LINE = {
         {"id": "ledger", "name": "Johaan's Ledger", "display": 254, "phase": "supervised",
          "spawns": [[0, 2251.2, 341.0, 35.2, 2.0]]},
         # Destroyed: the burned still before the shed, and a scrubbing bucket by Wendell.
-        {"id": "ashes", "name": "Charred Remains", "display": 324, "phase": "destroyed",
+        {"id": "ashes", "name": "Charred Remains", "display": 4251, "phase": "destroyed",
          "spawns": [[0, 2252.6, 352.0, 35.2, 0.6]]},
         {"id": "scrub_bucket", "name": "Scrubbing Bucket", "display": 239, "phase": "destroyed",
          "spawns": [[0, 2248.7, 345.0, 35.2, 0.0]]},

@@ -714,12 +714,12 @@ EOF
 	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
 		fail "the house isn't in ChromieCraft's world"
-	# Corn (the quest dog, his pet and a hunter's companion): Corn's display, the game's pug in the user's coat.
-	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 39700" | CTL sql acore_world)" = 3 ] ||
-		fail "the Brill dog isn't Corn's display"
-	# The module's patch in the game: the language folder's patch-<locale>-V, its two tables (Corn's display,
-	# the cellar's looks) and its files (Corn's coat, the game's pug made his), made after the allied races'.
-	grep -E "Brill home: The Brill home's patch is in the game: 2 tables" "$FILES/logs/world.out" ||
+	# Corn (the quest dog, his pet and a hunter's companion): the game's pug display (the patch makes it his model).
+	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 31174" | CTL sql acore_world)" = 3 ] ||
+		fail "the Brill dog isn't the game's pug display"
+	# The module's patch in the game: the language folder's patch-<locale>-V, its table (the cellar's looks)
+	# and Corn's model, skin and coat at the pug's paths, made after the allied races'.
+	grep -E "Brill home: The Brill home's patch is in the game: 1 tables" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the Brill home's patch (Corn, the cellar)"
 	grep -E "Brill home: The Brill home's patch is in the game: .*Corn the (Forsaken|plain) pug" "$FILES/logs/world.out" || true
 	ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 || fail "the Brill home's patch isn't in the game"

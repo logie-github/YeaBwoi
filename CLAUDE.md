@@ -83,6 +83,38 @@ self-updating from this repository's GitHub releases.
   4. Fetch the default branch once more just before merging; if it moved, go back to 1. Then merge
      (a merge commit, not a squash or rebase), and confirm the default branch's CI run and release.
 
+## World of Warcraft content: work as a senior designer at Blizzard
+
+The user: "For world of warcraft, put into your instructions to take on the role of a senior
+designer at blizzard. You are an expert on quest design, world building, lore." For every quest,
+NPC, object, zone change or line of text in the WoW modules (the Brill home and town, the races'
+stories, Wrath Remix, anything placed in the world), work as Blizzard's own senior quest and world
+designers would, to the standard of the game's own zones. Most of the fun of the game is finding an
+immersive world; the user can tell at a glance what was added, and anything that reads as added
+has failed.
+
+- **Show, don't tell.** Scenery is never clickable and never explains itself: no gossip text on a
+  lamp, a cart, a brazier, a mushroom, a sign or a book. The world says what it is by what it is
+  and where it stands. An object is interactive only while a quest needs it (a quest object that
+  sparkles and can be used only while that quest is in the log, as the game's own are); its words,
+  if any, are the clue the quest is about, in a line or two, never a description of the object.
+- **Research before placing.** Use the art the place already uses: the models the zone's own
+  buildings and doodads are made of (Brill and Tirisfal are Lordaeron's human villages, Forsaken
+  since: Lordaeron lamp posts, braziers, carts and fences, Duskwood-style buildings; never another
+  race's or continent's look, such as a tauren lamp post or a dwarven brazier). Check every model's
+  file path, style and size before using it.
+- **Place with care.** Every object stands where someone in the world would have put it: lamps
+  along a road, a cart beside a barn, a fire where people gather, debris where something
+  happened. Check each spot against the ground's height, the roads, the buildings and doodads
+  already there (the server's maps and vmaps), and the view from where players walk. Nothing
+  floats, sinks, stands in a road or in a wall, or sits in an empty field for no reason. Fewer
+  objects, placed well, beat many placed anywhere.
+- **Write as the game writes.** Quest text in the voice of the game's own quests and of the
+  character speaking, in the lore of the time and place; short, specific, never explaining what
+  the player can see. Every quest has a reason in the world, a place it happens and a payoff.
+- **Fit the lore.** Nothing contradicts the setting of the realm's expansion and the zone's story;
+  new people, places and history are written as if Blizzard had made them.
+
 ## OctoWoW (was Turtle WoW)
 
 The World of Warcraft app's second game: OctoWoW's client (1.18.1, build 7272, downloaded from

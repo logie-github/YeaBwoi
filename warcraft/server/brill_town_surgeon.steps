@@ -56,7 +56,7 @@ talk 971402
 accept 971402 971401
 go 0 2920.0 400.0 31.5
 cmd .brilltown use
-has Brill town: used 971410
+has Brill town: used 971408
 expect credit 971401 971422 1/2
 go 0 2260.5 276.6 35.3
 talk 2118
@@ -68,7 +68,7 @@ select 10665 clean glass
 expect credit 971401 971424 1/1
 go 0 2325.5 363.1 33.9
 cmd .brilltown use
-has Brill town: used 971409
+has Brill town: used 971407
 expect credit 971401 971425 1/1
 cmd .quest complete 971401
 go 0 2314.6 369.3 34.5
@@ -84,7 +84,7 @@ talk 971401
 accept 971401 971402
 go 0 2790.0 805.0 113.8
 cmd .brilltown use
-has Brill town: used 971420
+has Brill town: used 971415
 expect credit 971402 971426 1/3
 go 0 2297.0 459.0 34.5
 talk 971000
@@ -92,11 +92,11 @@ select 971000 leather straps
 expect credit 971402 971427 1/1
 go 0 2770.0 806.0 113.5
 cmd .brilltown use
-has Brill town: used 971421
+has Brill town: used 971416
 expect credit 971402 971428 1/1
 go 0 2334.0 368.0 34.3
 cmd .brilltown use
-has Brill town: used 971419
+has Brill town: used 971414
 expect credit 971402 971429 1/1
 cmd .quest complete 971402
 go 0 2318.8 365.6 34.3
@@ -112,7 +112,7 @@ talk 971400
 accept 971400 971403
 go 0 2313.3 363.9 34.3
 cmd .brilltown use
-has Brill town: used 971426
+has Brill town: used 971418
 expect credit 971403 971430 1/2
 go 0 2318.6 357.5 34.7
 talk 971403
@@ -139,7 +139,7 @@ talk 971400
 accept 971400 971404
 go 0 2311.0 365.8 34.3
 cmd .brilltown use
-has Brill town: used 971411
+has Brill town: used 971409
 expect credit 971404 971434 1/1
 go 0 2321.6 362.2 34.2
 talk 971402
@@ -151,7 +151,7 @@ select 971401 fit Agnes's brace
 expect credit 971404 971436 1/1
 go 0 2308.8 367.2 34.4
 cmd .brilltown use
-has Brill town: used 971428
+has Brill town: used 971420
 expect credit 971404 971437 1/1
 go 0 2332.0 387.4 34.5
 talk 971406

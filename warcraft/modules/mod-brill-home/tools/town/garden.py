@@ -13,7 +13,7 @@ The garden is on the rise above the sunken lane, east of the square (the ground 
 37 to 39 high), kept within Brill (staged spawns 162 yards or less from 2275, 330). No building: fences,
 beds, a tool shed (from the second stage), a glasshouse frame (a stable's open frame, from the fourth),
 benches and the memorial bed (from the fifth), Pellen's stall (from the sixth). The old drain runs north-east
-down to the stream Maudie Fenwick drew from (the well's line); the toads nest at its mouth, outside Brill.
+down to the stream Maudie Fenwick drew from (the cistern's line); the toads nest at its mouth, outside Brill.
 
 Stages (every project's): 1 open, 2 to 5 as each quest is done, 6 established, 7 the house's furnishings
 bought. Daily life once it's open: Edda always; Pellen at his stall; Willa among the beds by day and by the
@@ -353,181 +353,81 @@ LINE = {
     "objects": [
         # Holt's Rise, overgrown (from the Board's going up until the garden opens).
         {"id": "weeds", "name": "Blighted Weeds", "display": 4111, "scale": 1.3, "from": 1, "until": 6, "spawns": AT["weeds"],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "weed_credit",
-                  "text": "(You haul the gloom weed out by the roots. It comes up with a sound like a sigh, trailing pale "
-                          "threads, and leaves a smell of old cellars behind.)"},
-                 {"cond": ["R:q1"], "text": "(Pulled gloom weed, heaped to dry. Odo says he'll burn it when the wind's away "
-                                           "from town. He's said so for a week.)"},
-                 {"text": "(Gloom weed, knee-high and grey-green. It grows wherever Tirisfal is left alone too long.)"}]},
-        {"id": "rubble", "name": "Fallen Wall", "display": 6926, "from": 1, "until": 6, "spawns": AT["rubble"],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "rubble_credit",
-                  "text": "(You heave the stones aside one by one. Underneath, the soil is black and alive with pale roots. "
-                          "One stone has a date cut into it, and the word HOLT.)"},
-                 {"cond": ["R:q1"], "text": "(Old wall stones, stacked. Edda means to edge the paths with them.)"},
-                 {"text": "(What's left of an orchard wall, tumbled into the weeds.)"}]},
-        {"id": "markers", "name": "Edda's Marker Stake", "display": 5452, "scale": 0.8, "from": 1, "until": 6,
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "weed_credit"}]},
+        {"id": "rubble", "name": "Fallen Wall", "display": 134, "from": 1, "until": 6, "spawns": AT["rubble"],
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "rubble_credit"}]},
+        {"id": "markers", "name": "Edda's Marker Stake", "quest_only": True, "display": 5452, "scale": 0.8, "from": 1, "until": 6,
          "spawns": AT["markers"],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "soil_credit",
-                  "text": "(You dig a handful of soil from beside the stake. It's dark, heavy and cold, and threaded with "
-                          "something pale that might be roots and might be bone.)"},
-                 {"cond": ["R:q1"], "text": "(A stake with a twist of ribbon: BED, in Edda's hand. The bed's been dug.)"},
-                 {"text": "(A stake with a twist of ribbon. On it, in a careful hand: BED.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "soil_credit"}]},
         # The garden begins (from the second stage).
         {"id": "fence", "name": "Garden Fence", "display": 6151, "from": 2, "spawns": AT["fence"]},
-        {"id": "sign", "name": "The Stillgarden", "display": 5452, "scale": 1.4, "from": 2, "spawns": AT["sign"],
-         "use": [{"text": "(Hand-painted on the board, in letters that lean into one another:$B$BTHE STILLGARDEN$BPlease "
-                          "keep to the paths. Some of the plants bite back.$BE. Graves, Gardener. P. Moss, Herbalist. "
-                          "Odo.)"}]},
         {"id": "beds", "name": "Garden Bed", "display": 20, "from": 2, "spawns": AT["beds"],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "bed_credit",
-                  "text": "(You set the gravebloom seedlings into the dark soil, crumble the spore cap over them and pour "
-                          "the lake water slowly around their roots. The soil drinks it and darkens.)"},
-                 {"cond": ["I:tending"], "quest": "tending", "credit": "tend_credit",
-                  "text": "(You pull the runners creeping back into the bed and pinch the spent heads off the gravebloom. "
-                          "One of them nips your thumb. Affectionately.)"},
-                 {"cond": ["R:q2"], "text": "(A bed of gravebloom and nightshade, pale and upright in their rows.)"},
-                 {"text": "(A freshly turned bed, waiting for something to grow.)"}]},
-        {"id": "barrow", "name": "Wheelbarrow", "display": 215, "from": 2, "until": 6, "spawns": AT["barrow"]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "bed_credit"},
+                 {"cond": ["I:tending"], "quest": "tending", "credit": "tend_credit"}]},
         {"id": "shovel", "name": "Spade", "display": 6479, "from": 2, "until": 6, "spawns": AT["shovel"]},
         # Planted (from the third): the tool shed, planters, seedlings.
         {"id": "shed", "name": "Tool Shed", "display": 662, "from": 3, "spawns": AT["shed"]},
-        {"id": "planter", "name": "Planter Box", "display": 377, "from": 3, "spawns": AT["planter"]},
         {"id": "seedling_bed", "name": "Gravebloom", "display": 4632, "scale": 1.2, "from": 3, "spawns": AT["seedling_bed"]},
         {"id": "nightshade_bed", "name": "Nightshade", "display": 7884, "scale": 0.8, "from": 3, "spawns": AT["nightshade_bed"]},
         {"id": "planter_flowers", "name": "Asters", "display": 6648, "scale": 1.2, "from": 3, "spawns": AT["planter_flowers"]},
         # The drain mended, the frame raised, the plants well (from the fourth).
-        {"id": "greenhouse", "name": "Glasshouse Frame", "display": 6514, "from": 4, "spawns": AT["greenhouse"]},
         {"id": "sluice", "name": "New Sluice", "display": 755, "scale": 2.5, "from": 4, "spawns": AT["sluice"]},
-        {"id": "cistern", "name": "Rain Cistern", "display": 6148, "from": 4, "spawns": AT["cistern"]},
-        {"id": "bloom_bed", "name": "Windblossom", "display": 3253, "scale": 0.8, "from": 4, "spawns": AT["bloom_bed"]},
+        {"id": "cistern", "name": "Rain Barrel", "display": 6036, "from": 4, "spawns": AT["cistern"]},
+        {"id": "bloom_bed", "name": "Flower Bed", "display": 6313, "scale": 0.8, "from": 4, "spawns": AT["bloom_bed"]},
         {"id": "shroom", "name": "Pale Fungus", "display": 385, "scale": 0.45, "from": 4, "spawns": AT["shroom"]},
         {"id": "memorial", "name": "Memorial Bed", "display": 49, "from": 4, "spawns": AT["memorial"],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "memorial_credit",
-                  "text": "(Willa digs, and you hand her the seeds a packet at a time: sweet william, forget-me-not, lavender. "
-                          "She sets the moonpetal lily at the centre herself and presses the soil around it with both "
-                          "thumbs, very carefully, the way you would tuck in a child.)"},
-                 {"cond": ["I:tending"], "quest": "tending", "credit": "tend_credit",
-                  "text": "(You weed around the lily and straighten the little stone plates. Someone has left a coin on "
-                          "one of them. You leave it where it is.)"},
-                 {"cond": ["R:q4"], "text": "(Sweet william, forget-me-nots and lavender, around a single moonpetal lily. "
-                                           "The stone plates at its edge are blank on purpose. Edda says they're for "
-                                           "whoever you're thinking of.)"},
-                 {"text": "(A round bed of turned earth, waiting.)"}]},
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "memorial_credit"},
+                 {"cond": ["I:tending"], "quest": "tending", "credit": "tend_credit"}]},
         # The memorial (from the fifth): benches to sit on, the plates, the flowers and the lily.
         {"id": "benches", "name": "Garden Bench", "display": 682, "type": 7, "from": 5, "spawns": AT["benches"]},
-        {"id": "plates", "name": "Blank Nameplate", "display": 5992, "scale": 1.3, "from": 5, "spawns": AT["plates"]},
         {"id": "mem_flowers", "name": "Forget-Me-Nots", "display": 6647, "scale": 1.2, "from": 5, "spawns": AT["mem_flowers"]},
         {"id": "lily", "name": "Moonpetal Lily", "display": 253, "scale": 0.9, "from": 5, "spawns": AT["lily"]},
         # The harvest (from the fifth): what's ripe under the glass, and the stall to sell it from.
         {"id": "herbs_peace", "name": "Ripe Peacebloom", "display": 269, "scale": 0.6, "from": 5, "spawns": AT["herbs_peace"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "herb_credit",
-                  "text": "(You cut the peacebloom at the stem, the way Edda showed you, and lay it in the basket heads "
-                          "together.)"},
-                 {"cond": ["I:tending"], "quest": "tending", "credit": "harvest_credit",
-                  "text": "(You cut a little peacebloom and leave the rest. It'll be back by next week.)"},
-                 {"text": "(Peacebloom, white and gold under the glass frame.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "herb_credit"},
+                 {"cond": ["I:tending"], "quest": "tending", "credit": "harvest_credit"}]},
         {"id": "herbs_silver", "name": "Ripe Silverleaf", "display": 270, "scale": 0.4, "from": 5, "spawns": AT["herbs_silver"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "herb_credit",
-                  "text": "(The silverleaf comes away cleanly. Its underside is the colour of a winter morning.)"},
-                 {"cond": ["I:tending"], "quest": "tending", "credit": "harvest_credit",
-                  "text": "(You cut a few leaves of silverleaf, from the outside of the plant, as Pellen insists.)"},
-                 {"text": "(Silverleaf, grown fat on grave-rich soil.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "herb_credit"},
+                 {"cond": ["I:tending"], "quest": "tending", "credit": "harvest_credit"}]},
         {"id": "herbs_grave", "name": "Ripe Gravebloom", "display": 4632, "scale": 1.8, "from": 5, "spawns": AT["herbs_grave"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "herb_credit",
-                  "text": "(The first gravebloom ever cut in Brill. It turns its waxy face away from you as you lift it.)"},
-                 {"cond": ["I:tending"], "quest": "tending", "credit": "harvest_credit",
-                  "text": "(You cut a stem of gravebloom. The plant sulks, and puts out two more.)"},
-                 {"text": "(Gravebloom, grown tall under the glass, every flower facing away from the light.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "herb_credit"},
+                 {"cond": ["I:tending"], "quest": "tending", "credit": "harvest_credit"}]},
         {"id": "stall", "name": "Pellen's Stall", "display": 7443, "from": 5, "spawns": AT["stall"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "stall_credit",
-                  "text": "(You and Pellen set up the trestle, tie the herbs in bundles by their stems and label every "
-                          "one in his small, exact hand, and argue briefly about whether DO NOT EAT needs underlining. It "
-                          "does. Twice.)"},
-                 {"text": "(Pellen's stall: herbs in bundles, every one labelled. Several say DO NOT EAT, underlined "
-                          "twice.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "stall_credit"}]},
         # Open (from the sixth): Pellen's wares, the gate's lanterns, flowers in pots.
         {"id": "sacks", "name": "Herb Sacks", "display": 6963, "from": 6, "spawns": AT["sacks"]},
-        {"id": "kelp", "name": "Drying Herbs", "display": 7224, "from": 6, "spawns": AT["kelp"]},
-        {"id": "flowerbasket", "name": "Basket of Cut Flowers", "display": 7600, "scale": 0.7, "from": 6,
-         "spawns": AT["flowerbasket"]},
-        {"id": "lanterns", "name": "Garden Lantern", "display": 6038, "from": 6, "spawns": AT["lanterns"]},
-        {"id": "pots", "name": "Flowerpot", "display": 5093, "scale": 1.2, "from": 6, "spawns": AT["pots"]},
-        {"id": "pot_flowers", "name": "Potted Asters", "display": 6313, "scale": 0.9, "from": 6, "spawns": AT["pot_flowers"]},
         # Odo's lantern at the gate, by night.
-        {"id": "night_lantern", "name": "Odo's Lantern", "display": 6038, "scale": 0.8, "from": 6, "when": "night",
-         "spawns": AT["night_lantern"]},
         # What Takes Root: gravebloom in the cemetery (from the second stage: everyone else's cemetery is as it was),
         # the spore cap in the grove; silt on Brightwater's shore (everyone's: it's far outside Brill).
-        {"id": "seedlings", "name": "Gravebloom", "display": 4632, "from": 2, "spawns": AT["seedlings"],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "seedling_credit",
-                  "text": "(You ease the little plant out of the grave dirt with its roots and soil whole. Its petals are "
-                          "the colour of candle wax, and cold.)"},
-                 {"text": "(Gravebloom: a pale, waxy flower that grows between the stones, where nothing else will.)"}]},
-        {"id": "spore", "name": "Pale Spore Cap", "display": 359, "scale": 0.7, "from": 2, "spawns": AT["spore"],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "spore_credit",
-                  "text": "(Under the trees the air is still and cool. You lift the pale cap whole, and a puff of grey "
-                          "spores drifts from its gills and hangs in the shade.)"},
-                 {"text": "(A pale spore cap, glistening in the shade.)"}]},
-        {"id": "silt", "name": "Brightwater Silt", "display": 20, "scale": 0.5, "spawns": AT["silt"],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "silt_credit",
-                  "text": "(The silt is grey and fine and holds the cold of the lake. You fill one jar with it and another "
-                          "with the clear water past the reeds.)"},
-                 {"text": "(Fine grey silt along the lakeshore.)"}]},
+        {"id": "seedlings", "name": "Gravebloom", "quest_only": True, "display": 4632, "from": 2, "spawns": AT["seedlings"],
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "seedling_credit"}]},
+        {"id": "spore", "name": "Pale Spore Cap", "quest_only": True, "display": 359, "scale": 0.7, "from": 2, "spawns": AT["spore"],
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "spore_credit"}]},
+        {"id": "silt", "name": "Brightwater Silt", "quest_only": True, "display": 20, "scale": 0.5, "spawns": AT["silt"],
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "silt_credit"}]},
         # The Garden's Hunger: Holt's drain and its mouth by the stream (everyone's).
-        {"id": "pipes", "name": "Cracked Drain", "display": 7969, "scale": 2.5, "spawns": AT["pipes"],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "pipe_credit",
-                  "text": "(The old clay pipe has split along its length. Inside: a slow brown trickle, a film of pale "
-                          "threads, and a smell like a flooded crypt. You scrape some of the muck into a jar for Pellen.)"},
-                 {"cond": ["R:q3"], "text": "(The crack's been bound with fresh clay and wire. Water runs through it clean.)"},
-                 {"text": "(An old clay drain, cracked open, running down toward the stream.)"}]},
-        {"id": "outlet", "name": "Choked Drain Mouth", "display": 7911, "spawns": AT["outlet"],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "outlet_credit",
-                  "text": "(The pipe's mouth is packed with mud, reeds and the slimy leavings of the toads' nest. You dig "
-                          "it out with a stick and your hands until something gives, and a rush of brown water bursts past "
-                          "you into the stream, then runs clear.)"},
-                 {"cond": ["R:q3"], "text": "(Holt's drain, running clear into the stream.)"},
-                 {"text": "(The mouth of an old drain, choked with mud and reeds.)"}]},
+        {"id": "pipes", "name": "Cracked Drain", "quest_only": True, "display": 7969, "scale": 2.5, "spawns": AT["pipes"],
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "pipe_credit"}]},
+        {"id": "outlet", "name": "Choked Drain Mouth", "quest_only": True, "display": 134, "spawns": AT["outlet"],
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "outlet_credit"}]},
         # A Bloom for Every Memory: seeds at Cold Hearth Manor, a lily on Brightwater's shore (everyone's).
-        {"id": "frame", "name": "Rotted Seed Frame", "display": 6606, "spawns": AT["frame"],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "seed_credit",
-                  "text": "(Behind the manor, the Brisboises' kitchen garden has gone wild inside what's left of its wall. In a rotted seed frame "
-                          "you find paper packets, still sealed, labelled in a careful hand: SWEET WILLIAM. FORGET-ME-NOT. "
-                          "LAVENDER, FOR THE LINEN.)"},
-                 {"text": "(A rotted seed frame in a garden gone wild.)"}]},
-        {"id": "moonlily", "name": "Moonpetal Lily", "display": 253, "spawns": AT["moonlily"],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "lily_credit",
-                  "text": "(A pale lily, cold and faintly bright, where the water laps the reeds. You lift it with its "
-                          "roots and a fistful of shore mud.)"},
-                 {"text": "(A moonpetal lily, pale as the moon on Lordamere.)"}]},
+        {"id": "frame", "name": "Rotted Seed Frame", "quest_only": True, "display": 6606, "spawns": AT["frame"],
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "seed_credit"}]},
+        {"id": "moonlily", "name": "Moonpetal Lily", "quest_only": True, "display": 253, "spawns": AT["moonlily"],
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "lily_credit"}]},
         # The First Harvest: the plague graves (everyone's), and Edda's wreath on them (from the opening).
-        {"id": "graves", "name": "Plague Graves", "display": 498, "scale": 1.6, "spawns": AT["graves"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "invite_credit",
-                  "text": "(You lay Edda's bouquet on the long, low mound: gravebloom, sweet william and a sprig of "
-                          "rosemary. The card says, in Edda's hand: TO BRILL'S FIRST RESIDENTS. YOU ARE INVITED. COME AS "
-                          "YOU ARE.)"},
-                 {"text": "(A long, low mound at the north end of the cemetery: the plague graves. No names. There wasn't "
-                          "time for names.)"}]},
+        {"id": "graves", "name": "Plague Graves", "quest_only": True, "display": 498, "scale": 1.6, "spawns": AT["graves"],
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "invite_credit"}]},
         {"id": "wreath", "name": "Edda's Wreath", "display": 6646, "from": 6, "spawns": AT["wreath"]},
         # Edda's flowers at the foot of the chapel's wall of names, once both are open (tools/town/chapel.py: its
         # memorial at the chapel's own (12.5, 7.6), between the candelabra; these at (12, 7) and (13, 7), its floor).
         {"id": "wall_flowers", "name": "Edda's Flowers", "display": 6647, "scale": 1.3, "from": 6, "needs": {"chapel": 6},
-         "spawns": [[0, 2396.61, 393.94, 37.2, 2.094], [0, 2395.74, 393.44, 37.2, 2.094]],
-         "use": [{"text": "(Fresh flowers at the foot of the wall of names, in jars of water: gravebloom, forget-me-nots, "
-                          "a sprig of rosemary. A card in a florist's looping hand: FOR THE NAMES, FROM THE STILLGARDEN. "
-                          "CHANGED ON TUESDAYS. E.G.)"}]},
+         "spawns": [[0, 2396.61, 393.94, 37.2, 2.094], [0, 2395.74, 393.44, 37.2, 2.094]]},
         # The house's furnishings (bought from Edda): asters in a pot by the door, a fungus garden under glass
         # (against the doorway's wall: the slots asked for, (-0.6, -3.9) and (3.9, -2.6), are in the way in and
         # under Carolai's alchemy table when she lives there).
-        {"id": "house_pot", "name": "Flowerpot", "display": 5093, "scale": 1.1, "from": 7,
-         "spawns": [["house", -1.35, 4.2, 0, 0]]},
-        {"id": "house_asters", "name": "Potted Asters", "display": 6313, "scale": 0.8, "from": 7,
-         "spawns": [["house", -1.35, 4.2, 0.7, 30]],
-         "use": [{"text": "(Autumn asters from the Stillgarden. Edda says they mean patience, or possibly afterthought. "
-                          "She can never remember which, and refuses to look it up.)"}]},
         {"id": "house_terrarium", "name": "Fungal Terrarium", "display": 7792, "scale": 1.2, "from": 7,
-         "spawns": [["house", -4.9, 3.85, 0, 0]],
-         "use": [{"text": "(A glass jar of Pellen's, sealed with wax. Inside, a garden of pale fungi no bigger than "
-                          "thimbles grows in the dark, needing nothing. A label: NO WATER. NO LIGHT. NO FUSS. -- P.M.)"}]},
+         "spawns": [["house", -4.9, 3.85, 0, 0]]},
     ],
     "gossip": [
         # Edda, by how far the garden's come (the first that holds).

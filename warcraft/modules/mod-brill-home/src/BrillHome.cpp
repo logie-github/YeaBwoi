@@ -128,11 +128,11 @@ namespace
     constexpr uint32 TEXT_EMOTE_YAWN_ID = 106;
 
     bool enabled = true;
-    // Corn's looks: the Forsaken pug (display 39700) once the module's patch has it in the game, else the
-    // game's own pug (31174; tools/build_sql.py: DOG_*)
-    constexpr uint32 DISPLAY_CORN = 39700, DISPLAY_PUG = 31174;
+    // Corn's looks: the game's pug (display 31174), in the user's coat where the module's patch is in the game
+    // (src/BrillHomePatch.cpp); tools/build_sql.py: DOG_*
+    constexpr uint32 DISPLAY_PUG = 31174;
     bool cornReady = false;
-    uint32 DogDisplay() { return cornReady ? DISPLAY_CORN : DISPLAY_PUG; }
+    uint32 DogDisplay() { return DISPLAY_PUG; }
 
     struct Home { uint32 upgrades = 0; uint32 lastRested = 0; uint32 flags = 0; };
     std::unordered_map<uint32, Home> homes;  // by the character's guid (low)
@@ -981,26 +981,6 @@ public:
 
 // The hunter trainers teach a dog's keeper who isn't a hunter to tame beasts, as they do hunters: Tame
 // Beast and Beast Lore (under General in their spellbook), from a hunter's level for it.
-// Corn without the module's patch in the game (no client on this realm's machine, or the game's pug not as
-// expected): the game's own pug, so he's never a display the game hasn't.
-class BrillHomeDogLooks : public AllCreatureScript
-{
-public:
-    BrillHomeDogLooks() : AllCreatureScript("BrillHomeDogLooks") { }
-
-    void OnCreatureAddWorld(Creature* creature) override
-    {
-        if (!creature || cornReady)
-            return;
-        uint32 entry = creature->GetEntry();
-        if ((entry == NPC_DOG || entry == NPC_DOG_PET || entry == NPC_DOG_COMPANION) && creature->GetDisplayId() == DISPLAY_CORN)
-        {
-            creature->SetNativeDisplayId(DISPLAY_PUG);
-            creature->SetDisplayId(DISPLAY_PUG);
-        }
-    }
-};
-
 class BrillHomeHunterTrainers : public AllCreatureScript
 {
 public:
@@ -1265,7 +1245,6 @@ void AddBrillHomeScripts()
     new BrillHomeCommands();
     new npc_brill_home_mastiff();
     new BrillHomeHunterTrainers();
-    new BrillHomeDogLooks();
     new npc_brill_home_companion();
     new npc_brill_home_carolai();
     new npc_brill_home_carolai_visit();

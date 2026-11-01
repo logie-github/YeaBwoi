@@ -76,13 +76,12 @@ QUEST_DOG = 970123
 TEXT_DOG, TEXT_DOG_WAITING = 970144, 970145
 PHASE_DOG = 0x400
 DOG_AT = (-0.1, -1.9, -35)  # by the foot of the bed, looking toward it
-# His looks: the game's own pug (Perky Pug's model, CreatureModelData 3291, display 31174) zombified in the
-# user's texture (warcraft/branding/corn-forsaken-pug.png; the user: "Use this texture on the pug dog you get
-# from the quest in brill. Name the dog Corn", "my pug is supposed to be zombified"). The client's own model,
-# its coat made a texture its display names, is in the module's patch (src/BrillHomePatch.cpp); without the
-# patch he's the game's pug (src/BrillHome.cpp: DogDisplay).
-DOG_DISPLAY = 39700
-PUG_MODEL, PUG_SOUNDS, PUG_NPC_SOUNDS, PUG_SCALE = 3291, 3100, 332, 0.9    # (display 31174's)
+# His looks: the game's own pug (Perky Pug's display, 31174) zombified in the user's texture
+# (warcraft/branding/corn-forsaken-pug.png; the user: "Use this texture on the pug dog you get from the quest
+# in brill. Name the dog Corn", "my pug is supposed to be zombified"), which the module's patch puts where the
+# pug's own coat is (src/BrillHomePatch.cpp): no table of the game's changed for him. A display of his own
+# (39700) showed as the game's cube, as the mastiff's had; its rows are taken out.
+DOG_DISPLAY = 31174
 DOG_SKIN = "ForsakenPug_Corn"
 DOG_TEXTURE = os.path.join(HERE, "..", "..", "..", "branding", "corn-forsaken-pug.png")
 CLIENT = os.path.join(HERE, "..", "data", "client")
@@ -418,17 +417,10 @@ def main():
     w("INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, "
       "`orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES")
     w(f"(970101, {NPC_DOG}, {MAP}, {ZONE}, {AREA}, 1, {PHASE_DOG}, {dx:.3f}, {dy:.3f}, {FLOOR:.3f}, {turn(DOG_AT[2]):.4f}, 60, 0, 0, 'mod-brill-home');")
-    # Corn's display (the game's pug model, the user's coat), the server's copy of the client's row
-    # (data/client/dbc); the mastiff's old rows (3970, 39701 to 39703) gone.
+    # (the old rows of a display of the dog's own, the mastiff's and then Corn's, 39700 to 39703, and its model, 3970)
     w("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;")
-    w(f"INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) "
-      f"SELECT {DOG_DISPLAY}, `BoundingRadius`, `CombatReach`, `Gender`, 0 FROM `creature_model_info` WHERE `DisplayID` = 31174;")
     w("DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;")
     w("DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;")
-    w("INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, "
-      "`TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, "
-      "`ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES")
-    w(f"({DOG_DISPLAY}, {PUG_MODEL}, {PUG_SOUNDS}, 0, {PUG_SCALE}, 255, {q(DOG_SKIN)}, '', '', '', 0, 0, {PUG_NPC_SOUNDS}, 0, 0, 0);")
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
     w(f"({TEXT_DOG}, {q('(The dog looks happy to see you.)')}, {q('(The dog looks happy to see you.)')}, 1),")
     w(f"({TEXT_DOG_WAITING}, {q('(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)')}, "
@@ -528,12 +520,7 @@ def main():
     w(f"({CAROLAI}, {QUEST_TONIC}), ({CAROLAI}, {QUEST_LOCKET}), ({JAMIE_NORE}, {QUEST_GIFT}), ({CAROLAI}, {QUEST_TEA}), "
       f"({CAROLAI}, {QUEST_LILY});")
 
-    # The game's own table for Corn's display (the module's patch, src/BrillHomePatch.cpp), and his coat.
-    os.makedirs(os.path.join(CLIENT, "dbc"), exist_ok=True)
-    with open(os.path.join(CLIENT, "dbc", "CreatureDisplayInfo.txt"), "w", encoding="utf-8", newline="\n") as f:
-        f.write("# CreatureDisplayInfo: Corn's (tools/build_sql.py; the game's pug display, 31174, named for its coat by the patch)\n")
-        f.write("types\tiiiifissssiiiiii\n")
-        f.write(f"put\t{DOG_DISPLAY}\t{PUG_MODEL}\t{PUG_SOUNDS}\t0\t{PUG_SCALE}\t255\t{DOG_SKIN}\t\t\t\t0\t0\t{PUG_NPC_SOUNDS}\t0\t0\t0\n")
+    # Corn's coat (the module's patch puts it in the game: src/BrillHomePatch.cpp).
     write_coat()
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
@@ -542,19 +529,19 @@ def main():
 
 
 def write_coat():
-    """Corn's coat in the game's texture format (a DXT1 BLP, with its mip levels), from the user's texture:
-    data/client/files/Creature/Pug/<DOG_SKIN>.blp, by the pug model's folder, where a display's coat is looked
-    for. (mod-allied-races/tools/blp.py writes it; needs numpy and Pillow.)"""
+    """Corn's coat in the game's texture format (a DXT5 BLP with its mip levels: the user's texture keeps the
+    pug coat's alpha, as the game's own coat has it): data/client/corn/<DOG_SKIN>.blp.
+    (mod-allied-races/tools/blp.py writes it; needs numpy and Pillow.)"""
     import sys
     import numpy as np
     from PIL import Image
     sys.path.insert(0, os.path.join(HERE, "..", "..", "mod-allied-races", "tools"))
     import blp
     rgba = np.ascontiguousarray(np.asarray(Image.open(DOG_TEXTURE).convert("RGBA")))
-    path = os.path.join(CLIENT, "files", "Creature", "Pug", DOG_SKIN + ".blp")
+    path = os.path.join(CLIENT, "corn", DOG_SKIN + ".blp")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "wb") as f:
-        f.write(blp.write_dxt(rgba))
+        f.write(blp.write_dxt(rgba, alpha=True))
 
 
 if __name__ == "__main__":

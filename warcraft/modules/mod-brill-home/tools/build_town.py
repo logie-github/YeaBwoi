@@ -306,6 +306,7 @@ def main():
         w(f"DELETE FROM `{table}` WHERE `{column}` BETWEEN {lo} AND {hi}{extra};")
     w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` BETWEEN {lo} AND {hi};")
     w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` BETWEEN {lo} AND {hi};")
+    w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 30 AND `SourceEntry` BETWEEN {lo} AND {hi};")
     entries = ", ".join(str(e) for e, _, _ in SCHEDULES.values())
     w(f"DELETE FROM `game_event` WHERE `eventEntry` IN ({entries});")
     w(f"DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN 9700 AND 9709;")
@@ -417,12 +418,27 @@ def main():
             w(",\n".join(smart) + ";")
 
         # Objects.
-        rows, spawns, uses = [], [], []
+        rows, spawns, uses, goobers = [], [], [], []
         for obj in line.get("objects", []):
             entry = objects[f"{key}.{obj['id']}"]
-            kind = obj.get("type", 2 if obj.get("use") else 5)
-            script = "go_brill_town" if kind == 2 else ""
-            data0, data1 = (1, 1) if kind == 7 else (0, 0)
+            # What kind: scenery (5) unless it's used. An object one quest uses is that quest's (a goober,
+            # 10, with its quest): it sparkles and can be used only while the quest is in the log, as the
+            # game's own quest objects; one used otherwise (several quests, the cellar's way down) stays
+            # usable (2). Scenery never says anything (CLAUDE.md: show, don't tell).
+            obj_uses = obj.get("use", [])
+            quests_of = sorted({u["quest"] for u in obj_uses if u.get("quest")})
+            only = quests_of[0] if len(quests_of) == 1 and all(u.get("quest") == quests_of[0] or u.get("marker") for u in obj_uses) else None
+            kind = obj.get("type", (10 if only else 2) if obj_uses else 5)
+            script = "go_brill_town" if kind in (2, 10) else ""
+            data0, data1 = (1, 1) if kind == 7 else (0, ref(key, quests, only, "quest")) if kind == 10 else (0, 0)
+            if kind == 10:
+                goobers.append(entry)
+            # (a quest's own thing in the world, there only while the quest is in a player's log)
+            if obj.get("quest_only"):
+                if not only:
+                    die(key, f"{obj['id']} is \"quest_only\" but isn't one quest's")
+                conditions.append(f"(30, 1, {entry}, 0, 0, 9, 0, {ref(key, quests, only, 'quest')}, 0, 0, 0, "
+                                  f"{q('mod-brill-home town: ' + obj['id'] + ' while its quest is in the log')})")
             rows.append(f"({entry}, {kind}, {obj['display']}, {q(obj['name'])}, {obj.get('scale', 1)}, {data0}, {data1}, {q(script)})")
             for spawn in obj.get("spawns", []):
                 m, x, y, z, o = place(key, spawn)
@@ -445,10 +461,11 @@ def main():
             w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `ScriptName`) VALUES")
             w(",\n".join(rows) + ";")
             # (a building: drawn as the game's own buildings out in the world are, never damaged: the house's kind)
+            # (a quest's object: used only when the game says so, as its quest's; GO_FLAG_INTERACT_COND)
             buildings = [objects[f"{key}.{o['id']}"] for o in line.get("objects", []) if o.get("type") == 33]
-            if buildings:
+            if buildings or goobers:
                 w("INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`) VALUES " +
-                  ", ".join(f"({e}, 0, 32)" for e in buildings) + ";")
+                  ", ".join([f"({e}, 0, 32)" for e in buildings] + [f"({e}, 0, 4)" for e in goobers]) + ";")
         if spawns:
             w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
               "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, "

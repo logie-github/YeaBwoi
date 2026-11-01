@@ -90,7 +90,9 @@ server's tables' ids, and their beards stayed at 13 and 14 beside the Skyborne's
   character textures are in (Ralia's mod or Alternate Female Options: `Data/<locale>/patch-<locale>-Z.MPQ`
   and the list of its paths beside it), the patch carries each of them too, as the game has it with
   that patch in: in the game the `Data` folder's patches won over the language folder's, so only this,
-  the highest of them, puts the set over an HD look's and the race modules' textures.
+  the highest of them, puts the set over an HD look's and the race modules' textures. The same for
+  mod-brill-home's Corn (his model, skin and coat at the game's pug's paths, listed beside its
+  `Data/<locale>/patch-<locale>-V.MPQ`), so a `Data` patch with a pug of its own can't hide him.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.
 - `data/sql/db-world/skyborne_cleanup.sql` and `data/sql/db-characters/skyborne_cleanup.sql` take
   out of a realm's databases the ids an earlier build of the module used and this one doesn't (item

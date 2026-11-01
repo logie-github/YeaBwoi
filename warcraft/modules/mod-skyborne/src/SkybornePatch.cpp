@@ -14,7 +14,9 @@
  * It also carries mod-ralia's character textures (Ralia's mod or Alternate Female Options: the paths its
  * Data/<locale>/patch-<locale>-Z.MPQ lists beside it, read from the game with that patch in), so a
  * set's textures win over the HD look's and the race modules' Data patches whichever the game reads
- * last: in the game the Data folder's patches won over the language folder's.
+ * last: in the game the Data folder's patches won over the language folder's. And mod-brill-home's Corn
+ * (his model, skin and coat at the game's pug's paths, listed beside its Data/<locale>/patch-<locale>-V.MPQ),
+ * so a Data patch's pug can't hide him.
  */
 
 #include "SkybornePatch.h"
@@ -263,18 +265,21 @@ namespace Skyborne
         // (-2: the outfits' slots emptied with -1, the game's own empty slot, issue #119)
         stamp.Add(femaleBodyPreview ? "female-body-preview-2" : "dressed-preview");
         stamp.Add(game.Describe());
-        // mod-ralia's textures, when its patch is in (its mark and its list beside it).
-        std::vector<std::string> ralia;
-        if (!game.locale.empty())
+        // mod-ralia's textures and mod-brill-home's Corn, when their patches are in (each one's mark and its
+        // list beside it): Data/<locale>/patch-<locale>-Z.MPQ (.ralia) and -V.MPQ (.brillhome).
+        auto listed = [&](char const* letter, char const* markSuffix, char const* name)
         {
-            fs::path raliaPatch = clientData / game.locale / ("patch-" + game.locale + "-Z.MPQ");
-            fs::path raliaMark = raliaPatch, raliaList = raliaPatch;
-            raliaMark += ".ralia";
-            raliaList += ".files";
-            if (fs::exists(raliaPatch, error) && fs::exists(raliaMark, error) && fs::exists(raliaList, error))
+            std::vector<std::string> paths;
+            if (game.locale.empty())
+                return paths;
+            fs::path other = clientData / game.locale / ("patch-" + game.locale + "-" + letter + ".MPQ");
+            fs::path otherMark = other, otherList = other;
+            otherMark += markSuffix;
+            otherList += ".files";
+            if (fs::exists(other, error) && fs::exists(otherMark, error) && fs::exists(otherList, error))
             {
-                std::string list = Text(raliaList);
-                stamp.Add("ralia");
+                std::string list = Text(otherList);
+                stamp.Add(name);
                 stamp.Add(list);
                 std::istringstream lines(list);
                 for (std::string path; std::getline(lines, path);)
@@ -282,10 +287,13 @@ namespace Skyborne
                     if (!path.empty() && path.back() == '\r')
                         path.pop_back();
                     if (!path.empty())
-                        ralia.push_back(path);
+                        paths.push_back(path);
                 }
             }
-        }
+            return paths;
+        };
+        std::vector<std::string> ralia = listed("Z", ".ralia", "ralia");
+        std::vector<std::string> brill = listed("V", ".brillhome", "brill-home");
         std::vector<fs::path> files;
         for (auto it = fs::recursive_directory_iterator(moduleData, error); !error && it != fs::recursive_directory_iterator(); it.increment(error))
             if (it->is_regular_file(error))
@@ -347,8 +355,9 @@ namespace Skyborne
             }
         }
 
-        // mod-ralia's textures, as the game has them with its patch in (the Skyborne's own made above win).
-        size_t carried = 0;
+        // mod-ralia's textures and Corn's files, as the game has them with their patches in (the Skyborne's own
+        // made above win).
+        size_t carried = 0, carriedBrill = 0;
         {
             std::set<std::string> done = made;
             for (std::string const& path : ralia)
@@ -358,6 +367,14 @@ namespace Skyborne
                     continue;
                 writer.Add(path, data);
                 ++carried;
+            }
+            for (std::string const& path : brill)
+            {
+                Bytes data;
+                if (!done.insert(Lower(path)).second || !game.Read(path, data))
+                    continue;
+                writer.Add(path, data);
+                ++carriedBrill;
             }
         }
 
@@ -451,7 +468,8 @@ namespace Skyborne
             log("  " + p);
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
         log("The Skyborne's patch is in the game: " + std::to_string(tables) + " tables, " + std::to_string(textures)
-            + " textures" + (carried ? ", " + std::to_string(carried) + " of mod-ralia's" : "") + (missing ? ", " + std::to_string(missing) + " the game hasn't" : "")
+            + " textures" + (carried ? ", " + std::to_string(carried) + " of mod-ralia's" : "")
+            + (carriedBrill ? ", " + std::to_string(carriedBrill) + " of mod-brill-home's (Corn)" : "") + (missing ? ", " + std::to_string(missing) + " the game hasn't" : "")
             + (bad ? ", " + std::to_string(bad) + " that couldn't be made" : "") + " (" + std::to_string(seconds) + " s)");
         return true;
     }

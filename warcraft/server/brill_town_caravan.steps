@@ -35,15 +35,15 @@ expect credit 971500 971531 3/3
 # The ruts, and the two broken wagons south of the yard.
 go 0 2192.0 238.0 35.2
 cmd .brilltown use
-has Brill town: used 971509
+has Brill town: used 971507
 expect credit 971500 971532 1/3
 go 0 2178.0 222.5 38.7
 cmd .brilltown use
-has Brill town: used 971510
+has Brill town: used 971508
 expect credit 971500 971532 2/3
 go 0 2156.0 222.0 42.8
 cmd .brilltown use
-has Brill town: used 971510
+has Brill town: used 971508
 expect credit 971500 971532 3/3
 # The Magistrate's leave, and the stakes driven.
 go 0 2304.5 266.0 38.9
@@ -52,7 +52,7 @@ select 1499 ground for a caravan office
 expect credit 971500 971533 1/1
 go 0 2193.0 274.0 41.1
 cmd .brilltown use
-has Brill town: used 971511
+has Brill town: used 971509
 expect credit 971500 971534 1/1
 go 0 2199.5 259.5 36.8
 talk 971500
@@ -68,7 +68,7 @@ accept 971502 971501
 # The crates dumped along the Undercity road.
 go 0 2158.0 196.0 42.9
 cmd .brilltown use
-has Brill town: used 971518
+has Brill town: used 971515
 expect credit 971501 971535 1/6
 go 0 2152.5 181.0 41.5
 cmd .brilltown use
@@ -92,7 +92,7 @@ select 971000 owes him a loading winch
 expect credit 971501 971536 1/1
 go 0 2307.0 466.0 34.9
 cmd .brilltown use
-has Brill town: used 971515
+has Brill town: used 971512
 expect credit 971501 971537 1/2
 go 0 2237.0 311.0 37.0
 talk 2135
@@ -101,11 +101,11 @@ expect credit 971501 971537 2/2
 # The platform raised, and the crates carried into the big tent.
 go 0 2179.34 247.58 38.4
 cmd .brilltown use
-has Brill town: used 971516
+has Brill town: used 971513
 expect credit 971501 971538 1/4
 go 0 2168.73 243.9 41.3
 cmd .brilltown use
-has Brill town: used 971517
+has Brill town: used 971514
 expect credit 971501 971538 2/4
 go 0 2166.86 246.9 42.5
 cmd .brilltown use
@@ -126,11 +126,11 @@ talk 971500
 accept 971500 971502
 go 0 2143.5 174.0 39.9
 cmd .brilltown use
-has Brill town: used 971522
+has Brill town: used 971519
 expect credit 971502 971539 1/3
 go 0 2133.0 190.0 49.6
 cmd .brilltown use
-has Brill town: used 971523
+has Brill town: used 971520
 expect credit 971502 971539 2/3
 go 0 2124.5 206.5 54.3
 cmd .brilltown use
@@ -145,7 +145,7 @@ kill 971512
 expect credit 971502 971512 1/1
 go 0 2111.5 233.0 62.3
 cmd .brilltown use
-has Brill town: used 971527
+has Brill town: used 971524
 expect credit 971502 971540 1/1
 # Selwyn heard; then the choice, with Irena: Selwyn exposed.
 go 0 2203.0 263.0 36.4
@@ -202,7 +202,7 @@ talk 971502
 accept 971502 971504
 go 0 2174.69 243.02 38.6
 cmd .brilltown use
-has Brill town: used 971537
+has Brill town: used 971532
 expect credit 971504 971546 1/4
 go 0 2178.6 239.13 37.3
 cmd .brilltown use
@@ -212,7 +212,7 @@ cmd .brilltown use
 expect credit 971504 971546 3/4
 go 0 2178.91 242.65 37.4
 cmd .brilltown use
-has Brill town: used 971536
+has Brill town: used 971531
 expect credit 971504 971546 4/4
 # Garth (there from stage 5) and Bastian briefed.
 go 0 2193.0 249.0 35.9
