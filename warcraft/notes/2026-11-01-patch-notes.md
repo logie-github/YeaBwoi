@@ -1,0 +1,1 @@
+- Patch notes: the update dialog now lists what changed in every update since the one you have installed.
