@@ -175,9 +175,10 @@ own. As the murlocs' story is, it's data (`tools/naga/ch*.py`, written as `tools
 `tools/murloc/SCHEMA.md` say) that the same compiler (`tools/murloc/compile.py`, with the naga's profile:
 `tools/murloc/profiles.py`) makes the world database's rows (`data/sql/chromiecraft/world/naga_story.sql`).
 
-**Where it stands**: the engine is built; the chapters are being written. Chapter 1 in this release is a stub that
-exercises it (`tools/naga/ch1_stub.py`: a hub at Rethress Sanctum, three placeholder quests: a kill, one lived in a
-memory at the Ravencrest Monument, a question), to be replaced.
+**Where it stands**: the engine is built; chapter 1, The Low Tide (`tools/naga/ch1_low_tide.py`, levels 10 to 15:
+the crèche at Rethress Sanctum, its 35 quests and two memories), and the shared cast and hub kit
+(`tools/naga/ch0_people.py`) are written; chapters 2 to 10 are being written. The story isn't released until it's
+whole (the gate would close every other quest to a naga with nothing after chapter 1).
 
 What holds it together (the engine):
 

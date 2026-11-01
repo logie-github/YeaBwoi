@@ -67,6 +67,7 @@ T_SELF, T_INVOKER, T_POSITION, T_CLOSEST_CREATURE = 1, 7, 8, 19
 A_MORPH, A_SET_COUNTER, A_ALLOW_COMBAT_MOVE, A_SEND_GOSSIP_MENU, A_SET_SCALE, A_SET_HOVER = 3, 63, 21, 98, 227, 207
 EV_MOVEMENT_INFORM, EV_JUST_SUMMONED, EV_COUNTER_SET, EV_SUMMONED_UNIT_DIES, POINT_MOTION = 34, 54, 77, 82, 8
 T_PLAYER_RANGE = 17
+T_CLOSEST_PLAYER = 21                       # (target_param1: the farthest, yards)
 # Unit flags: not attackable, immune to players and to creatures (an "untouchable" canon figure: bible 18.3)
 UNTOUCHABLE = 0x2 | 0x100 | 0x200
 CHAT = {"say": 12, "yell": 14, "whisper": 15, "emote_text": 16}
@@ -973,7 +974,10 @@ class Story:
                 first = self.script_rows.get((entry, 0), 0)
                 if all(b[0] != "wait" and (len(b) < 2 or b[1] in ("self", None)) for b in beats):
                     acts = [a for b in beats for a in self.beat(entry, b, chapter, key)]
-                    acts = [(t, p, (T_SELF,) if t == A_TALK and tg == (T_INVOKER,) else tg) for t, p, tg in acts]
+                    # (an idle has no one who started it: a line is said to no one, anything else aimed at "the
+                    # player" (a look, a cast) at the nearest one within 30 yards)
+                    acts = [(t, p, ((T_SELF,) if t == A_TALK else (T_CLOSEST_PLAYER, 30)) if tg == (T_INVOKER,) else tg)
+                            for t, p, tg in acts]
                     if not acts:
                         continue
                     self.smart(entry, 0, EV_UPDATE_OOC, timing, acts)  # (plain actions: no list held, nothing a scene waits for)
@@ -1395,6 +1399,10 @@ class Story:
         ender_npc = self.npcs.get(self.qualify(chapter, ender)) if isinstance(ender, str) else None
         lang_give = self.language(giver_npc) if giver_npc else self.P.own_language
         lang_end = self.language(ender_npc) if ender_npc else lang_give
+        if not self.P.translate:
+            # (a quest's own words are always readable in a story whose people's are (the naga's, bible 4.1): the
+            # giver's tongue is heard in what they say aloud, never in the quest window)
+            lang_give = lang_end = self.P.own_language
         level = d["level"]
         req_npc, req_items, objective_text = [], [], []
         special = 0
@@ -1948,7 +1956,7 @@ class Story:
                             pool_map=pm, px=round(px, 2), py=round(py, 2), pz=round(pz + 0.5, 2), po=d.get("pool_facing", 0.0),
                             quests=",".join(str(self.quest_id[q]) for q in qs),
                             wakes=",".join(str(self.quest_id[q]) for q in qs if self.quests[q].get("wake"))))
-            if d.get("singer"):                 # back in, while one of its quests is in the log unfinished
+            if d.get("singer"):                 # back in, while one of its quests is in the log (a waking one unfinished)
                 sk = self.qualify(ch, d["singer"])
                 if sk not in self.npc_id:
                     self.err(where, f"no singer {d['singer']!r}")
@@ -1960,8 +1968,11 @@ class Story:
                          OptionText=self.words(d.get("again", "Sing it again. Let me go back."), self.language(self.npcs[sk])),
                          OptionType=1, OptionNpcFlag=1)
                 for n, q in enumerate(qs):
+                    # (one done inside but not handed in, its ender in the memory, needs the way back in too; one that
+                    # wakes the player when it's done is handed in in the present)
                     self.condition(15, e, opt, 9, self.quest_id[q], else_group=n)
-                    self.condition(15, e, opt, 28, self.quest_id[q], negative=1, else_group=n)
+                    if self.quests[q].get("wake"):
+                        self.condition(15, e, opt, 28, self.quest_id[q], negative=1, else_group=n)
                 self.smart(e, 0, EV_GOSSIP_SELECT, (e, opt), [(A_CLOSE_GOSSIP, (), (T_INVOKER,)),
                                                              (A_ADD_AURA, (self.memory_spell[key],), (T_INVOKER,))])
         for i, (ka, ba, ma, xa, ya) in enumerate(stages):

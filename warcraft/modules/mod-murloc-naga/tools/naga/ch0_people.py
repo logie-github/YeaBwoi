@@ -62,12 +62,14 @@ NPCS = [
     dict(key="nazreth", name="Nazreth", subname="Warlock Trainer", look=4982, level=35, role="quest+trainer:warlock",
          gossip="Illidan taught us to drink from the Legion's cup and keep our own minds. Most of us did. Mostly.",
          idle=[("every", 38000, [("visual", "self", 43167)]), ("every", 61000, [("emote", "self", "spell")])]),
-    dict(key="mrgl", name="Mrgl-Who-Counts", subname="", look="murloc_abyssal", level=12, role="quest", language="titan",
+    # Mrgl speaks no tongue a naga knows: he says nothing aloud and shows everything (the compiler writes a quest's
+    # own texts in its giver's language, so his quest texts are his broken Nazja, readable).
+    dict(key="mrgl", name="Mrgl-Who-Counts", subname="", look="murloc_abyssal", level=12, role="quest",
          gossip="Mrgl... one, two, three, five. Mrgl counts. Mrgl always counts.",
          idle=[("every", 29000, [("emote", "self", "talk"), ("sound", "self", "murloc_fidget")]),
                ("every", 47000, [("emote", "self", "point"), ("emote", "self", "question")])]),
     dict(key="mrgl_banker", name="Mrgl-Who-Counts", subname="Banker", look="murloc_abyssal", level=20, role="quest+banker",
-         language="titan", gossip="Mrgl counts it. Mrgl counts it again. Nobody's things go missing. Nobody's.",
+         gossip="Mrgl counts it. Mrgl counts it again. Nobody's things go missing. Nobody's.",
          idle=[("every", 29000, [("emote", "self", "talk"), ("sound", "self", "murloc_fidget")])]),
 
     # -- their younger selves, for the memories (canon unnamed naga, invented attributions: the bible's 3.3) --

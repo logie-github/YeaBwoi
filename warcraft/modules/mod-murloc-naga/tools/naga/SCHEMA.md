@@ -5,7 +5,7 @@ of plain data, `tools/naga/chN_<name>.py`, that `tools/murloc/compile.py` turns 
 (`data/sql/chromiecraft/world/naga_story.sql`). Everything in `tools/murloc/SCHEMA.md` holds (its last section,
 "More", was written for this story); this file says what's different for the naga. `tools/naga/ch0_people.py` is
 the shared cast (people who come back chapter after chapter, placed by each chapter's SPAWNS);
-`tools/naga/ch1_stub.py` is a stub that exercises the engine, for chapter 1's writer to replace;
+`tools/naga/ch1_low_tide.py` is chapter 1 (the model for the others: format and how much every scene acts);
 `tools/naga/test.steps` the server test's steps (with the story's names), which each chapter's writer extends.
 `content.py`'s `NAGA_CHAPTERS` says how many chapters are released (the ones after are still being written: a
 reference to one of their quests is a quest no one has done yet).
@@ -93,3 +93,13 @@ QUESTS = [dict(key="ch1_awakening", ..., memory="m1", wake=True,
 `tools/naga/test.steps` (auth_check.py's steps, with `{chN:key}` for the story's ids, `{xyz:chN:place}` and
 `{z:chN:place}` for places): a naga shaman from its start. `cmd .gps` and `has Phase: 2048` check the phase; a
 memory's is its bit alone (A: 2, B: 4, C: 8).
+
+## Known limits
+
+- A quest's own words (title, text, progress, reward) are always readable, whoever gives it; what a land-walker says
+  aloud (say, yell, gossip) is in their language.
+- A converted look (`tools/naga/looks.py`) plays what its EMOTES entry lists; the lint doesn't check them: keep to
+  that list by hand.
+- `at_health` beats run, but can't give credit (the core's health event has no player to give it to).
+- A memory's singer offers the way back in while any of its quests is in the log (a quest with `wake=True` only
+  while it's unfinished: it's handed in in the present).

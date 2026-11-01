@@ -59,7 +59,8 @@ NPCS = [
 - `watch=(yards, [beats], cooldown ms)`: a player coming that near (in sight) starts the beats ("player"
   is them): a Lasher's hiss, point and lash; a slave hiding. Default cooldown 15000.
 - `at_health=(30, [beats])`: in a fight, hurt to that share of its health, its beats (a duel's end:
-  `("faction", "self", "tribe")`, `("evade", "self")`, `("state", "self", "kneel")`, `("credit", quest)`).
+  `("faction", "self", "tribe")`, `("evade", "self")`, `("state", "self", "kneel")`). A `("credit", quest)` here gives
+  nothing: the core's health event has no player to credit (a kill or an emote objective instead).
 - `plural`: how an emote objective names them ("pen slaves": "/wave at pen slaves 0/5").
 - `at`: a place, a point, or a list of them (one creature at each).
 - `language`: `nerglish` (the default for murlocs: translated), or `common`, `orcish`, `darnassian`,
