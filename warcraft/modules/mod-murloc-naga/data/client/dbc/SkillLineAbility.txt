@@ -1,5 +1,4 @@
 # SkillLineAbility: the Murlocs' and the Naga's changes (tools/build_data.py)
-or	590	3	262144
 or	592	3	524288
 or	20867	3	786432
 or	20868	3	786432
