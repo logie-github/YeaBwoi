@@ -188,16 +188,16 @@ if [ -d "$DIST/modules/mod-murloc-naga" ]; then
 	# into the client's naga as the patch is made), its people's models (today's sea witch, warden and
 	# Queen Azshara made 3.3.5's) and its Warcraft III voices (warcraft.wiki.gg's files, or Wowpedia's
 	# copies, checked by their SHA-1). Each list is written last; without one, those emotes, models or
-	# voices aren't in the game (the voices' lines show as text).
+	# voices aren't in the game (the voices' lines show as text, the models' people their FALLBACK
+	# looks) and the realm works as before: a source that refuses leaves them out with a line here,
+	# and the package is made without them.
 	apk add -q --no-progress ffmpeg
 	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_emotes.py fetch \
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
-		{ echo "The naga's emotes weren't made (tools/naga_emotes.py says why)" >&2
-		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
+		echo "The naga's emotes weren't made (tools/naga_emotes.py says why): the naga play only the game's own" >&2
 	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_models.py fetch \
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
-		{ echo "The naga's story's models weren't made (tools/naga_models.py says why)" >&2
-		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
+		echo "The naga's story's models weren't made (tools/naga_models.py says why): their looks draw nothing" >&2
 	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_voices.py fetch \
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
 		echo "The naga's story's voices weren't all fetched: their lines show as text where they're missing" >&2

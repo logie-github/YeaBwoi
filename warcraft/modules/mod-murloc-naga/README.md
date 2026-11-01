@@ -280,7 +280,11 @@ the server is packaged and never in this repository; the rows are in the patch a
   elf (Cataclysm's), made 3.3.5's (Wrath Remix's converter, and: sequences with ids 3.3.5 hasn't left out, each batch
   its own first texture, textures over 1024 made 1024): CreatureModelData 3800 to 3802, CreatureDisplayInfo 40000 to
   40005, `creature_model_info` for the server. The sea witch talks, works, roars, channels and holds and shoots a bow;
-  the warden and Azshara have every emote (looks.py's EMOTES).
+  the warden and Azshara have every emote (looks.py's EMOTES). Azshara's texture keeps no colour where its alpha is 0
+  (a quarter of it: most of her gown, spots of her gold), and her batches draw it opaque: those texels are given the
+  colour around them (her cream gown, as warcraft.wiki.gg's screenshots of her in the Well of Eternity show it, not
+  black), and her two-texture batch (hair, jewellery: the colour and an environment map, today's Opaque_Mod2xNA_Alpha)
+  draws one texture made of both (the map's mean colour where the alpha lets it through).
 - **Looks of the game's parts** (CreatureDisplayInfoExtra 25000 to 25007 with CreatureDisplayInfo 40010 to 40017, no
   baked texture: dressed from their items): Grand Marshal Garithos (a human in Lordaeron's blue and silver plate, a
   closed helm, the Alliance's tabard), Handmaiden Vashj and the Highborne court (night elves in the Highborne
@@ -342,8 +346,11 @@ the server is packaged and never in this repository; the rows are in the patch a
   `tools/build_data.py`); as the server is packaged, `tools/naga_emotes.py fetch DIR` (`Naga<Sex>Emotes.dat`,
   `nagaemotes.files`), `tools/naga_models.py fetch DIR` (`Creature/...`, `nagamodels.files`) and
   `tools/naga_voices.py fetch DIR` (`Sound/Creature/WC3Voices/`, `nagavoices.files`) make their files, each list
-  last; the patch takes each list's files (`MergeEmotes` the emotes) and logs a missing list.
-  `tools/render_naga.py` draws the models and the emotes to contact sheets.
+  last; the patch takes each list's files (`MergeEmotes` the emotes) and logs a missing list. A source that refuses
+  leaves its files out with a line in the package's log (the tool exits 1, `package-azerothcore.sh` says what's
+  missing and goes on: the package is made without them). What they fetch is cached with the allied races' files
+  (CI's cache key covers `tools/naga_looks.py` and `tools/naga/*.py`, which name the files: `naga/sources.py` the
+  emotes' models). `tools/render_naga.py` draws the models and the emotes to contact sheets.
 - The SQL is ChromieCraft's alone: in `data/sql/chromiecraft/world`, which ctl.sh (`realm_sql`) puts in ChromieCraft's
   world database's update list, last.
 

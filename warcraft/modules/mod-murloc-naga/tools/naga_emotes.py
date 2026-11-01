@@ -55,11 +55,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "..", "mod-wrath-remix", "tools"))
 import models  # noqa: E402
+from naga import sources as S  # noqa: E402
 
 
 MANIFEST = "nagaemotes.files"
-NAGA = {"Male": 120294, "Female": 120263}            # today's naga character models (their skeletons, kneel and point)
-NIGHT_ELF = {"Male": 120791, "Female": 120590}       # today's night elf character models (every emote)
+NAGA = S.NAGA_MODELS                                 # today's naga character models (their skeletons, kneel and point)
+NIGHT_ELF = S.NIGHT_ELF_MODELS                       # today's night elf character models (every emote)
 FPS = 30
 SEQ = 64
 IN_MODEL, ALIAS = 0x20, 0x40
@@ -546,12 +547,15 @@ def convert(read, folder):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "fetch":
-        import murloc_model as M                          # (its fetching: it needs Pillow too)
-        convert(M.cached(os.environ.get("MURLOC_CACHE"), M.wago), sys.argv[2])
-    elif len(sys.argv) == 4 and sys.argv[1] == "convert":
-        import murloc_model as M
-        convert(M.cached(sys.argv[2], None), sys.argv[3])
-    else:
+    if len(sys.argv) not in (3, 4) or sys.argv[1] not in ("fetch", "convert") or len(sys.argv) != (3 if sys.argv[1] == "fetch" else 4):
         print(__doc__)
         sys.exit(2)
+    import murloc_model as M                              # (its fetching: it needs Pillow too)
+    try:
+        if sys.argv[1] == "fetch":
+            convert(M.cached(os.environ.get("MURLOC_CACHE"), M.wago), sys.argv[2])
+        else:
+            convert(M.cached(sys.argv[2], None), sys.argv[3])
+    except Exception as error:                            # (a file that couldn't be had: nothing written, its list neither)
+        print("naga emotes: not made (%s: %s)" % (type(error).__name__, error), file=sys.stderr)
+        sys.exit(1)

@@ -27,7 +27,11 @@ sections split to at most 64 bones, its external animations as 3.3.5 .anim files
     alias of one) is left out: the game would never ask for them;
   - an alias sequence is kept in the model (it has no data of its own: 3.3.5 never looks for its file);
   - each batch keeps its own first texture (the creature's skins, or its own: today's second texture
-    is a newer shader's, which 3.3.5 hasn't);
+    is a newer shader's, which 3.3.5 hasn't); a batch of today's Opaque_Mod2xNA_Alpha whose two
+    textures are the model's own draws one made of both (filled_holes, baked_layers below);
+  - a texture of the model's own that only opaque batches draw has its texels of no alpha given the
+    colour around them (today's files keep none there: Queen Azshara's cream gown and gold drew as
+    black blotches, against Blizzard's own screenshots of her);
   - textures over 1024 pixels a side are made 1024 (DXT, as they were).
 Every emote each model has is kept (tools/naga/looks.py lists them).
 """
@@ -55,6 +59,7 @@ LAST_ANIMATION = 505
 SEQ = 64
 IN_MODEL, ALIAS = 0x20, 0x40
 TEXTURE_SKINS = (11, 12, 13)       # a creature's three replaceable textures (its look's)
+H_RENDER_FLAGS = 0x70              # (the 3.3.5 header's materials: flags and blend mode each)
 H = models                          # (the 3.3.5 header's places)
 
 
@@ -208,6 +213,111 @@ def texture(data):
     return blp.write_dxt(np.ascontiguousarray(small), alpha=data[9] > 0)
 
 
+COMBINER_MOD2X_ALPHA = 0x8000      # today's shader 0: Opaque_Mod2xNA_Alpha, mix(tex0 * tex1 * 2, tex0, tex0.a)
+
+
+def push_pull(rgb, known):
+    """[rgb] (float, h x w x 3) with each texel not [known] given its known neighbours' colour, from near to far
+    (a pyramid of known texels' averages, each level filling the finer one's gaps)."""
+    h, w = known.shape
+    size = 1 << max(h - 1, w - 1, 1).bit_length()
+    colour = np.zeros((size, size, 3))
+    weight = np.zeros((size, size))
+    colour[:h, :w] = rgb * known[:, :, None]
+    weight[:h, :w] = known
+    levels = [(colour, weight)]
+    while levels[-1][1].shape[0] > 1:
+        c, k = levels[-1]
+        n = c.shape[0] // 2
+        levels.append((c.reshape(n, 2, n, 2, 3).sum(axis=(1, 3)), k.reshape(n, 2, n, 2).sum(axis=(1, 3))))
+    c, k = levels[-1]
+    filled = c / np.maximum(k, 1e-9)[:, :, None]
+    for c, k in reversed(levels[:-1]):
+        n = c.shape[0]
+        # (the coarser level made this one's size smoothly, so its blocks don't show)
+        up = np.stack([np.asarray(Image.fromarray(filled[:, :, i].astype(np.float32), "F").resize((n, n), Image.Resampling.BILINEAR))
+                       for i in range(3)], axis=2)
+        own = c / np.maximum(k, 1e-9)[:, :, None]
+        share = np.clip(k, 0, 1)[:, :, None]                    # (a texel's own known part, the rest the coarser's)
+        filled = own * share + up * (1 - share)
+    return np.where(known[:, :, None], rgb, filled[:h, :w])
+
+
+def filled_holes(skin, blob, files, folder, name):
+    """The model's own textures that only batches drawn opaque read (their alpha never shown), with their
+    texels of no alpha and no colour (today's files keep no colour where the alpha is 0: Queen Azshara's
+    gown is mostly such blotches, which the game drew as the fabric around them) given the colour around
+    them. The textures' names in [files]."""
+    ba_n, ba_o = struct.unpack_from("<II", skin, 36)
+    count, offset = blob.array(H.H_TEXTURES)
+    kinds = [struct.unpack_from("<I", blob.data, offset + 16 * i)[0] for i in range(count)]
+    lookup_n, lookup_o = blob.array(H.H_TEX_LOOKUP)
+    lookup = struct.unpack_from("<%dh" % lookup_n, blob.data, lookup_o)
+    flags_n, flags_o = blob.array(H_RENDER_FLAGS)
+    blends = [struct.unpack_from("<HH", blob.data, flags_o + 4 * i)[1] for i in range(flags_n)]
+    opaque, other = set(), set()
+    for i in range(ba_n):
+        b = struct.unpack_from("<BbHHHhHHHHHHH", skin, ba_o + 24 * i)
+        for k in range(b[8]):
+            if b[9] + k < len(lookup):
+                (opaque if b[6] < len(blends) and blends[b[6]] == 0 else other).add(lookup[b[9] + k])
+    made = []
+    for t in sorted(opaque - other):
+        path = "%s/%s%d.blp" % (folder, name, t)
+        if kinds[t] != 0 or path not in files:
+            continue
+        rgba = np.asarray(blp.read(files[path])).astype(np.float64)
+        holes = rgba[:, :, 3] < 8                          # (no alpha: what colour the file has there is the encoder's leftovers)
+        if holes.mean() < 0.01:
+            continue
+        rgba[:, :, :3] = push_pull(rgba[:, :, :3], ~holes)
+        files[path] = blp.write_dxt(np.ascontiguousarray(np.clip(rgba + 0.5, 0, 255).astype(np.uint8)), alpha=True)
+        made.append(path)
+    return made
+
+
+def baked_layers(skin, blob, file_ids, files, folder, name):
+    """[skin] with each batch of today's two-texture shader Opaque_Mod2xNA_Alpha whose textures are both
+    the model's own (its first, a colour, its second an environment map: a reflection that moves with
+    the view) drawing one texture made of the two instead (3.3.5 has no such shader): the first where
+    its alpha says so, elsewhere times twice the reflection's mean colour (the view's average). The
+    made texture is a texture of the model's own beside the first (which batches drawing it alone keep).
+    A creature's skin (its look's) is drawn as it is: its batches' second layer changes it by a few
+    hundredths on average."""
+    ba_n, ba_o = struct.unpack_from("<II", skin, 36)
+    count, offset = blob.array(H.H_TEXTURES)
+    kinds = [struct.unpack_from("<II", blob.data, offset + 16 * i) for i in range(count)]
+    lookup_n, lookup_o = blob.array(H.H_TEX_LOOKUP)
+    lookup = list(struct.unpack_from("<%dh" % lookup_n, blob.data, lookup_o))
+    out, made = bytearray(skin), {}
+    textures = bytearray(blob.data[offset:offset + 16 * count])
+    for i in range(ba_n):
+        b = struct.unpack_from("<BbHHHhHHHHHHH", skin, ba_o + 24 * i)
+        if b[2] != COMBINER_MOD2X_ALPHA or b[8] < 2 or b[9] + 1 >= len(lookup):
+            continue
+        colour, light = lookup[b[9]], lookup[b[9] + 1]
+        if kinds[colour][0] != 0 or kinds[light][0] != 0 or colour >= len(file_ids) or light >= len(file_ids):
+            continue
+        if (colour, light) not in made:
+            base = "%s/%s%d.blp" % (folder, name, colour)
+            rgba = np.asarray(blp.read(files[base])).astype(np.float64) / 255.0
+            env = np.asarray(blp.read(files["%s/%s%d.blp" % (folder, name, light)])).astype(np.float64) / 255.0
+            mean = env[:, :, :3].reshape(-1, 3).mean(axis=0)
+            alpha = rgba[:, :, 3:4]
+            rgba[:, :, :3] = np.clip(rgba[:, :, :3] * (alpha + (1 - alpha) * 2 * mean[None, None, :]), 0, 1)
+            path = "%s\\%s%dLit.blp" % (folder.replace("/", "\\"), name, colour)
+            files[path.replace("\\", "/")] = blp.write_dxt(np.ascontiguousarray((rgba * 255 + 0.5).astype(np.uint8)), alpha=True)
+            text = path.encode() + b"\0"
+            textures += struct.pack("<IIII", 0, kinds[colour][1], len(text), blob.append(text))
+            lookup.append(len(textures) // 16 - 1)
+            made[(colour, light)] = len(lookup) - 1
+        struct.pack_into("<H", out, ba_o + 24 * i + 16, made[(colour, light)])      # (its texture combo)
+    if made:
+        blob.set_array(H.H_TEXTURES, len(textures) // 16, blob.append(bytes(textures)))
+        blob.set_array(H.H_TEX_LOOKUP, len(lookup), blob.append(struct.pack("<%dh" % len(lookup), *lookup)))
+    return bytes(out)
+
+
 def convert_creature(read, creature):
     """[creature] (looks.CREATURES' entry) as 3.3.5's: {path: bytes}."""
     name, folder, file_id = creature["name"], creature["folder"], creature["model"]
@@ -270,7 +380,9 @@ def convert_creature(read, creature):
             raise ValueError("%s: a texture of type %d" % (name, kind))
     blob.set_array(H.H_TEX_UNIT_LOOKUP, 1, blob.append(struct.pack("<hh", 0, 0)))
     sfid = struct.unpack("<%dI" % (len(chunks["SFID"]) // 4), chunks["SFID"])
-    skin = convert_skin(read(sfid[0]), blob)
+    today_skin = read(sfid[0])
+    filled_holes(today_skin, blob, files, folder, name)
+    skin = convert_skin(baked_layers(today_skin, blob, file_ids, files, folder, name), blob)
     struct.pack_into("<I", blob.data, H.H_VIEWS, 1)
     files["%s/%s.m2" % (folder, name)] = bytes(blob.data)
     files["%s/%s00.skin" % (folder, name)] = skin
@@ -313,10 +425,14 @@ def convert(read, folder):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 3 and sys.argv[1] == "fetch":
-        convert(M.cached(os.environ.get("MURLOC_CACHE"), M.wago), sys.argv[2])
-    elif len(sys.argv) == 4 and sys.argv[1] == "convert":
-        convert(M.cached(sys.argv[2], None), sys.argv[3])
-    else:
+    if len(sys.argv) not in (3, 4) or sys.argv[1] not in ("fetch", "convert") or len(sys.argv) != (3 if sys.argv[1] == "fetch" else 4):
         print(__doc__)
         sys.exit(2)
+    try:
+        if sys.argv[1] == "fetch":
+            convert(M.cached(os.environ.get("MURLOC_CACHE"), M.wago), sys.argv[2])
+        else:
+            convert(M.cached(sys.argv[2], None), sys.argv[3])
+    except Exception as error:                            # (a file that couldn't be had: nothing written, its list neither)
+        print("naga models: not made (%s: %s)" % (type(error).__name__, error), file=sys.stderr)
+        sys.exit(1)
