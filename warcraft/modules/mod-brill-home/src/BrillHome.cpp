@@ -22,6 +22,7 @@
 #include "DatabaseEnv.h"
 #include "GameObject.h"
 #include "GameTime.h"
+#include "Group.h"
 #include "BrillHome.h"
 #include "BrillHomePatch.h"
 #include "Log.h"
@@ -62,7 +63,7 @@ namespace
     constexpr float STICK_X = 2263.1f, STICK_Y = 478.2f, STICK_Z = 33.9f;
 
     constexpr uint32 PHASE_CEDRIC = 0x100, PHASE_BED = 0x200, PHASE_DOG = 0x400;
-    // A character's state: they've slept in the bed (the mastiff came); the mastiff is theirs (its quest
+    // A character's state: they've slept in the bed (Corn came); Corn is theirs (its quest
     // done); it's their pet (there was room for it).
     constexpr uint32 FLAG_SLEPT = 0x1, FLAG_DOG_ADOPTED = 0x2, FLAG_DOG_PET = 0x4;
     // A hunter's dog isn't their pet but one more beside it (the user: "you can have your current pets
@@ -82,7 +83,7 @@ namespace
                                   { 60, 13544 }, { 68, 27046 }, { 74, 48989 }, { 80, 48990 } };
     constexpr uint32 PHASES_OURS = 0xFFFFFFFE;   // (the house's 0x100 to 0x20000, the town's lines' above it and 0x2 to 0x80: nothing of the game's in Brill is in those)
 
-    // Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, ending in
+    // Carolai Anise (Brill's alchemy trainer): her five quests once Corn is the player's, ending in
     // the player's answer, lovers or friends (the rewards the same: the user's), and as lovers, her
     // moving into the house if they ask her. She's a yandere (the user's).
     constexpr uint32 CAROLAI = 2132, NPC_CAROLAI_VISIT = 970118, NPC_CAROLAI_HOME = 970119;
@@ -127,6 +128,11 @@ namespace
     constexpr uint32 TEXT_EMOTE_YAWN_ID = 106;
 
     bool enabled = true;
+    // Corn's looks: the Forsaken pug (display 39700) once the module's patch has it in the game, else the
+    // game's own pug (31174; tools/build_sql.py: DOG_*)
+    constexpr uint32 DISPLAY_CORN = 39700, DISPLAY_PUG = 31174;
+    bool cornReady = false;
+    uint32 DogDisplay() { return cornReady ? DISPLAY_CORN : DISPLAY_PUG; }
 
     struct Home { uint32 upgrades = 0; uint32 lastRested = 0; uint32 flags = 0; };
     std::unordered_map<uint32, Home> homes;  // by the character's guid (low)
@@ -186,7 +192,7 @@ namespace
         Home& home = HomeOf(player);
         if (OwnsHouse(player))
             mask |= home.upgrades;
-        // the mastiff: from the first night in the bed until it's their pet
+        // Corn: from the first night in the bed until it's their pet
         if ((home.flags & FLAG_SLEPT) && !(home.flags & FLAG_DOG_PET))
             mask |= PHASE_DOG;
         // Carolai: in the house the evening after Jamie's gift (until the tea is drunk), and living there
@@ -280,7 +286,7 @@ namespace
             Home& home = HomeOf(sleeper);
             if (!(home.flags & FLAG_SLEPT))
             {
-                // (the first night: they wake to find the mastiff there)
+                // (the first night: they wake to find Corn there)
                 home.flags |= FLAG_SLEPT;
                 Save(sleeper);
             }
@@ -309,7 +315,7 @@ namespace
                 player->learnSpell(rank.spell);
     }
 
-    // The mastiff made the player's pet, as a hunter's tamed beast is: at their level, out beside them,
+    // Corn made the player's pet, as a hunter's tamed beast is: at their level, out beside them,
     // kept as their current pet. Not while they have a pet out or kept as current (a hunter's own, a
     // warlock's demon...): the dog waits in the house until there's room.
     bool GiveDog(Player* player)
@@ -423,7 +429,7 @@ namespace
         return n;
     }
 
-    // The mastiff's own doings, seen by the player: shown, never said (it doesn't talk).
+    // Corn's own doings, seen by the player: shown, never said (it doesn't talk).
     void DogDoes(Creature* dog, Player* player, char const* what)
     {
         dog->TextEmote(what, player);
@@ -606,7 +612,7 @@ public:
         {
             if (creature->HasUnitState(UNIT_STATE_ROAMING_MOVE) || creature->m_Events.HasEvents())
                 return true;
-            DogDoes(creature, player, "(The mastiff's ears go up. It watches the stick sail out the door, then bolts after it.)");
+            DogDoes(creature, player, "(Corn's ears go up. He watches the stick sail out the door, then bolts after it, wheezing.)");
             Position home = creature->GetHomePosition();
             creature->GetMotionMaster()->MovePoint(1, STICK_X, STICK_Y, STICK_Z);
             creature->m_Events.AddEventAtOffset([creature, home]()
@@ -620,21 +626,21 @@ public:
                 if (!thrower)
                     return;
                 uint32 done = thrower->GetReqKillOrCastCurrentCount(QUEST_DOG, NPC_FETCH_CREDIT);
-                DogDoes(creature, thrower, done == 0 ? "(The mastiff trots back and drops the stick at your feet, very pleased with itself.)"
+                DogDoes(creature, thrower, done == 0 ? "(Corn trots back and drops the stick at your feet, very pleased with himself.)"
                     : done == 1 ? "(Back again, tail going like a flag. The stick is a good deal wetter than before.)"
-                    : "(The mastiff brings the stick back, then lies down with it and starts to chew. It seems to think it has won.)");
+                    : "(Corn brings the stick back, then lies down with it and starts to chew. He seems to think he has won.)");
                 thrower->KilledMonsterCredit(NPC_FETCH_CREDIT);
             }, 7000ms);
             return true;
         }
         if (sender == SENDER_EARS)
         {
-            DogDoes(creature, player, "(The mastiff leans its whole weight against your leg, eyes half closed, and groans happily.)");
+            DogDoes(creature, player, "(Corn leans his whole small weight against your leg, glowing eyes half closed, and snorts happily.)");
             player->KilledMonsterCredit(NPC_EARS_CREDIT);
             return true;
         }
         if (sender == SENDER_BRING && !GiveDog(player))
-            DogDoes(creature, player, "(The mastiff looks at whatever is already following you, and sits back down by the door.)");
+            DogDoes(creature, player, "(Corn looks at whatever is already following you, and sits back down by the door.)");
         return true;
     }
 
@@ -646,7 +652,7 @@ public:
         HomeOf(player).flags |= FLAG_DOG_ADOPTED;
         Save(player);
         if (!GiveDog(player))
-            DogDoes(creature, player, "(The mastiff looks at whatever is already following you, and sits back down by the door to wait.)");
+            DogDoes(creature, player, "(Corn looks at whatever is already following you, and sits back down by the door to wait.)");
         return false;
     }
 };
@@ -795,10 +801,10 @@ struct npc_brill_home_carolai_homeAI : public ScriptedAI
     struct Spot { float x, y, o; uint32 emote; bool sit; };
     static constexpr float FLOOR = 34.06f;
     static constexpr Spot SPOTS[] = {
-        { 2272.69f, 478.06f, 4.713f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table
-        { 2277.03f, 484.86f, 1.234f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove
-        { 2277.63f, 483.80f, 1.024f, 0, true },                           // with the dog, by its bed
-        { 2278.92f, 481.71f, 0.349f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf
+        { 2272.91f, 483.31f, 1.920f, EMOTE_STATE_USE_STANDING, false },   // her alchemy table (the house's -3.35, -1.0)
+        { 2279.47f, 477.87f, 0.349f, EMOTE_STATE_USE_STANDING, false },   // the kettle on the stove (the house's 4.0, 3.3)
+        { 2277.82f, 480.20f, 0.349f, 0, true },                           // with the dog, by its bed (the house's 1.25, 2.55)
+        { 2278.97f, 477.79f, 5.061f, EMOTE_STATE_USE_STANDING, false },   // a book from the shelf (the house's 3.9, 2.8)
     };
     uint32 next = 5000, spot = 0;
     bool moving = false;
@@ -896,11 +902,28 @@ public:
             return false;
         bool locket = go->GetEntry() == GO_LOCKET;
         uint32 quest = locket ? QUEST_LOCKET : QUEST_LILY, credit = locket ? NPC_LOCKET_CREDIT : NPC_LILY_CREDIT;
-        if (player->GetQuestStatus(quest) != QUEST_STATUS_INCOMPLETE || player->GetReqKillOrCastCurrentCount(quest, credit) > 0)
+        ChatHandler chat(player->GetSession());
+        // (said, so a click is never answered by nothing: the user clicked the lily and nothing happened)
+        if (player->GetQuestStatus(quest) != QUEST_STATUS_INCOMPLETE)
+        {
+            chat.SendSysMessage(locket ? "An old footlocker. Whatever was in it isn't yours to take."
+                                       : "A moonpetal lily, pale and faintly bright. You leave it where it grows.");
             return true;
+        }
+        if (player->GetReqKillOrCastCurrentCount(quest, credit) > 0)
+        {
+            chat.SendSysMessage(locket ? "You have Carolai's locket already. Bring it to her in Brill."
+                                       : "You have a lily already. Bring it to Carolai in Brill.");
+            return true;
+        }
         ClearGossipMenuFor(player);
         SendGossipMenuFor(player, locket ? TEXT_LOCKET : TEXT_LILY, go->GetGUID());
         player->KilledMonsterCredit(credit);
+        // (the game gives no quest credit in a raid group: a party of the realm's bots made a raid)
+        if (player->GetReqKillOrCastCurrentCount(quest, credit) == 0)
+            chat.SendSysMessage(player->GetGroup() && player->GetGroup()->isRaidGroup()
+                ? "The game doesn't count this in a raid group: leave the raid (or make it a party) and try again."
+                : "This didn't count for the quest: try again in a moment.");
         return true;
     }
 };
@@ -958,6 +981,26 @@ public:
 
 // The hunter trainers teach a dog's keeper who isn't a hunter to tame beasts, as they do hunters: Tame
 // Beast and Beast Lore (under General in their spellbook), from a hunter's level for it.
+// Corn without the module's patch in the game (no client on this realm's machine, or the game's pug not as
+// expected): the game's own pug, so he's never a display the game hasn't.
+class BrillHomeDogLooks : public AllCreatureScript
+{
+public:
+    BrillHomeDogLooks() : AllCreatureScript("BrillHomeDogLooks") { }
+
+    void OnCreatureAddWorld(Creature* creature) override
+    {
+        if (!creature || cornReady)
+            return;
+        uint32 entry = creature->GetEntry();
+        if ((entry == NPC_DOG || entry == NPC_DOG_PET || entry == NPC_DOG_COMPANION) && creature->GetDisplayId() == DISPLAY_CORN)
+        {
+            creature->SetNativeDisplayId(DISPLAY_PUG);
+            creature->SetDisplayId(DISPLAY_PUG);
+        }
+    }
+};
+
 class BrillHomeHunterTrainers : public AllCreatureScript
 {
 public:
@@ -1019,6 +1062,8 @@ public:
     {
         if (enabled && (HomeOf(player).flags & FLAG_DOG_PET))
             LearnPetSpells(player);
+        if (enabled)
+            BrillTown::KeepOutOfTheGround(player, true);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 /*oldLevel*/) override
@@ -1049,13 +1094,15 @@ public:
         if (since < 1000)
             return;
         since = 0;
+        if (BrillTown::KeepOutOfTheGround(player, false))
+            return;
         UpdatePhases(player);
         KeepCompanions(player);
-        // Already-adopted dogs keep their saved pet model across app updates.
-        if (Pet* dog = player->GetPet(); dog && dog->GetEntry() == NPC_DOG_PET && dog->GetNativeDisplayId() != 31174)
+        // An adopted dog keeps its saved looks across the app's updates: given Corn's.
+        if (Pet* dog = player->GetPet(); dog && dog->GetEntry() == NPC_DOG_PET && dog->GetNativeDisplayId() != DogDisplay())
         {
-            dog->SetNativeDisplayId(31174);
-            dog->SetDisplayId(31174);
+            dog->SetNativeDisplayId(DogDisplay());
+            dog->SetDisplayId(DogDisplay());
             dog->SavePetToDB(PET_SAVE_AS_CURRENT);
         }
     }
@@ -1171,16 +1218,17 @@ class BrillHomeWorld : public WorldScript
 public:
     BrillHomeWorld() : WorldScript("BrillHomeWorld", { WORLDHOOK_ON_AFTER_CONFIG_LOAD, WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
 
-    // Remove the retired mastiff patch on either realm, before other patches read the client.
+    // (on Wrath Remix's realm the game's patch-<locale>-V is set aside as the configuration is read, before
+    // Remix's own patch is made from the game)
     void OnAfterConfigLoad(bool reload) override
     {
         enabled = sConfigMgr->GetOption<bool>("BrillHome.Enable", true);
         fs::path data = ClientData();
-        if (!reload && !data.empty())
-            BrillHome::RemovePatch(data, Log);
+        if (!reload && !enabled && !data.empty())
+            BrillHome::SetPatchAside(data, Log);
     }
 
-    // Load the town's questlines after its database tables are available.
+    // The town's questlines, once its tables are loaded; then the game's patch.
     void OnLoadCustomDatabaseTable() override
     {
         if (enabled)
@@ -1188,8 +1236,10 @@ public:
         fs::path data = ClientData();
         if (!enabled || data.empty())
             return;
-        // The pug is in the stock client. Remove archives made by earlier mastiff versions.
-        BrillHome::RemovePatch(data, Log);
+        // Corn and the cellar in the game: patch-<locale>-V, after the Worgen's and Goblins' patch-U and the allied
+        // races' patch-V are made (as the configuration is read), before the Skyborne's patch-Z.
+        fs::path module = fs::path(sConfigMgr->GetOption<std::string>("SourceDirectory", "")) / "modules" / "mod-brill-home" / "data";
+        BrillHome::UpdatePatch(module / "client", data, Log, cornReady);
     }
 
 private:
@@ -1215,6 +1265,7 @@ void AddBrillHomeScripts()
     new BrillHomeCommands();
     new npc_brill_home_mastiff();
     new BrillHomeHunterTrainers();
+    new BrillHomeDogLooks();
     new npc_brill_home_companion();
     new npc_brill_home_carolai();
     new npc_brill_home_carolai_visit();

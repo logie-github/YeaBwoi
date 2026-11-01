@@ -8,7 +8,7 @@ north road (phase "returned") or a post at the cemetery, his back to the west (p
 the choice he isn't in Brill; on the hill above Solliden he's there for everyone (outside Brill, where the
 town's phases don't reach), and says what his choice became.
 
-The player's mastiff (DOG) is noticed along the way, never needed."""
+The player's dog, Corn (DOG) is noticed along the way, never needed."""
 
 DILLINGER = 1496
 ABRAHAM = 1735       # on the north road, by the river
@@ -235,16 +235,16 @@ LINE = {
         {"npc": DILLINGER, "kind": "greet", "cond": ["R:duty", "DAY:3"],
          "text": "$n. The watch knows your name now. Not many living or dead can say that in Brill."},
         {"npc": DILLINGER, "kind": "greet", "cond": ["A:watch", "DOG"],
-         "text": "That mastiff yours? Good. Brill bred mastiffs once, for the Lordaeron militia. Take it on your rounds; "
-                 "ghouls don't like a dog that doesn't flinch."},
+         "text": "That pug yours? Corn, is it. Small, but he's one of ours now, stitches and all. Take him on your rounds; "
+                 "ghouls don't like a dog that doesn't flinch, and that one's past flinching."},
         {"npc": DILLINGER, "kind": "greet", "cond": ["T:post", "!R:duty"],
          "text": "Any word of Harlan? (Dillinger glances toward the north road.) I'll stand his watch until you're back."},
         {"npc": DILLINGER, "kind": "greet", "cond": ["M:scarlet.exposed", "!T:watch"],
          "text": "You're the one who found Sevren's leak. Two of ours died on that east road. (Dillinger nods.) If you've "
                  "a mind to help the watch, I've work."},
-        {"npc": DILLINGER, "kind": "option", "cond": ["DOG", "A:road"], "text": "(Let your mastiff sniff the cart's scent from your gloves.)",
+        {"npc": DILLINGER, "kind": "option", "cond": ["DOG", "A:road"], "text": "(Let Corn sniff the cart's scent from your gloves.)",
          "action": "say",
-         "reply": "Ha. It's got the stink of ghoul in its nose now; it'll growl before you see them. Keep it close on the "
+         "reply": "Ha. He's got the stink of ghoul in his nose now; he'll growl before you see them. Keep him close on the "
                   "north road."},
 
         # Delivering the packs (The Night Watch).
@@ -279,8 +279,8 @@ LINE = {
          "text": "Last time. I told myself that, coming up the hill. (Harlan turns away from the cottage.) I'll be at the "
                  "cemetery tomorrow, facing east. Don't tell me if the lamp's still lit."},
         {"npc": "harlan", "kind": "greet", "cond": ["A:house", "DOG"],
-         "text": "That's a Brill mastiff. (Something in Harlan's face softens.) We had one. Lise named it Pudding. Leave "
-                 "yours here with me while you go down; the farmers will take it for a stray and loose the hounds."},
+         "text": "A pug. (Something in Harlan's face softens.) We had a dog. Lise named it Pudding. Leave yours here with "
+                 "me while you go down; the farmers will take him for a stray and loose the hounds."},
         {"npc": "harlan", "kind": "greet", "cond": ["T:post"],
          "text": "(Harlan watches the cottage below. Smoke rises from its chimney.)"},
         {"npc": "harlan", "kind": "greet",
@@ -318,10 +318,10 @@ LINE = {
          "reply": "Lise. Lise Ashby. (She tilts her head.) My papa was a farmhand here. I don't remember him much. He used "
                   "to carry me on his shoulders to see the lamps in Brill. Mama says he'd want me to be brave. Are you "
                   "brave?"},
-        {"npc": "lise", "kind": "option", "cond": ["DOG", "A:house"], "text": "(Let her pat your mastiff.)",
+        {"npc": "lise", "kind": "option", "cond": ["DOG", "A:house"], "text": "(Let her pat Corn.)",
          "action": "say", "emote": 4,
-         "reply": "(Lise squeals and throws her arms around the mastiff's neck.) We had a dog! His name was Pudding! He "
-                  "was bigger than this one. Well. I was smaller."},
+         "reply": "(Lise squeals and throws her arms around Corn's neck. He snorts and licks her ear.) We had a dog! His name "
+                  "was Pudding! He was bigger than this one. Well. I was smaller."},
 
         # Harlan in Brill, by his choice.
         {"npc": "harlan_post", "kind": "greet", "cond": ["DAY:3"],

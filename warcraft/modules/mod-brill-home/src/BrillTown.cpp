@@ -35,6 +35,7 @@
 #include "StringFormat.h"
 #include "WorldSession.h"
 #include <array>
+#include <cmath>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -58,7 +59,8 @@ namespace
         std::string reply;
         uint32 arg;
     };
-    struct UseRow { Conds cond; uint32 quest, credit, textId, marker; };
+    // (tele: where it takes the player, map -1 nowhere)
+    struct UseRow { Conds cond; uint32 quest, credit, textId, marker; int32 teleMap; float x, y, z, o; };
     struct StageRow { uint8 type; int32 value; Conds cond; };
     struct Invis { uint8 type; int32 value; };
 
@@ -229,12 +231,14 @@ namespace BrillTown
                 gossipByNpc[f[0].Get<uint32>()].push_back(uint32(gossip.size()));
                 gossip.push_back(row);
             } while (r->NextRow());
-        if (QueryResult r = WorldDatabase.Query("SELECT `go`, `cond`, `quest`, `credit`, `text_id`, `marker` FROM `brill_town_use` ORDER BY `go`, `ord`"))
+        if (QueryResult r = WorldDatabase.Query("SELECT `go`, `cond`, `quest`, `credit`, `text_id`, `marker`, `tele_map`, `tele_x`, "
+            "`tele_y`, `tele_z`, `tele_o` FROM `brill_town_use` ORDER BY `go`, `ord`"))
             do
             {
                 Field* f = r->Fetch();
                 uses[f[0].Get<uint32>()].push_back({ Parse(f[1].Get<std::string>()), f[2].Get<uint32>(), f[3].Get<uint32>(),
-                    f[4].Get<uint32>(), f[5].Get<uint32>() });
+                    f[4].Get<uint32>(), f[5].Get<uint32>(), f[6].Get<int32>(), f[7].Get<float>(), f[8].Get<float>(),
+                    f[9].Get<float>(), f[10].Get<float>() });
             } while (r->NextRow());
         stages.clear();
         creatureInvis.clear();
@@ -270,6 +274,28 @@ namespace BrillTown
             if (!(mask & p.bit) && Holds(player, p.cond))
                 mask |= p.bit;
         return mask;
+    }
+
+    // The house's cellar (tools/build_town.py: CELLAR_*): its middle under the house's, its floor's height.
+    // It's an object of the game's own model (the client draws it from the module's patch; the server
+    // doesn't know its floor), so a player in it who has fallen through (their game without the patch, or
+    // in before it was drawn) or who comes into the game down there is put back in the house, by the hatch.
+    constexpr float CELLAR_X = 2275.0f, CELLAR_Y = 480.5f, CELLAR_REACH = 16.0f, CELLAR_FLOOR = -2.72f;
+    constexpr float HATCH_X = 2276.74f, HATCH_Y = 478.36f, HATCH_Z = 34.26f, HATCH_O = 3.4907f;
+
+    bool KeepOutOfTheGround(Player* player, bool login)
+    {
+        if (!player->IsInWorld() || player->GetMapId() != 0 || player->IsBeingTeleported() || player->IsGameMaster()
+            || std::hypot(player->GetPositionX() - CELLAR_X, player->GetPositionY() - CELLAR_Y) > CELLAR_REACH)
+            return false;
+        float z = player->GetPositionZ();
+        // (under the house: the cellar; below its floor: fallen through)
+        if (z < CELLAR_FLOOR - 3.0f || (login && z < CELLAR_FLOOR + 10.0f))
+        {
+            player->TeleportTo(0, HATCH_X, HATCH_Y, HATCH_Z, HATCH_O);
+            return true;
+        }
+        return false;
     }
 
     void Forget(Player* player)
@@ -527,7 +553,12 @@ namespace
                     ClearGossipMenuFor(player);
                     SendGossipMenuFor(player, u.textId, go->GetGUID());
                 }
+                else if (u.teleMap >= 0)
+                    CloseGossipMenuFor(player);
                 BrillHome::RefreshPhases(player);
+                // (the house's hatch and the cellar's ladder)
+                if (u.teleMap >= 0)
+                    player->TeleportTo(uint32(u.teleMap), u.x, u.y, u.z, u.o);
                 return true;
             }
             return true;

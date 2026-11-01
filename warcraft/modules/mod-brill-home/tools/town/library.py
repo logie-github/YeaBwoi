@@ -314,7 +314,7 @@ LINE = {
                           "tallies, initials, a very good drawing of a horse. The last tariff notice is still nailed behind it: "
                           "GRAIN FROM ANDORHAL, ONE PENNY THE SACK. REDUCED BY ORDER OF THE CROWN.)"},
                  {"text": "(The old customs counter. Edmund has started stacking books on it, in an order only he understands.)"}]},
-        {"id": "cellar", "name": "Flooded Cellar Hatch", "display": 8413, "scale": 0.35, "from": 1, "until": 6,
+        {"id": "cellar", "name": "Flooded Cellar Hatch", "display": 6481, "from": 1, "until": 6,
          "spawns": [S(-4.5, -4.0, 34.95)],
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "inspect_credit",
                   "text": "(The hatch lifts on black water two steps down. Things float in it: a ledger, a hat, a great many "
@@ -492,11 +492,11 @@ LINE = {
          "use": [{"text": "(Edmund's register of everything that comes into the library: who brought it, where it was found, what "
                           "the weather was. Near the front, in a careful hand: \"Item the first: a primer. Brought by $n. Rain.\")"}]},
         # ---- The house's library set (bought from Tobias): histories and bound journals by the bed ----
-        {"id": "house_histories", "name": "Library Histories", "display": 43, "from": 7, "spawns": [["house", 1.8, 4.8, 0, 90]],
+        {"id": "house_histories", "name": "Library Histories", "display": 43, "from": 7, "spawns": [["house", -0.15, 4.97, 2.12, -90]],
          "use": [{"text": "(A stack of histories from the Reclamation Library, on long loan: the parish, the eastern ward, the "
                           "Lordamere road. Edmund's card inside the top one says: \"Return whenever. I've written down that you "
                           "have them.\")"}]},
-        {"id": "house_journals", "name": "Bound Journals", "display": 107, "from": 7, "spawns": [["house", 2.6, 4.8, 0, 90]],
+        {"id": "house_journals", "name": "Bound Journals", "display": 107, "from": 7, "spawns": [["house", 0.75, 4.97, 2.12, -90]],
          "use": [{"text": "(Three blank journals in Tobias Wren's bindings, the spines stitched in black. On the first page of the "
                           "first, very small, a line of his: \"For the days you'd like to keep.\")"}]},
     ],
