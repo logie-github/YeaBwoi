@@ -1635,7 +1635,19 @@ REPLACE INTO `spell_dbc` (`ID`, `Category`, `DispelType`, `Mechanic`, `Attribute
 (979943, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 8, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10119, 0, 126, 0, 0, 'Moonstone Volley', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Nerelith\'s arrows fall with yours.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Nerelith\'s arrows fall with yours.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
 (979944, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 26, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, -41, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 'Heavy Egg-Net', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'The whole clutch, in a net, on your back.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'The whole clutch, in a net, on your back.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
 (979945, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 22, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 502, 0, 0, 'Counting the Waves', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'One wave. Two waves. Don\'t move. Glubbub is counting on you.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'One wave. Two waves. Don\'t move. Glubbub is counting on you.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
-(979946, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 21, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 681, 0, 0, 'Saltscar Stripe', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Glubbub painted it on your face: the tribe\'s mark, given, not burned.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Glubbub painted it on your face: the tribe\'s mark, given, not burned.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0);
+(979946, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 21, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 681, 0, 0, 'Saltscar Stripe', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Glubbub painted it on your face: the tribe\'s mark, given, not burned.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Glubbub painted it on your face: the tribe\'s mark, given, not burned.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994010, 0, 0, 0, 448, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 261, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 536870912, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'Naga Tidings', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994000, 0, 0, 0, 448, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 261, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 2048, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'Naga Tidings', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994001, 0, 0, 0, 448, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 261, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 2049, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'Naga Tidings', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994002, 0, 0, 0, 384, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 21, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'Reliving', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994003, 0, 0, 0, 384, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 27, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 260, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 201, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'Fading', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994205, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 21, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 6, 0, 1, 1, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 261, 260, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 2, 21, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2206, 0, 0, 'Reliving: The Night of the Well', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Isshara\'s memory: Zin-Azshari, the last night of the Highborne. What she saw, you see.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Isshara\'s memory: Zin-Azshari, the last night of the Highborne. What she saw, you see.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994206, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 21, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 6, 0, 1, 1, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 261, 260, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 4, 21, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2206, 0, 0, 'Reliving: The Awakening', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Isshara\'s memory: the night the call reached the deep. What she saw, you see.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'Isshara\'s memory: the night the call reached the deep. What she saw, you see.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994200, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 21, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 299, 0, 0, 'Tide-Sworn', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'The Empress\'s sigil, pressed into the scales of your shoulder by the shrine\'s light. Her tide is your tide.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'The Empress\'s sigil, pressed into the scales of your shoulder by the shrine\'s light. Her tide is your tide.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994201, 0, 0, 0, 0, 0, 0, 1048576, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 347, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 'Bucket and Brush', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'A bucket of seawater and a brush of stiff kelp. The Empress\'s statue must shine.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'A bucket of seawater and a brush of stiff kelp. The Empress\'s statue must shine.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994202, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 39, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2816, 0, 596, 0, 0, 'Lashed', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'A warden\'s lash.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, 'A warden\'s lash.', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994203, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 39, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 260, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 201, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'The Sea Comes In', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0),
+(994204, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 101, 0, 0, 1, 1, 27, 0, 0, 0, 0, 0, 1, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 6, 0, 0, 1, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 260, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 201, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 312, 0, 0, 'Through the Reef', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712190, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', 16712188, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1.0, 1.0, 1.0, 0, 0);
 
 -- The intros: a flight over each race's home, with its own narration (put together by the patch from the game's
 -- sounds: data/client/narration.txt).
@@ -1644,52 +1656,15 @@ REPLACE INTO `soundentries_dbc` (`ID`, `SoundType`, `Name`, `File_1`, `File_2`, 
 (975002, 31, 'NagaFlyByNarration', 'NagaNarration.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\CinematicVoices', 0.6899999976158142, 0, 8.0, 45.0, 0, 0);
 REPLACE INTO `cinematiccamera_dbc` (`ID`, `model`, `soundEntry`, `locationX`, `locationY`, `locationZ`, `rotation`) VALUES
 (9021, 'Cameras\\FlybyMurloc.mdx', 975001, 4100.5, 1094.0, 0.0, 0.0),
-(9022, 'Cameras\\FlybyNaga.mdx', 975002, 6705.0, 800.0, 0.0, 0.0);
+(9022, 'Cameras\\FlybyNaga.mdx', 975002, 2214.0, -6446.0, 0.0, 0.0);
 REPLACE INTO `cinematicsequences_dbc` (`ID`, `SoundID`, `Camera_1`, `Camera_2`, `Camera_3`, `Camera_4`, `Camera_5`, `Camera_6`, `Camera_7`, `Camera_8`) VALUES
 (9021, 0, 9021, 0, 0, 0, 0, 0, 0, 0),
 (9022, 0, 9022, 0, 0, 0, 0, 0, 0, 0);
 
 -- Their homes: the murlocs' village, the naga's camp, their enemies, the things they steal, in their own phases.
-DELETE FROM `creature_template` WHERE `entry` BETWEEN 975000 AND 975099;
-DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 975000 AND 975099;
-INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `speed_swim`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `rank`, `HealthModifier`, `ManaModifier`, `ArmorModifier`, `DamageModifier`, `BaseAttackTime`, `RangeAttackTime`, `lootid`, `RegenHealth`, `AIName`, `ScriptName`) VALUES
-(975017, 'Lady Szaria', 'The Tide-Broken', 975017, 14, 15, 35, 3, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975018, 'Myrmidon Ssaveth', '', 975018, 12, 13, 35, 1, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975019, 'Vyssa the Coral-Keeper', 'Provisions', 975019, 12, 13, 35, 129, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, 'SmartAI', ''),
-(975020, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975021, 'Renegade Myrmidon', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975022, 'Renegade Siren', '', 0, 12, 13, 35, 0, 1.0, 1.1429, 1.0, 2, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', ''),
-(975023, 'Stormscale Infiltrator', '', 0, 10, 11, 74, 0, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 975023, 1, '', ''),
-(975024, 'Scout Zun\'jin', 'Darkspear Trolls', 975024, 30, 30, 126, 3, 1.0, 1.1429, 1.0, 1, 0, 7, 0, 0, 1.0, 1.0, 1.0, 1.0, 2000, 2000, 0, 1, '', '');
-INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
-(975017, 0, 4980, 1.0, 1),
-(975018, 0, 11269, 1.0, 1),
-(975019, 0, 4973, 1.0, 1),
-(975020, 0, 4036, 1.0, 1),
-(975021, 0, 4036, 1.0, 1),
-(975022, 0, 4981, 1.0, 1),
-(975023, 0, 4036, 1.0, 1),
-(975023, 1, 4980, 1.0, 1),
-(975024, 0, 31737, 1.0, 1);
+DELETE FROM `creature_template` WHERE `entry` BETWEEN 975000 AND 975099 AND `entry` NOT IN (975017, 975018, 975019);
+DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN 975000 AND 975099 AND `CreatureID` NOT IN (975017, 975018, 975019);
 DELETE FROM `creature` WHERE `guid` BETWEEN 9750000 AND 9750999;
-INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(9750036, 975017, 1, 0, 0, 1, 2048, 6705.0, 801.0, 31.02, 4.71, 300, 0.0, 0, 'mod-murloc-naga: Lady Szaria'),
-(9750037, 975018, 1, 0, 0, 1, 2048, 6713.0, 793.0, 29.75, 4.3, 300, 0.0, 0, 'mod-murloc-naga: Myrmidon Ssaveth'),
-(9750038, 975019, 1, 0, 0, 1, 2048, 6699.0, 809.0, 26.88, 5.5, 300, 0.0, 0, 'mod-murloc-naga: Vyssa the Coral-Keeper'),
-(9750039, 975020, 1, 0, 0, 1, 2048, 6716.0, 806.0, 30.54, 4.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Myrmidon'),
-(9750040, 975021, 1, 0, 0, 1, 2048, 6695.0, 792.0, 24.26, 5.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Myrmidon'),
-(9750041, 975022, 1, 0, 0, 1, 2048, 6709.0, 812.0, 32.73, 2.0, 300, 0.0, 0, 'mod-murloc-naga: Renegade Siren'),
-(9750042, 975023, 1, 0, 0, 1, 2048, 6975.0, 805.0, 23.36, 0.0, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750043, 975023, 1, 0, 0, 1, 2048, 6988.0, 815.0, 45.82, 1.7, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750044, 975023, 1, 0, 0, 1, 2048, 6970.0, 820.0, 30.06, 3.4, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750045, 975023, 1, 0, 0, 1, 2048, 6995.0, 800.0, 19.74, 5.1, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750046, 975023, 1, 0, 0, 1, 2048, 6982.0, 828.0, 21.9, 0.52, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750047, 975023, 1, 0, 0, 1, 2048, 6965.0, 810.0, 24.72, 2.22, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750048, 975023, 1, 0, 0, 1, 2048, 6998.0, 822.0, 22.92, 3.92, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750049, 975023, 1, 0, 0, 1, 2048, 6978.0, 795.0, 13.93, 5.62, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750050, 975023, 1, 0, 0, 1, 2048, 6990.0, 808.0, 43.76, 1.04, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750051, 975023, 1, 0, 0, 1, 2048, 6969.0, 828.0, 19.79, 2.74, 300, 4.0, 1, 'mod-murloc-naga: the naga\'s hunters'),
-(9750052, 975024, 1, 0, 0, 1, 2048, 4176.0, 880.0, 11.77, 3.6, 300, 0.0, 0, 'mod-murloc-naga: the Darkspear scout at the Zoram Strand');
 DELETE FROM `npc_text` WHERE `ID` BETWEEN 975400 AND 975499;
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (975400, 'Mrrgl. Mrgl mrgl mrrrrgl.$B$B(The elder leans on his staff and watches the elves\' lights across the water.)', 'Mrrgl. Mrgl mrgl mrrrrgl.$B$B(The elder leans on his staff and watches the elves\' lights across the water.)', 1),
@@ -1703,42 +1678,12 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (975408, 'I watch the north. They will come from the north.', 'I watch the north. They will come from the north.', 1),
 (975409, 'Coral, kelp, fresh water from the island\'s spring. It is not the palaces of Zin-Azshari. It will do.', 'Coral, kelp, fresh water from the island\'s spring. It is not the palaces of Zin-Azshari. It will do.', 1),
 (975410, 'Keep your head down, mon. Dem Wrathtail got eyes all over dis beach.', 'Keep your head down, mon. Dem Wrathtail got eyes all over dis beach.', 1);
-DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN 975000 AND 975099;
-INSERT INTO `gossip_menu` (`MenuID`, `TextID`) VALUES
-(975017, 975407),
-(975018, 975408),
-(975019, 975409),
-(975024, 975410);
-DELETE FROM `npc_vendor` WHERE `entry` BETWEEN 975000 AND 975099;
-INSERT INTO `npc_vendor` (`entry`, `slot`, `item`) VALUES
-(975019, 0, 159),
-(975019, 1, 1179),
-(975019, 2, 787),
-(975019, 3, 4592),
-(975019, 4, 4593),
-(975019, 5, 4540);
+DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN 975000 AND 975099 AND `MenuID` NOT IN (975017, 975018, 975019);
+DELETE FROM `npc_vendor` WHERE `entry` BETWEEN 975000 AND 975099 AND `entry` NOT IN (975017, 975018, 975019);
 DELETE FROM `gameobject_template` WHERE `entry` BETWEEN 975100 AND 975199;
-INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data2`, `Data3`, `Data4`, `Data5`, `Data6`, `Data7`, `Data8`, `Data9`, `Data10`, `Data11`, `Data12`, `Data13`, `Data14`, `Data15`, `Data16`, `Data17`, `Data18`, `Data19`, `Data20`, `Data21`, `Data22`, `Data23`) VALUES
-(975113, 5, 9756, 'Naga Pagoda', 0.8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975114, 5, 9757, 'Renegade Banner', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975115, 5, 9758, 'Naga Torch', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975116, 5, 9759, 'Naga Torch', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975117, 5, 9760, 'Naga Crate', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975118, 5, 9761, 'Naga Weapons', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975119, 5, 9762, 'Naga Jar', 1.0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 DELETE FROM `gameobject` WHERE `guid` BETWEEN 9751000 AND 9751999;
-INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
-(9751051, 975113, 1, 0, 0, 1, 2048, 6712.0, 812.0, 32.62, 4.0, 0.0, 0.0, 0.9093, -0.4161, 0, 100, 1, 'mod-murloc-naga: Naga Pagoda'),
-(9751052, 975114, 1, 0, 0, 1, 2048, 6700.0, 797.0, 26.56, 4.71, 0.0, 0.0, 0.708, -0.7063, 0, 100, 1, 'mod-murloc-naga: Renegade Banner'),
-(9751053, 975115, 1, 0, 0, 1, 2048, 6710.0, 796.0, 31.14, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Torch'),
-(9751054, 975116, 1, 0, 0, 1, 2048, 6698.0, 806.0, 28.06, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Torch'),
-(9751055, 975117, 1, 0, 0, 1, 2048, 6702.0, 812.0, 26.38, 1.0, 0.0, 0.0, 0.4794, 0.8776, 0, 100, 1, 'mod-murloc-naga: Naga Crate'),
-(9751056, 975118, 1, 0, 0, 1, 2048, 6717.0, 799.0, 30.2, 3.5, 0.0, 0.0, 0.984, -0.1782, 0, 100, 1, 'mod-murloc-naga: Naga Weapons'),
-(9751057, 975119, 1, 0, 0, 1, 2048, 6694.0, 802.0, 27.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Jar');
 DELETE FROM `gameobject_loot_template` WHERE `Entry` BETWEEN 975100 AND 975199;
 DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga: camp' OR (`Comment` = 'mod-murloc-naga' AND `Entry` BETWEEN 975000 AND 975099);
-INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(975023, 975308, 0, 65, 1, 1, 0, 1, 1, 'mod-murloc-naga: camp');
 DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN 9750 AND 9799;
 INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, `Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES
 (9750, 'World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),
@@ -1777,66 +1722,154 @@ INSERT INTO `item_template` (`entry`, `class`, `subclass`, `SoundOverrideSubclas
 -- to the Horde after Darkshore: Onu at the Grove of the Ancients, a Darkspear scout at the Zoram Strand, Marukai at
 -- Zoram'gar, whose Naga at the Zoram Strand (6442) is the Horde's own).
 DELETE FROM `quest_template` WHERE `ID` BETWEEN 975200 AND 975299;
-INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, `RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, `StartItem`, `RequiredNpcOrGo1`, `RequiredNpcOrGo2`, `RequiredNpcOrGo3`, `RequiredNpcOrGo4`, `RequiredNpcOrGoCount1`, `RequiredNpcOrGoCount2`, `RequiredNpcOrGoCount3`, `RequiredNpcOrGoCount4`, `RequiredItemId1`, `RequiredItemId2`, `RequiredItemId3`, `RequiredItemId4`, `RequiredItemId5`, `RequiredItemId6`, `RequiredItemCount1`, `RequiredItemCount2`, `RequiredItemCount3`, `RequiredItemCount4`, `RequiredItemCount5`, `RequiredItemCount6`, `RewardChoiceItemID1`, `RewardChoiceItemID2`, `RewardChoiceItemID3`, `RewardChoiceItemID4`, `RewardChoiceItemID5`, `RewardChoiceItemID6`, `RewardChoiceItemQuantity1`, `RewardChoiceItemQuantity2`, `RewardChoiceItemQuantity3`, `RewardChoiceItemQuantity4`, `RewardChoiceItemQuantity5`, `RewardChoiceItemQuantity6`, `RewardFactionID1`, `RewardFactionID2`, `RewardFactionValue1`, `RewardFactionValue2`) VALUES
-(975230, 2, 10, 10, 148, 8, 7, 1500, 524288, 'Blood in the Water', 'Kill 6 Stormscale Infiltrators on the island to the north.', 'You came to us out of the deep, like the rest of us. Good. Then you know what follows us.$B$BThe Stormscale do not let their deserters go. They have sent hunters after us, and they wait on the island to the north for the night we sleep too soundly. Go there first. Remind them what we were trained to do.', '', '', 0, 975023, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975231, 2, 11, 10, 148, 8, 7, 1650, 524288, 'Sealed Orders', 'Take 4 Stormscale Orders from the infiltrators and bring them to Sentinel Glynda Nal\'Shea in Auberdine.', 'The hunters carry orders, sealed in the old way. What the Stormscale plan, the night elves of Auberdine will want to know.$B$BI know what they will think when one of us walks into their town. Go anyway. Give the orders to the sentinel who commands there. If we are to live on this coast, we must be worth more to them alive than dead.', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 975308, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 69, 0, 5, 0),
-(975232, 2, 18, 17, 331, 8, 5, 2700, 524288, 'The Tide Turns', 'Travel south along the coast to the Zoram Strand in Ashenvale and find out what stirs the Wrathtail naga.', 'The Wrathtail stir in the south, young one, on the shore the elves call the Zoram Strand. I hear the sea grow restless there, and I hear in it voices like yours: naga voices, singing to something in the deep.$B$BYou have done much for the forest of Darkshore. Go now, and see what the Wrathtail are about. Whatever you find there, I suspect it is your own path, and not ours.', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975233, 2, 18, 17, 331, 8, 6, 2700, 524288, 'Strangers on the Shore', 'Kill 4 Wrathtail Myrmidons and 4 Wrathtail Razortails on the Zoram Strand.', 'Dem Wrathtail been pushin\' me up dis beach all mornin\'. Too many of dem for one troll, even a good one.$B$BYou wanna prove you ain\'t one of dem? Easy. Thin \'em out. Myrmidons and Razortails, the ones closest to my hidin\' spot. Then we talk.', '', '', 0, 3711, 3712, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-(975234, 2, 19, 17, 331, 8, 5, 2850, 524288, 'An Unlikely Allegiance', 'Speak with Marukai at Zoram\'gar Outpost, on the Zoram Strand.', 'Listen. Dere be a Horde outpost down dis coast: Zoram\'gar. Marukai runs things dere for the Darkspear, and he got the same problem I got: Wrathtail.$B$BThe Darkspear know what it is to be cast out by your own kind, mon. Vol\'jin took us out of the jungle when our own tried to sacrifice us. I\'ll put in a word for you. Go to Zoram\'gar and talk to Marukai. Don\'t let \'em spear you on the way in.', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 975353, 975354, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 530, 76, 5, 4);
 DELETE FROM `quest_template_addon` WHERE `ID` BETWEEN 975200 AND 975299;
-INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`, `SpecialFlags`, `ProvidedItemCount`) VALUES
-(975230, 0, 0, 0),
-(975231, 975230, 0, 0),
-(975232, 0, 0, 0),
-(975233, 975232, 0, 0),
-(975234, 975233, 0, 0);
 DELETE FROM `quest_offer_reward` WHERE `ID` BETWEEN 975200 AND 975299;
-INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
-(975230, 1, 'Then the water around us is ours again, for now. You fight like one who remembers the old drills. We all do. That is what frightens them.'),
-(975231, 1, 'These are Stormscale seals. Real ones.$B$B...I will not pretend I am glad to see your kind on my docks. Ten thousand years ago your people drowned my world, and the Stormscale still kill my sentinels on this very coast. But you brought me their plans, and I am not too proud to read them.$B$BYou may stay. Help us, and we will see. Betray us, and the sentinels have long memories.'),
-(975232, 1, 'Mon, you got a death wish? Walkin\' up on me like dat, scales and all... Ha! Lucky for you, you ain\'t one of dem Wrathtail, or you\'d have a spear in ya already.$B$BZun\'jin of the Darkspear. Scouting dis beach for Zoram\'gar.'),
-(975233, 1, 'Ha! Dat\'s how it\'s done! You fight like you got somethin\' to prove, mon. I like dat.'),
-(975234, 1, 'Zun\'jin sent a naga to my outpost. A naga.$B$B...He says you fought beside him, and that the Wrathtail hate you more than they hate us. That counts for something. Not everything. Something.$B$BThe Horde is made of those the world threw away, so I will not throw you away before I see what you are. The Wrathtail are your people\'s enemies and ours. Show me what you will do to them.');
 DELETE FROM `quest_request_items` WHERE `ID` BETWEEN 975200 AND 975299;
-INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES
-(975230, 6, 6, 'The Stormscale still wait on the northern island.'),
-(975231, 6, 6, 'Speak quickly, naga. My archers are watching you.'),
-(975233, 6, 6, 'Still hearin\' dem hiss out dere.');
 DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 975200 AND 975299;
-INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
-(975017, 975230),
-(975017, 975231),
-(3616, 975232),
-(975024, 975233),
-(975024, 975234);
 DELETE FROM `creature_questender` WHERE `quest` BETWEEN 975200 AND 975299;
-INSERT INTO `creature_questender` (`id`, `quest`) VALUES
-(975017, 975230),
-(2930, 975231),
-(975024, 975232),
-(975024, 975233),
-(12719, 975234);
 DELETE FROM `gameobject_questender` WHERE `quest` BETWEEN 975200 AND 975299;
-DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 975000 AND 975099 AND `source_type` = 0;
-INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES
-(975000, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
-(975000, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
-(975001, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 414, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
-(975001, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
-(975002, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
-(975002, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
-(975003, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 1109, 415, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
-(975003, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
-(975004, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 415, 414, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
-(975004, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
-(975005, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: fishmonger\'s voice'),
-(975013, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
-(975013, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
-(975017, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: szaria\'s voice'),
-(975019, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 4024, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: vyssa\'s voice'),
-(975018, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 3437, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: ssaveth\'s voice');
+DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 975000 AND 975099 AND `source_type` = 0 AND `entryorguid` NOT IN (975017, 975018, 975019);
 
--- Where they start: on their islands in Darkshore, every class.
+-- The naga's story's Warcraft III voices (tools/naga/sounds.py): their WAVs are the server package's (never in
+-- this repository); without them the game plays nothing and the lines show as text.
+DELETE FROM `soundentries_dbc` WHERE `ID` BETWEEN 995000 AND 995199;
+REPLACE INTO `soundentries_dbc` (`ID`, `SoundType`, `Name`, `File_1`, `File_2`, `File_3`, `File_4`, `File_5`, `File_6`, `File_7`, `File_8`, `File_9`, `File_10`, `Freq_1`, `Freq_2`, `Freq_3`, `Freq_4`, `Freq_5`, `Freq_6`, `Freq_7`, `Freq_8`, `Freq_9`, `Freq_10`, `DirectoryBase`, `Volumefloat`, `Flags`, `MinDistance`, `DistanceCutoff`, `EAXDef`, `SoundEntriesAdvancedID`) VALUES
+(995000, 10, 'NagaStory_LadyVashjReady1', 'LadyVashjReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995001, 10, 'NagaStory_LadyVashjWhat1', 'LadyVashjWhat1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995002, 10, 'NagaStory_LadyVashjWhat2', 'LadyVashjWhat2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995003, 10, 'NagaStory_LadyVashjWhat3', 'LadyVashjWhat3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995004, 10, 'NagaStory_LadyVashjWhat4', 'LadyVashjWhat4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995005, 10, 'NagaStory_LadyVashjWhat5', 'LadyVashjWhat5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995006, 10, 'NagaStory_LadyVashjYes1', 'LadyVashjYes1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995007, 10, 'NagaStory_LadyVashjYes2', 'LadyVashjYes2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995008, 10, 'NagaStory_LadyVashjYes3', 'LadyVashjYes3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995009, 10, 'NagaStory_LadyVashjYes4', 'LadyVashjYes4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995010, 10, 'NagaStory_LadyVashjYes5', 'LadyVashjYes5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995011, 10, 'NagaStory_LadyVashjYes6', 'LadyVashjYes6.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995012, 10, 'NagaStory_LadyVashjYesAttack1', 'LadyVashjYesAttack1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995013, 10, 'NagaStory_LadyVashjYesAttack2', 'LadyVashjYesAttack2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995014, 10, 'NagaStory_LadyVashjYesAttack3', 'LadyVashjYesAttack3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995015, 10, 'NagaStory_LadyVashjWarcry1', 'LadyVashjWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995016, 10, 'NagaStory_LadyVashjPissed1', 'LadyVashjPissed1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995017, 10, 'NagaStory_LadyVashjPissed2', 'LadyVashjPissed2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995018, 10, 'NagaStory_LadyVashjPissed3', 'LadyVashjPissed3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995019, 10, 'NagaStory_LadyVashjPissed4', 'LadyVashjPissed4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995020, 10, 'NagaStory_LadyVashjPissed5', 'LadyVashjPissed5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995021, 10, 'NagaStory_NagaSirenReady1', 'NagaSirenReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995022, 10, 'NagaStory_NagaSirenWhat2', 'NagaSirenWhat2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995023, 10, 'NagaStory_NagaSirenWhat4', 'NagaSirenWhat4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995024, 10, 'NagaStory_NagaSirenYes1', 'NagaSirenYes1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995025, 10, 'NagaStory_NagaSirenYes3', 'NagaSirenYes3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995026, 10, 'NagaStory_NagaSirenYesAttack1', 'NagaSirenYesAttack1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995027, 10, 'NagaStory_NagaSirenPissed1', 'NagaSirenPissed1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995028, 10, 'NagaStory_NagaSirenPissed4', 'NagaSirenPissed4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995029, 10, 'NagaStory_NagaMyrmadonReady1', 'NagaMyrmadonReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995030, 10, 'NagaStory_NagaMyrmadonYes3', 'NagaMyrmadonYes3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995031, 10, 'NagaStory_NagaMyrmadonYes4', 'NagaMyrmadonYes4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995032, 10, 'NagaStory_NagaMyrmadonWarcry1', 'NagaMyrmadonWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995033, 10, 'NagaStory_NagaMyrmadonPissed1', 'NagaMyrmadonPissed1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995034, 10, 'NagaStory_NagaMyrmadonPissed2', 'NagaMyrmadonPissed2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995035, 10, 'NagaStory_NagaMyrmadonPissed3', 'NagaMyrmadonPissed3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995036, 10, 'NagaStory_NagaMyrmadonPissed4', 'NagaMyrmadonPissed4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995037, 10, 'NagaStory_NagaMyrmadonPissed5', 'NagaMyrmadonPissed5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995038, 10, 'NagaStory_NagaMyrmadonPissed6', 'NagaMyrmadonPissed6.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995039, 10, 'NagaStory_NagaMyrmadonPissed7', 'NagaMyrmadonPissed7.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995040, 10, 'NagaStory_NagaRoyalGuardReady1', 'NagaRoyalGuardReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995041, 10, 'NagaStory_NagaRoyalGuardYes3', 'NagaRoyalGuardYes3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995042, 10, 'NagaStory_NagaRoyalGuardYesAttack1', 'NagaRoyalGuardYesAttack1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995043, 10, 'NagaStory_NagaRoyalGuardYesAttack2', 'NagaRoyalGuardYesAttack2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995044, 10, 'NagaStory_NagaRoyalGuardPissed1', 'NagaRoyalGuardPissed1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995045, 10, 'NagaStory_NagaRoyalGuardPissed3', 'NagaRoyalGuardPissed3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995046, 10, 'NagaStory_NagaRoyalGuardPissed7', 'NagaRoyalGuardPissed7.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995047, 10, 'NagaStory_IllidanPissed1', 'IllidanPissed1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995048, 10, 'NagaStory_IllidanPissed3', 'IllidanPissed3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995049, 10, 'NagaStory_IllidanPissed4', 'IllidanPissed4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995050, 10, 'NagaStory_IllidanPissed5', 'IllidanPissed5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995051, 10, 'NagaStory_IllidanWhat1', 'IllidanWhat1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995052, 10, 'NagaStory_IllidanYes4', 'IllidanYes4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995053, 10, 'NagaStory_IllidanYesAttack1', 'IllidanYesAttack1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995054, 10, 'NagaStory_IllidanMorphedWarcry1', 'IllidanMorphedWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995055, 10, 'NagaStory_MaievReady1', 'MaievReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995056, 10, 'NagaStory_MaievWarcry1', 'MaievWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995057, 10, 'NagaStory_MaievPissed5', 'MaievPissed5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995058, 10, 'NagaStory_MaievYesAttack1', 'MaievYesAttack1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995059, 10, 'NagaStory_KaelYesAttack1', 'KaelYesAttack1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995060, 10, 'NagaStory_KaelPissed2', 'KaelPissed2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995061, 10, 'NagaStory_KaelPissed4', 'KaelPissed4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995062, 10, 'NagaStory_KaelYes2', 'KaelYes2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995063, 10, 'NagaStory_KaelWarcry1', 'KaelWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995064, 10, 'NagaStory_GarithosWhat3', 'GarithosWhat3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995065, 10, 'NagaStory_GarithosPissed5', 'GarithosPissed5.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995066, 10, 'NagaStory_GarithosYesAttack3', 'GarithosYesAttack3.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995067, 10, 'NagaStory_GarithosPissed2', 'GarithosPissed2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995068, 10, 'NagaStory_GarithosWarcry1', 'GarithosWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995069, 10, 'NagaStory_GarithosReady1', 'GarithosReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995070, 10, 'NagaStory_AkamaReady1', 'AkamaReady1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995071, 10, 'NagaStory_AkamaPissed6', 'AkamaPissed6.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995072, 10, 'NagaStory_AkamaWarcry1', 'AkamaWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995073, 10, 'NagaStory_TyrandeWarcry1', 'TyrandeWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995074, 10, 'NagaStory_TyrandeYes2', 'TyrandeYes2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995075, 10, 'NagaStory_MalfurionPissed4', 'MalfurionPissed4.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995076, 10, 'NagaStory_MalfurionYesAttack2', 'MalfurionYesAttack2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995077, 10, 'NagaStory_EvilArthasYes2', 'EvilArthasYes2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995078, 10, 'NagaStory_EvilArthasWarcry1', 'EvilArthasWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995079, 10, 'NagaStory_EvilArthasYesAttack6', 'EvilArthasYesAttack6.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995080, 10, 'NagaStory_HeroDreadlordWarcry1', 'HeroDreadlordWarcry1.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0),
+(995081, 10, 'NagaStory_PitLordYes2', 'PitLordYes2.wav', '', '', '', '', '', '', '', '', '', 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 'Sound\\Creature\\WC3Voices', 0.800000011920929, 0, 7.0, 30.0, 0, 0);
+
+-- The naga's story's looks (tools/naga/looks.py): today's sea witch, warden and Queen Azshara made 3.3.5's (their
+-- files the server package's), and looks made of the game's parts; their sizes the game's people's they're
+-- copied from.
+DELETE FROM `creaturemodeldata_dbc` WHERE `ID` BETWEEN 3800 AND 3849;
+DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 40000 AND 40299;
+DELETE FROM `creaturedisplayinfoextra_dbc` WHERE `ID` BETWEEN 25000 AND 25099;
+REPLACE INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, `FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, `DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, `MissileCollisionPush`, `MissileCollisionRaise`) VALUES
+(3800, 0, 'Creature\\SeaWitch\\SeaWitch.mdx', 1, 1.0, 3, -1, 18.0, 12.0, 1.0, 0.0, 0, 0, 2282, 0.6111000180244446, 2.0309998989105225, 0.0, -1.80637729168, -0.99034464359, -0.01818263531, 0.55956739187, 0.95761823654, 2.32695269585, 1.0, 1.0, 0.0, 0.0, 0.0),
+(3801, 0, 'Creature\\Warden\\Warden.mdx', 0, 1.0, 1, 4, 0.0, 0.0, 0.0, 0.0, 0, 0, 56, 0.6111000180244446, 2.0309998989105225, 1.257891058921814, -0.54519271851, -0.58281576633, -0.00023166277, 0.46552929282, 0.61970698833, 2.24232578278, 1.0, 1.0, 0.0, 0.0, 0.0),
+(3802, 0, 'Creature\\QueenAzshara\\QueenAzshara.mdx', 0, 1.0, 1, 4, 0.0, 0.0, 0.0, 0.0, 0, 0, 56, 0.6111000180244446, 2.0309998989105225, 1.257891058921814, -0.3893429935, -0.36408901215, 0.00231999997, 0.30982899666, 0.42888599634, 2.25829005241, 1.0, 1.0, 0.0, 0.0, 0.0);
+REPLACE INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
+(40000, 3800, 0, 0, 1.0, 255, 'SeaWitchSkin', 'SeaWitchSkin2', '', '', 1, 0, 0, 0, 0, 0),
+(40001, 3801, 0, 0, 1.0, 255, 'WardenSkin1', '', '', '', -1, 0, 0, 0, 0, 0),
+(40002, 3801, 0, 0, 1.0, 255, 'WardenSkin2', '', '', '', -1, 0, 0, 0, 0, 0),
+(40003, 3801, 0, 0, 1.0, 255, 'WardenSkin3', '', '', '', -1, 0, 0, 0, 0, 0),
+(40004, 3801, 0, 0, 1.0, 255, 'WardenSkin4', '', '', '', -1, 0, 0, 0, 0, 0),
+(40005, 3802, 0, 0, 1.0, 255, '', '', '', '', -1, 0, 0, 0, 0, 0),
+(40010, 49, 0, 25000, 1.0, 150, '', '', '', '', 0, 0, 48, 0, 0, 0),
+(40011, 56, 0, 25001, 1.149999976158142, 255, '', '', '', '', -1, 0, 0, 0, 0, 0),
+(40012, 56, 0, 25002, 1.149999976158142, 255, '', '', '', '', -1, 0, 0, 0, 0, 0),
+(40013, 55, 0, 25003, 1.149999976158142, 255, '', '', '', '', -1, 0, 0, 0, 0, 0),
+(40014, 56, 0, 25004, 1.149999976158142, 255, '', '', '', '', -1, 0, 0, 0, 0, 0),
+(40015, 55, 0, 25005, 1.149999976158142, 255, '', '', '', '', -1, 0, 0, 0, 0, 0),
+(40016, 2208, 0, 25006, 1.0, 255, '', '', '', '', -1, 0, 199, 0, 0, 0),
+(40017, 56, 0, 25007, 1.0, 255, '', '', '', '', 0, 0, 53, 0, 0, 0);
+REPLACE INTO `creaturedisplayinfoextra_dbc` (`ID`, `DisplayRaceID`, `DisplaySexID`, `SkinID`, `FaceID`, `HairStyleID`, `HairColorID`, `FacialHairID`, `NPCItemDisplay1`, `NPCItemDisplay2`, `NPCItemDisplay3`, `NPCItemDisplay4`, `NPCItemDisplay5`, `NPCItemDisplay6`, `NPCItemDisplay7`, `NPCItemDisplay8`, `NPCItemDisplay9`, `NPCItemDisplay10`, `NPCItemDisplay11`, `Flags`, `BakeName`) VALUES
+(25000, 1, 0, 1, 8, 1, 4, 1, 15334, 9497, 36531, 13380, 0, 13382, 19719, 0, 19717, 31254, 0, 0, ''),
+(25001, 4, 1, 0, 0, 5, 0, 0, 0, 15375, 0, 7853, 0, 7855, 24438, 0, 16027, 0, 0, 0, ''),
+(25002, 4, 1, 3, 2, 4, 2, 4, 0, 15375, 0, 7853, 0, 7855, 24438, 0, 16027, 0, 0, 0, ''),
+(25003, 4, 0, 3, 7, 4, 2, 2, 0, 15375, 24437, 7853, 0, 7855, 24438, 0, 16027, 0, 0, 0, ''),
+(25004, 4, 1, 6, 4, 4, 0, 7, 0, 15375, 0, 7853, 0, 7855, 24438, 0, 16027, 0, 0, 0, ''),
+(25005, 4, 0, 5, 8, 5, 0, 1, 0, 15375, 0, 7853, 0, 7855, 24438, 0, 16027, 0, 0, 0, ''),
+(25006, 10, 0, 2, 4, 10, 2, 0, 0, 33358, 0, 33387, 33388, 33389, 33386, 0, 0, 0, 0, 0, ''),
+(25007, 4, 1, 2, 5, 3, 6, 5, 0, 0, 0, 22019, 4102, 13048, 7029, 0, 11414, 0, 0, 0, '');
+DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 40000 AND 40299;
+INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) VALUES
+(40000, 0.306, 1.5, 1, 0),
+(40001, 0.306, 1.5, 1, 0),
+(40002, 0.306, 1.5, 1, 0),
+(40003, 0.306, 1.5, 1, 0),
+(40004, 0.306, 1.5, 1, 0),
+(40005, 0.306, 1.5, 1, 0),
+(40010, 0.306, 1.5, 0, 0),
+(40011, 0.306, 1.5, 1, 0),
+(40012, 0.306, 1.5, 1, 0),
+(40013, 0.306, 1.5, 0, 0),
+(40014, 0.306, 1.5, 1, 0),
+(40015, 0.306, 1.5, 0, 0),
+(40016, 0.306, 1.5, 0, 0),
+(40017, 0.306, 1.5, 1, 0);
+
+-- Where they start: each race at its story's start (the murlocs in the Wrathtail's pens at the Zoram Strand, the naga
+-- at Rethress Sanctum in Azshara), every class.
 DELETE FROM `playercreateinfo` WHERE `race` IN (19, 20);
 INSERT INTO `playercreateinfo` (`race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES
 (19, 1, 1, 331, 4100.50, 1094.00, 1.80, 0.0),
@@ -1845,13 +1878,13 @@ INSERT INTO `playercreateinfo` (`race`, `class`, `map`, `zone`, `position_x`, `p
 (19, 5, 1, 331, 4100.50, 1094.00, 1.80, 0.0),
 (19, 7, 1, 331, 4100.50, 1094.00, 1.80, 0.0),
 (19, 8, 1, 331, 4100.50, 1094.00, 1.80, 0.0),
-(20, 1, 1, 148, 6700.00, 801.00, 27.76, 0.0),
-(20, 3, 1, 148, 6700.00, 801.00, 27.76, 0.0),
-(20, 4, 1, 148, 6700.00, 801.00, 27.76, 0.0),
-(20, 5, 1, 148, 6700.00, 801.00, 27.76, 0.0),
-(20, 7, 1, 148, 6700.00, 801.00, 27.76, 0.0),
-(20, 8, 1, 148, 6700.00, 801.00, 27.76, 0.0),
-(20, 9, 1, 148, 6700.00, 801.00, 27.76, 0.0);
+(20, 1, 1, 16, 2214.00, -6446.00, 2.35, 5.32),
+(20, 3, 1, 16, 2214.00, -6446.00, 2.35, 5.32),
+(20, 4, 1, 16, 2214.00, -6446.00, 2.35, 5.32),
+(20, 5, 1, 16, 2214.00, -6446.00, 2.35, 5.32),
+(20, 7, 1, 16, 2214.00, -6446.00, 2.35, 5.32),
+(20, 8, 1, 16, 2214.00, -6446.00, 2.35, 5.32),
+(20, 9, 1, 16, 2214.00, -6446.00, 2.35, 5.32);
 
 -- Their action bars: their class's template race's, without that race's racials; their own on the bar.
 DELETE FROM `playercreateinfo_action` WHERE `race` IN (19, 20);
@@ -1931,12 +1964,10 @@ INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `
 (524288, 0, 98885, 'Naga - Serpent\'s Grace'),
 (524288, 0, 98886, 'Naga - Tail Sweep'),
 (524288, 0, 98887, 'Naga - Scales of the Deep');
-DELETE FROM `spell_area` WHERE `spell` IN (98880, 98881, 98889);
+DELETE FROM `spell_area` WHERE (`spell` = 98880 AND `area` IN (148, 331)) OR `spell` IN (98881, 98889);
 INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, `quest_start_status`, `quest_end_status`) VALUES
 (98880, 148, 0, 0, 0, 262144, 2, 1, 64, 11),
 (98880, 331, 978528, 0, 0, 262144, 2, 1, 64, 11),
-(98881, 148, 0, 0, 0, 524288, 2, 1, 64, 11),
-(98881, 331, 0, 0, 0, 524288, 2, 1, 64, 11),
 (98889, 331, 0, 978528, 0, 262144, 2, 1, 64, 63);
 
 -- A murloc keeps a low profile in the 2 towns and cities (Low Profile): their guards notice it at a few yards.
@@ -1951,27 +1982,15 @@ REPLACE INTO `player_race_stats` (`Race`, `Strength`, `Agility`, `Stamina`, `Int
 (20, 1, 2, 0, -4, 1);
 
 -- Quests, items and conditions of their kin are theirs too: the night elves' for the murlocs, the trolls' (the
--- Horde's) for the naga. The naga's Darkshore: the quests there for the Alliance alone are theirs too; those that
--- lead out of Darkshore to the Alliance's cities and camps aren't offered to them (conditions), whatever their mask.
+-- Horde's) for the naga (each story's gate, src/MurlocNaga.cpp, closes them until its last quest is done).
 UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | 262144 WHERE `AllowableRaces` & 8 AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF AND `ID` NOT BETWEEN 975200 AND 975299;
 UPDATE `item_template` SET `AllowableRace` = `AllowableRace` | 262144 WHERE `AllowableRace` <> -1 AND `AllowableRace` & 8 AND `AllowableRace` & 0x7FFFFFFF <> 0x7FFFFFFF;
 UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | 262144 WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & 8;
 UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | 524288 WHERE `AllowableRaces` & 128 AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF AND `ID` NOT BETWEEN 975200 AND 975299;
 UPDATE `item_template` SET `AllowableRace` = `AllowableRace` | 524288 WHERE `AllowableRace` <> -1 AND `AllowableRace` & 128 AND `AllowableRace` & 0x7FFFFFFF <> 0x7FFFFFFF;
 UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | 524288 WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & 128;
-UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | 524288 WHERE `ID` IN (4722, 4723, 4725, 4727, 4728, 4730, 4731, 4732, 4733, 4811, 4812);
-DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `ConditionTypeOrReference` = 16 AND `ConditionValue1` = 524288 AND `NegativeCondition` = 1 AND `SourceEntry` IN (741, 942, 943, 968, 967, 970, 973, 1140, 1167, 981, 1143, 1133, 5321);
-INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES
-(19, 0, 741, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 942, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 943, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 968, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 967, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 970, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 973, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 1140, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 1167, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 981, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 1143, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 1133, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)'),
-(19, 0, 5321, 0, 0, 16, 0, 524288, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)');
+
+-- The naga's retired Darkshore start, undone where a realm had it: the Alliance's own Darkshore quests it opened to
+-- them, and the conditions that closed the way out of Darkshore to them.
+UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` & ~524288 WHERE `ID` IN (4722, 4723, 4725, 4727, 4728, 4730, 4731, 4732, 4733, 4811, 4812) AND (`AllowableRaces` & 128) = 0;
+DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `ConditionTypeOrReference` = 16 AND `ConditionValue1` = 524288 AND `NegativeCondition` = 1 AND `SourceEntry` IN (741, 942, 943, 968, 967, 970, 973, 1140, 1167, 981, 1143, 1133, 5321) AND `Comment` = 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)';

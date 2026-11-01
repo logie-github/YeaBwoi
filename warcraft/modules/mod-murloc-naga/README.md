@@ -1,13 +1,13 @@
 # mod-murloc-naga: the Murlocs and the Naga
 
 Two races of the app's ChromieCraft realm (not Wrath Remix's: "Only chromie needs new races"), both starting at
-level 10 (the user: "Murloc to alliance and naga to horde", "Both start at level 10"; the murlocs since in the
-Zoram Strand's slave pens, their story's start):
+level 10 (the user: "Murloc to alliance and naga to horde", "Both start at level 10"), each at its own story's start:
+the murlocs in the Zoram Strand's slave pens, the naga at Rethress Sanctum in Azshara.
 
 | Race | Id | Side | Starts | Classes |
 | --- | --- | --- | --- | --- |
 | Murloc | 19 | Alliance | The Wrathtail's slave pens on the Zoram Strand (Ashenvale): their story's start | Warrior, Hunter, Rogue, Priest, Shaman, Mage |
-| Naga | 20 | Horde | The renegades' camp on the island north of Auberdine | Warrior, Hunter, Rogue, Priest, Shaman, Mage, Warlock |
+| Naga | 20 | Horde | Rethress Sanctum, the Spitelash's crèche on Azshara's south coast: their story's start | Warrior, Hunter, Rogue, Priest, Shaman, Mage, Warlock |
 
 Races 19 and 20 were the game's Taunka and Northrend Skeleton, which only creatures use; in the game's tables they
 move to 30 and 31 (the client's own rows of theirs, whatever their ids: their race, looks, hair shapes, facial hair
@@ -72,20 +72,21 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
   - Naga: **Serpent's Grace** (breathe underwater, swim 50% faster), **Tail Sweep** (enemies within 8 yards stunned for
     2 sec, 2 min cooldown), **Scales of the Deep** (armour from items +5%).
 - **Stats, standing, quests and items**: their kin's, the night elves' for the murlocs and the trolls' for the naga:
-  every quest, item and condition open to the kin is open to them (the game's race masks, theirs OR'd in). The naga
-  are also **neutral** to Darnassus, the Explorers' League (Ironforge) and the Gnomeregan Exiles (below).
+  every quest, item and condition open to the kin is open to them (the game's race masks, theirs OR'd in), once their
+  story is done (each story's gate, below). The naga are also **neutral** to Darnassus (Azshara's Talrendis Point and
+  Shadowsong Shrine are its people's), the Explorers' League (Ironforge) and the Gnomeregan Exiles.
 - **Level 10, and their class's spells**: the world server makes a new character level 10 at its first login, at full
   health, and teaches it every spell its class's trainers teach up to its level; and again at every level after (they
   start far from their kin's trainers). A rank of a talent's spell once the talent is theirs.
-- **Their homes**, seen by their own race alone: a phase of each race's in Darkshore and Ashenvale (`spell_area`: an
-  aura with the world's phase and theirs), so nothing of the game's world changes for anyone else. The murlocs'
-  village (huts on stilts from the Swamp of Sorrows, the murlocs' altar and great pearl) with its people, the naga raiders
-  on the island to its south, the crawlers on its beaches, the shellfish, kelp, coral and giant clam around it, and
-  what the murlocs steal in Auberdine; the renegades' camp (Outland's naga pagoda, banners, torches, crates), its
-  people, and the Stormscale hunting them on the island to the north; the Darkspear scout at the Zoram Strand.
+- **Their stories' places**, seen by their own race alone: each race's phase where its story goes (`spell_area`: an
+  aura with its phase, and the world's where the story shows it), so nothing of the game's world changes for anyone
+  else, and neither race sees the other's people (both stories are in Azshara: below). The first releases' homes,
+  the murlocs' island village west of Auberdine and the naga's renegade camp north of it, are retired (their ids
+  kept; the camp's Lady Szaria, Myrmidon Ssaveth and Vyssa the Coral-Keeper are the naga's story's people now).
 - **The intros**, seen once at a new character's first login: a flight over their home (each its own camera, written
   by `tools/cameras.py`), with the game's own sounds as narration: the murlocs' own voices for the murlocs (a village
-  waking, a fry's dance, a warning, a war-gurgle, a cheer, 42 seconds); for the naga, Lady Vashj's (61 seconds, below).
+  waking, a fry's dance, a warning, a war-gurgle, a cheer, 42 seconds); for the naga, Lady Vashj's (61 seconds, below)
+  over Azshara.
 - **Character creation**: twenty races, each side's ten in two columns (the allied races' and the Skyborne's layout),
   their icons (the game's murloc head and murloc oracle, Warlord Kalithresh and Lady Vashj), the Dwarves' scene for
   the murlocs and the Tauren's for the naga (framed for their height), their texts.
@@ -164,79 +165,82 @@ What holds the story together:
 - **Murlocs of the first release** speak Nerglish from their next login, are Hostile with the towns,
   and, if still in Darkshore, go to the story's start.
 
-## The Naga's way
+## The Naga's questline
 
-The user's plan: a renegade naga, broken from the hostile naga, begins in Darkshore helping the night elves with their
-own quests, then joins the Horde at Zoram'gar (levels 10 to 18 in Darkshore, 18 to 20 the way to the Horde).
+The naga start at Rethress Sanctum in Azshara, the lowest of the Spitelash's crèche, and level from 10 to 55 through
+a story of their own, all of it in Azshara (the user: the naga in Azshara, 10 to 55, Lady Vashj's war from Warcraft
+III, lore accurate; a story bible written first, then the chapters): living memory. Azshara as it is in 3.3.5 is the
+present; Warcraft III's campaign comes back as memories the naga live, each on Azshara's own ground in a phase of its
+own. As the murlocs' story is, it's data (`tools/naga/ch*.py`, written as `tools/naga/SCHEMA.md` and
+`tools/murloc/SCHEMA.md` say) that the same compiler (`tools/murloc/compile.py`, with the naga's profile:
+`tools/murloc/profiles.py`) makes the world database's rows (`data/sql/chromiecraft/world/naga_story.sql`).
 
-| Level | Where | Quests |
-| --- | --- | --- |
-| 10 to 11 | The renegades' camp | **Blood in the Water** (Lady Szaria: 6 Stormscale Infiltrators on the island to the north), **Sealed Orders** (their orders, to Sentinel Glynda Nal'Shea in Auberdine: the night elves' grudging welcome) |
-| 11 to 18 | Darkshore | The night elves', the Explorers' League's and the gnomes' quests there, as they are |
-| 18 | The Grove of the Ancients, then the Zoram Strand | **The Tide Turns** (Onu: the Wrathtail stir in the south) |
-| 18 to 19 | The Zoram Strand (Ashenvale) | **Strangers on the Shore** (Scout Zun'jin of the Darkspear: 4 Wrathtail Myrmidons and 4 Razortails), **An Unlikely Allegiance** (to Marukai at Zoram'gar) |
-| 19 on | Zoram'gar, Ashenvale | **Naga at the Zoram Strand** (6442, Marukai's, the Horde's own), and the Horde's quests on from there |
+**Where it stands**: the engine is built; chapter 1, The Low Tide (`tools/naga/ch1_low_tide.py`, levels 10 to 15:
+the crèche at Rethress Sanctum, its 35 quests and two memories), and the shared cast and hub kit
+(`tools/naga/ch0_people.py`) are written; chapters 2 to 10 are being written. The story isn't released until it's
+whole (the gate would close every other quest to a naga with nothing after chapter 1).
 
-Lady Vashj's words are the naga's intro: the game's own lines of hers (Serpentshrine Cavern's: the user's link is to
-her lines, and the game's files have fourteen; the page itself couldn't be read here, it turns away programs), in an
-order that tells the renegades' story: who the naga were and what they wanted ("Water... is life... We are the
-Highborne, and the time has come at last for us to retake our rightful place in the world!"), the war on the surface
-("I did not wish to lower myself by engaging your kind...", "Death to the outsiders!", "The time is now! Leave none
-standing!", "Seek your mark!", "Victory to Lord Illidan!"), her fall ("Lord Illidan, I... I am... sorry."), and their own
-way after it ("Be'lemer an-delei!"): 56 seconds of her, over a 61 second flight.
+What holds it together (the engine):
 
-### How the core lets a Horde naga do the night elves' quests (AzerothCore's source, at the realm's commit)
+- **Readable words.** The naga's people speak their own tongue, shown as written, and so does everyone in a memory;
+  Orcish is theirs too (the Horde's camp at Valormok); other races' words are garbled as the game garbles a language.
+- **No one else's quests.** Until its story's last quest (Thrall's, in Grommash Hold), a naga takes no Horde quest,
+  nor any open to all: the module's gate (as the murlocs'), made as the world server starts from every quest the
+  world database has. Both stories' gates live in the same conditions: a quest's own condition groups (or one of its
+  own) say "not a murloc" and "not a naga" for those it's closed to; each race has its own way in once its story is
+  done (the quest's groups again, with its last quest done). Flights out of Azshara are allowed; quests aren't.
+- **Azshara alone.** Until chapter 7's live world quest, Azshara shows a naga only its own phase (none of the zone's
+  level 42 to 60 creatures); Valormok (the Horde's camp) shows the world and the naga's from the first login.
+- **Phases that don't cross.** The murlocs' chapter 10 is in Azshara too: each story's people carry its own race's
+  phase and its own story bits alone (never the other's, never every bit, as the murlocs' did before), and the naga's
+  story is compiled after the murlocs' and given the bits theirs use in each zone, taking others (in Azshara also
+  bits the game doesn't use there). The build stops if either race could see the other's people.
+- **Memories** (the module, `src/MurlocNaga.cpp`): a song at a pool takes the naga into one (the screen fades, the
+  memory's stage, its phase alone: no present, no world; "Reliving: <its name>" on the bar and the game's flashback
+  look on the screen; the naga of their party on its quest go in too); its last quest done, the song's last note and
+  they wake at the pool. A death inside: alive again at once at the pool, the memory's unfinished quest started over
+  (no corpse run); back in through the singer. A logout inside: awake at the pool at the next login. Leaving the
+  memory's ground: awake at the pool. Three phase bits carry every memory (memories sharing one stand 500 yards apart).
+- **What the story's scenes can do**, beyond the murlocs': people turned into another look or size (`morph`,
+  `scale`), the canon figures untouchable, someone sized whatever their look's own scale, people placed high in the
+  sky (Kil'jaeden), new looks of playable races' people (Garithos, the Highborne court), a question with answers
+  (a wrong one asks again), the tug escort (a cart the enemy takes back at the midpoint), turrets at plots, a heavy
+  thing carried that slows. Each is in `tools/murloc/SCHEMA.md`, checked as the story compiles.
+- **Their graveyards**: a naga whose story isn't done wakes at the story's nearest (with a spirit healer).
 
-Confirmed in the core's source and the world database it ships (`data/sql/base/db_world`, the commit in
-`warcraft/server-version.env`):
+Lady Vashj's words are the naga's intro (re-cut for the story: no spoiler of her death, its end): the game's own
+lines of hers (Serpentshrine Cavern's), who the naga were and what they wanted ("Water... is life... We are the
+Highborne, and the time has come at last for us to retake our rightful place in the world!") and their war on the
+surface ("I did not wish to lower myself by engaging your kind...", "Death to the outsiders!", "The time is now!
+Leave none standing!", "Seek your mark!", "Victory to Lord Illidan!"), then the present: the sea off Rethress Sanctum,
+the crèche's horn and far off a siren's hiss (the game's sounds), over a 61 second flight from the Bay of Storms along
+Southridge Beach, up past the Ravencrest Monument and down to the crèche, where a new naga stands.
 
-- **The races**: the core reads the playable races from ChrRaces (`RaceMgr::LoadRaces`: every row without the
-  not-playable flag; its `alliance` column the side), so new ids need no change to the core. The side is the race's
-  faction template's team (`Player::TeamIdForRace`: ChrRaces' FactionID, the trolls' 116 for the naga: Horde).
-- **Quests**: a quest is offered when the race is in its `AllowableRaces` mask (0: every race). Of Darkshore's 75
-  quests (QuestSortID 148), all but eleven are 0: open to anyone their giver talks to. The eleven are the Alliance's
-  mask (1101): the beached sea creatures' and turtles' (4722, 4723, 4725, 4727, 4728, 4730, 4731, 4732, 4733), The Red
-  Crystal (4811) and As Water Cascades (4812); the naga's bit is OR'd into those.
-- **Who talks to them**: whether a creature talks to (or attacks) a player is its reaction to the player
-  (`Unit::GetReactionTo`, `Unit::GetFactionReactionTo`): for a creature whose faction has reputation, the player's own
-  standing with that faction decides it (`ReputationMgr::GetRank`, no more than neutral while at war), not the sides.
-  Every friendly creature of Darkshore is of such a faction (counted in the world database): Darnassus (the town, its
-  sentinels, trainers, vendors, the quest givers: faction templates 79, 80, 124, 1076), Ironforge (the Explorers'
-  League and Gubber Blump: 55) and the Gnomeregan Exiles (Wizbang Cranktoggle, Jenna Lemkenilli: 64, 875); and the
-  escorts' (10, 231), friendly to all. A race's first standing with a faction is the first of the faction's four slots
-  in Faction.dbc whose race mask has it (`ReputationMgr` from `FactionEntry`): the naga are put in the last, free slot of
-  those three factions as neutral and not at war (and in no other slot of theirs), so those people talk to the naga and
-  their guards leave them be, while the rest of the Horde stays hated. Their reaction to every other Horde character,
-  and the Horde's and the Alliance's players' to the naga (faction templates, without reputation), is unchanged.
-- **The quests that leave Darkshore for the Alliance's places** aren't offered to the naga (a condition: race, negated,
-  on quest availability, source type 19): the Absent Minded Prospector's end in Ironforge (741, 942, 943), The Powers
-  Below (968, Ironforge), the Tower of Althalaxx from the quest that goes to Delgren at Maestra's Post on (967, 970, 973,
-  1140, 1167, 981, 1143), Journey to Astranaar (1133) and The Sleeper Has Awakened (5321, Ashenvale's Alliance camp).
-- **The Horde's quests**: the trolls' race bit is in every Horde quest's mask (690, the Horde's), and every quest,
-  item and condition with it gets the naga's: Naga at the Zoram Strand (6442, Marukai, 12719, Zoram'gar, quest level 19,
-  min level 14, AllowableRaces 690) and everything after it, the Horde's flight masters (the core's team), vendors and
-  trainers (Darkspear Trolls, Orgrimmar...: their standing is the trolls').
-- **The transition's people** (checked in the world database): Onu (3616, the Grove of the Ancients, faction template
-  124: Darnassus), Marukai (12719, faction 126: Darkspear Trolls), Sentinel Glynda Nal'Shea (2930), Thundris Windweaver
-  (3649). The trigger is Onu: the southernmost of Darkshore's quest givers, at the Grove of the Ancients by Ashenvale's
-  border, whose own quests are levels 17 to 20; The Tide Turns is offered there to a naga of level 17 and up, and
-  Lady Szaria tells them to go to him.
+### The naga's retired start (the first release's)
+
+The renegades' camp on the island north of Auberdine, its phase in Darkshore and Ashenvale, and its five quests
+(Blood in the Water, Sealed Orders, The Tide Turns, Strangers on the Shore, An Unlikely Allegiance) are gone (their
+ids kept), and with them the Darkshore Alliance quests opened to the naga and the conditions that closed Darkshore's
+way out to the Alliance (undone where a realm had them). The naga's neutral standing with Darnassus stays.
 
 What SQL alone can't do here, and what does it instead:
 
 - **A race the game knows**: the client has its own ChrRaces, CharSections, CharBaseInfo... and can't make a race the
   server's tables alone have; the module's patch for the game (below) gives it the rows, the murloc's model and skins.
-- **A Horde race some Alliance people talk to**: possible in SQL only through reputation (above). People of a faction
-  without reputation (the Alliance's generic templates) react by the two sides' faction templates, the same for every
-  race of a side; changing that for one race would need a player faction template of its own in the client too (and
-  the core's `IfNormalReaction` hook changes the server's mind alone: the game would still show them hostile). None of
-  Darkshore's friendly people are such, so none of that is needed.
+- **A Horde race some Alliance people talk to**: possible in SQL only through reputation (the naga's Darnassus slot).
+  People of a faction without reputation (the Alliance's generic templates) react by the two sides' faction templates,
+  the same for every race of a side; changing that for one race would need a player faction template of its own in
+  the client too (and the core's `IfNormalReaction` hook changes the server's mind alone).
 - **Level 10 at creation, and their class's spells as they level**: the core's start level is one setting for every
   race (`StartPlayerLevel`); the module's script makes theirs 10 at the first login and teaches the trainers' spells.
 - **Their homes seen by them alone**: a phase is an aura's; `spell_area` gives it by race and zone, in SQL, but the
   aura is a spell the client must know too (the patch's Spell rows).
 - **The intros**: a flight is a camera the client plays (its file in the patch) and the world server follows (the
   same file in its data folder).
+- **Memories**: a phase given and taken by an aura (the memory's: its bit alone) and a marker the module puts on,
+  which every one of the naga's phase rows needs absent (`spell_area`'s aura condition); the module moves the
+  player in and out, and handles a death, a logout and leaving the ground inside one (`src/MurlocNaga.cpp`).
+- **A story's gate**: conditions on every quest, made by the module as the world starts from the quests there are.
 
 Assumed, not seen in the game (nothing here runs the 3.3.5 client):
 
@@ -248,6 +252,51 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
   server: the same rule).
 - That the client reads `Data/<locale>/patch-<locale>-T.MPQ` after `patch-S` and before `patch-U` (the other race
   modules' order, the Skyborne's `Game`).
+- That the memories look as meant: the game's flashback screen effect (ScreenEffect 21) and the fade (201), and a
+  new look of a playable race's person (display_extra) drawn without a baked texture.
+
+## The naga's story's assets
+
+What the naga's story (its bible's 18.5 and 18.6) uses that the 3.3.5 game hasn't. The files are Blizzard's, made as
+the server is packaged and never in this repository; the rows are in the patch and the world database either way.
+
+- **Voices** (`tools/naga/sounds.py`: `SOUNDS["LadyVashjReady1"]` -> 995000, the story's sound beats' table; `WORDS`
+  their words): 82 Warcraft III unit lines (Lady Vashj's 21, the naga siren's, myrmidon's and royal guard's, Illidan,
+  Maiev, Kael'thas, Garithos, Akama, Tyrande, Malfurion, Arthas, a dreadlord, the pit lord), SoundEntries 995000 to
+  995081 (`Sound\Creature\WC3Voices\<name>.wav`, as Lady Vashj's own lines are played: a creature's speech). The files
+  are warcraft.wiki.gg's (`/images/<name>.wav`; its robots.txt allows the folder), or Wowpedia's copies of the same
+  files, each checked against the SHA-1 and size the table pins: all 82 are already the game's own format (16-bit
+  PCM, mono, 22,050 Hz) and are written without the wiki's tags. Without a file, the game plays nothing for its row
+  and the line shows as text.
+- **The naga's emotes** (`tools/naga_emotes.py`): the 3.3.5 naga models have no bow, wave, cheer, laugh, cry, salute,
+  kneel, point, sit, sleep or mount pose, and no naga model of today's game has the full set either (today's naga, the
+  naga lord, the elite naga, the sea witch, the siren, Azshara's naga: talk, work, roar, kneel and point at most). So:
+  kneel (and its start, loop and end) and point are today's naga's own, bone for bone; sitting is the naga's tail coiled
+  as it kneels with its upper body upright, riding the same with the night elf's riding arms, sleeping its own
+  drowning (a collapse into a coil, lying, and back); and the rest (bow, wave, cheer, talk with an exclamation or a
+  question, applaud, beg, chicken, flex, kiss, laugh, shout, cry, shy, dance, salute, eat, rude, train, yes, no) are
+  the night elves' (today's night elf character models: the naga were night elves), on the naga's upper body (spine,
+  chest, neck, head, jaw, arms, fingers: the female's four arms each as the night elf's arm on its side), its tail held
+  as it stands. 39 sequences a sex (6 of them the game's aliases of others). As the patch is made, `MergeEmotes` adds them to the client's own naga models
+  (an HD look's, with one in) after their headdresses and outfits: each bone found at its place, its keys worked out
+  against the client model's own parents (the 3.3.5 naga's tail bones all hang from one bone, today's from each
+  other); the sequences it already has are left as they are.
+- **Models** (`tools/naga_models.py`, `tools/naga/looks.py`): Serena Scarscale's sea witch (Battle for Azeroth's,
+  `creature/seawitch/seawitch.m2`), Maiev's Watchers (Legion's warden, in its four skins) and Queen Azshara as a night
+  elf (Cataclysm's), made 3.3.5's (Wrath Remix's converter, and: sequences with ids 3.3.5 hasn't left out, each batch
+  its own first texture, textures over 1024 made 1024): CreatureModelData 3800 to 3802, CreatureDisplayInfo 40000 to
+  40005, `creature_model_info` for the server. The sea witch talks, works, roars, channels and holds and shoots a bow;
+  the warden and Azshara have every emote (looks.py's EMOTES). Azshara's texture keeps no colour where its alpha is 0
+  (a quarter of it: most of her gown, spots of her gold), and her batches draw it opaque: those texels are given the
+  colour around them (her cream gown, as warcraft.wiki.gg's screenshots of her in the Well of Eternity show it, not
+  black), and her two-texture batch (hair, jewellery: the colour and an environment map, today's Opaque_Mod2xNA_Alpha)
+  draws one texture made of both (the map's mean colour where the alpha lets it through).
+- **Looks of the game's parts** (CreatureDisplayInfoExtra 25000 to 25007 with CreatureDisplayInfo 40010 to 40017, no
+  baked texture: dressed from their items): Grand Marshal Garithos (a human in Lordaeron's blue and silver plate, a
+  closed helm, the Alliance's tabard), Handmaiden Vashj and the Highborne court (night elves in the Highborne
+  Summoners' robes), Taelon Emberveil (a blood elf in red and gold), Shaelyn Harborsong (an old night elf in green
+  leathers). `LOOKS` names every look for the chapters (`LOOKS["serena"]` -> 40000); `FALLBACK` gives a look of the
+  game's for the converted ones' people when their models weren't made.
 
 ## How it's made
 
@@ -299,6 +348,15 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
   `MurlocNaga.ClientPatch = 0` takes it out; on Wrath Remix (`MurlocNaga.Enable = 0`, set by ctl.sh) it's set aside.
   The world server reads the cameras from its own data folder's `Cameras` too (put there as the configuration is read), to
   follow the camera.
+- **The naga's story's assets** (above): `tools/naga_assets.py` makes their rows (`add_naga_assets`, called once by
+  `tools/build_data.py`); as the server is packaged, `tools/naga_emotes.py fetch DIR` (`Naga<Sex>Emotes.dat`,
+  `nagaemotes.files`), `tools/naga_models.py fetch DIR` (`Creature/...`, `nagamodels.files`) and
+  `tools/naga_voices.py fetch DIR` (`Sound/Creature/WC3Voices/`, `nagavoices.files`) make their files, each list
+  last; the patch takes each list's files (`MergeEmotes` the emotes) and logs a missing list. A source that refuses
+  leaves its files out with a line in the package's log (the tool exits 1, `package-azerothcore.sh` says what's
+  missing and goes on: the package is made without them). What they fetch is cached with the allied races' files
+  (CI's cache key covers `tools/naga_looks.py` and `tools/naga/*.py`, which name the files: `naga/sources.py` the
+  emotes' models). `tools/render_naga.py` draws the models and the emotes to contact sheets.
 - The SQL is ChromieCraft's alone: in `data/sql/chromiecraft/world`, which ctl.sh (`realm_sql`) puts in ChromieCraft's
   world database's update list, last.
 
@@ -307,18 +365,28 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
 - `tools/test_patch.cpp`: the patch made for a game folder and read back (the races, their looks and the creatures'
   races moved, the murloc's model reading the face region alone, its face textures, the naga's colours, the icons,
   the screen, the cameras, the narrations' lengths, every composed texture palettized at the skin's scale, every
-  texture the races' rows name there; a second start keeping it). Run here on a stand-in of the
-  Alternative HD Patch's client (its files out of its archive).
+  texture the races' rows name there; the naga's emotes in the client's naga models (every id, every track with an
+  entry for each sequence, the look-up and aliases, a second merge adding nothing), the 82 voices' rows and WAVs, the
+  three models (3.3.5's, their skins, textures and animation files, no id 3.3.5 hasn't), their looks and the
+  CreatureDisplayInfoExtra rows; a second start keeping it). Run here on a stand-in of the Alternative HD Patch's
+  client (its files out of its archive); `--dump DIR` writes its naga models for `tools/render_naga.py`.
 - `tools/test_screen.py`: `MurlocNagaCreate.lua` in Lua 5.1 with the Worgen and Goblins', the allied races' and the
   Skyborne's screen code after it: twenty buttons, their icons kept on their buttons, both sides' ten races in two
   columns, scenes, music, texts; Questie's table. CI runs it.
 - `tools/test_data.py`: the committed data (the quests' givers, enders and items all there, every id in the module's
-  ranges, the cameras as the world server reads them over the ground). CI runs it.
+  ranges, the retired starts gone, the two stories' SQL apart: their ranges, their tables, their phases, each DELETE
+  its own rows; the cameras as the world server reads them over the ground; the naga's story's voices and looks in
+  their ranges and in the tables). CI runs it.
+- `tools/build_data.py` itself checks each story as it compiles it (a mistake it can be sure of stops it), and that
+  neither race can see the other's people; it prints the naga's story's lint warnings.
 - CI's server test (`scripts/test-warcraft-server.sh`): the patch made before the other race modules', the races
-  playable, the naga neutral to the three factions; a murloc warrior and a naga shaman start on their islands at level
-  10 with their racials, language and class spells; then in the world (`warcraft/server/murloc_naga_*.steps`): the
-  murloc's village seen and its first quests, Auberdine talking to it; the naga's first quest, Sentinel Glynda Nal'Shea
-  offering it The Red Crystal and Thundris Windweaver his quests, Onu offering The Tide Turns at level 17 and the
-  Darkspear scout taking it. On Wrath Remix, the patch set aside and no rows.
+  playable, the naga neutral to the three factions; a murloc warrior and a naga shaman start at their stories' starts
+  at level 10 with their racials, language and class spells; then in the world (`warcraft/server/murloc_naga_*.steps`,
+  made from each story's `test.steps`): the murloc's pens and every chapter's hub, Auberdine's quests closed to it; the
+  naga at Rethress Sanctum in its phase alone, chapter 1's quests, a memory gone into, died in (alive at the pool, its
+  quest started over), gone back into and woken from, a question answered, and Valormok's quests closed to it. On
+  Wrath Remix, the patch set aside and no rows.
 - Not tested: the game itself (the models drawn, the composed textures, the intros, the screen on a phone): nothing
-  here runs the 3.3.5 client.
+  here runs the 3.3.5 client. The naga's emotes and the converted models were drawn with mod-allied-races' renderer
+  (its reading of the files, not the game's); the looks of the game's parts weren't drawn at all (that renderer
+  doesn't dress characters in items); the voices' fetch was run here, not on a GitHub runner.
