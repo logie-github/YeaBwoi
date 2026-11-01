@@ -72,14 +72,14 @@ go 0 2211.5 265.5 35.7
 talk 971602
 accept 971602 971601
 # The goblins' pump below the zeppelin tower.
-go 0 2090.0 256.0 58.3
+go 0 2088.0 262.0 57.4
 cmd .brilltown use
-has Brill town: used 971613
+has Brill town: used 971611
 expect credit 971601 971620 1/1
 # The rotten casks behind the brewhouse.
 go 0 2207.82 285.86 35.2
 cmd .brilltown use
-has Brill town: used 971612
+has Brill town: used 971610
 expect credit 971601 971621 1/6
 go 0 2204.92 286.16 35.8
 cmd .brilltown use
@@ -104,14 +104,14 @@ expect credit 971601 971622 1/1
 # The two vats mended and the three casks hooped.
 go 0 2206.2 273.0 37.3
 cmd .brilltown use
-has Brill town: used 971610
+has Brill town: used 971608
 expect credit 971601 971623 1/5
 go 0 2204.5 277.0 37.9
 cmd .brilltown use
 expect credit 971601 971623 2/5
 go 0 2209.66 262.99 35.4
 cmd .brilltown use
-has Brill town: used 971611
+has Brill town: used 971609
 expect credit 971601 971623 3/5
 go 0 2206.79 264.41 36.0
 cmd .brilltown use
@@ -133,7 +133,7 @@ accept 971603 971602
 # Bitterroot on the hillside west of town.
 go 0 2150.0 300.0 47.2
 cmd .brilltown use
-has Brill town: used 971619
+has Brill town: used 971617
 expect credit 971602 971624 1/6
 go 0 2158.0 312.0 44.0
 cmd .brilltown use
@@ -156,15 +156,15 @@ expect credit 971602 971624 6/6
 # The three batches set going.
 go 0 2228.14 268.3 34.8
 cmd .brilltown use
-has Brill town: used 971620
+has Brill town: used 971618
 expect credit 971602 971625 1/3
 go 0 2230.41 269.36 34.7
 cmd .brilltown use
-has Brill town: used 971621
+has Brill town: used 971619
 expect credit 971602 971625 2/3
 go 0 2231.17 272.47 34.9
 cmd .brilltown use
-has Brill town: used 971622
+has Brill town: used 971620
 expect credit 971602 971625 3/3
 # The tasters: Hamlin, Deathguard Dillinger, Executor Zygand.
 go 0 2282.0 342.5 34.5
@@ -197,7 +197,7 @@ talk 971600
 accept 971600 971603
 go 0 2213.05 288.85 35.0
 cmd .brilltown use
-has Brill town: used 971627
+has Brill town: used 971621
 expect credit 971603 971628 1/3
 go 0 2210.63 290.48 34.8
 cmd .brilltown use
@@ -221,7 +221,7 @@ has Brill town: used 971605
 expect credit 971603 971630 1/4
 go 0 2215.21 287.76 35.2
 cmd .brilltown use
-has Brill town: used 971628
+has Brill town: used 971622
 expect credit 971603 971630 2/4
 go 0 2219.7 289.96 35.4
 cmd .brilltown use
@@ -231,7 +231,7 @@ cmd .brilltown use
 expect credit 971603 971630 4/4
 go 0 2212.86 286.88 35.0
 cmd .brilltown use
-has Brill town: used 971629
+has Brill town: used 971623
 expect credit 971603 971631 1/1
 go 0 2219.0 266.5 34.9
 talk 971600
@@ -254,7 +254,7 @@ expect credit 971604 971632 2/2
 # The sample barrels at the market.
 go 0 2250.5 267.5 34.6
 cmd .brilltown use
-has Brill town: used 971631
+has Brill town: used 971625
 expect credit 971604 971633 1/3
 go 0 2257.5 278.0 34.5
 cmd .brilltown use
@@ -265,7 +265,7 @@ expect credit 971604 971633 3/3
 # The tasting room's trestles.
 go 0 2228.96 265.37 34.5
 cmd .brilltown use
-has Brill town: used 971632
+has Brill town: used 971626
 expect credit 971604 971634 1/1
 # The name: Lordaeron Reserve.
 go 0 2219.0 266.5 34.9

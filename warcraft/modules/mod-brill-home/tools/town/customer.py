@@ -198,17 +198,17 @@ LINE = {
              {"cond": ["I:business"], "quest": "business", "credit": "ledger_credit"},
          ]},
         # An Outstanding Order: the order itself, wrapped and waiting.
-        {"id": "parcel", "name": "Paper-Wrapped Parcel", "display": 4191, "spawns": [[0, 2345.6, 275.1, 34.92, 2.7]],
+        {"id": "parcel", "name": "Paper-Wrapped Parcel", "quest_only": True, "display": 4191, "spawns": [[0, 2345.6, 275.1, 34.92, 2.7]],
          "use": [
              {"cond": ["I:outstanding"], "quest": "outstanding", "credit": "parcel_credit"},
          ]},
         # No Forwarding Address: the Balnir Farmstead (map tile 0002832's terrain).
-        {"id": "notice", "name": "Weathered Notice", "display": 2491, "spawns": [[0, 1998.0, -455.0, 34.53, 1.6]],
+        {"id": "notice", "name": "Weathered Notice", "quest_only": True, "display": 2491, "spawns": [[0, 1998.0, -455.0, 34.53, 1.6]],
          "use": [
              {"cond": ["I:address"], "quest": "address", "credit": "clue_credit",
               "text": "(BY ORDER OF THE CROWN OF LORDAERON. THIS HOLDING IS UNDER QUARANTINE. NO PERSON SHALL ENTER OR LEAVE. GRAIN FROM THIS HOLDING IS TO BE BURNED.$B$BBelow, in pencil: we did burn it. it didn't help.)"},
          ]},
-        {"id": "bible", "name": "Scorched Family Book", "display": 470, "spawns": [[0, 1948.0, -442.0, 35.45, 0.3]],
+        {"id": "bible", "name": "Scorched Family Book", "quest_only": True, "display": 470, "spawns": [[0, 1948.0, -442.0, 35.45, 0.3]],
          "use": [
              {"cond": ["I:address"], "quest": "address", "credit": "clue_credit",
               "text": "(The Balnirs: Osric and Ada; Tobias, to wed Marian Hale, the date scratched out and written again three times; Agnes.$B$BThen, in Osric's shaking hand, all one autumn: Marian. Tobias. Ada. In another hand: Osric.$B$BBeside Agnes: in service, Silverpine.)"},
@@ -220,18 +220,8 @@ LINE = {
         # Closing the Ledger: the stall open, its goods out (the phase "open").
         {"id": "candles", "name": "Wicke's Candles", "display": 100, "phase": "open",
          "spawns": [[0, 2341.6, 276.5, 34.45, 2.7]]},
-        {"id": "candles2", "name": "Wicke's Candles", "display": 6363, "phase": "open",
-         "spawns": [[0, 2341.2, 276.1, 34.46, 2.2]]},
-        {"id": "skull_candle", "name": "Black Candle", "display": 4152, "phase": "open",
-         "spawns": [[0, 2344.2, 281.0, 34.51, 2.7]]},
         {"id": "basket", "name": "Basket of Sundries", "display": 7494, "phase": "open",
          "spawns": [[0, 2343.5, 281.8, 34.44, 1.9]]},
-        {"id": "big_basket", "name": "Basket of Ribbons", "display": 8965, "phase": "open",
-         "spawns": [[0, 2344.5, 282.2, 34.47, 3.0]]},
-        {"id": "urn", "name": "Urn, Slightly Used", "display": 52, "phase": "open",
-         "spawns": [[0, 2340.5, 276.4, 34.47, 2.7]]},
-        {"id": "wedding_basket", "name": "Wedding Basket", "display": 7600, "phase": "open",
-         "spawns": [[0, 2342.2, 281.3, 34.39, 2.4]]},
         {"id": "vase", "name": "Black Roses", "display": 6311, "phase": "open",
          "spawns": [[0, 2340.5, 278.3, 34.43, 2.7]]},
         {"id": "books", "name": "Second-Hand Books", "display": 107, "phase": "open",

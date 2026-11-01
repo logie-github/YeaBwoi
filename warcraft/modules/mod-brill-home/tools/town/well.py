@@ -156,22 +156,22 @@ LINE = {
          "use": [{"cond": ["I:water"], "quest": "water", "credit": "sample_credit"},
                  {"cond": ["I:clear"], "quest": "clear", "credit": "cleanse_credit"}]},
         # Maudie's old buckets on the stream bank north-east of town (the shore, above the water's 21.2).
-        {"id": "bucket", "name": "Maudie's Old Bucket", "display": 239,
+        {"id": "bucket", "name": "Maudie's Old Bucket", "quest_only": True, "display": 239,
          "spawns": [[0, 2386.0, 95.0, 21.6, 1.0], [0, 2418.0, 103.0, 21.5, 2.0], [0, 2436.0, 106.0, 21.9, 4.0]],
          "use": [{"cond": ["I:water"], "quest": "water", "credit": "sample_credit"}]},
         # The runoff, west of town down to the channel.
-        {"id": "bloom", "name": "Gray Bloom", "display": 389,
+        {"id": "bloom", "name": "Gray Bloom", "quest_only": True, "display": 389,
          "spawns": [[0, 2262.0, 420.0, 35.0, 0.0], [0, 2255.0, 480.0, 33.9, 1.5], [0, 2250.0, 560.0, 33.6, 3.0]],
          "use": [{"cond": ["I:source"], "quest": "source", "credit": "bloom_credit"}]},
-        {"id": "culvert", "name": "Collapsed Culvert", "display": 134, "scale": 0.6,
+        {"id": "culvert", "name": "Collapsed Culvert", "quest_only": True, "display": 134, "scale": 0.6,
          "spawns": [[0, 2228.0, 640.0, 24.75, 1.6]],
          "use": [{"cond": ["I:source"], "quest": "source", "credit": "culvert_credit"}]},
         # The nest: the sacs, and what fed it.
-        {"id": "sac", "name": "Broodmother Egg Sac", "display": 364,
+        {"id": "sac", "name": "Broodmother Egg Sac", "quest_only": True, "display": 364,
          "spawns": [[0, 2208.0, 630.0, 24.75, 0.0], [0, 2216.0, 641.0, 24.75, 1.0], [0, 2203.0, 641.0, 24.8, 2.0],
                     [0, 2219.0, 631.0, 24.75, 3.0], [0, 2210.0, 638.0, 24.75, 4.0]],
          "use": [{"cond": ["I:nest"], "quest": "nest", "credit": "sac_credit"}]},
-        {"id": "cask", "name": "Split Cask", "display": 9,
+        {"id": "cask", "name": "Split Cask", "quest_only": True, "display": 9,
          "spawns": [[0, 2210.0, 644.0, 24.75, 0.7]],
          "use": [{"cond": ["I:clear"], "quest": "clear", "credit": "cask_credit"}]},
         # The cistern's back in use (this player's Brill): Maudie's washing beside it.

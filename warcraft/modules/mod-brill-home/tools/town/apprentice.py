@@ -163,11 +163,11 @@ LINE = {
         {"id": "basin", "name": "Washbasin", "display": 7485, "spawns": [[0, 2247.6, 344.6, 35.2, 1.6]]},
         {"id": "glassware", "name": "Dirty Glassware", "display": 4073, "spawns": [[0, 2247.4, 342.4, 35.2, 4.0]]},
         # Johaan's reagents at Solliden Farmstead, and the cart they came on.
-        {"id": "crate", "name": "Pilfered Reagent Crate", "display": 335,
+        {"id": "crate", "name": "Pilfered Reagent Crate", "quest_only": True, "display": 335,
          "spawns": [[0, 2286.0, 1298.0, 32.2, 1.0], [0, 2294.0, 1322.0, 31.5, 2.2], [0, 2276.0, 1334.0, 33.5, 4.1],
                     [0, 2300.0, 1305.0, 31.4, 0.4]],
          "use": [{"cond": ["I:reagents"], "quest": "reagents", "credit": "crate_credit"}]},
-        {"id": "cart", "name": "Abandoned Handcart", "display": 7524, "spawns": [[0, 2280.0, 1288.0, 31.5, 0.8]],
+        {"id": "cart", "name": "Abandoned Handcart", "quest_only": True, "display": 7524, "spawns": [[0, 2280.0, 1288.0, 31.5, 0.8]],
          "use": [{"cond": ["I:reagents"], "quest": "reagents", "credit": "delivery_credit"}]},
         # Wendell's caged darkhounds in the hills north-east of Brill: one healed, one set stiff, one gone.
         {"id": "cage_healed", "name": "Wendell's Cage", "display": 4151, "scale": 0.7,

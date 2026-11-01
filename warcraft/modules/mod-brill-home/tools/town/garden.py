@@ -356,25 +356,21 @@ LINE = {
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "weed_credit"}]},
         {"id": "rubble", "name": "Fallen Wall", "display": 134, "from": 1, "until": 6, "spawns": AT["rubble"],
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "rubble_credit"}]},
-        {"id": "markers", "name": "Edda's Marker Stake", "display": 5452, "scale": 0.8, "from": 1, "until": 6,
+        {"id": "markers", "name": "Edda's Marker Stake", "quest_only": True, "display": 5452, "scale": 0.8, "from": 1, "until": 6,
          "spawns": AT["markers"],
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "soil_credit"}]},
         # The garden begins (from the second stage).
         {"id": "fence", "name": "Garden Fence", "display": 6151, "from": 2, "spawns": AT["fence"]},
-        {"id": "sign", "name": "The Stillgarden", "display": 5452, "scale": 1.4, "from": 2, "spawns": AT["sign"]},
         {"id": "beds", "name": "Garden Bed", "display": 20, "from": 2, "spawns": AT["beds"],
          "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "bed_credit"},
                  {"cond": ["I:tending"], "quest": "tending", "credit": "tend_credit"}]},
-        {"id": "barrow", "name": "Wheelbarrow", "display": 215, "from": 2, "until": 6, "spawns": AT["barrow"]},
         {"id": "shovel", "name": "Spade", "display": 6479, "from": 2, "until": 6, "spawns": AT["shovel"]},
         # Planted (from the third): the tool shed, planters, seedlings.
         {"id": "shed", "name": "Tool Shed", "display": 662, "from": 3, "spawns": AT["shed"]},
-        {"id": "planter", "name": "Planter Box", "display": 377, "from": 3, "spawns": AT["planter"]},
         {"id": "seedling_bed", "name": "Gravebloom", "display": 4632, "scale": 1.2, "from": 3, "spawns": AT["seedling_bed"]},
         {"id": "nightshade_bed", "name": "Nightshade", "display": 7884, "scale": 0.8, "from": 3, "spawns": AT["nightshade_bed"]},
         {"id": "planter_flowers", "name": "Asters", "display": 6648, "scale": 1.2, "from": 3, "spawns": AT["planter_flowers"]},
         # The drain mended, the frame raised, the plants well (from the fourth).
-        {"id": "greenhouse", "name": "Glasshouse Frame", "display": 6514, "from": 4, "spawns": AT["greenhouse"]},
         {"id": "sluice", "name": "New Sluice", "display": 755, "scale": 2.5, "from": 4, "spawns": AT["sluice"]},
         {"id": "cistern", "name": "Rain Barrel", "display": 6036, "from": 4, "spawns": AT["cistern"]},
         {"id": "bloom_bed", "name": "Flower Bed", "display": 6313, "scale": 0.8, "from": 4, "spawns": AT["bloom_bed"]},
@@ -384,7 +380,6 @@ LINE = {
                  {"cond": ["I:tending"], "quest": "tending", "credit": "tend_credit"}]},
         # The memorial (from the fifth): benches to sit on, the plates, the flowers and the lily.
         {"id": "benches", "name": "Garden Bench", "display": 682, "type": 7, "from": 5, "spawns": AT["benches"]},
-        {"id": "plates", "name": "Blank Nameplate", "display": 5992, "scale": 1.3, "from": 5, "spawns": AT["plates"]},
         {"id": "mem_flowers", "name": "Forget-Me-Nots", "display": 6647, "scale": 1.2, "from": 5, "spawns": AT["mem_flowers"]},
         {"id": "lily", "name": "Moonpetal Lily", "display": 253, "scale": 0.9, "from": 5, "spawns": AT["lily"]},
         # The harvest (from the fifth): what's ripe under the glass, and the stall to sell it from.
@@ -401,35 +396,27 @@ LINE = {
          "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "stall_credit"}]},
         # Open (from the sixth): Pellen's wares, the gate's lanterns, flowers in pots.
         {"id": "sacks", "name": "Herb Sacks", "display": 6963, "from": 6, "spawns": AT["sacks"]},
-        {"id": "kelp", "name": "Drying Herbs", "display": 7224, "from": 6, "spawns": AT["kelp"]},
-        {"id": "flowerbasket", "name": "Basket of Cut Flowers", "display": 7600, "scale": 0.7, "from": 6,
-         "spawns": AT["flowerbasket"]},
-        {"id": "lanterns", "name": "Garden Lantern", "display": 6038, "from": 6, "spawns": AT["lanterns"]},
-        {"id": "pots", "name": "Planter", "display": 377, "scale": 1.2, "from": 6, "spawns": AT["pots"]},
-        {"id": "pot_flowers", "name": "Potted Asters", "display": 6313, "scale": 0.9, "from": 6, "spawns": AT["pot_flowers"]},
         # Odo's lantern at the gate, by night.
-        {"id": "night_lantern", "name": "Odo's Lantern", "display": 6038, "scale": 0.8, "from": 6, "when": "night",
-         "spawns": AT["night_lantern"]},
         # What Takes Root: gravebloom in the cemetery (from the second stage: everyone else's cemetery is as it was),
         # the spore cap in the grove; silt on Brightwater's shore (everyone's: it's far outside Brill).
-        {"id": "seedlings", "name": "Gravebloom", "display": 4632, "from": 2, "spawns": AT["seedlings"],
+        {"id": "seedlings", "name": "Gravebloom", "quest_only": True, "display": 4632, "from": 2, "spawns": AT["seedlings"],
          "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "seedling_credit"}]},
-        {"id": "spore", "name": "Pale Spore Cap", "display": 359, "scale": 0.7, "from": 2, "spawns": AT["spore"],
+        {"id": "spore", "name": "Pale Spore Cap", "quest_only": True, "display": 359, "scale": 0.7, "from": 2, "spawns": AT["spore"],
          "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "spore_credit"}]},
-        {"id": "silt", "name": "Brightwater Silt", "display": 20, "scale": 0.5, "spawns": AT["silt"],
+        {"id": "silt", "name": "Brightwater Silt", "quest_only": True, "display": 20, "scale": 0.5, "spawns": AT["silt"],
          "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "silt_credit"}]},
         # The Garden's Hunger: Holt's drain and its mouth by the stream (everyone's).
-        {"id": "pipes", "name": "Cracked Drain", "display": 7969, "scale": 2.5, "spawns": AT["pipes"],
+        {"id": "pipes", "name": "Cracked Drain", "quest_only": True, "display": 7969, "scale": 2.5, "spawns": AT["pipes"],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "pipe_credit"}]},
-        {"id": "outlet", "name": "Choked Drain Mouth", "display": 134, "spawns": AT["outlet"],
+        {"id": "outlet", "name": "Choked Drain Mouth", "quest_only": True, "display": 134, "spawns": AT["outlet"],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "outlet_credit"}]},
         # A Bloom for Every Memory: seeds at Cold Hearth Manor, a lily on Brightwater's shore (everyone's).
-        {"id": "frame", "name": "Rotted Seed Frame", "display": 6606, "spawns": AT["frame"],
+        {"id": "frame", "name": "Rotted Seed Frame", "quest_only": True, "display": 6606, "spawns": AT["frame"],
          "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "seed_credit"}]},
-        {"id": "moonlily", "name": "Moonpetal Lily", "display": 253, "spawns": AT["moonlily"],
+        {"id": "moonlily", "name": "Moonpetal Lily", "quest_only": True, "display": 253, "spawns": AT["moonlily"],
          "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "lily_credit"}]},
         # The First Harvest: the plague graves (everyone's), and Edda's wreath on them (from the opening).
-        {"id": "graves", "name": "Plague Graves", "display": 498, "scale": 1.6, "spawns": AT["graves"],
+        {"id": "graves", "name": "Plague Graves", "quest_only": True, "display": 498, "scale": 1.6, "spawns": AT["graves"],
          "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "invite_credit"}]},
         {"id": "wreath", "name": "Edda's Wreath", "display": 6646, "from": 6, "spawns": AT["wreath"]},
         # Edda's flowers at the foot of the chapel's wall of names, once both are open (tools/town/chapel.py: its
@@ -439,10 +426,6 @@ LINE = {
         # The house's furnishings (bought from Edda): asters in a pot by the door, a fungus garden under glass
         # (against the doorway's wall: the slots asked for, (-0.6, -3.9) and (3.9, -2.6), are in the way in and
         # under Carolai's alchemy table when she lives there).
-        {"id": "house_pot", "name": "Planter", "display": 377, "scale": 1.1, "from": 7,
-         "spawns": [["house", -1.35, 4.2, 0, 0]]},
-        {"id": "house_asters", "name": "Potted Asters", "display": 6313, "scale": 0.8, "from": 7,
-         "spawns": [["house", -1.35, 4.2, 0.7, 30]]},
         {"id": "house_terrarium", "name": "Fungal Terrarium", "display": 7792, "scale": 1.2, "from": 7,
          "spawns": [["house", -4.9, 3.85, 0, 0]]},
     ],

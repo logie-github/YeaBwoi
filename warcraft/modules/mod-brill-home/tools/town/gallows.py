@@ -175,42 +175,42 @@ LINE = {
     ],
     "objects": [
         # The Sealed Passage: the marks, in Brill (only for those in the phase "unlocked").
-        {"id": "mark_cellar", "name": "Crowned Eye Sigil", "display": 465, "scale": 0.6, "phase": "unlocked",
+        {"id": "mark_cellar", "name": "Crowned Eye Sigil", "quest_only": True, "display": 465, "scale": 0.6, "phase": "unlocked",
          "spawns": [[0, 2293.5, 240.0, 27.3, 1.6]],
          "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit"}]},
-        {"id": "mark_stone", "name": "Mausoleum Foundation Stone", "display": 302, "scale": 0.8, "phase": "unlocked",
+        {"id": "mark_stone", "name": "Mausoleum Foundation Stone", "quest_only": True, "display": 302, "scale": 0.8, "phase": "unlocked",
          "spawns": [[0, 2378.0, 326.0, 38.73, 1.6]],
          "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit"}]},
-        {"id": "mark_sunken", "name": "Sunken Earth", "display": 20, "scale": 0.8, "phase": "unlocked",
+        {"id": "mark_sunken", "name": "Sunken Earth", "quest_only": True, "display": 20, "scale": 0.8, "phase": "unlocked",
          "spawns": [[0, 2405.0, 318.0, 38.26, 1.6]],
          "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit"}]},
         # Echoes of Lordaeron: the refugees' journals, in the crypt.
-        {"id": "journal_lyle", "name": "Water-Stained Journal", "display": 105, "spawns": [[0, 3045.0, 674.0, 81.2, 2.0]],
+        {"id": "journal_lyle", "name": "Water-Stained Journal", "quest_only": True, "display": 105, "spawns": [[0, 3045.0, 674.0, 81.2, 2.0]],
          "use": [{"cond": ["I:echoes"], "quest": "echoes", "credit": "journals_credit",
                   "text": "(HESTER LYLE, HER BOOK. 'Third day below. Master Croft says the air here is clean and the plague "
                           "cannot follow. The children are frightened of the Agamand vaults but I tell them the dead are "
                           "only sleeping. God forgive me, I believed it.')"}]},
-        {"id": "journal_pike", "name": "Baker's Daybook", "display": 447, "spawns": [[0, 3035.0, 657.0, 75.4, 4.0]],
+        {"id": "journal_pike", "name": "Baker's Daybook", "quest_only": True, "display": 447, "spawns": [[0, 3035.0, 657.0, 75.4, 4.0]],
          "use": [{"cond": ["I:echoes"], "quest": "echoes", "credit": "journals_credit",
                   "text": "(Accounts in a baker's hand, flour and salt, and then: 'Croft brought bread again. Good white "
                           "bread. Where does he get the flour, with the mills shut? Lyle's youngest has the cough. Croft says "
                           "it is only the damp. Croft says a great deal.')"}]},
-        {"id": "journal_boy", "name": "Child's Copybook", "display": 184, "scale": 0.8,
+        {"id": "journal_boy", "name": "Child's Copybook", "quest_only": True, "display": 184, "scale": 0.8,
          "spawns": [[0, 3021.5, 691.0, 66.5, 5.0]],
          "use": [{"cond": ["I:echoes"], "quest": "echoes", "credit": "journals_credit",
                   "text": "(Letters practised over and over in a careful round hand, and then, near the end: 'Mother says the "
                           "doors are bricked. Master Croft says it is for our own good. Mother has stopped answering. I am "
                           "going to be brave like Da.')"}]},
         # A Master Without a Kingdom: Croft's door and his letters.
-        {"id": "ward", "name": "Bone-Warded Door", "display": 316, "spawns": [[0, 3050.0, 690.0, 66.6, 0.0]],
+        {"id": "ward", "name": "Bone-Warded Door", "quest_only": True, "display": 6898, "spawns": [[0, 3050.0, 690.0, 66.6, 0.0]],
          "use": [{"cond": ["I:master"], "quest": "master", "credit": "ward_credit"}]},
-        {"id": "croft_letters", "name": "Unsent Letters", "display": 164, "spawns": [[0, 3056.0, 693.0, 66.5, 3.0]],
+        {"id": "croft_letters", "name": "Unsent Letters", "quest_only": True, "display": 164, "spawns": [[0, 3056.0, 693.0, 66.5, 3.0]],
          "use": [{"cond": ["I:master"], "quest": "master", "credit": "letters_credit",
                   "text": "(A stack of letters, each addressed TO MY MASTER, IN NORTHREND. 'Brill is tended. The flock is "
                           "counted.' 'I await your instruction.' 'The Banshee's rabble walk my town as if it were theirs.' "
                           "'Master, I have been patient.' The most recent is only one line, written many times: 'Answer me.')"}]},
         # No Masters but Ourselves: Croft's register, by his chair.
-        {"id": "roll", "name": "Roll of the Raised", "display": 163, "spawns": [[0, 3062.5, 697.0, 66.5, 3.6]],
+        {"id": "roll", "name": "Roll of the Raised", "quest_only": True, "display": 163, "spawns": [[0, 3062.5, 697.0, 66.5, 3.6]],
          "use": [{"cond": ["I:nomasters"], "quest": "nomasters", "credit": "records_credit",
                   "text": "(Thirty-one names in a fine, careful hand, each with the date of its raising and its use. SENTINEL. SENTINEL. LABOURER. SENTINEL.)"}]},
         # The relic, in the house of a player who owns it, once Croft is dead.

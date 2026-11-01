@@ -213,8 +213,8 @@ Nore each have words for the other, and she has some on Wendell and the well.
 ### The Community Projects
 
 The user's next design: once any three of the lines above (or Carolai's) are done, Magistrate Sevren's
-**Brill Endures** (971000: tell Executor Zygand and Jamie Nore, ring the square's bell) puts up the Town
-Improvement Board outside the town hall and opens the builder's yard on the north road (Rudd Carver).
+**Brill Endures** (971000: tell Executor Zygand and Jamie Nore, ring the square's bell) opens the
+builder's yard on the north road (Rudd Carver).
 Six projects then open at once, each optional, each its own:
 
 | Project | Quests | Leader | Where | Choices (words only) |

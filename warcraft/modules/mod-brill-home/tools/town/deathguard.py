@@ -23,7 +23,7 @@ LINE = {
     "quests": [
         {
             "id": "watch", "title": "The Night Watch", "giver": DILLINGER,
-            "log": "Deliver supplies to Deathguard Abraham on the north road, Deathguard Terrence on the Undercity road and Deathguard Linnea at the crossroads, and stoke the 3 patrol braziers on Brill's roads. Then return to Deathguard Dillinger.",
+            "log": "Deliver supplies to Deathguard Abraham on the north road, Deathguard Terrence on the Undercity road and Deathguard Linnea at the crossroads. Then return to Deathguard Dillinger.",
             "offer": (
                 "You there. You've got legs and you're not wearing a tabard, which makes you more use to me tonight "
                 "than half the watch.$B$B"
@@ -32,18 +32,15 @@ LINE = {
                 "double watches. We don't tire, they say. Whoever says that hasn't stood eighteen hours on the same "
                 "road.$B$B"
                 "Take these packs to our posts outside town: Abraham at the river on the north road, Terrence on the "
-                "Undercity road, Linnea at the crossroads. Oil, bandages, whetstones, a few letters. And while you're "
-                "out there, stoke the patrol braziers on each road. A dark brazier tells the Scourge nobody's "
-                "watching."),
-            "progress": "Packs delivered? Braziers lit? The night won't wait for you, $n, and neither will the Scourge.",
+                "Undercity road, Linnea at the crossroads. Oil, bandages, whetstones, a few letters."),
+            "progress": "Packs delivered? The night won't wait for you, $n, and neither will the Scourge.",
             "done": (
                 "Abraham says thank you. Terrence says nothing, which for Terrence is thank you. Linnea says she's "
                 "been asking for whetstones since the Third War.$B$B"
                 "That's one night covered. Brill has a lot of nights, $n."),
             "objectives": [("credit", "abraham_credit", 1, "Supplies delivered to Deathguard Abraham"),
                            ("credit", "terrence_credit", 1, "Supplies delivered to Deathguard Terrence"),
-                           ("credit", "linnea_credit", 1, "Supplies delivered to Deathguard Linnea"),
-                           ("credit", "brazier_credit", 3, "Patrol brazier stoked")],
+                           ("credit", "linnea_credit", 1, "Supplies delivered to Deathguard Linnea")],
             "return": "Return to Deathguard Dillinger on Brill's north road.",
             "items": [(858, 2)], "money": 1800, "xp": 4,
         },
@@ -174,7 +171,7 @@ LINE = {
         {"id": "abraham_credit", "name": "Supplies delivered to Deathguard Abraham"},
         {"id": "terrence_credit", "name": "Supplies delivered to Deathguard Terrence"},
         {"id": "linnea_credit", "name": "Supplies delivered to Deathguard Linnea"},
-        {"id": "brazier_credit", "name": "Patrol brazier stoked"},
+        {"id": "brazier_credit", "name": "Patrol brazier stoked"},   # (no longer asked for; kept so the entries after it keep their numbers)
         {"id": "cart_credit", "name": "Wrecked cart searched"},
         {"id": "lawrence_credit", "name": "Deathguard Lawrence asked about Harlan"},
         {"id": "bartholomew_credit", "name": "Deathguard Bartholomew asked about Harlan"},
@@ -185,14 +182,6 @@ LINE = {
         {"id": "duty_credit", "name": "Deathguard Harlan's choice made"},
     ],
     "objects": [
-        # The braziers at the three Deathguards' own posts, beside each of them at the road's edge (Abraham at the
-        # covered bridge, Terrence on the Undercity road, Linnea at the crossroads: the game's own spawns), in
-        # Lordaeron's own brazier.
-        {"id": "brazier", "name": "Patrol Brazier", "display": 754,
-         "spawns": [[0, 2241.6, 609.9, 33.6, 0.0], [0, 2131.2, 166.9, 38.11, 0.0], [0, 2030.8, 74.05, 34.16, 0.0]],
-         "use": [
-             {"cond": ["I:watch"], "quest": "watch", "credit": "brazier_credit"},
-         ]},
         # Wrecked carts at the road's edge where they were dragged off it (the zone's own broken cart).
         {"id": "cart", "name": "Wrecked Cart", "display": 7524,
          "quest_only": True,
@@ -200,12 +189,12 @@ LINE = {
          "use": [
              {"cond": ["I:road"], "quest": "road", "credit": "cart_credit"},
          ]},
-        {"id": "tracks", "name": "Bootprints", "display": 498, "scale": 0.5,
+        {"id": "tracks", "name": "Bootprints", "quest_only": True, "display": 498, "scale": 0.5,
          "spawns": [[0, 2208.0, 690.0, 34.9, 0.0], [0, 2230.0, 900.0, 48.0, 0.0], [0, 2250.0, 1150.0, 34.13, 0.0]],
          "use": [
              {"cond": ["I:post"], "quest": "post", "credit": "tracks_credit"},
          ]},
-        {"id": "firewood", "name": "Bundle of Firewood", "display": 1248, "scale": 0.6,
+        {"id": "firewood", "name": "Bundle of Firewood", "quest_only": True, "display": 1248, "scale": 0.6,
          "spawns": [[0, 2257.0, 1287.0, 32.11, 1.0]],
          "use": [
              {"cond": ["I:house"], "quest": "house", "credit": "firewood_credit"},

@@ -105,18 +105,12 @@ LINE = {
     ],
     "objects": [
         # The bell in the square (the town's own Horde bell is its frame; the rope is this).
-        {"id": "bell", "name": "Town Bell Rope", "display": 5743, "scale": 0.3,
+        {"id": "bell", "name": "Bell Rope", "quest_only": True, "display": 7548,
          "spawns": [[0, 2299.0, 292.5, 35.2, 0.0]],
          "use": [{"cond": ["I:endures"], "quest": "endures", "credit": "bell_credit"}]},
-        {"id": "board", "name": "Town Improvement Board", "display": 2491, "scale": 1.2, "from": 1,
-         "spawns": [[0, 2298.0, 300.0, 35.2, 3.6]]},
         # The builder's yard on the north road.
         {"id": "yard_lumber", "name": "Lumber Stack", "display": 1248, "from": 1,
-         "spawns": [[0, 2303.0, 457.0, 34.0, 0.4], [0, 2291.0, 465.0, 33.9, 1.9]]},
-        {"id": "yard_crates", "name": "Builder's Crates", "display": 335, "from": 1,
-         "spawns": [[0, 2305.0, 463.0, 34.0, 0.0], [0, 2289.0, 459.0, 33.9, 2.2]]},
-        {"id": "yard_tools", "name": "Tool Bucket", "display": 239, "from": 1,
-         "spawns": [[0, 2298.0, 458.0, 34.0, 0.0]]},
+         "spawns": [[0, 2303.0, 457.0, 34.0, 0.4]]},
     ],
     "gossip": [
         {"npc": 1515, "kind": "option", "cond": ["I:endures"], "text": "The Magistrate is calling the town together. He asks the Deathguard to stand in the square.",

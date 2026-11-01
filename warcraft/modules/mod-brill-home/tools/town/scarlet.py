@@ -178,7 +178,7 @@ LINE = {
          "use": [
              {"cond": ["I:eyes"], "quest": "eyes", "credit": "signs_credit"},
          ]},
-        {"id": "chalkcrate", "name": "Chalk-Marked Crate", "display": 275, "scale": 0.8,
+        {"id": "chalkcrate", "name": "Chalk-Marked Crate", "quest_only": True, "display": 275, "scale": 0.8,
          "spawns": [[0, 2281.0, 257.0, 34.47, 1.9]],
          "use": [
              {"cond": ["I:eyes"], "quest": "eyes", "credit": "signs_credit"},

@@ -309,13 +309,13 @@ LINE = {
          "use": [
              {"cond": ["I:q1"], "quest": "q1", "credit": "hall_credit"},
          ]},
-        {"id": "spoiled", "name": "Spoiled Brewing Stores", "display": 2129, "scale": 0.6, "from": 1, "until": 6,
+        {"id": "spoiled", "name": "Spoiled Brewing Stores", "quest_only": True, "display": 2129, "scale": 0.6, "from": 1, "until": 6,
          "spawns": [[0, 2219.32, 264.74, 34.6, 0.436], [0, 2217.03, 262.56, 34.61, 1.134], [0, 2224.0, 264.16, 34.31, 1.833],
                     [0, 2224.34, 268.18, 34.65, 2.531], [0, 2224.58, 260.57, 34.12, 3.229], [0, 2227.57, 263.62, 34.19, 3.927]],
          "use": [
              {"cond": ["I:q1"], "quest": "q1", "credit": "spoiled_credit"},
          ]},
-        {"id": "ledger", "name": "Fallen Shelf", "display": 184, "from": 1, "until": 6, "spawns": [[0, 2222.29, 291.5, 35.19, 0.96]],
+        {"id": "ledger", "name": "Fallen Shelf", "quest_only": True, "display": 184, "from": 1, "until": 6, "spawns": [[0, 2222.29, 291.5, 35.19, 0.96]],
          "use": [
              {"cond": ["I:q1"], "quest": "q1", "credit": "ledger_credit"},
          ]},
@@ -326,9 +326,6 @@ LINE = {
          ]},
 
         # 2: barriers; Bram's cooperage; the vats, the rotten casks and the cask frames (A Proper Fermentation).
-        {"id": "barrier", "name": "Builder's Barrier", "display": 1108, "scale": 0.45, "from": 2, "until": 6,
-         "spawns": [[0, 2213.58, 259.3, 34.54, 1.484], [0, 2236.21, 268.75, 34.16, 6.196], [0, 2201.72, 283.56, 37.27, 0.436],
-                    [0, 2225.64, 291.41, 35.19, 2.007]]},
         {"id": "cooper_bench", "name": "Cooper's Bench", "display": 234, "from": 2, "spawns": [[0, 2208.42, 266.83, 35.84, 2.01]]},
         {"id": "staves", "name": "Cask Staves", "display": 1108, "from": 2, "spawns": [[0, 2205.55, 268.25, 36.73, 0.96]]},
         {"id": "vats", "name": "Fermentation Vat", "display": 32, "scale": 1.6, "from": 2,
@@ -336,19 +333,19 @@ LINE = {
          "use": [
              {"cond": ["I:q2"], "quest": "q2", "credit": "vats_credit"},
          ]},
-        {"id": "cask_frames", "name": "Unhooped Cask", "display": 32, "from": 2, "until": 6,
+        {"id": "cask_frames", "name": "Unhooped Cask", "quest_only": True, "display": 32, "from": 2, "until": 6,
          "spawns": [[0, 2209.66, 262.99, 35.15, 0.44], [0, 2206.79, 264.41, 35.77, 0.44], [0, 2209.14, 260.54, 34.85, 0.44]],
          "use": [
              {"cond": ["I:q2"], "quest": "q2", "credit": "vats_credit"},
          ]},
-        {"id": "rotten_casks", "name": "Rotten Cask", "display": 8026, "scale": 0.8, "from": 2, "until": 6,
+        {"id": "rotten_casks", "name": "Rotten Cask", "quest_only": True, "display": 8026, "scale": 0.8, "from": 2, "until": 6,
          "spawns": [[0, 2207.82, 285.86, 34.99, 0.44], [0, 2204.92, 286.16, 35.56, 0.44], [0, 2207.46, 289.0, 34.57, 0.44],
                     [0, 2203.95, 283.5, 36.69, 0.44], [0, 2205.01, 289.51, 34.71, 0.44], [0, 2202.02, 286.46, 36.13, 0.44]],
          "use": [
              {"cond": ["I:q2"], "quest": "q2", "credit": "staves_credit"},
          ]},
         # A Proper Fermentation: the goblins' pump below the zeppelin tower.
-        {"id": "pump", "name": "Junked Pump", "display": 6639, "spawns": [[0, 2088.0, 262.0, 57.19, 1.5]],
+        {"id": "pump", "name": "Junked Pump", "quest_only": True, "display": 6639, "spawns": [[0, 2088.0, 262.0, 57.19, 1.5]],
          "use": [
              {"cond": ["I:q2"], "quest": "q2", "credit": "tubing_credit"},
          ]},
@@ -369,45 +366,36 @@ LINE = {
              {"cond": ["I:q3"], "quest": "q3", "credit": "ingredient_credit"},
              {"cond": ["I:special"], "quest": "special", "credit": "sp_herb"},
          ]},
-        {"id": "tub_dark", "name": "Experimental Mash Tub", "display": 216, "scale": 0.8, "from": 3, "until": 6,
+        {"id": "tub_dark", "name": "Experimental Mash Tub", "quest_only": True, "display": 216, "scale": 0.8, "from": 3, "until": 6,
          "spawns": [[0, 2228.14, 268.3, 34.51, 0.436]],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit"}]},
-        {"id": "tub_family", "name": "Experimental Mash Tub", "display": 216, "scale": 0.8, "from": 3, "until": 6,
+        {"id": "tub_family", "name": "Experimental Mash Tub", "quest_only": True, "display": 216, "scale": 0.8, "from": 3, "until": 6,
          "spawns": [[0, 2230.41, 269.36, 34.48, 0.436]],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit"}]},
-        {"id": "tub_herbal", "name": "Experimental Mash Tub", "display": 216, "scale": 0.8, "from": 3, "until": 6,
+        {"id": "tub_herbal", "name": "Experimental Mash Tub", "quest_only": True, "display": 216, "scale": 0.8, "from": 3, "until": 6,
          "spawns": [[0, 2231.17, 272.47, 34.66, 0.436]],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit"}]},
 
         # 4: the beer garden and the tasting counter; a pavilion over Calla's tubs; the spoiled barrels, the wall-rot
         # and the vent (A Bitter Batch).
-        {"id": "pavilion", "name": "Brewery Pavilion", "display": 8698, "scale": 0.85, "from": 4,
-         "spawns": [[0, 2230.2, 269.81, 34.52, 0.436]]},
-        {"id": "tasting_counter", "name": "Tasting Counter", "display": 7732, "from": 4,
-         "spawns": [[0, 2233.4, 272.41, 34.52, 2.007]]},
-        {"id": "garden_table", "name": "Table", "display": 221, "from": 4,
-         "spawns": [[0, 2229.32, 262.23, 34.11, 0.436], [0, 2234.09, 265.01, 34.11, 0.436]]},
-        {"id": "garden_bench", "name": "Bench", "display": 603, "from": 4,
-         "spawns": [[0, 2229.95, 260.87, 34.11, 0.436], [0, 2228.69, 263.59, 34.18, 3.58], [0, 2234.73, 263.65, 34.11, 0.436],
-                    [0, 2233.46, 266.37, 34.11, 3.58]]},
-        {"id": "bad_barrels", "name": "Spoiled Barrel", "display": 7470, "from": 4, "until": 6,
+        {"id": "bad_barrels", "name": "Spoiled Barrel", "quest_only": True, "display": 7470, "from": 4, "until": 6,
          "spawns": [[0, 2213.05, 288.85, 34.72, 0.44], [0, 2210.63, 290.48, 34.53, 0.44], [0, 2212.26, 292.89, 34.6, 0.44]],
          "use": [
              {"cond": ["I:q4"], "quest": "q4", "credit": "barrel_credit"},
          ]},
-        {"id": "growths", "name": "Wall-Rot", "display": 6432, "scale": 0.45, "from": 4, "until": 6,
+        {"id": "growths", "name": "Wall-Rot", "quest_only": True, "display": 6432, "scale": 0.45, "from": 4, "until": 6,
          "spawns": [[0, 2215.21, 287.76, 34.96, 0.44], [0, 2219.7, 289.96, 35.17, 0.44], [0, 2217.06, 288.51, 35.12, 0.44]],
          "use": [
              {"cond": ["I:q4"], "quest": "q4", "credit": "growth_credit"},
          ]},
-        {"id": "vent", "name": "Cellar Vent", "display": 7969, "scale": 0.15, "from": 4, "spawns": [[0, 2212.86, 286.88, 34.75, 0.44]],
+        {"id": "vent", "name": "Cellar Vent", "quest_only": True, "display": 7969, "scale": 0.15, "from": 4, "spawns": [[0, 2212.86, 286.88, 34.75, 0.44]],
          "use": [
              {"cond": ["I:q4"], "quest": "q4", "credit": "vent_credit"},
          ]},
 
         # 5: the cellar's racks, the market's sample barrels, the tasting room's trestles (To Absent Friends).
         {"id": "racks", "name": "Cask Racks", "display": 189, "from": 5, "spawns": [[0, 2210.62, 286.94, 34.69, 0.44]]},
-        {"id": "samples", "name": "Old Brewery Sample Barrel", "display": 1727, "from": 5,
+        {"id": "samples", "name": "Old Brewery Sample Barrel", "quest_only": True, "display": 1727, "from": 5,
          "spawns": [[0, 2250.5, 267.5, 34.34, 2.6], [0, 2257.5, 278.0, 34.27, 2.5], [0, 2246.0, 274.0, 34.11, 2.6]],
          "use": [
              {"cond": ["I:q5"], "quest": "q5", "credit": "sample_credit"},
@@ -431,9 +419,6 @@ LINE = {
          "spawns": [[0, 2216.85, 272.41, FLOOR, 0.44], [0, 2215.58, 275.13, FLOOR, 3.58], [0, 2221.59, 274.07, FLOOR, 0.44],
                     [0, 2220.32, 276.79, FLOOR, 3.58]]},
         {"id": "bottle_shelf", "name": "Bottle Shelf", "display": 4073, "from": 6, "spawns": [[0, 2212.53, 274.81, FLOOR, 0.44]]},
-        {"id": "slate", "name": "Brewery Slate", "display": 2491, "from": 6, "spawns": [[0, 2216.98, 267.4, 34.96 + 1.65, 5.149]]},
-        {"id": "dray", "name": "Brewery Dray", "display": 3678, "scale": 0.7, "from": 6, "when": "morning",
-         "spawns": [[0, 2241.5, 266.0, 34.11, 2.0]]},
 
         # 7: the house's furnishings (design: a barrel stand, bottles, mugs and a little drinks cabinet), in the house's
         # own coordinates.
