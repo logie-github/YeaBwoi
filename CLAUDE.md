@@ -36,7 +36,7 @@ self-updating from this repository's GitHub releases.
   its files for the game as the server is packaged (never committed). Next: Gilneas's and Kezan's
   starting areas from Cataclysm, joined to Wrath's world after them (`warcraft/PLAN.md`).
 - **A home in Brill** (ChromieCraft's realm only: the house by Brill's road, Cedric Harrow's and Jamie Nore's quests,
-  the bed, the furniture, the mastiff and pets for every class, Carolai Anise's five quests: a yandere romance or a friendship, and
+  the bed, the furniture, the cellar, Corn the zombified pug and pets for every class, Carolai Anise's five quests: a yandere romance or a friendship, and
   as lovers her moving in; and Brill: A Place Among the Forsaken, the town's optional questlines and its six Community Projects:
   `tools/town/*.py`, made by `tools/build_town.py`, run by `src/BrillTown.cpp`): `warcraft/modules/mod-brill-home` (its README);
   `tools/build_sql.py` makes its SQL, committed.

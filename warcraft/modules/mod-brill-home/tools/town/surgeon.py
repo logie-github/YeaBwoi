@@ -497,11 +497,11 @@ LINE = {
         # doorway's wall, left of the door: the slots asked for, (-2.6, -3.9) and (-3.6, -3.9), hold the brewery's
         # drinks cabinet at (-3.0, -3.8)).
         {"id": "house_cabinet", "name": "First-Aid Cabinet", "display": 6449, "scale": 0.55, "from": 7,
-         "spawns": [["house", -3.85, -5.35, 0, 0]]},
+         "spawns": [["house", -4.1, -5.2, 0, 0]]},
         {"id": "house_basin", "name": "Washbasin", "display": 5112, "scale": 0.6, "from": 7,
-         "spawns": [["house", -2.75, -5.4, 0, 0]]},
+         "spawns": [["house", 0.15, -5.15, 0, 90]]},
         {"id": "house_book", "name": "Varden's Anatomy of the Risen", "display": 7233, "scale": 0.35, "from": 7,
-         "spawns": [["house", -3.85, -5.35, 0.97, 10]],
+         "spawns": [["house", -4.1, -5.2, 0.97, 10]],
          "use": [{"text": "(VARDEN'S ANATOMY OF THE RISEN, the Society's one useful book. Chapter four, 'On Things That "
                           "Come Loose', is bookmarked with a strip of clean linen. In the margin, in Elspeth's hand: READ "
                           "THIS BEFORE YOU NEED IT.)"}]},

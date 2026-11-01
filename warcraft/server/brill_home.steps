@@ -2,7 +2,7 @@
 # informant still in town; 0x2 to 0x40, the six Community Projects' sites not yet built; and from the deed
 # on 0x40000, the house's debris, its restoration not begun.)
 # A home in Brill (mod-brill-home), ChromieCraft's realm: Cedric Harrow's house in Brill, Jamie Nore's
-# welcome and bed, the bed's sleep, the mastiff there on waking and made a warrior's hunter pet, and the
+# welcome and bed, the bed's sleep, Corn (the dog) there on waking and made a warrior's hunter pet, and the
 # furniture she has carried over; then Carolai Anise's five quests, as lovers, and her moving in.
 # (Level 12: Mend Pet's first rank comes with the dog.)
 cmd .levelup 11
@@ -36,7 +36,7 @@ cmd .brillhome state
 has stand 3
 has flags 0x1 pet 0
 expect-not rested 0 stand
-# The mastiff, there after the first night (its phase 0x400 with the bed's): fetch three times, a scratch
+# Corn, there after the first night (its phase 0x400 with the bed's): fetch three times, a scratch
 # behind the ears, and it's theirs: a hunter's pet for a warrior, with the pet spells.
 cmd .brillhome state
 expect Brill home: phases 0x204067F
@@ -83,7 +83,7 @@ go 0 2060.0 560.0 39.6
 wait 2
 cmd .brillhome state
 expect Brill home: phases 0x1 upgrades 0x4000
-# Carolai Anise's quests (the mastiff theirs): the tonic, her locket from Solliden Farmstead, her gift for
+# Carolai Anise's quests (Corn theirs): the tonic, her locket from Solliden Farmstead, her gift for
 # Jamie, tea in the house (her visit's phase 0x10000), the lily from Brightwater Lake and the answer.
 go 0 2262.0 347.6 36.1
 talk 2132
@@ -120,7 +120,7 @@ talk 2132
 reward 2132 970127
 talk 2132
 accept 2132 970128
-go 0 2905.0 202.0 8.5
+go 0 2497.0 103.0 21.9
 cmd .brillhome use
 expect Brill home: used 970109
 go 0 2262.0 347.6 36.1

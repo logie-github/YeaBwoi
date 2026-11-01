@@ -510,7 +510,7 @@ LINE = {
         # 7: the house's furnishings (design: a barrel stand, bottles, mugs and a little drinks cabinet), in the house's
         # own coordinates.
         {"id": "house_keg", "name": "Barrel Stand", "display": 7490, "scale": 0.7, "from": 7,
-         "spawns": [["house", -0.2, 2.8, 0, 90]],
+         "spawns": [["house", 4.29, 0.4, 0, 180]],
          "use": [
              {"cond": ["M:stout"], "text": "(A cask of Gravemalt Stout on a stand of Bram's making. A tag on the tap, in Oren's "
                                            "hand: FOR THE HOUSE. DRINK IT SLOWLY. YOU WON'T.)"},
@@ -520,7 +520,7 @@ LINE = {
                       "HOUSE. CALLA SAYS IT'S GOOD FOR YOU. I SAY IT'S GOOD.)"},
          ]},
         {"id": "house_cabinet", "name": "Drinks Cabinet", "display": 189, "scale": 0.45, "from": 7,
-         "spawns": [["house", -3.0, -3.8, 0, 0]],
+         "spawns": [["house", -2.1, 5.1, 0, 0]],
          "use": [{"text": "(A little cabinet made from the old vats' staves, Bram's mark burned into its side. Bottles, mugs that "
                           "don't leak, and a small painted sign: THE OLD BREWERY. EST. TWICE.)"}]},
     ],
