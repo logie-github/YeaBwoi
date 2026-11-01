@@ -10,18 +10,18 @@ the water beside it, and the Gordunni's camp on the coast road (-3425, 3208). Ac
 (the Ruins of Solarsal's signal brazier, Tawa's drum) and the Isle of Dread (its north-east rocks, Lord
 Shalzaru's lair in its caves). Glubbub's vision is on the sea floor off the cove (-3130, 3420).
 
-Phases (each rule is a bit of its own, and a scene's people must share its owner's bit or be "always"): the
-tribe's core (Murlorga, Grrmlgrrl, Blrrgl, Mrrk, Sloshy, the hatchlings, Grandmother Shellback) is "always",
-so every scene can reach them; the trainers, trades, caller, mailbox, graveyard, camp and the enemies' landing
-parties come from ch9_arrival; the Elder is at the fire until ch9_warm (the night he walks up the cliff), sits
-dead on the headland in a ring of mourners until ch9_elder, lies on the raft until ch9_funeral; Oracle
-Glubbub until ch9_staff, Elder Glubbub from it; Nerelith from ch9_walk until ch9_thanks; Tawa until
-ch9_mojache; the angry surf until ch9_totems. Cross-phase scenes are run by "always" objects (the raft, the
-totem marks, the drifting boat). Plain data: tools/murloc/SCHEMA.md."""
+Phases: Grrmlgrrl, Mrrk, Sloshy, the hatchlings, Grandmother Shellback and the fire come off the turtle with
+the player (from ch8_end); the hub kit (Murlorga, Blrrgl, Oracle Glubbub, the trainers, trades, caller,
+mailbox, graveyard), the camp and the enemies' landing parties from ch9_arrival; the Elder is at the fire until
+ch9_warm (the night he walks up the cliff), sits dead on the headland in a ring of mourners until ch9_elder,
+lies on the raft until ch9_funeral; Oracle Glubbub until ch9_staff, Elder Glubbub from it; Nerelith from
+ch9_walk until ch9_thanks; Tawa until ch9_mojache; the angry surf and Tawa's tide marks until ch9_totems.
+Plain data: tools/murloc/SCHEMA.md."""
 
+CORE = ("from", "ch8:ch8_end")             # off the turtle with the player
 HUB = ("from", "ch9_arrival")
 NERELITH = ("between", "ch9_walk", "ch9_thanks")
-GLUBBUB = ("until", "ch9_staff")
+GLUBBUB = ("between", "ch9_arrival", "ch9_staff")
 ELDER_GLUBBUB = ("from", "ch9_staff")
 RING = ("between", "ch9_warm", "ch9_elder")
 BODY = ("between", "ch9_elder", "ch9_funeral")
@@ -134,11 +134,11 @@ ANSWER_SLOSHY = [("emote", "ch1:sloshy", "attack"), ("sound", "ch1:sloshy", 977)
 NPCS = [
     # the 8.09 hatchlings, now a camp's worth of trouble
     dict(key="hatchling_a", name="Hatchling", look="murloc_green", scale=0.4, level=5, role="ambient", at="hatch_a",
-         facing=0.9, wander=2.0, idle=[("every", 19000, [("emote", "self", 94), ("sound", "self", "baby_murloc")])]),
+         facing=0.9, wander=2.0, phase=CORE, idle=[("every", 19000, [("emote", "self", 94), ("sound", "self", "baby_murloc")])]),
     dict(key="hatchling_b", name="Hatchling", look="murloc_pale", scale=0.4, level=5, role="ambient", at="hatch_b",
-         facing=2.4, wander=2.0, idle=[("every", 23000, [("emote", "self", "laugh"), ("sound", "self", "baby_murloc")])]),
+         facing=2.4, wander=2.0, phase=CORE, idle=[("every", 23000, [("emote", "self", "laugh"), ("sound", "self", "baby_murloc")])]),
     dict(key="hatchling_c", name="Hatchling", look="murloc_gold", scale=0.4, level=5, role="ambient", at="hatch_c",
-         facing=4.1, wander=2.0, idle=[("every", 29000, [("emote", "self", "eat"), ("sound", "self", 8485)])]),
+         facing=4.1, wander=2.0, phase=CORE, idle=[("every", 29000, [("emote", "self", "eat"), ("sound", "self", 8485)])]),
 
     # the Elder's walk: he comes with you (summoned beside the fire), coughing all the way up
     dict(key="elder_walker", name="Elder Mrrglmrgl", subname="Tribe Elder", look="murloc_grey", level=20, role="ambient",
@@ -184,7 +184,7 @@ NPCS = [
                ("every", 53000, [("emote", "self", "attack"), ("sound", "self", 977)])]),
 
     # Tawa Riverchant, a water-shaman of Camp Mojache, drumming the angry sea quiet
-    dict(key="tawa", name="Tawa Riverchant", subname="Camp Mojache", look=2123, level=45, side="faction:81", role="quest",
+    dict(key="tawa", name="Tawa Riverchant", subname="Camp Mojache", look=2123, level=45, side="tribe", role="quest",
          language="taurahe", at="tawa", facing=1.571, phase=("until", "ch9_mojache"),
          greeting="Shh. Listen with me, little fish-man. The sea is frightened.",
          idle=[("state", "self", "work"), ("every", 7000, [("sound", "self", 10861)]),
@@ -198,7 +198,7 @@ NPCS = [
     # the Ruins of Solarsal: Lady Szallah, called by her brazier, and Nerelith on the water
     dict(key="szallah", name="Lady Szallah", subname="Hatecrest", look=11262, level=46, side="naga", role="enemy",
          language="naga", health=4.0, summoned=True, abilities=[(9532, 8000), (8435, 16000)]),
-    dict(key="nerelith_archer", name="Nerelith Saltwind", look=1682, level=45, side="faction:69", role="ambient",
+    dict(key="nerelith_archer", name="Nerelith Saltwind", look=1682, level=45, side="tribe", role="ambient",
          language="darnassian", health=3.0, summoned=True, abilities=[(6660, 2500)]),
     dict(key="archer_boat", name="Rowing Boat", look=30236, scale=0.8, level=1, role="ambient", summoned=True,
          unit_flags=0x02000002),
@@ -228,8 +228,8 @@ NPCS = [
 
     # a Feathermoon rowing boat on the rocks: out to sea, or into the lagoon under the kelp
     dict(key="drift_boat", name="Drifting Boat", subname="Feathermoon", look=30236, level=1, role="ambient", at="drift_boat",
-         facing=1.2, respawn=90, greeting="..."),
-    dict(key="sentinel_far", name="Feathermoon Sentinel", look=7012, level=45, side="faction:69", role="ambient",
+         facing=1.2, respawn=90, phase=HUB, greeting="..."),
+    dict(key="sentinel_far", name="Feathermoon Sentinel", look=7012, level=45, side="neutral", role="ambient",
          language="darnassian", summoned=True),
     dict(key="sentinel_skiff", name="Rowing Boat", look=30236, scale=0.8, level=1, role="ambient", summoned=True,
          unit_flags=0x02000002),
@@ -271,31 +271,36 @@ OBJECTS = [
     dict(key="cauldron", model=216, name="Brewglub's Cauldron", at="cauldron", kind="doodad", scale=0.8, phase=HUB),
     dict(key="nets", model=BASKET, name="Net Basket", at="nets", kind="doodad", scale=0.8, facing=1.0, phase=HUB),
     # the fire (always: Murlorga's lesson in 9.16 is held over it)
-    dict(key="fire", model=192, name="Campfire", at="fire", kind="use", quest="ch9_warm", consumable=False,
-         beats=[("give", "warmth", 1), ("summon", "egg_glow", "egg_warm", 6), ("emote", "ch1:murlorga", "yes"),
+    dict(key="fire", model=192, name="Campfire", at="fire", kind="use", quest="ch9_warm", consumable=False, phase=CORE,
+         goal="Last Egg warmed by the fire",
+         beats=[("summon", "egg_glow", "egg_warm", 6), ("emote", "ch1:murlorga", "yes"),
                 ("sound", "ch1:murlorga", "murloc_fidget"), ("sound", "hatchling_b", "baby_murloc")]),
     dict(key="elder_stone", model=STONE, name="The Elder's Smooth Stone", at="elder_stone", kind="loot",
-         loot=[("smooth_stone", 1, 1)], quest="ch9_things", scale=0.12),
+         loot=[("smooth_stone", 1, 1)], quest="ch9_things", scale=0.12, phase=CORE),
     # Tawa's own drum; Nerelith's boat at the cove's edge
     dict(key="tawa_drum", model=2572, name="Tawa's Drum", at="tawa_drum", kind="doodad", scale=0.7,
          phase=("until", "ch9_mojache")),
     dict(key="nerelith_boat", model=ROWBOAT, name="Feathermoon Rowing Boat", at="nerelith_boat", kind="doodad", facing=1.4,
          phase=NERELITH),
     # the tide marks (9.10), each its own place
-    dict(key="mark_1", model=627, name="Tide Mark", at="totem_1", kind="use", quest="ch9_totems", consumable=False, scale=0.8,
-         beats=[("take", "water_totem", 1), ("give", "tide_1", 1), ("summon", "tide_totem", "totem_1", 600),
+    dict(key="mark_1", model=627, name="Tide Mark", at="totem_1", kind="use", quest="ch9_totems", scale=0.8,
+         phase=("until", "ch9_totems"), goal="Totem planted at the North Rocks",
+         beats=[("take", "water_totem", 1), ("summon", "tide_totem", "totem_1", 600),
                 ("unaura", "surf", 59635), ("sound", "tawa", 11773), ("emote", "tawa", "yes"), ("emote", "ch1:glubbub", "bow"),
                 ("sound", "ch1:glubbub", "murloc_fidget2")]),
-    dict(key="mark_2", model=627, name="Tide Mark", at="totem_2", kind="use", quest="ch9_totems", consumable=False, scale=0.8,
-         beats=[("take", "water_totem", 1), ("give", "tide_2", 1), ("summon", "tide_totem", "totem_2", 600),
+    dict(key="mark_2", model=627, name="Tide Mark", at="totem_2", kind="use", quest="ch9_totems", scale=0.8,
+         phase=("until", "ch9_totems"), goal="Totem planted at the Strand",
+         beats=[("take", "water_totem", 1), ("summon", "tide_totem", "totem_2", 600),
                 ("unaura", "surf", 59635), ("sound", "tawa", 11773), ("emote", "tawa", "yes"), ("emote", "ch1:glubbub", "bow"),
                 ("sound", "ch1:glubbub", "murloc_fidget2")]),
-    dict(key="mark_3", model=627, name="Tide Mark", at="totem_3", kind="use", quest="ch9_totems", consumable=False, scale=0.8,
-         beats=[("take", "water_totem", 1), ("give", "tide_3", 1), ("summon", "tide_totem", "totem_3", 600),
+    dict(key="mark_3", model=627, name="Tide Mark", at="totem_3", kind="use", quest="ch9_totems", scale=0.8,
+         phase=("until", "ch9_totems"), goal="Totem planted at the Dune",
+         beats=[("take", "water_totem", 1), ("summon", "tide_totem", "totem_3", 600),
                 ("unaura", "surf", 59635), ("sound", "tawa", 11773), ("emote", "tawa", "yes"), ("emote", "ch1:glubbub", "bow"),
                 ("sound", "ch1:glubbub", "murloc_fidget2")]),
-    dict(key="mark_4", model=627, name="Tide Mark", at="totem_4", kind="use", quest="ch9_totems", consumable=False, scale=0.8,
-         beats=[("take", "water_totem", 1), ("give", "tide_4", 1), ("summon", "tide_totem", "totem_4", 600),
+    dict(key="mark_4", model=627, name="Tide Mark", at="totem_4", kind="use", quest="ch9_totems", scale=0.8,
+         phase=("until", "ch9_totems"), goal="Totem planted at the Spit",
+         beats=[("take", "water_totem", 1), ("summon", "tide_totem", "totem_4", 600),
                 ("unaura", "surf", 59635), ("sound", "tawa", 11773), ("emote", "tawa", "yes"), ("emote", "ch1:glubbub", "bow"),
                 ("sound", "ch1:glubbub", "murloc_fidget2")]),
     # the reef's oysters (9.15)
@@ -305,8 +310,8 @@ OBJECTS = [
     dict(key="staff_knees", model=STAFF, name="The Elder's Staff", at="staff_knees", kind="doodad", scale=0.6, facing=0.0,
          phase=RING),
     # the funeral raft (always: its scene reaches every one of the tribe, Nerelith and Tawa)
-    dict(key="raft_kelp", model=KELP, name="Kelp", at="raft", kind="doodad", scale=1.3, facing=1.0),
-    dict(key="raft", model=627, name="Kelp Raft", at="raft", kind="use", quest="ch9_funeral", scale=1.4, facing=1.57,
+    dict(key="raft_kelp", model=KELP, name="Kelp", at="raft", kind="doodad", scale=1.3, facing=1.0, phase=BODY),
+    dict(key="raft", model=627, name="Kelp Raft", at="raft", kind="use", quest="ch9_funeral", scale=1.4, facing=1.57, phase=BODY,
          beats=[("take", "smooth_stone", 1), ("take", "sweet_roll", 1), ("take", "ch1:plorp_shell", 1),
                 ("object", "laid_stone", "raft_things", 70), ("object", "laid_roll", "raft_things", 70),
                 ("object", "laid_shell", "raft_things", 70), ("music", 6075),
@@ -350,7 +355,7 @@ OBJECTS = [
     dict(key="naga_banner", model="naga_banner", name="Hatecrest Banner", at="naga_banner", kind="doodad", facing=1.6, phase=HUB),
     dict(key="naga_torch", model="naga_torch", name="Hatecrest Torch", at="naga_torch", kind="doodad", phase=HUB),
     dict(key="ogre_fire", model=192, name="Gordunni Fire", at="ogre_fire", kind="doodad", scale=1.3, phase=HUB),
-    dict(key="ogre_pot", model=216, name="Gordunni Stew Pot", at="ogre_camp", kind="use", quest="ch9_pot", scale=2.0,
+    dict(key="ogre_pot", model=216, name="Gordunni Stew Pot", at="ogre_camp", kind="use", quest="ch9_pot", scale=2.0, phase=HUB,
          beats=[("summon", "forager_a", "pot_out_a", 240), ("summon", "forager_b", "pot_out_b", 240),
                 ("summon", "forager_c", "pot_out_c", 240), ("summon", "pot_home", "hub", 240), ("wait", 400),
                 ("sound", "forager_a", "splash"), ("sound", "forager_b", "murloc_aggro"), ("emote", "forager_c", "cry"),
@@ -408,13 +413,8 @@ ITEMS = [
     dict(key="feather", name="Northspring Feather", icon=19567, stack=6),
     dict(key="drum", name="Grandmother's Drum", icon=43646, description="Old hide, old wood. The tide used to come when it was played."),
     dict(key="water_totem", name="Tawa's Water Totem", icon="item:5177", stack=4),
-    dict(key="tide_1", name="Totem on the Tide: the North Rocks", icon="item:5177"),
-    dict(key="tide_2", name="Totem on the Tide: the Strand", icon="item:5177"),
-    dict(key="tide_3", name="Totem on the Tide: the Dune", icon="item:5177"),
-    dict(key="tide_4", name="Totem on the Tide: the Spit", icon="item:5177"),
     dict(key="last_egg", name="The Last Egg", icon=18051, description="Warm, and glowing faintly. The only one they left behind."),
     dict(key="cove_pearl", name="Cove Pearl", icon=12309, stack=5),
-    dict(key="warmth", name="Warmth of the Fire", icon=12736, stack=3),
     dict(key="smooth_stone", name="The Elder's Smooth Stone", icon=5998, description="Worn smooth by a thousand thumbs. His."),
     dict(key="sweet_roll", name="Murlorga's Last Sweet Roll", icon="bread", description="Kelp-sugar and fish-flour. The last one."),
     dict(key="stew_carrot", name="Stew-Pot Carrot", kind="food", level=45),
@@ -742,7 +742,7 @@ QUESTS = [
 
     # 9.10: totems on the tide
     dict(key="ch9_totems", title="Totems on the Tide", giver="tawa", ender="tawa", level=45, xp=8, tone="serious", path="hero",
-         prev="ch9_tawa", rep=[(81, 500)], items=[("tide_1", 1), ("tide_2", 1), ("tide_3", 1), ("tide_4", 1)],
+         prev="ch9_tawa", rep=[(81, 500)], objects=[("mark_1", 1), ("mark_2", 1), ("mark_3", 1), ("mark_4", 1)],
          goal="Plant Tawa's 4 Water Totems at the 4 driftwood Tide Marks along the waterline of the sea beach, north and south "
               "of her drum, while she drums.",
          text="Four totems. One for each place where the water climbs wrong. Plant them at the driftwood marks, in the wet "
@@ -857,7 +857,7 @@ QUESTS = [
 
     # 9.16: warm the egg (the Elder dozes by the fire the whole time)
     dict(key="ch9_warm", title="Warm the Egg", giver="ch1:murlorga", ender="ch1:murlorga", level=47, xp=8, tone="boring",
-         prev="ch9_pool", items=[("warmth", 3)],
+         prev="ch9_pool", objects=[("fire", 3)],
          goal="Hold the Last Egg close to the campfire in the middle of the camp, 3 times, the way Murlorga showed you.",
          text="Like this. Look. Hold it near... not too near. Turn it. Slowly, slowly, like you're turning a fish. 3 times, "
               "by the fire. Shh... the Elder is sleeping.",

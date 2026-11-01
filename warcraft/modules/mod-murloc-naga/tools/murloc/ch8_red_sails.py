@@ -148,9 +148,6 @@ NPCS = [
                ("every", 37000, [("emote", "self", "talk")])]),
 
     # the hatchlings: the eldest at the basket (8.09's), the three who decide you're their mother, the ones at home
-    dict(key="hatchling_eldest", name="Eldest Hatchling", look="murloc_blue", scale=0.4, level=5, role="quest",
-         greeting="Mrgl? Mama? Mama!",
-         idle=[("every", 15000, [("emote", "self", "dance"), ("sound", "self", "baby_murloc")]),
                ("every", 26000, [("emote", "self", "cheer")])]),
     dict(key="hatch_a", name="Hatchling", look="murloc_green", scale=0.35, level=3, role="ambient", summoned=True,
          idle=[("every", 9000, [("sound", "self", "baby_murloc"), ("emote", "self", "cheer")])]),
@@ -165,7 +162,7 @@ NPCS = [
                ("every", 29000, [("emote", "self", "cheer")])]),
 
     # Booty Bay: the porter, the Bruiser who checks his barrel, the Salty Sailor's chef and his doorman
-    dict(key="porter", name="Gizzle", subname="Porter", look=7112, level=30, side="faction:21", role="quest",
+    dict(key="porter", name="Gizzle", subname="Porter", look=7112, level=30, side="tribe", role="quest",
          language="common", at="porter_post", facing=3.3, respawn=30, phase=("during", "ch8_trade"),
          greeting="Fizzbo sent ya? Heh. Fish on top, eggs underneath. Nobody looks under fish.",
          idle=[("every", 14000, [("sound", "self", 11800), ("emote", "self", "talk")])]),
@@ -520,9 +517,7 @@ SPAWNS = [
     dict(object="ch1:smoke_rack", at="rack", phase=HUB, facing=0.8),
     dict(object="ch1:barrel", at="barrel_hub", phase=HUB),
     # the hatchlings: the eldest at the basket from either way the eggs came home, the others from 8.09
-    dict(npc="hatchling_eldest", at="hatch_eldest", phase=("from", "ch8_trade"), facing=1.5),
-    dict(npc="hatchling_eldest", at="hatch_eldest", phase=("from", "ch8_heist"), facing=1.5),
-    dict(npc="hatchling", at=["hatch_r1", "hatch_r2"], phase=HATCHED, wander=2.0),
+    dict(npc="hatchling", at=["hatch_eldest", "hatch_r1", "hatch_r2"], phase=HATCHED, wander=2.0),
     # Booty Bay: Fizzbo under the pier; Zalja's boat in port from 8.09; the eggs in the kitchen's basket
     dict(npc="ch0:fizzbo", at="fizzbo_den", facing=1.0),
     dict(object="crates", at="fizzbo_crate", facing=0.4),
@@ -997,7 +992,7 @@ QUESTS = [
          reward="12. Here. I cut it from the reef while you were gone. Same coral as the first one. Longer.",
          details=["talk", "attack"], reward_emotes=["salute", "flex"], choice=["reef_spear", "reef_staff", "reef_shank"],
          accept=[("move", "self", "grrm_draw", "walk"), ("wait", 1500), ("emote", "self", "kneel"),
-                 ("object", "ch0:mailbox", "grrm_draw2", 1), ("object", "ch1:map_reef", "grrm_draw2", 30),
+                 ("object", "ch1:map_reef", "grrm_draw2", 30),
                  ("object", "ch1:sand_spear", "grrm_draw", 30), ("sound", "self", 1194), ("wait", 1800),
                  ("emote", "self", "attack"), ("sound", "self", 417), ("wait", 700), ("emote", "self", "attack"),
                  ("sound", "self", 417), ("wait", 700), ("emote", "self", "attack"), ("sound", "self", 417),
