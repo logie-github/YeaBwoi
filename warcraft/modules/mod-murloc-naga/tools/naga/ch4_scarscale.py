@@ -784,7 +784,7 @@ QUESTS = [
          details=["talk"], reward_emotes=["talk", "point"],
          accept=[("face", "self", "player"), ("emote", "self", "talk"), ("wait", 1500), ("state", "self", "channel"),
                  ("sound", "self", "siren_hiss"), ("music", 9461), ("visual", "player", GLOW_BLUE), ("wait", 3500),
-                 ("relive", "m6"), ("wait", 2000), ("state", "self", "none")],
+                 ("relive", "m6"), ("wait", 2000), ("state", "self", "none"), ("unaura", "player", GLOW_BLUE)],
          complete=[("face", "self", "player"), ("emote", "self", "talk"), ("wait", 1500), ("face", "self", "serpentra"),
                    ("emote", "self", "point"), ("wait", 1500), ("face", "self", "player")],
          poi=["serpentra"]),

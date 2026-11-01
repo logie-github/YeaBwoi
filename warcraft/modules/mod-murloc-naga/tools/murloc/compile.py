@@ -57,7 +57,7 @@ def load(folder=HERE, upto=None, prefix="murloc"):
 
 # SmartAI's ids (the core's SmartScriptMgr.h)
 EV_UPDATE_OOC, EV_OOC_LOS, EV_ACCEPTED_QUEST, EV_REWARD_QUEST, EV_DATA_SET, EV_GOSSIP_SELECT = 1, 10, 19, 20, 38, 62
-EV_UPDATE_IC, EV_RECEIVE_EMOTE, EV_GOSSIP_HELLO = 0, 22, 64
+EV_UPDATE_IC, EV_RECEIVE_EMOTE, EV_GOSSIP_HELLO, EV_RESET = 0, 22, 64, 25
 A_REMOVE_AURA, A_SUMMON_GO, A_ADD_AURA = 28, 50, 75
 A_SET_FACTION, A_EVADE, EV_HEALTH_PCT = 2, 24, 2
 A_TALK, A_SOUND, A_EMOTE, A_CAST, A_SUMMON, A_AREA_EXPLORED, A_EMOTE_STATE, A_FOLLOW = 1, 4, 5, 11, 12, 15, 17, 29
@@ -342,6 +342,13 @@ class Story:
         self.tables["_model_info"] = sorted({r["CreatureDisplayID"] for r in self.tables.get("creature_template_model", [])
                                              if r["CreatureDisplayID"] not in known})
         scripted = {r["entryorguid"] for r in self.tables.get("smart_scripts", []) if r["source_type"] == 0}
+        # (and those handed a scene's beats: a list of theirs another starts on them runs only on a SmartAI; one with no
+        # event of its own gets a quiet one, facing where it stands after a fight, which the core wants a SmartAI to have)
+        handed = {r["entryorguid"] // 1000 for r in self.tables.get("smart_scripts", []) if r["source_type"] == 9}
+        creatures = {r["entry"] for r in self.tables.get("creature_template", [])}
+        for entry in sorted((handed & creatures) - scripted - self.go_entries):
+            self.smart(entry, 0, EV_RESET, (), [(A_ORIENTATION, (), (T_SELF,))])
+        scripted |= handed
         looted = {r["Entry"] for r in self.tables.get("creature_loot_template", [])}
         for r in self.tables.get("creature_template", []):
             if r["AIName"] == "SmartAI" and r["entry"] not in scripted:
@@ -1803,7 +1810,7 @@ class Story:
         self.next_go_spawn += 1
         m, x, y, z = pt
         self.row("gameobject", guid=guid, id=entry, map=m, zoneId=0, areaId=0, spawnMask=1,
-                 phaseMask=self.P.RACE_PHASE | sum(set(self.P.MEMORY_BITS.values())),
+                 phaseMask=self.P.RACE_PHASE | sum(set(self.P.MEMORY_BITS.values())) | K.SCENE_BIT,
                  position_x=round(x, 2), position_y=round(y, 2), position_z=round(z, 2), orientation=0, rotation0=0, rotation1=0,
                  rotation2=0, rotation3=1, spawntimesecs=10, animprogress=100, state=1, Comment="mod-murloc-naga: a quest's place")
         req_npc.append((credit, count))
@@ -2184,6 +2191,7 @@ def lint(story):
             if not lo <= q["level"] <= hi + 1:
                 out.append((f"{ch['CHAPTER']['key']}:{q['key']}", f"level {q['level']} outside the chapter's {lo}-{hi}"))
     out += lint_naga_models(story)
+    out += lint_lasting_looks(story)
     if not story.P.translate:
         out += lint_languages(story)
     return out
@@ -2235,6 +2243,23 @@ def lint_naga_models(story):
             if name not in allowed:
                 out.append((where, f"{d['name']} (a naga model) can't {b[0]} {name!r}: it stands still (it plays "
                                    f"{', '.join(sorted(allowed))})"))
+    return out
+
+
+def lint_lasting_looks(story):
+    """A look put on the player that lasts until it's taken off (the Glowy spells): the player keeps it after the scene
+    unless the same scene takes it off again ("unaura")."""
+    if not hasattr(story, "_lasting"):
+        spells, durations = story.D("Spell"), story.D("SpellDuration")
+        forever = {r[0] for r in durations.rows if r[1] in (-1, 4294967295)}
+        story._lasting = {r[0] for r in spells.rows if r[40] in forever}
+    out = []
+    for where, owner, beats in scenes(story):
+        for i, b in enumerate(beats):
+            if b[0] == "visual" and len(b) > 2 and b[1] == "player" and isinstance(b[2], int) and b[2] in story._lasting:
+                if not any(x[0] == "unaura" and len(x) > 2 and x[1] == "player" and x[2] == b[2] for x in beats[i + 1:]):
+                    out.append((where, f"the visual {b[2]} lasts until it's taken off: the player keeps it (a later "
+                                       f"(\"unaura\", \"player\", {b[2]}) in the scene, or a look that ends)"))
     return out
 
 
