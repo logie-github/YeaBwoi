@@ -171,7 +171,7 @@ Copy files onto the phone before picking them: files in cloud folders can't be r
 - `WTF/Config.wtf` (your other settings in it stay): `realmList` 127.0.0.1, `realmName` ChromieCraft (the realm is chosen for you), the intro movie off, the terms already read, windowed and maximized at the game's resolution, and your account's name in the login box when you have one account.
 - The game's resolution: the screen's own (Graphics), set each start for the screen the phone is on, with the game's first-start hardware check off (`hwDetect 0`) so it keeps it. The game fills the screen edge to edge, the camera's edge included; a game window that comes up smaller than the screen anyway is scaled up to fill it.
 
-The game's Windows is one Wine prefix, **World of Warcraft**, with the client as drive D:: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Its programs go in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path they're built for.
+The game's Windows is one Wine prefix, **World of Warcraft**, with the client as drive D:: DXVK for Direct3D, the Vortek Vulkan driver, ALSA sound. Each frame is put on screen only once the phone's GPU has finished drawing it (Vortek's one window buffer is the one on screen; showing it earlier flickered and tore: `warcraft/patches/winlator/0014`). Its programs go in the app's data folder (`/data/data/com.logie.warcraft/rootfs`), the path they're built for.
 
 While it starts, the app shows its own loading screen, until the game's window is up: the launcher's Lich King picture, darkened, with the logo and the snow over it.
 

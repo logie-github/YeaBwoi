@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: World of Warcraft <warcraft@users.noreply.github.com>
+Date: Sun, 1 Nov 2026 02:21:44 +0000
+Subject: [PATCH] Show a Vortek frame only once the GPU has finished it
+
+The window's only swapchain image is the buffer the X server's renderer
+draws on screen, and a present had it drawn at once, while the game's
+last submission (DXVK's blit into it) could still be running on the GPU:
+the screen showed frames half written, flickering and tearing. A present
+now waits on its wait semaphores and drains the queue before telling the
+renderer; waiting on them also unsignals them, which nothing did before
+(each frame signalled the same binary semaphore again).
+---
+ .../cpp/vortekrenderer/src/request_handler.c  | 33 +++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/app/src/main/cpp/vortekrenderer/src/request_handler.c b/app/src/main/cpp/vortekrenderer/src/request_handler.c
+index 0e4b6e5..313d05c 100644
+--- a/app/src/main/cpp/vortekrenderer/src/request_handler.c
++++ b/app/src/main/cpp/vortekrenderer/src/request_handler.c
+@@ -2088,6 +2088,39 @@ void vt_handle_vkQueuePresentKHR(VkContext* context) {
+     VkPresentInfoKHR presentInfo = {0};
+     vt_unserialize_VkPresentInfoKHR(&presentInfo, context->inputBuffer, &context->memoryPool);
+ 
++    /* The window's only swapchain image is the buffer the X server's renderer draws on screen, and
++     * updateWindowContent has it drawn right away: the frame must be finished on the GPU first, or
++     * the screen shows it half written (tearing, flickering). The present's wait semaphores (the
++     * game's last submission signals them) are waited on here, then the queue drains; waiting on
++     * them also unsignals them, so the next frame's submission doesn't signal them a second time. */
++    XWindowSwapchain* first = presentInfo.swapchainCount > 0 && presentInfo.pSwapchains ? (XWindowSwapchain*)presentInfo.pSwapchains[0] : NULL;
++    if (first && first->queue) {
++        if (presentInfo.waitSemaphoreCount > 0 && presentInfo.pWaitSemaphores) {
++            VkSemaphore waitSemaphores[presentInfo.waitSemaphoreCount];
++            VkPipelineStageFlags waitStages[presentInfo.waitSemaphoreCount];
++            uint32_t waitCount = 0;
++            for (int i = 0; i < presentInfo.waitSemaphoreCount; i++) {
++                if (presentInfo.pWaitSemaphores[i] == VK_NULL_HANDLE) continue;
++                waitSemaphores[waitCount] = presentInfo.pWaitSemaphores[i];
++                waitStages[waitCount++] = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
++            }
++
++            if (waitCount > 0) {
++                VkSubmitInfo submitInfo = {0};
++                submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
++                submitInfo.waitSemaphoreCount = waitCount;
++                submitInfo.pWaitSemaphores = waitSemaphores;
++                submitInfo.pWaitDstStageMask = waitStages;
++                VkResult result = vulkanWrapper.vkQueueSubmit(first->queue, 1, &submitInfo, VK_NULL_HANDLE);
++                if (result == VK_ERROR_DEVICE_LOST) context->status = result;
++            }
++        }
++        if (context->status >= 0) {
++            VkResult result = vulkanWrapper.vkQueueWaitIdle(first->queue);
++            if (result == VK_ERROR_DEVICE_LOST) context->status = result;
++        }
++    }
++
+     for (int i = 0; i < presentInfo.swapchainCount; i++) {
+         XWindowSwapchain_presentImage((XWindowSwapchain*)presentInfo.pSwapchains[i]);
+     }
+-- 
+2.43.0
+
