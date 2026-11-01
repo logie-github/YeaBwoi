@@ -223,13 +223,17 @@ fun GameFilesDialog(title: Title, onDismiss: () -> Unit) {
     }
 }
 
-/** Graphics: the games' resolution, Warcraft III's renderer, vibration. */
+/** Graphics: the games' resolution, Warcraft III's renderer, and the controls' settings. */
 @Composable
 fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
     val context = LocalContext.current
     var resolution by remember { mutableStateOf(GameSettings.resolution(context)) }
     var renderer by remember { mutableStateOf(GameSettings.renderer(context)) }
     var vibration by remember { mutableStateOf(GameSettings.vibration(context)) }
+    var hold by remember { mutableStateOf(GameSettings.holdTime(context)) }
+    var pan by remember { mutableStateOf(GameSettings.panStart(context)) }
+    var markers by remember { mutableStateOf(GameSettings.markers(context)) }
+    var magnifier by remember { mutableStateOf(GameSettings.magnifier(context)) }
     RtsDialog(stringResource(R.string.rts_tile_graphics), onDismiss = onDismiss) {
         Text(stringResource(R.string.rts_graphics_note), style = MaterialTheme.typography.bodySmall)
         for (choice in GameSettings.Resolution.entries) {
@@ -255,6 +259,29 @@ fun GraphicsDialog(title: Title, onDismiss: () -> Unit) {
             vibration = it
             GameSettings.setVibration(context, it)
         }
+        RtsSwitchRow(stringResource(R.string.rts_markers), stringResource(R.string.rts_markers_summary), markers) {
+            markers = it
+            GameSettings.setMarkers(context, it)
+        }
+        RtsSwitchRow(stringResource(R.string.rts_magnifier), stringResource(R.string.rts_magnifier_summary), magnifier) {
+            magnifier = it
+            GameSettings.setMagnifier(context, it)
+        }
+        Text(stringResource(R.string.rts_hold_title), style = MaterialTheme.typography.titleSmall)
+        for (choice in GameSettings.HoldTime.entries) {
+            RtsChoiceRow(stringResource(choice.label), null, selected = choice == hold) {
+                hold = choice
+                GameSettings.setHoldTime(context, choice)
+            }
+        }
+        Text(stringResource(R.string.rts_pan_title), style = MaterialTheme.typography.titleSmall)
+        for (choice in GameSettings.PanStart.entries) {
+            RtsChoiceRow(stringResource(choice.label), null, selected = choice == pan) {
+                pan = choice
+                GameSettings.setPanStart(context, choice)
+            }
+        }
+        Text(stringResource(R.string.rts_pan_speed_note), style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -265,9 +292,12 @@ fun ControlsDialog(onDismiss: () -> Unit) {
     val rows = listOf(
         R.string.rts_controls_swipe to R.string.rts_controls_swipe_does,
         R.string.rts_controls_tap to R.string.rts_controls_tap_does,
+        R.string.rts_controls_double_tap to R.string.rts_controls_double_tap_does,
         R.string.rts_controls_hold to R.string.rts_controls_hold_does,
+        R.string.rts_controls_box to R.string.rts_controls_box_does,
         R.string.rts_controls_double to R.string.rts_controls_double_does,
         R.string.rts_controls_rest to R.string.rts_controls_rest_does,
+        R.string.rts_controls_volume to R.string.rts_controls_volume_does,
         R.string.rts_controls_two_tap to R.string.rts_controls_two_tap_does,
         R.string.rts_controls_pinch to R.string.rts_controls_pinch_does,
         R.string.rts_controls_three to R.string.rts_controls_three_does,

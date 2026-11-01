@@ -63,6 +63,21 @@ The user's requirements, what was decided, what's open, and where it stands. The
   another lands holds Shift for the other's taps and holds, two-finger tap F10, pinch wheel, three
   fingers the keyboard prompt, four the app's menu, Back Escape. The left click comes on lift so a
   resting finger never clicks.
+- **Warcraft III's controls, reworked** (build 8; the user: "There's so many functions missing and
+  it feels like I'm struggling", "I think selecting units with drag box is where I'm struggling
+  most", and of the ideas offered, all but aiming above the finger, a touch log and per-game
+  gestures): hold-then-drag draws a selection box (all three games; it used to pan); a resting
+  finger plus a swipe is a Shift box, plus a two-finger tap Tab; a double tap attack-moves (A, then
+  the left click; on the panel it stays the game's double click); the hero portraits and the idle
+  worker button are interface (a tap left-clicks); the volume buttons are Tab (up) and F8, or Alt
+  held (down) (patches/winlator/0005); the command card is read with PixelCopy before and after a
+  button's tap (`controls/CommandCard`, `AimWatch`): only Cancel left means the game waits for a
+  target, and a tap is then the left click; a magnifier during holds; a ring where each click landed
+  and a vibration per kind of click; the hold's time and the swipe's start in Graphics; the pointer
+  kept 3 pixels off the screen's edge (Warcraft III scrolls toward an edge pointer). The card's and
+  the left column's places are estimates of the 4:3 layout, not measured on the game. The
+  keyboard scroll speed's registry value wasn't found documented, so the app doesn't set it; the
+  manual points to the game's own Options.
 - **What's needed** (`library/Needs`): per game, the program, `Data\{data,indices,config}`,
   `.build.info`, and for WC3 the optional `Maps` and CD keys, each checked case-insensitively in the
   game's folder and ticked on the launcher; Press start appears once the required ones are in.
@@ -191,11 +206,16 @@ The user's requirements, what was decided, what's open, and where it stands. The
 6. **Stratagus's folders on Android, what a game says when it stops** — built (build 6); the stop
    report came back from the phone.
 7. **Lua without FORTIFY** — built (build 7).
-8. After the user's next try: whatever the phone shows (the stop report, if a game stops again).
+8. **Warcraft III's controls reworked** (selection box, aiming read off the command card,
+   attack-move, Tab/F8/Alt on the volume buttons, magnifier, markers, hold time) — built.
+9. After the user's next try: whatever the phone shows (the stop report, if a game stops again; how
+   the command card reading and the left column's estimates land on the real screen).
 
 ## Where it stands
 
-Stage 7: built locally and in CI; unit tests pass. On the user's phone: both GOG installers
-unpacked (build 4), both conversions ran (build 5), the games stopped at launch (build 5); build 6
-got past the folders and stopped in Lua's start on FORTIFY (its report); build 7 builds Lua
-without it, not yet run.
+Stage 8: Warcraft III's reworked controls compile and their logic is unit-tested (the gestures,
+the command card's reading); the APK is built by CI. Not run on a phone: the command card's and the
+left column's places, PixelCopy of Winlator's screen, the volume buttons and the magnifier are
+untested there. Before it, on the user's phone: both GOG installers unpacked (build 4), both
+conversions ran (build 5), the games stopped at launch (build 5); build 6 got past the folders and
+stopped in Lua's start on FORTIFY (its report); build 7 builds Lua without it, not yet run.

@@ -8,6 +8,8 @@ import android.os.Build
 import androidx.annotation.StringRes
 import com.logie.warcrafts.R
 import com.logie.warcrafts.RtsFiles
+import com.logie.warcrafts.controls.GestureOutput
+import com.logie.warcrafts.controls.RtsGestures
 import com.logie.warcrafts.library.Install
 import com.logie.warcrafts.library.Screen
 import com.logie.warcrafts.library.Wc3Arguments
@@ -49,7 +51,58 @@ object GameSettings {
         prefs(context).edit().putString("renderer", renderer.name).apply()
     }
 
-    /** Vibrate when a hold is recognised. */
+    /** How long a finger stays still to be a hold (the left click). */
+    enum class HoldTime(val ms: Long, @StringRes val label: Int) {
+        SHORT(250, R.string.rts_hold_short),
+        QUICK(325, R.string.rts_hold_quick),
+        NORMAL(RtsGestures.HOLD_MS, R.string.rts_hold_normal),
+        LONG(500, R.string.rts_hold_long),
+    }
+
+    /** How far a swipe goes before the map pans. */
+    enum class PanStart(val dp: Float, @StringRes val label: Int) {
+        NEAR(8f, R.string.rts_pan_near),
+        NORMAL(RtsGestures.PAN_START_DP, R.string.rts_pan_normal),
+        FAR(24f, R.string.rts_pan_far),
+    }
+
+    fun holdTime(context: Context): HoldTime =
+        HoldTime.entries.firstOrNull { it.name == prefs(context).getString("hold", null) } ?: HoldTime.NORMAL
+
+    fun setHoldTime(context: Context, hold: HoldTime) {
+        prefs(context).edit().putString("hold", hold.name).apply()
+    }
+
+    fun panStart(context: Context): PanStart =
+        PanStart.entries.firstOrNull { it.name == prefs(context).getString("pan", null) } ?: PanStart.NORMAL
+
+    fun setPanStart(context: Context, pan: PanStart) {
+        prefs(context).edit().putString("pan", pan.name).apply()
+    }
+
+    /** A ring for a moment where a touch clicked, its colour the click's kind. */
+    fun markers(context: Context): Boolean = prefs(context).getBoolean("markers", true)
+
+    fun setMarkers(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("markers", on).apply()
+    }
+
+    /** During a hold, a magnified circle of what's under the finger, above it (Warcraft III). */
+    fun magnifier(context: Context): Boolean = prefs(context).getBoolean("magnifier", true)
+
+    fun setMagnifier(context: Context, on: Boolean) {
+        prefs(context).edit().putBoolean("magnifier", on).apply()
+    }
+
+    /** The gestures with the launcher's hold time and pan start. */
+    fun gestures(context: Context, out: GestureOutput): RtsGestures = RtsGestures(
+        out,
+        context.resources.displayMetrics.density,
+        holdMs = holdTime(context).ms,
+        panStartDp = panStart(context).dp,
+    )
+
+    /** Vibrate when a hold is recognised (and the other clicks' own vibrations). */
     fun vibration(context: Context): Boolean = prefs(context).getBoolean("vibration", true)
 
     fun setVibration(context: Context, on: Boolean) {

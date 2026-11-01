@@ -82,23 +82,41 @@ same game files.
 
 ## Controls
 
-Nothing is drawn over the game. The gestures are the ones you chose.
+The gestures are the ones you chose. Over Warcraft III the app draws only a ring for a moment where
+a touch clicked and, while you hold, a magnifier; both can be turned off in **Graphics**.
 
 | Gesture | In the game |
 | --- | --- |
 | Swipe one finger | Pans the map the way you swipe, for as long as the finger stays away from where it landed; lift to stop |
-| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel and top bar |
+| Tap | Right click on the battlefield: move, attack, gather, set a rally point. Where a right click would do nothing, the left click: in Warcraft I and II on menus and buttons, and on the map when none of your units is selected (the tap selects); in Warcraft III on its bottom panel, top bar, heroes' portraits and idle worker button, and on the battlefield while an order waits for its target (see below) |
+| Double tap on the same spot | Warcraft III: attack-move there (A, then the click). On the panel: the game's double click (a hero's portrait: select the hero and centre on them). With a building selected, its own A key is pressed instead (the Altar's Archmage, for one) |
 | Touch and hold | Left click when you lift (after a short buzz): select a unit or building, press a button of the game's panel or menus |
+| Touch and hold, then drag | A selection box from where you held to where you lift (the game draws it), in all three games. While an order waits for its target, the drag aims instead and the click comes where you lift |
 | Hold twice on the same spot | Double click: every unit of that kind on the screen |
 | Rest one finger, tap or hold with another | Shift-click: queue orders, add units to the selection |
+| Rest one finger, swipe another | A Shift box: adds what it holds to the selection |
+| Rest one finger, tap two more together | Warcraft III: Tab, the selection's next kind of unit (whose spells the panel shows) |
 | Two-finger tap | The game's own menu (F10: save, load, options, quit), in all three games |
 | Pinch | Zoom (the mouse wheel), where the game has it |
 | Three-finger tap | The phone's keyboard, for chat and cheat codes (sent with Enter) |
 | Four-finger tap | The app's menu: keyboard, CD keys, leave the game |
 | Back | Escape: cancel what's being aimed, close a window |
+| Volume up | Warcraft III: Tab |
+| Volume down | Warcraft III: the next idle worker (F8); held, every unit's health bar (Alt) until you let go |
 
-There's no selection box and no control groups (your choice). A mouse or keyboard connected to the
-phone works as on a PC.
+**Orders that wait for a target** (Warcraft III): after you tap a spell, Attack, Patrol or a building
+to place, the game shows only Cancel on its command card. The app reads the card off the screen
+before and after the tap; while only Cancel is there, a tap on the battlefield is the left click that
+gives the order (no hold needed), and a hold-and-drag moves the aim, with the magnifier, before the
+click on lift. The card's place is the game's 4:3 layout, approximate; if it's misread, a hold still
+gives the left click as before.
+
+**Settings** (Graphics): how long a hold takes (0.25 to 0.5 s), how far a swipe goes before the map
+pans, vibrations, touch markers, the magnifier. How fast the map pans is Warcraft III's own setting:
+Options, Gameplay, keyboard scroll speed.
+
+There are no control groups (your choice). The pointer never rests on the screen's very edge, so the
+map doesn't scroll by itself after a tap there. A mouse or keyboard connected to the phone works as on a PC.
 
 ## The menus
 
@@ -108,8 +126,8 @@ phone works as on a PC.
   started with, **Private** (on: Blizzard's servers are out of reach for every game), and deleting
   the game's files.
 - **Graphics**: the games' resolution (the screen's own pixels, 1080 or 720 lines), how
-  Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong) and
-  the hold's vibration.
+  Warcraft III draws (Direct3D, or OpenGL with `-opengl` if the picture is wrong), and the
+  controls' settings: vibration, touch markers, the magnifier, the hold's time, the swipe's start.
 - **In the game** (four fingers): back to the game, keyboard, chat or cheat code, the CD keys
   (pasted in Game files or in a key file that came with the game), leave the game. Save in the game first (two-finger tap, the game's menu):
   leaving ends it where it is.

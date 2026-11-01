@@ -34,7 +34,7 @@ class StratagusGestureView(
     private val title: Title,
     private val onLeave: () -> Unit,
 ) : View(activity), GestureOutput {
-    private val gestures = RtsGestures(this, resources.displayMetrics.density)
+    private val gestures = GameSettings.gestures(activity, this)
     private val vibrate = GameSettings.vibration(activity)
     private val hold = Runnable { gestures.onHold(SystemClock.uptimeMillis()) }
     private var x = 0f
@@ -50,7 +50,7 @@ class StratagusGestureView(
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 removeCallbacks(hold)
                 gestures.down(id, event.getX(index), event.getY(index), now)
-                postDelayed(hold, RtsGestures.HOLD_MS)
+                postDelayed(hold, gestures.holdMs)
             }
             MotionEvent.ACTION_MOVE -> gestures.move(
                 List(event.pointerCount) { i -> RtsGestures.Touch(event.getPointerId(i), event.getX(i), event.getY(i)) }
@@ -72,7 +72,22 @@ class StratagusGestureView(
     override fun pointerTo(x: Float, y: Float) {
         this.x = x
         this.y = y
-        SdlBridge.mouse(0, SdlBridge.ACTION_HOVER_MOVE, x, y)
+        val held = pressed
+        if (held != null) SdlBridge.mouse(held.bit, SdlBridge.ACTION_MOVE, x, y)
+        else SdlBridge.mouse(0, SdlBridge.ACTION_HOVER_MOVE, x, y)
+    }
+
+    /** The button held for a selection box (the engine draws it as on a PC). */
+    private var pressed: Button? = null
+
+    override fun press(button: Button) {
+        pressed = button
+        SdlBridge.mouse(button.bit, SdlBridge.ACTION_DOWN, x, y)
+    }
+
+    override fun release(button: Button) {
+        pressed = null
+        SdlBridge.mouse(0, SdlBridge.ACTION_UP, x, y)
     }
 
     override fun click(button: Button) {

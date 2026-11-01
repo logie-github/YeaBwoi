@@ -1,0 +1,27 @@
+From 6ea3b69c8513454f5a8acc2a03a99082059b83c3 Mon Sep 17 00:00:00 2001
+From: Warcraft <warcrafts@users.noreply.github.com>
+Date: Sun, 1 Nov 2026 14:13:25 +0000
+Subject: [PATCH] The volume buttons as the game's keys
+
+With the app's gestures, the phone's volume buttons go to its GestureView first: up is Tab, down
+F8 or, held, Alt. Other keys go on as before.
+---
+ app/src/main/java/com/winlator/XServerDisplayActivity.java | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/app/src/main/java/com/winlator/XServerDisplayActivity.java b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+index d0e5ed8..fe46d52 100644
+--- a/app/src/main/java/com/winlator/XServerDisplayActivity.java
++++ b/app/src/main/java/com/winlator/XServerDisplayActivity.java
+@@ -790,6 +790,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
+ 
+     @Override
+     public boolean dispatchKeyEvent(KeyEvent event) {
++        // Warcraft app: the volume buttons are the game's Tab, F8 and Alt.
++        if (gestureView != null && gestureView.onVolumeKey(event)) return true;
+         return (!inputControlsView.onKeyEvent(event) && !winHandler.onKeyEvent(event) && xServer.keyboard.onKeyEvent(event)) ||
+                (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
+     }
+-- 
+2.43.0
+
