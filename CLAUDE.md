@@ -65,6 +65,18 @@ self-updating from this repository's GitHub releases.
   `--init-script scripts/maven-mirror.init.gradle` (Maven Central rate-limits these machines).
 - Never commit build outputs (`build/`, `.cxx/`, `<app>/android/core/`) or any game files.
 - Tell the user what was tested and what wasn't (nothing here runs on a real phone).
+- **Merge your own work without asking** (the user: "I always want all changes to do this without me
+  having to okay the merge as long as it doesn't overwrite other sessions"). Many sessions work at once,
+  each on its own branch. When a change is done and pushed, open a pull request to the default branch
+  and merge it yourself, as long as it overwrites nothing of other sessions':
+  1. Fetch the default branch and merge it into your branch (never rebase or force-push over others' work).
+  2. Look at what the default branch changed since your branch left it, and at the files you both
+     changed. Where a conflict or a shared file is plainly two separate additions, keep both. Where
+     it isn't (the same lines changed differently, or one change undoes the other's), stop and ask the user.
+  3. Check the pull request's diff against the default branch is your change alone (nothing of
+     others' reverted or missing), build and run the app's tests again, and push.
+  4. Fetch the default branch once more just before merging; if it moved, go back to 1. Then merge
+     (a merge commit, not a squash or rebase), and confirm the default branch's CI run and release.
 
 ## OctoWoW (was Turtle WoW)
 
