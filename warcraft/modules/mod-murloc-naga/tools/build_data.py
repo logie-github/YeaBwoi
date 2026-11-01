@@ -76,6 +76,9 @@ ID_SECTIONS_END = 869999
 ID_OUTFIT, ID_HAIRGEO, ID_NAMEGEN = 9300, 9300, 93000
 ID_DISPLAY = {MURLOC: (33101, 33102)}           # the naga wear the game's own (17402, 17403)
 ID_MODEL = {MURLOC: (3701, 3702)}
+PLAYER_MODEL = 0x4                               # CreatureModelData: a player's model (drawn as a character)
+LOOT_COMMENT = "mod-murloc-naga: camp"                  # creature_loot_template rows of the naga's camp
+ID_TRIBE_MODEL, ID_TRIBE_DISPLAY = 3703, 33103   # the tribe's people's murloc, a look a skin (33103-33115)
 ID_SEQUENCE = {MURLOC: 9021, NAGA: 9022}
 ID_CAMERA = {MURLOC: 9021, NAGA: 9022}
 ID_NARRATION = {MURLOC: 975001, NAGA: 975002}
@@ -90,7 +93,11 @@ VOICED = {"elder": (MURLOC_HELLO, MURLOC_CHEER), "chief": ((416, 417, 414), MURL
           "snatcher": ((1109, 415), MURLOC_CHEER), "oracle": ((415, 414), MURLOC_CHEER), "fishmonger": (MURLOC_HELLO, ()),
           "sloshy": ((8475,), (8475,)), "szaria": ((4024,), ()), "vyssa": ((4024,), ()), "ssaveth": ((3437,), ())}
 SPELLS = {"phase_murloc": 98880, "phase_naga": 98881, "amphibious": 98882, "mrrgglll": 98883, "slippery": 98884,
-          "serpent": 98885, "tail_sweep": 98886, "scales": 98887}
+          "serpent": 98885, "tail_sweep": 98886, "scales": 98887, "low_profile": 98888, "phase_murloc_alone": 98889}
+# Where a murloc keeps a low profile (Low Profile: creatures notice it at a few yards, their minimum):
+# every town and city (AreaTable's town flag), and the outposts its story goes into.
+TOWN_FLAG = 0x200
+LOW_PROFILE_OUTPOSTS = [2897]                   # Zoram'gar Outpost
 
 # The naga's new skin colours, after the game's five: (name, the colour they're made from, its hue (0 to 1
 # around the colour wheel, -1 to keep each colour's own), saturation x, lightness x), as the game's
@@ -112,6 +119,10 @@ NAMES = {
                 "Vysseth", "Zsara", "Ilthana", "Sseraphe", "Nalyss", "Kezra", "Isshara", "Velsza", "Hisseth", "Mazira"],
 }
 STATS_FROM = KIN
+# The towns' factions a murloc starts Hostile with (at war: their guards attack, and can be attacked),
+# set by the module (src/MurlocNaga.cpp) as one is made: the Alliance's and the Horde's, and the
+# goblins' (the Steamwheedle Cartel's). Standing above Hostile ends the war (the core's own rule).
+MURLOC_HOSTILE_FACTIONS = [469, 72, 47, 69, 54, 930, 67, 76, 81, 68, 530, 911, 169, 21, 369, 470, 577]
 
 
 class Dbc:
@@ -359,12 +370,20 @@ def main():
     mt = "iisifiiffffiiifff" + "ffffff" + "fffff"
     murloc_model = next(r for r in model_data.rows if model_data.s(r[2]).lower() == "creature\\murloc\\murloc.mdx")
     naga_display = display_rows[race_rows[13][4]]
-    naga_model = model_rows[naga_display[1]]
+    # The game draws a player as a character (the composed skin, the face, the chosen hair and features'
+    # geosets) only on a model flagged a player's (CreatureModelData's 0x4, "is player model"). Without it
+    # a player is drawn as a creature is: every geoset at once, the character's textures white. The
+    # murlocs' models take a playable race's flags (the human's, 0x804); the game's naga male hasn't the
+    # flag (its female has), so the naga's two models get it.
+    player_flags = model_rows[display_rows[race_rows[1][4]][1]][1]
+    assert player_flags & PLAYER_MODEL, hex(player_flags)
+    for display in (race_rows[13][4], race_rows[13][5]):
+        client.orfield("CreatureModelData", display_rows[display][1], 1, PLAYER_MODEL)
     model_sql, display_sql = [], []
     for sex in (0, 1):
         m = values_of(model_data, murloc_model, mt)
         m[0] = ID_MODEL[MURLOC][sex]
-        m[1] = naga_model[1]                          # a character model's flags
+        m[1] = player_flags
         m[2] = "Character\\Murloc\\%s\\Murloc%s.mdx" % (("Male", "Female")[sex], ("Male", "Female")[sex])
         client.put("CreatureModelData", mt, m)
         model_sql.append(m)
@@ -373,13 +392,31 @@ def main():
         d[12] = 0
         client.put("CreatureDisplayInfo", dt, d)
         display_sql.append(d)
-    sql.comment("The murlocs' models (CreatureModelData) and looks (CreatureDisplayInfo); the naga wear the game's own.")
+    # The tribe's people (tools/murloc/): murloc2 as a creature's model, with the costume's emotes
+    # (tools/murloc_model.py), a look for each of its skins.
+    m = values_of(model_data, murloc_model, mt)
+    m[0], m[2] = ID_TRIBE_MODEL, "Creature\\MurlocTribe\\MurlocTribe.mdx"
+    client.put("CreatureModelData", mt, m)
+    model_sql.append(m)
+    murloc_look = display_rows[next(r[0] for r in displays.rows if r[1] == murloc_model[0])]
+    for n in range(len(ML.SKINS)):
+        d = values_of(displays, murloc_look, dt)
+        d[0], d[1], d[2], d[3], d[4] = ID_TRIBE_DISPLAY + n, ID_TRIBE_MODEL, d[2], 0, 1.0
+        d[6], d[7], d[8], d[9] = f"MurlocTribeSkin{n:02d}", "", "", ""     # (the murloc's sounds, kept)
+        client.put("CreatureDisplayInfo", dt, d)
+        display_sql.append(d)
+    sql.comment("The murlocs' models (CreatureModelData) and looks (CreatureDisplayInfo): the race's, and its tribe's people's\n"
+                "(murloc2 in each of its skins, with emotes); the naga wear the game's own.")
     sql.raw("REPLACE INTO `creaturemodeldata_dbc` (`ID`, `Flags`, `ModelName`, `SizeClass`, `ModelScale`, `BloodID`, `FootprintTextureID`, "
             "`FootprintTextureLength`, `FootprintTextureWidth`, `FootprintParticleScale`, `FoleyMaterialID`, `FootstepShakeSize`, "
             "`DeathThudShakeSize`, `SoundID`, `CollisionWidth`, `CollisionHeight`, `MountHeight`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, "
             "`GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `WorldEffectScale`, `AttachedEffectScale`, `MissileCollisionRadius`, "
             "`MissileCollisionPush`, `MissileCollisionRaise`) VALUES\n"
             + ",\n".join("(" + ", ".join(sql_value(v, t) for v, t in zip(r, mt)) + ")" for r in model_sql) + ";")
+    sql.raw(f"REPLACE INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) "
+            f"SELECT n.`id`, i.`BoundingRadius`, i.`CombatReach`, 2, 0 FROM `creature_model_info` i JOIN (SELECT "
+            + " UNION SELECT ".join(str(ID_TRIBE_DISPLAY + n) + (" AS `id`" if n == 0 else "") for n in range(len(ML.SKINS)))
+            + ") n WHERE i.`DisplayID` = 478;")                       # (a murloc of the game's: its size)
     sql.raw("REPLACE INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, "
             "`CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, "
             "`BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES\n"
@@ -546,12 +583,13 @@ def main():
             racial_lines.add(r[0])
         if r[1] == 10:
             languages[r[0]] = lines.s(r[3])
-    COMMON, ORCISH = 98, 109
+    COMMON, ORCISH, TITAN = 98, 109, 140
 
     def side_bits(mask, line):
         add = 0
         if line in languages:
-            if line == COMMON and mask & ALLIANCE_MASK:
+            # (the murlocs speak Nerglish alone: the game's Titan, renamed, which no player race speaks)
+            if line == TITAN:
                 add |= BIT[MURLOC]
             if line == ORCISH and mask & HORDE_MASK:
                 add |= BIT[NAGA]
@@ -604,6 +642,8 @@ def main():
             for race in RACE_IDS:
                 if race == NAGA and r[0] in C.NAGA_NEUTRAL_FACTIONS:
                     continue
+                if race == MURLOC and r[0] in MURLOC_HOSTILE_FACTIONS:
+                    continue
                 if mask & (1 << (KIN[race] - 1)):
                     v[2 + slot] |= BIT[race]
         if r[0] in C.NAGA_NEUTRAL_FACTIONS:
@@ -624,6 +664,10 @@ def main():
         sql.raw(f"INSERT INTO `faction_dbc` ({cols}) VALUES\n{body}\nON DUPLICATE KEY UPDATE {update};")
     sql.raw(f"UPDATE `faction_dbc` SET `ReputationBase_4` = 0, `ReputationFlags_4` = 1 WHERE `ID` IN "
             f"({', '.join(str(f) for f in C.NAGA_NEUTRAL_FACTIONS)});")
+    sql.comment("The murlocs are no kin of the towns' (their standing with them: Hostile, set by the module as one is made;\n"
+                "earlier releases put them in the night elves' slots).")
+    sql.raw("UPDATE `faction_dbc` SET " + ", ".join(f"`ReputationRaceMask_{n}` = `ReputationRaceMask_{n}` & ~{BIT[MURLOC]}" for n in range(1, 5))
+            + f" WHERE `ID` IN ({', '.join(str(f) for f in MURLOC_HOSTILE_FACTIONS)});")
 
     # The racials and the phases ---------------------------------------------------------------------
     spells = D("Spell")
@@ -645,6 +689,9 @@ def main():
             v[SC[k]] = value
         client.put("Spell", spt, v)
         return v
+
+    # The murlocs' questline (tools/murloc/): compiled here, its phases' spells made below with the rest.
+    story = murloc_story(D, W)
 
     PASSIVE, HIDDEN = 0x40, 0x80
     no_cost = dict(Reagent_1=0, ReagentCount_1=0, ManaCost=0, ManaCostPct=0, SpellClassSet=0, SpellClassMask_1=0,
@@ -670,6 +717,10 @@ def main():
               "Your wet scales make you harder to hit, increasing your chance to dodge by 1%.", "",
               Effect_1=6, EffectAura_1=49, EffectBasePoints_1=0, EffectDieSides_1=1, Effect_2=0, EffectAura_2=0,
               Effect_3=0, EffectAura_3=0, **no_cost),
+        # The murlocs' in towns: noticed at a few yards (detected range -40: the game's minimum, 5 yards).
+        spell(20550, SPELLS["low_profile"], "Low Profile", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
+              Effect_1=6, EffectAura_1=152, EffectBasePoints_1=-41, EffectDieSides_1=1, ImplicitTargetA_1=1,
+              Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost),
         # The naga's.
         spell(20550, SPELLS["serpent"], "Serpent's Grace", "Racial Passive",
               "You breathe water as easily as air, and swim 50% faster.", "",
@@ -684,7 +735,35 @@ def main():
               Effect_1=6, EffectAura_1=142, EffectBasePoints_1=4, EffectDieSides_1=1, EffectMiscValue_1=1,
               Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost),
     ]
-    sql.comment("Their racials, and their phases (seen in Darkshore and Ashenvale: spell_area).")
+    if story:
+        for sid, bit in story.phase_spells:
+            spell_rows.append(spell(20550, sid, "Murloc Tidings", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
+                                    Effect_1=6, EffectAura_1=261, EffectMiscValue_1=bit, EffectBasePoints_1=0, EffectDieSides_1=1,
+                                    Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+        # The story's chapters that show the murlocs' phase alone (no world: the pens): its own phase, no other.
+        spell_rows.append(spell(20550, SPELLS["phase_murloc_alone"], "Murloc Kinship", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
+                                Effect_1=6, EffectAura_1=261, EffectMiscValue_1=C.PHASE[MURLOC], EffectBasePoints_1=0, EffectDieSides_1=1,
+                                Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+        # The story's auras (tools/murloc/: AURAS): a mark on the bar, a disguise, a slow, a stun...
+        durations = [r for r in D("SpellDuration").rows if r[2] == 0 and r[1] == r[3] and 0 < r[1] < 4294967295]
+
+        def duration(seconds):
+            if not seconds:
+                return 21                                       # (until taken off)
+            return min(durations, key=lambda r: (abs(r[1] - seconds * 1000), r[0]))[0]
+        for a in story.spells:
+            icon = by_id[a["icon"]][SC["SpellIconID"]] if a["icon"] in by_id else by_id[20550][SC["SpellIconID"]]
+            spell_rows.append(spell(20550, a["id"], a["name"], "", a["text"], a["text"], Attributes=0, AttributesEx=0,
+                                    AttributesEx3=0x100000 if a["kind"] == "mark" else 0,      # (a mark: kept through death)
+                                    Effect_1=6, EffectAura_1=a["aura"], EffectMiscValue_1=a["misc"],
+                                    EffectBasePoints_1=a["amount"] - 1 if a["amount"] else 0, EffectDieSides_1=1, ImplicitTargetA_1=1,
+                                    ImplicitTargetB_1=0, DurationIndex=duration(a["seconds"]), RangeIndex=1, SpellIconID=icon,
+                                    SpellVisualID_1=a["visual"], Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+    # (the language spell's name: Nerglish, as its skill)
+    titan = values_of(spells, by_id[816], spt)
+    titan[SC["Name_Lang_enUS"]] = "Language Nerglish"
+    client.put("Spell", spt, titan)
+    sql.comment("Their racials, their phases (seen in Darkshore and Ashenvale: spell_area) and the murlocs' story's.")
     sql.replace_dbc("spell_dbc", spt, spell_rows)
 
     # The intros -------------------------------------------------------------------------------------
@@ -693,7 +772,7 @@ def main():
     snd_rows = {r[0]: r for r in sounds.rows}
     cams_dbc = D("CinematicCamera")
     narration_rows, cam_sql, seq_sql = [], [], []
-    flights = intro_flights()
+    flights = intro_flights(story)
     for race in RACE_IDS:
         sound = values_of(sounds, snd_rows[3840], snt)      # HumanFlyByNarration
         sound[0], sound[2] = ID_NARRATION[race], f"{NAME[race]}FlyByNarration"
@@ -729,13 +808,16 @@ def main():
     sql.comment("Where they start: on their islands in Darkshore, every class.")
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
     szaria = ground(next(p for p in C.NAGA_PEOPLE if p[0] == "szaria")[4])
-    start = {MURLOC: (elder[0] + 4.0, elder[1], 4.71), NAGA: (szaria[0] - 5.0, szaria[1], 0.0)}
+    start = {MURLOC: (C.MAP, C.DARKSHORE, elder[0] + 4.0, elder[1], None, 4.71), NAGA: (C.MAP, C.DARKSHORE, szaria[0] - 5.0, szaria[1], None, 0.0)}
+    if story and story.tables.get("_start"):              # (the murlocs' story's first chapter's)
+        s_ = story.tables["_start"]
+        start[MURLOC] = (s_["map"], s_["zone"], s_["x"], s_["y"], s_["z"], s_["o"])
     out = []
     for race in RACE_IDS:
-        x, y, o = start[race]
-        z = terrain.height(x, y) + 0.5
+        m, zone, x, y, z, o = start[race]
+        z = terrain.height(x, y, m) + 0.5 if z is None else z
         for cls in CLASSES_OF[race]:
-            out.append(f"({race}, {cls}, {C.MAP}, {C.DARKSHORE}, {x:.2f}, {y:.2f}, {z:.2f}, {o})")
+            out.append(f"({race}, {cls}, {m}, {zone}, {x:.2f}, {y:.2f}, {z:.2f}, {o})")
     sql.raw(f"DELETE FROM `playercreateinfo` WHERE `race` IN ({MURLOC}, {NAGA});")
     sql.raw("INSERT INTO `playercreateinfo` (`race`, `class`, `map`, `zone`, `position_x`, `position_y`, `position_z`, `orientation`) VALUES\n"
             + ",\n".join(out) + ";")
@@ -767,6 +849,7 @@ def main():
         if add:
             sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` | {add} WHERE (`raceMask` & 2047) = {mask & 2047} "
                     f"AND `classMask` = {r['classMask']} AND `skill` = {skill};")
+    nerglish_language(client, sql, D, COMMON, TITAN)
 
     sql.comment("Their racials, learned at creation.")
     sql.raw(f"DELETE FROM `playercreateinfo_spell_custom` WHERE `Spell` BETWEEN {min(SPELLS.values())} AND {max(SPELLS.values())};")
@@ -776,11 +859,21 @@ def main():
               (BIT[NAGA], SPELLS["scales"], "Naga - Scales of the Deep")]
     sql.raw("INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES\n"
             + ",\n".join(f"({m}, 0, {s}, {q(n)})" for m, s, n in custom) + ";")
-    sql.raw(f"DELETE FROM `spell_area` WHERE `spell` IN ({SPELLS['phase_murloc']}, {SPELLS['phase_naga']});")
+    sql.raw(f"DELETE FROM `spell_area` WHERE `spell` IN ({SPELLS['phase_murloc']}, {SPELLS['phase_naga']}, {SPELLS['phase_murloc_alone']});")
+    # (a zone of the murlocs' story that shows their phase alone until a quest's done: the world's and theirs after)
+    alone = {zone: quest for zones, quest in (story.tables.get("_alone", []) if story else []) for zone in zones}
+    phase_rows = [f"({SPELLS['phase_' + k]}, {area}, {alone.get(area, 0) if race == MURLOC else 0}, 0, 0, {BIT[race]}, 2, 1, 64, 11)"
+                  for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)]
+    # (the end quest's status: the spell is given while it's one of these: not yet rewarded)
+    phase_rows += [f"({SPELLS['phase_murloc_alone']}, {area}, 0, {quest}, 0, {BIT[MURLOC]}, 2, 1, 64, 63)" for area, quest in sorted(alone.items())]
+    sql.raw("INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, "
+            "`quest_start_status`, `quest_end_status`) VALUES\n" + ",\n".join(phase_rows) + ";")
+    towns = sorted({r[0] for r in D("AreaTable").rows if r[4] & TOWN_FLAG} | set(LOW_PROFILE_OUTPOSTS))
+    sql.comment(f"A murloc keeps a low profile in the {len(towns)} towns and cities (Low Profile): their guards notice it at a few yards.")
+    sql.raw(f"DELETE FROM `spell_area` WHERE `spell` = {SPELLS['low_profile']};")
     sql.raw("INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, "
             "`quest_start_status`, `quest_end_status`) VALUES\n"
-            + ",\n".join(f"({SPELLS['phase_' + k]}, {area}, 0, 0, 0, {BIT[race]}, 2, 1, 64, 11)"
-                         for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)) + ";")
+            + ",\n".join(f"({SPELLS['low_profile']}, {area}, 0, 0, 0, {BIT[MURLOC]}, 2, 1, 64, 11)" for area in towns) + ";")
 
     sql.comment("Their stats: their kin's.")
     stats = {int(r["Race"]): r for r in W("player_race_stats")}
@@ -809,20 +902,111 @@ def main():
     # Write ------------------------------------------------------------------------------------------
     with open(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "murloc_naga_world.sql"), "w", newline="\n") as f:
         f.write("\n".join(sql.parts) + "\n")
+    story_sql = os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "murloc_story.sql")
+    if story:
+        for row in story.client.get("Item", []):
+            client.put("Item", "iiiiiiii", row)
+        gdt = "isiiiiiiiiiiffffffi"
+        for row in story.client.get("GameObjectDisplayInfo", []):
+            client.put("GameObjectDisplayInfo", gdt, row)
+        displays = story.client.get("GameObjectDisplayInfo", [])
+        extra = ""
+        if displays:
+            extra = ("INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, "
+                     "`Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, "
+                     "`GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES\n"
+                     + ",\n".join(f"({r[0]}, {q(r[1])}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0)" for r in displays) + ";")
+        import compile as story_compile
+        head = (f"DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN {story_compile.K.GO_DISPLAY_BASE} AND "
+                f"{story_compile.K.GO_DISPLAY_END};\n")
+        with open(story_sql, "w", newline="\n") as f:
+            f.write(story_compile.sql(story.tables, head + extra))
+        # (the server test's steps for a murloc, written with the story's names: their ids)
+        template = os.path.join(HERE, "murloc", "test.steps")
+        if os.path.exists(template):
+            with open(os.path.join(MODULE, "..", "..", "server", "murloc_naga_murloc.steps"), "w", newline="\n") as f:
+                f.write(story.resolve(open(template).read()))
+    elif os.path.exists(story_sql):
+        os.remove(story_sql)
     client.write(os.path.join(MODULE, "data", "client", "dbc"))
-    print(f"{len(new_sections)} looks, {len(client.files)} tables, {len(spell_rows)} spells")
+    print(f"{len(new_sections)} looks, {len(client.files)} tables, {len(spell_rows)} spells"
+          + (f", the murlocs' story: {len(story.tables.get('quest_template', []))} quests" if story else ""))
+
+
+def nerglish_language(client, sql, D, common, titan):
+    """The murlocs' own language: the game's Titan (no player race speaks it), named Nerglish, its
+    words murloc words (Blizzard's translator's, from Titan's own), the murlocs' alone; and no Common
+    (earlier releases gave them Common: the Alliance's words, which a murloc doesn't know)."""
+    sql.comment("Their language: Nerglish (the game's Titan, renamed in the patch), not Common.")
+    sql.raw(f"UPDATE `playercreateinfo_skills` SET `raceMask` = `raceMask` & ~{BIT[MURLOC]} WHERE `skill` = {common};")
+    sql.raw(f"REPLACE INTO `playercreateinfo_skills` (`raceMask`, `classMask`, `skill`, `rank`, `comment`) VALUES "
+            f"({BIT[MURLOC]}, 0, {titan}, 0, 'Murloc - Language: Nerglish');")
+    import nerglish
+    langs = D("Languages")
+    row = next(r for r in langs.rows if r[0] == C.NERGLISH_LANGUAGE)
+    client.put("Languages", "i" + "s" * 16 + "i", [row[0], "Nerglish"] + [""] * 15 + [row[17]])
+    words = D("LanguageWords")
+    for r in words.rows:
+        if r[1] == C.NERGLISH_LANGUAGE:
+            client.put("LanguageWords", "iis", [r[0], r[1], nerglish.word(words.s(r[2])).lower()])
+    lines = D("SkillLine")
+    row = next(r for r in lines.rows if r[0] == titan)
+    types = "iii" + "s" * 16 + "i" + "s" * 16 + "i" + "i" + "s" * 16 + "i" + "i"
+    v = values_of(lines, row, types)
+    v[3], v[20] = "Language: Nerglish", "The murlocs' tongue."
+    client.put("SkillLine", types, v)
+
+
+def murloc_story(D, W):
+    """The murlocs' questline (tools/murloc/ch*.py) compiled (tools/murloc/compile.py), or None while it
+    has no chapters."""
+    sys.path.insert(0, os.path.join(HERE, "murloc"))
+    import compile as story_compile
+    chapters = story_compile.load(upto=C.MURLOC_CHAPTERS)
+    if not chapters:
+        return None
+    cache = {}
+
+    def world(name):
+        if name not in cache:
+            cache[name] = W(name)
+        return cache[name]
+    story = story_compile.Story(chapters, world, D, lambda m, x, y: terrain.height(x, y, m),
+                                race_phase_spell=SPELLS["phase_murloc"], area=lambda m, x, y: terrain.area(x, y, m))
+    story.tables, story.client = story.build()
+    return story
 
 
 # The intros ---------------------------------------------------------------------------------------
 
-def intro_flights():
+def intro_flights(story=None):
     """Each race's flight: (origin, [(ms, place, height, target)]): the murlocs' from the open sea
-    over the village to the elder (about 42 s); the naga's (about 61 s, Lady Vashj's words) from the
-    dark water north of Auberdine, along the coast, over the Stormscale's island, and up to the
-    renegades' camp on its hill."""
+    over the pens (their story's start: the old village's elder before it) to where they stand (about
+    42 s); the naga's (about 61 s, Lady Vashj's words) from the dark water north of Auberdine, along
+    the coast, over the Stormscale's island, and up to the renegades' camp on its hill."""
     vx, vy = C.VILLAGE
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
-    murloc = [
+    pens = story and story.tables.get("_start") and story.tables["_start"]["map"] == C.MAP
+    if pens:
+        s_ = story.tables["_start"]
+        vx, vy = s_["x"], s_["y"]
+        elder = (s_["x"], s_["y"], s_["z"])
+        # the pens: in from the sea to the west, high over the stockade, round it, down into the line of slaves
+        murloc = [
+            (0, (vx - 30, vy + 260), 34.0, (vx, vy)),
+            (6000, (vx - 10, vy + 160), 24.0, (vx, vy)),
+            (12000, (vx + 5, vy + 70), 16.0, (vx, vy)),
+            (17000, (vx + 40, vy + 35), 16.0, (vx - 5, vy + 10)),
+            (22000, (vx + 55, vy - 10), 18.0, (vx, vy + 5)),
+            (27000, (vx + 30, vy - 50), 30.0, (vx - 5, vy + 10)),
+            (31000, (vx - 25, vy - 45), 30.0, (vx, vy + 10)),
+            (35000, (vx - 50, vy), 14.0, (vx, vy + 5)),
+            (39000, (elder[0] - 12, elder[1] + 6), 5.0, (elder[0], elder[1], elder[2] + 1.0)),
+            (42000, (elder[0] - 7, elder[1] + 3), 3.5, (elder[0], elder[1], elder[2] + 1.0)),
+        ]
+    else:
+        murloc = None
+    murloc = murloc or [
         (0, (vx - 30, vy + 260), 32.0, (vx, vy)),
         (6000, (vx - 10, vy + 160), 20.0, (vx, vy)),
         (12000, (vx + 5, vy + 70), 8.0, (vx, vy)),
@@ -860,14 +1044,17 @@ NARRATION = {
     "Naga": [(500, VASHJ + "Intro01.wav"), (20500, VASHJ + "Phase01.wav"), (30000, VASHJ + "Aggro04.wav"),
              (33500, VASHJ + "Phase02.wav"), (38500, VASHJ + "BowShot02.wav"), (42500, VASHJ + "Aggro02.wav"),
              (47500, VASHJ + "Death01.wav"), (55500, VASHJ + "Slay03.wav")],
-    # The murlocs' own voices: a village waking, a fry's dance, a warning, a war-gurgle, a cheer.
-    "Murloc": [(800, "Sound\\Creature\\Murloc\\mMurlocFidget2a.wav"), (4000, "Sound\\Creature\\Murloc\\mMurlocFidget2b.wav"),
-               (7500, "Sound\\Creature\\Murloc\\mMurlocFidget3a.wav"), (11000, "Sound\\Creature\\BabyMurloc\\BabyMurlocA.wav"),
-               (13000, "Sound\\Creature\\BabyMurloc\\BabyMurlocDance.wav"), (19500, "Sound\\Creature\\Murloc\\mMurlocPreAggroA.wav"),
-               (22500, "Sound\\Creature\\Murloc\\mMurlocAggroA.wav"), (25000, "Sound\\Creature\\Murloc\\mMurlocAttackB.wav"),
-               (27500, "Sound\\Creature\\Murloc\\mMurlocAggroOld.wav"), (31000, "Sound\\Creature\\BabyMurloc\\BabyMurlocB.wav"),
-               (33500, "Sound\\Creature\\Murloc\\mMurlocFidget2a.wav"), (36500, "Sound\\Creature\\Murloc\\mMurlocAggroC.wav"),
-               (39000, "Sound\\Creature\\BabyMurloc\\BabyMurlocC.wav")],
+    # The pens at the Zoram Strand (the murlocs' story's start): the sea, chains, the count gong, a whip and
+    # a slave's yelp, a fry, the sea witch's hiss, the gong again; and at the very end, far off, one murloc's
+    # war-gurgle (the cry the naga lash singers for).
+    "Murloc": [(300, "Sound\\Ambience\\Water\\OceanA.wav"), (3500, "Sound\\Item\\FoleySounds\\ChainFoley01.wav"),
+               (7000, "Sound\\Doodad\\G_GongTroll01.wav"), (11000, "Sound\\Item\\Weapons\\Whip\\BullWhipHit1.wav"),
+               (11600, "Sound\\Creature\\Murloc\\mMurlocWoundA.wav"),
+               (15500, "Sound\\Creature\\BabyMurloc\\BabyMurlocA.wav"), (19000, "Sound\\Item\\FoleySounds\\ChainFoley01.wav"),
+               (22500, "Sound\\Creature\\NagaFemale\\NagaFemalePreAggro.wav"), (26500, "Sound\\Item\\Weapons\\Whip\\BullWhipHit1.wav"),
+               (27200, "Sound\\Creature\\Murloc\\mMurlocWoundB.wav"), (24000, "Sound\\Ambience\\Water\\OceanA.wav"),
+               (31500, "Sound\\Creature\\BabyMurloc\\BabyMurlocC.wav"), (34000, "Sound\\Doodad\\G_GongTroll01.wav"),
+               (38500, "Sound\\Creature\\Murloc\\mMurlocAggroOld.wav")],
 }
 
 
@@ -969,31 +1156,42 @@ def homes(client, sql, W):
         "sloshy": "(Sloshy hiccups.)",
     }
     roles = {"quest": 2, "vendor": 128 | 1, "ambient": 0, "fry": 0}
-    for key, name, sub, look, where, o, role in C.MURLOC_PEOPLE + [C.SLOSHY]:
-        flag = roles[role] | (1 if key in gossip else 0)
-        e = npc(key, name, sub, look, (1, 1) if role == "fry" else (12, 13), 35, flag, unit_class=2 if key in ("elder", "oracle", "cook") else 1,
-                gossip=gossip.get(key), scale=0.5 if role == "fry" else 1.0, ai="SmartAI" if key in VOICED else "")
-        place(e, where, o, MP, wander=4.0 if role in ("ambient", "fry") else 0.0, comment=f"mod-murloc-naga: {name}")
-    vendor += [(npc_ids["fishmonger"], i, item) for i, item in enumerate((787, 4592, 4593, 4594, 159, 1179))]
-    raider = npc("raider", "Stormscale Raider", None, "naga_male", (11, 12), 74, unit_class=1)
-    models.append((raider, 1, C.LOOK["siren"], 1.0, 1))
-    for i, where in enumerate(C.RAIDERS):
-        place(raider, where, (i * 1.3) % 6.28, MP, wander=4.0, comment="mod-murloc-naga: the murlocs' enemies")
-    sssilith = npc("sssilith", "Tidecaller Sssilith", None, "naga_lord", 13, 74, unit_class=2, health=3.0, damage=1.5, loot=True)
-    place(sssilith, C.SSSILITH, 3.0, MP, comment="mod-murloc-naga: the raiders' leader")
-    cr_loot.append((sssilith, item_ids["trident"], 100))
-    for where in C.CRAWLERS:
-        place(C.PYGMY_TIDE_CRAWLER, where, 0.0, MP, wander=5.0, respawn=90, comment="mod-murloc-naga: the village's crawlers")
-    trigger = npc("summit", "Island Summit", None, 11686, 1, 35, ai="SmartAI", flags_extra=128, unit_flags=0x02000000 | 0x200)
-    vx, vy = C.VILLAGE
-    peak = summit((6265, 925), 20)
-    place(trigger, peak, 0.0, MP, comment="mod-murloc-naga: the oracle's vision")
-    for path, name, where, o, scale in C.MURLOC_THINGS:
-        go_place(go_template(name + str(len(gos)), 5, go_display(path), name, scale), ground(where), o, MP, respawn=0,
-                 comment=f"mod-murloc-naga: {name}")
-    altar_path, altar_name, altar_where, altar_o, altar_scale = C.ALTAR
-    altar = go_template("altar", 2, go_display(altar_path), altar_name, altar_scale, [0, 0, 0, 0, 0, 0])
-    go_place(altar, ground(altar_where), altar_o, MP, respawn=0, comment="mod-murloc-naga: the Murloc Altar")
+    # The retired village (MURLOC_VILLAGE False) is still made, then its rows are taken out: its ids
+    # stay taken, so the naga's people and things after it keep the ids they've always had.
+    village_lists = (creatures, models, spawns, menus, vendor, gos, go_spawns, go_loot, cr_loot)
+    village_at = [len(lst) for lst in village_lists]
+
+    def retire_village():
+        if not C.MURLOC_VILLAGE:
+            for lst, n in zip(village_lists, village_at):
+                del lst[n:]
+    if True:
+        for key, name, sub, look, where, o, role in C.MURLOC_PEOPLE + [C.SLOSHY]:
+            flag = roles[role] | (1 if key in gossip else 0)
+            e = npc(key, name, sub, look, (1, 1) if role == "fry" else (12, 13), 35, flag, unit_class=2 if key in ("elder", "oracle", "cook") else 1,
+                    gossip=gossip.get(key), scale=0.5 if role == "fry" else 1.0, ai="SmartAI" if key in VOICED else "")
+            place(e, where, o, MP, wander=4.0 if role in ("ambient", "fry") else 0.0, comment=f"mod-murloc-naga: {name}")
+        vendor += [(npc_ids["fishmonger"], i, item) for i, item in enumerate((787, 4592, 4593, 4594, 159, 1179))]
+        raider = npc("raider", "Stormscale Raider", None, "naga_male", (11, 12), 74, unit_class=1)
+        models.append((raider, 1, C.LOOK["siren"], 1.0, 1))
+        for i, where in enumerate(C.RAIDERS):
+            place(raider, where, (i * 1.3) % 6.28, MP, wander=4.0, comment="mod-murloc-naga: the murlocs' enemies")
+        sssilith = npc("sssilith", "Tidecaller Sssilith", None, "naga_lord", 13, 74, unit_class=2, health=3.0, damage=1.5, loot=True)
+        place(sssilith, C.SSSILITH, 3.0, MP, comment="mod-murloc-naga: the raiders' leader")
+        cr_loot.append((sssilith, item_ids["trident"], 100))
+        for where in C.CRAWLERS:
+            place(C.PYGMY_TIDE_CRAWLER, where, 0.0, MP, wander=5.0, respawn=90, comment="mod-murloc-naga: the village's crawlers")
+        trigger = npc("summit", "Island Summit", None, 11686, 1, 35, ai="SmartAI", flags_extra=128, unit_flags=0x02000000 | 0x200)
+        vx, vy = C.VILLAGE
+        peak = summit((6265, 925), 20)
+        place(trigger, peak, 0.0, MP, comment="mod-murloc-naga: the oracle's vision")
+        for path, name, where, o, scale in C.MURLOC_THINGS:
+            go_place(go_template(name + str(len(gos)), 5, go_display(path), name, scale), ground(where), o, MP, respawn=0,
+                     comment=f"mod-murloc-naga: {name}")
+        altar_path, altar_name, altar_where, altar_o, altar_scale = C.ALTAR
+        altar = go_template("altar", 2, go_display(altar_path), altar_name, altar_scale, [0, 0, 0, 0, 0, 0])
+        go_place(altar, ground(altar_where), altar_o, MP, respawn=0, comment="mod-murloc-naga: the Murloc Altar")
+    retire_village()
 
     def chest(key, name, display, item, quest, places, phase, size=1.0):
         entry = go_template(key, 3, display, name, size, [259, 0, 0, 1, 0, 0, 0, 0, quest])
@@ -1005,17 +1203,20 @@ def homes(client, sql, W):
 
     murloc_quest_id = {qd["n"]: C.QUEST_BASE + qd["n"] for qd in C.MURLOC_QUESTS}
     naga_quest_id = {qd["n"]: C.QUEST_BASE + qd["n"] for qd in C.NAGA_QUESTS}
-    shore = sea_floor_ring(C.VILLAGE, 16, 48, 0.4, 6.0, 12, 0.3)
-    deep = sea_floor_ring(C.VILLAGE, 25, 85, 4.0, 16.0, 18, 1.1)
-    chest("mussels", "Mussel Cluster", 261, item_ids["mussel"], murloc_quest_id[2], shore, MP, 0.6)
-    chest("kelp", "Fresh Kelp", 267, item_ids["kelp"], murloc_quest_id[7], deep[:9], MP)
-    chest("coral", "Glowing Coral", 887, item_ids["coral"], murloc_quest_id[10], deep[9:], MP, 0.5)
-    clam = sea_floor_ring((vx - 10, vy + 30), 70, 130, 12, 30, 1, 2.0)
-    chest("clam", "Giant Clam", 261, item_ids["pearl"], murloc_quest_id[13], clam, MP, 2.0)
-    chest("crates", "Unattended Crate", 2, item_ids["trinket"], murloc_quest_id[3], C.TRINKET_CRATES, MP, 0.8)
-    chest("bread", "Basket of Sweet Rolls", 10, item_ids["roll"], murloc_quest_id[4], C.BREAD_BASKETS, MP, 0.6)
-    chest("lures", "Box of Shiny Lures", 2, item_ids["lures"], murloc_quest_id[12], [C.LURE_BOX], MP, 0.5)
-    # (Darkshore's threshers drop the Thresher Eye already, for those whose quests need it: Buzzbox 411's)
+    village_at = [len(lst) for lst in village_lists]
+    if True:
+        shore = sea_floor_ring(C.VILLAGE, 16, 48, 0.4, 6.0, 12, 0.3)
+        deep = sea_floor_ring(C.VILLAGE, 25, 85, 4.0, 16.0, 18, 1.1)
+        chest("mussels", "Mussel Cluster", 261, item_ids["mussel"], murloc_quest_id[2], shore, MP, 0.6)
+        chest("kelp", "Fresh Kelp", 267, item_ids["kelp"], murloc_quest_id[7], deep[:9], MP)
+        chest("coral", "Glowing Coral", 887, item_ids["coral"], murloc_quest_id[10], deep[9:], MP, 0.5)
+        clam = sea_floor_ring((vx - 10, vy + 30), 70, 130, 12, 30, 1, 2.0)
+        chest("clam", "Giant Clam", 261, item_ids["pearl"], murloc_quest_id[13], clam, MP, 2.0)
+        chest("crates", "Unattended Crate", 2, item_ids["trinket"], murloc_quest_id[3], C.TRINKET_CRATES, MP, 0.8)
+        chest("bread", "Basket of Sweet Rolls", 10, item_ids["roll"], murloc_quest_id[4], C.BREAD_BASKETS, MP, 0.6)
+        chest("lures", "Box of Shiny Lures", 2, item_ids["lures"], murloc_quest_id[12], [C.LURE_BOX], MP, 0.5)
+    retire_village()
+        # (Darkshore's threshers drop the Thresher Eye already, for those whose quests need it: Buzzbox 411's)
 
     # The naga's camp.
     gossip.update({
@@ -1052,7 +1253,7 @@ def homes(client, sql, W):
         kind, k = key.split(":")
         return npc_ids[k] if kind == "npc" else go_ids[k]
 
-    for race, qlist, ids in ((C.MURLOC, C.MURLOC_QUESTS, murloc_quest_id), (C.NAGA, C.NAGA_QUESTS, naga_quest_id)):
+    for race, qlist, ids in ((C.MURLOC, C.MURLOC_QUESTS if C.MURLOC_VILLAGE else [], murloc_quest_id), (C.NAGA, C.NAGA_QUESTS, naga_quest_id)):
         for qd in qlist:
             qid = ids[qd["n"]]
             zone = C.ASHENVALE if qd["n"] in (32, 33, 34) else C.DARKSHORE
@@ -1115,10 +1316,13 @@ def homes(client, sql, W):
     sql.insert("gameobject_loot_template", ["Entry", "Item", "Reference", "Chance", "QuestRequired", "LootMode", "GroupId",
                                             "MinCount", "MaxCount", "Comment"],
                [(e, i, 0, c, 1, 1, 0, 1, 1, "mod-murloc-naga") for e, i, c in go_loot])
-    sql.raw(f"DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga';")
+    # (the story's loot, tools/murloc/, is "mod-murloc-naga: story" and its own to take out: each file takes out its own only,
+    # whichever of them the server applies again; "mod-murloc-naga" alone was both's)
+    sql.raw(f"DELETE FROM `creature_loot_template` WHERE `Comment` = '{LOOT_COMMENT}' OR (`Comment` = 'mod-murloc-naga' "
+            f"AND `Entry` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99});")
     sql.insert("creature_loot_template", ["Entry", "Item", "Reference", "Chance", "QuestRequired", "LootMode", "GroupId",
                                           "MinCount", "MaxCount", "Comment"],
-               [(e, i, 0, c, 1, 1, 0, 1, 1, "mod-murloc-naga") for e, i, c in cr_loot])
+               [(e, i, 0, c, 1, 1, 0, 1, 1, LOOT_COMMENT) for e, i, c in cr_loot])
 
     # Their things' looks: the game's models as objects (GameObjectDisplayInfo, the game's and the server's).
     gdt = "isiiiiiiiiiiffffffi"
@@ -1183,6 +1387,8 @@ def homes(client, sql, W):
     smart_rows = [(t, 0, i, 0, 10, 0, 100, 0, 2, 12, 1000, 1000, 1, 0, 15, qid, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0,
                    "mod-murloc-naga: the island's summit, for the oracle's vision") for i, (t, qid) in enumerate(smart)]
     for key, (hello, reward) in VOICED.items():
+        if key not in npc_ids:
+            continue
         entry = npc_ids[key]
         for i, (event, sounds) in enumerate(((64, hello), (20, reward))):
             if not sounds:

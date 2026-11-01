@@ -44,12 +44,14 @@ items = {int(r["entry"]): r for r in rows("item_template")}
 quests = {int(r["ID"]): r for r in rows("quest_template")}
 game_creatures = {C.PYGMY_TIDE_CRAWLER, C.DARKSHORE_THRESHER, 2187, C.WRATHTAIL_MYRMIDON, C.WRATHTAIL_RAZORTAIL,
                   C.THUNDRIS_WINDWEAVER, C.GLYNDA_NALSHEA, C.ONU, C.MARUKAI}
-check(len(quests) == len(C.MURLOC_QUESTS) + len(C.NAGA_QUESTS), f"every quest is there ({len(quests)})")
+# (the murlocs' Darkshore village is retired: their quests are their questline's, tools/murloc/, test_story.py)
+village = C.MURLOC_QUESTS if C.MURLOC_VILLAGE else []
+check(len(quests) == len(village) + len(C.NAGA_QUESTS), f"every quest is there ({len(quests)})")
 check(all(C.QUEST_BASE <= q < C.QUEST_BASE + 100 for q in quests), "the quests' ids are the module's")
 check(all(C.NPC_BASE <= e < C.NPC_BASE + 100 for e in creatures), "the creatures' ids are the module's")
 check(all(C.GO_BASE <= e < C.GO_BASE + 100 for e in gos), "the objects' ids are the module's")
 check(all(C.ITEM_BASE <= e < C.ITEM_BASE + 100 for e in items), "the items' ids are the module's")
-check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 18) == len(C.MURLOC_QUESTS), "the murlocs' quests are theirs alone")
+check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 18) == len(village), "the murlocs' village quests: retired")
 check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 19) == len(C.NAGA_QUESTS), "the naga's quests are theirs alone")
 
 starters = {(int(r["id"]), int(r["quest"])) for r in rows("creature_queststarter")}
@@ -80,7 +82,7 @@ check((C.MARUKAI, C.QUEST_BASE + 34) in enders, "An Unlikely Allegiance: handed 
 spawned = [int(r["id"]) for r in rows("creature")]
 check(all(e in known for e in spawned), f"every creature spawned is there ({len(spawned)} spawns)")
 phases = {int(r["phaseMask"]) for r in rows("creature")} | {int(r["phaseMask"]) for r in rows("gameobject")}
-check(phases == {C.PHASE[C.MURLOC], C.PHASE[C.NAGA]}, f"everything in the races' own phases ({phases})")
+check(phases <= {C.PHASE[C.MURLOC], C.PHASE[C.NAGA]}, f"everything in the races' own phases ({phases})")
 check(all(int(r["id"]) in gos for r in rows("gameobject")), "every object placed is there")
 loot = {int(r["Entry"]) for r in rows("gameobject_loot_template")}
 check(all(int(g["Data1"]) in loot for g in gos.values() if g["type"] == "3"), "every chest has its loot")
@@ -108,6 +110,22 @@ styles = [bytes.fromhex(l.split("\t")[1]) for l in facial.splitlines() if l.star
 styles = [struct.unpack("<%dI" % (len(b) // 4), b) for b in styles]
 check(len([r for r in styles if r[0] == 19]) == sum(len(v) for v in ML.FEATURES.values()), "a feature row each (murlocs)")
 check(all(r[3] >= 1 for r in styles if r[0] in (19, 20)), "no feature's geoset 0 (the game shows every one of the group's meshes for it)")
+# The game draws a player as a character (its composed skin, its chosen fins and features) only on a model
+# flagged a player's (CreatureModelData's 0x4); otherwise as a creature, white, with every geoset at once.
+models = open(os.path.join(DATA, "client", "dbc", "CreatureModelData.txt")).read()
+murloc_models = {int(l.split("\t")[1]): int(l.split("\t")[2]) for l in models.splitlines()
+                 if l.startswith("put\t") and "Character\\\\Murloc\\\\" in l}
+check(len(murloc_models) == 2 and all(f & 0x4 for f in murloc_models.values()),
+      f"the murlocs' models are a player's (flag 0x4: {', '.join(hex(f) for f in murloc_models.values())})")
+check(all(f"or\t{m}\t1\t4" in models.splitlines() for m in (2353, 2354)), "...and the naga's (the game's naga male hasn't it)")
+# Each SQL file takes out its own loot rows only: the server applies a file again when it changes, and the
+# other's rows (the naga camp's quest drop, the story's) must stay.
+story_sql = open(os.path.join(DATA, "sql", "chromiecraft", "world", "murloc_story.sql"), encoding="utf-8").read()
+camp_loot = rows("creature_loot_template")
+check(camp_loot and all(r["Comment"] == "mod-murloc-naga: camp" for r in camp_loot), "the camp's loot rows are the camp's (comment)")
+story_delete = re.search(r"DELETE FROM `creature_loot_template` WHERE ([^;]*);", story_sql).group(1)
+check("'mod-murloc-naga: story'" in story_delete and f"NOT BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99}" in story_delete,
+      "...and the story's delete leaves them (" + story_delete[:60] + "...)")
 import naga_looks as NL  # noqa: E402
 naga_hair = len(re.findall(r"^put\t\d+\t20\t", geosets, re.M))
 check(naga_hair == sum(len(NL.HEADDRESSES[s]) + 1 for s in ("Male", "Female")), f"a headdress row each (naga: {naga_hair})")

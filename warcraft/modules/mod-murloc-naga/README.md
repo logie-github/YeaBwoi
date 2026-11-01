@@ -1,12 +1,12 @@
 # mod-murloc-naga: the Murlocs and the Naga
 
-Two races of the app's ChromieCraft realm (not Wrath Remix's: "Only chromie needs new races"), both starting in
-Darkshore at level 10 (the user: "Murloc to alliance and naga to horde", "start both of them in darkshore",
-"Both start at level 10"):
+Two races of the app's ChromieCraft realm (not Wrath Remix's: "Only chromie needs new races"), both starting at
+level 10 (the user: "Murloc to alliance and naga to horde", "Both start at level 10"; the murlocs since in the
+Zoram Strand's slave pens, their story's start):
 
 | Race | Id | Side | Starts | Classes |
 | --- | --- | --- | --- | --- |
-| Murloc | 19 | Alliance | Their village on the island west of Auberdine | Warrior, Hunter, Rogue, Priest, Shaman, Mage |
+| Murloc | 19 | Alliance | The Wrathtail's slave pens on the Zoram Strand (Ashenvale): their story's start | Warrior, Hunter, Rogue, Priest, Shaman, Mage |
 | Naga | 20 | Horde | The renegades' camp on the island north of Auberdine | Warrior, Hunter, Rogue, Priest, Shaman, Mage, Warlock |
 
 Races 19 and 20 were the game's Taunka and Northrend Skeleton, which only creatures use; in the game's tables they
@@ -57,6 +57,11 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
     (2 to 7); a feature one of group 1 (none 101, which the model hasn't: the game takes a facial style's geoset 0 as
     "leave the group as it is", and showed every feature at once). The eyes' own bones are the head's on the model
     (their animations draw the eyeballs back into the head as the murloc stands).
+  - *A player's model*: the game draws a player as a character (all of the above) only on a model its
+    CreatureModelData flags a player's (0x4). The murlocs' models take a playable race's flags (the human's, 0x804);
+    the game's naga male hasn't the flag (its female has), so the patch sets it on both naga models. Without it, in
+    the world a murloc was drawn as a creature is: white, every fin and feature at once (the user's screenshot of
+    1.0.449), while the creation screen, which draws the race's character itself, was right.
 - **Armour** on a murloc: the game paints armour into a character's composed texture, in its regions for arms, chest
   and legs; the murloc's body and eyes read only the face region, which armour never paints, so a murloc stays a
   murloc in any armour. Helmets, shoulders and gear models need places on the model a creature hasn't: they don't
@@ -88,34 +93,76 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
   and the sirens' hiss. Their people gurgle (or hiss) as they're spoken to, and the murlocs cheer as a quest is handed in.
 - **Add-ons**: Questie's race table gets them as their kin (the murlocs the night elves, the naga the trolls).
 
-## The Murlocs' quests
+## The Murlocs' questline
 
-Seventeen quests, three levels of them (10 to 13), every giver a murloc of the village, every word murloc. What a
-quest wants is shown, not told: what the murloc does as it gurgles, in brackets ("(Blrrgl looks left. He looks right.
-He leans so close you can smell the fish on his breath.)"). The last sends them to Auberdine's night elves, and on
-into Darkshore's quests.
+The murlocs start at the Zoram Strand (Ashenvale), slaves of the Wrathtail naga, and level from 10 to 55
+through a story of their own: being one murloc of a tribe, not part of the wider world, escaping the
+naga's tyranny, with serious, funny, stupid and boring quests, some a hero's and some a menace's. The
+story is data (`tools/murloc/ch*.py`, written as `tools/murloc/SCHEMA.md` says) that
+`tools/murloc/compile.py` makes the world database's rows (`data/sql/chromiecraft/world/murloc_story.sql`).
+The Darkshore island village of the first release, and its seventeen quests, are retired.
 
-| Quest | Giver | What |
-| --- | --- | --- |
-| Mrrgl? | Elder Mrrglmrgl | Meet Grrmlgrrl the Tidehunter |
-| Snap Snap | Grrmlgrrl | Kill 10 Pygmy Tide Crawlers |
-| Scales in the Water | Grrmlgrrl | Kill 10 Stormscale Raiders on the island to the south |
-| The Tidecaller | Grrmlgrrl | Kill Tidecaller Sssilith, their leader, for his trident |
-| Mussel Memory | Murlorga | 8 Plump Mussels from the shallows |
-| Kelp Wraps | Murlorga | 6 Fresh Kelp from the sea floor |
-| Where's Sloshy? | Murlorga | Find the lost baby murloc under Auberdine's dock |
-| Sloshy Goes Home | Sloshy | Take him home |
-| Shinies! | Blrrgl the Snatcher | Steal 6 Elven Trinkets from Auberdine's crates |
-| The Sweetest Bread | Blrrgl | Steal 5 Sweet Rolls from the baskets by Auberdine's inn |
-| Gubber's Lures | Blrrgl | Steal Gubber Blump's box of lures from his dock |
-| Glow of the Deep | Oracle Glubbub | 6 Glowing Coral from the sea floor |
-| Eyes of the Thresher | Oracle Glubbub | 6 Thresher Eyes from Darkshore's threshers |
-| The Oracle's Vision | Oracle Glubbub | Climb to the island's summit |
-| A Gift from the Deep | Elder Mrrglmrgl | The Glimmering Pearl from the giant clam off the western shore |
-| The Rite of the Pearl | Elder Mrrglmrgl | Place the pearl on the village's altar |
-| Mrgl Mrgl, Land-Walker! | Elder Mrrglmrgl | Take the elder's scroll to Thundris Windweaver in Auberdine |
+The story (a story bible written first, then a writer for each chapter, all of them agents): the
+Saltscar, slaves of the Wrathtail at the Zoram Strand, ten chapters, 299 quests written (both sides of
+each hero/menace pair, class lessons, chores):
 
-Rewards: the Tidehunter's Coral Spear, Murlorga's Kelp Wrap and the Elder's Pearl Charm.
+| Chapter | Levels | Where | Hub |
+| --- | --- | --- | --- |
+| 1 The Pens | 10-14 | the Zoram Strand (the pens' own phase: no world until the breakout) | the Huddle, a capsized boat |
+| 2 The Free Shore | 14-19 | Darkshore's south coast, Auberdine at night | Greymist Cove |
+| 3 Saltscar | 19-24 | the Zoram Strand, Blackfathom's mouth, Maestra's Post, Zoram'gar | the Drowned Pier, then the freed pens |
+| 4 The Long Swim | 24-29 | the Wetlands, Menethil's harbour | Saltscar Shallows by the Bluegill |
+| 5 Torn Fins | 29-33 | Hillsbrad's coast, Southshore, Tarren Mill | Torn Fin Cove |
+| 6 The Stone City | 33-36 | Westfall's coast, Stormwind's harbour and canals | Murk-Eye's Grotto |
+| 7 Brokenchain | 36-40 | Dustwallow Marsh, Theramore's pier, Brackenwall | the Mire Islets |
+| 8 Red Sails | 40-44 | Stranglethorn's south coast, Booty Bay, Nek'mani Wellspring | the wreck of the Lucky Cod |
+| 9 The Last Walk | 44-48 | Feralas's coast, Sardor Isle, the Isle of Dread | Colossal Cove |
+| 10 The Storm Bay | 48-55 | Azshara: the Bay of Storms, the Ruins of Eldarath | Saltscar Landing |
+
+What holds the story together:
+- **Nerglish.** Every word a murloc reads is Nerglish: Blizzard's own translator of April 2019 (its
+  script, `assets.webn.mobi/nerglish/nerglish.js`), ported word for word in `tools/nerglish.py` (its
+  Mersenne Twister seeded by each word's hash, its letter chain, its dictionary of real murloc words:
+  "friend" is always "mmmrrglllm"). Only each quest's one-line goal in the log stays English, and the
+  names of what it asks for. Another race's words are garbled as the game garbles a language one doesn't
+  know (`tools/murloc/garble.py`, its LanguageWords).
+- **Their language.** Murlocs speak Nerglish (the game's Titan language, renamed in the patch, its
+  words murloc words) and not Common: what Alliance and Horde people say is gibberish to them, and
+  theirs to everyone else.
+- **Show, don't tell.** Every scene is acted: talk, point, cheer, bow, cry, kneel, beg, laugh, sit,
+  sleep, dance... with sounds, moves, spell visuals and music (SmartAI). The game's murloc models have no
+  emotes; the murloc costume (BlizzCon 2007's) has them all, on a skeleton like murloc2's, and
+  `tools/murloc_anims.py` adds its 32 emotes to murloc2, bone for bone: to the race's models (a
+  murloc player's /talk and /cheer play) and to the tribe's people (`Creature\MurlocTribe`, in each of
+  the 13 skins). Quests mark the map where they want you.
+- **No one else's quests.** Until its story's last quest, a murloc takes no Alliance or Horde quest, nor
+  any open to all: a gate the module builds as the world server starts, from every quest the world
+  database has (other modules' too): each quest's conditions, and a murloc's alternative with the story
+  done. Then the Alliance's are its too.
+- **Hostile towns.** A murloc starts Hostile (-3500) with the Alliance's and the Horde's towns
+  (Stormwind, Ironforge, Darnassus, Gnomeregan, the Exodar; Orgrimmar, Thunder Bluff, the Undercity, the
+  Darkspear, Silvermoon): at war, their guards attack it and it them. The goblins (the Steamwheedle
+  Cartel and its four ports) are mercenary: Unfriendly (-500), they neither trade with it nor attack it.
+  Standing earned with sympathizers ends the war (the core's own rule, above Hostile); a menace's deeds
+  cost it. The story's last quest makes the Alliance's towns Neutral.
+- **Guards.** In every town (AreaTable's town flag) a murloc keeps a Low Profile: creatures notice it at
+  5 yards, the game's least. A guard that doesn't like it warns it off first, as it comes within 20
+  yards: it turns, points or shouts, in its own people's annoyed voice and language (Darnassian for
+  Sentinels, Dwarvish, Gnomish, Orcish, Taurahe, Gutterspeak, Thalassian, Troll, Common...), which a murloc
+  can't understand; one that likes it salutes.
+- **Trainers.** The tribe's class trainers and profession trainers teach, in Nerglish (the game's
+  trainers' spell lists); a murloc learns no spells by itself after level 10. Each hub has the same
+  people (an innkeeper, a banker in a hollow log, a stable, later an auction house through a goblin
+  fence), and a Current-Caller who takes it to the hubs it has reached.
+- **The tribe's graveyards.** A murloc whose story isn't done wakes as a ghost at the tribe's nearest
+  graveyard (with a spirit healer), never in a town's.
+- **The pens.** Until the breakout, Ashenvale shows a murloc only its own phase: the pens, the naga
+  who keep them, the crabs on the reef; none of the world (its Wrathtail would kill a level-10 slave).
+- **Acting it out.** Quests ask for the player's own emotes (/wave at the slaves), put marks and
+  disguises on it (a Salt-Scar brand, a barrel), stun it with a Lasher's whip as it strays, set props
+  out, take it into visions and across the sea, have the tribe's fry follow it.
+- **Murlocs of the first release** speak Nerglish from their next login, are Hostile with the towns,
+  and, if still in Darkshore, go to the story's start.
 
 ## The Naga's way
 

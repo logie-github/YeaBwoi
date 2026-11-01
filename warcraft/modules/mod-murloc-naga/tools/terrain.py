@@ -6,6 +6,7 @@ with it, and keeps the intros' cameras above it.
     terrain.MAPS = "<the server data's maps folder>"
     terrain.height(x, y)      the ground's height (None where the map has no tile)
     terrain.liquid(x, y)      the water's level (None where there's none)
+    terrain.area(x, y)        the AreaTable id of the place (a zone's or one of its areas'; None off the map)
 
 The buildings and docks (WMOs) aren't in these files: on them, a place's height is taken from
 someone standing there (a creature of the game's)."""
@@ -26,8 +27,11 @@ def tile(mapid, gx, gy):
     if not os.path.exists(path):
         return None
     d = open(path, "rb").read()
-    _, _, _, _, _, hoff, _, loff, _, _, _ = struct.unpack_from("<4sII8I", d, 0)
+    _, _, _, aoff, _, hoff, _, loff, _, _, _ = struct.unpack_from("<4sII8I", d, 0)
     t = {}
+    if aoff:
+        _, flags, grid_area = struct.unpack_from("<4sHH", d, aoff)
+        t["area"] = grid_area if flags & 1 else np.frombuffer(d, "<u2", 16 * 16, aoff + 8)
     if hoff:
         _, flags, low, high = struct.unpack_from("<4sIff", d, hoff)
         at = hoff + 16
@@ -95,6 +99,19 @@ def height(x, y, mapid=1):
             h3, h4 = v9[xi * 129 + yi + 1], v9[(xi + 1) * 129 + yi + 1]
             a, b, c = h4 - h3, h3 + h4 - h5, h5 - h4
     return float(a * dx + b * dy + c)
+
+
+def area(x, y, mapid=1):
+    """The AreaTable id there, as the core's GridTerrainData::getArea reads it."""
+    gx, gy, _, _ = _cell(x, y)
+    t = tile(mapid, gx, gy)
+    if t is None or "area" not in t:
+        return None
+    a = t["area"]
+    if isinstance(a, int):
+        return a
+    lx, ly = int(16 * (32 - x / SIZE)) & 15, int(16 * (32 - y / SIZE)) & 15
+    return int(a[lx * 16 + ly])
 
 
 def liquid(x, y, mapid=1):
