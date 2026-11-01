@@ -35,6 +35,14 @@ interface GestureOutput {
      */
     fun doubleTapAt(x: Float, y: Float)
 
+    /**
+     * The second tap of a double tap as its finger lands, when it can be done then: a jump after a
+     * first tap whose click is done and found the open ground (nothing to talk to, attack or use, no
+     * window open). True when it was done; false leaves it to [doubleTapAt] as the finger lifts, so a
+     * first tap still talking to an NPC (or attacking, looting) is never cut short.
+     */
+    fun doubleTapNow(x: Float, y: Float): Boolean = false
+
     /** Moves the pointer (with the right button held: turns the camera and the character). */
     fun pointerBy(dx: Float, dy: Float)
 
@@ -93,8 +101,8 @@ interface GestureOutput {
  *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
  *   = attack it, on the action bars = two presses, on the game's windows of items, talents and
  *   abilities = two clicks (a talent's first tap shows it, the second spends the point: the app's
- *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt], done as the second finger
- *   lands, not when it lifts: the user's choice, for a quicker jump); hold still, then lift = a
+ *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt]; after a first tap on the open
+ *   ground, as the second finger lands: [GestureOutput.doubleTapNow]); hold still, then lift = a
  *   right click anywhere; hold, then move = the left button down where it was held, dragging
  *   an item or a movable frame with the finger.
  * - **On the spellbook, while it's open:** a finger that moves is the mouse with its left button
@@ -271,11 +279,11 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 finger.role = Role.PAIR
                 pair = Pair(partner, finger)
             }
-            // The second tap of a double tap, on its own: done as it comes down (the jump, the attack),
-            // not when it lifts; it can still go on to steer or look.
-            alone && secondTap -> {
+            // The second tap of a double tap, on its own, after a first tap on the open ground: the jump
+            // as it comes down, not when it lifts (the user: quicker); it can still go on to steer or
+            // look. Anything else waits for it to lift, as before.
+            alone && secondTap && out.doubleTapNow(x, y) -> {
                 finger.doubled = true
-                out.doubleTapAt(x, y)
                 lastTapAt = Long.MIN_VALUE / 2
             }
         }
