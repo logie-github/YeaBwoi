@@ -382,6 +382,19 @@ class GestureView(
         }
     }
 
+    /**
+     * The jump as the second finger lands, when the first tap's click is done and found the open
+     * ground, with no window open; anything else (a first tap still at work on an NPC, an enemy, a
+     * loot; the action bars, a window) waits for the finger to lift ([doubleTapAt]).
+     */
+    override fun doubleTapNow(x: Float, y: Float): Boolean {
+        val first = lastTap ?: return false
+        if (first.result != Outcome.PLAIN) return false
+        if (ScreenZones.isActionBars(x, y, width.toFloat(), height.toFloat()) || rightClicksAt(x, y) || windowOpen()) return false
+        jump()
+        return true
+    }
+
     /** Sticky targeting keeps a ground click from clearing the target; jumping sends only Space. */
     private fun jump() = tap(Key.SPACE)
 
@@ -399,6 +412,8 @@ class GestureView(
     /** What a tap did, once it's known (its clicks wait for the game and the realm). */
     private class TapResult(val x: Float, val y: Float) {
         private var outcome: Outcome? = null
+        /** What it did, once known (null while its clicks wait). */
+        val result: Outcome? get() = outcome
         private var waiting: ((Outcome) -> Unit)? = null
 
         fun done(result: Outcome) {

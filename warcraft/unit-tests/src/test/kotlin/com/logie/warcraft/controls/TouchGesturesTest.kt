@@ -21,6 +21,13 @@ class TouchGesturesTest {
         override fun tapAt(x: Float, y: Float) { events += "tap at ${x.toInt()},${y.toInt()}" }
         override fun targetNearestEnemy() { events += "tab" }
         override fun doubleTapAt(x: Float, y: Float) { events += "double tap at ${x.toInt()},${y.toInt()}" }
+        /** Whether the first tap is known to have found the open ground (a jump can be done at once). */
+        var openGround = false
+        override fun doubleTapNow(x: Float, y: Float): Boolean {
+            if (!openGround) return false
+            events += "jump now at ${x.toInt()},${y.toInt()}"
+            return true
+        }
         override fun pointerBy(dx: Float, dy: Float) { events += "by ${dx.toInt()},${dy.toInt()}" }
         override fun press(button: Button) { events += "press $button" }
         override fun release(button: Button) { events += "release $button" }
@@ -57,28 +64,41 @@ class TouchGesturesTest {
     }
 
     @Test
-    fun theDoubleTapIsDoneAsTheSecondFingerComesDown() {
+    fun afterATapOnTheOpenGroundTheJumpComesAsTheSecondFingerLands() {
+        log.openGround = true
         gestures.down(0, 700f, 200f, 0)
         gestures.up(0, 700f, 200f, 80)
         gestures.down(0, 710f, 205f, 200)
         // (before it lifts)
-        assertEquals(listOf("tap at 700,200", "double tap at 710,205"), log.events)
+        assertEquals(listOf("tap at 700,200", "jump now at 710,205"), log.events)
         gestures.up(0, 710f, 205f, 260)
-        // (and not again as it lifts; a third tap is a tap of its own)
+        // (and nothing again as it lifts; a third tap is a tap of its own)
         gestures.down(0, 710f, 205f, 400)
         gestures.up(0, 710f, 205f, 460)
-        assertEquals(listOf("tap at 700,200", "double tap at 710,205", "tap at 710,205"), log.events)
+        assertEquals(listOf("tap at 700,200", "jump now at 710,205", "tap at 710,205"), log.events)
     }
 
     @Test
-    fun aSecondTapThatSwipesStillJumpsAndThenSteers() {
+    fun afterATapOnAnNpcTheSecondTapWaitsToLiftAsBefore() {
+        // (the first tap's click still at work, or it talked: nothing as the second finger lands)
+        gestures.down(0, 700f, 200f, 0)
+        gestures.up(0, 700f, 200f, 80)
+        gestures.down(0, 710f, 205f, 200)
+        assertEquals(listOf("tap at 700,200"), log.events)
+        gestures.up(0, 710f, 205f, 260)
+        assertEquals(listOf("tap at 700,200", "double tap at 710,205"), log.events)
+    }
+
+    @Test
+    fun aSecondTapThatSwipesAfterAGroundTapJumpsAndThenSteers() {
+        log.openGround = true
         gestures.down(0, 300f, 400f, 0)
         gestures.up(0, 300f, 400f, 80)
         gestures.down(0, 305f, 400f, 200)
         gestures.move(0, 305f, 300f)
         gestures.up(0, 305f, 300f, 600)
-        assertEquals("double tap at 305,400", log.events[1])
-        assertTrue(log.events.none { it.startsWith("tap at 305") })
+        assertEquals("jump now at 305,400", log.events[1])
+        assertTrue(log.events.none { it.startsWith("tap at 305") || it.startsWith("double tap") })
     }
 
     @Test
@@ -88,12 +108,10 @@ class TouchGesturesTest {
         gestures.up(0, 100f, 200f, 900)
         gestures.down(0, 600f, 300f, 2000)
         gestures.up(0, 600f, 300f, 2080)
-        // (a hold right after a tap there: the double tap is done as the finger lands, the user's choice
-        // for a quicker jump, then the hold's right click)
         gestures.down(0, 600f, 300f, 2200)
         gestures.onHold(2200 + TouchGestures.HOLD_MS)
         gestures.up(0, 600f, 300f, 2900)
-        assertEquals(listOf("to 100,200", "click RIGHT", "tap at 600,300", "double tap at 600,300", "to 600,300", "click RIGHT"), log.events)
+        assertEquals(listOf("to 100,200", "click RIGHT", "tap at 600,300", "to 600,300", "click RIGHT"), log.events)
     }
 
     @Test
