@@ -189,15 +189,19 @@ if [ -d "$DIST/modules/mod-murloc-naga" ]; then
 	# Queen Azshara made 3.3.5's) and its Warcraft III voices (warcraft.wiki.gg's files, or Wowpedia's
 	# copies, checked by their SHA-1). Each list is written last; without one, those emotes, models or
 	# voices aren't in the game (the voices' lines show as text, the models' people their FALLBACK
-	# looks) and the realm works as before: a source that refuses leaves them out with a line here,
-	# and the package is made without them.
+	# looks) and the realm works as before. The emotes and models are wago.tools' files, as the
+	# murlocs' model is: a fetch that fails marks the package incomplete (made, not kept or published,
+	# so the next run tries again). The voices come from a wiki that may refuse CI's runners: one that
+	# isn't fetched is left out with a line here, and the package is kept without it.
 	apk add -q --no-progress ffmpeg
 	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_emotes.py fetch \
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
-		echo "The naga's emotes weren't made (tools/naga_emotes.py says why): the naga play only the game's own" >&2
+		{ echo "The naga's emotes weren't made (tools/naga_emotes.py says why): the naga play only the game's own" >&2
+		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
 	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_models.py fetch \
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
-		echo "The naga's story's models weren't made (tools/naga_models.py says why): their looks draw nothing" >&2
+		{ echo "The naga's story's models weren't made (tools/naga_models.py says why): their looks draw nothing" >&2
+		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
 	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_voices.py fetch \
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
 		echo "The naga's story's voices weren't all fetched: their lines show as text where they're missing" >&2
