@@ -93,7 +93,8 @@ interface GestureOutput {
  *   WoW's cursor offers it, and selects an enemy ([GestureOutput.tapAt]); double tap on an enemy
  *   = attack it, on the action bars = two presses, on the game's windows of items, talents and
  *   abilities = two clicks (a talent's first tap shows it, the second spends the point: the app's
- *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt]); hold still, then lift = a
+ *   add-on), elsewhere = jump (Space) ([GestureOutput.doubleTapAt], done as the second finger
+ *   lands, not when it lifts: the user's choice, for a quicker jump); hold still, then lift = a
  *   right click anywhere; hold, then move = the left button down where it was held, dragging
  *   an item or a movable frame with the finger.
  * - **On the spellbook, while it's open:** a finger that moves is the mouse with its left button
@@ -159,6 +160,8 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         var y = startY
         var moved = false
         var role = Role.NEW
+        /** The second tap of a double tap, done as the finger came down (not again as it lifts). */
+        var doubled = false
         /** Where the hold began (Role.HOLDING). */
         var holdX = startX
         var holdY = startY
@@ -268,6 +271,13 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
                 finger.role = Role.PAIR
                 pair = Pair(partner, finger)
             }
+            // The second tap of a double tap, on its own: done as it comes down (the jump, the attack),
+            // not when it lifts; it can still go on to steer or look.
+            alone && secondTap -> {
+                finger.doubled = true
+                out.doubleTapAt(x, y)
+                lastTapAt = Long.MIN_VALUE / 2
+            }
         }
     }
 
@@ -308,7 +318,7 @@ class TouchGestures(private val out: GestureOutput, density: Float) {
         val inGesture = finger.role == Role.PAIR || finger.role == Role.GROUP
         val tap = !finger.moved && now - finger.downAt <= if (inGesture) MULTI_TAP_MS else HOLD_MS
         when (finger.role) {
-            Role.NEW -> if (tap) {
+            Role.NEW -> if (tap && !finger.doubled) {
                 if (finger.secondTap) {
                     out.doubleTapAt(finger.x, finger.y)
                     lastTapAt = Long.MIN_VALUE / 2
