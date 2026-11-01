@@ -46,3 +46,20 @@ put	9829	World\\Kalimdor\\Ashenvale\\PassiveDoodads\\SatyrRuins\\RuinsSatyrPilla
 put	9830	World\\Expansion02\\Doodads\\Generic\\Tuskarr\\GiantNets\\TS_GiantNet01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9831	World\\Generic\\Human\\Passive Doodads\\Weapons&Armor\\HumanBow01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9832	World\\Generic\\NightElf\\Passive Doodads\\Banners\\NightElfTreeBanner01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9833	World\\Expansion02\\Doodads\\Generic\\SeaVrykul\\Shore\\VRS_Netpile_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9834	World\\Lordaeron\\AlteracMountains\\PassiveDoodads\\Rocks\\AlteracBoulder01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9835	World\\Generic\\Human\\Passive Doodads\\CargoNets\\DeadMineCargoNetHang.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9836	World\\Expansion02\\Doodads\\Generic\\TUSKARR\\Fishing\\TS_FishingBasket_empty_02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9837	World\\Expansion02\\Doodads\\Generic\\Northrend_Helm_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9838	World\\Expansion02\\Doodads\\Generic\\Northrend_Helm_02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9839	World\\Expansion02\\Doodads\\Generic\\Northrend_Helm_03.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9840	World\\GENERIC\\HUMAN\\PASSIVE DOODADS\\WEAPONS&ARMOR\\HumanArrow.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9841	World\\AZEROTH\\WESTFALL\\PASSIVEDOODADS\\SunkenAnchor\\SunkenAnchor.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9842	World\\Expansion02\\Doodads\\Dalaran\\Dalaran_sewer_oldworld_pipe01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9843	World\\EXPANSION01\\DOODADS\\BLACKTEMPLE\\PASSIVEDOODADS\\SEWERWATER\\BT_SewerFall.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9844	World\\Expansion02\\Doodads\\Dalaran\\Dalaran_SewerGrate_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9845	World\\AZEROTH\\ELWYNN\\PASSIVEDOODADS\\Signs\\Shop\\HumanMagicshopSign.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9846	World\\Expansion02\\Doodads\\Dalaran\\Dalaran_PetCage_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9847	World\\AZEROTH\\WESTFALL\\PASSIVEDOODADS\\LAMPPOST\\WestfallLampPost01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9848	World\\wmo\\Dungeon\\MD_Shipwreck\\Shipwreck_A.wmo	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9849	World\\Generic\\Orc\\Passive Doodads\\Utensils\\LadleWood.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0

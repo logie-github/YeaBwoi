@@ -293,4 +293,4 @@ NERGLISH_LANGUAGE = 9
 # Strand, Ashenvale, under the Wrathtail naga: tools/murloc/). Kept here, off, for the record.
 MURLOC_VILLAGE = False
 # The murlocs' story's chapters released (tools/murloc/ch0 to chN): the ones after are still being written.
-MURLOC_CHAPTERS = 2
+MURLOC_CHAPTERS = 10

@@ -1107,6 +1107,12 @@ class Story:
                     lootid = int(r["lootid"]) if r and int(r["lootid"]) else src
                     if r and not int(r["lootid"]):
                         self.tables.setdefault("_lootid", set()).add(src)
+                if not hasattr(self, "_game_loot"):
+                    self._game_loot = {(int(r["Entry"]), int(r["Item"])) for r in self.W("creature_loot_template")}
+                    self._our_loot = set()
+                if (lootid, iid) in self._game_loot or (lootid, iid) in self._our_loot:
+                    continue                    # (the game drops it already, or another of the story's quests asked)
+                self._our_loot.add((lootid, iid))
                 self.row("creature_loot_template", Entry=lootid, Item=iid, Reference=0, Chance=chance, QuestRequired=1,
                          LootMode=1, GroupId=0, MinCount=1, MaxCount=1, Comment="mod-murloc-naga")
         if len(req_npc) > 4 or len(req_items) > 6:
