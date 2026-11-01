@@ -1,12 +1,12 @@
 # mod-murloc-naga: the Murlocs and the Naga
 
-Two races of the app's ChromieCraft realm (not Wrath Remix's: "Only chromie needs new races"), both starting in
-Darkshore at level 10 (the user: "Murloc to alliance and naga to horde", "start both of them in darkshore",
-"Both start at level 10"):
+Two races of the app's ChromieCraft realm (not Wrath Remix's: "Only chromie needs new races"), both starting at
+level 10 (the user: "Murloc to alliance and naga to horde", "Both start at level 10"; the murlocs since in the
+Zoram Strand's slave pens, their story's start):
 
 | Race | Id | Side | Starts | Classes |
 | --- | --- | --- | --- | --- |
-| Murloc | 19 | Alliance | Their village on the island west of Auberdine | Warrior, Hunter, Rogue, Priest, Shaman, Mage |
+| Murloc | 19 | Alliance | The Wrathtail's slave pens on the Zoram Strand (Ashenvale): their story's start | Warrior, Hunter, Rogue, Priest, Shaman, Mage |
 | Naga | 20 | Horde | The renegades' camp on the island north of Auberdine | Warrior, Hunter, Rogue, Priest, Shaman, Mage, Warlock |
 
 Races 19 and 20 were the game's Taunka and Northrend Skeleton, which only creatures use; in the game's tables they
@@ -57,6 +57,11 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
     (2 to 7); a feature one of group 1 (none 101, which the model hasn't: the game takes a facial style's geoset 0 as
     "leave the group as it is", and showed every feature at once). The eyes' own bones are the head's on the model
     (their animations draw the eyeballs back into the head as the murloc stands).
+  - *A player's model*: the game draws a player as a character (all of the above) only on a model its
+    CreatureModelData flags a player's (0x4). The murlocs' models take a playable race's flags (the human's, 0x804);
+    the game's naga male hasn't the flag (its female has), so the patch sets it on both naga models. Without it, in
+    the world a murloc was drawn as a creature is: white, every fin and feature at once (the user's screenshot of
+    1.0.449), while the creation screen, which draws the race's character itself, was right.
 - **Armour** on a murloc: the game paints armour into a character's composed texture, in its regions for arms, chest
   and legs; the murloc's body and eyes read only the face region, which armour never paints, so a murloc stays a
   murloc in any armour. Helmets, shoulders and gear models need places on the model a creature hasn't: they don't
@@ -88,7 +93,7 @@ styles and voice rows), as the other race modules move theirs to 22 to 29.
   and the sirens' hiss. Their people gurgle (or hiss) as they're spoken to, and the murlocs cheer as a quest is handed in.
 - **Add-ons**: Questie's race table gets them as their kin (the murlocs the night elves, the naga the trolls).
 
-## The Murlocs' questline (being written)
+## The Murlocs' questline
 
 The murlocs start at the Zoram Strand (Ashenvale), slaves of the Wrathtail naga, and level from 10 to 55
 through a story of their own: being one murloc of a tribe, not part of the wider world, escaping the
@@ -97,7 +102,24 @@ story is data (`tools/murloc/ch*.py`, written as `tools/murloc/SCHEMA.md` says) 
 `tools/murloc/compile.py` makes the world database's rows (`data/sql/chromiecraft/world/murloc_story.sql`).
 The Darkshore island village of the first release, and its seventeen quests, are retired.
 
-What holds the story together (built, its pieces tested; the chapters are being written):
+The story (a story bible written first, then a writer for each chapter, all of them agents): the
+Saltscar, slaves of the Wrathtail at the Zoram Strand, ten chapters, 299 quests written (both sides of
+each hero/menace pair, class lessons, chores):
+
+| Chapter | Levels | Where | Hub |
+| --- | --- | --- | --- |
+| 1 The Pens | 10-14 | the Zoram Strand (the pens' own phase: no world until the breakout) | the Huddle, a capsized boat |
+| 2 The Free Shore | 14-19 | Darkshore's south coast, Auberdine at night | Greymist Cove |
+| 3 Saltscar | 19-24 | the Zoram Strand, Blackfathom's mouth, Maestra's Post, Zoram'gar | the Drowned Pier, then the freed pens |
+| 4 The Long Swim | 24-29 | the Wetlands, Menethil's harbour | Saltscar Shallows by the Bluegill |
+| 5 Torn Fins | 29-33 | Hillsbrad's coast, Southshore, Tarren Mill | Torn Fin Cove |
+| 6 The Stone City | 33-36 | Westfall's coast, Stormwind's harbour and canals | Murk-Eye's Grotto |
+| 7 Brokenchain | 36-40 | Dustwallow Marsh, Theramore's pier, Brackenwall | the Mire Islets |
+| 8 Red Sails | 40-44 | Stranglethorn's south coast, Booty Bay, Nek'mani Wellspring | the wreck of the Lucky Cod |
+| 9 The Last Walk | 44-48 | Feralas's coast, Sardor Isle, the Isle of Dread | Colossal Cove |
+| 10 The Storm Bay | 48-55 | Azshara: the Bay of Storms, the Ruins of Eldarath | Saltscar Landing |
+
+What holds the story together:
 - **Nerglish.** Every word a murloc reads is Nerglish: Blizzard's own translator of April 2019 (its
   script, `assets.webn.mobi/nerglish/nerglish.js`), ported word for word in `tools/nerglish.py` (its
   Mersenne Twister seeded by each word's hash, its letter chain, its dictionary of real murloc words:

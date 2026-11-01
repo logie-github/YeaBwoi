@@ -76,6 +76,7 @@ ID_SECTIONS_END = 869999
 ID_OUTFIT, ID_HAIRGEO, ID_NAMEGEN = 9300, 9300, 93000
 ID_DISPLAY = {MURLOC: (33101, 33102)}           # the naga wear the game's own (17402, 17403)
 ID_MODEL = {MURLOC: (3701, 3702)}
+PLAYER_MODEL = 0x4                               # CreatureModelData: a player's model (drawn as a character)
 ID_TRIBE_MODEL, ID_TRIBE_DISPLAY = 3703, 33103   # the tribe's people's murloc, a look a skin (33103-33115)
 ID_SEQUENCE = {MURLOC: 9021, NAGA: 9022}
 ID_CAMERA = {MURLOC: 9021, NAGA: 9022}
@@ -368,12 +369,20 @@ def main():
     mt = "iisifiiffffiiifff" + "ffffff" + "fffff"
     murloc_model = next(r for r in model_data.rows if model_data.s(r[2]).lower() == "creature\\murloc\\murloc.mdx")
     naga_display = display_rows[race_rows[13][4]]
-    naga_model = model_rows[naga_display[1]]
+    # The game draws a player as a character (the composed skin, the face, the chosen hair and features'
+    # geosets) only on a model flagged a player's (CreatureModelData's 0x4, "is player model"). Without it
+    # a player is drawn as a creature is: every geoset at once, the character's textures white. The
+    # murlocs' models take a playable race's flags (the human's, 0x804); the game's naga male hasn't the
+    # flag (its female has), so the naga's two models get it.
+    player_flags = model_rows[display_rows[race_rows[1][4]][1]][1]
+    assert player_flags & PLAYER_MODEL, hex(player_flags)
+    for display in (race_rows[13][4], race_rows[13][5]):
+        client.orfield("CreatureModelData", display_rows[display][1], 1, PLAYER_MODEL)
     model_sql, display_sql = [], []
     for sex in (0, 1):
         m = values_of(model_data, murloc_model, mt)
         m[0] = ID_MODEL[MURLOC][sex]
-        m[1] = naga_model[1]                          # a character model's flags
+        m[1] = player_flags
         m[2] = "Character\\Murloc\\%s\\Murloc%s.mdx" % (("Male", "Female")[sex], ("Male", "Female")[sex])
         client.put("CreatureModelData", mt, m)
         model_sql.append(m)

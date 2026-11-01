@@ -40,10 +40,12 @@ self-updating from this repository's GitHub releases.
   as lovers her moving in; and Brill: A Place Among the Forsaken, the town's optional questlines and its six Community Projects:
   `tools/town/*.py`, made by `tools/build_town.py`, run by `src/BrillTown.cpp`): `warcraft/modules/mod-brill-home` (its README);
   `tools/build_sql.py` makes its SQL, committed.
-- **The Murlocs and the Naga** (ChromieCraft's realm only: races 19, Alliance, and 20, Horde, both starting in Darkshore
-  at level 10, the murlocs with their own murloc-speaking questline, the naga through Darkshore's night elf quests to the
-  Horde at Zoram'gar): `warcraft/modules/mod-murloc-naga` (its README); `tools/build_data.py` makes its data from
-  `tools/content.py`, committed; its patch (`Data/<locale>/patch-<locale>-T.MPQ`) is made at the realm's start from the
+- **The Murlocs and the Naga** (ChromieCraft's realm only: races 19, Alliance, and 20, Horde, both at level 10; the
+  murlocs' own story from 10 to 55 in Nerglish, from the Wrathtail's slave pens at the Zoram Strand, ten chapters as data in
+  `tools/murloc/ch*.py` (`SCHEMA.md`, `compile.py`), no one else's quests until its last; the naga, for now, from Darkshore
+  through its night elf quests to the Horde at Zoram'gar, their own story in Azshara to be written):
+  `warcraft/modules/mod-murloc-naga` (its README); `tools/build_data.py` makes its data from `tools/content.py` and the
+  murlocs' chapters, committed; its patch (`Data/<locale>/patch-<locale>-T.MPQ`) is made at the realm's start from the
   client's own files (never committed).
 - **Ralia's mod and Alternate Female Options** (both realms: the launcher's Game options switches, one at a time;
   the user's own zips, picked on the phone, never committed): `warcraft/modules/mod-ralia` (its README); `tools/build_data.py` makes `data/client/sources.txt`, committed.

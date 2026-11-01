@@ -110,6 +110,14 @@ styles = [bytes.fromhex(l.split("\t")[1]) for l in facial.splitlines() if l.star
 styles = [struct.unpack("<%dI" % (len(b) // 4), b) for b in styles]
 check(len([r for r in styles if r[0] == 19]) == sum(len(v) for v in ML.FEATURES.values()), "a feature row each (murlocs)")
 check(all(r[3] >= 1 for r in styles if r[0] in (19, 20)), "no feature's geoset 0 (the game shows every one of the group's meshes for it)")
+# The game draws a player as a character (its composed skin, its chosen fins and features) only on a model
+# flagged a player's (CreatureModelData's 0x4); otherwise as a creature, white, with every geoset at once.
+models = open(os.path.join(DATA, "client", "dbc", "CreatureModelData.txt")).read()
+murloc_models = {int(l.split("\t")[1]): int(l.split("\t")[2]) for l in models.splitlines()
+                 if l.startswith("put\t") and "Character\\\\Murloc\\\\" in l}
+check(len(murloc_models) == 2 and all(f & 0x4 for f in murloc_models.values()),
+      f"the murlocs' models are a player's (flag 0x4: {', '.join(hex(f) for f in murloc_models.values())})")
+check(all(f"or\t{m}\t1\t4" in models.splitlines() for m in (2353, 2354)), "...and the naga's (the game's naga male hasn't it)")
 import naga_looks as NL  # noqa: E402
 naga_hair = len(re.findall(r"^put\t\d+\t20\t", geosets, re.M))
 check(naga_hair == sum(len(NL.HEADDRESSES[s]) + 1 for s in ("Male", "Female")), f"a headdress row each (naga: {naga_hair})")

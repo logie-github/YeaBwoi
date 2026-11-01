@@ -1829,7 +1829,11 @@ Decided (the module's README has why, and what's confirmed in the core's source 
   styles: murloc2's crest as it is, short, long, swept back, the classic murloc's, the deep sea murloc's sail) in
   sixteen colours, the face their eye colour (sixteen); headgear and outfits are features. A facial style's geoset
   0 shows every feature at once in the game (the user's screenshot: a white murloc in every outfit): none is 1 now,
-  the naga's too; the body is no longer the skin row's "extra" texture, which the game left white. Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
+  the naga's too; the body is no longer the skin row's "extra" texture, which the game left white. In the world it
+  still was (the user, of 1.0.449: "when I log into the char it shows every skin and feature at one time"): the
+  murlocs' models had no player's flag (CreatureModelData 0x4, "is player model": the game draws a player's
+  customization only on such a model), copied from the naga male's, which hasn't it either. Both races' models
+  have it now (the murlocs' 0x804, a playable race's; the naga's OR'd in the patch). Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
   read after the Alternative HD Patch's patch-S (SoundEntries) and before the other race modules' U, V, Y, Z.
 - Their homes are islands off Auberdine (the murlocs' west of it, the naga's north), seen by their race alone (a phase
   each in Darkshore and Ashenvale, by spell_area); what the murlocs steal in Auberdine is in their phase too.
@@ -1924,8 +1928,17 @@ Outland; 50-55 the Return to Northrend and A Symphony of Frost and Flame, ending
 Where it stands: the systems are built and their pieces tested (the translator against MT19937's and
 Java's references, the compiler against the world database's schema, the gate's SQL on the world
 database: 6936 quests gated; the tribe's graveyards, the pens' phase alone, emote objectives, auras and
-disguises, object scenes); the story is being written (chapter 1 first); the naga's story bible is
-being written alongside. Not in a release yet.
+disguises, object scenes). The murlocs' story is written: ten chapters, 299 quests (chapter 1 by one
+writer, then the other nine at once, each against placeholders of the others and a shared cast, the
+tools fixed from what each writer found), all in the data. Tested on a local realm (the core and
+modules built here, the world database the core's and the modules', bots on): a murloc warrior plays
+chapter 1's opening (the Elder, /wave at the slaves, the count, the warrior trainer), breaks out to
+Greymist Cove, then hops chapter to chapter (each last quest done as a GM would) and at every hub the
+one who starts the next chapter offers its first quest; Auberdine's quests stay closed. Found that way
+and fixed: Nerglish not given at creation (a language's rank in playercreateinfo_skills); "until"
+phases inverted (this core gives a spell_area spell while the end quest's status is in its mask); the
+naga's camp's ids shifted by the village's retirement; items missing from the server's Item store; a
+duplicate loot row. Not seen in the game or on a phone.
 
 The naga's story bible (scratchpad, the writers' brief): ten chapters, 272 quests to complete, all in
 Azshara, "living memory": a young servant of the Spitelash hatchery at Rethress Sanctum feeds a blind
