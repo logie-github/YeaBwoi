@@ -46,7 +46,13 @@ namespace MurlocNaga
 
     namespace
     {
-        constexpr char const* VERSION = "murloc-naga-2";
+        constexpr char const* VERSION = "murloc-naga-3";
+        // The server package's lists of the files it made (data/files), and what's missing without each.
+        constexpr char const* PACKAGED_LISTS[] = { "murloc.files", "naga.files", "nagaemotes.files", "nagamodels.files", "nagavoices.files" };
+        constexpr char const* WITHOUT_LIST[] = {
+            "the game won't draw the murlocs", "the naga have no headdresses or outfits", "the naga have no new emotes",
+            "the naga's story's sea witch, warden and Queen Azshara draw nothing (tools/naga/looks.py's FALLBACK)",
+            "the naga's story's Warcraft III voices aren't heard (their lines show as text)" };
         constexpr char const* MARK_SUFFIX = ".murlocnaga";
         constexpr char const* ASIDE_SUFFIX = ".aside";
 
@@ -922,6 +928,656 @@ namespace MurlocNaga
         return true;
     }
 
+    namespace
+    {
+        // A bone's transform: where its rest pose's points go (a 3 x 3 part and a move).
+        struct Affine
+        {
+            double a[3][3] = { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+            double t[3] = { 0, 0, 0 };
+        };
+
+        Affine Times(Affine const& x, Affine const& y)
+        {
+            Affine out;
+            for (int i = 0; i < 3; ++i)
+            {
+                for (int j = 0; j < 3; ++j)
+                    out.a[i][j] = x.a[i][0] * y.a[0][j] + x.a[i][1] * y.a[1][j] + x.a[i][2] * y.a[2][j];
+                out.t[i] = x.a[i][0] * y.t[0] + x.a[i][1] * y.t[1] + x.a[i][2] * y.t[2] + x.t[i];
+            }
+            return out;
+        }
+
+        Affine Inverse(Affine const& x)
+        {
+            double const (&m)[3][3] = x.a;
+            double det = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+            Affine out;
+            if (std::fabs(det) < 1e-12)
+                return out;
+            double inv = 1.0 / det;
+            out.a[0][0] = (m[1][1] * m[2][2] - m[1][2] * m[2][1]) * inv;
+            out.a[0][1] = (m[0][2] * m[2][1] - m[0][1] * m[2][2]) * inv;
+            out.a[0][2] = (m[0][1] * m[1][2] - m[0][2] * m[1][1]) * inv;
+            out.a[1][0] = (m[1][2] * m[2][0] - m[1][0] * m[2][2]) * inv;
+            out.a[1][1] = (m[0][0] * m[2][2] - m[0][2] * m[2][0]) * inv;
+            out.a[1][2] = (m[0][2] * m[1][0] - m[0][0] * m[1][2]) * inv;
+            out.a[2][0] = (m[1][0] * m[2][1] - m[1][1] * m[2][0]) * inv;
+            out.a[2][1] = (m[0][1] * m[2][0] - m[0][0] * m[2][1]) * inv;
+            out.a[2][2] = (m[0][0] * m[1][1] - m[0][1] * m[1][0]) * inv;
+            for (int i = 0; i < 3; ++i)
+                out.t[i] = -(out.a[i][0] * x.t[0] + out.a[i][1] * x.t[1] + out.a[i][2] * x.t[2]);
+            return out;
+        }
+
+        // A key: a time, a move, a turn (x, y, z, w) and a scale.
+        struct Key
+        {
+            uint32_t time = 0;
+            double move[3] = { 0, 0, 0 };
+            double turn[4] = { 0, 0, 0, 1 };
+            double scale[3] = { 1, 1, 1 };
+        };
+
+        void TurnMatrix(double const q[4], double r[3][3])
+        {
+            double x = q[0], y = q[1], z = q[2], w = q[3];
+            r[0][0] = 1 - 2 * (y * y + z * z); r[0][1] = 2 * (x * y - z * w); r[0][2] = 2 * (x * z + y * w);
+            r[1][0] = 2 * (x * y + z * w); r[1][1] = 1 - 2 * (x * x + z * z); r[1][2] = 2 * (y * z - x * w);
+            r[2][0] = 2 * (x * z - y * w); r[2][1] = 2 * (y * z + x * w); r[2][2] = 1 - 2 * (x * x + y * y);
+        }
+
+        void MatrixTurn(double const r[3][3], double q[4])
+        {
+            double trace = r[0][0] + r[1][1] + r[2][2];
+            if (trace > 0)
+            {
+                double s = std::sqrt(trace + 1.0) * 2;
+                q[0] = (r[2][1] - r[1][2]) / s; q[1] = (r[0][2] - r[2][0]) / s; q[2] = (r[1][0] - r[0][1]) / s; q[3] = 0.25 * s;
+            }
+            else if (r[0][0] > r[1][1] && r[0][0] > r[2][2])
+            {
+                double s = std::sqrt(1.0 + r[0][0] - r[1][1] - r[2][2]) * 2;
+                q[0] = 0.25 * s; q[1] = (r[0][1] + r[1][0]) / s; q[2] = (r[0][2] + r[2][0]) / s; q[3] = (r[2][1] - r[1][2]) / s;
+            }
+            else if (r[1][1] > r[2][2])
+            {
+                double s = std::sqrt(1.0 + r[1][1] - r[0][0] - r[2][2]) * 2;
+                q[0] = (r[0][1] + r[1][0]) / s; q[1] = 0.25 * s; q[2] = (r[1][2] + r[2][1]) / s; q[3] = (r[0][2] - r[2][0]) / s;
+            }
+            else
+            {
+                double s = std::sqrt(1.0 + r[2][2] - r[0][0] - r[1][1]) * 2;
+                q[0] = (r[0][2] + r[2][0]) / s; q[1] = (r[1][2] + r[2][1]) / s; q[2] = 0.25 * s; q[3] = (r[1][0] - r[0][1]) / s;
+            }
+            double n = std::sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+            int sign = q[3] < 0 ? -1 : 1;
+            for (int i = 0; i < 4; ++i)
+                q[i] = n > 0 ? sign * q[i] / n : (i == 3 ? 1 : 0);
+        }
+
+        // A key as a transform: [pivot]'s move, turn and scale about it (the game's way), or (no pivot) as it is.
+        Affine KeyTransform(Key const& k, double const* pivot)
+        {
+            Affine out;
+            double r[3][3];
+            TurnMatrix(k.turn, r);
+            for (int i = 0; i < 3; ++i)
+                for (int j = 0; j < 3; ++j)
+                    out.a[i][j] = r[i][j] * k.scale[j];
+            for (int i = 0; i < 3; ++i)
+            {
+                out.t[i] = k.move[i];
+                if (pivot)
+                    out.t[i] += pivot[i] - (out.a[i][0] * pivot[0] + out.a[i][1] * pivot[1] + out.a[i][2] * pivot[2]);
+            }
+            return out;
+        }
+
+        // A transform as a key about [pivot] (the game's way).
+        Key TransformKey(Affine const& x, double const* pivot, uint32_t time)
+        {
+            Key k;
+            k.time = time;
+            double r[3][3];
+            for (int j = 0; j < 3; ++j)
+            {
+                double n = std::sqrt(x.a[0][j] * x.a[0][j] + x.a[1][j] * x.a[1][j] + x.a[2][j] * x.a[2][j]);
+                k.scale[j] = n;
+                for (int i = 0; i < 3; ++i)
+                    r[i][j] = n > 1e-12 ? x.a[i][j] / n : (i == j ? 1 : 0);
+            }
+            MatrixTurn(r, k.turn);
+            for (int i = 0; i < 3; ++i)
+                k.move[i] = x.t[i] - pivot[i] + (x.a[i][0] * pivot[0] + x.a[i][1] * pivot[1] + x.a[i][2] * pivot[2]);
+            return k;
+        }
+
+        // Keys blended at [time]: linear (the turns' blend normalized).
+        Key KeyAt(std::vector<Key> const& keys, uint32_t time)
+        {
+            if (keys.empty())
+                return Key();
+            if (keys.size() == 1 || time <= keys.front().time)
+                return keys.front();
+            for (size_t i = 0; i + 1 < keys.size(); ++i)
+            {
+                Key const& a = keys[i];
+                Key const& b = keys[i + 1];
+                if (time > b.time)
+                    continue;
+                double f = b.time > a.time ? double(time - a.time) / double(b.time - a.time) : 0.0;
+                Key out;
+                out.time = time;
+                double dot = a.turn[0] * b.turn[0] + a.turn[1] * b.turn[1] + a.turn[2] * b.turn[2] + a.turn[3] * b.turn[3];
+                double n = 0;
+                for (int j = 0; j < 4; ++j)
+                {
+                    out.turn[j] = a.turn[j] * (1 - f) + (dot < 0 ? -b.turn[j] : b.turn[j]) * f;
+                    n += out.turn[j] * out.turn[j];
+                }
+                n = std::sqrt(n);
+                for (int j = 0; j < 4; ++j)
+                    out.turn[j] = n > 0 ? out.turn[j] / n : (j == 3 ? 1 : 0);
+                for (int j = 0; j < 3; ++j)
+                {
+                    out.move[j] = a.move[j] * (1 - f) + b.move[j] * f;
+                    out.scale[j] = a.scale[j] * (1 - f) + b.scale[j] * f;
+                }
+                return out;
+            }
+            return keys.back();
+        }
+
+        // The keys without those their neighbours' blend gives back (within [turn] in a turn's numbers and
+        // [move] in a move's and a scale's), one key where they're all the same.
+        std::vector<Key> Reduced(std::vector<Key> const& keys, double turn = 0.0015, double move = 0.0015)
+        {
+            if (keys.size() <= 2)
+                return keys;
+            auto close = [&](Key const& k, Key const& got)
+            {
+                double plus = 0, minus = 0;
+                for (int j = 0; j < 4; ++j)
+                {
+                    plus = std::max(plus, std::fabs(got.turn[j] - k.turn[j]));
+                    minus = std::max(minus, std::fabs(got.turn[j] + k.turn[j]));
+                }
+                if (std::min(plus, minus) > turn)
+                    return false;
+                for (int j = 0; j < 3; ++j)
+                    if (std::fabs(got.move[j] - k.move[j]) > move || std::fabs(got.scale[j] - k.scale[j]) > move)
+                        return false;
+                return true;
+            };
+            std::vector<Key> out { keys.front() };
+            size_t i = 0;
+            while (i + 1 < keys.size())
+            {
+                size_t j = i + 1;
+                while (j + 1 < keys.size())
+                {
+                    std::vector<Key> span { keys[i], keys[j + 1] };
+                    bool all = true;
+                    for (size_t m = i + 1; m <= j && all; ++m)
+                        all = close(keys[m], KeyAt(span, keys[m].time));
+                    if (!all)
+                        break;
+                    ++j;
+                }
+                out.push_back(keys[j]);
+                i = j;
+            }
+            if (out.size() == 2 && close(out[1], out[0]))
+                out.resize(1);
+            return out;
+        }
+
+        int16_t PackTurn(double v)
+        {
+            long x = v >= 0 ? std::lround(v * 32767.0 - 32768.0) : std::lround(v * 32767.0 + 32767.0);
+            return int16_t(std::max(-32768L, std::min(32767L, x)));
+        }
+
+        double UnpackTurn(int16_t x) { return (x < 0 ? x + 32768.0 : x - 32767.0) / 32767.0; }
+
+        float F32(Bytes const& b, size_t at)
+        {
+            float v = 0;
+            if (at + 4 <= b.size())
+                std::memcpy(&v, &b[at], 4);
+            return v;
+        }
+
+        // A model's animated values (3.3.5's layout): where each track is, the size of its values (0:
+        // times alone), and the bone and which of its tracks (0 move, 1 turn, 2 scale) it is, or -1.
+        struct Track { size_t at; uint32_t size; int bone, which; };
+
+        bool Tracks(Bytes const& m, std::vector<Track>& out, std::string& why)
+        {
+            auto array = [&](size_t header, size_t item) -> Array
+            {
+                Array a = ArrayAt(m, header);
+                if (a.count && a.offset + size_t(a.count) * item > m.size())
+                    a.count = UINT32_MAX;
+                return a;
+            };
+            Array a = array(0x2C, 88);
+            if (a.count == UINT32_MAX)
+                return why = "its bones aren't where its header says", false;
+            for (uint32_t b = 0; b < a.count; ++b)
+                for (int k = 0; k < 3; ++k)
+                    out.push_back({ a.offset + b * 88 + 16 + size_t(k) * 20, k == 1 ? 8u : 12u, int(b), k });
+            struct Kind { size_t header, item; std::vector<std::pair<size_t, uint32_t>> tracks; };
+            for (Kind const& kind : { Kind { 0x48, 40, { { 0, 12 }, { 20, 2 } } }, Kind { 0x58, 20, { { 0, 2 } } },
+                                      Kind { 0x60, 60, { { 0, 12 }, { 20, 16 }, { 40, 12 } } }, Kind { 0xF0, 40, { { 20, 1 } } },
+                                      Kind { 0x110, 100, { { 16, 36 }, { 48, 36 }, { 80, 12 } } }, Kind { 0x100, 36, { { 24, 0 } } } })
+            {
+                Array k = array(kind.header, kind.item);
+                if (k.count == UINT32_MAX)
+                    return why = "its arrays aren't where its header says", false;
+                for (uint32_t i = 0; i < k.count; ++i)
+                    for (auto const& [off, size] : kind.tracks)
+                        out.push_back({ k.offset + i * kind.item + off, size, -1, -1 });
+            }
+            for (size_t header : { size_t(0x108), size_t(0x120), size_t(0x128) })
+                if (ArrayAt(m, header).count)
+                    return why = "it has lights, ribbons or particles (their animations aren't known here)", false;
+            return true;
+        }
+    }
+
+    bool MergeEmotes(Bytes& m2, Bytes const& emotes, std::string& why, size_t* added)
+    {
+        if (added)
+            *added = 0;
+        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || U32(m2, 4) != 264)
+            return why = "not a 3.3.5 model", false;
+        if (emotes.size() < 16 || std::memcmp(emotes.data(), "NEMO", 4) != 0 || U32(emotes, 4) != 2)
+            return why = "not the naga's emotes", false;
+        constexpr uint32_t SEQ = 64, IN_MODEL = 0x20, NONE = 0xFFFF;
+        constexpr size_t H_SEQS = 0x1C, H_SEQ_LOOKUP = 0x24, H_BONES = 0x2C;
+
+        // The emotes' skeleton (today's naga's: each bone's place, parent and key) and sequences.
+        uint32_t sourceCount = U32(emotes, 8), sequenceCount = U32(emotes, 12);
+        size_t at = 16;
+        if (at + size_t(sourceCount) * 16 > emotes.size())
+            return why = "the emotes end early", false;
+        std::vector<std::array<double, 3>> sourcePlace(sourceCount);
+        std::vector<int> sourceParent(sourceCount), sourceKey(sourceCount);
+        for (uint32_t s = 0; s < sourceCount; ++s, at += 16)
+        {
+            for (int j = 0; j < 3; ++j)
+                sourcePlace[s][j] = F32(emotes, at + 4 * j);
+            int16_t parent, key;
+            std::memcpy(&parent, &emotes[at + 12], 2);
+            std::memcpy(&key, &emotes[at + 14], 2);
+            sourceParent[s] = parent;
+            sourceKey[s] = key;
+            if (parent >= int(s))
+                return why = "the emotes' bones come before their parents", false;
+        }
+        struct Sequence { Bytes record; uint16_t alias; std::vector<std::vector<Key>> keys; };
+        std::vector<Sequence> sequences;
+        for (uint32_t q = 0; q < sequenceCount; ++q)
+        {
+            if (at + SEQ + 4 > emotes.size())
+                return why = "the emotes end early", false;
+            Sequence seq;
+            seq.record.assign(emotes.begin() + at, emotes.begin() + at + SEQ);
+            seq.alias = uint16_t(emotes[at + SEQ] | (emotes[at + SEQ + 1] << 8));
+            at += SEQ + 4;
+            if (seq.alias == NONE)
+            {
+                seq.keys.resize(sourceCount);
+                for (uint32_t s = 0; s < sourceCount; ++s)
+                {
+                    uint32_t n = U32(emotes, at);
+                    at += 4;
+                    if (at + size_t(n) * 44 > emotes.size())
+                        return why = "the emotes end early", false;
+                    for (uint32_t i = 0; i < n; ++i, at += 44)
+                    {
+                        Key k;
+                        k.time = U32(emotes, at);
+                        for (int j = 0; j < 3; ++j)
+                        {
+                            k.move[j] = F32(emotes, at + 4 + 4 * j);
+                            k.scale[j] = F32(emotes, at + 32 + 4 * j);
+                        }
+                        for (int j = 0; j < 4; ++j)
+                            k.turn[j] = F32(emotes, at + 16 + 4 * j);
+                        seq.keys[s].push_back(k);
+                    }
+                }
+            }
+            sequences.push_back(std::move(seq));
+        }
+
+        // The model's bones, sequences and tracks.
+        Array bones = ArrayAt(m2, H_BONES), seqs = ArrayAt(m2, H_SEQS);
+        if (bones.count == 0 || bones.offset + size_t(bones.count) * 88 > m2.size() || seqs.offset + size_t(seqs.count) * SEQ > m2.size())
+            return why = "its bones or sequences aren't where its header says", false;
+        std::vector<Track> tracks;
+        if (!Tracks(m2, tracks, why))
+            return false;
+        std::vector<std::array<double, 3>> pivot(bones.count);
+        std::vector<int> parent(bones.count), key(bones.count);
+        for (uint32_t b = 0; b < bones.count; ++b)
+        {
+            size_t o = bones.offset + b * 88;
+            int32_t k;
+            int16_t p;
+            std::memcpy(&k, &m2[o], 4);
+            std::memcpy(&p, &m2[o + 8], 2);
+            key[b] = k;
+            parent[b] = p;
+            if (p >= int(b))
+                return why = "its bones come before their parents", false;
+            for (int j = 0; j < 3; ++j)
+                pivot[b][j] = F32(m2, o + 76 + 4 * j);
+        }
+        std::vector<std::pair<uint16_t, uint16_t>> ids;
+        for (uint32_t k = 0; k < seqs.count; ++k)
+            ids.emplace_back(uint16_t(m2[seqs.offset + k * SEQ] | (m2[seqs.offset + k * SEQ + 1] << 8)),
+                             uint16_t(m2[seqs.offset + k * SEQ + 2] | (m2[seqs.offset + k * SEQ + 3] << 8)));
+        int stand = -1;
+        for (uint32_t k = 0; k < seqs.count && stand < 0; ++k)
+            if (ids[k].first == 0 && ids[k].second == 0)
+                stand = int(k);
+        if (stand < 0 || !(U32(m2, seqs.offset + stand * SEQ + 12) & IN_MODEL))
+            return why = "its stand isn't in the model", false;
+
+        // Each bone of the model's at an emote bone's place (within 2 cm): where several are, the one with
+        // its key, then its parent's place, then its grandparent's.
+        auto near = [](std::array<double, 3> const& a, std::array<double, 3> const& b)
+        {
+            double dx = a[0] - b[0], dy = a[1] - b[1], dz = a[2] - b[2];
+            return std::sqrt(dx * dx + dy * dy + dz * dz) < 0.02;
+        };
+        auto placeUp = [](std::vector<std::array<double, 3>> const& places, std::vector<int> const& parents, int b, int up)
+        {
+            for (int i = 0; i < up && b >= 0; ++i)
+                b = parents[b];
+            return b < 0 ? std::array<double, 3> { 0, 0, 0 } : places[b];
+        };
+        std::vector<int> source(bones.count, -1);
+        for (uint32_t b = 0; b < bones.count; ++b)
+        {
+            int best = -1, bestScore = -1;
+            for (uint32_t s = 0; s < sourceCount; ++s)
+            {
+                if (!near(sourcePlace[s], pivot[b]))
+                    continue;
+                int score = (key[b] >= 0 && sourceKey[s] == key[b] ? 4 : 0)
+                    + (near(placeUp(sourcePlace, sourceParent, int(s), 1), placeUp(pivot, parent, int(b), 1)) ? 2 : 0)
+                    + (near(placeUp(sourcePlace, sourceParent, int(s), 2), placeUp(pivot, parent, int(b), 2)) ? 1 : 0);
+                if (score > bestScore)
+                {
+                    best = int(s);
+                    bestScore = score;
+                }
+            }
+            source[b] = best;
+        }
+
+        // Each bone's own transform as the model stands (its stand's start), and which of its tracks are
+        // a global sequence's (they keep their own keys).
+        auto firstKey = [&](Track const& tr, uint32_t seq, double* value)
+        {
+            uint16_t interp = uint16_t(m2[tr.at] | (m2[tr.at + 1] << 8));
+            int16_t gseq;
+            std::memcpy(&gseq, &m2[tr.at + 2], 2);
+            Array times = ArrayAt(m2, tr.at + 4), values = ArrayAt(m2, tr.at + 12);
+            uint32_t use = gseq >= 0 ? 0 : seq;
+            if (use >= times.count || use >= values.count)
+                return;
+            Array keys = ArrayAt(m2, values.offset + use * 8);
+            if (keys.count == 0 || keys.offset + tr.size * (interp >= 2 ? 3 : 1) > m2.size())
+                return;
+            if (tr.which == 1)
+            {
+                for (int j = 0; j < 4; ++j)
+                {
+                    int16_t x;
+                    std::memcpy(&x, &m2[keys.offset + 2 * j], 2);
+                    value[j] = UnpackTurn(x);
+                }
+            }
+            else
+                for (int j = 0; j < 3; ++j)
+                    value[j] = F32(m2, keys.offset + 4 * j);
+        };
+        std::vector<Affine> still(bones.count);
+        std::vector<std::array<bool, 3>> global(bones.count, { false, false, false });
+        for (Track const& tr : tracks)
+        {
+            if (tr.bone < 0)
+                continue;
+            int16_t gseq;
+            std::memcpy(&gseq, &m2[tr.at + 2], 2);
+            global[tr.bone][tr.which] = gseq >= 0;
+        }
+        for (uint32_t b = 0; b < bones.count; ++b)
+        {
+            Key k;
+            firstKey(tracks[b * 3 + 0], uint32_t(stand), k.move);
+            firstKey(tracks[b * 3 + 1], uint32_t(stand), k.turn);
+            firstKey(tracks[b * 3 + 2], uint32_t(stand), k.scale);
+            still[b] = KeyTransform(k, pivot[b].data());
+        }
+
+        // The new sequences (those the model hasn't): each bone's own keys, from where the emotes put it
+        // in the world and where what it hangs from is.
+        std::set<uint16_t> have;
+        for (auto const& id : ids)
+            have.insert(id.first);
+        std::vector<Sequence const*> fresh;
+        std::vector<std::vector<std::vector<Key>>> boneKeys;          // per new sequence, per bone (empty: an alias)
+        for (Sequence const& seq : sequences)
+        {
+            uint16_t id = uint16_t(seq.record[0] | (seq.record[1] << 8));
+            if (have.count(id))
+                continue;
+            if (seq.alias != NONE)
+            {
+                bool found = have.count(seq.alias) > 0;
+                for (Sequence const* f : fresh)
+                    found |= uint16_t(f->record[0] | (f->record[1] << 8)) == seq.alias;
+                if (!found)
+                    continue;
+                fresh.push_back(&seq);
+                boneKeys.emplace_back();
+                have.insert(id);
+                continue;
+            }
+            std::set<uint32_t> timeSet;
+            for (auto const& ks : seq.keys)
+                for (Key const& k : ks)
+                    timeSet.insert(k.time);
+            std::vector<uint32_t> times(timeSet.begin(), timeSet.end());
+            if (times.empty())
+                times.push_back(0);
+            size_t n = times.size();
+            std::vector<std::vector<Affine>> sourceWorld(sourceCount, std::vector<Affine>(n));
+            for (uint32_t s = 0; s < sourceCount; ++s)
+                for (size_t i = 0; i < n; ++i)
+                {
+                    Affine own = KeyTransform(KeyAt(seq.keys[s], times[i]), nullptr);
+                    sourceWorld[s][i] = sourceParent[s] >= 0 ? Times(sourceWorld[sourceParent[s]][i], own) : own;
+                }
+            std::vector<std::vector<Affine>> world(bones.count, std::vector<Affine>(n));
+            std::vector<std::vector<Key>> keys(bones.count);
+            for (uint32_t b = 0; b < bones.count; ++b)
+            {
+                bool mapped = source[b] >= 0 && !seq.keys[source[b]].empty();
+                std::vector<Key> own(n);
+                for (size_t i = 0; i < n; ++i)
+                {
+                    Affine above = parent[b] >= 0 ? world[parent[b]][i] : Affine();
+                    world[b][i] = mapped ? sourceWorld[source[b]][i] : Times(above, still[b]);
+                    own[i] = TransformKey(Times(Inverse(above), world[b][i]), pivot[b].data(), times[i]);
+                }
+                keys[b] = Reduced(own);
+            }
+            fresh.push_back(&seq);
+            boneKeys.push_back(std::move(keys));
+            have.insert(id);
+        }
+        if (fresh.empty())
+            return true;
+
+        // Every track: entries for the new sequences (a bone's own keys, else its stand's).
+        uint32_t oldCount = seqs.count, total = oldCount + uint32_t(fresh.size());
+        std::set<int> animated;
+        for (Track const& tr : tracks)
+        {
+            uint16_t interp = uint16_t(m2[tr.at] | (m2[tr.at + 1] << 8));
+            int16_t gseq;
+            std::memcpy(&gseq, &m2[tr.at + 2], 2);
+            if (gseq >= 0)
+                continue;
+            Array times = ArrayAt(m2, tr.at + 4), values = ArrayAt(m2, tr.at + 12);
+            if (times.count == 1 && oldCount > 1 && tr.bone < 0)
+                continue;                                              // (one value for every sequence, as the game's own have: as it is)
+            if (times.count && times.count != oldCount)
+                return why = "a track with " + std::to_string(times.count) + " entries for " + std::to_string(oldCount) + " sequences", false;
+            if (tr.size && times.count != values.count)
+                return why = "a track whose times and values don't match", false;
+            if (times.offset + size_t(times.count) * 8 > m2.size() || (tr.size && values.offset + size_t(values.count) * 8 > m2.size()))
+                return why = "a track's entries aren't where it says", false;
+            Bytes newTimes, newValues;
+            if (times.count)
+            {
+                newTimes.assign(m2.begin() + times.offset, m2.begin() + times.offset + times.count * 8);
+                if (tr.size)
+                    newValues.assign(m2.begin() + values.offset, m2.begin() + values.offset + values.count * 8);
+            }
+            else
+            {
+                newTimes.assign(size_t(oldCount) * 8, 0);
+                if (tr.size)
+                    newValues.assign(size_t(oldCount) * 8, 0);
+            }
+            Bytes standTimes(8, 0), standValues(8, 0);
+            if (times.count)
+            {
+                std::copy(newTimes.begin() + stand * 8, newTimes.begin() + stand * 8 + 8, standTimes.begin());
+                if (tr.size)
+                    std::copy(newValues.begin() + stand * 8, newValues.begin() + stand * 8 + 8, standValues.begin());
+            }
+            bool got = false;
+            for (size_t f = 0; f < fresh.size(); ++f)
+            {
+                bool own = tr.bone >= 0 && !boneKeys[f].empty() && !global[tr.bone][tr.which];
+                if (own)
+                {
+                    std::vector<Key> const& ks = boneKeys[f][tr.bone];
+                    bool rest = true;
+                    for (Key const& k : ks)
+                        for (int j = 0; j < 3; ++j)
+                            rest &= tr.which == 0 ? std::fabs(k.move[j]) < 1e-4 : tr.which == 2 ? std::fabs(k.scale[j] - 1) < 1e-4
+                                : std::fabs(std::fabs(k.turn[3]) - 1) < 1e-5;
+                    if (rest && times.count == 0)
+                        own = false;
+                    else
+                    {
+                        if (interp >= 2)
+                            return why = "a bone's track with tangents (its keys aren't the kind this writes)", false;
+                        Bytes t, v;
+                        for (Key const& k : ks)
+                        {
+                            Add(t, k.time);
+                            if (tr.which == 1)
+                                for (int j = 0; j < 4; ++j)
+                                    Add(v, PackTurn(k.turn[j]));
+                            else
+                                for (int j = 0; j < 3; ++j)
+                                    Add(v, float(tr.which == 0 ? k.move[j] : k.scale[j]));
+                        }
+                        Bytes entry;
+                        Add(entry, uint32_t(ks.size()));
+                        Add(entry, Append(m2, t));
+                        newTimes.insert(newTimes.end(), entry.begin(), entry.end());
+                        entry.clear();
+                        Add(entry, uint32_t(ks.size()));
+                        Add(entry, Append(m2, v));
+                        newValues.insert(newValues.end(), entry.begin(), entry.end());
+                        got = true;
+                        animated.insert(tr.bone);
+                        continue;
+                    }
+                }
+                newTimes.insert(newTimes.end(), standTimes.begin(), standTimes.end());
+                if (tr.size)
+                    newValues.insert(newValues.end(), standValues.begin(), standValues.end());
+            }
+            if (times.count == 0 && !got)
+                continue;
+            uint32_t timesAt = Append(m2, newTimes);
+            Put32(m2, tr.at + 4, total);
+            Put32(m2, tr.at + 8, timesAt);
+            if (tr.size)
+            {
+                uint32_t valuesAt = Append(m2, newValues);
+                Put32(m2, tr.at + 12, total);
+                Put32(m2, tr.at + 16, valuesAt);
+            }
+            if (interp == 0 && got)
+            {
+                m2[tr.at] = 1;
+                m2[tr.at + 1] = 0;
+            }
+        }
+
+        // The sequences: the new ones after the model's (its stand's bounds, no variation after them, an
+        // alias pointing at its sequence), and the look-up by id.
+        Bytes records(m2.begin() + seqs.offset, m2.begin() + seqs.offset + size_t(oldCount) * SEQ);
+        for (Sequence const* f : fresh)
+            ids.emplace_back(uint16_t(f->record[0] | (f->record[1] << 8)), 0);
+        for (size_t f = 0; f < fresh.size(); ++f)
+        {
+            Bytes r = fresh[f]->record;
+            std::copy(records.begin() + stand * SEQ + 32, records.begin() + stand * SEQ + 60, r.begin() + 32);
+            uint16_t index = uint16_t(oldCount + f);
+            if (fresh[f]->alias != NONE)
+                for (size_t k = 0; k < ids.size(); ++k)
+                    if (ids[k].first == fresh[f]->alias && ids[k].second == 0)
+                    {
+                        index = uint16_t(k);
+                        break;
+                    }
+            int16_t none = -1;
+            std::memcpy(&r[60], &none, 2);
+            std::memcpy(&r[62], &index, 2);
+            records.insert(records.end(), r.begin(), r.end());
+        }
+        uint32_t recordsAt = Append(m2, records);
+        Put32(m2, H_SEQS, total);
+        Put32(m2, H_SEQS + 4, recordsAt);
+        uint16_t top = 0;
+        for (auto const& id : ids)
+            top = std::max(top, id.first);
+        std::vector<int16_t> lookup(size_t(top) + 1, -1);
+        for (size_t k = 0; k < ids.size(); ++k)
+            if (lookup[ids[k].first] < 0)
+                lookup[ids[k].first] = int16_t(k);
+        Bytes table;
+        for (int16_t v : lookup)
+            Add(table, v);
+        uint32_t lookupAt = Append(m2, table);
+        Put32(m2, H_SEQ_LOOKUP, uint32_t(lookup.size()));
+        Put32(m2, H_SEQ_LOOKUP + 4, lookupAt);
+        // (a bone that moves now: flagged so, or the game leaves it where it is)
+        for (int b : animated)
+            Put32(m2, bones.offset + size_t(b) * 88 + 4, U32(m2, bones.offset + size_t(b) * 88 + 4) | 0x200);
+        if (added)
+            *added = fresh.size();
+        return true;
+    }
+
     Bytes MixNarration(std::vector<std::pair<uint32_t, Bytes>> const& parts)
     {
         std::vector<float> mix;
@@ -1053,11 +1709,13 @@ namespace MurlocNaga
             stamp.Add(Text(f));
         }
         // What the server package made from the game's files of today (tools/murloc_model.py: the
-        // murlocs' model and textures; tools/naga_parts.py: the naga's headdresses and outfits) in
-        // data/files, each list (murloc.files, naga.files) written last.
+        // murlocs' model and textures; tools/naga_parts.py: the naga's headdresses and outfits;
+        // tools/naga_emotes.py: the naga's emotes; tools/naga_models.py: the naga's story's sea witch,
+        // warden and Queen Azshara; tools/naga_voices.py: its Warcraft III voices) in data/files, each
+        // list written last.
         fs::path packaged = moduleData.parent_path() / "files";
         std::map<std::string, std::vector<std::string>> packagedFiles;          // list -> its files
-        for (char const* list : { "murloc.files", "naga.files" })
+        for (char const* list : PACKAGED_LISTS)
         {
             std::istringstream in(Text(packaged / list));
             std::string name;
@@ -1158,10 +1816,10 @@ namespace MurlocNaga
                 }
             }
         }
-        for (char const* list : { "murloc.files", "naga.files" })
-            if (packagedFiles[list].empty())
-                problems.push_back(std::string("no ") + list + " in " + packaged.string() + " (the server package makes them): "
-                    + (std::strcmp(list, "murloc.files") == 0 ? "the game won't draw the murlocs" : "the naga have no headdresses or outfits"));
+        for (size_t i = 0; i < std::size(PACKAGED_LISTS); ++i)
+            if (packagedFiles[PACKAGED_LISTS[i]].empty())
+                problems.push_back(std::string("no ") + PACKAGED_LISTS[i] + " in " + packaged.string() + " (the server package makes them): "
+                    + WITHOUT_LIST[i]);
         for (auto const& [list, names] : packagedFiles)
             for (auto const& name : names)
             {
@@ -1177,22 +1835,54 @@ namespace MurlocNaga
                 std::replace(inGame.begin(), inGame.end(), '/', '\\');
                 add(inGame, data);
             }
-        // The naga's headdresses and outfits added to the client's own naga models (an HD look's, with
-        // one in): geosets the creation screen picks (tools/naga_parts.py).
+        // The naga's headdresses and outfits (geosets the creation screen picks: tools/naga_parts.py) and
+        // emotes (tools/naga_emotes.py) added to the client's own naga models (an HD look's, with one in).
         for (char const* sex : { "Male", "Female" })
         {
             std::string partsName = std::string("Character/Naga_/") + sex + "/Naga" + sex + "Parts.dat";
-            auto const& naga = packagedFiles["naga.files"];
-            if (std::find(naga.begin(), naga.end(), partsName) == naga.end())
+            std::string emotesName = std::string("Character/Naga_/") + sex + "/Naga" + sex + "Emotes.dat";
+            auto listed = [&](char const* list, std::string const& name)
+            {
+                auto const& files = packagedFiles[list];
+                return std::find(files.begin(), files.end(), name) != files.end();
+            };
+            bool withParts = listed("naga.files", partsName), withEmotes = listed("nagaemotes.files", emotesName);
+            if (!withParts && !withEmotes)
                 continue;
             std::string model = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
-            Bytes m2, skin, parts = ReadFile(packaged / partsName);
+            Bytes m2, skin;
             std::string why;
             if (!game.Read(model + ".m2", m2) || !game.Read(model + "00.skin", skin))
-                problems.push_back(model + ".m2 isn't in the game: the naga have no headdresses or outfits");
-            else if (!MergeParts(m2, skin, parts, why))
-                problems.push_back(model + ".m2: " + why + ": the naga have no headdresses or outfits");
-            else
+            {
+                problems.push_back(model + ".m2 isn't in the game: the naga have no headdresses, outfits or new emotes");
+                continue;
+            }
+            bool changed = false;
+            if (withParts)
+            {
+                Bytes withM2 = m2, withSkin = skin, parts = ReadFile(packaged / partsName);
+                if (!MergeParts(withM2, withSkin, parts, why))
+                    problems.push_back(model + ".m2: " + why + ": the naga have no headdresses or outfits");
+                else
+                {
+                    m2 = std::move(withM2);
+                    skin = std::move(withSkin);
+                    changed = true;
+                }
+            }
+            if (withEmotes)
+            {
+                Bytes merged = m2, emotes = ReadFile(packaged / emotesName);
+                size_t added = 0;
+                if (!MergeEmotes(merged, emotes, why, &added))
+                    problems.push_back(model + ".m2: " + why + ": the naga have no new emotes");
+                else
+                {
+                    m2 = std::move(merged);
+                    changed |= added > 0;
+                }
+            }
+            if (changed)
             {
                 add(model + ".m2", m2);
                 add(model + "00.skin", skin);

@@ -1,12 +1,13 @@
-"""What the Murlocs' and the Naga's starts hold: their people, things and quests, in Darkshore
+"""What the Murlocs' and the Naga's first starts held: their people, things and quests, in Darkshore
 (map 1). tools/build_data.py places them (each on the ground the server's maps give, or where a
 creature of the game's stands) and writes their SQL.
 
-The murlocs' village is on the island a few hundred yards west of Auberdine; the renegade naga's
-camp is on the island north of it. Both are seen by their own race alone (a phase of their own in
-Darkshore and Ashenvale, PHASE below), so nobody else's game changes: the murlocs' people, the
-raiders they fight, what they steal in Auberdine; the naga's people, their hunters and the troll
-scout at the Zoram Strand.
+Both are retired, kept here for the record and for their ids (still taken: what came after them keeps
+its ids): the murlocs' village on the island west of Auberdine (their story starts in the Wrathtail's
+pens: tools/murloc/) and the renegade naga's camp on the island north of it, with its five quests (the
+naga's story starts at Rethress Sanctum in Azshara: tools/naga/). Lady Szaria, Myrmidon Ssaveth and Vyssa
+the Coral-Keeper keep their creature entries (975017 to 975019) as the naga's story's people
+(tools/naga/ch0_*.py: tools/murloc/profiles.py's KEPT_ENTRIES).
 
 The murlocs speak murloc. What they want is shown, not told: what they do as they speak (in
 brackets), never what they mean. The naga, the night elves and the trolls speak plainly.
@@ -276,15 +277,16 @@ NAGA_QUESTS = [
          rewards_choice=["szaria_band", "darkspear_cloak"], standing=[(530, 250), (76, 150)]),
 ]
 
-# The naga's Darkshore: the night elves' quests (and the Explorers' League's and the gnomes' there)
-# are open to them, as to anyone the town will talk to; these lead out of Darkshore, to the
-# Alliance's cities and Ashenvale's Alliance camps, and aren't offered to them (their own way out
-# is to the south, to the Horde).
-NAGA_CLOSED = [741, 942, 943, 968, 967, 970, 973, 1140, 1167, 981, 1143, 1133, 5321]
-# The Darkshore quests the Alliance alone may take (the Alliance's race mask): theirs too.
-DARKSHORE_ALLIANCE_ONLY = [4722, 4723, 4725, 4727, 4728, 4730, 4731, 4732, 4733, 4811, 4812]
-# Factions whose people the naga meet in Darkshore, neutral to them from the start (the Horde's
-# other races are hated by them): Darnassus, Ironforge (the Explorers' League), Gnomeregan Exiles.
+# The naga's camp and its quests: retired (the user: their story in Azshara, 10 to 55, their camp retired).
+NAGA_CAMP = False
+# What the retired camp's Darkshore did to the world database, undone by tools/build_data.py's SQL on a
+# realm that had it: these quests (leading out of Darkshore to the Alliance) were closed to the naga by
+# conditions, and these (the Alliance's alone) opened to them.
+RETIRED_NAGA_CLOSED = [741, 942, 943, 968, 967, 970, 973, 1140, 1167, 981, 1143, 1133, 5321]
+RETIRED_DARKSHORE_ALLIANCE_ONLY = [4722, 4723, 4725, 4727, 4728, 4730, 4731, 4732, 4733, 4811, 4812]
+# Factions neutral to the naga from the start (the Horde's other races are hated by them): Darnassus
+# (Azshara's Talrendis Point and Shadowsong Shrine are its people's: bible 18.1), Ironforge (the Explorers'
+# League), Gnomeregan Exiles (the retired camp's Darkshore had theirs; harmless).
 NAGA_NEUTRAL_FACTIONS = [69, 47, 54]
 
 # The murlocs' language: the game's Titan (Languages.dbc 9, skill 140), named Nerglish in the patch.
@@ -294,3 +296,5 @@ NERGLISH_LANGUAGE = 9
 MURLOC_VILLAGE = False
 # The murlocs' story's chapters released (tools/murloc/ch0 to chN): the ones after are still being written.
 MURLOC_CHAPTERS = 10
+# The naga's story's chapters released (tools/naga/ch0 to chN).
+NAGA_CHAPTERS = 1
