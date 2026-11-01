@@ -149,5 +149,37 @@ narration = [l.rstrip("\n").split("\t") for l in open(os.path.join(DATA, "client
 check({l[0] for l in narration} == {"Murloc", "Naga"} and all(l[2].startswith("Sound\\") for l in narration), "the narrations: the game's sounds")
 check(sum(1 for l in narration if "LadyVashj" in l[2]) == 8, "the naga's: eight of Lady Vashj's lines")
 
+# The naga's story's assets (tools/naga/, tools/naga_assets.py): every voice and look in the module's
+# ranges and in the tables, the emotes' ids the game's.
+from naga import looks as LK, sounds as S  # noqa: E402
+import naga_emotes as NE  # noqa: E402
+voices = [l.split("\t") for l in open(os.path.join(DATA, "client", "dbc", "SoundEntries.txt")).read().splitlines()
+          if l.startswith("put\t") and S.FIRST_ID <= int(l.split("\t")[1]) <= S.LAST_ID]
+check(len(S.VOICES) == 82 and len(S.SOUNDS) == 82 and len(set(S.SOUNDS.values())) == 82, "the naga's story's 82 Warcraft III voices, an id each")
+check(all(S.FIRST_ID <= i <= S.LAST_ID for i in S.SOUNDS.values()), "...in SoundEntries 995000 to 995199")
+check({int(v[1]): v[4] for v in voices} == {i: n + ".wav" for n, i in S.SOUNDS.items()}
+      and all(v[24] == S.DIRECTORY.replace("\\", "\\\\") for v in voices), "...each a SoundEntries row naming its WAV in Sound\\Creature\\WC3Voices")
+check(all(len(sha1) == 40 and size > 44 and words for _, sha1, size, _, words in S.VOICES), "...each pinned by its SHA-1 and size, with its words")
+check(len(re.findall(r"\(99[5]\d\d\d, 10, 'NagaStory_", SQL)) == 82, "...and in the world database's soundentries_dbc")
+display_rows = {int(l.split("\t")[1]): l.split("\t") for l in open(os.path.join(DATA, "client", "dbc", "CreatureDisplayInfo.txt")).read().splitlines()
+                if l.startswith("put\t")}
+extra_rows = {int(l.split("\t")[1]): l.split("\t") for l in open(os.path.join(DATA, "client", "dbc", "CreatureDisplayInfoExtra.txt")).read().splitlines()
+              if l.startswith("put\t")}
+model_rows = {int(l.split("\t")[1]): l.split("\t") for l in models.splitlines() if l.startswith("put\t")}
+check(all(LK.DISPLAY_FIRST <= d <= LK.DISPLAY_LAST and d in display_rows for d in LK.LOOKS.values()), "every look's CreatureDisplayInfo row, 40000 to 40299")
+check(set(LK.EMOTES) == set(LK.LOOKS) and set(LK.FALLBACK) <= set(LK.LOOKS), "every look says which emotes it plays")
+check(all(LK.MODEL_DATA_FIRST <= c["model_data"] <= LK.MODEL_DATA_LAST and c["model_data"] in model_rows
+          and model_rows[c["model_data"]][3] == "%s\\\\%s.mdx" % (c["folder"].replace("/", "\\\\"), c["name"]) for c in LK.CREATURES),
+      "the converted models' CreatureModelData rows, 3800 to 3849, naming their files")
+check(all(int(display_rows[d][2]) == m and display_rows[d][7:10] == list(s) for d, (m, _, _, s) in LK.CREATURE_LOOKS.items()),
+      "...their looks with their skins")
+check(all(LK.EXTRA_FIRST <= x <= LK.EXTRA_LAST and x in extra_rows and int(display_rows[d][4]) == x
+          and [int(v) for v in extra_rows[x][9:20]] == list(items) for d, (x, _, _, _, _, _, _, _, _, items) in LK.PARTS_LOOKS.items()),
+      "the looks of the game's parts: their CreatureDisplayInfoExtra rows (25000 to 25099), their items")
+check(all(f"({d}, 0.306, 1.5, " in SQL for d in LK.LOOKS.values()), "...every look's size in creature_model_info")
+emote_ids = [a for a, _ in NE.EMOTES]
+check(len(emote_ids) == len(set(emote_ids)) and all(0 < a <= 505 for a in emote_ids), "the naga's emotes: ids 3.3.5 has, each once")
+check(all(how[1] in emote_ids for _, how in NE.EMOTES if how[0] == "alias"), "...every alias of one of them")
+
 print("PASSED" if not failures else f"FAILED ({failures})")
 sys.exit(1 if failures else 0)

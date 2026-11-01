@@ -184,6 +184,23 @@ if [ -d "$DIST/modules/mod-murloc-naga" ]; then
 		"$pkg/src/modules/mod-murloc-naga/data/files" ||
 		{ echo "The naga's headdresses and outfits weren't made (tools/naga_parts.py says why)" >&2
 		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
+	# The naga's story's assets: their emotes (today's naga's and the night elves' animations, merged
+	# into the client's naga as the patch is made), its people's models (today's sea witch, warden and
+	# Queen Azshara made 3.3.5's) and its Warcraft III voices (warcraft.wiki.gg's files, or Wowpedia's
+	# copies, checked by their SHA-1). Each list is written last; without one, those emotes, models or
+	# voices aren't in the game (the voices' lines show as text).
+	apk add -q --no-progress ffmpeg
+	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_emotes.py fetch \
+		"$pkg/src/modules/mod-murloc-naga/data/files" ||
+		{ echo "The naga's emotes weren't made (tools/naga_emotes.py says why)" >&2
+		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
+	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_models.py fetch \
+		"$pkg/src/modules/mod-murloc-naga/data/files" ||
+		{ echo "The naga's story's models weren't made (tools/naga_models.py says why)" >&2
+		  echo "mod-murloc-naga" >> "$INCOMPLETE"; }
+	MURLOC_CACHE=/repo/build/allied-races-cache/murloc python3 /repo/warcraft/modules/mod-murloc-naga/tools/naga_voices.py fetch \
+		"$pkg/src/modules/mod-murloc-naga/data/files" ||
+		echo "The naga's story's voices weren't all fetched: their lines show as text where they're missing" >&2
 fi
 
 # Lua scripts for ALE (mod-ale): its own, and those of the modules the app's user picked that are
