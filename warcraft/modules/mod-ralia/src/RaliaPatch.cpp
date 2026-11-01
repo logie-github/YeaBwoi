@@ -19,12 +19,17 @@
  * have them, not as today's files are). The game's size is kept: a skin of today is twice as wide as
  * it is high, with the body (classic's layout) in its left half, which is what's used.
  *
+ * Only a skin's body part is taken (RaliaImage, InBody: classic's TorsoUpper, TorsoLower and LegUpper),
+ * its colours scaled to the game's skin there; the rest of the skin stays the game's own, so what an HD
+ * look's models draw from other parts (the Draenei's horns) stays as it was.
+ *
  * A skin with no file of Ralia's (a colour Ralia's patches don't have, or one of the allied races'
  * tattooed skins, which sources.txt points at their plain colour) takes the changes Ralia's file makes
  * to the nearest colour that has one (RaliaImage, Repaint): where that colour's file differs from the
- * game's, this colour's picture is changed as much, so its own colour and tattoo stay. Underwear with
- * no file takes the nearest colour's. A skin whose nearest file is another picture altogether (more
- * than a twentieth of it changed: a creature's skin, drawn otherwise) is left as it is.
+ * game's, this colour's picture is changed as much, so its own colour and tattoo stay. Where the nearest
+ * colour's file is another picture than the game's (more than a twentieth of it changed: an HD look's
+ * skins), its body part is taken in this colour's skin instead. Underwear with no file takes the nearest
+ * colour's.
  *
  * Where a set has a texture both as the older models' and as the newer's ("_hd"), the one nearer the
  * game's own picture is used (the game draws the older models, or an HD look's newer ones).
@@ -57,7 +62,7 @@ namespace Ralia
     namespace
     {
         constexpr char const* MARK_SUFFIX = ".ralia";
-        constexpr char const* VERSION = "ralia-3";
+        constexpr char const* VERSION = "ralia-4";
         // The races left as they are (their textures' folders).
         constexpr char const* LEFT_OUT[] = { "character\\murloc\\", "character\\naga_\\" };
         // Above this share of a skin changed, the nearest file isn't the same picture changed.
@@ -484,14 +489,11 @@ namespace Ralia
                     }
                     uint32_t w = t.game.width, h = t.game.height;
                     Image out;
-                    if (t.kind != SKIN)
+                    if (t.kind == PELVIS || t.kind == TORSO)
                         out = Resize(after, w, h);          // underwear: Ralia's, alpha and all
                     else if (hasFile)
-                    {
-                        out = Resize(after, w, h);
-                        for (size_t i = 0; i < size_t(w) * h; ++i)
-                            out.rgba[i * 4 + 3] = t.alphaDepth ? t.game.rgba[i * 4 + 3] : 255;
-                    }
+                        // the body part of Ralia's, in the game's skin colour; the rest the game's own
+                        out = Fit(t.game, Resize(after, w, h), t.kind == EXTRA);
                     else
                     {
                         Target& d = targets[src];
@@ -500,13 +502,12 @@ namespace Ralia
                             ++kept;
                             continue;
                         }
+                        // the nearest colour's change, where its file is its game picture changed; where
+                        // it's another picture (an HD look's skins), its body part in this colour's skin
                         double changed = 0;
-                        out = Repaint(t.game, Resize(d.game, w, h), Resize(after, w, h), changed);
+                        out = KeepOutside(Repaint(t.game, Resize(d.game, w, h), Resize(after, w, h), changed), t.game);
                         if (changed > MOST_CHANGED)
-                        {
-                            ++kept;
-                            continue;
-                        }
+                            out = Fit(t.game, Resize(after, w, h), false);
                     }
                     put(t, EncodePalette(out, t.kind != SKIN || t.alphaDepth));
                     ++(hasFile ? direct : repainted);

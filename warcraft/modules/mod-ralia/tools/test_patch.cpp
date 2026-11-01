@@ -196,7 +196,10 @@ int main(int argc, char** argv)
     Row(dbc, 21, 11, 1, 0, D + "DraeneiFemaleSkin00_00.blp", "", 0);
     Row(dbc, 22, 11, 1, 0, D + "DraeneiFemaleSkin00_01.blp", "", 1);
     auto stripes = [](uint32_t x, uint32_t) { return (x / 4) % 2 ? Rgb{ 150, 120, 200 } : Rgb{ 110, 90, 170 }; };
-    GameTexture(common, D + "DraeneiFemaleSkin00_00.blp", Make(64, 64, stripes));
+    Rgb horn { 250, 250, 40 };
+    // (a horn: what an HD look's model draws from outside the body part)
+    GameTexture(common, D + "DraeneiFemaleSkin00_00.blp", Make(64, 64, [&](uint32_t x, uint32_t y)
+        { return x >= 8 && x < 16 && y >= 48 && y < 56 ? horn : stripes(x, y); }));
     GameTexture(common, D + "DraeneiFemaleSkin00_01.blp", Flat(64, 64, { 130, 100, 180 }));
     // A man's, and the blood elves' first colour (the Skyborne's and the Dark Ranger's).
     std::string const HM = "Character\\Human\\Male\\", B = "Character\\BloodElf\\Female\\";
@@ -225,9 +228,10 @@ int main(int argc, char** argv)
     RaliaTexture(files, "Character/Gnome/Male/gnomemaleskin00_00_hd.blp", today(human0, withSquare(human0, changed)));
     RaliaTexture(files, "Character/Gnome/Female/gnomefemalenakedpelvisskin00_00_hd.blp", Flat(64, 32, { 0, 0, 0 }, 0));
     RaliaTexture(files, "Character/Gnome/Female/gnomefemalenakedtorsoskin00_00_hd.blp", Flat(64, 32, { 0, 0, 0 }, 0));
-    RaliaTexture(files, "Character/BloodElf/Female/bloodelffemaleskin00_01_hd.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 240, 200, 170 }; }));
+    RaliaTexture(files, "Character/BloodElf/Female/bloodelffemaleskin00_01_hd.blp", today({}, withSquare({ 180, 170, 220 }, { 20, 220, 20 })));
     RaliaTexture(files, "Character/Nightborne/Female/nightbornefemaleskin00_00.blp", today(nightborne, withSquare(nightborne, changed)));
-    RaliaTexture(files, "Character/Worgen/Female/worgenfemaleskin00_00.blp", Flat(32, 32, { 50, 40, 30 }));
+    RaliaTexture(files, "Character/Worgen/Female/worgenfemaleskin00_00.blp", Make(32, 32, [](uint32_t x, uint32_t y)
+        { return x >= 20 && x < 24 && y >= 5 && y < 9 ? Rgb{ 220, 30, 30 } : Rgb{ 100, 80, 60 }; }));
     // (draenei 00: the newer is the game's picture changed, the older another; 01: the older is nearer)
     RaliaTexture(files, "Character/Draenei/Female/draeneifemaleskin00_00.blp", today({}, [](uint32_t, uint32_t) { return Rgb{ 250, 20, 20 }; }));
     RaliaTexture(files, "Character/Draenei/Female/draeneifemaleskin00_00_hd.blp", today({}, [&](uint32_t x, uint32_t y)
@@ -281,8 +285,13 @@ int main(int argc, char** argv)
         }
 
     ok = read(O + "OrcFemaleSkin00_00.blp", image, encoding, alphaDepth);
-    Check(ok && Near(image, 60, 30, { 180, 100, 50 }, 12), "Ralia's file is used even when it's another picture than the game's " + Show(image, 60, 30));
-    Check(!archive->Has(O + "OrcFemaleSkin00_01.blp"), "a colour whose nearest file is another picture is left as it is");
+    auto red = [&](uint32_t x, uint32_t y) { return int(image.rgba[(size_t(y) * image.width + x) * 4]); };
+    Check(ok && red(62, 20) > red(34, 20) + 40 && (Near(image, 5, 5, { 30, 120, 30 }, 8) || Near(image, 5, 5, { 160, 200, 90 }, 8)),
+        "Ralia's file where it's another picture than the game's: its body part (its gradient: " + Show(image, 34, 20) + " to "
+        + Show(image, 62, 20) + "), the rest the game's own " + Show(image, 5, 5));
+    ok = read(O + "OrcFemaleSkin00_01.blp", image, encoding, alphaDepth);
+    Check(ok && red(62, 20) > red(34, 20) + 20 && Near(image, 5, 5, { 60, 110, 50 }, 6),
+        "a colour whose nearest file is another picture takes that file's body part in its own skin " + Show(image, 62, 20) + ", the rest its own " + Show(image, 5, 5));
     ok = read(G + "GnomeFemaleSkin00_00.blp", image, encoding, alphaDepth);
     Check(ok && image.width == 64 && encoding == 1 && Near(image, 44, 14, changed, 8), "female gnome skin takes Ralia's body half, palettized at the game's size");
     ok = read(GM + "GnomeMaleSkin00_00.blp", image, encoding, alphaDepth);
@@ -297,7 +306,8 @@ int main(int argc, char** argv)
     }
 
     ok = read(V + "VoidElfFemaleSkin00_07.blp", image, encoding, alphaDepth);
-    Check(ok && Near(image, 30, 30, { 240, 200, 170 }, 6), "sources.txt's file for a colour numbered otherwise " + Show(image, 30, 30));
+    Check(ok && Near(image, 44, 14, { 20, 220, 20 }, 10) && Near(image, 10, 50, { 180, 170, 220 }, 6),
+        "sources.txt's file for a colour numbered otherwise (its mark " + Show(image, 44, 14) + ")");
 
     ok = read(N + "NightborneFemaleSkin00_10.blp", image, encoding, alphaDepth);
     // (the same colour as the plain one's: its change, scaled as the plain colour's is)
@@ -307,11 +317,13 @@ int main(int argc, char** argv)
         "a tattooed colour takes its plain colour's change and keeps its tattoo (" + Show(image, 5, 51) + ", " + Show(image, 44, 14) + ")");
 
     ok = read(W + "WORGENFEMALESKIN00_00.blp", image, encoding, alphaDepth);
-    Check(ok && image.width == 64 && Near(image, 10, 10, { 50, 40, 30 }, 6), "a square file (the Worgen's) is all body, at the game's size");
+    Check(ok && image.width == 64 && red(44, 14) > 150 && image.rgba[(14 * 64 + 44) * 4 + 1] < 90 && Near(image, 10, 50, { 100, 80, 60 }, 6),
+        "a square file (the Worgen's) is all body, at the game's size (its mark " + Show(image, 44, 14) + ")");
 
     ok = read(D + "DraeneiFemaleSkin00_00.blp", image, encoding, alphaDepth);
     Check(ok && Near(image, 44, 14, changed, 8) && !Near(image, 5, 5, { 250, 20, 20 }, 40),
         "a texture both as the older models' and the newer's: the newer, nearer the game's picture " + Show(image, 44, 14));
+    Check(ok && Near(image, 12, 52, horn, 8), "outside the body part the game's own stays (an HD look's horns " + Show(image, 12, 52) + ")");
     ok = read(D + "DraeneiFemaleSkin00_01.blp", image, encoding, alphaDepth);
     Check(ok && Near(image, 5, 5, { 132, 102, 182 }, 6), "  and the older where it's the nearer " + Show(image, 5, 5));
     Check(archive->Has(HM + "HumanMaleSkin00_00.blp"), "Ralia's mod takes the men's textures it has");

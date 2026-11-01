@@ -47,6 +47,12 @@ game doesn't (Pandaren, Kul Tirans, Dark Iron dwarves, Highmountain Tauren, the 
 - **The older models' file or the newer's**: where a set has a texture both as the older models' and as
   the newer's (`_hd`), the one nearer the game's own picture is used (the game draws the older models,
   or an HD look's newer ones).
+- **Only part of a skin**: classic's layout's TorsoUpper, TorsoLower and LegUpper sections (the right
+  half's top five eighths) come from the set, its colours
+  scaled to the game's skin there; the rest of the skin stays the game's own, so what an HD look's models
+  draw from other parts of it (the Draenei's horns, faces, hands) stays as it was. A colour with no file
+  takes its nearest colour's change where that file is the game's picture changed, else that file's body
+  part in its own skin colour (an HD look's skins are other pictures than today's).
 - **The game's size and format**: a skin of today is twice as wide as it is high, the body (classic's
   layout) in its left half, which is what's used; each texture is made the size the game's is, and
   palettized (256 colours), as 3.3.5 composes characters from. A skin keeps the game's own alpha.
