@@ -14,10 +14,9 @@ north of Booty Bay (the bible's "Vile Reef" naga: the game's Naga Explorers and 
 not at the Vile Reef): a drowned shrine at the bottom of its pool, chained murloc diggers, Ilyssa and Lord
 Sakrasis over the egg net.
 
-Booty Bay's people talk to a murloc only from Neutral: Fizzbo the Fence (8.06) waits on 8.02 and 8.03
-(+350 and +150 bring -500 to 0). After the heist (-1500) Fizzbo won't talk, so his later quests (8.10, 8.25)
-are side quests; the main line runs through Blrrgl and Murlorga. 8.09's hatchlings come home either way:
-their basket's eldest is there from 8.08a's reward or from 8.08b's (two spawns, two phases).
+The eggs come home either way (8.08a, a fair trade through Fizzbo, or 8.08b, the heist), and 8.09 follows
+either (prev_any). Booty Bay's own people (the Bruisers, the chef, the anglers, the bookie) are the town's
+(faction:21); Fizzbo, his porter and Zalja are the tribe's friends.
 
 Plain data: tools/murloc/SCHEMA.md."""
 
@@ -61,7 +60,8 @@ PLACES = {
     "net_pile": (-14719.5, 309.0), "crates_hub": (-14711.0, 319.0), "barrel_hub": (-14687.5, 321.5),
     "hatch_eldest": (-14703.0, 295.5), "hatch_r1": (-14704.5, 297.5), "hatch_r2": (-14698.0, 295.5),
     "hatch_s1": (-14704.0, 294.0), "hatch_s2": (-14702.0, 293.5), "hatch_s3": (-14703.5, 292.5),
-    "tidepool": (-14703.0, 263.5),
+    "tidepool": (-14703.0, 263.5), "crawler_beach": (-14805.0, 380.0), "elder_away": (-14713.0, 296.5),
+    "draw_k": (-14705.5, 302.6), "grrm_help": (-14715.0, 302.5),
     "shellback": (-14752.0, 296.0), "turtle_side": (-14738.0, 298.0),
     # where people look
     "ships_view": (-14950.0, 300.0), "booty_dir": (-14440.0, 450.0), "saltscale_dir": (-14490.0, 182.0),
@@ -304,20 +304,21 @@ OBJECTS = [
 
     # the lookouts over the Bloodsail's ships (8.01): a tally shell scratched at each
     dict(key="lookout_north", model=627, name="Driftwood Lookout", kind="use", quest="ch8_sails", consumable=False,
-         scale=1.3, at="lookout_north", beats=[("give", "tally_north", 1), ("object", "rowboat", "lb_north", 40),
+         goal="North ship watched", scale=1.3, at="lookout_north", beats=[("object", "rowboat", "lb_north", 40),
                                                ("object", "crates", "cr_north", 40)]),
     dict(key="lookout_west", model=627, name="Driftwood Lookout", kind="use", quest="ch8_sails", consumable=False,
-         scale=1.3, at="lookout_west", beats=[("give", "tally_west", 1), ("object", "rowboat", "lb_west", 40),
+         goal="West ship watched", scale=1.3, at="lookout_west", beats=[("object", "rowboat", "lb_west", 40),
                                               ("object", "crates", "cr_west", 40)]),
     dict(key="lookout_south", model=627, name="Driftwood Lookout", kind="use", quest="ch8_sails", consumable=False,
-         scale=1.3, at="lookout_south", beats=[("give", "tally_south", 1), ("object", "rowboat", "lb_south", 40),
+         goal="South ship watched", scale=1.3, at="lookout_south", beats=[("object", "rowboat", "lb_south", 40),
                                                ("object", "crates", "cr_south", 40)]),
     # the Bloodsail's rum (8.03) and their crates' marks (8.04)
     dict(key="rum_cask", model=32, name="Cask of Bloodsail Rum", kind="loot", loot=[("rum", 1, 1)], quest="ch8_rum",
          scale=0.8, at=["rum_1", "rum_2", "rum_3", "rum_4", "rum_5", "rum_6", "rum_7", "rum_8"]),
     dict(key="bloodsail_crate", model=275, name="Bloodsail Crate", kind="use", quest="ch8_crates", scale=0.9,
+         goal="Crate's marks seen",
          at=["crate_1", "crate_2", "crate_3", "crate_4", "crate_5", "crate_6", "crate_7", "crate_8"],
-         beats=[("give", "crate_slat", 1)]),
+         beats=[("aura", "player", "squinting")]),
     # the reef's giant clams (8.07)
     dict(key="clam", model="clam", name="Giant Clam", kind="loot", loot=[("black_pearl", 1, 2)], quest="ch8_pearls", scale=1.4,
          at=["clam_1", "clam_2", "clam_3", "clam_4", "clam_5", "clam_6", "clam_7", "clam_8", "clam_9", "clam_10"]),
@@ -333,42 +334,46 @@ OBJECTS = [
                 ("sound", "chef", 6555), ("wait", 1500), ("sound", "kitchen_bruiser", 6555), ("emote", "kitchen_bruiser", "point"),
                 ("wait", 1500), ("sound", "chef", 6555)]),
     # 8.10: the anglers' bobbers
-    dict(key="bobber", model=6366, name="Fishing Bobber", kind="use", quest="ch8_pier", scale=0.35,
+    dict(key="bobber", model=6366, name="Fishing Bobber", kind="use", quest="ch8_pier", scale=0.35, goal="Hook baited",
          at=["bob_1", "bob_2", "bob_4", "bob_5"],
-         beats=[("take", "fat_fish", 1), ("give", "baited_hook", 1), ("state", "angler", "none"), ("sound", "angler", 3355),
+         beats=[("take", "fat_fish", 1), ("state", "angler", "none"), ("sound", "angler", 3355),
                 ("emote", "angler", "cheer"), ("wait", 2500), ("emote", "angler", "laugh"), ("wait", 2500),
                 ("state", "angler", "fish")]),
     dict(key="bobber_lucky", model=6366, name="Fishing Bobber", kind="use", quest="ch8_pier", scale=0.35, at="bob_3",
-         beats=[("take", "fat_fish", 1), ("give", "baited_hook", 1), ("state", "angler", "none"), ("sound", "angler", 3355),
+         goal="The lucky angler's hook baited",
+         beats=[("take", "fat_fish", 1), ("state", "angler", "none"), ("sound", "angler", 3355),
                 ("emote", "angler", "cheer"), ("wait", 2000), ("emote", "angler", "throw"), ("sound", "angler", 120),
                 ("give", "lucky_copper", 1), ("wait", 2500), ("state", "angler", "fish")]),
     # 8.11a: the post the Saltscale Oracle is tied to
     dict(key="oracle_post", model=POST, name="Bloodsail Bait Post", kind="use", quest="ch8_oracle", scale=0.8,
+         goal="Saltscale Oracle cut loose",
          at="oracle_post", phase=("during", "ch8_oracle"),
          beats=[("despawn", "oracle_tied"), ("summon", "oracle_follow", "oracle_free", 420), ("wait", 700),
                 ("follow", "oracle_follow"), ("emote", "oracle_follow", "spell")]),
     # 8.19: the Mosh'Ogg's stew pot, with Mrrk in it
     dict(key="stew_pot", model=216, name="Mosh'Ogg Stew Pot", kind="use", quest="ch8_pot", scale=2.2, at="ogre_pot",
+         goal="Stew pot tipped over",
          beats=[("despawn", "mrrk_pot"), ("summon", "mrrk_follow", "mrrk_out", 240), ("wait", 700),
-                ("follow", "mrrk_follow"), ("credit", "ch8_pot"), ("emote", "mrrk_follow", "rude")]),
+                ("follow", "mrrk_follow"), ("emote", "mrrk_follow", "rude"), ("sound", "mrrk_follow", "murloc_aggro")]),
     # 8.24: the shark-bait posts
-    dict(key="bait_post", model=POST, name="Bait Post", kind="use", quest="ch8_bait", scale=0.8,
+    dict(key="bait_post", model=POST, name="Bait Post", kind="use", quest="ch8_bait", scale=0.8, goal="Murloc cut loose",
          at=["post_1", "post_2", "post_3", "post_4"], phase=("during", "ch8_bait"),
-         beats=[("give", "cut_rope", 1), ("state", "bait_murloc", "none"), ("emote", "bait_murloc", "cheer"),
+         beats=[("state", "bait_murloc", "none"), ("emote", "bait_murloc", "cheer"),
                 ("sound", "bait_murloc", "splash"), ("wait", 1200), ("despawn", "bait_murloc")]),
     # 8.14: the crack in the drowned shrine's wall
     dict(key="shrine_peek", model=9463, name="Cracked Shrine Stone", kind="use", quest="ch8_dive", consumable=False,
+         goal="Drowned shrine seen",
          scale=0.5, at="shrine_peek",
-         beats=[("credit", "ch8_dive"), ("state", "ilyssa_shrine", "none"), ("object", "ch1:held_egg", "shrine_egg", 9),
+         beats=[("state", "ilyssa_shrine", "none"), ("object", "ch1:held_egg", "shrine_egg", 9),
                 ("face", "ilyssa_shrine", "shrine_peek"), ("wait", 1500), ("cast", "ilyssa_shrine", 32992, "self"),
                 ("sound", "ilyssa_shrine", "siren_hiss"), ("wait", 2500), ("emote", "ilyssa_shrine", "talk"),
                 ("sound", "ilyssa_shrine", "siren_hiss"), ("emote", "sakrasis_watch", "talk"), ("wait", 5000),
                 ("face", "ilyssa_shrine", "egg_net"), ("state", "ilyssa_shrine", "work")]),
     # 8.16: the diggers' shackles
     dict(key="shackle", model="World\\Expansion01\\Doodads\\Generic\\Ogre\\Chains\\OM_Chains_01.mdx", name="Digger's Shackle",
-         kind="use", quest="ch8_diggers", scale=0.4, phase=DIG,
+         kind="use", quest="ch8_diggers", scale=0.4, phase=DIG, goal="Digger's shackle broken",
          at=["shk_1", "shk_2", "shk_3", "shk_4", "shk_5", "shk_6"],
-         beats=[("give", "broken_shackle", 1), ("state", "digger", "none"), ("sound", "digger", 1206),
+         beats=[("state", "digger", "none"), ("sound", "digger", 1206),
                 ("emote", "digger", "question"), ("wait", 2500), ("emote", "digger", "cry"), ("sound", "digger", "murloc_fidget2"),
                 ("wait", 2500), ("sound", "digger", "splash"), ("despawn", "digger")]),
     # 8.17: the carved tablets the naga dug up
@@ -391,19 +396,12 @@ OBJECTS = [
 
 ITEMS = [
     # what quests ask for
-    dict(key="tally_north", name="Tally Shell: North Ship", icon=7714),
-    dict(key="tally_west", name="Tally Shell: West Ship", icon=7714),
-    dict(key="tally_south", name="Tally Shell: South Ship", icon=7714),
     dict(key="rum", name="Cask of Bloodsail Rum", icon="item:2595", stack=6),
-    dict(key="crate_slat", name="Painted Crate Slat", icon="item:4470", stack=6,
-         description="A red skull, and under it, a little coin. Or a little trident."),
     dict(key="black_pearl", name="Black Pearl", icon="item:7971", stack=10),
     dict(key="bb_eggs", name="Basket of Glowing Eggs", icon="item:12207", description="Warm. Still warm."),
     dict(key="fat_fish", name="Fat Fish", icon="fish", stack=5),
-    dict(key="baited_hook", name="Hook Baited", icon="fish", stack=5),
     dict(key="lucky_copper", name="Lucky Copper", icon=55288, description="An angler threw it in for luck. You caught it."),
     dict(key="crab_claw", name="Enormous Crab Claw", icon="item:2675", description="Bigger. Definitely bigger."),
-    dict(key="broken_shackle", name="Broken Shackle", icon="item:3156", stack=5),
     dict(key="tablet", name="Carved Gurubashi Tablet", icon="item:6288", stack=6, description="It hums. It shouldn't hum."),
     dict(key="reef_eggs", name="The Reef's Eggs", icon="item:12207", description="Four eggs. Only four."),
     dict(key="herb", name="Jungle Herb", icon="item:3357", stack=6),
@@ -411,7 +409,6 @@ ITEMS = [
          description="Names, prices, and a sea-chart pinned inside the back cover."),
     dict(key="sea_chart", name="Fizzbo's Sea-Chart", icon="item:3920",
          description="Every reef, every rock, every shark. A thumbprint over one corner."),
-    dict(key="cut_rope", name="Cut Bait Rope", icon="item:16743", stack=4),
 
     # rewards (levels 41 to 46: the game's quests' greens at these levels)
     dict(key="bilge_wraps", name="Bilge-Rat Wristwraps", kind="armor:cloth:wrist", quality=2, level=41,
@@ -570,7 +567,7 @@ QUESTS = [
 
     # 8.01: red sails on the horizon
     dict(key="ch8_sails", title="Red Sails on the Horizon", giver="ch1:elder", ender="ch1:grrmlgrrl", level=40, xp=8,
-         tone="serious", prev="ch8_arrival", items=[("tally_north", 1), ("tally_west", 1), ("tally_south", 1)],
+         tone="serious", prev="ch8_arrival", objects=[("lookout_north", 1), ("lookout_west", 1), ("lookout_south", 1)],
          goal="Watch the Bloodsail ships off the Wild Shore from the three driftwood lookouts on the islets: north of the "
               "ships, between the two western ships, and south by the third. Scratch a tally at each.",
          text="Three ships. Red sails. A skull on every sail... I have seen that skull before, on a crate, in a cold "
@@ -632,7 +629,7 @@ QUESTS = [
 
     # 8.19: Mrrk in the pot (early: Mrrk went for crabs and didn't come back)
     dict(key="ch8_pot", title="Mrrk in the Pot", giver="ch1:grrmlgrrl", ender="ch1:grrmlgrrl", level=41, xp=8, tone="funny",
-         path="hero", prev="ch8_arrival", event="Mrrk tipped out of the pot",
+         path="hero", prev="ch8_arrival", objects=[("stew_pot", 1)],
          goal="Tip over the Mosh'Ogg stew pot at the foot of the hills east along the beach and get Mrrk out. "
               "The ogres guarding it won't like it.",
          text="Mrrk went for crabs. Mrrk didn't come back. ...I smelled smoke. Ogre smoke. Onion smoke. On the hills "
@@ -673,7 +670,7 @@ QUESTS = [
 
     # 8.04: the crate marks (the clutch was split)
     dict(key="ch8_crates", title="The Crate Marks", giver="ch0:krrgl", ender="ch1:elder", level=41, xp=8, tone="boring",
-         prev="ch8_sails", items=[("crate_slat", 6)],
+         prev="ch8_sails", objects=[("bloodsail_crate", 6)],
          goal="Pry 6 Painted Crate Slats off the Bloodsail crates on the islets around their ships, and show them to the "
               "Elder at the wreck.",
          text="Crates. Crates crates crates. Every one has the skull. And under the skull... something else. Little "
@@ -698,7 +695,7 @@ QUESTS = [
 
     # 8.11a: the Saltscale Oracle (hero)
     dict(key="ch8_oracle", title="The Saltscale Oracle", giver="ch1:elder", ender="saltscale_chief", level=41, xp=8,
-         tone="serious", path="hero", prev="ch8_pot", exclusive=2, explore="sb_v", radius=14,
+         tone="serious", path="hero", prev="ch8_pot", exclusive=2, objects=[("oracle_post", 1)], explore="sb_v", radius=14,
          goal="Cut the Saltscale Oracle loose from the bait post in the Bloodsail camp just east of the wreck, and walk "
               "her home to the Saltscale's beach farther east along the shore.",
          text="The Saltscale, down the beach... they hiss at us. They think we are the red sails' dogs, because we came "
@@ -738,7 +735,7 @@ QUESTS = [
 
     # 8.24: shark bait
     dict(key="ch8_bait", title="Shark Bait", giver="ch1:mrrgasha", ender="ch1:mrrgasha", level=42, xp=8, tone="serious",
-         path="hero", prev="ch8_bilge", items=[("cut_rope", 4)], time=120,
+         path="hero", prev="ch8_bilge", objects=[("bait_post", 4)], time=120,
          goal="Within 2 minutes, cut loose the 4 murlocs tied to the bait posts in the shallows of the Bloodsail camp on "
               "the north beach, before the shark gets them. Mind the shark.",
          text="Smell that? Blood in the water. The red-sail ones tie our kind to posts by their camp, up the beach. "
@@ -775,7 +772,7 @@ QUESTS = [
 
     # 8.06: Fizzbo the Fence (after the Bloodsail's losses have made the goblins Neutral)
     dict(key="ch8_fence", title="Fizzbo the Fence", giver="ch1:blrrgl", ender="ch0:fizzbo", level=41, xp=8, tone="funny",
-         prev=["ch8_window", "ch8_bilge", "ch8_rum"], rep=[(21, 250)],
+         prev="ch8_window", rep=[(21, 250)],
          goal="Find Fizzbo Gillgrin, the goblin fence who lives on the sand under Booty Bay's lowest pier, by the "
               "south cliff.",
          text="Psst. Psst! Under the goblin town, between its legs, where it's wet and dark... there's a goblin who "
@@ -866,31 +863,35 @@ QUESTS = [
                    ("sound", "self", "baby_murloc"), ("wait", 4000), ("state", "self", "work")],
          poi=["egg_basket", "the_jump"]),
 
-    # 8.09: hatchlings! (the eldest at the basket is there from either way the eggs came home)
-    dict(key="ch8_hatch", title="Hatchlings!", giver="hatchling_eldest", ender="hatchling_eldest", level=42, xp=8,
-         tone="funny", prev="ch8_fence", explore="tidepool", radius=10,
-         goal="Take the three hatchlings that follow you for their first swim in the tide pool on the beach east of the "
-              "wreck, then bring them back to the egg basket by Murlorga's pot.",
-         text="Mrgl? Mrgl! Big one! Big one is Mama? Mama! Mama mama mama! Swim? Swim swim swim! All of us! 3 and me! "
-              "...3. Not me. Me is too little. 3!",
-         progress="Mama? Swim?",
-         reward="Fish! FISH! ...Bye, Mama! Bye bye!",
-         details=["cheer", "dance"], reward_emotes=["cheer", "dance"], rewards=["hatchling_basket"],
-         accept=[("emote", "self", "cheer"), ("sound", "self", "baby_murloc"), ("summon", "hatch_a", "hatch_s1", 360),
-                 ("summon", "hatch_b", "hatch_s2", 360), ("summon", "hatch_c", "hatch_s3", 360), ("wait", 900),
-                 ("follow", "hatch_a"), ("follow", "hatch_b"), ("follow", "hatch_c"), ("sound", "hatch_a", "baby_murloc"),
-                 ("wait", 1200), ("emote", "self", "dance"), ("sound", "self", "baby_murloc_dance")],
-         complete=[("object", "ch1:big_fish", "bribe_fish", 25), ("sound", "self", 973), ("wait", 500), ("sound", "self", 973),
-                   ("move", "hatch_a", "bribe_fish", "run"), ("move", "hatch_b", "bribe_fish2", "run"),
+    # 8.09: hatchlings! (after either way the eggs came home)
+    dict(key="ch8_hatch", title="Hatchlings!", giver="ch1:murlorga", ender="ch1:murlorga", level=42, xp=8,
+         tone="funny", prev_any=["ch8_trade", "ch8_heist"], explore="tidepool", radius=10,
+         goal="Three eggs hatched on the way home, and the hatchlings follow you everywhere: take them for their first "
+              "swim in the tide pool on the beach east of the wreck, then bring them back to Murlorga.",
+         text="Three of them hatched! On the way home! And look... look how they look at you. They think you're their "
+              "mother. Ha! Well, mother... they need a swim. Their first swim. The tide pool, by the beach. All 3. "
+              "Then bring them back to me.",
+         progress="Are they wet? Are they all still there? 1, 2, 3?",
+         reward="They won't let go of you. Look at them! Here, little ones... fish! Fish! ...Ha! Fish wins. Fish always wins.",
+         details=["cheer", "point"], reward_emotes=["laugh", "cheer"], rewards=["hatchling_basket"],
+         accept=[("state", "self", "none"), ("emote", "self", "cheer"), ("sound", "self", "baby_murloc"),
+                 ("summon", "hatch_a", "hatch_s1", 420), ("summon", "hatch_b", "hatch_s2", 420),
+                 ("summon", "hatch_c", "hatch_s3", 420), ("wait", 900), ("follow", "hatch_a"), ("follow", "hatch_b"),
+                 ("follow", "hatch_c"), ("sound", "hatch_a", "baby_murloc"), ("wait", 1500), ("emote", "self", "laugh"),
+                 ("wait", 1200), ("face", "self", "tidepool"), ("emote", "self", "point"), ("wait", 2000),
+                 ("face", "self", "pot"), ("state", "self", "work")],
+         complete=[("state", "self", "none"), ("emote", "self", "beg"), ("wait", 1200),
+                   ("object", "ch1:big_fish", "bribe_fish", 25), ("sound", "self", 973), ("wait", 500),
+                   ("sound", "self", 973), ("move", "hatch_a", "bribe_fish", "run"), ("move", "hatch_b", "bribe_fish2", "run"),
                    ("move", "hatch_c", "bribe_fish3", "run"), ("wait", 3000), ("emote", "hatch_a", "eat"),
-                   ("emote", "hatch_b", "eat"), ("emote", "hatch_c", "eat"), ("sound", "self", "baby_murloc"),
-                   ("wait", 4000), ("emote", "self", "cheer"), ("despawn", "hatch_a"), ("despawn", "hatch_b"),
-                   ("despawn", "hatch_c")],
+                   ("emote", "hatch_b", "eat"), ("emote", "hatch_c", "eat"), ("sound", "hatch_b", "baby_murloc"),
+                   ("emote", "self", "laugh"), ("wait", 4000), ("despawn", "hatch_a"), ("despawn", "hatch_b"),
+                   ("despawn", "hatch_c"), ("face", "self", "pot"), ("state", "self", "work")],
          poi=["tidepool"]),
 
     # 8.10: under the pier (Fizzbo's)
     dict(key="ch8_pier", title="Under the Pier", giver="ch0:fizzbo", ender="ch0:fizzbo", level=42, xp=8, tone="funny",
-         path="hero", prev="ch8_hatch", items=[("baited_hook", 5)], rep=[(21, 350)],
+         path="hero", prev="ch8_hatch", objects=[("bobber", 4), ("bobber_lucky", 1)], rep=[(21, 350)],
          goal="Swim under Booty Bay's lowest pier and hang a Fat Fish on each of the 5 sulking anglers' hooks: their "
               "bobbers float in the water off the pier's edge.",
          text="My boys on the pier ain't caught a thing in a week. Bad luck. Bad luck's bad for business. You swim "
@@ -942,7 +943,7 @@ QUESTS = [
                    ("sound", "self", 6958), ("wait", 1200), ("emote", "bookie", "cry"), ("wait", 1200),
                    ("sound", "bookie", 895), ("emote", "bookie", "beg"), ("wait", 1500), ("face", "self", "player"),
                    ("emote", "self", "laugh"), ("sound", "self", 6958)],
-         poi=["hub"]),
+         poi=["crawler_beach"]),
 
     # 8.20: the Elder's cough
     dict(key="ch8_cough", title="The Elder's Cough", giver="ch1:murlorga", ender="ch1:murlorga", level=42, xp=8,
@@ -964,7 +965,7 @@ QUESTS = [
 
     # 8.14: the wellspring dive
     dict(key="ch8_dive", title="The Wellspring Dive", giver="ch1:elder", ender="ch1:elder", level=43, xp=8, tone="serious",
-         prev="ch8_hatch", event="The drowned shrine seen",
+         prev="ch8_hatch", objects=[("shrine_peek", 1)],
          goal="Swim down into the pool at Nek'mani Wellspring, the troll ruins on the hill north of Booty Bay, and peer "
               "through the cracked stone of the drowned shrine at its bottom.",
          text="Half the eggs are home. Half. The other half went with the long ones... the trident on the crates. North, "
@@ -1004,7 +1005,7 @@ QUESTS = [
 
     # 8.16: diggers in chains
     dict(key="ch8_diggers", title="Diggers in Chains", giver="ch1:murlorga", ender="ch1:murlorga", level=43, xp=8,
-         tone="serious", path="hero", prev="ch8_dive", items=[("broken_shackle", 5)],
+         tone="serious", path="hero", prev="ch8_dive", objects=[("shackle", 5)],
          interact=[("digger_habit", "Touch his shoulder.")], interact_goal="The old digger stopped digging",
          interact_beats=[("state", "self", "none"), ("emote", "self", "question"), ("sound", "self", 1206), ("wait", 2500),
                          ("emote", "self", "cry"), ("sound", "self", "murloc_fidget2"), ("wait", 2500),
@@ -1104,7 +1105,7 @@ QUESTS = [
                    ("visual", "self", 35426), ("sound", "self", "murloc_fidget2"), ("emote", "self", "spell"), ("wait", 2500),
                    ("emote", "self", "exclamation"), ("sound", "self", "murloc_alert"), ("wait", 2000), ("state", "self", "sit")]),
 
-    # 8.25: Fizzbo's sea-chart (a better chart; Fizzbo's, so a side quest)
+    # 8.25: Fizzbo's sea-chart (a better chart)
     dict(key="ch8_chart", title="Fizzbo's Sea-Chart", giver="ch0:fizzbo", ender="ch1:elder", level=44, xp=8, tone="funny",
          prev="ch8_ledger", source="sea_chart", rep=[(21, 350)],
          goal="Take Fizzbo's Sea-Chart to the Elder at the wreck.",
@@ -1143,7 +1144,7 @@ QUESTS = [
 
     # 8.27: west again (the ride to Feralas)
     dict(key="ch8_end", title="West Again", giver="ch1:elder", ender="ch1:elder", level=44, xp=8, tone="serious",
-         prev="ch8_rest", explore="turtle_side", radius=8,
+         prev=["ch8_rest", "ch8_chart"], explore="turtle_side", radius=8,
          goal="Wade out to Grandmother Shellback and see the tribe aboard, then come back and help the Elder onto her shell.",
          text="The book says arches. The goblin's map says arches. Glubbub's dream says arches. ...Then it is arches. "
               "Grandmother is ready. The tribe is on her back already, all but me. ...I am slow today. Go first. I will "

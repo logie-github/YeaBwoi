@@ -487,15 +487,16 @@ AURAS = [
 # -- who stands where --------------------------------------------------------------------------------
 
 SPAWNS = [
-    # the tribe's core: "always", so every scene of the chapter can reach them
-    dict(npc="ch1:murlorga", at="murlorga", facing=0.896),
-    dict(npc="ch1:grrmlgrrl", at="grrmlgrrl", facing=3.785, state="none"),
-    dict(npc="ch1:blrrgl", at="blrrgl", facing=2.729),
-    dict(npc="ch0:mrrk", at="mrrk", facing=3.854),
-    dict(npc="ch1:sloshy", at="sloshy", facing=1.0, wander=3.0),
-    dict(npc="ch0:shellback", at="shellback", facing=5.335),
+    # off the turtle with the player (8.27's ride): the war leader, the rival, the fry, the turtle herself
+    dict(npc="ch1:grrmlgrrl", at="grrmlgrrl", facing=3.785, state="none", phase=CORE),
+    dict(npc="ch0:mrrk", at="mrrk", facing=3.854, phase=CORE),
+    dict(npc="ch1:sloshy", at="sloshy", facing=1.0, wander=3.0, phase=CORE),
+    dict(npc="ch0:shellback", at="shellback", facing=5.335, phase=CORE),
     # the Elder, by the fire, until the night he walks up the cliff (9.16)
-    dict(npc="ch1:elder", at="elder", facing=2.554, phase=("until", "ch9_warm"), state="sit"),
+    dict(npc="ch1:elder", at="elder", facing=2.554, phase=("between", "ch8:ch8_end", "ch9_warm"), state="sit"),
+    # Murlorga's pot and Blrrgl's log: the camp, from the arrival on
+    dict(npc="ch1:murlorga", at="murlorga", facing=0.896, phase=HUB),
+    dict(npc="ch1:blrrgl", at="blrrgl", facing=2.729, phase=HUB),
     # Oracle Glubbub, by the sea, until he takes the staff (9.24)
     dict(npc="ch1:glubbub", at="glubbub", facing=1.571, phase=GLUBBUB),
     # Nerelith Saltwind, from her rowing boat's coming (9.04's end) until she rows home (9.26)
@@ -565,13 +566,13 @@ QUESTS = [
          reward="You saw them. Giants don't look down at murlocs... that is a kind of peace. We camp here. Here, at their feet.",
          details=["talk", "point", "exclamation"], reward_emotes=["bow", "talk"],
          accept=TAPS + [("wait", 900), ("sound", "self", COUGH), ("wait", 1200), ("face", "self", "arches"),
-                        ("emote", "self", "point"), ("face", "ch1:grrmlgrrl", "arches"), ("face", "ch1:murlorga", "arches"),
-                        ("face", "ch1:blrrgl", "arches"), ("face", "ch0:mrrk", "arches"), ("face", "ch1:sloshy", "arches"),
-                        ("wait", 1200), ("emote", "ch1:murlorga", "exclamation"), ("emote", "ch1:blrrgl", "question"),
-                        ("sound", "ch1:blrrgl", "murloc_alert"), ("emote", "ch0:mrrk", "flex"), ("wait", 1500),
+                        ("emote", "self", "point"), ("face", "ch1:grrmlgrrl", "arches"), ("face", "ch0:mrrk", "arches"),
+                        ("face", "ch1:sloshy", "arches"), ("face", "hatchling_a", "arches"), ("face", "hatchling_b", "arches"),
+                        ("wait", 1200), ("emote", "ch1:grrmlgrrl", "exclamation"), ("emote", "hatchling_b", "question"),
+                        ("sound", "ch0:mrrk", "murloc_alert"), ("emote", "ch0:mrrk", "question"), ("wait", 1500),
                         ("state", "ch1:sloshy", "dead"), ("sound", "ch1:sloshy", "baby_murloc"), ("wait", 2500),
                         ("state", "ch1:sloshy", "none"), ("emote", "ch1:sloshy", "laugh"), ("emote", "hatchling_a", "question"),
-                        ("wait", 2000), ("face", "self", "fire"), ("face", "ch1:murlorga", "pot"), ("face", "ch1:grrmlgrrl", "fire"),
+                        ("wait", 2000), ("face", "self", "fire"), ("emote", "ch0:mrrk", "flex"), ("face", "ch1:grrmlgrrl", "fire"),
                         ("face", "ch0:mrrk", "fire")],
          complete=[("emote", "self", "talk"), ("sound", "self", "murloc_fidget2"), ("wait", 1500), ("sound", "self", COUGH),
                    ("wait", 1000), ("emote", "ch1:murlorga", "cheer"), ("sound", "ch1:murlorga", 973), ("wait", 600),
