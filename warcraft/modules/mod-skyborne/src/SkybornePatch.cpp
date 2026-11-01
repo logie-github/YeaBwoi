@@ -15,8 +15,8 @@
  * Data/<locale>/patch-<locale>-Z.MPQ lists beside it, read from the game with that patch in), so a
  * set's textures win over the HD look's and the race modules' Data patches whichever the game reads
  * last: in the game the Data folder's patches won over the language folder's. And mod-brill-home's Corn
- * (his model, skin and coat at the game's pug's paths, listed beside its Data/<locale>/patch-<locale>-V.MPQ),
- * so a Data patch's pug can't hide him.
+ * (his coat at the path of the game's pug's own, listed beside its Data/<locale>/patch-<locale>-V.MPQ),
+ * so an HD look's pug coat (the Alternative HD Patch's patch-F) can't hide his.
  */
 
 #include "SkybornePatch.h"

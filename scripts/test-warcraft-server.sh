@@ -718,7 +718,7 @@ EOF
 	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 31174" | CTL sql acore_world)" = 3 ] ||
 		fail "the Brill dog isn't the game's pug display"
 	# The module's patch in the game: the language folder's patch-<locale>-V, its table (the cellar's looks)
-	# and Corn's model, skin and coat at the pug's paths, made after the allied races'.
+	# and Corn's coat at the pug's coat's path, made after the allied races'.
 	grep -E "Brill home: The Brill home's patch is in the game: 1 tables" "$FILES/logs/world.out" ||
 		fail "the world server didn't make the Brill home's patch (Corn, the cellar)"
 	grep -E "Brill home: The Brill home's patch is in the game: .*Corn the (Forsaken|plain) pug" "$FILES/logs/world.out" || true

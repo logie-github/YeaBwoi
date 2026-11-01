@@ -2,16 +2,17 @@
 /*
  * The Brill home's patch for the game (mod-brill-home): Corn, the house's dog, and the house's cellar.
  *
- * Corn is the user's Forsaken pug (forsaken_pug.zip: the game's current pug model, its skin and the user's
- * coat for it; the user: "Use this texture on the pug dog you get from the quest in brill. Name the dog
- * Corn"; "my pug is supposed to be zombified"; "Use the structure from pug from wago tools"). The coat is
- * laid out for that model, not for 3.3.5a's older pug (a third of its points take the coat from elsewhere),
- * so the patch carries the model too, in 3.3.5a's format (tools/corn_model.py: data/client/corn/Pug.m2
- * and Pug00.skin), at the paths of the game's own pug (Creature\Pug\Pug.m2 and Pug00.skin, display
- * 31174), and the coat it names (Creature\Pug\ForsakenPug_Corn.blp, made from
- * warcraft/branding/corn-forsaken-pug.png by tools/build_sql.py). No table of the game's is changed for
- * him (a display of his own, 39700, showed as the game's cube). Every pug in the game is Corn's pug now;
- * Perky Pug is the only other.
+ * Corn is the game's own pug (Perky Pug's model and display, 31174) in the user's Forsaken coat (the user:
+ * "Use this texture on the pug dog you get from the quest in brill. Name the dog Corn"; "my pug is supposed
+ * to be zombified"). The coat (data/client/corn/ForsakenPug_Corn.blp, made from
+ * warcraft/branding/corn-forsaken-pug.png by tools/build_sql.py) has the game's own pug coat's layout (the
+ * same as the Alternative HD Patch's Creature\Pug\Pug_Tan.blp), so it goes at the path the game's pug model
+ * names for its coat: no model and no table of the game's is changed. The HD patch's Data/patch-F.MPQ has
+ * its own coat at that path, and the game reads the Data folder's patches over the language folder's, so
+ * the Skyborne's Data/patch-Z.MPQ carries it too (the path is listed beside this patch). Earlier: a display
+ * of his own (39700) and a model converted from today's game (to 3.3.5a's format) both showed as the
+ * game's cube, and the coat in this patch alone lost to the HD patch's. Every pug in the game wears his
+ * coat; Perky Pug is the only other.
  *
  * The cellar is the game's own models as objects (GameObjectDisplayInfo 9700 and 9701, made by
  * tools/build_town.py).
@@ -54,15 +55,12 @@ namespace BrillHome
         // Corn's paths, one a line: the Skyborne's Data/patch-Z.MPQ carries them too (in the game the Data
         // folder's patches win over the language folder's, so a Data patch with a pug of its own would hide his).
         constexpr char const* LIST_SUFFIX = ".files";
-        constexpr char const* VERSION = "brill-home-6";   // 6: the list of Corn's paths
-        // Corn: the user's pug (data/client/corn: tools/corn_model.py, the coat tools/build_sql.py), at the
-        // game's pug's paths, and the coat where the model names it
-        struct CornFile { char const* file; char const* path; };
-        constexpr CornFile CORN[] = {
-            { "Pug.m2", "Creature\\Pug\\Pug.m2" },
-            { "Pug00.skin", "Creature\\Pug\\Pug00.skin" },
-            { "ForsakenPug_Corn.blp", "Creature\\Pug\\ForsakenPug_Corn.blp" },
-        };
+        constexpr char const* VERSION = "brill-home-7";   // 7: the game's own pug model again, the coat at its path
+        // Corn: the game's pug model, its coat the user's (data/client/corn, tools/build_sql.py)
+        constexpr char const* PUG = "Creature\\Pug\\Pug.m2";
+        constexpr char const* CORN_COAT = "ForsakenPug_Corn.blp";
+        // (the stock model's coat, should the model not name one)
+        constexpr char const* PUG_COAT = "Creature\\Pug\\Pug_Tan.blp";
         // (where it was: Data/patch-W.MPQ, and a file of its that tells it's this module's)
         constexpr char const* OLD_PATCH = "patch-W.MPQ";
         constexpr char const* MASTIFF = "Creature\\Mastiff\\Mastiff.m2";
@@ -241,24 +239,28 @@ namespace BrillHome
             log("The Brill home's patch is out of the game, kept beside it for ChromieCraft");
     }
 
-    // Corn's model as 3.3.5a reads it: an MD20 of version 264 that names the coat it's carried with.
-    static bool CornModel(Bytes const& m2, std::string const& coat)
+    // The game's pug's coat: the first texture its model names (hard-coded) that is a pug's, or "".
+    static std::string PugCoat(Bytes const& m2)
     {
         auto u32 = [&](size_t at) { uint32_t v; std::memcpy(&v, &m2[at], 4); return v; };
-        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || u32(4) != 264)
-            return false;
+        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0)
+            return "";
         uint32_t count = u32(0x50), offset = u32(0x54);
         if (offset + uint64_t(count) * 16 > m2.size())
-            return false;
+            return "";
         for (uint32_t i = 0; i < count; ++i)
         {
             size_t at = offset + i * 16;
-            uint32_t length = u32(at + 8), name = u32(at + 12);
-            if (length && name + uint64_t(length) <= m2.size()
-                && Lower(std::string(reinterpret_cast<char const*>(&m2[name]), length).c_str()) == Lower(coat))
-                return true;
+            uint32_t kind = u32(at), length = u32(at + 8), name = u32(at + 12);
+            if (kind != 0 || !length || name + uint64_t(length) > m2.size())
+                continue;
+            std::string path(reinterpret_cast<char const*>(&m2[name]), length);
+            path = path.c_str();
+            std::string low = Lower(path);
+            if (low.size() > 4 && low.substr(low.size() - 4) == ".blp" && low.find("pug") != std::string::npos)
+                return path;
         }
-        return false;
+        return "";
     }
 
     bool UpdatePatch(fs::path const& moduleData, fs::path const& clientData, std::function<void(std::string const&)> const& log, bool& cornReady)
@@ -304,19 +306,19 @@ namespace BrillHome
                 }
         std::sort(own.begin(), own.end());
 
-        // Corn: the user's pug, model, skin and coat.
+        // Corn: the user's coat at the path of the game's pug's own (its model names it).
         std::vector<std::pair<std::string, Bytes>> corn;
-        for (auto const& f : CORN)
         {
-            Bytes data = ReadFile(moduleData / "corn" / f.file);
-            if (data.empty())
-                break;
-            corn.emplace_back(f.path, std::move(data));
-        }
-        if (corn.size() != std::size(CORN) || !CornModel(corn[0].second, CORN[2].path))
-        {
-            log("Corn's model (" + (moduleData / "corn").string() + ") isn't as expected: Corn is the game's own pug");
-            corn.clear();
+            Bytes pug, coat = ReadFile(moduleData / "corn" / CORN_COAT);
+            std::string path;
+            if (game.Read(PUG, pug))
+                path = PugCoat(pug);
+            if (path.empty() && game.Has(PUG_COAT))
+                path = PUG_COAT;
+            if (path.empty() || coat.size() < 4 || std::memcmp(coat.data(), "BLP2", 4) != 0)
+                log("The game's pug (" + std::string(PUG) + ") or Corn's coat isn't as expected: Corn is the plain pug");
+            else
+                corn.emplace_back(path, std::move(coat));
         }
 
         Stamp stamp;
