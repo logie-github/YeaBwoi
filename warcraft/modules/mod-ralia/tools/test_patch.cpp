@@ -335,6 +335,22 @@ int main(int argc, char** argv)
     Skyborne::UpdatePatch(skyborneData, data, [](std::string const& line) { std::cout << "  | skyborne: " << line.substr(0, 120) << "\n"; });
     {
         auto sky = Skyborne::OpenArchive(data / "patch-Z.MPQ");
+        // ...and it carries the set's textures (the HD look's and the race modules' Data patches won over
+        // the language folder's in the game): byte for byte the language folder patch's, every listed path.
+        {
+            auto ours = Skyborne::OpenArchive(patch);
+            std::ifstream list(patch.string() + ".files");
+            size_t listed = 0, same = 0;
+            for (std::string path; std::getline(list, path);)
+            {
+                ++listed;
+                Bytes a, b;
+                if (ours->Read(path, a) && sky->Read(path, b) && a == b)
+                    ++same;
+            }
+            Check(listed > 0 && same == listed, "the Skyborne's patch carries the set's " + std::to_string(listed)
+                + " textures (" + std::to_string(same) + " the same)");
+        }
         for (std::string name : { B + "BloodElfFemaleSkin00_19.blp", std::string("Character\\Skyborne\\Female\\SkyborneFemaleSkin00_19.blp") })
         {
             Bytes b;
@@ -373,7 +389,8 @@ int main(int argc, char** argv)
     fs::remove(patch);
     Check(UpdatePatch(ralia, files, sources, data, log) && fs::exists(patch), "made again once it's gone");
     RemovePatch(data, log);
-    Check(!fs::exists(patch) && !fs::exists(fs::path(patch.string() + ".ralia")), "RemovePatch takes it and its mark out");
+    Check(!fs::exists(patch) && !fs::exists(fs::path(patch.string() + ".ralia")) && !fs::exists(fs::path(patch.string() + ".files")),
+        "RemovePatch takes it, its mark and its list out");
 
     fs::remove_all(root);
     std::cout << (failures ? "FAILED: " + std::to_string(failures) : std::string("all passed")) << "\n";
