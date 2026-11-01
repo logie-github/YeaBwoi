@@ -2,3 +2,16 @@
 types	iiiifissssiiiiii
 put	33101	3701	0	0	1.0	255					0	0	0	0	0	0
 put	33102	3702	0	0	1.0	255					0	0	0	0	0	0
+put	33103	3703	0	0	1.0	255	MurlocTribeSkin00				1	0	0	0	0	0
+put	33104	3703	0	0	1.0	255	MurlocTribeSkin01				1	0	0	0	0	0
+put	33105	3703	0	0	1.0	255	MurlocTribeSkin02				1	0	0	0	0	0
+put	33106	3703	0	0	1.0	255	MurlocTribeSkin03				1	0	0	0	0	0
+put	33107	3703	0	0	1.0	255	MurlocTribeSkin04				1	0	0	0	0	0
+put	33108	3703	0	0	1.0	255	MurlocTribeSkin05				1	0	0	0	0	0
+put	33109	3703	0	0	1.0	255	MurlocTribeSkin06				1	0	0	0	0	0
+put	33110	3703	0	0	1.0	255	MurlocTribeSkin07				1	0	0	0	0	0
+put	33111	3703	0	0	1.0	255	MurlocTribeSkin08				1	0	0	0	0	0
+put	33112	3703	0	0	1.0	255	MurlocTribeSkin09				1	0	0	0	0	0
+put	33113	3703	0	0	1.0	255	MurlocTribeSkin10				1	0	0	0	0	0
+put	33114	3703	0	0	1.0	255	MurlocTribeSkin11				1	0	0	0	0	0
+put	33115	3703	0	0	1.0	255	MurlocTribeSkin12				1	0	0	0	0	0

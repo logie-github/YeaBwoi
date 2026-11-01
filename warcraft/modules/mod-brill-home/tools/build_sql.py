@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Makes mod-brill-home's world SQL (data/sql/chromiecraft/world/brill_home_world.sql): the house in
-Brill, its furniture, Cedric Harrow, Jamie Nore's part and the quests, the mastiff, and Carolai Anise's
+Brill, its furniture, Cedric Harrow, Jamie Nore's part and the quests, Corn the dog, and Carolai Anise's
 quests (her keepsakes: her locket at Solliden Farmstead, a lily on Brightwater Lake's shore).
 
 The house is the farmhouse Brill's own houses are (Duskwood_Human_Farm.wmo, the game's display 7432),
@@ -47,18 +47,27 @@ PHASE_CEDRIC, PHASE_BED, PHASE_TABLE, PHASE_WARDROBE, PHASE_BOOKSHELF, PHASE_RUG
 
 # The furniture: (entry, type, display, scale, name, phase, [(x, y, z, turn in degrees)]) in the
 # house's coordinates; turn 0 faces the house's +x. Chairs are the game's chair kind (sitting works).
+# Laid out against the farmhouse's own walls (its collision model in the server's vmaps,
+# Duskwood_Human_Farm.wmo.vmo: the room inside is x -5.25 to 5.5, y -5.75 to 5.5; the hearth stands out
+# from the north wall between x -1.0 and 3.5 to y 4.6, its mantel 2.1 up; the door is x -3.0 to -0.25
+# in the south wall; braces fill the north corners (x below -3.25 and above 4.5, y above 4.25) and posts
+# the south ones; the loft is over y below -3, 4.1 up) and each model's own size (the game's files), so
+# nothing stands in a wall, in the hearth, in the doorway or in another piece. The bed under the loft in
+# the south-east corner, its headboard to the east wall; the table and chairs on the west side; the
+# wardrobe on the west wall; the bookshelf on the east wall; the rug before the hearth; the stove
+# between the hearth and the north-east brace.
 FURNITURE = [
-    (GO_BED, 2, 3471, 1.0, "Starter Bed", PHASE_BED, [(2.9, 3.2, 0, 0)]),
-    (GO_TABLE, 5, 234, 1.0, "Kitchen Table", PHASE_TABLE, [(-1.8, 0.8, 0, 0)]),
-    (GO_CHAIR, 7, 39, 1.0, "Chair", PHASE_TABLE, [(-1.8, -0.5, 0, 90), (-1.8, 2.1, 0, -90)]),
-    (GO_WARDROBE, 5, 4, 1.0, "Wardrobe", PHASE_WARDROBE, [(-5.0, -2.0, 0, 0)]),
-    (GO_BOOKSHELF, 5, 188, 1.0, "Bookshelf", PHASE_BOOKSHELF, [(0.2, 5.1, 0, -90)]),
-    (GO_RUG, 5, 9405, 1.0, "Bearskin Rug", PHASE_RUG, [(0.8, -1.6, 0, 0)]),
-    (GO_STOVE, 5, 348, 1.0, "Pot-Bellied Stove", PHASE_STOVE, [(-4.5, 4.3, 0, -45)]),
+    (GO_BED, 2, 3471, 1.0, "Starter Bed", PHASE_BED, [(2.98, -3.42, 0, 0)]),
+    (GO_TABLE, 5, 234, 1.0, "Kitchen Table", PHASE_TABLE, [(-2.1, 2.3, 0, 90)]),
+    (GO_CHAIR, 7, 39, 1.0, "Chair", PHASE_TABLE, [(-2.1, 0.85, 0, 90), (0.15, 2.3, 0, 180)]),
+    (GO_WARDROBE, 5, 4, 1.0, "Wardrobe", PHASE_WARDROBE, [(-4.93, -3.6, 0, 0)]),
+    (GO_BOOKSHELF, 5, 188, 1.0, "Bookshelf", PHASE_BOOKSHELF, [(5.13, 2.8, 0, 180)]),
+    (GO_RUG, 5, 9405, 0.65, "Bearskin Rug", PHASE_RUG, [(1.9, 2.5, 0, 90)]),
+    (GO_STOVE, 5, 348, 1.0, "Pot-Bellied Stove", PHASE_STOVE, [(3.98, 4.42, 0, -90)]),
 ]
-CEDRIC_AT = (0.5, -2.5, 257.5)  # facing the doorway
+CEDRIC_AT = (-1.0, -3.3, 257.5)  # inside the door, facing it
 
-# The mastiff (there when the player first wakes in the bed; its quest; then the player's pet).
+# Corn, the dog (there when the player first wakes in the bed; his quest; then the player's pet).
 NPC_DOG, NPC_FETCH_CREDIT, NPC_EARS_CREDIT, NPC_DOG_PET = 970112, 970113, 970114, 970115
 # A hunter's dog beside their own pet, and a beast master's stabled pet beside them both (its looks
 # put on it as it's summoned: src/BrillHome.cpp).
@@ -66,11 +75,19 @@ NPC_DOG_COMPANION, NPC_BEAST_COMPANION = 970116, 970117
 QUEST_DOG = 970123
 TEXT_DOG, TEXT_DOG_WAITING = 970144, 970145
 PHASE_DOG = 0x400
-DOG_AT = (0.6, 0.6, 30)  # beside the bed, looking toward it
-# Perky Pug: a model already present in the unmodified 3.3.5a client.
-DOG_DISPLAY = 31174
+DOG_AT = (-0.1, -1.9, -35)  # by the foot of the bed, looking toward it
+# His looks: the game's own pug (Perky Pug's model, CreatureModelData 3291, display 31174) zombified in the
+# user's texture (warcraft/branding/corn-forsaken-pug.png; the user: "Use this texture on the pug dog you get
+# from the quest in brill. Name the dog Corn", "my pug is supposed to be zombified"). The client's own model,
+# its coat made a texture its display names, is in the module's patch (src/BrillHomePatch.cpp); without the
+# patch he's the game's pug (src/BrillHome.cpp: DogDisplay).
+DOG_DISPLAY = 39700
+PUG_MODEL, PUG_SOUNDS, PUG_NPC_SOUNDS, PUG_SCALE = 3291, 3100, 332, 0.9    # (display 31174's)
+DOG_SKIN = "ForsakenPug_Corn"
+DOG_TEXTURE = os.path.join(HERE, "..", "..", "..", "branding", "corn-forsaken-pug.png")
+CLIENT = os.path.join(HERE, "..", "data", "client")
 
-# Carolai Anise (Brill's alchemy trainer): her five quests once the mastiff is the player's, a romance or
+# Carolai Anise (Brill's alchemy trainer): her five quests once Corn is the player's, a romance or
 # a friendship (the user's choice in the last; the rewards the same), and, as lovers, her moving in.
 CAROLAI = 2132
 NPC_CAROLAI_VISIT, NPC_CAROLAI_HOME = 970118, 970119  # in the house: the evening she lets herself in; living there
@@ -82,16 +99,19 @@ TEXT_CAROLAI_FRIEND, TEXT_LOCKET, TEXT_LILY, TEXT_CAROLAI_CALLING = 970150, 9701
 # Her alchemy table in the house while she lives there (src/BrillHome.cpp: where she works, reads, makes
 # tea and sits with the dog, by turns).
 GO_ALCHEMY = 970110
-ALCHEMY_AT = (2.6, -3.4, 90)
+ALCHEMY_AT = (-4.47, -1.0, 0)  # against the west wall
 PHASE_CAROLAI_VISIT, PHASE_CAROLAI_HOME = 0x10000, 0x20000
 CAROLAI_DISPLAY = 1601
 CURSED_DARKHOUND = 1548
-CAROLAI_VISIT_AT = (0.5, -2.5, 257.5)  # where Cedric stood, facing the door as the player comes in
-CAROLAI_HOME_AT = (-3.0, 2.6, 0)
+CAROLAI_VISIT_AT = (-1.0, -3.3, 257.5)  # where Cedric stood, facing the door as the player comes in
+CAROLAI_HOME_AT = (-3.3, -1.0, 180)  # at her alchemy table
 # Her mother's locket in Solliden Farmstead's farmhouse (beside old Farmer Solliden, who walks it);
-# the lily on Brightwater Lake's shore (among the Vile Fins): heights from the game's terrain.
+# the lily on Brightwater Lake's west shore, by the water (map 64.9, 44.5; it was 2.9 map units north of the
+# lake, on dry ground the user couldn't find it on): heights from the game's terrain, the lake at 21.19.
 LOCKET_AT = (2266.6, 1316.4, 34.1, 1.2)
-LILY_AT = (2905.0, 200.0, 7.86, 0.0)
+LILY_AT = (2496.0, 102.0, 21.41, 0.0)
+# Tirisfal Glades' world map (WorldMapArea 20): the lily's quest marks its spot there.
+TIRISFAL_MAP_AREA = 20
 
 
 def world(lx, ly):
@@ -144,14 +164,15 @@ BED_OFFER = (
     "Go and try it out. Lie down, get a proper night's sleep, and then come back and tell me I was right.")
 BED_PROGRESS = "Well? Have you tried it yet?"
 DOG_OFFER = (
-    "(A big mastiff is sitting beside your bed, as if it has been waiting a while for you to wake up. A muddy "
-    "stick lies between its front paws.)$B$B"
+    "(A small pug is sitting beside your bed, as if it has been waiting a while for you to wake up. It is not "
+    "entirely alive: its coat is gray-green and stitched in places, and its eyes glow a soft yellow. A muddy "
+    "stick lies between its front paws. The tag on its spiked collar reads CORN.)$B$B"
     "(It noses the stick toward you. It looks at the door. It looks back at you.)")
-DOG_LOG = "Throw the stick for the mastiff three times, then give it a good scratch behind the ears."
-DOG_PROGRESS = "(The mastiff drops the stick at your feet again and waits, ears up.)"
+DOG_LOG = "Throw the stick for Corn three times, then give him a good scratch behind the ears."
+DOG_PROGRESS = "(Corn drops the stick at your feet again and waits, tail curled, ears up.)"
 DOG_DONE = (
-    "(The mastiff turns three circles on the floor beside your bed and flops down with a long, contented sigh.)$B$B"
-    "(When you step toward the door, it gets up and follows.)")
+    "(Corn turns three circles on the floor beside your bed and flops down with a long, wheezing, contented sigh.)$B$B"
+    "(When you step toward the door, he gets up and follows.)")
 BED_DONE = (
     "You look rested. Don't argue; you do.$B$B"
     "Whenever you'd like to make the place more of a home, come and see me. I know a carpenter in the "
@@ -160,11 +181,11 @@ BED_DONE = (
 
 # Carolai's words. She's a yandere (the user's): sweet, attentive, and a little too much of both.
 TONIC_OFFER = (
-    "You're the one who took Cedric's house. With the mastiff.$B$B"
+    "You're the one who took Cedric's house. With the little dog. Corn, isn't it?$B$B"
     "Don't look so surprised. Brill is small, and I have a window. I see you leave at first light and I see "
     "you come home, and I see that dog of yours sitting in your doorway, scratching at its ears.$B$B"
-    "It's blightmange. The darkhounds carry it out of the woods and leave it in the grass for every living "
-    "dog in Tirisfal to roll in. First the fur comes out in clumps, then the skin goes, and then... well. "
+    "It's blightmange. The darkhounds carry it out of the woods and leave it in the grass for every dog in "
+    "Tirisfal to roll in, living or otherwise; it eats what the plague left of them, too. First the fur comes out in clumps, then the skin goes, and then... well. "
     "You've seen the darkhounds.$B$B"
     "I can brew something for it. But it's no use treating him while the hills are crawling with the things "
     "that gave it to him. Thin out the Cursed Darkhounds north of Brill, and the tonic will be ready when you "
@@ -242,7 +263,8 @@ LILY_OFFER = (
     "me one. Then, when you give it to me, tell me what it means.$B$B"
     "Whatever you say, I'll... I'll understand.$B$B"
     "I'll be here. Waiting. As I always am.")
-LILY_LOG = "Pick a moonpetal lily on the shore of Brightwater Lake, then give it to Carolai Anise in Brill and tell her what it means."
+LILY_LOG = ("Pick a moonpetal lily on the west shore of Brightwater Lake, east of Brill, then give it to Carolai Anise in "
+            "Brill and tell her what it means.")
 LILY_PROGRESS = "(Carolai looks at your hands first, to see if there's a lily in them.)"
 LILY_FOUND = (
     "(A single pale lily grows where the water laps at the reeds. Its petals are cold, and faintly bright, "
@@ -376,16 +398,16 @@ def main():
     w(f"({JAMIE_NORE}, {QUEST_HOUSE}), ({JAMIE_NORE}, {QUEST_WELCOME}), ({JAMIE_NORE}, {QUEST_BED});")
 
     w("")
-    w("-- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the")
-    w("-- template its pet is made from; the quest's two credits. Uses the stock pug model.")
+    w("-- Corn, the dog: beside the bed once the player has slept in it (its phase), his quest, and the")
+    w("-- template his pet is made from; the quest's two credits. The game's pug in the user's Forsaken coat.")
     w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
       "`speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES")
-    w(f"({NPC_DOG}, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),")
-    w(f"({NPC_DOG_PET}, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),")
-    w(f"({NPC_DOG_COMPANION}, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 0, 1, 0, 'npc_brill_home_companion'),")
+    w(f"({NPC_DOG}, 'Corn', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),")
+    w(f"({NPC_DOG_PET}, 'Corn', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),")
+    w(f"({NPC_DOG_COMPANION}, 'Corn', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 0, 1, 0, 'npc_brill_home_companion'),")
     w(f"({NPC_BEAST_COMPANION}, 'Stabled Companion', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 0, 1, 0, 'npc_brill_home_companion'),")
-    w(f"({NPC_FETCH_CREDIT}, 'Played fetch with the mastiff', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),")
-    w(f"({NPC_EARS_CREDIT}, 'Scratched the mastiff behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');")
+    w(f"({NPC_FETCH_CREDIT}, 'Played fetch with Corn', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),")
+    w(f"({NPC_EARS_CREDIT}, 'Scratched Corn behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');")
     w("INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES")
     rows = []
     for entry in (NPC_DOG, NPC_DOG_PET, NPC_DOG_COMPANION, NPC_BEAST_COMPANION):
@@ -396,19 +418,26 @@ def main():
     w("INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, "
       "`orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES")
     w(f"(970101, {NPC_DOG}, {MAP}, {ZONE}, {AREA}, 1, {PHASE_DOG}, {dx:.3f}, {dy:.3f}, {FLOOR:.3f}, {turn(DOG_AT[2]):.4f}, 60, 0, 0, 'mod-brill-home');")
-    # Stock pug model metadata is already in the core. Remove only our old overrides.
+    # Corn's display (the game's pug model, the user's coat), the server's copy of the client's row
+    # (data/client/dbc); the mastiff's old rows (3970, 39701 to 39703) gone.
     w("DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;")
+    w(f"INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) "
+      f"SELECT {DOG_DISPLAY}, `BoundingRadius`, `CombatReach`, `Gender`, 0 FROM `creature_model_info` WHERE `DisplayID` = 31174;")
     w("DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;")
     w("DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;")
+    w("INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, "
+      "`TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, "
+      "`ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES")
+    w(f"({DOG_DISPLAY}, {PUG_MODEL}, {PUG_SOUNDS}, 0, {PUG_SCALE}, 255, {q(DOG_SKIN)}, '', '', '', 0, 0, {PUG_NPC_SOUNDS}, 0, 0, 0);")
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
     w(f"({TEXT_DOG}, {q('(The dog looks happy to see you.)')}, {q('(The dog looks happy to see you.)')}, 1),")
-    w(f"({TEXT_DOG_WAITING}, {q('(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)')}, "
-      f"{q('(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)')}, 1);")
+    w(f"({TEXT_DOG_WAITING}, {q('(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)')}, "
+      f"{q('(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)')}, 1);")
     w("INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, "
       "`RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, "
       "`RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`) VALUES")
     w(f"({QUEST_DOG}, 2, -1, 5, {AREA}, 8, 1, 0, 0, 'A Visitor in the Night', {q(DOG_LOG)}, {q(DOG_OFFER)}, '', "
-      f"{q('Return to the mastiff.')}, {NPC_FETCH_CREDIT}, 3, 'Played fetch', {NPC_EARS_CREDIT}, 1, 'Scratched behind the ears');")
+      f"{q('Return to Corn.')}, {NPC_FETCH_CREDIT}, 3, 'Played fetch', {NPC_EARS_CREDIT}, 1, 'Scratched behind the ears');")
     w(f"INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES ({QUEST_DOG}, 0);")
     w(f"INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES ({QUEST_DOG}, 0, {q(DOG_DONE)});")
     w(f"INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES ({QUEST_DOG}, 0, 0, {q(DOG_PROGRESS)});")
@@ -416,7 +445,7 @@ def main():
     w(f"INSERT INTO `creature_questender` (`id`, `quest`) VALUES ({NPC_DOG}, {QUEST_DOG});")
 
     w("")
-    w("-- Carolai Anise: her quests (once the mastiff is the player's), her visit to the house, her living")
+    w("-- Carolai Anise: her quests (once Corn is the player's), her visit to the house, her living")
     w("-- there; the keepsakes she sends the player for, and the credits. Her menu is src/BrillHome.cpp's.")
     w(f"UPDATE `creature_template` SET `npcflag` = `npcflag` | 3, `ScriptName` = 'npc_brill_home_carolai' WHERE `entry` = {CAROLAI};")
     w("INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, "
@@ -440,13 +469,21 @@ def main():
     w(",\n".join(rows) + ";")
     w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES")
     w(f"({GO_LOCKET}, 2, 8, 'Old Footlocker', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
-    w(f"({GO_LILY}, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
+    # (the lily: a pale flower that glows, Felwood's songflower's model, a little larger than a bloom in the grass)
+    w(f"({GO_LILY}, 2, 3232, 'Moonpetal Lily', 1.6, 0, 0, 0, 'go_brill_home_keepsake'),")
     w(f"({GO_ALCHEMY}, 5, 4391, 'Carolai\\'s Alchemy Table', 0.8, 0, 0, 0, '');")
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
       "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES")
     w(",\n".join([go_spawn(970120, GO_LOCKET, *LOCKET_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
                   go_spawn(970121, GO_LILY, *LILY_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
                   go_spawn(970122, GO_ALCHEMY, *world(ALCHEMY_AT[0], ALCHEMY_AT[1]), FLOOR, turn(ALCHEMY_AT[2]), PHASE_CAROLAI_HOME)]) + ";")
+    # Where the keepsakes are, on the world map and the quest tracker: the locket's farmhouse, the lily's shore.
+    w(f"DELETE FROM `quest_poi` WHERE `QuestID` IN ({QUEST_LOCKET}, {QUEST_LILY});")
+    w(f"DELETE FROM `quest_poi_points` WHERE `QuestID` IN ({QUEST_LOCKET}, {QUEST_LILY});")
+    w("INSERT INTO `quest_poi` (`QuestID`, `id`, `ObjectiveIndex`, `MapID`, `WorldMapAreaId`, `Floor`, `Priority`, `Flags`, `VerifiedBuild`) VALUES")
+    w(f"({QUEST_LOCKET}, 0, 0, {MAP}, {TIRISFAL_MAP_AREA}, 0, 0, 1, 0), ({QUEST_LILY}, 0, 0, {MAP}, {TIRISFAL_MAP_AREA}, 0, 0, 1, 0);")
+    w("INSERT INTO `quest_poi_points` (`QuestID`, `Idx1`, `Idx2`, `X`, `Y`, `VerifiedBuild`) VALUES")
+    w(f"({QUEST_LOCKET}, 0, 0, {round(LOCKET_AT[0])}, {round(LOCKET_AT[1])}, 0), ({QUEST_LILY}, 0, 0, {round(LILY_AT[0])}, {round(LILY_AT[1])}, 0);")
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
     w(",\n".join(f"({i}, {q(t)}, {q(t)}, 1)" for i, t in (
         (TEXT_CAROLAI_VISIT, CAROLAI_VISIT), (TEXT_CAROLAI_ANSWER, CAROLAI_ANSWER), (TEXT_CAROLAI_LOVER, CAROLAI_LOVER),
@@ -464,7 +501,7 @@ def main():
       "`RewardItem1`, `RewardAmount1`, `RewardItem2`, `RewardAmount2`) VALUES")
     back = q("Return to Carolai Anise in Brill.")
     w(",\n".join([
-        f"({QUEST_TONIC}, 2, -1, 5, {AREA}, 0, 4, 2500, 0, 'A Tonic for the Mastiff', {q(TONIC_LOG)}, {q(TONIC_OFFER)}, '', {back}, "
+        f"({QUEST_TONIC}, 2, -1, 5, {AREA}, 0, 4, 2500, 0, 'A Tonic for Corn', {q(TONIC_LOG)}, {q(TONIC_OFFER)}, '', {back}, "
         f"{CURSED_DARKHOUND}, 8, '', 0, 0, '', 0, 0, 0, 0)",
         f"({QUEST_LOCKET}, 2, -1, 5, {AREA}, 0, 4, 2500, 0, 'What Solliden Kept', {q(LOCKET_LOG)}, {q(LOCKET_OFFER)}, '', {back}, "
         f"{NPC_LOCKET_CREDIT}, 1, 'Carolai\\'s locket', 0, 0, '', 0, 0, 0, 0)",
@@ -491,9 +528,33 @@ def main():
     w(f"({CAROLAI}, {QUEST_TONIC}), ({CAROLAI}, {QUEST_LOCKET}), ({JAMIE_NORE}, {QUEST_GIFT}), ({CAROLAI}, {QUEST_TEA}), "
       f"({CAROLAI}, {QUEST_LILY});")
 
+    # The game's own table for Corn's display (the module's patch, src/BrillHomePatch.cpp), and his coat.
+    os.makedirs(os.path.join(CLIENT, "dbc"), exist_ok=True)
+    with open(os.path.join(CLIENT, "dbc", "CreatureDisplayInfo.txt"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("# CreatureDisplayInfo: Corn's (tools/build_sql.py; the game's pug display, 31174, named for its coat by the patch)\n")
+        f.write("types\tiiiifissssiiiiii\n")
+        f.write(f"put\t{DOG_DISPLAY}\t{PUG_MODEL}\t{PUG_SOUNDS}\t0\t{PUG_SCALE}\t255\t{DOG_SKIN}\t\t\t\t0\t0\t{PUG_NPC_SOUNDS}\t0\t0\t0\n")
+    write_coat()
+
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
+
+
+def write_coat():
+    """Corn's coat in the game's texture format (a DXT1 BLP, with its mip levels), from the user's texture:
+    data/client/files/Creature/Pug/<DOG_SKIN>.blp, by the pug model's folder, where a display's coat is looked
+    for. (mod-allied-races/tools/blp.py writes it; needs numpy and Pillow.)"""
+    import sys
+    import numpy as np
+    from PIL import Image
+    sys.path.insert(0, os.path.join(HERE, "..", "..", "mod-allied-races", "tools"))
+    import blp
+    rgba = np.ascontiguousarray(np.asarray(Image.open(DOG_TEXTURE).convert("RGBA")))
+    path = os.path.join(CLIENT, "files", "Creature", "Pug", DOG_SKIN + ".blp")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(blp.write_dxt(rgba))
 
 
 if __name__ == "__main__":

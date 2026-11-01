@@ -167,6 +167,7 @@ SMSG_LEARNED_SPELL, SMSG_REMOVED_SPELL, SMSG_CAST_FAILED = 0x12B, 0x203, 0x130
 SMSG_SPELLNONMELEEDAMAGELOG, SMSG_SPELLHEALLOG = 0x250, 0x150
 SMSG_NOTIFICATION = 0x1CB
 CMSG_GAMEOBJ_USE = 0x0B1
+CMSG_TEXT_EMOTE = 0x104
 CMSG_DESTROYITEM = 0x111
 CMSG_USE_ITEM = 0x0AB
 SMSG_LIST_INVENTORY, CMSG_BUY_ITEM, SMSG_BUY_ITEM, SMSG_BUY_FAILED = 0x19F, 0x1A2, 0x1A4, 0x1A5
@@ -182,6 +183,7 @@ SMSG_QUESTGIVER_QUEST_LIST, SMSG_QUESTGIVER_QUEST_DETAILS = 0x185, 0x188
 AUTH_OK, CHAR_CREATE_SUCCESS, CHAR_CREATE_NAME_IN_USE = 0x0C, 0x2F, 0x31
 CHAT_MSG_SYSTEM, CHAT_MSG_SAY, CHAT_MSG_WHISPER, LANG_COMMON, LANG_ADDON = 0x00, 0x01, 0x07, 7, 0xFFFFFFFF
 LANG_ORCISH = 1
+LANG_NERGLISH, RACE_MURLOC = 9, 19
 HORDE_RACES = (2, 5, 6, 8, 10, 14, 16, 18, 20)  # orc, undead, tauren, troll, blood elf, Skyborne Windshaper, nightborne, Zandalari, naga: they speak Orcish, not Common
 CMSG_QUESTGIVER_HELLO = 0x184
 
@@ -374,7 +376,8 @@ def world(host, user, password, character, command=None, race=1, cls=1, port=Non
         chars = characters()
     guid, name, level, map_id, zone, race, cls = next(c for c in chars if c[1] == character)
     print(f"world: {name}, race {race}, class {cls}, level {level}, map {map_id}, zone {zone}")
-    session.lang = LANG_ORCISH if race in HORDE_RACES else LANG_COMMON
+    # (the murlocs speak Nerglish alone, the game's Titan, until their story's done)
+    session.lang = LANG_NERGLISH if race == RACE_MURLOC else LANG_ORCISH if race in HORDE_RACES else LANG_COMMON
 
     session.send(CMSG_PLAYER_LOGIN, struct.pack("<Q", guid))
     _, body = session.wait_for([SMSG_LOGIN_VERIFY_WORLD], seconds=120)
@@ -472,6 +475,9 @@ def run_script(session, player_guid, steps):
                                       to death (the character's own blow: it gets the kill,
                                       which `.die` doesn't give)
         select ENTRY TEXT             pick the option of its last menu whose text has TEXT
+        select-nth ENTRY N            pick its last menu's Nth option (from 0)
+        emote ENTRY TEXT_EMOTE        the character's own emote (EmotesText.dbc: 101 /wave, 17 /bow...)
+                                      at the nearest creature of that entry, as the game sends one
         buy ENTRY ITEM                buy ITEM from the vendor window it last opened (heard:
                                       "ware ITEM cost N" for each ware a window shows, then
                                       "bought ITEM" or "buy failed REASON")
@@ -797,6 +803,23 @@ def run_script(session, player_guid, steps):
                 raise RuntimeError(f"no object {rest} near the character")
             session.send(CMSG_GAMEOBJ_USE, struct.pack("<Q", guid))
             session.pump(2.0, packets)
+        elif word == "emote":
+            entry, text_emote = (int(v) for v in rest.split())
+            target = creature_guid(entry)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", target))
+            session.pump(0.5, packets)
+            session.send(CMSG_TEXT_EMOTE, struct.pack("<IIQ", text_emote, 0, target))
+            session.pump(2.0, packets)
+            session.send(CMSG_SET_SELECTION, struct.pack("<Q", 0))
+            session.pump(0.5, packets)
+        elif word == "select-nth":
+            entry, nth = (int(v) for v in rest.split())
+            guid = creature_guid(entry)
+            menu_id, options = menus.get(guid, (0, []))
+            if nth >= len(options):
+                raise RuntimeError(f"no option {nth} in {options}")
+            session.send(CMSG_GOSSIP_SELECT_OPTION, struct.pack("<QII", guid, menu_id, options[nth][0]) + b"\0")
+            session.pump(4.0, packets)
         elif word == "target":
             if rest == "self":
                 session.send(CMSG_SET_SELECTION, struct.pack("<Q", player_guid))

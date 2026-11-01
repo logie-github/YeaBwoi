@@ -16,6 +16,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <map>
 #include <set>
 #include <tuple>
 
@@ -80,6 +81,25 @@ int main(int argc, char** argv)
     Check(murloc, "race 19 is the Murloc (Alliance, its intro)");
     Check(naga, "race 20 is the Naga (Horde, the game's naga looks, its intro)");
     Check(taunka && skeleton, "the Taunka and the Northrend Skeleton moved to 30 and 31");
+
+    // The races' models are a player's (CreatureModelData's flag 0x4): the game draws a player as a character
+    // (the composed skin, the chosen hair and features) only on such a model, otherwise as a creature, white,
+    // with every geoset at once.
+    Dbc models, displays;
+    Check(table("CreatureModelData", models) && table("CreatureDisplayInfo", displays), "CreatureModelData and CreatureDisplayInfo are in it");
+    std::map<uint32_t, uint32_t> modelFlags, displayModel;
+    for (size_t i = 0; i < models.records.size(); ++i)
+        modelFlags[models.Get(i, 0)] = models.Get(i, 1);
+    for (size_t i = 0; i < displays.records.size(); ++i)
+        displayModel[displays.Get(i, 0)] = displays.Get(i, 1);
+    size_t playerModels = 0;
+    for (size_t i = 0; i < races.records.size(); ++i)
+        if (races.Get(i, 0) == 19 || races.Get(i, 0) == 20)
+            for (uint32_t field : { 4u, 5u })
+                if (auto d = displayModel.find(races.Get(i, field)); d != displayModel.end())
+                    if (auto m = modelFlags.find(d->second); m != modelFlags.end() && (m->second & 0x4))
+                        ++playerModels;
+    Check(playerModels == 4, "the murlocs' and the naga's models are a player's, a sex each (flag 0x4: " + std::to_string(playerModels) + " of 4)");
 
     Dbc sections;
     Check(table("CharSections", sections), "CharSections is in it");

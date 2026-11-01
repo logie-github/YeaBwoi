@@ -519,13 +519,13 @@ LINE = {
         # (against the doorway's wall: the slots asked for, (-0.6, -3.9) and (3.9, -2.6), are in the way in and
         # under Carolai's alchemy table when she lives there).
         {"id": "house_pot", "name": "Flowerpot", "display": 5093, "scale": 1.1, "from": 7,
-         "spawns": [["house", 0.4, -5.3, 0, 0]]},
+         "spawns": [["house", -1.35, 4.2, 0, 0]]},
         {"id": "house_asters", "name": "Potted Asters", "display": 6313, "scale": 0.8, "from": 7,
-         "spawns": [["house", 0.4, -5.3, 0.7, 30]],
+         "spawns": [["house", -1.35, 4.2, 0.7, 30]],
          "use": [{"text": "(Autumn asters from the Stillgarden. Edda says they mean patience, or possibly afterthought. "
                           "She can never remember which, and refuses to look it up.)"}]},
         {"id": "house_terrarium", "name": "Fungal Terrarium", "display": 7792, "scale": 1.2, "from": 7,
-         "spawns": [["house", 4.5, -5.0, 0, 0]],
+         "spawns": [["house", -4.9, 3.85, 0, 0]],
          "use": [{"text": "(A glass jar of Pellen's, sealed with wax. Inside, a garden of pale fungi no bigger than "
                           "thimbles grows in the dark, needing nothing. A label: NO WATER. NO LIGHT. NO FUSS. -- P.M.)"}]},
     ],

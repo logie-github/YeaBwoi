@@ -286,3 +286,11 @@ DARKSHORE_ALLIANCE_ONLY = [4722, 4723, 4725, 4727, 4728, 4730, 4731, 4732, 4733,
 # Factions whose people the naga meet in Darkshore, neutral to them from the start (the Horde's
 # other races are hated by them): Darnassus, Ironforge (the Explorers' League), Gnomeregan Exiles.
 NAGA_NEUTRAL_FACTIONS = [69, 47, 54]
+
+# The murlocs' language: the game's Titan (Languages.dbc 9, skill 140), named Nerglish in the patch.
+NERGLISH_LANGUAGE = 9
+# The murlocs' village off Auberdine and its quests: retired (the user: the murlocs start at the Zoram
+# Strand, Ashenvale, under the Wrathtail naga: tools/murloc/). Kept here, off, for the record.
+MURLOC_VILLAGE = False
+# The murlocs' story's chapters released (tools/murloc/ch0 to chN): the ones after are still being written.
+MURLOC_CHAPTERS = 10

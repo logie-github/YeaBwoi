@@ -532,13 +532,14 @@ EOF
 		[ "$(echo "SELECT CONCAT(ReputationRaceMask_4 & 524288, ' ', ReputationBase_4) FROM faction_dbc WHERE ID = $faction" | CTL sql acore_world)" = "524288 0" ] ||
 			fail "the naga aren't neutral to faction $faction"
 	done
-	# A murloc warrior and a naga shaman: on their islands off Darkshore at level 10, with their racials,
+	# A murloc warrior in the Wrathtail's pens at the Zoram Strand (its story's start) and a naga shaman on
+	# its island off Darkshore, at level 10, with their racials,
 	# their side's language and their class's spells to level 10.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Murloctester 19 1 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/murloc.out" || fail "the murloc warrior didn't get into the world"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nagatester 20 7 "$FILES/run/skyborne.steps" |
 		tee "$FILES/logs/naga.out" || fail "the naga shaman didn't get into the world"
-	for who in "Murloctester:19:1:the murlocs' village" "Nagatester:20:7:the renegades' camp"; do
+	for who in "Murloctester:19:1:the murlocs' pens" "Nagatester:20:7:the renegades' camp"; do
 		name=${who%%:*} rest=${who#*:} race=${rest%%:*} rest=${rest#*:} class=${rest%%:*} place=${rest#*:}
 		at=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM characters WHERE name = '$name'" | CTL sql acore_characters)
 		start=$(echo "SELECT CONCAT(map, ' ', ROUND(position_x), ' ', ROUND(position_y)) FROM playercreateinfo WHERE race = $race AND class = $class" | CTL sql acore_world)
@@ -556,7 +557,8 @@ EOF
 		learned=$(echo "SELECT COUNT(*) FROM character_spell s JOIN characters c ON c.guid = s.guid WHERE c.name = '$name' AND s.spell IN ($spells)" | CTL sql acore_characters)
 		[ "$learned" = "$count" ] || fail "$name has $learned of its $count racials"
 	done
-	for who in Murloctester:98 Nagatester:109; do
+	# (the murlocs' Nerglish: the game's Titan, skill 140; the naga's Orcish)
+	for who in Murloctester:140 Nagatester:109; do
 		knows_language "${who%%:*}" "${who#*:}" || fail "${who%%:*} doesn't know its side's language (skill ${who#*:})"
 	done
 	# In the world: their homes seen (their phases), their first quests; the night elves of Auberdine
@@ -564,11 +566,11 @@ EOF
 	# sends it south at level 17, and the Darkspear scout at the Zoram Strand takes it.
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Murloctester 19 1 \
 		"$ROOT/warcraft/server/murloc_naga_murloc.steps" | tee "$FILES/logs/murloc-world.out" ||
-		fail "the murloc's village and quests didn't work in the world (logs/murloc-world.out)"
+		fail "the murloc's pens and first quests didn't work in the world (logs/murloc-world.out)"
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Nagatester 20 7 \
 		"$ROOT/warcraft/server/murloc_naga_naga.steps" | tee "$FILES/logs/naga-world.out" ||
 		fail "the naga's camp, Auberdine and the way to the Horde didn't work in the world (logs/naga-world.out)"
-	echo "The murlocs and the naga start at level 10 on their islands off Darkshore, with their racials, language and class spells."
+	echo "The murlocs start at level 10 in the pens and the naga on their island off Darkshore, with their racials, language and class spells."
 	for name in Murloctester Nagatester; do
 		erase_character "$name" || fail "$name wasn't erased"
 	done
@@ -712,10 +714,18 @@ EOF
 	echo "== a home in Brill (mod-brill-home): Cedric Harrow's house, Jamie Nore's quests, the bed and the furniture"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject WHERE guid = 970100 AND id = 970100" | CTL sql acore_world)" = 1 ] ||
 		fail "the house isn't in ChromieCraft's world"
-	# The quest dog, pet and hunter companion all use Perky Pug's stock display.
-	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 31174" | CTL sql acore_world)" = 3 ] ||
-		fail "the Brill dog isn't using the stock pug model"
-	! ls "$FILES"/client/Data/*/patch-*-V.MPQ.brillhome > /dev/null 2>&1 || fail "the retired mastiff patch remains"
+	# Corn (the quest dog, his pet and a hunter's companion): Corn's display, the game's pug in the user's coat.
+	[ "$(echo "SELECT COUNT(*) FROM creature_template_model WHERE CreatureID IN (970112,970115,970116) AND CreatureDisplayID = 39700" | CTL sql acore_world)" = 3 ] ||
+		fail "the Brill dog isn't Corn's display"
+	# The module's patch in the game: the language folder's patch-<locale>-V, its two tables (Corn's display,
+	# the cellar's looks) and its files (Corn's coat, the game's pug made his), made after the allied races'.
+	grep -E "Brill home: The Brill home's patch is in the game: 2 tables" "$FILES/logs/world.out" ||
+		fail "the world server didn't make the Brill home's patch (Corn, the cellar)"
+	grep -E "Brill home: The Brill home's patch is in the game: .*Corn the (Forsaken|plain) pug" "$FILES/logs/world.out" || true
+	ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 || fail "the Brill home's patch isn't in the game"
+	brill=$(grep -n -m1 "Brill home: The Brill home's patch is in the game" "$FILES/logs/world.out" | cut -d: -f1 || true)
+	echo "world.out: the Brill home's patch at line ${brill:-?}, the allied races' at line ${allied:-?}"
+	[ -n "$brill" ] && [ -n "$allied" ] && [ "$brill" -gt "$allied" ] || fail "the Brill home's patch was made before the allied races'"
 	complaints=$(grep -ihwE "(entry|quest|guid|creature|gameobject)[^0-9]*9701[0-4][0-9]" "$FILES/logs/Errors.log" "$FILES/logs/Server.log" 2>/dev/null || true)
 	[ -z "$complaints" ] || { echo "$complaints" | head -20; fail "the world server complained about the house's rows"; }
 	python3 "$ROOT/warcraft/server/auth_check.py" script 127.0.0.1 tester secret123 Homesteader 5 1 \
@@ -858,8 +868,8 @@ EOF
 	grep -q "^BrillHome.Enable = 1" "$FILES/etc/modules/mod_brill_home.conf" || fail "the Brill home is off in ChromieCraft's config"
 	[ "$(echo "SELECT COUNT(*) FROM gameobject_template WHERE entry BETWEEN 970100 AND 970109" | CTL sql acore_world_remix)" = 0 ] ||
 		fail "the house is in Wrath Remix's world"
-	! ls "$FILES"/client/Data/*/patch-*-V.MPQ.brillhome > /dev/null 2>&1 ||
-		fail "the retired mastiff patch remains in the game"
+	! ls "$FILES"/client/Data/*/patch-*-V.MPQ > /dev/null 2>&1 && ls "$FILES"/client/Data/*/patch-*-V.MPQ.aside > /dev/null 2>&1 ||
+		fail "the Brill home's patch (Corn, the cellar) is in the game on Wrath Remix (or wasn't kept aside)"
 	[ ! -e "$FILES/client/Data/patch-V.MPQ" ] && [ -e "$FILES/client/Data/patch-V.MPQ.aside" ] ||
 		fail "the allied races' patch is in the game on Wrath Remix (or wasn't kept aside)"
 	[ "$(echo "SELECT COUNT(*) FROM playercreateinfo WHERE race IN (15, 16, 17, 18)" | CTL sql acore_world_remix)" = 0 ] ||

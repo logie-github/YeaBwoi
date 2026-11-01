@@ -54,6 +54,26 @@ HOUSE_X, HOUSE_Y, HOUSE_O, FLOOR = 2275.0, 480.5, 5.0615, 29.96 + 4.1
 BRILL_X, BRILL_Y, BRILL_RADIUS = 2275.0, 330.0, 165.0
 NEAR_HOUSE = 35.0   # (and by the house, at Brill's north edge)
 
+# The house's cellar (tools/town/house.py): the game's Duskwood_Inn.wmo (Brill's own tavern, the Gallows'
+# End, is one), whose cellar is a stone room of 19 by 20 yards with its barrels, kegs, crates and cobwebs
+# (the model's own, always drawn), placed as an object deep under the house, turned as the house is, its
+# cellar's middle (the model's -27, 2) under the house's middle. Its top (23.2 above its base) is 6 yards
+# under the lowest ground over it (33.4: the server's maps), so nothing of it shows above. A line places
+# things in it by the model's own coordinates: ["cellar", x, y, dz, deg], dz above the cellar's floor
+# (6.72 under the model's base). src/BrillTown.cpp keeps the same numbers (CELLAR_*).
+CELLAR_O = HOUSE_O
+CELLAR_MIDDLE = (-27.0, 2.0)
+CELLAR_Z = 4.0
+CELLAR_FLOOR = CELLAR_Z - 6.72
+# New object looks (GameObjectDisplayInfo, the game's and the server's): the cellar and its ladder,
+# models of the game's own (9700 to 9709: clear of the game's, the Worgen's and the Murlocs').
+DISPLAYS = [
+    (9700, "World\\wmo\\Azeroth\\Buildings\\Duskwood_Inn\\Duskwood_Inn.wmo", (-37.7, -13.5, -6.7, 21.9, 18.7, 23.2)),
+    (9701, "World\\Expansion02\\Doodads\\Generic\\Human\\Northrend_HumanLadder\\Final\\HU_HumanLadder.mdx",
+     (-0.04, -0.18, 0.0, 0.04, 0.37, 3.55)),
+]
+CLIENT_DBC = os.path.join(HERE, "..", "data", "client", "dbc")
+
 MAP_ZONE = {0: 85}
 
 
@@ -68,6 +88,29 @@ def die(line, message):
 def house_point(lx, ly, deg=0.0):
     c, s = math.cos(HOUSE_O), math.sin(HOUSE_O)
     return (HOUSE_X + lx * c - ly * s, HOUSE_Y + lx * s + ly * c, (HOUSE_O + math.radians(deg)) % (2 * math.pi))
+
+
+def cellar_origin():
+    c, s = math.cos(CELLAR_O), math.sin(CELLAR_O)
+    mx, my = CELLAR_MIDDLE
+    return HOUSE_X - (mx * c - my * s), HOUSE_Y - (mx * s + my * c)
+
+
+def cellar_point(lx, ly, deg=0.0):
+    ox, oy = cellar_origin()
+    c, s = math.cos(CELLAR_O), math.sin(CELLAR_O)
+    return (ox + lx * c - ly * s, oy + lx * s + ly * c, (CELLAR_O + math.radians(deg)) % (2 * math.pi))
+
+
+def write_client_displays():
+    """data/client/dbc/GameObjectDisplayInfo.txt: the new looks for the game's own table (src/BrillHomePatch.cpp
+    puts them in the game's patch with Corn's display)."""
+    with open(os.path.join(CLIENT_DBC, "GameObjectDisplayInfo.txt"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("# GameObjectDisplayInfo: the house's cellar and its ladder (tools/build_town.py)\n")
+        f.write("types\tisiiiiiiiiiiffffffi\n")
+        for d, path, box in DISPLAYS:
+            # (a backslash written twice: the patch's reader takes one as an escape)
+            f.write("put\t" + "\t".join([str(d), path.replace("\\", "\\\\")] + ["0"] * 10 + [repr(float(v)) for v in box] + ["0"]) + "\n")
 
 
 def load(key):
@@ -164,7 +207,11 @@ def main():
         return " ".join(out)
 
     def place(key, spawn):
-        """(map, x, y, z, o) from a spawn: [map, x, y, z, o] in the world, or ["house", lx, ly, dz, deg]."""
+        """(map, x, y, z, o) from a spawn: [map, x, y, z, o] in the world, ["house", lx, ly, dz, deg] in the
+        house or ["cellar", lx, ly, dz, deg] in its cellar."""
+        if spawn[0] == "cellar":
+            x, y, o = cellar_point(spawn[1], spawn[2], spawn[4] if len(spawn) > 4 else 0)
+            return 0, x, y, CELLAR_FLOOR + (spawn[3] if len(spawn) > 3 else 0), o
         if spawn[0] == "house":
             x, y, o = house_point(spawn[1], spawn[2], spawn[4] if len(spawn) > 4 else 0)
             return 0, x, y, FLOOR + (spawn[3] if len(spawn) > 3 else 0), o
@@ -236,9 +283,13 @@ def main():
       "`value` INT NOT NULL, PRIMARY KEY (`kind`, `guid`, `type`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
     w("DELETE FROM `brill_town_stage`;")
     w("DELETE FROM `brill_town_invis`;")
-    w("CREATE TABLE IF NOT EXISTS `brill_town_use` (`go` INT UNSIGNED NOT NULL, `ord` INT UNSIGNED NOT NULL, "
+    # (made again each time: its columns have grown; every row is this file's)
+    w("DROP TABLE IF EXISTS `brill_town_use`;")
+    w("CREATE TABLE `brill_town_use` (`go` INT UNSIGNED NOT NULL, `ord` INT UNSIGNED NOT NULL, "
       "`cond` VARCHAR(255) NOT NULL DEFAULT '', `quest` INT UNSIGNED NOT NULL DEFAULT 0, `credit` INT UNSIGNED NOT NULL DEFAULT 0, "
-      "`text_id` INT UNSIGNED NOT NULL DEFAULT 0, `marker` INT UNSIGNED NOT NULL DEFAULT 0, PRIMARY KEY (`go`, `ord`)) "
+      "`text_id` INT UNSIGNED NOT NULL DEFAULT 0, `marker` INT UNSIGNED NOT NULL DEFAULT 0, "
+      "`tele_map` INT NOT NULL DEFAULT -1, `tele_x` FLOAT NOT NULL DEFAULT 0, `tele_y` FLOAT NOT NULL DEFAULT 0, "
+      "`tele_z` FLOAT NOT NULL DEFAULT 0, `tele_o` FLOAT NOT NULL DEFAULT 0, PRIMARY KEY (`go`, `ord`)) "
       "ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;")
     w("DELETE FROM `brill_town_phase`;")
     w("DELETE FROM `brill_town_gossip`;")
@@ -250,13 +301,20 @@ def main():
                           ("quest_request_items", "ID"), ("creature_queststarter", "quest"), ("creature_questender", "quest"),
                           ("smart_scripts", "entryorguid"), ("gameobject_template_addon", "entry"), ("npc_vendor", "entry"),
                           ("game_event_creature", "guid"), ("game_event_gameobject", "guid"),
-                          ("creature_default_trainer", "CreatureId")):
+                          ("creature_default_trainer", "CreatureId"), ("creature_template_movement", "CreatureId")):
         extra = " AND `source_type` = 0" if table == "smart_scripts" else ""
         w(f"DELETE FROM `{table}` WHERE `{column}` BETWEEN {lo} AND {hi}{extra};")
     w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `SourceEntry` BETWEEN {lo} AND {hi};")
     w(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 23 AND `SourceGroup` BETWEEN {lo} AND {hi};")
     entries = ", ".join(str(e) for e, _, _ in SCHEDULES.values())
     w(f"DELETE FROM `game_event` WHERE `eventEntry` IN ({entries});")
+    w(f"DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN 9700 AND 9709;")
+    w("INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, `Sound_6`, "
+      "`Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, "
+      "`ObjectEffectPackageID`) VALUES\n" + ",\n".join(
+          f"({d}, {q(path.replace(chr(92) * 2, chr(92)))}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, " + ", ".join(str(v) for v in box) + ", 0)"
+          for d, path, box in DISPLAYS) + ";")
+    write_client_displays()
     w("INSERT INTO `game_event` (`eventEntry`, `start_time`, `end_time`, `occurence`, `length`, `holiday`, `description`, `world_event`, `announce`) VALUES")
     w(",\n".join(f"({e}, '2020-01-01 {start // 60:02d}:{start % 60:02d}:00', '2037-12-31 00:00:00', 1440, {length}, 0, "
                   f"{q('Brill: ' + name)}, 0, 0)" for name, (e, start, length) in SCHEDULES.items()) + ";")
@@ -277,7 +335,7 @@ def main():
             return tid
 
         # Creatures (its own, and the credits for what its quests ask the player to do).
-        rows, models, spawns, smart = [], [], [], []
+        rows, models, spawns, smart, movement = [], [], [], [], []
         for npc in line.get("npcs", []):
             entry = npcs[f"{key}.{npc['id']}"]
             flags = 0
@@ -297,6 +355,10 @@ def main():
                         f"{npc.get('unit_flags', 0)}, {npc.get('type', 6)}, {npc.get('rank', 0)}, {npc.get('health', 1)}, "
                         f"{npc.get('damage', 1)}, {npc.get('gold', 0)}, {npc.get('gold', 0)}, {2 if not hostile else 0}, "
                         f"{q(ai)}, {q(script)})")
+            if npc.get("movement"):
+                # (creature_template_movement: Ground, Swim, Flight, Rooted, Chase, Random; the game's defaults else)
+                m = {"Ground": 1, "Swim": 1, "Flight": 0, "Rooted": 0, "Chase": 0, "Random": 0, **npc["movement"]}
+                movement.append(f"({entry}, {m['Ground']}, {m['Swim']}, {m['Flight']}, {m['Rooted']}, {m['Chase']}, {m['Random']}, 0)")
             displays = npc["display"] if isinstance(npc["display"], list) else [npc["display"]]
             for n, d in enumerate(displays):
                 models.append(f"({entry}, {n}, {d}, {npc.get('scale', 1)}, 1)")
@@ -337,6 +399,9 @@ def main():
             w(",\n".join(rows) + ";")
             w("INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES")
             w(",\n".join(models) + ";")
+        if movement:
+            w("INSERT INTO `creature_template_movement` (`CreatureId`, `Ground`, `Swim`, `Flight`, `Rooted`, `Chase`, `Random`, "
+              "`InteractionPauseTimer`) VALUES " + ", ".join(movement) + ";")
         if spawns:
             w("INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
               "`position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES")
@@ -373,7 +438,9 @@ def main():
                 quest = ref(key, quests, use["quest"], "quest") if use.get("quest") else 0
                 credit = ref(key, npcs, use["credit"], "credit") if use.get("credit") else 0
                 marker = ref(key, quests, use["marker"], "marker") if use.get("marker") else 0
-                uses.append(f"({entry}, {n}, {q(cond(key, use.get('cond')))}, {quest}, {credit}, {tid}, {marker})")
+                tele = place(key, use["teleport"]) if use.get("teleport") else (-1, 0, 0, 0, 0)
+                uses.append(f"({entry}, {n}, {q(cond(key, use.get('cond')))}, {quest}, {credit}, {tid}, {marker}, "
+                            f"{tele[0]}, {tele[1]:.3f}, {tele[2]:.3f}, {tele[3]:.3f}, {tele[4]:.4f})")
         if rows:
             w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `ScriptName`) VALUES")
             w(",\n".join(rows) + ";")
@@ -388,7 +455,8 @@ def main():
               "`state`, `Comment`) VALUES")
             w(",\n".join(spawns) + ";")
         if uses:
-            w("INSERT INTO `brill_town_use` (`go`, `ord`, `cond`, `quest`, `credit`, `text_id`, `marker`) VALUES")
+            w("INSERT INTO `brill_town_use` (`go`, `ord`, `cond`, `quest`, `credit`, `text_id`, `marker`, `tele_map`, `tele_x`, "
+              "`tele_y`, `tele_z`, `tele_o`) VALUES")
             w(",\n".join(uses) + ";")
 
         # What creatures say, and the options the module adds to their menus.

@@ -1757,7 +1757,7 @@ a realm with modules), then stage 3.
 The user's request: a house like Brill's by the road; Cedric Harrow inside leaves it to you; Jamie Nore
 (Brill's town hall) welcomes you, sells upgrades and sends you to try out a starter bed; the bed's rest
 or sleep (a yawn, a fade to black, a quarter level of rested experience, asleep in the bed until you
-move); waking the first time to a mastiff (Cataclysm's, backported) whose quest is shown, not told,
+move); waking the first time to a dog (Corn, a zombified pug) whose quest is shown, not told,
 and which becomes your pet, a hunter's pet in every way for any class; then the hunter trainer
 teaches any class to tame, with the pet's spells under General in the spellbook. For hunters, the dog
 is extra: a 5th stable slot, and the dog out beside their pet (two out; three for Beast Mastery). The
@@ -1766,12 +1766,14 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
    CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
    gameobject, the sleeping pose on the bed, the furniture's turns.
-2. **The mastiff**: built. Its model fetched and converted as the server is packaged
-   (`tools/mastiff.py`: Cataclysm Classic's files, Wrath Remix's converter, the starting areas' fixes), in the
-   game's patch-<locale>-V (patch-W was the Alternative HD Patch's water too: the user saw a cube);
-   there on the first waking; its quest (fetch, a scratch behind the ears); the dog a hunter's pet for
-   any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it through.
-   Not seen on a phone: the model in the game, its coats.
+2. **The dog, Corn**: built. The game's own pug (Perky Pug's model) zombified in the user's texture
+   (`branding/corn-forsaken-pug.png`; "Use this texture on the pug dog you get from the quest in brill. Name
+   the dog Corn", "my pug is supposed to be zombified"), in the module's patch-<locale>-V made from the
+   client's own files (the pug's coat made a display's texture; nothing downloaded or converted: the
+   Cataclysm mastiff before, a converted model, once showed as a cube); the plain pug where the patch
+   isn't in the game. There on the first waking; his quest (fetch, a scratch behind the ears); a hunter's
+   pet for any class (`OnPlayerIsClass`), with the pet spells under General. CI's realm test plays it
+   through. Not seen on a phone: Corn in the game.
 3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any
    hunter trainer teaches Tame Beast and Beast Lore (from level 10); the stable master serves them
    (the class hook). Under General in the spellbook (the client's own placing; not seen on a phone).
@@ -1782,7 +1784,7 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 5. **Carolai Anise** (the user: "a quest line where you can romance her or just say friends. The reward
    is the same ... if you do become romantically involved you can have her move in to your house ...
    5 quests. Don't rush it but make it believable. Not just a mail order bride. And she's a yandere.
-   All in universe style dialogue"): built. Brill's alchemy trainer, once the mastiff is yours: a tonic
+   All in universe style dialogue"): built. Brill's alchemy trainer, once Corn is yours: a tonic
    for its blightmange (darkhounds), her mother's locket from Solliden Farmstead, a "perfume" for Jamie
    Nore (bitterroot), finding her in your house with tea (the locket holds a lock of your hair), and a
    moonpetal lily from Brightwater Lake with your answer: lovers or friends, the same rewards. Lovers can
@@ -1829,7 +1831,11 @@ Decided (the module's README has why, and what's confirmed in the core's source 
   styles: murloc2's crest as it is, short, long, swept back, the classic murloc's, the deep sea murloc's sail) in
   sixteen colours, the face their eye colour (sixteen); headgear and outfits are features. A facial style's geoset
   0 shows every feature at once in the game (the user's screenshot: a white murloc in every outfit): none is 1 now,
-  the naga's too; the body is no longer the skin row's "extra" texture, which the game left white. Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
+  the naga's too; the body is no longer the skin row's "extra" texture, which the game left white. In the world it
+  still was (the user, of 1.0.449: "when I log into the char it shows every skin and feature at one time"): the
+  murlocs' models had no player's flag (CreatureModelData 0x4, "is player model": the game draws a player's
+  customization only on such a model), copied from the naga male's, which hasn't it either. Both races' models
+  have it now (the murlocs' 0x804, a playable race's; the naga's OR'd in the patch). Their patch is `Data/<locale>/patch-<locale>-T.MPQ`: free in both HD looks,
   read after the Alternative HD Patch's patch-S (SoundEntries) and before the other race modules' U, V, Y, Z.
 - Their homes are islands off Auberdine (the murlocs' west of it, the naga's north), seen by their race alone (a phase
   each in Darkshore and Ashenvale, by spell_area); what the murlocs steal in Auberdine is in their phase too.
@@ -1846,6 +1852,112 @@ Where it stands: built, its tools' tests and the screen's pass; CI's server test
 level 10, racials, language, class spells, the murloc's first quests and Auberdine, the naga's quests in Auberdine and
 the way south. The user has played the murlocs' first quests on the phone ("I really like the murloc quests"); the
 second murloc creator (fins, fin and eye colours) is drawn by `tools/render_murloc.py` only, not yet seen in the game.
+
+### The murlocs' and the naga's questlines to 55 (in progress)
+
+The user (with screenshots of Warcraft III's naga opening and the Azshara map): "reinvent these
+starting areas for murlocs in the prexisting Naga in the strand area in ashenvale. Give enough quests
+that I can level to 55. ... Literally it should be like being part of a murloc tribe and just another
+guy not part of the big world. So you can no longer do the alliance or horde quests until you finish
+the questline. They should be all in nerglish using official blizzard translator ... Come up with
+serious ones. Funny ones. Stupid ones. Boring ones. But all of them should be show not tell. This will
+get very boring very quick if you don't use sound effects, animations, emotes, etc. It needs
+professions and class trainers but all the text should be run through the nerglish translator just
+for murlocs not affecting the actual main talent or ability text. Some ones will let you be a hero,
+some a menace. Ideally it revolves around the central theme of being a murloc but also escaping the
+tyranny of the naga. Also you can gain reputation and make friends among the horde and alliance but
+you can't understand them as they use their races language. Also if you don't have great reputation
+and you aggro in a town, it would be the same as though you were in your opposite faction where you
+can be attacked and also attack them. If you aren't on good terms you can be attacked on sight by
+guards. Make the aggro circle not very large so you have to be within a few feet to actually aggro.
+Guards will give a warning in their native language if they see you approaching but won't attack
+until you are basically right up on them. Some quests will involve going into towns like stormwind or
+also maybe other smaller towns. You will have to steal and loot and maybe do morally ambiguous things
+to survive. You will also come across murloc sympathisers. Create several teams for story writing etc
+with agents." And for the naga: "use the azshara zone for the naga. Give enough quests to level from 10
+to 55. This will be a huge questline. But draw inspiration from Lady V and the Warcraft 3 storyline. Do
+huge research on that, be lore accurate, even feel free to translate the Warcraft 3 story into a wow
+format where you play through it. Include lady V's lines and voices, if there's a wow model for her
+use it but if not pull it from Warcraft 3. Use wago tools for what you can. Come up with a questline to
+take you all the way through 55 and don't cut corners." Murlocs first.
+
+Decided with the user: every murloc word Nerglish (Blizzard's 2019 translator, ported exactly: its
+script survives at assets.webn.mobi/nerglish/nerglish.js, read over plain HTTP), the quest log's
+one-line goal English; the Darkshore island village retired; the naga's story told as "living
+memory" (present-day Azshara, Warcraft III's campaign as playable flashbacks); Vashj's voice from
+Hive Workshop and thewowdb.com, nothing from the user.
+
+Decided here: about 250 murloc quests (10 to 55 is 2.55 million experience: about that many at the
+game's usual quest experience, with kills); the story's data in `modules/mod-murloc-naga/tools/murloc/`
+(chapters as data, `SCHEMA.md`), compiled to SQL and SmartAI scenes; murlocs speak Nerglish (the
+game's Titan language, renamed), not Common, so every other race's words are garbled to them, and theirs
+to everyone else; they start Hostile (-3500) with the Alliance's and the Horde's towns and Unfriendly
+(-500) with the goblins', which the core takes out of war once standing rises above Hostile; Low Profile in every town (detected
+at 5 yards, the game's minimum); guards warn in their own language; the tribe's trainers and
+profession trainers teach (the game's spell lists); the gate on every other quest is built at each
+start from the world database (conditions); the story's last quest makes the Alliance's towns Neutral.
+Story teams (agents): a gazetteer of the route, a story bible, chapter writers; the naga's research
+alongside.
+
+The murlocs' story bible (scratchpad, the writers' brief): the Saltscar, slaves of the Wrathtail at the
+Zoram Strand, ten chapters (the Pens 10-14, the Free Shore 14-19, Saltscar 19-24, the Long Swim 24-29,
+Torn Fins 29-33, the Stone City 33-36, Brokenchain 36-40, Red Sails 40-44, the Last Walk 44-48, the
+Storm Bay 48-55), 264 quests to complete (278 with both sides of the hero/menace pairs); the old
+village's six murlocs are its core cast; Sea Witch Ilyssa steals the tribe's clutch and is followed to
+Azshara. Its open questions, answered with the defaults (the user: "defaults are fine"): the last quest's
+reward text is plain English and finishing it teaches Common; item names English; at 55 the Alliance's
+quests open (not the Horde's); murlocs of the first release start the new story; reputation spillover
+kept; mage city teleports left as they are; Theramore (no reputation of its own: its people would be
+friendly to a murloc) only escaped from its docks; the old cast confirmed. Chapter 1 is written first,
+then the other nine in parallel (agents), each against placeholders of the others; a shared cast file
+(`ch0_tribe.py`: the hub's trades and the friends met more than once).
+
+The naga's research (done; the questline comes after the murlocs'): every Warcraft III mission the naga
+are in, transcribed (warcraft.wiki.gg), Lady Vashj's 53 campaign lines with who she answers; her
+voice: her 21 Warcraft III unit lines (WAVs at warcraft.wiki.gg, 22050 Hz mono, the game's format), her
+14 Serpentshrine lines and grunts in the 3.3.5 client (SoundEntries 11531-11544, 11616-11618); her
+campaign voice-over isn't hosted anywhere (it's in Warcraft III's files alone), so it's text. Her 3.3.5
+model: Creature\LadyVashj (displays 20748, 29545). Hive Workshop and thewowdb.com turned the session
+away (Cloudflare). Corrections: the screenshots' lines are hers to Maiev in The Tomb of Sargeras, over a
+flashback of the Highborne becoming naga; Rise of the Naga is set in Azshara (the port of Nendis, not in
+WoW). A phase can't change the ground: each memory is phased people and things on Azshara's own ground.
+Proposed: 10-14 the Highborne and the change (Ruins of Eldarath); 14-19 Rise of the Naga (Nendis, below
+Forlorn Ridge); 19-24 the Broken Isles and the Tomb of Sargeras (the Temple of Arkkoran); 24-29 Wrath of
+the Betrayer and Balancing the Scales; 29-34 the Ruins of Dalaran and the Brothers Stormrage (Lake
+Mennar); 34-40 Kael'thas, Garithos, the Dungeons of Dalaran, the Crossing; 40-45 Outland; 45-50 Lord of
+Outland; 50-55 the Return to Northrend and A Symphony of Frost and Flame, ending on her own last words.
+
+Where it stands: the systems are built and their pieces tested (the translator against MT19937's and
+Java's references, the compiler against the world database's schema, the gate's SQL on the world
+database: 6936 quests gated; the tribe's graveyards, the pens' phase alone, emote objectives, auras and
+disguises, object scenes). The murlocs' story is written: ten chapters, 299 quests (chapter 1 by one
+writer, then the other nine at once, each against placeholders of the others and a shared cast, the
+tools fixed from what each writer found), all in the data. Tested on a local realm (the core and
+modules built here, the world database the core's and the modules', bots on): a murloc warrior plays
+chapter 1's opening (the Elder, /wave at the slaves, the count, the warrior trainer), breaks out to
+Greymist Cove, then hops chapter to chapter (each last quest done as a GM would) and at every hub the
+one who starts the next chapter offers its first quest; Auberdine's quests stay closed. Found that way
+and fixed: Nerglish not given at creation (a language's rank in playercreateinfo_skills); "until"
+phases inverted (this core gives a spell_area spell while the end quest's status is in its mask); the
+naga's camp's ids shifted by the village's retirement; items missing from the server's Item store; a
+duplicate loot row. Not seen in the game or on a phone.
+
+The naga's story bible (scratchpad, the writers' brief): ten chapters, 272 quests to complete, all in
+Azshara, "living memory": a young servant of the Spitelash hatchery at Rethress Sanctum feeds a blind
+prisoner, Isshara, once Queen Azshara's handmaiden beside Vashj and a siren in her war, whose songs are
+memories (Song-Pearls): Warcraft III's naga campaign played through as memories (the Sundering, the
+Awakening, Rise of the Naga at Nendis, the Broken Isles and the Tomb of Sargeras, Wrath of the Betrayer,
+Balancing the Scales, the Ruins of Dalaran, the Brothers Stormrage, the four Kael'thas missions, Outland,
+the Black Citadel, the Frozen Throne, Serpentshrine), Serena Scarscale the present's antagonist; Vashj's
+53 campaign lines verbatim, 82 Warcraft III voice files (warcraft.wiki.gg) placed scene by scene. Decided
+with the user: the naga take no one else's quests until their story's last quest, as the murlocs (the
+user: "They quest until 55 and until the end of the lines then they can move on"); the Darkshore start
+retired, its renegades (Szaria, Ssaveth, Vyssa) to Azshara, no moving of characters made before ("It's
+only me and I'm waiting until this is done"); the race's intro re-cut, lore-accurate (it ended on
+Vashj's death line, now the story's finale); the newer naga models from wago.tools (emotes above all)
+converted, done right the first time; the last quest before Thrall; the Serpentshrine memory kept, the
+player beside Vashj against the raid that killed her ("Make it cinematic and amazing"). The naga's
+chapters are written after the murlocs'.
 
 ## Ralia's mod (both realms; `modules/mod-ralia`)
 

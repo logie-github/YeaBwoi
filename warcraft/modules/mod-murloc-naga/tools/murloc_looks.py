@@ -30,6 +30,9 @@ eyes beside the body's upper part (an eye colour's and a skin colour's).
 """
 
 BASE_MODEL = 1113034                 # creature/murloc2/murloc2.m2
+# Its emotes (talk, point, cheer, bow, cry...: murloc2 has none) are the murloc costume's
+# (creature/murloccostume/murloccostume_noflag.m2, BlizzCon 2007's: tools/murloc_anims.py).
+COSTUME_MODEL = 125044
 
 # Skin colours (file ids of the textures the game's displays of murloc2 and its re-skinned kin give it).
 SKINS = [

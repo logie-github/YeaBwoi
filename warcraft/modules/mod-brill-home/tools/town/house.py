@@ -8,6 +8,9 @@ the player's all along, restored or not."""
 # there is about a yard below the floor).
 OSWIN_AT = ["house", -3.0, -10.0, -0.25, 90]
 INSPECT = "The house's state: "
+# Where the hatch and the ladder put a player: in the cellar by the ladder, in the house by the hatch.
+CELLAR_IN = ["cellar", -35.2, -2.0, 0.3, 0]
+HOUSE_IN = ["house", 2.6, 0.9, 0.2, -90]
 
 LINE = {
     "title": "The New House",
@@ -64,7 +67,7 @@ LINE = {
             "log": "Look through what Cedric Harrow left in the house: the bundle of letters, the portrait and the locked chest. Then speak with Oswin Thatcher.",
             "offer": (
                 "Pulling up the floor turned up more than rot. Cedric left things behind: a bundle of letters under the "
-                "loose board, a portrait in the rafters, and a chest with a lock rusted shut. I don't go through other "
+                "loose board, a portrait over the mantel, and a chest with a lock rusted shut. I don't go through other "
                 "people's things. It's bad luck, and I've had enough of that.$B$B"
                 "But it's your house now. If there's anything in there worth keeping, or worth sending after him to "
                 "Northrend, you're the one who ought to decide."),
@@ -83,13 +86,13 @@ LINE = {
         },
         {
             "id": "floorboards", "title": "Beneath the Floorboards", "giver": "oswin", "prev": "things",
-            "log": "Kill 6 Cellar Rats in your house, then look through the cellar hatch at what's behind them.",
+            "log": "Go down the hatch to your cellar, kill 6 Cellar Rats, then look at what's behind their nest.",
             "offer": (
                 "Something's been chewing at the joists from below. I thought it was the house settling until it squeaked "
                 "at me.$B$B"
                 "Rats. Big ones. Cellar rats in Tirisfal grow fat on whatever the plague left in the ground, and they've "
-                "been nesting under your floor since before Cedric came back. Clear them out, and then have a proper look "
-                "down that hatch. I've a feeling they came from somewhere further down than the cellar. Rats don't dig "
+                "been nesting under your floor since before Cedric came back. Down the hatch with you. Clear them out, and "
+                "then have a proper look round the back of that cellar. I've a feeling they came from somewhere further down than the cellar. Rats don't dig "
                 "that deep without a reason."),
             "progress": "Still squeaking. I can hear them from out here.",
             "done": (
@@ -156,19 +159,21 @@ LINE = {
         {"id": "oswin", "name": "Oswin Thatcher", "subname": "Carpenter", "display": 1638, "level": 25,
          "spawns": [OSWIN_AT]},
         {"id": "cellar_rat", "name": "Cellar Rat", "display": [1141, 1418, 2176], "hostile": True, "faction": 14,
-         "level": (5, 6), "type": 1, "health": 0.7, "damage": 0.7, "scale": 1.3, "wander": 2, "respawn": 30,
+         "level": (5, 6), "type": 1, "health": 0.7, "damage": 0.7, "scale": 1.3, "respawn": 30,
          "phase": "cellar",
-         "spawns": [["house", -3.0, -1.2, 0, 10], ["house", -2.2, 3.6, 0, 200], ["house", 2.0, -0.4, 0, 80],
-                    ["house", -4.0, 1.0, 0, 300], ["house", 1.2, 1.8, 0, 140], ["house", -1.0, -3.4, 0, 45]]},
+         # (in the cellar, which the server's paths don't know: they run straight at what they fight)
+         "movement": {"Flight": 2},
+         "spawns": [["cellar", -30.0, 3.0, 0, 10], ["cellar", -30.0, 9.0, 0, 200], ["cellar", -19.5, 6.0, 0, 80],
+                    ["cellar", -19.5, -3.0, 0, 300], ["cellar", -33.5, 4.0, 0, 140], ["cellar", -24.0, -5.5, 0, 45]]},
         # The housewarming's guests, in the house while it's on, and visiting now and then after.
         {"id": "guest_renee", "name": "Innkeeper Renee", "display": 8190, "phase": "guests",
-         "flags": ["gossip"], "spawns": [["house", -2.4, 1.6, 0, 300]]},
+         "flags": ["gossip"], "spawns": [["house", -1.5, -1.2, 0, 20]]},
         {"id": "guest_johaan", "name": "Apothecary Johaan", "display": 1565, "phase": "guests",
-         "flags": ["gossip"], "spawns": [["house", 1.4, 0.2, 0, 150]]},
+         "flags": ["gossip"], "spawns": [["house", 2.0, -0.3, 0, 160]]},
         {"id": "guest_hamlin", "name": "Hamlin Atkins", "display": 1635, "phase": "guests",
-         "flags": ["gossip"], "spawns": [["house", 0.2, 1.6, 0, 330]]},
+         "flags": ["gossip"], "spawns": [["house", 0.4, -0.9, 0, 300]]},
         {"id": "guest_dillinger", "name": "Deathguard Dillinger", "display": 2855, "phase": "guests",
-         "flags": ["gossip"], "spawns": [["house", -0.4, -3.6, 0, 90]]},
+         "flags": ["gossip"], "spawns": [["house", -1.6, -4.6, 0, 90]]},
     ],
     "credits": [
         {"id": "seen_furniture", "name": "Broken furniture inspected"},
@@ -189,65 +194,82 @@ LINE = {
     ],
     "objects": [
         # Years of neglect: in the house until the timber's brought (their own player's).
-        {"id": "broken_furniture", "name": "Broken Furniture", "display": 7525, "phase": "debris",
-         "spawns": [["house", -1.6, 1.4, 0, 30]],
+        {"id": "broken_furniture", "name": "Broken Furniture", "display": 3791, "phase": "debris",
+         "spawns": [["house", -0.35, -0.6, 0, 0]],
          "use": [{"cond": ["I:place"], "quest": "place", "credit": "seen_furniture",
                   "text": "(A table with two legs, a chair with none, and a dresser the woodworm got to first. Kindling, most of it.)"},
                  {"text": "(Furniture, once. Kindling, now.)"}]},
-        {"id": "rotten_floor", "name": "Rotten Floorboards", "display": 20, "scale": 0.6, "phase": "debris",
-         "spawns": [["house", -3.4, 3.2, 0, 0]],
+        {"id": "rotten_floor", "name": "Rotten Floorboards", "display": 6682, "scale": 0.5, "phase": "debris",
+         "spawns": [["house", 1.25, 3.95, 0, 0]],
          "use": [{"cond": ["I:place"], "quest": "place", "credit": "seen_floor",
                   "text": "(The boards by the hearth give like wet bread under your foot. Something below them scuttles away.)"},
                  {"text": "(Soft, black, and best not stood on.)"}]},
         {"id": "leak", "name": "Leaking Roof", "display": 239, "phase": "debris",
-         "spawns": [["house", 1.8, -1.8, 0, 0]],
+         "spawns": [["house", -1.4, -2.6, 0, 0]],
          "use": [{"cond": ["I:place"], "quest": "place", "credit": "seen_roof",
                   "text": "(A bucket half full of brown water. Above it, a hand's width of gray Tirisfal sky shows between the rafters. "
                           "A drop lands on your shoulder as you look.)"},
                  {"text": "(Drip. Drip. Drip.)"}]},
-        # The hatch down to the cellar stays (the cellar is under every player's house).
-        {"id": "hatch", "name": "Cellar Hatch", "display": 8413, "scale": 0.35,
-         "spawns": [["house", -4.2, -0.6, 0, 0]],
+        # The hatch down to the cellar (everyone's to see; the house's owner goes down it): boards in the floor
+        # by the hearth rug. The cellar (tools/build_town.py: CELLAR_*) is the game's own cellar of Brill's
+        # tavern (the Duskwood inn's: its barrels, kegs and cobwebs), deep under the house; the hatch and the
+        # ladder take a player down and up.
+        {"id": "hatch", "name": "Cellar Hatch", "display": 6481,
+         "spawns": [["house", 2.6, -0.75, 0, 0]],
          "use": [{"cond": ["I:place"], "quest": "place", "credit": "seen_hatch",
                   "text": "(The hatch lifts on a breath of cold, wet air. Steps go down into the dark. From somewhere below comes a "
                           "slow, patient gnawing.)"},
-                 {"cond": ["I:floorboards"], "quest": "floorboards", "credit": "wall_credit",
-                  "text": "(At the back of the cellar, behind the rats' nest, the earth wall gives way to brick: newer brick, laid in a "
-                          "hurry. Scratched into the mortar is a sign you half recognize, a circle bound in thorned lines, the kind "
-                          "painted on the doors of the Cult of the Damned. The air coming through the gaps is colder than the "
-                          "cellar's.)"},
-                 {"cond": ["R:floorboards"], "text": "(Steps down into the cellar. At the back, the bricked-up wall and its mark.)"},
-                 {"text": "(Steps down into a damp cellar.)"}]},
+                 {"cond": ["OWN"], "teleport": CELLAR_IN},
+                 {"text": "(A cellar hatch, bolted from below.)"}]},
+        # The cellar itself, and in it the ladder back up and the bricked-up stair behind the rats' nest.
+        {"id": "cellar", "name": "Harrow Cellar", "display": 9700, "type": 33,
+         "spawns": [["cellar", 0, 0, 6.72, 0]]},
+        {"id": "ladder", "name": "Cellar Ladder", "display": 9701, "scale": 1.8,
+         "spawns": [["cellar", -36.3, -2.0, 0, 0]],
+         "use": [{"teleport": HOUSE_IN}]},
+        {"id": "nest", "name": "Rats' Nest", "display": 7202, "scale": 1.5,
+         "spawns": [["cellar", -34.2, -6.6, 0.35, 0]]},
+        {"id": "bricked_wall", "name": "Bricked-Up Stair", "display": 6718, "scale": 1.2,
+         "spawns": [["cellar", -32.3, -6.9, 0.95, 0]],
+         "use": [{"cond": ["I:floorboards"], "quest": "floorboards", "credit": "wall_credit",
+                  "text": "(Behind the rats' nest an old stair runs up into the dark, and someone has bricked it shut: newer brick, "
+                          "laid in a hurry. Scratched into the mortar is a sign you half recognize, a circle bound in thorned lines, "
+                          "the kind painted on the doors of the Cult of the Damned. The air coming through the gaps is colder than "
+                          "the cellar's.)"},
+                 {"cond": ["R:floorboards"], "text": "(The bricked-up stair, and the mark in its mortar.)"},
+                 {"text": "(An old stair, bricked shut. Newer brick than the cellar's.)"}]},
         # What Cedric left (in every player's house: scenery after, with their words).
         {"id": "letters", "name": "Bundle of Letters", "display": 220,
-         "spawns": [["house", -0.6, 4.4, 0, 0]],
+         "spawns": [["house", 4.35, -1.1, 0, 0]],
          "use": [{"cond": ["I:things"], "quest": "things", "credit": "letters_credit",
                   "text": "(Letters tied with twine, all to Cedric, all from Elinor. The early ones are about the harvest and the boys "
                           "and a dog called Bramble. The last is short:$B$B'They say the grain from Andorhal is bad. Owen is "
                           "coughing. Come home quickly. I don't like how quiet the road is.'$B$BShe never wrote again.)"},
                  {"text": "(Elinor's letters to Cedric, tied with twine.)"}]},
-        {"id": "portrait", "name": "Faded Portrait", "display": 6530, "scale": 0.4,
-         "spawns": [["house", 3.6, -1.0, 0.9, 180]],
+        {"id": "portrait", "name": "Faded Portrait", "display": 6530, "scale": 0.9,
+         # (over the mantel, on the chimney breast, facing the room)
+         "spawns": [["house", 1.25, 5.05, 3.3, -90]],
          "use": [{"cond": ["I:things"], "quest": "things", "credit": "portrait_credit",
                   "text": "(A painted family in a farmhouse doorway: a broad, smiling man you'd never guess was Cedric, a woman with "
                           "flour on her apron, two boys, one missing a front tooth, and a shaggy gray dog sitting on everyone's "
                           "feet. The doorway is this one.)"},
                  {"text": "(The Harrows, in this doorway, before.)"}]},
         {"id": "chest", "name": "Rusted Chest", "display": 1,
-         "spawns": [["house", -4.6, -3.4, 0, 90]],
+         "spawns": [["house", 5.15, -1.0, 0, 180]],
          "use": [{"cond": ["I:things"], "quest": "things", "credit": "chest_credit",
                   "text": "(The lock is rusted through; it gives under your hands. Inside: a woman's ring wrapped in a handkerchief, a "
                           "row of carved wooden soldiers, and a child's drawing of a dog, labelled BRAMBLE in large uneven letters.)"},
                  {"text": "(The boys' wooden soldiers, standing guard.)"}]},
         # Furnished (after A Home Worth Keeping).
         {"id": "lantern", "name": "Lantern", "display": 6537, "phase": "restored",
-         "spawns": [["house", 3.8, 2.0, 0, 0], ["house", -5.2, 2.6, 0, 0]]},
+         # (hanging: the model hangs from its top, 2.7 yards down)
+         "spawns": [["house", -3.7, -4.9, 4.1, 90], ["house", -1.0, 2.3, 4.6, 0]]},
         {"id": "candelabra", "name": "Candelabra", "display": 240, "phase": "restored",
-         "spawns": [["house", -1.8, 0.8, 1.0, 0]]},
+         "spawns": [["house", -3.4, 2.3, 1.3, 0]]},
         {"id": "storage", "name": "Storage Chest", "display": 5743, "phase": "restored",
-         "spawns": [["house", 3.4, 0.8, 0, 180]]},
-        {"id": "dog_bed", "name": "Straw Dog Bed", "display": 5911, "scale": 1.6, "phase": "restored",
-         "spawns": [["house", -3.0, 4.6, 0, 0]]},
+         "spawns": [["house", -4.85, 2.8, 0, 0]]},
+        {"id": "dog_bed", "name": "Straw Dog Bed", "display": 5911, "phase": "restored",
+         "spawns": [["house", 1.25, 3.7, 0, 90]]},
         # Lumber and nails out in Tirisfal's abandoned farms (everyone's to see; each pile gives once).
         {"id": "lumber", "name": "Salvageable Lumber", "display": 1108,
          "spawns": [[0, 2828.0, 1049.0, 110.9, 1.0], [0, 2750.0, 780.0, 113.2, 2.0], [0, 2258.0, 1308.0, 33.4, 0.5],

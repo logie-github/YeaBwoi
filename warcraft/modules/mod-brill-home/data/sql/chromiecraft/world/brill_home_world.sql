@@ -24,21 +24,21 @@ INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`,
 (970103, 7, 39, 'Chair', 1.0, 1, 1, 0, ''),
 (970104, 5, 4, 'Wardrobe', 1.0, 0, 0, 0, ''),
 (970105, 5, 188, 'Bookshelf', 1.0, 0, 0, 0, ''),
-(970106, 5, 9405, 'Bearskin Rug', 1.0, 0, 0, 0, ''),
+(970106, 5, 9405, 'Bearskin Rug', 0.65, 0, 0, 0, ''),
 (970107, 5, 348, 'Pot-Bellied Stove', 1.0, 0, 0, 0, '');
 DELETE FROM `gameobject_template_addon` WHERE `entry` = 970100;
 INSERT INTO `gameobject_template_addon` (`entry`, `faction`, `flags`) VALUES (970100, 0, 32);
 
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
 (970100, 970100, 0, 85, 159, 1, 1, 2275.000, 480.500, 29.960, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
-(970101, 970101, 0, 85, 159, 1, 512, 2278.999, 478.870, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
-(970102, 970102, 0, 85, 159, 1, 2048, 2275.136, 482.465, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
-(970103, 970103, 0, 85, 159, 1, 2048, 2273.914, 482.020, 34.060, 0.3491, 0, 0, 0.173670, 0.984804, 0, 255, 1, 'mod-brill-home'),
-(970104, 970103, 0, 85, 159, 1, 2048, 2276.358, 482.910, 34.060, 3.4907, 0, 0, 0.984804, -0.173670, 0, 255, 1, 'mod-brill-home'),
-(970105, 970104, 0, 85, 159, 1, 4096, 2271.410, 484.514, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
-(970106, 970105, 0, 85, 159, 1, 8192, 2279.861, 482.057, 34.060, 3.4907, 0, 0, 0.984804, -0.173670, 0, 255, 1, 'mod-brill-home'),
-(970107, 970106, 0, 85, 159, 1, 16384, 2273.770, 479.201, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
-(970108, 970107, 0, 85, 159, 1, 32768, 2277.501, 486.199, 34.060, 4.2761, 0, 0, 0.843379, -0.537319, 0, 255, 1, 'mod-brill-home');
+(970101, 970101, 0, 85, 159, 1, 512, 2272.806, 476.530, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
+(970102, 970102, 0, 85, 159, 1, 2048, 2276.443, 483.260, 34.060, 0.3491, 0, 0, 0.173670, 0.984804, 0, 255, 1, 'mod-brill-home'),
+(970103, 970103, 0, 85, 159, 1, 2048, 2275.080, 482.764, 34.060, 0.3491, 0, 0, 0.173670, 0.984804, 0, 255, 1, 'mod-brill-home'),
+(970104, 970103, 0, 85, 159, 1, 2048, 2277.213, 481.146, 34.060, 1.9199, 0, 0, 0.819165, 0.573558, 0, 255, 1, 'mod-brill-home'),
+(970105, 970104, 0, 85, 159, 1, 4096, 2269.931, 483.901, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home'),
+(970106, 970105, 0, 85, 159, 1, 8192, 2279.386, 476.637, 34.060, 1.9199, 0, 0, 0.819165, 0.573558, 0, 255, 1, 'mod-brill-home'),
+(970107, 970106, 0, 85, 159, 1, 16384, 2277.999, 479.570, 34.060, 0.3491, 0, 0, 0.173670, 0.984804, 0, 255, 1, 'mod-brill-home'),
+(970108, 970107, 0, 85, 159, 1, 32768, 2280.515, 478.272, 34.060, 3.4907, 0, 0, 0.984804, -0.173670, 0, 255, 1, 'mod-brill-home');
 
 -- Cedric Harrow (who leaves the house to the player), and the bed's credit (sleeping in it).
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `ScriptName`) VALUES
@@ -48,7 +48,7 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970110, 0, 3533, 1, 1),
 (970111, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970100, 970110, 0, 85, 159, 1, 256, 2272.822, 479.175, 34.060, 3.2725, 120, 0, 0, 'mod-brill-home');
+(970100, 970110, 0, 85, 159, 1, 256, 2271.557, 480.311, 34.060, 3.2725, 120, 0, 0, 'mod-brill-home');
 
 -- Jamie Nore (Brill's town hall) gives the quests and the house's upgrades (src/BrillHome.cpp).
 UPDATE `creature_template` SET `npcflag` = `npcflag` | 3, `gossip_menu_id` = 970130, `ScriptName` = 'npc_brill_home_jamie' WHERE `entry` = 2310;
@@ -76,39 +76,42 @@ INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES
 (2310, 970120), (2310, 970121), (2310, 970122);
 
--- The mastiff: beside the bed once the player has slept in it (its phase), its quest, and the
--- template its pet is made from; the quest's two credits. Uses the stock pug model.
+-- Corn, the dog: beside the bed once the player has slept in it (its phase), his quest, and the
+-- template his pet is made from; the quest's two credits. The game's pug in the user's Forsaken coat.
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `type_flags`, `family`, `flags_extra`, `ScriptName`) VALUES
-(970112, 'Mastiff', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),
-(970115, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),
-(970116, 'Mastiff', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 0, 1, 0, 'npc_brill_home_companion'),
+(970112, 'Corn', NULL, 0, 1, 1, 35, 3, 1, 1.14286, 1, 0, 1, 0, 1, 2, 'npc_brill_home_mastiff'),
+(970115, 'Corn', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 1, 1, 0, ''),
+(970116, 'Corn', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 0, 1, 0, 'npc_brill_home_companion'),
 (970117, 'Stabled Companion', NULL, 0, 1, 1, 35, 0, 1, 1.14286, 1, 0, 1, 0, 1, 0, 'npc_brill_home_companion'),
-(970113, 'Played fetch with the mastiff', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),
-(970114, 'Scratched the mastiff behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');
+(970113, 'Played fetch with Corn', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),
+(970114, 'Scratched Corn behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
-(970112, 0, 31174, 1, 1),
-(970115, 0, 31174, 1, 1),
-(970116, 0, 31174, 1, 1),
-(970117, 0, 31174, 1, 1),
+(970112, 0, 39700, 1, 1),
+(970115, 0, 39700, 1, 1),
+(970116, 0, 39700, 1, 1),
+(970117, 0, 39700, 1, 1),
 (970113, 0, 11686, 1, 1),
 (970114, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970101, 970112, 0, 85, 159, 1, 1024, 2275.769, 480.141, 34.060, 5.5851, 60, 0, 0, 'mod-brill-home');
+(970101, 970112, 0, 85, 159, 1, 1024, 2273.180, 479.944, 34.060, 4.4506, 60, 0, 0, 'mod-brill-home');
 DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;
+INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) SELECT 39700, `BoundingRadius`, `CombatReach`, `Gender`, 0 FROM `creature_model_info` WHERE `DisplayID` = 31174;
 DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;
 DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;
+INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
+(39700, 3291, 3100, 0, 0.9, 255, 'ForsakenPug_Corn', '', '', '', 0, 0, 332, 0, 0, 0);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (970144, '(The dog looks happy to see you.)', '(The dog looks happy to see you.)', 1),
-(970145, '(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)', '(The mastiff sits by the door, watching you. It seems to be waiting until you have room for it.)', 1);
+(970145, '(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)', '(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)', 1);
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, `RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`) VALUES
-(970123, 2, -1, 5, 159, 8, 1, 0, 0, 'A Visitor in the Night', 'Throw the stick for the mastiff three times, then give it a good scratch behind the ears.', '(A big mastiff is sitting beside your bed, as if it has been waiting a while for you to wake up. A muddy stick lies between its front paws.)$B$B(It noses the stick toward you. It looks at the door. It looks back at you.)', '', 'Return to the mastiff.', 970113, 3, 'Played fetch', 970114, 1, 'Scratched behind the ears');
+(970123, 2, -1, 5, 159, 8, 1, 0, 0, 'A Visitor in the Night', 'Throw the stick for Corn three times, then give him a good scratch behind the ears.', '(A small pug is sitting beside your bed, as if it has been waiting a while for you to wake up. It is not entirely alive: its coat is gray-green and stitched in places, and its eyes glow a soft yellow. A muddy stick lies between its front paws. The tag on its spiked collar reads CORN.)$B$B(It noses the stick toward you. It looks at the door. It looks back at you.)', '', 'Return to Corn.', 970113, 3, 'Played fetch', 970114, 1, 'Scratched behind the ears');
 INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES (970123, 0);
-INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES (970123, 0, '(The mastiff turns three circles on the floor beside your bed and flops down with a long, contented sigh.)$B$B(When you step toward the door, it gets up and follows.)');
-INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES (970123, 0, 0, '(The mastiff drops the stick at your feet again and waits, ears up.)');
+INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES (970123, 0, '(Corn turns three circles on the floor beside your bed and flops down with a long, wheezing, contented sigh.)$B$B(When you step toward the door, he gets up and follows.)');
+INSERT INTO `quest_request_items` (`ID`, `EmoteOnComplete`, `EmoteOnIncomplete`, `CompletionText`) VALUES (970123, 0, 0, '(Corn drops the stick at your feet again and waits, tail curled, ears up.)');
 INSERT INTO `creature_queststarter` (`id`, `quest`) VALUES (970112, 970123);
 INSERT INTO `creature_questender` (`id`, `quest`) VALUES (970112, 970123);
 
--- Carolai Anise: her quests (once the mastiff is the player's), her visit to the house, her living
+-- Carolai Anise: her quests (once Corn is the player's), her visit to the house, her living
 -- there; the keepsakes she sends the player for, and the credits. Her menu is src/BrillHome.cpp's.
 UPDATE `creature_template` SET `npcflag` = `npcflag` | 3, `ScriptName` = 'npc_brill_home_carolai' WHERE `entry` = 2132;
 INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `minlevel`, `maxlevel`, `faction`, `npcflag`, `speed_walk`, `speed_run`, `unit_class`, `unit_flags`, `type`, `flags_extra`, `ScriptName`) VALUES
@@ -126,16 +129,22 @@ INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`,
 (970152, 0, 11686, 1, 1),
 (970153, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
-(970102, 970118, 0, 85, 159, 1, 65536, 2272.822, 479.175, 34.060, 3.2725, 60, 0, 0, 'mod-brill-home'),
-(970103, 970119, 0, 85, 159, 1, 131072, 2276.417, 484.208, 34.060, 5.0615, 60, 0, 0, 'mod-brill-home');
+(970102, 970118, 0, 85, 159, 1, 65536, 2271.557, 480.311, 34.060, 3.2725, 60, 0, 0, 'mod-brill-home'),
+(970103, 970119, 0, 85, 159, 1, 131072, 2272.932, 483.259, 34.060, 1.9199, 60, 0, 0, 'mod-brill-home');
 INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES
 (970108, 2, 8, 'Old Footlocker', 1, 0, 0, 0, 'go_brill_home_keepsake'),
-(970109, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake'),
+(970109, 2, 3232, 'Moonpetal Lily', 1.6, 0, 0, 0, 'go_brill_home_keepsake'),
 (970110, 5, 4391, 'Carolai\'s Alchemy Table', 0.8, 0, 0, 0, '');
 INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES
 (970120, 970108, 0, 85, 0, 1, 1, 2266.600, 1316.400, 34.100, 1.2000, 0, 0, 0.564642, 0.825336, 0, 255, 1, 'mod-brill-home'),
-(970121, 970109, 0, 85, 0, 1, 1, 2905.000, 200.000, 7.860, 0.0000, 0, 0, 0.000000, 1.000000, 0, 255, 1, 'mod-brill-home'),
-(970122, 970110, 0, 85, 159, 1, 131072, 2272.694, 476.894, 34.060, 0.3491, 0, 0, 0.173670, 0.984804, 0, 255, 1, 'mod-brill-home');
+(970121, 970109, 0, 85, 0, 1, 1, 2496.000, 102.000, 21.410, 0.0000, 0, 0, 0.000000, 1.000000, 0, 255, 1, 'mod-brill-home'),
+(970122, 970110, 0, 85, 159, 1, 131072, 2272.531, 484.358, 34.060, 5.0615, 0, 0, 0.573558, -0.819165, 0, 255, 1, 'mod-brill-home');
+DELETE FROM `quest_poi` WHERE `QuestID` IN (970125, 970128);
+DELETE FROM `quest_poi_points` WHERE `QuestID` IN (970125, 970128);
+INSERT INTO `quest_poi` (`QuestID`, `id`, `ObjectiveIndex`, `MapID`, `WorldMapAreaId`, `Floor`, `Priority`, `Flags`, `VerifiedBuild`) VALUES
+(970125, 0, 0, 0, 20, 0, 0, 1, 0), (970128, 0, 0, 0, 20, 0, 0, 1, 0);
+INSERT INTO `quest_poi_points` (`QuestID`, `Idx1`, `Idx2`, `X`, `Y`, `VerifiedBuild`) VALUES
+(970125, 0, 0, 2267, 1316, 0), (970128, 0, 0, 2496, 102, 0);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (970146, '(Carolai has swept your floor, folded your things and made tea. She\'s waiting for you to sit.)', '(Carolai has swept your floor, folded your things and made tea. She\'s waiting for you to sit.)', 1),
 (970148, '(Carolai looks at the lily in your hand, then at you, and waits.)', '(Carolai looks at the lily in your hand, then at you, and waits.)', 1),
@@ -146,11 +155,11 @@ INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`, `text1_0`, `text1_1`, `Probability1`, `text2_0`, `text2_1`, `Probability2`, `text3_0`, `text3_1`, `Probability3`, `text4_0`, `text4_1`, `Probability4`, `text5_0`, `text5_1`, `Probability5`, `text6_0`, `text6_1`, `Probability6`) VALUES (970147, 'Welcome home, my love. I\'ve warmed the kettle. I warm it every time I hear you on the road.', 'Welcome home, my love. I\'ve warmed the kettle. I warm it every time I hear you on the road.', 0.14, 'The dog likes me now. He sleeps across the doorway, so nothing gets in. Or out. Good boy.', 'The dog likes me now. He sleeps across the doorway, so nothing gets in. Or out. Good boy.', 0.14, 'I moved your things around a little. You\'ll get used to it. I got used to everything about you.', 'I moved your things around a little. You\'ll get used to it. I got used to everything about you.', 0.14, 'Jamie waved at you in the square today. I saw. It\'s all right. I\'m not angry. I\'m never angry with you.', 'Jamie waved at you in the square today. I saw. It\'s all right. I\'m not angry. I\'m never angry with you.', 0.14, 'I\'ve set up my bench by the window. The light\'s better here. And I can see the road, so I know when you\'re coming.', 'I\'ve set up my bench by the window. The light\'s better here. And I can see the road, so I know when you\'re coming.', 0.14, 'I read to the dog while you were out. He likes the sad parts. So do I.', 'I read to the dog while you were out. He likes the sad parts. So do I.', 0.14, 'Tea? I made it the way you like it. I\'ve been watching how you like it.', 'Tea? I made it the way you like it. I\'ve been watching how you like it.', 0.14);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`, `text1_0`, `text1_1`, `Probability1`, `text2_0`, `text2_1`, `Probability2`) VALUES (970153, 'I let myself in. You don\'t mind. Friends don\'t mind. I brought you a tonic for the cough you had on Tuesday.', 'I let myself in. You don\'t mind. Friends don\'t mind. I brought you a tonic for the cough you had on Tuesday.', 0.33, 'I was passing. I\'m always passing. Your dog was lonely, so I sat with him. We had a long talk about you.', 'I was passing. I\'m always passing. Your dog was lonely, so I sat with him. We had a long talk about you.', 0.33, 'Jamie says I shouldn\'t come in when you\'re out. Jamie says a great many things.', 'Jamie says I shouldn\'t come in when you\'re out. Jamie says a great many things.', 0.33);
 INSERT INTO `quest_template` (`ID`, `QuestType`, `QuestLevel`, `MinLevel`, `QuestSortID`, `Flags`, `RewardXPDifficulty`, `RewardMoney`, `AllowableRaces`, `LogTitle`, `LogDescription`, `QuestDescription`, `AreaDescription`, `QuestCompletionLog`, `RequiredNpcOrGo1`, `RequiredNpcOrGoCount1`, `ObjectiveText1`, `RequiredNpcOrGo2`, `RequiredNpcOrGoCount2`, `ObjectiveText2`, `RewardItem1`, `RewardAmount1`, `RewardItem2`, `RewardAmount2`) VALUES
-(970124, 2, -1, 5, 159, 0, 4, 2500, 0, 'A Tonic for the Mastiff', 'Kill 8 Cursed Darkhounds in the hills north of Brill, then return to Carolai Anise.', 'You\'re the one who took Cedric\'s house. With the mastiff.$B$BDon\'t look so surprised. Brill is small, and I have a window. I see you leave at first light and I see you come home, and I see that dog of yours sitting in your doorway, scratching at its ears.$B$BIt\'s blightmange. The darkhounds carry it out of the woods and leave it in the grass for every living dog in Tirisfal to roll in. First the fur comes out in clumps, then the skin goes, and then... well. You\'ve seen the darkhounds.$B$BI can brew something for it. But it\'s no use treating him while the hills are crawling with the things that gave it to him. Thin out the Cursed Darkhounds north of Brill, and the tonic will be ready when you come back.$B$BI\'ll be right here. I\'m always right here.', '', 'Return to Carolai Anise in Brill.', 1548, 8, '', 0, 0, '', 0, 0, 0, 0),
+(970124, 2, -1, 5, 159, 0, 4, 2500, 0, 'A Tonic for Corn', 'Kill 8 Cursed Darkhounds in the hills north of Brill, then return to Carolai Anise.', 'You\'re the one who took Cedric\'s house. With the little dog. Corn, isn\'t it?$B$BDon\'t look so surprised. Brill is small, and I have a window. I see you leave at first light and I see you come home, and I see that dog of yours sitting in your doorway, scratching at its ears.$B$BIt\'s blightmange. The darkhounds carry it out of the woods and leave it in the grass for every dog in Tirisfal to roll in, living or otherwise; it eats what the plague left of them, too. First the fur comes out in clumps, then the skin goes, and then... well. You\'ve seen the darkhounds.$B$BI can brew something for it. But it\'s no use treating him while the hills are crawling with the things that gave it to him. Thin out the Cursed Darkhounds north of Brill, and the tonic will be ready when you come back.$B$BI\'ll be right here. I\'m always right here.', '', 'Return to Carolai Anise in Brill.', 1548, 8, '', 0, 0, '', 0, 0, 0, 0),
 (970125, 2, -1, 5, 159, 0, 4, 2500, 0, 'What Solliden Kept', 'Recover Carolai\'s locket from the footlocker in the farmhouse at Solliden Farmstead, then return to Carolai Anise in Brill.', 'The tonic took. He barely scratched at all today. I watched.$B$BMay I ask you something? Not as an alchemist.$B$BBefore the plague I lived at Solliden Farmstead, north of here. My mother gave me a locket the day I was sent to Lordaeron to apprentice. When I rose, it was gone. I\'ve never gone back for it. Old Solliden still walks his fields, and he doesn\'t remember me. He doesn\'t remember anything.$B$BI could ask anyone in Brill. I\'m asking you. It was in the farmhouse, in the footlocker under the window. Will you bring it back to me?', '', 'Return to Carolai Anise in Brill.', 970151, 1, 'Carolai\'s locket', 0, 0, '', 0, 0, 0, 0),
 (970126, 2, -1, 5, 159, 0, 2, 2500, 0, 'A Gift for Jamie Nore', 'Take Carolai\'s perfume to Jamie Nore in the Brill town hall.', 'I\'ve been thinking about Jamie Nore.$B$BShe found you that house. She found you the bed. She\'s always so helpful, isn\'t she? Always there, with her ledgers and her deeds and her warm, living hands.$B$BI should thank her properly, for looking after you before I could. Take her this: a perfume, a very old recipe. Tell her it\'s from me. Tell her I said she\'s been more than kind, and that she needn\'t trouble herself over you any longer.$B$BAnd $n? Don\'t open it. It isn\'t for you.', '', 'Speak with Jamie Nore in Brill.', 0, 0, '', 0, 0, '', 0, 0, 0, 0),
 (970127, 2, -1, 5, 159, 0, 3, 2500, 0, 'An Unlocked Door', 'Sit and drink tea with Carolai in your house, then speak with her at her shop in Brill.', 'Oh! You\'re home. You\'re early. You\'re never home this early.$B$BYour door was open. It was. I thought something might have happened to you, so I came in to wait, and then I couldn\'t just sit, could I? So I swept. And I washed the cups. And I folded your things. You fold your shirts in thirds; I\'ve put them in halves. It\'s better for the linen.$B$BJamie didn\'t like her present, did she? I could tell by the way she looked at me in the square. It doesn\'t matter.$B$BSit with me. Please. I made tea. I can\'t taste it anymore, but I remember how it ought to be made, and I made it for you.', '', 'Return to Carolai Anise in Brill.', 970150, 1, 'Shared tea with Carolai', 0, 0, '', 0, 0, 0, 0),
-(970128, 2, -1, 5, 159, 0, 5, 10000, 0, 'What the Heart Keeps', 'Pick a moonpetal lily on the shore of Brightwater Lake, then give it to Carolai Anise in Brill and tell her what it means.', 'There\'s a flower that grows on the shore of Brightwater Lake, east of here: the moonpetal lily. Before the plague, a girl in Tirisfal gave one to the one she meant to marry. If they kept it, that was yes.$B$BI won\'t ask you a question you aren\'t ready for. So I\'ll ask you this instead. Go to the lake and bring me one. Then, when you give it to me, tell me what it means.$B$BWhatever you say, I\'ll... I\'ll understand.$B$BI\'ll be here. Waiting. As I always am.', '', 'Return to Carolai Anise in Brill.', 970152, 1, 'Moonpetal lily', 970153, 1, 'Gave Carolai your answer', 929, 5, 3385, 3);
+(970128, 2, -1, 5, 159, 0, 5, 10000, 0, 'What the Heart Keeps', 'Pick a moonpetal lily on the west shore of Brightwater Lake, east of Brill, then give it to Carolai Anise in Brill and tell her what it means.', 'There\'s a flower that grows on the shore of Brightwater Lake, east of here: the moonpetal lily. Before the plague, a girl in Tirisfal gave one to the one she meant to marry. If they kept it, that was yes.$B$BI won\'t ask you a question you aren\'t ready for. So I\'ll ask you this instead. Go to the lake and bring me one. Then, when you give it to me, tell me what it means.$B$BWhatever you say, I\'ll... I\'ll understand.$B$BI\'ll be here. Waiting. As I always am.', '', 'Return to Carolai Anise in Brill.', 970152, 1, 'Moonpetal lily', 970153, 1, 'Gave Carolai your answer', 929, 5, 3385, 3);
 INSERT INTO `quest_template_addon` (`ID`, `PrevQuestID`) VALUES
 (970124, 970123), (970125, 970124), (970126, 970125), (970127, 970126), (970128, 970127);
 INSERT INTO `quest_offer_reward` (`ID`, `Emote1`, `RewardText`) VALUES
