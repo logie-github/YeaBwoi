@@ -94,9 +94,9 @@ PLACES = {
     "crawl_1": (-3318.0, 3274.0), "crawl_2": (-3332.0, 3285.0), "crawl_3": (-3346.0, 3272.0), "crawl_4": (-3325.0, 3292.0),
     "crawl_5": (-3340.0, 3296.0), "crawl_6": (-3310.0, 3283.0),
     "ogre_camp": (-3425.0, 3208.0), "ogre_fire": (-3419.0, 3203.0), "pot_out_a": (-3423.0, 3212.0),
-    "pot_out_b": (-3427.5, 3212.0), "pot_out_c": (-3425.0, 3214.5), "ogre_1": (-3410.0, 3200.0), "ogre_2": (-3418.0, 3216.0),
-    "ogre_3": (-3440.0, 3204.0), "ogre_4": (-3428.0, 3192.0), "ogre_5": (-3446.0, 3214.0), "ogre_6": (-3432.0, 3222.0),
-    "ogre_7": (-3405.0, 3212.0), "ogre_8": (-3448.0, 3200.0), "ogre_9": (-3422.0, 3196.0), "ogre_10": (-3436.0, 3228.0),
+    "pot_out_b": (-3427.5, 3212.0), "pot_out_c": (-3425.0, 3214.5), "ogre_1": (-3410.0, 3200.0), "ogre_2": (-3414.0, 3194.0),
+    "ogre_3": (-3440.0, 3204.0), "ogre_4": (-3428.0, 3192.0), "ogre_5": (-3446.0, 3214.0), "ogre_6": (-3434.0, 3212.0),
+    "ogre_7": (-3404.0, 3204.0), "ogre_8": (-3448.0, 3200.0), "ogre_9": (-3422.0, 3196.0), "ogre_10": (-3444.0, 3207.0),
     # Sardor Isle: the Ruins of Solarsal
     "solarsal": (-4850.0, 3420.0), "isle": (-4400.0, 3275.0), "brazier": (-4862.0, 3186.0), "szallah_spot": (-4874.0, 3161.0),
     "archer_spot": (-4849.0, 3141.0), "archer_boat": (-4856.0, 3132.0, 0.0), "drum_spot": (-4848.0, 3510.0),
@@ -117,16 +117,16 @@ TAPS = [("emote", "self", "attack"), ("sound", "self", 977), ("wait", 700), ("em
 COUGH = 418         # the Elder's wet cough (a murloc's wound sound)
 
 # The tribe answers: each taps three times back.
-ANSWER_MURLORGA = [("emote", "ch1:murlorga", "attack"), ("sound", "ch1:murlorga", 977), ("wait", 350), ("sound", "ch1:murlorga", 977), ("wait", 350),
-                ("sound", "ch1:murlorga", 977)]
-ANSWER_GRRMLGRRL = [("emote", "ch1:grrmlgrrl", "attack"), ("sound", "ch1:grrmlgrrl", 977), ("wait", 350), ("sound", "ch1:grrmlgrrl", 977), ("wait", 350),
-                ("sound", "ch1:grrmlgrrl", 977)]
-ANSWER_BLRRGL = [("emote", "ch1:blrrgl", "attack"), ("sound", "ch1:blrrgl", 977), ("wait", 350), ("sound", "ch1:blrrgl", 977), ("wait", 350),
-                ("sound", "ch1:blrrgl", 977)]
-ANSWER_MRRK = [("emote", "ch0:mrrk", "attack"), ("sound", "ch0:mrrk", 977), ("wait", 350), ("sound", "ch0:mrrk", 977), ("wait", 350),
-                ("sound", "ch0:mrrk", 977)]
-ANSWER_SLOSHY = [("emote", "ch1:sloshy", "attack"), ("sound", "ch1:sloshy", 977), ("wait", 350), ("sound", "ch1:sloshy", 977), ("wait", 350),
-                ("sound", "ch1:sloshy", 977)]
+ANSWER_MURLORGA = [("emote", "ch1:murlorga", "attack"), ("sound", "ch1:murlorga", 977), ("wait", 350),
+                   ("sound", "ch1:murlorga", 977), ("wait", 350), ("sound", "ch1:murlorga", 977)]
+ANSWER_GRRMLGRRL = [("emote", "ch1:grrmlgrrl", "attack"), ("sound", "ch1:grrmlgrrl", 977), ("wait", 350),
+                    ("sound", "ch1:grrmlgrrl", 977), ("wait", 350), ("sound", "ch1:grrmlgrrl", 977)]
+ANSWER_BLRRGL = [("emote", "ch1:blrrgl", "attack"), ("sound", "ch1:blrrgl", 977), ("wait", 350),
+                 ("sound", "ch1:blrrgl", 977), ("wait", 350), ("sound", "ch1:blrrgl", 977)]
+ANSWER_MRRK = [("emote", "ch0:mrrk", "attack"), ("sound", "ch0:mrrk", 977), ("wait", 350),
+               ("sound", "ch0:mrrk", 977), ("wait", 350), ("sound", "ch0:mrrk", 977)]
+ANSWER_SLOSHY = [("emote", "ch1:sloshy", "attack"), ("sound", "ch1:sloshy", 977), ("wait", 350),
+                 ("sound", "ch1:sloshy", 977), ("wait", 350), ("sound", "ch1:sloshy", 977)]
 
 
 # -- the people -------------------------------------------------------------------------------------
@@ -138,7 +138,7 @@ NPCS = [
     dict(key="hatchling_b", name="Hatchling", look="murloc_pale", scale=0.4, level=5, role="ambient", at="hatch_b",
          facing=2.4, wander=2.0, phase=CORE, idle=[("every", 23000, [("emote", "self", "laugh"), ("sound", "self", "baby_murloc")])]),
     dict(key="hatchling_c", name="Hatchling", look="murloc_gold", scale=0.4, level=5, role="ambient", at="hatch_c",
-         facing=4.1, wander=2.0, phase=CORE, idle=[("every", 29000, [("emote", "self", "eat"), ("sound", "self", 8485)])]),
+         facing=4.1, wander=2.0, phase=CORE, idle=[("every", 29000, [("emote", "self", "eat"), ("sound", "self", "baby_murloc")])]),
 
     # the Elder's walk: he comes with you (summoned beside the fire), coughing all the way up
     dict(key="elder_walker", name="Elder Mrrglmrgl", subname="Tribe Elder", look="murloc_grey", level=20, role="ambient",
@@ -197,7 +197,7 @@ NPCS = [
 
     # the Ruins of Solarsal: Lady Szallah, called by her brazier, and Nerelith on the water
     dict(key="szallah", name="Lady Szallah", subname="Hatecrest", look=11262, level=46, side="naga", role="enemy",
-         language="naga", health=4.0, summoned=True, abilities=[(9532, 8000), (8435, 16000)]),
+         language="naga", health=3.0, summoned=True, abilities=[(9532, 8000), (8435, 16000)]),
     dict(key="nerelith_archer", name="Nerelith Saltwind", look=1682, level=45, side="tribe", role="ambient",
          language="darnassian", health=3.0, summoned=True, abilities=[(6660, 2500)]),
     dict(key="archer_boat", name="Rowing Boat", look=30236, scale=0.8, level=1, role="ambient", summoned=True,
@@ -210,7 +210,7 @@ NPCS = [
                      ("emote", "ilyssa_galley", "roar"), ("music", 9461), ("wait", 4000),
                      ("visual", "ilyssa_galley", 22576), ("sound", "ilyssa_galley", 4024), ("wait", 2500),
                      ("move", "galley", "ship_far", "walk"), ("move", "ilyssa_galley", "ship_ilyssa_far", "walk"),
-                     ("sound", "galley", 5454)], 90000)),
+                     ("sound", "galley", "splash_big")], 90000)),
     dict(key="galley", name="Hatecrest Galley", look=30874, scale=2.2, level=1, role="ambient", summoned=True,
          unit_flags=0x02000002),
     dict(key="ilyssa_galley", name="Sea Witch Ilyssa", look="sea_witch", level=60, side="neutral", role="ambient",
@@ -270,7 +270,7 @@ OBJECTS = [
     dict(key="forge", model=233, name="Driftwood Forge", at="forge", kind="doodad", scale=0.7, facing=0.8, phase=HUB),
     dict(key="cauldron", model=216, name="Brewglub's Cauldron", at="cauldron", kind="doodad", scale=0.8, phase=HUB),
     dict(key="nets", model=BASKET, name="Net Basket", at="nets", kind="doodad", scale=0.8, facing=1.0, phase=HUB),
-    # the fire (always: Murlorga's lesson in 9.16 is held over it)
+    # the fire, lit as the tribe lands (Murlorga's lesson in 9.16 is held over it)
     dict(key="fire", model=192, name="Campfire", at="fire", kind="use", quest="ch9_warm", consumable=False, phase=CORE,
          goal="Last Egg warmed by the fire",
          beats=[("summon", "egg_glow", "egg_warm", 6), ("emote", "ch1:murlorga", "yes"),
@@ -309,12 +309,12 @@ OBJECTS = [
     # the headland at dawn: the staff across his knees
     dict(key="staff_knees", model=STAFF, name="The Elder's Staff", at="staff_knees", kind="doodad", scale=0.6, facing=0.0,
          phase=RING),
-    # the funeral raft (always: its scene reaches every one of the tribe, Nerelith and Tawa)
+    # the funeral raft, while he lies on it (its scene: the tribe in the shallows, Nerelith's salute, Tawa's drum)
     dict(key="raft_kelp", model=KELP, name="Kelp", at="raft", kind="doodad", scale=1.3, facing=1.0, phase=BODY),
     dict(key="raft", model=627, name="Kelp Raft", at="raft", kind="use", quest="ch9_funeral", scale=1.4, facing=1.57, phase=BODY,
          beats=[("take", "smooth_stone", 1), ("take", "sweet_roll", 1), ("take", "ch1:plorp_shell", 1),
-                ("object", "laid_stone", "raft_things", 70), ("object", "laid_roll", "raft_things", 70),
-                ("object", "laid_shell", "raft_things", 70), ("music", 6075),
+                ("object", "laid_stone", "raft_things", 17), ("object", "laid_roll", "raft_things", 17),
+                ("object", "laid_shell", "raft_things", 17), ("music", 6075),
                 ("state", "ch1:murlorga", "none"), ("state", "ch1:glubbub", "none"),
                 ("move", "ch1:murlorga", "line_1", "walk"), ("move", "ch1:grrmlgrrl", "grrm_water", "walk"),
                 ("move", "ch1:blrrgl", "line_3", "walk"), ("move", "ch0:mrrk", "line_4", "walk"),
@@ -476,7 +476,7 @@ ITEMS = [
 AURAS = [
     dict(key="elder_pace", name="The Elder's Pace", kind="slow", percent=50, seconds=150, icon=246,
          text="Slowly. Slower than that."),
-    dict(key="elder_gone", name="Gone Walking", kind="disguise", look="trigger", seconds=150),
+    dict(key="elder_gone", name="Gone Walking", kind="disguise", look="trigger", seconds=110),
     dict(key="laid_out", name="Gone to the Sea", kind="disguise", look="trigger", seconds=70),
     dict(key="tide_calm", name="Tawa's Tide Totem", kind="mark", seconds=1800, icon=5394,
          text="The sea is quieter around you."),
@@ -619,7 +619,7 @@ QUESTS = [
                  ("wait", 2000), ("move", "self", "murlorga", "walk"), ("wait", 2500), ("face", "self", "pot"), ("state", "self", "work")],
          complete=[("state", "self", "none"), ("emote", "self", "cheer"), ("sound", "self", 973), ("wait", 1000),
                    ("emote", "hatchling_a", 94), ("emote", "hatchling_b", 94), ("emote", "hatchling_c", 94),
-                   ("sound", "hatchling_b", "baby_murloc_dance"), ("wait", 3000), ("state", "self", "work")],
+                   ("sound", "hatchling_b", "baby_murloc"), ("wait", 3000), ("state", "self", "work")],
          poi=["south_beach", "solarsal"]),
 
     # 9.04: the slowest escort in the game
@@ -756,7 +756,7 @@ QUESTS = [
                  ("emote", "self", "point"), ("wait", 1500), ("face", "self", "sea_w"), ("state", "self", "work"),
                  ("sound", "self", 10861)],
          complete=[("state", "self", "none"), ("wait", 2000), ("face", "self", "sea_w"), ("emote", "self", "bow"),
-                   ("sound", "self", "beach_day"), ("wait", 3000), ("face", "self", "glubbub"), ("emote", "self", "bow"),
+                   ("sound", "self", "splash_small"), ("wait", 3000), ("face", "self", "glubbub"), ("emote", "self", "bow"),
                    ("wait", 2500), ("face", "self", "sea_w"), ("state", "self", "work")],
          poi=["totem_1", "totem_2", "totem_3", "totem_4"]),
 
@@ -777,7 +777,7 @@ QUESTS = [
                  ("wait", 1800), ("emote", "self", "bow"), ("wait", 2500), ("face", "self", "sea_w"), ("state", "self", "work")],
          complete=[("state", "self", "none"), ("object", "big_drum", "tawa_big_drum", 60), ("wait", 800),
                    ("state", "self", "work"), ("sound", "self", 11773), ("wait", 2500), ("sound", "self", 11773),
-                   ("wait", 2500), ("state", "self", "none"), ("emote", "self", "cheer"), ("sound", "self", 6008),
+                   ("wait", 2500), ("state", "self", "none"), ("emote", "self", "cheer"), ("sound", "self", 6055),
                    ("wait", 2000), ("state", "self", "work")],
          poi=["drum_spot"]),
 
@@ -1122,7 +1122,7 @@ QUESTS = [
          accept=[("state", "self", "none"), ("emote", "self", "talk"), ("sound", "self", 11773), ("wait", 2000),
                  ("face", "self", "glubbub"), ("emote", "self", "bow"), ("wait", 2500), ("face", "self", "sea_w"),
                  ("state", "self", "work")],
-         complete=[("emote", "self", "wave"), ("sound", "self", 6009)],
+         complete=[("emote", "self", "wave"), ("sound", "self", 6056)],
          poi=["tawa", "tawa_inland"]),
 
     # 9.28: the storm calls (Elder Glubbub's first vision: the Dream Brine again)

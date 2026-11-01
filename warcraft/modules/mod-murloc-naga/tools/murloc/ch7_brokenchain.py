@@ -147,7 +147,7 @@ NPCS = [
     dict(key="snapper", name="Snapper", subname="Mrrgasha's Crab", look=641, scale=0.6, level=30, role="ambient",
          at="crab", facing=5.3, phase=CAMP, idle=[("every", 21000, [("sound", "self", 1229)])]),
     dict(key="freed_home", name="Freed Fry", plural="freed fry", look="murloc_blue",
-         looks=["murloc_pale", "murloc_green", "murloc_gold", "murloc_orange"], scale=0.5, level=3, role="ambient",
+         looks=["murloc_pale", "murloc_gold", "murloc_orange"], scale=0.5, level=3, role="ambient",
          at=["fry_home_1", "fry_home_2", "fry_home_3", "fry_home_4", "fry_home_5"], wander=2.5, phase=FREED,
          idle=[("every", 19000, [("emote", "self", "dance"), ("sound", "self", "baby_murloc")])]),
 
@@ -286,7 +286,7 @@ NPCS = [
     dict(key="vision_chef", name="Goblin Chef", subname="", look=7346, level=30, side="tribe", language="common",
          role="ambient", unit_flags=0x02000002, summoned=True, idle=[("every", 4000, [("visual", "self", 35838)])]),
     dict(key="freed_fry", name="Tribute Fry", plural="tribute fry", look="murloc_grey",
-         looks=["murloc_blue", "murloc_pale", "murloc_ice", "murloc_green"], scale=0.45, level=3, role="ambient", summoned=True,
+         looks=["murloc_blue", "murloc_pale", "murloc_green"], scale=0.45, level=3, role="ambient", summoned=True,
          watch=(15, [("follow", "self"), ("sound", "self", "baby_murloc")], 600000),
          idle=[("every", 13000, [("sound", "self", "baby_murloc")])]),
     dict(key="bubbles", name="Bubbles", look="trigger", level=1, role="ambient", unit_flags=0x02000002, summoned=True,
@@ -326,8 +326,8 @@ OBJECTS = [
     dict(key="court_fire", model=408, name="Cookfire", at=["court_fire_1", "court_fire_2"], kind="doodad"),
     dict(key="pen", model=2107, name="Fry Pen", at="pen", kind="doodad", scale=0.55, facing=1.57),
     dict(key="pen_gate", model=2127, name="Fry-Pen Gate", at="pen_gate", kind="use", quest="ch7_pen", facing=1.57,
-         phase=FRY,
-         beats=[("take", "pen_key", 1), ("object", "pen_open", "gate_out_1", 120, 0.0), ("credit", "ch7_pen"),
+         phase=FRY, goal="Fry pen opened",
+         beats=[("take", "pen_key", 1), ("object", "pen_open", "gate_out_1", 120, 0.0),
                 ("despawn", "pen_fry"), ("summon", "freed_fry", "pen_1", 420), ("summon", "freed_fry", "pen_2", 420),
                 ("wait", 700), ("despawn", "pen_fry"), ("summon", "freed_fry", "pen_3", 420),
                 ("summon", "freed_fry", "pen_4", 420), ("wait", 700), ("despawn", "pen_fry"),
@@ -343,7 +343,7 @@ OBJECTS = [
     dict(key="casket", model=4192, name="Cold Shell Casket", kind="loot", loot=[("signet", 1, 1)], quest="ch7_signet",
          at="casket", scale=0.7, facing=4.71),
     dict(key="king_table", model=564, name="The King's Table", at="table", kind="use", quest="ch7_feast", consumable=False,
-         scale=1.4, facing=4.71,
+         scale=1.4, facing=4.71, goal="Stew set before the king",
          beats=[("take", "stew_bowl", 1), ("object", "covered_bowl", "bowl_spot", 90), ("emote", "king", "talk"),
                 ("sound", "king", "murloc_fidget"), ("wait", 1500), ("emote", "king", "eat"), ("sound", "king", 1186),
                 ("wait", 1200), ("emote", "king", "eat"), ("sound", "king", 1186), ("wait", 1200), ("emote", "king", "eat"),
@@ -351,24 +351,24 @@ OBJECTS = [
                 ("state", "king", "none"), ("jump", "king", "king_fall"), ("state", "king", "dead"), ("sound", "king", 1267),
                 ("wait", 800), ("move", "courtier", "chaos_1", "run"), ("move", "courtier_b", "chaos_2", "run"),
                 ("emote", "courtguard", "exclamation"), ("sound", "courtguard", "murloc_alert"),
-                ("object", "key_glint", "key_spot", 30), ("give", "pen_key", 1), ("credit", "ch7_feast"), ("wait", 7000),
+                ("object", "key_glint", "key_spot", 30), ("give", "pen_key", 1), ("wait", 7000),
                 ("move", "courtier", "crowd_1", "walk"), ("move", "courtier_b", "crowd_2", "walk"), ("wait", 8000),
                 ("state", "king", "none"), ("move", "king", "king_seat", "walk"), ("wait", 3000), ("face", "king", "court"),
                 ("state", "king", "sit")]),
     dict(key="mud_mound", model=MOUND, name="Sucking Mud", at=["mud_1", "mud_2"], kind="doodad", scale=0.7),
     # the lighthouse keeper's doorstep (7.22)
     dict(key="keeper_step", model=6038, name="Keeper's Doorstep", at="keeper_step", kind="use", quest="ch7_keeper",
-         consumable=False,
-         beats=[("take", "gift_pearl", 1), ("object", "pearl_on_step", "step_pearl", 180), ("credit", "ch7_keeper"),
+         consumable=False, goal="Pearl left on the doorstep",
+         beats=[("take", "gift_pearl", 1), ("object", "pearl_on_step", "step_pearl", 180),
                 ("wait", 4000), ("move", "keeper", "keeper_out", "walk"), ("wait", 3000), ("emote", "keeper", "kneel"),
                 ("wait", 2000), ("say", "keeper", "Well, now. Who left you here, then?", "question"), ("wait", 2500),
                 ("face", "keeper", "lamp"), ("emote", "keeper", "point"), ("visual", "keeper", 56494), ("wait", 3000),
                 ("emote", "keeper", "cheer"), ("wait", 3000), ("move", "keeper", "keeper", "walk")]),
     # the deepest water of Dustwallow Bay (7.09)
     dict(key="deep_water", model=42, name="The Deepest Water", at="deep_bay", kind="use", quest="ch7_chain",
-         consumable=False,
+         consumable=False, goal="Manacle left in the deep",
          beats=[("take", "manacle", 1), ("object", "sunk_manacle", "manacle_rest", 1800), ("summon", "bubbles", "deep_bay", 15),
-                ("credit", "ch7_chain"), ("face", "gorlak_bay", "deep_bay"), ("state", "gorlak_bay", "kneel")]),
+                ("face", "gorlak_bay", "deep_bay"), ("state", "gorlak_bay", "kneel")]),
     # the pumpkin patch beside the haunted manor (7.20)
     dict(key="patch", model=6325, name="Pumpkin Patch", at="patch", kind="doodad", scale=0.8),
     dict(key="pumpkin", model=6351, name="Witch Hill Pumpkin", at=["pumpkin_2", "pumpkin_3"], kind="use", quest="ch7_pumpkin",
@@ -505,7 +505,7 @@ AURAS = [
          text="Murlorga's mud, all over your face. You are a Mirefin now. An ugly one."),
     dict(key="green_king", name="Indescribable Stew", kind="disguise", look="murloc_green", scale=1.8, seconds=300),
     dict(key="lysander_murloc", name="Misfired Spell", kind="disguise", look="murloc_grey", seconds=15),
-    dict(key="drumming", name="Gorlak's Drum", kind="mark", seconds=15, icon=29528, visual=0,
+    dict(key="drumming", name="Gorlak's Drum", kind="mark", seconds=15, icon=35475,
          text="Boom. Boom. Boom-boom. The tribe is going."),
 ]
 
@@ -733,7 +733,7 @@ QUESTS = [
 
     # 7.09: Gorlak's chain (he comes to the bay's shore to watch it go)
     dict(key="ch7_chain", title="Gorlak's Chain", giver="gorlak", ender="gorlak", level=37, xp=8, tone="serious", path="hero",
-         prev="ch7_orc", source="manacle", event="The manacle left in the deepest water", rep=[(76, 750)],
+         prev="ch7_orc", source="manacle", objects=[("deep_water", 1)], rep=[(76, 750)],
          choice=["chain_mail", "chain_leather", "chain_cloth"],
          goal="Swim Gorlak's Manacle down to the deepest water of Dustwallow Bay, east of Brackenwall, and leave it on the "
               "bottom. Then go back to Gorlak in the reeds.",
@@ -810,7 +810,7 @@ QUESTS = [
 
     # 7.22: the lighthouse keeper (the night the turtle came, a light showed her the rocks)
     dict(key="ch7_keeper", title="The Lighthouse Keeper", giver="ch1:elder", ender="ch1:elder", level=37, xp=8,
-         tone="serious", path="hero", prev="ch7_where", source="gift_pearl", event="Pearl left on the keeper's doorstep",
+         tone="serious", path="hero", prev="ch7_where", source="gift_pearl", objects=[("keeper_step", 1)],
          rep=[(72, 250)],
          goal="Leave the Pearl for the Keeper on the lighthouse keeper's doorstep, on the rock east of Theramore's harbour, "
               "outside its walls. Then return to the Elder.",
@@ -874,7 +874,7 @@ QUESTS = [
 
     # 7.15: King Mrrgum's feast
     dict(key="ch7_feast", title="King Mrrgum's Feast", giver="ch1:murlorga", ender="ch1:murlorga", level=38, xp=8,
-         tone="funny", path="hero", prev="ch7_fence", source="stew_bowl", event="The king served the stew",
+         tone="funny", path="hero", prev="ch7_fence", source="stew_bowl", objects=[("king_table", 1)],
          items=[("pen_key", 1)],
          goal="In Murlorga's Mud Mask, set the Covered Bowl of Indescribable Stew on the table before King Mrrgum's throne, "
               "and take the Fry-Pen Key in the chaos. Then return to Murlorga.",
@@ -895,7 +895,7 @@ QUESTS = [
 
     # 7.16: the fry pen
     dict(key="ch7_pen", title="The Fry Pen", giver="ch1:murlorga", ender="ch1:murlorga", level=39, xp=8, tone="serious",
-         path="hero", prev="ch7_feast", source="pen_key", event="The fry pen opened", choice=["pen_pendant", "mothers_knot"],
+         path="hero", prev="ch7_feast", source="pen_key", objects=[("pen_gate", 1)], choice=["pen_pendant", "mothers_knot"],
          goal="Unlock the fry pen at the south end of King Mrrgum's court with the Fry-Pen Key, and lead the tribute fry "
               "back through the reeds to Murlorga on the Mire Islets.",
          text="The key. The pen. While the king is green and his warriors run in circles. Open it. Bring them here, all "
@@ -932,7 +932,7 @@ QUESTS = [
 
     # 7.18a: topple the throne (the hero's road: the Mirefin come to the Storm Bay in 10.22)
     dict(key="ch7_topple", title="Topple the Throne", giver="ch1:grrmlgrrl", ender="brrsha", level=40, xp=8, tone="serious",
-         path="hero", prev="ch7_muscle", exclusive=71, kill=[("king_sick", 1)],
+         path="hero", prev="ch7_muscle", exclusive=1, kill=[("king_sick", 1)],
          choice=["scepter", "throne_breaker", "fin_blade"],
          goal="Face King Mrrgum on his throne of shells and bring him down. Then go to Mother Brrsha, eldest of the fry's "
               "mothers, at the foot of the throne.",
@@ -955,7 +955,7 @@ QUESTS = [
 
     # 7.18b: the shell hoard (the menace's road: the Mirefin keep their king, and don't come in 10.22)
     dict(key="ch7_hoard", title="The Shell Hoard", giver="ch1:blrrgl", ender="ch1:blrrgl", level=40, xp=8, tone="funny",
-         path="menace", prev="ch7_muscle", exclusive=71, items=[("shiny", 8)], choice=["ring_int", "ring_agi", "ring_str"],
+         path="menace", prev="ch7_muscle", exclusive=1, items=[("shiny", 8)], choice=["ring_int", "ring_agi", "ring_str"],
          goal="While King Mrrgum lies green and sick on his throne, take 8 of King Mrrgum's Shinies from the hoard piled "
               "behind it. Leave the king where he is.",
          text="Shinies. Behind the throne. A big pile. Bigger than my log! The king is green, he cannot get up... he can "
@@ -1066,7 +1066,8 @@ QUESTS = [
 
     # 7.25: south to the red sails (the ride: Grandmother Shellback carries the tribe to Stranglethorn)
     dict(key="ch7_end", title="South to the Red Sails", giver="ch1:elder", ender="ch0:shellback", level=40, xp=8,
-         tone="serious", prev=["ch7_signet", "ch7_warsong"], choice=["rider_boots", "mire_boots", "reed_sandals"],
+         tone="serious", prev="ch7_warsong", prev_any=["ch7_topple", "ch7_hoard"],
+         choice=["rider_boots", "mire_boots", "reed_sandals"],
          goal="When the tribe is ready, climb onto Grandmother Shellback in the bay of the Mire Islets and ride south "
               "to the goblins' harbour.",
          text="Red sails. A goblin. Our eggs in a goblin's pot. Glubbub saw it. ...We go. All of us. Grandmother is "

@@ -35,6 +35,7 @@ NPCS = [
 ]
 ```
 
+- `looks=[...]`: up to three more looks (the database takes four in all), one picked per spawn.
 - `look`: a key of `LOOKS` in `tools/murloc/common.py`, or a CreatureDisplayInfo id. The tribe's
   murlocs are `murloc_<skin>` (grey, blue, green, pale, orange, gold, fel, red, purple, slate, abyssal,
   bronze, ice): the race's own murloc with emotes (talk, point, cheer, bow, wave, cry, laugh, beg,
@@ -53,8 +54,8 @@ NPCS = [
   tailoring, blacksmithing, alchemy, engineering, enchanting, jewelcrafting, inscription),
   `innkeeper`, `repair`, `banker`, `stable`, `auctioneer`, `travel`, `ambient`, `enemy`, `guard`; several
   joined by `+` (`"trainer:rogue+banker"`). A vendor sells `sells=[item entries]` (default: food).
-  `travel`: `travel=[("<place>", "<quest key>" | None)]`, a gossip line each (teleports there; shown
-  once the quest's done).
+  `travel`: `travel=[("<place>", "<quest key>" | None, "words")]`, a gossip line each (teleports there;
+  shown once the quest's done; the words, English, are Nerglish to the player).
 - `watch=(yards, [beats], cooldown ms)`: a player coming that near (in sight) starts the beats ("player"
   is them): a Lasher's hiss, point and lash; a slave hiding. Default cooldown 15000.
 - `at_health=(30, [beats])`: in a fight, hurt to that share of its health, its beats (a duel's end:
@@ -139,7 +140,8 @@ chore), `details=["talk", "point"]` (the giver's emotes as it's offered), `rewar
 (the ender's as it's handed in), `plain_reward=True` (the reward text as written: the story's last
 quest alone, the first words a murloc can read; finishing it teaches the murloc Common), `exclusive=N` (quests sharing N: taking one closes the others).
 
-`prev_any=["ch2_honor", "ch2_totem"]`: after either of them (a hero/menace pair's next quest).
+`prev_any=["ch2_honor", "ch2_totem"]`: after either of them (a hero/menace pair's next quest); with a
+`prev` list too, after all of those and either of these.
 
 `level` is the quest's level; `min` defaults to level - 2. `xp` (1-8) defaults to 7; the last of a
 chapter's chains and set pieces take 8.
@@ -184,6 +186,10 @@ within 80 yards of whoever runs the scene. A quest's scene interrupts a person's
 interrupts a scene. An object's own scene (`beats` on an object) can summon, set out objects, give
 auras and items, and hand beats to people; it can't speak, emote or play a sound itself.
 Emotes once: `dance`, `work` too (EMOTES); for a lasting dance or work, `state`.
+Sounds that loop (BeachDay 4164, BoatSailFlapLoop 5454, MurlocBabyDanceLoop 8485, any "Loop") play on and
+on: don't use them in beats. A quest whose reward ends its ender's phase plays its reward scene where the
+player no longer sees it: put the show in its accept or its talk instead. An escort's follower must be
+within 80 yards of the giver as the quest is taken.
 
 Everyone a scene hands beats to must share a phase with whoever runs it: someone "always" there
 shares every phase; two people in different story phases can't see each other.

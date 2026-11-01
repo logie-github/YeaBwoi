@@ -54,7 +54,11 @@ NPCS = [
          gossip="Found it. All of it. Nobody was using it. Probably.",
          idle=[("every", 25000, [("emote", "self", "beg"), ("emote", "self", "laugh")])]),
     dict(key="caller", name="Current-Caller Blubb", subname="Travel", look="murloc_blue", level=30, role="travel",
-         travel=[], gossip="The currents carry us. Where do you want to be carried?",
+         travel=[("ch2:hub", "ch2:ch2_arrival", "Greymist Cove."), ("ch3:hub", "ch3:ch3_uprising", "The Saltscar camp, in the pens."),
+                 ("ch4:hub", "ch4:ch4_arrival", "Saltscar Shallows, by the Bluegill."), ("ch5:hub", "ch5:ch5_arrival", "Torn Fin Cove."),
+                 ("ch6:hub", "ch6:ch6_arrival", "Murk-Eye's Grotto."), ("ch7:hub", "ch7:ch7_arrival", "The Mire Islets."),
+                 ("ch8:hub", "ch8:ch8_arrival", "The wreck of the Lucky Cod."), ("ch9:hub", "ch9:ch9_arrival", "Colossal Cove."),
+                 ("ch10:hub", "ch10:ch10_arrival", "Saltscar Landing. Home.")], gossip="The currents carry us. Where do you want to be carried?",
          idle=[("every", 30000, [("visual", "self", 36005)])]),
 
     # Friends and rivals met more than once (bible section 5). The land-walkers among them are on the tribe's

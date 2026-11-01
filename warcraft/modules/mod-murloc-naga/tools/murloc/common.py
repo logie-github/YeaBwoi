@@ -9,14 +9,15 @@ MAP_KALIMDOR, MAP_EASTERN = 1, 0
 # gossip menus and texts 976000 on (their own tables); spawns 9760000 on, objects' 9790000 on;
 # object looks (GameObjectDisplayInfo) 9800-9999; story phases' spells 979800-979899; trainers 976000 on.
 NPC_BASE, NPC_END = 976000, 977999
-GO_BASE, GO_END = 978000, 978499
+GO_BASE, GO_END = 1976000, 1977999             # (was 978000-978499: too few; a scene list's id is
+OLD_GO_BASE, OLD_GO_END = 978000, 978499        #  an object's entry * 1000 + n, so it stays under 2^31)
 QUEST_BASE, QUEST_END = 978500, 978999
 ITEM_BASE, ITEM_END = 979000, 979799
 TEXT_BASE = 976000
 SPAWN_BASE, SPAWN_END = 9760000, 9789999
 GO_SPAWN_BASE, GO_SPAWN_END = 9790000, 9799999
 GO_DISPLAY_BASE, GO_DISPLAY_END = 9800, 9999
-PHASE_SPELL_BASE = 979800
+PHASE_SPELL_BASE = 979600                       # 979600-979899: the story's phases (300)
 SPELL_BASE, SPELL_END = 979900, 979999          # the story's auras (AURAS)
 TRAINER_BASE = 976000
 GRAVEYARD_BASE, GRAVEYARD_END = 9760, 9799      # game_graveyard ids (GRAVEYARDS)
@@ -140,6 +141,10 @@ LANGUAGES = {
 }
 # The murlocs' own: the game's Titan, "Nerglish" in the patch (no player race speaks it).
 NERGLISH_LANGUAGE = 9
+
+# Creature types (CreatureType.dbc), for `type` (a beast can be tamed with `tameable`, and skinned).
+TYPES = {"beast": 1, "dragonkin": 2, "demon": 3, "elemental": 4, "giant": 5, "undead": 6, "humanoid": 7, "critter": 8,
+         "mechanical": 9, "unknown": 10}
 
 CLASSES = {"warrior": 1, "paladin": 2, "hunter": 3, "rogue": 4, "priest": 5, "shaman": 7, "mage": 8, "warlock": 9, "druid": 11}
 SKILLS = {

@@ -34,7 +34,7 @@ TOWNS = ["Valormok", "Talrendis Point"]
 
 PLACES = {
     # Saltscar Landing: the bonfire in the middle, a row of people along the cliff side, a row along the water
-    "hub": (2924.0, -6004.0), "elder_spot": (2921.0, -6008.0),
+    "hub": (2924.0, -6004.0), "fire": (2925.0, -6009.0), "elder_spot": (2920.0, -6010.0),
     "pearlmrgl": (2912.0, -5968.0), "brrgmrk": (2912.0, -5977.0), "murlorga": (2913.0, -5989.0), "cookpot": (2915.0, -5992.0),
     "mrrgasha": (2911.0, -5999.0), "sprokgl": (2911.0, -6008.0), "blrrgl": (2912.0, -6016.0), "log": (2909.0, -6019.0),
     "fizzmrgl": (2912.0, -6027.0), "slubb": (2913.0, -6036.0), "mrsha": (2914.0, -6044.0),
@@ -50,9 +50,9 @@ PLACES = {
     "hut_d": (2934.0, -6056.0), "hut_e": (2905.0, -5985.0), "hut_f": (2905.0, -6030.0), "rack_1": (2938.0, -6052.0),
     "rack_2": (2946.0, -5962.0), "pile_1": (2926.0, -6058.0), "pile_2": (2915.0, -5960.0),
     "durg": (2908.0, -5958.0), "sergeant": (2876.0, -5946.0), "sergeant_run": (2884.0, -5951.0),
-    "zalja": (2949.0, -6027.0), "zalja_net": (2954.0, -6031.0), "wrrmgl": (2944.0, -5984.0), "woken_1": (2952.0, -5978.0),
+    "zalja": (2949.0, -6027.0), "zalja_net": (2954.0, -6031.0), "wrrmgl": (2944.0, -5984.0), "woken_1": (2948.0, -5976.0),
     "woken_2": (2938.0, -5966.0), "sb_1": (2930.0, -5958.0), "sb_2": (2938.0, -5958.0), "sb_3": (2924.0, -5958.0),
-    "fizzbo": (2955.0, -5980.0), "boat": (2965.0, -5986.0), "winterfin": (2948.0, -5994.0), "count_rock": (2947.0, -5990.0),
+    "fizzbo": (2950.0, -5978.0), "boat": (2965.0, -5986.0), "winterfin": (2945.0, -5995.0), "count_rock": (2945.0, -5988.0),
     "shellback": (2975.0, -6010.0), "storm_glow": (2995.0, -6055.0), "glow_far": (3000.0, -6050.0),
     # the tribe just landed, huddled at the water's edge
     "surf": (2945.0, -5999.0), "a_grrm": (2938.0, -5991.0), "a_murlorga": (2933.0, -5995.0), "a_blrrgl": (2931.0, -5988.0),
@@ -62,7 +62,7 @@ PLACES = {
     "draw_5": (2934.0, -6004.0), "draw_6": (2930.0, -6000.0),
     "w_draw_1": (2941.0, -5987.0), "w_draw_2": (2943.0, -5990.0), "w_draw_3": (2939.0, -5990.0), "w_draw_4": (2941.0, -5992.0),
     "g_draw_1": (2925.0, -6017.0), "g_draw_2": (2927.0, -6015.0), "g_draw_3": (2930.0, -6016.0), "grrm_hug": (2926.0, -6018.0),
-    "hug_start": (2952.0, -5980.0), "lines_a": (2923.0, -6012.0), "lines_b": (2933.0, -6013.0), "lines_c": (2930.0, -6008.0),
+    "hug_start": (2948.0, -5980.0), "lines_a": (2923.0, -6012.0), "lines_b": (2933.0, -6013.0), "lines_c": (2930.0, -6008.0),
     "krrgl_plot": (2934.0, -6050.0), "peb_1": (2931.0, -6053.0), "peb_2": (2937.0, -6053.0), "peb_3": (2937.0, -6059.0),
     "peb_4": (2931.0, -6059.0), "forge_front": (2940.0, -6030.0), "drink_1": (2920.0, -6015.0), "drink_2": (2924.0, -6016.0),
     "mrrk_bowl": (2916.0, -5994.0), "sloshy_run": (2902.0, -5970.0), "fw_1": (2918.0, -5970.0), "fw_2": (2940.0, -5990.0),
@@ -95,7 +95,7 @@ PLACES = {
     "camp_g5": (2872.0, -6208.0), "camp_g6": (2846.0, -6164.0), "camp_g7": (2880.0, -6135.0), "camp_g8": (2838.0, -6190.0),
     "camp_g9": (2862.0, -6170.0),
     "wood_1": (2845.0, -6190.0), "wood_2": (2860.0, -6225.0), "wood_3": (2870.0, -6180.0), "wood_4": (2850.0, -6155.0),
-    "wood_5": (2838.0, -6205.0), "wood_6": (2930.0, -6062.0), "wood_7": (2945.0, -6052.0), "wood_8": (2900.0, -6125.0),
+    "wood_5": (2838.0, -6205.0), "wood_6": (2926.0, -6060.0), "wood_7": (2920.0, -6062.0), "wood_8": (2848.0, -6178.0),
     "wreck_1": (2865.0, -6240.0), "wreck_2": (2842.0, -6230.0), "wreck_3": (2960.0, -6042.0), "wreck_4": (3045.0, -5890.0),
     # the thralled rows: a leader, four in a square behind, a siren singing them on
     "row_a": (3130.0, -5810.0), "row_a1": (3124.0, -5805.0), "row_a2": (3124.0, -5815.0), "row_a3": (3118.0, -5805.0),
@@ -174,12 +174,12 @@ NPCS = [
          idle=[("state", "self", "kneel"), ("every", 9000, [("visual", "self", 22576), ("sound", "self", 1005)])]),
 
     # Durg's bet, the bay's biggest fish
-    dict(key="durg", name="Durg", subname="Grunt of Valormok", look=4550, level=48, side="faction:76", role="quest",
+    dict(key="durg", name="Durg", subname="Grunt of Valormok", look=4550, level=48, role="quest",
          language="orcish", at="durg", facing=4.55, phase=HUB,
          greeting="Fish! You! Little fish-man! You know fish, yes? Durg needs the BIG fish.",
          idle=[("every", 31000, [("emote", "self", "question"), ("sound", "self", 6363)]),
                ("every", 47000, [("face", "self", "sergeant"), ("emote", "self", "rude")])]),
-    dict(key="sergeant", name="Sergeant Grakk", subname="Valormok", look=3743, level=52, side="faction:76", role="ambient",
+    dict(key="sergeant", name="Sergeant Grakk", subname="Valormok", look=3743, level=52, role="ambient",
          language="orcish", at="sergeant", facing=5.92, phase=HUB,
          idle=[("every", 38000, [("emote", "self", "laugh"), ("sound", "self", 6943)]),
                ("every", 53000, [("emote", "self", "point")])]),
@@ -211,13 +211,19 @@ NPCS = [
          phase=RUINS, idle=[("every", 3000, [("visual", "self", 22576)])]),
     dict(key="sesspira", name="Lady Sesspira", look=11261, level=51, side="naga", role="enemy", language="naga", health=3.0,
          summoned=True, abilities=[(15801, 7000), (12548, 14000)]),
-    dict(key="sentinel_ally", name="Talrendis Sentinel", look=2306, level=52, side="faction:69", role="ambient",
+    dict(key="sentinel_ally", name="Talrendis Sentinel", look=2306, level=52, role="ambient",
          language="darnassian", summoned=True, idle=[("every", 4000, [("visual", "self", 45311)])]),
-    dict(key="grunt_ally", name="Valormok Grunt", look=4259, level=52, side="faction:76", role="ambient", language="orcish",
+    dict(key="grunt_ally", name="Valormok Grunt", look=4259, level=52, role="ambient", language="orcish",
          summoned=True, idle=[("every", 9000, [("emote", "self", "roar")])]),
     dict(key="ilyssa", name="Sea Witch Ilyssa", look="sea_witch", level=55, side="naga", role="enemy", language="naga",
          health=5.0, damage=1.4, at="ilyssa", facing=2.4, respawn=90, phase=GROTTO,
          abilities=[(15043, 6000), (15063, 20000), (21401, 13000)],
+         at_health=(33, [("yell", "self", "The eggs are MINE! Mine to bind!", "roar", "siren_aggro"),
+                         ("cast", "self", 34326, "self"), ("jump", "grrm_grotto", "ilyssa"), ("wait", 1200),
+                         ("emote", "grrm_grotto", "attack2h"), ("sound", "grrm_grotto", 1116), ("wait", 600),
+                         ("sound", "self", 4022), ("object", "broken_spear", "ilyssa", 60),
+                         ("object", "laid_eggs", "net_6", 60), ("emote", "grrm_grotto", "roar"),
+                         ("sound", "grrm_grotto", "murloc_aggro")]),
          idle=[("every", 20000, [("cast", "self", 32992, "self"), ("sound", "self", "siren_hiss")])]),
     dict(key="grrm_grotto", name="Grrmlgrrl the Tidehunter", look="murloc_slate", scale=1.15, level=55, role="ambient",
          at="grrm_grotto", facing=5.7, phase=GROTTO,
@@ -264,7 +270,7 @@ NPCS = [
          role="ambient", at="e_muckmaw", facing=5.0, phase=GATHERED,
          idle=[("state", "self", "sit"), ("every", 31000, [("emote", "self", "laugh"), ("sound", "self", "murloc_fidget")])]),
     dict(key="gathered", name="Gathered Warrior", plural="gathered warriors", look="murloc_pale",
-         looks=["murloc_green", "murloc_red", "murloc_bronze", "murloc_grey"], level=(50, 52), role="ambient",
+         looks=["murloc_green", "murloc_red", "murloc_bronze"], level=(50, 52), role="ambient",
          at=["camp_g1", "camp_g2", "camp_g3", "camp_g4", "camp_g5", "camp_g6", "camp_g7", "camp_g8", "camp_g9"], phase=GATHERED,
          greeting="Mrgl! The conch called. We came. Where are the long ones?",
          idle=[("every", 33000, [("emote", "self", "cheer"), ("sound", "self", "murloc_fidget")]),
@@ -280,7 +286,7 @@ NPCS = [
 
     # the feast
     dict(key="reveler", name="Saltscar Reveler", plural="revelers", look="murloc_orange",
-         looks=["murloc_green", "murloc_pale", "murloc_purple", "murloc_abyssal"], level=(40, 48), role="ambient",
+         looks=["murloc_green", "murloc_pale", "murloc_purple"], level=(40, 48), role="ambient",
          at=["rev_1", "rev_2", "rev_3", "rev_4", "rev_5", "rev_6"], phase=FEAST,
          idle=[("every", 15000, [("emote", "self", "cheer"), ("sound", "self", "murloc_fidget")]),
                ("every", 23000, [("emote", "self", "dance")]), ("every", 37000, [("emote", "self", "eat")])]),
@@ -318,7 +324,7 @@ ROCK = "World\\Azeroth\\Burningsteppes\\PassiveDoodads\\Rocks\\LavaRock01.mdx"
 
 OBJECTS = [
     # Saltscar Landing
-    dict(key="bonfire", model=200, name="Landing Fire", at="hub", kind="doodad", scale=0.8, phase=HUB),
+    dict(key="bonfire", model=200, name="Landing Fire", at="fire", kind="doodad", scale=0.8, phase=HUB),
     dict(key="cookpot", model=216, name="Murlorga's Pot", at="cookpot", kind="doodad", scale=1.1, phase=HUB),
     dict(key="hollow_log", model=LOG, name="Hollow Log", at="log", kind="doodad", scale=0.6, facing=1.0, phase=HUB),
     dict(key="forge", model=7627, name="Krrgl's Forge", at="forge", kind="doodad", scale=0.8, facing=2.0, phase=HUB),
@@ -520,6 +526,7 @@ ITEMS = [
     dict(key="clarity_kelp", name="Clarity Kelp", icon=7078, stack=6, description="It smells like a cold morning."),
     dict(key="arkkoran_claw", name="Arkkoran Claw", icon=9157, stack=10),
     dict(key="feather", name="Thunderhead Feather", icon=19530, stack=8),
+    dict(key="durg_net", name="Durg's Net", icon=1007, description="Orcish rope. Very strong. Smells of orc."),
     dict(key="winnings", name="Pouch of Winnings", icon=2588, description="It jingles. Blrrgl can hear it from the beach."),
     dict(key="scale_silk", name="Spitelash Scale-Silk", icon=3668, stack=6),
     dict(key="quiver", name="Moonstone Quiver", icon=21328, aura="volley",
@@ -1284,7 +1291,7 @@ QUESTS = [
 
     # 10.26: into the grotto
     dict(key="ch10_grotto", title="Into the Pearl's Grotto", giver="ch1:glubbub", ender="ch1:glubbub", level=54, xp=8,
-         tone="serious", prev="ch10_assault", explore="grotto", radius=20,
+         tone="serious", prev="ch10_assault", prev_any=["ch10_gate_a", "ch10_gate_b"], explore="grotto", radius=20,
          goal="Dive to the Storm Pearl on the bay's floor, east of Saltscar Landing, behind the Spitelash sea-gate.",
          text="The gate is open, the beach is ours, and the glow is waiting. Dive, little one. Down to the Pearl. Look at "
               "it, and look at what is hanging on it. And look at who is waiting.",

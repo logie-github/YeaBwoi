@@ -69,7 +69,7 @@ NPCFLAG = {"gossip": 1, "quest": 2, "trainer": 16, "class_trainer": 32, "profess
 ROLE_OPTIONS = {"banker": (9, 131072, 6, "I want to look in the log."), "auctioneer": (13, 2097152, 6, "Show me what's for sale."),
                 "stable": (14, 4194304, 0, "Look after my animals.")}
 # The story's auras (AURAS): their kinds, as SPELL_AURA_* (tools/build_data.py makes the spells)
-AURA_KINDS = {"mark": 4, "disguise": 56, "slow": 33, "stun": 12, "root": 26, "speed": 31, "sleep": 12}
+AURA_KINDS = {"mark": 4, "disguise": 56, "slow": 33, "stun": 12, "root": 26, "speed": 31, "sleep": 12, "stats": 137}
 STAT = {"agi": 3, "str": 4, "int": 5, "spi": 6, "sta": 7, "def": 12, "dodge": 13, "parry": 14, "hit": 31, "crit": 32,
         "ap": 38, "sp": 45, "mp5": 43, "haste": 36, "expertise": 37, "armor_pen": 44}
 WEAPONS = {  # kind: (subclass, inventory type)
@@ -252,7 +252,7 @@ class Story:
         for q in self.quests.values():
             for target, _ in q.get("interact", []):
                 self.talkers.add(self.qualify(q["chapter"], target))
-            for _, target, _ in q.get("use", []):
+            for _, target, *_ in q.get("use", []):
                 if isinstance(target, str) and self.qualify(q["chapter"], target) in self.npcs:
                     self.talkers.add(self.qualify(q["chapter"], target))
         for key, d in self.npcs.items():
@@ -296,6 +296,8 @@ class Story:
             misc = self.hidden_creature(d["name"], self.look(d.get("look", "trigger"), key), scale=d.get("scale", 1.0))
         elif kind in ("slow", "speed"):
             amount = -abs(d.get("percent", 40)) if kind == "slow" else abs(d.get("percent", 30))
+        elif kind == "stats":                   # every stat up by a share (a small blessing)
+            misc, amount = -1, abs(d.get("percent", 1))
         self.spells.append(dict(id=self.aura_id[key], name=d["name"], aura=AURA_KINDS[kind], misc=misc, amount=amount,
                                 seconds=d.get("seconds", 0), text=d.get("text", ""), icon=d.get("icon", 0),
                                 visual=d.get("visual", 0), kind=kind))
@@ -338,6 +340,14 @@ class Story:
                 raise StoryError(f"the test steps name the place {key}, which the story hasn't")
             return f"{self.point(key, key.split(':')[0], 'the test steps')[3] + 1.0:.1f}"
         text = re.sub(r"\{z:(ch\d+:[A-Za-z0-9_]+)\}", height, text)
+
+        def place(m):                           # {xyz:chN:place}: the place itself (a GM's .go there)
+            key = m.group(1)
+            if key not in self.places:
+                raise StoryError(f"the test steps name the place {key}, which the story hasn't")
+            _, x, y, z = self.point(key, key.split(":")[0], "the test steps")
+            return f"{x:.1f} {y:.1f} {z + 1.0:.1f}"
+        text = re.sub(r"\{xyz:(ch\d+:[A-Za-z0-9_]+)\}", place, text)
         return re.sub(r"\{(ch\d+:[A-Za-z0-9_]+)\}", one, text)
 
     # -- items ---------------------------------------------------------------------------------
@@ -394,6 +404,8 @@ class Story:
                 mat, slot = part[1], part[2]
                 cls, sub = 4, MATERIALS[mat] if slot != "back" else 1
                 inv = SLOTS[slot]
+            elif part[0] == "tabard":
+                cls, sub, inv = 4, 0, 19
             elif part[0] in ("ring", "neck", "trinket"):
                 cls, sub, inv = 4, 0, {"ring": 11, "neck": 2, "trinket": 12}[part[0]]
             elif part[0] == "shield":
@@ -598,22 +610,30 @@ class Story:
                 self.trainer(entry, 2, K.SKILLS[what], key, lang, requirement=0)
                 options.append((5, NPCFLAG["trainer"], "Teach me your trade."))
         if "travel" in roles:
-            for n, (dest, needs) in enumerate(d.get("travel", [])):
+            released = {ch["CHAPTER"]["key"] for ch in self.chapters}
+            for n, spec in enumerate(d.get("travel", [])):
+                dest, needs = spec[:2]
+                if isinstance(dest, str) and ":" in dest and dest.split(":")[0] not in released:
+                    continue                    # (a hub of a chapter not released yet)
+                words = spec[2] if len(spec) > 2 else "Take me to the other place."
                 m, x, y, z = self.point(dest, chapter, key)
-                options.append(("travel", 1, "Take me to the other place.", (m, x, y, z), needs))
+                options.append(("travel", 1, words, (m, x, y, z), needs))
         side = self.side(d)
         enemy = "enemy" in roles or d.get("side") in ("naga", "hostile")
         unit_class = d.get("class", 2 if d.get("caster") else 1)
         self.row("creature_template", entry=entry, name=d["name"], subname=d.get("subname") or "", gossip_menu_id=menu,
                  minlevel=lo, maxlevel=hi, faction=side, npcflag=flags, speed_walk=1.0, speed_run=1.14286, unit_class=unit_class,
-                 unit_flags=d.get("unit_flags", 0), type=7, flags_extra=d.get("flags_extra", 0), rank=d.get("rank", 0),
+                 unit_flags=d.get("unit_flags", 0), type=K.TYPES.get(d.get("type", "humanoid"), 7),
+                 type_flags=1 if d.get("tameable") else 0, flags_extra=d.get("flags_extra", 0), rank=d.get("rank", 0),
                  HealthModifier=d.get("health", 1.0), ManaModifier=1.0, ArmorModifier=1.0, DamageModifier=d.get("damage", 1.0),
                  BaseAttackTime=2000, RangeAttackTime=2000, lootid=entry if enemy else 0,
                  mingold=lo * 8 if enemy else 0, maxgold=hi * 20 if enemy else 0, AIName="SmartAI", ScriptName="",
                  detection_range=d.get("detection", 20.0))
         self.row("creature_template_model", CreatureID=entry, Idx=0, CreatureDisplayID=self.look(d.get("look", "warrior"), key),
                  DisplayScale=d.get("scale", 1.0), Probability=1)
-        for i, extra in enumerate(d.get("looks", []), start=1):
+        if len(d.get("looks", [])) > 3:
+            self.err(key, "more than three more looks (the database takes four in all)")
+        for i, extra in enumerate(d.get("looks", [])[:3], start=1):
             self.row("creature_template_model", CreatureID=entry, Idx=i, CreatureDisplayID=self.look(extra, key),
                      DisplayScale=d.get("scale", 1.0), Probability=1)
         # gossip: the greeting, and what it offers
@@ -769,6 +789,8 @@ class Story:
                 data[5] = 1
         elif kind == "chair":
             gtype, data[0], data[1] = 7, 1, 1
+        elif kind == "questgiver":              # (gives or ends quests: giver="object:<key>")
+            gtype = 2
         elif kind == "mailbox":
             gtype = 19
         else:
@@ -1045,8 +1067,9 @@ class Story:
             req_npc.append((e, 1))
             objective_text.append(d.get("interact_goal", ""))
             self.interaction(e, npc_key, qid, text, d.get("interact_beats", []), chapter, where)
-        for item, target, count in d.get("use", []):
-            self.use(qid, item, target, count, req_npc, objective_text, chapter, where)
+        for spec in d.get("use", []):
+            item, target, count = spec[:3]
+            self.use(qid, item, target, count, req_npc, objective_text, chapter, where, spec[3] if len(spec) > 3 else [])
         for spec in d.get("emotes", []):
             self.emote_credit(qid, spec, req_npc, objective_text, chapter, where)
         for ref, count in d.get("objects", []):       # objects of the story's to use (kind "use", quest this one)
@@ -1130,11 +1153,13 @@ class Story:
         self.row("quest_template_addon", ID=qid, PrevQuestID=self.quest(prevs[0], chapter, where) if len(prevs) == 1 else 0,
                  SpecialFlags=special, ProvidedItemCount=1 if d.get("source") else 0, ExclusiveGroup=excl and (K.QUEST_BASE + 100 * int(chapter[2:]) + excl),
                  AllowableClasses=classes)
-        if len(prevs) > 1:
-            for p in prevs:
-                self.condition(19, 0, qid, 8, self.quest(p, chapter, where))
-        for n, p in enumerate(d.get("prev_any", [])):     # (any one of them done: either side of a pair)
-            self.condition(19, 0, qid, 8, self.quest(p, chapter, where), else_group=n)
+        anyof = d.get("prev_any", [])
+        alls = prevs if len(prevs) > 1 or anyof else []
+        for n, p in enumerate(anyof or [None]):           # (each way in: all of prev, and one of prev_any)
+            for a in alls:
+                self.condition(19, 0, qid, 8, self.quest(a, chapter, where), else_group=n)
+            if p is not None:
+                self.condition(19, 0, qid, 8, self.quest(p, chapter, where), else_group=n)
         ends = [self.emote_id(e, where) for e in d.get("reward_emotes", ["talk"])][:4]
         self.row("quest_offer_reward", ID=qid, **{f"Emote{i + 1}": e for i, e in enumerate(ends)},
                  RewardText=d.get("reward", "") if d.get("plain_reward") else self.words(d.get("reward", ""), lang_end))
@@ -1215,7 +1240,7 @@ class Story:
         npc = self.npcs.get(self.qualify(chapter, target), {})
         objective_text.append(f"/{emote} at {npc.get('plural') or npc.get('name', 'them')}")
 
-    def use(self, qid, item, target, count, req_npc, objective_text, chapter, where):
+    def use(self, qid, item, target, count, req_npc, objective_text, chapter, where, beats=()):
         """Using a quest item: on someone (a gossip option while you carry it), or at a place (a thing there
         to use)."""
         iid = self.item(item, chapter, where)
@@ -1229,8 +1254,10 @@ class Story:
                      OptionText=self.words("Give it to them.", self.language(d)), OptionType=1, OptionNpcFlag=1)
             self.condition(15, menu, opt, 9, qid)
             self.condition(15, menu, opt, 2, iid, value2=1)
-            self.smart(e, 0, EV_GOSSIP_SELECT, (menu, opt), [(A_CLOSE_GOSSIP, (), (T_INVOKER,)), (A_REMOVE_ITEM, (iid, 1), (T_INVOKER,)),
-                                                              (A_KILLED_MONSTER, (e,), (T_INVOKER,))])
+            actions = [(A_CLOSE_GOSSIP, (), (T_INVOKER,)), (A_REMOVE_ITEM, (iid, 1), (T_INVOKER,)), (A_KILLED_MONSTER, (e,), (T_INVOKER,))]
+            if beats:                           # (their reaction: their own beats)
+                actions.append((A_ACTIONLIST, (self.actionlist(e, list(beats), chapter, where), 0, 1), (T_SELF,)))
+            self.smart(e, 0, EV_GOSSIP_SELECT, (menu, opt), actions)
             req_npc.append((e, count))
             item_name = self.items.get(self.qualify(chapter, item), {}).get("name") if isinstance(item, str) else None
             objective_text.append(f"{item_name or 'It'} given to {d['plural'] if count > 1 and d.get('plural') else d['name']}")
@@ -1256,10 +1283,6 @@ class Story:
 
     def pois(self, qid, d, req_npc, chapter, where):
         ch = self.chapter_of_key(chapter)
-        zone = ch.get("zones", [0])[0]
-        wma = self.world_map_area(zone)
-        if not wma:
-            return
         marks = []
         for n, ref in enumerate(d.get("poi", [])):
             m, x, y, z = self.point(ref, chapter, where)
@@ -1274,6 +1297,10 @@ class Story:
                         r = max(20, min(120, max(math.hypot(p[0] - x, p[1] - y) for p in pts)))
                         marks.append((n, ch.get("map", K.MAP_KALIMDOR), x, y, r))
         for i, (obj, m, x, y, r) in enumerate(marks):
+            # (the map of the zone the mark is in: Stormwind's for a canal, not Westfall's)
+            wma = self.world_map_area(self.zone_of(m, x, y) or ch.get("zones", [0])[0]) or self.world_map_area(ch.get("zones", [0])[0])
+            if not wma:
+                continue
             self.row("quest_poi", QuestID=qid, id=i, ObjectiveIndex=obj, MapID=m, WorldMapAreaId=wma, Floor=0, Priority=0, Flags=3)
             for j, (px, py) in enumerate(_poly(x, y, r)):
                 self.row("quest_poi_points", QuestID=qid, Idx1=i, Idx2=j, X=px, Y=py)
@@ -1485,8 +1512,10 @@ DELETES = [
     ("creature_addon", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
     ("creature", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
     ("smart_scripts", f"(`source_type` = 0 AND `entryorguid` BETWEEN {K.NPC_BASE} AND {K.NPC_END}) OR (`source_type` = 1 AND `entryorguid` "
-                      f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.GO_END * 100 + 99})"
-                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 1000} AND {K.GO_END * 1000 + 999})"),
+                      f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 1 AND `entryorguid` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END})"
+                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.OLD_GO_END * 100 + 99})"
+                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 1000} AND {K.NPC_END * 1000 + 999})"
+                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.GO_BASE * 1000} AND {K.GO_END * 1000 + 999})"),
     ("creature_template_addon", f"`entry` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("game_graveyard", f"`ID` BETWEEN {K.GRAVEYARD_BASE} AND {K.GRAVEYARD_END}"),
     ("npc_text", f"`ID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
@@ -1496,9 +1525,9 @@ DELETES = [
     ("trainer_spell", f"`TrainerId` BETWEEN {K.TRAINER_BASE} AND {K.TRAINER_BASE + 999}"),
     ("trainer", f"`Id` BETWEEN {K.TRAINER_BASE} AND {K.TRAINER_BASE + 999}"),
     ("creature_default_trainer", f"`CreatureId` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("gameobject_template", f"`entry` BETWEEN {K.GO_BASE} AND {K.GO_END}"),
+    ("gameobject_template", f"`entry` BETWEEN {K.GO_BASE} AND {K.GO_END} OR `entry` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END}"),
     ("gameobject", f"`guid` BETWEEN {K.GO_SPAWN_BASE} AND {K.GO_SPAWN_END}"),
-    ("gameobject_loot_template", f"`Entry` BETWEEN {K.GO_BASE} AND {K.GO_END}"),
+    ("gameobject_loot_template", f"`Entry` BETWEEN {K.GO_BASE} AND {K.GO_END} OR `Entry` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END}"),
     ("creature_loot_template", "`Comment` = 'mod-murloc-naga'"),
     ("item_template", f"`entry` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
     ("item_dbc", f"`ID` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
@@ -1514,7 +1543,7 @@ DELETES = [
     ("quest_poi", f"`QuestID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
     ("quest_poi_points", f"`QuestID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
     ("conditions", "`Comment` = 'mod-murloc-naga'"),
-    ("spell_area", f"`spell` BETWEEN {K.PHASE_SPELL_BASE} AND {K.PHASE_SPELL_BASE + 99} OR (`racemask` = {K.MURLOC_BIT} AND `area` NOT IN (148, 331))"),
+    ("spell_area", f"`spell` BETWEEN {K.PHASE_SPELL_BASE} AND {K.SPELL_BASE - 1} OR (`racemask` = {K.MURLOC_BIT} AND `area` NOT IN (148, 331))"),
 ]
 
 

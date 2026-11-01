@@ -35,11 +35,14 @@ talk {ch1:kezzith}
 reward {ch1:kezzith} {ch1:ch1_count}
 expect rewarded {ch1:ch1_count}
 # The tribe's warrior trainer teaches (the game's warrior trainer's list).
+go 1 {xyz:ch1:t_warrior}
+wait 2
 talk {ch1:brrgmrk}
 select-nth {ch1:brrgmrk} 0
 expect trainer type 0
 # Out through the reef (the breakout done as a GM would, to save the chapter's length), to Blrrgl on the
 # Darkshore shore, and on to the free Greymist's cove (chapter 2): Mother Mrrgula takes it in.
+cmd .levelup 4
 cmd .quest add {ch1:ch1_breakout}
 cmd .quest complete {ch1:ch1_breakout}
 cmd .quest reward {ch1:ch1_breakout}

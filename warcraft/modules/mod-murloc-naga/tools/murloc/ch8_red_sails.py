@@ -58,7 +58,7 @@ PLACES = {
     "mailbox": (-14690.0, 285.5), "graveyard": (-14713.0, 283.0),
     "hut_1": (-14717.0, 323.0), "hut_2": (-14676.0, 296.0), "hut_3": (-14690.0, 325.0), "rack": (-14714.0, 290.5),
     "net_pile": (-14719.5, 309.0), "crates_hub": (-14711.0, 319.0), "barrel_hub": (-14687.5, 321.5),
-    "hatch_eldest": (-14703.0, 295.5), "hatch_r1": (-14704.5, 297.5), "hatch_r2": (-14698.0, 295.5),
+    "hatch_r0": (-14703.0, 295.5), "hatch_r1": (-14704.5, 297.5), "hatch_r2": (-14698.0, 295.5),
     "hatch_s1": (-14704.0, 294.0), "hatch_s2": (-14702.0, 293.5), "hatch_s3": (-14703.5, 292.5),
     "tidepool": (-14703.0, 263.5), "crawler_beach": (-14805.0, 380.0), "elder_away": (-14713.0, 296.5),
     "draw_k": (-14705.5, 302.6), "grrm_help": (-14715.0, 302.5),
@@ -147,8 +147,7 @@ NPCS = [
          idle=[("every", 24000, [("emote", "self", "beg"), ("sound", "self", 895)]),
                ("every", 37000, [("emote", "self", "talk")])]),
 
-    # the hatchlings: the eldest at the basket (8.09's), the three who decide you're their mother, the ones at home
-               ("every", 26000, [("emote", "self", "cheer")])]),
+    # the hatchlings: the three who decide you're their mother (8.09), and the ones at home after (later hubs too)
     dict(key="hatch_a", name="Hatchling", look="murloc_green", scale=0.35, level=3, role="ambient", summoned=True,
          idle=[("every", 9000, [("sound", "self", "baby_murloc"), ("emote", "self", "cheer")])]),
     dict(key="hatch_b", name="Hatchling", look="murloc_pale", scale=0.35, level=3, role="ambient", summoned=True,
@@ -302,7 +301,7 @@ OBJECTS = [
     dict(key="rowboat", model=124, name="Longboat", kind="doodad", scale=1.0),
     dict(key="ogre_fire", model=4611, name="Ogre Cookfire", kind="doodad", at="ogre_fire", scale=0.8),
 
-    # the lookouts over the Bloodsail's ships (8.01): a tally shell scratched at each
+    # the lookouts over the Bloodsail's ships (8.01): each shows a longboat unloading crates
     dict(key="lookout_north", model=627, name="Driftwood Lookout", kind="use", quest="ch8_sails", consumable=False,
          goal="North ship watched", scale=1.3, at="lookout_north", beats=[("object", "rowboat", "lb_north", 40),
                                                ("object", "crates", "cr_north", 40)]),
@@ -317,8 +316,7 @@ OBJECTS = [
          scale=0.8, at=["rum_1", "rum_2", "rum_3", "rum_4", "rum_5", "rum_6", "rum_7", "rum_8"]),
     dict(key="bloodsail_crate", model=275, name="Bloodsail Crate", kind="use", quest="ch8_crates", scale=0.9,
          goal="Crate's marks seen",
-         at=["crate_1", "crate_2", "crate_3", "crate_4", "crate_5", "crate_6", "crate_7", "crate_8"],
-         beats=[("aura", "player", "squinting")]),
+         at=["crate_1", "crate_2", "crate_3", "crate_4", "crate_5", "crate_6", "crate_7", "crate_8"]),
     # the reef's giant clams (8.07)
     dict(key="clam", model="clam", name="Giant Clam", kind="loot", loot=[("black_pearl", 1, 2)], quest="ch8_pearls", scale=1.4,
          at=["clam_1", "clam_2", "clam_3", "clam_4", "clam_5", "clam_6", "clam_7", "clam_8", "clam_9", "clam_10"]),
@@ -513,8 +511,8 @@ SPAWNS = [
     dict(object="ch1:altar", at="altar", phase=HUB),
     dict(object="ch1:smoke_rack", at="rack", phase=HUB, facing=0.8),
     dict(object="ch1:barrel", at="barrel_hub", phase=HUB),
-    # the hatchlings: the eldest at the basket from either way the eggs came home, the others from 8.09
-    dict(npc="hatchling", at=["hatch_eldest", "hatch_r1", "hatch_r2"], phase=HATCHED, wander=2.0),
+    # the hatchlings at home, from 8.09
+    dict(npc="hatchling", at=["hatch_r0", "hatch_r1", "hatch_r2"], phase=HATCHED, wander=2.0),
     # Booty Bay: Fizzbo under the pier; Zalja's boat in port from 8.09; the eggs in the kitchen's basket
     dict(npc="ch0:fizzbo", at="fizzbo_den", facing=1.0),
     dict(object="crates", at="fizzbo_crate", facing=0.4),
@@ -569,7 +567,7 @@ QUESTS = [
     dict(key="ch8_sails", title="Red Sails on the Horizon", giver="ch1:elder", ender="ch1:grrmlgrrl", level=40, xp=8,
          tone="serious", prev="ch8_arrival", objects=[("lookout_north", 1), ("lookout_west", 1), ("lookout_south", 1)],
          goal="Watch the Bloodsail ships off the Wild Shore from the three driftwood lookouts on the islets: north of the "
-              "ships, between the two western ships, and south by the third. Scratch a tally at each.",
+              "ships, between the two western ships, and south by the third.",
          text="Three ships. Red sails. A skull on every sail... I have seen that skull before, on a crate, in a cold "
               "place far to the north. Watch them, little one. From 3 places. Low. Quiet. Count what they carry. "
               "Then tell Grrmlgrrl.",
@@ -583,8 +581,8 @@ QUESTS = [
          complete=[("move", "self", "grrm_lie", "walk"), ("wait", 5500), ("face", "self", "ships_view"),
                    ("state", "self", "sleep"), ("wait", 3500), ("state", "self", "none"), ("emote", "self", "point"),
                    ("sound", "self", "murloc_fidget2"), ("object", "crate_scrap", "krrgl_front", 30),
-                   ("emote", "krrgl", "kneel"), ("sound", "krrgl", 1194), ("wait", 1500), ("emote", "krrgl", "attack"),
-                   ("wait", 900), ("emote", "krrgl", "attack"), ("wait", 1200), ("emote", "krrgl", "yes"), ("wait", 3000),
+                   ("emote", "ch0:krrgl", "kneel"), ("sound", "ch0:krrgl", 1194), ("wait", 1500), ("emote", "ch0:krrgl", "attack"),
+                   ("wait", 900), ("emote", "ch0:krrgl", "attack"), ("wait", 1200), ("emote", "ch0:krrgl", "yes"), ("wait", 3000),
                    ("move", "self", "grrmlgrrl", "walk"), ("wait", 5500), ("face", "self", "hub")],
          poi=["lookout_north", "lookout_west", "lookout_south"]),
 
@@ -622,9 +620,9 @@ QUESTS = [
                  ("wait", 1500), ("emote", "self", "talk")],
          complete=[("object", "crates", "slubb_front", 30), ("emote", "self", "kneel"), ("sound", "self", 1197),
                    ("wait", 1500), ("emote", "self", "wound"), ("sound", "self", "murloc_wound"), ("wait", 1500),
-                   ("emote", "self", "yes"), ("move", "blrrgl", "slubb_front", "run"), ("wait", 4000),
-                   ("emote", "blrrgl", "eat"), ("sound", "blrrgl", 1197), ("wait", 1500), ("visual", "blrrgl", 6431),
-                   ("emote", "self", "exclamation"), ("wait", 6000), ("move", "blrrgl", "blrrgl", "walk")],
+                   ("emote", "self", "yes"), ("move", "ch1:blrrgl", "slubb_front", "run"), ("wait", 4000),
+                   ("emote", "ch1:blrrgl", "eat"), ("sound", "ch1:blrrgl", 1197), ("wait", 1500), ("visual", "ch1:blrrgl", 6431),
+                   ("emote", "self", "exclamation"), ("wait", 6000), ("move", "ch1:blrrgl", "blrrgl", "walk")],
          poi=["rum_east", "rum_4", "rum_7"]),
 
     # 8.19: Mrrk in the pot (early: Mrrk went for crabs and didn't come back)
@@ -671,26 +669,31 @@ QUESTS = [
     # 8.04: the crate marks (the clutch was split)
     dict(key="ch8_crates", title="The Crate Marks", giver="ch0:krrgl", ender="ch1:elder", level=41, xp=8, tone="boring",
          prev="ch8_sails", objects=[("bloodsail_crate", 6)],
-         goal="Pry 6 Painted Crate Slats off the Bloodsail crates on the islets around their ships, and show them to the "
-              "Elder at the wreck.",
+         goal="Look closely at the marks on 6 Bloodsail crates on the islets around their ships, then go back to the "
+              "Elder at the wreck with Krrgl's Scrap of Egg-Jelly.",
          text="Crates. Crates crates crates. Every one has the skull. And under the skull... something else. Little "
-              "marks. My eyes are old, not stupid. Bring 6. Not the crates! Just the painted part.",
-         progress="Slats? Show me the marks.",
+              "marks. Go and look at 6 of them, close. And take this... the scrap of egg-jelly from the cold bay. I kept "
+              "one. Show the Elder both.",
+         progress="The marks? What marks?",
          reward="A coin... and a trident. Coin, trident. Coin, trident. ...Mm. Half here, half there. They split our "
                 "children like a catch, little one. Half for the goblins. Half for the long ones.",
          details=["talk", "question"], reward_emotes=["talk", "bow"],
          accept=[("object", "crate_scrap", "krrgl_front", 30), ("emote", "self", "kneel"), ("sound", "self", 1194),
                  ("wait", 1500), ("emote", "self", "attack"), ("sound", "self", 4614), ("wait", 1200),
-                 ("object", "ch1:sand_egg", "krrgl_anvil", 30), ("emote", "self", "point"), ("wait", 1500),
-                 ("emote", "self", "question"), ("sound", "self", "murloc_fidget2")],
+                 ("face", "self", "player"), ("emote", "self", "talk"), ("give", "ch4:egg_jelly", 1), ("sound", "self", 1197),
+                 ("wait", 1500), ("emote", "self", "point"), ("wait", 1500), ("emote", "self", "question"),
+                 ("sound", "self", "murloc_fidget2")],
          complete=[("move", "self", "elder_draw", "walk"), ("wait", 2500), ("emote", "self", "kneel"),
                    ("object", "coins", "draw_a", 40), ("sound", "self", 120), ("wait", 1500),
                    ("object", "ch1:sand_spear", "draw_b", 40), ("sound", "self", 1194), ("wait", 1500),
-                   ("emote", "self", "kneel"), ("object", "pebbles", "draw_a2", 40), ("wait", 900),
-                   ("object", "pebbles", "draw_b2", 40), ("wait", 1200), ("object", "ch1:sand_egg", "draw_mid", 40),
+                   ("move", "ch0:krrgl", "draw_k", "walk"), ("wait", 2000), ("emote", "ch0:krrgl", "kneel"),
+                   ("object", "pebbles", "draw_a2", 40), ("sound", "ch0:krrgl", 1194), ("wait", 900),
+                   ("emote", "ch0:krrgl", "kneel"), ("object", "pebbles", "draw_b2", 40), ("wait", 1200),
+                   ("take", "ch4:egg_jelly", 1), ("object", "ch1:sand_egg", "draw_mid", 40), ("emote", "ch0:krrgl", "yes"),
                    ("wait", 1500), ("emote", "self", "point"), ("wait", 1200), ("emote", "self", "point"), ("wait", 1500),
                    ("emote", "self", "bow"), ("sound", "self", 5736), ("music", 6074), ("wait", 4000),
-                   ("move", "self", "elder", "walk"), ("wait", 2500), ("face", "self", "hub")],
+                   ("move", "ch0:krrgl", "krrgl", "walk"), ("move", "self", "elder", "walk"), ("wait", 2500),
+                   ("face", "self", "hub"), ("face", "ch0:krrgl", "hub")],
          poi=["crate_1", "crate_4", "crate_6"]),
 
     # 8.11a: the Saltscale Oracle (hero)
@@ -727,8 +730,11 @@ QUESTS = [
          details=["flex", "point"], reward_emotes=["flex", "shy"], choice=["grudge_tooth", "spearhead_pendant"],
          accept=[("emote", "self", "kneel"), ("object", "ch1:sand_mound", "mrrk_draw", 30), ("sound", "self", 1194),
                  ("wait", 1800), ("emote", "self", "attack"), ("sound", "self", 417), ("wait", 700),
-                 ("emote", "self", "attack"), ("sound", "self", 417), ("wait", 1200), ("face", "self", "saltscale_dir"),
-                 ("emote", "self", "point"), ("wait", 1200), ("face", "self", "player"), ("emote", "self", "flex")],
+                 ("emote", "self", "attack"), ("sound", "self", 417), ("wait", 1000), ("face", "ch1:elder", "mrrk_draw"),
+                 ("wait", 1500), ("emote", "ch1:elder", "no"), ("move", "ch1:elder", "elder_away", "walk"),
+                 ("face", "self", "saltscale_dir"), ("emote", "self", "point"), ("wait", 1200), ("face", "self", "player"),
+                 ("emote", "self", "flex"), ("wait", 9000), ("move", "ch1:elder", "elder", "walk"), ("wait", 3500),
+                 ("face", "ch1:elder", "hub")],
          complete=[("emote", "self", "flex"), ("emote", "self", "laugh"), ("sound", "self", "murloc_fidget"),
                    ("wait", 2500), ("face", "self", "elder"), ("emote", "self", "question"), ("wait", 2500),
                    ("emote", "self", "shy"), ("wait", 2000), ("face", "self", "hub")]),
@@ -817,7 +823,7 @@ QUESTS = [
          interact=[("porter", "Nod. Time to go.")], interact_goal="Gizzle rolling his barrel",
          interact_beats=[("emote", "self", "yes"), ("sound", "self", 11800), ("follow", "self"),
                          ("object", "fish_barrel", "barrel_spot", 180), ("wait", 12000), ("sound", "self", 11800),
-                         ("wait", 12000), ("sound", "self", 11800), ("wait", 30000), ("despawn", "self")],
+                         ("wait", 12000), ("sound", "self", 11800), ("wait", 18000), ("despawn", "self")],
          items=[("bb_eggs", 1)],
          goal="Nod to Gizzle the porter at the north end of Booty Bay's lowest pier, walk him and his barrel past the "
               "Bruiser to the pier's south end, and tip the barrel into the bay. Bring the eggs home to Murlorga.",
@@ -954,7 +960,9 @@ QUESTS = [
          progress="Shh! He's listening. Pretend we're talking about fish.",
          reward="Good, good. Into the pot... he'll drink it if I say it's soup. He always drinks it if I say it's soup.",
          details=["talk", "no", "point"], reward_emotes=["yes", "talk"],
-         accept=[("state", "self", "none"), ("face", "self", "elder"), ("wait", 2000), ("emote", "self", "no"),
+         accept=[("state", "self", "none"), ("face", "self", "elder"), ("sound", "ch1:elder", 5736),
+                 ("emote", "ch1:elder", "wound"), ("wait", 1500), ("sound", "ch1:elder", 5736), ("wait", 1200),
+                 ("emote", "ch1:elder", "no"), ("wait", 1500), ("emote", "self", "no"),
                  ("wait", 1500), ("face", "self", "player"), ("emote", "self", "cry"), ("wait", 1500),
                  ("face", "self", "jungle_dir"), ("emote", "self", "point"), ("wait", 2000), ("face", "self", "pot"),
                  ("state", "self", "work")],
@@ -1028,6 +1036,7 @@ QUESTS = [
     # 8.17: Gurubashi stones (a shadow of Hakkar; never followed)
     dict(key="ch8_stones", title="Gurubashi Stones", giver="ch1:glubbub", ender="ch1:glubbub", level=43, xp=8,
          tone="serious", prev="ch8_dive", items=[("tablet", 6)],
+         poi=["tab_2", "tab_5"],
          goal="Bring Oracle Glubbub 6 Carved Gurubashi Tablets from the naga's dig in and around the pool at Nek'mani "
               "Wellspring.",
          text="The long ones dig for stones. Old stones. Carved. Why would the long ones want dry-skin stones? ...Bring "
@@ -1077,9 +1086,9 @@ QUESTS = [
          details=["talk", "point"], reward_emotes=["no", "talk"], choice=["deck_slippers", "deck_boots", "deck_greaves"],
          accept=[("move", "self", "grrm_draw", "walk"), ("wait", 1500), ("emote", "self", "kneel"),
                  ("object", "flag_drawing", "grrm_draw", 30), ("sound", "self", 1194), ("wait", 1500),
-                 ("move", "blrrgl", "grrm_draw2", "walk"), ("wait", 3500), ("emote", "blrrgl", "kneel"),
-                 ("object", "flag_drawing", "grrm_draw2", 30), ("emote", "blrrgl", "laugh"), ("sound", "blrrgl", "murloc_fidget"),
-                 ("wait", 2000), ("emote", "self", "rude"), ("wait", 1500), ("move", "blrrgl", "blrrgl", "walk"),
+                 ("move", "ch1:blrrgl", "grrm_draw2", "walk"), ("wait", 3500), ("emote", "ch1:blrrgl", "kneel"),
+                 ("object", "flag_drawing", "grrm_draw2", 30), ("emote", "ch1:blrrgl", "laugh"), ("sound", "ch1:blrrgl", "murloc_fidget"),
+                 ("wait", 2000), ("emote", "self", "rude"), ("wait", 1500), ("move", "ch1:blrrgl", "blrrgl", "walk"),
                  ("move", "self", "grrmlgrrl", "walk"), ("wait", 1500), ("face", "self", "ships_view"),
                  ("emote", "self", "point")],
          complete=[("emote", "self", "no"), ("sound", "self", "murloc_fidget2"), ("wait", 1500), ("state", "self", "sit"),
@@ -1155,12 +1164,15 @@ QUESTS = [
          accept=[("sound", "self", 5736), ("wait", 1500), ("face", "self", "shellback"), ("emote", "self", "point"),
                  ("sound", "self", "murloc_fidget2"), ("wait", 1800), ("face", "self", "player"), ("emote", "self", "talk"),
                  ("wait", 1500), ("emote", "self", "bow")],
-         complete=[("move", "self", "elder_shore", "walk"), ("wait", 5000), ("state", "self", "kneel"), ("sound", "self", 5736),
-                   ("wait", 2500), ("state", "self", "none"), ("face", "self", "shellback"), ("emote", "self", "attack"),
+         complete=[("move", "ch1:grrmlgrrl", "grrm_help", "walk"), ("move", "self", "elder_shore", "walk"), ("wait", 5000),
+                   ("state", "self", "kneel"), ("sound", "self", 5736), ("wait", 1500), ("face", "ch1:grrmlgrrl", "elder_shore"),
+                   ("emote", "ch1:grrmlgrrl", "kneel"), ("wait", 1500), ("state", "self", "none"),
+                   ("emote", "ch1:grrmlgrrl", "salute"), ("face", "self", "shellback"), ("emote", "self", "attack"),
                    ("sound", "self", 977), ("wait", 1300), ("emote", "self", "attack"), ("sound", "self", 977),
                    ("wait", 1300), ("emote", "self", "attack"), ("sound", "self", 977), ("wait", 1500),
                    ("sound", "self", "splash_big"), ("visual", "player", 51347), ("music", 6837), ("wait", 1200),
                    ("teleport", "player", "ch9:hub", 1.6), ("wait", 3000), ("move", "self", "elder", "walk"),
-                   ("wait", 5000), ("face", "self", "hub")],
+                   ("move", "ch1:grrmlgrrl", "grrmlgrrl", "walk"), ("wait", 5000), ("face", "self", "hub"),
+                   ("face", "ch1:grrmlgrrl", "hub")],
          poi=["turtle_side"]),
 ]
