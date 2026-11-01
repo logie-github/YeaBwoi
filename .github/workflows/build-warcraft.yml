@@ -184,14 +184,15 @@ jobs:
           path: build/azerothcore-dist
           key: ${{ env.COMPILE_KEY }}
 
-      # The void elves' and the nightborne's files from Blizzard's game (mod-allied-races), fetched
-      # once for each list of them.
+      # The void elves' and the nightborne's files from Blizzard's game (mod-allied-races), and the
+      # naga's (mod-murloc-naga: their parts, their emotes' models, their story's models and voices),
+      # fetched once for each list of them.
       - name: The allied races' game files
         if: steps.have.outputs.package != 'true'
         uses: actions/cache@v4
         with:
           path: build/allied-races-cache
-          key: allied-races-files-v1-${{ hashFiles('warcraft/modules/mod-allied-races/data/retail/races.json') }}
+          key: allied-races-files-v1-${{ hashFiles('warcraft/modules/mod-allied-races/data/retail/races.json', 'warcraft/modules/mod-murloc-naga/tools/naga_looks.py', 'warcraft/modules/mod-murloc-naga/tools/naga/*.py') }}
 
       - name: Package the server
         if: steps.have.outputs.package != 'true'

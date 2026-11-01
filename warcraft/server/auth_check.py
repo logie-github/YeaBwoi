@@ -710,8 +710,9 @@ def run_script(session, player_guid, steps):
             session.pump(4.0, packets)
         elif word == "talk":
             guid, yards = creature_guid(int(rest), near=True)
-            # (one walking a path may be beyond talking distance, about 10 yards: it's called over)
-            called = yards > 6
+            # (one walking a path, or standing just beyond talking distance (the server's is about 5 yards), is
+            # called over)
+            called = yards > 4.5
             if called:
                 session.send(CMSG_SET_SELECTION, struct.pack("<Q", guid))
                 session.pump(0.5, packets)

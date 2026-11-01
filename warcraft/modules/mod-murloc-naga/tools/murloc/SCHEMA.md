@@ -59,7 +59,8 @@ NPCS = [
 - `watch=(yards, [beats], cooldown ms)`: a player coming that near (in sight) starts the beats ("player"
   is them): a Lasher's hiss, point and lash; a slave hiding. Default cooldown 15000.
 - `at_health=(30, [beats])`: in a fight, hurt to that share of its health, its beats (a duel's end:
-  `("faction", "self", "tribe")`, `("evade", "self")`, `("state", "self", "kneel")`, `("credit", quest)`).
+  `("faction", "self", "tribe")`, `("evade", "self")`, `("state", "self", "kneel")`). A `("credit", quest)` here gives
+  nothing: the core's health event has no player to credit (a kill or an emote objective instead).
 - `plural`: how an emote objective names them ("pen slaves": "/wave at pen slaves 0/5").
 - `at`: a place, a point, or a list of them (one creature at each).
 - `language`: `nerglish` (the default for murlocs: translated), or `common`, `orcish`, `darnassian`,
@@ -124,7 +125,9 @@ Objectives (up to four kinds, four entries each):
   [("overseer", 40), (3711, 25)]}` (chance %, on the quest only), or loot objects (OBJECTS).
 - `explore="<place>"` (with `radius`, default 15 yards): reach the place.
 - `interact=[("<npc key>", "What you do, in English: a gossip line shown as Nerglish")]`: talk to them.
-- `use=[("<item key>", "<npc key>" | "<place>", count)]`: use a quest item on a creature or at a place.
+- `use=[("<item key>", "<npc key>" | "<place>", count)]`: use a quest item on a creature or at a place. At a place
+  it's a small thing there to click (the item's name) while carrying the item on the quest: the item is spent, the
+  credit given, and a fourth element `[beats]` plays (the object's own scene).
 - `escort=("<npc key>", ["p1", "p2", ...])`: they follow you; reach the last place with them.
 - `objects=[("<object key>", count)]`: use the story's objects (kind `use`, `quest` this quest; `goal` on
   the object is the log's line for it: "Slave Cage opened 0/4").
@@ -159,7 +162,7 @@ A beat is a tuple. `who` is `"self"` (the giver or ender), an NPC key (the neare
 | `("state", who, "dance" \| "sit" \| "kneel" \| "sleep" \| "work" \| "none")` | keeps doing it |
 | `("sound", who, <SoundEntries id or name>)` | plays a sound there |
 | `("music", <SoundEntries id or name>)` | plays music to the player |
-| `("visual", who, <SpellVisual or spell id or name>)` | a spell's look, nothing else |
+| `("visual", who, <SpellVisual or spell id or name>)` | a spell's look, nothing else, on `who` (the player casts it on themselves; another person on themselves, their own scene still running) |
 | `("cast", who, <spell id or name>, target)` | casts it (target "player", "self" or an NPC key) |
 | `("move", who, "<place>", "walk" \| "run")` | goes there |
 | `("face", who, "player" \| "<place>")` | turns |
@@ -249,3 +252,95 @@ the player into (`TOWNS = ["Astranaar"]`), so the compiler can check standing qu
 
 Keys are `chN_<word>` for quests, plain words for the rest; unique within the chapter (the compiler
 prefixes them with the chapter). Refer to another chapter's thing as `"ch2:<key>"`.
+
+## More (written for the naga's story, open to both)
+
+The compiler compiles a race's story from its profile (`tools/murloc/profiles.py`: its race, phases, ids,
+tables and words); the naga's notes are `tools/naga/SCHEMA.md`. These work in either story; the ones a mistake
+is easy in are checked as the story compiles (an error stops the build) or by `compile.lint` (a warning).
+
+People:
+
+```python
+dict(key="vashj", name="Lady Vashj", look="vashj", size=1.4, untouchable=True, ...),   # a head taller than a naga
+dict(key="kiljaeden", name="Kil'jaeden", look="kiljaeden", size=6.0, sky=40, at="sky_spot", ...),
+dict(key="garithos", name="Grand Marshal Garithos", language="common", untouchable=True, at="garithos",
+     display_extra=dict(race="human", sex="male", skin=1, face=1, hair=1, hair_color=1, facial=0,
+                        gear={"head": "item:12640", "chest": "item:12618", "tabard": "item:15196"})),
+dict(key="cannon", name="Coral Cannon", look=..., level=18, turret=True, abilities=[(9053, 3000)], summoned=True),
+```
+
+- `untouchable=True`: never attacked or killed, by players or creatures (a canon figure: bible 18.3); still
+  clicked for its quests. An enemy can't be untouchable (an error).
+- `size=1.4`: how big, whatever the look's own scale (Lady Vashj's look is 3.5 times a naga already: `size`
+  takes it out); `scale=` stays the multiplier on top of the look's own. Not both (an error); 0.05 to 20.
+- `sky=40`: its spawns stand that many yards above the ground (or the water there), floating (no gravity).
+- `equip=(main hand, off hand, ranged)`: what they hold, the game's item ids (0 for none): a trident, a bow.
+- `speed=1.5`: how fast they walk and run, against the ordinary (an old matron 0.7, a scout 1.4).
+- A beat handed to someone else reaches the nearest of them within 80 yards, measured in three dimensions (one on a
+  cliff far below is out of reach: nothing happens).
+- `display_extra=dict(...)`: a new look of a playable race's person (race: human, orc, dwarf, nightelf, undead,
+  tauren, gnome, troll, bloodelf, draenei; sex: male, female; skin, face, hair, hair_color, facial: the game's
+  character choices, checked against its CharSections; gear: head, shoulder, shirt, chest, waist, legs, feet,
+  wrist, hands, tabard, back, each an ItemDisplayInfo id or "item:<entry>" for an item's look; flags, bake: the
+  game's own fields, rarely needed). Not with `look=`. Only a story with its own look range has it (the naga's).
+  Not seen in the game yet: the client may want a baked texture for such a look (`bake=`).
+- `turret=True`: rooted where it stands, it shoots what comes near with its `abilities` (a ranged spell: an
+  error without them); on the Horde's side by default (`ally`, the naga's) or `tribe`.
+
+Beats:
+
+| Beat | What happens |
+| --- | --- |
+| `("morph", who, "<look>")` / `("morph", who, None)` | another look until they respawn / their own again (bible 1.12: the Highborne become naga) |
+| `("scale", who, 1.4)` | bigger or smaller until they respawn (0.05 to 20) |
+| `("sound", who, "LadyVashjReady1")` | a sound by name: common.py's, the profile's (Vashj's Serpentshrine lines: `vashj_intro`...) or a fetched one's (`tools/naga/sounds.py`) |
+| `("sky", "<npc>", "<place>", 60, 30)` | the NPC appears 60 yards above the place (ground or water) for 30 seconds, floating (Kil'jaeden in a storm) |
+| `("relive", "<memory>")` / `("wake", "<memory>")` | the player into a memory / out of it (the naga's: `tools/naga/SCHEMA.md`) |
+
+Objectives:
+
+```python
+quiz=[dict(npc="isshara", ask="Ask me.", question="What did the water show you?", goal="Isshara's question answered",
+           answers=[("The Empress, saving us.", False, [("say", "self", "No. Listen again.")]),
+                    ("Fire, and the Well, and the sea coming in.", True, [("emote", "self", "omnicast")]),
+                    ("Nothing.", False, [])])],
+```
+- `quiz`: while the quest is in the log, unfinished, the NPC's gossip offers `ask`; it opens `question` with the
+  answers (2 to 8, one right: an error otherwise); the right one is the objective's credit (and its beats, the
+  NPC's own), a wrong one its beats and the question again. Several entries, several objectives.
+
+```python
+tug=dict(cart="cart", path=["road_1", "road_2", "mid", "road_3", "gate"], midpoint="mid",
+         enemies=[("raider", "ambush_1"), ("raider", "ambush_2")], back="road_1",
+         taken=[("say", "self", "...")], retaken=[("emote", "self", "talk")], radius=40, seconds=600),
+```
+- `tug`: the tug escort (bible 7.09, 7.14). Taking the quest calls the cart (an NPC, `summoned=True`; one quest a
+  cart) at the path's first place; it walks the path (`run=True`: runs); at the midpoint the enemies appear at
+  their places and it rolls back toward `back` (default the start), its `taken` beats; once every one of them is
+  dead it turns (`retaken`) and goes on; at the last place everyone of the race within `radius` with the quest has
+  its objective (an event quest: the goal says what). If the player isn't near then, they take the quest again.
+
+```python
+turrets=[dict(npc="cannon", at=["plot_1", "plot_2", "plot_3"], seconds=90, goal="Coral cannon planted", model="crate")],
+```
+- `turrets`: a plot (an object, `model`, `name`) at each place, used while the quest is in the log: each use is
+  the objective's credit (`count`, default the plots') and puts the turret (an NPC with `turret=True`: an error
+  otherwise) there for `seconds`.
+
+Items:
+
+```python
+dict(key="jar", name="Heavy Water Jar", icon="letter", carry="heavy"),   # AURAS: dict(key="heavy", kind="slow", ...)
+```
+- `carry="<aura>"`: while it's in the bags the aura is on the player (the module, every second): a heavy jar
+  that slows (bible 7.20a, 9.17). The aura goes when the item does.
+
+Auras: kind `screen` (`screen=<ScreenEffect.dbc id>`): the screen looks otherwise while it's on (21, "Arthas
+Memory Events", the game's flashback look; 201, a dark transition; 41, a mist), checked against the game's table.
+
+Emotes and poses for the naga's models (bible 4.2): `talk`, `roar`, `battle_roar`, `spell`, `omnicast`, `work`,
+attacks, `wound`, `throw`, `drown`, `stun`, `ready1h`, `ready_bow`; poses (`state`) `channel` (singing, praying,
+remembering), `channel_directed`, `drowned` (lying still), `swim_idle`, `ready_thrown` (a trident shouldered),
+`ready_bow`, `work`, `talk`, `roar`, `stun`, `dead`. `compile.lint` warns of any other on a naga's model: it stands
+still for it.

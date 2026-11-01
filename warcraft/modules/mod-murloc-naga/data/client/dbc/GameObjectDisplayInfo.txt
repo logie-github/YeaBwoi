@@ -63,3 +63,26 @@ put	9846	World\\Expansion02\\Doodads\\Dalaran\\Dalaran_PetCage_01.mdx	0	0	0	0	0	
 put	9847	World\\AZEROTH\\WESTFALL\\PASSIVEDOODADS\\LAMPPOST\\WestfallLampPost01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9848	World\\wmo\\Dungeon\\MD_Shipwreck\\Shipwreck_A.wmo	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9849	World\\Generic\\Orc\\Passive Doodads\\Utensils\\LadleWood.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10400	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Jars\\NA_Jar01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10401	World\\GENERIC\\ACTIVEDOODADS\\Clam\\GiantClamCLOSED.M2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10402	World\\GENERIC\\ACTIVEDOODADS\\Clam\\GiantClamActive.m2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10403	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Banner\\NA_Banner01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10404	World\\KALIMDOR\\BLACKFATHOM\\PASSIVEDOODADS\\Braziers\\BFD_NagaBrazier.m2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10405	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\TORCH\\NA_Torch01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10406	World\\EXPANSION01\\DOODADS\\COILFANG\\PASSIVEDOODADS\\cages\\cf_groundcage.m2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10407	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Crates\\NA_Crate01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10408	World\\Kalimdor\\Azshara\\PassiveDoodads\\Coral\\CoralTree01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10409	World\\Expansion02\\Doodads\\Generic\\Oracle\\O_Egg_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10410	World\\Expansion02\\Doodads\\Generic\\Oracle\\O_Egg_03.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10411	World\\Kalimdor\\Azshara\\PassiveDoodads\\Coral\\Coral01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10412	World\\Kalimdor\\Azshara\\PassiveDoodads\\Seaweed\\SeaWeed01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10413	World\\Generic\\Underwater\\PassiveDoodads\\Seaweed\\GenericSeaweed01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10414	World\\Kalimdor\\Azshara\\PassiveDoodads\\Coral\\CoralTree02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10415	World\\Expansion02\\Doodads\\Generic\\SeaVrykul\\Shore\\VRS_Netpile_01.M2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10416	World\\Kalimdor\\Azshara\\PassiveDoodads\\SeaShells\\AzsharaShell03.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10417	World\\Kalimdor\\Azshara\\PassiveDoodads\\SeaShells\\AzsharaShell01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10418	World\\Expansion01\\Doodads\\Generic\\Ogre\\Chains\\OM_Chains_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10419	World\\GENERIC\\NIGHTELF\\PASSIVE DOODADS\\FOUNTAINS\\ElvenFountain.m2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10420	World\\Generic\\PassiveDoodads\\Weapons\\Naga_Trident.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10421	World\\GENERIC\\NIGHTELF\\PASSIVE DOODADS\\Banners\\NightElfOwlBanner01.m2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10422	World\\GENERIC\\NIGHTELF\\PASSIVE DOODADS\\Lanterns\\NightElfLantern02.m2	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0

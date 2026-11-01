@@ -93,6 +93,8 @@ EMOTES = {
     "shout": 22, "flex": 23, "shy": 24, "point": 25, "wound": 33, "attack": 36, "attack2h": 37,
     "parry": 39, "spell": 51, "battle_roar": 53, "kick": 60, "throw": 61, "salute": 66, "yes": 273,
     "no": 274, "train": 275, "laugh_nosheathe": 153, "eat_nosheathe": 92, "point_nosheathe": 29,
+    # (what the naga's models play besides talk, roar, battle roar, casts and work: bible 4.2)
+    "omnicast": 463, "drown": 387, "stun": 462, "ready1h": 45, "ready_bow": 48,
 }
 # The player's own emotes (EmotesText.dbc), for objectives: /wave at someone (a quest's `emotes`).
 TEXT_EMOTES = {
@@ -108,6 +110,9 @@ STATES = {
     "none": 0, "dance": 10, "sleep": 12, "sit": 13, "stun": 64, "dead": 65, "kneel": 68,
     "use": 69, "work": 173, "ready": 27, "mine": 233, "chop": 234, "fish": 379, "cower": 431,
     "read": 69, "eat": 418, "talk": 378, "laugh": 392,     # (no reading pose in 3.3.5: a standing use)
+    # (a naga's: singing, praying and remembering a channel; lying still the drowned; a trident shouldered)
+    "channel": 468, "channel_directed": 469, "drowned": 383, "swim_idle": 437, "ready_thrown": 465, "ready_bow": 376,
+    "ready_spell": 474, "roar": 391,
 }
 
 # Sounds (SoundEntries ids) by name (more, with every id: the research's effects.md; any id works).

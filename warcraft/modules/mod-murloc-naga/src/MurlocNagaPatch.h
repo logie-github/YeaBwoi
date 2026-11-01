@@ -42,6 +42,12 @@ namespace MurlocNaga
     // triangles a section of each of its uses' geosets, with its texture (the hair's, or its own).
     // False (and [why]) when the parts or the model aren't what this knows, or don't fit it.
     bool MergeParts(Bytes& m2, Bytes& skin, Bytes const& parts, std::string& why);
+    // The naga's emotes (tools/naga_emotes.py's Naga<Sex>Emotes.dat: today's naga's skeleton and each
+    // bone's own keys in each new sequence) added to a naga model ([m2]) as sequences of its own (those
+    // it hasn't): where each of its bones goes in the world found from the emote bone at its place (the
+    // rest held as it stands), its own keys worked out against its own parents. [added]: how many
+    // sequences. False (and [why]) when the emotes or the model aren't what this knows.
+    bool MergeEmotes(Bytes& m2, Bytes const& emotes, std::string& why, size_t* added = nullptr);
     // The narration: the game's sounds ([parts]: when, the sound's WAV), mixed into one WAV, 22050
     // Hz, mono, 16 bits.
     Bytes MixNarration(std::vector<std::pair<uint32_t, Bytes>> const& parts);
