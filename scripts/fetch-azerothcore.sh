@@ -69,6 +69,31 @@ echo "$MODULES" | while read -r name repo commit; do
 				git -C "$dir" apply "$@"
 			}
 	fi
+	# AzerothCore's loader calls Add<folder>Scripts() (the folder's name, - and . as _). The module
+	# browser installs a module under its repository's name, which can be longer than the folder the
+	# module expects (buildthehomelab's wow-mod-legacy defines Addmod_legacyScripts, for mod-legacy):
+	# the entry point is then missing and the world server doesn't link. When the module defines none
+	# for its folder but one for a name its folder's name ends with, that entry point is added.
+	want=$(echo "$name" | tr -- '-.' '__')
+	defined=$(grep -rhoE --include='*.cpp' --include='*.h' \
+		'^[[:space:]]*void[[:space:]]+Add[A-Za-z0-9_]+Scripts[[:space:]]*\([[:space:]]*(void)?[[:space:]]*\)[[:space:]]*(\{.*)?$' "$dir" 2> /dev/null |
+		sed -E 's/^[[:space:]]*void[[:space:]]+Add([A-Za-z0-9_]+)Scripts.*/\1/' | sort -u || true)
+	if [ -n "$defined" ] && ! echo "$defined" | grep -qx "$want"; then
+		own=$(echo "$defined" | while read -r fn; do
+			case "$want" in *_"$fn") echo "$fn" ;; esac
+		done | awk '{ print length, $0 }' | sort -rn | head -n 1 | cut -d' ' -f2-)
+		if [ -n "$own" ]; then
+			to="$dir/src"
+			[ -d "$to" ] || to="$dir"
+			cat > "$to/wow_entry_point.cpp" <<EOF
+// Added by the app's build (scripts/fetch-azerothcore.sh): AzerothCore calls the entry point for the
+// folder this module is installed in ($name); the module's own is Add${own}Scripts.
+void Add${own}Scripts();
+void Add${want}Scripts() { Add${own}Scripts(); }
+EOF
+			echo "$name: entry point Add${want}Scripts added, calling the module's Add${own}Scripts"
+		fi
+	fi
 done
 # The app's own modules, kept in this repository (warcraft/modules/), copied in as they are.
 for dir in "$ROOT"/warcraft/modules/*/; do
