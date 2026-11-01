@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Something in the Well: five quests from Maudie Fenwick, Brill's laundress, whose well water has turned foul
+"""Something in the Water: five quests from Maudie Fenwick, Brill's laundress, whose cistern water has turned foul
 even by Forsaken standards. Junior Apothecary Holland finds a parasite in the samples; its runoff leads west to
 the dry drainage channel under the covered bridge on the Deathknell road, where a broodmother has nested; a
 split Royal Apothecary Society cask in the nest (a failed growth tincture, "disposed of by dilution") fed it.
-Brill had no well: this line places one in the square (everyone's), drawn from once it's cleansed; Maudie's
+Brill has no well: the town draws from a cistern by the town hall, a great barrel fed from the roofs (a model
+the zone uses itself: Innbarrel), everyone's, drawn from once it's cleansed; Maudie's
 washing comes back beside it (the "restored" phase). Acknowledges the apprentice's line where it fits."""
 
 # Brill's square (open ground, the game's terrain heights), by the hanging lanterns.
@@ -13,29 +14,29 @@ MAUDIE_AT = [0, 2292.6, 314.6, 35.5, 3.93]
 UNDER_BRIDGE = 24.8
 
 LINE = {
-    "title": "Something in the Well",
+    "title": "Something in the Water",
     "quests": [
         {
             "id": "water", "title": "Water Unfit for the Dead", "giver": "maudie", "ender": "maudie",
-            "log": "Draw a sample from Brill's well and three from the stream north-east of town, at Maudie Fenwick's old buckets, then return to Maudie in Brill.",
+            "log": "Draw a sample from Brill's cistern and three from the stream north-east of town, at Maudie Fenwick's old buckets, then return to Maudie in Brill.",
             "offer": (
-                "You'll want to stand back from that well, dear. Further. Further than that.$B$B"
+                "You'll want to stand back from that cistern, dear. Further. Further than that.$B$B"
                 "Maudie Fenwick. I do the washing for the inn: sheets, tabards, whatever the Deathguard bleed on, and the "
                 "bedding of every orc and troll who stops in Brill on the way to somewhere better. The living sweat, you know. "
                 "Terribly. Somebody has to wash it out.$B$B"
                 "For a fortnight the water's come up stinking. Not the honest stink of a town full of corpses; I'm used to "
                 "that, I am that. This is sour and green, and it clings to the cloth. Renee's had complaints.$B$B"
-                "Fill these jars for me. One from the well, and three from the stream north-east of town, where I drew water "
-                "before the well was dug. My old buckets are still on the bank. If the stream's gone bad as well, then it isn't "
-                "just my well, is it?"),
+                "Fill these jars for me. One from the cistern, and three from the stream north-east of town, where I drew water "
+                "before the cistern was built. My old buckets are still on the bank. If the stream's gone bad as well, then it isn't "
+                "just my cistern, is it?"),
             "progress": "Four jars. And don't drink from any of them, whatever you are.",
             "done": (
                 "Look at that. Look at it moving.$B$B"
                 "I've washed blood, bile and the inside of a ghoul's mouth out of good linen and never once felt queasy. But "
                 "that... that turns what's left of my stomach.$B$B"
-                "It's in the stream too. So it isn't my well. It's under all of us."),
+                "It's in the stream too. So it isn't my cistern. It's under all of us."),
             "objectives": [("credit", "sample_credit", 4, "Water samples drawn")],
-            "return": "Return to Maudie Fenwick at the well in Brill.",
+            "return": "Return to Maudie Fenwick by the cistern in Brill.",
             "money": 1500, "xp": 3,
         },
         {
@@ -104,15 +105,15 @@ LINE = {
         },
         {
             "id": "clear", "title": "Clear Waters, Dark Memories", "giver": 10665, "ender": "maudie", "prev": "nest",
-            "log": "Search the broodmother's nest under the covered bridge, cleanse Brill's well with Holland's quicklime, then speak with Maudie Fenwick in Brill.",
+            "log": "Search the broodmother's nest under the covered bridge, cleanse Brill's cistern with Holland's quicklime, then speak with Maudie Fenwick in Brill.",
             "offer": (
                 "A broodmother that size doesn't grow on runoff alone, not in a few years. Something fed it. Something rich.$B$B"
                 "Go back to the nest and search it, properly, now that nothing in it is trying to eat you. If anything was dumped "
                 "there, a cask, a crate, anything with a label, I want to know what was in it.$B$B"
                 "And take this.$B$B"
                 "(He hands you a heavy sack of gray powder.)$B$B"
-                "Quicklime and bitterroot ash. Tip it down Brill's well; it'll kill whatever larvae are left and won't harm anyone "
-                "who's already dead. The living may want to boil their water for a week. Then tell Maudie she can have her well "
+                "Quicklime and bitterroot ash. Tip it into Brill's cistern; it'll kill whatever larvae are left and won't harm anyone "
+                "who's already dead. The living may want to boil their water for a week. Then tell Maudie she can have her cistern "
                 "back."),
             "progress": "Is it done? Can I fill my tubs?",
             "done": (
@@ -123,8 +124,8 @@ LINE = {
                 "Well. I won't say anything. Who would I say it to? But I'll be washing the Society's robes in this water from now "
                 "on, and I'll know. Every time."),
             "objectives": [("credit", "cask_credit", 1, "The nest searched"),
-                           ("credit", "cleanse_credit", 1, "Brill's well cleansed")],
-            "return": "Return to Maudie Fenwick at the well in Brill.",
+                           ("credit", "cleanse_credit", 1, "Brill's cistern cleansed")],
+            "return": "Return to Maudie Fenwick by the cistern in Brill.",
             "money": 5000, "xp": 5, "items": [(2459, 1), (858, 2)],
         },
     ],
@@ -147,64 +148,38 @@ LINE = {
         {"id": "culvert_credit", "name": "The culvert under the bridge found"},
         {"id": "sac_credit", "name": "Egg sacs burst"},
         {"id": "cask_credit", "name": "The nest searched"},
-        {"id": "cleanse_credit", "name": "Brill's well cleansed"},
+        {"id": "cleanse_credit", "name": "Brill's cistern cleansed"},
     ],
     "objects": [
         # Brill's well, in the square (everyone's): fouled, then sampled, cleansed, and drawn from.
-        {"id": "well", "name": "Brill Well", "display": 8503, "spawns": [WELL_AT],
-         "use": [{"cond": ["I:water"], "quest": "water", "credit": "sample_credit",
-                  "text": "(You lower the bucket and draw it back up. The water is cloudy and faintly green, and pale threads drift "
-                          "in it, turning slowly, as if they were looking for a way out of the jar.)"},
-                 {"cond": ["I:clear"], "quest": "clear", "credit": "cleanse_credit",
-                  "text": "(You tip Holland's powder into the well. It hisses as it strikes the water, and a gray steam rises, smelling "
-                          "of lime and burnt root. When it clears, the water far below is dark and still, and nothing in it moves.)"},
-                 {"cond": ["R:clear"],
-                  "text": "(You draw up a bucket. The water is cold and clear, and tastes of stone and very faintly of lime. Somewhere "
-                          "behind you, Maudie hums as she wrings out a sheet.)"},
-                 {"text": "(The water far below is cloudy and smells sour and green, even by Brill's standards. Best not.)"}]},
+        {"id": "well", "name": "Brill Cistern", "display": 6036, "scale": 1.4, "spawns": [WELL_AT],
+         "use": [{"cond": ["I:water"], "quest": "water", "credit": "sample_credit"},
+                 {"cond": ["I:clear"], "quest": "clear", "credit": "cleanse_credit"}]},
         # Maudie's old buckets on the stream bank north-east of town (the shore, above the water's 21.2).
         {"id": "bucket", "name": "Maudie's Old Bucket", "display": 239,
          "spawns": [[0, 2386.0, 95.0, 21.6, 1.0], [0, 2418.0, 103.0, 21.5, 2.0], [0, 2436.0, 106.0, 21.9, 4.0]],
-         "use": [{"cond": ["I:water"], "quest": "water", "credit": "sample_credit",
-                  "text": "(Maudie's old bucket sits on the bank, half sunk in the reeds. You fill a jar from the stream. The water here "
-                          "is clearer, but held up to the light the same pale threads are in it: fewer, drifting.)"},
-                 {"text": "(An old wooden bucket, half sunk in the reeds.)"}]},
+         "use": [{"cond": ["I:water"], "quest": "water", "credit": "sample_credit"}]},
         # The runoff, west of town down to the channel.
         {"id": "bloom", "name": "Gray Bloom", "display": 389,
          "spawns": [[0, 2262.0, 420.0, 35.0, 0.0], [0, 2255.0, 480.0, 33.9, 1.5], [0, 2250.0, 560.0, 33.6, 3.0]],
-         "use": [{"cond": ["I:source"], "quest": "source", "credit": "bloom_credit",
-                  "text": "(A crust of pale gray fungus spreads where the water seeps out of the hillside. Beneath it the soil is slick and "
-                          "squirming with the same pale threads, thicker here, all of them leaning west, downhill.)"},
-                 {"cond": ["R:nest"], "text": "(Gray fungus, withered and dry now. Nothing moves in it.)"},
-                 {"text": "(A crust of pale gray fungus. It glistens.)"}]},
+         "use": [{"cond": ["I:source"], "quest": "source", "credit": "bloom_credit"}]},
         {"id": "culvert", "name": "Collapsed Culvert", "display": 134, "scale": 0.6,
          "spawns": [[0, 2228.0, 640.0, 24.75, 1.6]],
-         "use": [{"cond": ["I:source"], "quest": "source", "credit": "culvert_credit",
-                  "text": "(Under the covered bridge, the dry channel narrows to a stone culvert half choked with rubble. A grate once "
-                          "closed it; it hangs from one hinge now. The air from the dark beneath the bridge is warm and wet and smells "
-                          "of eggs. Something moves in there, heavily, then is still.)"},
-                 {"text": "(A stone culvert, half choked with rubble, beneath the covered bridge.)"}]},
+         "use": [{"cond": ["I:source"], "quest": "source", "credit": "culvert_credit"}]},
         # The nest: the sacs, and what fed it.
         {"id": "sac", "name": "Broodmother Egg Sac", "display": 364,
          "spawns": [[0, 2208.0, 630.0, 24.75, 0.0], [0, 2216.0, 641.0, 24.75, 1.0], [0, 2203.0, 641.0, 24.8, 2.0],
                     [0, 2219.0, 631.0, 24.75, 3.0], [0, 2210.0, 638.0, 24.75, 4.0]],
-         "use": [{"cond": ["I:nest"], "quest": "nest", "credit": "sac_credit",
-                  "text": "(You split the sac open. Pale threads spill across the stones and writhe in the air, then go still.)"},
-                 {"text": "(A slick, pale sac, burst and empty.)"}]},
+         "use": [{"cond": ["I:nest"], "quest": "nest", "credit": "sac_credit"}]},
         {"id": "cask", "name": "Split Cask", "display": 9,
          "spawns": [[0, 2210.0, 644.0, 24.75, 0.7]],
-         "use": [{"cond": ["I:clear"], "quest": "clear", "credit": "cask_credit",
-                  "text": "(Half buried in the muck of the nest lies a split cask, its staves black with slime. The brand on the lid is "
-                          "the Royal Apothecary Society's. Beneath it is a stenciled label, mostly legible:$B$B'GROWTH TINCTURE, "
-                          "BATCH 9. FOR FUNGAL CULTURE. FAILED: DO NOT USE. DISPOSE OF BY DILUTION.'$B$BSomeone diluted it, all "
-                          "right. They rolled it into the drainage channel and let the rain do the rest.)"},
-                 {"text": "(A split cask with the Royal Apothecary Society's brand.)"}]},
-        # The well's back in use (this player's Brill): Maudie's washing beside it.
+         "use": [{"cond": ["I:clear"], "quest": "clear", "credit": "cask_credit"}]},
+        # The cistern's back in use (this player's Brill): Maudie's washing beside it.
         {"id": "washtub", "name": "Maudie's Washtubs", "display": 7485, "phase": "restored",
          "spawns": [[0, 2294.2, 312.2, 35.5, 2.0]]},
         {"id": "wash_bucket", "name": "Bucket of Clean Water", "display": 7484, "phase": "restored",
          "spawns": [[0, 2291.8, 309.6, 35.3, 0.5]]},
-        {"id": "basket", "name": "Laundry Basket", "display": 468, "phase": "restored",
+        {"id": "basket", "name": "Laundry Basket", "display": 7494, "phase": "restored",
          "spawns": [[0, 2295.0, 315.6, 35.8, 4.0]]},
     ],
     "gossip": [
@@ -240,14 +215,14 @@ LINE = {
          "text": "I asked about batch nine in the Undercity. Nobody remembered it. Everybody remembered to tell me not to ask again. Crane "
                  "says that's how the Society says thank you."},
         {"npc": 10665, "kind": "greet", "cond": ["R:clear"],
-         "texts": ["The samples from the well are clean. I've kept one of the old ones in a sealed jar on my shelf. For science. And to "
+         "texts": ["The samples from the cistern are clean. I've kept one of the old ones in a sealed jar on my shelf. For science. And to "
                    "remind me to look at the water now and then.",
                    "Maudie says the robes come back whiter now. I've told her robes aren't meant to be white. She ignored me."]},
         {"npc": 10665, "kind": "greet", "cond": ["A:nest"],
          "text": "Under the covered bridge, west on the Deathknell road. Burst the sacs. All of them, if you can."},
         # Carolai Anise on it (her menu is src/BrillHome.cpp's).
         {"npc": 2132, "kind": "option", "cond": ["R:clear"], "text": "(Ask her about Maudie's well.)", "action": "say",
-         "reply": "Maudie's well is clean again. I've started washing my glassware in it. I can tell the difference. I'm not sure I like that I can tell."},
+         "reply": "Maudie's cistern is clean again. I've started washing my glassware in it. I can tell the difference. I'm not sure I like that I can tell."},
     ],
     "phases": {
         "restored": [["R:clear"]],

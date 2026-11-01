@@ -1766,11 +1766,12 @@ user chose ChromieCraft only. Jamie Nore may have more quests later.
 1. **The house, Cedric's and Jamie's quests, the bed, the furniture**: built (`mod-brill-home`);
    CI's realm test plays it through (`server/brill_home.steps`). Not seen on a phone: the house as a
    gameobject, the sleeping pose on the bed, the furniture's turns.
-2. **The dog, Corn**: built. The game's own pug (Perky Pug's model and display) zombified in the user's
-   texture (`branding/corn-forsaken-pug.png`; "Use this texture on the pug dog you get from the quest in
-   brill. Name the dog Corn", "my pug is supposed to be zombified"): the module's patch-<locale>-V puts the
-   user's coat where the pug's own coat is, no table or model changed (a display of his own, 39700, showed
-   as the game's cube on the phone, as the mastiff had). There on the first waking; his quest (fetch, a
+2. **The dog, Corn**: built. The user's Forsaken pug (the game's current pug model, its skin and the user's
+   coat for it; "Use this texture on the pug dog you get from the quest in brill. Name the dog Corn", "my
+   pug is supposed to be zombified", "Use the structure from pug from wago tools"): `tools/corn_model.py`
+   converts the model to 3.3.5a's format, and the module's patch-<locale>-V puts it, its skin and the coat at
+   the game's pug's paths (display 31174), no table changed (a display of his own, 39700, showed as the
+   game's cube on the phone, as the mastiff had; the coat alone on 3.3.5a's older pug was mapped wrong). There on the first waking; his quest (fetch, a
    scratch behind the ears); a hunter's pet for any class (`OnPlayerIsClass`), with the pet spells under
    General. Not seen on a phone yet: the coat on him.
 3. **Pets for every class**: built. Call, Dismiss, Revive, Feed and Mend Pet come with the dog; any

@@ -154,7 +154,7 @@ LINE = {
         {
             "id": "q4", "title": "The Weight of Faith", "giver": "corven_site", "ender": "corven_site", "prev": "q3",
             "min_level": 8,
-            "log": "Visit the three places Corven Dusk has chalked in Brill, keep the darkhounds off him at the wayside shrine on the "
+            "log": "Visit the three places Corven Dusk has marked with a candle in Brill, keep the darkhounds off him at the wayside shrine on the "
                    "west road, recover the Agamand family's relic from their house at Agamand Mills, then answer Corven's question "
                    "at the meeting house.",
             "offer": (
@@ -163,7 +163,7 @@ LINE = {
                 "we endure what should have ended us. Power, because no one will ever again decide for us what we are. I believe "
                 "all of it. I think I do. But I walk through Brill and I see people who are only angry, and I wonder whether the "
                 "teachings are a door, or just a nicer name for the wall.$B$B"
-                "Mirelle says I should walk, and think, and take someone who argues back. I've chalked a sign at three places in "
+                "Mirelle says I should walk, and think, and take someone who argues back. I've left a candle burning at three places in "
                 "town that I think belong to the teachings. Stand at each. Then the old wayside shrine on the west road: it was "
                 "the Light's once, and the darkhounds den near it now. I'd like to pray there anyway, if you'll keep them off me. "
                 "And the Agamands left something upstairs in their house at the mills. I'd like to see what they thought was "
@@ -308,57 +308,30 @@ LINE = {
         {"id": "names", "name": "Scratched Names", "display": 5992, "scale": 3.0, "from": 1, "until": 6,
          "spawns": [F(-6.4, 2.0, 34.8)],
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "inspect_credit",
-                  "text": "(Names. The whole wall is names, cut into the plaster at every height a hand could reach: with knives, "
-                          "with nails, with a spoon handle that's still stuck in the lath. Some are neat. Some are only initials. "
-                          "Low down, where a child would sit, someone has scratched a little house with smoke coming out of the "
-                          "chimney, and under it: WE ARE STILL HERE.)"},
-                 {"cond": ["M:added"], "text": "(The wall of names. Below the last of them, newer and very carefully cut: WILLEM VALE. "
-                                               "HE KEPT THE DOOR.)"},
-                 {"text": "(The wall of names, cut into the plaster by the people who sheltered here. Nobody has added to it, and "
-                          "nobody has taken anything away.)"}]},
+                  "text": "(Names, cut into the plaster at every height a hand could reach. Low down, where a child would sit, a little house with smoke coming out of the chimney, and under it: WE ARE STILL HERE.)"}]},
         {"id": "debris", "name": "Collapsed Debris", "display": 134, "scale": 1.3, "from": 1, "until": 6,
          "spawns": [F(-5.6, 5.8, 33.89, 30), F(5.9, 5.6, 34.36, 200), F(-5.8, -1.8, 34.04, 90), F(6.1, -2.6, 33.93, 310),
                     F(1.2, 6.2, 34.26, 150), F(-1.0, -6.8, 34.77, 240)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "debris_credit",
-                  "text": "(You haul the broken plaster and charred laths aside and heap them against the wall for Rudd Carver's "
-                          "cart. Underneath, the floorboards are scorched in a neat ring, as if someone kept a small fire here for "
-                          "a long time, very carefully.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "debris_credit"}]},
         {"id": "altar", "name": "Damaged Altar", "display": 227, "scale": 0.8, "from": 1, "until": 6,
          "spawns": [F(-4.0, -6.6, 34.78, 90)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "examine_credit",
-                  "text": "(A plain parish altar, its cloth long gone. The Light's sunburst has been chiselled off the front, not "
-                          "by vandals: the chisel marks are careful, almost apologetic. In the dust on top, someone has set out "
-                          "a row of buttons, one for each name on a list that isn't here any more.)"},
-                 {"text": "(The old altar, its sunburst chiselled away. Mirelle wants it kept: \"Not for what it said. For what "
-                          "they did to it, and how carefully.\")"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "examine_credit"}]},
         {"id": "beams", "name": "Fallen Roof Beams", "display": 1109, "from": 1, "until": 6,
          "spawns": [F(-3.8, 3.8, 33.89, 20)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "examine_credit",
-                  "text": "(The roof came down in one piece and burned where it lay. Most of the beams are charcoal, but three "
-                          "are sound oak under the black. Someone has carved a tally into the biggest: four rows of five, and a "
-                          "sixth row that stops at two.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "examine_credit"}]},
         {"id": "prayerbooks", "name": "Old Prayer Books", "display": 107, "from": 1, "until": 6,
          "spawns": [F(6.2, 1.2, 33.9, 80)],
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "examine_credit",
-                  "text": "(Hymnals and a psalter, swollen into a single block by the damp. You prise one open. In the margins, "
-                          "in pencil, in a dozen different hands: lists of names, the price of bread, a recipe for willow-bark "
-                          "tea, and, again and again, the same line: Light keep the door.)"}]},
+                  "text": "(In the margins, in a dozen hands: names, the price of bread, a recipe for willow-bark tea, and again and again: Light keep the door.)"}]},
         # From the first quest done: the builders' things, the sign; Halden's doors.
-        {"id": "sign", "name": "Under Construction", "display": 7416, "from": 2, "until": 6, "spawns": [C(23.0, 5.8, 35.38)]},
         {"id": "doors", "name": "Splintered Doors", "display": 13, "from": 2, "until": 6, "spawns": [F(4.8, 8.9, 36.65)],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "doors_credit",
-                  "text": "(You lever the doors off their last hinge, plane down the split edge, and hang them again on the new iron "
-                          "Halden left in a bucket. They swing shut with a soft, solid sound. Somewhere behind you Halden says, "
-                          "\"There. That's a building.\")"},
-                 {"cond": ["R:q2"], "text": "(The meeting house's old doors, mended and rehung. They shut properly now. Halden "
-                                           "checks them every evening.)"},
-                 {"text": "(The meeting house's doors, hanging by one hinge. Halden calls it spite.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "doors_credit"}]},
         {"id": "lumber", "name": "Builder's Lumber", "display": 1109, "from": 2, "until": 6,
          "spawns": [C(24.0, 7.5, 35.42, 90), C(17.0, -9.5, 34.93, 180)]},
-        {"id": "toolbox", "name": "Builder's Tools", "display": 317, "from": 2, "until": 6, "spawns": [C(19.0, -6.0, 35.25, -10)]},
+        {"id": "toolbox", "name": "Builder's Tools", "display": 239, "from": 2, "until": 6, "spawns": [C(19.0, -6.0, 35.25, -10)]},
         {"id": "barrow", "name": "Wheelbarrow", "display": 215, "from": 2, "until": 6, "spawns": [C(25.0, -3.0, 36.56, -50)]},
         # From the second: the walls patched, the roof going on.
-        {"id": "planks", "name": "Scaffold Planks", "display": 4651, "from": 3, "until": 6,
+        {"id": "planks", "name": "Scaffold Planks", "display": 1108, "from": 3, "until": 6,
          "spawns": [C(9.0, 8.9, 33.93, -90), C(9.0, -9.2, 33.89, -90)]},
         {"id": "stacked_stone", "name": "Stacked Stone", "display": 134, "scale": 1.6, "from": 3, "until": 6,
          "spawns": [C(16.0, 11.0, 33.95), C(3.0, -10.5, 34.26, 70)]},
@@ -367,36 +340,22 @@ LINE = {
         {"id": "lantern", "name": "Halden's Lantern", "display": 6038, "from": 3, "until": 6, "when": "night",
          "spawns": [C(19.6, -2.0, 35.22)]},
         # The Book of Names: its lectern, inside the front door.
-        {"id": "lectern", "name": "Reading Lectern", "display": 3371, "from": 3, "until": 6, "spawns": [F(3.6, 6.4, 34.42, 180)],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "register_credit",
-                  "text": "(You lay the register open on the lectern and fit the recovered pages back where they were torn: the "
-                          "Garrens on the fourth, the Agamand mill families on the seventh, the Sollidens near the end. Mirelle "
-                          "stitches them in with black thread while you hold the spine. The book closes flat for the first time "
-                          "in years.)"},
-                 {"text": "(The Book of Names, open on the lectern. Somebody turns a page every morning.)"}]},
+        {"id": "lectern", "name": "Reading Lectern", "display": 7348, "from": 3, "until": 6, "spawns": [F(3.6, 6.4, 34.42, 180)],
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "register_credit"}]},
         # From the third: benches, candles and a memorial stone in the cleared house.
         {"id": "benches", "name": "Bench", "display": 682, "from": 4, "until": 6,
          "spawns": [F(-3.3, 0.6, 33.93, -90), F(3.3, 0.6, 33.89, -90), F(-3.3, -2.6, 34.14, -90), F(3.3, -2.6, 33.98, -90)]},
         {"id": "hall_memorial", "name": "Memorial Stone", "display": 3171, "scale": 0.9, "from": 4, "until": 6,
-         "spawns": [F(3.8, -7.0, 34.65, 90)],
-         "use": [{"cond": ["M:added"],
-                  "text": "(A memorial stone set against the back wall, until there's a proper wall to put names on. It reads: "
-                          "THEY SHELTERED HERE. Below it, the first name Halden cut: WILLEM VALE, WHO KEPT THE DOOR.)"},
-                 {"text": "(A memorial stone set against the back wall, until there's a proper wall to put names on. It reads "
-                          "only: THEY SHELTERED HERE. The names stay on the plaster, where the people who carried them left them.)"}]},
+         "spawns": [F(3.8, -7.0, 34.65, 90)]},
         {"id": "hall_candles", "name": "Memorial Candle", "display": 4152, "scale": 1.5, "from": 4, "until": 6,
          "spawns": [F(2.4, -6.4, 34.59), F(-4.6, -6.6, 35.72), F(-3.4, -6.6, 35.72)]},
         # From the fourth: Corven lights the door's candles at dusk.
         {"id": "door_candles", "name": "Candelabra", "display": 240, "from": 5, "until": 6, "when": "evening",
          "spawns": [C(18.6, 0.6, 34.86), C(18.6, -3.8, 35.07)]},
         # The Bell for the Forgotten: the bell waiting by its hoist.
-        {"id": "site_bell", "name": "Chapel Bell", "display": 5871, "scale": 2.5, "from": 5, "until": 6,
+        {"id": "site_bell", "name": "Chapel Bell", "display": 4571, "scale": 2.5, "from": 5, "until": 6,
          "spawns": [C(26.5, 6.5, 35.2)],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "hung_credit",
-                  "text": "(Rudd's laborers rig the hoist, Halden checks every knot twice, and on his word you haul. The bell "
-                          "rises off the cart, swings once and settles into the new frame over the door. Halden lays a hand flat "
-                          "on its side as if he were feeling for a heartbeat.)"},
-                 {"text": "(The old chapel bell, mended, waiting for its frame. Nobody has rung it.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "hung_credit"}]},
         {"id": "hoist", "name": "Bell Hoist", "display": 1109, "from": 5, "until": 6, "spawns": [C(27.5, 8.5, 35.99, 90)]},
         # ---- Out in Tirisfal ----
         # Stone, Timber, and Shadow: Cold Hearth Manor's fallen garden wall and sheds.
@@ -404,80 +363,43 @@ LINE = {
          "spawns": [W(2140.0, 648.0, 33.92, 20), W(2138.0, 662.0, 34.04, 80), W(2144.0, 672.0, 34.7, 140),
                     W(2150.0, 680.0, 34.8, 200), W(2170.0, 678.0, 33.36, 260), W(2178.0, 670.0, 33.39, 320),
                     W(2182.0, 650.0, 33.61, 10), W(2146.0, 640.0, 34.18, 100)],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "stone_credit",
-                  "text": "(Dressed granite from the Brisboises' old garden wall, square and heavy and only a little chipped. You "
-                          "lever it onto a sledge for the builder's cart.)"},
-                 {"text": "(A block from Cold Hearth Manor's fallen garden wall.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "stone_credit"}]},
         {"id": "timber", "name": "Sound Timber", "display": 1248,
          "spawns": [W(2131.0, 683.0, 37.45, 30), W(2127.0, 690.0, 37.98, 110), W(2136.0, 691.0, 37.43, 200),
                     W(2152.0, 650.0, 33.97, 300), W(2175.0, 663.0, 33.68, 60), W(2165.0, 640.0, 35.21, 150)],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "timber_credit",
-                  "text": "(A length of seasoned oak from the collapsed shed, grey on the outside and honey-coloured where you cut "
-                          "it. Halden will be pleased. He'll say he isn't.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "timber_credit"}]},
         # The Book of Names: the three torn pages, carried home.
         {"id": "page", "name": "Torn Register Page", "display": 164,
          "spawns": [W(2910.03, 380.97, 31.55, 40), W(2822.0, 813.5, 113.61, 120), W(2263.52, 1313.27, 34.05, 260)],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "page_credit",
-                  "text": "(A page torn from a register, folded small and kept: tucked behind a loose brick, wrapped in a "
-                          "handkerchief, slipped inside a family book. Names and dates in the meeting house's careful hand. Beside "
-                          "one name, in another hand, much later: we got home.)"},
-                 {"text": "(A torn page from an old register, kept by someone who meant to keep it.)"}]},
+                  "text": "(Names and dates in the meeting house's hand. Beside one name, in another hand, much later: we got home.)"}]},
         # The grave the register's last entry names (in Brill's cemetery, for those who've read the book).
         {"id": "grave", "name": "Grave of Willem Vale", "display": 2453, "from": 3, "spawns": [W(2366.0, 385.0, 36.75, 140)],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "grave_credit",
-                  "text": "(A small stone, weathered nearly smooth: WILLEM VALE, FERRYMAN. Someone has kept the grass short around "
-                          "it with scissors. A sprig of something white, long dried, is tucked under the edge of the stone, and "
-                          "under that, a Light's sunburst on a thread.)"},
-                 {"text": "(WILLEM VALE, FERRYMAN. The grass around it is cut short. Elsbeth's sunburst is still under the "
-                          "stone.)"}]},
-        # The Weight of Faith: Corven's chalk, the shrine, the Agamands' relic (upstairs in their house at the mills).
-        {"id": "sigil_respect", "name": "Corven's Chalk Sigil", "display": 456, "scale": 0.5, "from": 4, "until": 6,
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "grave_credit"}]},
+        # The Weight of Faith: Corven's candles, the shrine, the Agamands' relic (upstairs in their house at the mills).
+        {"id": "sigil_respect", "name": "Corven's Candle", "display": 4152, "from": 4, "until": 6,
          "spawns": [W(2384.0, 347.0, 38.11)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "sigil_credit",
-                  "text": "(A circle in chalk before the old mausoleum, and in Corven's small, tidy hand: RESPECT. Underneath, "
-                          "smaller: For them? Or for us? He has crossed out the question mark and written it in again.)"},
-                 {"text": "(Corven's chalk, half rained away: RESPECT.)"}]},
-        {"id": "sigil_tenacity", "name": "Corven's Chalk Sigil", "display": 456, "scale": 0.5, "from": 4, "until": 6,
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "sigil_credit"}]},
+        {"id": "sigil_tenacity", "name": "Corven's Candle", "display": 4152, "from": 4, "until": 6,
          "spawns": [W(2293.0, 407.0, 33.9)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "sigil_credit",
-                  "text": "(A chalk circle on the north road, where the Deathguard stand every night whether anything comes or "
-                          "not. TENACITY, in Corven's hand. Below it: Or habit. Is there a difference, if you choose the habit?)"},
-                 {"text": "(Corven's chalk on the north road: TENACITY.)"}]},
-        {"id": "sigil_power", "name": "Corven's Chalk Sigil", "display": 456, "scale": 0.5, "from": 4, "until": 6,
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "sigil_credit"}]},
+        {"id": "sigil_power", "name": "Corven's Candle", "display": 4152, "from": 4, "until": 6,
          "spawns": [W(2283.0, 298.5, 35.18)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "sigil_credit",
-                  "text": "(A chalk circle by the Executor's post, under the Dark Lady's banner. POWER. And then, smaller, a list "
-                          "that has been rubbed out and written again: To protect. To choose. To never be used again. To...)"},
-                 {"text": "(Corven's chalk by the Executor's post: POWER.)"}]},
-        {"id": "shrine", "name": "Wayside Shrine", "display": 1527, "from": 4, "until": 6, "spawns": [W(2158.0, 362.0, 44.62, 20)],
-         "use": [{"text": "(A roadside shrine of the Light: a little stone priest with his face worn away, his hands still raised. "
-                          "Somebody has left a candle stub at his feet. It's new.)"}]},
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "sigil_credit"}]},
+        {"id": "shrine", "name": "Wayside Shrine", "display": 1527, "from": 4, "until": 6, "spawns": [W(2158.0, 362.0, 44.62, 20)]},
         {"id": "relic", "name": "Agamand Nursery Chest", "display": 8, "spawns": [W(2751.5, 793.5, 119.22, 60)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "relic_credit",
-                  "text": "(In the nursery chest, wrapped in a christening gown: a household sunburst of gilt brass, the kind "
-                          "every Lordaeron family hung over the door. On the back, scratched with a pin: the names of four "
-                          "children, and the year.)"}]},
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "relic_credit"}]},
         # The Bell for the Forgotten: the bell under the hay in Garren's barn, the clapper in his kitchen chimney.
-        {"id": "hidden_bell", "name": "Bell Under the Hay", "display": 5871, "scale": 2.5, "spawns": [W(2840.8, 413.4, 20.05, 30)],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "bell_credit",
-                  "text": "(Under a rotten mound of hay, a parish bell lies on its side, green with age, a crack running up from "
-                          "the lip like a frown. Halden's knot is still round the crown. You and a borrowed cart from Rudd's yard "
-                          "get it out between the gnolls' patrols.)"},
-                 {"text": "(A hollow in the old hay where something heavy lay for a long time.)"}]},
+        {"id": "hidden_bell", "name": "Bell Under the Hay", "display": 4571, "scale": 2.5, "spawns": [W(2840.8, 413.4, 20.05, 30)],
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "bell_credit"}]},
         {"id": "clapper", "name": "Bell Clapper", "display": 908, "scale": 1.5, "spawns": [W(2910.37, 376.9, 31.75, 110)],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "bell_credit",
-                  "text": "(Up the kitchen chimney, wedged on the smoke shelf and black with ten years of soot: an iron clapper "
-                          "as long as your arm, wrapped in a sack with a note in Halden's hand: NOT AT THREE IN THE MORNING.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "bell_credit"}]},
         # Names to Remember: the lost grave records (the graveyard on the north road, Cold Hearth's family plot, Garren's,
         # the mills).
-        {"id": "record", "name": "Lost Grave Record", "display": 202,
+        {"id": "record", "name": "Lost Grave Record", "display": 220,
          "spawns": [W(2333.0, 521.5, 28.77, 90), W(2150.0, 668.0, 33.84, 30), W(2921.0, 371.0, 31.35, 200),
                     W(2812.0, 820.0, 112.84, 300)],
-         "use": [{"cond": ["I:names"], "quest": "names", "credit": "record_credit",
-                  "text": "(A sexton's board, nailed to an old marker and weathered silver: a name, a date and a line for each "
-                          "burial when the parish book ran out. You copy it carefully and leave the board where its people can "
-                          "find it.)"},
-                 {"text": "(A sexton's board, its names already copied for the chapel.)"}]},
+         "use": [{"cond": ["I:names"], "quest": "names", "credit": "record_credit"}]},
         # ---- The chapel, open (stage 6 on) ----
         {"id": "chapel", "name": "Forgotten Shadow Chapel", "display": 7449, "type": 33, "from": 6,
          "spawns": [C(0.0, 0.0, CHAPEL_Z)]},
@@ -491,44 +413,18 @@ LINE = {
         {"id": "pews", "name": "Pew", "display": 673, "from": 6,
          "spawns": [C(2.0, 4.3, FLOOR), C(2.0, -4.3, FLOOR), C(5.5, 4.3, FLOOR), C(5.5, -4.3, FLOOR),
                     C(9.0, 4.3, FLOOR), C(9.0, -4.3, FLOOR)]},
-        {"id": "book_lectern", "name": "The Book of Names", "display": 3371, "from": 6, "spawns": [C(-1.0, 3.5, FLOOR, 180)],
-         "use": [{"text": "(The Book of Names on its lectern, open at the page where Willem Vale kept the door. The names Halden "
-                          "has added since are in a different ink at the back, under a heading in Mirelle's hand: REMEMBERED "
-                          "AFTER.)"}]},
-        {"id": "memorial", "name": "Memorial Wall", "display": 6645, "scale": 0.8, "from": 6, "spawns": [C(12.5, 7.6, FLOOR, -90)],
-         "use": [{"cond": ["M:added"],
-                  "text": "(The meeting house's plaster, every scratched name of it, cut out in panels and set into the chapel's "
-                          "north wall behind glass. Beneath it, in new stone: WILLEM VALE, WHO KEPT THE DOOR. And below that, "
-                          "the names Halden adds each week from the sextons' boards, a little further down the wall each time.)"},
-                 {"text": "(The meeting house's plaster, every scratched name of it, cut out in panels and set into the chapel's "
-                          "north wall behind glass, exactly as the sheltered left it. Willem Vale is not among them; he's in the "
-                          "Book of Names on the lectern. Below the glass, the names Halden adds each week from the sextons' "
-                          "boards.)"}]},
+        {"id": "book_lectern", "name": "The Book of Names", "display": 7348, "from": 6, "spawns": [C(-1.0, 3.5, FLOOR, 180)]},
+        {"id": "memorial", "name": "Memorial Wall", "display": 6645, "scale": 0.8, "from": 6, "spawns": [C(12.5, 7.6, FLOOR, -90)]},
         {"id": "shelf", "name": "Chapel Bookshelf", "display": 189, "from": 6, "spawns": [C(12.0, -7.6, FLOOR)]},
         {"id": "book_table", "name": "Reading Table", "display": 581, "from": 6, "spawns": [C(8.5, -7.2, FLOOR)]},
         # The shelf of readable books on the Forsaken's faith.
         {"id": "book_shadow", "name": "On the Forgotten Shadow", "display": 184, "from": 6,
-         "spawns": [C(8.2, -7.0, FLOOR + 1.12, 20)],
-         "use": [{"text": "(ON THE FORGOTTEN SHADOW, a tract printed in the Undercity.$B$B\"We were given a faith once, and it "
-                          "did not save us. We were given a master after, and he did not deserve us. What the Forgotten Shadow "
-                          "asks is not belief but ownership: of your mind, which is yours again; of your dead, whom no one else "
-                          "will honour; of your strength, which no one will ever again spend for you.$B$BRespect. Tenacity. "
-                          "Power. Not commandments. Descriptions of what it takes to stay yourself.\")"}]},
+         "spawns": [C(8.2, -7.0, FLOOR + 1.12, 20)]},
         {"id": "book_sermons", "name": "Sermons for the Risen", "display": 254, "from": 6,
-         "spawns": [C(8.8, -7.4, FLOOR + 1.12, 70)],
-         "use": [{"text": "(SERMONS FOR THE RISEN, collected by the Dark Clerics of the Undercity. A page is marked with a "
-                          "ribbon:$B$B\"You will be told the Light abandoned you. Perhaps it did. Perhaps you abandoned it. It "
-                          "does not matter now. What matters is that no one comes to save the dead, and so the dead must learn "
-                          "to save each other.\"$B$BIn the margin, in Mirelle's hand: Too neat. True, but too neat.)"}]},
+         "spawns": [C(8.8, -7.4, FLOOR + 1.12, 70)]},
         {"id": "book_reflections", "name": "A Book of Reflections", "display": 1128, "from": 6,
-         "spawns": [C(8.5, -6.8, FLOOR + 1.12, 150)],
-         "use": [{"text": "(A BOOK OF REFLECTIONS, blank but for what visitors have written. \"I don't believe any of it. I come "
-                          "for the quiet.\" \"Light forgive me, I still pray to you. Halden says that's allowed here.\" \"My "
-                          "daughter's name was Rose. I wanted someone to read it.\" And at the bottom of the newest page, in a "
-                          "careful, nervous hand: \"Does power mean anything without a reason to use it? - C.D.\")"}]},
-        {"id": "bell_rope", "name": "Bell Rope", "display": 7717, "scale": 0.06, "from": 6, "spawns": [C(21.0, 1.5, FLOOR + 0.6)],
-         "use": [{"text": "(You pull. High in the tower the old parish bell answers, one long note that rolls out over the "
-                          "cemetery and the town. In the nave, a few heads lift, and then bow again.)"}]},
+         "spawns": [C(8.5, -6.8, FLOOR + 1.12, 150)]},
+        {"id": "bell_rope", "name": "Bell Rope", "display": 7548, "scale": 0.06, "from": 6, "spawns": [C(21.0, 1.5, FLOOR + 0.6)]},
         {"id": "brazier", "name": "Lordaeron Brazier", "display": 754, "from": 6,
          "spawns": [C(33.0, 3.5, 37.07), C(33.0, -3.5, 37.51)]},
         # (Corven lights the porch's candles at dusk.)
@@ -538,13 +434,9 @@ LINE = {
         {"id": "house_table", "name": "Devotional Table", "display": 581, "scale": 0.6, "from": 7,
          "spawns": [["house", -4.75, 1.55, 0, 0]]},
         {"id": "house_candle", "name": "Memorial Candle", "display": 4152, "scale": 1.3, "from": 7,
-         "spawns": [["house", -4.9, 1.35, 0.68, 0]],
-         "use": [{"text": "(A memorial candle from the Forgotten Shadow Chapel, black wax in an iron cup. Halden says you light it "
-                          "for whoever you like, and you don't have to tell anybody who.)"}]},
+         "spawns": [["house", -4.9, 1.35, 0.68, 0]]},
         {"id": "house_book", "name": "Book of Reflections", "display": 254, "scale": 0.6, "from": 7,
-         "spawns": [["house", -4.6, 1.75, 0.68, 0]],
-         "use": [{"text": "(A small book of reflections, bound by the chapel. The first page has a line in Mirelle's hand: \"For "
-                          "the quiet hours. Write what you like; nobody is grading.\" The rest of the pages are yours.)"}]},
+         "spawns": [["house", -4.6, 1.75, 0.68, 0]]},
         {"id": "house_hanging", "name": "Shadow Hanging", "display": 7979, "scale": 0.4, "from": 7,
          "spawns": [["house", -4.97, 1.55, 1.6, 0]]},
     ],

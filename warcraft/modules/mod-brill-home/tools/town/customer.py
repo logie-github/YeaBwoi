@@ -183,93 +183,56 @@ LINE = {
         # Business as Usual: the dust, and the ledger under the counter.
         {"id": "rug", "name": "Moth-Eaten Rug", "display": 159, "spawns": [[0, 2342.1, 279.4, 34.43, 2.7]],
          "use": [
-             {"cond": ["I:business"], "quest": "business", "credit": "dust_credit",
-              "text": "(You lift the rug and shake it. A great grey cloud comes off it, and a moth the size of a thumb, "
-                      "which looks at you with what you'd swear is resentment and flies off toward the town hall.)"},
-             {"text": "(A rug of good Lordaeron wool, eaten to lace at the edges. Someone has written WIPE YOUR FEET "
-                      "on a card beside it, in a careful old hand.)"},
+             {"cond": ["I:business"], "quest": "business", "credit": "dust_credit"},
          ]},
         {"id": "crate", "name": "Dust-Choked Crate", "display": 113, "spawns": [[0, 2345.8, 280.9, 34.61, 1.2]],
          "use": [
-             {"cond": ["I:business"], "quest": "business", "credit": "dust_credit",
-              "text": "(You clear the dust and cobwebs from the crate. Inside, packed in straw: tallow candles, every one "
-                      "of them stamped WICKE, every one of them eleven years old and perfectly fine. Wax keeps.)"},
-             {"text": "(Candles packed in straw, stamped WICKE. Wax keeps. So, apparently, does Ambrose.)"},
+             {"cond": ["I:business"], "quest": "business", "credit": "dust_credit"},
          ]},
         {"id": "shelf", "name": "Cobwebbed Shelf", "display": 187, "spawns": [[0, 2347.9, 279.5, 34.91, 2.7]],
          "use": [
-             {"cond": ["I:business"], "quest": "business", "credit": "dust_credit",
-              "text": "(You brush down the shelf. Under the cobwebs: a row of little brass bells, a box of hairpins, "
-                      "three pocket watches that all stopped at different hours, and a jar of buttons nobody came back for.)"},
-             {"text": "(Bells, hairpins, stopped pocket watches, buttons. A shopkeeper's shelf, kept as if the customers "
-                      "were only late.)"},
+             {"cond": ["I:business"], "quest": "business", "credit": "dust_credit"},
          ]},
         {"id": "ledger", "name": "Green-Bound Ledger", "display": 164, "spawns": [[0, 2343.1, 277.2, 34.57, 2.7]],
          "use": [
-             {"cond": ["I:business"], "quest": "business", "credit": "ledger_credit",
-              "text": "(Under the counter, wedged behind a box of tapers, a ledger bound in green cloth gone grey. Its "
-                      "pages are columns of names, wares and pennies in a neat, cramped hand. The last page has a ribbon "
-                      "in it.)"},
-             {"text": "(Ambrose's order ledger. The last entry is underlined twice, and beside it someone has added, much "
-                      "later and in the same hand: SETTLED.)", "cond": ["R:closing"]},
-             {"text": "(Ambrose's order ledger, open at a page with a ribbon in it.)"},
+             {"cond": ["I:business"], "quest": "business", "credit": "ledger_credit"},
          ]},
         # An Outstanding Order: the order itself, wrapped and waiting.
         {"id": "parcel", "name": "Paper-Wrapped Parcel", "display": 4191, "spawns": [[0, 2345.6, 275.1, 34.92, 2.7]],
          "use": [
-             {"cond": ["I:outstanding"], "quest": "outstanding", "credit": "parcel_credit",
-              "text": "(Brown paper, gone soft as cloth, and string tied in a shopkeeper's knot. Through a tear: two "
-                      "silvered candlesticks with a vine climbing each one. Engraved round the base: TOBIAS AND MARIAN. "
-                      "HARVEST, THE TWELFTH. The date is eleven years gone.)"},
-             {"cond": ["M:lit"], "text": "(The paper's gone. The candlesticks are in the window now, lit, their names "
-                                         "turned out toward the road.)"},
-             {"cond": ["M:sold"], "text": "(The parcel's been rewrapped in fresh paper, and a new label says: FOR A "
-                                          "WEDDING. ANY WEDDING. ASK.)"},
-             {"text": "(A parcel in old brown paper. A label in a careful hand: T. BALNIR. PAID. TO BE COLLECTED.)"},
+             {"cond": ["I:outstanding"], "quest": "outstanding", "credit": "parcel_credit"},
          ]},
         # No Forwarding Address: the Balnir Farmstead (map tile 0002832's terrain).
         {"id": "notice", "name": "Weathered Notice", "display": 2491, "spawns": [[0, 1998.0, -455.0, 34.53, 1.6]],
          "use": [
              {"cond": ["I:address"], "quest": "address", "credit": "clue_credit",
-              "text": "(A notice nailed to the old wagon, the ink run but legible: BY ORDER OF THE CROWN OF LORDAERON. "
-                      "THIS HOLDING IS UNDER QUARANTINE. NO PERSON SHALL ENTER OR LEAVE. GRAIN FROM THIS HOLDING IS TO "
-                      "BE BURNED. Below, in pencil, someone has written: we did burn it. it didn't help.)"},
-             {"text": "(A quarantine notice from the Crown of Lordaeron, years too late to matter.)"},
+              "text": "(BY ORDER OF THE CROWN OF LORDAERON. THIS HOLDING IS UNDER QUARANTINE. NO PERSON SHALL ENTER OR LEAVE. GRAIN FROM THIS HOLDING IS TO BE BURNED.$B$BBelow, in pencil: we did burn it. it didn't help.)"},
          ]},
         {"id": "bible", "name": "Scorched Family Book", "display": 470, "spawns": [[0, 1948.0, -442.0, 35.45, 0.3]],
          "use": [
              {"cond": ["I:address"], "quest": "address", "credit": "clue_credit",
-              "text": "(A family book, its cover burnt through at one corner. Inside, the Balnirs: Osric and Ada, and "
-                      "their children Tobias and Agnes. Below Tobias someone has written 'to wed Marian Hale', and the "
-                      "date has been scratched out and written again three times. Then the deaths, all one autumn, in "
-                      "Osric's shaking hand: Marian. Tobias. Ada. The last line is in another hand: Osric. Agnes's "
-                      "name alone is not crossed out. Beside it: in service, Silverpine.)"},
-             {"text": "(The Balnirs' family book. Every name in it is crossed out but one.)"},
+              "text": "(The Balnirs: Osric and Ada; Tobias, to wed Marian Hale, the date scratched out and written again three times; Agnes.$B$BThen, in Osric's shaking hand, all one autumn: Marian. Tobias. Ada. In another hand: Osric.$B$BBeside Agnes: in service, Silverpine.)"},
          ]},
         {"id": "stone", "name": "Balnir Family Stone", "display": 2452, "spawns": [[0, 2041.0, -517.0, 43.66, 4.7]],
          "use": [
-             {"cond": ["I:address"], "quest": "address", "credit": "clue_credit",
-              "text": "(The family plot, up the slope behind the barn where the kitchen window could see it. The stone "
-                      "reads: TOBIAS BALNIR, AND MARIAN, WHO WOULD HAVE BEEN BALNIR. The grave beside it is open, and the "
-                      "earth is thrown outward. Whatever left it, nobody dug it up.)"},
-             {"text": "(Tobias Balnir, and Marian, who would have been Balnir. The grave beside the stone is still open.)"},
+             {"cond": ["I:address"], "quest": "address", "credit": "clue_credit"},
          ]},
         # Closing the Ledger: the stall open, its goods out (the phase "open").
-        {"id": "candles", "name": "Wicke's Candles", "display": 7710, "phase": "open",
+        {"id": "candles", "name": "Wicke's Candles", "display": 100, "phase": "open",
          "spawns": [[0, 2341.6, 276.5, 34.45, 2.7]]},
-        {"id": "candles2", "name": "Wicke's Candles", "display": 7711, "phase": "open",
+        {"id": "candles2", "name": "Wicke's Candles", "display": 6363, "phase": "open",
          "spawns": [[0, 2341.2, 276.1, 34.46, 2.2]]},
-        {"id": "skull_candle", "name": "Skull Candle", "display": 6406, "phase": "open",
+        {"id": "skull_candle", "name": "Black Candle", "display": 4152, "phase": "open",
          "spawns": [[0, 2344.2, 281.0, 34.51, 2.7]]},
-        {"id": "basket", "name": "Basket of Sundries", "display": 5993, "phase": "open",
+        {"id": "basket", "name": "Basket of Sundries", "display": 7494, "phase": "open",
          "spawns": [[0, 2343.5, 281.8, 34.44, 1.9]]},
-        {"id": "big_basket", "name": "Basket of Ribbons", "display": 8966, "phase": "open",
+        {"id": "big_basket", "name": "Basket of Ribbons", "display": 8965, "phase": "open",
          "spawns": [[0, 2344.5, 282.2, 34.47, 3.0]]},
         {"id": "urn", "name": "Urn, Slightly Used", "display": 52, "phase": "open",
          "spawns": [[0, 2340.5, 276.4, 34.47, 2.7]]},
         {"id": "wedding_basket", "name": "Wedding Basket", "display": 7600, "phase": "open",
          "spawns": [[0, 2342.2, 281.3, 34.39, 2.4]]},
-        {"id": "vase", "name": "Vase of Black Roses", "display": 7495, "phase": "open",
+        {"id": "vase", "name": "Black Roses", "display": 6311, "phase": "open",
          "spawns": [[0, 2340.5, 278.3, 34.43, 2.7]]},
         {"id": "books", "name": "Second-Hand Books", "display": 107, "phase": "open",
          "spawns": [[0, 2347.4, 280.6, 34.77, 1.0]]},

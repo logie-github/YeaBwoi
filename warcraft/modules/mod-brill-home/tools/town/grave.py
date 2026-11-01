@@ -182,71 +182,35 @@ LINE = {
     "objects": [
         # Names Among the Stones: five neglected graves along the cemetery's walls.
         {"id": "stone_hollin", "name": "Neglected Grave", "display": 193, "spawns": [[0, 2352.0, 322.0, 36.42, 1.2]],
-         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit",
-                  "text": "(Under the moss: MERCY HOLLIN, MIDWIFE OF THIS PARISH. SHE BROUGHT US IN. Someone has scratched a second "
-                          "date beneath the first, more recently, and then scratched it out.)"},
-                 {"text": "(A weathered stone, its name half lost to moss: HOLLIN.)"}]},
+         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit"}]},
         {"id": "stone_crane", "name": "Neglected Grave", "display": 499, "spawns": [[0, 2348.0, 360.0, 36.72, 0.4]],
-         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit",
-                  "text": "(A fine stone, better cut than its neighbors: TOBIAS CRANE, MASON. The lettering is his own style; "
-                          "he must have cut it for himself, in case. The earth in front of it is soft.)"},
-                 {"text": "(A well-cut stone: TOBIAS CRANE, MASON.)"}]},
+         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit"}]},
         {"id": "stone_fairweather", "name": "Neglected Grave", "display": 2452, "spawns": [[0, 2366.0, 368.0, 37.79, 4.9]],
-         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit",
-                  "text": "(AGNES FAIRWEATHER, BELOVED WIFE. Beside it, a smaller stone with no name at all, only a year. "
-                          "The plague year.)"},
-                 {"text": "(AGNES FAIRWEATHER, BELOVED WIFE.)"}]},
+         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit"}]},
         {"id": "stone_shaw", "name": "Neglected Grave", "display": 19, "spawns": [[0, 2396.0, 362.0, 37.01, 3.6]],
-         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit",
-                  "text": "(WALTER SHAW, BRILL MILITIA. HE STOOD. Below, in a cruder hand cut later with a knife: AND STOOD "
-                          "AGAIN. Someone in the Deathguard had a sense of humor.)"},
-                 {"text": "(WALTER SHAW, BRILL MILITIA. HE STOOD.)"}]},
+         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit"}]},
         {"id": "stone_lyle", "name": "Neglected Grave", "display": 399, "spawns": [[0, 2400.0, 325.0, 38.09, 3.1]],
-         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit",
-                  "text": "(HESTER LYLE AND HER CHILDREN. The stone is old and the grave undisturbed; but the Lyles' names are "
-                          "in the ledger only once, and the note beside them reads 'remains not recovered. Family vault?')"},
-                 {"text": "(HESTER LYLE AND HER CHILDREN.)"}]},
+         "use": [{"cond": ["I:names"], "quest": "names", "credit": "graves_credit"}]},
         # Fresh Earth: three graves opened and filled in again.
         {"id": "opened_spade", "name": "Disturbed Grave", "display": 498, "spawns": [[0, 2372.0, 374.0, 37.34, 1.0]],
-         "use": [{"cond": ["I:fresh"], "quest": "fresh", "credit": "evidence_credit",
-                  "text": "(The earth was put back with care, and patted flat. Half buried at the head of the grave, a spade with "
-                          "a broken haft: burned into the handle, the cemetery's own mark.)"},
-                 {"text": "(Freshly turned earth, patted flat.)"}]},
+         "use": [{"cond": ["I:fresh"], "quest": "fresh", "credit": "evidence_credit"}]},
         {"id": "opened_lid", "name": "Disturbed Grave", "display": 49, "spawns": [[0, 2356.0, 376.0, 35.91, 2.2]],
-         "use": [{"cond": ["I:fresh"], "quest": "fresh", "credit": "evidence_credit",
-                  "text": "(A coffin lid lies under a thin layer of soil. Its underside is gouged with long scratches. Its nails "
-                          "were drawn from outside, neatly, and lie in a little pile beside it, as if someone meant to put "
-                          "them back.)"},
-                 {"text": "(Freshly turned earth.)"}]},
+         "use": [{"cond": ["I:fresh"], "quest": "fresh", "credit": "evidence_credit"}]},
         {"id": "opened_shroud", "name": "Disturbed Grave", "display": 498, "spawns": [[0, 2340.0, 368.0, 34.65, 5.5]],
-         "use": [{"cond": ["I:fresh"], "quest": "fresh", "credit": "evidence_credit",
-                  "text": "(Strips of an old shroud, torn into bandages and knotted, as you'd wrap someone's hands. No gnoll "
-                          "tracks. Two sets of bare footprints, one dragging, heading east.)"},
-                 {"text": "(Freshly turned earth.)"}]},
+         "use": [{"cond": ["I:fresh"], "quest": "fresh", "credit": "evidence_credit"}]},
         # Those Who Were Forgotten: the trail east to the Lyle mausoleum on the hill.
         {"id": "trail", "name": "Trail of Grave Dirt", "display": 49, "scale": 0.5,
          "spawns": [[0, 2425.0, 300.0, 36.17, 5.8], [0, 2458.0, 280.0, 31.44, 5.9], [0, 2472.0, 268.0, 45.38, 5.9]],
-         "use": [{"cond": ["I:forgotten"], "quest": "forgotten", "credit": "tracks_credit",
-                  "text": "(Clods of cemetery clay, darker than the earth here, scattered where someone stopped to rest. The "
-                          "furrow goes on, uphill, toward the trees.)"},
-                 {"text": "(A scatter of dark clay in the grass.)"}]},
+         "use": [{"cond": ["I:forgotten"], "quest": "forgotten", "credit": "tracks_credit"}]},
         {"id": "mausoleum", "name": "Lyle Family Mausoleum", "display": 1187, "spawns": [[0, 2497.0, 257.0, 46.09, 2.8]]},
         # A Name of One's Own: their things, at their old homes.
-        {"id": "toolroll", "name": "Mason's Tool Roll", "display": 317, "spawns": [[0, 2041.5, 153.0, 34.3, 1.4]],
+        {"id": "toolroll", "name": "Mason's Tool Roll", "display": 5511, "scale": 0.6, "spawns": [[0, 2041.5, 153.0, 34.3, 1.4]],
+         "use": [{"cond": ["I:aname"], "quest": "aname", "credit": "belongings_credit"}]},
+        {"id": "basket", "name": "Sewing Basket", "display": 7494, "spawns": [[0, 2483.5, 24.5, 26.9, 0.6]],
+         "use": [{"cond": ["I:aname"], "quest": "aname", "credit": "belongings_credit"}]},
+        {"id": "letters", "name": "Tin Letter Box", "display": 1, "scale": 0.5, "spawns": [[0, 2903.0, 387.0, 30.02, 4.0]],
          "use": [{"cond": ["I:aname"], "quest": "aname", "credit": "belongings_credit",
-                  "text": "(Under a fallen beam by the cold forge, a rolled leather case: chisels, a mallet, a mason's square. "
-                          "T.C. burned into the leather. The steel is rusted, but it will clean.)"},
-                 {"text": "(A rotting leather tool roll, under a fallen beam.)"}]},
-        {"id": "basket", "name": "Sewing Basket", "display": 468, "spawns": [[0, 2483.5, 24.5, 26.9, 0.6]],
-         "use": [{"cond": ["I:aname"], "quest": "aname", "credit": "belongings_credit",
-                  "text": "(A small basket, the willow gone grey. Inside: a bone spindle whorl, a needle case, and a child's "
-                          "bonnet, finished but for the ribbon.)"},
-                 {"text": "(An old sewing basket, the willow gone grey.)"}]},
-        {"id": "letters", "name": "Tin Letter Box", "display": 318, "spawns": [[0, 2903.0, 387.0, 30.02, 4.0]],
-         "use": [{"cond": ["I:aname"], "quest": "aname", "credit": "belongings_credit",
-                  "text": "(A dented tin box the gnolls didn't think worth chewing. Inside, letters tied with string, every one "
-                          "beginning 'Dear Da' in a careful round hand. The last is dated the week the plague came to Brill.)"},
-                 {"text": "(A dented tin box, rusted shut.)"}]},
+                  "text": "(Letters tied with string, each beginning 'Dear Da' in a careful round hand. The last is dated the week the plague came to Brill.)"}]},
     ],
     "gossip": [
         # The gravekeeper: his greeting by how far this line and Beneath the Gallows have gone (the first that holds).

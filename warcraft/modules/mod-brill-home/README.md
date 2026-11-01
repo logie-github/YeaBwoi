@@ -72,7 +72,7 @@ wall (x -1.0 to 3.5, to y 4.6; its mantel 2.1 up); the door is x -3.0 to -0.25 i
 fill the north corners and posts the south ones; the loft is over the south third. The bed is in the
 south-east corner under the loft, the table, chairs and wardrobe on the west side, the bookshelf and the
 chests on the east wall, the rug and the dog's bed before the hearth, the stove beside it, the family
-portrait over the mantel, and the projects' furnishings in the gaps (books and Croft's skull-candle on
+portrait over the mantel, and the projects' furnishings in the gaps (books and Croft's black candle on
 the mantel). The house's model draws only its own loft barrels. No piece overlaps another, a wall, the
 hearth or the doorway (the rug lies under a chair and the dog's bed).
 
@@ -96,10 +96,10 @@ furniture's turns (assumed: the models' fronts at their +x).
 
 ## Corn, the dog
 
-The first time the player sleeps in the bed, they wake to Corn beside it: a zombified pug, the game's own
-pug in the user's Forsaken texture (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
+The first time the player sleeps in the bed, they wake to Corn beside it: a zombified pug, the user's Forsaken
+pug (the game's current pug model with the user's coat for it (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
 glowing yellow eyes, his name on his collar's tag; the user: "Use this texture on the pug dog you get from
-the quest in brill. Name the dog Corn", then "my pug is supposed to be zombified"). He doesn't talk; what
+the quest in brill. Name the dog Corn", then "my pug is supposed to be zombified", "Use the structure from pug from wago tools")). He doesn't talk; what
 he does is shown: "(The dog looks happy to see you.)". His quest, **A Visitor in the Night**: throw the
 stick for him three times (he runs out the door after it and brings it back) and scratch him behind the
 ears. Turned in, the
@@ -128,14 +128,19 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-His looks: the 3.3.5a client's own Perky Pug (display 31174, model 3291) in the user's coat. The world
+His looks: the user's model (`forsaken_pug.zip`: the game's current pug, `creature/pug/pug.m2` on
+wago.tools, its skin, and the user's coat laid out for it) in 3.3.5a's format, on the game's pug display
+(31174, model 3291). The coat doesn't fit 3.3.5a's older pug model (a third of its points take their colour
+from another part of the texture), so the model goes with it. `tools/corn_model.py` converts it once
+(committed in `data/client/corn`): `Pug.m2` (the MD21 chunk's model, version 264, the cameras and
+animations in 3.3.5a's layout, its textures named: the coat `Creature\Pug\ForsakenPug_Corn.blp`, the
+collar's metal the game's own `Item\ObjectComponents\Shield\ArmorReflect4.blp`) and `Pug00.skin`. The world
 server makes the module's patch for the game (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`)
-at the realm's start: the user's coat (`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py`
-makes from the user's texture, keeping the coat's alpha) at the path of the pug's own coat, which the client's
-pug model names, with the cellar's looks. No model and no table of the game's is changed for him, so nothing
-can hide it: a display of his own (39700) showed as the game's blue and white cube, the look the game
-shows for a display it hasn't, as the Cataclysm mastiff before him had. Every pug in the game wears his
-coat (Perky Pug is the only other). Without the patch in the game he's the plain tan pug. The quest dog,
+at the realm's start: the model and skin at the game's pug's paths (`Creature\Pug\Pug.m2`, `Pug00.skin`)
+and the coat it names (`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py` makes from
+the user's texture), with the cellar's looks. No table of the game's is changed for him (a display of his own,
+39700, showed as the game's blue and white cube). Every pug in the game is Corn's pug (Perky Pug is the only
+other). Without the patch in the game he's the plain tan pug. The quest dog,
 adopted pets (in the stable too) and hunters' companions are all the pug's display; quest progress and pet
 ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken out; the
 Alternative HD Patch's water, which has the same name, is left alone.
@@ -196,7 +201,7 @@ character alone (the town's phases, anywhere in Brill), or in what people say.
 | The Last Customer | 970600-970604 | Ambrose Wicke, Candles and Sundries (east of the town hall) | the candlesticks kept lit or sold | his stall's goods out, and his wares; his morbid cheer |
 | A Deathguard's Duty | 970700-970704 | Deathguard Dillinger | Harlan back at his post or reassigned | Harlan on the north road or at the cemetery |
 | Something in the Well | 970800-970804 | Maudie Fenwick, laundress (the square's new well) | none | the well clean, its water drawn; Maudie's washtubs |
-| Beneath the Gallows | 970900-970904 | Deathstalker Isolde Ashcroft (by the mausoleum), once the house's cellar wall or the gravekeeper's passage is found | none | Aldric Croft's skull-candle in the house |
+| Beneath the Gallows | 970900-970904 | Deathstalker Isolde Ashcroft (by the mausoleum), once the house's cellar wall or the gravekeeper's passage is found | none | Aldric Croft's black candle in the house |
 
 The Gallows' crypt is the game's own Agamand Family Crypt (its sentinels and Croft are everyone's to see);
 the Last Customer's relative is at the Sepulcher in Silverpine. Lines notice each other where it fits (the

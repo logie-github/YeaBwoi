@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// The Brill home's patch made for a game folder, and read back: the user's coat where the game's pug's
-// own is (the pug's model and the tables untouched), the cellar's looks (9700, 9701); a second start
-// keeping it.
+// The Brill home's patch made for a game folder, and read back: Corn's model, skin and coat at the game's
+// pug's paths (the creature tables untouched), the cellar's looks (9700, 9701); a second start keeping it.
 //
 //   g++ -std=c++17 -O2 -I../src -I../../mod-skyborne/src test_patch.cpp ../src/BrillHomePatch.cpp
 //       ../../mod-skyborne/src/SkyborneFiles.cpp -lz -o test_patch
 //   ./test_patch ../data/client GAME_DATA
 //
-// GAME_DATA: a client's Data folder (its archives, or folders laid out as they are) with the game's
-// Creature\Pug\Pug.m2 (its coat Creature\Pug\Pug_Tan.blp, as the stand-in names it), and DBFilesClient's
+// GAME_DATA: a client's Data folder (its archives, or folders laid out as they are) with DBFilesClient's
 // CreatureDisplayInfo and GameObjectDisplayInfo.
 
 #include "BrillHomePatch.h"
@@ -54,16 +52,20 @@ int main(int argc, char** argv)
     Check(corn, "Corn is the Forsaken pug");
 
     Skyborne::Game game(data, {});
-    Bytes m2, original;
-    Check(game.Read("Creature\\Pug\\Pug.m2", m2), "the pug model is in the game");
     Skyborne::Game below(data, { "patch-enus-v.mpq" });
-    Check(below.Read("Creature\\Pug\\Pug.m2", original) && original == m2, "the pug model is the game's own, untouched");
-    Bytes coat, mine;
-    Check(game.Read("Creature\\Pug\\Pug_Tan.blp", coat) && coat.size() > 4 && std::memcmp(coat.data(), "BLP2", 4) == 0,
-          "the pug's coat is in the game, a BLP2");
-    std::ifstream in(module / "corn" / "ForsakenPug_Corn.blp", std::ios::binary);
-    mine.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-    Check(!mine.empty() && coat == mine, "the pug's coat is Corn's (the user's texture)");
+    auto mine = [&](char const* file)
+    {
+        std::ifstream in(module / "corn" / file, std::ios::binary);
+        return Bytes(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    Bytes m2, skin, coat, original;
+    Check(game.Read("Creature\\Pug\\Pug.m2", m2) && !m2.empty() && m2 == mine("Pug.m2"), "the pug model is Corn's");
+    Check(m2.size() > 8 && std::memcmp(m2.data(), "MD20", 4) == 0 && U32(m2, 4) == 264, "an MD20 of 3.3.5a's version (264)");
+    Check(game.Read("Creature\\Pug\\Pug00.skin", skin) && !skin.empty() && skin == mine("Pug00.skin"), "its skin is Corn's");
+    Check(game.Read("Creature\\Pug\\ForsakenPug_Corn.blp", coat) && coat.size() > 4 && std::memcmp(coat.data(), "BLP2", 4) == 0
+          && coat == mine("ForsakenPug_Corn.blp"), "the coat it names is the user's, a BLP2");
+    std::string names(m2.begin(), m2.end());
+    Check(names.find("Creature\\Pug\\ForsakenPug_Corn.blp") != std::string::npos, "the model names the coat");
 
     Bytes raw;
     Dbc cdi;

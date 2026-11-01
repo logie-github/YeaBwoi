@@ -48,19 +48,19 @@ LINE = {
         },
         {
             "id": "eyes", "title": "Eyes Among Us", "giver": SEVREN, "prev": "letters",
-            "log": "Question Innkeeper Renee, Mrs. Winters and Abigail Shiel, and look for signs of the informant by the market well and behind the tavern. Then return to Magistrate Sevren.",
+            "log": "Question Innkeeper Renee, Mrs. Winters and Abigail Shiel, and look for signs of the informant by the cistern and behind the tavern. Then return to Magistrate Sevren.",
             "offer": (
                 "If I start asking questions myself, the whole town will know by supper that the Magistrate is "
                 "frightened. They'd be right, but there's no reason to tell them.$B$B"
                 "You're new enough that people still talk to you. Go and listen. Innkeeper Renee hears everything said "
                 "over a drink; Mrs. Winters and Abigail Shiel keep the market and see who comes and goes. Ask them who "
                 "keeps odd hours, who has been asking after the watch.$B$B"
-                "And look around while you're at it. Letters have to pass from hand to hand somewhere. The market well "
+                "And look around while you're at it. Letters have to pass from hand to hand somewhere. The cistern "
                 "and the back of the tavern are both quiet after dark, and both on a patrol's blind side. If I were "
                 "selling my town, that is where I'd do it."),
             "progress": "Well? I've been staring at that letter so long I could forge it.",
             "done": (
-                "A chalk mark behind the tavern and a hollow under the well's stones, and three good women who all "
+                "A chalk mark behind the tavern and a hollow under the cistern's stones, and three good women who all "
                 "mention, without being asked, the man who's always about when the patrols change.$B$B"
                 "(Sevren closes his eyes.)$B$B"
                 "No. Don't say the name yet. I want to be certain before I let myself think it."),
@@ -73,21 +73,20 @@ LINE = {
         },
         {
             "id": "informant", "title": "The Scarlet Informant", "giver": SEVREN, "prev": "eyes",
-            "log": "Search the three street lamps in Brill's square for hidden marks, and question the Captured Scarlet Zealot in the tavern's cellar. Then return to Magistrate Sevren.",
+            "log": "Search the street lamps of Brill for anything left at their feet, and question the Captured Scarlet Zealot in the tavern's cellar. Then return to Magistrate Sevren.",
             "offer": (
                 "Everything you found keeps time with the lamps. The letter names the hour the lamps are lit. The chalk "
-                "and the well are on the lamplighter's round. Every word of it points at Lowell Marsh, and I've known "
+                "and the cistern are on the lamplighter's round. Every word of it points at Lowell Marsh, and I've known "
                 "Lowell since before the Dark Lady gave us back our wills. He lit the lamps in this town when it had "
                 "living people in it.$B$B"
-                "So I want proof, not a pattern. Look at the lamps in the square, the post by the leatherworker, the "
-                "one by the stables and the one across from the Executor. A man who marks a meeting place marks it "
-                "where his hands already are.$B$B"
+                "So I want proof, not a pattern. Look at the lamps along the street. A man who leaves word for "
+                "someone leaves it where his hands already are.$B$B"
                 "Then go down to the cellar under the Gallows' End. We have a zealot down there who thinks his silence "
                 "is a prayer. Show him the letters. Even a zealot's face says something."),
             "progress": "The lamps, $n, and the zealot. Then we'll know.",
             "done": (
-                "Three tallies scratched under the lamp-glass, one for each warning sent, and a zealot who laughed and "
-                "called him \"our lamb.\"$B$B"
+                "Three folded notes, one at the foot of each lamp, each with nothing on it but an hour, and a zealot "
+                "who laughed and called him \"our lamb.\"$B$B"
                 "(Sevren is quiet for a long moment.)$B$B"
                 "Lowell Marsh. A lamplighter. He walks every street with the night watch; they talk to him about their "
                 "hours because he's harmless. He has been harmless for forty years.$B$B"
@@ -99,10 +98,10 @@ LINE = {
         },
         {
             "id": "promise", "title": "The Promise of Life", "giver": SEVREN, "ender": "wendel", "prev": "informant",
-            "log": "Confront Lowell Marsh, the lamplighter, by the well in Brill's market.",
+            "log": "Confront Lowell Marsh, the lamplighter, by the cistern in Brill.",
             "offer": (
                 "Go to him, $n. Not with guards; he'd only lie to guards, and he'd lie badly, and someone would lose "
-                "patience. Go yourself. He's by the well most evenings, cleaning his glass.$B$B"
+                "patience. Go yourself. He's by the cistern most evenings, cleaning his glass.$B$B"
                 "I want to know why. Forty years he served this town, and the Crusade burns people like him by the "
                 "cartload. Whatever they offered him, it must have been worth more to him than his neighbors.$B$B"
                 "Find out what it was. Then we'll decide what Brill does about it. Or what you do, if I can't bring "
@@ -169,44 +168,26 @@ LINE = {
         {"id": "fate_credit", "name": "Lowell Marsh's fate decided"},
     ],
     "objects": [
-        {"id": "embers", "name": "Smouldering Campfire", "display": 201, "scale": 1,
+        {"id": "embers", "name": "Smouldering Fire", "display": 397, "quest_only": True,
          "spawns": [[0, 2485.0, 158.0, 29.07, 0.0], [0, 2500.0, 175.0, 30.11, 1.2], [0, 2470.0, 162.0, 30.09, 2.4]],
          "use": [
-             {"cond": ["I:letters"], "quest": "letters", "credit": "ashes_credit",
-              "text": "(You scatter the coals with your boot and pull out a curl of half-burnt paper. Most of it is ash, "
-                      "but the lines along the bottom survive: \"...the north road stands empty until the lamps are "
-                      "lit. The Light keep you, Brother. I count the days.\")"},
-             {"text": "(Ash and the stink of burnt vellum. Someone sat here a long time, waiting to be sure every page "
-                      "had caught.)"},
+             {"cond": ["I:letters"], "quest": "letters", "credit": "ashes_credit"},
          ]},
-        {"id": "wellstone", "name": "Loose Cobbles", "display": 498, "scale": 0.6,
-         "spawns": [[0, 2231.5, 283.5, 35.17, 0.0]],
+        {"id": "wellstone", "name": "Loose Stones", "display": 134, "scale": 0.4, "quest_only": True,
+         "spawns": [[0, 2292.3, 314.3, 35.45, 0.0]],
          "use": [
-             {"cond": ["I:eyes"], "quest": "eyes", "credit": "signs_credit",
-              "text": "(Two cobbles at the foot of the well lift out too easily. Beneath them is a dry hollow, lined "
-                      "with oilcloth, just large enough for a folded letter. It's empty now, but it smells faintly of "
-                      "lamp oil.)"},
-             {"text": "(Loose cobbles at the foot of the well. Someone has pressed them back very neatly.)"},
+             {"cond": ["I:eyes"], "quest": "eyes", "credit": "signs_credit"},
          ]},
         {"id": "chalkcrate", "name": "Chalk-Marked Crate", "display": 275, "scale": 0.8,
          "spawns": [[0, 2281.0, 257.0, 34.47, 1.9]],
          "use": [
-             {"cond": ["I:eyes"], "quest": "eyes", "credit": "signs_credit",
-              "text": "(Behind the Gallows' End, out of a patrol's sight, a crate bears a small chalk mark: a circle "
-                      "with a line through it, the sign Scarlet scouts use to say \"message waiting.\" The chalk is "
-                      "fresh. It was drawn by someone tall enough to reach the top of the stack without climbing.)"},
-             {"cond": ["R:eyes"], "text": "(Someone has scrubbed the chalk mark from the crate. Badly.)"},
-             {"text": "(An old crate behind the tavern, damp and smelling of cheap ale.)"},
+             {"cond": ["I:eyes"], "quest": "eyes", "credit": "signs_credit"},
          ]},
-        {"id": "lamp", "name": "Brill Street Lamp", "display": 731, "scale": 0.9,
-         "spawns": [[0, 2244.0, 300.0, 35.19, 0.5], [0, 2276.0, 272.0, 35.18, 2.0], [0, 2266.0, 312.0, 34.15, 4.0]],
+        # (at the feet of Brill's own street lamps)
+        {"id": "lamp", "name": "Folded Note", "display": 220, "quest_only": True,
+         "spawns": [[0, 2270.5, 327.3, 34.6, 0.5], [0, 2225.4, 252.4, 33.71, 2.0], [0, 2280.6, 434.3, 34.15, 4.0]],
          "use": [
-             {"cond": ["I:informant"], "quest": "informant", "credit": "lamps_credit",
-              "text": "(You lift the lamp's glass. Scratched into the brass beneath it, where only someone who cleans "
-                      "it would ever look, is a small tally mark, and beside it a date. The scratches are neat and "
-                      "deliberate, as if the hand that made them wanted to remember each one.)"},
-             {"cond": ["M:escaped"], "text": "(The lamp is unlit. Brill has not yet found a new lamplighter.)"},
-             {"text": "(A street lamp, its glass polished clean. Someone takes good care of these.)"},
+             {"cond": ["I:informant"], "quest": "informant", "credit": "lamps_credit"},
          ]},
     ],
     "gossip": [
@@ -217,7 +198,7 @@ LINE = {
             "door shut properly is easier than one left ajar.",
             "Deathguard Cyrus asked after my knees today. My knees! I've no feeling in them since the plague. "
             "But he asked. I think that's what Anselm was really selling me, $n. Someone who'd ask.",
-            "A letter came from Brother Anselm. I put it in the lamp on the north road and lit it with the rest. "
+            "A letter came from Brother Anselm. I put it in the lamp by the inn and lit it with the rest. "
             "Best light that lamp's ever given."]},
         {"npc": "wendel", "kind": "greet", "cond": ["M:spared"],
          "text": "Evening, $n. The lamps are lit on time and no one knows when but the watch. (He polishes a lamp-glass, "
@@ -265,7 +246,7 @@ LINE = {
          "reply": "Asking? No one needs to ask. Every child in the old Brill could tell you when the watch changed by when the "
                   "lamps were lit. (She frowns.) Strange thing, though. Lowell Marsh bought a whole quire of paper from "
                   "me last month. Lamplighters don't write much."},
-        {"npc": ABIGAIL, "kind": "option", "cond": ["I:eyes"], "text": "Seen anyone by the well after dark?",
+        {"npc": ABIGAIL, "kind": "option", "cond": ["I:eyes"], "text": "Seen anyone by the cistern after dark?",
          "action": "credit", "quest": "eyes", "credit": "abigail_credit",
          "reply": "The well? Only the lamplighter, and he's always there; he fills his oil pot from the cistern beside it. "
                   "(She pauses.) Though he did take an awfully long time over it last week. Down on his knees. I took "

@@ -2,13 +2,16 @@
 /*
  * The Brill home's patch for the game (mod-brill-home): Corn, the house's dog, and the house's cellar.
  *
- * Corn is the game's own pug (Perky Pug's model and display, 31174) in the user's Forsaken texture (the user:
- * "Use this texture on the pug dog you get from the quest in brill. Name the dog Corn"; "my pug is supposed
- * to be zombified"). The patch carries the user's coat (data/client/corn/ForsakenPug_Corn.blp, made from
- * warcraft/branding/corn-forsaken-pug.png by tools/build_sql.py) at the path of the pug's own coat, which
- * the client's pug model names: no table and no model is changed for him. (A display of his own, 39700,
- * showed as the game's cube, as the Cataclysm mastiff's had: the game never had that row. Every pug in
- * the game wears Corn's coat now; Perky Pug is the only other.)
+ * Corn is the user's Forsaken pug (forsaken_pug.zip: the game's current pug model, its skin and the user's
+ * coat for it; the user: "Use this texture on the pug dog you get from the quest in brill. Name the dog
+ * Corn"; "my pug is supposed to be zombified"; "Use the structure from pug from wago tools"). The coat is
+ * laid out for that model, not for 3.3.5a's older pug (a third of its points take the coat from elsewhere),
+ * so the patch carries the model too, in 3.3.5a's format (tools/corn_model.py: data/client/corn/Pug.m2
+ * and Pug00.skin), at the paths of the game's own pug (Creature\Pug\Pug.m2 and Pug00.skin, display
+ * 31174), and the coat it names (Creature\Pug\ForsakenPug_Corn.blp, made from
+ * warcraft/branding/corn-forsaken-pug.png by tools/build_sql.py). No table of the game's is changed for
+ * him (a display of his own, 39700, showed as the game's cube). Every pug in the game is Corn's pug now;
+ * Perky Pug is the only other.
  *
  * The cellar is the game's own models as objects (GameObjectDisplayInfo 9700 and 9701, made by
  * tools/build_town.py).
@@ -34,6 +37,7 @@
 #include <cstdio>
 #include <cstring>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 
 namespace BrillHome
@@ -47,11 +51,15 @@ namespace BrillHome
     {
         constexpr char const* MARK_SUFFIX = ".brillhome";
         constexpr char const* ASIDE_SUFFIX = ".aside";
-        constexpr char const* VERSION = "brill-home-4";
-        // Corn: the game's pug, its coat a display's (tools/build_sql.py: DOG_*)
-        constexpr char const* PUG = "Creature\\Pug\\Pug.m2";
-        // (data/client/corn: the user's coat, tools/build_sql.py)
-        constexpr char const* CORN_COAT = "ForsakenPug_Corn.blp";
+        constexpr char const* VERSION = "brill-home-5";
+        // Corn: the user's pug (data/client/corn: tools/corn_model.py, the coat tools/build_sql.py), at the
+        // game's pug's paths, and the coat where the model names it
+        struct CornFile { char const* file; char const* path; };
+        constexpr CornFile CORN[] = {
+            { "Pug.m2", "Creature\\Pug\\Pug.m2" },
+            { "Pug00.skin", "Creature\\Pug\\Pug00.skin" },
+            { "ForsakenPug_Corn.blp", "Creature\\Pug\\ForsakenPug_Corn.blp" },
+        };
         // (where it was: Data/patch-W.MPQ, and a file of its that tells it's this module's)
         constexpr char const* OLD_PATCH = "patch-W.MPQ";
         constexpr char const* MASTIFF = "Creature\\Mastiff\\Mastiff.m2";
@@ -188,28 +196,24 @@ namespace BrillHome
             log("The Brill home's patch is out of the game, kept beside it for ChromieCraft");
     }
 
-    // The game's pug's coat: the first texture the model names (hard-coded) that is a pug's, or "".
-    static std::string PugCoat(Bytes const& m2)
+    // Corn's model as 3.3.5a reads it: an MD20 of version 264 that names the coat it's carried with.
+    static bool CornModel(Bytes const& m2, std::string const& coat)
     {
         auto u32 = [&](size_t at) { uint32_t v; std::memcpy(&v, &m2[at], 4); return v; };
-        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0)
-            return "";
+        if (m2.size() < 0x130 || std::memcmp(m2.data(), "MD20", 4) != 0 || u32(4) != 264)
+            return false;
         uint32_t count = u32(0x50), offset = u32(0x54);
         if (offset + uint64_t(count) * 16 > m2.size())
-            return "";
+            return false;
         for (uint32_t i = 0; i < count; ++i)
         {
             size_t at = offset + i * 16;
-            uint32_t kind = u32(at), length = u32(at + 8), name = u32(at + 12);
-            if (kind != 0 || !length || name + uint64_t(length) > m2.size())
-                continue;
-            std::string path(reinterpret_cast<char const*>(&m2[name]), length);
-            path = path.c_str();
-            std::string low = Lower(path);
-            if (low.size() > 4 && low.substr(low.size() - 4) == ".blp" && low.find("pug") != std::string::npos)
-                return path;
+            uint32_t length = u32(at + 8), name = u32(at + 12);
+            if (length && name + uint64_t(length) <= m2.size()
+                && Lower(std::string(reinterpret_cast<char const*>(&m2[name]), length).c_str()) == Lower(coat))
+                return true;
         }
-        return "";
+        return false;
     }
 
     bool UpdatePatch(fs::path const& moduleData, fs::path const& clientData, std::function<void(std::string const&)> const& log, bool& cornReady)
@@ -254,16 +258,20 @@ namespace BrillHome
                 }
         std::sort(own.begin(), own.end());
 
-        // Corn: the user's coat put where the game's pug's own coat is (the pug's model names it). No table
-        // and no model of the game's is changed for him, so nothing in the game can stand in front of it:
-        // the mastiff and then the pug with a display of its own (39700) both showed as the game's cube
-        // for a look it hasn't.
-        Bytes pug, cornCoat = ReadFile(moduleData / "corn" / CORN_COAT);
-        std::string coatPath;
-        if (game.Read(PUG, pug))
-            coatPath = PugCoat(pug);
-        if (coatPath.empty() || cornCoat.empty())
-            log("The game's pug (" + std::string(PUG) + ") or Corn's coat isn't as expected: Corn is the plain pug");
+        // Corn: the user's pug, model, skin and coat.
+        std::vector<std::pair<std::string, Bytes>> corn;
+        for (auto const& f : CORN)
+        {
+            Bytes data = ReadFile(moduleData / "corn" / f.file);
+            if (data.empty())
+                break;
+            corn.emplace_back(f.path, std::move(data));
+        }
+        if (corn.size() != std::size(CORN) || !CornModel(corn[0].second, CORN[2].path))
+        {
+            log("Corn's model (" + (moduleData / "corn").string() + ") isn't as expected: Corn is the game's own pug");
+            corn.clear();
+        }
 
         Stamp stamp;
         stamp.Add(VERSION);
@@ -283,12 +291,14 @@ namespace BrillHome
             stamp.Add(name);
             stamp.Add(std::to_string(fs::file_size(path, error)));
         }
-        stamp.Add(coatPath);
-        stamp.Add(std::to_string(cornCoat.size()));
-        bool corn = !coatPath.empty() && !cornCoat.empty();
+        for (auto const& [path, data] : corn)
+        {
+            stamp.Add(path);
+            stamp.Add(std::to_string(data.size()));
+        }
         if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
         {
-            cornReady = corn;
+            cornReady = !corn.empty();
             return true;
         }
 
@@ -309,9 +319,9 @@ namespace BrillHome
             writer.Add(name, data);
             ++packed;
         }
-        if (corn)
+        for (auto const& [path, data] : corn)
         {
-            writer.Add(coatPath, cornCoat);
+            writer.Add(path, data);
             ++packed;
         }
         for (auto const& t : tables)
@@ -352,7 +362,7 @@ namespace BrillHome
         }
         for (auto const& p : problems)
             log("  " + p);
-        cornReady = corn;
+        cornReady = !corn.empty();
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
         log("The Brill home's patch is in the game: " + std::to_string(written) + " tables, " + std::to_string(packed) + " files ("
             + std::to_string(seconds) + " s)" + (cornReady ? ", Corn the Forsaken pug" : ", Corn the plain pug"));

@@ -162,11 +162,13 @@ LINE = {
         # What's been attacking the north road.
         {"id": "ghoul", "name": "Roadside Ghoul", "display": 829, "hostile": True, "faction": 21, "level": (9, 10),
          "type": 6, "health": 1, "damage": 1, "gold": 0, "wander": 5,
-         "spawns": [[0, 2262.0, 512.0, 34.5, 1.0], [0, 2276.0, 522.0, 35.42, 3.0],
-                    [0, 2258.0, 535.0, 33.81, 4.5], [0, 2270.0, 505.0, 34.84, 0.5]]},
+         # (in the trees either side of the road, west of the Harrow farmhouse, short of Abraham's post at the
+         # covered bridge: the road's line from the zone's minimap, heights from the game's terrain)
+         "spawns": [[0, 2252.5, 540.0, 34.8, 1.0], [0, 2272.5, 552.0, 34.32, 3.0],
+                    [0, 2244.2, 560.0, 33.89, 4.5], [0, 2236.0, 590.0, 33.33, 0.5]]},
         {"id": "gnawbone", "name": "Gnawbone", "display": 1202, "scale": 1.25, "hostile": True, "faction": 21,
          "level": 11, "type": 6, "health": 2.5, "damage": 1.3, "gold": 120, "respawn": 180,
-         "spawns": [[0, 2268.0, 552.0, 33.77, 3.6]]},
+         "spawns": [[0, 2270.3, 560.0, 35.37, 3.6]]},
     ],
     "credits": [
         {"id": "abraham_credit", "name": "Supplies delivered to Deathguard Abraham"},
@@ -183,41 +185,30 @@ LINE = {
         {"id": "duty_credit", "name": "Deathguard Harlan's choice made"},
     ],
     "objects": [
-        {"id": "brazier", "name": "Patrol Brazier", "display": 197, "scale": 0.8,
-         "spawns": [[0, 2262.0, 470.0, 33.88, 0.0], [0, 2168.0, 203.0, 42.89, 0.0], [0, 2445.0, 288.0, 28.12, 0.0]],
+        # The braziers at the three Deathguards' own posts, beside each of them at the road's edge (Abraham at the
+        # covered bridge, Terrence on the Undercity road, Linnea at the crossroads: the game's own spawns), in
+        # Lordaeron's own brazier.
+        {"id": "brazier", "name": "Patrol Brazier", "display": 754,
+         "spawns": [[0, 2241.6, 609.9, 33.6, 0.0], [0, 2131.2, 166.9, 38.11, 0.0], [0, 2030.8, 74.05, 34.16, 0.0]],
          "use": [
-             {"cond": ["I:watch"], "quest": "watch", "credit": "brazier_credit",
-              "text": "(You rake the dead coals and feed in fresh pitch-wood from the Deathguard's pack. The brazier "
-                      "catches with a sullen roar, throwing light a long way down the road.)"},
-             {"text": "(A Deathguard patrol brazier, burning low.)"},
+             {"cond": ["I:watch"], "quest": "watch", "credit": "brazier_credit"},
          ]},
-        {"id": "cart", "name": "Wrecked Cart", "display": 6961, "scale": 0.9,
-         "spawns": [[0, 2255.0, 490.0, 33.95, 1.3], [0, 2274.0, 545.0, 33.78, 4.0], [0, 2252.0, 565.0, 33.45, 2.2]],
+        # Wrecked carts at the road's edge where they were dragged off it (the zone's own broken cart).
+        {"id": "cart", "name": "Wrecked Cart", "display": 7524,
+         "quest_only": True,
+         "spawns": [[0, 2268.0, 545.0, 33.36, 2.3], [0, 2248.8, 566.0, 33.44, 1.6], [0, 2254.5, 586.0, 34.06, 2.4]],
          "use": [
-             {"cond": ["I:road"], "quest": "road", "credit": "cart_credit",
-              "text": "(The cart lies on its side, a wheel snapped. Its load is scattered: grain, a tinker's pots, an "
-                      "apothecary's satchel slit open. Deep gouges in the wood, the claw-marks of ghouls, and the drag "
-                      "marks lead off the road toward the river. Whoever drove it didn't get far.)"},
-             {"text": "(A wrecked cart, picked clean.)"},
+             {"cond": ["I:road"], "quest": "road", "credit": "cart_credit"},
          ]},
         {"id": "tracks", "name": "Bootprints", "display": 498, "scale": 0.5,
          "spawns": [[0, 2208.0, 690.0, 34.9, 0.0], [0, 2230.0, 900.0, 48.0, 0.0], [0, 2250.0, 1150.0, 34.13, 0.0]],
          "use": [
-             {"cond": ["I:post"], "quest": "post", "credit": "tracks_credit",
-              "text": "(Heavy bootprints, the hobnailed kind the Deathguard wear, pressed deep into the mud. They come "
-                      "and go along the same path many times over, always heading west toward Solliden Farmstead, "
-                      "never straying from the way.)"},
-             {"text": "(Old bootprints in the mud, heading west.)"},
+             {"cond": ["I:post"], "quest": "post", "credit": "tracks_credit"},
          ]},
         {"id": "firewood", "name": "Bundle of Firewood", "display": 1248, "scale": 0.6,
          "spawns": [[0, 2257.0, 1287.0, 32.11, 1.0]],
          "use": [
-             {"cond": ["I:house"], "quest": "house", "credit": "firewood_credit",
-              "text": "(A neat bundle of split oak by the cottage gate, tied with a strip of grey cloth: the same grey "
-                      "as a Deathguard's tabard. Older bundles have been stacked against the wall, carefully, by "
-                      "someone else. It's been used all winter.)"},
-             {"cond": ["M:reassigned"], "text": "(The last bundle of firewood, half gone. No one has left a new one.)"},
-             {"text": "(Split oak, tied with a strip of grey cloth.)"},
+             {"cond": ["I:house"], "quest": "house", "credit": "firewood_credit"},
          ]},
     ],
     "gossip": [

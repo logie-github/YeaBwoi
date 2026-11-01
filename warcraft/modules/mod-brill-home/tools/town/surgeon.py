@@ -363,109 +363,58 @@ LINE = {
          "spawns": [[0, HALL_X, HALL_Y, HALL_BASE, HALL_O]]},
         {"id": "door", "name": "Boarded Door", "display": 1248, "scale": 1.3, "from": 1, "until": 6,
          "spawns": [hall(-1.0, -6.6, 0)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "property_credit",
-                  "text": "(You pry a board loose and look in. Dust, a dead hearth, a table on its side. The beams are "
-                          "sound, the roof is whole, and the floor takes your weight without complaint. A good house. "
-                          "Somebody left it in a hurry and never came back for it, which in Tirisfal is most houses.)"},
-                 {"cond": ["R:q1"], "text": "(The boards are off and stacked by the step. Rudd Carver's lads are in and "
-                                           "out all day.)"},
-                 {"text": "(A farmhouse door, boarded shut. A notice: VACANT. BY ORDER OF THE MAGISTRATE.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "property_credit"}]},
         # Holding Together: Elspeth's crate (until the hall opens), the wagon on the Undercity road (everyone's).
         {"id": "crate", "name": "Surgeon's Crate", "display": 6449, "scale": 0.8, "from": 1, "until": 6,
          "spawns": AT["crate"]},
         {"id": "wagon", "name": "Overturned Wagon", "display": 7524, "spawns": AT["wagon"],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "wagon_credit",
-                  "text": "(The wagon lies on its side in the ditch, one wheel gone. Under the canvas, strapped where it "
-                          "fell, is a long leather roll: saws, probes, clamps, needles, each in its own pocket, each clean. "
-                          "Stitched inside the flap: E. RANE. RETURN IF FOUND. THE OWNER WILL KNOW.)"},
-                 {"text": "(An overturned wagon in the ditch, one wheel gone. Whatever was worth taking has been taken.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "wagon_credit"}]},
         # The yard while it's built (from the second stage until the hall opens): the tent, the builders' lot.
         {"id": "tent", "name": "Treatment Tent", "display": 7873, "from": 2, "until": 6, "spawns": AT["tent"]},
         {"id": "lumber", "name": "Lumber", "display": 1109, "from": 2, "until": 6, "spawns": AT["lumber"]},
-        {"id": "toolbox", "name": "Toolbox", "display": 317, "from": 2, "until": 6, "spawns": AT["toolbox"]},
+        {"id": "toolbox", "name": "Toolbox", "display": 7426, "scale": 0.6, "from": 2, "until": 6, "spawns": AT["toolbox"]},
         {"id": "barrow", "name": "Wheelbarrow", "display": 215, "from": 2, "until": 6, "spawns": AT["barrow"]},
         {"id": "cabparts", "name": "Cabinet Parts", "display": 1108, "from": 2, "until": 6, "spawns": AT["cabparts"],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "cabinet_credit",
-                  "text": "(Following the chalk marks Oswin Thatcher left on every piece, you peg, glue and square two tall "
-                          "cabinets. One mark says NOT LIKE THAT. You would swear it wasn't there a moment ago.)"},
-                 {"cond": ["R:q2"], "text": "(Offcuts and shavings. The cabinets went together. Eventually.)"},
-                 {"text": "(Cabinet parts, every piece chalk-marked in a carpenter's hand.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "cabinet_credit"}]},
         # A Steady Hand: the Garrens' tables (everyone's, at Garren's Haunt).
         {"id": "tables", "name": "Heavy Oak Table", "display": 221, "spawns": AT["tables"],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "table_credit",
-                  "text": "(A heavy oak table, scrubbed pale at one end where a great many things were laid out over the "
-                          "years. You tip it on its side, rope it, and drag it to the road for Rudd Carver's cart.)"},
-                 {"text": "(A heavy oak table, left out in the weather.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "table_credit"}]},
         # The examination room in the open (from the third stage until the hall opens), and its sign (stays).
         {"id": "exam1", "name": "Examination Table", "display": 8073, "scale": 0.85, "from": 3, "until": 6,
          "spawns": AT["exam1"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "prepare_credit",
-                  "text": "(You scrub the table with carbolic until it shines, lay out clean linen, and light the lamps "
-                          "either side. The yard smells like a forge and a laundry at once.)"},
-                 {"text": "(An examination table, scrubbed pale. There are straps. Elspeth says they're for the patient's "
-                          "comfort. Nobody has ever believed her.)"}]},
-        {"id": "exam2", "name": "Oak Table", "display": 7550, "scale": 0.8, "from": 3, "until": 6, "spawns": AT["exam2"]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "prepare_credit"}]},
+        {"id": "exam2", "name": "Oak Table", "display": 151, "scale": 0.8, "from": 3, "until": 6, "spawns": AT["exam2"]},
         {"id": "cabinets", "name": "Medical Cabinet", "display": 4, "from": 3, "until": 6, "spawns": AT["cabinets"]},
         {"id": "lamps", "name": "Alchemical Lamp", "display": 6038, "from": 3, "until": 6, "spawns": AT["lamps"]},
         {"id": "side", "name": "Side Table", "display": 581, "from": 3, "until": 6, "spawns": AT["side"]},
         {"id": "vials", "name": "Bottles", "display": 4072, "from": 3, "until": 6, "spawns": AT["vials"]},
         {"id": "post", "name": "Signpost", "display": 6033, "from": 3, "spawns": AT["post"]},
-        {"id": "sign", "name": "Surgeon's Hall", "display": 26, "from": 3, "spawns": AT["post"],
-         "use": [{"text": "(A board painted with an open red hand, the old Lordaeron sign for a bonesetter, and below it:$B$B"
-                          "SURGEON'S HALL. E. RANE, SURGEON.$BTHE LIVING WELCOME. THE DEAD WELCOME. APOTHECARIES BY "
-                          "APPOINTMENT.)"}]},
+        {"id": "sign", "name": "Surgeon's Hall", "display": 26, "from": 3, "spawns": AT["post"]},
         # A Spare Arm and a Leg: Timm's test frame (from the third stage until the hall opens), the mill's gearing
         # and the clockmaker's hand (everyone's, at Agamand Mills).
-        {"id": "mech", "name": "Practice Frame", "display": 7073, "scale": 0.8, "from": 3, "until": 6, "spawns": AT["mech"],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "test_credit",
-                  "text": "(You hold the brass forearm steady while Timm tightens the last strap. He flexes his shoulder. "
-                          "The hand closes, opens, closes, and then goes on closing and opening on its own, faster and "
-                          "faster, until it seizes the front of your shirt and won't let go. Timm hits it with a spanner. "
-                          "It lets go. 'Third finger,' he says, very calmly. 'Spring's backwards.' Ten minutes later the "
-                          "hand picks up a teacup and sets it down again without breaking it.)"},
-                 {"text": "(A frame of oak and brass levers for a prosthetic to grip. It has been gripped a great deal. A "
-                          "label: DO NOT TOUCH. T.V.)"}]},
+        {"id": "mech", "name": "Practice Frame", "display": 1248, "scale": 0.8, "from": 3, "until": 6, "spawns": AT["mech"],
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "test_credit"}]},
         {"id": "gearing", "name": "Rusted Mill Gearing", "display": 7000, "spawns": AT["gearing"],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "joint_credit",
-                  "text": "(You work an articulated joint loose from the rusted gearing. It turns stiffly, then freely, "
-                          "with a squeal like a gate.)"},
-                 {"text": "(Rusted mill gearing, left to the weather.)"}]},
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "joint_credit"}]},
         {"id": "hand", "name": "Clockmaker's Hand", "display": 7731, "scale": 0.5, "spawns": AT["hand"],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "hand_credit",
-                  "text": "(Under the fallen shelves of the burned shop, wrapped in oilcloth, is a hand: brass knuckles, "
-                          "steel tendons, an oak palm, beautiful and perfectly still. A tag on the wrist: FOR THE MILLER'S "
-                          "BOY. PAID IN FLOUR.)"},
-                 {"text": "(The burned clockmaker's bench. Nothing on it but soot.)"}]},
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "hand_credit"}]},
         # The workshop in the yard (from the fourth stage until the hall opens).
-        {"id": "bench", "name": "Timm's Workbench", "display": 7993, "from": 4, "until": 6, "spawns": AT["bench"]},
+        {"id": "bench", "name": "Timm's Workbench", "display": 234, "from": 4, "until": 6, "spawns": AT["bench"]},
         {"id": "gear", "name": "Spare Gear", "display": 7000, "scale": 0.5, "from": 4, "until": 6, "spawns": AT["gear"]},
         {"id": "arm", "name": "Prosthetic Arm", "display": 7731, "scale": 0.55, "from": 4, "until": 6, "spawns": AT["arm"]},
-        {"id": "tbox", "name": "Toolbox", "display": 317, "scale": 0.7, "from": 4, "until": 6, "spawns": AT["tbox"]},
+        {"id": "tbox", "name": "Toolbox", "display": 7426, "scale": 0.6, "from": 4, "until": 6, "spawns": AT["tbox"]},
         # The Patient Comes First: the proposal and the case records (from the fourth stage until the hall opens).
         {"id": "proposal", "name": "The Society's Proposal", "display": 7751, "scale": 1.5, "from": 4, "until": 6,
          "spawns": AT["proposal"],
          "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "papers_credit",
-                  "text": "(Seven pages in a clerk's hand under Master Apothecary Faranell's seal. 'PROPOSAL: the use of "
-                          "the Surgeon's Hall's patients, being already in a state of decay, in the trial of Formulae 12 "
-                          "through 31 for the arrest of necrotic progression. Patients shall be informed as necessary.' "
-                          "Someone has underlined AS NECESSARY in red ink, three times, very hard.)"},
-                 {"text": "(The Society's proposal, read and filed under P, for Presumption.)"}]},
+                  "text": "('PROPOSAL: the use of the Surgeon's Hall's patients, being already in a state of decay, in the trial of Formulae 12 through 31 for the arrest of necrotic progression. Patients shall be informed as necessary.'$B$BUnder Master Apothecary Faranell's seal. AS NECESSARY is underlined in red ink, three times.)"}]},
         {"id": "records", "name": "Case Records", "display": 1, "scale": 1.3, "from": 4, "until": 6,
          "spawns": AT["records"],
          "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "papers_credit",
-                  "text": "(Forty-one patients since Elspeth came to Brill, each in a numbered folder in a hard, upright "
-                          "hand. Every one records what was done and, beneath it: CONSENTED. Two say REFUSED, and under "
-                          "that, TREATED OTHERWISE. One says DIED (AGAIN). ATTENDED.)"},
-                 {"text": "(A chest of case records, kept in strict order.)"}]},
+                  "text": "(Forty-one numbered folders. Under each: CONSENTED. Two say REFUSED, and under that, TREATED OTHERWISE. One says DIED (AGAIN). ATTENDED.)"}]},
         # The First Patient: the instrument tray, and the ward (from the fifth stage until the hall opens).
-        {"id": "tray", "name": "Instrument Tray", "display": 449, "from": 5, "until": 6, "spawns": AT["tray"],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "instrument_credit",
-                  "text": "(Elspeth works fast and talks less. 'Saw.' You hand it over. 'Probe. No, the long one.' 'Clamp.' "
-                          "'Clamp.' 'Gut, heavy.' Fenwick holds the lamp. Timm holds his breath, out of habit. Agnes, "
-                          "half under one of Holland's tinctures, tells the canvas about a dog she had as a girl. It takes "
-                          "the better part of an hour. At the end Elspeth straightens, looks at the leg, and says one word: "
-                          "'Done.')"},
-                 {"text": "(Instruments laid out in rows: cleaned, sharpened, counted.)"}]},
+        {"id": "tray", "name": "Instrument Tray", "display": 6508, "scale": 0.7, "from": 5, "until": 6, "spawns": AT["tray"],
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "instrument_credit"}]},
         {"id": "ward", "name": "Ward Tent", "display": 7194, "from": 5, "until": 6, "spawns": AT["ward"]},
         {"id": "ward_beds", "name": "Ward Bed", "display": 3471, "scale": 0.75, "from": 5, "until": 6,
          "spawns": AT["ward_beds"]},
@@ -475,11 +424,9 @@ LINE = {
          "spawns": [hall(-3.6, 2.1, 90), hall(-3.6, -2.2, 90)]},
         {"id": "hall_table", "name": "Examination Table", "display": 8073, "scale": 0.8, "from": 6,
          "spawns": [hall(1.8, 0.8, 0)]},
-        {"id": "hall_bench", "name": "Timm's Workbench", "display": 7993, "from": 6, "spawns": [hall(4.3, -3.2, 0)]},
+        {"id": "hall_bench", "name": "Timm's Workbench", "display": 234, "from": 6, "spawns": [hall(4.3, -3.2, 0)]},
         {"id": "hall_arm", "name": "Prosthetic Arm", "display": 7731, "scale": 0.55, "from": 6,
-         "spawns": [hall(4.3, -3.7, 0, 0.87)],
-         "use": [{"text": "(Design six. Brass, leather and oak. A card beside it in Timm's hand: GERALD (VI). DOES NOT "
-                          "TWITCH. On the back, in Elspeth's: YET.)"}]},
+         "spawns": [hall(4.3, -3.7, 0, 0.87)]},
         {"id": "hall_gear", "name": "Spare Gear", "display": 7000, "scale": 0.35, "from": 6, "spawns": [hall(4.3, -2.4, 0, 0.87)]},
         {"id": "hall_cabinet", "name": "Medical Cabinet", "display": 4, "from": 6, "spawns": [hall(4.2, 4.4, 270)]},
         {"id": "hall_shelf", "name": "Shelf", "display": 187, "from": 6, "spawns": [hall(3.0, -5.6, 90)]},
@@ -489,10 +436,7 @@ LINE = {
         {"id": "banner", "name": "Forsaken Banner", "display": 7979, "from": 6, "spawns": AT["banner"]},
         {"id": "waiting_bench", "name": "Bench", "display": 682, "type": 7, "from": 6, "spawns": AT["waiting_bench"]},
         # Carolai's basket at the door, of an evening.
-        {"id": "basket", "name": "Carolai's Basket", "display": 468, "from": 6, "when": "evening", "spawns": AT["basket"],
-         "use": [{"text": "(Comfrey, willowbark, poppy, each bundle tied with black thread and labelled in a neat, "
-                          "looping hand. At the bottom, wrapped separately: a sleeping draught, marked FOR THE ONES WHO "
-                          "CAN'T.)"}]},
+        {"id": "basket", "name": "Carolai's Basket", "display": 7494, "from": 6, "when": "evening", "spawns": AT["basket"]},
         # The house's furnishings (bought from Elspeth): a first-aid cabinet, a washbasin, an anatomy (against the
         # doorway's wall, left of the door: the slots asked for, (-2.6, -3.9) and (-3.6, -3.9), hold the brewery's
         # drinks cabinet at (-3.0, -3.8)).
@@ -501,10 +445,7 @@ LINE = {
         {"id": "house_basin", "name": "Washbasin", "display": 5112, "scale": 0.6, "from": 7,
          "spawns": [["house", 0.15, -5.15, 0, 90]]},
         {"id": "house_book", "name": "Varden's Anatomy of the Risen", "display": 7233, "scale": 0.35, "from": 7,
-         "spawns": [["house", -4.1, -5.2, 0.97, 10]],
-         "use": [{"text": "(VARDEN'S ANATOMY OF THE RISEN, the Society's one useful book. Chapter four, 'On Things That "
-                          "Come Loose', is bookmarked with a strip of clean linen. In the margin, in Elspeth's hand: READ "
-                          "THIS BEFORE YOU NEED IT.)"}]},
+         "spawns": [["house", -4.1, -5.2, 0.97, 10]]},
     ],
     "gossip": [
         # Elspeth, by how far the hall's come (the first that holds). Once it's open, one day in two she remarks on
