@@ -77,6 +77,14 @@ int main(int argc, char** argv)
         Check(text == "Creature\\Pug\\Pug.m2\nCreature\\Pug\\Pug00.skin\nCreature\\Pug\\ForsakenPug_Corn.blp\n",
               "Corn's paths listed beside the patch (for the Skyborne's patch-Z)");
     }
+    {
+        fs::path addon = data.parent_path() / "Interface" / "AddOns" / "BrillTown";
+        std::ifstream toc(addon / "BrillTown.toc"), code(addon / "BrillTown.lua");
+        std::string tocText((std::istreambuf_iterator<char>(toc)), std::istreambuf_iterator<char>());
+        std::string codeText((std::istreambuf_iterator<char>(code)), std::istreambuf_iterator<char>());
+        Check(tocText.find("## Interface: 30300") != std::string::npos && tocText.find("Questie-335") != std::string::npos
+              && codeText.find("questDataOverrides") != std::string::npos, "the add-on for Questie in the client's Interface/AddOns");
+    }
     std::string names(m2.begin(), m2.end());
     Check(names.find("Creature\\Pug\\ForsakenPug_Corn.blp") != std::string::npos, "the model names the coat");
 
@@ -95,6 +103,11 @@ int main(int argc, char** argv)
 
     corn = false;
     Check(BrillHome::UpdatePatch(module, data, log, corn) && corn, "a second start keeps it");
+    BrillHome::SetPatchAside(data, log);
+    Check(!fs::exists(data.parent_path() / "Interface" / "AddOns" / "BrillTown"), "set aside (Wrath Remix): the add-on out too");
+    corn = false;
+    Check(BrillHome::UpdatePatch(module, data, log, corn) && corn
+          && fs::exists(data.parent_path() / "Interface" / "AddOns" / "BrillTown" / "BrillTown.lua"), "back on ChromieCraft: both back");
 #ifdef WITH_SKYBORNE
     if (argc == 4)
     {

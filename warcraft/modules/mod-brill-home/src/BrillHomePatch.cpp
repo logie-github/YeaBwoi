@@ -165,10 +165,50 @@ namespace BrillHome
         };
     }
 
+    // The add-on for Questie (data/client/addon/BrillTown, tools/build_questie.py): the module's quests on
+    // Questie's maps and tracker. In the client's Interface/AddOns beside the patch, out with it.
+    static fs::path AddonFolder(fs::path const& clientData)
+    {
+        return clientData.parent_path() / "Interface" / "AddOns" / "BrillTown";
+    }
+
+    static void RemoveAddon(fs::path const& clientData, std::function<void(std::string const&)> const& log)
+    {
+        std::error_code error;
+        fs::path folder = AddonFolder(clientData);
+        if (fs::exists(folder / "BrillTown.toc", error) && fs::remove_all(folder, error) > 0 && !error)
+            log("The Brill town's add-on for Questie is out of the game");
+    }
+
+    static void InstallAddon(fs::path const& moduleData, fs::path const& clientData, std::function<void(std::string const&)> const& log)
+    {
+        std::error_code error;
+        fs::path source = moduleData / "addon" / "BrillTown", folder = AddonFolder(clientData);
+        if (!fs::is_directory(source, error))
+            return;
+        size_t changed = 0;
+        for (auto it = fs::directory_iterator(source, error); !error && it != fs::directory_iterator(); it.increment(error))
+        {
+            if (!it->is_regular_file(error))
+                continue;
+            Bytes data = ReadFile(it->path());
+            fs::path target = folder / it->path().filename();
+            if (ReadFile(target) == data)
+                continue;
+            fs::create_directories(folder, error);
+            std::ofstream out(target, std::ios::binary | std::ios::trunc);
+            out.write(reinterpret_cast<char const*>(data.data()), static_cast<std::streamsize>(data.size()));
+            ++changed;
+        }
+        if (changed)
+            log("The Brill town's add-on for Questie is in the game (" + folder.string() + ")");
+    }
+
     void RemovePatch(fs::path const& clientData, std::function<void(std::string const&)> const& log)
     {
         std::error_code error;
         RemoveOldPatch(clientData, log);
+        RemoveAddon(clientData, log);
         std::string locale = Locale(clientData);
         if (locale.empty())
             return;
@@ -186,6 +226,7 @@ namespace BrillHome
     {
         std::error_code error;
         RemoveOldPatch(clientData, log);
+        RemoveAddon(clientData, log);
         std::string locale = Locale(clientData);
         if (locale.empty())
             return;
@@ -225,6 +266,7 @@ namespace BrillHome
         cornReady = false;
         std::error_code error;
         RemoveOldPatch(clientData, log);
+        InstallAddon(moduleData, clientData, log);
         std::string locale = Locale(clientData);
         if (locale.empty())
         {

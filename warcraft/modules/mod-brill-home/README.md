@@ -243,6 +243,29 @@ models: the chapel 30 yards east of its planned spot to clear the graves, the br
 barn, which fit nowhere by the Gallows' End), models' sizes and turns, the crypt's spawns inside it, the
 new well and stall, the routes. Nothing here has run on a phone.
 
+## The quests on the maps, and Questie
+
+The user: "Be sure to add quest markers and stuff so that it shows objectives on the map and make it compatible
+with questie". `tools/build_questie.py` (run by `tools/build_town.py` and `tools/build_sql.py` after them) makes both
+from the module's world SQL:
+
+- **The game's own markers** (`data/sql/chromiecraft/world/brill_quest_poi.sql`, `quest_poi` and
+  `quest_poi_points`): for each of the house's and town's quests, a blob on the world map around where each
+  objective is done (the objects that give it, the creatures to speak with or kill; the game's own creatures where
+  the world database has them, read as the file is applied) and one at whoever takes it back. The tracker's map
+  button and the world map's quest list show them.
+- **Questie** (its 3.3.5 port, Questie-335, which doesn't know the module's quests): an add-on,
+  `data/client/addon/BrillTown` (`BrillTown.toc`, `BrillTown.lua`), which the module puts in the client's
+  `Interface/AddOns` at the realm's start (taken out with the patch, and on Wrath Remix's realm). As Questie's
+  database starts at login, it adds the module's 89 quests and their creatures to the database's own runtime
+  additions (`QuestieDB.questDataOverrides`, `npcDataOverrides`) and their numbers to the list Questie checks a
+  quest log against: so Questie tracks them (no more "missing from Questie's database"), draws their objectives on
+  the map and minimap, marks their turn-ins, and puts its "!" over the givers of the quests a character can take
+  whenever the giver is there (not over those waiting on a choice, a project's stage or another quest finished
+  first beyond the one before it, which Questie can't know). An objective done by speaking with one of the game's
+  own creatures takes that creature's places from Questie's own data. Without Questie the add-on does nothing.
+  Tested with a stand-in for Questie's database (its functions as Questie-335's source has them), not in the game.
+
 ## Files
 
 - `data/sql/chromiecraft/world/brill_home_world.sql`: made by `tools/build_sql.py`; don't edit it.
