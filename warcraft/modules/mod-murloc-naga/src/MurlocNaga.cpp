@@ -519,7 +519,7 @@ namespace
 // or its map): awake at the pool.
 namespace
 {
-    enum class MemoryStep { Enter, Leave, Wake, Revive };
+    enum class MemoryStep { Enter, Leave, Wake, Revive, Replay };
 
     struct Pending
     {
@@ -538,8 +538,11 @@ namespace
     std::unordered_map<ObjectGuid::LowType, Reliving> reliving;
     std::unordered_map<ObjectGuid::LowType, uint32> clocks, sinceMemoryCheck, sinceCarry;
     std::unordered_set<ObjectGuid::LowType> switching;  // (taking one memory off to go into another: no waking)
+    // A memory's quests left unfinished on waking (a death, a logout, its ground left): on going back in, each one's
+    // giver there plays its accepting scene again (its waves, its event's credit: the quest itself is in the log).
+    std::unordered_map<ObjectGuid::LowType, std::unordered_set<uint32>> unfinished;
 
-    constexpr uint32 ENTER_DELAY = 800, REVIVE_DELAY = 1500, WAKE_AFTER_QUEST = 4000, GRACE = 5000;
+    constexpr uint32 ENTER_DELAY = 800, REVIVE_DELAY = 1500, WAKE_AFTER_QUEST = 4000, GRACE = 5000, REPLAY_DELAY = 2500;
 
     Memory const* MemoryOf(uint32 spell)
     {
@@ -602,10 +605,43 @@ namespace
         player->TeleportTo(memory.map, memory.x, memory.y, memory.z, memory.o);
         RefreshPhases(player);
         LOG_DEBUG("module", "Murlocs and Naga: {} relives memory {} (phase {})", player->GetName(), memory.spell, player->GetPhaseMask());
+        if (unfinished.count(guid))
+            Queue(player, MemoryStep::Replay, memory.spell, REPLAY_DELAY);
+    }
+
+    // Back in a memory with its quests unfinished: each one's giver there (the nearest on the memory's ground, seen by
+    // the player) accepts it again (its scene plays as when it was first given).
+    void Replay(Player* player, Memory const& memory)
+    {
+        auto it = unfinished.find(player->GetGUID().GetCounter());
+        if (it == unfinished.end())
+            return;
+        std::unordered_set<uint32> quests = it->second;
+        unfinished.erase(it);
+        if (!player->HasAura(memory.spell))
+            return;
+        for (uint32 questId : memory.quests)
+        {
+            Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+            if (!quest || !quests.count(questId) || player->GetQuestStatus(questId) != QUEST_STATUS_INCOMPLETE)
+                continue;
+            for (auto const& [entry, starts] : *sObjectMgr->GetCreatureQuestRelationMap())
+                if (starts == questId)
+                    if (Creature* giver = player->FindNearestCreature(entry, memory.radius * 2.0f))
+                    {
+                        if (giver->AI())
+                            giver->AI()->sQuestAccept(player, quest);
+                        LOG_DEBUG("module", "Murlocs and Naga: {}'s quest {} played again by {}", player->GetName(), questId, entry);
+                        break;
+                    }
+        }
     }
 
     void Wake(Player* player, Memory const& memory)
     {
+        for (uint32 quest : memory.quests)                       // (left unfinished: played again on going back in)
+            if (player->GetQuestStatus(quest) == QUEST_STATUS_INCOMPLETE)
+                unfinished[player->GetGUID().GetCounter()].insert(quest);
         reliving.erase(player->GetGUID().GetCounter());
         if (RelivingNow(player))                                 // (gone into another meanwhile)
             return;
@@ -681,6 +717,7 @@ namespace
                     case MemoryStep::Leave: player->RemoveAurasDueToSpell(memory->spell); break;
                     case MemoryStep::Wake: Wake(player, *memory); break;
                     case MemoryStep::Revive: Revive(player, *memory); break;
+                    case MemoryStep::Replay: Replay(player, *memory); break;
                 }
             }
         }
@@ -725,6 +762,7 @@ namespace
     {
         pending.erase(guid);
         reliving.erase(guid);
+        unfinished.erase(guid);
         clocks.erase(guid);
         sinceMemoryCheck.erase(guid);
         sinceCarry.erase(guid);

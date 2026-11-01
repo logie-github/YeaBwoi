@@ -140,6 +140,11 @@ class Story:
     def row(self, table, **values):
         self.tables.setdefault(table, []).append(values)
 
+    def option_words(self, text, language):
+        """A gossip option's words: what the player says or does, so readable in a story whose people's words are
+        (the naga's: whoever they're speaking to); in the murlocs', in the person's language as it's shown."""
+        return self.words(text, language if self.P.translate else self.P.own_language)
+
     def words(self, text, language):
         """[text] as one of the story's race reads it, said in [language]: a murloc's own (Nerglish) translated,
         a naga's own (and the memories', and Orcish) as written, another race's garbled."""
@@ -887,8 +892,9 @@ class Story:
                     self.err(key, f"no class {what!r}")
                     return
                 self.trainer(entry, 0, K.CLASSES[what], key, lang)
-                options.append((5, NPCFLAG["trainer"], "Teach me."))
-                options.append((16, NPCFLAG["trainer"], "Make me forget what I learned."))
+                mask = 1 << (K.CLASSES[what] - 1)
+                options.append((5, NPCFLAG["trainer"], "Teach me.", mask))
+                options.append((16, NPCFLAG["trainer"], "Make me forget what I learned.", mask))
             else:
                 flags |= NPCFLAG["profession_trainer"]
                 if what not in K.SKILLS:
@@ -956,16 +962,18 @@ class Story:
             for n, opt in enumerate(options):
                 if opt[0] == "travel":
                     _, icon, text, (m, x, y, z), needs = opt
-                    self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon=2, OptionText=self.words(text, lang),
+                    self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon=2, OptionText=self.option_words(text, lang),
                              OptionType=1, OptionNpcFlag=1)
                     self.smart(entry, 0, EV_GOSSIP_SELECT, (menu, n), [(A_CLOSE_GOSSIP, (), (T_INVOKER,)),
                                                                      (A_TELEPORT, (m,), (T_INVOKER, 0, 0, 0, x, y, z, 0))])
                     if needs:
                         self.condition(15, menu, n, 8, self.quest(needs, chapter, key))
                     continue
-                kind, nf, text = opt
+                kind, nf, text = opt[:3]
                 self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon={3: 1, 5: 3, 8: 5, 9: 6, 13: 6, 16: 3}.get(kind, 0),
-                         OptionText=self.words(text, lang), OptionType=kind, OptionNpcFlag=nf)
+                         OptionText=self.option_words(text, lang), OptionType=kind, OptionNpcFlag=nf)
+                if len(opt) > 3:                # (a class trainer's: only to their class, as the game's own)
+                    self.condition(15, menu, n, 15, opt[3])
             self.next_option[entry] = len(options)
         # where
         if d.get("at") is not None and not d.get("summoned"):
@@ -1589,7 +1597,7 @@ class Story:
         menu = entry
         opt = self.next_option.get(entry, 0)
         self.next_option[entry] = opt + 1
-        self.row("gossip_menu_option", MenuID=menu, OptionID=opt, OptionIcon=0, OptionText=self.words(text, self.language(d)),
+        self.row("gossip_menu_option", MenuID=menu, OptionID=opt, OptionIcon=0, OptionText=self.option_words(text, self.language(d)),
                  OptionType=1, OptionNpcFlag=1)
         self.condition(15, menu, opt, 9, qid)
         self.condition(15, menu, opt, 28, qid, negative=1)
@@ -1627,7 +1635,7 @@ class Story:
         self.row("gossip_menu", MenuID=menu, TextID=menu)
         opt = self.next_option.get(e, 0)
         self.next_option[e] = opt + 1
-        self.row("gossip_menu_option", MenuID=e, OptionID=opt, OptionIcon=0, OptionText=self.words(spec.get("ask", "Ask me."), lang),
+        self.row("gossip_menu_option", MenuID=e, OptionID=opt, OptionIcon=0, OptionText=self.option_words(spec.get("ask", "Ask me."), lang),
                  OptionType=1, OptionNpcFlag=1)
         self.condition(15, e, opt, 9, qid)
         self.condition(15, e, opt, 28, qid, negative=1)
@@ -1635,7 +1643,7 @@ class Story:
         for n, answer in enumerate(answers):
             text, right = answer[:2]
             beats = answer[2] if len(answer) > 2 else []
-            self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon=0, OptionText=self.words(text, lang),
+            self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon=0, OptionText=self.option_words(text, lang),
                      OptionType=1, OptionNpcFlag=1)
             scene = [(A_ACTIONLIST, (self.actionlist(e, beats, chapter, where + " (quiz)"), 0, 1), (T_SELF,))] if beats else []
             if right:
@@ -1759,7 +1767,7 @@ class Story:
             opt = self.next_option.get(e, 0)
             self.next_option[e] = opt + 1
             self.row("gossip_menu_option", MenuID=menu, OptionID=opt, OptionIcon=0,
-                     OptionText=self.words("Give it to them.", self.language(d)), OptionType=1, OptionNpcFlag=1)
+                     OptionText=self.option_words("Give it to them.", self.language(d)), OptionType=1, OptionNpcFlag=1)
             self.condition(15, menu, opt, 9, qid)
             self.condition(15, menu, opt, 2, iid, value2=1)
             actions = [(A_CLOSE_GOSSIP, (), (T_INVOKER,)), (A_REMOVE_ITEM, (iid, 1), (T_INVOKER,)), (A_KILLED_MONSTER, (e,), (T_INVOKER,))]
@@ -1996,7 +2004,7 @@ class Story:
                 opt = self.next_option.get(e, 0)
                 self.next_option[e] = opt + 1
                 self.row("gossip_menu_option", MenuID=e, OptionID=opt, OptionIcon=0,
-                         OptionText=self.words(d.get("again", "Sing it again. Let me go back."), self.language(self.npcs[sk])),
+                         OptionText=self.option_words(d.get("again", "Sing it again. Let me go back."), self.language(self.npcs[sk])),
                          OptionType=1, OptionNpcFlag=1)
                 for n, q in enumerate(qs):
                     # (one done inside but not handed in, its ender in the memory, needs the way back in too; one that
