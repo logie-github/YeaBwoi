@@ -44,6 +44,21 @@ fi
 apk add -q --no-progress build-base patchelf xz tar python3 boost-dev openssl-dev mariadb-connector-c-dev \
 	readline-dev bzip2-dev zlib-dev mariadb mariadb-client jemalloc
 
+# The app's own modules' data (their SQL, the files a module makes the game's patch from...) as the
+# repository has it now, over what the compile copied: the compile's cache key covers only what's
+# compiled (the modules' sources and configs), so a change to a module's data, tools or docs packages
+# the server again without compiling it (.github/workflows/build-warcraft.yml).
+for dir in /repo/warcraft/modules/*/; do
+	dir=${dir%/}
+	name=$(basename "$dir")
+	for sub in data/sql data/client data/server data/zones data/patch sql; do
+		rm -rf "${DIST:?}/modules/$name/$sub"
+		[ -d "$dir/$sub" ] || continue
+		mkdir -p "$DIST/modules/$name/$(dirname "$sub")"
+		cp -r "$dir/$sub" "$DIST/modules/$name/$sub"
+	done
+done
+
 # The package: programs, their libraries, MariaDB, SQL and configs.
 rm -rf "$STAGE"
 pkg="$STAGE/server"

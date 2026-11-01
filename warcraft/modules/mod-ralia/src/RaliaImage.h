@@ -36,6 +36,19 @@ namespace Ralia
     // [before] changed, but another picture).
     Image Repaint(Image const& target, Image const& before, Image const& after, double& changed);
 
+    // Whether (x, y) of a skin [width] x [height] is in the part a set's changes are taken from: classic's
+    // layout's TorsoUpper, TorsoLower and LegUpper sections (the right half's top five eighths). The rest
+    // (the other sections, and what an HD look's models draw from them: the Draenei's horns) stays the game's.
+    bool InBody(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
+    // [game] with [set]'s body part (the same size) put in, its colours scaled to the game's there (each
+    // channel's average over the part, so it's the game's skin colour); the rest the game's own.
+    // [withAlpha]: the set's alpha in the part too (a fur texture's), else the game's.
+    Image Fit(Image const& game, Image const& set, bool withAlpha);
+
+    // [changed] with the game's own pixels outside the body part.
+    Image KeepOutside(Image changed, Image const& game);
+
     // How far apart two pictures' colours are (their 16 x 16 thumbnails'), to pick the nearest.
     double Distance(Image const& a, Image const& b);
 

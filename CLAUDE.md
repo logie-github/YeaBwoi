@@ -50,7 +50,7 @@ self-updating from this repository's GitHub releases.
 - **Ralia's mod and Alternate Female Options** (both realms: the launcher's Game options switches, one at a time;
   the user's own zips, picked on the phone, never committed): `warcraft/modules/mod-ralia` (its README); `tools/build_data.py` makes `data/client/sources.txt`, committed.
   Its patch is `Data/<locale>/patch-<locale>-Z.MPQ`, made from the client at the realm's start.
-- **Body** (both realms: the launcher's Game options switch, at realm startup): `warcraft/modules/mod-base-model` (its
+- **No Gear** (was Body, was Base Model; both realms: the launcher's Game options switch, at realm startup): `warcraft/modules/mod-base-model` (its
   README): female character creation previews without starter gear while `files/base-model/enabled` is there. In-game gear is never hidden.
 - **WoW: Forever's quests** (ChromieCraft's realm only): `warcraft/modules/mod-forever-quests` (its
   README); `tools/forever.py` makes its SQL from QuestieDB's Forever data and foreverchanges.pro's

@@ -342,9 +342,9 @@ It covers the races in the game, including male and female gnomes, except the mu
 
 **Game options → Alternate Female Options** works the same way with another zip of character textures, the women's alone, of the races in the game but the gnomes, the murlocs and the naga (the Skyborne and the Dark Ranger skin included, made from the blood elves'). One set at a time: turning one on turns the other off; each keeps its textures. Where a zip has a texture both for the older models and for the newer ones, the one that fits the game's models is used. The races a zip has no textures for keep their own. How: [mod-ralia's README](modules/mod-ralia/README.md). Not yet seen in the game: nothing here runs the 3.3.5 client.
 
-## Body
+## No Gear
 
-**Game options → Body** shows female characters without starter gear in the character creation menu. Male previews, the character list and characters in the world keep their gear. Restart the realm and game after changing it. Both 3.3.5a realms. How: [mod-base-model's README](modules/mod-base-model/README.md).
+**Game options → No Gear** shows female characters without starter gear in the character creation menu. Male previews, the character list and characters in the world keep their gear. Restart the realm and game after changing it. Both 3.3.5a realms. How: [mod-base-model's README](modules/mod-base-model/README.md).
 
 ## Modules
 
@@ -447,7 +447,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them; **Log in automatically** with one (the game types its password at the login screen; the first account you make here does it from the start). Needs the server running. |
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). And its **HD look** (see below). Takes effect the next time the game starts. |
-| **Game options** | **Ralia's mod** or **Alternate Female Options** (one at a time; see **Ralia's mod**; takes effect at the realm's next start) and **Body** (see **Body**; female creation previews only, after restarting the realm and game). |
+| **Game options** | **Ralia's mod** or **Alternate Female Options** (one at a time; see **Ralia's mod**; takes effect at the realm's next start) and **No Gear** (see **No Gear**; female creation previews only, after restarting the realm and game). The menu has the switches alone. |
 | **Add-ons** | The add-on manager: browse and search warperia.com's 3.3.5a add-ons, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. |
 | **Modules** | AzerothCore's modules from GitHub: browse them, pick some, have GitHub build the realm with them and put it in (see **Modules**). |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
@@ -586,7 +586,7 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `../scripts/module-files.py` | A realm with modules: the DBC files and game patches the picked modules bring, put together for the package (`share/dbc`, `share/client`); `ctl.sh modules` puts them in place |
 | `patches/azerothcore/` | Changes to the core: building on musl, telling the app about selections, cutscenes and where the spellbook is, and module configs from the realm's own folder (`WOW_MODULES_CONF_DIR`) |
 | `../scripts/fetch-azerothcore.sh` | Checks out the core, merges the playerbots fork's changes, applies the patches, checks out the modules (and those in `WOW_EXTRA_MODULES`, the user's, for a realm with modules) |
-| `../scripts/compile-azerothcore.sh` | Compiles it all in an Alpine (musl) container, into `build/azerothcore-dist`: the programs, their configs and the SQL. The slow part (CI caches it, and ccache makes a new core revision quicker) |
+| `../scripts/compile-azerothcore.sh` | Compiles it all in an Alpine (musl) container, into `build/azerothcore-dist`: the programs, their configs and the SQL. The slow part: CI compiles again only when what's compiled changes (the core, its patches, the modules' sources and configs; a module's data, tools or docs are put in as the server's packaged), keeps one compiler cache for each branch (the older ones taken out, so the repository's 10 GB of caches keeps them), and publishes each server package it makes as a release of its own (`wow-server-<hash>`, a prerelease the app's updates don't look at; the newest eight kept), which a run on another branch with the same server takes instead of building it: the default branch's run after a merge takes the branch's |
 | `../scripts/package-azerothcore.sh` | Packs `android/server/server.tar.xz` (git-ignored) from that, in the same Alpine, in a few minutes: the programs with their own musl loader and libraries, Alpine's MariaDB, OpenSSL's legacy provider, the system call shim, the SQL, the configs and a seed database folder |
 | `../scripts/build-azerothcore.sh` | Both, one after the other |
 | `server/ctl.sh` | Runs the server's programs, the same way on the phone and in CI; both realms (`main`, `remix`): their configs, databases, world servers and realm list entries |

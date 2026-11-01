@@ -2062,6 +2062,10 @@ Model) affects only female character creation previews, never live characters or
 The Body preference is kept and applied in the final client patch at realm startup. The older
 requirements and implementation notes above are superseded by these corrections.
 
+Game options (the user): "Add no commentary to the game options menu. For body rename it to No Gear": the menu has the
+switches alone (with Choose the zip again once a set's zip is in, a spinner while one's read, and a line if it fails); Body is
+No Gear.
+
 Ralia follow-up (2026-10-31): include gnomes too. Removed the explicit gnome texture exclusion,
 bumped the patch version so existing installs rebuild, and added regression checks for both sexes,
 female overlays and a colour with no direct source texture. The user's imported files are retained.

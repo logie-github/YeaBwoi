@@ -176,6 +176,55 @@ namespace Ralia
         return out;
     }
 
+    bool InBody(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+    {
+        return x * 2 >= width && y * 8 < height * 5;
+    }
+
+    Image Fit(Image const& game, Image const& set, bool withAlpha)
+    {
+        Image out = game;
+        uint32_t w = game.width, h = game.height;
+        if (set.width != w || set.height != h || !w || !h)
+            return out;
+        double sumGame[3] = { 0, 0, 0 }, sumSet[3] = { 0, 0, 0 };
+        for (uint32_t y = 0; y < h; ++y)
+            for (uint32_t x = 0; x < w; ++x)
+                if (InBody(x, y, w, h))
+                    for (int c = 0; c < 3; ++c)
+                    {
+                        sumGame[c] += game.rgba[(size_t(y) * w + x) * 4 + c];
+                        sumSet[c] += set.rgba[(size_t(y) * w + x) * 4 + c];
+                    }
+        double gain[3];
+        for (int c = 0; c < 3; ++c)
+            gain[c] = std::clamp((sumGame[c] + 1.0) / (sumSet[c] + 1.0), 0.5, 2.0);
+        for (uint32_t y = 0; y < h; ++y)
+            for (uint32_t x = 0; x < w; ++x)
+            {
+                if (!InBody(x, y, w, h))
+                    continue;
+                size_t i = (size_t(y) * w + x) * 4;
+                for (int c = 0; c < 3; ++c)
+                    out.rgba[i + c] = Byte(set.rgba[i + c] * gain[c]);
+                if (withAlpha)
+                    out.rgba[i + 3] = set.rgba[i + 3];
+            }
+        return out;
+    }
+
+    Image KeepOutside(Image changed, Image const& game)
+    {
+        uint32_t w = game.width, h = game.height;
+        if (changed.width != w || changed.height != h)
+            return changed;
+        for (uint32_t y = 0; y < h; ++y)
+            for (uint32_t x = 0; x < w; ++x)
+                if (!InBody(x, y, w, h))
+                    std::memcpy(&changed.rgba[(size_t(y) * w + x) * 4], &game.rgba[(size_t(y) * w + x) * 4], 4);
+        return changed;
+    }
+
     double Distance(Image const& a, Image const& b)
     {
         Image sa = Resize(a, 16, 16), sb = Resize(b, 16, 16);

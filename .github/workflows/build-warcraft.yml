@@ -58,12 +58,15 @@ on:
 
 permissions:
   contents: write
+  # (the compiler cache's older copies deleted: one a branch, so the repository's 10 GB keeps it)
+  actions: write
 
-# A run that's building the server isn't cancelled by the next push: that one waits, and then
-# finds the server in the cache.
+# A push to the default branch waits for the run before it (each makes a release). On any other
+# branch the next push cancels the run before it, which is building what's no longer the branch's
+# (its compiler cache is saved even then, and a server it finished is a release of its own).
 concurrency:
   group: warcraft-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
 
 env:
   WOW_VERSION_NAME: 1.0.${{ github.run_number }}
@@ -83,7 +86,9 @@ jobs:
       - name: Cache keys
         id: key
         run: |
-          compile="warcraft-compile-v1-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
+          # (the compile: what's compiled and installed with it alone, the modules' sources and configs;
+          # their data, tools and docs go in as the server's packaged, package-azerothcore.sh)
+          compile="warcraft-compile-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/module-core-patches.txt', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/*/src/**', 'warcraft/modules/*/conf/**', 'warcraft/modules/*/CMakeLists.txt', 'warcraft/modules/*/*.cmake', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh') }}"
           key="warcraft-server-v2-${{ hashFiles('warcraft/server-version.env', 'warcraft/patches/azerothcore/**', 'warcraft/patches/mod-*/**', 'warcraft/modules/**', 'scripts/fetch-azerothcore.sh', 'scripts/compile-azerothcore.sh', 'scripts/package-azerothcore.sh', 'scripts/module-files.py', 'warcraft/server/ctl.sh', 'warcraft/server/create-databases.sql', 'warcraft/server/android_compat.c') }}"
           echo "COMPILE_KEY=$compile" >> "$GITHUB_ENV"
           # A test that passed on this package, this data and this test script: server-test leaves
@@ -92,44 +97,88 @@ jobs:
           echo "SERVER_KEY=$key" >> "$GITHUB_ENV"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
+      # The package is also a release of its own (wow-server-<hash>, a prerelease the app's updates
+      # don't look at), made by the run that built it: the default branch's run after a merge can't read
+      # a branch's caches, and finds the branch's server there instead of compiling it again.
+      - name: Look for the server release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="wow-server-${SERVER_KEY##*-}"
+          tag=${tag::23}
+          echo "SERVER_TAG=$tag" >> "$GITHUB_ENV"
+          mkdir -p warcraft/android/server
+          if gh release download "$tag" -p server.tar.xz -D warcraft/android/server --clobber 2> /dev/null; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "The server package from the release $tag"
+          fi
+
       - name: Look for the server package
         id: cached
+        if: steps.release.outputs.found != 'true'
         uses: actions/cache/restore@v4
         with:
           path: warcraft/android/server/server.tar.xz
           key: ${{ env.SERVER_KEY }}
 
+      - name: The package to make?
+        id: have
+        run: |
+          if [ "${{ steps.release.outputs.found }}" = true ] || [ "${{ steps.cached.outputs.cache-hit }}" = true ]; then
+            echo "package=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Look for the compiled server
         id: compiled
-        if: steps.cached.outputs.cache-hit != 'true'
+        if: steps.have.outputs.package != 'true'
         uses: actions/cache/restore@v4
         with:
           path: build/azerothcore-dist
           key: ${{ env.COMPILE_KEY }}
 
+      # (one a branch, its own newest first, else the default branch's, which every branch can read)
       - name: Restore the compiler cache
-        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        if: steps.have.outputs.package != 'true' && steps.compiled.outputs.cache-hit != 'true'
         uses: actions/cache/restore@v4
         with:
           path: build/ccache
-          key: warcraft-ccache-arm64-${{ github.run_id }}
-          restore-keys: warcraft-ccache-arm64-
+          key: warcraft-ccache-arm64-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            warcraft-ccache-arm64-${{ github.ref_name }}-
+            warcraft-ccache-arm64-${{ github.event.repository.default_branch }}-
+            warcraft-ccache-arm64-
 
       - name: Compile the server
-        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        if: steps.have.outputs.package != 'true' && steps.compiled.outputs.cache-hit != 'true'
         run: |
           scripts/compile-azerothcore.sh
           sudo chown -R "$(id -u):$(id -g)" build
 
       - name: Save the compiler cache
-        if: always() && steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        if: always() && steps.have.outputs.package != 'true' && steps.compiled.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: build/ccache
-          key: warcraft-ccache-arm64-${{ github.run_id }}
+          key: warcraft-ccache-arm64-${{ github.ref_name }}-${{ github.run_id }}
+
+      # The branch's older copies taken out (each is up to 2 GB; the repository keeps 10 GB of caches
+      # and drops the oldest past that, the default branch's compiler cache with them).
+      - name: Take out the older compiler caches
+        if: always() && steps.have.outputs.package != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh cache list --key "warcraft-ccache-arm64-${GITHUB_REF_NAME}-" --limit 100 --json id,key \
+            --jq ".[] | select(.key != \"warcraft-ccache-arm64-${GITHUB_REF_NAME}-${GITHUB_RUN_ID}\") | .id" |
+            while read -r id; do gh cache delete "$id" || true; done
+          # (the ones from before they were a branch's: their key is the run's alone)
+          gh cache list --key "warcraft-ccache-arm64-" --limit 100 --json id,key \
+            --jq '.[] | select(.key | test("^warcraft-ccache-arm64-[0-9]+$")) | .id' |
+            while read -r id; do gh cache delete "$id" || true; done
 
       - name: Save the compiled server
-        if: steps.cached.outputs.cache-hit != 'true' && steps.compiled.outputs.cache-hit != 'true'
+        if: steps.have.outputs.package != 'true' && steps.compiled.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: build/azerothcore-dist
@@ -138,14 +187,14 @@ jobs:
       # The void elves' and the nightborne's files from Blizzard's game (mod-allied-races), fetched
       # once for each list of them.
       - name: The allied races' game files
-        if: steps.cached.outputs.cache-hit != 'true'
+        if: steps.have.outputs.package != 'true'
         uses: actions/cache@v4
         with:
           path: build/allied-races-cache
           key: allied-races-files-v1-${{ hashFiles('warcraft/modules/mod-allied-races/data/retail/races.json') }}
 
       - name: Package the server
-        if: steps.cached.outputs.cache-hit != 'true'
+        if: steps.have.outputs.package != 'true'
         run: |
           scripts/package-azerothcore.sh
           sudo chown -R "$(id -u):$(id -g)" build warcraft/android/server
@@ -168,6 +217,28 @@ jobs:
         with:
           path: warcraft/android/server/server.tar.xz
           key: ${{ env.SERVER_KEY }}
+
+      # The package (made here, or this branch's cached one) as its release (the tag first through the
+      # refs API, as the realms' are),
+      # and the older ones taken out (the newest eight kept: the default branch's and the branches'
+      # being worked on).
+      - name: Publish the server package
+        if: steps.release.outputs.found != 'true' && hashFiles('build/package-incomplete') == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$SERVER_TAG" > /dev/null; then
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$SERVER_TAG" -f sha="$GITHUB_SHA" > /dev/null ||
+              git ls-remote --exit-code --tags origin "refs/tags/$SERVER_TAG" > /dev/null
+          fi
+          gh release view "$SERVER_TAG" > /dev/null 2>&1 && gh release delete "$SERVER_TAG" --yes
+          gh release create "$SERVER_TAG" warcraft/android/server/server.tar.xz --verify-tag --prerelease \
+            --title "World of Warcraft: the realm's server package (${SERVER_TAG#wow-server-})" \
+            --notes "The ChromieCraft and Wrath Remix server package of the World of Warcraft app, built from commit ${GITHUB_SHA::7} (${GITHUB_REF_NAME}). The app's own release carries it; this one lets other runs of the same server skip building it." ||
+            echo "::warning::The server package's release wasn't made (another run's may be there)"
+          gh release list --limit 200 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("wow-server-"))] | sort_by(.createdAt) | reverse | .[8:] | .[].tagName' |
+            while read -r old; do gh release delete "$old" --yes --cleanup-tag || true; done
 
   # MariaDB, the database import, the auth server (a real login), and the world server on the
   # server data: started all the way, a character created and taken into the world, a GM command,
@@ -667,6 +738,9 @@ jobs:
   unit-tests:
     name: Unit tests (accounts, configs, client, updates)
     runs-on: ubuntu-24.04
+    # (about three minutes; a step that hangs, as one did on 31 October, fails here instead of holding
+    # the run, and the branch's next runs, for six hours)
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
