@@ -30,3 +30,19 @@ put	9813	World\\Kalimdor\\Azshara\\PassiveDoodads\\SeaShells\\AzsharaShell03.mdx
 put	9814	World\\Generic\\PassiveDoodads\\Weapons\\Naga_Trident.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9815	World\\Expansion02\\Doodads\\Generic\\Tuskarr\\Fishing\\TS_FishingBasket_Empty_02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9816	World\\Azeroth\\BootyBay\\PassiveDoodad\\DeadFish\\FishDeadOrange.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9817	World\\Expansion02\\Doodads\\Oracle\\Huts\\Oracle_Hut01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9818	World\\Expansion02\\Doodads\\Oracle\\Huts\\Oracle_Hut02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9819	World\\Expansion02\\Doodads\\Generic\\Oracle\\O_Totem_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9820	World\\Expansion02\\Doodads\\Generic\\Oracle\\O_Lamppost_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9821	World\\Expansion02\\Doodads\\Generic\\Oracle\\O_Surfboard01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9822	World\\Expansion02\\Doodads\\Generic\\SeaVrykul\\Shore\\VRS_NetPile_01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9823	World\\Expansion02\\Doodads\\Generic\\Tuskarr\\GiantNets\\TS_GiantNet01Destroyed.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9824	World\\Expansion02\\Doodads\\Generic\\Tuskarr\\Fishing\\TS_CrabBasket_Empty01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9825	World\\Generic\\PassiveDoodads\\Weapons\\BoneClub01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9826	World\\Generic\\DarkIronDwarf\\Passive Doodads\\Manacles\\BlackrockOrcManacle01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9827	World\\Generic\\NightElf\\Passive Doodads\\Ruins\\NightElfRuins01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9828	World\\Generic\\NightElf\\Passive Doodads\\Ruins\\NightElfRuins02.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9829	World\\Kalimdor\\Ashenvale\\PassiveDoodads\\SatyrRuins\\RuinsSatyrPillar01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9830	World\\Expansion02\\Doodads\\Generic\\Tuskarr\\GiantNets\\TS_GiantNet01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9831	World\\Generic\\Human\\Passive Doodads\\Weapons&Armor\\HumanBow01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	9832	World\\Generic\\NightElf\\Passive Doodads\\Banners\\NightElfTreeBanner01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0

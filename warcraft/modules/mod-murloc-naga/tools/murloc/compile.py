@@ -33,10 +33,13 @@ class StoryError(Exception):
     pass
 
 
-def load(folder=HERE):
-    """The chapters, in order (ch1_*.py, ch2_*.py ...): each a dict of its file's names."""
+def load(folder=HERE, upto=None):
+    """The chapters, in order (ch1_*.py, ch2_*.py ...): each a dict of its file's names; [upto]: the last
+    chapter released (the ones after it are still being written)."""
     out = []
     for path in sorted(glob.glob(os.path.join(folder, "ch*.py")), key=lambda p: int(re.match(r"ch(\d+)", os.path.basename(p)).group(1))):
+        if upto is not None and int(re.match(r"ch(\d+)", os.path.basename(path)).group(1)) > upto:
+            continue
         spec = importlib.util.spec_from_file_location("murloc_" + os.path.basename(path)[:-3], path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -49,6 +52,7 @@ def load(folder=HERE):
 EV_UPDATE_OOC, EV_OOC_LOS, EV_ACCEPTED_QUEST, EV_REWARD_QUEST, EV_DATA_SET, EV_GOSSIP_SELECT = 1, 10, 19, 20, 38, 62
 EV_UPDATE_IC, EV_RECEIVE_EMOTE, EV_GOSSIP_HELLO = 0, 22, 64
 A_REMOVE_AURA, A_SUMMON_GO, A_ADD_AURA = 28, 50, 75
+A_SET_FACTION, A_EVADE, EV_HEALTH_PCT = 2, 24, 2
 A_TALK, A_SOUND, A_EMOTE, A_CAST, A_SUMMON, A_AREA_EXPLORED, A_EMOTE_STATE, A_FOLLOW = 1, 4, 5, 11, 12, 15, 17, 29
 A_KILLED_MONSTER, A_DESPAWN, A_SET_DATA, A_ADD_ITEM, A_REMOVE_ITEM, A_SET_RUN, A_TELEPORT = 33, 41, 45, 56, 57, 59, 62
 A_ORIENTATION, A_MOVE_TO, A_CLOSE_GOSSIP, A_ACTIONLIST, A_JUMP, A_MUSIC = 66, 69, 72, 80, 97, 216
@@ -218,6 +222,9 @@ class Story:
 
     def quest(self, ref, chapter, where):
         key = self.qualify(chapter, ref)
+        if key not in self.quest_id and key.split(":")[0] not in {ch["CHAPTER"]["key"] for ch in self.chapters}:
+            # (a later chapter's, not released yet: a quest no one has done, so "until" it is for now)
+            return K.QUEST_END
         if key not in self.quest_id:
             self.err(where, f"no quest {ref!r}")
             return 0
@@ -269,8 +276,8 @@ class Story:
         finals = [k for k, q in self.quests.items() if q.get("final")]
         if len(finals) > 1:
             self.err("the story", f"more than one final quest: {finals}")
-        final = finals[0] if finals else (list(self.quests)[-1] if self.quests else None)
-        self.tables["_story"] = {"final_quest": self.quest_id[final] if final else 0, "first_quest": K.QUEST_BASE,
+        # (no last quest yet, the story released only so far: one that doesn't exist, so the gate stays shut)
+        self.tables["_story"] = {"final_quest": self.quest_id[finals[0]] if finals else K.QUEST_END, "first_quest": K.QUEST_BASE,
                                  "last_quest": K.QUEST_END}
         if self.errors:
             raise StoryError("the murlocs' story has problems:\n  " + "\n  ".join(self.errors))
@@ -519,12 +526,12 @@ class Story:
         zones = sorted({z for z in (self.zone_of(m, x, y) for m, x, y, _ in pts) if z}) or self.chapter_of_key(chapter).get("zones", [])
         self.zones.update(zones)                # (the murlocs' own phase given there too)
         if p == "always":
-            return K.RACE_PHASE | K.STORY_PHASE_MASK
+            return K.RACE_PHASE | K.STORY_PHASE_MASK | K.SCENE_BIT
         if p[0] == "between":                   # ("between", from quest, until quest)
             _, a, b = p
-            return self.phase_bit(zones, "between", (self.quest(a, chapter, d["key"]), self.quest(b, chapter, d["key"])))
+            return self.phase_bit(zones, "between", (self.quest(a, chapter, d["key"]), self.quest(b, chapter, d["key"]))) | K.SCENE_BIT
         kind, quest = p
-        return self.phase_bit(zones, kind, self.quest(quest, chapter, d["key"]))
+        return self.phase_bit(zones, kind, self.quest(quest, chapter, d["key"])) | K.SCENE_BIT
 
     def phase_bit(self, zones, kind, quest):
         zones = tuple(zones)
@@ -633,24 +640,33 @@ class Story:
         if d.get("at") is not None and not d.get("summoned"):
             pts = self.points(d["at"], chapter, key)
             phase = self.phase_of(d, chapter, pts)
-            guids = list(self.spawn(entry, pts, d.get("facing"), phase, d.get("wander", 0.0),
-                                    d.get("respawn", 60 if enemy else 120), f"mod-murloc-naga: {d['name']}"))
-            state = next((b[2] for b in d.get("idle", []) if b[0] == "state" and b[1] == "self"), None)
-            if state is not None:
-                for g in guids:
-                    self.row("creature_addon", guid=g, emote=K.STATES.get(state, state) if isinstance(state, str) else state)
+            list(self.spawn(entry, pts, d.get("facing"), phase, d.get("wander", 0.0),
+                            d.get("respawn", 60 if enemy else 120), f"mod-murloc-naga: {d['name']}"))
+        state = next((b[2] for b in d.get("idle", []) if b[0] == "state" and b[1] == "self"), None)
+        if state is not None:                   # (every one of it, summoned ones too; a spawn may have its own)
+            self.row("creature_template_addon", entry=entry, emote=K.STATES.get(state, state) if isinstance(state, str) else state)
         # idle
         for beat in d.get("idle", []):
             if beat[0] == "every":
-                _, period, beats = beat
+                _, period, beats = beat[:3]
                 timing = (period // 2, period, period, period + period // 2)
+                first = self.script_rows.get((entry, 0), 0)
                 if all(b[0] != "wait" and (len(b) < 2 or b[1] in ("self", None)) for b in beats):
                     acts = [a for b in beats for a in self.beat(entry, b, chapter, key)]
-                    if acts:                    # (plain actions: no list held, nothing a scene waits for)
-                        self.smart(entry, 0, EV_UPDATE_OOC, timing, acts)
-                    continue
-                lid = self.actionlist(entry, beats, chapter, key)
-                self.smart(entry, 0, EV_UPDATE_OOC, timing, [(A_ACTIONLIST, (lid, 0, 0), (T_SELF,))])
+                    if not acts:
+                        continue
+                    self.smart(entry, 0, EV_UPDATE_OOC, timing, acts)  # (plain actions: no list held, nothing a scene waits for)
+                else:
+                    lid = self.actionlist(entry, beats, chapter, key)
+                    self.smart(entry, 0, EV_UPDATE_OOC, timing, [(A_ACTIONLIST, (lid, 0, 0), (T_SELF,))])
+                if len(beat) > 3:               # only where it stands in that phase (its chapter 1 spawns, say)
+                    pts = self.points(d["at"], chapter, key) if d.get("at") is not None else []
+                    bit = self.phase_of(dict(d, phase=beat[3]), chapter, pts) & ~K.SCENE_BIT
+                    self.condition(22, first + 1, entry, 26, bit, target=1)
+        if d.get("at_health"):                  # hurt to a share of its health in a fight: its scene (a duel's end)
+            pct, beats = d["at_health"][:2]
+            lid = self.actionlist(entry, beats, chapter, key + " (hurt)")
+            self.smart(entry, 0, EV_HEALTH_PCT, (0, int(pct), 30000, 30000), [(A_ACTIONLIST, (lid, 0, 1), (T_SELF,))])
         if d.get("watch"):                      # someone coming near: their scene (a guard's warning, a slave's look)
             radius, beats = d["watch"][:2]
             cooldown = d["watch"][2] if len(d["watch"]) > 2 else 15000
@@ -838,9 +854,9 @@ class Story:
         """A timed action list of [owner]'s doing [beats] (others' beats: their own lists, started by data)."""
         n = self.lists.get(owner, 0)
         self.lists[owner] = n + 1
-        if n >= 100:
-            raise StoryError(f"{where}: more than 100 scenes for one creature")
-        lid = owner * 100 + n
+        if n >= 1000:
+            raise StoryError(f"{where}: more than 1000 scenes for one creature")
+        lid = owner * 1000 + n
         rows = []                       # (delay, action, params, target)
         delay = 0
         for beat in beats:
@@ -892,6 +908,17 @@ class Story:
             if kind == "aura":
                 return [(A_ADD_AURA, (spell,), target)]
             return [(A_REMOVE_AURA, (spell, 0), target)]
+        if kind == "faction":                   # ("faction", who, side): whose side they're on now (until they respawn)
+            e, target = self.actor(who, owner, chapter, where)
+            side = beat[2]
+            fid = side if isinstance(side, int) else K.SIDES.get(side)
+            if fid is None:
+                self.err(where, f"no side {side!r}")
+                return []
+            return [(A_SET_FACTION, (fid,), target)]
+        if kind == "evade":                     # ("evade", "self"): stops fighting and goes home
+            e, target = self.actor(who, owner, chapter, where)
+            return [(A_EVADE, (), target)]
         if kind == "object":
             ok = self.qualify(chapter, beat[1])
             if ok not in self.go_id:
@@ -981,9 +1008,9 @@ class Story:
         self.err(where, f"no beat {kind!r}")
         return []
 
-    def condition(self, source, group, entry, ctype, value, negative=0, else_group=0, value2=0):
+    def condition(self, source, group, entry, ctype, value, negative=0, else_group=0, value2=0, target=0):
         self.row("conditions", SourceTypeOrReferenceId=source, SourceGroup=group, SourceEntry=entry, SourceId=0,
-                 ElseGroup=else_group, ConditionTypeOrReference=ctype, ConditionTarget=0, ConditionValue1=value,
+                 ElseGroup=else_group, ConditionTypeOrReference=ctype, ConditionTarget=target, ConditionValue1=value,
                  ConditionValue2=value2, ConditionValue3=0, NegativeCondition=negative, ErrorType=0, ErrorTextId=0,
                  ScriptName="", Comment="mod-murloc-naga")
 
@@ -1022,6 +1049,16 @@ class Story:
             self.use(qid, item, target, count, req_npc, objective_text, chapter, where)
         for spec in d.get("emotes", []):
             self.emote_credit(qid, spec, req_npc, objective_text, chapter, where)
+        for ref, count in d.get("objects", []):       # objects of the story's to use (kind "use", quest this one)
+            ok = self.qualify(chapter, ref)
+            if ok not in self.go_id:
+                self.err(where, f"no object {ref!r}")
+                continue
+            obj = self.objects[ok]
+            if obj.get("kind") != "use" or self.qualify(obj["chapter"], obj.get("quest")) != key:
+                self.err(where, f"the object {ref!r} isn't one to use for this quest (kind \"use\", quest {key.split(':')[1]!r})")
+            req_npc.append((-self.go_id[ok], count))
+            objective_text.append(obj.get("goal", ""))
         if d.get("explore"):
             special |= 2
             pt = self.point(d["explore"], chapter, where)
@@ -1091,11 +1128,13 @@ class Story:
         if d.get("repeatable"):
             special |= 1
         self.row("quest_template_addon", ID=qid, PrevQuestID=self.quest(prevs[0], chapter, where) if len(prevs) == 1 else 0,
-                 SpecialFlags=special, ProvidedItemCount=1 if d.get("source") else 0, ExclusiveGroup=excl and (K.QUEST_BASE + excl),
+                 SpecialFlags=special, ProvidedItemCount=1 if d.get("source") else 0, ExclusiveGroup=excl and (K.QUEST_BASE + 100 * int(chapter[2:]) + excl),
                  AllowableClasses=classes)
         if len(prevs) > 1:
             for p in prevs:
                 self.condition(19, 0, qid, 8, self.quest(p, chapter, where))
+        for n, p in enumerate(d.get("prev_any", [])):     # (any one of them done: either side of a pair)
+            self.condition(19, 0, qid, 8, self.quest(p, chapter, where), else_group=n)
         ends = [self.emote_id(e, where) for e in d.get("reward_emotes", ["talk"])][:4]
         self.row("quest_offer_reward", ID=qid, **{f"Emote{i + 1}": e for i, e in enumerate(ends)},
                  RewardText=d.get("reward", "") if d.get("plain_reward") else self.words(d.get("reward", ""), lang_end))
@@ -1358,6 +1397,8 @@ class Story:
         """A story phase is a spell whose aura is its bit, on a murloc in the chapter's zones by the quest
         rule it was made for (spell_area)."""
         spell = K.PHASE_SPELL_BASE
+        if len(self.phase_bits) > K.SPELL_BASE - K.PHASE_SPELL_BASE:
+            raise StoryError(f"{len(self.phase_bits)} story phases: more than the {K.SPELL_BASE - K.PHASE_SPELL_BASE} spells kept for them")
         for (zones, (kind, quest)), bit in sorted(self.phase_bits.items(), key=lambda kv: kv[1]):
             self.phase_spells.append((spell, bit))
             for zone in zones:
@@ -1444,7 +1485,9 @@ DELETES = [
     ("creature_addon", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
     ("creature", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
     ("smart_scripts", f"(`source_type` = 0 AND `entryorguid` BETWEEN {K.NPC_BASE} AND {K.NPC_END}) OR (`source_type` = 1 AND `entryorguid` "
-                      f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.GO_END * 100 + 99})"),
+                      f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.GO_END * 100 + 99})"
+                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 1000} AND {K.GO_END * 1000 + 999})"),
+    ("creature_template_addon", f"`entry` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("game_graveyard", f"`ID` BETWEEN {K.GRAVEYARD_BASE} AND {K.GRAVEYARD_END}"),
     ("npc_text", f"`ID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("gossip_menu", f"`MenuID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),

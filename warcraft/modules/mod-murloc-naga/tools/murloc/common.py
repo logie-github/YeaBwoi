@@ -28,6 +28,9 @@ SPIRIT_HEALER = 6491                            # the game's spirit healer, at e
 RACE_PHASE = 1024
 STORY_PHASE_BITS = [1 << b for b in range(12, 31) if (1 << b) not in (32768, 65536, 131072)]
 STORY_PHASE_MASK = sum(STORY_PHASE_BITS)
+# A bit no player ever has, on every story-phased person and thing: none of it is seen by more players for
+# it, but the story's people all share it, so a scene finds whoever it hands beats to whatever their phases.
+SCENE_BIT = 1 << 31
 
 # Who people are to a murloc: FactionTemplate ids.
 SIDES = {

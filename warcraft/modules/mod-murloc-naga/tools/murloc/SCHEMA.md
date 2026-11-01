@@ -44,8 +44,10 @@ NPCS = [
   looks play talk, work, roar, battle roar and casts; people of the other races play everything.
 - `level`: a number or (min, max).
 - `side`: `tribe` (friendly to murlocs, can't be attacked), `naga` (hostile), `hostile` (hostile to
-  murlocs, an enemy), `neutral` (yellow), or a FactionTemplate id; a sympathizer in a town is
-  `faction:<Faction.dbc id>` (its standing decides: the town's own).
+  murlocs, an enemy), `neutral` (yellow), or a FactionTemplate id; a town's own people (a sentinel,
+  a guard, a carter) are `faction:<Faction.dbc id>` (the murloc's standing with the town decides: at
+  war, they attack on sight). A sympathizer, wherever they stand, is `tribe`: friendly to the murloc
+  whatever its standing.
 - `role`: `quest`, `vendor`, `trainer:<class>` (warrior, hunter, rogue, priest, shaman, mage),
   `profession:<skill>` (first_aid, cooking, fishing, skinning, mining, herbalism, leatherworking,
   tailoring, blacksmithing, alchemy, engineering, enchanting, jewelcrafting, inscription),
@@ -55,6 +57,8 @@ NPCS = [
   once the quest's done).
 - `watch=(yards, [beats], cooldown ms)`: a player coming that near (in sight) starts the beats ("player"
   is them): a Lasher's hiss, point and lash; a slave hiding. Default cooldown 15000.
+- `at_health=(30, [beats])`: in a fight, hurt to that share of its health, its beats (a duel's end:
+  `("faction", "self", "tribe")`, `("evade", "self")`, `("state", "self", "kneel")`, `("credit", quest)`).
 - `plural`: how an emote objective names them ("pen slaves": "/wave at pen slaves 0/5").
 - `at`: a place, a point, or a list of them (one creature at each).
 - `language`: `nerglish` (the default for murlocs: translated), or `common`, `orcish`, `darnassian`,
@@ -71,7 +75,7 @@ OBJECTS = [
     dict(key="kelp", model="kelp", name="Kelp Bed", at=["kelp1", (4230, 990)], kind="loot",
          loot=[("kelp", 1, 2)], quest="ch1_kelp"),          # a loot object (only on the quest)
     dict(key="cage", model="cage", name="Slave Cage", at="pens", kind="use", quest="ch1_free",
-         credit="ch1_free"),                                # used once for a quest's credit
+         goal="Slave Cage opened"),                         # used for a quest's credit: the quest's objects=
     dict(key="hut", model="murloc_hut", name="Hut", at=(4210, 1020), kind="doodad", scale=1.1),
 ]
 ```
@@ -121,6 +125,8 @@ Objectives (up to four kinds, four entries each):
 - `interact=[("<npc key>", "What you do, in English: a gossip line shown as Nerglish")]`: talk to them.
 - `use=[("<item key>", "<npc key>" | "<place>", count)]`: use a quest item on a creature or at a place.
 - `escort=("<npc key>", ["p1", "p2", ...])`: they follow you; reach the last place with them.
+- `objects=[("<object key>", count)]`: use the story's objects (kind `use`, `quest` this quest; `goal` on
+  the object is the log's line for it: "Slave Cage opened 0/4").
 - `emotes=[("<npc key>", "wave", count, [beats])]`: the player's own emote at them (/wave, /bow,
   /dance, /roar, /cheer, /hug, /salute, /cry...: common.py TEXT_EMOTES), each answering with the beats
   (their own: "self"); one credit per emote, a few seconds apart per creature.
@@ -132,6 +138,8 @@ More: `learn=[spell ids]` (taught as it's handed in: a class quest's stance, Tam
 chore), `details=["talk", "point"]` (the giver's emotes as it's offered), `reward_emotes=["cheer"]`
 (the ender's as it's handed in), `plain_reward=True` (the reward text as written: the story's last
 quest alone, the first words a murloc can read; finishing it teaches the murloc Common), `exclusive=N` (quests sharing N: taking one closes the others).
+
+`prev_any=["ch2_honor", "ch2_totem"]`: after either of them (a hero/menace pair's next quest).
 
 `level` is the quest's level; `min` defaults to level - 2. `xp` (1-8) defaults to 7; the last of a
 chapter's chains and set pieces take 8.
@@ -163,8 +171,11 @@ A beat is a tuple. `who` is `"self"` (the giver or ender), an NPC key (the neare
 | `("aura", who, "<aura key>")` / `("unaura", who, "<aura key>")` | puts an aura (AURAS) on them / takes it off |
 | `("object", "<object key>", "<place>", seconds)` | an object appears there for a while |
 | `("follow", who)` | they follow the player |
+| `("faction", who, "tribe" \| "naga" \| "hostile" \| "neutral" \| id)` | whose side they're on now (until they respawn) |
+| `("evade", who)` | they stop fighting and go home |
 | `("wait", ms)` | pause before the next beat |
 | `("every", ms, [beats])` | (idle only) repeats beats on that period |
+| `("every", ms, [beats], ("until", "ch1_breakout"))` | (idle only) only where it stands in that phase (a slave's habits in the pens, not at later hubs) |
 
 Order matters; each beat follows the last at once unless a `wait` comes between. Keep sequences
 under a minute. A beat given to someone else (an NPC key) is theirs to do, the player still the one
@@ -173,6 +184,9 @@ within 80 yards of whoever runs the scene. A quest's scene interrupts a person's
 interrupts a scene. An object's own scene (`beats` on an object) can summon, set out objects, give
 auras and items, and hand beats to people; it can't speak, emote or play a sound itself.
 Emotes once: `dance`, `work` too (EMOTES); for a lasting dance or work, `state`.
+
+Everyone a scene hands beats to must share a phase with whoever runs it: someone "always" there
+shares every phase; two people in different story phases can't see each other.
 
 Phases: a story phase (`from`, `until`, `between`, `during`) is given in the zones its people and
 things stand in, wherever that is; someone "always" there is seen by every murloc and can find any

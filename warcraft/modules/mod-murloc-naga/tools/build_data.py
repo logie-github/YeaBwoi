@@ -952,7 +952,7 @@ def murloc_story(D, W):
     has no chapters."""
     sys.path.insert(0, os.path.join(HERE, "murloc"))
     import compile as story_compile
-    chapters = story_compile.load()
+    chapters = story_compile.load(upto=C.MURLOC_CHAPTERS)
     if not chapters:
         return None
     cache = {}

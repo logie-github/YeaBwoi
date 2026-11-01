@@ -1,7 +1,8 @@
 # A murloc warrior in the Wrathtail's pens (mod-murloc-naga's story, chapter 1), after its start was
 # checked: the Elder's first quest, handed in to Murlorga; her /wave quest done by waving at the four
 # slaves; Overseer Kezzith's count (a place to stand); the warrior trainer's lessons in the pens; and
-# Auberdine's quests closed to it while its story isn't done (the gate).
+# the breakout and the free Greymist's cove (chapter 2's arrival); Auberdine's quests closed to it while
+# its story isn't done (the gate).
 # Written with the story's names; tools/build_data.py writes warcraft/server/murloc_naga_murloc.steps
 # with their ids.
 wait 3
@@ -37,6 +38,23 @@ expect rewarded {ch1:ch1_count}
 talk {ch1:brrgmrk}
 select-nth {ch1:brrgmrk} 0
 expect trainer type 0
+# Out through the reef (the breakout done as a GM would, to save the chapter's length), to Blrrgl on the
+# Darkshore shore, and on to the free Greymist's cove (chapter 2): Mother Mrrgula takes it in.
+cmd .quest add {ch1:ch1_breakout}
+cmd .quest complete {ch1:ch1_breakout}
+cmd .quest reward {ch1:ch1_breakout}
+go 1 4891.0 618.0 {z:ch1:blrrgl_free}
+wait 3
+talk {ch1:blrrgl_free}
+expect quest {ch2:ch2_arrival}:
+accept {ch1:blrrgl_free} {ch2:ch2_arrival}
+go 1 4803.0 695.0 {z:ch2:mrrgula}
+wait 3
+talk {ch0:mrrgula}
+reward {ch0:mrrgula} {ch2:ch2_arrival}
+expect rewarded {ch2:ch2_arrival}
+talk {ch0:mrrgula}
+expect quest {ch2:ch2_fish}:
 # Auberdine's quests aren't a murloc's while its story isn't done (Thundris Windweaver's).
 go 1 6581.0 492.0 8.3
 talk 3649

@@ -57,25 +57,27 @@ NPCS = [
          travel=[], gossip="The currents carry us. Where do you want to be carried?",
          idle=[("every", 30000, [("visual", "self", 36005)])]),
 
-    # Friends and rivals met more than once (bible section 5).
+    # Friends and rivals met more than once (bible section 5). The land-walkers among them are on the tribe's
+    # side (friendly to a murloc whatever its standing with their towns: they'd attack it on sight
+    # otherwise), and speak their own languages.
     dict(key="mrrk", name="Mrrk Sharpfin", subname="", look="murloc_orange", level=(18, 50), role="quest",
          gossip="Mrgl. You again.", idle=[("every", 25000, [("emote", "self", "flex")])]),
     dict(key="mrrgula", name="Mother Mrrgula", subname="Matriarch of the Greymist", look="murloc_pale", level=30, role="quest",
          gossip="Every little one is a little one of mine. Even the loud ones. Especially the loud ones.",
          idle=[("state", "self", "sit")]),
-    dict(key="nerelith", name="Nerelith Saltwind", subname="", look=1682, level=40, side="faction:69", role="quest",
+    dict(key="nerelith", name="Nerelith Saltwind", subname="", look=1682, level=40, side="tribe", role="quest",
          language="darnassian", gossip="Ishnu-alah, little one. You are far from the water.",
          idle=[("every", 30000, [("emote", "self", "point")])]),
-    dict(key="zalja", name="Zalja the Net-Mender", subname="", look=2734, level=35, side="faction:530", role="quest",
+    dict(key="zalja", name="Zalja the Net-Mender", subname="", look=2734, level=35, side="tribe", role="quest",
          language="troll", gossip="Ha! Da little fishman! Come, come, Zalja got work for you.",
          idle=[("state", "self", "work"), ("every", 30000, [("emote", "self", "laugh")])]),
-    dict(key="fizzbo", name="Fizzbo Gillgrin", subname="Fence", look=7097, level=45, side="faction:21", role="quest",
+    dict(key="fizzbo", name="Fizzbo Gillgrin", subname="Fence", look=7097, level=45, side="tribe", role="quest",
          language="common", gossip="Business is business, and business is friendship, and friendship is ten percent.",
          idle=[("every", 20000, [("emote", "self", "beg")])]),
-    dict(key="bram", name="Bram Coldkettle", subname="", look=3265, level=30, side="faction:47", role="quest",
+    dict(key="bram", name="Bram Coldkettle", subname="", look=3265, level=30, side="tribe", role="quest",
          language="dwarvish", gossip="Hic. Ye're a strange wee fish, ye are.",
          idle=[("state", "self", "sit"), ("every", 20000, [("emote", "self", "laugh")])]),
-    dict(key="hester", name="Hester Gale", subname="", look=3330, level=25, side="faction:72", role="quest",
+    dict(key="hester", name="Hester Gale", subname="", look=3330, level=25, side="tribe", role="quest",
          language="common", gossip="Oh! Oh, it's you. Come in out of the wind, love.",
          idle=[("every", 30000, [("emote", "self", "wave")])]),
     dict(key="murkeye", name="Old Murk-Eye", subname="The Oldest Murloc", look="murloc_slate", scale=1.3, level=40, role="quest",
