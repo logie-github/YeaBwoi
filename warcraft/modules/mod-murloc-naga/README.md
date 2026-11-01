@@ -254,6 +254,49 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
 - That the memories look as meant: the game's flashback screen effect (ScreenEffect 21) and the fade (201), and a
   new look of a playable race's person (display_extra) drawn without a baked texture.
 
+## The naga's story's assets
+
+What the naga's story (its bible's 18.5 and 18.6) uses that the 3.3.5 game hasn't. The files are Blizzard's, made as
+the server is packaged and never in this repository; the rows are in the patch and the world database either way.
+
+- **Voices** (`tools/naga/sounds.py`: `SOUNDS["LadyVashjReady1"]` -> 995000, the story's sound beats' table; `WORDS`
+  their words): 82 Warcraft III unit lines (Lady Vashj's 21, the naga siren's, myrmidon's and royal guard's, Illidan,
+  Maiev, Kael'thas, Garithos, Akama, Tyrande, Malfurion, Arthas, a dreadlord, the pit lord), SoundEntries 995000 to
+  995081 (`Sound\Creature\WC3Voices\<name>.wav`, as Lady Vashj's own lines are played: a creature's speech). The files
+  are warcraft.wiki.gg's (`/images/<name>.wav`; its robots.txt allows the folder), or Wowpedia's copies of the same
+  files, each checked against the SHA-1 and size the table pins: all 82 are already the game's own format (16-bit
+  PCM, mono, 22,050 Hz) and are written without the wiki's tags. Without a file, the game plays nothing for its row
+  and the line shows as text.
+- **The naga's emotes** (`tools/naga_emotes.py`): the 3.3.5 naga models have no bow, wave, cheer, laugh, cry, salute,
+  kneel, point, sit, sleep or mount pose, and no naga model of today's game has the full set either (today's naga, the
+  naga lord, the elite naga, the sea witch, the siren, Azshara's naga: talk, work, roar, kneel and point at most). So:
+  kneel (and its start, loop and end) and point are today's naga's own, bone for bone; sitting is the naga's tail coiled
+  as it kneels with its upper body upright, riding the same with the night elf's riding arms, sleeping its own
+  drowning (a collapse into a coil, lying, and back); and the rest (bow, wave, cheer, talk with an exclamation or a
+  question, applaud, beg, chicken, flex, kiss, laugh, shout, cry, shy, dance, salute, eat, rude, train, yes, no) are
+  the night elves' (today's night elf character models: the naga were night elves), on the naga's upper body (spine,
+  chest, neck, head, jaw, arms, fingers: the female's four arms each as the night elf's arm on its side), its tail held
+  as it stands. 39 sequences a sex (6 of them the game's aliases of others). As the patch is made, `MergeEmotes` adds them to the client's own naga models
+  (an HD look's, with one in) after their headdresses and outfits: each bone found at its place, its keys worked out
+  against the client model's own parents (the 3.3.5 naga's tail bones all hang from one bone, today's from each
+  other); the sequences it already has are left as they are.
+- **Models** (`tools/naga_models.py`, `tools/naga/looks.py`): Serena Scarscale's sea witch (Battle for Azeroth's,
+  `creature/seawitch/seawitch.m2`), Maiev's Watchers (Legion's warden, in its four skins) and Queen Azshara as a night
+  elf (Cataclysm's), made 3.3.5's (Wrath Remix's converter, and: sequences with ids 3.3.5 hasn't left out, each batch
+  its own first texture, textures over 1024 made 1024): CreatureModelData 3800 to 3802, CreatureDisplayInfo 40000 to
+  40005, `creature_model_info` for the server. The sea witch talks, works, roars, channels and holds and shoots a bow;
+  the warden and Azshara have every emote (looks.py's EMOTES). Azshara's texture keeps no colour where its alpha is 0
+  (a quarter of it: most of her gown, spots of her gold), and her batches draw it opaque: those texels are given the
+  colour around them (her cream gown, as warcraft.wiki.gg's screenshots of her in the Well of Eternity show it, not
+  black), and her two-texture batch (hair, jewellery: the colour and an environment map, today's Opaque_Mod2xNA_Alpha)
+  draws one texture made of both (the map's mean colour where the alpha lets it through).
+- **Looks of the game's parts** (CreatureDisplayInfoExtra 25000 to 25007 with CreatureDisplayInfo 40010 to 40017, no
+  baked texture: dressed from their items): Grand Marshal Garithos (a human in Lordaeron's blue and silver plate, a
+  closed helm, the Alliance's tabard), Handmaiden Vashj and the Highborne court (night elves in the Highborne
+  Summoners' robes), Taelon Emberveil (a blood elf in red and gold), Shaelyn Harborsong (an old night elf in green
+  leathers). `LOOKS` names every look for the chapters (`LOOKS["serena"]` -> 40000); `FALLBACK` gives a look of the
+  game's for the converted ones' people when their models weren't made.
+
 ## How it's made
 
 - **`tools/build_data.py DBC_DIR WORLD_SQL_DIR MAPS_DIR`** reads the game's tables (the server's dbc folder), the core's
@@ -304,6 +347,15 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
   `MurlocNaga.ClientPatch = 0` takes it out; on Wrath Remix (`MurlocNaga.Enable = 0`, set by ctl.sh) it's set aside.
   The world server reads the cameras from its own data folder's `Cameras` too (put there as the configuration is read), to
   follow the camera.
+- **The naga's story's assets** (above): `tools/naga_assets.py` makes their rows (`add_naga_assets`, called once by
+  `tools/build_data.py`); as the server is packaged, `tools/naga_emotes.py fetch DIR` (`Naga<Sex>Emotes.dat`,
+  `nagaemotes.files`), `tools/naga_models.py fetch DIR` (`Creature/...`, `nagamodels.files`) and
+  `tools/naga_voices.py fetch DIR` (`Sound/Creature/WC3Voices/`, `nagavoices.files`) make their files, each list
+  last; the patch takes each list's files (`MergeEmotes` the emotes) and logs a missing list. A source that refuses
+  leaves its files out with a line in the package's log (the tool exits 1, `package-azerothcore.sh` says what's
+  missing and goes on: the package is made without them). What they fetch is cached with the allied races' files
+  (CI's cache key covers `tools/naga_looks.py` and `tools/naga/*.py`, which name the files: `naga/sources.py` the
+  emotes' models). `tools/render_naga.py` draws the models and the emotes to contact sheets.
 - The SQL is ChromieCraft's alone: in `data/sql/chromiecraft/world`, which ctl.sh (`realm_sql`) puts in ChromieCraft's
   world database's update list, last.
 
@@ -312,14 +364,18 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
 - `tools/test_patch.cpp`: the patch made for a game folder and read back (the races, their looks and the creatures'
   races moved, the murloc's model reading the face region alone, its face textures, the naga's colours, the icons,
   the screen, the cameras, the narrations' lengths, every composed texture palettized at the skin's scale, every
-  texture the races' rows name there; a second start keeping it). Run here on a stand-in of the
-  Alternative HD Patch's client (its files out of its archive).
+  texture the races' rows name there; the naga's emotes in the client's naga models (every id, every track with an
+  entry for each sequence, the look-up and aliases, a second merge adding nothing), the 82 voices' rows and WAVs, the
+  three models (3.3.5's, their skins, textures and animation files, no id 3.3.5 hasn't), their looks and the
+  CreatureDisplayInfoExtra rows; a second start keeping it). Run here on a stand-in of the Alternative HD Patch's
+  client (its files out of its archive); `--dump DIR` writes its naga models for `tools/render_naga.py`.
 - `tools/test_screen.py`: `MurlocNagaCreate.lua` in Lua 5.1 with the Worgen and Goblins', the allied races' and the
   Skyborne's screen code after it: twenty buttons, their icons kept on their buttons, both sides' ten races in two
   columns, scenes, music, texts; Questie's table. CI runs it.
 - `tools/test_data.py`: the committed data (the quests' givers, enders and items all there, every id in the module's
   ranges, the retired starts gone, the two stories' SQL apart: their ranges, their tables, their phases, each DELETE
-  its own rows; the cameras as the world server reads them over the ground). CI runs it.
+  its own rows; the cameras as the world server reads them over the ground; the naga's story's voices and looks in
+  their ranges and in the tables). CI runs it.
 - `tools/build_data.py` itself checks each story as it compiles it (a mistake it can be sure of stops it), and that
   neither race can see the other's people; it prints the naga's story's lint warnings.
 - CI's server test (`scripts/test-warcraft-server.sh`): the patch made before the other race modules', the races
@@ -330,4 +386,6 @@ Assumed, not seen in the game (nothing here runs the 3.3.5 client):
   quest started over), gone back into and woken from, a question answered, and Valormok's quests closed to it. On
   Wrath Remix, the patch set aside and no rows.
 - Not tested: the game itself (the models drawn, the composed textures, the intros, the screen on a phone): nothing
-  here runs the 3.3.5 client.
+  here runs the 3.3.5 client. The naga's emotes and the converted models were drawn with mod-allied-races' renderer
+  (its reading of the files, not the game's); the looks of the game's parts weren't drawn at all (that renderer
+  doesn't dress characters in items); the voices' fetch was run here, not on a GitHub runner.

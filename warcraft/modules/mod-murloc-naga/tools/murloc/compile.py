@@ -89,6 +89,13 @@ NAGA_EMOTES = {"talk", "roar", "battle_roar", "spell", "omnicast", "work", "atta
                "stun", "ready1h", "ready_bow"}
 NAGA_STATES = {"none", "work", "stun", "dead", "channel", "channel_directed", "drowned", "swim_idle", "ready_thrown",
                "ready_bow", "talk", "roar"}
+# What the playable naga's two models play besides (tools/naga_emotes.py merges them in as the patch is made): the
+# player's naga, and the game's naga people drawn with them (the Coilfang's sirens and myrmidons, every look of
+# CreatureModelData 2353 and 2354).
+PLAYABLE_NAGA_EMOTES = NAGA_EMOTES | {"bow", "wave", "cheer", "exclamation", "question", "applaud", "beg", "chicken", "flex",
+                                      "kiss", "laugh", "laugh_nosheathe", "shout", "cry", "shy", "dance", "salute", "eat",
+                                      "eat_nosheathe", "rude", "train", "yes", "no", "kneel", "point", "point_nosheathe"}
+PLAYABLE_NAGA_STATES = NAGA_STATES | {"sit", "kneel", "sleep", "dance", "eat", "laugh"}
 STAT = {"agi": 3, "str": 4, "int": 5, "spi": 6, "sta": 7, "def": 12, "dodge": 13, "parry": 14, "hit": 31, "crit": 32,
         "ap": 38, "sp": 45, "mp5": 43, "haste": 36, "expertise": 37, "armor_pen": 44}
 WEAPONS = {  # kind: (subclass, inventory type)
@@ -2172,7 +2179,9 @@ def lint_naga_models(story):
             name = b[2] if b[0] in ("emote", "state") else (b[3] if len(b) > 3 else None)
             if not name or not isinstance(name, str):
                 continue
-            allowed = NAGA_STATES if b[0] == "state" else NAGA_EMOTES
+            playable = "\\naga_\\" in model_of(story, display) and "character\\" in model_of(story, display)
+            allowed = ((PLAYABLE_NAGA_STATES if playable else NAGA_STATES) if b[0] == "state"
+                       else (PLAYABLE_NAGA_EMOTES if playable else NAGA_EMOTES))
             if name not in allowed:
                 out.append((where, f"{d['name']} (a naga model) can't {b[0]} {name!r}: it stands still (it plays "
                                    f"{', '.join(sorted(allowed))})"))

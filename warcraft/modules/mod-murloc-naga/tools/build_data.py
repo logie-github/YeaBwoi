@@ -827,6 +827,7 @@ def main():
 
     # Homes, people, quests ------------------------------------------------------------------------
     homes(client, sql, W)
+    __import__("naga_assets").add_naga_assets(client, sql, D)   # the naga's story's voices and looks (tools/naga_assets.py)
 
     # The world database: starts, skills, stats, standing ------------------------------------------
     sql.comment("Where they start: each race at its story's start (the murlocs in the Wrathtail's pens at the Zoram Strand, the naga\n"

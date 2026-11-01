@@ -6,14 +6,17 @@
 //
 //   g++ -std=c++17 -O2 -DSKYBORNE_BZIP2 -I../src -I../../mod-skyborne/src test_patch.cpp
 //       ../src/MurlocNagaPatch.cpp ../../mod-skyborne/src/SkyborneFiles.cpp -lz -lbz2 -o test_patch
-//   ./test_patch ../data/client GAME_DATA [--no-textures]
+//   ./test_patch ../data/client GAME_DATA [--no-textures] [--dump DIR]
 //
 // GAME_DATA: a client's Data folder (its archives, or folders laid out as they are). With
 // --no-textures (the server's tables alone, as CI's server test has), the models, textures and
-// sounds aren't checked.
+// sounds aren't checked; with --dump, the patch's naga models (their emotes merged) are written to
+// DIR for tools/render_naga.py.
 
 #include "MurlocNagaPatch.h"
 #include <cmath>
+#include <fstream>
+#include <iterator>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -32,6 +35,12 @@ static void Check(bool ok, std::string const& what)
         ++failures;
 }
 
+static Bytes FileBytes(fs::path const& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    return Bytes(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
 static uint32_t U32(Bytes const& b, size_t at)
 {
     uint32_t v = 0;
@@ -44,11 +53,15 @@ int main(int argc, char** argv)
 {
     if (argc < 3)
     {
-        std::cerr << "test_patch MODULE_CLIENT GAME_DATA [--no-textures]\n";
+        std::cerr << "test_patch MODULE_CLIENT GAME_DATA [--no-textures] [--dump DIR]\n";
         return 2;
     }
     fs::path module = argv[1], data = argv[2];
     bool textures = !(argc > 3 && std::string(argv[3]) == "--no-textures");
+    fs::path dump;                                                    // --dump DIR: the patch's naga models written there
+    for (int i = 3; i + 1 < argc; ++i)
+        if (std::string(argv[i]) == "--dump")
+            dump = argv[i + 1];
     std::string log;
     auto keep = [&](std::string const& line) { log += line + "\n"; std::cout << "  | " << line << "\n"; };
     fs::path patch = data / "enUS" / "patch-enUS-T.MPQ";
@@ -212,6 +225,156 @@ int main(int argc, char** argv)
                 all = all && geosets.count(uint16_t(101 + f));
             Check(all, base + ".m2: its own geosets, " + std::to_string(hairs) + " headdresses and " + std::to_string(features) + " outfits");
         }
+        // The naga's emotes (tools/naga_emotes.py's, in ../data/files), added to the client's naga as
+        // sequences of its own: every track with an entry for each, the look-up finding each id, an
+        // alias pointing at its sequence, and the merge doing nothing a second time.
+        for (char const* sex : { "Male", "Female" })
+        {
+            std::string base = std::string("Character\\Naga_\\") + sex + "\\Naga_" + sex;
+            Bytes m2;
+            bool read = archive->Read(base + ".m2", m2) && m2.size() > 0x130;
+            uint32_t count = U32(m2, 0x1C), at = U32(m2, 0x20), lookupCount = U32(m2, 0x24), lookupAt = U32(m2, 0x28);
+            std::map<uint16_t, uint32_t> first;
+            bool lookupOk = read, aliasesOk = read;
+            for (uint32_t k = 0; read && k < count; ++k)
+            {
+                uint16_t id, variation, alias;
+                std::memcpy(&id, &m2[at + k * 64], 2);
+                std::memcpy(&variation, &m2[at + k * 64 + 2], 2);
+                std::memcpy(&alias, &m2[at + k * 64 + 62], 2);
+                first.emplace(id, k);
+                // (an alias's chain ends at a sequence of its own: the game's own female naga has one alias of another)
+                for (int step = 0; step < 4 && alias < count && (U32(m2, at + k * 64 + 12) & 0x40); ++step)
+                {
+                    bool more = U32(m2, at + alias * 64 + 12) & 0x40;
+                    if (!more)
+                        break;
+                    std::memcpy(&alias, &m2[at + alias * 64 + 62], 2);
+                }
+                if (U32(m2, at + k * 64 + 12) & 0x40)
+                    aliasesOk = aliasesOk && alias < count && !(U32(m2, at + alias * 64 + 12) & 0x40);
+            }
+            for (auto const& [id, k] : first)
+            {
+                int16_t v = -1;
+                if (id < lookupCount)
+                    std::memcpy(&v, &m2[lookupAt + id * 2], 2);
+                lookupOk = lookupOk && v == int16_t(k);
+            }
+            bool emotes = read;
+            for (uint16_t id : { 66, 67, 68, 64, 65, 70, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 69, 61, 73, 113, 185, 186, 195,
+                                 114, 115, 116, 96, 97, 98, 91, 99, 100, 101, 209, 210 })
+                emotes = emotes && first.count(id);
+            Check(emotes, base + ".m2: the emotes (bow, wave, cheer, talk, laugh, kneel, cry, point, salute, dance...), sitting, riding, sleeping");
+            Check(lookupOk && aliasesOk, base + ".m2: its sequences' look-up finds each, every alias its sequence (" + std::to_string(count) + " sequences)");
+            size_t bad = 0, tracks = 0;
+            for (uint32_t b = 0, n = U32(m2, 0x2C), o = U32(m2, 0x30); read && b < n; ++b)
+                for (int t = 0; t < 3; ++t)
+                {
+                    size_t tr = o + b * 88 + 16 + t * 20;
+                    int16_t gseq;
+                    std::memcpy(&gseq, &m2[tr + 2], 2);
+                    uint32_t tn = U32(m2, tr + 4), vn = U32(m2, tr + 12);
+                    if (gseq >= 0 || tn == 0)
+                        continue;
+                    ++tracks;
+                    bad += tn != count || vn != count;
+                }
+            Check(read && bad == 0, base + ".m2: each of its bones' " + std::to_string(tracks) + " animated tracks has an entry for every sequence");
+            if (!dump.empty())                                       // (for tools/render_naga.py emotes)
+            {
+                Bytes skin;
+                archive->Read(base + "00.skin", skin);
+                fs::create_directories(dump);
+                std::ofstream(dump / (std::string("Naga_") + sex + ".m2"), std::ios::binary).write(reinterpret_cast<char const*>(m2.data()), m2.size());
+                std::ofstream(dump / (std::string("Naga_") + sex + "00.skin"), std::ios::binary).write(reinterpret_cast<char const*>(skin.data()), skin.size());
+            }
+            Bytes again = m2, emotesDat =FileBytes(module.parent_path() / "files" / "Character" / "Naga_" / sex / (std::string("Naga") + sex + "Emotes.dat"));
+            std::string why;
+            size_t added = 99;
+            Check(MergeEmotes(again, emotesDat, why, &added) && added == 0 && again == m2, base + ".m2: merging the emotes again adds nothing (" + why + ")");
+        }
+        // The naga's story's voices (tools/naga_voices.py's, in ../data/files) and their SoundEntries rows.
+        Dbc soundEntries;
+        size_t voiceRows = 0, voiceFiles = 0;
+        if (table("SoundEntries", soundEntries))
+            for (size_t i = 0; i < soundEntries.records.size(); ++i)
+            {
+                uint32_t id = soundEntries.Get(i, 0);
+                if (id < 995000 || id > 995199)
+                    continue;
+                ++voiceRows;
+                std::string file = str(soundEntries, soundEntries.Get(i, 3)), folder = str(soundEntries, soundEntries.Get(i, 23));
+                Bytes wav;
+                if (folder == "Sound\\Creature\\WC3Voices" && archive->Read(folder + "\\" + file, wav) && wav.size() > 44
+                    && std::memcmp(wav.data(), "RIFF", 4) == 0 && U32(wav, 20) == (1u | (1u << 16)) && U32(wav, 24) == 22050 && (U32(wav, 32) >> 16) == 16)
+                    ++voiceFiles;
+            }
+        Check(voiceRows == 82, "the naga's story's voices: 82 SoundEntries rows (" + std::to_string(voiceRows) + ")");
+        Check(voiceFiles == 82, "each one's WAV in the patch, 16-bit PCM, mono, 22,050 Hz (" + std::to_string(voiceFiles) + ")");
+        // The naga's story's models (tools/naga_models.py's): 3.3.5's, their skins, every animation kept
+        // in its own file there, every texture their looks name.
+        for (auto [name, folder] : { std::pair<char const*, char const*>{ "SeaWitch", "Creature\\SeaWitch\\" },
+                                     { "Warden", "Creature\\Warden\\" }, { "QueenAzshara", "Creature\\QueenAzshara\\" } })
+        {
+            Bytes m2, skin;
+            bool ok = archive->Read(std::string(folder) + name + ".m2", m2) && m2.size() > 0x130 && std::memcmp(m2.data(), "MD20", 4) == 0
+                && U32(m2, 4) == 264 && archive->Read(std::string(folder) + name + "00.skin", skin) && std::memcmp(skin.data(), "SKIN", 4) == 0;
+            size_t anims = 0, missing = 0, newer = 0;
+            for (uint32_t k = 0, n = U32(m2, 0x1C), at = U32(m2, 0x20); ok && k < n; ++k)
+            {
+                uint16_t id, variation;
+                std::memcpy(&id, &m2[at + k * 64], 2);
+                std::memcpy(&variation, &m2[at + k * 64 + 2], 2);
+                newer += id > 505;
+                if (U32(m2, at + k * 64 + 12) & 0x20)
+                    continue;
+                char file[96];
+                std::snprintf(file, sizeof(file), "%s%s%04u-%02u.anim", folder, name, unsigned(id), unsigned(variation));
+                Bytes anim;
+                ++anims;
+                missing += !archive->Read(file, anim) || anim.empty();
+            }
+            for (uint32_t i = 0, n = U32(m2, 0x50), at = U32(m2, 0x54); ok && i < n; ++i)
+            {
+                if (U32(m2, at + i * 16) != 0)
+                    continue;
+                std::string tex(reinterpret_cast<char const*>(&m2[U32(m2, at + i * 16 + 12)]));
+                Bytes t;
+                missing += !archive->Read(tex, t);
+            }
+            Check(ok && missing == 0 && newer == 0, std::string(folder) + name + ".m2: 3.3.5's, its skin, its textures, its "
+                + std::to_string(anims) + " animations in their own files, no animation 3.3.5 hasn't (" + std::to_string(missing) + " missing)");
+        }
+        size_t looksOk = 0, looks = 0;
+        for (size_t i = 0; i < displays.records.size(); ++i)
+        {
+            uint32_t id = displays.Get(i, 0), model = displays.Get(i, 1);
+            if (id < 40000 || id > 40299 || model < 3800 || model > 3849)
+                continue;
+            ++looks;
+            std::string modelName;
+            for (size_t j = 0; j < models.records.size(); ++j)
+                if (models.Get(j, 0) == model)
+                    modelName = str(models, models.Get(j, 2));
+            std::string folder = modelName.substr(0, modelName.rfind('\\') + 1);
+            bool ok = !modelName.empty();
+            for (uint32_t f : { 6u, 7u, 8u })
+            {
+                std::string skinName = str(displays, displays.Get(i, f));
+                Bytes t;
+                if (!skinName.empty())
+                    ok = ok && archive->Read(folder + skinName + ".blp", t);
+            }
+            looksOk += ok;
+        }
+        Check(looks == 6 && looksOk == looks, "the converted models' 6 looks, every skin they name in the patch (" + std::to_string(looksOk) + ")");
+        Dbc extras;
+        size_t extraRows = 0;
+        if (table("CreatureDisplayInfoExtra", extras))
+            for (size_t i = 0; i < extras.records.size(); ++i)
+                extraRows += extras.Get(i, 0) >= 25000 && extras.Get(i, 0) <= 25099 && extras.Get(i, 1) > 0;
+        Check(extraRows == 8, "the looks of the game's parts: 8 CreatureDisplayInfoExtra rows (" + std::to_string(extraRows) + ")");
         // What the game draws into the composed texture: palettized (its compositing reads only those)
         // at the skin's scale (the stand-in is the HD look's: a 512 skin).
         auto composited = [&](std::string const& name, uint32_t w, uint32_t h)
@@ -266,7 +429,9 @@ int main(int argc, char** argv)
             }
         }
         Check(missing == 0, "every texture the races' looks name is there (" + std::to_string(missing) + " missing)");
-        for (auto [name, least] : { std::pair<char const*, double>{ "Sound\\CinematicVoices\\NagaNarration.wav", 58.0 },
+        // (the naga's: Lady Vashj's six lines to about 45 s, then the client's own ocean, horn and siren hiss,
+        // which a stand-in game may not have: the mix ends with the last sound the game has)
+        for (auto [name, least] : { std::pair<char const*, double>{ "Sound\\CinematicVoices\\NagaNarration.wav", 44.0 },
                                     std::pair<char const*, double>{ "Sound\\CinematicVoices\\MurlocNarration.wav", 39.0 } })
         {
             Bytes wav;
