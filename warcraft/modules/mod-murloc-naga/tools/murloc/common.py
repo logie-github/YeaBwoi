@@ -105,7 +105,7 @@ TEXT_EMOTES = {
 STATES = {
     "none": 0, "dance": 10, "sleep": 12, "sit": 13, "stun": 64, "dead": 65, "kneel": 68,
     "use": 69, "work": 173, "ready": 27, "mine": 233, "chop": 234, "fish": 379, "cower": 431,
-    "read": 483, "eat": 422, "talk": 469,
+    "read": 69, "eat": 418, "talk": 378, "laugh": 392,     # (no reading pose in 3.3.5: a standing use)
 }
 
 # Sounds (SoundEntries ids) by name (more, with every id: the research's effects.md; any id works).

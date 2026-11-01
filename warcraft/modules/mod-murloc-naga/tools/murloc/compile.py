@@ -266,6 +266,9 @@ class Story:
         self.build_graveyards()
         self.build_start()
         self.build_phases()
+        known = {int(r["DisplayID"]) for r in self.W("creature_model_info")}
+        self.tables["_model_info"] = sorted({r["CreatureDisplayID"] for r in self.tables.get("creature_template_model", [])
+                                             if r["CreatureDisplayID"] not in known})
         scripted = {r["entryorguid"] for r in self.tables.get("smart_scripts", []) if r["source_type"] == 0}
         looted = {r["Entry"] for r in self.tables.get("creature_loot_template", [])}
         for r in self.tables.get("creature_template", []):
@@ -673,6 +676,7 @@ class Story:
                 first = self.script_rows.get((entry, 0), 0)
                 if all(b[0] != "wait" and (len(b) < 2 or b[1] in ("self", None)) for b in beats):
                     acts = [a for b in beats for a in self.beat(entry, b, chapter, key)]
+                    acts = [(t, p, (T_SELF,) if t == A_TALK and tg == (T_INVOKER,) else tg) for t, p, tg in acts]
                     if not acts:
                         continue
                     self.smart(entry, 0, EV_UPDATE_OOC, timing, acts)  # (plain actions: no list held, nothing a scene waits for)
@@ -1521,7 +1525,8 @@ DELETES = [
                       f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 1 AND `entryorguid` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END})"
                       f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.OLD_GO_END * 100 + 99})"
                       f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 1000} AND {K.NPC_END * 1000 + 999})"
-                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.GO_BASE * 1000} AND {K.GO_END * 1000 + 999})"),
+                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.GO_BASE * 1000} AND {K.GO_END * 1000 + 999})"
+                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.OLD_GO_BASE * 1000} AND {K.OLD_GO_END * 1000 + 999})"),
     ("creature_template_addon", f"`entry` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
     ("game_graveyard", f"`ID` BETWEEN {K.GRAVEYARD_BASE} AND {K.GRAVEYARD_END}"),
     ("npc_text", f"`ID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
@@ -1578,6 +1583,10 @@ def sql(tables, phase_spells_sql=""):
             out.append(f"INSERT INTO `{table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body};")
     if phase_spells_sql:
         out.append(phase_spells_sql)
+    if tables.get("_model_info"):
+        out.append("-- Looks the game has no size for (a rowboat's): a size, so the server knows them.")
+        out.append("INSERT IGNORE INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`) VALUES "
+                   + ", ".join(f"({d}, 1.0, 1.5, 2)" for d in tables["_model_info"]) + ";")
     out.append("-- Spells the story's quests teach (the module, src/MurlocNaga.cpp, teaches them as each is handed in).")
     out.append("CREATE TABLE IF NOT EXISTS `murloc_naga_story_learn` (`quest` INT UNSIGNED NOT NULL, `spell` INT UNSIGNED NOT NULL, "
                "PRIMARY KEY (`quest`, `spell`));")
