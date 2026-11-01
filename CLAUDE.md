@@ -65,6 +65,11 @@ self-updating from this repository's GitHub releases.
   `--init-script scripts/maven-mirror.init.gradle` (Maven Central rate-limits these machines).
 - Never commit build outputs (`build/`, `.cxx/`, `<app>/android/core/`) or any game files.
 - Tell the user what was tested and what wasn't (nothing here runs on a real phone).
+- **Patch notes with every change** (the user: "Start including patch notes for future updates ... just do
+  it moving forward"). For the World of Warcraft app, each change adds one file to `warcraft/notes/`
+  (`YYYY-MM-DD-what.md`, a short Markdown list in plain words for the player: `warcraft/notes/README.md`);
+  CI puts the files added since the previous release into the new release, and the app's update dialog
+  shows every release's notes since the one installed. Never edit or remove a released note.
 - **Merge your own work without asking** (the user: "I always want all changes to do this without me
   having to okay the merge as long as it doesn't overwrite other sessions"). Many sessions work at once,
   each on its own branch. When a change is done and pushed, open a pull request to the default branch
