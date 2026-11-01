@@ -63,3 +63,4 @@ put	9846	World\\Expansion02\\Doodads\\Dalaran\\Dalaran_PetCage_01.mdx	0	0	0	0	0	
 put	9847	World\\AZEROTH\\WESTFALL\\PASSIVEDOODADS\\LAMPPOST\\WestfallLampPost01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9848	World\\wmo\\Dungeon\\MD_Shipwreck\\Shipwreck_A.wmo	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
 put	9849	World\\Generic\\Orc\\Passive Doodads\\Utensils\\LadleWood.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0
+put	10400	World\\EXPANSION01\\DOODADS\\GENERIC\\NAGA\\Banner\\NA_Banner01.mdx	0	0	0	0	0	0	0	0	0	0	-1.0	-1.0	0.0	1.0	1.0	3.0	0

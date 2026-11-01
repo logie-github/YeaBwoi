@@ -112,7 +112,7 @@ class Story:
         self.ground = ground
         self.water = water              # water(map, x, y) -> the water's height or None (a sky placement over the sea)
         self.area = area                # area(map, x, y) -> AreaTable id (the zone a phase is given in)
-        self.race_phase_spell = race_phase_spell
+        self.race_phase_spell = race_phase_spell or profile.race_phase_spell
         self.P = profile
         # {zone: bits} another story's people carry there (the murlocs', for the naga's compile): never ours too
         self.reserved = {z: set(b) for z, b in (reserved or {}).items()}
@@ -265,6 +265,7 @@ class Story:
         key = self.qualify(chapter, ref)
         if key not in self.quest_id and key.split(":")[0] not in {ch["CHAPTER"]["key"] for ch in self.chapters}:
             # (a later chapter's, not released yet: a quest no one has done, so "until" it is for now)
+            self.unwritten = True
             return self.P.QUEST_END
         if key not in self.quest_id:
             self.err(where, f"no quest {ref!r}")
@@ -322,6 +323,7 @@ class Story:
         for entry, values in sorted(self.movement.items()):
             self.row("creature_template_movement", CreatureId=entry, **values)
         known = {int(r["DisplayID"]) for r in self.W("creature_model_info")}
+        known |= {d for d, _ in self.tables.get("_new_looks", [])}
         self.tables["_model_info"] = sorted({r["CreatureDisplayID"] for r in self.tables.get("creature_template_model", [])
                                              if r["CreatureDisplayID"] not in known})
         scripted = {r["entryorguid"] for r in self.tables.get("smart_scripts", []) if r["source_type"] == 0}
@@ -334,9 +336,17 @@ class Story:
         finals = [k for k, q in self.quests.items() if q.get("final")]
         if len(finals) > 1:
             self.err("the story", f"more than one final quest: {finals}")
-        # (no last quest yet, the story released only so far: one that doesn't exist, so the gate stays shut)
+        # (no last quest yet, the story released only so far: one no one can take, so the gate stays shut)
         self.tables["_story"] = {"final_quest": self.quest_id[finals[0]] if finals else self.P.QUEST_END, "first_quest": self.P.QUEST_BASE,
                                  "last_quest": self.P.QUEST_END}
+        if not finals or getattr(self, "unwritten", False):
+            # A quest of the story's last id that no one gives (a chapter not written yet stands for it): the server
+            # takes conditions and phase rows that name a quest only if it exists.
+            if self.P.QUEST_END in self.quest_id.values():
+                self.err("the story", f"its last quest id {self.P.QUEST_END} is kept for the quests not written yet")
+            self.row("quest_template", ID=self.P.QUEST_END, QuestType=2, QuestLevel=1, MinLevel=1, QuestSortID=0, Flags=0,
+                     RewardXPDifficulty=0, RewardMoney=0, AllowableRaces=self.P.RACE_BIT, LogTitle="(a quest not written yet)",
+                     LogDescription="", QuestDescription="", AreaDescription="", QuestCompletionLog="", StartItem=0, TimeAllowed=0)
         if self.P.race_spells:                  # (what the module reads of the naga's: the memories' marker and fade)
             self.tables["_story"].update({"marker_spell": self.P.race_spells["marker"], "fade_spell": self.P.race_spells["fade"]})
         if self.errors:
@@ -542,6 +552,8 @@ class Story:
         if d.get("aura"):                       # used: the aura on the player
             row.update(spellid_1=self.aura(d["aura"], d["chapter"], key), spelltrigger_1=0,
                        spellcharges_1=-1 if d.get("consumed") else 0, spellcooldown_1=-1, spellcategorycooldown_1=-1)
+        if d.get("carry"):                      # while it's in the bags, the aura's on the player (the module)
+            self.tables.setdefault("_carry", []).append((iid, self.aura(d["carry"], d["chapter"], key)))
         self.row("item_template", **row)
         self.item_dbc(iid, row)
 
@@ -575,11 +587,28 @@ class Story:
     # -- creatures -----------------------------------------------------------------------------
     def look(self, ref, where):
         if isinstance(ref, int):
-            return ref
-        if ref in self.P.LOOKS:
-            return self.P.LOOKS[ref]
-        self.err(where, f"no look {ref!r}")
-        return self.P.LOOKS["warrior"]
+            display = ref
+        elif ref in self.P.LOOKS:
+            display = self.P.LOOKS[ref]
+        else:
+            self.err(where, f"no look {ref!r}")
+            return self.P.LOOKS["warrior"]
+        if self.P.strict and not self.display_known(display):
+            self.err(where, f"look {ref!r} ({display}) isn't in the game's CreatureDisplayInfo, nor the story's own range")
+        return display
+
+    def display_known(self, display):
+        if not hasattr(self, "_displays_known"):
+            self._displays_known = {r[0] for r in self.D("CreatureDisplayInfo").rows}
+        lo, hi = self.P.looks_own_range or (0, -1)
+        # (the murlocs' looks the patch makes: the race's and the tribe's people, tools/build_data.py's)
+        return display in self._displays_known or lo <= display <= hi or 33101 <= display <= 33115
+
+    def sound_known(self, sid):
+        if not hasattr(self, "_sounds_known"):
+            self._sounds_known = {r[0] for r in self.D("SoundEntries").rows}
+        lo, hi = self.P.sounds_own_range or (0, -1)
+        return sid in self._sounds_known or lo <= sid <= hi
 
     def fly(self, entry):
         """[entry] floats (creature_template_movement: no gravity): a sky placement's."""
@@ -1114,11 +1143,15 @@ class Story:
 
     def sound_id(self, name, where):
         if isinstance(name, int):
-            return name
-        if name in self.P.SOUNDS:
-            return self.P.SOUNDS[name]
-        self.err(where, f"no sound {name!r}")
-        return 0
+            sid = name
+        elif name in self.P.SOUNDS:
+            sid = self.P.SOUNDS[name]
+        else:
+            self.err(where, f"no sound {name!r}")
+            return 0
+        if self.P.strict and not self.sound_known(sid):
+            self.err(where, f"sound {name!r} ({sid}) isn't in the game's SoundEntries, nor the story's own range")
+        return sid
 
     def visual_id(self, name, where):
         if isinstance(name, int):
@@ -1334,7 +1367,7 @@ class Story:
         self.row("conditions", SourceTypeOrReferenceId=source, SourceGroup=group, SourceEntry=entry, SourceId=0,
                  ElseGroup=else_group, ConditionTypeOrReference=ctype, ConditionTarget=target, ConditionValue1=value,
                  ConditionValue2=value2, ConditionValue3=0, NegativeCondition=negative, ErrorType=0, ErrorTextId=0,
-                 ScriptName="", Comment="mod-murloc-naga")
+                 ScriptName="", Comment=self.P.COMMENT)
 
     # -- quests --------------------------------------------------------------------------------
     def trigger(self, place_pt, radius, quest, name):
@@ -1382,6 +1415,13 @@ class Story:
                 self.err(where, f"the object {ref!r} isn't one to use for this quest (kind \"use\", quest {key.split(':')[1]!r})")
             req_npc.append((-self.go_id[ok], count))
             objective_text.append(obj.get("goal", ""))
+        for spec in d.get("quiz", []):
+            self.quiz(qid, spec, req_npc, objective_text, chapter, where)
+        for spec in d.get("turrets", []):
+            self.turrets(qid, spec, req_npc, objective_text, chapter, where)
+        if d.get("tug"):
+            special |= 2
+            self.tug(qid, d, chapter, where)
         if d.get("explore"):
             special |= 2
             pt = self.point(d["explore"], chapter, where)
@@ -1522,6 +1562,133 @@ class Story:
         if beats:
             actions.append((A_ACTIONLIST, (self.actionlist(entry, beats, chapter, where), 0, 1), (T_SELF,)))
         self.smart(entry, 0, EV_GOSSIP_SELECT, (menu, opt), actions)
+
+    def helper_id(self, what):
+        """An id of the story's last 400 creature ids for something no one sees (a quiz's menu and text)."""
+        entry = self.next_trigger
+        self.next_trigger += 1
+        if entry > self.P.NPC_END:
+            raise StoryError(f"too many helpers ({what})")
+        return entry
+
+    def quiz(self, qid, spec, req_npc, objective_text, chapter, where):
+        """A question someone asks (bible 18.4, 9.22): while the quest is in the log, unfinished, their gossip offers
+        [ask]; it opens [question] with the answers; the right one is the objective's credit (and its beats), a
+        wrong one its beats and the question again."""
+        npc_key = self.qualify(chapter, spec.get("npc", ""))
+        if npc_key not in self.npc_id:
+            self.err(where, f"quiz: no NPC {spec.get('npc')!r}")
+            return
+        e, d = self.npc_id[npc_key], self.npcs[npc_key]
+        lang = self.language(d)
+        answers = spec.get("answers", [])
+        if not spec.get("question") or not 2 <= len(answers) <= 8 or sum(1 for a in answers if len(a) > 1 and a[1]) != 1:
+            self.err(where, "a quiz has a question= and 2 to 8 answers=[(text, right, beats)], one of them right")
+            return
+        credit = self.hidden_creature(f"{d['name']}'s question", self.P.LOOKS["trigger"])
+        menu = self.helper_id("a quiz's menu")
+        question = self.words(spec["question"], lang)
+        self.row("npc_text", ID=menu, text0_0=question, text0_1=question, lang0=0, Probability0=1, em0_0=0, em0_1=1)
+        self.row("gossip_menu", MenuID=menu, TextID=menu)
+        opt = self.next_option.get(e, 0)
+        self.next_option[e] = opt + 1
+        self.row("gossip_menu_option", MenuID=e, OptionID=opt, OptionIcon=0, OptionText=self.words(spec.get("ask", "Ask me."), lang),
+                 OptionType=1, OptionNpcFlag=1)
+        self.condition(15, e, opt, 9, qid)
+        self.condition(15, e, opt, 28, qid, negative=1)
+        self.smart(e, 0, EV_GOSSIP_SELECT, (e, opt), [(A_SEND_GOSSIP_MENU, (menu, menu), (T_INVOKER,))])
+        for n, answer in enumerate(answers):
+            text, right = answer[:2]
+            beats = answer[2] if len(answer) > 2 else []
+            self.row("gossip_menu_option", MenuID=menu, OptionID=n, OptionIcon=0, OptionText=self.words(text, lang),
+                     OptionType=1, OptionNpcFlag=1)
+            scene = [(A_ACTIONLIST, (self.actionlist(e, beats, chapter, where + " (quiz)"), 0, 1), (T_SELF,))] if beats else []
+            if right:
+                actions = [(A_CLOSE_GOSSIP, (), (T_INVOKER,)), (A_KILLED_MONSTER, (credit,), (T_INVOKER,))] + scene
+            else:
+                actions = scene + [(A_SEND_GOSSIP_MENU, (menu, menu), (T_INVOKER,))]
+            self.smart(e, 0, EV_GOSSIP_SELECT, (menu, n), actions)
+        req_npc.append((credit, 1))
+        objective_text.append(spec.get("goal", f"{d['name']}'s question answered"))
+
+    def turrets(self, qid, spec, req_npc, objective_text, chapter, where):
+        """Plots where a turret is set up (bible 18.4, 6.23): a thing at each plot, used while the quest is in the
+        log (each use the objective's credit), that puts the turret there for a while: someone rooted who shoots
+        what comes near (an NPC with turret=True and its abilities)."""
+        npc_key = self.qualify(chapter, spec.get("npc", ""))
+        if npc_key not in self.npc_id or not self.npcs[npc_key].get("turret"):
+            self.err(where, f"turrets: {spec.get('npc')!r} isn't one of the story's people with turret=True")
+            return
+        pts = self.points(spec.get("at", []), chapter, where)
+        if not pts:
+            self.err(where, "turrets: no plots (at=)")
+            return
+        entry = self.P.GO_BASE + len(self.go_id) + len(self.tables.get("_use_gos", []))
+        if entry > self.P.GO_END:
+            raise StoryError("too many objects")
+        self.tables.setdefault("_use_gos", []).append(entry)
+        data = [0] * 24
+        data[1], data[3] = qid, 3000
+        self.row("gameobject_template", entry=entry, type=10, displayId=self.display(spec.get("model", "crate"), where),
+                 name=spec.get("name", "Plot"), size=spec.get("scale", 1.0), AIName="SmartGameObjectAI",
+                 **{f"Data{i}": v for i, v in enumerate(data)})
+        self.go_entries.add(entry)
+        self.smart(entry, 1, EV_GOSSIP_HELLO, (1,), [(A_SUMMON, (self.npc_id[npc_key], 3, spec.get("seconds", 120) * 1000), (T_SELF,))])
+        for i, pt in enumerate(pts):
+            self.object_row(entry, pt, spec.get("facing", 0.0), self.P.RACE_PHASE | sum(set(self.P.MEMORY_BITS.values())),
+                            spec.get("respawn", 30), spec.get("name", "Plot"))
+        req_npc.append((-entry, spec.get("count", len(pts))))
+        objective_text.append(spec.get("goal", ""))
+
+    def tug(self, qid, d, chapter, where):
+        """The tug escort (bible 18.4, 7.09, 7.14): taking the quest calls the cart (summoned at the way's first
+        place); it rolls along the way; at the midpoint the enemy takes it (they appear, and it rolls back toward
+        the start); once they're all dead it turns and goes on; at the end everyone of the race near it on the
+        quest has it done."""
+        t = d["tug"]
+        cart_key = self.qualify(chapter, t.get("cart", ""))
+        if cart_key not in self.npc_id:
+            self.err(where, f"tug: no cart {t.get('cart')!r}")
+            return
+        cart = self.npc_id[cart_key]
+        if cart in getattr(self, "_tug_carts", set()):
+            self.err(where, f"tug: the cart {t['cart']!r} serves another tug quest already (a cart a quest)")
+            return
+        self._tug_carts = getattr(self, "_tug_carts", set()) | {cart}
+        path = [self.point(p, chapter, where) for p in t.get("path", [])]
+        mid = t.get("midpoint")
+        mi = t["path"].index(mid) if isinstance(mid, str) and mid in t.get("path", []) else mid
+        if len(path) < 3 or not isinstance(mi, int) or not 0 < mi < len(path) - 1:
+            self.err(where, "tug: a path of 3 places at least, and a midpoint= (one of them, not the first or the last)")
+            return
+        enemies = t.get("enemies", [])
+        if not enemies:
+            self.err(where, "tug: enemies=[(npc, place)] who take the cart at the midpoint")
+            return
+        back = self.point(t.get("back", t["path"][0]), chapter, where)
+
+        def move(pid, pt):
+            return [(A_SET_RUN, (1 if t.get("run") else 0,), (T_SELF,)), (A_MOVE_TO, (pid, 0, 0, 0), (T_POSITION, 0, 0, 0, pt[1], pt[2], pt[3], 0))]
+        self.smart(cart, 0, EV_JUST_SUMMONED, (), move(1, path[1]))
+        for k in range(1, len(path) - 1):
+            if k == mi:
+                acts = [(A_SET_COUNTER, (1, 0, 1), (T_SELF,))]
+                for ref, place in enemies:
+                    e = self.creature(ref, chapter, where)
+                    m, x, y, z = self.point(place, chapter, where)
+                    acts.append((A_SUMMON, (e, 1, t.get("enemy_seconds", 180) * 1000), (T_POSITION, 0, 0, 0, x, y, z, 0)))
+                if t.get("taken"):
+                    acts.append((A_ACTIONLIST, (self.actionlist(cart, t["taken"], chapter, where + " (taken)"), 0, 1), (T_SELF,)))
+                acts += move(100, back)
+                self.smart(cart, 0, EV_MOVEMENT_INFORM, (POINT_MOTION, k), acts)
+            else:
+                self.smart(cart, 0, EV_MOVEMENT_INFORM, (POINT_MOTION, k), move(k + 1, path[k + 1]))
+        self.smart(cart, 0, EV_SUMMONED_UNIT_DIES, (0, 0, 0), [(A_SET_COUNTER, (1, 1, 0), (T_SELF,))])
+        acts = [(A_ACTIONLIST, (self.actionlist(cart, t["retaken"], chapter, where + " (retaken)"), 0, 1), (T_SELF,))] if t.get("retaken") else []
+        self.smart(cart, 0, EV_COUNTER_SET, (1, len(enemies), 0, 0), acts + move(mi + 1, path[mi + 1]))
+        self.smart(cart, 0, EV_MOVEMENT_INFORM, (POINT_MOTION, len(path) - 1),
+                   [(A_AREA_EXPLORED, (qid,), (T_PLAYER_RANGE, 0, t.get("radius", 40))), (A_DESPAWN, (5000,), (T_SELF,))])
+        d.setdefault("accept", []).insert(0, ("summon", t["cart"], t["path"][0], t.get("seconds", 600)))
 
     def emote_credit(self, qid, spec, req_npc, objective_text, chapter, where):
         """The player's own emote at someone (/wave at a slave) as an objective: each of them answers it once
@@ -1855,10 +2022,74 @@ class Story:
                 row(rs["world"], area)
 
 
+# -- two stories, one world ---------------------------------------------------------------------------
+
+def bits_by_zone(story):
+    """{zone: bits} a story's people carry there for its story phases: what another story's compile must keep
+    clear of (Story(reserved=...))."""
+    out = {}
+    for (zones, _), bit in story.phase_bits.items():
+        for z in zones:
+            out.setdefault(z, set()).add(bit)
+    return out
+
+
+def check_apart(stories, reach=100):
+    """Neither story's people and things are seen by the other's race (the murlocs' chapter 10 and the naga's
+    whole story share Azshara): for every spawn of each story, in every zone within [reach] yards of it (seen across
+    a border too), no bit a player of another story's race can hold there (the world's, its race phase, its story
+    phases there, its memories'). [] when apart, else what isn't."""
+    seen = {}
+
+    def zones_near(st, m, x, y):
+        k = (m, int(x // 25), int(y // 25))
+        if k not in seen:
+            pts = [(x, y)] + [(x + reach * math.cos(i * math.pi / 4), y + reach * math.sin(i * math.pi / 4)) for i in range(8)]
+            seen[k] = {z for z in (st.zone_of(m, px, py) for px, py in pts) if z}
+        return seen[k]
+    holdable = []
+    for st in stories:
+        by_zone = {}
+        for (zones, _), bit in st.phase_bits.items():
+            for z in zones:
+                by_zone.setdefault(z, set()).add(bit)
+        mem_zones = set()
+        for mem in st.tables.get("_memories", []):
+            mem_zones |= zones_near(st, mem["map"], mem["cx"], mem["cy"])
+        holdable.append((by_zone, mem_zones, 1 | st.P.RACE_PHASE, sum(set(st.P.MEMORY_BITS.values()))))
+    problems = []
+    for i, st in enumerate(stories):
+        for j, other in enumerate(stories):
+            if i == j:
+                continue
+            by_zone, mem_zones, base, memory = holdable[j]
+            for table in ("creature", "gameobject"):
+                for r in st.tables.get(table, []):
+                    for z in zones_near(st, r["map"], r["position_x"], r["position_y"]):
+                        mask = base | sum(by_zone.get(z, ())) | (memory if z in mem_zones else 0)
+                        if r["phaseMask"] & mask:
+                            problems.append(f"{st.P.who}' {table} {r['guid']} ({r.get('Comment', '')}) carries phase "
+                                            f"{r['phaseMask'] & mask} that {other.P.who} hold in zone {z}")
+    return problems
+
+
 # -- lint ---------------------------------------------------------------------------------------------
 
 ACTING = {"say", "yell", "whisper", "emote", "state", "move", "jump", "give", "take", "summon", "visual", "cast", "sound", "music",
-          "aura", "unaura", "teleport", "object", "follow", "face"}
+          "aura", "unaura", "teleport", "object", "follow", "face", "relive", "wake", "morph", "scale", "sky"}
+
+
+def model_of(story, display):
+    """The model path a look draws (CreatureDisplayInfo -> CreatureModelData), lower case, or ""."""
+    if not hasattr(story, "_model_paths"):
+        md = story.D("CreatureModelData")
+        paths = {r[0]: md.s(r[2]).lower() for r in md.rows}
+        story._model_paths = {r[0]: paths.get(r[1], "") for r in story.D("CreatureDisplayInfo").rows}
+    return story._model_paths.get(display, "")
+
+
+def is_naga_model(path):
+    return any(w in path for w in ("\\naga", "ladyvashj", "\\siren"))
 
 
 def lint(story):
@@ -1895,6 +2126,71 @@ def lint(story):
         for q in ch.get("QUESTS", []):
             if not lo <= q["level"] <= hi + 1:
                 out.append((f"{ch['CHAPTER']['key']}:{q['key']}", f"level {q['level']} outside the chapter's {lo}-{hi}"))
+    out += lint_naga_models(story)
+    if not story.P.translate:
+        out += lint_languages(story)
+    return out
+
+
+def scenes(story):
+    """[(where, owner key, beats)]: every scene of the story's, with whose it is (a quest's giver or ender, an
+    NPC's idle, watch and at_health, an object's), for the lints."""
+    out = []
+    for key, q in story.quests.items():
+        for kind, who in (("accept", q.get("giver")), ("complete", q.get("ender", q.get("giver"))),
+                          ("interact_beats", (q.get("interact") or [[None]])[0][0])):
+            if q.get(kind):
+                out.append((f"{key} ({kind})", story.qualify(q["chapter"], who) if isinstance(who, str) else None, q[kind]))
+        for z in q.get("quiz", []):
+            for a in z.get("answers", []):
+                if len(a) > 2:
+                    out.append((f"{key} (quiz)", story.qualify(q["chapter"], z.get("npc", "")), a[2]))
+    for key, d in story.npcs.items():
+        idle = [b for b in d.get("idle", []) if b[0] != "every"]
+        idle += [x for b in d.get("idle", []) if b[0] == "every" for x in b[2]]
+        for beats in (idle, (d.get("watch") or (0, []))[1], (d.get("at_health") or (0, []))[1]):
+            if beats:
+                out.append((key, key, beats))
+    return out
+
+
+def lint_naga_models(story):
+    """A naga plays only what its model has (bible 4.2): an emote or a pose it hasn't is no gesture at all."""
+    out = []
+    for where, owner, beats in scenes(story):
+        for b in beats:
+            if b[0] not in ("emote", "state", "say", "yell", "whisper") or len(b) < 3:
+                continue
+            who = owner if b[1] in ("self", None) else story.qualify(where.split(":")[0], b[1]) if isinstance(b[1], str) else None
+            d = story.npcs.get(who) if who else None
+            if not d or d.get("display_extra"):
+                continue
+            look = d.get("look", "warrior")
+            display = story.P.LOOKS.get(look) if isinstance(look, str) else look
+            if not display or not is_naga_model(model_of(story, display)):
+                continue
+            name = b[2] if b[0] in ("emote", "state") else (b[3] if len(b) > 3 else None)
+            if not name or not isinstance(name, str):
+                continue
+            allowed = NAGA_STATES if b[0] == "state" else NAGA_EMOTES
+            if name not in allowed:
+                out.append((where, f"{d['name']} (a naga model) can't {b[0]} {name!r}: it stands still (it plays "
+                                   f"{', '.join(sorted(allowed))})"))
+    return out
+
+
+def lint_languages(story):
+    """In a story whose people speak readably (the naga's), a land-walker given no language speaks Nazja: a night
+    elf, a goblin or a blood elf must say which tongue (bible 4.1; a memory's people are understood anyway)."""
+    out = []
+    for key, d in story.npcs.items():
+        if d.get("language") or (isinstance(d.get("phase"), tuple) and d["phase"][0] == "memory"):
+            continue
+        look = d.get("look", "warrior")
+        display = story.P.LOOKS.get(look) if isinstance(look, str) else look
+        path = model_of(story, display) if display else ""
+        if d.get("display_extra") or (path.startswith("character\\") and "naga_" not in path):
+            out.append((key, f"{d['name']} looks like one of a playable race but has no language= (it speaks Nazja, readable)"))
     return out
 
 
@@ -1910,56 +2206,85 @@ def q(v):
     return str(v)
 
 
-DELETES = [
-    ("creature_template", f"`entry` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("creature_template_model", f"`CreatureID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("creature_text", f"`CreatureID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("creature_addon", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
-    ("creature", f"`guid` BETWEEN {K.SPAWN_BASE} AND {K.SPAWN_END}"),
-    ("smart_scripts", f"(`source_type` = 0 AND `entryorguid` BETWEEN {K.NPC_BASE} AND {K.NPC_END}) OR (`source_type` = 1 AND `entryorguid` "
-                      f"BETWEEN {K.GO_BASE} AND {K.GO_END}) OR (`source_type` = 1 AND `entryorguid` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END})"
-                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 100} AND {K.OLD_GO_END * 100 + 99})"
-                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.NPC_BASE * 1000} AND {K.NPC_END * 1000 + 999})"
-                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.GO_BASE * 1000} AND {K.GO_END * 1000 + 999})"
-                      f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {K.OLD_GO_BASE * 1000} AND {K.OLD_GO_END * 1000 + 999})"),
-    ("creature_template_addon", f"`entry` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("game_graveyard", f"`ID` BETWEEN {K.GRAVEYARD_BASE} AND {K.GRAVEYARD_END}"),
-    ("npc_text", f"`ID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("gossip_menu", f"`MenuID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("gossip_menu_option", f"`MenuID` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("npc_vendor", f"`entry` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("trainer_spell", f"`TrainerId` BETWEEN {K.TRAINER_BASE} AND {K.TRAINER_BASE + 999}"),
-    ("trainer", f"`Id` BETWEEN {K.TRAINER_BASE} AND {K.TRAINER_BASE + 999}"),
-    ("creature_default_trainer", f"`CreatureId` BETWEEN {K.NPC_BASE} AND {K.NPC_END}"),
-    ("gameobject_template", f"`entry` BETWEEN {K.GO_BASE} AND {K.GO_END} OR `entry` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END}"),
-    ("gameobject", f"`guid` BETWEEN {K.GO_SPAWN_BASE} AND {K.GO_SPAWN_END}"),
-    ("gameobject_loot_template", f"`Entry` BETWEEN {K.GO_BASE} AND {K.GO_END} OR `Entry` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END}"),
-    # (the story's own loot rows: "mod-murloc-naga" alone was the naga camp's too, tools/build_data.py's, taken out with them)
-    ("creature_loot_template", f"`Comment` = '{K.LOOT_COMMENT}' OR (`Comment` = 'mod-murloc-naga' AND `Entry` NOT BETWEEN "
-                               f"{K.CAMP_NPC_BASE} AND {K.CAMP_NPC_END})"),
-    ("item_template", f"`entry` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
-    ("item_dbc", f"`ID` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
-    ("quest_template", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("quest_template_addon", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("quest_offer_reward", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("quest_request_items", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("quest_details", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("creature_queststarter", f"`quest` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("creature_questender", f"`quest` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("gameobject_queststarter", f"`quest` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("gameobject_questender", f"`quest` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("quest_poi", f"`QuestID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("quest_poi_points", f"`QuestID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),
-    ("conditions", "`Comment` = 'mod-murloc-naga'"),
-    ("spell_area", f"`spell` BETWEEN {K.PHASE_SPELL_BASE} AND {K.SPELL_BASE - 1} OR (`racemask` = {K.MURLOC_BIT} AND `area` NOT IN (148, 331))"),
-]
+def deletes(P=MURLOC):
+    """[(table, where)]: every row of the story's ranges (and only its own: the other story's, the world SQL's and
+    other modules' stay), taken out before its rows go in."""
+    kept = sorted(P.KEPT_ENTRIES.values())
+
+    def entries(col, base=P.NPC_BASE, end=P.NPC_END):
+        out = f"`{col}` BETWEEN {base} AND {end}"
+        return out + (f" OR `{col}` IN ({', '.join(map(str, kept))})" if kept else "")
+    lists = f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {P.NPC_BASE * 1000} AND {P.NPC_END * 1000 + 999})"
+    lists += f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {P.GO_BASE * 1000} AND {P.GO_END * 1000 + 999})"
+    lists += "".join(f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {e * 1000} AND {e * 1000 + 999})" for e in kept)
+    smart = f"(`source_type` = 0 AND ({entries('entryorguid')})) OR (`source_type` = 1 AND `entryorguid` BETWEEN {P.GO_BASE} AND {P.GO_END})"
+    gos = f"`entry` BETWEEN {P.GO_BASE} AND {P.GO_END}"
+    go_loot = f"`Entry` BETWEEN {P.GO_BASE} AND {P.GO_END}"
+    loot = f"`Comment` = '{P.LOOT_COMMENT}'"
+    if P.OLD_GO_BASE is not None:               # (the murlocs' objects' first range, and their timed lists' first ids)
+        smart = (f"(`source_type` = 0 AND `entryorguid` BETWEEN {P.NPC_BASE} AND {P.NPC_END}) OR (`source_type` = 1 AND `entryorguid` "
+                 f"BETWEEN {P.GO_BASE} AND {P.GO_END}) OR (`source_type` = 1 AND `entryorguid` BETWEEN {P.OLD_GO_BASE} AND {P.OLD_GO_END})"
+                 f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {P.NPC_BASE * 100} AND {P.OLD_GO_END * 100 + 99})")
+        lists += f" OR (`source_type` = 9 AND `entryorguid` BETWEEN {P.OLD_GO_BASE * 1000} AND {P.OLD_GO_END * 1000 + 999})"
+        gos += f" OR `entry` BETWEEN {P.OLD_GO_BASE} AND {P.OLD_GO_END}"
+        go_loot += f" OR `Entry` BETWEEN {P.OLD_GO_BASE} AND {P.OLD_GO_END}"
+    if P.CAMP_NPC_BASE is not None:             # ("mod-murloc-naga" alone was the naga camp's too, tools/build_data.py's)
+        loot += f" OR (`Comment` = 'mod-murloc-naga' AND `Entry` NOT BETWEEN {P.CAMP_NPC_BASE} AND {P.CAMP_NPC_END})"
+    if P.race_spells:
+        spell_area = f"`spell` BETWEEN {min(P.race_spells.values())} AND {P.PHASE_SPELL_END}"
+    else:                                       # (its race phase's rows outside the world SQL's areas: tools/build_data.py's)
+        spell_area = (f"`spell` BETWEEN {P.PHASE_SPELL_BASE} AND {P.PHASE_SPELL_END} OR (`spell` = {P.race_phase_spell} AND `area` "
+                      f"NOT IN ({', '.join(map(str, P.world_owned_areas))}))")
+    out = [
+        ("creature_template", entries("entry")),
+        ("creature_template_model", entries("CreatureID")),
+        ("creature_template_movement", entries("CreatureId")),
+        ("creature_text", entries("CreatureID")),
+        ("creature_addon", f"`guid` BETWEEN {P.SPAWN_BASE} AND {P.SPAWN_END}"),
+        ("creature", f"`guid` BETWEEN {P.SPAWN_BASE} AND {P.SPAWN_END}"),
+        ("smart_scripts", smart + lists),
+        ("creature_template_addon", entries("entry")),
+        ("game_graveyard", f"`ID` BETWEEN {P.GRAVEYARD_BASE} AND {P.GRAVEYARD_END}"),
+        ("npc_text", entries("ID")),
+        ("gossip_menu", entries("MenuID")),
+        ("gossip_menu_option", entries("MenuID")),
+        ("npc_vendor", entries("entry")),
+        ("trainer_spell", f"`TrainerId` BETWEEN {P.TRAINER_BASE} AND {P.TRAINER_BASE + 999}"),
+        ("trainer", f"`Id` BETWEEN {P.TRAINER_BASE} AND {P.TRAINER_BASE + 999}"),
+        ("creature_default_trainer", entries("CreatureId")),
+        ("gameobject_template", gos),
+        ("gameobject", f"`guid` BETWEEN {P.GO_SPAWN_BASE} AND {P.GO_SPAWN_END}"),
+        ("gameobject_loot_template", go_loot),
+        ("creature_loot_template", loot),
+        ("item_template", f"`entry` BETWEEN {P.ITEM_BASE} AND {P.ITEM_END}"),
+        ("item_dbc", f"`ID` BETWEEN {P.ITEM_BASE} AND {P.ITEM_END}"),
+        ("quest_template", f"`ID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("quest_template_addon", f"`ID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("quest_offer_reward", f"`ID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("quest_request_items", f"`ID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("quest_details", f"`ID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("creature_queststarter", f"`quest` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("creature_questender", f"`quest` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("gameobject_queststarter", f"`quest` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("gameobject_questender", f"`quest` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("quest_poi", f"`QuestID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("quest_poi_points", f"`QuestID` BETWEEN {P.QUEST_BASE} AND {P.QUEST_END}"),
+        ("conditions", f"`Comment` = '{P.COMMENT}'"),
+        ("spell_area", spell_area),
+    ]
+    if P.DISPLAY_BASE is not None:              # (its new looks: display_extra)
+        out += [("creature_model_info", f"`DisplayID` BETWEEN {P.DISPLAY_BASE} AND {P.DISPLAY_END}"),
+                ("creaturedisplayinfo_dbc", f"`ID` BETWEEN {P.DISPLAY_BASE} AND {P.DISPLAY_END}"),
+                ("creaturedisplayinfoextra_dbc", f"`ID` BETWEEN {P.EXTRA_BASE} AND {P.EXTRA_END}")]
+    return out
 
 
-def sql(tables, phase_spells_sql=""):
-    """The SQL of [tables]: every row of the module's ranges taken out first, then put in."""
-    out = ["-- The murlocs' questline (mod-murloc-naga): made by tools/murloc/compile.py from tools/murloc/ch*.py; edit those.",
+def sql(tables, phase_spells_sql="", P=MURLOC):
+    """The SQL of [tables]: every row of the story's ranges taken out first, then put in."""
+    T = P.tables
+    out = [f"-- {P.title}",
            "-- Safe to run again: every row of its ranges is taken out first."]
-    for table, where in DELETES:
+    for table, where in deletes(P):
         out.append(f"DELETE FROM `{table}` WHERE {where};")
     for src in sorted(tables.get("_lootid", [])):
         out.append(f"UPDATE `creature_template` SET `lootid` = `entry` WHERE `entry` = {src} AND `lootid` = 0;")
@@ -1980,31 +2305,58 @@ def sql(tables, phase_spells_sql=""):
             out.append(f"INSERT INTO `{table}` ({', '.join(f'`{c}`' for c in cols)}) VALUES\n{body};")
     if phase_spells_sql:
         out.append(phase_spells_sql)
+    if tables.get("_new_looks"):
+        out.append("-- Its new looks' sizes: those of the game's look of a person of the same race and sex.")
+        for display, template in tables["_new_looks"]:
+            out.append(f"REPLACE INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) "
+                       f"SELECT {display}, `BoundingRadius`, `CombatReach`, `Gender`, 0 FROM `creature_model_info` WHERE `DisplayID` = {template};")
     if tables.get("_model_info"):
         out.append("-- Looks the game has no size for (a rowboat's): a size, so the server knows them.")
         out.append("INSERT IGNORE INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`) VALUES "
                    + ", ".join(f"({d}, 1.0, 1.5, 2)" for d in tables["_model_info"]) + ";")
     out.append("-- Spells the story's quests teach (the module, src/MurlocNaga.cpp, teaches them as each is handed in).")
-    out.append("CREATE TABLE IF NOT EXISTS `murloc_naga_story_learn` (`quest` INT UNSIGNED NOT NULL, `spell` INT UNSIGNED NOT NULL, "
+    out.append(f"CREATE TABLE IF NOT EXISTS `{T['learn']}` (`quest` INT UNSIGNED NOT NULL, `spell` INT UNSIGNED NOT NULL, "
                "PRIMARY KEY (`quest`, `spell`));")
-    out.append("DELETE FROM `murloc_naga_story_learn`;")
+    out.append(f"DELETE FROM `{T['learn']}`;")
     if tables.get("_learn"):
-        out.append("INSERT INTO `murloc_naga_story_learn` (`quest`, `spell`) VALUES "
+        out.append(f"INSERT INTO `{T['learn']}` (`quest`, `spell`) VALUES "
                    + ", ".join(f"({qq}, {sp})" for qq, sp in tables["_learn"]) + ";")
-    out.append("-- The tribe's graveyards, as the module (src/MurlocNaga.cpp) chooses them for a murloc whose story isn't done.")
-    out.append("CREATE TABLE IF NOT EXISTS `murloc_naga_graveyards` (`id` INT UNSIGNED NOT NULL PRIMARY KEY, `map` INT UNSIGNED NOT NULL, "
+    out.append(f"-- The story's graveyards, as the module (src/MurlocNaga.cpp) chooses them for {P.who} whose story isn't done.")
+    out.append(f"CREATE TABLE IF NOT EXISTS `{T['graveyards']}` (`id` INT UNSIGNED NOT NULL PRIMARY KEY, `map` INT UNSIGNED NOT NULL, "
                "`x` FLOAT NOT NULL, `y` FLOAT NOT NULL, `z` FLOAT NOT NULL, `from_quest` INT UNSIGNED NOT NULL, `until_quest` INT UNSIGNED NOT NULL);")
-    out.append("DELETE FROM `murloc_naga_graveyards`;")
+    out.append(f"DELETE FROM `{T['graveyards']}`;")
     if tables.get("_graveyards"):
-        out.append("INSERT INTO `murloc_naga_graveyards` (`id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest`) VALUES "
+        out.append(f"INSERT INTO `{T['graveyards']}` (`id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest`) VALUES "
                    + ", ".join(f"({g['id']}, {g['map']}, {g['x']}, {g['y']}, {g['z']}, {g['from_quest']}, {g['until_quest']})"
                                for g in tables["_graveyards"]) + ";")
+    out.append("-- What one carries puts an aura on (the module, every second): an item in the bags, its aura.")
+    out.append(f"CREATE TABLE IF NOT EXISTS `{T['carry']}` (`item` INT UNSIGNED NOT NULL, `aura` INT UNSIGNED NOT NULL, "
+               "PRIMARY KEY (`item`, `aura`));")
+    out.append(f"DELETE FROM `{T['carry']}`;")
+    if tables.get("_carry"):
+        out.append(f"INSERT INTO `{T['carry']}` (`item`, `aura`) VALUES " + ", ".join(f"({i}, {a})" for i, a in tables["_carry"]) + ";")
+    if T.get("memories"):
+        out.append("-- The memories (the module: going in and out, death and logout inside, leaving their ground): each its aura, its\n"
+                   "-- phase bit, where one arrives, its ground (a centre and a radius), the pool one wakes at, its quests (the\n"
+                   "-- current one's objectives start again after a death inside) and those whose completion wakes one.")
+        out.append(f"CREATE TABLE IF NOT EXISTS `{T['memories']}` (`spell` INT UNSIGNED NOT NULL PRIMARY KEY, `bit` INT UNSIGNED NOT NULL, "
+                   "`map` INT UNSIGNED NOT NULL, `x` FLOAT NOT NULL, `y` FLOAT NOT NULL, `z` FLOAT NOT NULL, `o` FLOAT NOT NULL, "
+                   "`cx` FLOAT NOT NULL, `cy` FLOAT NOT NULL, `radius` FLOAT NOT NULL, `pool_map` INT UNSIGNED NOT NULL, "
+                   "`px` FLOAT NOT NULL, `py` FLOAT NOT NULL, `pz` FLOAT NOT NULL, `po` FLOAT NOT NULL, "
+                   "`quests` VARCHAR(255) NOT NULL, `wakes` VARCHAR(255) NOT NULL);")
+        out.append(f"DELETE FROM `{T['memories']}`;")
+        if tables.get("_memories"):
+            out.append(f"INSERT INTO `{T['memories']}` (`spell`, `bit`, `map`, `x`, `y`, `z`, `o`, `cx`, `cy`, `radius`, `pool_map`, `px`, `py`, "
+                       "`pz`, `po`, `quests`, `wakes`) VALUES\n"
+                       + ",\n".join(f"({m['spell']}, {m['bit']}, {m['map']}, {m['x']}, {m['y']}, {m['z']}, {m['o']}, {m['cx']}, {m['cy']}, "
+                                    f"{m['radius']}, {m['pool_map']}, {m['px']}, {m['py']}, {m['pz']}, {m['po']}, {q(m['quests'])}, {q(m['wakes'])})"
+                                    for m in tables["_memories"]) + ";")
     story = tables.get("_story")
     if story:
-        out.append("-- What the module (src/MurlocNaga.cpp) reads of the story: its quests' range, and the last quest, which opens\n"
-                   "-- the Alliance's and everyone's quests to a murloc.")
-        out.append("CREATE TABLE IF NOT EXISTS `murloc_naga_story` (`name` VARCHAR(32) NOT NULL PRIMARY KEY, `value` INT UNSIGNED NOT NULL);")
-        out.append("REPLACE INTO `murloc_naga_story` (`name`, `value`) VALUES "
+        out.append(f"-- What the module (src/MurlocNaga.cpp) reads of the story: its quests' range, and the last quest, which opens\n"
+                   f"-- the other quests to {P.who}" + (" (and the memories' marker and fade spells)." if P.race_spells else "."))
+        out.append(f"CREATE TABLE IF NOT EXISTS `{T['story']}` (`name` VARCHAR(32) NOT NULL PRIMARY KEY, `value` INT UNSIGNED NOT NULL);")
+        out.append(f"REPLACE INTO `{T['story']}` (`name`, `value`) VALUES "
                    + ", ".join(f"({q(k)}, {v})" for k, v in sorted(story.items())) + ";")
     return "\n".join(out) + "\n"
 
@@ -2016,4 +2368,5 @@ DEFAULTS = {
     ("gameobject", "Comment"): "", ("gameobject_template", "name"): "", ("npc_text", "text0_0"): "", ("npc_text", "text0_1"): "",
     ("gameobject_template", "AIName"): "", ("creature_template", "AIName"): "",
     ("item_template", "spellcooldown_1"): -1, ("item_template", "spellcategorycooldown_1"): -1,
+    **{("creature_template_movement", c): None for c in ("Ground", "Swim", "Flight", "Rooted", "Chase", "Random", "InteractionPauseTimer")},
 }

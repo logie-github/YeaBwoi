@@ -2,8 +2,10 @@
 """The committed data of mod-murloc-naga checked against itself: every quest's giver, ender, required
 creature and item is there (the module's own or the game's named in tools/content.py), every spawn's
 creature and object, every look's texture the patch makes; every id in the module's ranges; the
-intros' cameras read as the world server reads them (one camera, keys in time order, the flight's
-length); the narrations' recipe names the game's files."""
+retired starts gone (the murlocs' village, the naga's Darkshore camp: their ids kept, the camp's three
+people the naga's story's); the two stories' SQL apart (each its own ranges and tables, no phase of one on
+the other's people, each DELETE its own rows); the intros' cameras read as the world server reads them
+(one camera, keys in time order, the flight's length); the narrations' recipe names the game's files."""
 import os
 import re
 import struct
@@ -44,15 +46,20 @@ items = {int(r["entry"]): r for r in rows("item_template")}
 quests = {int(r["ID"]): r for r in rows("quest_template")}
 game_creatures = {C.PYGMY_TIDE_CRAWLER, C.DARKSHORE_THRESHER, 2187, C.WRATHTAIL_MYRMIDON, C.WRATHTAIL_RAZORTAIL,
                   C.THUNDRIS_WINDWEAVER, C.GLYNDA_NALSHEA, C.ONU, C.MARUKAI}
-# (the murlocs' Darkshore village is retired: their quests are their questline's, tools/murloc/, test_story.py)
+# (the murlocs' Darkshore village and the naga's camp are retired: their quests are their stories', tools/murloc/
+# and tools/naga/)
 village = C.MURLOC_QUESTS if C.MURLOC_VILLAGE else []
-check(len(quests) == len(village) + len(C.NAGA_QUESTS), f"every quest is there ({len(quests)})")
+camp = C.NAGA_QUESTS if C.NAGA_CAMP else []
+check(len(quests) == len(village) + len(camp), f"every quest is there ({len(quests)}: the retired starts' none)")
 check(all(C.QUEST_BASE <= q < C.QUEST_BASE + 100 for q in quests), "the quests' ids are the module's")
 check(all(C.NPC_BASE <= e < C.NPC_BASE + 100 for e in creatures), "the creatures' ids are the module's")
 check(all(C.GO_BASE <= e < C.GO_BASE + 100 for e in gos), "the objects' ids are the module's")
 check(all(C.ITEM_BASE <= e < C.ITEM_BASE + 100 for e in items), "the items' ids are the module's")
 check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 18) == len(village), "the murlocs' village quests: retired")
-check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 19) == len(C.NAGA_QUESTS), "the naga's quests are theirs alone")
+check(sum(1 for q in quests.values() if int(q["AllowableRaces"]) == 1 << 19) == len(camp), "the naga's camp quests: retired")
+check(not any(int(e) in (975017, 975018, 975019) for e in creatures), "the camp's three people aren't this file's (the naga story's)")
+check("mod-murloc-naga: not for the naga" not in SQL.split("DELETE FROM `conditions`")[0] and
+      "INSERT INTO `conditions`" not in SQL, "the camp's Darkshore conditions: taken out, none put in")
 
 starters = {(int(r["id"]), int(r["quest"])) for r in rows("creature_queststarter")}
 enders = {(int(r["id"]), int(r["quest"])) for r in rows("creature_questender")}
@@ -75,9 +82,10 @@ addons = {int(r["ID"]): r for r in rows("quest_template_addon")}
 for q, a in addons.items():
     prev = int(a["PrevQuestID"])
     check(prev == 0 or prev in quests, f"quest {q} comes after {prev or 'nothing'}")
-tide = C.QUEST_BASE + 32
-check((C.ONU, tide) in starters and quests[tide]["MinLevel"] == "17", "The Tide Turns: Onu's, from level 17")
-check((C.MARUKAI, C.QUEST_BASE + 34) in enders, "An Unlikely Allegiance: handed in to Marukai at Zoram'gar")
+if C.NAGA_CAMP:
+    tide = C.QUEST_BASE + 32
+    check((C.ONU, tide) in starters and quests[tide]["MinLevel"] == "17", "The Tide Turns: Onu's, from level 17")
+    check((C.MARUKAI, C.QUEST_BASE + 34) in enders, "An Unlikely Allegiance: handed in to Marukai at Zoram'gar")
 
 spawned = [int(r["id"]) for r in rows("creature")]
 check(all(e in known for e in spawned), f"every creature spawned is there ({len(spawned)} spawns)")
@@ -122,10 +130,61 @@ check(all(f"or\t{m}\t1\t4" in models.splitlines() for m in (2353, 2354)), "...an
 # other's rows (the naga camp's quest drop, the story's) must stay.
 story_sql = open(os.path.join(DATA, "sql", "chromiecraft", "world", "murloc_story.sql"), encoding="utf-8").read()
 camp_loot = rows("creature_loot_template")
-check(camp_loot and all(r["Comment"] == "mod-murloc-naga: camp" for r in camp_loot), "the camp's loot rows are the camp's (comment)")
+check((bool(camp_loot) == C.NAGA_CAMP) and all(r["Comment"] == "mod-murloc-naga: camp" for r in camp_loot),
+      f"the camp's loot rows are the camp's (comment), none with the camp retired ({len(camp_loot)})")
 story_delete = re.search(r"DELETE FROM `creature_loot_template` WHERE ([^;]*);", story_sql).group(1)
 check("'mod-murloc-naga: story'" in story_delete and f"NOT BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99}" in story_delete,
       "...and the story's delete leaves them (" + story_delete[:60] + "...)")
+
+# The naga's story (tools/naga/: naga_story.sql), apart from the murlocs' (murloc_story.sql).
+naga_sql = open(os.path.join(DATA, "sql", "chromiecraft", "world", "naga_story.sql"), encoding="utf-8").read()
+
+
+def rows_of(text, table):
+    out = []
+    for m in re.finditer(r"INSERT INTO `%s` \(([^)]*)\) VALUES\n" % table, text):
+        cols = [c.strip(" `") for c in m.group(1).split(",")]
+        end = text.index(";\n", m.end())
+        for r in sqlrows.values("INSERT INTO x VALUES " + text[m.end():end + 1]):
+            out.append(dict(zip(cols, r)))
+    return out
+
+
+kept = {975017, 975018, 975019}
+naga_creatures = {int(r["entry"]) for r in rows_of(naga_sql, "creature_template")}
+check(naga_creatures and all(990000 <= e <= 991999 or e in kept for e in naga_creatures),
+      f"the naga's story's creatures in its range, or the camp's three kept ({len(naga_creatures)})")
+check(kept <= naga_creatures, "...Lady Szaria, Myrmidon Ssaveth and Vyssa among them (their entries kept)")
+check(all(992000 <= int(r["ID"]) <= 992599 and int(r["AllowableRaces"]) == 1 << 19 for r in rows_of(naga_sql, "quest_template")),
+      "the naga's story's quests: its range, the naga's alone")
+check(all(993000 <= int(r["entry"]) <= 993799 for r in rows_of(naga_sql, "item_template")), "...its items, its range")
+spawn_rows = rows_of(naga_sql, "creature") + rows_of(naga_sql, "gameobject")
+check(spawn_rows and all(9900000 <= int(r["guid"]) <= 9939999 for r in spawn_rows), "...its spawns, its range")
+check(all(int(r["phaseMask"]) & (1 | 1024) == 0 for r in spawn_rows), "...none in the world's phase or the murlocs'")
+murloc_spawns = rows_of(story_sql, "creature") + rows_of(story_sql, "gameobject")
+check(all(int(r["phaseMask"]) & 2048 == 0 for r in murloc_spawns), "the murlocs' spawns: none in the naga's phase")
+naga_bits = set()
+for r in rows_of(naga_sql, "spell_area"):
+    naga_bits.add(int(r["spell"]))
+check(all(int(r["aura_spell"]) == -994002 and int(r["racemask"]) == 1 << 19 for r in rows_of(naga_sql, "spell_area")),
+      "the naga's phase rows: the naga's alone, none while reliving a memory (the marker absent)")
+check(any(int(r["area"]) == 1237 for r in rows_of(naga_sql, "spell_area")), "...Valormok: the world's and theirs from the first login")
+deletes = re.findall(r"DELETE FROM `([a-z_]+)` WHERE ([^;]*);", naga_sql)
+check(all(("990000" in w or "992000" in w or "993000" in w or "9900000" in w or "9930000" in w or "1990000" in w or "994000" in w
+           or "9900" in w or "10400" in w or "40200" in w or "25000" in w or "naga story" in w) for t, w in deletes),
+      f"every DELETE of the naga's SQL is of its own rows ({len(deletes)})")
+check(not re.search(r"DELETE FROM `(murloc_naga_story|murloc_naga_story_learn|murloc_naga_graveyards)`", naga_sql),
+      "...never the murlocs' tables (the naga have theirs)")
+memories = rows_of(naga_sql, "naga_story_memories")
+check(memories and all(int(m["bit"]) in (2, 4, 8) for m in memories), f"the memories: one of the three memory bits each ({len(memories)})")
+check(re.search(r"\('marker_spell', 994002\)", naga_sql) and re.search(r"\('fade_spell', 994003\)", naga_sql),
+      "the module's marker and fade named")
+world_delete = re.search(r"DELETE FROM `creature_template` WHERE ([^;]*);", SQL).group(1)
+check("NOT IN (975017, 975018, 975019)" in world_delete, "this file's camp DELETE leaves the kept three (" + world_delete + ")")
+steps = open(os.path.join(HERE, "..", "..", "..", "server", "murloc_naga_naga.steps")).read()
+check(not any("{" in l for l in steps.splitlines() if not l.startswith("#")) and "992001" in steps,
+      "the naga's server steps: the story's ids")
+
 import naga_looks as NL  # noqa: E402
 naga_hair = len(re.findall(r"^put\t\d+\t20\t", geosets, re.M))
 check(naga_hair == sum(len(NL.HEADDRESSES[s]) + 1 for s in ("Male", "Female")), f"a headdress row each (naga: {naga_hair})")
@@ -147,7 +206,8 @@ for race, length in (("Murloc", 42000), ("Naga", 61000)):
 
 narration = [l.rstrip("\n").split("\t") for l in open(os.path.join(DATA, "client", "narration.txt")) if not l.startswith("#")]
 check({l[0] for l in narration} == {"Murloc", "Naga"} and all(l[2].startswith("Sound\\") for l in narration), "the narrations: the game's sounds")
-check(sum(1 for l in narration if "LadyVashj" in l[2]) == 8, "the naga's: eight of Lady Vashj's lines")
+check(sum(1 for l in narration if "LadyVashj" in l[2]) == 6, "the naga's: six of Lady Vashj's lines")
+check(not any("Death01" in l[2] or "Slay03" in l[2] for l in narration), "...not her death (the naga's story's end)")
 
 print("PASSED" if not failures else f"FAILED ({failures})")
 sys.exit(1 if failures else 0)

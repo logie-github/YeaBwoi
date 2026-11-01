@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /*
  * The Murlocs and the Naga (mod-murloc-naga): two races of ChromieCraft's realm, the murlocs
- * (Alliance, race 19) in a village on the island west of Auberdine and the renegade naga (Horde,
- * race 20) on the island north of it, both starting there at level 10. The world database has them
- * from the module's SQL (data/sql/chromiecraft/world, tools/build_data.py; ctl.sh puts it in
- * ChromieCraft's world database alone); the game, from the patch this makes as the configuration
- * is read (MurlocNagaPatch.cpp) in the client WOW_CLIENT_DIR names (ctl.sh).
+ * (Alliance, race 19) starting in the Wrathtail's pens at the Zoram Strand and the naga (Horde, race
+ * 20) at Rethress Sanctum in Azshara, both at level 10, each with a story of its own to level 55 (the
+ * murlocs' tools/murloc/, the naga's tools/naga/: their SQL) and no one else's quests until its last
+ * quest is done (each story's gate, made here as the world starts). The naga live Warcraft III's war
+ * as memories: going in and out, a death or a logout inside, leaving a memory's ground (here). The
+ * world database has them from the module's SQL (data/sql/chromiecraft/world, tools/build_data.py;
+ * ctl.sh puts it in ChromieCraft's world database alone); the game, from the patch this makes as the
+ * configuration is read (MurlocNagaPatch.cpp) in the client WOW_CLIENT_DIR names (ctl.sh).
  *
  * The patch is made first of the race modules' (they're read by the game after it and made from
  * the game with it in, so they carry its rows): before the Worgen and Goblins' (made as the
@@ -14,7 +17,7 @@
  *
  * They start at level 10, away from their kin's trainers: they learn their class's trainer spells
  * as they come of age for them (at creation and every level, as the trainers would teach them;
- * talents' ranks once the talent is theirs).
+ * talents' ranks once the talent is theirs); the murlocs, from their story's trainers.
  */
 
 #include "CellImpl.h"
@@ -23,19 +26,23 @@
 #include "DBCStores.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "Group.h"
 #include "Log.h"
 #include "MurlocNagaPatch.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "ReputationMgr.h"
 #include "ScriptMgr.h"
+#include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <map>
+#include <algorithm>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace fs = std::filesystem;
@@ -43,17 +50,15 @@ namespace fs = std::filesystem;
 namespace
 {
     constexpr uint8 RACE_MURLOC = 19, RACE_NAGA = 20, START_LEVEL = 10;
-    constexpr uint32 MURLOC_RACE_BIT = 1u << (RACE_MURLOC - 1);
+    constexpr uint32 MURLOC_RACE_BIT = 1u << (RACE_MURLOC - 1), NAGA_RACE_BIT = 1u << (RACE_NAGA - 1);
 
-    // The murlocs' questline (tools/murloc/): its last quest (from the world database's table the
-    // module's SQL makes), and the towns' factions a murloc starts with (tools/build_data.py's
-    // MURLOC_HOSTILE_FACTIONS): the Alliance's and the Horde's Hostile (at war: their guards attack it,
-    // and it them), the goblins' Unfriendly (mercenary: they don't trade with it, nor attack it).
+    // The towns' factions a murloc starts with (tools/build_data.py's MURLOC_HOSTILE_FACTIONS): the Alliance's
+    // and the Horde's Hostile (at war: their guards attack it, and it them), the goblins' Unfriendly (mercenary:
+    // they don't trade with it, nor attack it).
     constexpr int32 MURLOC_START_STANDING = -3500, MURLOC_GOBLIN_STANDING = -500;
     uint32 const MURLOC_HOSTILE_FACTIONS[] = { 469, 72, 47, 69, 54, 930, 67, 76, 81, 68, 530, 911, 169, 21, 369, 470, 577 };
     uint32 const GOBLIN_FACTIONS[] = { 169, 21, 369, 470, 577 };
     uint32 const ALLIANCE_FACTIONS[] = { 469, 72, 47, 69, 54, 930 };
-    uint32 finalQuest = 0;
 
     int32 StartStanding(uint32 faction)
     {
@@ -63,43 +68,166 @@ namespace
         return MURLOC_START_STANDING;
     }
 
-    // The tribe's graveyards (the story's: tools/murloc/, the table its SQL makes): where a murloc whose
-    // story isn't done wakes as a ghost, the nearest on its map whose quest rule holds, never a town's.
-    struct TribeGraveyard
+    // A story's graveyards (its SQL's table): where one of its race whose story isn't done wakes as a ghost, the
+    // nearest on its map whose quest rule holds, never a town's.
+    struct StoryGraveyard
     {
         uint32 id, map;
         float x, y, z;
         uint32 fromQuest, untilQuest;
     };
-    std::vector<TribeGraveyard> tribeGraveyards;
-    // Spells the story's quests teach as they're handed in (the class quests' stances and pets).
-    std::unordered_map<uint32, std::vector<uint32>> storyLearn;
 
-    void LoadTribeGraveyards()
+    // A race's story as its SQL leaves it in the world database (tools/murloc/compile.py, a profile each): its
+    // quests' range, its last quest (its gate opens with it), its graveyards, the spells its quests teach and the
+    // auras what one carries puts on.
+    struct Story
     {
-        tribeGraveyards.clear();
-        storyLearn.clear();
-        if (WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_story_learn'"))
-            if (QueryResult r = WorldDatabase.Query("SELECT `quest`, `spell` FROM `murloc_naga_story_learn`"))
-                do
-                    storyLearn[r->Fetch()[0].Get<uint32>()].push_back(r->Fetch()[1].Get<uint32>());
-                while (r->NextRow());
-        if (!WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_graveyards'"))
+        uint8 race;
+        uint32 raceBit;
+        uint32 gateOffset;                      // (its gate's alternative condition groups: the quest's own, + this)
+        uint32 sideMask;                        // (its side's quests open to all the side's races: its own too)
+        char const* name;
+        char const* storyTable;
+        char const* learnTable;
+        char const* graveyardTable;
+        char const* carryTable;
+        uint32 finalQuest = 0, firstQuest = 0, lastQuest = 0;
+        std::vector<StoryGraveyard> graveyards;
+        std::unordered_map<uint32, std::vector<uint32>> learn;
+        std::vector<std::pair<uint32, uint32>> carry;      // item, aura
+    };
+
+    Story murlocs{ RACE_MURLOC, MURLOC_RACE_BIT, 1000, 1101, "the murlocs", "murloc_naga_story", "murloc_naga_story_learn",
+                   "murloc_naga_graveyards", "murloc_naga_story_carry" };
+    Story nagas{ RACE_NAGA, NAGA_RACE_BIT, 2000, 690, "the naga", "naga_story", "naga_story_learn", "naga_story_graveyards",
+                 "naga_story_carry" };
+    Story* const STORIES[] = { &murlocs, &nagas };
+
+    // (the murlocs' last quest: their standing with the towns, their language and their trainers hang on it)
+    uint32& finalQuest = murlocs.finalQuest;
+
+    bool HasTable(char const* table)
+    {
+        return bool(WorldDatabase.Query("SHOW TABLES LIKE '{}'", table));
+    }
+
+    uint32 StoryValue(Story const& story, char const* name)
+    {
+        if (QueryResult r = WorldDatabase.Query("SELECT `value` FROM `{}` WHERE `name` = '{}'", story.storyTable, name))
+            return r->Fetch()[0].Get<uint32>();
+        return 0;
+    }
+
+    void LoadStory(Story& story)
+    {
+        story.finalQuest = story.firstQuest = story.lastQuest = 0;
+        story.graveyards.clear();
+        story.learn.clear();
+        story.carry.clear();
+        if (!HasTable(story.storyTable))
             return;
-        if (QueryResult r = WorldDatabase.Query("SELECT `id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest` FROM `murloc_naga_graveyards`"))
+        story.finalQuest = StoryValue(story, "final_quest");
+        story.firstQuest = StoryValue(story, "first_quest");
+        story.lastQuest = StoryValue(story, "last_quest");
+        if (HasTable(story.learnTable))
+            if (QueryResult r = WorldDatabase.Query("SELECT `quest`, `spell` FROM `{}`", story.learnTable))
+                do
+                    story.learn[r->Fetch()[0].Get<uint32>()].push_back(r->Fetch()[1].Get<uint32>());
+                while (r->NextRow());
+        if (HasTable(story.graveyardTable))
+            if (QueryResult r = WorldDatabase.Query("SELECT `id`, `map`, `x`, `y`, `z`, `from_quest`, `until_quest` FROM `{}`", story.graveyardTable))
+                do
+                {
+                    Field* f = r->Fetch();
+                    story.graveyards.push_back({ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<float>(), f[3].Get<float>(), f[4].Get<float>(),
+                        f[5].Get<uint32>(), f[6].Get<uint32>() });
+                } while (r->NextRow());
+        if (HasTable(story.carryTable))
+            if (QueryResult r = WorldDatabase.Query("SELECT `item`, `aura` FROM `{}`", story.carryTable))
+                do
+                    story.carry.emplace_back(r->Fetch()[0].Get<uint32>(), r->Fetch()[1].Get<uint32>());
+                while (r->NextRow());
+    }
+
+    Story* StoryOf(Player const* player)
+    {
+        if (!player)
+            return nullptr;
+        for (Story* story : STORIES)
+            if (player->getRace() == story->race)
+                return story;
+        return nullptr;
+    }
+
+    // The naga's memories (naga_story_memories: tools/murloc/compile.py's build_memories): each its aura (its phase
+    // bit alone, the game's flashback look), where one arrives, its ground (a centre and a radius), the pool one
+    // wakes at, its quests (an unfinished one starts again after a death inside) and those whose completion wakes one.
+    struct Memory
+    {
+        uint32 spell = 0, bit = 0, map = 0;
+        float x = 0, y = 0, z = 0, o = 0, cx = 0, cy = 0, radius = 0;
+        uint32 poolMap = 0;
+        float px = 0, py = 0, pz = 0, po = 0;
+        std::vector<uint32> quests, wakes;
+    };
+    std::unordered_map<uint32, Memory> memories;         // by its aura
+    uint32 markerSpell = 0, fadeSpell = 0;
+
+    std::vector<uint32> Ids(std::string const& text)
+    {
+        std::vector<uint32> out;
+        uint32 n = 0;
+        bool any = false;
+        for (char c : text + ",")
+        {
+            if (c >= '0' && c <= '9')
+            {
+                n = n * 10 + uint32(c - '0');
+                any = true;
+            }
+            else if (any)
+            {
+                out.push_back(n);
+                n = 0;
+                any = false;
+            }
+        }
+        return out;
+    }
+
+    void LoadMemories()
+    {
+        memories.clear();
+        markerSpell = fadeSpell = 0;
+        if (!HasTable(nagas.storyTable) || !HasTable("naga_story_memories"))
+            return;
+        markerSpell = StoryValue(nagas, "marker_spell");
+        fadeSpell = StoryValue(nagas, "fade_spell");
+        if (QueryResult r = WorldDatabase.Query("SELECT `spell`, `bit`, `map`, `x`, `y`, `z`, `o`, `cx`, `cy`, `radius`, `pool_map`, `px`, `py`, "
+                "`pz`, `po`, `quests`, `wakes` FROM `naga_story_memories`"))
             do
             {
                 Field* f = r->Fetch();
-                tribeGraveyards.push_back({ f[0].Get<uint32>(), f[1].Get<uint32>(), f[2].Get<float>(), f[3].Get<float>(), f[4].Get<float>(),
-                    f[5].Get<uint32>(), f[6].Get<uint32>() });
+                Memory m;
+                m.spell = f[0].Get<uint32>();
+                m.bit = f[1].Get<uint32>();
+                m.map = f[2].Get<uint32>();
+                m.x = f[3].Get<float>();
+                m.y = f[4].Get<float>();
+                m.z = f[5].Get<float>();
+                m.o = f[6].Get<float>();
+                m.cx = f[7].Get<float>();
+                m.cy = f[8].Get<float>();
+                m.radius = f[9].Get<float>();
+                m.poolMap = f[10].Get<uint32>();
+                m.px = f[11].Get<float>();
+                m.py = f[12].Get<float>();
+                m.pz = f[13].Get<float>();
+                m.po = f[14].Get<float>();
+                m.quests = Ids(f[15].Get<std::string>());
+                m.wakes = Ids(f[16].Get<std::string>());
+                memories[m.spell] = m;          // (the spells aren't loaded yet: the auras are the world database's spell_dbc rows)
             } while (r->NextRow());
-    }
-
-    uint32 StoryValue(char const* name)
-    {
-        if (QueryResult r = WorldDatabase.Query("SELECT `value` FROM `murloc_naga_story` WHERE `name` = '{}'", name))
-            return r->Fetch()[0].Get<uint32>();
-        return 0;
     }
 
     bool Murloc(Player const* player)
@@ -194,52 +322,71 @@ public:
     MurlocNagaWorld() : WorldScript("MurlocNagaWorld", { WORLDHOOK_ON_BEFORE_CONFIG_LOAD, WORLDHOOK_ON_AFTER_CONFIG_LOAD,
                                                          WORLDHOOK_ON_LOAD_CUSTOM_DATABASE_TABLE }) { }
 
-    // Before the quests and their conditions are read: the murlocs' gate, made again from every quest
-    // the world database has now (other modules' too). A murloc takes no Alliance or Horde quest, nor
-    // any open to all, until its own story's last quest is done; then the Alliance's (those open to all
-    // of the Alliance's races) and those open to all are its too.
+    // Before the quests and their conditions are read: each story's gate, made again from every quest the world
+    // database has now (other modules' too). One of the race takes no quest open to it but its own story's until
+    // that story's last quest is done; then its side's quests (those open to all of its side's races) and those
+    // open to all are its too. Both gates live in the same conditions: each quest's own condition groups (or a
+    // group 0 of their own) say "not a murloc" and "not a naga" for the races it's closed to, and each race has its
+    // own alternative groups (the quest's own again, at ElseGroup + 1000 for the murlocs and + 2000 for the naga)
+    // with "its story's last quest done".
     void OnLoadCustomDatabaseTable() override
     {
-        finalQuest = 0;
-        tribeGraveyards.clear();
-        if (!Enabled() || !WorldDatabase.Query("SHOW TABLES LIKE 'murloc_naga_story'"))
+        for (Story* story : STORIES)
+        {
+            story->finalQuest = 0;
+            story->graveyards.clear();
+        }
+        memories.clear();
+        if (!Enabled())
             return;
-        LoadTribeGraveyards();
-        finalQuest = StoryValue("final_quest");
-        uint32 first = StoryValue("first_quest"), last = StoryValue("last_quest");
-        if (!finalQuest || !first || !last)
-            return;
+        for (Story* story : STORIES)
+            LoadStory(*story);
+        LoadMemories();
         std::string const gate = "'mod-murloc-naga: gate'";
-        std::string const ours = fmt::format("q.`ID` NOT BETWEEN {} AND {} AND q.`ID` NOT BETWEEN 975000 AND 975999", first, last);
-        std::string const gated = fmt::format("(q.`AllowableRaces` = 0 OR q.`AllowableRaces` & {}) AND {}", MURLOC_RACE_BIT, ours);
         std::string const cols = "(`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, `ConditionTypeOrReference`, "
             "`ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, `ErrorType`, `ErrorTextId`, "
             "`ScriptName`, `Comment`)";
         std::string const existing = "SELECT DISTINCT `SourceEntry`, `ElseGroup` FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 "
             "AND `SourceGroup` = 0 AND `Comment` <> " + gate;
         WorldDatabase.DirectExecute("DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `Comment` = " + gate);
-        // (the Alliance's quests, open to all of its races: the murlocs' too, once the gate lets them)
-        WorldDatabase.DirectExecute(fmt::format("UPDATE `quest_template` q SET q.`AllowableRaces` = q.`AllowableRaces` | {} WHERE "
-            "(q.`AllowableRaces` & 1101) = 1101 AND (q.`AllowableRaces` & 0x7FFFFFFF) <> 0x7FFFFFFF AND {}", MURLOC_RACE_BIT, ours));
-        // not a murloc: each group the quest has, or one of its own
-        WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, g.`ElseGroup`, 16, 0, {}, 0, 0, 1, 0, 0, '', {} "
-            "FROM `quest_template` q JOIN ({}) g ON g.`SourceEntry` = q.`ID` WHERE {}", cols, MURLOC_RACE_BIT, gate, existing, gated));
-        WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, 0, 16, 0, {}, 0, 0, 1, 0, 0, '', {} "
-            "FROM `quest_template` q WHERE {} AND NOT EXISTS (SELECT 1 FROM `conditions` c WHERE c.`SourceTypeOrReferenceId` = 19 "
-            "AND c.`SourceGroup` = 0 AND c.`SourceEntry` = q.`ID` AND c.`Comment` <> {})", cols, MURLOC_RACE_BIT, gate, gated, gate));
-        // or a murloc whose story is done: each group again, with that
-        WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT c.`SourceTypeOrReferenceId`, c.`SourceGroup`, c.`SourceEntry`, "
-            "c.`SourceId`, c.`ElseGroup` + 1000, c.`ConditionTypeOrReference`, c.`ConditionTarget`, c.`ConditionValue1`, c.`ConditionValue2`, "
-            "c.`ConditionValue3`, c.`NegativeCondition`, c.`ErrorType`, c.`ErrorTextId`, c.`ScriptName`, {} FROM `conditions` c "
-            "JOIN `quest_template` q ON q.`ID` = c.`SourceEntry` WHERE c.`SourceTypeOrReferenceId` = 19 AND c.`SourceGroup` = 0 "
-            "AND c.`Comment` <> {} AND {}", cols, gate, gate, gated));
-        WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, g.`ElseGroup` + 1000, 8, 0, {}, 0, 0, 0, 0, 0, '', {} "
-            "FROM `quest_template` q JOIN ({}) g ON g.`SourceEntry` = q.`ID` WHERE {}", cols, finalQuest, gate, existing, gated));
-        WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, 1000, 8, 0, {}, 0, 0, 0, 0, 0, '', {} "
-            "FROM `quest_template` q WHERE {} AND NOT EXISTS (SELECT 1 FROM `conditions` c WHERE c.`SourceTypeOrReferenceId` = 19 "
-            "AND c.`SourceGroup` = 0 AND c.`SourceEntry` = q.`ID` AND c.`Comment` <> {})", cols, finalQuest, gate, gated, gate));
-        if (QueryResult r = WorldDatabase.Query("SELECT COUNT(DISTINCT `SourceEntry`) FROM `conditions` WHERE `Comment` = " + gate))
-            LOG_INFO("module", "Murlocs and Naga: the murlocs' gate is on {} quests (open once quest {} is done)", r->Fetch()[0].Get<uint64>(), finalQuest);
+        // (neither story's own quests, nor the retired Darkshore starts')
+        std::string ours = "q.`ID` NOT BETWEEN 975000 AND 975999";
+        for (Story* story : STORIES)
+            if (story->firstQuest && story->lastQuest)
+                ours += fmt::format(" AND q.`ID` NOT BETWEEN {} AND {}", story->firstQuest, story->lastQuest);
+        for (Story* story : STORIES)
+        {
+            if (!story->finalQuest || !story->firstQuest || !story->lastQuest)
+                continue;
+            uint32 const bit = story->raceBit, final = story->finalQuest, offset = story->gateOffset;
+            std::string const gated = fmt::format("(q.`AllowableRaces` = 0 OR q.`AllowableRaces` & {}) AND {}", bit, ours);
+            // (its side's quests, open to all of the side's races: its race's too, once the gate lets it)
+            WorldDatabase.DirectExecute(fmt::format("UPDATE `quest_template` q SET q.`AllowableRaces` = q.`AllowableRaces` | {} WHERE "
+                "(q.`AllowableRaces` & {}) = {} AND (q.`AllowableRaces` & 0x7FFFFFFF) <> 0x7FFFFFFF AND {}", bit, story->sideMask, story->sideMask, ours));
+            // not one of the race: in each group the quest has, or in one of its own
+            WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, g.`ElseGroup`, 16, 0, {}, 0, 0, 1, 0, 0, '', {} "
+                "FROM `quest_template` q JOIN ({}) g ON g.`SourceEntry` = q.`ID` WHERE {}", cols, bit, gate, existing, gated));
+            WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, 0, 16, 0, {}, 0, 0, 1, 0, 0, '', {} "
+                "FROM `quest_template` q WHERE {} AND NOT EXISTS (SELECT 1 FROM `conditions` c WHERE c.`SourceTypeOrReferenceId` = 19 "
+                "AND c.`SourceGroup` = 0 AND c.`SourceEntry` = q.`ID` AND c.`Comment` <> {})", cols, bit, gate, gated, gate));
+            // or one of the race whose story is done: each group again, with that
+            WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT c.`SourceTypeOrReferenceId`, c.`SourceGroup`, c.`SourceEntry`, "
+                "c.`SourceId`, c.`ElseGroup` + {}, c.`ConditionTypeOrReference`, c.`ConditionTarget`, c.`ConditionValue1`, c.`ConditionValue2`, "
+                "c.`ConditionValue3`, c.`NegativeCondition`, c.`ErrorType`, c.`ErrorTextId`, c.`ScriptName`, {} FROM `conditions` c "
+                "JOIN `quest_template` q ON q.`ID` = c.`SourceEntry` WHERE c.`SourceTypeOrReferenceId` = 19 AND c.`SourceGroup` = 0 "
+                "AND c.`Comment` <> {} AND {}", cols, offset, gate, gate, gated));
+            WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, g.`ElseGroup` + {}, 8, 0, {}, 0, 0, 0, 0, 0, '', {} "
+                "FROM `quest_template` q JOIN ({}) g ON g.`SourceEntry` = q.`ID` WHERE {}", cols, offset, final, gate, existing, gated));
+            WorldDatabase.DirectExecute(fmt::format("INSERT INTO `conditions` {} SELECT 19, 0, q.`ID`, 0, {}, 8, 0, {}, 0, 0, 0, 0, 0, '', {} "
+                "FROM `quest_template` q WHERE {} AND NOT EXISTS (SELECT 1 FROM `conditions` c WHERE c.`SourceTypeOrReferenceId` = 19 "
+                "AND c.`SourceGroup` = 0 AND c.`SourceEntry` = q.`ID` AND c.`Comment` <> {})", cols, offset, final, gate, gated, gate));
+            if (QueryResult r = WorldDatabase.Query(fmt::format("SELECT COUNT(DISTINCT `SourceEntry`) FROM `conditions` WHERE `Comment` = {} "
+                    "AND `ConditionTypeOrReference` = 16 AND `ConditionValue1` = {}", gate, bit)))
+                LOG_INFO("module", "Murlocs and Naga: the gate for {} is on {} quests (open once quest {} is done)", story->name,
+                    r->Fetch()[0].Get<uint64>(), final);
+        }
+        if (!memories.empty())
+            LOG_INFO("module", "Murlocs and Naga: the naga's story has {} memories (marker {}, fade {})", memories.size(), markerSpell, fadeSpell);
     }
 
     // As the configuration is about to be read (the modules' configs are read already): before the
@@ -362,22 +509,280 @@ namespace
     std::unordered_map<uint64, time_t> lastSaid;                             // guard x player -> when
 }
 
+// The naga's memories, played (bible 2.2, 18.3). A memory is its aura on the player: the relive beat puts it on
+// (SmartAI, a quest's scene or the singer's "Sing it again"), the wake beat or its last quest's completion takes it
+// off. Here, as it goes on: the screen fades, the marker goes on (every phase of theirs needs it absent: the
+// present goes, the memory's bit alone stays), the player is taken to the memory's stage, and the naga of their
+// party on one of its quests near them go in too. As it comes off: the fade, the marker off, back at the pool, the
+// present again. A death inside: alive again at once, its unfinished quests started over, awake at the pool. A
+// logout inside: awake at the pool at the next login. Leaving the memory's ground (its radius around its centre,
+// or its map): awake at the pool.
+namespace
+{
+    enum class MemoryStep { Enter, Leave, Wake, Revive };
+
+    struct Pending
+    {
+        MemoryStep step;
+        uint32 spell;
+        uint32 due;                                      // the player's own clock (ms)
+    };
+
+    struct Reliving
+    {
+        uint32 spell;
+        uint32 since;
+    };
+
+    std::unordered_map<ObjectGuid::LowType, std::vector<Pending>> pending;
+    std::unordered_map<ObjectGuid::LowType, Reliving> reliving;
+    std::unordered_map<ObjectGuid::LowType, uint32> clocks, sinceMemoryCheck, sinceCarry;
+    std::unordered_set<ObjectGuid::LowType> switching;  // (taking one memory off to go into another: no waking)
+
+    constexpr uint32 ENTER_DELAY = 800, REVIVE_DELAY = 1500, WAKE_AFTER_QUEST = 4000, GRACE = 5000;
+
+    Memory const* MemoryOf(uint32 spell)
+    {
+        auto it = memories.find(spell);
+        return it == memories.end() ? nullptr : &it->second;
+    }
+
+    Memory const* RelivingNow(Player const* player)
+    {
+        for (auto const& [spell, memory] : memories)
+            if (player->HasAura(spell))
+                return &memory;
+        return nullptr;
+    }
+
+    void Queue(Player* player, MemoryStep step, uint32 spell, uint32 delay)
+    {
+        ObjectGuid::LowType guid = player->GetGUID().GetCounter();
+        pending[guid].push_back({ step, spell, clocks[guid] + delay });
+    }
+
+    void RefreshPhases(Player* player)
+    {
+        player->UpdateZoneDependentAuras(player->GetZoneId());
+        player->UpdateAreaDependentAuras(player->GetAreaId());
+    }
+
+    bool OnItsQuest(Player const* player, Memory const& memory)
+    {
+        for (uint32 quest : memory.quests)
+            if (player->GetQuestStatus(quest) == QUEST_STATUS_INCOMPLETE)
+                return true;
+        return false;
+    }
+
+    void Enter(Player* player, Memory const& memory)
+    {
+        if (!player->HasAura(memory.spell))
+            return;
+        ObjectGuid::LowType guid = player->GetGUID().GetCounter();
+        for (auto const& [spell, other] : memories)              // (one memory at a time)
+            if (spell != memory.spell && player->HasAura(spell))
+            {
+                switching.insert(guid);
+                player->RemoveAurasDueToSpell(spell);
+                switching.erase(guid);
+            }
+        if (fadeSpell)
+            player->AddAura(fadeSpell, player);
+        if (markerSpell && !player->HasAura(markerSpell))
+            player->AddAura(markerSpell, player);
+        if (Group* group = player->GetGroup())
+            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                if (Player* member = ref->GetSource())
+                    if (member != player && member->getRace() == RACE_NAGA && member->IsInWorld() && member->IsAlive()
+                        && member->IsInMap(player) && member->IsWithinDistInMap(player, 40.0f) && !member->HasAura(memory.spell)
+                        && OnItsQuest(member, memory))
+                        member->AddAura(memory.spell, member);
+        reliving[guid] = { memory.spell, clocks[guid] };
+        player->TeleportTo(memory.map, memory.x, memory.y, memory.z, memory.o);
+        RefreshPhases(player);
+        LOG_DEBUG("module", "Murlocs and Naga: {} relives memory {} (phase {})", player->GetName(), memory.spell, player->GetPhaseMask());
+    }
+
+    void Wake(Player* player, Memory const& memory)
+    {
+        reliving.erase(player->GetGUID().GetCounter());
+        if (RelivingNow(player))                                 // (gone into another meanwhile)
+            return;
+        if (markerSpell)
+            player->RemoveAurasDueToSpell(markerSpell);
+        if (fadeSpell)
+            player->AddAura(fadeSpell, player);
+        player->TeleportTo(memory.poolMap, memory.px, memory.py, memory.pz, memory.po);
+        RefreshPhases(player);
+        LOG_DEBUG("module", "Murlocs and Naga: {} wakes from memory {} (phase {})", player->GetName(), memory.spell, player->GetPhaseMask());
+    }
+
+    // A quest of the memory's, unfinished, started over: out of the log (its items gathered for it gone, as
+    // .quest remove does) and in again.
+    void Restart(Player* player, uint32 questId)
+    {
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+        if (!quest || player->GetQuestStatus(questId) != QUEST_STATUS_INCOMPLETE)
+            return;
+        for (uint8 slot = 0; slot < MAX_QUEST_LOG_SIZE; ++slot)
+            if (player->GetQuestSlotQuestId(slot) == questId)
+            {
+                player->SetQuestSlot(slot, 0);
+                player->TakeQuestSourceItem(questId, false);
+            }
+        for (uint8 i = 0; i < QUEST_ITEM_OBJECTIVES_COUNT; ++i)
+            if (uint32 item = quest->RequiredItemId[i])
+                if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item))
+                    if (proto->Class == ITEM_CLASS_QUEST)
+                        if (uint32 count = player->GetItemCount(item))
+                            player->DestroyItemCount(item, count, true);
+        player->RemoveActiveQuest(questId, false);
+        if (player->CanAddQuest(quest, false))
+            player->AddQuestAndCheckCompletion(quest, nullptr);
+    }
+
+    void Revive(Player* player, Memory const& memory)
+    {
+        if (!player->IsAlive())
+        {
+            player->ResurrectPlayer(1.0f);
+            player->SpawnCorpseBones();
+        }
+        player->SetFullHealth();
+        if (player->getPowerType() == POWER_MANA)
+            player->SetPower(POWER_MANA, player->GetMaxPower(POWER_MANA));
+        for (uint32 quest : memory.quests)
+            Restart(player, quest);
+        player->RemoveAurasDueToSpell(memory.spell);             // (and so awake at the pool)
+        LOG_DEBUG("module", "Murlocs and Naga: {} died in memory {}", player->GetName(), memory.spell);
+    }
+
+    // Each update: what's due, and once a second whether one reliving has left the memory's ground.
+    void UpdateMemories(Player* player, uint32 diff)
+    {
+        ObjectGuid::LowType guid = player->GetGUID().GetCounter();
+        uint32 now = (clocks[guid] += diff);
+        auto it = pending.find(guid);
+        if (it != pending.end() && !it->second.empty() && !player->IsBeingTeleported())
+        {
+            std::vector<Pending> due, later;
+            for (Pending const& p : it->second)
+                (p.due <= now ? due : later).push_back(p);
+            it->second = later;
+            for (Pending const& p : due)
+            {
+                Memory const* memory = MemoryOf(p.spell);
+                if (!memory)
+                    continue;
+                switch (p.step)
+                {
+                    case MemoryStep::Enter: Enter(player, *memory); break;
+                    case MemoryStep::Leave: player->RemoveAurasDueToSpell(memory->spell); break;
+                    case MemoryStep::Wake: Wake(player, *memory); break;
+                    case MemoryStep::Revive: Revive(player, *memory); break;
+                }
+            }
+        }
+        uint32& since = sinceMemoryCheck[guid];
+        if ((since += diff) < 1000)
+            return;
+        since = 0;
+        auto in = reliving.find(guid);
+        if (in == reliving.end() || player->IsBeingTeleported() || now - in->second.since < GRACE || !player->IsAlive())
+            return;
+        Memory const* memory = MemoryOf(in->second.spell);
+        if (!memory || !player->HasAura(memory->spell))
+            return;
+        float dx = player->GetPositionX() - memory->cx, dy = player->GetPositionY() - memory->cy;
+        if (player->GetMapId() != memory->map || dx * dx + dy * dy > memory->radius * memory->radius)
+        {
+            LOG_DEBUG("module", "Murlocs and Naga: {} left memory {}'s ground", player->GetName(), memory->spell);
+            player->RemoveAurasDueToSpell(memory->spell);
+        }
+    }
+
+    // What one carries puts its aura on (a story's carry table: a heavy jar, a net of eggs), once a second.
+    void UpdateCarry(Player* player, Story const& story, uint32 diff)
+    {
+        if (story.carry.empty())
+            return;
+        uint32& since = sinceCarry[player->GetGUID().GetCounter()];
+        if ((since += diff) < 1000)
+            return;
+        since = 0;
+        for (auto const& [item, aura] : story.carry)
+        {
+            bool carrying = player->HasItemCount(item, 1);
+            if (carrying && !player->HasAura(aura) && player->IsAlive())
+                player->AddAura(aura, player);
+            else if (!carrying && player->HasAura(aura))
+                player->RemoveAurasDueToSpell(aura);
+        }
+    }
+
+    void Forget(ObjectGuid::LowType guid)
+    {
+        pending.erase(guid);
+        reliving.erase(guid);
+        clocks.erase(guid);
+        sinceMemoryCheck.erase(guid);
+        sinceCarry.erase(guid);
+    }
+}
+
+class MurlocNagaUnit : public UnitScript
+{
+public:
+    MurlocNagaUnit() : UnitScript("MurlocNagaUnit", true, { UNITHOOK_ON_AURA_APPLY, UNITHOOK_ON_AURA_REMOVE, UNITHOOK_ON_UNIT_DEATH }) { }
+
+    // A memory's aura on a naga in the world (not one loaded with the character at login: the login wakes them)
+    void OnAuraApply(Unit* unit, Aura* aura) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || memories.empty() || !player->IsInWorld() || !MemoryOf(aura->GetId()))
+            return;
+        Queue(player, MemoryStep::Enter, aura->GetId(), ENTER_DELAY);
+    }
+
+    void OnAuraRemove(Unit* unit, AuraApplication* aurApp, AuraRemoveMode /*mode*/) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || memories.empty() || !aurApp || !MemoryOf(aurApp->GetBase()->GetId()) || !player->IsInWorld()
+            || !player->GetSession() || player->GetSession()->PlayerLogout() || switching.count(player->GetGUID().GetCounter()))
+            return;
+        Queue(player, MemoryStep::Wake, aurApp->GetBase()->GetId(), 0);
+    }
+
+    // A death inside a memory: no corpse run, no graveyard
+    void OnUnitDeath(Unit* unit, Unit* /*killer*/) override
+    {
+        Player* player = unit ? unit->ToPlayer() : nullptr;
+        if (!player || memories.empty())
+            return;
+        if (Memory const* memory = RelivingNow(player))
+            Queue(player, MemoryStep::Revive, memory->spell, REVIVE_DELAY);
+    }
+};
+
 class MurlocNagaPlayer : public PlayerScript
 {
 public:
     MurlocNagaPlayer() : PlayerScript("MurlocNagaPlayer", { PLAYERHOOK_ON_FIRST_LOGIN, PLAYERHOOK_ON_LEVEL_CHANGED, PLAYERHOOK_ON_LOGIN,
                                                             PLAYERHOOK_ON_UPDATE, PLAYERHOOK_ON_PLAYER_COMPLETE_QUEST, PLAYERHOOK_ON_LOGOUT,
-                                                            PLAYERHOOK_ON_BEFORE_CHOOSE_GRAVEYARD }) { }
+                                                            PLAYERHOOK_ON_BEFORE_CHOOSE_GRAVEYARD, PLAYERHOOK_ON_PLAYER_JUST_DIED,
+                                                            PLAYERHOOK_ON_BEFORE_QUEST_COMPLETE }) { }
 
-    // A murloc whose story isn't done wakes at the tribe's nearest graveyard on its map (one whose
-    // quest rule holds), not a town's; elsewhere, the game's.
+    // One whose story isn't done wakes at its story's nearest graveyard on its map (one whose quest rule holds),
+    // not a town's; elsewhere, the game's.
     void OnPlayerBeforeChooseGraveyard(Player* player, TeamId /*teamId*/, bool nearCorpse, uint32& graveyardOverride) override
     {
-        if (!Murloc(player) || !Enabled() || !finalQuest || tribeGraveyards.empty() || player->GetQuestRewardStatus(finalQuest))
+        Story const* story = StoryOf(player);
+        if (!story || !Enabled() || !story->finalQuest || story->graveyards.empty() || player->GetQuestRewardStatus(story->finalQuest))
             return;
         WorldLocation loc = nearCorpse ? player->GetCorpseLocation() : player->GetWorldLocation();
         float best = 0.0f;
-        for (TribeGraveyard const& g : tribeGraveyards)
+        for (StoryGraveyard const& g : story->graveyards)
         {
             if (g.map != loc.GetMapId() || (g.fromQuest && !player->GetQuestRewardStatus(g.fromQuest))
                 || (g.untilQuest && player->GetQuestRewardStatus(g.untilQuest)))
@@ -392,9 +797,9 @@ public:
         }
     }
 
-    // They start at level 10, with their class's spells to that level, whole. A murloc starts Hostile
-    // with the towns of the Alliance, the Horde and the goblins (at war: their guards attack it, and it
-    // them), until it earns better.
+    // They start at level 10, with their class's spells to that level, whole (where: playercreateinfo, their story's
+    // start). A murloc starts Hostile with the towns of the Alliance, the Horde and the goblins (at war: their guards
+    // attack it, and it them), until it earns better.
     void OnPlayerFirstLogin(Player* player) override
     {
         if (!Ours(player) || !Enabled())
@@ -419,13 +824,25 @@ public:
             TeachClassSpells(player);
     }
 
-    // (what a talent learned since opens, and spells a newer release teaches)
+    // (what a talent learned since opens, and spells a newer release teaches; a naga who logged out inside a
+    // memory wakes at its pool)
     void OnPlayerLogin(Player* player) override
     {
-        if (Ours(player) && Enabled() && !player->HasAtLoginFlag(AT_LOGIN_FIRST) && !(Murloc(player) && finalQuest))
+        if (!Ours(player) || !Enabled())
+            return;
+        ObjectGuid::LowType guid = player->GetGUID().GetCounter();
+        Forget(guid);
+        if (!player->HasAtLoginFlag(AT_LOGIN_FIRST) && !(Murloc(player) && finalQuest))
             TeachClassSpells(player);
-        if (Murloc(player) && Enabled() && finalQuest && !player->HasAtLoginFlag(AT_LOGIN_FIRST) && !player->HasSkill(SKILL_LANG_NERGLISH))
+        if (Murloc(player) && finalQuest && !player->HasAtLoginFlag(AT_LOGIN_FIRST) && !player->HasSkill(SKILL_LANG_NERGLISH))
             Migrate(player);
+        if (Memory const* memory = RelivingNow(player))
+        {
+            LOG_DEBUG("module", "Murlocs and Naga: {} logged out inside memory {}: awake at its pool", player->GetName(), memory->spell);
+            player->RemoveAurasDueToSpell(memory->spell);       // (the aura's coming off wakes them)
+        }
+        else if (markerSpell && player->HasAura(markerSpell))
+            player->RemoveAurasDueToSpell(markerSpell);
     }
 
     // A murloc made before the questline (the island village off Auberdine, since retired): once, it
@@ -457,20 +874,47 @@ public:
     void OnPlayerLogout(Player* player) override
     {
         sinceCheck.erase(player->GetGUID().GetCounter());
+        Forget(player->GetGUID().GetCounter());
     }
 
-    // The murlocs' story done: the Alliance takes them in (its towns' standing Neutral at least), and the
-    // murloc understands them at last (Common, beside Nerglish).
+    // A death the game deals itself (falling, drowning): inside a memory, as any death there.
+    void OnPlayerJustDied(Player* player) override
+    {
+        if (memories.empty() || !Ours(player))
+            return;
+        if (Memory const* memory = RelivingNow(player))
+        {
+            auto it = pending.find(player->GetGUID().GetCounter());
+            if (it == pending.end() || std::none_of(it->second.begin(), it->second.end(), [](Pending const& p) { return p.step == MemoryStep::Revive; }))
+                Queue(player, MemoryStep::Revive, memory->spell, REVIVE_DELAY);
+        }
+    }
+
+    // A memory's last quest's objectives done (the quest complete, not yet handed in): awake at the pool after the
+    // song's last note.
+    bool OnPlayerBeforeQuestComplete(Player* player, uint32 questId) override
+    {
+        if (memories.empty() || !Ours(player) || !Enabled())
+            return true;
+        for (auto const& [spell, memory] : memories)
+            if (player->HasAura(spell) && std::find(memory.wakes.begin(), memory.wakes.end(), questId) != memory.wakes.end())
+                Queue(player, MemoryStep::Leave, spell, WAKE_AFTER_QUEST);
+        return true;
+    }
+
+    // A story's quest handed in: the spells it teaches. The murlocs' story done: the Alliance takes them in (its towns'
+    // standing Neutral at least), and the murloc understands them at last (Common, beside Nerglish).
     void OnPlayerCompleteQuest(Player* player, Quest const* quest) override
     {
-        if (!Murloc(player) || !finalQuest)
+        Story const* story = StoryOf(player);
+        if (!story || !Enabled())
             return;
-        auto learn = storyLearn.find(quest->GetQuestId());
-        if (learn != storyLearn.end())
+        auto learn = story->learn.find(quest->GetQuestId());
+        if (learn != story->learn.end())
             for (uint32 spell : learn->second)
                 if (!player->HasSpell(spell) && sSpellMgr->GetSpellInfo(spell))
                     player->learnSpell(spell);
-        if (quest->GetQuestId() != finalQuest)
+        if (!Murloc(player) || !finalQuest || quest->GetQuestId() != finalQuest)
             return;
         player->SetSkill(SKILL_LANG_COMMON_ID, 0, 300, 300);
         if (!player->HasSpell(SPELL_LANG_COMMON))
@@ -481,11 +925,17 @@ public:
                     player->GetReputationMgr().SetReputation(faction, 0.0f);
     }
 
-    // Town guards near a murloc: one that doesn't like it warns it off, in its own language; one that
-    // does, nods.
+    // The naga's memories (what's due, the memory's ground), what's carried, and town guards near a murloc: one
+    // that doesn't like it warns it off, in its own language; one that does, nods.
     void OnPlayerUpdate(Player* player, uint32 diff) override
     {
-        if (!Murloc(player) || !Enabled() || !finalQuest || !player->IsAlive() || player->IsInCombat() || player->IsGameMaster())
+        Story const* story = StoryOf(player);
+        if (!story || !Enabled())
+            return;
+        if (!memories.empty())
+            UpdateMemories(player, diff);
+        UpdateCarry(player, *story, diff);
+        if (!Murloc(player) || !finalQuest || !player->IsAlive() || player->IsInCombat() || player->IsGameMaster())
             return;
         uint32& since = sinceCheck[player->GetGUID().GetCounter()];
         since += diff;
@@ -528,4 +978,5 @@ void AddMurlocNagaScripts()
 {
     new MurlocNagaWorld();
     new MurlocNagaPlayer();
+    new MurlocNagaUnit();
 }

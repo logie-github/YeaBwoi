@@ -57,11 +57,12 @@ MURLOC = Profile(
     # Their words: Nerglish (Blizzard's translator), the readable ones none; another race's garbled.
     own_language="nerglish", readable=set(), translate=True,
     PHASE_BITS=list(K.STORY_PHASE_BITS), ZONE_BITS={}, MEMORY_BITS={},
-    race_spells=None,                  # (its race phase spell is tools/build_data.py's phase_murloc)
+    race_spells=None, race_phase_spell=98880,   # (its race phase: tools/build_data.py's phase_murloc, Murloc Kinship)
     world_areas=[], world_owned_areas=(148, 331),
     LOOKS=dict(K.LOOKS), SOUNDS=dict(K.SOUNDS), SIDES=dict(K.SIDES),
     looks_own_range=None, sounds_own_range=None,
     phase_spell_name="Murloc Tidings",
+    strict=False,                      # (its chapters were written before looks and sounds were checked)
 )
 
 
@@ -129,6 +130,7 @@ NAGA = Profile(
     # alone_until quest; then the world's and theirs. The marker is the module's while reliving a memory (every
     # phase row of theirs needs it absent); the fade, a screen going dark as one goes in or out.
     race_spells=dict(alone=994000, world=994001, marker=994002, fade=994003),
+    race_phase_spell=0,
     world_areas=[1237],                # Valormok: the world and theirs from the first login (bible 18.2)
     world_owned_areas=(),
     LOOKS=dict(K.LOOKS, **NAGA_LOOKS), SOUNDS=dict(K.SOUNDS, **NAGA_SOUNDS),
@@ -139,6 +141,7 @@ NAGA = Profile(
     # ScreenEffect.dbc: the game's own flashback look (Haunting Memories, 50153: "Arthas Memory Events"), and
     # the dark of a transition (Ebon Hold's): a memory's screen, and the fade in and out.
     MEMORY_SCREEN=21, FADE_SCREEN=201,
+    strict=True,                       # every look and sound named must be the game's (or the assets' ranges)
 )
 
 PROFILES = {"murloc": MURLOC, "naga": NAGA}

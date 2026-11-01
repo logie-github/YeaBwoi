@@ -92,6 +92,8 @@ MURLOC_HELLO, MURLOC_CHEER = (414, 415, 1109), (416, 417)
 VOICED = {"elder": (MURLOC_HELLO, MURLOC_CHEER), "chief": ((416, 417, 414), MURLOC_CHEER), "cook": (MURLOC_HELLO, MURLOC_CHEER),
           "snatcher": ((1109, 415), MURLOC_CHEER), "oracle": ((415, 414), MURLOC_CHEER), "fishmonger": (MURLOC_HELLO, ()),
           "sloshy": ((8475,), (8475,)), "szaria": ((4024,), ()), "vyssa": ((4024,), ()), "ssaveth": ((3437,), ())}
+# The retired naga camp's people who are the naga's story's (tools/murloc/profiles.py NAGA.KEPT_ENTRIES).
+KEPT_ENTRIES = {"szaria": 975017, "ssaveth": 975018, "vyssa": 975019}
 SPELLS = {"phase_murloc": 98880, "phase_naga": 98881, "amphibious": 98882, "mrrgglll": 98883, "slippery": 98884,
           "serpent": 98885, "tail_sweep": 98886, "scales": 98887, "low_profile": 98888, "phase_murloc_alone": 98889}
 # Where a murloc keeps a low profile (Low Profile: creatures notice it at a few yards, their minimum):
@@ -690,8 +692,10 @@ def main():
         client.put("Spell", spt, v)
         return v
 
-    # The murlocs' questline (tools/murloc/): compiled here, its phases' spells made below with the rest.
+    # The murlocs' questline (tools/murloc/) and the naga's (tools/naga/): compiled here, the murlocs' first (the
+    # naga's phases keep clear of theirs where both stories are: Azshara), their phases' spells made below.
     story = murloc_story(D, W)
+    naga = naga_story(D, W, story)
 
     PASSIVE, HIDDEN = 0x40, 0x80
     no_cost = dict(Reagent_1=0, ReagentCount_1=0, ManaCost=0, ManaCostPct=0, SpellClassSet=0, SpellClassMask_1=0,
@@ -735,30 +739,47 @@ def main():
               Effect_1=6, EffectAura_1=142, EffectBasePoints_1=4, EffectDieSides_1=1, EffectMiscValue_1=1,
               Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost),
     ]
-    if story:
-        for sid, bit in story.phase_spells:
-            spell_rows.append(spell(20550, sid, "Murloc Tidings", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
+    durations = [r for r in D("SpellDuration").rows if r[2] == 0 and r[1] == r[3] and 0 < r[1] < 4294967295]
+
+    def duration(seconds):
+        if not seconds:
+            return 21                                           # (until taken off)
+        return min(durations, key=lambda r: (abs(r[1] - seconds * 1000), r[0]))[0]
+
+    def story_spells(st, phase_name):
+        """A story's phases (hidden, passive: each its bit) and auras (tools/murloc/ and tools/naga/: AURAS, the naga's
+        memories, the marker and the fade): a mark on the bar, a disguise, a slow, a stun, a screen effect..."""
+        for sid, bit in st.phase_spells:
+            spell_rows.append(spell(20550, sid, phase_name, "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
                                     Effect_1=6, EffectAura_1=261, EffectMiscValue_1=bit, EffectBasePoints_1=0, EffectDieSides_1=1,
                                     Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
-        # The story's chapters that show the murlocs' phase alone (no world: the pens): its own phase, no other.
-        spell_rows.append(spell(20550, SPELLS["phase_murloc_alone"], "Murloc Kinship", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
-                                Effect_1=6, EffectAura_1=261, EffectMiscValue_1=C.PHASE[MURLOC], EffectBasePoints_1=0, EffectDieSides_1=1,
-                                Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
-        # The story's auras (tools/murloc/: AURAS): a mark on the bar, a disguise, a slow, a stun...
-        durations = [r for r in D("SpellDuration").rows if r[2] == 0 and r[1] == r[3] and 0 < r[1] < 4294967295]
-
-        def duration(seconds):
-            if not seconds:
-                return 21                                       # (until taken off)
-            return min(durations, key=lambda r: (abs(r[1] - seconds * 1000), r[0]))[0]
-        for a in story.spells:
+        if st is story:
+            # The story's chapters that show the murlocs' phase alone (no world: the pens): its own phase, no other.
+            spell_rows.append(spell(20550, SPELLS["phase_murloc_alone"], "Murloc Kinship", "", "", "", Attributes=PASSIVE | HIDDEN | 0x100,
+                                    Effect_1=6, EffectAura_1=261, EffectMiscValue_1=C.PHASE[MURLOC], EffectBasePoints_1=0, EffectDieSides_1=1,
+                                    Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+        for a in st.spells:
             icon = by_id[a["icon"]][SC["SpellIconID"]] if a["icon"] in by_id else by_id[20550][SC["SpellIconID"]]
-            spell_rows.append(spell(20550, a["id"], a["name"], "", a["text"], a["text"], Attributes=0, AttributesEx=0,
-                                    AttributesEx3=0x100000 if a["kind"] == "mark" else 0,      # (a mark: kept through death)
-                                    Effect_1=6, EffectAura_1=a["aura"], EffectMiscValue_1=a["misc"],
-                                    EffectBasePoints_1=a["amount"] - 1 if a["amount"] else 0, EffectDieSides_1=1, ImplicitTargetA_1=1,
-                                    ImplicitTargetB_1=0, DurationIndex=duration(a["seconds"]), RangeIndex=1, SpellIconID=icon,
-                                    SpellVisualID_1=a["visual"], Effect_2=0, EffectAura_2=0, Effect_3=0, EffectAura_3=0, **no_cost))
+            effects = a.get("effects") or [(a["aura"], a["misc"], a["amount"])]
+            fields = {}
+            for n in (1, 2, 3):
+                if n <= len(effects):
+                    aura, misc, amount = effects[n - 1]
+                    fields.update({f"Effect_{n}": 6, f"EffectAura_{n}": aura, f"EffectMiscValue_{n}": misc,
+                                   f"EffectBasePoints_{n}": amount - 1 if amount else 0, f"EffectDieSides_{n}": 1, f"ImplicitTargetA_{n}": 1,
+                                   f"ImplicitTargetB_{n}": 0})
+                else:
+                    fields.update({f"Effect_{n}": 0, f"EffectAura_{n}": 0})
+            spell_rows.append(spell(20550, a["id"], a["name"], "", a["text"], a["text"],
+                                    Attributes=(HIDDEN | 0x100) if a.get("hidden") else 0, AttributesEx=0,
+                                    # (a mark, a memory, the marker: kept through death)
+                                    AttributesEx3=0x100000 if a["kind"] == "mark" or a.get("keep") else 0,
+                                    DurationIndex=duration(a["seconds"]), RangeIndex=1, SpellIconID=icon,
+                                    SpellVisualID_1=a["visual"], **fields, **no_cost))
+    if story:
+        story_spells(story, "Murloc Tidings")
+    if naga:
+        story_spells(naga, naga.P.phase_spell_name)
     # (the language spell's name: Nerglish, as its skill)
     titan = values_of(spells, by_id[816], spt)
     titan[SC["Name_Lang_enUS"]] = "Language Nerglish"
@@ -772,7 +793,7 @@ def main():
     snd_rows = {r[0]: r for r in sounds.rows}
     cams_dbc = D("CinematicCamera")
     narration_rows, cam_sql, seq_sql = [], [], []
-    flights = intro_flights(story)
+    flights = intro_flights(story, naga)
     for race in RACE_IDS:
         sound = values_of(sounds, snd_rows[3840], snt)      # HumanFlyByNarration
         sound[0], sound[2] = ID_NARRATION[race], f"{NAME[race]}FlyByNarration"
@@ -805,13 +826,15 @@ def main():
     homes(client, sql, W)
 
     # The world database: starts, skills, stats, standing ------------------------------------------
-    sql.comment("Where they start: on their islands in Darkshore, every class.")
+    sql.comment("Where they start: each race at its story's start (the murlocs in the Wrathtail's pens at the Zoram Strand, the naga\n"
+                "at Rethress Sanctum in Azshara), every class.")
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
     szaria = ground(next(p for p in C.NAGA_PEOPLE if p[0] == "szaria")[4])
     start = {MURLOC: (C.MAP, C.DARKSHORE, elder[0] + 4.0, elder[1], None, 4.71), NAGA: (C.MAP, C.DARKSHORE, szaria[0] - 5.0, szaria[1], None, 0.0)}
-    if story and story.tables.get("_start"):              # (the murlocs' story's first chapter's)
-        s_ = story.tables["_start"]
-        start[MURLOC] = (s_["map"], s_["zone"], s_["x"], s_["y"], s_["z"], s_["o"])
+    for race, st in ((MURLOC, story), (NAGA, naga)):      # (each story's first chapter's)
+        if st and st.tables.get("_start"):
+            s_ = st.tables["_start"]
+            start[race] = (s_["map"], s_["zone"], s_["x"], s_["y"], s_["z"], s_["o"])
     out = []
     for race in RACE_IDS:
         m, zone, x, y, z, o = start[race]
@@ -859,11 +882,15 @@ def main():
               (BIT[NAGA], SPELLS["scales"], "Naga - Scales of the Deep")]
     sql.raw("INSERT INTO `playercreateinfo_spell_custom` (`racemask`, `classmask`, `Spell`, `Note`) VALUES\n"
             + ",\n".join(f"({m}, 0, {s}, {q(n)})" for m, s, n in custom) + ";")
-    sql.raw(f"DELETE FROM `spell_area` WHERE `spell` IN ({SPELLS['phase_murloc']}, {SPELLS['phase_naga']}, {SPELLS['phase_murloc_alone']});")
+    # (this file's rows only: the murlocs' story's SQL puts their phase in its other zones, the naga's story's SQL the naga's
+    # own; the naga's Darkshore phase is retired with their camp)
+    sql.raw(f"DELETE FROM `spell_area` WHERE (`spell` = {SPELLS['phase_murloc']} AND `area` IN ({C.DARKSHORE}, {C.ASHENVALE})) "
+            f"OR `spell` IN ({SPELLS['phase_naga']}, {SPELLS['phase_murloc_alone']});")
     # (a zone of the murlocs' story that shows their phase alone until a quest's done: the world's and theirs after)
     alone = {zone: quest for zones, quest in (story.tables.get("_alone", []) if story else []) for zone in zones}
     phase_rows = [f"({SPELLS['phase_' + k]}, {area}, {alone.get(area, 0) if race == MURLOC else 0}, 0, 0, {BIT[race]}, 2, 1, 64, 11)"
-                  for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)]
+                  for k, race in (("murloc", MURLOC), ("naga", NAGA)) for area in (C.DARKSHORE, C.ASHENVALE)
+                  if race == MURLOC or C.NAGA_CAMP]
     # (the end quest's status: the spell is given while it's one of these: not yet rewarded)
     phase_rows += [f"({SPELLS['phase_murloc_alone']}, {area}, 0, {quest}, 0, {BIT[MURLOC]}, 2, 1, 64, 63)" for area, quest in sorted(alone.items())]
     sql.raw("INSERT INTO `spell_area` (`spell`, `area`, `quest_start`, `quest_end`, `aura_spell`, `racemask`, `gender`, `autocast`, "
@@ -882,55 +909,64 @@ def main():
                          for race in RACE_IDS) + ";")
 
     sql.comment("Quests, items and conditions of their kin are theirs too: the night elves' for the murlocs, the trolls' (the\n"
-                "Horde's) for the naga. The naga's Darkshore: the quests there for the Alliance alone are theirs too; those that\n"
-                "lead out of Darkshore to the Alliance's cities and camps aren't offered to them (conditions), whatever their mask.")
+                "Horde's) for the naga (each story's gate, src/MurlocNaga.cpp, closes them until its last quest is done).")
     for race in RACE_IDS:
         b, s = BIT[race], 1 << (KIN[race] - 1)
         sql.raw(f"UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | {b} WHERE `AllowableRaces` & {s} AND `AllowableRaces` & 0x7FFFFFFF <> 0x7FFFFFFF AND `ID` NOT BETWEEN {C.QUEST_BASE} AND {C.QUEST_BASE + 99};")
         sql.raw(f"UPDATE `item_template` SET `AllowableRace` = `AllowableRace` | {b} WHERE `AllowableRace` <> -1 AND `AllowableRace` & {s} AND `AllowableRace` & 0x7FFFFFFF <> 0x7FFFFFFF;")
         sql.raw(f"UPDATE `conditions` SET `ConditionValue1` = `ConditionValue1` | {b} WHERE `ConditionTypeOrReference` = 16 AND `ConditionValue1` & {s};")
-    sql.raw(f"UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` | {BIT[NAGA]} WHERE `ID` IN "
-            f"({', '.join(str(x) for x in C.DARKSHORE_ALLIANCE_ONLY)});")
+    sql.comment("The naga's retired Darkshore start, undone where a realm had it: the Alliance's own Darkshore quests it opened to\n"
+                "them, and the conditions that closed the way out of Darkshore to them.")
+    sql.raw(f"UPDATE `quest_template` SET `AllowableRaces` = `AllowableRaces` & ~{BIT[NAGA]} WHERE `ID` IN "
+            f"({', '.join(str(x) for x in C.RETIRED_DARKSHORE_ALLIANCE_ONLY)}) AND (`AllowableRaces` & {1 << (KIN[NAGA] - 1)}) = 0;")
     sql.raw(f"DELETE FROM `conditions` WHERE `SourceTypeOrReferenceId` = 19 AND `ConditionTypeOrReference` = 16 AND `ConditionValue1` = {BIT[NAGA]} "
-            f"AND `NegativeCondition` = 1 AND `SourceEntry` IN ({', '.join(str(x) for x in C.NAGA_CLOSED)});")
-    sql.raw("INSERT INTO `conditions` (`SourceTypeOrReferenceId`, `SourceGroup`, `SourceEntry`, `SourceId`, `ElseGroup`, "
-            "`ConditionTypeOrReference`, `ConditionTarget`, `ConditionValue1`, `ConditionValue2`, `ConditionValue3`, `NegativeCondition`, "
-            "`ErrorType`, `ErrorTextId`, `ScriptName`, `Comment`) VALUES\n"
-            + ",\n".join(f"(19, 0, {x}, 0, 0, 16, 0, {BIT[NAGA]}, 0, 0, 1, 0, 0, '', 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)')"
-                         for x in C.NAGA_CLOSED) + ";")
+            f"AND `NegativeCondition` = 1 AND `SourceEntry` IN ({', '.join(str(x) for x in C.RETIRED_NAGA_CLOSED)}) "
+            "AND `Comment` = 'mod-murloc-naga: not for the naga (it leads out of Darkshore to the Alliance)';")
 
     # Write ------------------------------------------------------------------------------------------
     with open(os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "murloc_naga_world.sql"), "w", newline="\n") as f:
         f.write("\n".join(sql.parts) + "\n")
-    story_sql = os.path.join(MODULE, "data", "sql", "chromiecraft", "world", "murloc_story.sql")
-    if story:
-        for row in story.client.get("Item", []):
-            client.put("Item", "iiiiiiii", row)
-        gdt = "isiiiiiiiiiiffffffi"
-        for row in story.client.get("GameObjectDisplayInfo", []):
-            client.put("GameObjectDisplayInfo", gdt, row)
-        displays = story.client.get("GameObjectDisplayInfo", [])
-        extra = ""
-        if displays:
-            extra = ("INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, "
-                     "`Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, "
-                     "`GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES\n"
-                     + ",\n".join(f"({r[0]}, {q(r[1])}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0)" for r in displays) + ";")
-        import compile as story_compile
-        head = (f"DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN {story_compile.K.GO_DISPLAY_BASE} AND "
-                f"{story_compile.K.GO_DISPLAY_END};\n")
-        with open(story_sql, "w", newline="\n") as f:
-            f.write(story_compile.sql(story.tables, head + extra))
-        # (the server test's steps for a murloc, written with the story's names: their ids)
-        template = os.path.join(HERE, "murloc", "test.steps")
-        if os.path.exists(template):
-            with open(os.path.join(MODULE, "..", "..", "server", "murloc_naga_murloc.steps"), "w", newline="\n") as f:
-                f.write(story.resolve(open(template).read()))
-    elif os.path.exists(story_sql):
-        os.remove(story_sql)
+    for st, profile in ((story, "MURLOC"), (naga, "NAGA")):
+        write_story(st, getattr(story_compiler(), profile), client)
     client.write(os.path.join(MODULE, "data", "client", "dbc"))
     print(f"{len(new_sections)} looks, {len(client.files)} tables, {len(spell_rows)} spells"
-          + (f", the murlocs' story: {len(story.tables.get('quest_template', []))} quests" if story else ""))
+          + (f", the murlocs' story: {len(story.tables.get('quest_template', []))} quests" if story else "")
+          + (f", the naga's story: {len(naga.tables.get('quest_template', []))} quests" if naga else ""))
+
+
+def write_story(st, P, client):
+    """A story's SQL (data/sql/chromiecraft/world/<its file>), its rows of the game's tables (the patch's: its items,
+    object looks and new looks) and the server test's steps for it (warcraft/server/<its steps file>, from its
+    test.steps written with the story's names)."""
+    S = story_compiler()
+    path = os.path.join(MODULE, "data", "sql", "chromiecraft", "world", P.sql_file)
+    if not st:
+        if os.path.exists(path):
+            os.remove(path)
+        return
+    for row in st.client.get("Item", []):
+        client.put("Item", "iiiiiiii", row)
+    gdt = "isiiiiiiiiiiffffffi"
+    for row in st.client.get("GameObjectDisplayInfo", []):
+        client.put("GameObjectDisplayInfo", gdt, row)
+    for row in st.client.get("CreatureDisplayInfo", []):
+        client.put("CreatureDisplayInfo", "iiiifissssiiiiii", row)
+    for row in st.client.get("CreatureDisplayInfoExtra", []):
+        client.put("CreatureDisplayInfoExtra", "i" * 20 + "s", row)
+    displays = st.client.get("GameObjectDisplayInfo", [])
+    extra = ""
+    if displays:
+        extra = ("INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, "
+                 "`Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, "
+                 "`GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES\n"
+                 + ",\n".join(f"({r[0]}, {q(r[1])}, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0)" for r in displays) + ";")
+    head = f"DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN {P.GO_DISPLAY_BASE} AND {P.GO_DISPLAY_END};\n"
+    with open(path, "w", newline="\n") as f:
+        f.write(S.sql(st.tables, head + extra, P))
+    template = os.path.join(P.folder, "test.steps")
+    if os.path.exists(template):
+        with open(os.path.join(MODULE, "..", "..", "server", P.steps_file), "w", newline="\n") as f:
+            f.write(st.resolve(open(template).read()))
 
 
 def nerglish_language(client, sql, D, common, titan):
@@ -957,33 +993,65 @@ def nerglish_language(client, sql, D, common, titan):
     client.put("SkillLine", types, v)
 
 
+WORLD_CACHE = {}
+
+
+def story_compiler():
+    sys.path.insert(0, os.path.join(HERE, "murloc"))
+    import compile as story_compile
+    return story_compile
+
+
+def cached_world(W):
+    def world(name):
+        if name not in WORLD_CACHE:
+            WORLD_CACHE[name] = W(name)
+        return WORLD_CACHE[name]
+    return world
+
+
 def murloc_story(D, W):
     """The murlocs' questline (tools/murloc/ch*.py) compiled (tools/murloc/compile.py), or None while it
     has no chapters."""
-    sys.path.insert(0, os.path.join(HERE, "murloc"))
-    import compile as story_compile
-    chapters = story_compile.load(upto=C.MURLOC_CHAPTERS)
+    S = story_compiler()
+    chapters = S.load(upto=C.MURLOC_CHAPTERS)
     if not chapters:
         return None
-    cache = {}
-
-    def world(name):
-        if name not in cache:
-            cache[name] = W(name)
-        return cache[name]
-    story = story_compile.Story(chapters, world, D, lambda m, x, y: terrain.height(x, y, m),
-                                race_phase_spell=SPELLS["phase_murloc"], area=lambda m, x, y: terrain.area(x, y, m))
+    story = S.Story(chapters, cached_world(W), D, lambda m, x, y: terrain.height(x, y, m),
+                    race_phase_spell=SPELLS["phase_murloc"], area=lambda m, x, y: terrain.area(x, y, m), profile=S.MURLOC)
     story.tables, story.client = story.build()
+    return story
+
+
+def naga_story(D, W, murlocs):
+    """The naga's questline (tools/naga/ch*.py), compiled after the murlocs' and clear of their phases (the bits their
+    people carry in each zone, Azshara above all), then both checked: neither race sees the other's people. None while
+    it has no chapters."""
+    S = story_compiler()
+    chapters = S.load(S.NAGA.folder, upto=C.NAGA_CHAPTERS, prefix="naga")
+    if not chapters:
+        return None
+    story = S.Story(chapters, cached_world(W), D, lambda m, x, y: terrain.height(x, y, m),
+                    area=lambda m, x, y: terrain.area(x, y, m), profile=S.NAGA,
+                    reserved=S.bits_by_zone(murlocs) if murlocs else None, water=lambda m, x, y: terrain.liquid(x, y, m))
+    story.tables, story.client = story.build()
+    problems = S.check_apart([murlocs, story]) if murlocs else []
+    if problems:
+        sys.exit("the murlocs' and the naga's phases cross:\n  " + "\n  ".join(problems[:40]))
+    warnings = S.lint(story)
+    print(f"the naga's story: {len(warnings)} lint warnings" + "".join(f"\n  {w}: {what}" for w, what in warnings[:60]))
     return story
 
 
 # The intros ---------------------------------------------------------------------------------------
 
-def intro_flights(story=None):
+def intro_flights(story=None, naga=None):
     """Each race's flight: (origin, [(ms, place, height, target)]): the murlocs' from the open sea
     over the pens (their story's start: the old village's elder before it) to where they stand (about
-    42 s); the naga's (about 61 s, Lady Vashj's words) from the dark water north of Auberdine, along
-    the coast, over the Stormscale's island, and up to the renegades' camp on its hill."""
+    42 s); the naga's (61 s, Lady Vashj's words, then the sea and the crèche's horn: bible 18.1) over
+    the Bay of Storms, south along Southridge Beach, up past the Ravencrest Monument on its cliffs and
+    down over the sea to Rethress Sanctum, where a new naga stands (their story's start; the retired
+    camp's island north of Auberdine before it)."""
     vx, vy = C.VILLAGE
     elder = ground(next(p for p in C.MURLOC_PEOPLE if p[0] == "elder")[4])
     pens = story and story.tables.get("_start") and story.tables["_start"]["map"] == C.MAP
@@ -1021,6 +1089,24 @@ def intro_flights(story=None):
     cx, cy = C.CAMP
     szaria = ground(next(p for p in C.NAGA_PEOPLE if p[0] == "szaria")[4])
     ix, iy = C.INFILTRATORS[0]
+    if naga and naga.tables.get("_start") and naga.tables["_start"]["map"] == C.MAP:
+        s_ = naga.tables["_start"]
+        nx, ny, nz = s_["x"], s_["y"], s_["z"]
+        monument = (2425.0, -6831.0, 116.0)            # the Ravencrest Monument (the broken colossus on the cliffs)
+        flight = [                                  # (heights over the cliffs given as they are: the camera stays above them)
+            (0, (3180, -6960, 60.0), 0.0, (2800, -6800)),
+            (8000, (2930, -6900, 80.0), 0.0, (2600, -6820)),
+            (16000, (2700, -6880, 170.0), 0.0, monument),
+            (23000, (2520, -6800, 175.0), 0.0, monument),
+            (29000, (2400, -6720, 170.0), 0.0, monument),
+            (35000, (2230, -6720, 150.0), 0.0, (2120, -6560)),
+            (41000, (2100, -6660, 60.0), 0.0, (nx, ny)),
+            (47000, (2110, -6560, 22.0), 0.0, (nx, ny)),
+            (53000, (2150, -6495), 10.0, (nx, ny, nz + 1.5)),
+            (58000, (nx - 18, ny - 14), 5.0, (nx, ny, nz + 1.5)),
+            (61000, (nx - 9, ny - 7), 3.0, (nx, ny, nz + 1.5)),
+        ]
+        return {MURLOC: ((float(vx), float(vy), 0.0), murloc), NAGA: ((float(nx), float(ny), 0.0), flight)}
     naga = [
         (0, (7350, 1150), 40.0, (7100, 900)),
         (10000, (7150, 1000), 30.0, (ix, iy)),
@@ -1035,15 +1121,17 @@ def intro_flights(story=None):
     return {MURLOC: ((float(vx), float(vy), 0.0), murloc), NAGA: ((float(cx), float(cy), 0.0), naga)}
 
 
-# Lady Vashj's words, as the naga's narration: the game's own lines (Serpentshrine Cavern's), in an
-# order that tells the renegades' story: who the naga were and what they wanted (Intro01), the
-# war against the surface (Phase01, Aggro04, Phase02, BowShot02, Aggro02), her fall (Death01), and
-# the renegades' own way after it (Slay03, in Nazja). (ms from the intro's start, the game's file.)
+# Lady Vashj's words, as the naga's narration (bible 18.1, re-cut: no spoiler of her death, which is their
+# story's end): the game's own lines (Serpentshrine Cavern's), who the naga were and what they wanted (Intro01)
+# and their war against the surface (Phase01, Aggro04, Phase02, BowShot02, Aggro02); then the present, where the
+# story starts: the sea off Rethress Sanctum, the crèche's horn, and far off in the deep a siren's hiss.
+# (ms from the intro's start, the game's file.)
 VASHJ = "Sound\\Creature\\LadyVashj\\COIL_LadyVashj_"
 NARRATION = {
     "Naga": [(500, VASHJ + "Intro01.wav"), (20500, VASHJ + "Phase01.wav"), (30000, VASHJ + "Aggro04.wav"),
              (33500, VASHJ + "Phase02.wav"), (38500, VASHJ + "BowShot02.wav"), (42500, VASHJ + "Aggro02.wav"),
-             (47500, VASHJ + "Death01.wav"), (55500, VASHJ + "Slay03.wav")],
+             (46500, "Sound\\Ambience\\Water\\OceanA.wav"), (51500, "Sound\\Doodad\\HornGoober.wav"),
+             (57000, "Sound\\Creature\\NagaFemale\\NagaFemalePreAggro.wav")],
     # The pens at the Zoram Strand (the murlocs' story's start): the sea, chains, the count gong, a whip and
     # a slave's yelp, a fry, the sea witch's hiss, the gong again; and at the very end, far off, one murloc's
     # war-gurgle (the cry the naga lash singers for).
@@ -1218,7 +1306,11 @@ def homes(client, sql, W):
     retire_village()
         # (Darkshore's threshers drop the Thresher Eye already, for those whose quests need it: Buzzbox 411's)
 
-    # The naga's camp.
+    # The naga's camp: retired as the village was (made, then its rows taken out: its ids stay taken). Lady Szaria,
+    # Myrmidon Ssaveth and Vyssa the Coral-Keeper keep their entries: the naga's story's people (tools/naga/ch0_*.py,
+    # naga_story.sql), whose rows this file leaves alone.
+    camp_at = [len(lst) for lst in village_lists]
+    camp_keys = set(npc_ids)
     gossip.update({
         "szaria": "We were the Stormscale's, once, and before that Queen Azshara's. Now we are no one's but our own.$B$BThe night elves across the water have no reason to trust us. Give them one. And when they have taught you all they will, go south to the Grove of the Ancients: the old one there, Onu, hears what the sea says. He will know where your path goes next.",
         "ssaveth": "I watch the north. They will come from the north.",
@@ -1242,6 +1334,13 @@ def homes(client, sql, W):
     key, name, sub, look, where, o, role = C.SCOUT
     scout = npc(key, name, sub, look, 30, 126, 2 | 1, gossip=gossip["scout"])
     place(scout, where, o, NP, comment="mod-murloc-naga: the Darkspear scout at the Zoram Strand")
+    retired = set()
+    if not C.NAGA_CAMP:
+        for lst, n in zip(village_lists, camp_at):
+            del lst[n:]
+        retired = set(npc_ids) - camp_keys
+    kept = sorted(KEPT_ENTRIES.values())
+    assert all(npc_ids[k] == e for k, e in KEPT_ENTRIES.items()), "the camp's people kept their entries"
 
     # The quests.
     quests, addons, offers, requests, starters, enders, go_enders, conditions = [], [], [], [], [], [], [], []
@@ -1253,7 +1352,8 @@ def homes(client, sql, W):
         kind, k = key.split(":")
         return npc_ids[k] if kind == "npc" else go_ids[k]
 
-    for race, qlist, ids in ((C.MURLOC, C.MURLOC_QUESTS if C.MURLOC_VILLAGE else [], murloc_quest_id), (C.NAGA, C.NAGA_QUESTS, naga_quest_id)):
+    for race, qlist, ids in ((C.MURLOC, C.MURLOC_QUESTS if C.MURLOC_VILLAGE else [], murloc_quest_id),
+                             (C.NAGA, C.NAGA_QUESTS if C.NAGA_CAMP else [], naga_quest_id)):
         for qd in qlist:
             qid = ids[qd["n"]]
             zone = C.ASHENVALE if qd["n"] in (32, 33, 34) else C.DARKSHORE
@@ -1289,8 +1389,9 @@ def homes(client, sql, W):
     # The Onu's quest (The Tide Turns) is offered by Onu at the Grove of the Ancients; Lady Szaria
     # says where to find him.
     sql.comment("Their homes: the murlocs' village, the naga's camp, their enemies, the things they steal, in their own phases.")
-    sql.raw(f"DELETE FROM `creature_template` WHERE `entry` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99};")
-    sql.raw(f"DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99};")
+    keep = f" AND {{}} NOT IN ({', '.join(map(str, kept))})" if kept else ""
+    sql.raw(f"DELETE FROM `creature_template` WHERE `entry` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99}{keep.format('`entry`')};")
+    sql.raw(f"DELETE FROM `creature_template_model` WHERE `CreatureID` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99}{keep.format('`CreatureID`')};")
     sql.insert("creature_template", ["entry", "name", "subname", "gossip_menu_id", "minlevel", "maxlevel", "faction", "npcflag",
                                      "speed_walk", "speed_run", "speed_swim", "unit_class", "unit_flags", "type", "flags_extra", "rank",
                                      "HealthModifier", "ManaModifier", "ArmorModifier", "DamageModifier", "BaseAttackTime",
@@ -1301,9 +1402,9 @@ def homes(client, sql, W):
                             "orientation", "spawntimesecs", "wander_distance", "MovementType", "Comment"], spawns)
     sql.raw(f"DELETE FROM `npc_text` WHERE `ID` BETWEEN {C.TEXT_BASE} AND {C.TEXT_BASE + 99};")
     sql.insert("npc_text", ["ID", "text0_0", "text0_1", "Probability0"], texts)
-    sql.raw(f"DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99};")
+    sql.raw(f"DELETE FROM `gossip_menu` WHERE `MenuID` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99}{keep.format('`MenuID`')};")
     sql.insert("gossip_menu", ["MenuID", "TextID"], menus)
-    sql.raw(f"DELETE FROM `npc_vendor` WHERE `entry` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99};")
+    sql.raw(f"DELETE FROM `npc_vendor` WHERE `entry` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99}{keep.format('`entry`')};")
     sql.insert("npc_vendor", ["entry", "slot", "item"], vendor)
 
     sql.raw(f"DELETE FROM `gameobject_template` WHERE `entry` BETWEEN {C.GO_BASE} AND {C.GO_BASE + 99};")
@@ -1387,7 +1488,7 @@ def homes(client, sql, W):
     smart_rows = [(t, 0, i, 0, 10, 0, 100, 0, 2, 12, 1000, 1000, 1, 0, 15, qid, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0, 0, 0, 0, 0,
                    "mod-murloc-naga: the island's summit, for the oracle's vision") for i, (t, qid) in enumerate(smart)]
     for key, (hello, reward) in VOICED.items():
-        if key not in npc_ids:
+        if key not in npc_ids or key in retired:
             continue
         entry = npc_ids[key]
         for i, (event, sounds) in enumerate(((64, hello), (20, reward))):
@@ -1396,7 +1497,8 @@ def homes(client, sql, W):
             sounds = (list(sounds) + [0, 0, 0, 0])[:4]
             smart_rows.append((entry, 0, i, 0, event, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, sounds[0], sounds[1], sounds[2], sounds[3], 0, 0,
                                1, 0, 0, 0, 0, 0, 0, 0, 0, f"mod-murloc-naga: {key}'s voice"))
-    sql.raw(f"DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99} AND `source_type` = 0;")
+    sql.raw(f"DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99} AND `source_type` = 0"
+            f"{keep.format('`entryorguid`')};")
     sql.insert("smart_scripts", ["entryorguid", "source_type", "id", "link", "event_type", "event_phase_mask", "event_chance",
                                  "event_flags", "event_param1", "event_param2", "event_param3", "event_param4", "event_param5",
                                  "event_param6", "action_type", "action_param1", "action_param2", "action_param3", "action_param4",

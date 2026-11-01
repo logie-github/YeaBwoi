@@ -1,0 +1,80 @@
+# A naga shaman in the naga's story (mod-murloc-naga, tools/naga/), after its start was checked: at Rethress
+# Sanctum in Azshara, in the naga's phase alone (2048: no world); chapter 1's first quest (a kill); Isshara's song
+# takes it into her memory (memory A's bit alone, 2, at the Ravencrest Monument), where it dies (alive again at the
+# pool, the memory's quest started over: one kill again shows 1 of 2), goes back in through her gossip, finishes
+# the quest and wakes at the pool; her question (a quiz: a wrong answer asks again, the right one is the credit),
+# handed in to Vyssa (the retired camp's, her entry kept); at Valormok, a Horde quest closed to it (the naga's gate).
+# Chapter 1 is a stub (tools/naga/ch1_stub.py): its writer replaces these steps with the chapter's own.
+# Written with the story's names; tools/build_data.py writes warcraft/server/murloc_naga_naga.steps with their ids.
+wait 3
+cmd .gps
+has Rethress Sanctum
+expect Phase: 2048
+talk {ch1:matron}
+has quest {ch1:ch1_chores}:
+accept {ch1:matron} {ch1:ch1_chores}
+kill {ch1:clawling}
+kill {ch1:clawling}
+kill {ch1:clawling}
+expect complete {ch1:ch1_chores}
+talk {ch1:matron}
+reward {ch1:matron} {ch1:ch1_chores}
+expect rewarded {ch1:ch1_chores}
+# Into the memory: the song, the fade, the Ravencrest Monument; memory A's bit alone.
+talk {ch0:isshara}
+has quest {ch1:ch1_song}:
+accept {ch0:isshara} {ch1:ch1_song}
+wait 6
+expect teleported
+cmd .gps
+has Ravencrest Monument
+has Phase: 2
+expect-not Phase: 20
+kill {ch1:felguard}
+expect credit {ch1:ch1_song} {ch1:felguard} 1/2
+# A death inside: alive at the pool, the present again, the quest started over.
+target self
+cmd .die
+wait 6
+expect teleported
+cmd .gps
+has Rethress Sanctum
+expect Phase: 2048
+# Back in through the singer; one kill is 1 of 2 again; the second ends the memory (awake at the pool).
+talk {ch0:isshara}
+select {ch0:isshara} Sing it again
+wait 6
+expect teleported
+kill {ch1:felguard}
+expect credit {ch1:ch1_song} {ch1:felguard} 1/2
+kill {ch1:felguard}
+expect credit {ch1:ch1_song} {ch1:felguard} 2/2
+wait 8
+expect teleported
+cmd .gps
+has Rethress Sanctum
+expect Phase: 2048
+talk {ch0:isshara}
+reward {ch0:isshara} {ch1:ch1_song}
+expect rewarded {ch1:ch1_song}
+# Her question: a wrong answer, the question again; the right one, the credit. Vyssa takes it.
+talk {ch0:isshara}
+has quest {ch1:ch1_question}:
+accept {ch0:isshara} {ch1:ch1_question}
+talk {ch0:isshara}
+select {ch0:isshara} Ask me what I saw
+expect option: (Stub.) Fire
+select {ch0:isshara} The Empress
+expect option: (Stub.) Fire
+select {ch0:isshara} Fire, and the Well
+expect complete {ch1:ch1_question}
+talk {ch0:vyssa}
+reward {ch0:vyssa} {ch1:ch1_question}
+expect rewarded {ch1:ch1_question}
+# The gate: Jediga at Valormok (the world's and the naga's phase there) offers a naga of level 45 none of the Horde's
+# quests (Stealing Knowledge, 3517, open to every race) while its story isn't done.
+cmd .levelup 35
+go 1 3603.0 -4421.0 113.0
+wait 3
+talk 8587
+expect-not quest 3517:
