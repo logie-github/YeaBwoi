@@ -67,6 +67,7 @@ T_SELF, T_INVOKER, T_POSITION, T_CLOSEST_CREATURE = 1, 7, 8, 19
 A_MORPH, A_SET_COUNTER, A_ALLOW_COMBAT_MOVE, A_SEND_GOSSIP_MENU, A_SET_SCALE, A_SET_HOVER = 3, 63, 21, 98, 227, 207
 EV_MOVEMENT_INFORM, EV_JUST_SUMMONED, EV_COUNTER_SET, EV_SUMMONED_UNIT_DIES, POINT_MOTION = 34, 54, 77, 82, 8
 T_PLAYER_RANGE = 17
+A_CROSS_CAST, A_INVOKER_CAST = 86, 134         # (another casts on their own; the invoker casts)
 T_CLOSEST_PLAYER = 21                       # (target_param1: the farthest, yards)
 # Unit flags: not attackable, immune to players and to creatures (an "untouchable" canon figure: bible 18.3)
 UNTOUCHABLE = 0x2 | 0x100 | 0x200
@@ -130,6 +131,7 @@ class Story:
         self.tables = {}
         self.client = {}
         self.next_option = {}
+        self.equipped = set()          # creatures with creature_equip_template rows (their spawns hold them)
 
     # -- small things --------------------------------------------------------------------------
     def err(self, where, what):
@@ -765,9 +767,10 @@ class Story:
             if guid > self.P.SPAWN_END:
                 raise StoryError("too many spawns")
             o = facing if facing is not None else (i * 1.37) % 6.28
+            extra = dict(equipment_id=1) if entry in self.equipped else {}
             self.row("creature", guid=guid, id=entry, map=m, zoneId=0, areaId=0, spawnMask=1, phaseMask=phase,
                      position_x=round(x, 2), position_y=round(y, 2), position_z=round(z, 2), orientation=round(o, 3),
-                     spawntimesecs=respawn, wander_distance=wander, MovementType=1 if wander else 0, Comment=comment)
+                     spawntimesecs=respawn, wander_distance=wander, MovementType=1 if wander else 0, Comment=comment, **extra)
             yield guid
 
     def zone_of(self, m, x, y):
@@ -919,8 +922,17 @@ class Story:
         if d.get("sky"):
             self.fly(entry)
         look = self.npc_look(key, d)
+        speed = d.get("speed", 1.0)
+        if d.get("equip"):                      # what they hold: (main hand, off hand, ranged), the game's item ids
+            held = list(d["equip"]) + [0] * (3 - len(d["equip"]))
+            if len(held) > 3 or not all(isinstance(i, int) and i >= 0 for i in held):
+                self.err(key, "equip=(main hand, off hand, ranged): the game's item ids, 0 for none")
+            else:
+                self.row("creature_equip_template", CreatureID=entry, ID=1, ItemID1=held[0], ItemID2=held[1], ItemID3=held[2])
+                self.equipped.add(entry)
         self.row("creature_template", entry=entry, name=d["name"], subname=d.get("subname") or "", gossip_menu_id=menu,
-                 minlevel=lo, maxlevel=hi, faction=side, npcflag=flags, speed_walk=1.0, speed_run=1.14286, unit_class=unit_class,
+                 minlevel=lo, maxlevel=hi, faction=side, npcflag=flags, speed_walk=speed, speed_run=round(1.14286 * speed, 5),
+                 unit_class=unit_class,
                  unit_flags=unit_flags, type=K.TYPES.get(d.get("type", "humanoid"), 7),
                  type_flags=1 if d.get("tameable") else 0, flags_extra=d.get("flags_extra", 0), rank=d.get("rank", 0),
                  HealthModifier=d.get("health", 1.0), ManaModifier=1.0, ArmorModifier=1.0, DamageModifier=d.get("damage", 1.0),
@@ -1325,8 +1337,16 @@ class Story:
         if kind == "music":
             return [(216, (self.sound_id(beat[1], where), 0, 0), (T_INVOKER,))]
         if kind == "visual":
+            # (a look spell lands on whoever casts it, as nearly all of them target their caster: the one it's
+            # for casts it on themselves: the player (the invoker's cast), another (a cross cast, their own
+            # scene left running), or the owner)
             e, target = self.actor(who, owner, chapter, where)
-            return [(A_CAST, (self.visual_id(beat[2], where), 2), target)]
+            spell = self.visual_id(beat[2], where)
+            if e is None:
+                return [(A_INVOKER_CAST, (spell, 2), (T_INVOKER,))]
+            if e != owner:
+                return [(A_CROSS_CAST, (spell, 2, T_CLOSEST_CREATURE, e, 80), (T_CLOSEST_CREATURE, e, 80, 0))]
+            return [(A_CAST, (spell, 2), (T_SELF,))]
         if kind == "cast":
             e, _ = self.actor(who, owner, chapter, where)
             spell = self.visual_id(beat[2], where) if not isinstance(beat[2], int) else beat[2]
@@ -1374,8 +1394,8 @@ class Story:
         self.err(where, f"no beat {kind!r}")
         return []
 
-    def condition(self, source, group, entry, ctype, value, negative=0, else_group=0, value2=0, target=0):
-        self.row("conditions", SourceTypeOrReferenceId=source, SourceGroup=group, SourceEntry=entry, SourceId=0,
+    def condition(self, source, group, entry, ctype, value, negative=0, else_group=0, value2=0, target=0, source_id=0):
+        self.row("conditions", SourceTypeOrReferenceId=source, SourceGroup=group, SourceEntry=entry, SourceId=source_id,
                  ElseGroup=else_group, ConditionTypeOrReference=ctype, ConditionTarget=target, ConditionValue1=value,
                  ConditionValue2=value2, ConditionValue3=0, NegativeCondition=negative, ErrorType=0, ErrorTextId=0,
                  ScriptName="", Comment=self.P.COMMENT)
@@ -1750,16 +1770,27 @@ class Story:
             item_name = self.items.get(self.qualify(chapter, item), {}).get("name") if isinstance(item, str) else None
             objective_text.append(f"{item_name or 'It'} given to {d['plural'] if count > 1 and d.get('plural') else d['name']}")
             return
-        # at a place: a thing to use there, which needs the item
+        # at a place: a thing there to use while carrying the item (on the quest): the item spent, the credit an
+        # unseen watcher's, the beats played (the object's own list)
         pt = self.point(target, chapter, where)
         entry = self.P.GO_BASE + len(self.go_id) + len(self.tables.get("_use_gos", []))
         if entry > self.P.GO_END:
             raise StoryError("too many objects")
         self.tables.setdefault("_use_gos", []).append(entry)
+        item_name = self.items.get(self.qualify(chapter, item), {}).get("name") if isinstance(item, str) else None
         data = [0] * 24
-        data[1], data[3] = qid, 3000
-        self.row("gameobject_template", entry=entry, type=10, displayId=self.display("sack", where), name="", size=0.6,
-                 **{f"Data{i}": v for i, v in enumerate(data)})
+        data[3] = 3000
+        self.row("gameobject_template", entry=entry, type=10, displayId=self.display("sack", where), name=item_name or "",
+                 size=0.6, AIName="SmartGameObjectAI", **{f"Data{i}": v for i, v in enumerate(data)})
+        credit = self.hidden_creature(f"{item_name or 'It'} used", self.P.LOOKS["trigger"])
+        self.go_entries.add(entry)
+        actions = [(A_REMOVE_ITEM, (iid, 1), (T_INVOKER,)), (A_KILLED_MONSTER, (credit,), (T_INVOKER,))]
+        if beats:
+            actions.append((A_ACTIONLIST, (self.actionlist(entry, list(beats), chapter, where), 0, 1), (T_SELF,)))
+        first = self.script_rows.get((entry, 1), 0)
+        self.smart(entry, 1, EV_GOSSIP_HELLO, (1,), actions)
+        self.condition(22, first + 1, entry, 9, qid, source_id=1)                   # (the quest in the log)
+        self.condition(22, first + 1, entry, 2, iid, value2=1, source_id=1)         # (the item carried)
         guid = self.next_go_spawn
         self.next_go_spawn += 1
         m, x, y, z = pt
@@ -1767,8 +1798,8 @@ class Story:
                  phaseMask=self.P.RACE_PHASE | sum(set(self.P.MEMORY_BITS.values())),
                  position_x=round(x, 2), position_y=round(y, 2), position_z=round(z, 2), orientation=0, rotation0=0, rotation1=0,
                  rotation2=0, rotation3=1, spawntimesecs=10, animprogress=100, state=1, Comment="mod-murloc-naga: a quest's place")
-        req_npc.append((-entry, count))
-        objective_text.append("")
+        req_npc.append((credit, count))
+        objective_text.append(f"{item_name or 'It'} used")
 
     def pois(self, qid, d, req_npc, chapter, where):
         ch = self.chapter_of_key(chapter)
@@ -2258,6 +2289,7 @@ def deletes(P=MURLOC):
     out = [
         ("creature_template", entries("entry")),
         ("creature_template_model", entries("CreatureID")),
+        ("creature_equip_template", entries("CreatureID")),
         ("creature_template_movement", entries("CreatureId")),
         ("creature_text", entries("CreatureID")),
         ("creature_addon", f"`guid` BETWEEN {P.SPAWN_BASE} AND {P.SPAWN_END}"),

@@ -125,7 +125,9 @@ Objectives (up to four kinds, four entries each):
   [("overseer", 40), (3711, 25)]}` (chance %, on the quest only), or loot objects (OBJECTS).
 - `explore="<place>"` (with `radius`, default 15 yards): reach the place.
 - `interact=[("<npc key>", "What you do, in English: a gossip line shown as Nerglish")]`: talk to them.
-- `use=[("<item key>", "<npc key>" | "<place>", count)]`: use a quest item on a creature or at a place.
+- `use=[("<item key>", "<npc key>" | "<place>", count)]`: use a quest item on a creature or at a place. At a place
+  it's a small thing there to click (the item's name) while carrying the item on the quest: the item is spent, the
+  credit given, and a fourth element `[beats]` plays (the object's own scene).
 - `escort=("<npc key>", ["p1", "p2", ...])`: they follow you; reach the last place with them.
 - `objects=[("<object key>", count)]`: use the story's objects (kind `use`, `quest` this quest; `goal` on
   the object is the log's line for it: "Slave Cage opened 0/4").
@@ -160,7 +162,7 @@ A beat is a tuple. `who` is `"self"` (the giver or ender), an NPC key (the neare
 | `("state", who, "dance" \| "sit" \| "kneel" \| "sleep" \| "work" \| "none")` | keeps doing it |
 | `("sound", who, <SoundEntries id or name>)` | plays a sound there |
 | `("music", <SoundEntries id or name>)` | plays music to the player |
-| `("visual", who, <SpellVisual or spell id or name>)` | a spell's look, nothing else |
+| `("visual", who, <SpellVisual or spell id or name>)` | a spell's look, nothing else, on `who` (the player casts it on themselves; another person on themselves, their own scene still running) |
 | `("cast", who, <spell id or name>, target)` | casts it (target "player", "self" or an NPC key) |
 | `("move", who, "<place>", "walk" \| "run")` | goes there |
 | `("face", who, "player" \| "<place>")` | turns |
@@ -273,6 +275,10 @@ dict(key="cannon", name="Coral Cannon", look=..., level=18, turret=True, abiliti
 - `size=1.4`: how big, whatever the look's own scale (Lady Vashj's look is 3.5 times a naga already: `size`
   takes it out); `scale=` stays the multiplier on top of the look's own. Not both (an error); 0.05 to 20.
 - `sky=40`: its spawns stand that many yards above the ground (or the water there), floating (no gravity).
+- `equip=(main hand, off hand, ranged)`: what they hold, the game's item ids (0 for none): a trident, a bow.
+- `speed=1.5`: how fast they walk and run, against the ordinary (an old matron 0.7, a scout 1.4).
+- A beat handed to someone else reaches the nearest of them within 80 yards, measured in three dimensions (one on a
+  cliff far below is out of reach: nothing happens).
 - `display_extra=dict(...)`: a new look of a playable race's person (race: human, orc, dwarf, nightelf, undead,
   tauren, gnome, troll, bloodelf, draenei; sex: male, female; skin, face, hair, hair_color, facial: the game's
   character choices, checked against its CharSections; gear: head, shoulder, shirt, chest, waist, legs, feet,
