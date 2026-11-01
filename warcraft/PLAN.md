@@ -1927,6 +1927,23 @@ database: 6936 quests gated; the tribe's graveyards, the pens' phase alone, emot
 disguises, object scenes); the story is being written (chapter 1 first); the naga's story bible is
 being written alongside. Not in a release yet.
 
+The naga's story bible (scratchpad, the writers' brief): ten chapters, 272 quests to complete, all in
+Azshara, "living memory": a young servant of the Spitelash hatchery at Rethress Sanctum feeds a blind
+prisoner, Isshara, once Queen Azshara's handmaiden beside Vashj and a siren in her war, whose songs are
+memories (Song-Pearls): Warcraft III's naga campaign played through as memories (the Sundering, the
+Awakening, Rise of the Naga at Nendis, the Broken Isles and the Tomb of Sargeras, Wrath of the Betrayer,
+Balancing the Scales, the Ruins of Dalaran, the Brothers Stormrage, the four Kael'thas missions, Outland,
+the Black Citadel, the Frozen Throne, Serpentshrine), Serena Scarscale the present's antagonist; Vashj's
+53 campaign lines verbatim, 82 Warcraft III voice files (warcraft.wiki.gg) placed scene by scene. Decided
+with the user: the naga take no one else's quests until their story's last quest, as the murlocs (the
+user: "They quest until 55 and until the end of the lines then they can move on"); the Darkshore start
+retired, its renegades (Szaria, Ssaveth, Vyssa) to Azshara, no moving of characters made before ("It's
+only me and I'm waiting until this is done"); the race's intro re-cut, lore-accurate (it ended on
+Vashj's death line, now the story's finale); the newer naga models from wago.tools (emotes above all)
+converted, done right the first time; the last quest before Thrall; the Serpentshrine memory kept, the
+player beside Vashj against the raid that killed her ("Make it cinematic and amazing"). The naga's
+chapters are written after the murlocs'.
+
 ## Ralia's mod (both realms; `modules/mod-ralia`)
 
 The user: "Implement it as a module and also make it so that if we need to disable it later we can. Add a game options
