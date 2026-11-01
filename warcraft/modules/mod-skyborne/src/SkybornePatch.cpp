@@ -255,7 +255,8 @@ namespace Skyborne
         // What it's made from: the module's files and the game's archives.
         Stamp stamp;
         stamp.Add(VERSION);
-        stamp.Add(femaleBodyPreview ? "female-body-preview" : "dressed-preview");
+        // (-2: the outfits' slots emptied with -1, the game's own empty slot, issue #119)
+        stamp.Add(femaleBodyPreview ? "female-body-preview-2" : "dressed-preview");
         stamp.Add(game.Describe());
         std::vector<fs::path> files;
         for (auto it = fs::recursive_directory_iterator(moduleData, error); !error && it != fs::recursive_directory_iterator(); it.increment(error))

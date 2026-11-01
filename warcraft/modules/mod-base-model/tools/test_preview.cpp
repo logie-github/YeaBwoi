@@ -15,7 +15,8 @@ int main()
             if (sex == 0) assert(row == original);
             else {
                 assert(std::equal(row.begin(), row.begin() + 8, original.begin()));
-                assert(std::all_of(row.begin() + 8, row.end(), [](uint8_t b) { return b == 0; }));
+                // every slot empty as the game's own are: item, display and inventory type -1
+                assert(std::all_of(row.begin() + 8, row.end(), [](uint8_t b) { return b == 0xFF; }));
             }
         }
     // Other table shapes must not be treated as creation outfits.

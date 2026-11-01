@@ -338,9 +338,9 @@ It covers the races in the game, including male and female gnomes, except the mu
 
 **Game options → Alternate Female Options** works the same way with another zip of character textures, the women's alone, of the races in the game but the gnomes, the murlocs and the naga (the Skyborne and the Dark Ranger skin included, made from the blood elves'). One set at a time: turning one on turns the other off; each keeps its textures. Where a zip has a texture both for the older models and for the newer ones, the one that fits the game's models is used. The races a zip has no textures for keep their own. How: [mod-ralia's README](modules/mod-ralia/README.md). Not yet seen in the game: nothing here runs the 3.3.5 client.
 
-## Body
+## No Gear
 
-**Game options → Body** shows female characters without starter gear in the character creation menu. Male previews, the character list and characters in the world keep their gear. Restart the realm and game after changing it. Both 3.3.5a realms. How: [mod-base-model's README](modules/mod-base-model/README.md).
+**Game options → No Gear** shows female characters without starter gear in the character creation menu. Male previews, the character list and characters in the world keep their gear. Restart the realm and game after changing it. Both 3.3.5a realms. How: [mod-base-model's README](modules/mod-base-model/README.md).
 
 ## Modules
 
@@ -443,7 +443,7 @@ The launcher plays Wrath of the Lich King's main title theme, looping, while it'
 | **Game files** | Your client (add it from a folder or a zip) and the server's data: which parts are there, downloading them, making them on the phone, importing them from a PC. |
 | **Accounts** | Make accounts, change their passwords, make them game masters or players, delete them; **Log in automatically** with one (the game types its password at the login screen; the first account you make here does it from the start). Needs the server running. |
 | **Graphics** | The game's resolution: **the phone's screen** (every pixel, the default), **High** (1080 lines) or **Balanced** (720 lines, the smoothest), at the shape of the screen the phone is showing (a Fold's inside or outside). And its **HD look** (see below). Takes effect the next time the game starts. |
-| **Game options** | **Ralia's mod** or **Alternate Female Options** (one at a time; see **Ralia's mod**; takes effect at the realm's next start) and **Body** (see **Body**; female creation previews only, after restarting the realm and game). |
+| **Game options** | **Ralia's mod** or **Alternate Female Options** (one at a time; see **Ralia's mod**; takes effect at the realm's next start) and **No Gear** (see **No Gear**; female creation previews only, after restarting the realm and game). The menu has the switches alone. |
 | **Add-ons** | The add-on manager: browse and search warperia.com's 3.3.5a add-ons, install in one tap or open an add-on's page; what's installed, with updates, on/off and delete; import zips. |
 | **Modules** | AzerothCore's modules from GitHub: browse them, pick some, have GitHub build the realm with them and put it in (see **Modules**). |
 | **App icon** | The home-screen icon: Wrath of the Lich King or Cataclysm, from your icon pack. |
