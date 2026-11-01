@@ -3,8 +3,10 @@
 the server's maps, and tools/content.py (their people, things and quests):
 
   - data/sql/chromiecraft/world/murloc_naga_world.sql: the world database (the races' `*_dbc`
-    rows, starts, skills, standing, racials, their homes' people and things, their quests, and the
-    Darkshore and Horde quests opened to them);
+    rows, starts, skills, standing, racials, their stories' spells, the quests of their kin opened
+    to them, and what the retired starts left, taken out);
+  - data/sql/chromiecraft/world/murloc_story.sql and naga_story.sql: the two stories, compiled
+    (tools/murloc/compile.py), with the server test's steps for each (warcraft/server/);
   - data/client/dbc/*.txt: the rows to change in the game's tables (the Skyborne's format, applied
     by src/MurlocNagaPatch.cpp as the world server starts);
   - data/client/looks.txt: the textures the patch makes (the murlocs' skins from the game's own,
@@ -19,10 +21,11 @@ Its output is committed; run it again after changing it.
 DBC_DIR, MAPS_DIR: the server's dbc and maps folders (the data.zip in warcraft/server-data.env);
 WORLD_SQL_DIR: the core's data/sql/base/db_world at the realm's commit (warcraft/server-version.env).
 
-The races (the user: "Murloc to alliance and naga to horde"):
-  19  Murloc, Alliance: a village on the island west of Auberdine, level 10, their own quests
-  20  Naga, Horde: renegades on the island north of Auberdine, level 10, Darkshore's night elf
-      quests, then south to the Horde at Zoram'gar
+The races (the user: "Murloc to alliance and naga to horde"), level 10, each with its own story to 55:
+  19  Murloc, Alliance: from the Wrathtail's pens at the Zoram Strand (tools/murloc/: murloc_story.sql)
+  20  Naga, Horde: from Rethress Sanctum in Azshara (tools/naga/: naga_story.sql), compiled after the
+      murlocs' and clear of their phases
+(their first starts, the murlocs' village and the naga's camp off Auberdine, are retired: tools/content.py)
 Races 19 and 20 were the game's Taunka and Northrend Skeleton, which only creatures use: they move
 to 30 and 31 in the game's tables (their looks, their creatures' looks), as the other modules move
 theirs (22 to 29)."""
@@ -1311,6 +1314,7 @@ def homes(client, sql, W):
     # naga_story.sql), whose rows this file leaves alone.
     camp_at = [len(lst) for lst in village_lists]
     camp_keys = set(npc_ids)
+    village_keys = set(npc_ids) if not C.MURLOC_VILLAGE else set()
     gossip.update({
         "szaria": "We were the Stormscale's, once, and before that Queen Azshara's. Now we are no one's but our own.$B$BThe night elves across the water have no reason to trust us. Give them one. And when they have taught you all they will, go south to the Grove of the Ancients: the old one there, Onu, hears what the sea says. He will know where your path goes next.",
         "ssaveth": "I watch the north. They will come from the north.",
@@ -1339,6 +1343,7 @@ def homes(client, sql, W):
         for lst, n in zip(village_lists, camp_at):
             del lst[n:]
         retired = set(npc_ids) - camp_keys
+    retired |= village_keys                                 # (their voices go with them)
     kept = sorted(KEPT_ENTRIES.values())
     assert all(npc_ids[k] == e for k, e in KEPT_ENTRIES.items()), "the camp's people kept their entries"
 

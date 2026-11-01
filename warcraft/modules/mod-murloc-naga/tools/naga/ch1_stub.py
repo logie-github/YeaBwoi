@@ -15,7 +15,7 @@ CHAPTER = dict(key="ch1", title="The Low Tide (stub)", levels=(10, 15), map=1, z
 PLACES = {
     # Rethress Sanctum: the beach the crèche stands on (no live creature near: the naga's phase alone anyway)
     "start": (2205.0, -6445.0), "matron": (2218.0, -6462.0), "shrine": (2226.0, -6471.0), "creche": (2210.0, -6455.0),
-    "claw_1": (2190.0, -6420.0), "claw_2": (2181.0, -6431.0), "claw_3": (2186.0, -6406.0), "claw_4": (2176.0, -6416.0),
+    "claw_1": (2210.0, -6390.0), "claw_2": (2220.0, -6380.0), "claw_3": (2215.0, -6370.0), "claw_4": (2222.0, -6395.0),
     "isshara": (2166.0, -6457.0), "pool": (2152.0, -6458.0), "pool_shore": (2176.0, -6451.0),
     "vyssa": (2200.0, -6430.0), "graveyard": (2215.0, -6440.0),
     # Memory A's stage: the Ravencrest Monument (the bible's M0: the broken colossus as Azshara's statue)
@@ -27,7 +27,7 @@ NPCS = [
     dict(key="matron", name="Matron Szessh", subname="Matron of the Crèche", look="spitelash_screamer", level=20, role="quest",
          at="matron", facing=2.2, gossip="(Stub.) The crèche has work for every tail.",
          idle=[("every", 50000, [("emote", "self", "spell")])]),
-    dict(key="clawling", name="Clawling", look="makrinni", size=0.8, level=(10, 11), side="hostile", role="enemy", type="beast",
+    dict(key="clawling", name="Clawling", look="makrinni", size=0.8, level=(10, 11), side="neutral", role="enemy", type="beast",
          at=["claw_1", "claw_2", "claw_3", "claw_4"], wander=4.0, respawn=30),
     # the memory's people (memory A, the Ravencrest Monument's stage): seen only while reliving it
     dict(key="young_isshara", name="Isshara", subname="Handmaiden of the Queen", look="coilfang_siren", level=30, untouchable=True,

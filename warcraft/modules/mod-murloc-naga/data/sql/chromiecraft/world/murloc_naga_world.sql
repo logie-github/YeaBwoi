@@ -1722,20 +1722,6 @@ DELETE FROM `creature_queststarter` WHERE `quest` BETWEEN 975200 AND 975299;
 DELETE FROM `creature_questender` WHERE `quest` BETWEEN 975200 AND 975299;
 DELETE FROM `gameobject_questender` WHERE `quest` BETWEEN 975200 AND 975299;
 DELETE FROM `smart_scripts` WHERE `entryorguid` BETWEEN 975000 AND 975099 AND `source_type` = 0 AND `entryorguid` NOT IN (975017, 975018, 975019);
-INSERT INTO `smart_scripts` (`entryorguid`, `source_type`, `id`, `link`, `event_type`, `event_phase_mask`, `event_chance`, `event_flags`, `event_param1`, `event_param2`, `event_param3`, `event_param4`, `event_param5`, `event_param6`, `action_type`, `action_param1`, `action_param2`, `action_param3`, `action_param4`, `action_param5`, `action_param6`, `target_type`, `target_param1`, `target_param2`, `target_param3`, `target_param4`, `target_x`, `target_y`, `target_z`, `target_o`, `comment`) VALUES
-(975000, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
-(975000, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: elder\'s voice'),
-(975001, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 414, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
-(975001, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: chief\'s voice'),
-(975002, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
-(975002, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: cook\'s voice'),
-(975003, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 1109, 415, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
-(975003, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: snatcher\'s voice'),
-(975004, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 415, 414, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
-(975004, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 416, 417, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: oracle\'s voice'),
-(975005, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 414, 415, 1109, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: fishmonger\'s voice'),
-(975013, 0, 0, 0, 64, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice'),
-(975013, 0, 1, 0, 20, 0, 100, 0, 0, 0, 0, 0, 0, 0, 115, 8475, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 'mod-murloc-naga: sloshy\'s voice');
 
 -- Where they start: each race at its story's start (the murlocs in the Wrathtail's pens at the Zoram Strand, the naga
 -- at Rethress Sanctum in Azshara), every class.
