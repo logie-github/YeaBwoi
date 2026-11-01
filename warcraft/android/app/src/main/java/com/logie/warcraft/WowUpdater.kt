@@ -31,6 +31,8 @@ object WowUpdater {
         /** The asset's API URL, which works for private repositories too. */
         val apkUrl: String,
         val size: Long,
+        /** Patch notes of each release since the installed one, newest first: its title and its lines. */
+        val notes: List<Pair<String, List<String>>> = emptyList(),
     ) : Serializable
 
     class HttpException(val code: Int) : IOException("HTTP $code")
@@ -63,6 +65,7 @@ object WowUpdater {
                 title = release.optString("name"),
                 draft = release.optBoolean("draft"),
                 prerelease = release.optBoolean("prerelease"),
+                body = release.optString("body"),
                 assets = List(assets.length()) { i ->
                     val asset = assets.getJSONObject(i)
                     UpdatePicker.Asset(
@@ -75,7 +78,10 @@ object WowUpdater {
         }
         val update = UpdatePicker.pick(releases, BuildConfig.WOW_RELEASE_TAG_PREFIX, BuildConfig.VERSION_CODE)
             ?: return null
-        return Update(update.versionCode, update.title, update.apk.name, update.apk.url, update.apk.size)
+        return Update(
+            update.versionCode, update.title, update.apk.name, update.apk.url, update.apk.size,
+            update.notes.map { it.title to it.lines },
+        )
     }
 
     /** A file of a release: its API URL (which works for private repositories too) and size. */

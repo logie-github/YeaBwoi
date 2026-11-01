@@ -989,7 +989,31 @@ jobs:
         run: |
           source warcraft/server-version.env
           source warcraft/server-data.env
-          notes="$GAME_NAME (3.3.5a) for Android: the game on the phone (your own client, run by Wine and Box64 inside the app, with touch gestures), with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
+          # Patch notes (the app's update dialog shows them, every release's since the one installed):
+          # the files added to warcraft/notes since this app's previous published release, oldest first.
+          # Between the markers the app reads. None before the first release with a note.
+          whatsnew=""
+          prev=$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null \
+            | sed -n "s/^$RELEASE_TAG_PREFIX-\([0-9][0-9]*\)$/\1/p" | sort -n \
+            | awk -v current="${{ github.run_number }}" '$1 < current' | tail -n 1 || true)
+          deepen=()
+          [ "$(git rev-parse --is-shallow-repository)" = true ] && deepen=(--unshallow)
+          if [ -n "$prev" ] && git fetch -q --filter=blob:none "${deepen[@]}" origin \
+              "+refs/tags/$RELEASE_TAG_PREFIX-$prev:refs/tags/$RELEASE_TAG_PREFIX-$prev"; then
+            for note in $(git diff --diff-filter=A --name-only "$RELEASE_TAG_PREFIX-$prev" HEAD -- warcraft/notes \
+                | grep '\.md$' | grep -v '/README\.md$' | sort); do
+              whatsnew+="$(cat "$note")"$'\n'
+            done
+          fi
+          if [ -n "$whatsnew" ]; then
+            whatsnew="## What's new
+
+          <!-- notes -->
+          $whatsnew<!-- /notes -->
+
+          "
+          fi
+          notes="$whatsnew$GAME_NAME (3.3.5a) for Android: the game on the phone (your own client, run by Wine and Box64 inside the app, with touch gestures), with a ChromieCraft realm on the phone: AzerothCore ${CORE_COMMIT::7} (ChromieCraft's) with playerbots ${PLAYERBOT_CORE_COMMIT::7}, built from commit ${GITHUB_SHA::7}.
 
           Download **$APK_FILE** below on your phone and open it to install. You need your own World of Warcraft 3.3.5a (12340) client: **Game files → Your client → Pick folder** (or **Pick zip**) copies it into the app, then **Press start** starts the realm and the game.
 
