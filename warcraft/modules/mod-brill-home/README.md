@@ -96,10 +96,10 @@ furniture's turns (assumed: the models' fronts at their +x).
 
 ## Corn, the dog
 
-The first time the player sleeps in the bed, they wake to Corn beside it: a zombified pug, the user's Forsaken
-pug (the game's current pug model with the user's coat for it (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
+The first time the player sleeps in the bed, they wake to Corn beside it: a zombified pug, the game's own
+pug in the user's Forsaken coat (`warcraft/branding/corn-forsaken-pug.png` (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
 glowing yellow eyes, his name on his collar's tag; the user: "Use this texture on the pug dog you get from
-the quest in brill. Name the dog Corn", then "my pug is supposed to be zombified", "Use the structure from pug from wago tools")). He doesn't talk; what
+the quest in brill. Name the dog Corn", then "my pug is supposed to be zombified"). He doesn't talk; what
 he does is shown: "(The dog looks happy to see you.)". His quest, **A Visitor in the Night**: throw the
 stick for him three times (he runs out the door after it and brings it back) and scratch him behind the
 ears. Turned in, the
@@ -128,22 +128,16 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-His looks: the user's model (`forsaken_pug.zip`: the game's current pug, `creature/pug/pug.m2` on
-wago.tools, its skin, and the user's coat laid out for it) in 3.3.5a's format, on the game's pug display
-(31174, model 3291). The coat doesn't fit 3.3.5a's older pug model (a third of its points take their colour
-from another part of the texture), so the model goes with it. `tools/corn_model.py` converts it once
-(committed in `data/client/corn`): `Pug.m2` (the MD21 chunk's model, version 264, the cameras and
-animations in 3.3.5a's layout, its textures named: the coat `Creature\Pug\ForsakenPug_Corn.blp`, the
-collar's metal the game's own `Item\ObjectComponents\Shield\ArmorReflect4.blp`) and `Pug00.skin`. The world
-server makes the module's patch for the game (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`)
-at the realm's start: the model and skin at the game's pug's paths (`Creature\Pug\Pug.m2`, `Pug00.skin`)
-and the coat it names (`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py` makes from
-the user's texture), with the cellar's looks. No table of the game's is changed for him (a display of his own,
-39700, showed as the game's blue and white cube: in the game the `Data` folder's patches win over the language
-folder's, and the allied races' and the HD looks' `Data` patches carry their own creature tables). Corn's three
-paths are listed beside the patch (`.files`), and the Skyborne's `Data/patch-Z.MPQ`, the last of the `Data`
-patches, made after this one, carries them too, so no `Data` patch's pug can hide him. Every pug in the game is Corn's pug (Perky Pug is the only
-other). Without the patch in the game he's the plain tan pug. The quest dog,
+His looks: the game's own pug (Perky Pug's model and display, 31174) in the user's coat. The coat
+(`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py` makes from the user's texture) has the
+game's own pug coat's layout, the same as the Alternative HD Patch's `Creature\Pug\Pug_Tan.blp`, so the module's
+patch (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`) puts it at the path the game's pug model
+names for its coat; no model and no table of the game's is changed. In the game the `Data` folder's patches win
+over the language folder's, and the HD patch's `Data/patch-F.MPQ` has its own coat at that path: the coat's path
+is listed beside the patch (`.files`) and the Skyborne's `Data/patch-Z.MPQ`, the last of the `Data` patches,
+carries it too. (Before: a display of his own, 39700, and then a model converted from today's game to 3.3.5a's
+format both showed as the game's blue and white cube; the coat in this patch alone lost to the HD patch's.)
+Every pug in the game wears his coat (Perky Pug is the only other). Without the patch in the game he's the plain tan pug. The quest dog,
 adopted pets (in the stable too) and hunters' companions are all the pug's display; quest progress and pet
 ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken out; the
 Alternative HD Patch's water, which has the same name, is left alone.
@@ -242,6 +236,29 @@ Not seen in the game: any of the new places, the projects' buildings (placed by 
 models: the chapel 30 yards east of its planned spot to clear the graves, the brewery a farmhouse, not a
 barn, which fit nowhere by the Gallows' End), models' sizes and turns, the crypt's spawns inside it, the
 new well and stall, the routes. Nothing here has run on a phone.
+
+## The quests on the maps, and Questie
+
+The user: "Be sure to add quest markers and stuff so that it shows objectives on the map and make it compatible
+with questie". `tools/build_questie.py` (run by `tools/build_town.py` and `tools/build_sql.py` after them) makes both
+from the module's world SQL:
+
+- **The game's own markers** (`data/sql/chromiecraft/world/brill_quest_poi.sql`, `quest_poi` and
+  `quest_poi_points`): for each of the house's and town's quests, a blob on the world map around where each
+  objective is done (the objects that give it, the creatures to speak with or kill; the game's own creatures where
+  the world database has them, read as the file is applied) and one at whoever takes it back. The tracker's map
+  button and the world map's quest list show them.
+- **Questie** (its 3.3.5 port, Questie-335, which doesn't know the module's quests): an add-on,
+  `data/client/addon/BrillTown` (`BrillTown.toc`, `BrillTown.lua`), which the module puts in the client's
+  `Interface/AddOns` at the realm's start (taken out with the patch, and on Wrath Remix's realm). As Questie's
+  database starts at login, it adds the module's 89 quests and their creatures to the database's own runtime
+  additions (`QuestieDB.questDataOverrides`, `npcDataOverrides`) and their numbers to the list Questie checks a
+  quest log against: so Questie tracks them (no more "missing from Questie's database"), draws their objectives on
+  the map and minimap, marks their turn-ins, and puts its "!" over the givers of the quests a character can take
+  whenever the giver is there (not over those waiting on a choice, a project's stage or another quest finished
+  first beyond the one before it, which Questie can't know). An objective done by speaking with one of the game's
+  own creatures takes that creature's places from Questie's own data. Without Questie the add-on does nothing.
+  Tested with a stand-in for Questie's database (its functions as Questie-335's source has them), not in the game.
 
 ## Files
 

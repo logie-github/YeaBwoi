@@ -628,3 +628,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # (the quests on the maps, the game's and Questie's: made from this SQL and the other's)
+    import build_questie
+    build_questie.main()
