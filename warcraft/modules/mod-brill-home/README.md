@@ -163,8 +163,10 @@ quest is done. She watches the house from her bench; she's sweet, attentive, and
 4. **An Unlocked Door**: she's in your house when you get home ("Your door was open. It was."), has swept,
    folded your shirts her way and made tea. Drink it: the locket's other side holds a lock of your hair,
    taken while you slept. Then to her shop, where she says it properly.
-5. **What the Heart Keeps**: a moonpetal lily from Brightwater Lake's shore (east of Brill, among the Vile
-   Fins); kept, in old Tirisfal, it meant yes. Giving it to her, the player answers:
+5. **What the Heart Keeps**: a moonpetal lily from Brightwater Lake's west shore (east of Brill, map 64.9,
+   44.5, by the water; marked on the world map and the quest tracker, as the locket's farmhouse is; a pale,
+   glowing flower, Felwood's songflower's model). It was first placed 2.9 map units north of the lake, on
+   dry ground, as a plain small flower in the grass: the user couldn't find it; kept, in old Tirisfal, it meant yes. Giving it to her, the player answers:
    - **"I'm keeping it, Carolai. Yes."**: lovers. Her menu then has "Would you like to move in with me?":
      she's in the house from then on (her own lines at random; "(Hold her for a while.)"), until asked
      "Would you like some time back at your shop?" (asked again whenever the player likes).
@@ -176,7 +178,7 @@ Mana Potions). The answer is `brill_home.flags` (0x10 lovers, 0x20 friends; 0x40
 Phases: her visit 0x10000 (after Jamie's gift until the tea), living there 0x20000.
 
 Not checked on a phone: where she stands in the house, the footlocker's and the lily's spots (the
-footlocker at Farmer Solliden's height, beside him; the lily at the terrain's height on the shore).
+footlocker at Farmer Solliden's height, beside him; the lily at the terrain's height on the shore, found by the server's map of the lake's water).
 
 ## Brill: A Place Among the Forsaken
 

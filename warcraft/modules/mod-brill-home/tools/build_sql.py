@@ -106,9 +106,12 @@ CURSED_DARKHOUND = 1548
 CAROLAI_VISIT_AT = (-1.0, -3.3, 257.5)  # where Cedric stood, facing the door as the player comes in
 CAROLAI_HOME_AT = (-3.3, -1.0, 180)  # at her alchemy table
 # Her mother's locket in Solliden Farmstead's farmhouse (beside old Farmer Solliden, who walks it);
-# the lily on Brightwater Lake's shore (among the Vile Fins): heights from the game's terrain.
+# the lily on Brightwater Lake's west shore, by the water (map 64.9, 44.5; it was 2.9 map units north of the
+# lake, on dry ground the user couldn't find it on): heights from the game's terrain, the lake at 21.19.
 LOCKET_AT = (2266.6, 1316.4, 34.1, 1.2)
-LILY_AT = (2905.0, 200.0, 7.86, 0.0)
+LILY_AT = (2496.0, 102.0, 21.41, 0.0)
+# Tirisfal Glades' world map (WorldMapArea 20): the lily's quest marks its spot there.
+TIRISFAL_MAP_AREA = 20
 
 
 def world(lx, ly):
@@ -260,7 +263,8 @@ LILY_OFFER = (
     "me one. Then, when you give it to me, tell me what it means.$B$B"
     "Whatever you say, I'll... I'll understand.$B$B"
     "I'll be here. Waiting. As I always am.")
-LILY_LOG = "Pick a moonpetal lily on the shore of Brightwater Lake, then give it to Carolai Anise in Brill and tell her what it means."
+LILY_LOG = ("Pick a moonpetal lily on the west shore of Brightwater Lake, east of Brill, then give it to Carolai Anise in "
+            "Brill and tell her what it means.")
 LILY_PROGRESS = "(Carolai looks at your hands first, to see if there's a lily in them.)"
 LILY_FOUND = (
     "(A single pale lily grows where the water laps at the reeds. Its petals are cold, and faintly bright, "
@@ -465,13 +469,21 @@ def main():
     w(",\n".join(rows) + ";")
     w("INSERT INTO `gameobject_template` (`entry`, `type`, `displayId`, `name`, `size`, `Data0`, `Data1`, `Data3`, `ScriptName`) VALUES")
     w(f"({GO_LOCKET}, 2, 8, 'Old Footlocker', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
-    w(f"({GO_LILY}, 2, 253, 'Moonpetal Lily', 1, 0, 0, 0, 'go_brill_home_keepsake'),")
+    # (the lily: a pale flower that glows, Felwood's songflower's model, a little larger than a bloom in the grass)
+    w(f"({GO_LILY}, 2, 3232, 'Moonpetal Lily', 1.6, 0, 0, 0, 'go_brill_home_keepsake'),")
     w(f"({GO_ALCHEMY}, 5, 4391, 'Carolai\\'s Alchemy Table', 0.8, 0, 0, 0, '');")
     w("INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, "
       "`position_z`, `orientation`, `rotation0`, `rotation1`, `rotation2`, `rotation3`, `spawntimesecs`, `animprogress`, `state`, `Comment`) VALUES")
     w(",\n".join([go_spawn(970120, GO_LOCKET, *LOCKET_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
                   go_spawn(970121, GO_LILY, *LILY_AT, 1).replace(f", {ZONE}, {AREA},", ", 85, 0,"),
                   go_spawn(970122, GO_ALCHEMY, *world(ALCHEMY_AT[0], ALCHEMY_AT[1]), FLOOR, turn(ALCHEMY_AT[2]), PHASE_CAROLAI_HOME)]) + ";")
+    # Where the keepsakes are, on the world map and the quest tracker: the locket's farmhouse, the lily's shore.
+    w(f"DELETE FROM `quest_poi` WHERE `QuestID` IN ({QUEST_LOCKET}, {QUEST_LILY});")
+    w(f"DELETE FROM `quest_poi_points` WHERE `QuestID` IN ({QUEST_LOCKET}, {QUEST_LILY});")
+    w("INSERT INTO `quest_poi` (`QuestID`, `id`, `ObjectiveIndex`, `MapID`, `WorldMapAreaId`, `Floor`, `Priority`, `Flags`, `VerifiedBuild`) VALUES")
+    w(f"({QUEST_LOCKET}, 0, 0, {MAP}, {TIRISFAL_MAP_AREA}, 0, 0, 1, 0), ({QUEST_LILY}, 0, 0, {MAP}, {TIRISFAL_MAP_AREA}, 0, 0, 1, 0);")
+    w("INSERT INTO `quest_poi_points` (`QuestID`, `Idx1`, `Idx2`, `X`, `Y`, `VerifiedBuild`) VALUES")
+    w(f"({QUEST_LOCKET}, 0, 0, {round(LOCKET_AT[0])}, {round(LOCKET_AT[1])}, 0), ({QUEST_LILY}, 0, 0, {round(LILY_AT[0])}, {round(LILY_AT[1])}, 0);")
     w("INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES")
     w(",\n".join(f"({i}, {q(t)}, {q(t)}, 1)" for i, t in (
         (TEXT_CAROLAI_VISIT, CAROLAI_VISIT), (TEXT_CAROLAI_ANSWER, CAROLAI_ANSWER), (TEXT_CAROLAI_LOVER, CAROLAI_LOVER),

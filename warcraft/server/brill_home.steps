@@ -120,7 +120,7 @@ talk 2132
 reward 2132 970127
 talk 2132
 accept 2132 970128
-go 0 2905.0 202.0 8.5
+go 0 2497.0 103.0 21.9
 cmd .brillhome use
 expect Brill home: used 970109
 go 0 2262.0 347.6 36.1
