@@ -1118,7 +1118,7 @@ class Story:
                     continue                    # (the game drops it already, or another of the story's quests asked)
                 self._our_loot.add((lootid, iid))
                 self.row("creature_loot_template", Entry=lootid, Item=iid, Reference=0, Chance=chance, QuestRequired=1,
-                         LootMode=1, GroupId=0, MinCount=1, MaxCount=1, Comment="mod-murloc-naga")
+                         LootMode=1, GroupId=0, MinCount=1, MaxCount=1, Comment=K.LOOT_COMMENT)
         if len(req_npc) > 4 or len(req_items) > 6:
             self.err(where, "too many objectives")
         rewards = [self.item(i, chapter, where) for i in d.get("rewards", [])]
@@ -1539,7 +1539,9 @@ DELETES = [
     ("gameobject_template", f"`entry` BETWEEN {K.GO_BASE} AND {K.GO_END} OR `entry` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END}"),
     ("gameobject", f"`guid` BETWEEN {K.GO_SPAWN_BASE} AND {K.GO_SPAWN_END}"),
     ("gameobject_loot_template", f"`Entry` BETWEEN {K.GO_BASE} AND {K.GO_END} OR `Entry` BETWEEN {K.OLD_GO_BASE} AND {K.OLD_GO_END}"),
-    ("creature_loot_template", "`Comment` = 'mod-murloc-naga'"),
+    # (the story's own loot rows: "mod-murloc-naga" alone was the naga camp's too, tools/build_data.py's, taken out with them)
+    ("creature_loot_template", f"`Comment` = '{K.LOOT_COMMENT}' OR (`Comment` = 'mod-murloc-naga' AND `Entry` NOT BETWEEN "
+                               f"{K.CAMP_NPC_BASE} AND {K.CAMP_NPC_END})"),
     ("item_template", f"`entry` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
     ("item_dbc", f"`ID` BETWEEN {K.ITEM_BASE} AND {K.ITEM_END}"),
     ("quest_template", f"`ID` BETWEEN {K.QUEST_BASE} AND {K.QUEST_END}"),

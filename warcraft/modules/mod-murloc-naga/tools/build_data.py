@@ -77,6 +77,7 @@ ID_OUTFIT, ID_HAIRGEO, ID_NAMEGEN = 9300, 9300, 93000
 ID_DISPLAY = {MURLOC: (33101, 33102)}           # the naga wear the game's own (17402, 17403)
 ID_MODEL = {MURLOC: (3701, 3702)}
 PLAYER_MODEL = 0x4                               # CreatureModelData: a player's model (drawn as a character)
+LOOT_COMMENT = "mod-murloc-naga: camp"                  # creature_loot_template rows of the naga's camp
 ID_TRIBE_MODEL, ID_TRIBE_DISPLAY = 3703, 33103   # the tribe's people's murloc, a look a skin (33103-33115)
 ID_SEQUENCE = {MURLOC: 9021, NAGA: 9022}
 ID_CAMERA = {MURLOC: 9021, NAGA: 9022}
@@ -1315,10 +1316,13 @@ def homes(client, sql, W):
     sql.insert("gameobject_loot_template", ["Entry", "Item", "Reference", "Chance", "QuestRequired", "LootMode", "GroupId",
                                             "MinCount", "MaxCount", "Comment"],
                [(e, i, 0, c, 1, 1, 0, 1, 1, "mod-murloc-naga") for e, i, c in go_loot])
-    sql.raw(f"DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga';")
+    # (the story's loot, tools/murloc/, is "mod-murloc-naga: story" and its own to take out: each file takes out its own only,
+    # whichever of them the server applies again; "mod-murloc-naga" alone was both's)
+    sql.raw(f"DELETE FROM `creature_loot_template` WHERE `Comment` = '{LOOT_COMMENT}' OR (`Comment` = 'mod-murloc-naga' "
+            f"AND `Entry` BETWEEN {C.NPC_BASE} AND {C.NPC_BASE + 99});")
     sql.insert("creature_loot_template", ["Entry", "Item", "Reference", "Chance", "QuestRequired", "LootMode", "GroupId",
                                           "MinCount", "MaxCount", "Comment"],
-               [(e, i, 0, c, 1, 1, 0, 1, 1, "mod-murloc-naga") for e, i, c in cr_loot])
+               [(e, i, 0, c, 1, 1, 0, 1, 1, LOOT_COMMENT) for e, i, c in cr_loot])
 
     # Their things' looks: the game's models as objects (GameObjectDisplayInfo, the game's and the server's).
     gdt = "isiiiiiiiiiiffffffi"

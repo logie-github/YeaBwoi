@@ -1736,9 +1736,9 @@ INSERT INTO `gameobject` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, 
 (9751056, 975118, 1, 0, 0, 1, 2048, 6717.0, 799.0, 30.2, 3.5, 0.0, 0.0, 0.984, -0.1782, 0, 100, 1, 'mod-murloc-naga: Naga Weapons'),
 (9751057, 975119, 1, 0, 0, 1, 2048, 6694.0, 802.0, 27.5, 0.0, 0.0, 0.0, 0.0, 1.0, 0, 100, 1, 'mod-murloc-naga: Naga Jar');
 DELETE FROM `gameobject_loot_template` WHERE `Entry` BETWEEN 975100 AND 975199;
-DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga';
+DELETE FROM `creature_loot_template` WHERE `Comment` = 'mod-murloc-naga: camp' OR (`Comment` = 'mod-murloc-naga' AND `Entry` BETWEEN 975000 AND 975099);
 INSERT INTO `creature_loot_template` (`Entry`, `Item`, `Reference`, `Chance`, `QuestRequired`, `LootMode`, `GroupId`, `MinCount`, `MaxCount`, `Comment`) VALUES
-(975023, 975308, 0, 65, 1, 1, 0, 1, 1, 'mod-murloc-naga');
+(975023, 975308, 0, 65, 1, 1, 0, 1, 1, 'mod-murloc-naga: camp');
 DELETE FROM `gameobjectdisplayinfo_dbc` WHERE `ID` BETWEEN 9750 AND 9799;
 INSERT INTO `gameobjectdisplayinfo_dbc` (`ID`, `ModelName`, `Sound_1`, `Sound_2`, `Sound_3`, `Sound_4`, `Sound_5`, `Sound_6`, `Sound_7`, `Sound_8`, `Sound_9`, `Sound_10`, `GeoBoxMinX`, `GeoBoxMinY`, `GeoBoxMinZ`, `GeoBoxMaxX`, `GeoBoxMaxY`, `GeoBoxMaxZ`, `ObjectEffectPackageID`) VALUES
 (9750, 'World\\AZEROTH\\SWAMPOSORROW\\PASSIVEDOODADS\\WATERHUTS\\WaterHut01.mdx', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 1, 1, 3, 0),

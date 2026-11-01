@@ -22,6 +22,8 @@ SPELL_BASE, SPELL_END = 979900, 979999          # the story's auras (AURAS)
 TRAINER_BASE = 976000
 GRAVEYARD_BASE, GRAVEYARD_END = 9760, 9799      # game_graveyard ids (GRAVEYARDS)
 SPIRIT_HEALER = 6491                            # the game's spirit healer, at each of the tribe's graveyards
+LOOT_COMMENT = "mod-murloc-naga: story"         # creature_loot_template rows of the story's (its own to take out)
+CAMP_NPC_BASE, CAMP_NPC_END = 975000, 975099     # the naga camp's creatures (tools/content.py): their loot isn't the story's
 
 # The race's own phase (the world's and theirs): spell_area puts it on a murloc in every zone the
 # story goes to. Story phases (an NPC there from a quest on, until one, or while one's in the log)
