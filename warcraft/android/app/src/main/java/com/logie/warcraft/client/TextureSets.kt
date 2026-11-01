@@ -109,6 +109,7 @@ open class TextureSet(private val folderName: String) {
             if (mark.isFile) {
                 patch.delete()
                 mark.delete()
+                File(locale, "patch-${locale.name}-Z.MPQ.files").delete()
                 removed = true
             }
         }

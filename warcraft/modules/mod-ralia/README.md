@@ -16,7 +16,7 @@ starts (a few seconds to a minute the first time; again only when the zip, the c
 changes, or the other set is turned on), and takes it out while neither is on. Existing installs rebuild
 the patch after the gnome support update. If your imported zip has no gnome textures, use **Choose the
 zip again** with a copy that includes them. Turning one off also takes the patch out of your client at
-once.
+once; the copy of its textures in the Skyborne's patch (below) goes at the realm's next start.
 
 `Ralia.Enable = 0` in the realm's `modules/mod_ralia.conf` keeps both out whatever the switches say. To take
 the module out of the realm altogether, delete this folder: nothing else needs it (the other race
@@ -65,9 +65,14 @@ game doesn't (Pandaren, Kul Tirans, Dark Iron dwarves, Highmountain Tauren, the 
 
 ## The patch
 
-`Data/<locale>/patch-<locale>-Z.MPQ` (with `patch-<locale>-Z.MPQ.ralia`, what it was made from),
-the last archive the game reads, so its textures are drawn whatever an HD look, `patch-U` (Worgen and
-Goblins) or `patch-V` (allied races) has at the same paths. It's made from the game as those leave it,
+`Data/<locale>/patch-<locale>-Z.MPQ` (with `patch-<locale>-Z.MPQ.ralia`, what it was made from, and
+`patch-<locale>-Z.MPQ.files`, the paths it has). It was taken to be the last archive the game reads,
+but in the game the `Data` folder's patches won over it: with the Alternative HD Patch, only the
+Skyborne's skins (made from its blood elf texture, at paths of their own) showed the set, while every
+other race kept the HD look's (`patch-A`), the Worgen and Goblins' (`patch-U`) or the allied races'
+(`patch-V`) textures. So the Skyborne's `Data/patch-Z.MPQ` (`mod-skyborne`), made after this from the
+game with it in, carries every listed texture too, byte for byte: the highest of the `Data` patches,
+it puts the set over an HD look's and the race modules' whichever folder the game reads last. It's made from the game as those leave it,
 as the world database's own tables are loaded (after `patch-U` and `patch-V`, made as the configuration
 is read), and before the Skyborne's `patch-Z` and Wrath Remix's `patch-Y`, which it isn't made from. A
 `patch-<locale>-Z.MPQ` that isn't this module's is left alone, and then the mod isn't in the game.

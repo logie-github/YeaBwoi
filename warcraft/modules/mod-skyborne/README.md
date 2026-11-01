@@ -86,7 +86,11 @@ server's tables' ids, and their beards stayed at 13 and 14 beside the Skyborne's
   some colours have none, such as the Skyborne's between the blood elf's skins and their blues): an
   NPC's skin, as the game's own colours between are. The patch is
   made again only when the client's archives or the module's files change (the stamp in
-  `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone.
+  `patch-Z.MPQ.skyborne`); a `patch-Z.MPQ` that isn't the Skyborne's is left alone. While mod-ralia's
+  character textures are in (Ralia's mod or Alternate Female Options: `Data/<locale>/patch-<locale>-Z.MPQ`
+  and the list of its paths beside it), the patch carries each of them too, as the game has it with
+  that patch in: in the game the `Data` folder's patches won over the language folder's, so only this,
+  the highest of them, puts the set over an HD look's and the race modules' textures.
   `Skyborne.ClientPatch = 0` (`mod_skyborne.conf`) takes it out.
 - `data/sql/db-world/skyborne_cleanup.sql` and `data/sql/db-characters/skyborne_cleanup.sql` take
   out of a realm's databases the ids an earlier build of the module used and this one doesn't (item

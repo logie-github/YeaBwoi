@@ -4,10 +4,13 @@
  * Two sets, one at a time: Ralia's mod (Ralia's patches, made for the game of today), and Alternate
  * Female Options (another set, the women's textures alone). "Ralia's" below is either set's.
  *
- * It's Data/<locale>/patch-<locale>-Z.MPQ, the last archive the game reads (after the Skyborne's
- * patch-Z.MPQ, the language's patch of a letter coming after the letter's own), so its textures are
- * the ones drawn whatever the HD look, the Worgen's and Goblins' patch-U or the allied races' patch-V
- * has at the same paths. It's made from the game without the Skyborne's patch-Z or Wrath Remix's
+ * It's Data/<locale>/patch-<locale>-Z.MPQ, with the list of its paths beside it (.files). The game
+ * was taken to read it last (the language's patch of a letter after the letter's own), but in the game
+ * the Data folder's patches won: the HD look's patch-A, the Worgen's and Goblins' patch-U and the allied
+ * races' patch-V kept their own textures at the same paths, and only the Skyborne's skins (made from
+ * this patch's, at paths of their own) showed the set. So the Skyborne's Data/patch-Z.MPQ, made after
+ * this from the game with it in and above every other Data patch, carries every path on the list too:
+ * the set is drawn whichever of the two the game reads last. It's made from the game without the Skyborne's patch-Z or Wrath Remix's
  * patch-Y (made after it as the world starts, from the game with it in: the Skyborne's skins are the
  * blood elves', recoloured, so the Skyborne wear Ralia's blood elf textures), and without itself.
  *
@@ -62,7 +65,9 @@ namespace Ralia
     namespace
     {
         constexpr char const* MARK_SUFFIX = ".ralia";
-        constexpr char const* VERSION = "ralia-4";
+        // The paths the patch has, one a line: the Skyborne's Data/patch-Z.MPQ carries them too (below).
+        constexpr char const* LIST_SUFFIX = ".files";
+        constexpr char const* VERSION = "ralia-5";   // 5: the list of its paths, for the Skyborne's patch
         // The races left as they are (their textures' folders).
         constexpr char const* LEFT_OUT[] = { "character\\murloc\\", "character\\naga_\\" };
         // Above this share of a skin changed, the nearest file isn't the same picture changed.
@@ -196,6 +201,7 @@ namespace Ralia
             return;
         fs::remove(patch, error);
         fs::remove(With(patch, MARK_SUFFIX), error);
+        fs::remove(With(patch, LIST_SUFFIX), error);
         log("The character textures' patch is out of the game");
     }
 
@@ -274,7 +280,7 @@ namespace Ralia
             stamp.Add(name);
             stamp.Add(std::to_string(size));
         }
-        if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
+        if (ours && fs::exists(patch, error) && fs::exists(With(patch, LIST_SUFFIX), error) && Text(mark) == stamp.Hex() + "\n")
             return true;
 
         Bytes data;
@@ -432,9 +438,11 @@ namespace Ralia
         part += ".part";
         MpqWriter writer(part);
         std::map<std::pair<uint64_t, size_t>, std::string> written;
+        std::vector<std::string> paths;
         size_t direct = 0, repainted = 0, kept = 0, packed = 0;
         auto put = [&](Target const& t, Bytes const& blp)
         {
+            paths.push_back(t.path);
             Stamp hash;
             hash.Add(blp.data(), blp.size());
             auto key = std::make_pair(hash.value, blp.size());
@@ -539,6 +547,11 @@ namespace Ralia
             fs::remove(part, error);
             log("Couldn't put " + patch.string() + " in place: " + error.message());
             return false;
+        }
+        {
+            std::ofstream list(With(patch, LIST_SUFFIX), std::ios::trunc);
+            for (std::string const& path : paths)
+                list << path << "\n";
         }
         {
             std::ofstream out(mark, std::ios::trunc);
