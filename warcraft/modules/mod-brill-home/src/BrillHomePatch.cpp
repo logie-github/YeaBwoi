@@ -51,7 +51,10 @@ namespace BrillHome
     {
         constexpr char const* MARK_SUFFIX = ".brillhome";
         constexpr char const* ASIDE_SUFFIX = ".aside";
-        constexpr char const* VERSION = "brill-home-5";
+        // Corn's paths, one a line: the Skyborne's Data/patch-Z.MPQ carries them too (in the game the Data
+        // folder's patches win over the language folder's, so a Data patch with a pug of its own would hide his).
+        constexpr char const* LIST_SUFFIX = ".files";
+        constexpr char const* VERSION = "brill-home-6";   // 6: the list of Corn's paths
         // Corn: the user's pug (data/client/corn: tools/corn_model.py, the coat tools/build_sql.py), at the
         // game's pug's paths, and the coat where the model names it
         struct CornFile { char const* file; char const* path; };
@@ -175,6 +178,7 @@ namespace BrillHome
         fs::remove(patch, error);
         fs::remove(With(patch, ASIDE_SUFFIX), error);
         fs::remove(With(patch, MARK_SUFFIX), error);
+        fs::remove(With(patch, LIST_SUFFIX), error);
         log("The Brill home's patch is out of the game");
     }
 
@@ -296,7 +300,7 @@ namespace BrillHome
             stamp.Add(path);
             stamp.Add(std::to_string(data.size()));
         }
-        if (ours && fs::exists(patch, error) && Text(mark) == stamp.Hex() + "\n")
+        if (ours && fs::exists(patch, error) && fs::exists(With(patch, LIST_SUFFIX), error) && Text(mark) == stamp.Hex() + "\n")
         {
             cornReady = !corn.empty();
             return true;
@@ -355,6 +359,11 @@ namespace BrillHome
             fs::remove(part, error);
             log("Couldn't put " + patch.string() + " in place: " + error.message());
             return false;
+        }
+        {
+            std::ofstream list(With(patch, LIST_SUFFIX), std::ios::trunc);
+            for (auto const& [path, data] : corn)
+                list << path << "\n";
         }
         {
             std::ofstream out(mark, std::ios::trunc);

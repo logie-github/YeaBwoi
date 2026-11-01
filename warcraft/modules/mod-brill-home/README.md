@@ -139,7 +139,10 @@ server makes the module's patch for the game (`Data/<locale>/patch-<locale>-V.MP
 at the realm's start: the model and skin at the game's pug's paths (`Creature\Pug\Pug.m2`, `Pug00.skin`)
 and the coat it names (`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py` makes from
 the user's texture), with the cellar's looks. No table of the game's is changed for him (a display of his own,
-39700, showed as the game's blue and white cube). Every pug in the game is Corn's pug (Perky Pug is the only
+39700, showed as the game's blue and white cube: in the game the `Data` folder's patches win over the language
+folder's, and the allied races' and the HD looks' `Data` patches carry their own creature tables). Corn's three
+paths are listed beside the patch (`.files`), and the Skyborne's `Data/patch-Z.MPQ`, the last of the `Data`
+patches, made after this one, carries them too, so no `Data` patch's pug can hide him. Every pug in the game is Corn's pug (Perky Pug is the only
 other). Without the patch in the game he's the plain tan pug. The quest dog,
 adopted pets (in the stable too) and hunters' companions are all the pug's display; quest progress and pet
 ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken out; the

@@ -4,13 +4,20 @@
 //
 //   g++ -std=c++17 -O2 -I../src -I../../mod-skyborne/src test_patch.cpp ../src/BrillHomePatch.cpp
 //       ../../mod-skyborne/src/SkyborneFiles.cpp -lz -o test_patch
-//   ./test_patch ../data/client GAME_DATA
+//   ./test_patch ../data/client GAME_DATA [SKYBORNE_DATA]
+//
+// With SKYBORNE_DATA (mod-skyborne's data/client; build with ../../mod-skyborne/src/SkybornePatch.cpp and
+// -DWITH_SKYBORNE), the Skyborne's Data/patch-Z.MPQ is made after it and carries Corn's files too (in the
+// game the Data folder's patches win over the language folder's).
 //
 // GAME_DATA: a client's Data folder (its archives, or folders laid out as they are) with DBFilesClient's
 // CreatureDisplayInfo and GameObjectDisplayInfo.
 
 #include "BrillHomePatch.h"
 #include "SkyborneFiles.h"
+#ifdef WITH_SKYBORNE
+#include "SkybornePatch.h"
+#endif
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -39,9 +46,9 @@ static uint32_t U32(Bytes const& b, size_t at)
 
 int main(int argc, char** argv)
 {
-    if (argc != 3)
+    if (argc != 3 && argc != 4)
     {
-        std::cerr << "usage: test_patch MODULE_CLIENT_DATA GAME_DATA\n";
+        std::cerr << "usage: test_patch MODULE_CLIENT_DATA GAME_DATA [SKYBORNE_DATA]\n";
         return 2;
     }
     fs::path module = argv[1], data = argv[2];
@@ -64,6 +71,12 @@ int main(int argc, char** argv)
     Check(game.Read("Creature\\Pug\\Pug00.skin", skin) && !skin.empty() && skin == mine("Pug00.skin"), "its skin is Corn's");
     Check(game.Read("Creature\\Pug\\ForsakenPug_Corn.blp", coat) && coat.size() > 4 && std::memcmp(coat.data(), "BLP2", 4) == 0
           && coat == mine("ForsakenPug_Corn.blp"), "the coat it names is the user's, a BLP2");
+    {
+        std::ifstream list(fs::path(data / "enUS" / "patch-enUS-V.MPQ").string() + ".files");
+        std::string text((std::istreambuf_iterator<char>(list)), std::istreambuf_iterator<char>());
+        Check(text == "Creature\\Pug\\Pug.m2\nCreature\\Pug\\Pug00.skin\nCreature\\Pug\\ForsakenPug_Corn.blp\n",
+              "Corn's paths listed beside the patch (for the Skyborne's patch-Z)");
+    }
     std::string names(m2.begin(), m2.end());
     Check(names.find("Creature\\Pug\\ForsakenPug_Corn.blp") != std::string::npos, "the model names the coat");
 
@@ -82,6 +95,18 @@ int main(int argc, char** argv)
 
     corn = false;
     Check(BrillHome::UpdatePatch(module, data, log, corn) && corn, "a second start keeps it");
+#ifdef WITH_SKYBORNE
+    if (argc == 4)
+    {
+        Skyborne::UpdatePatch(argv[3], data, [](std::string const& line) { std::cout << "  | skyborne: " << line.substr(0, 160) << "\n"; });
+        auto z = Skyborne::OpenArchive(data / "patch-Z.MPQ");
+        Bytes zm2, zskin, zcoat;
+        Check(z && z->Read("Creature\\Pug\\Pug.m2", zm2) && zm2 == mine("Pug.m2")
+              && z->Read("Creature\\Pug\\Pug00.skin", zskin) && zskin == mine("Pug00.skin")
+              && z->Read("Creature\\Pug\\ForsakenPug_Corn.blp", zcoat) && zcoat == mine("ForsakenPug_Corn.blp"),
+              "the Skyborne's Data/patch-Z.MPQ carries Corn's model, skin and coat");
+    }
+#endif
     std::cout << (failures ? "FAILED: " + std::to_string(failures) : std::string("all passed")) << "\n";
     return failures ? 1 : 0;
 }
