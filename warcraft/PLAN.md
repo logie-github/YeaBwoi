@@ -2068,6 +2068,18 @@ Game options (the user): "Add no commentary to the game options menu. For body r
 switches alone (with Choose the zip again once a set's zip is in, a spinner while one's read, and a line if it fails); Body is
 No Gear.
 
+Ralia follow-up (2026-11-01), the user: "For the texture packs the only nudes I'm seeing are the ones for the custom
+skins we've made." With the Alternative HD Patch, only the Skyborne's skins (made from the set's blood elf texture,
+at their own paths in `Data/patch-Z.MPQ`) showed a set; every other race kept the HD look's (`Data/patch-A`), the
+Worgen and Goblins' (`Data/patch-U`) or the allied races' (`Data/patch-V`) textures. So the game reads the `Data`
+folder's patches over the language folder's (`Data/enUS/patch-enUS-Z.MPQ`, mod-ralia's), not by letter as was
+assumed (SkyborneFiles' `Game` still reads by letter; mod-murloc-naga's patch-enUS-T and mod-brill-home's
+patch-enUS-V make the same assumption, not seen to matter yet). Fixed: mod-ralia writes the list of its paths
+beside its patch (`.files`, ralia-5) and the Skyborne's patch carries every listed texture byte for byte, so the set
+wins whichever folder the game reads last. Tested: `tools/test_patch.cpp` (the Skyborne's patch has the set's 21
+stand-in textures, the same bytes; the list goes with the patch) and the app's TextureSets tests. Not seen in the
+game.
+
 Ralia follow-up (2026-10-31): include gnomes too. Removed the explicit gnome texture exclusion,
 bumped the patch version so existing installs rebuild, and added regression checks for both sexes,
 female overlays and a colour with no direct source texture. The user's imported files are retained.

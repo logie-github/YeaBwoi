@@ -88,11 +88,13 @@ class TextureSetsTest {
             val locale = File(client, "Data/enUS").apply { mkdirs() }
             File(locale, "patch-enUS-Z.MPQ").writeText("patch")
             File(locale, "patch-enUS-Z.MPQ.ralia").writeText("stamp")
+            File(locale, "patch-enUS-Z.MPQ.files").writeText("Character\\Human\\Female\\HumanFemaleSkin00_00.blp\n")
             File(locale, "patch-enUS-V.MPQ").writeText("someone else's")
             RaliaFiles.setOn(root, client, false)
             assertFalse(RaliaFiles.isOn(root))
             assertFalse(File(locale, "patch-enUS-Z.MPQ").exists())
             assertFalse(File(locale, "patch-enUS-Z.MPQ.ralia").exists())
+            assertFalse(File(locale, "patch-enUS-Z.MPQ.files").exists())
             assertTrue(File(locale, "patch-enUS-V.MPQ").exists())
 
             // a patch-Z of the language's that isn't the mod's (no .ralia beside it) stays

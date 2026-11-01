@@ -10,6 +10,11 @@
  *
  * It's Data/patch-Z.MPQ, read after every other patch (HD looks' character tables included: its
  * tables are those with the Skyborne's rows added). Wrath Remix's patch-Y.MPQ changes other tables.
+ *
+ * It also carries mod-ralia's character textures (Ralia's mod or Alternate Female Options: the paths its
+ * Data/<locale>/patch-<locale>-Z.MPQ lists beside it, read from the game with that patch in), so a
+ * set's textures win over the HD look's and the race modules' Data patches whichever the game reads
+ * last: in the game the Data folder's patches won over the language folder's.
  */
 
 #include "SkybornePatch.h"
@@ -258,6 +263,29 @@ namespace Skyborne
         // (-2: the outfits' slots emptied with -1, the game's own empty slot, issue #119)
         stamp.Add(femaleBodyPreview ? "female-body-preview-2" : "dressed-preview");
         stamp.Add(game.Describe());
+        // mod-ralia's textures, when its patch is in (its mark and its list beside it).
+        std::vector<std::string> ralia;
+        if (!game.locale.empty())
+        {
+            fs::path raliaPatch = clientData / game.locale / ("patch-" + game.locale + "-Z.MPQ");
+            fs::path raliaMark = raliaPatch, raliaList = raliaPatch;
+            raliaMark += ".ralia";
+            raliaList += ".files";
+            if (fs::exists(raliaPatch, error) && fs::exists(raliaMark, error) && fs::exists(raliaList, error))
+            {
+                std::string list = Text(raliaList);
+                stamp.Add("ralia");
+                stamp.Add(list);
+                std::istringstream lines(list);
+                for (std::string path; std::getline(lines, path);)
+                {
+                    if (!path.empty() && path.back() == '\r')
+                        path.pop_back();
+                    if (!path.empty())
+                        ralia.push_back(path);
+                }
+            }
+        }
         std::vector<fs::path> files;
         for (auto it = fs::recursive_directory_iterator(moduleData, error); !error && it != fs::recursive_directory_iterator(); it.increment(error))
             if (it->is_regular_file(error))
@@ -316,6 +344,20 @@ namespace Skyborne
                 writer.Add(to, data);
                 made.insert(Lower(to));
                 ++textures;
+            }
+        }
+
+        // mod-ralia's textures, as the game has them with its patch in (the Skyborne's own made above win).
+        size_t carried = 0;
+        {
+            std::set<std::string> done = made;
+            for (std::string const& path : ralia)
+            {
+                Bytes data;
+                if (!done.insert(Lower(path)).second || !game.Read(path, data))
+                    continue;
+                writer.Add(path, data);
+                ++carried;
             }
         }
 
@@ -409,7 +451,7 @@ namespace Skyborne
             log("  " + p);
         auto seconds = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count();
         log("The Skyborne's patch is in the game: " + std::to_string(tables) + " tables, " + std::to_string(textures)
-            + " textures" + (missing ? ", " + std::to_string(missing) + " the game hasn't" : "")
+            + " textures" + (carried ? ", " + std::to_string(carried) + " of mod-ralia's" : "") + (missing ? ", " + std::to_string(missing) + " the game hasn't" : "")
             + (bad ? ", " + std::to_string(bad) + " that couldn't be made" : "") + " (" + std::to_string(seconds) + " s)");
         return true;
     }
