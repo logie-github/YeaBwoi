@@ -83,6 +83,17 @@ self-updating from this repository's GitHub releases.
   4. Fetch the default branch once more just before merging; if it moved, go back to 1. Then merge
      (a merge commit, not a squash or rebase), and confirm the default branch's CI run and release.
 
+## Orchestrate (use on every task)
+
+The user: "use it always". Every task in this repository runs under `/orchestrate`
+(`.claude/commands/orchestrate.md`, v5.0.1): inventory the work, print the `GATE:` and
+`APPLY-TIER:` lines, then follow the SOLO or SWARM path it prescribes. The deterministic
+SEARCH/REPLACE applier it requires is `.claude/tools/orch-apply/apply_blocks.py`
+(`python3 -I .claude/tools/orch-apply/apply_blocks.py plan.blocks --root . --atomic`).
+Scratch files (plan.json, plan.blocks, gate scripts) go outside the repo. Where the skill's
+§7.1 says pushes, pull requests and merges need human approval, the "Merge your own work
+without asking" rule above is that approval for this repository.
+
 ## World of Warcraft content: work as a senior designer at Blizzard
 
 The user: "For world of warcraft, put into your instructions to take on the role of a senior
