@@ -1,3 +1,0 @@
-# CreatureDisplayInfo: Corn's (tools/build_sql.py; the game's pug display, 31174, named for its coat by the patch)
-types	iiiifissssiiiiii
-put	39700	3291	3100	0	0.9	255	ForsakenPug_Corn				0	0	332	0	0	0

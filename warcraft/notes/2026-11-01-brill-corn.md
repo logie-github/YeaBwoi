@@ -1,0 +1,4 @@
+- Corn, the dog from the Brill house, is now the zombified pug model and coat you supplied, and shows over the HD patches' pug.
+- Brill: the added objects now use the area's own Lordaeron and Forsaken looks. Added lamps, braziers, signs, boards and clutter are gone.
+- Brill's quest objects now appear and sparkle only while their quest is in your log.
+- The Night Watch no longer asks you to light patrol braziers.

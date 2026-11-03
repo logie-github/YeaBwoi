@@ -86,20 +86,17 @@ INSERT INTO `creature_template` (`entry`, `name`, `subname`, `gossip_menu_id`, `
 (970113, 'Played fetch with Corn', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, ''),
 (970114, 'Scratched Corn behind the ears', NULL, 0, 1, 1, 35, 0, 1, 1, 1, 33554432, 10, 0, 0, 130, '');
 INSERT INTO `creature_template_model` (`CreatureID`, `Idx`, `CreatureDisplayID`, `DisplayScale`, `Probability`) VALUES
-(970112, 0, 39700, 1, 1),
-(970115, 0, 39700, 1, 1),
-(970116, 0, 39700, 1, 1),
-(970117, 0, 39700, 1, 1),
+(970112, 0, 31174, 1, 1),
+(970115, 0, 31174, 1, 1),
+(970116, 0, 31174, 1, 1),
+(970117, 0, 31174, 1, 1),
 (970113, 0, 11686, 1, 1),
 (970114, 0, 11686, 1, 1);
 INSERT INTO `creature` (`guid`, `id`, `map`, `zoneId`, `areaId`, `spawnMask`, `phaseMask`, `position_x`, `position_y`, `position_z`, `orientation`, `spawntimesecs`, `wander_distance`, `MovementType`, `Comment`) VALUES
 (970101, 970112, 0, 85, 159, 1, 1024, 2273.180, 479.944, 34.060, 4.4506, 60, 0, 0, 'mod-brill-home');
 DELETE FROM `creature_model_info` WHERE `DisplayID` BETWEEN 39700 AND 39703;
-INSERT INTO `creature_model_info` (`DisplayID`, `BoundingRadius`, `CombatReach`, `Gender`, `DisplayID_Other_Gender`) SELECT 39700, `BoundingRadius`, `CombatReach`, `Gender`, 0 FROM `creature_model_info` WHERE `DisplayID` = 31174;
 DELETE FROM `creaturemodeldata_dbc` WHERE `ID` = 3970;
 DELETE FROM `creaturedisplayinfo_dbc` WHERE `ID` BETWEEN 39700 AND 39703;
-INSERT INTO `creaturedisplayinfo_dbc` (`ID`, `ModelID`, `SoundID`, `ExtendedDisplayInfoID`, `CreatureModelScale`, `CreatureModelAlpha`, `TextureVariation_1`, `TextureVariation_2`, `TextureVariation_3`, `PortraitTextureName`, `BloodLevel`, `BloodID`, `NPCSoundID`, `ParticleColorID`, `CreatureGeosetData`, `ObjectEffectPackageID`) VALUES
-(39700, 3291, 3100, 0, 0.9, 255, 'ForsakenPug_Corn', '', '', '', 0, 0, 332, 0, 0, 0);
 INSERT INTO `npc_text` (`ID`, `text0_0`, `text0_1`, `Probability0`) VALUES
 (970144, '(The dog looks happy to see you.)', '(The dog looks happy to see you.)', 1),
 (970145, '(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)', '(Corn sits by the door, watching you. He seems to be waiting until you have room for him.)', 1);

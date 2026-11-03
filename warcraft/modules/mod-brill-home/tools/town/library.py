@@ -309,148 +309,86 @@ LINE = {
          "spawns": [S(0.0, 0.0, OFFICE_Z)]},
         # More Than Ashes: the counter, the cellar, the chest.
         {"id": "counter", "name": "Customs Counter", "display": 7732, "from": 1, "until": 6, "spawns": [S(6.2, 3.5, 35.19)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "inspect_credit",
-                  "text": "(The customs counter, its brass rail gone green. Carved into the top by generations of bored clerks: "
-                          "tallies, initials, a very good drawing of a horse. The last tariff notice is still nailed behind it: "
-                          "GRAIN FROM ANDORHAL, ONE PENNY THE SACK. REDUCED BY ORDER OF THE CROWN.)"},
-                 {"text": "(The old customs counter. Edmund has started stacking books on it, in an order only he understands.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "inspect_credit"}]},
         {"id": "cellar", "name": "Flooded Cellar Hatch", "display": 6481, "from": 1, "until": 6,
          "spawns": [S(-4.5, -4.0, 34.95)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "inspect_credit",
-                  "text": "(The hatch lifts on black water two steps down. Things float in it: a ledger, a hat, a great many "
-                          "corks. Somewhere at the back, rain is coming in through a broken window at ground level. Edmund, "
-                          "behind you, makes a small, wounded noise.)"},
-                 {"cond": ["R:q2"], "text": "(The cellar, pumped dry, its window mended. Tobias keeps the paper down here now, in "
-                                           "oilcloth, off the floor.)"},
-                 {"text": "(A flooded cellar. Nobody goes down.)"}]},
-        {"id": "office_chest", "name": "Water-Stained Record Chest", "display": 1, "from": 1, "until": 6,
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "inspect_credit"}]},
+        {"id": "office_chest", "name": "Water-Stained Record Chest", "quest_only": True, "display": 1, "from": 1, "until": 6,
          "spawns": [S(5.5, -6.5, 35.21, 30)],
-         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "chest_credit",
-                  "text": "(In the ruined back office, under a fallen shelf: a strongbox of customs records, its lid warped but "
-                          "its lock still faithful. You carry it out between you. It's heavier than it should be. Edmund says that "
-                          "is how you know the records are good.)"}]},
+         "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "chest_credit"}]},
         # From the first quest done: Edmund's desk and his crates of books, the sign; Tobias's shelves and the window.
         {"id": "desk", "name": "Edmund's Desk", "display": 581, "from": 2, "until": 6, "spawns": [S(5.0, 11.6, GROUND, 90)]},
         {"id": "desk_books", "name": "Edmund's Notes", "display": 107, "from": 2, "until": 6,
-         "spawns": [S(5.0, 11.6, GROUND + 1.12, 70)],
-         "use": [{"text": "(Edmund's notes, in a hand that gets smaller toward the bottom of each page. \"Tuesday. Rain. $n came "
-                          "by. Asked about the cellar. Hamlin Atkins says the mushrooms are early. I do not remember the name of "
-                          "the dog we had when I was nine. I am writing down that I do not remember it, so that I remember not "
-                          "remembering.\")"}]},
+         "spawns": [S(5.0, 11.6, GROUND + 1.12, 70)]},
         {"id": "crates", "name": "Crate of Books", "display": 335, "from": 2, "until": 6,
          "spawns": [S(8.0, 10.5, GROUND, 20), S(8.6, 12.0, GROUND, 70)]},
         {"id": "crate_books", "name": "Stack of Books", "display": 43, "from": 2, "until": 6,
          "spawns": [S(8.0, 10.5, GROUND + 1.03, 40), S(8.6, 12.0, GROUND + 1.03, 110)]},
-        {"id": "sign", "name": "Under Construction", "display": 7416, "from": 2, "until": 6, "spawns": [S(-1.5, 12.5, GROUND, 90)]},
-        {"id": "unbuilt", "name": "Unassembled Shelves", "display": 1108, "from": 2, "until": 6, "spawns": [S(-5.0, 6.2, 35.15, 70)],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "assembled_credit",
-                  "text": "(Tobias holds the uprights and you set the shelves, one bracket at a time. He checks each one with a "
-                          "level so old the bubble has gone yellow. When the last one is in, he leans on it with his whole weight, "
-                          "which is not much, and nods.)"}]},
+        {"id": "unbuilt", "name": "Unassembled Shelves", "quest_only": True, "display": 1108, "from": 2, "until": 6, "spawns": [S(-5.0, 6.2, 35.15, 70)],
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "assembled_credit"}]},
         {"id": "window", "name": "Broken Cellar Window", "display": 6716, "scale": 1.5, "from": 2, "until": 6,
          "spawns": [S(-7.6, -5.0, 35.1, 90)],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "assembled_credit",
-                  "text": "(You knock out the last of the broken panes, fit a frame of the new oak and bed a sheet of oiled "
-                          "parchment into it against the rain. It isn't glass. It'll do until somebody in Brill can make glass "
-                          "again.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "assembled_credit"}]},
         # From the second: shelves and a reading table in the office (the table is Edmund's worktable after).
         {"id": "office_shelves", "name": "Bookshelf", "display": 188, "from": 3, "until": 6,
          "spawns": [S(-6.4, -1.0, 35.1), S(-6.4, 2.5, 35.14)]},
         {"id": "worktable", "name": "Edmund's Worktable", "display": 234, "from": 3, "until": 6, "spawns": [S(1.0, -2.0, 35.03)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "chronicle_credit",
-                  "text": "(You lay the recovered pages into the chronicle's binding, Edmund matching the torn edges. The last "
-                          "entry is in a steady hand:$B$B\"We have opened the church to all who come, the coughing and the well "
-                          "together, for none can say which of us is which, and it would be a sin to choose. Father Osgood says "
-                          "the Light will sort us. I think it is more likely we must sort ourselves. The Crown's men are on the "
-                          "road. If this book is found, know that Cinderford did not bar its door.\")"},
-                 {"text": "(Edmund's worktable, covered in paper weights, string and three pairs of spectacles, none of which he "
-                          "needs.)"}]},
-        {"id": "lamp", "name": "Reading Lamp", "display": 6038, "from": 3, "until": 6, "spawns": [S(1.0, -2.0, 36.37)]},
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "chronicle_credit"}]},
         {"id": "office_chair", "name": "Chair", "display": 39, "type": 7, "from": 3, "until": 6, "spawns": [S(-0.9, -2.0, 35.03)]},
         # From the third: Maela's archive.
         {"id": "census_boxes", "name": "Census Boxes", "display": 335, "from": 4, "until": 6,
          "spawns": [S(5.8, -3.0, 35.15), S(5.8, -1.5, 35.15, 30)]},
         {"id": "records_cabinet", "name": "Records Cabinet", "display": 4, "from": 4, "until": 6,
-         "spawns": [S(6.6, 0.3, 35.15, 180)],
-         "use": [{"text": "(Maela's cabinet. Every drawer is labelled, and every label has been corrected at least once in the "
-                          "same hand. WHEELWRIGHTS' ROW. CHANDLERS' LANE. THE EASTERN WARD, MISC. THE EASTERN WARD, MISC., "
-                          "PROPERLY.)"}]},
+         "spawns": [S(6.6, 0.3, 35.15, 180)]},
         # From the fourth: the chronicle in its case.
-        {"id": "office_case", "name": "Locked Display Case", "display": 3371, "from": 5, "until": 6,
-         "spawns": [S(-3.0, -6.0, 34.99, 90)],
-         "use": [{"text": "(Under the glass: THE CINDERFORD CHRONICLE, open at its last page. A card beside it in Edmund's hand: "
-                          "\"They did not bar the door. Read it, and remember them correctly.\")"}]},
+        {"id": "office_case", "name": "Locked Display Case", "display": 234, "from": 5, "until": 6,
+         "spawns": [S(-3.0, -6.0, 34.99, 90)]},
         # An Open Book: the last table, and the books to be sorted.
         {"id": "last_table", "name": "Unfinished Reading Table", "display": 581, "from": 5, "until": 6,
          "spawns": [S(-1.5, 4.5, 35.17, 30)],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "table_credit",
-                  "text": "(Tobias has the legs on but not the top. You hold it square while he pegs it, and he sands the edge "
-                          "with his thumb, and then writes something very small on the underside where nobody will look.)"}]},
-        {"id": "unsorted", "name": "Unsorted Books", "display": 107, "from": 5, "until": 6,
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "table_credit"}]},
+        {"id": "unsorted", "name": "Unsorted Books", "quest_only": True, "display": 107, "from": 5, "until": 6,
          "spawns": [S(-5.5, -2.5, 35.01, 20), S(-5.5, 4.2, 35.18, 80), S(4.0, -5.0, 35.11, 140), S(2.5, 5.5, 35.19, 200),
                     S(-2.0, -6.5, 35.01, 260), S(6.2, 6.2, 35.19, 320)],
-         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "sort_credit",
-                  "text": "(Histories to the left, letters to the archive, farming to the back, poetry to Tobias, who says he'll "
-                          "sort it himself. You stack the pile where it belongs. Maela moves one of them two inches.)"}]},
+         "use": [{"cond": ["I:q5"], "quest": "q5", "credit": "sort_credit"}]},
         # ---- Out in Tirisfal ----
         # More Than Ashes: the Garrens' books (their farmhouse and barn at Garren's Haunt).
-        {"id": "garren_book", "name": "Rain-Swollen Book", "display": 1128,
+        {"id": "garren_book", "name": "Rain-Swollen Book", "quest_only": True, "display": 1128,
          "spawns": [W(2915.25, 382.59, 31.55, 30), W(2915.38, 376.73, 31.55, 150), W(2841.6, 418.4, 20.85, 260),
                     W(2846.5, 413.2, 20.85, 80), W(2906.5, 373.0, 30.63, 200)],
          "use": [{"cond": ["I:q1"], "quest": "q1", "credit": "book_credit",
-                  "text": "(A book, swollen and spotted but whole: a farmer's almanac, a book of sermons, a primer, a ledger of "
-                          "sheep, a novel with the last chapter torn out. On the flyleaf, in faded ink: GARREN. ASK BEFORE YOU "
-                          "BORROW.)"},
-                 {"text": "(An old book left to the rain. Edmund would want it. Edmund has enough.)"}]},
+                  "text": "(On the flyleaf: GARREN. ASK BEFORE YOU BORROW.)"}]},
         # Shelves for the Dead: the dead oaks west of town.
-        {"id": "hardwood", "name": "Seasoned Deadwood", "display": 1108,
+        {"id": "hardwood", "name": "Seasoned Deadwood", "quest_only": True, "display": 1108,
          "spawns": [W(2112.0, 352.0, 48.09, 30), W(2104.0, 371.0, 45.03, 110), W(2118.0, 389.0, 49.93, 200),
                     W(2098.0, 402.0, 54.59, 290), W(2109.0, 418.0, 57.99, 20), W(2124.0, 432.0, 64.93, 100),
                     W(2092.0, 380.0, 45.51, 190), W(2130.0, 410.0, 60.73, 280)],
-         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "hardwood_credit",
-                  "text": "(A fallen limb from one of the oaks the blight killed, silver-grey and hard as horn. It rings when you "
-                          "knock it. Tobias will want it planed, not sawn.)"}]},
+         "use": [{"cond": ["I:q2"], "quest": "q2", "credit": "hardwood_credit"}]},
         # The Names We Carried: the Agamand mill's ledger.
-        {"id": "mill_ledger", "name": "Agamand Mill Ledger", "display": 470, "spawns": [W(2827.5, 810.5, 113.61, 140)],
+        {"id": "mill_ledger", "name": "Agamand Mill Ledger", "quest_only": True, "display": 470, "spawns": [W(2827.5, 810.5, 113.61, 140)],
          "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "ledger_credit",
                   "text": "(The mill's flour ledger, its pages stuck at the corners. Every household in the eastern ward that "
                           "bought Agamand flour, in a miller's blunt hand. WHEELWRIGHTS' ROW: no. 9, ARLENTO, 2 sacks; no. 11, "
                           "TOLLEY, 1 sack, owes; no. 14, BELTIS, 2 sacks.)"}]},
         # The Missing Chapter: the Crusade's record store in the Solliden barn.
-        {"id": "store", "name": "Scarlet Sorting Table", "display": 234, "spawns": [W(2336.0, 1312.0, 34.05, 180)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "store_credit",
-                  "text": "(A long table under the barn's loft, stacked with books and letters in neat piles, each with a slip of "
-                          "red paper: TAINTED. TAINTED. HERETICAL. TAINTED. A brazier stands ready at the end. Most of the piles "
-                          "have been searched. The Cinderford chronicle's binding is here, its pages pulled out and scattered "
-                          "through the others.)"},
-                 {"text": "(The Crusade's sorting table, stacked with the books of the dead, waiting for the brazier.)"}]},
-        {"id": "chronicle_page", "name": "Chronicle Page", "display": 164,
+        {"id": "store", "name": "Scarlet Sorting Table", "quest_only": True, "display": 234, "spawns": [W(2336.0, 1312.0, 34.05, 180)],
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "store_credit"}]},
+        {"id": "chronicle_page", "name": "Chronicle Page", "quest_only": True, "display": 164,
          "spawns": [W(2331.5, 1311.0, 34.05, 40), W(2338.5, 1316.5, 34.05, 130), W(2333.0, 1318.5, 34.05, 260)],
-         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "cpage_credit",
-                  "text": "(A page in the Cinderford clerk's steady hand, marked TAINTED in red chalk. You fold it into your pack "
-                          "with the others.)"}]},
+         "use": [{"cond": ["I:q4"], "quest": "q4", "credit": "cpage_credit"}]},
         # Lost Pages: documents in the abandoned places.
-        {"id": "lost_doc", "name": "Lost Document", "display": 220,
+        {"id": "lost_doc", "name": "Lost Document", "quest_only": True, "display": 220,
          "spawns": [W(2846.0, 419.0, 20.85, 30), W(2821.0, 809.5, 113.61, 120), W(2262.97, 1319.08, 34.05, 210),
                     W(2131.5, 684.5, 37.67, 300)],
-         "use": [{"cond": ["I:lost"], "quest": "lost", "credit": "lost_credit",
-                  "text": "(Paper, folded small and kept dry by luck: a letter, a receipt, a page of somebody's diary. You take "
-                          "it carefully for Edmund.)"},
-                 {"text": "(Old paper, already copied for the library.)"}]},
+         "use": [{"cond": ["I:lost"], "quest": "lost", "credit": "lost_credit"}]},
         # ---- The library, open (stage 6 on) ----
         {"id": "library", "name": "Reclamation Library", "display": 7463, "type": 33, "from": 6,
          "spawns": [T(0.0, 0.0, LIBRARY_Z)]},
-        {"id": "library_sign", "name": "The Reclamation Library", "display": 6135, "from": 6,
-         "spawns": [T(15.5, -10.0, 35.66, -90)],
-         "use": [{"text": "(THE RECLAMATION LIBRARY. OPEN DAWN TO DUSK, AND LATER IF YOU ASK. BOOKS MAY BE READ HERE OR BORROWED "
-                          "WITH THE LIBRARIAN'S NOTE. BRING US WHAT YOU FIND.)"}]},
         {"id": "shelves", "name": "Bookshelf", "display": 188, "from": 6,
          "spawns": [T(-4.9, -5.2, FLOOR), T(-4.9, -2.0, FLOOR), T(-4.9, 1.2, FLOOR), T(-2.2, 3.6, FLOOR, -90),
                     T(1.0, 3.6, FLOOR, -90), T(16.6, -4.5, FLOOR, 180), T(16.6, 1.9, FLOOR, 180), T(12.0, 5.6, FLOOR, 90)]},
         {"id": "tables", "name": "Reading Table", "display": 234, "from": 6,
          "spawns": [T(9.0, -3.5, FLOOR, 90), T(9.0, 1.5, FLOOR, 90)]},
-        {"id": "lamps", "name": "Reading Lamp", "display": 6038, "from": 6,
-         "spawns": [T(9.6, -3.5, FLOOR + 1.34), T(8.4, 1.5, FLOOR + 1.34)]},
         {"id": "chairs", "name": "Chair", "display": 39, "type": 7, "from": 6,
          "spawns": [T(8.0, -5.6, FLOOR, 90), T(10.0, -5.6, FLOOR, 90), T(8.2, -0.9, FLOOR, 90), T(10.0, -0.9, FLOOR, 90)]},
         {"id": "edmund_desk", "name": "Librarian's Desk", "display": 581, "from": 6, "spawns": [T(14.5, -2.0, FLOOR)]},
@@ -459,46 +397,17 @@ LINE = {
         {"id": "archive_boxes", "name": "Census Boxes", "display": 335, "from": 6,
          "spawns": [T(16.0, 6.5, FLOOR), T(16.0, 8.2, FLOOR, 30)]},
         # The chronicle's case, and what was given for it.
-        {"id": "case", "name": "The Cinderford Chronicle", "display": 3371, "from": 6, "spawns": [T(14.0, 2.5, FLOOR, 180)],
-         "use": [{"cond": ["M:slate"],
-                  "text": "(THE CINDERFORD CHRONICLE, under glass, open at its last page: \"...know that Cinderford did not bar "
-                          "its door.\" Beside it, the library's first gift: a child's slate from a Tirisfal schoolroom, the day's "
-                          "lesson still chalked on it, A IS FOR APPLE, B IS FOR BREAD, half rubbed out by a small sleeve.)"},
-                 {"cond": ["M:crown"],
-                  "text": "(THE CINDERFORD CHRONICLE, under glass, open at its last page: \"...know that Cinderford did not bar "
-                          "its door.\" Beside it, the library's first gift: a silver crown of Lordaeron, struck the year of the "
-                          "plague, King Terenas young on one side and the harvest wheat on the other.)"},
-                 {"cond": ["M:broadsheet"],
-                  "text": "(THE CINDERFORD CHRONICLE, under glass, open at its last page: \"...know that Cinderford did not bar "
-                          "its door.\" Beside it, the library's first gift: a herald's broadsheet, water-stained: GOOD NEWS FOR "
-                          "THE NORTHERN PARISHES. GRAIN FROM ANDORHAL AT A FAIR PRICE. Someone in Brill has pinned a black "
-                          "ribbon to the corner.)"},
-                 {"text": "(THE CINDERFORD CHRONICLE, under glass, open at its last page: \"...know that Cinderford did not bar "
-                          "its door.\")"}]},
+        {"id": "case", "name": "The Cinderford Chronicle", "display": 234, "from": 6, "spawns": [T(14.0, 2.5, FLOOR, 180)]},
         # Readable books on the tables.
         {"id": "book_parish", "name": "Brill: A Parish History", "display": 184, "from": 6,
-         "spawns": [T(8.6, -3.2, FLOOR + 1.34, 20)],
-         "use": [{"text": "(BRILL: A PARISH HISTORY, by a vicar who was very proud of the drains. Brill was a market town on the "
-                          "Lordamere road, known for its mushrooms, its fairs and the fine bell in its square. In the margin, in "
-                          "a newer hand: \"The fair was in autumn. Everyone came. I remember the smell of the roasting chestnuts, "
-                          "though I cannot taste them now. - M.Q., correcting the date, which was wrong.\")"}]},
+         "spawns": [T(8.6, -3.2, FLOOR + 1.34, 20)]},
         {"id": "book_primer", "name": "A Child's Primer", "display": 254, "from": 6,
-         "spawns": [T(9.4, 1.8, FLOOR + 1.34, 160)],
-         "use": [{"text": "(A small green primer, the first book on the library's first shelf. On the flyleaf: \"For my Davey, who "
-                          "will read it before I can. Mother.\" Underneath, Edmund has added a card: \"Davey Brewer, of the "
-                          "Lordamere road, 1 of 4 children. Still looking. - E.R.\")"}]},
+         "spawns": [T(9.4, 1.8, FLOOR + 1.34, 160)]},
         {"id": "book_records", "name": "The Brill Register", "display": 470, "from": 6,
-         "spawns": [T(14.5, -2.0, FLOOR + 1.12, 90)],
-         "use": [{"text": "(Edmund's register of everything that comes into the library: who brought it, where it was found, what "
-                          "the weather was. Near the front, in a careful hand: \"Item the first: a primer. Brought by $n. Rain.\")"}]},
+         "spawns": [T(14.5, -2.0, FLOOR + 1.12, 90)]},
         # ---- The house's library set (bought from Tobias): histories and bound journals by the bed ----
-        {"id": "house_histories", "name": "Library Histories", "display": 43, "from": 7, "spawns": [["house", -0.15, 4.97, 2.12, -90]],
-         "use": [{"text": "(A stack of histories from the Reclamation Library, on long loan: the parish, the eastern ward, the "
-                          "Lordamere road. Edmund's card inside the top one says: \"Return whenever. I've written down that you "
-                          "have them.\")"}]},
-        {"id": "house_journals", "name": "Bound Journals", "display": 107, "from": 7, "spawns": [["house", 0.75, 4.97, 2.12, -90]],
-         "use": [{"text": "(Three blank journals in Tobias Wren's bindings, the spines stitched in black. On the first page of the "
-                          "first, very small, a line of his: \"For the days you'd like to keep.\")"}]},
+        {"id": "house_histories", "name": "Library Histories", "display": 43, "from": 7, "spawns": [["house", -0.15, 4.97, 2.12, -90]]},
+        {"id": "house_journals", "name": "Bound Journals", "display": 107, "from": 7, "spawns": [["house", 0.75, 4.97, 2.12, -90]]},
     ],
     "gossip": [
         # ---- Edmund at the office ----

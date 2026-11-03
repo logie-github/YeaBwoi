@@ -212,6 +212,7 @@
     <string name="wow_update_checking">Checking for updates…</string>
     <string name="wow_update_available_title">Update available</string>
     <string name="wow_update_available">%1$s is available. You have %2$s.\n\nDownload it (%3$s) and install it now? The server stops first; your accounts, characters and files stay.</string>
+    <string name="wow_update_notes">What\'s new:</string>
     <string name="wow_update_download">Download</string>
     <string name="wow_update_later">Not now</string>
     <string name="wow_update_latest_title">You\'re up to date</string>

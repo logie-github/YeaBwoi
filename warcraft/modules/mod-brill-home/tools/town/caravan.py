@@ -367,123 +367,81 @@ LINE = {
          "spawns": [[0, 2198.0, 300.0, 32.39, 0.524]]},
 
         # 1: Irena's field desk by the road (until the office opens).
-        {"id": "desk_tent", "name": "Quartermaster's Awning", "display": 6738, "scale": 0.7, "from": 1, "until": 6,
+        {"id": "desk_tent", "name": "Quartermaster's Awning", "display": 8698, "scale": 0.7, "from": 1, "until": 6,
          "spawns": [[0, 2196.2, 264.6, 38.33, 5.34]]},
         {"id": "desk", "name": "Field Desk", "display": 234, "from": 1, "until": 6, "spawns": [[0, 2201.3, 259.4, 35.9, 5.34]]},
         {"id": "desk_box", "name": "Quartermaster's Strongbox", "display": 8, "from": 1, "until": 6,
          "spawns": [[0, 2197.6, 258.6, 36.63, 5.34]]},
-        {"id": "desk_lantern", "name": "Lantern", "display": 6038, "from": 1, "until": 6, "spawns": [[0, 2202.8, 261.6, 36.05, 0.0]]},
-        {"id": "registry_sign", "name": "Provisional Caravan Registry", "display": 202, "from": 1, "until": 6,
-         "spawns": [[0, 2204.4, 257.2, 35.0, 5.34]],
-         "use": [{"text": "(PROVISIONAL CARAVAN REGISTRY. ALL ARRIVALS TO REPORT TO THE QUARTERMASTER WITH MANIFEST, SEAL AND "
-                          "PURPOSE. Below, smaller: Purpose is not optional. Below that, in another hand: \"To sell things.\" "
-                          "Below that, in the first hand: Acceptable.)"}]},
         # The Road Isn't Empty: the drivers' wagons on the verge, the road's ruts, the two broken wagons, the stakes.
         {"id": "drivers_wagon", "name": "Stalled Supply Wagon", "display": 3678, "from": 1, "until": 6,
-         "spawns": [[0, 2186.0, 224.0, 37.1, 0.5], [0, 2194.5, 228.5, 34.99, 0.5], [0, 2202.5, 233.0, 34.16, 0.5]]},
-        {"id": "ruts", "name": "Rutted Roadway", "display": 20, "scale": 1.6, "from": 1, "until": 6,
+         "spawns": [[0, 2186.0, 224.0, 37.1, 0.5]]},
+        {"id": "ruts", "name": "Rutted Roadway", "quest_only": True, "display": 20, "scale": 1.6, "from": 1, "until": 6,
          "spawns": [[0, 2192.0, 238.0, 34.96, 0.5]],
          "use": [
-             {"cond": ["I:q1"], "quest": "q1", "credit": "road_credit",
-              "text": "(The road into Brill has been churned into two trenches by iron-shod wheels, and nobody has filled them "
-                      "since before the plague. A wheel that drops into one at any speed stays there. From the splinters in "
-                      "the mud, several have.)"},
-             {"text": "(Ruts deep enough to stand in. Someone has planted a stick in the deepest, with a rag tied to it.)"},
+             {"cond": ["I:q1"], "quest": "q1", "credit": "road_credit"},
          ]},
-        {"id": "broken_wagon", "name": "Broken Supply Wagon", "display": 7524, "from": 1, "until": 6,
+        {"id": "broken_wagon", "name": "Broken Supply Wagon", "quest_only": True, "display": 7524, "from": 1, "until": 6,
          "spawns": [[0, 2178.0, 222.5, 38.46, 0.8], [0, 2156.0, 222.0, 42.59, 1.9]],
          "use": [
-             {"cond": ["I:q1"], "quest": "q1", "credit": "road_credit",
-              "text": "(A supply wagon on its side, its axle snapped. The load has been picked over, and carefully: the crates "
-                      "were opened with a bar, not a claw, and nothing was spilled. Someone took their time.)"},
-             {"text": "(A broken supply wagon, picked clean.)"},
+             {"cond": ["I:q1"], "quest": "q1", "credit": "road_credit"},
          ]},
-        {"id": "site_stakes", "name": "Surveyor's Stakes", "display": 2270, "from": 1, "until": 6,
+        {"id": "site_stakes", "name": "Surveyor's Stakes", "quest_only": True, "display": 6134, "from": 1, "until": 6,
          "spawns": [[0, 2193.0, 274.0, 40.86, 0.8]],
          "use": [
-             {"cond": ["I:q1"], "quest": "q1", "credit": "site_credit",
-              "text": "(You pace out the ground Irena sketched, from the road's verge up the slope, and drive a stake at each "
-                      "corner with a borrowed mallet. It isn't much to look at. It's a start.)"},
-             {"text": "(Spare surveyor's stakes, ribboned in Undercity purple.)"},
+             {"cond": ["I:q1"], "quest": "q1", "credit": "site_credit"},
          ]},
 
         # 2: the survey's stakes, Dren's wagon, the big tent the first crates go into, the timber at the builder's yard.
-        {"id": "stakes", "name": "Survey Marker", "display": 2270, "from": 2, "until": 6,
-         "spawns": [[0, 2186.0, 267.15, 40.7, 0.79], [0, 2200.85, 282.0, 37.99, 0.79], [0, 2186.0, 296.85, 37.66, 0.79],
-                    [0, 2171.15, 282.0, 42.77, 0.79], [0, 2171.55, 243.65, 39.63, 5.41], [0, 2189.17, 258.43, 39.11, 5.41]]},
         {"id": "dren_wagon", "name": "Dren's Wagon", "display": 3678, "from": 2, "spawns": [[0, 2186.0, 249.5, 37.37, 0.55]]},
         {"id": "temp_tent", "name": "Temporary Warehouse", "display": 7195, "from": 2, "until": 6,
          "spawns": [[0, 2164.89, 244.59, 42.59, 5.41]]},
-        {"id": "timber", "name": "Timber Chalked \"Caravan\"", "display": 1108, "from": 2, "until": 6,
+        {"id": "timber", "name": "Caravan Timber", "quest_only": True, "display": 1108, "from": 2, "until": 6,
          "spawns": [[0, 2307.0, 468.0, 34.4, 1.0]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "iron_credit",
-              "text": "(Rudd's lads have chalked CARAVAN on the end of every board. You load what Dren asked for onto a handcart "
-                      "and leave the rest for the next errand.)"},
-             {"text": "(Timber chalked CARAVAN, waiting for a cart.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "iron_credit"},
          ]},
-        {"id": "platform_frame", "name": "Loading Platform Frame", "display": 1248, "from": 2, "until": 6,
+        {"id": "platform_frame", "name": "Loading Platform Frame", "quest_only": True, "display": 1248, "from": 2, "until": 6,
          "spawns": [[0, 2179.34, 247.58, 38.15, 5.41]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "platform_credit",
-              "text": "(You hold the uprights while Dren drives the pegs; then the two of you lay the deck and bolt Abe's "
-                      "brackets underneath. The winch goes on the end post. Dren tries it with his own weight. It holds.)"},
-             {"text": "(The frame of a loading platform, pegged and braced.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "platform_credit"},
          ]},
-        {"id": "stow_crates", "name": "Recovered Crates", "display": 113, "from": 2, "until": 6,
+        {"id": "stow_crates", "name": "Recovered Crates", "quest_only": True, "display": 113, "from": 2, "until": 6,
          "spawns": [[0, 2168.73, 243.9, 41.0, 5.41], [0, 2166.86, 246.9, 42.29, 5.41], [0, 2169.3, 246.33, 41.23, 5.41]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "platform_credit",
-              "text": "(You heave the crate off the pile and carry it into the big tent, where Dren has chalked squares on a "
-                      "groundsheet: ONE, TWO, THREE. You put it in a square. It feels absurdly important.)"},
-             {"text": "(Crates waiting their turn under the tent.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "platform_credit"},
          ]},
         # A Place to Unload: Brill's freight, dumped along the Undercity road by drivers with nowhere to unload.
-        {"id": "dumped", "name": "Dumped Shipping Crate", "display": 18,
+        {"id": "dumped", "name": "Dumped Shipping Crate", "quest_only": True, "display": 18,
          "spawns": [[0, 2158.0, 196.0, 42.66, 0.3], [0, 2152.5, 181.0, 41.23, 1.2], [0, 2140.0, 163.5, 38.05, 2.0],
                     [0, 2117.0, 165.5, 37.76, 0.4], [0, 2104.0, 161.0, 36.46, 2.5], [0, 2071.5, 160.5, 34.82, 1.1]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "crates_credit",
-              "text": "(The lid is stamped BRILL, BY WAY OF THE CROSSROADS, and someone has added in chalk: NOBODY HOME. Inside, "
-                      "packed in straw: lamp oil, nails, a bolt of grey cloth. Sound enough. You haul it up onto the verge "
-                      "for Dren's wagon.)"},
-             {"text": "(A shipping crate in the ditch, stamped BRILL. Somebody's order, still waiting.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "crates_credit"},
          ]},
 
         # 3: the warehouse's dock, crates and a wagon in the yard.
-        {"id": "dock", "name": "Loading Platform", "display": 7413, "scale": 2.0, "from": 3, "spawns": [[0, 2180.68, 250.66, 38.73, 5.41]]},
+        {"id": "dock", "name": "Loading Platform", "display": 36, "scale": 2.0, "from": 3, "spawns": [[0, 2180.68, 250.66, 38.73, 5.41]]},
         {"id": "yard_crates", "name": "Stacked Freight", "display": 31, "from": 3,
          "spawns": [[0, 2174.67, 246.92, 39.1, 5.76], [0, 2186.36, 254.77, 38.9, 0.35], [0, 2187.36, 262.14, 39.95, 5.41]]},
         {"id": "yard_wagon", "name": "Freight Wagon", "display": 3678, "from": 3, "spawns": [[0, 2157.42, 256.6, 42.93, 5.41]]},
 
         # The Missing Manifest: the wagon by the road, the records on the trail, the camp.
-        {"id": "q3_wagon", "name": "Abandoned Supply Wagon", "display": 7025,
+        {"id": "q3_wagon", "name": "Abandoned Supply Wagon", "quest_only": True, "display": 7524,
          "spawns": [[0, 2143.5, 174.0, 39.6, 0.6]],
          "use": [
-             {"cond": ["I:q3"], "quest": "q3", "credit": "records_credit",
-              "text": "(The wagon's been stripped to the boards. Wedged under the driver's bench, where a careful clerk would keep "
-                      "it, is the delivery docket: BRILL. SEED, OIL, NAILS, MEDICINE. BY DAY. Someone has scratched out BY "
-                      "DAY and written AFTER THE SECOND BELL. Trampled bracken leads up the hill to the west.)"},
-             {"text": "(An abandoned supply wagon, stripped to the boards.)"},
+             {"cond": ["I:q3"], "quest": "q3", "credit": "records_credit"},
          ]},
-        {"id": "trail_records", "name": "Dropped Shipping Record", "display": 164,
+        {"id": "trail_records", "name": "Dropped Shipping Record", "quest_only": True, "display": 164,
          "spawns": [[0, 2133.0, 190.0, 49.35, 0.9], [0, 2124.5, 206.5, 54.02, 2.0]],
          "use": [
              {"cond": ["I:q3"], "quest": "q3", "credit": "records_credit",
-              "text": "(A shipping record trodden into the mud: a bill of lading for Hamlin Atkins's seed, torn off its pad in "
-                      "a hurry. Further up the slope the bracken is broken where something heavy was dragged.)"},
-             {"text": "(A sodden scrap of paper, once important to someone.)"},
+              "text": "(A bill of lading for Hamlin Atkins's seed, torn off its pad.)"},
          ]},
         {"id": "camp_fire", "name": "Campfire", "display": 192, "spawns": [[0, 2115.0, 232.5, 61.84, 0.0]]},
         {"id": "camp_tent", "name": "Bandit's Tent", "display": 7873, "spawns": [[0, 2108.5, 230.5, 61.99, 0.4]]},
         {"id": "camp_crates", "name": "Stolen Goods", "display": 113, "spawns": [[0, 2112.0, 236.5, 61.8, 1.4]]},
         {"id": "cargo", "name": "Brill's Cargo", "display": 347, "spawns": [[0, 2111.5, 233.0, 62.03, 0.8]],
          "use": [
-             {"cond": ["I:q3"], "quest": "q3", "credit": "cargo_credit", "marker": "cargo_seen",
-              "text": "(Brill's crates, stacked under a tarpaulin with their seals barely broken. Nailed to the top one is a "
-                      "bill of sale in a round, cheerful hand: RECEIVED OF B. KEMP THE WHOLE LOT AT ONE THIRD, AS AGREED. "
-                      "TO BE COLLECTED AT THE THIRD BELL. S. PRICE. It's the same pen that rewrote the manifest.)"},
-             {"text": "(Crates under a bandit's tarpaulin, stamped BRILL.)"},
+             {"cond": ["I:q3"], "quest": "q3", "credit": "cargo_credit", "marker": "cargo_seen"},
          ]},
 
         # 4: the office's counter, its route maps, ledgers and the locked records.
@@ -491,59 +449,25 @@ LINE = {
          "spawns": [[0, 2188.62, 282.49, OFFICE_FLOOR, 4.73]]},
         {"id": "office_chair", "name": "Chair", "display": 91, "from": 4, "spawns": [[0, 2190.88, 283.2, OFFICE_FLOOR, 4.73]]},
         {"id": "map_table", "name": "Map Table", "display": 234, "from": 4, "spawns": [[0, 2181.76, 281.29, OFFICE_FLOOR, 0.79]]},
-        {"id": "route_map", "name": "Route Maps", "display": 222, "from": 4, "spawns": [[0, 2181.76, 281.29, 43.05, 1.13]],
-         "use": [
-             {"cond": ["M:first_undercity"], "text": "(Dren's maps of the Undercity road and the Silverpine road, inked over in "
-                                                     "Irena's hand. The Undercity road has a small black B at its end, and the "
-                                                     "date of Brill's first wagon.)"},
-             {"cond": ["M:first_silverpine"], "text": "(Dren's maps of the Undercity road and the Silverpine road, inked over in "
-                                                      "Irena's hand. The road to the Sepulcher has a small black B at its end, "
-                                                      "and the date of Brill's first wagon.)"},
-             {"text": "(Maps of Tirisfal and Silverpine, every road, every ford, every place a wheel has broken, in two "
-                      "hands: Dren's bold one and Irena's tidy one, correcting it.)"},
-         ]},
+        {"id": "route_map", "name": "Route Maps", "display": 222, "from": 4, "spawns": [[0, 2181.76, 281.29, 43.05, 1.13]]},
         {"id": "ledgers", "name": "Caravan Ledgers", "display": 43, "from": 4, "spawns": [[0, 2187.84, 286.67, OFFICE_FLOOR, 0.79]]},
-        {"id": "records_chest", "name": "Locked Records", "display": 8, "from": 4, "spawns": [[0, 2179.21, 282.28, OFFICE_FLOOR, 0.79]],
-         "use": [{"text": "(Locked, triple-hasped and chained to the floor. A card on the lid: RECORDS. BY APPOINTMENT. THE "
-                          "QUARTERMASTER HOLDS THE ONLY KEY. Under it, smaller: Don't ask her where.)"}]},
+        {"id": "records_chest", "name": "Locked Records", "display": 8, "from": 4, "spawns": [[0, 2179.21, 282.28, OFFICE_FLOOR, 0.79]]},
 
         # 5: the route signs and the noticeboard; the first wagon, its marked crates.
-        {"id": "route_sign", "name": "Brill Caravan Routes", "display": 663, "from": 5,
-         "spawns": [[0, 2195.5, 244.5, 34.91, 4.0], [0, 2207.0, 252.5, 34.27, 0.6]]},
-        {"id": "noticeboard", "name": "Caravan Noticeboard", "display": 17, "from": 5, "spawns": [[0, 2194.0, 256.0, 37.26, 5.34]],
-         "use": [
-             {"cond": ["R:q5"], "text": "(BRILL CARAVAN OFFICE. ARRIVALS: The Undercity, by day. The Sepulcher, at dusk. "
-                                        "DEPARTURES: by arrangement with the Quartermaster. LOST PROPERTY: see the "
-                                        "Quartermaster. COMPLAINTS: see the Quartermaster. Someone has added: \"Is there anyone "
-                                        "else?\" And underneath, in the first hand: No.)"},
-             {"text": "(BRILL CARAVAN OFFICE: OPENING SHORTLY. GUARDS WANTED: apply to the Quartermaster. DRIVERS WANTED: apply "
-                      "to Dren Hollow, who will tell you not to.)"},
-         ]},
         {"id": "first_wagon", "name": "Brill's First Wagon", "display": 3678, "from": 5, "until": 6,
          "spawns": [[0, 2178.91, 242.65, 37.17, 5.41]],
          "use": [
-             {"cond": ["I:q5"], "quest": "q5", "credit": "loaded_credit",
-              "text": "(You walk the wagon round: harness buckles sound, traces whole, every spoke tapped and ringing. Someone "
-                      "has painted a small black B on the tailboard, not quite straight. You suspect Dren, and you suspect "
-                      "he'd deny it.)"},
-             {"text": "(A new wagon with a crooked B painted on its tailboard.)"},
+             {"cond": ["I:q5"], "quest": "q5", "credit": "loaded_credit"},
          ]},
-        {"id": "marked_crates", "name": "Chalk-Marked Crate", "display": 31, "from": 5, "until": 6,
+        {"id": "marked_crates", "name": "Chalk-Marked Crate", "quest_only": True, "display": 31, "from": 5, "until": 6,
          "spawns": [[0, 2174.69, 243.02, 38.3, 5.58], [0, 2178.6, 239.13, 37.06, 6.11], [0, 2183.14, 242.28, 36.37, 0.35]],
          "use": [
-             {"cond": ["I:q5"], "quest": "q5", "credit": "loaded_credit",
-              "text": "(BRILL: OUTBOUND, in Irena's square capitals. You heave the crate up onto the wagon bed, and Dren, "
-                      "without looking, moves it two inches to the left.)"},
-             {"text": "(A crate chalked BRILL: OUTBOUND.)"},
+             {"cond": ["I:q5"], "quest": "q5", "credit": "loaded_credit"},
          ]},
 
         # 6: the office's sign, the yard's brazier, the scheduled caravans' wagons, the Rest's furniture; wagons
         # bringing goods to the market and to the brewery once it's open.
-        {"id": "bag_sign", "name": "Caravan Office", "display": 745, "from": 6, "spawns": [[0, 2194.2, 275.49, 40.89, 5.5]]},
-        {"id": "brazier", "name": "Yard Brazier", "display": 754, "from": 6, "spawns": [[0, 2192.96, 253.13, 36.99, 5.41]]},
         {"id": "uc_wagon", "name": "Undercity Caravan Wagon", "display": 3678, "from": 6, "when": "day",
-         "spawns": [[0, 2178.91, 242.65, 37.17, 5.41]]},
-        {"id": "sp_wagon", "name": "Silverpine Caravan Wagon", "display": 6952, "scale": 0.75, "from": 6, "when": "evening",
          "spawns": [[0, 2178.91, 242.65, 37.17, 5.41]]},
         {"id": "selwyn_cart", "name": "Selwyn's Wagon", "display": 5392, "scale": 0.75, "from": 6, "when": "day",
          "spawns": [[0, 2199.0, 263.5, 37.35, 1.0]]},
@@ -551,18 +475,8 @@ LINE = {
          "spawns": [[0, 2196.83, 297.02, REST_FLOOR, 0.52], [0, 2202.53, 299.15, REST_FLOOR, 0.52]]},
         {"id": "rest_bench", "name": "Bench", "display": 603, "from": 6,
          "spawns": [[0, 2197.63, 295.63, REST_FLOOR, 0.52], [0, 2196.03, 298.4, REST_FLOOR, 3.67]]},
-        {"id": "market_wagon", "name": "Caravan Office Delivery Cart", "display": 3678, "scale": 0.7, "from": 6, "when": "day",
-         "spawns": [[0, 2246.0, 263.0, 34.17, 2.6]]},
-        {"id": "brewery_wagon", "name": "Caravan Office Delivery Cart", "display": 3678, "scale": 0.7, "from": 6, "needs": {"brewery": 6},
-         "when": "morning", "spawns": [[0, 2210.5, 261.18, 34.89, 0.44]]},
         # The Wayfarer's Rest: its sign by the road, and Marta Greaves's tent on its ground until it's built.
-        {"id": "rest_sign", "name": "Wayfarer's Rest", "display": 727, "from": 1, "spawns": [[0, 2206.53, 292.22, 34.29, 5.24]],
-         "use": [
-             {"cond": ["R:q5"], "text": "(WAYFARER'S REST. BEDS, BOARD, NO QUESTIONS. M. GREAVES, PROP. A second board, newer: "
-                                        "ALE FROM THE OLD BREWERY, WHEN THE BREWER REMEMBERS TO DELIVER IT.)"},
-             {"text": "(WAYFARER'S REST, painted by hand on a plank. Below: ROOMS, ENQUIRE AT THE TENT. Below that: INN TO "
-                      "FOLLOW, WHEN THE CARAVAN OFFICE GETS ROUND TO IT.)"},
-         ]},
+        {"id": "rest_sign", "name": "Wayfarer's Rest", "display": 727, "from": 1, "spawns": [[0, 2206.53, 292.22, 34.29, 5.24]]},
         {"id": "marta_tent", "name": "Marta's Tent", "display": 7872, "from": 1, "until": 6,
          "spawns": [[0, 2198.93, 299.38, 34.29, 0.52]]},
 
@@ -570,10 +484,7 @@ LINE = {
         {"id": "house_chest", "name": "Sea Chest from the Sepulcher", "display": 8, "from": 7,
          "spawns": [["house", 0.25, -3.42, 0, 0]]},
         {"id": "house_parcels", "name": "Delivery Parcels", "display": 287, "scale": 0.7, "from": 7,
-         "spawns": [["house", -0.6, 4.1, 0, 20]],
-         "use": [{"text": "(Parcels from the caravan office, addressed in Irena's square capitals: TO THE HOUSE BY THE ROAD. "
-                          "One is a crate of candles. One rattles. One has DO NOT OPEN UNTIL WINTER'S VEIL on it, in Dren's "
-                          "hand, and has clearly been opened and closed again.)"}]},
+         "spawns": [["house", -0.6, 4.1, 0, 20]]},
     ],
     "gossip": [
         # Irena at her field desk, by how far the office has come and by Selwyn's fate.

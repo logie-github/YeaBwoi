@@ -13,7 +13,7 @@ who stopped answering him years ago. Five quests: the Cult's marks beneath Brill
 the bound guardians; Croft himself, through his door and his unsent letters; and Croft killed, his roll of the raised
 taken to the gravekeeper. The crypt (outside Brill) is everyone's: its guardians and Croft are there for all.
 
-Its result: the gravekeeper's greetings (grave.py), Gideon's, and a relic for the house: Croft's skull-candle, snuffed,
+Its result: the gravekeeper's greetings (grave.py), Gideon's, and a relic for the house: Croft's black candle, snuffed,
 in the house of a player who owns it (the phase "relic").
 """
 
@@ -136,7 +136,7 @@ LINE = {
                 "Thirty-one names. Lyle, Hester, and four children. Pike, the baker. Merriweather. ...I wrote some of "
                 "these into my ledger as 'remains not recovered.' I suppose I can finish the entries now.$B$B"
                 "(He sets the roll beside his ledger, carefully, as if it might wake.)$B$B"
-                "Isolde sent word. She's had something carried to your house, if you keep one here: Croft's skull-candle, "
+                "Isolde sent word. She's had something carried to your house, if you keep one here: Croft's black candle, "
                 "snuffed. She says every home ought to have one thing in it to remind you who isn't master there "
                 "anymore. Thank you, $n. For Brill."),
             "objectives": [("kill", "croft", 1, ""),
@@ -175,67 +175,46 @@ LINE = {
     ],
     "objects": [
         # The Sealed Passage: the marks, in Brill (only for those in the phase "unlocked").
-        {"id": "mark_cellar", "name": "Crowned Eye Sigil", "display": 465, "scale": 0.6, "phase": "unlocked",
+        {"id": "mark_cellar", "name": "Crowned Eye Sigil", "quest_only": True, "display": 465, "scale": 0.6, "phase": "unlocked",
          "spawns": [[0, 2293.5, 240.0, 27.3, 1.6]],
-         "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit",
-                  "text": "(Scratched into the cellar floor where the straw has been swept aside: an eye under a crown, its "
-                          "pupil a long stroke pointing north. The prisoners in the cells don't look at it.)"},
-                 {"text": "(An eye under a crown, scratched into the floor.)"}]},
-        {"id": "mark_stone", "name": "Mausoleum Foundation Stone", "display": 302, "scale": 0.8, "phase": "unlocked",
+         "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit"}]},
+        {"id": "mark_stone", "name": "Mausoleum Foundation Stone", "quest_only": True, "display": 302, "scale": 0.8, "phase": "unlocked",
          "spawns": [[0, 2378.0, 326.0, 38.73, 1.6]],
-         "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit",
-                  "text": "(The foundation stone has been re-mortared; behind it, a hollow. Cut into the stone's hidden face: "
-                          "the crowned eye, and under it the words CLEAN AIR BELOW. A mason's mark beside it: T.C.)"},
-                 {"text": "(A foundation stone, newer mortar around its edge.)"}]},
-        {"id": "mark_sunken", "name": "Sunken Earth", "display": 456, "scale": 0.7, "phase": "unlocked",
+         "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit"}]},
+        {"id": "mark_sunken", "name": "Sunken Earth", "quest_only": True, "display": 20, "scale": 0.8, "phase": "unlocked",
          "spawns": [[0, 2405.0, 318.0, 38.26, 1.6]],
-         "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit",
-                  "text": "(The ground has fallen into a long trench running north. At the bottom, in the clay, the top of a "
-                          "brick arch, and on its keystone the crowned eye. Cold air breathes up between the bricks.)"},
-                 {"text": "(A long trench where the ground has fallen in.)"}]},
+         "use": [{"cond": ["I:sealed"], "quest": "sealed", "credit": "marks_credit"}]},
         # Echoes of Lordaeron: the refugees' journals, in the crypt.
-        {"id": "journal_lyle", "name": "Water-Stained Journal", "display": 105, "spawns": [[0, 3045.0, 674.0, 81.2, 2.0]],
+        {"id": "journal_lyle", "name": "Water-Stained Journal", "quest_only": True, "display": 105, "spawns": [[0, 3045.0, 674.0, 81.2, 2.0]],
          "use": [{"cond": ["I:echoes"], "quest": "echoes", "credit": "journals_credit",
                   "text": "(HESTER LYLE, HER BOOK. 'Third day below. Master Croft says the air here is clean and the plague "
                           "cannot follow. The children are frightened of the Agamand vaults but I tell them the dead are "
-                          "only sleeping. God forgive me, I believed it.')"},
-                 {"text": "(A water-stained journal, its pages stuck together.)"}]},
-        {"id": "journal_pike", "name": "Baker's Daybook", "display": 447, "spawns": [[0, 3035.0, 657.0, 75.4, 4.0]],
+                          "only sleeping. God forgive me, I believed it.')"}]},
+        {"id": "journal_pike", "name": "Baker's Daybook", "quest_only": True, "display": 447, "spawns": [[0, 3035.0, 657.0, 75.4, 4.0]],
          "use": [{"cond": ["I:echoes"], "quest": "echoes", "credit": "journals_credit",
                   "text": "(Accounts in a baker's hand, flour and salt, and then: 'Croft brought bread again. Good white "
                           "bread. Where does he get the flour, with the mills shut? Lyle's youngest has the cough. Croft says "
-                          "it is only the damp. Croft says a great deal.')"},
-                 {"text": "(A baker's daybook, its accounts unfinished.)"}]},
-        {"id": "journal_boy", "name": "Child's Copybook", "display": 184, "scale": 0.8,
+                          "it is only the damp. Croft says a great deal.')"}]},
+        {"id": "journal_boy", "name": "Child's Copybook", "quest_only": True, "display": 184, "scale": 0.8,
          "spawns": [[0, 3021.5, 691.0, 66.5, 5.0]],
          "use": [{"cond": ["I:echoes"], "quest": "echoes", "credit": "journals_credit",
                   "text": "(Letters practised over and over in a careful round hand, and then, near the end: 'Mother says the "
                           "doors are bricked. Master Croft says it is for our own good. Mother has stopped answering. I am "
-                          "going to be brave like Da.')"},
-                 {"text": "(A child's copybook, the letters practised over and over.)"}]},
+                          "going to be brave like Da.')"}]},
         # A Master Without a Kingdom: Croft's door and his letters.
-        {"id": "ward", "name": "Bone-Warded Door", "display": 316, "spawns": [[0, 3050.0, 690.0, 66.6, 0.0]],
-         "use": [{"cond": ["I:master"], "quest": "master", "credit": "ward_credit",
-                  "text": "(A voice beyond the ward, mild and amused.)$B$B'A visitor. How long it's been. You'll be one of "
-                          "the Banshee's strays, I suppose. Freed, you call it. A dog off its lead is not free; it is lost. "
-                          "The Master is silent because the Master is patient. When He speaks again, every one of you will "
-                          "remember whose you are, and I will be here to welcome you home.'"},
-                 {"cond": ["T:master"], "text": "(The ward hums. Beyond it, someone is humming a hymn, slightly flat.)"},
-                 {"text": "(Bones set in a pattern across a doorway. They are cold to the touch.)"}]},
-        {"id": "croft_letters", "name": "Unsent Letters", "display": 164, "spawns": [[0, 3056.0, 693.0, 66.5, 3.0]],
+        {"id": "ward", "name": "Bone-Warded Door", "quest_only": True, "display": 6898, "spawns": [[0, 3050.0, 690.0, 66.6, 0.0]],
+         "use": [{"cond": ["I:master"], "quest": "master", "credit": "ward_credit"}]},
+        {"id": "croft_letters", "name": "Unsent Letters", "quest_only": True, "display": 164, "spawns": [[0, 3056.0, 693.0, 66.5, 3.0]],
          "use": [{"cond": ["I:master"], "quest": "master", "credit": "letters_credit",
                   "text": "(A stack of letters, each addressed TO MY MASTER, IN NORTHREND. 'Brill is tended. The flock is "
                           "counted.' 'I await your instruction.' 'The Banshee's rabble walk my town as if it were theirs.' "
-                          "'Master, I have been patient.' The most recent is only one line, written many times: 'Answer me.')"},
-                 {"text": "(A stack of letters, sealed and never sent.)"}]},
+                          "'Master, I have been patient.' The most recent is only one line, written many times: 'Answer me.')"}]},
         # No Masters but Ourselves: Croft's register, by his chair.
-        {"id": "roll", "name": "Roll of the Raised", "display": 163, "spawns": [[0, 3062.5, 697.0, 66.5, 3.6]],
+        {"id": "roll", "name": "Roll of the Raised", "quest_only": True, "display": 163, "spawns": [[0, 3062.5, 697.0, 66.5, 3.6]],
          "use": [{"cond": ["I:nomasters"], "quest": "nomasters", "credit": "records_credit",
-                  "text": "(A long roll of vellum in a fine, careful hand: thirty-one names, each with the date of its "
-                          "raising and a note of its use. SENTINEL. SENTINEL. LABOURER. SENTINEL. You roll it up and take it.)"},
-                 {"text": "(A roll of vellum, names in a fine and careful hand.)"}]},
+                  "text": "(Thirty-one names in a fine, careful hand, each with the date of its raising and its use. SENTINEL. SENTINEL. LABOURER. SENTINEL.)"}]},
         # The relic, in the house of a player who owns it, once Croft is dead.
-        {"id": "relic", "name": "Croft's Skull-Candle, Snuffed", "display": 6406, "phase": "relic",
+        {"id": "relic", "name": "Croft's Black Candle, Snuffed", "display": 4152, "phase": "relic",
          "spawns": [["house", 2.3, 4.97, 2.12, -90]]},
     ],
     "gossip": [
@@ -265,7 +244,7 @@ LINE = {
         # Its giver and the marks in Brill, for those who've found either clue: the cellar wall behind the house, or
         # Gideon's tale at the end of The Gravekeeper's Ledger.
         "unlocked": [["R:house.floorboards"], ["R:grave.bell"]],
-        # Croft's skull-candle in the player's house.
+        # Croft's black candle in the player's house.
         "relic": [["R:nomasters", "OWN"]],
     },
 }

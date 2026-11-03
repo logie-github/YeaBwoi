@@ -98,13 +98,22 @@ class WowUpdateActivity : AppCompatActivity() {
                         update.title,
                         BuildConfig.VERSION_NAME,
                         Formatter.formatShortFileSize(this, update.size)
-                    )
+                    ) + patchNotes(update)
                 )
                 .setPositiveButton(R.string.wow_update_download) { _, _ -> download(update) }
                 .setNegativeButton(R.string.wow_update_later) { _, _ -> finish() }
                 .setOnCancelListener { finish() }
         )
     }
+
+    /** The patch notes of the releases since the installed one, newest first (none for releases before they began). */
+    private fun patchNotes(update: WowUpdater.Update): String =
+        if (update.notes.isEmpty()) {
+            ""
+        } else {
+            "\n\n" + getString(R.string.wow_update_notes) + "\n" +
+                update.notes.joinToString("\n") { (title, lines) -> "\n" + title + "\n" + lines.joinToString("\n") }
+        }
 
     private fun download(update: WowUpdater.Update) {
         val progress = ProgressView(this, getString(R.string.wow_update_downloading, update.title))

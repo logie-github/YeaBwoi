@@ -72,7 +72,7 @@ wall (x -1.0 to 3.5, to y 4.6; its mantel 2.1 up); the door is x -3.0 to -0.25 i
 fill the north corners and posts the south ones; the loft is over the south third. The bed is in the
 south-east corner under the loft, the table, chairs and wardrobe on the west side, the bookshelf and the
 chests on the east wall, the rug and the dog's bed before the hearth, the stove beside it, the family
-portrait over the mantel, and the projects' furnishings in the gaps (books and Croft's skull-candle on
+portrait over the mantel, and the projects' furnishings in the gaps (books and Croft's black candle on
 the mantel). The house's model draws only its own loft barrels. No piece overlaps another, a wall, the
 hearth or the doorway (the rug lies under a chair and the dog's bed).
 
@@ -97,7 +97,7 @@ furniture's turns (assumed: the models' fronts at their +x).
 ## Corn, the dog
 
 The first time the player sleeps in the bed, they wake to Corn beside it: a zombified pug, the game's own
-pug in the user's Forsaken texture (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
+pug in the user's Forsaken coat (`warcraft/branding/corn-forsaken-pug.png` (`warcraft/branding/corn-forsaken-pug.png`: gray-green, stitched,
 glowing yellow eyes, his name on his collar's tag; the user: "Use this texture on the pug dog you get from
 the quest in brill. Name the dog Corn", then "my pug is supposed to be zombified"). He doesn't talk; what
 he does is shown: "(The dog looks happy to see you.)". His quest, **A Visitor in the Night**: throw the
@@ -128,19 +128,19 @@ What it changes for classes with their own summons: a warlock, mage, shaman or d
 dog counts as a hunter for pets too, so their own pets come back after a mount or a flight as a hunter's
 do, and keep their spells' cooldowns when summoned.
 
-His looks: display 39700, the 3.3.5a client's own Perky Pug model (CreatureModelData 3291) with the
-user's coat. Nothing is downloaded or converted (the Cataclysm mastiff before him, a converted model,
-once showed as a cube; then the plain pug, display 31174). The world server makes the module's patch for
-the game (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`) from the client's own files:
-the pug model as it is but for its coat, made a texture a display names (a creature's skin, kind 11, and
-the model's replaceable texture lookup), the tan coat named for the game's own pug display (31174 looks as
-it did), Corn's display row and his coat (`data/client/files/Creature/Pug/ForsakenPug_Corn.blp`, a DXT1
-BLP `tools/build_sql.py` makes from the user's texture), with the cellar's looks. Where the patch isn't in
-the game (no client on the machine, or its pug not as expected), Corn is the plain pug: the dog, his pet
-and the companion are given 31174 (`src/BrillHome.cpp`), so he's never a display the game hasn't. The
-quest dog, adopted pets (in the stable too) and hunters' companions all take his looks; quest progress
-and pet ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken
-out; the Alternative HD Patch's water, which has the same name, is left alone.
+His looks: the game's own pug (Perky Pug's model and display, 31174) in the user's coat. The coat
+(`data/client/corn/ForsakenPug_Corn.blp`, a DXT5 BLP `tools/build_sql.py` makes from the user's texture) has the
+game's own pug coat's layout, the same as the Alternative HD Patch's `Creature\Pug\Pug_Tan.blp`, so the module's
+patch (`Data/<locale>/patch-<locale>-V.MPQ`, `src/BrillHomePatch.cpp`) puts it at the path the game's pug model
+names for its coat; no model and no table of the game's is changed. In the game the `Data` folder's patches win
+over the language folder's, and the HD patch's `Data/patch-F.MPQ` has its own coat at that path: the coat's path
+is listed beside the patch (`.files`) and the Skyborne's `Data/patch-Z.MPQ`, the last of the `Data` patches,
+carries it too. (Before: a display of his own, 39700, and then a model converted from today's game to 3.3.5a's
+format both showed as the game's blue and white cube; the coat in this patch alone lost to the HD patch's.)
+Every pug in the game wears his coat (Perky Pug is the only other). Without the patch in the game he's the plain tan pug. The quest dog,
+adopted pets (in the stable too) and hunters' companions are all the pug's display; quest progress and pet
+ownership are kept. An old `Data/patch-W.MPQ` of this module's (the mastiff's) is still taken out; the
+Alternative HD Patch's water, which has the same name, is left alone.
 
 ## Carolai Anise
 
@@ -198,7 +198,7 @@ character alone (the town's phases, anywhere in Brill), or in what people say.
 | The Last Customer | 970600-970604 | Ambrose Wicke, Candles and Sundries (east of the town hall) | the candlesticks kept lit or sold | his stall's goods out, and his wares; his morbid cheer |
 | A Deathguard's Duty | 970700-970704 | Deathguard Dillinger | Harlan back at his post or reassigned | Harlan on the north road or at the cemetery |
 | Something in the Well | 970800-970804 | Maudie Fenwick, laundress (the square's new well) | none | the well clean, its water drawn; Maudie's washtubs |
-| Beneath the Gallows | 970900-970904 | Deathstalker Isolde Ashcroft (by the mausoleum), once the house's cellar wall or the gravekeeper's passage is found | none | Aldric Croft's skull-candle in the house |
+| Beneath the Gallows | 970900-970904 | Deathstalker Isolde Ashcroft (by the mausoleum), once the house's cellar wall or the gravekeeper's passage is found | none | Aldric Croft's black candle in the house |
 
 The Gallows' crypt is the game's own Agamand Family Crypt (its sentinels and Croft are everyone's to see);
 the Last Customer's relative is at the Sepulcher in Silverpine. Lines notice each other where it fits (the
@@ -210,8 +210,8 @@ Nore each have words for the other, and she has some on Wendell and the well.
 ### The Community Projects
 
 The user's next design: once any three of the lines above (or Carolai's) are done, Magistrate Sevren's
-**Brill Endures** (971000: tell Executor Zygand and Jamie Nore, ring the square's bell) puts up the Town
-Improvement Board outside the town hall and opens the builder's yard on the north road (Rudd Carver).
+**Brill Endures** (971000: tell Executor Zygand and Jamie Nore, ring the square's bell) opens the
+builder's yard on the north road (Rudd Carver).
 Six projects then open at once, each optional, each its own:
 
 | Project | Quests | Leader | Where | Choices (words only) |
@@ -236,6 +236,29 @@ Not seen in the game: any of the new places, the projects' buildings (placed by 
 models: the chapel 30 yards east of its planned spot to clear the graves, the brewery a farmhouse, not a
 barn, which fit nowhere by the Gallows' End), models' sizes and turns, the crypt's spawns inside it, the
 new well and stall, the routes. Nothing here has run on a phone.
+
+## The quests on the maps, and Questie
+
+The user: "Be sure to add quest markers and stuff so that it shows objectives on the map and make it compatible
+with questie". `tools/build_questie.py` (run by `tools/build_town.py` and `tools/build_sql.py` after them) makes both
+from the module's world SQL:
+
+- **The game's own markers** (`data/sql/chromiecraft/world/brill_quest_poi.sql`, `quest_poi` and
+  `quest_poi_points`): for each of the house's and town's quests, a blob on the world map around where each
+  objective is done (the objects that give it, the creatures to speak with or kill; the game's own creatures where
+  the world database has them, read as the file is applied) and one at whoever takes it back. The tracker's map
+  button and the world map's quest list show them.
+- **Questie** (its 3.3.5 port, Questie-335, which doesn't know the module's quests): an add-on,
+  `data/client/addon/BrillTown` (`BrillTown.toc`, `BrillTown.lua`), which the module puts in the client's
+  `Interface/AddOns` at the realm's start (taken out with the patch, and on Wrath Remix's realm). As Questie's
+  database starts at login, it adds the module's 89 quests and their creatures to the database's own runtime
+  additions (`QuestieDB.questDataOverrides`, `npcDataOverrides`) and their numbers to the list Questie checks a
+  quest log against: so Questie tracks them (no more "missing from Questie's database"), draws their objectives on
+  the map and minimap, marks their turn-ins, and puts its "!" over the givers of the quests a character can take
+  whenever the giver is there (not over those waiting on a choice, a project's stage or another quest finished
+  first beyond the one before it, which Questie can't know). An objective done by speaking with one of the game's
+  own creatures takes that creature's places from Questie's own data. Without Questie the add-on does nothing.
+  Tested with a stand-in for Questie's database (its functions as Questie-335's source has them), not in the game.
 
 ## Files
 

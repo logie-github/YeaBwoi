@@ -1,5 +1,5 @@
 # Brill: A Deathguard's Duty (mod-brill-home, tools/town/deathguard.py), ChromieCraft's realm: Deathguard
-# Dillinger's five quests. The watch's packs and braziers, the north road's ghouls and Gnawbone, Harlan's
+# Dillinger's five quests. The watch's packs, the north road's ghouls and Gnawbone, Harlan's
 # trail west to the hill above Solliden Farmstead, his living wife and daughter at the cottage, and his
 # choice: back to his post on the north road (the "returned" mark, 970705; his phase in Brill, where
 # the cemetery's Harlan, 970702, isn't).
@@ -22,15 +22,6 @@ go 0 2024.0 76.0 36.5
 talk 1495
 select 1495 whetstones and oil
 expect credit 970700 970709 1/1
-# The three patrol braziers: the Undercity road, the north road, the east road.
-go 0 2169.5 204.0 42.9
-cmd .brilltown use
-expect Brill town: used 970700
-go 0 2263.5 471.0 33.9
-cmd .brilltown use
-expect Brill town: used 970700
-go 0 2446.5 289.0 28.1
-cmd .brilltown use
 expect complete 970700
 go 0 2287.0 401.5 34.0
 talk 1496
@@ -45,13 +36,13 @@ kill 970705
 kill 970705
 kill 970705
 kill 970706
-go 0 2256.5 491.0 34.0
+go 0 2268.0 545.0 33.5
 cmd .brilltown use
-expect Brill town: used 970701
-go 0 2275.5 546.0 33.8
+expect Brill town: used 970700
+go 0 2248.8 566.0 33.6
 cmd .brilltown use
-expect Brill town: used 970701
-go 0 2253.5 566.0 33.5
+expect Brill town: used 970700
+go 0 2254.5 586.0 34.2
 cmd .brilltown use
 expect complete 970701
 go 0 2287.0 401.5 34.0
@@ -69,10 +60,10 @@ select 1742 Where does Harlan go
 expect credit 970702 970713 1/1
 go 0 2209.5 691.0 34.9
 cmd .brilltown use
-expect Brill town: used 970702
+expect Brill town: used 970701
 go 0 2231.5 901.0 48.0
 cmd .brilltown use
-expect Brill town: used 970702
+expect Brill town: used 970701
 go 0 2251.5 1151.0 34.2
 cmd .brilltown use
 expect complete 970702

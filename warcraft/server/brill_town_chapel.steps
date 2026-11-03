@@ -49,7 +49,7 @@ talk 971101
 accept 971101 971101
 go 0 2140.0 648.0 34.4
 cmd .brilltown use
-has Brill town: used 971122
+has Brill town: used 971114
 expect credit 971101 971118 1/8
 go 0 2297.0 459.0 34.5
 talk 971000
@@ -57,7 +57,7 @@ select 971000 lantern frames
 expect credit 971101 971120 1/1
 go 0 2385.6 401.21 35.5
 cmd .brilltown use
-has Brill town: used 971107
+has Brill town: used 971106
 expect credit 971101 971121 1/1
 cmd .quest complete 971101
 go 0 2383.5 397.2 36.0
@@ -74,11 +74,11 @@ talk 971100
 accept 971100 971102
 go 0 2910.03 380.97 32.0
 cmd .brilltown use
-has Brill town: used 971124
+has Brill town: used 971116
 expect credit 971102 971122 1/3
 go 0 2366.0 385.0 37.2
 cmd .brilltown use
-has Brill town: used 971125
+has Brill town: used 971117
 expect credit 971102 971123 1/1
 go 0 2363.5 387.4 37.1
 talk 971104
@@ -88,7 +88,7 @@ select 971104 his name belongs
 expect credit 971102 971124 1/1
 go 0 2388.36 401.42 34.9
 cmd .brilltown use
-has Brill town: used 971115
+has Brill town: used 971108
 expect credit 971102 971125 1/1
 cmd .quest complete 971102
 go 0 2385.0 392.2 35.9
@@ -106,11 +106,11 @@ talk 971102
 accept 971102 971103
 go 0 2384.0 347.0 38.6
 cmd .brilltown use
-has Brill town: used 971126
+has Brill town: used 971118
 expect credit 971103 971126 1/3
 go 0 2751.5 793.5 119.7
 cmd .brilltown use
-has Brill town: used 971130
+has Brill town: used 971122
 expect credit 971103 971127 1/1
 go 0 2388.6 391.6 35.0
 talk 971102
@@ -131,7 +131,7 @@ talk 971101
 accept 971101 971104
 go 0 2840.8 413.4 21.3
 cmd .brilltown use
-has Brill town: used 971131
+has Brill town: used 971123
 expect credit 971104 971129 1/2
 go 0 2229.6 317.3 37.3
 talk 2136
@@ -139,7 +139,7 @@ select 2136 mend the old chapel bell
 expect credit 971104 971130 1/1
 go 0 2383.8 387.12 36.5
 cmd .brilltown use
-has Brill town: used 971120
+has Brill town: used 971112
 expect credit 971104 971131 1/1
 go 0 2385.0 392.2 35.9
 talk 971100

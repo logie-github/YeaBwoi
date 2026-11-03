@@ -62,4 +62,29 @@ class UpdatePickerTest {
         assertNull(UpdatePicker.versionCodeOf("wow-build-12a", "wow-build"))
         assertNull(UpdatePicker.versionCodeOf("build-5", "wow-build"))
     }
+
+    private fun withNotes(tag: String, body: String, prerelease: Boolean = false) =
+        release(tag, prerelease = prerelease).copy(body = body)
+
+    @Test
+    fun gathersPatchNotesSinceTheInstalledBuildNewestFirst() {
+        val notes = listOf(
+            withNotes("wow-build-20", "Intro\n\n## What's new\n<!-- notes -->\n- Old fix\n<!-- /notes -->"),
+            withNotes("wow-build-21", "## What's new\n<!-- notes -->\n- **Ralia's mod** on every race\n\n- `patch-Z` fix\n<!-- /notes -->\nServer package"),
+            withNotes("wow-build-22", "No notes here (made before they began)"),
+            withNotes("wow-build-23", "<!-- notes -->\n* Patch notes in the updates button\n<!-- /notes -->"),
+            withNotes("wow-build-24", "<!-- notes -->\n- A test build's note\n<!-- /notes -->", prerelease = true),
+            withNotes("colosseum-build-30", "<!-- notes -->\n- Another app's note\n<!-- /notes -->"),
+        )
+        val update = UpdatePicker.pick(notes, "wow-build", currentVersionCode = 20)
+        assertEquals(23, update?.versionCode)
+        assertEquals(listOf(23, 21), update?.notes?.map { it.versionCode })
+        assertEquals(listOf("• Patch notes in the updates button"), update?.notes?.get(0)?.lines)
+        assertEquals(listOf("• Ralia's mod on every race", "• patch-Z fix"), update?.notes?.get(1)?.lines)
+    }
+
+    @Test
+    fun noPatchNotesWithoutMarkers() {
+        assertEquals(emptyList(), UpdatePicker.notesOf("Server package:\n```\ncore abc\n```"))
+    }
 }

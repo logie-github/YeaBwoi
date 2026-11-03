@@ -10,9 +10,8 @@ CREATE TABLE IF NOT EXISTS `brill_home` (
     PRIMARY KEY (`guid`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- An adopted dog keeps its saved looks in character_pet, even in the stable: the mastiff's (39700 to
--- 39703) and the plain pug's (31174) made Corn's (39700, the game's pug in the user's Forsaken coat;
--- src/BrillHome.cpp makes a pet out the plain pug again where the module's patch isn't in the game), and
--- his name where it kept the mastiff's. Applied again, it changes nothing.
-UPDATE `character_pet` SET `modelid` = 39700 WHERE `entry` = 970115 AND (`modelid` BETWEEN 39701 AND 39703 OR `modelid` = 31174);
+-- An adopted dog keeps its saved looks in character_pet, even in the stable: the mastiff's and a display of
+-- Corn's own (39700 to 39703) made the game's pug's (31174), which wears Corn's coat in the module's patch;
+-- and his name where it kept the mastiff's. Applied again, it changes nothing.
+UPDATE `character_pet` SET `modelid` = 31174 WHERE `entry` = 970115 AND `modelid` BETWEEN 39700 AND 39703;
 UPDATE `character_pet` SET `name` = 'Corn' WHERE `entry` = 970115 AND `name` = 'Mastiff';

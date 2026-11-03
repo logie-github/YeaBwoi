@@ -34,7 +34,7 @@ has Brill town: used 971203
 expect credit 971200 971216 1/1
 go 0 2915.25 382.59 32.0
 cmd .brilltown use
-has Brill town: used 971220
+has Brill town: used 971218
 expect credit 971200 971215 1/5
 go 0 2304.5 266.0 38.9
 talk 1499
@@ -54,7 +54,7 @@ talk 971201
 accept 971201 971201
 go 0 2112.0 352.0 48.6
 cmd .brilltown use
-has Brill town: used 971221
+has Brill town: used 971219
 expect credit 971201 971218 1/8
 go 0 2297.0 459.0 34.5
 talk 971000
@@ -66,11 +66,11 @@ select 2118 parchment to mend
 expect credit 971201 971220 1/1
 go 0 2234.06 351.36 35.6
 cmd .brilltown use
-has Brill town: used 971209
+has Brill town: used 971208
 expect credit 971201 971221 1/2
 go 0 2224.42 357.64 35.6
 cmd .brilltown use
-has Brill town: used 971210
+has Brill town: used 971209
 expect credit 971201 971221 2/2
 cmd .quest complete 971201
 go 0 2238.6 347.6 35.7
@@ -91,7 +91,7 @@ select 10781 census rolls
 expect credit 971202 971222 1/1
 go 0 2827.5 810.5 114.1
 cmd .brilltown use
-has Brill town: used 971222
+has Brill town: used 971220
 expect credit 971202 971223 1/1
 go 0 2261.0 325.8 35.7
 talk 2309
@@ -118,17 +118,17 @@ talk 971200
 accept 971200 971203
 go 0 2336.0 1312.0 34.5
 cmd .brilltown use
-has Brill town: used 971223
+has Brill town: used 971221
 expect credit 971203 971225 1/1
 kill 971206
 expect credit 971203 971206 1/5
 go 0 2331.5 1311.0 34.5
 cmd .brilltown use
-has Brill town: used 971224
+has Brill town: used 971222
 expect credit 971203 971226 1/3
 go 0 2224.3 348.53 35.5
 cmd .brilltown use
-has Brill town: used 971212
+has Brill town: used 971211
 expect credit 971203 971227 1/1
 cmd .quest complete 971203
 go 0 2235.5 341.2 35.7
@@ -147,11 +147,11 @@ select 3547 invites you
 expect credit 971204 971228 1/4
 go 0 2231.26 348.66 35.6
 cmd .brilltown use
-has Brill town: used 971218
+has Brill town: used 971216
 expect credit 971204 971229 1/1
 go 0 2226.05 354.81 35.5
 cmd .brilltown use
-has Brill town: used 971219
+has Brill town: used 971217
 expect credit 971204 971230 1/6
 go 0 2235.5 341.2 35.7
 talk 971200

@@ -1,0 +1,2 @@
+- Brill's house and town quests now show their objectives and turn-ins on the world map and in the quest tracker.
+- If you use Questie, it now tracks Brill's quests, marks their objectives on the map and minimap, and shows "!" over their quest givers. A small add-on, Brill Town, is added for this; leave it turned on.

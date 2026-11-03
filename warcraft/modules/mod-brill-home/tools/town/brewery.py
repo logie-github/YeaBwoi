@@ -307,86 +307,47 @@ LINE = {
         {"id": "copper", "name": "Old Brewing Copper", "display": 6513, "from": 1, "until": 6,
          "spawns": [[0, 2215.55, 265.74, 34.98, 2.007]],
          "use": [
-             {"cond": ["I:q1"], "quest": "q1", "credit": "hall_credit",
-              "text": "(The old copper was dragged out into the yard and left. Past it, the brewhouse door gives a hand's width "
-                      "to your shoulder: enough to see the main hall. Vats green with age, a mash tun split down one side, "
-                      "sacks of grain that have become something else entirely, and a smell that would surprise you, if you "
-                      "could still be surprised.)"},
-             {"text": "(A brewing copper gone green. Chalked on it, in a young man's hand: O.B. Below, in an old man's: AND "
-                      "HIS FATHER.)"},
+             {"cond": ["I:q1"], "quest": "q1", "credit": "hall_credit"},
          ]},
-        {"id": "spoiled", "name": "Spoiled Brewing Stores", "display": 2129, "scale": 0.6, "from": 1, "until": 6,
+        {"id": "spoiled", "name": "Spoiled Brewing Stores", "quest_only": True, "display": 2129, "scale": 0.6, "from": 1, "until": 6,
          "spawns": [[0, 2219.32, 264.74, 34.6, 0.436], [0, 2217.03, 262.56, 34.61, 1.134], [0, 2224.0, 264.16, 34.31, 1.833],
                     [0, 2224.34, 268.18, 34.65, 2.531], [0, 2224.58, 260.57, 34.12, 3.229], [0, 2227.57, 263.62, 34.19, 3.927]],
          "use": [
-             {"cond": ["I:q1"], "quest": "q1", "credit": "spoiled_credit",
-              "text": "(Grain sacks gone to black slime, a cask of something that has been fermenting for eleven years and is "
-                      "very proud of itself, a nest of mice in the hop sacks. You drag the lot onto the midden behind the "
-                      "yard.)"},
-             {"text": "(A heap of spoiled stores swept into a pile for the carters, who'll come when they come.)"},
+             {"cond": ["I:q1"], "quest": "q1", "credit": "spoiled_credit"},
          ]},
-        {"id": "ledger", "name": "Fallen Shelf", "display": 184, "from": 1, "until": 6, "spawns": [[0, 2222.29, 291.5, 35.19, 0.96]],
+        {"id": "ledger", "name": "Fallen Shelf", "quest_only": True, "display": 184, "from": 1, "until": 6, "spawns": [[0, 2222.29, 291.5, 35.19, 0.96]],
          "use": [
-             {"cond": ["I:q1"], "quest": "q1", "credit": "ledger_credit",
-              "text": "(Under a shelf that fell from the back wall, wrapped in oilcloth somebody tied with great care: a ledger "
-                      "in green leather with brass corners. On the flyleaf, in a young man's hand: O. BLACKBARREL, HIS BOOK. "
-                      "KEEP OUT. THIS MEANS YOU, PA.)"},
-             {"text": "(A shelf fallen from the brewhouse's back wall, its brackets rusted through.)"},
+             {"cond": ["I:q1"], "quest": "q1", "credit": "ledger_credit"},
          ]},
         # The cellar hatch behind the brewhouse (the rats' way out; the rot's way in).
         {"id": "hatch", "name": "Cellar Hatch", "display": 1108, "from": 1, "spawns": [[0, 2216.67, 290.54, 35.12, 0.436]],
          "use": [
-             {"cond": ["I:q4"], "quest": "q4", "credit": "growth_credit",
-              "text": "(You lift the hatch and climb down into the dark. The cellar's walls are furred with the same green slime, "
-                      "thick as felt, and behind the plaster something ticks softly as it grows. The old vent is choked with "
-                      "it. It's in the walls themselves, all along the back of the brewhouse, out to the yard.)"},
-             {"cond": ["R:q4"], "text": "(The cellar hatch, new boards on new hinges. Below, the casks sleep in rows, and the "
-                                        "vent breathes beside them.)"},
-             {"text": "(Boards over the cellar steps, gnawed through at one corner. Something down there has been eating the "
-                      "old casks, or the other way round.)"},
+             {"cond": ["I:q4"], "quest": "q4", "credit": "growth_credit"},
          ]},
 
         # 2: barriers; Bram's cooperage; the vats, the rotten casks and the cask frames (A Proper Fermentation).
-        {"id": "barrier", "name": "Builder's Barrier", "display": 4651, "scale": 0.45, "from": 2, "until": 6,
-         "spawns": [[0, 2213.58, 259.3, 34.54, 1.484], [0, 2236.21, 268.75, 34.16, 6.196], [0, 2201.72, 283.56, 37.27, 0.436],
-                    [0, 2225.64, 291.41, 35.19, 2.007]]},
-        {"id": "construction_sign", "name": "Under Construction", "display": 7416, "from": 2, "until": 6,
-         "spawns": [[0, 2214.1, 261.75, 34.76, 5.149]]},
         {"id": "cooper_bench", "name": "Cooper's Bench", "display": 234, "from": 2, "spawns": [[0, 2208.42, 266.83, 35.84, 2.01]]},
         {"id": "staves", "name": "Cask Staves", "display": 1108, "from": 2, "spawns": [[0, 2205.55, 268.25, 36.73, 0.96]]},
-        {"id": "vats", "name": "Fermentation Vat", "display": 7992, "from": 2,
+        {"id": "vats", "name": "Fermentation Vat", "display": 32, "scale": 1.6, "from": 2,
          "spawns": [[0, 2207.21, 271.78, 36.76, 0.44], [0, 2205.31, 275.86, 37.48, 0.44]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "vats_credit",
-              "text": "(You hold the new copper in place while Bram sweats the joints with a little furnace he keeps in his "
-                      "apron. The vat takes water without weeping a drop. Bram pats it like a horse.)"},
-             {"text": "(A fermentation vat. Chalked on its side, in Bram's square hand: MINE. DON'T.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "vats_credit"},
          ]},
-        {"id": "cask_frames", "name": "Unhooped Cask", "display": 32, "from": 2, "until": 6,
+        {"id": "cask_frames", "name": "Unhooped Cask", "quest_only": True, "display": 32, "from": 2, "until": 6,
          "spawns": [[0, 2209.66, 262.99, 35.15, 0.44], [0, 2206.79, 264.41, 35.77, 0.44], [0, 2209.14, 260.54, 34.85, 0.44]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "vats_credit",
-              "text": "(You hold the staves in a ring while Bram drops the first hoop over them and drives it down. The ring "
-                      "becomes a barrel all at once, the way a crowd becomes a queue.)"},
-             {"text": "(A cask waiting for its hoops.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "vats_credit"},
          ]},
-        {"id": "rotten_casks", "name": "Rotten Cask", "display": 8026, "scale": 0.8, "from": 2, "until": 6,
+        {"id": "rotten_casks", "name": "Rotten Cask", "quest_only": True, "display": 8026, "scale": 0.8, "from": 2, "until": 6,
          "spawns": [[0, 2207.82, 285.86, 34.99, 0.44], [0, 2204.92, 286.16, 35.56, 0.44], [0, 2207.46, 289.0, 34.57, 0.44],
                     [0, 2203.95, 283.5, 36.69, 0.44], [0, 2205.01, 289.51, 34.71, 0.44], [0, 2202.02, 286.46, 36.13, 0.44]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "staves_credit",
-              "text": "(You knock off the rusted hoops and pull the cask apart stave by stave. Most crumble. One rings when you "
-                      "tap it: good oak, heart-straight, just as Bram said. You set it aside.)"},
-             {"text": "(What's left of a cask: crumbs, rust and one optimistic stave.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "staves_credit"},
          ]},
         # A Proper Fermentation: the goblins' pump below the zeppelin tower.
-        {"id": "pump", "name": "Junked Goblin Pump", "display": 6639, "spawns": [[0, 2088.0, 262.0, 57.19, 1.5]],
+        {"id": "pump", "name": "Junked Pump", "quest_only": True, "display": 6639, "spawns": [[0, 2088.0, 262.0, 57.19, 1.5]],
          "use": [
-             {"cond": ["I:q2"], "quest": "q2", "credit": "tubing_credit",
-              "text": "(A goblin pump, left where it fell: rusted gears, a boiler with a hole in it the shape of an argument and, "
-                      "coiled inside, a length of copper tubing in perfect condition. You pull it free. High above, a goblin "
-                      "shouts that that's company property. Nobody comes down to collect it.)"},
-             {"text": "(Junked goblin machinery, warm with rust.)"},
+             {"cond": ["I:q2"], "quest": "q2", "credit": "tubing_credit"},
          ]},
 
         # 3: the yard's brewing: the kettle, the furnace, shelves, barrels; smoke from the chimney while they work.
@@ -402,91 +363,55 @@ LINE = {
          "spawns": [[0, 2150.0, 300.0, 46.95, 0.0], [0, 2158.0, 312.0, 43.78, 1.6], [0, 2145.0, 285.0, 49.69, 3.1],
                     [0, 2162.0, 325.0, 42.29, 4.4]],
          "use": [
-             {"cond": ["I:q3"], "quest": "q3", "credit": "ingredient_credit",
-              "text": "(You dig the bitterroot up by its black taproot. Even you can smell it: a sharp green bitterness that goes "
-                      "straight up behind the eyes. Calla will be thrilled.)"},
-             {"cond": ["I:special"], "quest": "special", "credit": "sp_herb",
-              "text": "(You cut a bunch of bitterroot for the week's batch and leave the root to grow back. Calla was very "
-                      "particular about the root.)"},
-             {"text": "(Bitterroot, growing wild. The living used it to purge worms. Calla uses it to purge expectations.)"},
+             {"cond": ["I:q3"], "quest": "q3", "credit": "ingredient_credit"},
+             {"cond": ["I:special"], "quest": "special", "credit": "sp_herb"},
          ]},
-        {"id": "tub_dark", "name": "Experimental Mash Tub", "display": 216, "scale": 0.8, "from": 3, "until": 6,
+        {"id": "tub_dark", "name": "Experimental Mash Tub", "quest_only": True, "display": 216, "scale": 0.8, "from": 3, "until": 6,
          "spawns": [[0, 2228.14, 268.3, 34.51, 0.436]],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit",
-                  "text": "(The first tub, chalked DARK: roasted grain and a spoonful of Hamlin's culture. The mash begins to "
-                          "bubble almost at once, slow and black, in a way that seems personal.)"}]},
-        {"id": "tub_family", "name": "Experimental Mash Tub", "display": 216, "scale": 0.8, "from": 3, "until": 6,
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit"}]},
+        {"id": "tub_family", "name": "Experimental Mash Tub", "quest_only": True, "display": 216, "scale": 0.8, "from": 3, "until": 6,
          "spawns": [[0, 2230.41, 269.36, 34.48, 0.436]],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit",
-                  "text": "(The second tub, chalked OLD BROWN, in Oren's hand, not Calla's: crystal malt and hops, measured out "
-                          "from his father's ledger to the grain. It smells, you're told, exactly right.)"}]},
-        {"id": "tub_herbal", "name": "Experimental Mash Tub", "display": 216, "scale": 0.8, "from": 3, "until": 6,
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit"}]},
+        {"id": "tub_herbal", "name": "Experimental Mash Tub", "quest_only": True, "display": 216, "scale": 0.8, "from": 3, "until": 6,
          "spawns": [[0, 2231.17, 272.47, 34.66, 0.436]],
-         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit",
-                  "text": "(The third tub, chalked ROOT: barley and a great fistful of bitterroot, bruised. Your eyes water. "
-                          "You didn't know they still did that.)"}]},
+         "use": [{"cond": ["I:q3"], "quest": "q3", "credit": "batch_credit"}]},
 
         # 4: the beer garden and the tasting counter; a pavilion over Calla's tubs; the spoiled barrels, the wall-rot
         # and the vent (A Bitter Batch).
-        {"id": "pavilion", "name": "Brewery Pavilion", "display": 6738, "scale": 0.85, "from": 4,
-         "spawns": [[0, 2230.2, 269.81, 34.52, 0.436]]},
-        {"id": "tasting_counter", "name": "Tasting Counter", "display": 7732, "from": 4,
-         "spawns": [[0, 2233.4, 272.41, 34.52, 2.007]]},
-        {"id": "garden_table", "name": "Table", "display": 221, "from": 4,
-         "spawns": [[0, 2229.32, 262.23, 34.11, 0.436], [0, 2234.09, 265.01, 34.11, 0.436]]},
-        {"id": "garden_bench", "name": "Bench", "display": 603, "from": 4,
-         "spawns": [[0, 2229.95, 260.87, 34.11, 0.436], [0, 2228.69, 263.59, 34.18, 3.58], [0, 2234.73, 263.65, 34.11, 0.436],
-                    [0, 2233.46, 266.37, 34.11, 3.58]]},
-        {"id": "bad_barrels", "name": "Spoiled Barrel", "display": 7470, "from": 4, "until": 6,
+        {"id": "bad_barrels", "name": "Spoiled Barrel", "quest_only": True, "display": 7470, "from": 4, "until": 6,
          "spawns": [[0, 2213.05, 288.85, 34.72, 0.44], [0, 2210.63, 290.48, 34.53, 0.44], [0, 2212.26, 292.89, 34.6, 0.44]],
          "use": [
-             {"cond": ["I:q4"], "quest": "q4", "credit": "barrel_credit",
-              "text": "(You prise the lid. The ale has gone to a green slime that hangs from the staves in threads, and it has "
-                      "crept up the outside of the cask too, out of the wood itself. Not poured in, then. Grown in.)"},
-             {"text": "(A barrel of ruined ale. SPOILED, in Oren's furious hand, and underneath, smaller: WHO.)"},
+             {"cond": ["I:q4"], "quest": "q4", "credit": "barrel_credit"},
          ]},
-        {"id": "growths", "name": "Wall-Rot", "display": 6432, "scale": 0.45, "from": 4, "until": 6,
+        {"id": "growths", "name": "Wall-Rot", "quest_only": True, "display": 6432, "scale": 0.45, "from": 4, "until": 6,
          "spawns": [[0, 2215.21, 287.76, 34.96, 0.44], [0, 2219.7, 289.96, 35.17, 0.44], [0, 2217.06, 288.51, 35.12, 0.44]],
          "use": [
-             {"cond": ["I:q4"], "quest": "q4", "credit": "growth_credit",
-              "text": "(You chip the growth out of the wall down to clean brick and dig its roots out after it. It comes away "
-                      "with a soft wet sigh, which you decide not to think about.)"},
-             {"text": "(A pale growth fruiting from the brewhouse's back wall.)"},
+             {"cond": ["I:q4"], "quest": "q4", "credit": "growth_credit"},
          ]},
-        {"id": "vent", "name": "Cellar Vent", "display": 7412, "scale": 0.15, "from": 4, "spawns": [[0, 2212.86, 286.88, 34.75, 0.44]],
+        {"id": "vent", "name": "Cellar Vent", "quest_only": True, "display": 7969, "scale": 0.15, "from": 4, "spawns": [[0, 2212.86, 286.88, 34.75, 0.44]],
          "use": [
-             {"cond": ["I:q4"], "quest": "q4", "credit": "vent_credit",
-              "text": "(You clear the shaft and fit the new pipe Bram left by the hatch, packing the joints with clay. Air moves "
-                      "in the cellar for the first time in eleven years. It smells of nothing at all, which in Brill counts as "
-                      "fresh.)"},
-             {"text": "(The brewhouse cellar's vent pipe, breathing.)"},
+             {"cond": ["I:q4"], "quest": "q4", "credit": "vent_credit"},
          ]},
 
         # 5: the cellar's racks, the market's sample barrels, the tasting room's trestles (To Absent Friends).
         {"id": "racks", "name": "Cask Racks", "display": 189, "from": 5, "spawns": [[0, 2210.62, 286.94, 34.69, 0.44]]},
-        {"id": "samples", "name": "Old Brewery Sample Barrel", "display": 1727, "from": 5,
+        {"id": "samples", "name": "Old Brewery Sample Barrel", "quest_only": True, "display": 1727, "from": 5,
          "spawns": [[0, 2250.5, 267.5, 34.34, 2.6], [0, 2257.5, 278.0, 34.27, 2.5], [0, 2246.0, 274.0, 34.11, 2.6]],
          "use": [
-             {"cond": ["I:q5"], "quest": "q5", "credit": "sample_credit",
-              "text": "(You knock in the tap and draw a cup. A small queue forms at once: two Deathguard, a farmer and a bat "
-                      "handler, who all agree it's terrible and stay for another.)"},
-             {"text": "(A barrel from the Old Brewery. A slate beside it: TRY IT. COMPLAIN AT THE BREWHOUSE.)"},
+             {"cond": ["I:q5"], "quest": "q5", "credit": "sample_credit"},
          ]},
         {"id": "trestle", "name": "Tasting Room Trestle", "display": 221, "from": 5, "until": 6,
          "spawns": [[0, 2228.96, 265.37, 34.28, 0.436]],
          "use": [
-             {"cond": ["I:q5"], "quest": "q5", "credit": "room_credit",
-              "text": "(You and Calla set up the trestles, wipe them down and lay the mugs out in rows. Calla rearranges them. "
-                      "You rearrange them back. She lets you win, this once.)"},
-             {"text": "(Trestle tables, waiting for the opening.)"},
+             {"cond": ["I:q5"], "quest": "q5", "credit": "room_credit"},
          ]},
 
         # 6: the brewhouse open: its counter, kegs, a vat, tables and benches; the slate by the door with the signature
         # drink; the brewery's dray at the Gallows' End of a morning.
         {"id": "bar", "name": "Brewery Counter", "display": 7732, "from": 6, "spawns": [[0, 2220.38, 279.03, FLOOR, 0.436]]},
-        {"id": "kegs", "name": "Ale Keg", "display": 7415, "from": 6,
+        {"id": "kegs", "name": "Ale Keg", "display": 319, "from": 6,
          "spawns": [[0, 2224.1, 277.45, FLOOR + 0.88, 3.578], [0, 2221.56, 282.89, FLOOR + 0.88, 3.578]]},
-        {"id": "inside_vat", "name": "Fermentation Vat", "display": 7992, "scale": 0.8, "from": 6,
+        {"id": "inside_vat", "name": "Fermentation Vat", "display": 32, "scale": 1.6, "from": 6,
          "spawns": [[0, 2211.29, 280.3, FLOOR, 0.44]]},
         {"id": "inside_table", "name": "Table", "display": 221, "from": 6,
          "spawns": [[0, 2216.21, 273.77, FLOOR, 0.44], [0, 2220.96, 275.43, FLOOR, 0.44]]},
@@ -494,35 +419,13 @@ LINE = {
          "spawns": [[0, 2216.85, 272.41, FLOOR, 0.44], [0, 2215.58, 275.13, FLOOR, 3.58], [0, 2221.59, 274.07, FLOOR, 0.44],
                     [0, 2220.32, 276.79, FLOOR, 3.58]]},
         {"id": "bottle_shelf", "name": "Bottle Shelf", "display": 4073, "from": 6, "spawns": [[0, 2212.53, 274.81, FLOOR, 0.44]]},
-        {"id": "slate", "name": "Brewery Slate", "display": 17, "from": 6, "spawns": [[0, 2216.98, 267.4, 34.96 + 1.65, 5.149]],
-         "use": [
-             {"cond": ["M:stout"], "text": "(THE OLD BREWERY. ON TODAY: GRAVEMALT STOUT. Dark, bitter, stains the teeth, if any. "
-                                           "Below, in Calla's hand: ALSO: SOMETHING NEW. ASK. DON'T ASK WHAT'S IN IT.)"},
-             {"cond": ["M:reserve"], "text": "(THE OLD BREWERY. ON TODAY: LORDAERON RESERVE. Brewed to the Blackbarrel recipe, "
-                                             "the harvest brown. Below, in Calla's hand: ALSO: SOMETHING NEW. ASK. DON'T ASK "
-                                             "WHAT'S IN IT.)"},
-             {"cond": ["M:bitter"], "text": "(THE OLD BREWERY. ON TODAY: BLACKROOT BITTER. Brewed for the palates we have. Below, "
-                                            "in Calla's hand: ALSO: SOMETHING NEW. ASK. DON'T ASK WHAT'S IN IT.)"},
-         ]},
-        {"id": "dray", "name": "Brewery Dray", "display": 3678, "scale": 0.7, "from": 6, "when": "morning",
-         "spawns": [[0, 2241.5, 266.0, 34.11, 2.0]]},
 
         # 7: the house's furnishings (design: a barrel stand, bottles, mugs and a little drinks cabinet), in the house's
         # own coordinates.
-        {"id": "house_keg", "name": "Barrel Stand", "display": 7490, "scale": 0.7, "from": 7,
-         "spawns": [["house", 4.29, 0.4, 0, 180]],
-         "use": [
-             {"cond": ["M:stout"], "text": "(A cask of Gravemalt Stout on a stand of Bram's making. A tag on the tap, in Oren's "
-                                           "hand: FOR THE HOUSE. DRINK IT SLOWLY. YOU WON'T.)"},
-             {"cond": ["M:reserve"], "text": "(A cask of Lordaeron Reserve on a stand of Bram's making. A tag on the tap, in "
-                                             "Oren's hand: FOR THE HOUSE. MY FATHER'S. MIND IT.)"},
-             {"text": "(A cask of Blackroot Bitter on a stand of Bram's making. A tag on the tap, in Oren's hand: FOR THE "
-                      "HOUSE. CALLA SAYS IT'S GOOD FOR YOU. I SAY IT'S GOOD.)"},
-         ]},
+        {"id": "house_keg", "name": "Barrel Stand", "display": 1727, "scale": 0.7, "from": 7,
+         "spawns": [["house", 4.29, 0.4, 0, 180]]},
         {"id": "house_cabinet", "name": "Drinks Cabinet", "display": 189, "scale": 0.45, "from": 7,
-         "spawns": [["house", -2.1, 5.1, 0, 0]],
-         "use": [{"text": "(A little cabinet made from the old vats' staves, Bram's mark burned into its side. Bottles, mugs that "
-                          "don't leak, and a small painted sign: THE OLD BREWERY. EST. TWICE.)"}]},
+         "spawns": [["house", -2.1, 5.1, 0, 0]]},
     ],
     "gossip": [
         # Oren at the brewhouse door, by how far it's come.
