@@ -24,7 +24,7 @@ import java.io.OutputStream
 class SafExportSink(context: Context, private val tree: Uri) : ExportSink {
     private val resolver: ContentResolver = context.applicationContext.contentResolver
 
-    private class Child(val id: String, val directory: Boolean, var size: Long)
+    private class Child(val id: String, val directory: Boolean, var size: Long, var actualName: String? = null)
 
     private val treeRoot = DocumentsContract.getTreeDocumentId(tree)
     private val listings = HashMap<String, MutableMap<String, Child>>()
@@ -64,7 +64,11 @@ class SafExportSink(context: Context, private val tree: Uri) : ExportSink {
             resolver, uri(folderId), if (directory) DocumentsContract.Document.MIME_TYPE_DIR else "application/octet-stream", name,
         ) ?: throw IOException("Couldn't make $name in the destination.")
         val id = DocumentsContract.getDocumentId(created)
-        return Child(id, directory, 0).also { children(folderId)[name] = it }
+        // The provider may keep another name than the one asked for ("name (1).ext" beside a name that differs in case).
+        val actual = if (directory) null else runCatching {
+            resolver.query(created, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { if (it.moveToFirst()) it.getString(0) else null }
+        }.getOrNull()
+        return Child(id, directory, 0, actual?.takeIf { it != name }).also { children(folderId)[name] = it }
     }
 
     /** The folder for [path]'s folders (made as needed), and the file's name. */
@@ -104,9 +108,15 @@ class SafExportSink(context: Context, private val tree: Uri) : ExportSink {
         return resolver.openInputStream(uri(found.id))
     }
 
+    /** Files the provider kept under another name than asked: the path they have (set when they're written). */
+    private val renamedByProvider = HashMap<String, String>()
+
+    override fun storedAs(path: String): String? = renamedByProvider[path]
+
     override fun write(path: String): OutputStream {
         val (folder, name) = parentOf(path, make = true)!!
         val file = child(folder, name, directory = false)
+        file.actualName?.let { renamedByProvider[path] = path.substringBeforeLast('/', "").let { dir -> if (dir.isEmpty()) it else "$dir/$it" } } ?: renamedByProvider.remove(path)
         // "wt": from the start, the old content gone (a cut-off copy being redone)
         val stream = resolver.openOutputStream(uri(file.id), "wt") ?: throw IOException("Couldn't write $path.")
         file.size = 0

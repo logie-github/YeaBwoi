@@ -22,6 +22,9 @@ class ExportPlan(
 ) {
     val totalBytes: Long = files.sumOf { it.size }
 
+    /** Files the destination can't hold under their own names (names that differ only in case, characters it doesn't allow...): stored under safe names ([CaseSafe]). */
+    val renamed: Map<String, String> by lazy { CaseSafe.stored(files.map { it.path }) }
+
     /** The top-level folders that have files in the export, sorted. */
     val folders: List<String> get() = files.map { it.topLevel }.filter { it != "" }.distinct().sorted()
 
