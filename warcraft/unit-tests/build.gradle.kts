@@ -35,6 +35,8 @@ sourceSets {
         // Local realms' Wine with no screen: its processes, environment and marker.
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/local/core")
         kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/reports")
+        // "Export everything to Blizzard": what is exported, the manifest and checksums, resuming and verifying.
+        kotlin.srcDir("../android/app/src/main/java/com/logie/warcraft/export/core")
     }
 }
 

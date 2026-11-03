@@ -570,6 +570,35 @@ Tortoise-WoW is GPLv2 (from MaNGOS, VMaNGOS and AzerothCore); TortoiseBots combi
 
 Accounts, characters and the world are in MariaDB's databases in the app's storage (`files/mysql`). They stay through updates of the app; the server applies the new version's database updates when it starts. **Delete the databases** (in **Server**) starts over with new ones. Uninstalling the app deletes everything, your client copy included.
 
+## Export everything to Blizzard
+
+**Export everything to Blizzard** (a tile in the launcher's menu) copies everything you would hate to rebuild or lose into a folder you pick, for the separate Blizzard launcher app (`com.logie.blizz`) to import: no rebuilding, no lost progress. **It is a copy, never a move: nothing in this app is changed or deleted, and the originals stay where they are.** (Uninstalling this app still deletes them, so keep the export until the Blizzard app has imported it and **Verify** is green.)
+
+The screen shows what will be copied with its size per game (Wrath: ChromieCraft and Wrath Remix, OctoWoW, Legion, The War Within; each can be turned off), what is left out, and, once you pick the folder with Android's folder picker, the free space it needs there (what an earlier try already copied isn't counted) and the free space it has. Then **Export** copies with progress by bytes and by file, and **Stop**. It runs as a foreground service with a notification, so it carries on with the screen off.
+
+- **A clean database.** MariaDB's files are only ever copied while no database runs. The export refuses while a game is open or an import, install or download is running (close it or wait), and while a realm runs it asks first: **Stop it and export** stops the realm the app's own way (the world server saves the characters and shuts down, then the login server, then MariaDB flushes and exits: the same stop the imports use) and checks that no database is left before it reads a file. Nothing is copied from a running database. The realm is not started again afterwards.
+- **Resumable.** The SHA-256 of each file is worked out while it is copied. The destination's `checksums.partial` lists the files copied completely (with the size and the modified time of the original). If a run stops (Stop, a full disk, the phone dying), run it again: files listed there with the same size and modified time, and present with that size, are skipped; the rest are copied from their start. Running it again later copies only what changed (the databases, mostly).
+- **Verify** re-reads every file at the destination and compares it with `checksums.tsv`, reporting what is missing, the wrong size or not matching. A file found wrong is copied again by the next export.
+
+### The export's format
+
+```
+<picked folder>/WoW-export/
+  files/<path under the app's files folder>   byte-for-byte copies
+  prefs/<SharedPreferences name>.json         {"<key>":{"type":"string|int|long|float|boolean|stringset","value":...}, ...}
+  checksums.tsv      UTF-8, a line per file under files/, sorted by path: <sha256>TAB<size>TAB<path under files/, '/' separators>
+  checksums.partial  the export's working file (kept: it lets a later run skip what didn't change)
+  export.json        written last: its presence means the export finished
+```
+
+`export.json`: `format` (1), `app` (`com.logie.warcraft`), `appVersion`, `createdAt` (ISO-8601 UTC), `sourceFilesDir` (the app's files folder at export time), `files`, `bytes`, `folders` (each top-level folder of `files/` exported), `excluded` (each top-level entry deliberately left out), `checksums` (`checksums.tsv`), `prefs` (the names), and `excludedInside` (what is left out inside an exported folder, such as `turtle/downloads`: an addition a reader may ignore).
+
+**Included:** everything in `files/` except the list below. For Wrath and Wrath Remix: `client`, `server`, `mysql` (the realm databases with the characters), `etc`, `etc-remix`, `data`, `data-modules`, `data-races`, `races`, `mods`, `modules`, `addons`, `ralia`, `alternate-female`, `base-model`, `client-realm`, `zones`; for OctoWoW `turtle`; for Legion `felsong` and `spp-legion`; for The War Within `tww`; and any folder the app adds later. **Left out** (the Blizzard app makes it again, or it isn't your data): `logs` and `run` (pid files, sockets, status files), Winlator's runtime (`rootfs`, `imagefs`, `winlator`, `containers`; in this app they are in the app's data folder, not `files/`), `cache`, `tmp`, `temp`, `updates`, and the folders of a job in progress or kept from one (names ending `.new`, `.work`, `.import`, `.download`, `.deleting`, `.old`). Inside `turtle`, `felsong`, `spp-legion` and `tww`: `logs`, `run`, `downloads`, `staging`, the same job folders, and Felsong's `.wine`. Anywhere: `*.part`, `*.tmp`, `*.pid`, `*.sock`, and links and special files. Installs you moved to the phone's external storage (Legion's Single Player Project, The War Within) aren't in `files/` and aren't copied; the screen says so.
+
+**Preferences** (`prefs/`, those with something in them): `environments` (the game selected), `realms` (the realm chosen), `login` (saved login), `game` (resolution), `mods` (HD looks), `music`, `github` (the Modules token), `felsong_settings`, `felsong_login`, `turtle_settings`, `turtle_login`, `spp`, `spp-installation`, `spp-login`, `tww-installation`. They hold saved logins and the Modules token in plain text: keep the export private.
+
+The code that decides what is exported, writes the manifest and checksums, dumps the preferences, resumes and verifies is plain Kotlin in `android/app/.../export/core/` (tested in `unit-tests`, against a destination in memory); the folder picker's writes (`SafExportSink`, Android's storage access framework), the service and the screen (`ui/WowExport.kt`) are Android's. Never tried on a phone.
+
 ## Updates
 
 Like the other apps: the app checks this repository's releases (`wow-build-N`) when it opens and from **Updates**, stops the server, and installs over itself. A private repository needs the `DOLPHINXD_UPDATE_TOKEN` secret (see the main README). Given **Issues: read and write** as well, that token also sends Wrath Remix's time anomaly reports, the game's crash reports and the app's failure reports for every copy of the app, without a token of the player's own. It's signed with the same key as the other apps.
@@ -603,7 +632,8 @@ Like the other apps: the app checks this repository's releases (`wow-build-N`) w
 | `android/` | The app (Kotlin, Jetpack Compose); `server.tar.xz` goes in as an asset. `game/Game.kt` starts the game; `controls/TouchGestures.kt` is the gestures, `game/GestureView.kt` puts them on the game screen |
 | `android/app/.../modules/`, `ModuleStore.kt`, `ui/WowModules.kt` | The module browser: GitHub's topic search, READMEs as text, the builds asked for and followed, the realm put in, the realms kept to swap between |
 | `../.github/workflows/build-warcraft-modules.yml` | A realm with the user's modules, started by the app: checked inputs, the app's release checked out, compiled with the main build's compiler cache (a module that doesn't compile left out, the rest compiled again), packaged, tested, attached to the release with a record of what's in it (`server-<build>.json`) |
-| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, updates, the servers' logs, GitHub's module lists and READMEs, the module builds' requests and runs |
+| `android/app/.../export/` | Export everything to Blizzard: `core/` (what is exported, manifest, checksums, preferences, resuming, verifying: plain Kotlin), `SafExportSink.kt`, `BlizzardExport.kt` (stopping the realm, the jobs), `ExportService.kt`; the screen is `ui/WowExport.kt` |
+| `unit-tests/` | JVM tests: account passwords (SRP6), configs, the client's version and settings, zip layouts, downloads out of zips, the HD looks, updates, the servers' logs, GitHub's module lists and READMEs, the module builds' requests and runs, the export to Blizzard |
 | `branding/` | Your art and `make-icons.py`, which makes the launcher icons |
 | `android/app/src/main/res/raw/wow_title_music.ogg` | The launcher's music: your MP3 of the main title theme, as Opus at 160 kbps (11 MB): `ffmpeg -i <mp3> -map 0:a -map_metadata -1 -c:a libopus -b:a 160k wow_title_music.ogg` |
 | `android/app/src/main/res/raw/felsong_title_music.ogg` | The Felsong launcher's music: your MP3 of Kingdoms Will Burn (Legion's soundtrack), made the same way, played at its ReplayGain (−6.5 dB) (13 MB) |

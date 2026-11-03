@@ -43,6 +43,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.FolderOpen
@@ -95,6 +96,7 @@ import com.logie.warcraft.BuildConfig
 import com.logie.warcraft.Environments
 import com.logie.warcraft.ImportService
 import com.logie.warcraft.Imports
+import com.logie.warcraft.export.BlizzardExport
 import com.logie.warcraft.LegacyRaces
 import com.logie.warcraft.ModuleStore
 import com.logie.warcraft.R
@@ -262,6 +264,7 @@ private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
             HomeDialog.REALM -> RealmDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.GRAPHICS -> GraphicsDialog(onDismiss = { dialog = null; refresh++ })
             HomeDialog.GAME_OPTIONS -> GameOptionsDialog(onDismiss = { dialog = null; refresh++ })
+            HomeDialog.EXPORT -> BlizzardExportDialog(onDismiss = { dialog = null; BlizzardExport.clearResult() })
             // Over the whole screen, in the box above.
             HomeDialog.ADDONS, HomeDialog.MODULES -> {}
             null -> {}
@@ -269,7 +272,7 @@ private fun WrathHomeRoute(activity: Activity, checkUpdateOnOpen: Boolean) {
     }
 }
 
-enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, GAME_OPTIONS, ADDONS, MODULES, ICON, REALM }
+enum class HomeDialog { SERVER, FILES, ACCOUNTS, GRAPHICS, GAME_OPTIONS, ADDONS, MODULES, ICON, REALM, EXPORT }
 
 /** Where the client's changes (Imports.Kind.MODS) were last asked for: their outcome shows there. */
 private var modsDialog = HomeDialog.GRAPHICS
@@ -377,6 +380,10 @@ internal fun HomeScreen(
                         WowUpdateActivity.launch(context)
                     },
                     // Turtle WoW and Felsong, games of their own: the launcher switches to them (GameSwitch).
+                    // A copy of everything the user would hate to lose, for the Blizzard app (export/).
+                    HomeTile(Icons.Default.CloudUpload, stringResource(R.string.export_tile), stringResource(R.string.export_tile_summary)) {
+                        onDialog(HomeDialog.EXPORT)
+                    },
                     HomeTile(Icons.Default.SwapHoriz, stringResource(R.string.games_tile), stringResource(R.string.games_tile_wrath_summary)) {
                         onSwitchGame()
                     },
