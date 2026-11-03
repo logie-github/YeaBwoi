@@ -60,6 +60,9 @@ object Exporter {
         )
         val planned = plan.files.map { it.path }.toHashSet()
         done.keys.retainAll(planned)
+        // Names that differ only in case are stored under names of their own (shared storage can't tell them apart).
+        val renames = CaseSafe.stored(planned)
+        fun stored(path: String) = renames[path] ?: path
 
         var doneFiles = 0
         var doneBytes = 0L
@@ -78,7 +81,7 @@ object Exporter {
             for (file in plan.files) {
                 if (isCancelled()) throw ExportCancelled()
                 val known = done[file.path]
-                val there = sink.size(filePath(file.path))
+                val there = sink.size(filePath(stored(file.path)))
                 if (known != null && known.size == file.size && known.modified == file.modified && there == file.size) {
                     skipped++
                     doneFiles++
@@ -88,7 +91,7 @@ object Exporter {
                 }
                 // (not listed until it's whole)
                 done.remove(file.path)
-                val result = copy(source, file, sink) { read ->
+                val result = copy(source, file, filePath(stored(file.path)), sink) { read ->
                     if (isCancelled()) throw ExportCancelled()
                     doneBytes += read
                     progress(file.path)
@@ -124,17 +127,18 @@ object Exporter {
             checksums = Checksums.FILE,
             prefs = context.prefs.keys.sorted(),
             excludedInside = plan.excludedInside,
+            renames = renames,
         )
         sink.writeText(ExportManifest.FILE, manifest.toJson())
         return manifest
     }
 
     /** Copies one file, hashing as it goes. Returns the SHA-256 and the number of bytes written. */
-    private fun copy(source: SourceFs, file: PlannedFile, sink: ExportSink, onRead: (Int) -> Unit): Pair<String, Long> {
+    private fun copy(source: SourceFs, file: PlannedFile, target: String, sink: ExportSink, onRead: (Int) -> Unit): Pair<String, Long> {
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0L
         source.open(file.path).use { input ->
-            sink.write(filePath(file.path)).use { output ->
+            sink.write(target).use { output ->
                 val buffer = ByteArray(BUFFER)
                 while (true) {
                     val n = input.read(buffer)
@@ -208,7 +212,7 @@ object ExportVerifier {
         val wrongChecksum = ArrayList<String>()
         for (line in lines) {
             if (isCancelled()) throw ExportCancelled()
-            val path = Exporter.filePath(line.path)
+            val path = Exporter.filePath(manifest.renames[line.path] ?: line.path)
             val size = sink.size(path)
             val input = if (size == null) null else sink.read(path)
             when {

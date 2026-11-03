@@ -1,0 +1,1 @@
+- Fixed: Export everything to Blizzard lost files whose names differ only in capital letters from another file in the same folder (for example `FlyByWorgen.m2` and `flybyworgen.m2`), because shared storage treats them as one file. They are now kept apart, so run the export again; it only copies what changed.
