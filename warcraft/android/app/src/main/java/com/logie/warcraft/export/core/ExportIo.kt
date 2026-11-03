@@ -54,6 +54,12 @@ interface ExportSink {
 
     /** Deletes the file at [path] if there is one. */
     fun delete(path: String)
+
+    /**
+     * Where the destination really put the file last written at [path], when that isn't [path]
+     * (a provider that renamed it): the path it has there. Null when it's where it was asked to be.
+     */
+    fun storedAs(path: String): String? = null
 }
 
 fun ExportSink.readText(path: String): String? = read(path)?.use { it.readBytes().toString(Charsets.UTF_8) }

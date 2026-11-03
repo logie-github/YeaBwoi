@@ -155,6 +155,9 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
                 Text(stringResource(R.string.export_scanning), style = MaterialTheme.typography.bodySmall)
             }
         }
+        plan?.renamed?.size?.takeIf { it > 0 }?.let { n ->
+            Text(stringResource(R.string.export_renamed, n), style = MaterialTheme.typography.bodySmall, color = WowColors.Mist)
+        }
         if (outside.isNotEmpty()) {
             Text(stringResource(R.string.export_outside, outside.joinToString()), style = MaterialTheme.typography.bodySmall, color = WowColors.Blood)
         }

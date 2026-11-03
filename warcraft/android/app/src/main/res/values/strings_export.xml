@@ -13,6 +13,7 @@
     <string name="export_group_summary">%1$d files, %2$s</string>
     <string name="export_left_out_title">Left out, because the Blizzard app makes it again</string>
     <string name="export_left_out_body">Logs, running-server files, the game\'s Windows runtime, caches and half-finished downloads or imports. Each is listed in the export\'s export.json.</string>
+    <string name="export_renamed">%1$d names can\'t be kept exactly on shared storage (names that differ only in capital letters, or with characters it doesn\'t allow). They are stored under safe names and listed in the export, so the Blizzard app puts them back as they were.</string>
     <string name="export_outside">Not in the app\'s storage, so not copied: %1$s.</string>
     <string name="export_space_needed">Free space needed at the destination: up to %1$s (what is already there from an earlier try is skipped).</string>
     <string name="export_space_free">The folder you picked has %1$s free.</string>

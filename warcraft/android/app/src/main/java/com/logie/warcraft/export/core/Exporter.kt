@@ -61,7 +61,7 @@ object Exporter {
         val planned = plan.files.map { it.path }.toHashSet()
         done.keys.retainAll(planned)
         // Names that differ only in case are stored under names of their own (shared storage can't tell them apart).
-        val renames = CaseSafe.stored(planned)
+        val renames = HashMap(CaseSafe.stored(planned))
         fun stored(path: String) = renames[path] ?: path
 
         var doneFiles = 0
@@ -97,6 +97,8 @@ object Exporter {
                     progress(file.path)
                 }
                 done[file.path] = Checksums.Done(result.first, result.second, file.modified)
+                // A destination that renamed it anyway: the manifest says where it went.
+                sink.storedAs(filePath(stored(file.path)))?.let { actual -> renames[file.path] = actual.removePrefix("files/") }
                 doneFiles++
                 progress(file.path)
                 sinceFlush++

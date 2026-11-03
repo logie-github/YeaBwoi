@@ -1,0 +1,1 @@
+- Export everything to Blizzard now looks for names that shared storage can't keep exactly (capital-letter twins, characters like ? : | , names ending in a dot or space, very long names) before it starts, says how many there are, and stores them under safe names the Blizzard app puts back. If the destination renames a file anyway, the export notes where it went.

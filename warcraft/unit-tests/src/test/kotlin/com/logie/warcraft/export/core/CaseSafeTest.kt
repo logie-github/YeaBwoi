@@ -34,6 +34,22 @@ class CaseSafeTest {
         assertNotEquals(stored.getValue("Data/x/a.blp").lowercase(), stored.getValue("data/x/a.blp").lowercase())
     }
 
+    @Test fun `names the destination can't hold get safe names`() {
+        val paths = listOf("a/what?.dbc", "a/ends.", "a/ends2 ", "a/ok.dbc", "a/" + "x".repeat(250) + ".blp", "a/pipe|colon:.txt")
+        val stored = CaseSafe.stored(paths)
+        assertEquals(setOf("a/what?.dbc", "a/ends.", "a/ends2 ", "a/" + "x".repeat(250) + ".blp", "a/pipe|colon:.txt"), stored.keys)
+        for (v in stored.values) {
+            val name = v.substringAfterLast('/')
+            assertTrue(CaseSafe.holdsExactly(name), v)
+        }
+        assertTrue(stored.getValue("a/what?.dbc").startsWith("a/what_.dbc~"))
+    }
+
+    @Test fun `names that differ only in Unicode form are twins`() {
+        val stored = CaseSafe.stored(listOf("a/caf\u00e9.m2", "a/cafe\u0301.m2"))
+        assertEquals(2, stored.size)
+    }
+
     @Test fun `the same name in two different folders is no twin`() {
         assertTrue(CaseSafe.stored(listOf("a/File.m2", "b/file.m2")).isEmpty())
     }
@@ -64,6 +80,16 @@ class CaseSafeRunTest {
         override fun write(path: String): OutputStream = object : ByteArrayOutputStream() {
             override fun close() { super.close(); files[key(path)] = toByteArray() }
         }
+    }
+
+    @Test fun `a destination that renames a file anyway is followed in the manifest`() {
+        val source = Src(mapOf("client/Wow.exe" to "wow".toByteArray(), "client/x.dbc" to "d".toByteArray()))
+        val inner = CaseBlindSink()
+        val sink = object : ExportSink by inner {
+            override fun storedAs(path: String) = if (path == "files/client/x.dbc") "files/client/x (1).dbc" else null
+        }
+        val manifest = Exporter.run(source, ExportPlanner.scan(source), sink, ExportContext("1", "/x", "2026-11-03T10:00:00Z", emptyMap()))
+        assertEquals(mapOf("client/x.dbc" to "client/x (1).dbc"), manifest.renames)
     }
 
     @Test fun `twins survive a destination that can't tell them apart, and verify finds them`() {
