@@ -87,6 +87,12 @@
             android:name=".ImportService"
             android:exported="false" />
 
+        <!-- "Export everything to Blizzard": the copy of the user's data into a folder they pick
+             (com.logie.warcraft.export), a foreground job like the imports. -->
+        <service
+            android:name=".export.ExportService"
+            android:exported="false" />
+
         <!-- Turtle WoW's realm and its installation jobs (com.logie.warcraft.turtle), apart from
              the ChromieCraft realm's ServerService. -->
         <service

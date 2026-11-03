@@ -1,0 +1,2 @@
+- New: **Export everything to Blizzard** (on the Wrath menu). It copies your client, realms with their characters, add-ons, modules and settings into a folder you pick, checked file by file, so the Blizzard app's World of Warcraft box can take them over. It is a copy: nothing here is changed or deleted. It stops your realm first (it asks), and you can stop it and carry on later or tap Verify afterwards.
+- Heads-up: the export holds your saved logins in plain text, so keep that folder private.

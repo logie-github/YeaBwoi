@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Export everything to Blizzard" (com.logie.warcraft.export): a copy of the user's data for the Blizzard app. -->
+<resources>
+    <string name="export_tile">Export everything to Blizzard</string>
+    <string name="export_tile_summary">A copy of your games for the Blizzard app</string>
+    <string name="export_title">Export everything to Blizzard</string>
+    <string name="export_verify_title">Checking the exported copy</string>
+    <string name="export_channel">Export</string>
+    <string name="export_intro">Copies everything you would hate to rebuild or lose into a folder you pick: your game clients, the realms with their characters and settings, and the app\'s choices. The Blizzard app imports it from there, so nothing has to be set up again and no progress is lost. It is only a copy: nothing in this app is moved, changed or deleted.</string>
+    <string name="export_scanning">Counting what is there…</string>
+    <string name="export_sizes_title">What will be copied</string>
+    <string name="export_total">Total: %1$d files, %2$s</string>
+    <string name="export_group_summary">%1$d files, %2$s</string>
+    <string name="export_left_out_title">Left out, because the Blizzard app makes it again</string>
+    <string name="export_left_out_body">Logs, running-server files, the game\'s Windows runtime, caches and half-finished downloads or imports. Each is listed in the export\'s export.json.</string>
+    <string name="export_outside">Not in the app\'s storage, so not copied: %1$s.</string>
+    <string name="export_space_needed">Free space needed at the destination: up to %1$s (what is already there from an earlier try is skipped).</string>
+    <string name="export_space_free">The folder you picked has %1$s free.</string>
+    <string name="export_space_unknown">The folder you picked doesn\'t say how much space it has; the export stops with a message if it runs out.</string>
+    <string name="export_choose">Choose the folder and export</string>
+    <string name="export_start">Export to %1$s</string>
+    <string name="export_other_folder">Choose another folder</string>
+    <string name="export_realm_running">A realm is running (%1$s). Its database must be stopped before it is copied, so the copy is clean. Stopping saves the characters. Stop it and export?</string>
+    <string name="export_stop_and_export">Stop it and export</string>
+    <string name="export_blocked_game">A game is open. Close the game first, then export.</string>
+    <string name="export_blocked_job">Another job (an import, an install or a download) is running. Wait for it to finish, then export.</string>
+    <string name="export_blocked_realm">A realm is running (%1$s). Stop it first, then export.</string>
+    <string name="export_still_running">Couldn\'t stop %1$s. Stop it in its Server screen and try again; nothing was copied from a running database.</string>
+    <string name="export_nothing">There is nothing to export.</string>
+    <string name="export_error_space">Not enough free space at the destination: it needs %1$s and has %2$s. Free some up or pick another folder, and run it again: what was copied carries on.</string>
+    <string name="export_error_write">The copy stopped: %1$s Run it again: what was already copied is skipped and it carries on.</string>
+    <string name="export_cancelled">Stopped before the end. Run it again to carry on: what was already copied is skipped.</string>
+    <string name="export_phase_checking">Checking that nothing is running…</string>
+    <string name="export_phase_stopping">Stopping %1$s…</string>
+    <string name="export_phase_scanning">Counting the files…</string>
+    <string name="export_phase_copying">Copying</string>
+    <string name="export_phase_verifying">Checking the copy against its checksums</string>
+    <string name="export_progress_files">%1$d of %2$d files</string>
+    <string name="export_progress_bytes">%1$s of %2$s</string>
+    <string name="export_progress_skipped">%1$d already there, skipped</string>
+    <string name="export_notification_progress">%1$d / %2$d files · %3$.0f%%</string>
+    <string name="export_done">Exported %1$d files (%2$s) to %3$s/WoW-export. The originals in this app are untouched. Open the Blizzard app and import from that folder.</string>
+    <string name="export_verify">Verify the copy</string>
+    <string name="export_verify_ok">The copy is intact: all %1$d files (%2$s) are there and match their checksums.</string>
+    <string name="export_verify_bad">The copy has problems: %1$d missing, %2$d the wrong size, %3$d not matching their checksums. Run the export again to repair it: the bad files are copied again.</string>
+    <string name="export_verify_problem">Couldn\'t check the copy: %1$s</string>
+</resources>
