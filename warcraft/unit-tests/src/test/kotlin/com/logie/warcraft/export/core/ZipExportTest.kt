@@ -108,4 +108,26 @@ class ZipExportTest {
         val plan = ExportPlanner.scan(source)
         assertFailsWith<ExportCancelled> { ZipExporter.run(source, plan, ByteArrayOutputStream(), context(), isCancelled = { true }) }
     }
+
+    @Test fun aModesZipNamesItsModeFirstAndInItsManifest() {
+        val source = Mem(files)
+        val plan = ExportPlanner.scan(source).only(ExportRules.Mode.WRATH_PLUS.groups)
+        val out = ByteArrayOutputStream()
+        val manifest = ZipExporter.run(source, plan, out, context(), mode = ExportRules.Mode.WRATH_PLUS.key)
+        val list = entries(out.toByteArray())
+        assertEquals(ZipExporter.MODE_ENTRY, list.first().first)
+        assertEquals("wrath-plus", String(list.first().second).trim())
+        assertEquals("wrath-plus", manifest.mode)
+        assertEquals("wrath-plus", ExportManifest.parse(String(list.last().second)).mode)
+    }
+
+    @Test fun everyGroupIsInOneModesZipSoNothingIsLeftOut() {
+        for (group in ExportRules.Group.entries) {
+            assertEquals(1, ExportRules.Mode.entries.count { group in it.groups }, group.name)
+        }
+        // Wrath+ holds what Blizzard needs for the realm: the client, server, databases (characters), mods and add-ons.
+        for (folder in listOf("client", "server", "mysql", "mods", "addons", "modules", "etc")) {
+            assertTrue(ExportRules.groupOf(folder) in ExportRules.Mode.WRATH_PLUS.groups, folder)
+        }
+    }
 }

@@ -120,6 +120,17 @@ object ExportRules {
         OTHER("other", "Other files"),
     }
 
+    /**
+     * The game modes the Blizzard app imports, each from a zip of its own ([ZipExporter], `mode.txt` first): Wrath+ is the
+     * 3.3.5a game (ChromieCraft inside) and also takes [Group.OTHER], so every file goes into one zip or another.
+     */
+    enum class Mode(val key: String, val title: String, val fileName: String, val groups: Set<Group>) {
+        WRATH_PLUS("wrath-plus", "Wrath+", "wow-wrath-plus.zip", setOf(Group.WRATH, Group.OTHER)),
+        LEGION("legion", "Legion", "wow-legion.zip", setOf(Group.LEGION)),
+        OCTOWOW("octowow", "OctoWoW", "wow-octowow.zip", setOf(Group.TURTLE)),
+        TWW("tww", "The War Within", "wow-tww.zip", setOf(Group.TWW)),
+    }
+
     private val WRATH_FOLDERS = setOf(
         "client", "server", "mysql", "etc", "etc-remix", "data", "data-modules", "data-races", "races", "mods",
         "modules", "addons", "ralia", "alternate-female", "base-model", "client-realm", "zones",
