@@ -232,7 +232,7 @@ object BlizzardExport {
      * [export]'s checks, then the same files written as one zip file ([ZipExporter]) at [destination], a
      * document the user made with the system's "save as" picker. Background thread.
      */
-    suspend fun exportZip(context: Context, destination: Uri, groups: Set<ExportRules.Group>, mayStop: Boolean) {
+    suspend fun exportZip(context: Context, destination: Uri, groups: Set<ExportRules.Group>, mayStop: Boolean, mode: String? = null) {
         set(State.Working(Phase.CHECKING))
         blocker(context)?.let { throw ExportException(it) }
         val running = runningRealms(context)
@@ -253,7 +253,7 @@ object BlizzardExport {
         val resolver = context.contentResolver
         val manifest = try {
             val out = resolver.openOutputStream(destination, "wt") ?: throw ExportException(context.getString(R.string.export_error_write, "the destination can't be opened"))
-            ZipExporter.run(source(context), plan, out, manifestContext, onProgress = { progress ->
+            ZipExporter.run(source(context), plan, out, manifestContext, mode = mode, onProgress = { progress ->
                 val now = System.currentTimeMillis()
                 if (now - last >= 250 || progress.files == progress.totalFiles) {
                     last = now

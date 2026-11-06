@@ -33,6 +33,8 @@ object ZipExporter {
         context: ExportContext,
         onProgress: (ExportProgress) -> Unit = {},
         isCancelled: () -> Boolean = { false },
+        /** The game mode this zip holds ([ExportRules.Mode.key]), written first so the Blizzard app checks it before copying. */
+        mode: String? = null,
     ): ExportManifest {
         val zip = ZipArchiveOutputStream(BufferedOutputStream(out, 1 shl 20))
         zip.setUseZip64(Zip64Mode.Always)
@@ -45,6 +47,7 @@ object ZipExporter {
         fun progress(current: String?) = onProgress(ExportProgress(doneFiles, plan.files.size, doneBytes, plan.totalBytes, 0, current))
         progress(null)
         try {
+            if (mode != null) text(zip, MODE_ENTRY, mode + "\n")
             val buffer = ByteArray(1 shl 20)
             for (file in plan.files) {
                 if (isCancelled()) throw ExportCancelled()
@@ -86,6 +89,7 @@ object ZipExporter {
                 prefs = context.prefs.keys.sorted(),
                 excludedInside = plan.excludedInside,
                 renames = emptyMap(),
+                mode = mode,
             )
             text(zip, ExportManifest.FILE, manifest.toJson())
             zip.finish()
@@ -96,6 +100,9 @@ object ZipExporter {
             throw e
         }
     }
+
+    /** A per-mode zip's first entry: the mode's key. */
+    const val MODE_ENTRY = "mode.txt"
 
     private fun text(zip: ZipArchiveOutputStream, name: String, text: String) {
         val bytes = text.toByteArray(Charsets.UTF_8)

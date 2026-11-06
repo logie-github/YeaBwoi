@@ -64,7 +64,7 @@ class ExportService : Service() {
                 when (job) {
                     JOB_VERIFY -> BlizzardExport.verify(this@ExportService, tree)
                     JOB_VERIFY_ZIP -> BlizzardExport.verifyZip(this@ExportService, tree)
-                    JOB_EXPORT_ZIP -> BlizzardExport.exportZip(this@ExportService, tree, groups, stopRealms)
+                    JOB_EXPORT_ZIP -> BlizzardExport.exportZip(this@ExportService, tree, groups, stopRealms, intent.getStringExtra(EXTRA_MODE))
                     else -> BlizzardExport.export(this@ExportService, tree, groups, stopRealms)
                 }
             }
@@ -155,6 +155,7 @@ class ExportService : Service() {
         private const val JOB_EXPORT = "export"
         private const val JOB_VERIFY = "verify"
         private const val JOB_EXPORT_ZIP = "export-zip"
+        private const val EXTRA_MODE = "mode"
         private const val JOB_VERIFY_ZIP = "verify-zip"
         private const val ACTION_CANCEL = "com.logie.warcraft.CANCEL_EXPORT"
 
@@ -170,11 +171,11 @@ class ExportService : Service() {
         }
 
         /** Writes [groups]' files as one zip file at [document] (made with the "save as" picker). */
-        fun exportZip(context: Context, document: Uri, groups: Set<ExportRules.Group>, stopRealms: Boolean) {
+        fun exportZip(context: Context, document: Uri, groups: Set<ExportRules.Group>, stopRealms: Boolean, mode: String? = null) {
             ContextCompat.startForegroundService(
                 context,
                 Intent(context, ExportService::class.java).setData(document)
-                    .putExtra(EXTRA_JOB, JOB_EXPORT_ZIP).putExtra(EXTRA_STOP_REALMS, stopRealms)
+                    .putExtra(EXTRA_JOB, JOB_EXPORT_ZIP).putExtra(EXTRA_STOP_REALMS, stopRealms).putExtra(EXTRA_MODE, mode)
                     .putExtra(EXTRA_GROUPS, groups.map { it.key }.toTypedArray()),
             )
         }

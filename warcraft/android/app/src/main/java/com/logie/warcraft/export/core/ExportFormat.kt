@@ -85,6 +85,8 @@ data class ExportManifest(
      * which shared storage can't tell apart: [CaseSafe]): the real path under `files/` to the stored one.
      */
     val renames: Map<String, String> = emptyMap(),
+    /** The game mode a per-mode zip holds ([ExportRules.Mode.key]); null for an export of everything. */
+    val mode: String? = null,
 ) {
     fun toJson(): String {
         fun strings(list: List<String>) = list.joinToString(",", "[", "]") { Json.quote(it) }
@@ -101,6 +103,7 @@ data class ExportManifest(
             append("  \"excluded\": ").append(strings(excluded)).append(",\n")
             append("  \"excludedInside\": ").append(strings(excludedInside)).append(",\n")
             append("  \"renames\": {").append(renames.entries.sortedBy { it.key }.joinToString(",") { "\n    ${Json.quote(it.key)}: ${Json.quote(it.value)}" }).append(if (renames.isEmpty()) "" else "\n  ").append("},\n")
+            if (mode != null) append("  \"mode\": ").append(Json.quote(mode)).append(",\n")
             append("  \"checksums\": ").append(Json.quote(checksums)).append(",\n")
             append("  \"prefs\": ").append(strings(prefs)).append("\n")
             append("}\n")
@@ -120,6 +123,7 @@ data class ExportManifest(
                 o.getString("sourceFilesDir"), o.getInt("files"), o.getLong("bytes"), strings("folders"), strings("excluded"),
                 o.getString("checksums"), strings("prefs"), strings("excludedInside"),
                 o.optJSONObject("renames")?.let { r -> r.keys().asSequence().associateWith { r.getString(it) } } ?: emptyMap(),
+                o.optString("mode").takeIf { it.isNotEmpty() },
             )
         }
     }

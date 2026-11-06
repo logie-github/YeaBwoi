@@ -580,7 +580,11 @@ The screen shows what will be copied with its size per game (Wrath: ChromieCraft
 - **Resumable.** The SHA-256 of each file is worked out while it is copied. The destination's `checksums.partial` lists the files copied completely (with the size and the modified time of the original). If a run stops (Stop, a full disk, the phone dying), run it again: files listed there with the same size and modified time, and present with that size, are skipped; the rest are copied from their start. Running it again later copies only what changed (the databases, mostly).
 - **Verify** re-reads every file at the destination and compares it with `checksums.tsv`, reporting what is missing, the wrong size or not matching. A file found wrong is copied again by the next export.
 
-### As one zip (current)
+### One zip per game (current)
+
+Each game mode is its own zip (`ExportRules.Mode`): **Wrath+** (`WoW-Wrath+.zip`: the Wrath folders, which hold ChromieCraft's and Wrath Remix's characters, plus every file that belongs to no single game, so nothing is left out of every zip), **Legion** (`WoW-Legion.zip`), **OctoWoW** (`WoW-OctoWoW.zip`) and **The War Within** (`WoW-TWW.zip`). Each zip's first entry is `mode.txt` (the mode's key: `wrath-plus`, `legion`, `octowow`, `tww`), also in `export.json` as `mode`, so the Blizzard app checks a zip is the right game's before copying anything. Every zip carries all the preferences.
+
+### As one zip
 
 The export is a single archive in the same layout (`files/`, `prefs/`, `checksums.tsv`, `export.json`), written in one pass: each file is stored as it is (no compression: the games' files are packed already) with Zip64 headers, its SHA-256 taken as it is written, and `checksums.tsv` and `export.json` follow as the archive's last entries, so a zip without `export.json` didn't finish. Nothing is renamed inside a zip (the capital-letter twins that shared storage can't hold apart are fine in one file, `renames` is empty). It is not resumable: a stopped export removes the unfinished zip and starts over. **Verify the zip** reads it back once and compares every file with `checksums.tsv`. Read it with a reader that handles Zip64 data descriptors (the Blizzard app uses commons-compress; Java's own `ZipInputStream` can't). The code is `export/core/ZipExporter.kt` (tested in `unit-tests`); the "save as" and open pickers are in `ui/WowExport.kt`. The folder layout below is what older versions made, and the Blizzard app still reads it.
 
