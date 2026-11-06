@@ -269,6 +269,76 @@ object BlizzardExport {
         set(State.Done(manifest.files, manifest.bytes, 0, documentName(context, destination)))
     }
 
+    /**
+     * The chosen [modes], each as its own zip ([ExportRules.Mode.fileName]) in the folder [tree]: the realms are stopped and the
+     * files counted once, then the zips are written one after another. A zip of that name already there is replaced. Background thread.
+     */
+    suspend fun exportZips(context: Context, tree: Uri, modes: List<ExportRules.Mode>, mayStop: Boolean) {
+        set(State.Working(Phase.CHECKING))
+        blocker(context)?.let { throw ExportException(it) }
+        val running = runningRealms(context)
+        if (running.isNotEmpty()) {
+            if (!mayStop) throw ExportException(context.getString(R.string.export_blocked_realm, running.joinToString { it.label }))
+            stopRealms(context, running) { set(State.Working(Phase.STOPPING, note = it)) }
+        }
+        set(State.Working(Phase.SCANNING))
+        val all = scan(context) { cancelled }
+        val todo = modes.map { it to all.only(it.groups) }.filter { it.second.files.isNotEmpty() }
+        if (todo.isEmpty()) throw ExportException(context.getString(R.string.export_nothing))
+        val manifestContext = ExportContext(
+            appVersion = BuildConfig.VERSION_NAME,
+            sourceFilesDir = context.filesDir.absolutePath,
+            createdAt = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(),
+            prefs = preferences(context),
+        )
+        val resolver = context.contentResolver
+        val folder = android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, android.provider.DocumentsContract.getTreeDocumentId(tree))
+        var files = 0
+        var bytes = 0L
+        for ((index, pair) in todo.withIndex()) {
+            val (mode, plan) = pair
+            val note = "${mode.title} (${index + 1} of ${todo.size}): ${mode.fileName}"
+            set(State.Working(Phase.COPYING, note = note))
+            val document = try {
+                replaceDocument(context, tree, folder, mode.fileName)
+            } catch (e: Exception) {
+                throw ExportException(context.getString(R.string.export_error_write, "${mode.fileName} can't be made there (${e.message})"))
+            }
+            var last = 0L
+            try {
+                val out = resolver.openOutputStream(document, "wt") ?: throw IOException("${mode.fileName} can't be opened")
+                val manifest = ZipExporter.run(source(context), plan, out, manifestContext, mode = mode.key, onProgress = { progress ->
+                    val now = System.currentTimeMillis()
+                    if (now - last >= 250 || progress.files == progress.totalFiles) {
+                        last = now
+                        set(State.Working(Phase.COPYING, progress, note))
+                    }
+                }, isCancelled = { cancelled })
+                files += manifest.files
+                bytes += manifest.bytes
+            } catch (e: ExportCancelled) {
+                runCatching { android.provider.DocumentsContract.deleteDocument(resolver, document) }
+                throw ExportException(context.getString(R.string.export_cancelled))
+            } catch (e: IOException) {
+                runCatching { android.provider.DocumentsContract.deleteDocument(resolver, document) }
+                throw ExportException(context.getString(R.string.export_error_write, e.message ?: e.javaClass.simpleName))
+            }
+        }
+        set(State.Done(files, bytes, 0, todo.joinToString { it.first.fileName }))
+    }
+
+    /** A new, empty [name] in [folder] (of the tree [tree]): one of that name already there goes first, so it isn't saved as "name (1)". */
+    private fun replaceDocument(context: Context, tree: Uri, folder: Uri, name: String): Uri {
+        val resolver = context.contentResolver
+        val children = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(tree, android.provider.DocumentsContract.getDocumentId(folder))
+        resolver.query(children, arrayOf(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID, android.provider.DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use { c ->
+            while (c.moveToNext()) {
+                if (c.getString(1) == name) runCatching { android.provider.DocumentsContract.deleteDocument(resolver, android.provider.DocumentsContract.buildDocumentUriUsingTree(tree, c.getString(0))) }
+            }
+        }
+        return android.provider.DocumentsContract.createDocument(resolver, folder, "application/zip", name) ?: throw IOException("the folder took no new file")
+    }
+
     /** Re-reads the zip at [document] and compares it with its checksums.tsv. Background thread. */
     suspend fun verifyZip(context: Context, document: Uri) {
         set(State.Working(Phase.VERIFYING))

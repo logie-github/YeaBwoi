@@ -125,10 +125,10 @@ object ExportRules {
      * 3.3.5a game (ChromieCraft inside) and also takes [Group.OTHER], so every file goes into one zip or another.
      */
     enum class Mode(val key: String, val title: String, val fileName: String, val groups: Set<Group>) {
-        WRATH_PLUS("wrath-plus", "Wrath+", "WoW-Wrath+.zip", setOf(Group.WRATH, Group.OTHER)),
-        LEGION("legion", "Legion", "WoW-Legion.zip", setOf(Group.LEGION)),
-        OCTOWOW("octowow", "OctoWoW", "WoW-OctoWoW.zip", setOf(Group.TURTLE)),
-        TWW("tww", "The War Within", "WoW-TWW.zip", setOf(Group.TWW)),
+        WRATH_PLUS("wrath-plus", "Wrath+", "wow-wrath-plus.zip", setOf(Group.WRATH, Group.OTHER)),
+        LEGION("legion", "Legion", "wow-legion.zip", setOf(Group.LEGION)),
+        OCTOWOW("octowow", "OctoWoW", "wow-octowow.zip", setOf(Group.TURTLE)),
+        TWW("tww", "The War Within", "wow-tww.zip", setOf(Group.TWW)),
     }
 
     private val WRATH_FOLDERS = setOf(

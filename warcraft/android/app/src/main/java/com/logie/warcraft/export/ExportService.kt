@@ -65,6 +65,11 @@ class ExportService : Service() {
                     JOB_VERIFY -> BlizzardExport.verify(this@ExportService, tree)
                     JOB_VERIFY_ZIP -> BlizzardExport.verifyZip(this@ExportService, tree)
                     JOB_EXPORT_ZIP -> BlizzardExport.exportZip(this@ExportService, tree, groups, stopRealms, intent.getStringExtra(EXTRA_MODE))
+                    JOB_EXPORT_ZIPS -> BlizzardExport.exportZips(
+                        this@ExportService, tree,
+                        intent.getStringArrayExtra(EXTRA_MODES).orEmpty().mapNotNull { key -> ExportRules.Mode.entries.firstOrNull { it.key == key } },
+                        stopRealms,
+                    )
                     else -> BlizzardExport.export(this@ExportService, tree, groups, stopRealms)
                 }
             }
@@ -156,6 +161,8 @@ class ExportService : Service() {
         private const val JOB_VERIFY = "verify"
         private const val JOB_EXPORT_ZIP = "export-zip"
         private const val EXTRA_MODE = "mode"
+        private const val JOB_EXPORT_ZIPS = "export-zips"
+        private const val EXTRA_MODES = "modes"
         private const val JOB_VERIFY_ZIP = "verify-zip"
         private const val ACTION_CANCEL = "com.logie.warcraft.CANCEL_EXPORT"
 
@@ -177,6 +184,16 @@ class ExportService : Service() {
                 Intent(context, ExportService::class.java).setData(document)
                     .putExtra(EXTRA_JOB, JOB_EXPORT_ZIP).putExtra(EXTRA_STOP_REALMS, stopRealms).putExtra(EXTRA_MODE, mode)
                     .putExtra(EXTRA_GROUPS, groups.map { it.key }.toTypedArray()),
+            )
+        }
+
+        /** Each of [modes] as its own zip in the folder [tree] (picked with the folder picker). */
+        fun exportZips(context: Context, tree: Uri, modes: List<ExportRules.Mode>, stopRealms: Boolean) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, ExportService::class.java).setData(tree)
+                    .putExtra(EXTRA_JOB, JOB_EXPORT_ZIPS).putExtra(EXTRA_STOP_REALMS, stopRealms)
+                    .putExtra(EXTRA_MODES, modes.map { it.key }.toTypedArray()),
             )
         }
 

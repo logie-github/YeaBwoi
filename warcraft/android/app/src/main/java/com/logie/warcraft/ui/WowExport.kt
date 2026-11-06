@@ -53,8 +53,8 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
     var plan by remember { mutableStateOf<ExportPlan?>(null) }
     var scanError by remember { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(emptyList<String>()) }
-    // The mode whose zip the "save as" picker is choosing a place for.
-    var exporting by remember { mutableStateOf<ExportRules.Mode?>(null) }
+    // The modes ticked: each is saved as its own zip (wow-legion.zip...) in the folder picked.
+    var chosen by remember { mutableStateOf(ExportRules.Mode.entries.toSet()) }
     val outside = remember { BlizzardExport.outsideFiles(context) }
 
     // What is there, counted again whenever no export is running (a finished one changes nothing, but the app may have).
@@ -67,14 +67,11 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
         running = BlizzardExport.runningRealms(context).map { it.label }
     }
 
-    // Each mode's zip is made with the system's "save as" picker: any folder, any name; the export starts once it's chosen.
-    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        val mode = exporting
-        exporting = null
+    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        mode ?: return@rememberLauncherForActivityResult
         runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
-        ExportService.exportZip(context, uri, mode.groups, stopRealms = running.isNotEmpty(), mode = mode.key)
+        val modes = ExportRules.Mode.entries.filter { it in chosen && plan?.only(it.groups)?.files?.isNotEmpty() == true }
+        if (modes.isNotEmpty()) ExportService.exportZips(context, uri, modes, stopRealms = running.isNotEmpty())
     }
     val pickForVerify = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
@@ -115,7 +112,12 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
                 for (mode in ExportRules.Mode.entries) {
                     val part = current.only(mode.groups)
                     if (part.files.isEmpty()) continue
-                    WowStatusLine(mode.title, stringResource(R.string.export_group_summary, part.files.size, Formatter.formatShortFileSize(context, part.totalBytes)))
+                    WowSwitchRow(
+                        "${mode.title} (${mode.fileName})",
+                        stringResource(R.string.export_group_summary, part.files.size, Formatter.formatShortFileSize(context, part.totalBytes)),
+                        checked = mode in chosen,
+                        enabled = !working,
+                    ) { on -> chosen = if (on) chosen + mode else chosen - mode }
                 }
                 Text(stringResource(R.string.export_left_out_title), style = MaterialTheme.typography.titleSmall)
                 Text(stringResource(R.string.export_left_out_body), style = MaterialTheme.typography.bodySmall)
@@ -137,14 +139,12 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
         }
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            // A zip for each mode there is: save it where you like, then pick it on that mode in the Blizzard app.
-            for (mode in ExportRules.Mode.entries) {
-                if (plan?.only(mode.groups)?.files?.isNotEmpty() != true) continue
-                WowButton(
-                    (if (running.isNotEmpty()) stringResource(R.string.export_stop_and_export) + ": " else "Export ") + mode.title,
-                    enabled = canExport,
-                ) { exporting = mode; pickFile.launch(mode.fileName) }
-            }
+            // The ticked modes, a zip each, in the folder picked.
+            val ticked = ExportRules.Mode.entries.count { it in chosen && plan?.only(it.groups)?.files?.isNotEmpty() == true }
+            WowButton(
+                if (running.isNotEmpty()) stringResource(R.string.export_stop_and_export) else stringResource(R.string.export_choose),
+                enabled = canExport && ticked > 0,
+            ) { pickFolder.launch(null) }
             WowButton(stringResource(R.string.export_verify), primary = false, enabled = !working) { pickForVerify.launch(arrayOf("application/zip", "application/octet-stream")) }
         }
     }

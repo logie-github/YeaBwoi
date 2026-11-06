@@ -582,7 +582,7 @@ The screen shows what will be copied with its size per game (Wrath: ChromieCraft
 
 ### One zip per game (current)
 
-Each game mode is its own zip (`ExportRules.Mode`): **Wrath+** (`WoW-Wrath+.zip`: the Wrath folders, which hold ChromieCraft's and Wrath Remix's characters, plus every file that belongs to no single game, so nothing is left out of every zip), **Legion** (`WoW-Legion.zip`), **OctoWoW** (`WoW-OctoWoW.zip`) and **The War Within** (`WoW-TWW.zip`). Each zip's first entry is `mode.txt` (the mode's key: `wrath-plus`, `legion`, `octowow`, `tww`), also in `export.json` as `mode`, so the Blizzard app checks a zip is the right game's before copying anything. Every zip carries all the preferences.
+Each game mode is its own zip (`ExportRules.Mode`): **Wrath+** (`wow-wrath-plus.zip`: the Wrath folders, which hold ChromieCraft's and Wrath Remix's characters, plus every file that belongs to no single game, so nothing is left out of every zip), **Legion** (`wow-legion.zip`), **OctoWoW** (`wow-octowow.zip`) and **The War Within** (`wow-tww.zip`). Tick the modes (all to begin with) and pick a folder once: each is written there in turn, the realms stopped and the files counted only once; a zip of the same name already there is replaced. Each zip's first entry is `mode.txt` (the mode's key: `wrath-plus`, `legion`, `octowow`, `tww`), also in `export.json` as `mode`, so the Blizzard app checks a zip is the right game's before copying anything. Every zip carries all the preferences.
 
 ### As one zip
 
