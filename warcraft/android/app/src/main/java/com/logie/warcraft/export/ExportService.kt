@@ -61,8 +61,12 @@ class ExportService : Service() {
         }
         scope.launch {
             val result = runCatching {
-                if (job == JOB_VERIFY) BlizzardExport.verify(this@ExportService, tree)
-                else BlizzardExport.export(this@ExportService, tree, groups, stopRealms)
+                when (job) {
+                    JOB_VERIFY -> BlizzardExport.verify(this@ExportService, tree)
+                    JOB_VERIFY_ZIP -> BlizzardExport.verifyZip(this@ExportService, tree)
+                    JOB_EXPORT_ZIP -> BlizzardExport.exportZip(this@ExportService, tree, groups, stopRealms)
+                    else -> BlizzardExport.export(this@ExportService, tree, groups, stopRealms)
+                }
             }
             watcher.cancel()
             result.exceptionOrNull()?.let { error ->
@@ -150,6 +154,8 @@ class ExportService : Service() {
         private const val EXTRA_GROUPS = "groups"
         private const val JOB_EXPORT = "export"
         private const val JOB_VERIFY = "verify"
+        private const val JOB_EXPORT_ZIP = "export-zip"
+        private const val JOB_VERIFY_ZIP = "verify-zip"
         private const val ACTION_CANCEL = "com.logie.warcraft.CANCEL_EXPORT"
 
         /** Copies [groups]' files into the folder [tree]; [stopRealms]: a running realm may be stopped first. */
@@ -162,6 +168,21 @@ class ExportService : Service() {
                     .putExtra(EXTRA_GROUPS, groups.map { it.key }.toTypedArray()),
             )
         }
+
+        /** Writes [groups]' files as one zip file at [document] (made with the "save as" picker). */
+        fun exportZip(context: Context, document: Uri, groups: Set<ExportRules.Group>, stopRealms: Boolean) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, ExportService::class.java).setData(document)
+                    .putExtra(EXTRA_JOB, JOB_EXPORT_ZIP).putExtra(EXTRA_STOP_REALMS, stopRealms)
+                    .putExtra(EXTRA_GROUPS, groups.map { it.key }.toTypedArray()),
+            )
+        }
+
+        fun verifyZip(context: Context, document: Uri) = ContextCompat.startForegroundService(
+            context,
+            Intent(context, ExportService::class.java).setData(document).putExtra(EXTRA_JOB, JOB_VERIFY_ZIP),
+        )
 
         fun verify(context: Context, tree: Uri) = ContextCompat.startForegroundService(
             context,

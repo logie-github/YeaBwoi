@@ -572,7 +572,7 @@ Accounts, characters and the world are in MariaDB's databases in the app's stora
 
 ## Export everything to Blizzard
 
-**Export everything to Blizzard** (a tile in the launcher's menu) copies everything you would hate to rebuild or lose into a folder you pick, for the separate Blizzard launcher app (`com.logie.blizz`) to import: no rebuilding, no lost progress. **It is a copy, never a move: nothing in this app is changed or deleted, and the originals stay where they are.** (Uninstalling this app still deletes them, so keep the export until the Blizzard app has imported it and **Verify** is green.)
+**Export everything to Blizzard** (a tile in the launcher's menu) copies everything you would hate to rebuild or lose into **one zip file** you save wherever you like (any folder, any name: Android's "save as" picker), for the separate Blizzard launcher app (`com.logie.blizz`) to import: no rebuilding, no lost progress. **It is a copy, never a move: nothing in this app is changed or deleted, and the originals stay where they are.** (Uninstalling this app still deletes them, so keep the export until the Blizzard app has imported it and **Verify** is green.)
 
 The screen shows what will be copied with its size per game (Wrath: ChromieCraft and Wrath Remix, OctoWoW, Legion, The War Within; each can be turned off), what is left out, and, once you pick the folder with Android's folder picker, the free space it needs there (what an earlier try already copied isn't counted) and the free space it has. Then **Export** copies with progress by bytes and by file, and **Stop**. It runs as a foreground service with a notification, so it carries on with the screen off.
 
@@ -580,7 +580,11 @@ The screen shows what will be copied with its size per game (Wrath: ChromieCraft
 - **Resumable.** The SHA-256 of each file is worked out while it is copied. The destination's `checksums.partial` lists the files copied completely (with the size and the modified time of the original). If a run stops (Stop, a full disk, the phone dying), run it again: files listed there with the same size and modified time, and present with that size, are skipped; the rest are copied from their start. Running it again later copies only what changed (the databases, mostly).
 - **Verify** re-reads every file at the destination and compares it with `checksums.tsv`, reporting what is missing, the wrong size or not matching. A file found wrong is copied again by the next export.
 
-### The export's format
+### As one zip (current)
+
+The export is a single archive in the same layout (`files/`, `prefs/`, `checksums.tsv`, `export.json`), written in one pass: each file is stored as it is (no compression: the games' files are packed already) with Zip64 headers, its SHA-256 taken as it is written, and `checksums.tsv` and `export.json` follow as the archive's last entries, so a zip without `export.json` didn't finish. Nothing is renamed inside a zip (the capital-letter twins that shared storage can't hold apart are fine in one file, `renames` is empty). It is not resumable: a stopped export removes the unfinished zip and starts over. **Verify the zip** reads it back once and compares every file with `checksums.tsv`. Read it with a reader that handles Zip64 data descriptors (the Blizzard app uses commons-compress; Java's own `ZipInputStream` can't). The code is `export/core/ZipExporter.kt` (tested in `unit-tests`); the "save as" and open pickers are in `ui/WowExport.kt`. The folder layout below is what older versions made, and the Blizzard app still reads it.
+
+### The export's format (as a folder, the older way)
 
 ```
 <picked folder>/WoW-export/

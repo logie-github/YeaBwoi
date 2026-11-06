@@ -1,0 +1,2 @@
+- Export everything to Blizzard now makes one zip file: tap it, choose where to save (any folder, any name), and it writes `WoW-export.zip`. In the Blizzard app, pick that zip to import. Verify now checks a zip too.
+- The zip holds your saved logins in plain text, so keep it private.
