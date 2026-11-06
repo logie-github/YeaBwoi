@@ -18,6 +18,7 @@ import com.logie.warcraft.export.core.ExportProgress
 import com.logie.warcraft.export.core.ExportRules
 import com.logie.warcraft.export.core.ExportVerifier
 import com.logie.warcraft.export.core.Exporter
+import com.logie.warcraft.export.core.ZipExporter
 import com.logie.warcraft.export.core.JavaFileSource
 import com.logie.warcraft.export.core.PrefsDump
 import com.logie.warcraft.export.core.VerifyReport
@@ -226,6 +227,72 @@ object BlizzardExport {
         val skipped = (_state.value as? State.Working)?.progress?.skipped ?: 0
         set(State.Done(manifest.files, manifest.bytes, skipped, sink.displayName()))
     }
+
+    /**
+     * [export]'s checks, then the same files written as one zip file ([ZipExporter]) at [destination], a
+     * document the user made with the system's "save as" picker. Background thread.
+     */
+    suspend fun exportZip(context: Context, destination: Uri, groups: Set<ExportRules.Group>, mayStop: Boolean) {
+        set(State.Working(Phase.CHECKING))
+        blocker(context)?.let { throw ExportException(it) }
+        val running = runningRealms(context)
+        if (running.isNotEmpty()) {
+            if (!mayStop) throw ExportException(context.getString(R.string.export_blocked_realm, running.joinToString { it.label }))
+            stopRealms(context, running) { set(State.Working(Phase.STOPPING, note = it)) }
+        }
+        set(State.Working(Phase.SCANNING))
+        val plan = scan(context) { cancelled }.only(groups)
+        if (plan.files.isEmpty()) throw ExportException(context.getString(R.string.export_nothing))
+        val manifestContext = ExportContext(
+            appVersion = BuildConfig.VERSION_NAME,
+            sourceFilesDir = context.filesDir.absolutePath,
+            createdAt = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(),
+            prefs = preferences(context),
+        )
+        var last = 0L
+        val resolver = context.contentResolver
+        val manifest = try {
+            val out = resolver.openOutputStream(destination, "wt") ?: throw ExportException(context.getString(R.string.export_error_write, "the destination can't be opened"))
+            ZipExporter.run(source(context), plan, out, manifestContext, onProgress = { progress ->
+                val now = System.currentTimeMillis()
+                if (now - last >= 250 || progress.files == progress.totalFiles) {
+                    last = now
+                    set(State.Working(Phase.COPYING, progress))
+                }
+            }, isCancelled = { cancelled })
+        } catch (e: ExportCancelled) {
+            runCatching { android.provider.DocumentsContract.deleteDocument(resolver, destination) }
+            throw ExportException(context.getString(R.string.export_cancelled))
+        } catch (e: IOException) {
+            throw ExportException(context.getString(R.string.export_error_write, e.message ?: e.javaClass.simpleName))
+        }
+        set(State.Done(manifest.files, manifest.bytes, 0, documentName(context, destination)))
+    }
+
+    /** Re-reads the zip at [document] and compares it with its checksums.tsv. Background thread. */
+    suspend fun verifyZip(context: Context, document: Uri) {
+        set(State.Working(Phase.VERIFYING))
+        var last = 0L
+        val report = try {
+            val input = context.contentResolver.openInputStream(document) ?: throw ExportException("The file can't be opened.")
+            ZipExporter.verify(input, onProgress = { progress ->
+                val now = System.currentTimeMillis()
+                if (now - last >= 250) {
+                    last = now
+                    set(State.Working(Phase.VERIFYING, progress))
+                }
+            }, isCancelled = { cancelled })
+        } catch (e: ExportCancelled) {
+            throw ExportException(context.getString(R.string.export_cancelled))
+        }
+        set(State.Verified(report, documentName(context, document)))
+    }
+
+    fun documentName(context: Context, document: Uri): String = runCatching {
+        context.contentResolver.query(document, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+            if (it.moveToFirst()) it.getString(0) else null
+        }
+    }.getOrNull() ?: document.lastPathSegment ?: document.toString()
 
     /** Re-reads the destination and compares it with checksums.tsv. Background thread. */
     suspend fun verify(context: Context, tree: Uri) {

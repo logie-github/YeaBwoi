@@ -3,6 +3,7 @@
 package com.logie.warcraft.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,9 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.logie.warcraft.R
 import com.logie.warcraft.export.BlizzardExport
 import com.logie.warcraft.export.ExportService
-import com.logie.warcraft.export.SafExportSink
 import com.logie.warcraft.export.core.ExportPlan
-import com.logie.warcraft.export.core.ExportPlanner
 import com.logie.warcraft.export.core.ExportRules
 import com.logie.warcraft.export.core.VerifyReport
 import kotlinx.coroutines.Dispatchers
@@ -55,9 +54,8 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
     var scanError by remember { mutableStateOf<String?>(null) }
     var running by remember { mutableStateOf(emptyList<String>()) }
     var chosen by remember { mutableStateOf(ExportRules.Group.entries.toSet()) }
-    var tree by remember { mutableStateOf(BlizzardExport.rememberedTree(context)) }
+    var document by remember { mutableStateOf<Uri?>(null) }
     var picked by remember { mutableStateOf(false) }
-    var destination by remember { mutableStateOf<Triple<String, Long?, Long>?>(null) }
     val outside = remember { BlizzardExport.outsideFiles(context) }
 
     // What is there, counted again whenever no export is running (a finished one changes nothing, but the app may have).
@@ -70,40 +68,22 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
         running = BlizzardExport.runningRealms(context).map { it.label }
     }
 
-    // The destination: its name, its free space, and what still has to be written to it.
-    LaunchedEffect(tree, plan, chosen, picked) {
-        val folder = tree
-        val current = plan
-        destination = null
-        if (folder == null || current == null || !picked) return@LaunchedEffect
-        destination = runCatching {
-            withContext(Dispatchers.IO) {
-                val sink = SafExportSink(context, folder)
-                Triple(sink.displayName(), sink.freeBytes(), ExportPlanner.remainingBytes(current.only(chosen), sink))
-            }
-        }.getOrNull()
-    }
-
-    val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+    // The zip is made with the system's "save as" picker: any folder, any name; the app gets that one file.
+    val pickFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        }
-        tree = uri
+        runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION) }
+        document = uri
         picked = true
     }
-    val pickForVerify = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+    val pickForVerify = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri ?: return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
-        }
-        tree = uri
-        ExportService.verify(context, uri)
+        runCatching { context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+        ExportService.verifyZip(context, uri)
     }
 
     val blocker = remember(working, state) { BlizzardExport.blocker(context) }
     val selected = plan?.only(chosen)
-    val canExport = !working && picked && tree != null && selected != null && selected.files.isNotEmpty() && blocker == null
+    val canExport = !working && picked && document != null && selected != null && selected.files.isNotEmpty() && blocker == null
 
     WowDialog(
         title = stringResource(R.string.export_title),
@@ -155,9 +135,6 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
                 Text(stringResource(R.string.export_scanning), style = MaterialTheme.typography.bodySmall)
             }
         }
-        plan?.renamed?.size?.takeIf { it > 0 }?.let { n ->
-            Text(stringResource(R.string.export_renamed, n), style = MaterialTheme.typography.bodySmall, color = WowColors.Mist)
-        }
         if (outside.isNotEmpty()) {
             Text(stringResource(R.string.export_outside, outside.joinToString()), style = MaterialTheme.typography.bodySmall, color = WowColors.Blood)
         }
@@ -167,33 +144,25 @@ fun BlizzardExportDialog(onDismiss: () -> Unit) {
             Text(stringResource(R.string.export_realm_running, running.joinToString()), style = MaterialTheme.typography.bodyMedium, color = WowColors.Blood)
         }
 
-        destination?.let { (name, free, needed) ->
-            Text(stringResource(R.string.export_space_needed, Formatter.formatShortFileSize(context, needed)), style = MaterialTheme.typography.bodySmall)
-            Text(
-                if (free != null) stringResource(R.string.export_space_free, Formatter.formatShortFileSize(context, free)) else stringResource(R.string.export_space_unknown),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (free != null && !ExportPlanner.fits(needed, free)) WowColors.Blood else WowColors.Text,
-            )
-            Text(name, style = MaterialTheme.typography.bodySmall, color = WowColors.Mist)
+        selected?.let {
+            Text(stringResource(R.string.export_space_needed, Formatter.formatShortFileSize(context, it.totalBytes)), style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.export_space_unknown), style = MaterialTheme.typography.bodySmall)
         }
 
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            if (picked && tree != null) {
-                val name = destination?.first ?: ""
+            if (picked && document != null) {
+                val name = remember(document) { BlizzardExport.documentName(context, document!!) }
                 WowButton(
                     if (running.isNotEmpty()) stringResource(R.string.export_stop_and_export) else stringResource(R.string.export_start, name),
                     enabled = canExport,
                 ) {
-                    ExportService.export(context, tree!!, chosen, stopRealms = running.isNotEmpty())
+                    ExportService.exportZip(context, document!!, chosen, stopRealms = running.isNotEmpty())
                 }
-                WowButton(stringResource(R.string.export_other_folder), primary = false, enabled = !working) { pickFolder.launch(null) }
+                WowButton(stringResource(R.string.export_other_folder), primary = false, enabled = !working) { pickFile.launch("WoW-export.zip") }
             } else {
-                WowButton(stringResource(R.string.export_choose), enabled = !working && plan != null) { pickFolder.launch(null) }
+                WowButton(stringResource(R.string.export_choose), enabled = !working && plan != null) { pickFile.launch("WoW-export.zip") }
             }
-            WowButton(stringResource(R.string.export_verify), primary = false, enabled = !working) {
-                val remembered = tree
-                if (remembered != null) ExportService.verify(context, remembered) else pickForVerify.launch(null)
-            }
+            WowButton(stringResource(R.string.export_verify), primary = false, enabled = !working) { pickForVerify.launch(arrayOf("application/zip", "application/octet-stream")) }
         }
     }
 }
