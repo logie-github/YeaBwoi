@@ -1,0 +1,2 @@
+- Realms built with modules from the module browser now link: a module whose repository name differs from the name its loader is written for (the `wow-mod-*` ones) is built with that name made an alias of its own, where before the build ended on the last step.
+- The realm's core now has the `OnPlayerGetRestBonusMax` hook (the most rest bonus a player can have), so modules written for it, such as `wow-mod-challenges`, compile instead of being left out. It changes nothing by itself: rest bonus works as before unless a module changes it.

@@ -44,6 +44,20 @@ echo "$MODULES" | while read -r name repo commit; do
 	git -C "$dir" clean -qfdx
 	# Some modules bring their libraries as submodules.
 	[ ! -f "$dir/.gitmodules" ] || git -C "$dir" submodule update -q --init --recursive --depth 1
+	# The core calls Add<folder name, - as _>Scripts() of each module, so a module has to be cloned into the
+	# folder its loader is named for (its README: mod-accountwide-mounts, not the repository's wow-mod-accountwide-mounts).
+	# When the loader it defines has another name, a file of the module's own makes the name the core
+	# calls an alias of it, so the module keeps the name it was picked by (this build's, the app's lists).
+	want="Add$(echo "$name" | tr - _)Scripts"
+	if [ -d "$dir/src" ] && ! grep -rqE "^void[[:space:]]+$want[[:space:]]*\(" "$dir/src"; then
+		have=$(find "$dir/src" -iname '*loader*.cpp' -exec awk '/^void[ \t]+Add[A-Za-z0-9_]+Scripts[ \t]*\([ \t]*\)[ \t]*(\{)?[ \t]*$/ { sub(/^void[ \t]+/, ""); sub(/[ \t]*\(.*$/, ""); print }' {} + | sort -u)
+		if [ "$(echo "$have" | grep -c .)" = 1 ]; then
+			printf 'void %s();\n\nvoid %s()\n{\n    %s();\n}\n' "$have" "$want" "$have" > "$dir/src/blizz_loader_alias.cpp"
+			echo "$name: its loader is $have; $want calls it"
+		else
+			echo "$name: no loader named $want, and not one loader to alias ($(echo "$have" | tr '\n' ' '))" >&2
+		fi
+	fi
 	# The core changes a module needs and ships for itself (warcraft/module-core-patches.txt: module,
 	# then its patch's path in the module): applied to the core when they apply cleanly. A module
 	# is listed once its patch is known to be the one for the pinned module (some modules keep old
