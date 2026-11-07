@@ -1,0 +1,1 @@
+- Every module you pick is now fitted in by the build: whatever its repository is called, the build makes the name the realm looks for call the module's own loader, so a module no longer fails the whole realm for being named differently. Modules that arrange their own loading are left as they are.

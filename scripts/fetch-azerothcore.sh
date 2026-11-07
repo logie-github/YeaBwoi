@@ -44,18 +44,30 @@ echo "$MODULES" | while read -r name repo commit; do
 	git -C "$dir" clean -qfdx
 	# Some modules bring their libraries as submodules.
 	[ ! -f "$dir/.gitmodules" ] || git -C "$dir" submodule update -q --init --recursive --depth 1
-	# The core calls Add<folder name, - as _>Scripts() of each module, so a module has to be cloned into the
-	# folder its loader is named for (its README: mod-accountwide-mounts, not the repository's wow-mod-accountwide-mounts).
-	# When the loader it defines has another name, a file of the module's own makes the name the core
-	# calls an alias of it, so the module keeps the name it was picked by (this build's, the app's lists).
+	# Fitting a module in, whatever it is called. The core calls Add<folder name, - as _>Scripts() of each module,
+	# and the folder is the repository's name, which a module's loader is often not written for (its README says
+	# to clone it as mod-accountwide-mounts, the repository is wow-mod-accountwide-mounts). So that every module
+	# picked links, a file of the module's own is added that defines the name the core calls and calls the
+	# module's own top-level loaders (the Add...Scripts() it defines that nothing else of it calls). The module
+	# keeps the name it was picked by, which this build's lists and the app use.
 	want="Add$(echo "$name" | tr - _)Scripts"
-	if [ -d "$dir/src" ] && ! grep -rqE "^void[[:space:]]+$want[[:space:]]*\(" "$dir/src"; then
-		have=$(find "$dir/src" -iname '*loader*.cpp' -exec awk '/^void[ \t]+Add[A-Za-z0-9_]+Scripts[ \t]*\([ \t]*\)[ \t]*(\{)?[ \t]*$/ { sub(/^void[ \t]+/, ""); sub(/[ \t]*\(.*$/, ""); print }' {} + | sort -u)
-		if [ "$(echo "$have" | grep -c .)" = 1 ]; then
-			printf 'void %s();\n\nvoid %s()\n{\n    %s();\n}\n' "$have" "$want" "$have" > "$dir/src/blizz_loader_alias.cpp"
-			echo "$name: its loader is $have; $want calls it"
+	# (A module with its own CMakeLists.txt that registers its loader, AC_ADD_SCRIPT_LOADER, is not named for.)
+	if [ -d "$dir/src" ] && ! grep -qs AC_ADD_SCRIPT_LOADER "$dir/CMakeLists.txt" && ! grep -rqE "^void[[:space:]]+$want[[:space:]]*\\(" "$dir" --include='*.cpp' --include='*.h' --include='*.hpp'; then
+		defined=$(grep -rhE '^void[[:space:]]+Add[A-Za-z0-9_]+Scripts[[:space:]]*\([[:space:]]*\)[[:space:]]*(\{)?[[:space:]]*$' "$dir" --include='*.cpp' |
+			tr -d '\r' | sed 's/^void[[:space:]]*//; s/[[:space:]]*(.*$//' | sort -u)
+		called=$(grep -rhE '^[[:space:]]+Add[A-Za-z0-9_]+Scripts[[:space:]]*\([[:space:]]*\)[[:space:]]*;' "$dir" --include='*.cpp' --include='*.h' --include='*.hpp' |
+			tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*(.*$//' | sort -u)
+		top=$(printf '%s\n' "$defined" | grep -vxF "$called" | grep . || true)
+		if [ -n "$top" ]; then
+			{
+				for fn in $top; do printf 'void %s();\n' "$fn"; done
+				printf '\nvoid %s()\n{\n' "$want"
+				for fn in $top; do printf '    %s();\n' "$fn"; done
+				printf '}\n'
+			} > "$dir/src/blizz_loader_alias.cpp"
+			echo "$name: $want calls $(echo $top)"
 		else
-			echo "$name: no loader named $want, and not one loader to alias ($(echo "$have" | tr '\n' ' '))" >&2
+			echo "$name: no loader named $want, and none to call instead" >&2
 		fi
 	fi
 	# The core changes a module needs and ships for itself (warcraft/module-core-patches.txt: module,
