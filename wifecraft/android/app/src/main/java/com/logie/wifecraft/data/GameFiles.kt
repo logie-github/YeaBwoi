@@ -72,7 +72,10 @@ class GameFiles(private val context: Context) {
     private val source: String
     private val _progress = MutableStateFlow(Progress())
     val progress: StateFlow<Progress> = _progress
-    private val pool = Executors.newFixedThreadPool(4)
+    // wago.tools answers each file in about a second whatever its size (measured 15 Nov 2026 from a desktop: 4 at once
+    // fetched 4 files a second, 16 at once 15, 32 at once 25, with no refusals), so the download is bound by the wait
+    // for each answer, not by the line: many at once.
+    private val pool = Executors.newFixedThreadPool(PARALLEL)
     private val cancelled = AtomicBoolean(false)
     private var job: Thread? = null
 
@@ -389,6 +392,9 @@ class GameFiles(private val context: Context) {
     private class NoSuchFile(message: String) : IOException(message)
 
     companion object {
+        /** Files fetched at once. */
+        const val PARALLEL = 24
+
         /** The name the game's tables go by in [Progress.current] and [Progress.complete]. */
         const val TABLES = "tables"
         /** The creator's files: every race's and sex's every option and choice (creator/Prefetch). */
