@@ -57,7 +57,34 @@ class ImportStore(
 
     @Volatile private var loaded = load()
 
-    init { current = this }
+    init {
+        current = this
+        repair()
+    }
+
+    /**
+     * Puts back what of an import's files is missing from `game/<id>` while its own copy is still under `imports/<kind>/`
+     * (release 1.0.17's move to a pinned game build deleted imported body files from `game/` by mistake: the package's
+     * models look like the game's). Without it the Body options said their files were missing until the zip was picked again.
+     */
+    private fun repair() {
+        val ids = File(imports, "ids.json")
+        if (!ids.isFile) return
+        val map = runCatching { JSONObject(ids.readText()) }.getOrNull() ?: return
+        game.mkdirs()
+        for (key in map.keys()) {
+            val id = map.optInt(key, 0).takeIf { it >= FIRST_ID } ?: continue
+            val target = File(game, id.toString())
+            if (target.isFile && target.length() > 0) continue
+            val src = File(imports, key)
+            if (!src.isFile || !src.canonicalPath.startsWith(imports.canonicalPath + File.separator)) continue
+            runCatching {
+                val part = File(game, "$id.part").apply { delete() }
+                src.copyTo(part, overwrite = true)
+                if (!part.renameTo(target)) { target.delete(); part.renameTo(target) }
+            }
+        }
+    }
 
     private fun dir(kind: ImportKind) = File(imports, kind.key)
     private fun off(kind: ImportKind) = File(imports, kind.key + ".off")
