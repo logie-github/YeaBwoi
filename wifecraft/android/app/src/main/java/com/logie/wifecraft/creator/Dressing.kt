@@ -46,6 +46,12 @@ object Dressing {
     const val TINTS = 2
     const val EXTRA = 4
 
+    /** A layer's own box (TextureLayer.rect: u0, v0, u1, v1 as fractions) in the material's pixels: x, y, w, h. */
+    fun boxOf(r: List<Float>, mw: Int, mh: Int): IntArray {
+        val x0 = Math.round(r[0] * mw); val y0 = Math.round(r[1] * mh)
+        return intArrayOf(x0, y0, Math.round(r[2] * mw) - x0, Math.round(r[3] * mh) - y0)
+    }
+
     /** As engine/Native.tint: 0xRRGGBB to 0xFFRRGGBB, null to 0 (no tint). */
     fun tint(rgb: Int?): Int = if (rgb == null) 0 else (0xFF000000.toInt() or (rgb and 0xFFFFFF))
 
@@ -68,7 +74,7 @@ object Dressing {
             val mat = ix.materials[layout to l.textureType]
             if (mat == null) { skipped += "file ${l.fileId}: layout $layout has no material for texture type ${l.textureType}"; continue }
             val (mw, mh) = mat
-            val rect = if (l.region == -1) intArrayOf(0, 0, mw, mh) else ix.section(layout, l.region)
+            val rect = l.rect?.let { r -> boxOf(r, mw, mh) } ?: if (l.region == -1) intArrayOf(0, 0, mw, mh) else ix.section(layout, l.region)
             if (rect == null) { skipped += "file ${l.fileId}: layout $layout has no section in mask ${l.region}"; continue }
             files += l.fileId
             meta += listOf(l.textureType, l.layer, l.blend, rect[0], rect[1], rect[2], rect[3], mw, mh)

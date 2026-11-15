@@ -52,7 +52,9 @@ struct M2Sequence {
     int16_t variationNext = -1;
     uint16_t aliasNext = 0;
     uint16_t blendIn = 150;
-    uint8_t src = 0;        // whose keys it plays: 0 the model's, 1 its skeleton's, 2 the parent skeleton's
+    uint16_t frequency = 0;          // how often this variation plays, out of 0x7FFF for all of the animation's
+    uint32_t replayMin = 0, replayMax = 0;   // how many times it plays over once chosen (0: once)
+    uint8_t src = 0;       // whose keys it plays: 0 the model's, 1 its skeleton's, 2 the parent skeleton's
     uint16_t srcIndex = 0;  // its index in that file's own sequence list
 };
 
@@ -132,8 +134,11 @@ public:
     bool sequenceReady(int seq) const;
 
     // The local pose of every bone at `timeMs` into sequence `seq` (`globalMs` drives looping
-    // effects that run on their own clock).
-    void pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out) const;
+    // effects that run on their own clock). `looping`: past a track's last key the pose moves on toward its first (the
+    // game's keys often end before the sequence does), so a loop has no seam; otherwise the last key holds.
+    void pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out, bool looping = false) const;
+    // The sequences of the same animation as `seq` (its variations, `seq` included), in the file's order.
+    std::vector<int> variations(int seq) const;
     // Turns local poses into each bone's matrix in model space.
     void bonesToMatrices(const std::vector<BonePose>& poses, std::vector<M4>& out) const;
 
@@ -169,11 +174,13 @@ private:
     void mergeParentSequences();
 
     int dataSequence(int seq) const;         // follows aliases
+    size_t ownSequences_ = 0;               // the MD20's own (0: today's models, whose sequences are the skeleton's)
+    // `loop`: the length the track's keys repeat over (0: they don't wrap; a sequence played once, or not asked to).
     bool keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs,
               const uint8_t*& data, size_t& dataSize, uint32_t& tsOff, uint32_t& valOff,
-              uint32_t& count, uint32_t& time) const;
-    V3 evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def) const;
-    Quat evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs) const;
+              uint32_t& count, uint32_t& time, uint32_t* loop = nullptr, bool looping = false) const;
+    V3 evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def, bool looping = false) const;
+    Quat evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, bool looping = false) const;
     float evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, float def) const;
 };
 

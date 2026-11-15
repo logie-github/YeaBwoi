@@ -30,6 +30,7 @@ void readSequences(const Reader& r, M2Array a, uint8_t src, std::vector<M2Sequen
         M2Sequence s;
         s.id = r.u16(o); s.variation = r.u16(o + 2); s.duration = r.u32(o + 4);
         s.moveSpeed = r.f32(o + 8); s.flags = r.u32(o + 12);
+        s.frequency = r.u16(o + 16); s.replayMin = r.u32(o + 20); s.replayMax = r.u32(o + 24);
         s.blendIn = r.u16(o + 28);
         s.variationNext = r.i16(o + 60); s.aliasNext = r.u16(o + 62);
         s.src = src; s.srcIndex = uint16_t(i);
@@ -162,6 +163,7 @@ bool M2Model::load(uint32_t id, const FileLookup& files) {
     for (uint32_t i = 0; i < a.count; ++i) globalLoops.push_back(r.u32(a.offset + 4 * i));
 
     readSequences(r, readArray(r, 28), 0, sequences);
+    ownSequences_ = sequences.size();
     readBones(r, readArray(r, 44), 0, bones);
 
     a = readArray(r, 60);
@@ -263,6 +265,14 @@ int M2Model::findSequence(uint16_t animId) const {
     return -1;
 }
 
+std::vector<int> M2Model::variations(int seq) const {
+    std::vector<int> out;
+    if (seq < 0 || size_t(seq) >= sequences.size()) return out;
+    for (size_t i = 0; i < sequences.size(); ++i)
+        if (sequences[i].id == sequences[size_t(seq)].id) out.push_back(int(i));
+    return out;
+}
+
 int M2Model::dataSequence(int seq) const {
     int guard = 0;
     while (seq >= 0 && size_t(seq) < sequences.size() && (sequences[seq].flags & 0x40) && guard++ < 16)
@@ -299,7 +309,7 @@ void M2Model::ensureSequence(int seq, const FileLookup& files) {
 
 bool M2Model::keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs,
                    const uint8_t*& data, size_t& dataSize, uint32_t& tsOff, uint32_t& valOff,
-                   uint32_t& count, uint32_t& time) const {
+                   uint32_t& count, uint32_t& time, uint32_t* loopOut, bool looping) const {
     // the track's own file: the model, its skeleton or the skeleton's parent
     const Skel* sk = t.src == 1 ? &skel_ : t.src == 2 ? &parent_ : nullptr;
     Reader r = sk ? Reader(sk->data.data() + sk->skb, sk->data.size() - sk->skb) : Reader(file_.data() + base_, file_.size() - base_);
@@ -307,10 +317,17 @@ bool M2Model::keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs
     uint32_t idx;
     int animKey = 0;
     bool inModel;
+    if (loopOut) *loopOut = 0;
     if (t.globalSeq != 0xFFFF) {
         idx = 0; inModel = true;
         uint32_t loop = t.globalSeq < loops.size() ? loops[t.globalSeq] : 0;
         time = loop ? globalMs % loop : 0;
+        if (loopOut) *loopOut = loop;     // a global sequence always loops
+    } else if (!sk && ownSequences_ == 0) {
+        // a model whose sequences are its skeleton's: its own tracks (texture weights, colours) keep one set of keys,
+        // in the model, for every sequence (the sequence's .anim holds the skeleton's bones, not these)
+        idx = 0; inModel = true;
+        time = timeMs;
     } else {
         int d = dataSequence(seq);
         if (d < 0 || size_t(d) >= sequences.size()) return false;
@@ -320,6 +337,7 @@ bool M2Model::keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs
         animKey = d;
         inModel = (sequences[d].flags & 0x20) != 0;
         time = timeMs;
+        if (loopOut && looping) *loopOut = sequences[d].duration;
     }
     if (idx >= t.timestamps.count || idx >= t.values.count) return false;
     M2Array ts = readArray(r, t.timestamps.offset + 8 * idx), vs = readArray(r, t.values.offset + 8 * idx);
@@ -339,11 +357,18 @@ bool M2Model::keys(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs
 
 namespace {
 
-// The key pair around `time` and how far between them it is.
-void bracket(const Reader& r, uint32_t tsOff, uint32_t count, uint32_t time, uint32_t& a, uint32_t& b, float& f) {
+// The key pair around `time` and how far between them it is. With `loop` (the length the keys repeat over), a time past
+// the last key moves from it to the first, which comes again at `loop` (the game's keys often stop short of the end:
+// holding the last one and then jumping to the first would show as a hitch at every loop).
+void bracket(const Reader& r, uint32_t tsOff, uint32_t count, uint32_t time, uint32_t& a, uint32_t& b, float& f, uint32_t loop = 0) {
     uint32_t last = count - 1;
     if (count == 1 || time <= r.u32(tsOff)) { a = b = 0; f = 0; return; }
-    if (time >= r.u32(tsOff + 4 * last)) { a = b = last; f = 0; return; }
+    uint32_t tl = r.u32(tsOff + 4 * last);
+    if (time >= tl) {
+        a = b = last; f = 0;
+        if (loop > tl && r.u32(tsOff) == 0 && time < loop) { b = 0; f = float(time - tl) / float(loop - tl); }
+        return;
+    }
     uint32_t lo = 0, hi = last;
     while (hi - lo > 1) {
         uint32_t mid = (lo + hi) / 2;
@@ -354,31 +379,46 @@ void bracket(const Reader& r, uint32_t tsOff, uint32_t count, uint32_t time, uin
     f = t1 > t0 ? float(time - t0) / float(t1 - t0) : 0;
 }
 
-} // namespace
-
-V3 M2Model::evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def) const {
-    const uint8_t* d; size_t n; uint32_t tsOff, valOff, count, time;
-    if (!keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time)) return def;
-    Reader r(d, n);
-    uint32_t a, b; float f;
-    bracket(r, tsOff, count, time, a, b, f);
-    size_t stride = t.interpolation >= 2 ? 36 : 12;
-    auto at = [&](uint32_t k) { size_t o = valOff + k * stride; return V3(r.f32(o), r.f32(o + 4), r.f32(o + 8)); };
-    return t.interpolation == 0 ? at(a) : lerp(at(a), at(b), f);
+// Between two spline keys (value, in tangent, out tangent): 2 Hermite (tangents as slopes), 3 Bezier (as control points).
+V3 spline(int interpolation, V3 p0, V3 out0, V3 in1, V3 p1, float f) {
+    float f2 = f * f, f3 = f2 * f;
+    if (interpolation == 3) {
+        float u = 1 - f;
+        return p0 * (u * u * u) + out0 * (3 * u * u * f) + in1 * (3 * u * f2) + p1 * f3;
+    }
+    return p0 * (2 * f3 - 3 * f2 + 1) + out0 * (f3 - 2 * f2 + f) + p1 * (-2 * f3 + 3 * f2) + in1 * (f3 - f2);
 }
 
-Quat M2Model::evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs) const {
-    const uint8_t* d; size_t n; uint32_t tsOff, valOff, count, time;
-    if (!keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time)) return Quat();
+} // namespace
+
+// Keys by the track's interpolation: 0 none (a key holds until the next), 1 linear, 2 Hermite, 3 Bezier (the last two
+// keep the value and two tangents per key).
+V3 M2Model::evalV3(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, V3 def, bool looping) const {
+    const uint8_t* d; size_t n; uint32_t tsOff, valOff, count, time, loop;
+    if (!keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time, &loop, looping)) return def;
     Reader r(d, n);
     uint32_t a, b; float f;
-    bracket(r, tsOff, count, time, a, b, f);
+    bracket(r, tsOff, count, time, a, b, f, loop);
+    size_t stride = t.interpolation >= 2 ? 36 : 12;
+    auto at = [&](uint32_t k, int part) { size_t o = valOff + k * stride + size_t(part) * 12; return V3(r.f32(o), r.f32(o + 4), r.f32(o + 8)); };
+    if (t.interpolation == 0 || a == b) return at(a, 0);
+    if (t.interpolation >= 2) return spline(t.interpolation, at(a, 0), at(a, 2), at(b, 1), at(b, 0), f);
+    return lerp(at(a, 0), at(b, 0), f);
+}
+
+Quat M2Model::evalQuat(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, bool looping) const {
+    const uint8_t* d; size_t n; uint32_t tsOff, valOff, count, time, loop;
+    if (!keys(t, seq, timeMs, globalMs, d, n, tsOff, valOff, count, time, &loop, looping)) return Quat();
+    Reader r(d, n);
+    uint32_t a, b; float f;
+    bracket(r, tsOff, count, time, a, b, f, loop);
     size_t stride = t.interpolation >= 2 ? 24 : 8;
     auto at = [&](uint32_t k) {
         size_t o = valOff + k * stride;
         return Quat(unpackShort(r.i16(o)), unpackShort(r.i16(o + 2)), unpackShort(r.i16(o + 4)), unpackShort(r.i16(o + 6))).normalized();
     };
-    return t.interpolation == 0 ? at(a) : nlerp(at(a), at(b), f);
+    // a turn between keys at a constant speed, the short way round (spline rotation keys move between their values too)
+    return t.interpolation == 0 || a == b ? at(a) : slerp(at(a), at(b), f);
 }
 
 float M2Model::evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t globalMs, float def) const {
@@ -392,16 +432,16 @@ float M2Model::evalShort(const M2Track& t, int seq, uint32_t timeMs, uint32_t gl
     return t.interpolation == 0 ? va : va + (vb - va) * f;
 }
 
-void M2Model::pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out) const {
+void M2Model::pose(int seq, uint32_t timeMs, uint32_t globalMs, std::vector<BonePose>& out, bool looping) const {
     out.resize(bones.size());
     // a sequence the parent skeleton plays moves the bones by the parent's tracks (the same bones, in the same order)
     int d = dataSequence(seq);
     bool fromParent = d >= 0 && size_t(d) < sequences.size() && sequences[d].src == 2 && parent_.bones.size() == bones.size();
     for (size_t i = 0; i < bones.size(); ++i) {
         const M2Bone& b = fromParent ? parent_.bones[i] : bones[i];
-        out[i].t = evalV3(b.translation, seq, timeMs, globalMs, V3(0, 0, 0));
-        out[i].r = evalQuat(b.rotation, seq, timeMs, globalMs);
-        out[i].s = evalV3(b.scale, seq, timeMs, globalMs, V3(1, 1, 1));
+        out[i].t = evalV3(b.translation, seq, timeMs, globalMs, V3(0, 0, 0), looping);
+        out[i].r = evalQuat(b.rotation, seq, timeMs, globalMs, looping);
+        out[i].s = evalV3(b.scale, seq, timeMs, globalMs, V3(1, 1, 1), looping);
     }
 }
 
@@ -420,7 +460,15 @@ void M2Model::bonesToMatrices(const std::vector<BonePose>& poses, std::vector<M4
             const BonePose& q = i < poses.size() ? poses[i] : BonePose();
             M4 local = M4::translation(b.pivot) * M4::translation(q.t) * M4::rotation(q.r) *
                        M4::scaling(q.s) * M4::translation(b.pivot * -1.0f);
-            out[i] = (p >= 0 && size_t(p) < n) ? out[p] * local : local;
+            M4 parent = (p >= 0 && size_t(p) < n) ? out[p] : M4();
+            // flags 1, 2, 4: the bone ignores its parent's translation, scale, rotation (it follows where the parent
+            // carries its pivot, unless it ignores that too)
+            if ((b.flags & 7) && p >= 0) {
+                V3 moved = parent.point(b.pivot) - b.pivot;
+                if ((b.flags & 6) == 6) parent = (b.flags & 1) ? M4() : M4::translation(moved);
+                else if (b.flags & 1) { parent.m[12] -= moved.x; parent.m[13] -= moved.y; parent.m[14] -= moved.z; }
+            }
+            out[i] = parent * local;
             done[i] = 1;
         }
         if (all) break;

@@ -93,6 +93,17 @@ object Native {
         times: FloatArray, values: FloatArray, duration: Float, loop: Boolean, nowMs: Int,
     ): Int
     @JvmStatic external fun clearBoneAnim(scene: Long, actor: Int)
+
+    /**
+     * Options' Soft body for everyone on stage, from the next frame: [SOFT_OFF], [SOFT_SUBTLE], [SOFT_NATURAL] (the
+     * default) or [SOFT_STRONG]. The chest, belly, rear, thighs and upper arms hang under gravity and bounce, lag and settle
+     * as the body moves (cpp engine/softbody.h: one damped spring per region, 120 Hz, moved in the vertex shader).
+     */
+    @JvmStatic external fun softBody(scene: Long, level: Int)
+    const val SOFT_OFF = 0
+    const val SOFT_SUBTLE = 1
+    const val SOFT_NATURAL = 2
+    const val SOFT_STRONG = 3
     @JvmStatic external fun show(scene: Long, actor: Int, visible: Boolean)
     @JvmStatic external fun height(scene: Long, actor: Int): Float
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)

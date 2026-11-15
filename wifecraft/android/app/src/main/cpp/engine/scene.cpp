@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "blp.h"
+#include "bodyshape.h"
 
 namespace wc {
 
@@ -27,6 +28,18 @@ layout(location = 4) in vec4 aWeights;
 uniform mat4 uWorld;
 uniform mat4 uViewProj;
 uniform highp sampler2D uBones;
+// The soft body (softbody.h): uSoftN regions (0: off); each moves the skin inside its ellipsoid (rest centre, 1/radii)
+// by its displacement, fading to its edges and, with an axis, to the body behind it; only as much as the vertex's bones'
+// classes (uSoftGate, per bone: chest, lower torso, thigh, upper arm) count for it (uSoftMask). Its sides draw in a little.
+uniform int uSoftN;
+uniform float uSoftGain;
+uniform highp sampler2D uSoftGate;
+uniform vec4 uSoftRest[10];
+uniform vec4 uSoftInvR[10];
+uniform vec4 uSoftAxis[10];
+uniform vec4 uSoftMask[10];
+uniform vec4 uSoftDisp[10];
+uniform vec4 uSoftCtr[10];
 out vec3 vWorld;
 out vec3 vNormal;
 out vec2 vUv;
@@ -35,13 +48,43 @@ mat4 bone(float i) {
     return mat4(texelFetch(uBones, ivec2(0, b), 0), texelFetch(uBones, ivec2(1, b), 0),
                 texelFetch(uBones, ivec2(2, b), 0), texelFetch(uBones, ivec2(3, b), 0));
 }
+vec4 gate(float i) { return texelFetch(uSoftGate, ivec2(0, int(i + 0.5)), 0); }
 void main() {
     float total = aWeights.x + aWeights.y + aWeights.z + aWeights.w;
     mat4 skin = total > 0.0
         ? bone(aBones.x) * aWeights.x + bone(aBones.y) * aWeights.y + bone(aBones.z) * aWeights.z + bone(aBones.w) * aWeights.w
         : mat4(1.0);
     if (total > 0.0) skin = skin * (1.0 / total);
-    vec4 p = uWorld * (skin * vec4(aPos, 1.0));
+    vec4 sp = skin * vec4(aPos, 1.0);
+    if (uSoftN > 0 && uSoftGain > 0.0 && total > 0.0) {
+        vec4 g = (gate(aBones.x) * aWeights.x + gate(aBones.y) * aWeights.y + gate(aBones.z) * aWeights.z +
+                  gate(aBones.w) * aWeights.w) * (1.0 / total);
+        vec3 off = vec3(0.0);
+        for (int r = 0; r < 10; ++r) {
+            if (r >= uSoftN) break;
+            float m = clamp(dot(g, uSoftMask[r]), 0.0, 1.0);
+            if (m <= 0.0) continue;
+            vec3 q = (aPos - uSoftRest[r].xyz) * uSoftInvR[r].xyz;
+            float w;
+            if (uSoftAxis[r].w > 0.5) {
+                float qa = dot(q, uSoftAxis[r].xyz);
+                float qp = dot(q, q) - qa * qa;
+                if (qp >= 1.0) continue;
+                w = (1.0 - qp) * (1.0 - qp) * smoothstep(-1.0, 0.25, qa) * (1.0 - smoothstep(1.3, 1.9, qa));
+            } else {
+                float d2 = dot(q, q);
+                if (d2 >= 1.0) continue;
+                w = (1.0 - d2) * (1.0 - d2);
+            }
+            vec3 d = uSoftDisp[r].xyz;
+            float dd = dot(d, d);
+            vec3 rel = sp.xyz - uSoftCtr[r].xyz;
+            vec3 side = dd > 1e-12 ? rel - d * (dot(rel, d) / dd) : vec3(0.0);
+            off += (w * m) * (d - side * uSoftDisp[r].w);
+        }
+        sp.xyz += off * uSoftGain;
+    }
+    vec4 p = uWorld * sp;
     vWorld = p.xyz;
     vNormal = mat3(uWorld) * (mat3(skin) * aNormal);
     vUv = aUv;
@@ -219,7 +262,7 @@ Scene::~Scene() { /* GL objects die with the context */ }
 namespace {
 // The body's GL objects are gone with the context: made again at the next frame.
 template <typename B> void forgetBodyGl(B& b) {
-    b.vao = b.vbo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
+    b.vao = b.vbo = b.ibo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
     b.layerIndices = 0;
     b.dirty = !b.morph.empty() || b.design != 0;
 }
@@ -248,6 +291,7 @@ bool Scene::initGl() {
         a.skinDirty = !a.layers.empty();
         for (Skinned& e : a.skinned) e.boneTex = 0;
         forgetBodyGl(a.body);
+        a.soft.forget();
     }
     if (cityLoaded_) { uploadCityGl(); warmCity(); }
     return true;
@@ -264,6 +308,7 @@ void Scene::releaseGl() {
         a.skinDirty = !a.layers.empty();
         for (Skinned& e : a.skinned) e.boneTex = 0;
         forgetBodyGl(a.body);
+        a.soft.forget();
     }
     groups_.clear();
 }
@@ -537,8 +582,9 @@ int Scene::addActor(uint32_t modelFileId, const std::map<uint32_t, uint32_t>& te
     if (!geosetGroups.empty()) a.geosets = characterGeosets(*m->model, geosetGroups);
     a.scale = scale;
     int id = nextActor_++;
+    a.rng = 0x9E3779B9u ^ (uint32_t(id) * 0x85EBCA6Bu);
     actors_[id] = std::move(a);
-    playAnim(id, 0, true, 0);
+    playAnim(id, 0, true, animClock_);
     return id;
 }
 
@@ -556,6 +602,7 @@ void Scene::removeActor(int id) {
     if (it->second.boneTex && glReady_) glDeleteTextures(1, &it->second.boneTex);
     dropDressGl(it->second);
     dropBodyGl(it->second);
+    it->second.soft.release(glReady_);
     actors_.erase(it);
 }
 
@@ -588,6 +635,7 @@ void Scene::dress(int id, const std::map<int, int>& geosetGroups, const std::vec
     a.body.design = design;
     a.body.hair = hair;
     a.body.dirty = true;     // (the geosets the layer lies on may have changed too)
+    a.soft.dirty = true;     // (and the skin the soft body finds its regions on)
     a.skinDirty = true;
     a.missing.clear();
     dropDressGl(a);
@@ -703,6 +751,31 @@ void Scene::setIdleAnim(int id, uint16_t animId) {
     if (it != actors_.end()) it->second.idleAnim = animId;
 }
 
+namespace {
+
+uint32_t nextRandom(uint32_t& s) {
+    s ^= s << 13; s ^= s >> 17; s ^= s << 5;
+    return s;
+}
+
+// How long a change to sequence `seq` blends: its own blend time (the game's are 150 to 300 ms), kept within reason.
+uint32_t blendTime(const M2Model& m, int seq) {
+    uint32_t b = seq >= 0 && size_t(seq) < m.sequences.size() ? m.sequences[size_t(seq)].blendIn : 0;
+    return b ? std::clamp<uint32_t>(b, 120, 400) : 200;
+}
+
+// How many times more a chosen variation plays (the sequence's replay range; 0 or 1: just this once).
+uint32_t replaysOf(const M2Model& m, int seq, uint32_t& rng) {
+    const M2Sequence& s = m.sequences[size_t(seq)];
+    uint32_t lo = s.replayMin, hi = std::max(s.replayMax, s.replayMin);
+    uint32_t n = std::min<uint32_t>(lo + (hi > lo ? nextRandom(rng) % (hi - lo + 1) : 0), 64);
+    return n > 1 ? n - 1 : 0;
+}
+
+} // namespace
+
+// Each change of animation blends from the pose last drawn (held, so a change in the middle of another's blend, or the
+// same emote again, never jumps); `nowMs` is the caller's clock and isn't used: the animations keep their own.
 void Scene::playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
@@ -713,14 +786,59 @@ void Scene::playAnim(int id, uint16_t animId, bool loop, uint32_t nowMs) {
     if (seq < 0) seq = m.findSequence(0);
     if (seq < 0 && !m.sequences.empty()) seq = 0;
     if (seq >= 0) m.ensureSequence(seq, files_);
-    if (a.seq >= 0 && seq != a.seq) {
-        a.prevSeq = a.seq; a.prevStart = a.start;
-        a.fadeStart = nowMs; a.fadeMs = 200;
+    // a loop asked for again goes on as it is (walking, then walking on: no restart)
+    if (loop && a.loop && a.seq >= 0 && seq >= 0 && size_t(a.seq) < m.sequences.size() &&
+        m.sequences[size_t(a.seq)].id == m.sequences[size_t(seq)].id) {
+        a.animId = animId;
+        return;
     }
+    if (a.seq >= 0 && seq >= 0) blendFromCurrent(a, blendTime(m, seq));
     a.seq = seq;
     a.animId = animId;
     a.loop = loop;
-    a.start = nowMs;
+    a.start = animClock_;
+    a.animTime = 0;
+    a.replays = seq >= 0 && loop ? replaysOf(m, seq, a.rng) : 0;
+}
+
+void Scene::blendFromCurrent(Actor& a, uint32_t ms) {
+    if (!a.posed || a.pa.empty()) return;
+    a.pb = a.pa;
+    a.fadeStart = animClock_;
+    a.fadeMs = ms;
+}
+
+void Scene::nextLoop(Actor& a) {
+    M2Model& m = *a.mesh->model;
+    if (a.replays > 0) { --a.replays; return; }
+    // another variation, by how often the game plays each (frequency, of 0x7FFF): the idle's fidgets and looks round
+    std::vector<int> vars = m.variations(a.seq);
+    if (vars.size() < 2) return;
+    uint32_t total = 0;
+    std::vector<int> ready;
+    for (int v : vars) {
+        m.ensureSequence(v, files_);
+        if (!m.sequenceReady(v)) continue;
+        ready.push_back(v);
+        total += m.sequences[size_t(v)].frequency;
+    }
+    if (ready.empty()) return;
+    int pick = ready[0];
+    if (total == 0) {
+        pick = ready[nextRandom(a.rng) % ready.size()];
+    } else {
+        uint32_t r = nextRandom(a.rng) % total;
+        for (int v : ready) {
+            uint32_t f = m.sequences[size_t(v)].frequency;
+            if (r < f) { pick = v; break; }
+            r -= f;
+        }
+    }
+    if (pick != a.seq) {
+        blendFromCurrent(a, blendTime(m, pick));
+        a.seq = pick;
+    }
+    a.replays = replaysOf(m, pick, a.rng);
 }
 
 int Scene::setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs) {
@@ -743,16 +861,30 @@ int Scene::setBoneAnim(int id, const BoneAnim& anim, uint32_t nowMs) {
         for (int i = b, guard = 0; i >= 0 && size_t(i) < m.bones.size() && guard < 256; i = m.bones[i].parent, ++guard)
             a.boneAnimRest[size_t(i)] = 1;
     }
-    a.boneAnimStart = nowMs;
+    blendFromCurrent(a, 250);
+    a.boneAnimStart = animClock_;
     int root = m.findWowBone("Root");
     float h = root >= 0 ? m.bones[size_t(root)].pivot.z : 0;
     a.boneAnimScale = h > 0.05f ? h / kAnimRootHeight : 1.0f;
+    // A held pose (no time to it) would stand as still as a statue: it breathes, the chest rising a little and the
+    // neck taking it back so the head stays where the pose put it.
+    a.breath.clear();
+    bool held = !(anim.duration > 0);
+    if (held) {
+        const std::pair<const char*, float> parts[] = {{"Spine2", 0.45f}, {"Chest", 0.55f}, {"Neck1", -0.6f}, {"Head", -0.4f}};
+        for (const auto& p : parts) {
+            int b = m.findWowBone(p.first);
+            if (b >= 0) a.breath.push_back({b, p.second});
+        }
+    }
     return found;
 }
 
 void Scene::clearBoneAnim(int id) {
     auto it = actors_.find(id);
     if (it == actors_.end()) return;
+    blendFromCurrent(it->second, 250);
+    it->second.breath.clear();
     it->second.boneAnim.reset();
     it->second.boneAnimBones.clear();
     it->second.boneAnimRest.clear();
@@ -790,13 +922,45 @@ void Scene::applyBoneAnim(Actor& a, uint32_t now) {
         if (tr.rotation) {
             const float* qa = &tr.values[ka * 4];
             const float* qb = &tr.values[kb * 4];
-            a.pa[size_t(b)].r = nlerp(Quat(qa[0], qa[1], qa[2], qa[3]).normalized(), Quat(qb[0], qb[1], qb[2], qb[3]).normalized(), f);
+            a.pa[size_t(b)].r = slerp(Quat(qa[0], qa[1], qa[2], qa[3]).normalized(), Quat(qb[0], qb[1], qb[2], qb[3]).normalized(), f);
         } else {
             const float* pa = &tr.values[ka * 3];
             const float* pb = &tr.values[kb * 3];
             a.pa[size_t(b)].t = lerp(V3(pa[0], pa[1], pa[2]), V3(pb[0], pb[1], pb[2]), f) * a.boneAnimScale;
         }
     }
+    // breathing: about 14 breaths a minute, the chest turning by about a degree about the body's side-to-side axis
+    if (!a.breath.empty()) {
+        float s = float(now - a.boneAnimStart) / 1000.0f;
+        float angle = 0.018f * std::sin(s * 6.2831853f / 4.3f);
+        for (const auto& [b, share] : a.breath) {
+            if (b < 0 || size_t(b) >= a.pa.size()) continue;
+            float h = angle * share * 0.5f;
+            Quat q(0, std::sin(h), 0, std::cos(h));
+            const Quat& r = a.pa[size_t(b)].r;
+            a.pa[size_t(b)].r = Quat(r.w * q.x + r.x * q.w + r.y * q.z - r.z * q.y, r.w * q.y - r.x * q.z + r.y * q.w + r.z * q.x,
+                                     r.w * q.z + r.x * q.y - r.y * q.x + r.z * q.w, r.w * q.w - r.x * q.x - r.y * q.y - r.z * q.z).normalized();
+        }
+    }
+}
+
+void Scene::setSoftBody(int level) {
+    softLevel_ = std::clamp(level, int(kSoftOff), int(kSoftStrong));
+}
+
+// The soft body's regions (again after a new look or shape, once the shape's vertices are made) and this frame's step.
+void Scene::stepSoft(Actor& a, uint32_t now) {
+    if (a.soft.sim.level() != softLevel_) { a.soft.sim.setLevel(softLevel_); a.soft.sim.reset(); }
+    if (softLevel_ == kSoftOff) return;
+    const M2Model& m = *a.mesh->model;
+    if (a.soft.dirty && !a.body.dirty && !a.body.shapeDirty) {
+        const BodyGl& b = a.body;
+        bool own = !b.shaped.empty() && !b.indices.empty() && !b.submeshes.empty();
+        a.soft.rebuild(m, b.shaped.empty() ? m.vertices : b.shaped, own ? b.indices : m.indices,
+                       own ? b.submeshes : m.submeshes, a.geosets, glReady_);
+    }
+    M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
+    a.soft.sim.step(a.mats, w, now);
 }
 
 void Scene::setCamera(V3 eye, V3 target, float fovDegrees) {
@@ -812,20 +976,35 @@ void Scene::animate(Actor& a, uint32_t now) {
     } else {
         uint32_t dur = std::max<uint32_t>(1, m.sequences[a.seq].duration);
         uint32_t t = now - a.start;
-        if (a.loop) t %= dur; else t = std::min(t, dur - 1);
-        m.pose(a.seq, t, now, a.pa);
-    }
-    if (hasSeq && a.prevSeq >= 0 && now - a.fadeStart < a.fadeMs) {
-        uint32_t pd = std::max<uint32_t>(1, m.sequences[a.prevSeq].duration);
-        m.pose(a.prevSeq, (now - a.prevStart) % pd, now, a.pb);
-        float f = float(now - a.fadeStart) / float(a.fadeMs);
-        for (size_t i = 0; i < a.pa.size() && i < a.pb.size(); ++i) {
-            a.pa[i].t = lerp(a.pb[i].t, a.pa[i].t, f);
-            a.pa[i].r = nlerp(a.pb[i].r, a.pa[i].r, f);
-            a.pa[i].s = lerp(a.pb[i].s, a.pa[i].s, f);
+        if (a.loop) {
+            // each time round: the same again, or (its replays done) another of its variations
+            for (int guard = 0; t >= dur && guard < 64; ++guard) {
+                a.start += dur;
+                nextLoop(a);
+                dur = std::max<uint32_t>(1, m.sequences[a.seq].duration);
+                t = now - a.start;
+            }
+            t %= dur;
+        } else {
+            t = std::min(t, dur - 1);
         }
+        a.animTime = t;
+        m.pose(a.seq, t, now, a.pa, a.loop);
     }
     applyBoneAnim(a, now);
+    // a change of animation: from the pose last drawn to this one, eased in and out; turns by slerp, the rest linearly
+    if (a.fadeMs && now - a.fadeStart < a.fadeMs && a.pb.size() == a.pa.size()) {
+        float f = float(now - a.fadeStart) / float(a.fadeMs);
+        f = f * f * (3 - 2 * f);
+        for (size_t i = 0; i < a.pa.size(); ++i) {
+            a.pa[i].t = lerp(a.pb[i].t, a.pa[i].t, f);
+            a.pa[i].r = slerp(a.pb[i].r, a.pa[i].r, f);
+            a.pa[i].s = lerp(a.pb[i].s, a.pa[i].s, f);
+        }
+    } else {
+        a.fadeMs = 0;
+    }
+    a.posed = true;
     m.bonesToMatrices(a.pa, a.mats);
     if (a.mats.empty()) a.mats.push_back(M4());
     if (!a.boneTex) {
@@ -927,8 +1106,10 @@ void Scene::drawCity(bool transparent) {
 void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uint32_t>* overrides,
                       const std::vector<uint16_t>* geosets, unsigned boneTex, int seq, uint32_t t,
                       uint32_t now, const float tint[4], bool transparent, int texSize,
-                      const std::map<uint32_t, unsigned>* glTextures, unsigned vao) {
+                      const std::map<uint32_t, unsigned>* glTextures, unsigned vao,
+                      const std::vector<M2Submesh>* submeshes) {
     const M2Model& m = *mg.model;
+    const std::vector<M2Submesh>& subs = submeshes ? *submeshes : m.submeshes;   // (a shaped body's own ranges)
     unsigned p = m2Prog_;
     glUseProgram(p);
     glUniformMatrix4fv(loc(p, "uWorld"), 1, GL_FALSE, world.m);
@@ -937,8 +1118,8 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
     glUniform1i(loc(p, "uBones"), 1);
     glBindVertexArray(vao ? vao : mg.vao);
     for (const M2Batch& b : m.batches) {
-        if (b.submesh >= m.submeshes.size()) continue;
-        const M2Submesh& sm = m.submeshes[b.submesh];
+        if (b.submesh >= subs.size()) continue;
+        const M2Submesh& sm = subs[b.submesh];
         if (!sm.indexCount) continue;
         if (geosets && !geosets->empty() && std::find(geosets->begin(), geosets->end(), sm.id) == geosets->end()) continue;
         M2Material mat = b.material < m.materials.size() ? m.materials[b.material] : M2Material();
@@ -967,6 +1148,7 @@ void Scene::drawModel(ModelGl& mg, const M4& world, const std::map<uint32_t, uin
         glUniform1f(loc(p, "uAlphaRef"), mat.blend == 1 ? 0.5f : (mat.blend == 0 ? -1.0f : 0.004f));
         glUniform1i(loc(p, "uOpaque"), mat.blend == 0 ? 1 : 0);
         glUniform1i(loc(p, "uUnlit"), (mat.flags & 1) ? 1 : 0);
+        if (softBodyDraw_) SoftDraw::setGain(p, softGeosetGain(sm.id));
         if (blend) { glEnable(GL_BLEND); blendFor(mat.blend); glDepthMask(GL_FALSE); }
         if (mat.flags & 16) glDepthMask(GL_FALSE);
         glDrawElements(GL_TRIANGLES, GLsizei(sm.indexCount), GL_UNSIGNED_INT, (void*)(size_t(sm.indexStart) * 4));
@@ -996,16 +1178,25 @@ void Scene::drawActor(Actor& a, uint32_t nowMs, bool transparent) {
     float one[4] = {1, 1, 1, 1};
     M4 w = M4::translation(a.position) * M4::rotationZ(a.facing) * M4::scaling(V3(a.scale, a.scale, a.scale));
     uint32_t dur = std::max<uint32_t>(1, a.seq >= 0 ? a.mesh->model->sequences[a.seq].duration : 1);
-    drawModel(*a.mesh, w, &a.drawTextures, &a.geosets, a.boneTex, a.seq, (nowMs - a.start) % dur, nowMs, one,
-              transparent, kActorTex, &a.composed, a.body.vao);
+    // The soft body: the body, its layer and its skinned models move with it; hung items don't.
+    bool soft = a.soft.active();
+    if (soft) { glUseProgram(m2Prog_); a.soft.uniforms(m2Prog_, a.soft.bodyGate()); }
+    softBodyDraw_ = soft;
+    drawModel(*a.mesh, w, &a.drawTextures, &a.geosets, a.boneTex, a.seq, a.animTime % dur, nowMs, one,
+              transparent, kActorTex, &a.composed, a.body.vao, a.body.vao ? &a.body.submeshes : nullptr);
+    softBodyDraw_ = false;
+    if (soft) SoftDraw::setGain(m2Prog_, 1.0f);
     if (transparent) drawBodyLayer(a, w);
-    for (Skinned& e : a.skinned) {
+    for (size_t i = 0; i < a.skinned.size(); ++i) {
+        Skinned& e = a.skinned[i];
         std::map<uint32_t, uint32_t> tex = a.drawTextures;
         if (e.texture)
             for (const M2Texture& t : e.mesh->model->textures)
                 if (t.type && !tex.count(t.type) && !a.composed.count(t.type)) tex[t.type] = e.texture;
+        if (soft) a.soft.uniforms(m2Prog_, a.soft.skinnedGate(i, e.mesh, e.boneMap));
         drawModel(*e.mesh, w, &tex, &e.geosets, e.boneTex, -1, 0, nowMs, one, transparent, kActorTex, &a.composed);
     }
+    if (soft) SoftDraw::off(m2Prog_);
     drawAttached(a, w, nowMs, transparent);
 }
 
@@ -1036,14 +1227,30 @@ void Scene::render(int width, int height, uint32_t nowMs) {
 
     drawSky();
 
+    // The animations' clock: this frame's time since the last, never backwards, at most kMaxFrameStep (a slow frame), and
+    // a gap longer than kPause (the app paused or the screen off) counts as one frame like the last: the animations go
+    // on from where they were, not jumping ahead. A 60 Hz and a 120 Hz screen move it by the same time a second.
+    constexpr uint32_t kMaxFrameStep = 100, kPause = 250;
+    if (haveNow_ && nowMs > lastNow_) {
+        uint32_t step = nowMs - lastNow_;
+        if (step > kPause) step = lastStep_;
+        step = std::min(step, kMaxFrameStep);
+        animClock_ += step;
+        lastStep_ = step;
+    }
+    lastNow_ = nowMs;
+    haveNow_ = true;
+    const uint32_t clock = animClock_;
+
     // Actors' skeletons for this frame (non-looping animations return to the idle one).
     for (auto& [id, a] : actors_) {
         if (!a.visible) continue;
         M2Model& m = *a.mesh->model;
         if (!a.loop && a.seq >= 0 && size_t(a.seq) < m.sequences.size() &&
-            nowMs - a.start >= std::max<uint32_t>(1, m.sequences[a.seq].duration))
-            playAnim(id, a.idleAnim, true, nowMs);
-        animate(a, nowMs);
+            clock - a.start >= std::max<uint32_t>(1, m.sequences[a.seq].duration))
+            playAnim(id, a.idleAnim, true, clock);
+        animate(a, clock);
+        stepSoft(a, clock);   // the pause-proof animation clock, not the wall clock
         // Skinned models move with the body's bones.
         for (Skinned& e : a.skinned) {
             e.mats.resize(std::max<size_t>(1, e.boneMap.size()));
@@ -1086,6 +1293,7 @@ void Scene::setBody(int id, const std::vector<float>& morph, float k, float fold
     b.k = k;
     b.fold = fold;
     b.dirty = true;
+    it->second.soft.dirty = true;
 }
 
 bool Scene::bodyStats(int id, size_t& moved, size_t& layerTriangles) const {
@@ -1096,16 +1304,25 @@ bool Scene::bodyStats(int id, size_t& moved, size_t& layerTriangles) const {
     return true;
 }
 
+bool Scene::actorPose(int id, std::vector<M4>& mats, int& seq, uint32_t& timeMs) const {
+    auto it = actors_.find(id);
+    if (it == actors_.end()) return false;
+    mats = it->second.mats;
+    seq = it->second.seq;
+    timeMs = it->second.animTime;
+    return true;
+}
+
 void Scene::dropBodyGl(Actor& a) {
     BodyGl& b = a.body;
     if (glReady_) {
-        unsigned buffers[3] = {b.vbo, b.layerVbo, b.layerIbo};
-        glDeleteBuffers(3, buffers);
+        unsigned buffers[4] = {b.vbo, b.ibo, b.layerVbo, b.layerIbo};
+        glDeleteBuffers(4, buffers);
         unsigned arrays[2] = {b.vao, b.layerVao};
         glDeleteVertexArrays(2, arrays);
         if (b.layerTex) glDeleteTextures(1, &b.layerTex);
     }
-    b.vao = b.vbo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
+    b.vao = b.vbo = b.ibo = b.layerVao = b.layerVbo = b.layerIbo = b.layerTex = 0;
     b.layerIndices = 0;
 }
 
@@ -1137,24 +1354,38 @@ void Scene::refreshBody(Actor& a) {
     const M2Model& m = *a.mesh->model;
     if (b.shapeDirty) {
         b.shaped.clear();
+        b.indices.clear();
+        b.submeshes.clear();
         b.moved = 0;
         if (b.morph.size() >= kBodyMorphStride) {
-            b.shaped = m.vertices;
-            BodyMorphStats st;
-            b.moved = applyBodyMorph(b.shaped, b.morph.data(), b.morph.size() / kBodyMorphStride, &st);
-            std::fprintf(stderr, "body shape: %zu of %zu vertices moved (%zu at a looks vertex, %zu between, %zu texture coordinates)\n",
-                         b.moved, b.shaped.size(), st.exact, st.blended, st.uvs);
-            if (!b.moved) b.shaped.clear();
+            // the skin's sections (texture type 1) are split where the shape moves them: its curve has vertices to show on
+            std::vector<bool> splittable(m.submeshes.size(), false);
+            for (const M2Batch& bt : m.batches) {
+                if (bt.submesh >= m.submeshes.size() || bt.textureCombo >= m.textureCombos.size()) continue;
+                uint16_t ti = m.textureCombos[bt.textureCombo];
+                if (ti < m.textures.size() && m.textures[ti].type == 1) splittable[bt.submesh] = true;
+            }
+            ShapedBody sb;
+            if (shapeBody(m, splittable, b.morph.data(), b.morph.size() / kBodyMorphStride, kBodySplitLevels, sb)) {
+                b.shaped.swap(sb.vertices);
+                b.indices.swap(sb.indices);
+                b.submeshes.swap(sb.submeshes);
+                b.moved = sb.moved;
+            }
+            std::fprintf(stderr, "body shape: %zu of %zu vertices moved (%zu at a looks vertex, %zu texture coordinates), %zu triangles split, %zu vertices added\n",
+                         sb.moved, m.vertices.size(), sb.exact, sb.uvs, sb.split, sb.added);
         }
         b.shapeDirty = false;
     }
-    if (!b.shaped.empty() && a.mesh->ibo) {
+    if (!b.shaped.empty()) {
         glGenVertexArrays(1, &b.vao);
         glBindVertexArray(b.vao);
         glGenBuffers(1, &b.vbo);
         glBindBuffer(GL_ARRAY_BUFFER, b.vbo);
         glBufferData(GL_ARRAY_BUFFER, b.shaped.size() * sizeof(M2Vertex), b.shaped.data(), GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, a.mesh->ibo);
+        glGenBuffers(1, &b.ibo);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, b.ibo);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, b.indices.size() * 4, b.indices.data(), GL_STATIC_DRAW);
         m2VertexLayout();
         glBindVertexArray(0);
     }
@@ -1165,6 +1396,8 @@ void Scene::refreshBody(Actor& a) {
     if (files_(b.design).empty()) { b.missing.insert(b.design); return; }
     if (b.hair && files_(b.hair).empty()) { b.missing.insert(b.hair); return; }
     const std::vector<M2Vertex>& verts = b.shaped.empty() ? m.vertices : b.shaped;
+    const std::vector<uint32_t>& tris = b.shaped.empty() ? m.indices : b.indices;
+    const std::vector<M2Submesh>& subs = b.shaped.empty() ? m.submeshes : b.submeshes;
     const float span = 0.21f * b.k, top = b.fold + 0.16f * b.k, bottom = top - span;
     constexpr float kLift = 0.0004f, kMinNx = 0.12f;
     std::set<uint16_t> sections;
@@ -1181,9 +1414,9 @@ void Scene::refreshBody(Actor& a) {
     std::vector<uint32_t> li;
     std::unordered_map<uint32_t, uint32_t> place;
     for (uint16_t si : sections) {
-        const M2Submesh& sm = m.submeshes[si];
-        for (uint32_t t = sm.indexStart; t + 2 < sm.indexStart + sm.indexCount && t + 2 < m.indices.size(); t += 3) {
-            uint32_t ix[3] = {m.indices[t], m.indices[t + 1], m.indices[t + 2]};
+        const M2Submesh& sm = subs[si];
+        for (uint32_t t = sm.indexStart; t + 2 < sm.indexStart + sm.indexCount && t + 2 < tris.size(); t += 3) {
+            uint32_t ix[3] = {tris[t], tris[t + 1], tris[t + 2]};
             if (ix[0] >= verts.size() || ix[1] >= verts.size() || ix[2] >= verts.size()) continue;
             V3 p[3];
             for (int k = 0; k < 3; ++k) p[k] = V3(verts[ix[k]].pos[0], verts[ix[k]].pos[1], verts[ix[k]].pos[2]);

@@ -35,7 +35,7 @@ import java.io.File
 
 /*
  * The Options panel's "Imports" section, as Wrath++'s Settings has them: a row per set (Ralia's mod, Alternate Female Options,
- * the body options), each with its status, Choose zip (Android's document picker), Remove, and the zip it looks for by name.
+ * the body options, the undead skins), each with its status, Choose zip (Android's document picker), Remove, and the zip it looks for by name.
  * Everything that is not Android is in creator/ImportStore (unit-tested); this file is only the picker, the file lookup and the
  * rows. NOT run on a phone. The user's zips were not available here.
  */
@@ -112,6 +112,9 @@ fun ImportsSection(store: ImportStore, names: ListfileNames, modifier: Modifier 
                         busy == kind -> "Importing…"
                         s.installed && kind.textures -> "Imported: ${s.files} textures from ${s.source ?: "a zip"}" +
                             (if (s.unmatched > 0) " (${s.unmatched} not in the game's file list)" else "") + if (s.active) ", in use" else ", off (the other set is on)"
+                        s.installed && kind == ImportKind.UNDEAD -> "Imported: ${s.files} files from ${s.source ?: "a zip"}" + (store.undeadSummary()?.let { u ->
+                            "; ${u.skins} skins for " + u.models.joinToString(", ") { undeadName(it) } + "; the Undead switch is under Accessories"
+                        } ?: "")
                         s.installed -> "Imported: ${s.files} files from ${s.source ?: "a zip"}" + (store.bodySummary()?.let { b ->
                             "; shapes: " + (if (b.shapes.isEmpty()) "none" else b.shapes.joinToString(", ") { raceName(it) }) +
                                 "; Style and Density: " + (if (b.layers.isEmpty()) "none" else "${b.layers.size} races")
@@ -135,9 +138,15 @@ fun ImportsSection(store: ImportStore, names: ListfileNames, modifier: Modifier 
                 }
             }
         }
-        Text("Textures are matched to the game's files by name with its file list (fetched once, about 150 MB); the body options need no list.", style = frizStyle(11.sp, WowColors.grey))
+        Text("Textures are matched to the game's files by name with its file list (fetched once, about 150 MB); the body options and the undead skins need no list.", style = frizStyle(11.sp, WowColors.grey))
         message?.let { Text(it, style = frizStyle(12.sp, androidx.compose.ui.graphics.Color(0xFFFF6A5A))) }
     }
+}
+
+/** An undead skins' race and sex key ("10_1": race id, sex 0 man, 1 woman) as the row says it. */
+private fun undeadName(key: String): String {
+    val (race, sex) = key.split('_').let { (it.getOrNull(0)?.toIntOrNull() ?: 0) to (it.getOrNull(1) ?: "") }
+    return raceName(race) + if (sex == "1") " woman" else " man"
 }
 
 /** The ten races of 3.3.5 the body options are made for, by id (races.json). */

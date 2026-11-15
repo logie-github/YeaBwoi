@@ -6,9 +6,11 @@ import java.util.WeakHashMap
  * A texture composed into one of the character's textures ([textureType]: ChrModelTextureLayer.TextureType, 1 the
  * body's skin, 6 the hair...): its file, the sections it covers ([region]: ChrModelTextureLayer.TextureSectionTypeBitMask,
  * -1 the whole texture), how it blends ([blend]: ChrModelTextureLayer.BlendMode), its place among the layers ([layer]:
- * ChrModelTextureLayer.Layer, lowest first) and its tints (0xRRGGBB, none in the game's tables today).
+ * ChrModelTextureLayer.Layer, lowest first) and its tints (0xRRGGBB, none in the game's tables today). [rect]: a box of
+ * the material of its own (u0, v0, u1, v1 as fractions, top row first) in place of [region]'s; the undead skins' (UndeadSkins).
  */
-data class TextureLayer(val fileId: Int, val region: Int, val blend: Int, val layer: Int, val tint1: Int?, val tint2: Int?, val textureType: Int = 1)
+data class TextureLayer(val fileId: Int, val region: Int, val blend: Int, val layer: Int, val tint1: Int?, val tint2: Int?, val textureType: Int = 1,
+                        val rect: List<Float>? = null)
 
 /**
  * A model drawn with the character. [attachment] -1: skinned to the character's own skeleton (a
@@ -69,6 +71,7 @@ object LookResolver {
 
         val groups = LinkedHashMap<Int, Int>()
         val materials = LinkedHashMap<Int, Int>()            // texture target -> MaterialResourcesID
+        val owners = HashMap<Int, String>()                  // texture target -> the name of the option that set it
         val skinned = LinkedHashMap<Int, ExtraModel>()
         val bones = LinkedHashSet<Int>()
         for (o in options) {
@@ -128,7 +131,7 @@ object LookResolver {
                 if (e.other != null) unsupported += "${e.other} isn't drawn by Wifecraft's renderer"
             }
             for ((type, v) in myGroups) groups[type] = v.second
-            for ((target, v) in myMaterials) materials[target] = v.second
+            for ((target, v) in myMaterials) { materials[target] = v.second; owners[target] = o.name }
             if (o.id in shown && !drew) {
                 val hangs = c.relatedTo[choiceId].orEmpty().any { it in chosen }
                 val none = c.isNone(choiceId) || !c.relevant(o.id, chosen) || !c.applies(o.id, chosen) || c.master(o.id)?.let { m -> current[m]?.let { c.isNone(it) } } == true
@@ -142,13 +145,33 @@ object LookResolver {
         for (e in skinned.values) if (e.geoset >= 100) groups.putIfAbsent(e.geoset / 100, e.geoset % 100)
         for (g in EQUIPMENT_GROUPS) groups.putIfAbsent(g, 1)
 
+        // Wrath++'s Undead switch, from the user's undead skins: the body and the face of the skin on, laid over the race's own
+        // skin colour (UndeadSkins); the Face option's textures go (an undead skin has its own face), and the skin colour's
+        // others (the underwear) unless the package keeps the race's own ("race")
+        val undead = if (a.undead) overrides.undeadSkins(a.raceId, a.sex).let { it.getOrNull(a.undeadSkin.coerceIn(0, maxOf(0, it.size - 1))) } else null
+        if (a.undead && undead == null)
+            diagnostics += "Undead: " + if (overrides.hasUndead()) "the undead skins have none for this race" else UndeadSkins.NOT_IMPORTED
+        val keepUnderwear = undead == null || overrides.undeadUnderwear(a.raceId, a.sex) == "race"
+
         val layers = ArrayList<TextureLayer>()
         for ((target, res) in materials) {
+            val owner = owners[target]
+            if (undead != null && owner == CreatorModel.FACE) continue
             val file = overrides.texture(ix.file(res), female)
             for (l in ix.layersOf(layout)) {
                 if (l.int("ChrModelTextureTargetID_0") != target && l.int("ChrModelTextureTargetID_1") != target) continue
+                val base = l.int("TextureType") == 1 && l.int("TextureSectionTypeBitMask") == -1
+                if (undead != null && owner == CreatorModel.SKIN_COLOR && !base && !keepUnderwear) continue
                 layers += TextureLayer(file, l.int("TextureSectionTypeBitMask"), l.int("BlendMode"), l.int("Layer"), null, null, l.int("TextureType"))
             }
+        }
+        if (undead != null) {
+            // on the skin's lowest layer, after the race's own colour: everything the race lays over its skin stays over them
+            val at = layers.filter { it.textureType == 1 }.minOfOrNull { it.layer } ?: 0
+            layers += TextureLayer(undead.skin, -1, 1, at, null, null, 1, UndeadSkins.BODY)
+            val head = UndeadSkins.head(a.raceId, a.sex)
+            if (head != null) layers += TextureLayer(undead.face, -1, 1, at, null, null, 1, head.rect)
+            else diagnostics += "Undead: no head layout for this race's face"
         }
 
         // Wrath++'s body options, from the user's package

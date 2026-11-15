@@ -30,7 +30,14 @@ class Settings(context: Context) {
         get() = prefs.getBoolean("wifiOnly", true)
         set(v) = prefs.edit().putBoolean("wifiOnly", v).apply()
 
+    /** Options' Soft body: 0 Off, 1 Subtle, 2 Natural (the default), 3 Strong (engine/Native.SOFT_*). */
+    var softBody: Int
+        get() = prefs.getInt("softBody", SOFT_NATURAL).let { if (it in 0..3) it else SOFT_NATURAL }
+        set(v) = prefs.edit().putInt("softBody", v).apply()
+
     companion object {
+        const val SOFT_NATURAL = 2
+        val SOFT_NAMES = listOf("Off", "Subtle", "Natural", "Strong")
         const val GENTLE = 24
         const val NORMAL = 48
         const val FAST = 96

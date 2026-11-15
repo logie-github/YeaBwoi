@@ -15,6 +15,7 @@
 //   dress N LOOKFILE                           dresses person N again (Native.dress): geosets, layers, extras
 //   boneanim N ANIMFILE                        an imported animation on person N (Scene::setBoneAnim; file below)
 //   bonestop N                                 takes it off (Scene::clearBoneAnim)
+//   soft off|subtle|natural|strong             Options' Soft body (Scene::setSoftBody; the scene's default: natural)
 //   render OUT.ppm|OUT.png WIDTH HEIGHT TIME_MS
 //
 // An anim file (anim/AnimArrays as text; one key per line, # comments; keys of a bone and channel in time order):
@@ -37,6 +38,9 @@
 // Build: engine-test/build.sh; run: build/harness commands.txt
 // Or, for the creator, one person on a plain stage straight to a picture:
 //   build/harness --look LOOKFILE --files DIR --out OUT.png [--size WxH] [--shot body|torso|face] [--facing RADIANS] [--time MS] [--anim ANIMFILE]
+//                 [--soft off|subtle|natural|strong] [--strip N:STEP_MS] [--camera EX,EY,EZ,TX,TY,TZ,FOV]
+// --strip draws N pictures side by side, from --time every STEP_MS, the scene stepped at 60 frames a second between them
+// (as the phone draws), and prints each soft body region's displacement at each.
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 #include <GLES3/gl3.h>
@@ -210,9 +214,16 @@ static void renderTo(Scene& scene, const std::string& out, int w, int h, uint32_
     glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
-    // Animations are stepped through to the asked time, as frames would.
-    for (uint32_t s = 0; s + 33 < t; s += 33) scene.render(w, h, s);
+    // Animations are stepped through to the asked time, as frames would, from the time last drawn (the scene's animation
+    // clock only moves forward, a frame at a time: a time before the last one drawn moves it on by that time again).
+    static uint32_t last = 0;
+    static bool drawn = false;
+    uint32_t from = drawn && t >= last ? last : 0;
+    if (!drawn || t < last) scene.render(w, h, 0);
+    for (uint32_t s = from + 33; s < t; s += 33) scene.render(w, h, s);
     scene.render(w, h, t);
+    last = t;
+    drawn = true;
     std::vector<uint8_t> px(size_t(w) * h * 4);
     glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
     std::vector<uint8_t> rgb(size_t(w) * h * 3);
@@ -227,6 +238,50 @@ static void renderTo(Scene& scene, const std::string& out, int w, int h, uint32_
         std::fwrite(rgb.data(), 1, rgb.size(), f);
         std::fclose(f);
     }
+    std::fprintf(stderr, "wrote %s (GL error %#x)\n", out.c_str(), glGetError());
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(1, &fbo);
+    glDeleteRenderbuffers(1, &color);
+    glDeleteRenderbuffers(1, &depth);
+}
+
+static int softLevel(const std::string& s) {
+    return s == "off" ? kSoftOff : s == "subtle" ? kSoftSubtle : s == "strong" ? kSoftStrong : kSoftNatural;
+}
+
+// N pictures side by side: from t0 every `step` ms, the scene drawn every 16 ms from 0 between them.
+static void renderStrip(Scene& scene, int actor, const std::string& out, int w, int h, uint32_t t0, uint32_t step, int n) {
+    unsigned fbo, color, depth;
+    glGenFramebuffers(1, &fbo); glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glGenRenderbuffers(1, &color); glBindRenderbuffer(GL_RENDERBUFFER, color);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color);
+    glGenRenderbuffers(1, &depth); glBindRenderbuffer(GL_RENDERBUFFER, depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, w, h);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depth);
+    int W = w * n;
+    std::vector<uint8_t> strip(size_t(W) * h * 3), px(size_t(w) * h * 4);
+    uint32_t t = 0;
+    for (int i = 0; i < n; ++i) {
+        uint32_t at = t0 + uint32_t(i) * step;
+        for (; t + 16 < at; t += 16) scene.render(w, h, t);
+        t = at;
+        scene.render(w, h, t);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x)
+                std::copy(&px[(size_t(h - 1 - y) * w + x) * 4], &px[(size_t(h - 1 - y) * w + x) * 4] + 3,
+                          &strip[(size_t(y) * W + size_t(i) * w + x) * 3]);
+        if (const SoftSim* sim = scene.softSim(actor)) {
+            std::fprintf(stderr, "t %5u ms soft (mm, model space):", at);
+            for (size_t r = 0; r < sim->regions().size(); ++r) {
+                V3 d = sim->offset(r);
+                std::fprintf(stderr, " %d:[%+.1f %+.1f %+.1f]", int(sim->regions()[r].kind), d.x * 1000, d.y * 1000, d.z * 1000);
+            }
+            std::fprintf(stderr, "\n");
+        }
+    }
+    writePng(out, W, h, strip);
     std::fprintf(stderr, "wrote %s (GL error %#x)\n", out.c_str(), glGetError());
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDeleteFramebuffers(1, &fbo);
@@ -296,6 +351,7 @@ int main(int argc, char** argv) {
         if (id <= 0) { std::fprintf(stderr, "model %u: FAILED\n", lf.model); return 1; }
         scene.dress(id, lf.geo, lf.layers, lf.extras);
         if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
+        if (opt.count("--soft")) scene.setSoftBody(softLevel(opt["--soft"]));
         if (opt.count("--anim")) {
             BoneAnim ba;
             if (!readBoneAnim(opt["--anim"], ba)) return 1;
@@ -310,6 +366,10 @@ int main(int argc, char** argv) {
         bool face = opt["--shot"] == "face", torso = opt["--shot"] == "torso";
         float tz = face ? h * 0.88f : torso ? h * 0.58f : h * 0.5f, dist = face ? h * 0.35f : torso ? h * 0.75f : h * 1.6f;
         scene.setCamera(V3(dist, 0, tz), V3(0, 0, tz), face || torso ? 30.0f : 40.0f);
+        float cam[7];
+        if (opt.count("--camera") && std::sscanf(opt["--camera"].c_str(), "%f,%f,%f,%f,%f,%f,%f", &cam[0], &cam[1], &cam[2],
+                                                 &cam[3], &cam[4], &cam[5], &cam[6]) == 7)
+            scene.setCamera(V3(cam[0], cam[1], cam[2]), V3(cam[3], cam[4], cam[5]), cam[6]);
         Light studio;
         float sun[3] = {-0.6f, 0.3f, -0.5f}, hor[3] = {0.16f, 0.15f, 0.18f}, amb[3] = {0.55f, 0.55f, 0.58f};
         std::copy(sun, sun + 3, studio.sunDir);
@@ -320,8 +380,18 @@ int main(int argc, char** argv) {
         scene.setLight(studio);
         int w = 512, ht = 768;
         if (opt.count("--size")) std::sscanf(opt["--size"].c_str(), "%dx%d", &w, &ht);
-        renderTo(scene, opt.count("--out") ? opt["--out"] : "look.png", w, ht,
-                 opt.count("--time") ? uint32_t(std::atoi(opt["--time"].c_str())) : 0);
+        uint32_t t0 = opt.count("--time") ? uint32_t(std::atoi(opt["--time"].c_str())) : 0;
+        int frames = 0, step = 0;
+        if (opt.count("--strip") && std::sscanf(opt["--strip"].c_str(), "%d:%d", &frames, &step) == 2 && frames > 0)
+            renderStrip(scene, id, opt.count("--out") ? opt["--out"] : "strip.png", w, ht, t0, uint32_t(std::max(1, step)), frames);
+        else
+            renderTo(scene, opt.count("--out") ? opt["--out"] : "look.png", w, ht, t0);
+        if (const SoftSim* sim = scene.softSim(id))
+            for (size_t r = 0; r < sim->regions().size(); ++r) {
+                const SoftRegion& g = sim->regions()[r];
+                std::fprintf(stderr, "soft region %zu: kind %d bone %d base %.3f %.3f %.3f radii %.3f %.3f %.3f weight %.2f\n", r,
+                             int(g.kind), g.bone, g.centre.x, g.centre.y, g.centre.z, g.radii.x, g.radii.y, g.radii.z, g.weight);
+            }
         size_t moved = 0, layer = 0;
         if (lf.body && scene.bodyStats(id, moved, layer)) std::fprintf(stderr, "body: %zu vertices shaped, %zu layer triangles\n", moved, layer);
         return 0;
@@ -403,6 +473,7 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "look %d (model %u): %s\n", name, lf.model, id > 0 ? "ok" : "FAILED");
             if (id <= 0) continue;
             scene.dress(id, lf.geo, lf.layers, lf.extras);
+            if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
             scene.placeActor(id, V3(x, y, z), facing);
             actors[name] = id;
         } else if (cmd == "dress") {
@@ -416,6 +487,9 @@ int main(int argc, char** argv) {
             BoneAnim ba;
             if (actors.count(name) && readBoneAnim(path, ba))
                 std::fprintf(stderr, "boneanim %d: %d of %zu tracks found their bone\n", name, scene.setBoneAnim(actors[name], ba, 0), ba.tracks.size());
+        } else if (cmd == "soft") {
+            std::string l; ss >> l;
+            scene.setSoftBody(softLevel(l));
         } else if (cmd == "bonestop") {
             int name; ss >> name;
             if (actors.count(name)) scene.clearBoneAnim(actors[name]);

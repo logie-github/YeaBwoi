@@ -57,6 +57,52 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         else -> null
     }
 
+    // --- Wrath++'s Undead switch (the imported undead skins) -----------------------------------------------------
+
+    /** The imported undead skins of the race and sex on (empty: none, or nothing imported). */
+    fun undeadSkins(): List<UndeadSkin> = bodyOverrides?.undeadSkins(model.race.id, model.sex).orEmpty()
+
+    /** Undead is on and drawn: the switch on and the package has skins for the race and sex on. */
+    val isUndead: Boolean get() = appearance.undead && undeadSkins().isNotEmpty()
+
+    /**
+     * Where the Undead switch is (WrathppCreate.lua: "Accessories", else the last category): the race's Accessories,
+     * else the category today's tables give the options Shadowlands had under Accessories (Mirror: the night elf man's
+     * horns and blindfold, the human woman's ears), else the last of the race's own.
+     */
+    fun undeadCategory(): Int? {
+        val own = categories().filter { it.id != BodyOptions.BODY_TAB }
+        return (own.firstOrNull { it.name == "Accessories" } ?: own.firstOrNull { it.name == "Mirror" } ?: own.lastOrNull())?.id
+    }
+
+    /** The Undead row: on where the package has the race and sex; greyed saying to import it where nothing is imported
+     *  (the living races of 3.3.5, as Wrath++ makes them); not shown otherwise (as Wrath++). */
+    private fun undeadRow(categoryId: Int): Row? {
+        if (categoryId != undeadCategory()) return null
+        val o = Option(UNDEAD, "Undead", categoryId, true, listOf(Choice(0, "", null, null), Choice(1, "", null, null)))
+        val imported = bodyOverrides?.hasUndead() == true
+        return when {
+            undeadSkins().isNotEmpty() -> { val i = if (isUndead) 1 else 0; Row(o, o.choices[i], i) }
+            !imported && model.race.id in UndeadSkins.RACES -> Row(o, o.choices[0], 0, false, UndeadSkins.NOT_IMPORTED)
+            else -> null
+        }
+    }
+
+    /** The Skin Color row while Undead is on: the undead skins, by the package's names and swatches. */
+    private fun undeadSkinRow(skinColour: Option): Row {
+        val skins = undeadSkins()
+        val o = Option(UNDEAD_SKIN, skinColour.name, skinColour.categoryId, false, skins.mapIndexed { i, k -> Choice(i, k.name, k.swatch, null) })
+        val i = appearance.undeadSkin.coerceIn(0, o.choices.size - 1)
+        return Row(o, o.choices[i], i)
+    }
+
+    /** Undead on or off (W.SetUndead): the living skin colour picked stays in the picks, so off goes back to it. */
+    fun setUndead(on: Boolean) {
+        val skins = undeadSkins()
+        if (on && skins.isEmpty()) return
+        appearance = appearance.copy(undead = on, undeadSkin = if (on) appearance.undeadSkin.coerceIn(0, skins.size - 1) else appearance.undeadSkin)
+    }
+
     /** The dice's chance (a test sets its own). */
     var random: Random = Random.Default
 
@@ -99,7 +145,11 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         // the body options while she can have them; a shape only where the package has this race's (else As drawn)
         val body = if (!BodyOptions.eligible(raceId, sex)) Body()
             else appearance.body.let { if (it.shape != 0 && bodyAvailable && !shapesAvailable(raceId)) it.copy(shape = 0) else it }
-        appearance = Appearance(next.race.id, next.sex, picks, body, appearance.gear)
+        // Undead kept where the package has the new race and sex too (the same skin's place, or its last)
+        val skins = bodyOverrides?.undeadSkins(next.race.id, next.sex).orEmpty()
+        val undead = appearance.undead && skins.isNotEmpty()
+        appearance = Appearance(next.race.id, next.sex, picks, body, appearance.gear, undead,
+            if (undead) appearance.undeadSkin.coerceIn(0, skins.size - 1) else 0)
         normalize(null)
     }
 
@@ -136,8 +186,11 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
             val id = cur[o.id] ?: continue
             val i = o.choices.indexOfFirst { it.id == id }.coerceAtLeast(0)
             val applies = catalog.applies(o.id, chosenAll)
+            if (isUndead && o.name == FACE) continue                                       // an undead skin has its own face
+            if (isUndead && o.name == SKIN_COLOR) { out += undeadSkinRow(o); continue }      // the undead skins, the race's own kept
             out += Row(o, o.choices[i], i, applies, if (applies) null else NONE_HERE)
         }
+        undeadRow(categoryId)?.let { out += it }
         if (bodyEligible && isBodyTab(categoryId)) {
             for (id in listOf(BodyOptions.SHAPE, BodyOptions.STYLE, BodyOptions.DENSITY)) {
                 val o = BodyOptions.option(id, categoryId)
@@ -160,6 +213,12 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
     fun step(optionId: Int, delta: Int) {
         when {
             optionId == GEAR -> setGear(!appearance.gear)
+            optionId == UNDEAD -> setUndead(!isUndead)
+            optionId == UNDEAD_SKIN -> {
+                val n = undeadSkins().size
+                if (!isUndead || n == 0) return
+                appearance = appearance.copy(undeadSkin = Math.floorMod(appearance.undeadSkin.coerceIn(0, n - 1) + delta, n))
+            }
             optionId in BODY_IDS -> {
                 if (!bodyEligible || bodyWhy(optionId) != null) return
                 val n = BodyOptions.names(optionId).size
@@ -178,6 +237,8 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
     fun choose(optionId: Int, choiceId: Int) {
         when {
             optionId == GEAR -> setGear(choiceId != 0)
+            optionId == UNDEAD -> setUndead(choiceId != 0)
+            optionId == UNDEAD_SKIN -> if (isUndead && choiceId in undeadSkins().indices) appearance = appearance.copy(undeadSkin = choiceId)
             optionId in BODY_IDS -> {
                 if (!bodyEligible || bodyWhy(optionId) != null || choiceId !in BodyOptions.names(optionId).indices) return
                 appearance = appearance.copy(body = BodyOptions.with(appearance.body, optionId, choiceId))
@@ -191,11 +252,13 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
         }
     }
 
-    /** The dice: a choice of every option at random (the body options and Gear kept, as Wrath++'s dice keeps them). */
+    /** The dice: a choice of every option at random (the body options and Gear kept, as Wrath++'s dice keeps them; with
+     *  Undead on, one of the undead skins at random: W.AfterRandomize). */
     fun randomize() {
         val picks = HashMap<Int, Int>()
         for (o in model.options) picks[o.id] = o.choices[random.nextInt(o.choices.size)].id
         appearance = appearance.copy(picks = picks)
+        if (isUndead) appearance = appearance.copy(undeadSkin = random.nextInt(undeadSkins().size))
         normalize(null)
     }
 
@@ -263,6 +326,12 @@ class CreatorModel(val catalog: Catalog, start: Appearance) {
 
     companion object {
         const val GEAR = -1
+        /** Wrath++'s Undead switch, and the Skin Color row of the undead skins while it is on. */
+        const val UNDEAD = -1201
+        const val UNDEAD_SKIN = -1202
+        /** The game's option names (ChrCustomizationOption.Name_lang) Undead stands in for: the face it hides, the skin it lists. */
+        const val FACE = "Face"
+        const val SKIN_COLOR = "Skin Color"
         /** A row with nothing for the character as it is (WrathppCreate.lua's words). */
         const val NONE_HERE = "None for this character"
         /** A body row the imported package has nothing for in this race (Wrath++'s shapes are the Human's only so far). */

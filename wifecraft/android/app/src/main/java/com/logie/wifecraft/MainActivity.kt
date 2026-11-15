@@ -153,7 +153,7 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
-    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it }
+    private fun sceneView(): SceneView = scene ?: SceneView(this, files.dir.path).also { scene = it; it.softBody(Settings(this).softBody) }
 
     @Composable
     private fun App() {
@@ -172,6 +172,7 @@ class MainActivity : ComponentActivity() {
         var downloadSpeed by remember { mutableStateOf(settings.downloadSpeed) }
         var musicVolume by remember { mutableIntStateOf(settings.musicVolume) }
         var soundVolume by remember { mutableIntStateOf(settings.soundVolume) }
+        var softBody by remember { mutableIntStateOf(settings.softBody) }
         val progress by files.progress.collectAsState()
         val importsSlot: @Composable () -> Unit = { ImportsSection(imports, listfile) }
         val fetching by dresser.fetching.collectAsState()
@@ -350,6 +351,7 @@ class MainActivity : ComponentActivity() {
                             downloadSpeed, { downloadSpeed = it; settings.downloadSpeed = it; files.setDownloadSpeed(it) },
                             musicVolume, { musicVolume = it; settings.musicVolume = it; audio?.musicVolume = it / 100f },
                             soundVolume, { soundVolume = it; settings.soundVolume = it; audio?.soundVolume = it / 100f },
+                            softBody, { softBody = it; settings.softBody = it; scene?.softBody(it) },
                             onBack = { panel = if (d != null) Panel.Pause else Panel.None },
                             // the creator's imports (Ralia's mod, Alternate Female Options, the body options), from the title
                             more = if (d == null) importsSlot else null,
