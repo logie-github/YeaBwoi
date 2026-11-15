@@ -154,6 +154,10 @@ fun GatherScreen(
                 else -> "$count, ${mb(progress.done)} of $of on the phone"
             }
             Text(status, style = frizStyle(15.sp))
+            if (progress.running) Text(
+                if (progress.parallel < progress.parallelCeiling) "slowed to ${progress.parallel}: wago.tools asked for less" else "${progress.parallel} at once",
+                style = frizStyle(12.sp, if (progress.parallel < progress.parallelCeiling) Color(0xFFFFD060) else Color.White),
+            )
             if (progress.failed.isNotEmpty() && !progress.running) {
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

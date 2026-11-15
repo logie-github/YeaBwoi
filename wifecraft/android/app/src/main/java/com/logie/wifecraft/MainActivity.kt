@@ -169,6 +169,7 @@ class MainActivity : ComponentActivity() {
         var parchment by remember { mutableStateOf(settings.boxStyle == "parchment") }
         var textSpeed by remember { mutableIntStateOf(settings.textSpeed) }
         var wifiOnly by remember { mutableStateOf(settings.wifiOnly) }
+        var downloadSpeed by remember { mutableStateOf(settings.downloadSpeed) }
         var musicVolume by remember { mutableIntStateOf(settings.musicVolume) }
         var soundVolume by remember { mutableIntStateOf(settings.soundVolume) }
         val progress by files.progress.collectAsState()
@@ -346,6 +347,7 @@ class MainActivity : ComponentActivity() {
                             textSpeed, { textSpeed = it; settings.textSpeed = if (it >= 120) 0 else it },
                             parchment, { parchment = it; settings.boxStyle = if (it) "parchment" else "dark" },
                             wifiOnly, { wifiOnly = it; settings.wifiOnly = it },
+                            downloadSpeed, { downloadSpeed = it; settings.downloadSpeed = it; files.setDownloadSpeed(it) },
                             musicVolume, { musicVolume = it; settings.musicVolume = it; audio?.musicVolume = it / 100f },
                             soundVolume, { soundVolume = it; settings.soundVolume = it; audio?.soundVolume = it / 100f },
                             onBack = { panel = if (d != null) Panel.Pause else Panel.None },

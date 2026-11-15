@@ -56,6 +56,9 @@ class GameFiles(private val context: Context) {
         val failed: List<Int> = emptyList(),
         val error: String? = null,
         val waitingForWifi: Boolean = false,
+        /** Files fetched at once now, and the most the player allows (wago.tools asking for less lowers the first). */
+        val parallel: Int = Settings.FAST,
+        val parallelCeiling: Int = Settings.FAST,
         /** Every pack, the tables and the creator's files are here. */
         val allDone: Boolean = false,
     ) {
@@ -72,10 +75,19 @@ class GameFiles(private val context: Context) {
     private val source: String
     private val _progress = MutableStateFlow(Progress())
     val progress: StateFlow<Progress> = _progress
+    // (the limiter below reads the saved choice before the first state is built)
     // wago.tools answers each file in about a second whatever its size (measured 15 Nov 2026 from a desktop: 4 at once
     // fetched 4 files a second, 16 at once 15, 32 at once 25, with no refusals), so the download is bound by the wait
     // for each answer, not by the line: many at once.
-    private val pool = Executors.newFixedThreadPool(PARALLEL)
+    // The pool is the most there can ever be; the limiter gates each request to the player's choice (Options: Download
+    // speed) and backs off when wago.tools, a free community service, asks for less.
+    private val pool = Executors.newFixedThreadPool(MAX_PARALLEL)
+    private val limiter = FetchLimiter(Settings(context).downloadSpeed).also { l ->
+        l.onChange = { _progress.value = _progress.value.copy(parallel = l.limit, parallelCeiling = l.ceiling) }
+    }
+
+    /** Download speed (Settings.CHOICES), in force on the running download at once. */
+    fun setDownloadSpeed(n: Int) = limiter.setCeiling(n.coerceIn(1, MAX_PARALLEL))
     private val cancelled = AtomicBoolean(false)
     private var job: Thread? = null
 
@@ -116,6 +128,7 @@ class GameFiles(private val context: Context) {
             })
         }
         looksMarker()?.takeIf { it.first == tablesKey() }?.let { (_, bytes, count) -> looks = Looks(count, bytes, count, true, true, 0) }
+        _progress.value = _progress.value.copy(parallel = limiter.limit, parallelCeiling = limiter.ceiling)
         refresh()
         // the creator's files left half way: counted off the main thread (thousands of files)
         if (!looks.complete) Thread { countLooks(); refresh() }.apply { name = "game-files-count" }.start()
@@ -359,13 +372,21 @@ class GameFiles(private val context: Context) {
         var last: Exception? = null
         for (attempt in 0 until 5) {
             if (cancel?.get() == true) return
+            if (!limiter.acquire { cancel?.get() == true }) return
+            var held = true
+            fun letGo() { if (held) { held = false; limiter.release() } }
             try {
                 val conn = URL(source.replace("<id>", id.toString())).openConnection() as HttpURLConnection
                 conn.connectTimeout = 15000
                 conn.readTimeout = 60000
                 conn.setRequestProperty("User-Agent", "Wifecraft/${BuildConfig.VERSION_NAME} (+https://github.com/logie-github/YeaBwoi)")
                 try {
-                    if (conn.responseCode != 200) throw IOException("wago.tools answered ${conn.responseCode} for file $id")
+                    val code = conn.responseCode
+                    if (code != 200) {
+                        // 429, 502, 503, 504: wago.tools asks for less (any other status, a 404 say, says nothing of load)
+                        if (FetchLimiter.isThrottleStatus(code)) limiter.onThrottled(FetchLimiter.retryAfterMs(conn.getHeaderField("Retry-After")) ?: 0)
+                        throw IOException("wago.tools answered $code for file $id")
+                    }
                     // a file it doesn't have comes as 200 with a JSON error ({"error":"File not found"}), never as the file
                     if (conn.contentType?.startsWith("application/json") == true) {
                         val why = runCatching { JSONObject(conn.inputStream.bufferedReader().use { it.readText() }).optString("error") }.getOrNull()
@@ -375,13 +396,18 @@ class GameFiles(private val context: Context) {
                 } finally {
                     conn.disconnect()
                 }
-                if (part.length() == 0L) throw IOException("File $id came empty")
+                if (part.length() == 0L) throw IOException("File $id came empty")     // not a sign of load
                 if (!part.renameTo(target)) throw IOException("Can't save file $id")
+                letGo()
+                limiter.onSuccess()
                 return
             } catch (e: NoSuchFile) {
-                throw e                                   // asking again won't make it
+                letGo()
+                throw e                                   // asking again won't make it (and says nothing of load)
             } catch (e: Exception) {
                 last = e
+                letGo()                                   // the permit isn't held through the wait to try again
+                if (FetchLimiter.isThrottleError(e)) limiter.onThrottled()
                 if (cancel?.get() == true) return
                 Thread.sleep(1000L shl attempt)
             }
@@ -392,8 +418,8 @@ class GameFiles(private val context: Context) {
     private class NoSuchFile(message: String) : IOException(message)
 
     companion object {
-        /** Files fetched at once. */
-        const val PARALLEL = 24
+        /** The most files ever fetched at once (Settings.FAST); the limiter holds it to the player's choice. */
+        const val MAX_PARALLEL = Settings.FAST
 
         /** The name the game's tables go by in [Progress.current] and [Progress.complete]. */
         const val TABLES = "tables"

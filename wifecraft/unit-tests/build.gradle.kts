@@ -25,9 +25,16 @@ val pureUi = tasks.register<Copy>("pureUi") {
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
+// data/ also holds Android classes: only the limiter is copied.
+val pureData = tasks.register<Copy>("pureData") {
+    from("../android/app/src/main/java/com/logie/wifecraft/data/FetchLimiter.kt")
+    into(layout.buildDirectory.dir("gen/pureData"))
+}
+
 sourceSets {
     main {
         kotlin.srcDir(pureUi.map { it.destinationDir })
+        kotlin.srcDir(pureData.map { it.destinationDir })
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/editor")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/update")
