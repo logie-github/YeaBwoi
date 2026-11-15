@@ -1,7 +1,8 @@
 name: Build Wifecraft
 
-# Builds Wifecraft (a Warcraft dating sim: its own OpenGL ES renderer for the game's models and
-# Dalaran, a story player and WoW's own interface) and publishes it as its own release
+# Builds Wifecraft (a story editor, a visual novel and scene builder: a character creator laid out as
+# Wrath++'s, its own OpenGL ES renderer for the game's models and Dalaran's stages, a story player
+# and WoW's own interface) and publishes it as its own release
 # (wifecraft-N). The game's files aren't in the build: the app fetches them from wago.tools.
 on:
   push:
@@ -29,7 +30,7 @@ env:
 
 jobs:
   unit-tests:
-    name: Unit tests (story script, the demo's routes, updates)
+    name: Unit tests (editor, story script and runner, creator, updates)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -127,9 +128,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="$APP_NAME, a Warcraft dating sim, for Android, built from commit ${GITHUB_SHA::7}.
+          notes="$APP_NAME, a story editor with WoW's characters, for Android, built from commit ${GITHUB_SHA::7}.
 
-          Download **$APK_FILE** below on your phone and open it to install. On first launch it fetches Dalaran, its people and WoW's interface (about 295 MB) from wago.tools."
+          Download **$APK_FILE** below on your phone and open it to install. On first launch it fetches WoW's interface, the character creator's tables and Dalaran's stages (about 210 MB) from wago.tools; each race's model and textures come when a character first wears them."
           gh release create "$RELEASE_TAG" "dist/$APK_FILE" \
             --target "$GITHUB_SHA" \
             --title "$APP_NAME $WC_VERSION_NAME" \
