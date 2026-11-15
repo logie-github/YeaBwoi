@@ -7,6 +7,7 @@ plugins {
 }
 
 repositories {
+    maven("https://maven-central.storage-download.googleapis.com/maven2/")
     mavenCentral()
 }
 
@@ -14,14 +15,26 @@ kotlin {
     jvmToolchain(21)
 }
 
+// The two pure files of ui/ (the rest of it is Compose): copied alone so the JVM can compile them.
+val pureUi = tasks.register<Copy>("pureUi") {
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/CreatorLayout.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/EditorState.kt")
+    into(layout.buildDirectory.dir("gen/pureUi"))
+}
+
 sourceSets {
     main {
+        kotlin.srcDir(pureUi.map { it.destinationDir })
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/editor")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/update")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/creator")
     }
 }
 
 dependencies {
+    // org.json for the creator's Appearance (on Android it is the platform's)
+    implementation("org.json:json:20240303")
     testImplementation(kotlin("test"))
     testImplementation("org.json:json:20240303")
 }
