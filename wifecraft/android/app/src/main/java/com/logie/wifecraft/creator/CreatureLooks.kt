@@ -22,7 +22,7 @@ import java.util.WeakHashMap
  *   collection pieces skinned to the body (ModelType 1), the cape's texture (type 2), and what a helm hides
  *   (HelmetGeosetData). Weapons aren't the display's (the server equips them): none are drawn.
  *
- * Pure JVM; the tables are indexed once per [Tables] (the big ones lazily).
+ * Pure JVM; the small tables are indexed once per [Tables], the big ones looked up by key ([Tables.rowsBy]).
  */
 object CreatureLooks {
     /** A display's look, or why it has none (null when it has one). */
@@ -62,10 +62,22 @@ object CreatureLooks {
 
     fun resolve(tables: Tables, displayId: Int): ResolvedLook? = check(tables, displayId).look
 
+    /**
+     * Whether [look] is a character's: its model is one of the creator's playable races' (an NPC of those races, a Stormwind
+     * guard, a Sentinel), not a creature's (a boar, a wolf, a murloc, and the races the creator doesn't offer). Only a
+     * character has a soft body (Native.character).
+     */
+    fun isCharacter(tables: Tables, look: ResolvedLook): Boolean {
+        if (look.model == 0) return false
+        val chr = index(tables).chrModelOfFile[look.model] ?: return false
+        val catalog = catalog(tables)
+        return catalog.races.any { r -> Sex.values().any { s -> catalog.model(r.id, s)?.chrModelId == chr } }
+    }
+
     fun check(tables: Tables, displayId: Int): Result {
         val ix = index(tables)
-        val disp = ix.displays[displayId] ?: return Result(null, "display not in CreatureDisplayInfo")
-        val data = ix.modelData[disp.int("ModelID")] ?: return Result(null, "model ${disp.int("ModelID")} not in CreatureModelData")
+        val disp = ix.display(displayId) ?: return Result(null, "display not in CreatureDisplayInfo")
+        val data = ix.modelData(disp.int("ModelID")) ?: return Result(null, "model ${disp.int("ModelID")} not in CreatureModelData")
         val model = data.int("FileDataID")
         if (model == 0) return Result(null, "model data ${disp.int("ModelID")} has no model file")
         val scale = disp.float("CreatureModelScale", 1f).takeIf { it > 0f } ?: 1f
@@ -82,13 +94,13 @@ object CreatureLooks {
             if (f != 0) textures[type] = f
         }
         val groups = sortedMapOf<Int, Int>()
-        for ((index, value) in ix.geosetData[displayId].orEmpty()) groups[index + 1] = value
+        for ((index, value) in ix.geosetData(displayId)) groups[index + 1] = value
         val needs = LinkedHashSet<Int>().apply { add(model); addAll(textures.values) }
         return ResolvedLook(model, scale, groups, textures, emptyList(), emptyList(), needs)
     }
 
     private fun humanoid(t: Tables, ix: Index, disp: Map<String, String>, extendedId: Int, model: Int, scale: Float): Result {
-        val ex = ix.extras[extendedId] ?: return Result(null, "extended display $extendedId not in CreatureDisplayInfoExtra")
+        val ex = ix.extra(extendedId) ?: return Result(null, "extended display $extendedId not in CreatureDisplayInfoExtra")
         val race = ex.int("DisplayRaceID")
         val sex = if (ex.int("DisplaySexID") == 1) Sex.FEMALE else Sex.MALE
         val diagnostics = ArrayList<String>()
@@ -98,13 +110,13 @@ object CreatureLooks {
         val catalog = catalog(t)
         val entry = chrModel?.let { m -> catalog.races.firstNotNullOfOrNull { r -> catalog.model(r.id, sex)?.takeIf { it.chrModelId == m } } }
         val base: ResolvedLook? = if (entry != null) {
-            val picks = ix.options[extendedId].orEmpty().toMap()
+            val picks = ix.options(extendedId).toMap()
             runCatching { LookResolver.resolve(catalog, t, Appearance(entry.race.id, sex, picks, gear = false)) }
                 .onFailure { diagnostics += "choices: ${it.message}" }.getOrNull()
         } else if (chrModel != null) {
             // a race or form the creator doesn't offer (the Vrykul, the Naga, the Dracthyr's dragon form): its choices'
             // rows read directly, as tools/looks.py did
-            raw(ix, chrModel, model, scale, ix.options[extendedId].orEmpty().map { it.second })
+            raw(ix, chrModel, model, scale, ix.options(extendedId).map { it.second })
         } else {
             diagnostics += "race $race ${sex.name.lowercase()}: no ChrModel, its choices aren't drawn"
             null
@@ -127,9 +139,9 @@ object CreatureLooks {
         val extra = ArrayList(base?.extraModels.orEmpty())
         val perGroup = LinkedHashMap<Int, MutableList<Pair<Int, Int>>>()   // geoset group -> (slot, value)
         val hidden = LinkedHashSet<Int>()
-        for ((npcSlot, item) in ix.slots[extendedId].orEmpty().toSortedMap()) {
+        for ((npcSlot, item) in ix.slots(extendedId).toSortedMap()) {
             val slot = NPC_SLOT[npcSlot] ?: continue
-            val row = ix.items[item] ?: continue
+            val row = ix.item(item) ?: continue
             for ((gi, group) in SLOT_GEOSETS[slot].orEmpty()) {
                 val v = row.int("GeosetGroup_$gi")
                 perGroup.getOrPut(group) { ArrayList() } += slot to if (group == 20) (if (v == 0) 2 else v) else 1 + v
@@ -264,34 +276,36 @@ object CreatureLooks {
 
     private fun catalog(t: Tables): Catalog = synchronized(catalogs) { catalogs.getOrPut(t) { Catalog.build(t) } }
 
-    private class Index(t: Tables) {
-        val displays by lazy { t.rows("CreatureDisplayInfo").associateBy { it.int("ID") } }
-        val modelData by lazy { t.rows("CreatureModelData").associateBy { it.int("ID") } }
-        val extras by lazy { t.rows("CreatureDisplayInfoExtra").associateBy { it.int("ID") } }
-        val geosetData by lazy {
-            t.rows("CreatureDisplayInfoGeosetData").groupBy({ it.int("CreatureDisplayInfoID") }) { it.int("GeosetIndex") to it.int("GeosetValue") }
+    /**
+     * The big tables (CreatureDisplayInfo, CreatureDisplayInfoOption, NPCModelItemSlotDisplayInfo, ItemDisplayInfo,
+     * ModelFileData and the rest: some 55 MB of text) are looked up by key ([Tables.rowsBy]: an index on [CsvTables]),
+     * never held whole as maps: a phone's heap hasn't the room.
+     */
+    private class Index(private val t: Tables) {
+        fun display(id: Int) = t.rowBy("CreatureDisplayInfo", "ID", id)
+        fun modelData(id: Int) = t.rowBy("CreatureModelData", "ID", id)
+        fun extra(id: Int) = t.rowBy("CreatureDisplayInfoExtra", "ID", id)
+        fun geosetData(display: Int) =
+            t.rowsBy("CreatureDisplayInfoGeosetData", "CreatureDisplayInfoID", display).map { it.int("GeosetIndex") to it.int("GeosetValue") }
+        fun options(extra: Int) =
+            t.rowsBy("CreatureDisplayInfoOption", "CreatureDisplayInfoExtraID", extra).map { it.int("ChrCustomizationOptionID") to it.int("ChrCustomizationChoiceID") }
+        /** NPC item slot -> ItemDisplayInfo id (the last row of a slot wins). */
+        fun slots(extra: Int): Map<Int, Int> {
+            val out = HashMap<Int, Int>()
+            for (r in t.rowsBy("NPCModelItemSlotDisplayInfo", "NpcModelID", extra)) out[r.int("ItemSlot")] = r.int("ItemDisplayInfoID")
+            return out
         }
-        val options by lazy {
-            t.rows("CreatureDisplayInfoOption").groupBy({ it.int("CreatureDisplayInfoExtraID") }) { it.int("ChrCustomizationOptionID") to it.int("ChrCustomizationChoiceID") }
-        }
-        val slots by lazy {
-            val out = HashMap<Int, MutableMap<Int, Int>>()
-            for (r in t.rows("NPCModelItemSlotDisplayInfo")) out.getOrPut(r.int("NpcModelID")) { HashMap() }[r.int("ItemSlot")] = r.int("ItemDisplayInfoID")
-            out
-        }
-        val items by lazy { t.rows("ItemDisplayInfo").associateBy { it.int("ID") } }
+        fun item(id: Int) = t.rowBy("ItemDisplayInfo", "ID", id)
         /** ModelResourcesID -> its files (a resource has one per race and sex, or one per shoulder). */
-        private val modelFiles by lazy { t.rows("ModelFileData").groupBy({ it.int("ModelResourcesID") }) { it.int("FileDataID") } }
+        private fun modelFiles(res: Int) = t.rowsBy("ModelFileData", "ModelResourcesID", res).map { it.int("FileDataID") }
         /** A model file -> (gender 0 male 1 female 2 any, race 0 any, position -1 none / 0 left / 1 right). */
-        private val componentModels by lazy {
-            t.rows("ComponentModelFileData").associate { it.int("ID") to Triple(it.int("GenderIndex"), it.int("RaceID"), it.int("PositionIndex")) }
-        }
+        private fun componentModel(file: Int) =
+            t.rowBy("ComponentModelFileData", "ID", file)?.let { Triple(it.int("GenderIndex"), it.int("RaceID"), it.int("PositionIndex")) }
         /** MaterialResourcesID -> its files (UsageType, file). */
-        private val textureFiles by lazy {
-            t.rows("TextureFileData").groupBy({ it.int("MaterialResourcesID") }) { it.int("UsageType") to it.int("FileDataID") }
-        }
+        private fun textureFiles(res: Int) =
+            t.rowsBy("TextureFileData", "MaterialResourcesID", res).map { it.int("UsageType") to it.int("FileDataID") }
         /** A texture file -> (gender, race). */
-        private val componentTextures by lazy { t.rows("ComponentTextureFileData").associate { it.int("ID") to (it.int("GenderIndex") to it.int("RaceID")) } }
+        private fun componentTexture(file: Int) = t.rowBy("ComponentTextureFileData", "ID", file)?.let { it.int("GenderIndex") to it.int("RaceID") }
         val helmHides by lazy { t.rows("HelmetGeosetData").groupBy({ it.int("HelmetGeosetVisDataID") }) { it.int("RaceID") to it.int("HideGeosetGroup") } }
         /** The customization tables, for the models the creator's catalogue doesn't have (raw). */
         val custom by lazy { Custom(t) }
@@ -300,19 +314,26 @@ object CreatureLooks {
         val layoutOfChrModel: Map<Int, Int>
         val chrModelOfRace: Map<Pair<Int, Int>, Int>
         val layoutOfModel: Map<Int, Int>
+        /** A model file -> the ChrModel whose display shows it. */
+        val chrModelOfFile: Map<Int, Int>
 
         init {
             val chr = t.rows("ChrModel")
             layoutOfChrModel = chr.associate { it.int("ID") to it.int("CharComponentTextureLayoutID") }
             val byModel = HashMap<Int, Int>()
             val layouts = HashMap<Int, Int>()
+            val files = HashMap<Int, Int>()
             for (m in chr) {
-                val d = displays[m.int("DisplayID")] ?: continue
+                val d = display(m.int("DisplayID")) ?: continue
                 byModel.putIfAbsent(d.int("ModelID"), m.int("ID"))
-                modelData[d.int("ModelID")]?.int("FileDataID")?.takeIf { it != 0 }?.let { layouts.putIfAbsent(it, m.int("CharComponentTextureLayoutID")) }
+                modelData(d.int("ModelID"))?.int("FileDataID")?.takeIf { it != 0 }?.let {
+                    layouts.putIfAbsent(it, m.int("CharComponentTextureLayoutID"))
+                    files.putIfAbsent(it, m.int("ID"))
+                }
             }
             chrModelOfModel = byModel
             layoutOfModel = layouts
+            chrModelOfFile = files
             val sexOf = chr.associate { it.int("ID") to it.int("Sex") }
             val byRace = HashMap<Pair<Int, Int>, Int>()
             for (x in t.rows("ChrRaceXChrModel")) {
@@ -336,10 +357,10 @@ object CreatureLooks {
 
         /** The file of resource [res] for [race] and [sex] at [position] (-1: any): the closest match, then the lowest id. */
         fun itemModel(res: Int, race: Int, sex: Sex, position: Int): Int {
-            val files = modelFiles[res].orEmpty()
+            val files = modelFiles(res)
             if (files.isEmpty()) return 0
             return files.minWith(compareBy({ f ->
-                val c = componentModels[f] ?: return@compareBy 50
+                val c = componentModel(f) ?: return@compareBy 50
                 var score = 0
                 if (position >= 0 && c.third != position) score += 100
                 score += when (c.first) { sex.ordinal -> 0; 2 -> 1; else -> 20 }
@@ -351,10 +372,10 @@ object CreatureLooks {
         /** The texture of material [res] for [race] and [sex]: the closest ComponentTextureFileData, the lowest UsageType, the lowest id. */
         fun texture(res: Int, race: Int, sex: Sex): Int {
             if (res == 0) return 0
-            val files = textureFiles[res].orEmpty()
+            val files = textureFiles(res)
             if (files.isEmpty()) return 0
             return files.minWith(compareBy({ it.first }, { (_, f) ->
-                val c = componentTextures[f] ?: return@compareBy 5
+                val c = componentTexture(f) ?: return@compareBy 5
                 (when (c.first) { sex.ordinal -> 0; 2 -> 1; else -> 20 }) + (when (c.second) { race -> 0; 0 -> 2; else -> 10 })
             }, { it.second })).second
         }

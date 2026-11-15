@@ -54,8 +54,8 @@ object LookResolver {
         val female = a.sex == Sex.FEMALE
         val diagnostics = ArrayList<String>()
         val chrModel = ix.chrModels[entry.chrModelId] ?: throw IllegalArgumentException("ChrModel ${entry.chrModelId} isn't in the tables")
-        val display = ix.displays[chrModel.int("DisplayID")]
-        var model = display?.let { ix.modelData[it.int("ModelID")]?.int("FileDataID") } ?: 0
+        val display = ix.display(chrModel.int("DisplayID"))
+        var model = display?.let { ix.modelData(it.int("ModelID"))?.int("FileDataID") } ?: 0
         if (model == 0) diagnostics += "No model file for ChrModel ${entry.chrModelId} (CreatureDisplayInfo ${chrModel.int("DisplayID")})"
         val scale = display?.float("CreatureModelScale", 1f)?.takeIf { it > 0f } ?: 1f
         val layout = chrModel.int("CharComponentTextureLayoutID")
@@ -124,7 +124,7 @@ object LookResolver {
                     }
                 }
                 if (e.condModel != 0) {
-                    val cm = ix.condModels[e.condModel]?.let { ix.modelData[it.int("CreatureModelDataID")] }?.int("FileDataID") ?: 0
+                    val cm = ix.condModels[e.condModel]?.let { ix.modelData(it.int("CreatureModelDataID")) }?.int("FileDataID") ?: 0
                     if (cm == 0) unsupported += "model ${e.condModel} isn't in ChrCustomizationCondModel/CreatureModelData"
                     else { model = cm; drew = true }
                 }
@@ -207,10 +207,11 @@ object LookResolver {
 
     private fun index(t: Tables): Index = synchronized(indexes) { indexes.getOrPut(t) { Index(t) } }
 
-    private class Index(t: Tables) {
+    private class Index(private val t: Tables) {
         val chrModels = t.rows("ChrModel").associateBy { it.int("ID") }
-        val displays by lazy { t.rows("CreatureDisplayInfo").associateBy { it.int("ID") } }
-        val modelData by lazy { t.rows("CreatureModelData").associateBy { it.int("ID") } }
+        // the big tables by key (Tables.rowsBy), never held whole
+        fun display(id: Int) = t.rowBy("CreatureDisplayInfo", "ID", id)
+        fun modelData(id: Int) = t.rowBy("CreatureModelData", "ID", id)
         val geosets = t.rows("ChrCustomizationGeoset").associateBy { it.int("ID") }
         val materials = t.rows("ChrCustomizationMaterial").associateBy { it.int("ID") }
         val skinned = t.rows("ChrCustomizationSkinnedModel").associateBy { it.int("ID") }
@@ -218,18 +219,17 @@ object LookResolver {
         val condModels = t.rows("ChrCustomizationCondModel").associateBy { it.int("ID") }
         private val layers = t.rows("ChrModelTextureLayer").groupBy { it.int("CharComponentTextureLayoutsID") }
         /** MaterialResourcesID -> its file: the lowest UsageType's (0 the colour), then the lowest id (tools/looks.py). */
-        private val files by lazy {
-            val out = HashMap<Int, Pair<Int, Int>>()
-            for (r in t.rows("TextureFileData")) {
-                val res = r.int("MaterialResourcesID")
+        private fun files(res: Int): Int {
+            var have: Pair<Int, Int>? = null
+            for (r in t.rowsBy("TextureFileData", "MaterialResourcesID", res)) {
                 val key = r.int("UsageType") to r.int("FileDataID")
-                val have = out[res]
-                if (have == null || key.first < have.first || (key.first == have.first && key.second < have.second)) out[res] = key
+                val h = have
+                if (h == null || key.first < h.first || (key.first == h.first && key.second < h.second)) have = key
             }
-            out.mapValues { it.value.second }
+            return have?.second ?: 0
         }
 
         fun layersOf(layout: Int): List<Map<String, String>> = layers[layout].orEmpty()
-        fun file(materialResources: Int): Int = files[materialResources] ?: 0
+        fun file(materialResources: Int): Int = files(materialResources)
     }
 }

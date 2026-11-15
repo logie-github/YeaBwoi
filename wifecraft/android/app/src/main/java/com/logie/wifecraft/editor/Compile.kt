@@ -207,12 +207,18 @@ object Compile {
             line("scene $where ${if (s.stage.light in lights) s.stage.light else "day"}")
             val pw = placeWords(s)
             for (pl in s.placements) {
+                // a hidden placement is kept in the project and left out of Play (a comment says so)
+                if (pl.hidden) { line("# hidden, not placed: ${pw.getValue(pl.id)}"); continue }
                 line("place ${pw.getValue(pl.id)} ${pl.kind.name.lowercase()} ${pl.asset} ${if (pl.kind == PlaceKind.NPC) pl.actorId?.let(::person) ?: "-" else "-"} " +
                     "${num(pl.x)} ${num(pl.y)} ${num(pl.z)} ${num(pl.yaw)} ${num(pl.scale)} ${pl.anim ?: "-"} ${if (pl.loop) 1 else 0} ${if (pl.sound) 1 else 0}")
             }
             var closed = false
+            val hiddenIds = s.placements.filter { it.hidden }.map { it.id }.toSet()
             for (b in s.beats) {
                 if (closed) break
+                // what a hidden placement would have done is skipped with it
+                val onHidden = when (b) { is Beat.Emote -> b.placementId in hiddenIds; is Beat.Anim -> b.placementId in hiddenIds; else -> false }
+                if (onHidden) { line("# skipped, its placement is hidden"); continue }
                 when (b) {
                     is Beat.Say -> {
                         val animId = animOfEmote(b.emote)

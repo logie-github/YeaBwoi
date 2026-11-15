@@ -26,6 +26,10 @@ data class Placement(
     val anim: Int? = null,
     val emoteId: Int? = null,
     val loop: Boolean = true, val sound: Boolean = true,
+    /** Kept in the scene but not spawned in Play; the editor draws it only with "show hidden" on. */
+    val hidden: Boolean = false,
+    /** The editor won't move, turn or resize it (drag, nudge, handles, the inspector's fields). Play ignores it. */
+    val locked: Boolean = false,
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("kind", kind.name).put("asset", asset)
@@ -34,6 +38,7 @@ data class Placement(
         .put("yaw", yaw.toDouble()).put("scale", scale.toDouble())
         .put("anim", anim ?: JSONObject.NULL).put("emoteId", emoteId ?: JSONObject.NULL)
         .put("loop", loop).put("sound", sound)
+        .put("hidden", hidden).put("locked", locked)
 
     companion object {
         fun fromJson(o: JSONObject): Placement = Placement(
@@ -47,6 +52,7 @@ data class Placement(
             anim = if (o.isNull("anim")) null else o.optInt("anim"),
             emoteId = if (o.isNull("emoteId")) null else o.optInt("emoteId"),
             loop = o.optBoolean("loop", true), sound = o.optBoolean("sound", true),
+            hidden = o.optBoolean("hidden", false), locked = o.optBoolean("locked", false),
         )
     }
 }

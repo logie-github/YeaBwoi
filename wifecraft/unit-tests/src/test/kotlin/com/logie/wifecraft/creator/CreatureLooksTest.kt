@@ -152,6 +152,12 @@ class CreatureLooksTest {
         assertEquals(listOf(2, 1), withGroups.geosetValues.toList())
     }
 
+    /** Only a playable race's model has a soft body: a creature's never (Dresser.dressLook, Native.character). */
+    @Test fun onlyAPlayableRacesModelIsACharacter() {
+        assertTrue(!CreatureLooks.isCharacter(tables, CreatureLooks.resolve(tables, 9000)!!))     // a creature's model
+        assertTrue(CreatureLooks.isCharacter(tables, CreatureLooks.resolve(tables, 9500)!!))      // a human woman NPC
+    }
+
     @Test fun whatHasNoLookSaysWhy() {
         assertNull(CreatureLooks.resolve(tables, 1234))
         assertEquals("display not in CreatureDisplayInfo", CreatureLooks.check(tables, 1234).why)

@@ -127,18 +127,25 @@ class PlaceStateTest {
     }
 
     @Test fun selectionHidingAndLocking() {
+        fun pl(id: String, hidden: Boolean = false, locked: Boolean = false) =
+            Placement(id, PlaceKind.PROP, 1, null, id, 0f, 0f, 0f, 0f, 1f, hidden = hidden, locked = locked)
+        val lamp = pl("lamp"); val chair = pl("chair")
         var ui = PlaceUi()
-        ui = ui.tapped(PlaceKeys.of("lamp"))
+        ui = ui.tapped(PlaceKeys.of("lamp"), listOf(lamp, chair))
         assertEquals("lamp", ui.selected)
-        assertTrue(ui.canMove("lamp"))
-        ui = ui.toggleLocked("lamp")
-        assertTrue(!ui.canMove("lamp") && ui.selected == "lamp")
-        ui = ui.toggleHidden("lamp")
-        assertNull(ui.selected)
-        // a hidden thing can't be tapped; the floor or the cast's own key selects nothing
-        assertNull(ui.tapped(PlaceKeys.of("lamp")).selected)
-        assertNull(ui.tapped("valeera").selected)
-        assertNull(ui.tapped(null).selected)
+        assertTrue(ui.canMove(lamp))
+        assertTrue(!ui.canMove(lamp.copy(locked = true)) && !ui.canMove(null))
+        // hiding the selected one deselects it; a hidden one can't be tapped unless "show hidden" is on
+        val hid = lamp.copy(hidden = true)
+        assertNull(ui.afterHide(hid).selected)
+        assertEquals("lamp", ui.toggleShowHidden().afterHide(hid).selected)
+        assertNull(ui.tapped(PlaceKeys.of("lamp"), listOf(hid, chair)).selected)
+        assertEquals("lamp", ui.toggleShowHidden().tapped(PlaceKeys.of("lamp"), listOf(hid, chair)).selected)
+        assertEquals(setOf("lamp"), ui.notDrawn(listOf(hid, chair)))
+        assertEquals(emptySet(), ui.toggleShowHidden().notDrawn(listOf(hid, chair)))
+        // the floor or the cast's own key selects nothing
+        assertNull(ui.tapped("valeera", listOf(lamp)).selected)
+        assertNull(ui.tapped(null, listOf(lamp)).selected)
         ui = ui.select("chair").keepOnly(listOf("chair"))
         assertEquals(PlaceUi("chair"), ui)
         assertEquals("a:b", PlaceKeys.idOf(PlaceKeys.of("a:b")))

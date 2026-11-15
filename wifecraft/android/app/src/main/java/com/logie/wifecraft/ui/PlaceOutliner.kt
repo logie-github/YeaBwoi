@@ -49,7 +49,7 @@ fun PlaceOutliner(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 EditorCard(onClick = { onSelect(if (sel) null else p.id) }, selected = sel) {
                     Column(Modifier.weight(1f)) {
-                        Text(p.name, style = frizStyle(15.sp, if (p.id in ui.hidden) WowColors.grey else Color.White), maxLines = 1)
+                        Text(p.name, style = frizStyle(15.sp, if (p.hidden) WowColors.grey else Color.White), maxLines = 1)
                         Text(
                             listOfNotNull(
                                 when (p.kind) {
@@ -58,8 +58,8 @@ fun PlaceOutliner(
                                     PlaceKind.NPC -> "NPC: " + (p.actorId?.let(nameOf) ?: p.actorId ?: "?")
                                 },
                                 p.anim?.let { "animation $it" + if (p.loop) ", held" else "" },
-                                "hidden".takeIf { p.id in ui.hidden },
-                                "locked".takeIf { p.id in ui.locked },
+                                "hidden".takeIf { p.hidden },
+                                "locked".takeIf { p.locked },
                                 "muted".takeIf { !p.sound && p.kind != PlaceKind.PROP },
                             ).joinToString(" · "),
                             style = frizStyle(12.sp, WowColors.grey, false), maxLines = 1,
@@ -67,8 +67,8 @@ fun PlaceOutliner(
                     }
                 }
                 if (sel) Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    PToggle("Hide", p.id in ui.hidden, { onHide(p.id) }, Modifier.weight(1f), width = 80.dp)
-                    PToggle("Lock", p.id in ui.locked, { onLock(p.id) }, Modifier.weight(1f), width = 80.dp)
+                    PToggle("Hide", p.hidden, { onHide(p.id) }, Modifier.weight(1f), width = 80.dp)
+                    PToggle("Lock", p.locked, { onLock(p.id) }, Modifier.weight(1f), width = 80.dp)
                     PButton("Rename", { onRename(p.id) }, Modifier.weight(1.3f), width = 96.dp)
                     PButton("Look", { onLookAt(p) }, Modifier.weight(1f), width = 80.dp)
                 }

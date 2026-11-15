@@ -105,6 +105,10 @@ object Native {
     const val SOFT_NATURAL = 2
     const val SOFT_STRONG = 3
     @JvmStatic external fun show(scene: Long, actor: Int, visible: Boolean)
+    /** Whether [actor] is a character (a playable race's model): only characters have a soft body ([softBody]); an actor starts as not. */
+    @JvmStatic external fun character(scene: Long, actor: Int, on: Boolean)
+    /** The actor's size (added with [addActor]'s scale): [scale] replaces it, so a placed person is the look's scale times the placement's. */
+    @JvmStatic external fun setActorScale(scene: Long, actor: Int, scale: Float)
     @JvmStatic external fun height(scene: Long, actor: Int): Float
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)
     @JvmStatic external fun light(scene: Long, values: FloatArray)

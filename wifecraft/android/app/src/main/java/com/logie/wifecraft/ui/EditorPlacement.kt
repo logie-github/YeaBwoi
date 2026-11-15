@@ -87,6 +87,8 @@ data class PlaceStatus(
     val fetchTotal: Int = 0,
     val fetchError: String? = null,
     val soundError: String? = null,
+    /** SceneAudio is building or downloading its sound index (the first sound of a session waits for it). */
+    val soundPreparing: Boolean = false,
 ) {
     val loadingStage: Boolean get() = !stageReady && stageError == null
     val errors: List<String> get() = listOfNotNull(stageError, fetchError, soundError)
@@ -196,6 +198,7 @@ fun EditorPlacement(
                     PButton("Grid ${showNumber(snap.grid)}", { snap = snap.copy(grid = Snap.GRIDS[(Snap.GRIDS.indexOf(snap.grid) + 1) % Snap.GRIDS.size]) }, width = 110.dp)
                     PButton("Turn ${snap.angleDeg.toInt()}°", { snap = snap.copy(angleDeg = Snap.ANGLES[(Snap.ANGLES.indexOf(snap.angleDeg) + 1) % Snap.ANGLES.size]) }, width = 110.dp)
                 }
+                PToggle("Show hidden", ui.showHidden, { onUi(ui.toggleShowHidden()) }, width = 130.dp)
                 PButton("View", onResetCamera, width = 80.dp)
                 PButton("Done", onDone, width = 90.dp)
             }
@@ -212,7 +215,8 @@ fun EditorPlacement(
                             when (tab) {
                                 PanelTab.THINGS -> PlaceOutliner(
                                     scene.placements, ui, onSelect = { onUi(ui.select(it)) },
-                                    onHide = { onUi(ui.toggleHidden(it)) }, onLock = { onUi(ui.toggleLocked(it)) },
+                                    onHide = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementHidden(sceneId, id, !p.hidden); onUi(ui.afterHide(p.copy(hidden = !p.hidden))) } },
+                                    onLock = { id -> scene.placements.firstOrNull { it.id == id }?.let { p -> state.setPlacementLocked(sceneId, id, !p.locked) } },
                                     onRename = { renaming = it },
                                     onLookAt = { p -> onCamera(camera.lookAt(Vec3(p.x, p.y, p.z + 1f))) },
                                     nameOf = { a -> project.cast.firstOrNull { it.id == a }?.name },
@@ -221,7 +225,7 @@ fun EditorPlacement(
                                     Text("Tap something on the stage, or in Things, to select it. Add puts a new one in the middle of the view.",
                                         style = frizStyle(14.sp, WowColors.grey, false), modifier = Modifier.padding(6.dp))
                                 } else PlaceInspector(
-                                    shownSel, snap, camera.pose(), locked = shownSel.id in ui.locked,
+                                    shownSel, snap, camera.pose(), locked = shownSel.locked,
                                     onChange = { p -> state.updatePlacement(sceneId, p.id) { p } },
                                     onSlide = { p -> state.updatePlacement(sceneId, p.id, "slide:$sceneId:${p.id}") { p } },
                                     onSlideEnd = { state.endGesture() },
@@ -229,6 +233,7 @@ fun EditorPlacement(
                                     onDuplicate = { state.duplicatePlacement(sceneId, shownSel.id)?.let { onUi(ui.select(it)) } },
                                     onDelete = { confirmDelete = shownSel.id },
                                     onAnimation = { tab = PanelTab.ANIMATION },
+                                    onSound = { on -> state.setPlacementSound(sceneId, shownSel.id, on); engine.setSound(shownSel, on) },
                                 )
                                 PanelTab.ANIMATION -> if (shownSel == null || shownSel.kind == PlaceKind.PROP) {
                                     Text("Select a person or a creature to give them an animation or an emote.", style = frizStyle(14.sp, WowColors.grey, false), modifier = Modifier.padding(6.dp))
@@ -251,8 +256,8 @@ fun EditorPlacement(
             val viewport: @Composable (Modifier) -> Unit = { m ->
                 Box(m.background(Color.Black).border(1.dp, Color(0x66FFD100))) {
                     PlaceViewport(
-                        view, camera, onCamera, shownSel, ui.canMove(shownSel?.id), snap,
-                        onTap = { sx, sy, w, h -> view.pick(sx, sy, w, h) { hit -> onUi(ui.tapped(hit?.key)) } },
+                        view, camera, onCamera, shownSel, ui.canMove(shownSel), snap,
+                        onTap = { sx, sy, w, h -> view.pick(sx, sy, w, h) { hit -> onUi(ui.tapped(hit?.key, scene.placements)) } },
                         onLive = { onLive(it) },
                         onCommit = { commit(it) },
                         onSize = { w, h -> size = w to h },
@@ -301,7 +306,7 @@ fun EditorPlacement(
 /** The stage's files and a placed thing's on their way, and what went wrong (a tap clears the errors). */
 @Composable
 fun PlaceLoading(s: PlaceStatus, onClear: () -> Unit, modifier: Modifier = Modifier) {
-    if (!s.loadingStage && s.fetchTotal == 0 && s.errors.isEmpty()) return
+    if (!s.loadingStage && s.fetchTotal == 0 && s.errors.isEmpty() && !s.soundPreparing) return
     Column(
         modifier.padding(top = 6.dp).widthIn(max = 520.dp).background(Color(0xC0000000)).clickable(onClick = onClear)
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -316,6 +321,8 @@ fun PlaceLoading(s: PlaceStatus, onClear: () -> Unit, modifier: Modifier = Modif
             LoadingBar(if (s.stageTotal > 0) s.stageDone.toFloat() / s.stageTotal else 0f, Modifier.width(320.dp).height(30.dp))
         }
         if (s.fetchTotal > 0) Text("Fetching a placed thing's files… ${s.fetchDone} of ${s.fetchTotal}", style = frizStyle(12.sp, Color.White))
+        if (s.soundPreparing) Text("Preparing sounds…", style = frizStyle(12.sp, Color.White))
         for (e in s.errors) Text(e, style = frizStyle(12.sp, Color(0xFFFF6A5A), false))
+        if (s.errors.isNotEmpty()) Text("Dismiss", style = frizStyle(13.sp, WowColors.gold), modifier = Modifier.clickable(onClick = onClear).padding(horizontal = 16.dp, vertical = 12.dp))
     }
 }

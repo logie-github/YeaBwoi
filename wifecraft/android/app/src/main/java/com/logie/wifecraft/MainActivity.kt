@@ -61,6 +61,7 @@ import com.logie.wifecraft.ui.PlaceKeys
 import com.logie.wifecraft.ui.PlaceStatus
 import com.logie.wifecraft.ui.StageChoices
 import com.logie.wifecraft.ui.WowColors
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -295,6 +296,7 @@ class MainActivity : ComponentActivity() {
                 },
                 // the placement editor's things: spawned, animated and voiced by the same engine as the editor's preview
                 placeHost = placer.playHost(cast),
+                locations = locationLoader.locations,
             )
             d.begin()
             director = d
@@ -497,16 +499,18 @@ class MainActivity : ComponentActivity() {
         private val currentLoc = MutableStateFlow<String?>(null)
         private var currentView: String? = null
         private val lookError = MutableStateFlow<String?>(null)
+        private val soundState: Flow<Pair<String?, Boolean>> =
+            combine(sceneAudio?.error ?: MutableStateFlow<String?>(null), sceneAudio?.preparing ?: MutableStateFlow(false)) { e, p -> e to p }
         override val status: StateFlow<PlaceStatus> = combine(
-            locationLoader.progress, propLoader.loading, sceneAudio?.error ?: MutableStateFlow<String?>(null), currentLoc, lookError,
-        ) { lp, pl, sound, loc, look ->
+            locationLoader.progress, propLoader.loading, soundState, currentLoc, lookError,
+        ) { lp, pl, (sound, preparing), loc, look ->
             val here = loc != null && lp.id == loc
             PlaceStatus(
                 stageName = locationLoader.location(loc ?: "")?.name ?: loc ?: "",
                 stageDone = if (here) lp.done else 0, stageTotal = if (here) lp.total else 0,
                 stageBytesDone = if (here) lp.bytesDone else 0, stageBytesTotal = if (here) lp.bytesTotal else 0,
                 stageReady = loc == null || (here && lp.ready), stageError = if (here) lp.error else null,
-                fetchDone = pl.done, fetchTotal = pl.total, fetchError = pl.error ?: look, soundError = sound,
+                fetchDone = pl.done, fetchTotal = pl.total, fetchError = pl.error ?: look, soundError = sound, soundPreparing = preparing,
             )
         }.stateIn(lifecycleScope, SharingStarted.Eagerly, PlaceStatus())
 
@@ -614,7 +618,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (p.kind != PlaceKind.PROP) {
-                // its scale is the look's (Dresser); its place is the frame's in the editor, set here once in Play
+                // its size is the look's own times the placement's (SceneView.setActorScale); its place is the frame's in the editor, set here once in Play
+                v.setActorScale(key, p.scale)
                 whenOnStage(key) { h, id ->
                     if (play) { Native.place(h, id, p.x, p.y, p.z, p.yaw); Native.show(h, id, true) }
                     Native.anim(h, id, p.anim ?: 0, if (p.anim == null) true else p.loop, Clock.now())
@@ -644,6 +649,7 @@ class MainActivity : ComponentActivity() {
                 } else if (old != null) {
                     if (p.kind == PlaceKind.PROP && (old.x != p.x || old.y != p.y || old.z != p.z || old.yaw != p.yaw || old.scale != p.scale))
                         sceneView().moveProp(PlaceKeys.of(p.id), p.x, p.y, p.z, p.yaw, p.scale)
+                    if (p.kind != PlaceKind.PROP && old.scale != p.scale) sceneView().setActorScale(PlaceKeys.of(p.id), p.scale)
                     if (p.kind != PlaceKind.PROP && (old.anim != p.anim || old.loop != p.loop)) {
                         val anim = p.anim ?: 0
                         val loop = p.anim == null || p.loop
@@ -714,7 +720,7 @@ class MainActivity : ComponentActivity() {
         override fun setSound(p: Placement, on: Boolean) { sceneAudio?.setEnabled(PlaceKeys.of(p.id), on) }
 
         override fun clearErrors() {
-            propLoader.clearError(); sceneAudio?.clearError(); lookError.value = null; dresser.clearError()
+            propLoader.clearError(); locationLoader.clearError(); sceneAudio?.clearError(); lookError.value = null; dresser.clearError()
         }
 
         // ------------------------------------------------------------------ Play

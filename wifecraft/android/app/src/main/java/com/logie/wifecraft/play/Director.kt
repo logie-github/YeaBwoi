@@ -59,6 +59,8 @@ class Director(
     private val poses: PosePlayer = PosePlayer.None,
     /** Where `place`, `anim` and `emote` on placed things go (the placement editor's); without it they are skipped. */
     private val placeHost: PlaceHost? = null,
+    /** assets/locations.json's locations: a `scene loc:ID:VIEW` takes its name and the view's camera from here. */
+    private val locations: List<com.logie.wifecraft.location.LocationInfo> = emptyList(),
 ) {
     data class Line(val who: String, val name: String, val text: String, val index: Int, val shownAt: Int, val seen: Boolean) {
         /** When a tap showed the whole line (it then stays whole), or -1 while it's still typing. */
@@ -258,7 +260,10 @@ class Director(
                 if (loc != null && loc.size == 3) {
                     // A location of locations.json: the host loads it; the people stand on the plain stage's marks.
                     place = places[EditorChoices.STUDIO] ?: PlaceInfo.STUDIO
-                    placeName = loc[1]
+                    val stage = com.logie.wifecraft.ui.StageChoices.locationStage(c.place, locations)
+                    placeName = stage?.name ?: loc[1]
+                    // the camera is the location view's (without one the previous stays, as it always has)
+                    stage?.camera?.let { cut(it) }
                     scene.light(Lights.of(c.light))
                     scene.showCity(false)
                     placer.enterLocation(loc[1], loc[2], c.light)

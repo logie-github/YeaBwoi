@@ -59,6 +59,8 @@ fun PlaceInspector(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onAnimation: () -> Unit,
+    /** The Sound switch of a prop (nothing plays for props yet: its label says so). */
+    onSound: (Boolean) -> Unit = {},
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(p.name, style = frizStyle(16.sp), maxLines = 1)
@@ -71,13 +73,13 @@ fun PlaceInspector(
             style = frizStyle(12.sp, WowColors.grey, false),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            NumberField("X", p.x, Modifier.weight(1f)) { onChange(p.copy(x = it)) }
-            NumberField("Y", p.y, Modifier.weight(1f)) { onChange(p.copy(y = it)) }
-            NumberField("Z", p.z, Modifier.weight(1f)) { onChange(p.copy(z = it)) }
+            NumberField("X", p.x, Modifier.weight(1f), enabled = !locked) { onChange(p.copy(x = it)) }
+            NumberField("Y", p.y, Modifier.weight(1f), enabled = !locked) { onChange(p.copy(y = it)) }
+            NumberField("Z", p.z, Modifier.weight(1f), enabled = !locked) { onChange(p.copy(z = it)) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            NumberField("Turn°", yawDegrees(p.yaw), Modifier.weight(1f), decimals = 1) { onChange(p.copy(yaw = yawRadians(it))) }
-            NumberField("Size", p.scale, Modifier.weight(1f)) { onChange(p.copy(scale = Snap.clampScale(it))) }
+            NumberField("Turn°", yawDegrees(p.yaw), Modifier.weight(1f), decimals = 1, enabled = !locked) { onChange(p.copy(yaw = yawRadians(it))) }
+            NumberField("Size", p.scale, Modifier.weight(1f), enabled = !locked) { onChange(p.copy(scale = Snap.clampScale(it))) }
         }
         // size on a log slider: 0.05 to 20, 1 in the middle
         val gold = SliderDefaults.colors(thumbColor = WowColors.gold, activeTrackColor = WowColors.gold, inactiveTrackColor = Color(0xFF3A3020))
@@ -103,6 +105,7 @@ fun PlaceInspector(
                 PButton("Down", { onNudge(Vec3(0f, 0f, -step)) }, enabled = !locked, width = 72.dp)
             }
         }
+        if (p.kind == PlaceKind.PROP) PToggle(PlaceLabels.sound(p.kind), p.sound, onSound, Modifier.fillMaxWidth(), width = 240.dp)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             PButton("Copy", onDuplicate, Modifier.weight(1f), width = 90.dp)
             PButton("Delete", onDelete, Modifier.weight(1f), width = 90.dp)
@@ -114,15 +117,15 @@ fun PlaceInspector(
 
 /** A labelled number box: what is typed is used when it reads as a number and Done is pressed or the box is left. */
 @Composable
-private fun NumberField(label: String, value: Float, modifier: Modifier = Modifier, decimals: Int = 2, onValue: (Float) -> Unit) {
+private fun NumberField(label: String, value: Float, modifier: Modifier = Modifier, decimals: Int = 2, enabled: Boolean = true, onValue: (Float) -> Unit) {
     var text by remember(value) { mutableStateOf(showNumber(value, decimals)) }
     var focused by remember { mutableStateOf(false) }
     fun use() { readNumber(text)?.let { if (it != value) onValue(it) } ?: run { text = showNumber(value, decimals) } }
     Column(modifier) {
         Text(label, style = frizStyle(12.sp))
-        Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).background(Color.Black).border(1.dp, if (focused) WowColors.gold else Color(0xFF6B6B6B)).padding(horizontal = 8.dp, vertical = 12.dp)) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).background(Color.Black).border(1.dp, if (focused && enabled) WowColors.gold else Color(0xFF6B6B6B)).padding(horizontal = 8.dp, vertical = 12.dp)) {
             BasicTextField(
-                text, { text = it.take(12) }, singleLine = true,
+                text, { text = it.take(12) }, singleLine = true, enabled = enabled,
                 textStyle = frizStyle(15.sp, Color.White, false),
                 cursorBrush = SolidColor(WowColors.gold),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),

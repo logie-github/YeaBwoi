@@ -383,26 +383,26 @@ class EditorState(
 
     /** Moves to [x],[y],[z] (the editor passes the ground point under the finger); a drag merges into one step. */
     fun movePlacement(sceneId: String, id: String, x: Float, y: Float, z: Float, snap: Float = 0f) =
-        updatePlacement(sceneId, id, "move:$sceneId:$id") { it.copy(x = PlaceMath.snap(x, snap), y = PlaceMath.snap(y, snap), z = z) }
+        updatePlacement(sceneId, id, "move:$sceneId:$id") { if (it.locked) it else it.copy(x = PlaceMath.snap(x, snap), y = PlaceMath.snap(y, snap), z = z) }
 
     /** Moves by [dx],[dy],[dz] yards (a nudge button), along the world's axes. */
     fun nudgePlacement(sceneId: String, id: String, dx: Float, dy: Float, dz: Float) =
-        updatePlacement(sceneId, id) { it.copy(x = it.x + dx, y = it.y + dy, z = it.z + dz) }
+        updatePlacement(sceneId, id) { if (it.locked) it else it.copy(x = it.x + dx, y = it.y + dy, z = it.z + dz) }
 
     /** Turns by [delta] radians (a twist); [snapStep] radians rounds the result to that step (0: free). Merges as a drag. */
     fun rotatePlacement(sceneId: String, id: String, delta: Float, snapStep: Float = 0f) =
-        updatePlacement(sceneId, id, "rotate:$sceneId:$id") { it.copy(yaw = PlaceMath.snapYaw(it.yaw + delta, snapStep)) }
+        updatePlacement(sceneId, id, "rotate:$sceneId:$id") { if (it.locked) it else it.copy(yaw = PlaceMath.snapYaw(it.yaw + delta, snapStep)) }
 
     /** Sets the yaw outright (a slider). */
     fun setPlacementYaw(sceneId: String, id: String, yaw: Float) =
-        updatePlacement(sceneId, id, "rotate:$sceneId:$id") { it.copy(yaw = PlaceMath.snapYaw(yaw, 0f)) }
+        updatePlacement(sceneId, id, "rotate:$sceneId:$id") { if (it.locked) it else it.copy(yaw = PlaceMath.snapYaw(yaw, 0f)) }
 
     /** Multiplies the size by [factor] (a pinch). Merges as a drag. */
     fun scalePlacement(sceneId: String, id: String, factor: Float) =
-        updatePlacement(sceneId, id, "scale:$sceneId:$id") { it.copy(scale = it.scale * factor) }
+        updatePlacement(sceneId, id, "scale:$sceneId:$id") { if (it.locked) it else it.copy(scale = it.scale * factor) }
 
     fun setPlacementScale(sceneId: String, id: String, scale: Float) =
-        updatePlacement(sceneId, id, "scale:$sceneId:$id") { it.copy(scale = scale) }
+        updatePlacement(sceneId, id, "scale:$sceneId:$id") { if (it.locked) it else it.copy(scale = scale) }
 
     fun renamePlacement(sceneId: String, id: String, name: String) {
         val n = name.trim()
@@ -413,13 +413,18 @@ class EditorState(
     fun setPlacementAnim(sceneId: String, id: String, anim: Int?, emoteId: Int? = null, loop: Boolean? = null) =
         updatePlacement(sceneId, id) { it.copy(anim = anim, emoteId = if (anim == null) null else emoteId, loop = loop ?: it.loop) }
 
+    /** Hides or shows it (kept in the scene; Play leaves a hidden one out). One undo step. */
+    fun setPlacementHidden(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(hidden = on) }
+    /** Locks or unlocks it (a locked one isn't moved, turned or resized by the editor's tools). */
+    fun setPlacementLocked(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(locked = on) }
+
     fun setPlacementSound(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(sound = on) }
     fun setPlacementLoop(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(loop = on) }
 
     /** A copy a yard along x and y of the original, selected by the caller; returns its id. */
     fun duplicatePlacement(sceneId: String, id: String): String? {
         val p = placementOf(sceneId, id) ?: return null
-        return addPlacement(sceneId, p.copy(id = p.name + " copy", name = p.name + " (copy)", x = p.x + 1f, y = p.y + 1f))
+        return addPlacement(sceneId, p.copy(id = p.name + " copy", name = p.name + " (copy)", x = p.x + 1f, y = p.y + 1f, locked = false))
     }
 
     /** Removes it, and the Emote and Animation beats that played on it. */

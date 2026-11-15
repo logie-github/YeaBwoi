@@ -113,9 +113,14 @@ public:
     uint32_t animClock() const { return animClock_; }
     // Options' Soft body for everyone on stage (softbody.h: kSoftOff .. kSoftStrong); applies from the next frame.
     void setSoftBody(int level);
+    // Whether an actor is a character (a playable race's model, the creator's or an NPC of those races): only a character
+    // has a soft body; a creature (a boar, a wolf) never does, whatever its bones and skin look like. Actors start as not.
+    void setCharacter(int id, bool character);
     // An actor's soft body (the desktop check reads its regions and displacements), or null.
     const SoftSim* softSim(int id) const { auto it = actors_.find(id); return it == actors_.end() ? nullptr : &it->second.soft.sim; }
     void showActor(int id, bool visible);
+    // Replaces an actor's scale (addActor's): the placement editor sizes a placed person.
+    void setActorScale(int id, float scale);
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
     float actorHeight(int id) const;
@@ -256,6 +261,7 @@ private:
         float boneAnimScale = 1;
         std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
         SoftDraw soft;                 // the soft body (softbody.h)
+        bool character = false;        // setCharacter: the soft body applies (a creature's never does)
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;

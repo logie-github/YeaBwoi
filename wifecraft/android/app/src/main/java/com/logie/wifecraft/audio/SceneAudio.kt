@@ -32,10 +32,21 @@ class SceneAudio(private val context: Context, private val files: GameFiles, pri
     /** The last thing that went wrong (a file or the tables couldn't be fetched), null when nothing has. */
     val error: StateFlow<String?> = _error
 
+    private val _preparing = MutableStateFlow(false)
+
+    /** True while the sound index is being built or downloaded (the first sound of a session; the editor says "Preparing sounds"). */
+    val preparing: StateFlow<Boolean> = _preparing
+
     private val index by lazy {
         if (!GameTables.has(files.tablesDir, "AreaTable") || !GameTables.has(files.tablesDir, "CreatureSoundData"))
             throw IllegalStateException("the game's sound tables aren't on the phone yet")
-        SoundIndex.load(File(context.filesDir, "cache/sound-index.bin"), indexKey(), tables) { GameTables.download("SoundKitEntry") }.first
+        // built on a background thread (the lazy runs inside the first sound's task): the flag is read on the main thread
+        handler.post { _preparing.value = true }
+        try {
+            SoundIndex.load(File(context.filesDir, "cache/sound-index.bin"), indexKey(), tables) { GameTables.download("SoundKitEntry") }.first
+        } finally {
+            handler.post { _preparing.value = false }
+        }
     }
 
     private fun indexKey(): String = GameTables.BUILD + SOUND_TABLES.joinToString("-", "-") { File(files.tablesDir, "$it.csv").length().toString(36) }

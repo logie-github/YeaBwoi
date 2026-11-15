@@ -45,6 +45,9 @@ class LocationLoader(context: Context, private val files: GameFiles, private val
     val progress: StateFlow<Progress> = _progress
     private var job: Job? = null
 
+    /** Takes the last error off [progress] (the editor's Dismiss); the rest of it stays. Main thread. */
+    fun clearError() { if (_progress.value.error != null) _progress.value = _progress.value.copy(error = null) }
+
     fun location(id: String): LocationInfo? = locations.firstOrNull { it.id == id }
 
     /** Whether every file of [id] is downloaded. */

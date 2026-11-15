@@ -170,10 +170,14 @@ JNIEXPORT void JNICALL FN(clearBoneAnim)(JNIEnv*, jclass, jlong h, jint id) { sc
 
 // Options' Soft body: 0 off, 1 subtle, 2 natural, 3 strong (engine/softbody.h).
 JNIEXPORT void JNICALL FN(softBody)(JNIEnv*, jclass, jlong h, jint level) { scene(h)->setSoftBody(level); }
+// Whether an actor is a character (a playable race's model): only characters have a soft body.
+JNIEXPORT void JNICALL FN(character)(JNIEnv*, jclass, jlong h, jint id, jboolean on) { scene(h)->setCharacter(id, on); }
 
 JNIEXPORT void JNICALL FN(idle)(JNIEnv*, jclass, jlong h, jint id, jint anim) { scene(h)->setIdleAnim(id, uint16_t(anim)); }
 
 JNIEXPORT void JNICALL FN(show)(JNIEnv*, jclass, jlong h, jint id, jboolean visible) { scene(h)->showActor(id, visible); }
+
+JNIEXPORT void JNICALL FN(setActorScale)(JNIEnv*, jclass, jlong h, jint id, jfloat scale) { scene(h)->setActorScale(id, scale); }
 
 JNIEXPORT jfloat JNICALL FN(height)(JNIEnv*, jclass, jlong h, jint id) { return scene(h)->actorHeight(id); }
 

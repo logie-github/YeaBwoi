@@ -71,6 +71,8 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
     private val ids = mutableMapOf<String, Int>()
     /** GL thread: the model and scale each key's actor was added with (a new model is a new actor). */
     private val bodies = mutableMapOf<String, Pair<Int, Float>>()
+    /** GL thread: the placement editor's size of each actor key, a factor on the look's own scale (absent: 1). */
+    private val sizes = mutableMapOf<String, Float>()
     /** GL thread: each key's imported animation ([playAnim]), put on its actor whenever that actor is (re)made. */
     private val poses = mutableMapOf<String, AnimArrays>()
     /** GL thread: the editor's props, by key. */
@@ -131,9 +133,10 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
      * Puts a look on the actor [key] (creator/Dressing's call; its files fetched first, engine/Dresser): the same model is
      * dressed in place ([Native.dress]: its place, facing and animation stay), another model is a new actor. Files the
      * look's layers or extra models still wait for join when they arrive. [body] (Wrath++'s body options) follows the dress.
-     * A model the renderer can't read is said to [onFail] (on the GL thread), why included.
+     * A model the renderer can't read is said to [onFail] (on the GL thread), why included. [character]: a playable race's
+     * model (the creator's people, NPCs of those races), the only actors with a soft body; a creature never has one.
      */
-    fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE, onFail: (String) -> Unit = {}) = post { h, ids ->
+    fun dress(key: String, call: DressCall, body: BodyCall = BodyCall.NONE, character: Boolean = false, onFail: (String) -> Unit = {}) = post { h, ids ->
         var id = ids[key]
         if (id != null && bodies[key] != (call.model to call.scale)) {
             Native.removeActor(h, id); ids.remove(key); bodies.remove(key); id = null
@@ -145,19 +148,33 @@ class SceneView(context: Context, filesDir: String) : GLSurfaceView(context), St
                 return@post
             }
             ids[key] = added; bodies[key] = call.model to call.scale
+            sizes[key]?.let { if (it != 1f) Native.setActorScale(h, added, call.scale * it) }
             id = added
             poses[key]?.let { applyPose(h, added, it) }
         }
+        Native.character(h, id, character)
         Native.dress(h, id, call.geosetKeys, call.geosetValues, call.layerFiles, call.layerMeta, call.tintColours, call.extraModels)
         Native.body(h, id, body.morph, body.k, body.fold)
     }
 
-    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key) }
+    override fun removeActor(key: String) = post { h, ids -> ids.remove(key)?.let { Native.removeActor(h, it) }; bodies.remove(key); sizes.remove(key) }
+
+    /**
+     * Sizes the actor [key] at [factor] times its look's own scale (the placement editor's Size on a person or creature);
+     * set before it is on stage it waits for it, and a re-dress or a new model keeps it. 1 is the look's own.
+     */
+    fun setActorScale(key: String, factor: Float) = post { h, ids ->
+        sizes[key] = factor
+        val id = ids[key]
+        val look = bodies[key]?.second
+        if (id != null && look != null) Native.setActorScale(h, id, look * factor)
+    }
 
     override fun removeAll() = post { h, ids ->
         for (id in ids.values) Native.removeActor(h, id)
         ids.clear()
         bodies.clear()
+        sizes.clear()
         poses.clear()
     }
 

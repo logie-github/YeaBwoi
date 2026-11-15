@@ -53,18 +53,27 @@ class CreatureLooksRealTest {
             for (line in list.readLines()) {
                 val id = line.substringBefore('#').trim().toIntOrNull() ?: continue
                 val look = assertNotNull(CreatureLooks.resolve(t, id), "display $id: ${CreatureLooks.check(t, id).why}")
-                File(out, "$id.look").writeText(lookFile(id, look, CreatureLooks.call(t, look)))
+                File(out, "$id.look").writeText(lookFile(id, look, CreatureLooks.call(t, look), CreatureLooks.isCharacter(t, look)))
             }
         }
         assertTrue(drawable > creatures.size * 9 / 10, report)
     }
 
+    /** Only a playable race's model is a character (a soft body): the boar and the wolf aren't, the Sentinel and the guard are. */
+    @Test fun creaturesAreNotCharacters() {
+        val t = tables()
+        fun character(d: Int) = CreatureLooks.isCharacter(t, assertNotNull(CreatureLooks.resolve(t, d), "display $d"))
+        for (d in listOf(52696, 81061, 3619)) assertTrue(!character(d), "display $d (a creature) has a soft body")
+        for (d in listOf(89902, 99391)) assertTrue(character(d), "display $d (a playable race's NPC) has no soft body")
+    }
+
     /** engine-test's look file (harness.cpp) for a call. */
-    private fun lookFile(id: Int, look: ResolvedLook, c: DressCall) = buildString {
+    private fun lookFile(id: Int, look: ResolvedLook, c: DressCall, character: Boolean) = buildString {
         appendLine("# display $id")
         look.diagnostics.forEach { appendLine("# $it") }
         appendLine("model ${c.model}")
         appendLine("scale ${c.scale}")
+        appendLine("character ${if (character) 1 else 0}")   // Dresser.dressLook's: a soft body only for a playable race's model
         appendLine("geo " + c.geosetKeys.indices.joinToString(",") { "${c.geosetKeys[it]}=${c.geosetValues[it]}" })
         for (i in c.layerFiles.indices) {
             val m = c.layerMeta.copyOfRange(i * Dressing.META, i * Dressing.META + Dressing.META)

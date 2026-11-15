@@ -60,28 +60,29 @@ class Dresser(
                 }
             } ?: return@launch
             // a model the renderer can't read is said on the screen, never left as an empty stage
-            scene.dress(key, call.first, call.second) { why -> fail(why) }
+            scene.dress(key, call.first, call.second, character = true) { why -> fail(why) }
         }
     }
 
     /**
      * Puts a creature's or an NPC's look ([CreatureLooks.resolve] of its display) on the stage under [key], as [dress] does a
      * created one: every file it needs fetched first (the model, its skin, skeleton and the story's animations, the
-     * textures, the hung and skinned models), then the renderer's call ([CreatureLooks.call]); no body options.
+     * textures, the hung and skinned models), then the renderer's call ([CreatureLooks.call]); no body options. A soft body
+     * only when the look is a playable race's model ([CreatureLooks.isCharacter]: a humanoid NPC), never a creature's.
      */
     fun dressLook(scene: SceneView, key: String, look: ResolvedLook) {
         jobs.remove(key)?.cancel()
         jobs[key] = scope.launch {
             val call = withContext(Dispatchers.IO) {
                 try {
-                    prepareLook(look)
+                    prepareLook(look)?.let { it to CreatureLooks.isCharacter(tables, look) }
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
                     fail(e.message ?: e.toString()); null
                 }
             } ?: return@launch
-            scene.dress(key, call, BodyCall.NONE) { why -> fail(why) }
+            scene.dress(key, call.first, BodyCall.NONE, character = call.second) { why -> fail(why) }
         }
     }
 

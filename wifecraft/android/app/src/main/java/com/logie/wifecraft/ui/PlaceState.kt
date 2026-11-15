@@ -228,21 +228,32 @@ object PlaceKeys {
 }
 
 /**
- * The outliner's and the viewport's state that isn't saved with the scene: which placement is selected, which are hidden
- * from the editor's view and which are locked (a locked one is selected but not moved). Immutable: each change is a copy.
+ * The outliner's and the viewport's state that isn't saved with the scene: which placement is selected and whether hidden
+ * ones are drawn in the editor ("show hidden"). Hiding and locking are the placements' own ([Placement.hidden], saved with the
+ * scene): a locked one is selected but not moved; a hidden one is not drawn (nor tapped) unless [showHidden]. Immutable.
  */
-data class PlaceUi(val selected: String? = null, val hidden: Set<String> = emptySet(), val locked: Set<String> = emptySet()) {
+data class PlaceUi(val selected: String? = null, val showHidden: Boolean = false) {
     fun select(id: String?): PlaceUi = copy(selected = id)
-    fun toggleHidden(id: String): PlaceUi = copy(hidden = if (id in hidden) hidden - id else hidden + id, selected = if (id !in hidden && selected == id) null else selected)
-    fun toggleLocked(id: String): PlaceUi = copy(locked = if (id in locked) locked - id else locked + id)
-    fun canMove(id: String?): Boolean = id != null && id !in locked && id !in hidden
+    fun toggleShowHidden(): PlaceUi = copy(showHidden = !showHidden)
+    /** Whether the editor's preview draws [p]. */
+    fun drawn(p: Placement): Boolean = !p.hidden || showHidden
+    /** Whether [p] can be dragged, nudged or resized: not locked, and drawn. */
+    fun canMove(p: Placement?): Boolean = p != null && !p.locked && drawn(p)
+    /** The ids the preview leaves off the renderer. */
+    fun notDrawn(placements: List<Placement>): Set<String> = placements.filterTo(ArrayList()) { !drawn(it) }.map { it.id }.toSet()
     /** Forgets what is no longer in the scene ([ids]: the placements' ids now). */
-    fun keepOnly(ids: Collection<String>): PlaceUi {
-        val s = ids.toSet()
-        return PlaceUi(selected?.takeIf { it in s }, hidden.filterTo(HashSet()) { it in s }, locked.filterTo(HashSet()) { it in s })
-    }
+    fun keepOnly(ids: Collection<String>): PlaceUi = copy(selected = selected?.takeIf { it in ids })
+    /** The selection once [p] is hidden or shown: a hidden thing that isn't drawn can't stay selected. */
+    fun afterHide(p: Placement): PlaceUi = if (selected == p.id && !drawn(p)) copy(selected = null) else this
     /** A tap's hit (a renderer key, or null for nothing or the floor): the placement it selects, or none. */
-    fun tapped(key: String?): PlaceUi = select(PlaceKeys.idOf(key)?.takeIf { it !in hidden })
+    fun tapped(key: String?, placements: List<Placement>): PlaceUi =
+        select(PlaceKeys.idOf(key)?.takeIf { id -> placements.none { it.id == id && !drawn(it) } })
+}
+
+/** Words the placement editor shows that a test can check. */
+object PlaceLabels {
+    /** The Sound switch's label: props have no GameObjectDisplayInfo id here, so nothing plays for them yet. */
+    fun sound(kind: PlaceKind): String = if (kind == PlaceKind.PROP) "Sound (none for props yet)" else "Sound"
 }
 
 /** A placement of the library entry [a] at [at] turned [yaw], with an id not in [taken] (its name made an id). */
@@ -364,6 +375,20 @@ object StageChoices {
     /** The name a stage id is shown with ([list]'s), or the id itself. */
     fun name(stageId: String, places: List<PlaceInfo>, locations: List<LocationInfo>): String =
         list(places, locations).firstOrNull { it.first == stageId }?.second ?: stageId
+
+    /** What Play shows of a location scene: its name, the view's camera (null when the view has none) and its spawn. */
+    data class LocationStage(val name: String, val camera: CameraPose?, val spawn: Vec3?, val facing: Float)
+
+    /**
+     * The stage "loc:<id>:<view>" of [locations] as Play opens it ([Director]): the location's name with the view's, the
+     * view's camera ([camera]) and where someone stands. Null for a stage that isn't a location of the list.
+     */
+    fun locationStage(stageId: String, locations: List<LocationInfo>): LocationStage? {
+        val (id, view) = locationOf(stageId) ?: return null
+        val l = locations.firstOrNull { it.id == id } ?: return null
+        val v = l.views[view]
+        return LocationStage("${l.name}: ${viewLabel(view)}", camera(l, view), v?.spawn, v?.facing ?: 0f)
+    }
 
     /** The camera a location view opens on (its own; else a look at its spawn from a few yards back; else none). */
     fun camera(l: LocationInfo, view: String): CameraPose? {

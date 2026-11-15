@@ -114,7 +114,8 @@ fun EditorSceneBuilder(
         engine?.enterStage(stageId, sc.stage.light)
     }
     // The placed things on the renderer, as the scene has them (the one being moved as it is now).
-    LaunchedEffect(placements, project.cast, placeUi.hidden) { engine?.sync(placements, project.cast, placeUi.hidden) }
+    val notDrawn = placeUi.notDrawn(placements)
+    LaunchedEffect(placements, project.cast, notDrawn) { engine?.sync(placements, project.cast, notDrawn) }
     // The camera, who stands where as the selected beat leaves them, and the placed people and creatures.
     val away = Placement(0f, 0f, -1000f, 0f, false)
     SideEffect {
@@ -125,7 +126,7 @@ fun EditorSceneBuilder(
                 Placement(s.pos.x, s.pos.y, s.pos.z, s.facing)
             } ?: away)
         } + placements.filter { it.kind != PlaceKind.PROP }.associate { p ->
-            PlaceKeys.of(p.id) to Placement(p.x, p.y, p.z, p.yaw, p.id !in placeUi.hidden)
+            PlaceKeys.of(p.id) to Placement(p.x, p.y, p.z, p.yaw, placeUi.drawn(p))
         }
         view.frame = cam to people
     }

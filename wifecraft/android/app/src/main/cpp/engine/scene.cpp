@@ -717,6 +717,11 @@ void Scene::showActor(int id, bool visible) {
     if (it != actors_.end()) it->second.visible = visible;
 }
 
+void Scene::setActorScale(int id, float scale) {
+    auto it = actors_.find(id);
+    if (it != actors_.end() && scale > 0) it->second.scale = scale;
+}
+
 bool Scene::actorReady(int id) const { return actors_.count(id) > 0; }
 
 float Scene::actorHeight(int id) const {
@@ -937,8 +942,19 @@ void Scene::setSoftBody(int level) {
     softLevel_ = std::clamp(level, int(kSoftOff), int(kSoftStrong));
 }
 
+void Scene::setCharacter(int id, bool character) {
+    auto it = actors_.find(id);
+    if (it == actors_.end() || it->second.character == character) return;
+    Actor& a = it->second;
+    a.character = character;
+    a.soft.dirty = true;                                   // a character finds its regions again
+    if (!character) { a.soft.sim.setRegions({}); a.soft.sim.reset(); }
+}
+
 // The soft body's regions (again after a new look or shape, once the shape's vertices are made) and this frame's step.
+// A creature has none: its regions are never looked for (a boar's or a wolf's bones and skin can look like a chest's).
 void Scene::stepSoft(Actor& a, uint32_t now) {
+    if (!a.character) return;
     if (a.soft.sim.level() != softLevel_) { a.soft.sim.setLevel(softLevel_); a.soft.sim.reset(); }
     if (softLevel_ == kSoftOff) return;
     const M2Model& m = *a.mesh->model;

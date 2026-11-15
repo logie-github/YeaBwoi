@@ -77,8 +77,11 @@ Creation Kit's way). It works on the scene builder's stage.
 - **The stage**: the scene builder's **Place** lists the Studio, Dalaran's places and every location of
   `locations.json` with each of its views (the **Stormwind Embassy: Inside** and **Outside** so far). A location's
   files are fetched when it is picked: the stage shows how many of how many (and the megabytes), and anything that
-  couldn't be fetched or drawn, in red (tap it to clear). Its own music and ambience play (the Embassy's ZoneMusic
-  and SoundAmbience).
+  couldn't be fetched or drawn, in red (**Dismiss** under it clears it, the location's own error too). **Preparing
+  sounds...** shows while the sound index is first built or downloaded (the first sound of a session waits for it). Its
+  own music and ambience play (the Embassy's ZoneMusic and SoundAmbience).
+  **Play opens a location scene on the view's camera** (its own, else a look at its spawn) and shows the location's
+  name (for example Stormwind Embassy: Inside) instead of the bare id; the cast still stands on the plain stage's marks.
 - **Place things** opens the placement editor on that stage. **Add** opens the library: **Starter pack** (a style's
   everyday props: furniture, light, containers, food, books, banners, nature; the Embassy starts on Human, the style
   chips change it), **Props**, **Buildings**, **Creatures** (the game's named creatures and its creature models) and
@@ -91,20 +94,26 @@ Creation Kit's way). It works on the scene builder's stage.
   turns it about its feet, the **Lift** handle above it raises and lowers it. One finger anywhere else orbits the
   camera; two pan and pinch to zoom. **View** puts the camera back.
 - **Selected**: X, Y, Z (yards, Z up), Turn (degrees) and Size typed in, a size slider (0.05 to 20) and a turn
-  slider; the nudge buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a
+  slider (**Size** works on people and creatures too: their own look's size times it); the nudge buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a
   tenth of a yard, or the grid while snapping); **Copy** (beside the original) and **Delete** (its Emote and Animation
   beats go too).
 - **Snap**: positions to a grid (0.25, 0.5, 1 or 2 yards: tap **Grid**) and turns to steps (5°, 15°, 45° or 90°: tap
   **Turn**).
 - **Undo** and **Redo**: every change (a whole drag is one).
-- **Things**: each placed thing, what it is, and for the selected one **Hide** (off the editor's view only), **Lock**
-  (it can't be moved), **Rename** and **Look** (the camera turns to it). Hide and Lock last while the scene is open.
+- **Things**: each placed thing, what it is, and for the selected one **Hide**, **Lock**, **Rename** and **Look** (the
+  camera turns to it). **Hide** and **Lock** are saved with the scene. A hidden thing stays in Things (greyed) but is
+  left out of Play (the compiled script says so in a comment, and drops the Emote and Animation beats on it); the editor
+  draws it only while **Show hidden** (the tool row) is on, undimmed. A locked thing can't be moved, turned or resized by
+  drag, handles, nudge buttons or the Inspector's fields (they are greyed); unlock it to change it. A copy is unlocked.
 - **Animation** (a person or a creature): every emote and animation of its race and sex, grouped (Emotes, Dance, Sit,
   sleep and kneel, Work and life, Combat, Spells...), with a search box. **Play** (or tapping the row) previews it on
   the stage with its voice; **Use** makes it what it plays in the scene; **None** goes back to standing. **Held**
   keeps it looping, **Sound** turns its voice and sounds on or off. A creature also has its own sounds to hear
   (Fidget, Alert, Attack, Wound, Death, Shout, Loop). A creature that isn't one of the player races is offered every
   animation the game names; it plays the ones its model has.
+- **Limits**: a prop has no GameObjectDisplayInfo id in the library, so no sound plays for props yet (its **Sound**
+  switch in Selected says "Sound (none for props yet)"); Hide's dimmed look is only the greyed name in Things (the renderer
+  has no transparency for a placed thing); Play's people still stand on the plain stage's marks in a location.
 - **Beats**: **Emote** and **Animation** beats play one on a placed person or creature in the middle of a scene.
 - **Play** shows everything placed, in its animation, with its sounds.
 - Options has a **Voices** volume beside Music and Sounds.

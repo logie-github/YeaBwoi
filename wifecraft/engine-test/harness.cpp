@@ -35,6 +35,8 @@
 // A look file (what the creator resolves a look to; one per line, # comments):
 //   model FILE_ID                              the body (look only)
 //   scale S
+//   character 0|1                              a character (1, the default: a playable race's model, it has a soft body)
+//                                              or a creature (0: none; Scene::setCharacter, as Dresser decides it)
 //   tex TYPE=FILE,...                          textures as addActor takes them
 //   geo GROUP=VALUE,...                        geoset groups
 //   layer TYPE LAYER BLEND X Y W H MAT_W MAT_H FILE [TINT1 [TINT2]]   a skin layer (tints 0xAARRGGBB)
@@ -90,6 +92,7 @@ struct LookFile {
     float bodyK = 0, bodyFold = 0;
     std::vector<float> morph;
     bool body = false;
+    bool character = true;      // `character 0`: a creature (no soft body); a look file is a character unless it says so
 };
 
 static bool readBoneAnim(const std::string& path, BoneAnim& out) {
@@ -131,6 +134,7 @@ static bool readLook(const std::string& path, LookFile& out) {
         if (k.empty() || k[0] == '#') continue;
         if (k == "model") ss >> out.model;
         else if (k == "scale") ss >> out.scale;
+        else if (k == "character") { int c = 1; ss >> c; out.character = c != 0; }
         else if (k == "tex" || k == "geo") {
             std::string v; ss >> v;
             for (auto& kv : split(v, ',')) {
@@ -285,7 +289,7 @@ static void renderStrip(Scene& scene, int actor, const std::string& out, int w, 
                 std::copy(&px[(size_t(h - 1 - y) * w + x) * 4], &px[(size_t(h - 1 - y) * w + x) * 4] + 3,
                           &strip[(size_t(y) * W + size_t(i) * w + x) * 3]);
         if (const SoftSim* sim = scene.softSim(actor)) {
-            std::fprintf(stderr, "t %5u ms soft (mm, model space):", at);
+            std::fprintf(stderr, "t %5u ms soft regions=%zu (mm, model space):", at, sim->regions().size());
             for (size_t r = 0; r < sim->regions().size(); ++r) {
                 V3 d = sim->offset(r);
                 std::fprintf(stderr, " %d:[%+.1f %+.1f %+.1f]", int(sim->regions()[r].kind), d.x * 1000, d.y * 1000, d.z * 1000);
@@ -416,6 +420,7 @@ int main(int argc, char** argv) {
             if (readLook(opt["--look"], lf) && it != d->views.end() && it->second.hasSpawn) {
                 int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
                 if (id > 0) {
+                    scene.setCharacter(id, lf.character);
                     scene.dress(id, lf.geo, lf.layers, lf.extras);
                     V3 sp = it->second.spawn;
                     sp.z = scene.floorAt(sp.x, sp.y, sp.z + 1.0f);
@@ -445,6 +450,7 @@ int main(int argc, char** argv) {
         if (!readLook(opt["--look"], lf)) return 1;
         int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
         if (id <= 0) { std::fprintf(stderr, "model %u: FAILED\n", lf.model); return 1; }
+        scene.setCharacter(id, lf.character);
         scene.dress(id, lf.geo, lf.layers, lf.extras);
         if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
         if (opt.count("--soft")) scene.setSoftBody(softLevel(opt["--soft"]));
@@ -568,6 +574,7 @@ int main(int argc, char** argv) {
             int id = scene.addActor(lf.model, lf.tex, lf.geo, lf.scale);
             std::fprintf(stderr, "look %d (model %u): %s\n", name, lf.model, id > 0 ? "ok" : "FAILED");
             if (id <= 0) continue;
+            scene.setCharacter(id, lf.character);
             scene.dress(id, lf.geo, lf.layers, lf.extras);
             if (lf.body) scene.setBody(id, lf.morph, lf.bodyK, lf.bodyFold);
             scene.placeActor(id, V3(x, y, z), facing);

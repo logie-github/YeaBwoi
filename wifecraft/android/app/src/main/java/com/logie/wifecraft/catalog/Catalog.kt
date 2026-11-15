@@ -169,14 +169,15 @@ class Catalog(val assets: List<Asset>) {
             val types = t.rows("CreatureType").associate { it.int("ID") to it["Name_lang"].orEmpty() }
             val families = t.rows("CreatureFamily").associate { it.int("ID") to it["Name_lang"].orEmpty() }
             val files = t.rows("CreatureModelData").associate { it.int("ID") to it.int("FileDataID") }
-            val displays = t.rows("CreatureDisplayInfo").associateBy { it.int("ID") }
+            // CreatureDisplayInfo (10 MB of text) by key, never held whole: only the creatures' displays are read
+            val displays = HashMap<Int, Map<String, String>?>()
             val seen = HashSet<String>()
             val out = ArrayList<Asset>()
             for (r in t.rows("Creature")) {
                 val name = r["Name_lang"].orEmpty().trim()
                 if (name.isEmpty() || CREATURE_JUNK.containsMatchIn(name)) continue
                 val d = (0..3).map { r.int("DisplayID_$it") }.firstOrNull { it != 0 } ?: continue
-                val di = displays[d] ?: continue
+                val di = displays.getOrPut(d) { t.rowsBy("CreatureDisplayInfo", "ID", d.toString()).lastOrNull() } ?: continue
                 val file = files[di.int("ModelID")] ?: 0
                 if (file == 0 || !seen.add("$name|$d")) continue
                 val scale = di["CreatureModelScale"]?.toFloatOrNull()?.takeIf { it > 0f } ?: 1f
