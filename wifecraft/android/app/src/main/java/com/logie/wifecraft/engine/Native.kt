@@ -105,9 +105,56 @@ object Native {
     const val SOFT_NATURAL = 2
     const val SOFT_STRONG = 3
     @JvmStatic external fun show(scene: Long, actor: Int, visible: Boolean)
+    /** Whether [actor] is a character (a playable race's model): only characters have a soft body ([softBody]); an actor starts as not. */
+    @JvmStatic external fun character(scene: Long, actor: Int, on: Boolean)
+    /** The actor's size (added with [addActor]'s scale): [scale] replaces it, so a placed person is the look's scale times the placement's. */
+    @JvmStatic external fun setActorScale(scene: Long, actor: Int, scale: Float)
     @JvmStatic external fun height(scene: Long, actor: Int): Float
     @JvmStatic external fun camera(scene: Long, ex: Float, ey: Float, ez: Float, tx: Float, ty: Float, tz: Float, fov: Float)
     @JvmStatic external fun light(scene: Long, values: FloatArray)
+
+    // ---- locations and the editor's props (cpp engine/location.h, location.cpp, terrain.cpp)
+
+    /**
+     * Loads a location: [json] is assets/locations.json's text (or one entry), [id] the entry ("" the first), [view] the
+     * view whose light and fog to use ("" the entry's own). Its WMO's groups, both its doodad sets, the entry's map props
+     * and the map's ground (the ADT chunks it lists) are drawn as one static chunk, fading into its fog; nothing past the
+     * fog's end is drawn. Its files must be downloaded (LocationLoader); a group or model that isn't is left out. Replaces the
+     * location before. False: [locationError] says why.
+     */
+    @JvmStatic external fun loadLocation(scene: Long, json: String, id: String, view: String): Boolean
+    /** The loaded location's [view]: its light, fog and ground (the camera is the caller's: the entry's view gives it). */
+    @JvmStatic external fun locationView(scene: Long, view: String): Boolean
+    @JvmStatic external fun clearLocation(scene: Long)
+    @JvmStatic external fun locationError(scene: Long): String
+
+    /**
+     * An editor prop: a static M2, or a WMO with its default doodad set, by file id ([model]), standing at x, y, z (the
+     * location's coordinates, z up) turned [yaw] radians about z, at [scale]. Its files must be downloaded (PropLoader).
+     * Returns its id, 0 when it can't be read ([modelError] says why).
+     */
+    @JvmStatic external fun addProp(scene: Long, model: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float): Int
+    @JvmStatic external fun moveProp(scene: Long, prop: Int, x: Float, y: Float, z: Float, yaw: Float, scale: Float): Boolean
+    @JvmStatic external fun removeProp(scene: Long, prop: Int)
+    @JvmStatic external fun clearProps(scene: Long)
+    /** A prop's box in the world: min x, y, z, max x, y, z; null when there's no such prop. */
+    @JvmStatic external fun propBounds(scene: Long, prop: Int): FloatArray?
+    /** What is selected: [PICK_PROP] (drawn with an outline), [PICK_ACTOR] (remembered, not outlined) or 0 (nothing). */
+    @JvmStatic external fun select(scene: Long, kind: Int, id: Int)
+    /**
+     * What the screen point ([sx], [sy] in pixels of a [width] x [height] view, the camera last drawn) hits first:
+     * [kind, id, x, y, z, distance], kind one of the PICK_ values (0 nothing; the location's floors and the map's ground are
+     * [PICK_GROUND]), id the prop's or actor's.
+     */
+    @JvmStatic external fun pick(scene: Long, sx: Float, sy: Float, width: Int, height: Int): FloatArray
+    /** The floor under (x, y) nearest below z (a step up counts): the location's, the WMO props', the map's ground; NaN: none. */
+    @JvmStatic external fun groundAt(scene: Long, x: Float, y: Float, z: Float): Float
+
+    const val PICK_NONE = 0
+    const val PICK_PROP = 1
+    const val PICK_ACTOR = 2
+    const val PICK_GROUND = 3
+    const val PICK_LOCATION = 4
 
     /** [width, height, ARGB...] of a game texture, or null. Any thread. */
     @JvmStatic external fun decodeBlp(path: String, maxSize: Int): IntArray?

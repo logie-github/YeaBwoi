@@ -69,6 +69,55 @@ described under "Sims 4 animations" below. **Options** and **Updates** are below
   offers the library's animations ("Pose: name"): the line is spoken while the person holds it. **Check** lists what would stop it playing; **Play** plays the
   project from this scene.
 
+## Placement editor
+
+Pick a thing or an NPC, put it in the scene, drag it where you want it, and give it an animation or an emote (the
+Creation Kit's way). It works on the scene builder's stage.
+
+- **The stage**: the scene builder's **Place** lists the Studio, Dalaran's places and every location of
+  `locations.json` with each of its views (the **Stormwind Embassy: Inside** and **Outside** so far). A location's
+  files are fetched when it is picked: the stage shows how many of how many (and the megabytes), and anything that
+  couldn't be fetched or drawn, in red (**Dismiss** under it clears it, the location's own error too). **Preparing
+  sounds...** shows while the sound index is first built or downloaded (the first sound of a session waits for it). Its
+  own music and ambience play (the Embassy's ZoneMusic and SoundAmbience).
+  **Play opens a location scene on the view's camera** (its own, else a look at its spawn) and shows the location's
+  name (for example Stormwind Embassy: Inside) instead of the bare id; the cast still stands on the plain stage's marks.
+- **Place things** opens the placement editor on that stage. **Add** opens the library: **Starter pack** (a style's
+  everyday props: furniture, light, containers, food, books, banners, nature; the Embassy starts on Human, the style
+  chips change it), **Props**, **Buildings**, **Creatures** (the game's named creatures and its creature models) and
+  **My NPCs** (the project's cast). Search by name, filter by the category chips, Back and Next through pages of 40.
+  Entries are names only (no pictures yet). A pick lands where the middle of the view meets the floor, facing you, and
+  is selected; its files are fetched then (the stage shows them coming).
+- **Select**: tap a thing on the stage, or in **Things** (the list of everything placed).
+- **Move**: drag the selected thing with one finger: it slides on the floor and follows the ground under it (keeping
+  the height it stood above the ground). Two fingers on it turn it and pinch its size. The **Turn** handle beside it
+  turns it about its feet, the **Lift** handle above it raises and lowers it. One finger anywhere else orbits the
+  camera; two pan and pinch to zoom. **View** puts the camera back.
+- **Selected**: X, Y, Z (yards, Z up), Turn (degrees) and Size typed in, a size slider (0.05 to 20) and a turn
+  slider (**Size** works on people and creatures too: their own look's size times it); the nudge buttons (**Left**, **Right**, **Away**, **Near** as the camera sees the floor, **Up**, **Down**: a
+  tenth of a yard, or the grid while snapping); **Copy** (beside the original) and **Delete** (its Emote and Animation
+  beats go too).
+- **Snap**: positions to a grid (0.25, 0.5, 1 or 2 yards: tap **Grid**) and turns to steps (5°, 15°, 45° or 90°: tap
+  **Turn**).
+- **Undo** and **Redo**: every change (a whole drag is one).
+- **Things**: each placed thing, what it is, and for the selected one **Hide**, **Lock**, **Rename** and **Look** (the
+  camera turns to it). **Hide** and **Lock** are saved with the scene. A hidden thing stays in Things (greyed) but is
+  left out of Play (the compiled script says so in a comment, and drops the Emote and Animation beats on it); the editor
+  draws it only while **Show hidden** (the tool row) is on, undimmed. A locked thing can't be moved, turned or resized by
+  drag, handles, nudge buttons or the Inspector's fields (they are greyed); unlock it to change it. A copy is unlocked.
+- **Animation** (a person or a creature): every emote and animation of its race and sex, grouped (Emotes, Dance, Sit,
+  sleep and kneel, Work and life, Combat, Spells...), with a search box. **Play** (or tapping the row) previews it on
+  the stage with its voice; **Use** makes it what it plays in the scene; **None** goes back to standing. **Held**
+  keeps it looping, **Sound** turns its voice and sounds on or off. A creature also has its own sounds to hear
+  (Fidget, Alert, Attack, Wound, Death, Shout, Loop). A creature that isn't one of the player races is offered every
+  animation the game names; it plays the ones its model has.
+- **Limits**: a prop has no GameObjectDisplayInfo id in the library, so no sound plays for props yet (its **Sound**
+  switch in Selected says "Sound (none for props yet)"); Hide's dimmed look is only the greyed name in Things (the renderer
+  has no transparency for a placed thing); Play's people still stand on the plain stage's marks in a location.
+- **Beats**: **Emote** and **Animation** beats play one on a placed person or creature in the middle of a scene.
+- **Play** shows everything placed, in its animation, with its sounds.
+- Options has a **Voices** volume beside Music and Sounds.
+
 ## Sims 4 animations
 
 **Import Animations** (the title) turns Sims 4 animation files into poses and clips your stories can

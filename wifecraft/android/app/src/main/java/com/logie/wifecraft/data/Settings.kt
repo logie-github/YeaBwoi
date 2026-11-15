@@ -21,6 +21,10 @@ class Settings(context: Context) {
     var soundVolume: Int
         get() = prefs.getInt("soundVolume", 85)
         set(v) = prefs.edit().putInt("soundVolume", v).apply()
+    /** The emotes' voices in a scene (SceneAudio's voices), 0 to 100; the Sounds level until it is set. */
+    var voiceVolume: Int
+        get() = prefs.getInt("voiceVolume", soundVolume)
+        set(v) = prefs.edit().putInt("voiceVolume", v).apply()
     /** Files fetched at once by the first launch's gathering: Gentle 24, Normal 48, Fast 96 (the ceiling; it backs off by itself). */
     var downloadSpeed: Int
         get() = prefs.getInt("downloadSpeed", FAST).let { if (it in CHOICES) it else FAST }

@@ -5,6 +5,8 @@ import com.logie.wifecraft.creator.Race
 import com.logie.wifecraft.editor.Actor
 import com.logie.wifecraft.editor.Beat
 import com.logie.wifecraft.editor.Compile
+import com.logie.wifecraft.editor.PlaceKind
+import com.logie.wifecraft.editor.Placement
 import com.logie.wifecraft.editor.Project
 import com.logie.wifecraft.editor.ProjectStore
 import com.logie.wifecraft.editor.Scene
@@ -47,7 +49,7 @@ fun freshId(base: String, taken: Collection<String>): String {
 
 /** The words a beat's kind has in the "add a beat" menu, in order. */
 enum class BeatKind(val label: String) {
-    SAY("Say"), SHOW("Show"), HIDE("Hide"), CAMERA("Camera"), POSE("Pose"), CHOICE("Choice"), GOTO("Goto"), END("End");
+    SAY("Say"), SHOW("Show"), HIDE("Hide"), CAMERA("Camera"), POSE("Pose"), EMOTE("Emote"), ANIM("Animation"), CHOICE("Choice"), GOTO("Goto"), END("End");
 
     companion object {
         fun of(b: Beat): BeatKind = when (b) {
@@ -56,6 +58,8 @@ enum class BeatKind(val label: String) {
             is Beat.Hide -> HIDE
             is Beat.Camera -> CAMERA
             is Beat.Pose -> POSE
+            is Beat.Emote -> EMOTE
+            is Beat.Anim -> ANIM
             is Beat.Choice -> CHOICE
             is Beat.Goto -> GOTO
             is Beat.End -> END
@@ -94,9 +98,11 @@ object EditorChoices {
  * A one-line summary of a beat for the beat list; [nameOf] turns an actor id into its name, [animName] a library
  * animation's id into its name (the id itself where the library has no such animation).
  */
-fun describe(b: Beat, nameOf: (String) -> String, animName: (String) -> String = { it }): String = when (b) {
+fun describe(b: Beat, nameOf: (String) -> String, animName: (String) -> String = { it }, placedName: (String) -> String = { it }): String = when (b) {
     is Beat.Say -> (b.who?.let(nameOf) ?: "Narration") + (if (b.who != null && b.emote.isNotBlank() && b.emote != "talk") " (${Compile.animOfEmote(b.emote)?.let { "pose " + animName(it) } ?: b.emote})" else "") + ": " + b.text
     is Beat.Pose -> "Pose ${nameOf(b.who)}: " + (if (b.animId.isBlank()) "(none)" else animName(b.animId))
+    is Beat.Emote -> "Emote ${placedName(b.placementId)}: #${b.emoteId}"
+    is Beat.Anim -> "Animation ${placedName(b.placementId)}: #${b.anim}" + if (b.loop) " (loops)" else ""
     is Beat.Show -> "Show ${nameOf(b.who)} ${b.spot}" + (if (b.shot.isBlank()) "" else ", ${b.shot}")
     is Beat.Hide -> "Hide ${nameOf(b.who)}"
     is Beat.Camera -> "Camera ${b.shot.ifBlank { "(none)" }}"
@@ -125,18 +131,61 @@ class EditorState(
     var project: Project = project
         private set
 
-    private fun set(p: Project) {
+    private val undoStack = ArrayDeque<Project>()
+    private val redoStack = ArrayDeque<Project>()
+    /** The key of the gesture the last change belonged to (a drag of one placement), so the next change of it merges. */
+    private var lastKey: String? = null
+
+    val canUndo: Boolean get() = undoStack.isNotEmpty()
+    val canRedo: Boolean get() = redoStack.isNotEmpty()
+
+    /** Makes [p] the project. A change with the same non-null [mergeKey] as the last one joins its history step. */
+    private fun set(p: Project, mergeKey: String? = null) {
         if (p == project) return
+        if (mergeKey == null || mergeKey != lastKey || undoStack.isEmpty()) {
+            undoStack.addLast(project)
+            while (undoStack.size > HISTORY) undoStack.removeFirst()
+        }
+        lastKey = mergeKey
+        redoStack.clear()
         project = p
         onChange(p)
     }
 
-    private fun mapScene(id: String, f: (Scene) -> Scene) = set(project.copy(scenes = project.scenes.map { if (it.id == id) f(it) else it }))
+    /** Ends a gesture (a finger lifted): the next change of the same thing is a step of its own. */
+    fun endGesture() { lastKey = null }
+
+    /** Steps back one change; false when there is none. */
+    fun undo(): Boolean {
+        val back = undoStack.removeLastOrNull() ?: return false
+        redoStack.addLast(project)
+        project = back
+        lastKey = null
+        onChange(back)
+        return true
+    }
+
+    fun redo(): Boolean {
+        val fwd = redoStack.removeLastOrNull() ?: return false
+        undoStack.addLast(project)
+        project = fwd
+        lastKey = null
+        onChange(fwd)
+        return true
+    }
+
+    private fun mapScene(id: String, mergeKey: String? = null, f: (Scene) -> Scene) =
+        set(project.copy(scenes = project.scenes.map { if (it.id == id) f(it) else it }), mergeKey)
 
     fun sceneOf(id: String): Scene? = project.scenes.firstOrNull { it.id == id }
     fun actorOf(id: String): Actor? = project.cast.firstOrNull { it.id == id }
     fun nameOf(id: String): String = actorOf(id)?.name ?: id
     fun problems(): List<String> = validator(project)
+
+    companion object {
+        /** How many changes undo remembers. */
+        const val HISTORY = 100
+    }
 
     fun rename(title: String) = set(project.copy(title = title.trim().ifEmpty { project.title }))
 
@@ -162,7 +211,7 @@ class EditorState(
 
     /** How many beats mention this NPC (to warn before deleting). */
     fun actorUses(id: String): Int = project.scenes.sumOf { s ->
-        s.beats.count {
+        s.placements.count { it.kind == PlaceKind.NPC && it.actorId == id } + s.beats.count {
             when (it) {
                 is Beat.Say -> it.who == id
                 is Beat.Show -> it.who == id
@@ -178,9 +227,13 @@ class EditorState(
         if (actorOf(id) == null) return
         set(project.copy(
             cast = project.cast.filter { it.id != id },
-            scenes = project.scenes.map { s ->
+            scenes = project.scenes.map { s0 ->
+                val gone = s0.placements.filter { it.kind == PlaceKind.NPC && it.actorId == id }.map { it.id }.toSet()
+                val s = s0.copy(placements = s0.placements.filter { it.id !in gone })
                 s.copy(beats = s.beats.mapNotNull {
                     when {
+                        it is Beat.Emote && it.placementId in gone -> null
+                        it is Beat.Anim && it.placementId in gone -> null
                         it is Beat.Show && it.who == id -> null
                         it is Beat.Hide && it.who == id -> null
                         it is Beat.Pose && it.who == id -> null
@@ -235,7 +288,18 @@ class EditorState(
     }
 
     fun setStage(sceneId: String, place: String, light: String, placeName: String = place) =
-        mapScene(sceneId) { it.copy(stage = it.stage.copy(name = placeName, place = place, light = light)) }
+        mapScene(sceneId) { it.copy(stage = it.stage.copy(name = placeName, place = place, light = light), stageId = place) }
+
+    /**
+     * Puts the scene on [stageId]: the studio, a place of places.json or "loc:<locationId>:<view>" (then the stage's
+     * own place is the plain studio, as the story's marks need one).
+     */
+    fun setStageId(sceneId: String, stageId: String, name: String = stageId) {
+        if (stageId.isBlank()) return
+        mapScene(sceneId) {
+            it.copy(stageId = stageId, stage = it.stage.copy(name = name, place = if (stageId.startsWith("loc:")) EditorChoices.STUDIO else stageId))
+        }
+    }
 
     // ---------------------------------------------------------------- the beats
 
@@ -248,6 +312,8 @@ class EditorState(
             BeatKind.SHOW -> Beat.Show(who ?: "", "center", "bust")
             BeatKind.HIDE -> Beat.Hide(who ?: "")
             BeatKind.POSE -> Beat.Pose(who ?: "", "")
+            BeatKind.EMOTE -> Beat.Emote(sceneOf(sceneId ?: "")?.placements?.firstOrNull()?.id ?: "", 0)
+            BeatKind.ANIM -> Beat.Anim(sceneOf(sceneId ?: "")?.placements?.firstOrNull()?.id ?: "", 0, false)
             BeatKind.CAMERA -> Beat.Camera("wide")
             BeatKind.CHOICE -> Beat.Choice("", listOf(Beat.Choice.Option("", other), Beat.Choice.Option("", other)))
             BeatKind.GOTO -> Beat.Goto(other)
@@ -287,6 +353,122 @@ class EditorState(
     fun duplicateBeat(sceneId: String, index: Int): Int {
         val b = sceneOf(sceneId)?.beats?.getOrNull(index) ?: return -1
         return addBeat(sceneId, b, index + 1)
+    }
+
+    // ---------------------------------------------------------------- the placements
+
+    fun placementOf(sceneId: String, id: String): Placement? = sceneOf(sceneId)?.placements?.firstOrNull { it.id == id }
+
+    /**
+     * Puts [p] in the scene (its id is made unique among the scene's placements, from its name); returns the id, or null
+     * for a scene that isn't there or an NPC that isn't in the cast. Its numbers are kept within [PlaceMath]'s limits.
+     */
+    fun addPlacement(sceneId: String, p: Placement): String? {
+        val s = sceneOf(sceneId) ?: return null
+        if (p.kind == PlaceKind.NPC && (p.actorId == null || actorOf(p.actorId) == null)) return null
+        val id = freshId(p.id.ifBlank { p.name }.ifBlank { p.kind.name }, s.placements.map { it.id })
+        mapScene(sceneId) { it.copy(placements = it.placements + PlaceMath.sane(p.copy(id = id))) }
+        return id
+    }
+
+    /**
+     * Changes a placement with [f]. Changes with the same [mergeKey] one after the other (a drag) are one undo step;
+     * [endGesture] closes it. The result is kept within [PlaceMath]'s limits.
+     */
+    fun updatePlacement(sceneId: String, id: String, mergeKey: String? = null, f: (Placement) -> Placement) {
+        val s = sceneOf(sceneId) ?: return
+        if (s.placements.none { it.id == id }) return
+        mapScene(sceneId, mergeKey) { sc -> sc.copy(placements = sc.placements.map { if (it.id == id) PlaceMath.sane(f(it).copy(id = id)) else it }) }
+    }
+
+    /** Moves to [x],[y],[z] (the editor passes the ground point under the finger); a drag merges into one step. */
+    fun movePlacement(sceneId: String, id: String, x: Float, y: Float, z: Float, snap: Float = 0f) =
+        updatePlacement(sceneId, id, "move:$sceneId:$id") { if (it.locked) it else it.copy(x = PlaceMath.snap(x, snap), y = PlaceMath.snap(y, snap), z = z) }
+
+    /** Moves by [dx],[dy],[dz] yards (a nudge button), along the world's axes. */
+    fun nudgePlacement(sceneId: String, id: String, dx: Float, dy: Float, dz: Float) =
+        updatePlacement(sceneId, id) { if (it.locked) it else it.copy(x = it.x + dx, y = it.y + dy, z = it.z + dz) }
+
+    /** Turns by [delta] radians (a twist); [snapStep] radians rounds the result to that step (0: free). Merges as a drag. */
+    fun rotatePlacement(sceneId: String, id: String, delta: Float, snapStep: Float = 0f) =
+        updatePlacement(sceneId, id, "rotate:$sceneId:$id") { if (it.locked) it else it.copy(yaw = PlaceMath.snapYaw(it.yaw + delta, snapStep)) }
+
+    /** Sets the yaw outright (a slider). */
+    fun setPlacementYaw(sceneId: String, id: String, yaw: Float) =
+        updatePlacement(sceneId, id, "rotate:$sceneId:$id") { if (it.locked) it else it.copy(yaw = PlaceMath.snapYaw(yaw, 0f)) }
+
+    /** Multiplies the size by [factor] (a pinch). Merges as a drag. */
+    fun scalePlacement(sceneId: String, id: String, factor: Float) =
+        updatePlacement(sceneId, id, "scale:$sceneId:$id") { if (it.locked) it else it.copy(scale = it.scale * factor) }
+
+    fun setPlacementScale(sceneId: String, id: String, scale: Float) =
+        updatePlacement(sceneId, id, "scale:$sceneId:$id") { if (it.locked) it else it.copy(scale = scale) }
+
+    fun renamePlacement(sceneId: String, id: String, name: String) {
+        val n = name.trim()
+        if (n.isNotEmpty()) updatePlacement(sceneId, id) { it.copy(name = n) }
+    }
+
+    /** Plays [anim] (null: idle) on the placement; [emoteId] is the EmoteCatalog id it was picked by, if any. */
+    fun setPlacementAnim(sceneId: String, id: String, anim: Int?, emoteId: Int? = null, loop: Boolean? = null) =
+        updatePlacement(sceneId, id) { it.copy(anim = anim, emoteId = if (anim == null) null else emoteId, loop = loop ?: it.loop) }
+
+    /** Hides or shows it (kept in the scene; Play leaves a hidden one out). One undo step. */
+    fun setPlacementHidden(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(hidden = on) }
+    /** Locks or unlocks it (a locked one isn't moved, turned or resized by the editor's tools). */
+    fun setPlacementLocked(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(locked = on) }
+
+    fun setPlacementSound(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(sound = on) }
+    fun setPlacementLoop(sceneId: String, id: String, on: Boolean) = updatePlacement(sceneId, id) { it.copy(loop = on) }
+
+    /** A copy a yard along x and y of the original, selected by the caller; returns its id. */
+    fun duplicatePlacement(sceneId: String, id: String): String? {
+        val p = placementOf(sceneId, id) ?: return null
+        return addPlacement(sceneId, p.copy(id = p.name + " copy", name = p.name + " (copy)", x = p.x + 1f, y = p.y + 1f, locked = false))
+    }
+
+    /** Removes it, and the Emote and Animation beats that played on it. */
+    fun removePlacement(sceneId: String, id: String) {
+        if (placementOf(sceneId, id) == null) return
+        mapScene(sceneId) { s ->
+            s.copy(placements = s.placements.filter { it.id != id }, beats = s.beats.filterNot {
+                (it is Beat.Emote && it.placementId == id) || (it is Beat.Anim && it.placementId == id)
+            })
+        }
+    }
+}
+
+/** The placement editor's maths: limits, snapping, the angle. Pure, so the tests cover it. */
+object PlaceMath {
+    const val MIN_SCALE = 0.05f
+    const val MAX_SCALE = 20f
+    /** The world's edge in yards (the map is about 34,000 across); heights from the deepest sea to the sky. */
+    const val LIMIT = 17_066f
+    const val MIN_Z = -2_000f
+    const val MAX_Z = 5_000f
+    const val TWO_PI = (2.0 * Math.PI).toFloat()
+
+    /** [v] on a grid of [step] (0: not snapped). */
+    fun snap(v: Float, step: Float): Float = if (step > 0f && v.isFinite()) Math.round(v / step) * step else v
+
+    /** [yaw] turned into -pi..pi, and rounded to [step] radians when it's above 0. */
+    fun snapYaw(yaw: Float, step: Float): Float {
+        if (!yaw.isFinite()) return 0f
+        var a = yaw % TWO_PI
+        if (a > Math.PI.toFloat()) a -= TWO_PI else if (a < -Math.PI.toFloat()) a += TWO_PI
+        if (step > 0f) a = Math.round(a / step) * step
+        return a
+    }
+
+    fun clampScale(s: Float): Float = if (s.isFinite()) s.coerceIn(MIN_SCALE, MAX_SCALE) else 1f
+
+    /** [p] with its numbers made usable: finite, within the world, a size above 0. */
+    fun sane(p: Placement): Placement {
+        fun c(v: Float, lo: Float, hi: Float) = if (v.isFinite()) v.coerceIn(lo, hi) else 0f
+        return p.copy(
+            x = c(p.x, -LIMIT, LIMIT), y = c(p.y, -LIMIT, LIMIT), z = c(p.z, MIN_Z, MAX_Z),
+            yaw = snapYaw(p.yaw, 0f), scale = clampScale(p.scale),
+        )
     }
 }
 

@@ -22,6 +22,7 @@ val pureUi = tasks.register<Copy>("pureUi") {
     from("../android/app/src/main/java/com/logie/wifecraft/ui/CreatorLayout.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/EditorState.kt")
     from("../android/app/src/main/java/com/logie/wifecraft/ui/AnimState.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/ui/PlaceState.kt")
     into(layout.buildDirectory.dir("gen/pureUi"))
 }
 
@@ -31,16 +32,33 @@ val pureData = tasks.register<Copy>("pureData") {
     into(layout.buildDirectory.dir("gen/pureData"))
 }
 
+// play/ is Android (Compose) but for the placed things' host, which is pure.
+val purePlay = tasks.register<Copy>("purePlay") {
+    from("../android/app/src/main/java/com/logie/wifecraft/play/PlaceHost.kt")
+    into(layout.buildDirectory.dir("gen/purePlay"))
+}
+
+// audio/ also holds Android classes: only the scene audio's decisions and the sound index are copied.
+val pureAudio = tasks.register<Copy>("pureAudio") {
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/SceneAudioCore.kt")
+    from("../android/app/src/main/java/com/logie/wifecraft/audio/SoundIndex.kt")
+    into(layout.buildDirectory.dir("gen/pureAudio"))
+}
+
 sourceSets {
     main {
         kotlin.srcDir(pureUi.map { it.destinationDir })
         kotlin.srcDir(pureData.map { it.destinationDir })
+        kotlin.srcDir(pureAudio.map { it.destinationDir })
+        kotlin.srcDir(purePlay.map { it.destinationDir })
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/editor")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/story")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/update")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/creator")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/sims")
         kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/anim")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/location")
+        kotlin.srcDir("../android/app/src/main/java/com/logie/wifecraft/catalog")
     }
 }
 
@@ -58,6 +76,8 @@ tasks.test {
     useJUnitPlatform()
     // The app's assets (places.json), for the tests that check them.
     systemProperty("wifecraft.assets", file("../android/app/src/main/assets").absolutePath)
+    // downloaded game files (each named by its id), for the tests that check the real ones (-Dwifecraft.gamefiles=DIR)
+    System.getProperty("wifecraft.gamefiles")?.let { systemProperty("wifecraft.gamefiles", it) }
     testLogging {
         events("passed", "failed")
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL

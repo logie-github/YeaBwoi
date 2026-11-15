@@ -11,11 +11,13 @@
 #include <unordered_map>
 #include <vector>
 
+#include "location.h"
 #include "m2.h"
 #include "skin.h"
 #include "softbody.h"
 #include "wmath.h"
 #include "wmo.h"
+#include "glutil.h"
 
 namespace wc {
 
@@ -111,9 +113,14 @@ public:
     uint32_t animClock() const { return animClock_; }
     // Options' Soft body for everyone on stage (softbody.h: kSoftOff .. kSoftStrong); applies from the next frame.
     void setSoftBody(int level);
+    // Whether an actor is a character (a playable race's model, the creator's or an NPC of those races): only a character
+    // has a soft body; a creature (a boar, a wolf) never does, whatever its bones and skin look like. Actors start as not.
+    void setCharacter(int id, bool character);
     // An actor's soft body (the desktop check reads its regions and displacements), or null.
     const SoftSim* softSim(int id) const { auto it = actors_.find(id); return it == actors_.end() ? nullptr : &it->second.soft.sim; }
     void showActor(int id, bool visible);
+    // Replaces an actor's scale (addActor's): the placement editor sizes a placed person.
+    void setActorScale(int id, float scale);
     bool actorReady(int id) const;
     // How tall an actor stands (for the camera's framing).
     float actorHeight(int id) const;
@@ -127,6 +134,52 @@ public:
 
     void setCamera(V3 eye, V3 target, float fovDegrees);
     void setLight(const Light& l) { light_ = l; }
+    const Light& light() const { return light_; }
+
+    // ---------------------------------------------------------------- locations and props (location.cpp)
+    // A location (location.h: an entry of assets/locations.json): its WMO's groups in world coordinates, its doodads and
+    // extra placements drawn instanced by model, its light and fog (with `view`'s own over them; "" none). Its files must be
+    // here (LocationLoader fetched them); a group or model that isn't is left out and counted in locationStats. Replaces
+    // the location before. False and locationError() when the entry or its root can't be read.
+    bool loadLocation(const std::string& json, const std::string& id, const std::string& view);
+    // A view of the loaded location: its light, fog and ground (the camera is the caller's: the view's is in the entry).
+    bool locationView(const std::string& view);
+    void clearLocation();
+    bool locationLoaded() const { return location_ != nullptr; }
+    const std::string& locationError() const { return locError_; }
+    const LocationDesc* location() const { return location_ ? &locDesc_ : nullptr; }
+    struct LocationStats {
+        size_t groups = 0, groupsMissing = 0, triangles = 0, doodads = 0, doodadsMissing = 0, models = 0;
+        size_t drawCalls = 0, groupsDrawn = 0, instancesDrawn = 0;   // the last frame's
+        V3 boundsMin, boundsMax;
+    };
+    LocationStats locationStats() const;
+
+    // An editor prop: a static M2 or a WMO (with its default doodad set) by file id, standing at `pos` turned `yaw`
+    // (radians about z) at `scale`. Its files must be here (PropLoader). Returns its id, 0 when it can't be read
+    // (modelError(fileId) says why).
+    int addProp(uint32_t fileId, V3 pos, float yaw, float scale);
+    bool moveProp(int id, V3 pos, float yaw, float scale);
+    void removeProp(int id);
+    void clearProps();
+    // A prop's box in the world.
+    bool propBounds(int id, V3& min, V3& max) const;
+    // What is selected: drawn with an outline (kind 1 a prop) or nothing (0). An actor (2) is remembered, not outlined.
+    void select(int kind, int id) { selKind_ = kind; selId_ = id; }
+
+    enum PickKind { kPickNone = 0, kPickProp = 1, kPickActor = 2, kPickGround = 3, kPickLocation = 4 };
+    struct PickHit {
+        int kind = kPickNone;
+        int id = 0;          // the prop's or actor's id; a location's doodad index (-1: its WMO)
+        V3 point;
+        float distance = 0;
+    };
+    // What the screen point (sx, sy) of a `width` x `height` view of the last camera hits first: a prop, an actor, the
+    // location (a floor facing up is the ground) or the plain ground.
+    PickHit pick(float sx, float sy, int width, int height) const;
+    // The floor under (x, y) nearest below z (a little above counts: a step up): the location's groups and WMO props,
+    // else its plain ground. False when there is none.
+    bool groundAt(float x, float y, float z, float& out) const;
     void render(int width, int height, uint32_t nowMs);
 
 private:
@@ -208,6 +261,7 @@ private:
         float boneAnimScale = 1;
         std::vector<std::pair<int, float>> breath;   // a held imported pose breathes: these bones, by these shares
         SoftDraw soft;                 // the soft body (softbody.h)
+        bool character = false;        // setCharacter: the soft body applies (a creature's never does)
     };
     struct GroupGl {
         unsigned vao = 0, vbo = 0, ibo = 0;
@@ -223,6 +277,92 @@ private:
         bool seen = true;
         float rgba[4] = {1, 1, 1, 1};
     };
+
+    // ---- locations and props (location.cpp)
+    struct StaticGroup {
+        unsigned vao = 0, vbo = 0, ibo = 0;
+        V3 boundsMin, boundsMax;          // in the world
+        std::vector<WmoBatch> batches;
+        bool interior = false;
+        std::vector<uint8_t> verts;       // the vertex buffer's bytes (made again after the context is lost)
+        std::vector<uint16_t> indices;
+        std::vector<float> tris;          // its drawn triangles in the world, nine floats each (picking)
+        V3 meanLight;                     // its vertices' mean precomputed light (props standing in it take it)
+    };
+    struct Instance {
+        ModelGl* mesh = nullptr;
+        M4 world;
+        V3 centre;
+        float radius = 1;
+        float light[4] = {0, 0, 0, 1};    // precomputed light (rgb) and how much the outside's light counts (a)
+    };
+    struct PlacedWmo {
+        uint32_t fileId = 0;
+        WmoRoot root;
+        M4 world;
+        float scale = 1;
+        std::vector<StaticGroup> groups;
+        std::vector<Instance> doodads;
+        V3 boundsMin, boundsMax;
+        float intAmbient[3] = {0, 0, 0};
+        size_t groupsMissing = 0, doodadsMissing = 0;
+    };
+    struct EditorProp {
+        uint32_t fileId = 0;
+        V3 pos;
+        float yaw = 0, scale = 1;
+        Instance inst;                    // an M2's
+        std::unique_ptr<PlacedWmo> wmo;   // a WMO's
+    };
+    // The map's ground under a location (terrain.cpp): one ADT chunk each, in the location's coordinates.
+    struct TerrainChunk {
+        unsigned vao = 0, vbo = 0, ibo = 0, alphaTex = 0;
+        std::vector<uint8_t> verts;       // 145 vertices as StaticGroup's (36 bytes: position, normal, uv in cells, MCCV)
+        std::vector<uint16_t> indices;    // its cells' triangles, holes left out
+        std::vector<uint8_t> alpha;       // 64 x 64 RGBA: layers 1..3's alpha
+        uint32_t layers[4] = {0, 0, 0, 0};
+        int layerCount = 0;
+        std::vector<float> tris;          // in the location's coordinates (floors, picking)
+        V3 boundsMin, boundsMax;
+    };
+    std::vector<TerrainChunk> terrain_;
+    unsigned terrainProg_ = 0;
+    void loadTerrain(const LocationDesc& d);
+    void uploadTerrain(TerrainChunk& c);
+    void drawTerrain(const M4& viewProj, const gl::Frustum& f);
+
+    std::unique_ptr<PlacedWmo> location_;
+    LocationDesc locDesc_;
+    LocationLook locLook_;               // the entry's look with the view's over it
+    std::vector<Instance> locExtras_;
+    size_t locExtrasMissing_ = 0;
+    std::string locError_;
+    std::map<std::pair<int, int>, std::vector<float>> locFloor_;
+    std::map<int, EditorProp> editorProps_;
+    int nextProp_ = 1;
+    int selKind_ = 0, selId_ = 0;
+    unsigned locProg_ = 0, instProg_ = 0, groundProg_ = 0, instVbo_ = 0, groundVao_ = 0, groundVbo_ = 0;
+    size_t instCapacity_ = 0;
+    mutable LocationStats frameStats_;
+    std::unordered_map<ModelGl*, unsigned> instVaos_;
+
+    bool placeWmo(uint32_t fileId, const M4& world, float scale, const std::vector<int>& groups,
+                  const std::vector<uint32_t>& groupFiles, const std::vector<int>& sets,
+                  const std::vector<std::string>& setNames, PlacedWmo& out, std::string& error);
+    void uploadStatic(StaticGroup& g);
+    void staticGl();                     // after initGl: programs, and the buffers of what is loaded
+    void forgetStaticGl();
+    void rebuildLocFloor();
+    void lightProp(Instance& in) const;  // inside a location's interior group: its light
+    void drawStatic(bool transparent, const M4& viewProj);
+    void drawGround(const M4& viewProj);
+    void drawSelection(const M4& viewProj);
+    // A person standing in a location's room is lit by the room (its ambient and baked light), not the sky; `restore`
+    // puts the scene's light back on the m2 program.
+    void lightActor(const V3& feet, bool restore);
+    void drawWmoGroups(const PlacedWmo& w, bool transparent, const gl::Frustum& f, float glow);
+    void drawInstances(const std::vector<const Instance*>& list, bool transparent, const float* flat, float inflate, float glow);
+    float floorIn(const std::map<std::pair<int, int>, std::vector<float>>& grid, float x, float y, float z) const;
 
     FileLookup files_;
     bool glReady_ = false;

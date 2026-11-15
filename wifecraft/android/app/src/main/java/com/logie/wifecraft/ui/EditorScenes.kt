@@ -45,7 +45,8 @@ fun EditorScenes(
                         Column(Modifier.weight(1f)) {
                             Text((if (s.id == project.start) "* " else "") + s.name, style = frizStyle(18.sp), maxLines = 1)
                             Text(
-                                (places.firstOrNull { it.id == s.stage.place }?.name ?: s.stage.place) + " · " + s.stage.light + " · " + plural(s.beats.size, "beat"),
+                                (places.firstOrNull { it.id == com.logie.wifecraft.editor.Compile.stageOf(s) }?.name ?: s.stage.name.ifBlank { com.logie.wifecraft.editor.Compile.stageOf(s) }) +
+                                    " · " + s.stage.light + " · " + plural(s.beats.size, "beat") + (if (s.placements.isEmpty()) "" else " · " + plural(s.placements.size, "placed thing")),
                                 style = frizStyle(12.sp, WowColors.grey), maxLines = 1,
                             )
                         }

@@ -89,9 +89,17 @@ fun EditorScreen(
     onPlayProject: ((project: Project, script: String) -> Unit)? = null,
     /** The imported animations: a Pose beat picks from them, and the checks name a missing one. */
     animLibrary: AnimLibrary? = null,
+    /** The placement editor's engine (MainActivity's): the locations, the library, the placed things on the stage. */
+    placeEngine: PlaceEngine? = null,
 ) {
-    /** The checks, with the animation library's ids when there is one (read when they run, so a deleted animation shows). */
-    val validator: (Project) -> List<String> = { p -> Compile.validate(p, animLibrary?.let { lib -> runCatching { lib.list().map { it.id }.toSet() }.getOrNull() }) }
+    /**
+     * The checks, with the animation library's ids when there is one (read when they run, so a deleted animation shows) and
+     * every stage there is (the studio, the places, each location's views).
+     */
+    val stageIds = remember(places, placeEngine) { StageChoices.list(places, placeEngine?.locations.orEmpty()).map { it.first }.toSet() }
+    val validator: (Project) -> List<String> = { p ->
+        Compile.validate(p, animLibrary?.let { lib -> runCatching { lib.list().map { it.id }.toSet() }.getOrNull() }, stageIds)
+    }
     var rev by remember { mutableIntStateOf(0) }
     var state by remember {
         mutableStateOf((start as? EditorStart.Open)?.let { s -> EditorState(s.project, validator, onChange = { api.save(it); rev++ }) })
@@ -138,6 +146,7 @@ fun EditorScreen(
             onPlay = { script -> onPlayProject?.invoke(st.project, script) ?: onPlay(script) },
             onBack = { page = Page.Scenes },
             animLibrary = animLibrary,
+            engine = placeEngine,
         )
         is Page.Creator -> {
             val actor = p.actorId?.let { st.actorOf(it) }

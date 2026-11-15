@@ -11,6 +11,9 @@ bool WmoRoot::load(const Bytes& file) {
         Reader cr(file.data() + c.offset, c.size);
         if (c.tag == rtag("MOHD")) {
             ambient = cr.u32(28);
+            boundsMin = V3(cr.f32(36), cr.f32(40), cr.f32(44));
+            boundsMax = V3(cr.f32(48), cr.f32(52), cr.f32(56));
+            flags = cr.u16(60);
         } else if (c.tag == rtag("MOMT")) {
             for (uint32_t o = 0; o + 64 <= c.size; o += 64) {
                 WmoMaterial m;
@@ -66,6 +69,7 @@ bool WmoGroup::load(const Bytes& file) {
         if (top.tag != rtag("MOGP")) continue;
         Reader hr(file.data() + top.offset, top.size);
         flags = hr.u32(8);
+        transBatches = hr.u16(0x28); intBatches = hr.u16(0x2A); extBatches = hr.u16(0x2C);
         bool firstUv = true, firstColor = true;
         for (const Chunk& c : chunks(r, top.offset + 0x44, top.offset + top.size)) {
             Reader cr(file.data() + c.offset, c.size);
@@ -90,6 +94,7 @@ bool WmoGroup::load(const Bytes& file) {
                     WmoBatch b;
                     b.indexStart = cr.u32(o + 12);
                     b.indexCount = cr.u16(o + 16);
+                    b.lastVertex = cr.u16(o + 20);
                     uint8_t f = cr.u8(o + 22);
                     b.material = (f & 2) ? cr.u16(o + 10) : cr.u8(o + 23);
                     batches.push_back(b);
